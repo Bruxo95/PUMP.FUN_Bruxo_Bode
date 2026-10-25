@@ -293,7 +293,7 @@ def test_token_risk_from_solana_tracker_blocks_dangerous_tokens(env):
     pf.http = httpx.AsyncClient(transport=httpx.MockTransport(h))
     asyncio.run(pf.risk_check(mint, "chave-st"))
     asyncio.run(pf.risk_check(mint, "chave-st"))                                # cache: 1 consulta só
-    assert seen == [("/tokens/" + mint, "chave-st")]
+    assert seen == [("/tokens/" + mint, "chave-st"), ("/stats/" + mint, "chave-st")]   # 0.13.0: + estatísticas
     tk = pf.tokens[mint]
     assert "Freeze Authority" in pf.risk_block(tk)
     tk["risk"] = {"score": 8, "rugged": False, "danger": [], "warn": ["Top 10 Holders"]}
