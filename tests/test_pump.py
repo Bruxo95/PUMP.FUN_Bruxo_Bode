@@ -728,6 +728,6 @@ def test_pump_curve_filters_trust_size_and_lag(tmp_path):
     pf.cfg.pump_min_curve_speed, pf.cfg.pump_size_by_trader = 0.0, False
     pf.add_manual(_W)
     n = "Lag".ljust(41, "1") + "pump"
-    now = _t.time()
+    now = float(int(_t.time()))                                               # blockTime é inteiro: atraso exato
     pf.on_message(_ev("buy", _W, n, 1.0, 1e6, 30, 3e7, blockTime=int(now) - 4), now)
     assert "atraso 4 s" in pf.feed[0]["reason"] and pf.positions()[-1]["lag_s"] >= 3.5
