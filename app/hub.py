@@ -396,8 +396,9 @@ class PumpHub:
     async def study_share_targets(self, uid: str) -> list[dict]:
         """Para quem dá para compartilhar: nome e e-mail mascarado; nunca a lista completa de e-mails (0.17.1)."""
         out = []
-        for p in await self.db.select("profiles", None, order="criado_em.asc", columns="user_id,nome,email,bloqueado"):
-            if p["user_id"] == uid or p.get("bloqueado"):
+        for p in await self.db.select("profiles", None, order="criado_em.asc", columns="user_id,nome,email,bloqueado,role"):
+            # só admin usa as Carteiras em estudo desde a 0.17.4; compartilhar com usuário comum não teria efeito
+            if p["user_id"] == uid or p.get("bloqueado") or p.get("role") != "admin":
                 continue
             em = str(p.get("email") or "")
             nm, _, dom = em.partition("@")
@@ -413,8 +414,8 @@ class PumpHub:
             return {"error": "carteira não está no seu estudo"}
         if to_uid == pf.user_id:
             return {"error": "escolha outro usuário"}
-        rows = await self.db.select("profiles", {"user_id": to_uid}, columns="user_id,bloqueado")
-        if not rows or rows[0].get("bloqueado"):
+        rows = await self.db.select("profiles", {"user_id": to_uid}, columns="user_id,bloqueado,role")
+        if not rows or rows[0].get("bloqueado") or rows[0].get("role") != "admin":
             return {"error": "usuário não encontrado"}
         tem = [r["wallet"] for r in await self.db.select("study_wallets", {"user_id": to_uid}, columns="wallet")]
         if wallet in tem:

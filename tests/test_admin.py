@@ -17,6 +17,20 @@ def test_only_admin_reaches_admin_routes(env):
     assert c.post(f"/api/admin/users/{UA}", json={"role": "user"}, headers=B).status_code == 403
 
 
+def test_usar_ou_descartar_routes_are_admin_only(env):
+    """0.17.4: Carteiras em estudo, Radar, Relatórios e Aprendizado só para admin também no servidor."""
+    c = env["c"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    for path in ("/api/pump/study", "/api/pump/study/share-targets", f"/api/pump/study/{W}", "/api/pump/radar",
+                 "/api/pump/reports", "/api/pump/aprendizado"):
+        assert c.get(path, headers=B).status_code == 403
+        assert c.get(path).status_code == 401
+        assert c.get(path, headers=A).status_code == 200
+    assert c.post("/api/pump/study", json={"wallet": W, "action": "add"}, headers=B).status_code == 403
+    assert c.post("/api/pump/study/share", json={"wallet": W, "to": UA}, headers=B).status_code == 403
+    assert c.get("/api/pump", headers=B).status_code == 200                          # o resto do painel segue aberto
+
+
 def test_users_list_has_usage_but_never_keys(env):
     c = env["c"]
     c.post("/api/secrets", json={"name": "solanatracker_api_key", "value": "st-segredo-" + "w" * 30}, headers=tok(UB, "b@x.com"))

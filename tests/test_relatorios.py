@@ -33,6 +33,7 @@ def test_reports_route_is_per_user(env):
     c, hub = env["c"], env["hub"]
     import asyncio
     pa = asyncio.run(hub.engine(UA))
+    env["db"].set_role(UB, "admin")  # telas do menu Usar ou descartar: só admin (0.17.4)
     pa._save_trade(_t("W", 0.5, "alvo (+50%)"))
     ra = c.get("/api/pump/reports?days=0", headers=tok(UA)).json()
     rb = c.get("/api/pump/reports?days=0", headers=tok(UB, "b@x.com")).json()

@@ -415,5 +415,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   "Só copiar traders online" é da 0.9.0 do Bruxo95 e ficou em Configurações). Marcas NOVO mantidas.
 - Funcionalidade nova que ainda está em teste entra nesse grupo.
 - 0.17.3: o grupo inteiro é só do admin (pedido do dono em 2026-10-25): `#navGrp` escondido, `route()` manda
-  não admin para a Visão geral e o Status das configurações esconde as opções novas. As rotas `/api/pump/study*`,
-  `radar`, `reports` e `aprendizado` continuam abertas a qualquer usuário logado (cada um só vê os próprios dados).
+  não admin para a Visão geral e o Status das configurações esconde as opções novas.
+- 0.17.4: as rotas `/api/pump/study*`, `radar`, `reports` e `aprendizado` usam `admin_engine`/`admin_only` (403 para
+  usuário comum); Compartilhar só lista e aceita admins. Testes que usam o usuário B nessas rotas chamam
+  `db.set_role(UB, "admin")`; regra nova em `tests/test_admin.py::test_usar_ou_descartar_routes_are_admin_only`.

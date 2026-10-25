@@ -39,6 +39,7 @@ def test_learning_summarizes_traders_and_suggests_with_minimum_base(env):
 
 def test_learning_route_requires_login_and_is_per_user(env):
     c = env["c"]
+    env["db"].set_role(UB, "admin")  # telas do menu Usar ou descartar: só admin (0.17.4)
     assert c.get("/api/pump/aprendizado").status_code == 401
     ra = c.get("/api/pump/aprendizado", headers=tok(UA)).json()
     rb = c.get("/api/pump/aprendizado", headers=tok(UB, "b@x.com")).json()

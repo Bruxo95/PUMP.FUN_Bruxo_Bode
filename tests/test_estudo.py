@@ -29,6 +29,7 @@ def test_profile_from_positions_and_from_live_trades():
 def test_study_routes_are_per_user_and_record_trades(env):
     c, hub, db = env["c"], env["hub"], env["db"]
     A, B = tok(UA), tok(UB, "b@x.com")
+    env["db"].set_role(UB, "admin")  # telas do menu Usar ou descartar: só admin (0.17.4)
     assert c.post("/api/pump/study", json={"wallet": "x;drop", "action": "add"}, headers=A).json()["error"]
     r = c.post("/api/pump/study", json={"wallet": W, "action": "add", "apelido": "baleia"}, headers=A).json()
     assert r["ok"]
@@ -92,6 +93,7 @@ def test_share_study_wallet_with_another_user(env):
     """0.17.1: Compartilhar coloca a carteira na lista de estudo de outro usuário (pedido do dono em 2026-10-25)."""
     c, hub, db = env["c"], env["hub"], env["db"]
     A, B = tok(UA, "ana@x.com"), tok(UB, "bia@x.com")
+    env["db"].set_role(UB, "admin")  # telas do menu Usar ou descartar: só admin (0.17.4)
     c.get("/api/pump/study", headers=B)                                                  # B já tem conta
     assert c.post("/api/pump/study", json={"wallet": W, "action": "add", "apelido": "baleia"}, headers=A).json()["ok"]
     us = c.get("/api/pump/study/share-targets", headers=A).json()["users"]

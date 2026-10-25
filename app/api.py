@@ -92,6 +92,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
             raise HTTPException(403, "só o admin")
         return u
 
+    # menu "Usar ou descartar" (Carteiras em estudo, Radar, Relatórios, Aprendizado): só admin também no servidor,
+    # pedido do dono em 2026-10-25 (0.17.4); antes só o painel escondia
+    async def admin_engine(u: dict = Depends(admin_only)):
+        return await hub.engine(u["id"])
+
     # ------------------------------------------------------------------ público
     @app.get("/health")
     def health():
@@ -153,14 +158,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return {"ok": True, "enabled": on}
 
     @app.get("/api/pump/reports")
-    async def pump_reports(days: int = 7, real: int = 0, pf=Depends(engine)):
+    async def pump_reports(days: int = 7, real: int = 0, pf=Depends(admin_engine)):
         """Aba Relatórios: resultado por trader copiado, por motivo de saída, cópias barradas e por dia."""
         from .reports import build
         d = days if days in (1, 7, 30, 90) else None                 # 0 ou outro valor = todo o histórico
         return build(pf.trades(100000), list(pf.feed), d, bool(real), pf.followed, list(pf.paused()))
 
     @app.get("/api/pump/aprendizado")
-    async def pump_aprendizado(real: int = 0, pf=Depends(engine)):
+    async def pump_aprendizado(real: int = 0, pf=Depends(admin_engine)):
         """Aprendizado diário: resumo, o que os top traders fizeram e sugestões (nunca aplicadas sozinhas)."""
         from .learning import build
         hist, err = await hub.learning_history(pf.user_id)
@@ -176,12 +181,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return pf.token_card(mint)
 
     @app.get("/api/pump/radar")
-    async def radar(pf=Depends(engine)):
+    async def radar(pf=Depends(admin_engine)):
         return hub.radar_snapshot(pf)
 
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
     @app.get("/api/pump/study")
-    async def study_list(pf=Depends(engine)):
+    async def study_list(pf=Depends(admin_engine)):
         from .study import MAX_WALLETS, copy_params, summary
         prm = copy_params(pf)
         try:
@@ -201,7 +206,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 "limit": MAX_WALLETS, "key": bool(hub._study_key()), "params": prm}
 
     @app.post("/api/pump/study")
-    async def study_change(body: dict, pf=Depends(engine)):
+    async def study_change(body: dict, pf=Depends(admin_engine)):
         w, act = str(body.get("wallet") or "").strip(), str(body.get("action") or "add")
         if act not in ("add", "remove"):
             return {"error": "ação inválida"}
@@ -214,11 +219,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
             return {"error": "não consegui salvar agora (tabela criada no banco?)"}
 
     @app.get("/api/pump/study/share-targets")
-    async def study_share_targets(u: dict = Depends(user)):
+    async def study_share_targets(u: dict = Depends(admin_only)):
         return {"users": await hub.study_share_targets(u["id"])}
 
     @app.post("/api/pump/study/share")
-    async def study_share(body: dict, u: dict = Depends(user)):
+    async def study_share(body: dict, u: dict = Depends(admin_only)):
         w, to = str(body.get("wallet") or "").strip(), str(body.get("to") or "").strip()
         pf = await hub.engine(u["id"])
         if not pf.valid_addr(w) or not UUID.match(to):
@@ -230,7 +235,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             return {"error": "não consegui compartilhar agora"}
 
     @app.get("/api/pump/study/{wallet}")
-    async def study_profile(wallet: str, pf=Depends(engine)):
+    async def study_profile(wallet: str, pf=Depends(admin_engine)):
         if not pf.valid_addr(wallet) or wallet not in (getattr(pf, "study", []) or []):
             return {"error": "carteira não está no seu estudo"}
         from .study import copy_params

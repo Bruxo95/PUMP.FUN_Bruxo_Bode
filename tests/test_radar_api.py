@@ -34,6 +34,7 @@ def radar_events(pf):
 def test_radar_requires_login_and_settings_are_private_and_persistent(env):
     c, hub, db = env["c"], env["hub"], env["db"]
     a, b = tok(UA), tok(UB, "b@x.com")
+    env["db"].set_role(UB, "admin")  # telas do menu Usar ou descartar: só admin (0.17.4)
     assert c.get("/api/pump/radar").status_code == 401
     initial = radar(c, a)
     assert initial["enabled"] is False and initial["min_wallets"] == 2 and initial["window_min"] == 5
@@ -69,6 +70,7 @@ def test_radar_rejects_invalid_options_without_changing_them(env, key, value):
 def test_radar_counts_only_the_authenticated_users_study_wallets(env):
     c, hub = env["c"], env["hub"]
     a, b = tok(UA), tok(UB, "b@x.com")
+    env["db"].set_role(UB, "admin")  # telas do menu Usar ou descartar: só admin (0.17.4)
     for wallet in (W, W2):
         add_study(c, a, wallet)
     add_study(c, b, W)
@@ -288,6 +290,7 @@ def test_reconnection_promotes_once_on_a_new_event_and_get_never_emits_hot(env):
 def test_hot_callout_and_its_rank_are_scoped_to_the_current_users_study_list(env):
     c, hub = env["c"], env["hub"]
     a, b = tok(UA), tok(UB, "b@x.com")
+    env["db"].set_role(UB, "admin")  # telas do menu Usar ou descartar: só admin (0.17.4)
     for wallet in (W, W2):
         add_study(c, a, wallet)
     add_study(c, b, W)

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.17.4",
+      "data": "2026-10-25",
+      "tipo": "segurança",
+      "onde": "Menu → Usar ou descartar",
+      "titulo": "Usar ou descartar travado para admin também no servidor",
+      "oque": "Além de esconder o menu, o servidor agora recusa para usuário comum os dados de Carteiras em estudo, Radar de KOLs, Relatórios e Aprendizado diário. Compartilhar uma carteira em estudo só mostra e aceita outros admins."
+    },
+    {
       "versao": "0.17.3",
       "data": "2026-10-25",
       "tipo": "melhoria",

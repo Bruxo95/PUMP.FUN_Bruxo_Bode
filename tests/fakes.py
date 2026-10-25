@@ -93,6 +93,11 @@ class FakeREST:
         return None
 
     # ajudante: cria um usuário como o gatilho do Supabase faria (1º = admin)
+    def set_role(self, uid, role):
+        for p in self.tables["profiles"]:
+            if p["user_id"] == uid:
+                p["role"] = role
+
     def add_user(self, uid, email, nome=None):
         role = "admin" if not self.tables["profiles"] else "user"
         self.tables["profiles"].append({"user_id": uid, "email": email, "nome": nome, "avatar_url": None,
