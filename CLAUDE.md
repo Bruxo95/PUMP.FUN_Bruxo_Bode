@@ -414,3 +414,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   e Novidades (admin). As opções ON/OFF novas saíram de Configurações para `novas` (mesmas chaves `pump_*`;
   "Só copiar traders online" é da 0.9.0 do Bruxo95 e ficou em Configurações). Marcas NOVO mantidas.
 - Funcionalidade nova que ainda está em teste entra nesse grupo.
+- 0.17.3: o grupo inteiro é só do admin (pedido do dono em 2026-10-25): `#navGrp` escondido, `route()` manda
+  não admin para a Visão geral e o Status das configurações esconde as opções novas. As rotas `/api/pump/study*`,
+  `radar`, `reports` e `aprendizado` continuam abertas a qualquer usuário logado (cada um só vê os próprios dados).

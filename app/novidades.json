@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.17.3",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar",
+      "titulo": "Usar ou descartar só para o admin",
+      "oque": "O menu Usar ou descartar e tudo que está dentro dele (Carteiras em estudo, Radar de KOLs, Relatórios, Aprendizado diário, Opções novas de cópia e Novidades) agora aparecem só para o admin. Usuário comum não vê o menu, não abre essas telas pelo endereço e não vê as opções novas no Status das configurações da Visão geral."
+    },
+    {
       "versao": "0.17.2",
       "data": "2026-10-25",
       "tipo": "melhoria",

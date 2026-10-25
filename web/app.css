@@ -438,3 +438,4 @@ select.in{padding-right:24px}
 .shell.mini .navsub{margin-left:0;padding-left:0;border-left:0}
 @media (prefers-reduced-motion:reduce){.navgrp-h .chev{transition:none}}
 .side .nav .navgrp,.side .nav .navgrp-h{flex-shrink:0}
+.navgrp[hidden]{display:none}
