@@ -15,6 +15,12 @@ achados e próxima ação. Se o identificador da IA não estiver exposto, declar
 nunca adivinhar. Associar os arquivos brutos dos scanners a essa identificação por
 um manifesto, preservando seus formatos e a base histórica auditada.
 
+Preferência do usuário (2026-10-25): não instalar dependências ou ferramentas deste
+projeto no Windows principal. Os ambientes locais foram removidos a pedido dele.
+Não recriar `.venv`, instalar scanners nem reinstalar pacotes para rodar testes sem
+combinar antes um ambiente de execução isolado/remoto com o usuário. Registrar a
+limitação de testes quando esse ambiente ainda não estiver disponível.
+
 - Mantenha decisões, pendências e resultados de validação no `CLAUDE.md`, sem
   duplicar a memória em arquivos específicos de cada ferramenta.
 - Confira o código e o estado atual do Git; diferencie informações históricas de

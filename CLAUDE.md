@@ -172,3 +172,17 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Regra para futuras auditorias: sempre identificar data, versão da aplicação, SHA auditado, IA/modelo
   (ou indisponibilidade do identificador exato), achados, validações e ponto de retomada; preservar a base
   histórica ao corrigir versões posteriores. Não confundir commit do relatório com commit auditado.
+
+## Ambiente local removido a pedido do usuário (2026-10-25)
+- Removidos `.venv/`, `.pytest_cache/`, caches Python de app/tests, o ambiente temporário
+  `pump-security-audit-1cec6a0` (incluindo Bandit, pip-audit e Gitleaks) e o cache próprio do pip-audit.
+- Também removidos 188 arquivos recentes de cache/download associados aos pacotes desta atividade;
+  preservados os caches anteriores e os demais projetos. Não houve instalação global desses pacotes.
+- Código, relatórios, histórico Git e autenticação Git/GitHub preservados. A auditoria continua como
+  registro histórico da base 0.8.2; remover ferramentas não corrige os achados.
+- Não reinstalar dependências no Windows principal. Combinar antes isolamento real/remoto para futuras
+  instalações e testes; uma venv separa dependências, mas não é barreira contra código malicioso.
+- A limpeza não fez correções ou deploy; o usuário autorizou depois o commit e push deste registro.
+- Atualização somente documental, aplicação segue 0.8.2. Verificação: `git diff --check`; testes Python
+  não reexecutados porque o ambiente foi removido. Nenhuma dependência foi reinstalada.
+- Próximo passo: aguardar a nova instrução do usuário.
