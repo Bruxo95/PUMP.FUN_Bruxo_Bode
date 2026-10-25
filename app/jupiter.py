@@ -15,6 +15,8 @@ import logging
 import time
 from datetime import datetime, timezone
 
+from . import txguard
+
 log = logging.getLogger("jupiter")
 
 USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
@@ -138,8 +140,8 @@ class JupiterWallet:
         self._sol_bal_at = 0.0
 
     async def _rpc(self, method: str, params: list):
-        r = await self.http.post(self.wallet.rpc_url, json={"jsonrpc": "2.0", "id": 1, "method": method,
-                                                            "params": params}, timeout=15)
+        r = await self.http.post(await self.wallet.safe_rpc_url(),
+                                 json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=15)
         js = r.json()
         if "error" in js:
             raise RuntimeError(str(js["error"].get("message") if isinstance(js["error"], dict) else js["error"])[:200])
@@ -171,8 +173,9 @@ class JupiterWallet:
     async def best_quote(self, inp: str, out: str, amount: int):
         return await self.dex.best_quote(inp, out, amount)
 
-    async def _swap_tx(self, quote: dict, prio: str | None = None) -> str:
-        """prio: None = taxa de prioridade fixa; 'high'/'veryHigh' = taxa dinâmica da Jupiter, com teto."""
+    async def _swap_tx(self, quote: dict, prio: str | None = None, amount: int | None = None) -> tuple[str, str]:
+        """prio: None = taxa de prioridade fixa; 'high'/'veryHigh' = taxa dinâmica da Jupiter, com teto.
+        Devolve (transação assinada em base64, blockhash). amount: entrada máxima pedida (padrão: a da cotação)."""
         if prio:
             fee = {"priorityLevelWithMaxLamports": {"maxLamports": int(MAX_PRIORITY_SOL * 1e9), "priorityLevel": prio}}
         else:
@@ -187,8 +190,13 @@ class JupiterWallet:
             raise RuntimeError(f"Jupiter swap HTTP {r.status_code}: {str(js)[:160]}")
         from solders.transaction import VersionedTransaction
         tx = VersionedTransaction.from_bytes(base64.b64decode(js["swapTransaction"]))
+        # SEC-01 (auditoria 2026-10-25): só assina a rota que usa no máximo o valor e o slippage pedidos
+        txguard.check(tx.message, self.wallet.address, max_spend_lamports=0, max_fee_lamports=0,
+                      jupiter={"amount": int(amount if amount is not None else quote["inAmount"]),
+                               "slip_bps": int(quote.get("slippageBps") or 0)},
+                      max_priority_lamports=int(max(MAX_PRIORITY_SOL, self.priority_sol) * 1.5 * 1e9))
         signed = VersionedTransaction(tx.message, [self.wallet.keypair])
-        return base64.b64encode(bytes(signed)).decode()
+        return base64.b64encode(bytes(signed)).decode(), str(tx.message.recent_blockhash)
 
     async def _send_and_confirm(self, raw: str) -> tuple[str | None, str, str | None]:
         """(assinatura, status, erro). Simulação prévia ligada: se o preço mínimo não der, nada é enviado.
@@ -220,10 +228,12 @@ class JupiterWallet:
         if not q:
             return {"ok": False, "reason": "sem cotação em nenhuma DEX"}
         try:
-            raw = await self._swap_tx(dict(q, slippageBps=slip_bps), prio=prio)
+            raw, blockhash = await self._swap_tx(dict(q, slippageBps=slip_bps), prio=prio, amount=amount)
         except Exception as e:
             return {"ok": False, "reason": f"erro ao montar a transação ({str(e)[:100]})"}
         sig, st, err = await self._send_and_confirm(raw)
+        if st == "pendente":                     # SEC-04: não deixa quem chamou montar outra antes de saber
+            st, err = await txguard.reconcile(self._rpc, sig, blockhash)
         return {"ok": st == "confirmada", "signature": sig, "status": st, "reason": err,
                 "out": int(q.get("outAmount") or 0), "venue": venue, "quotes": allq}
 

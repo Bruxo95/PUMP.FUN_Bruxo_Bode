@@ -22,6 +22,10 @@ from .solana_wallet import UserWallet
 log = logging.getLogger("hub")
 
 
+class AccountBlocked(Exception):
+    """Conta bloqueada pelo admin: nenhum motor é (re)carregado e nenhuma ação sensível segue."""
+
+
 class PumpHub:
     def __init__(self, cfg, http, db, box):
         self.cfg, self.http, self.db = cfg, http, db
@@ -31,6 +35,7 @@ class PumpHub:
         self.system_keys: dict[str, str] = {}          # chaves do sistema (admin), já abertas, só na memória
         self.engines: dict[str, PumpFun] = {}
         self._locks: dict[str, asyncio.Lock] = {}
+        self._blocked: set[str] = set()            # contas bloqueadas (vale também para cargas já em andamento)
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
         self.started_at = time.time()
@@ -66,6 +71,10 @@ class PumpHub:
 
     # ------------------------------------------------------------------ motores por usuário
     async def engine(self, uid: str) -> PumpFun:
+        # SEC-02 (auditoria 2026-10-25): uma carga iniciada antes do bloqueio terminava depois e recolocava a conta
+        # no monitor. Agora carga e bloqueio usam a mesma trava e a carga confere o bloqueio antes de publicar.
+        if uid in self._blocked:
+            raise AccountBlocked(uid)
         pf = self.engines.get(uid)
         if pf is not None:
             return pf
@@ -74,8 +83,23 @@ class PumpHub:
             pf = self.engines.get(uid)
             if pf is None:
                 pf = await self._load(uid)
+                if uid in self._blocked:                # bloqueada enquanto carregava: descarta
+                    self._stop_engine(pf)
+                    raise AccountBlocked(uid)
                 self.engines[uid] = pf
         return pf
+
+    def check_active(self, uid: str, pf: PumpFun | None = None) -> None:
+        """Antes de ação sensível (real, troca, venda, chave): a conta segue liberada e o motor é o atual."""
+        if uid in self._blocked or (pf is not None and self.engines.get(uid) is not pf):
+            raise AccountBlocked(uid)
+
+    @staticmethod
+    def _stop_engine(pf: PumpFun) -> None:
+        pf.cfg.pump_real_enabled = False
+        t = getattr(pf, "_real_task", None)
+        if t:
+            t.cancel()
 
     async def _load(self, uid: str) -> PumpFun:
         rows = await self.db.select("user_settings", {"user_id": uid})
@@ -193,7 +217,9 @@ class PumpHub:
         """Carrega todos os usuários (o bot copia mesmo com o painel fechado) e liga as tarefas."""
         try:
             for r in await self.db.select("profiles", None, columns="user_id,bloqueado"):
-                if not r.get("bloqueado"):
+                if r.get("bloqueado"):
+                    self._blocked.add(r["user_id"])
+                else:
                     await self.engine(r["user_id"])
         except Exception as e:
             log.warning("Não consegui carregar os usuários do Supabase: %s", str(e)[:160])
@@ -223,13 +249,12 @@ class PumpHub:
     # ------------------------------------------------------------------ gestão de usuários (admin)
     async def unload(self, uid: str) -> None:
         """Tira o motor do usuário da memória (conta bloqueada): para de copiar e a fila real é cancelada."""
-        pf = self.engines.pop(uid, None)
+        self._blocked.add(uid)                         # antes da trava: cargas em andamento já enxergam o bloqueio
+        async with self._locks.setdefault(uid, asyncio.Lock()):
+            pf = self.engines.pop(uid, None)
         if pf is None:
             return
-        pf.cfg.pump_real_enabled = False
-        t = getattr(pf, "_real_task", None)
-        if t:
-            t.cancel()
+        self._stop_engine(pf)
         try:
             await pf.store.flush()
         except Exception:
@@ -286,6 +311,7 @@ class PumpHub:
                 if blk:
                     await self.unload(uid)
                 else:
+                    self._blocked.discard(uid)
                     await self.engine(uid)
                 done.append("conta BLOQUEADA (parou de copiar)" if blk else "conta desbloqueada")
         if body.get("real_off"):

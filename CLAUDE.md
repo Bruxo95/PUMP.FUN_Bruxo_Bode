@@ -240,6 +240,20 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   qualquer instalação/atualização; acrescentar downloads, estrelas, assinantes e classificação ao PDF.
 - Política: `docs/dependencias/POLITICA-DE-DEPENDENCIAS.md`. Dados: `docs/dependencias/triagem-seguranca.json`.
 - Popularidade não representa instalações/pessoas únicas nem garante segurança; ausência de métricas é N/D.
-- Estado: coleta de metadados/avisos e preparação de gates/atualização do PDF em andamento.
-- Nenhuma instalação no Windows autorizada ou executada. Versões desconhecidas ou consultas incompletas
-  devem bloquear instalação; preservar as limitações e o ponto de retomada ao concluir.
+- Concluída em 2026-10-25 (Claude Opus 5.5, versão 0.9.0): versões exatas em `constraints.txt` (publicadas há
+  14+ dias; exceção certifi 2026.10.23 por CA comprometida nas anteriores); CI e Dockerfile resolvem só metadados,
+  conferem a triagem e consultam OSV/PyPI ao vivo; instalam com hash. Sem prazo de validade do registro (7 dias
+  travaria o deploy automático toda semana). Revisões manuais em `docs/dependencias/revisoes-manuais.json`
+  (jsonalias 0.1.1, pluggy 1.6.0). PDF ganhou a seção 04 (downloads, estrelas, assinantes, Favorável/Atenção/Perigo).
+- Versão nova de dependência: rodar `py -I scripts/coletar_risco_dependencias.py --candidates-json <lista>`,
+  revisar, trocar `constraints.txt`, `py scripts/inventario_dependencias.py --refresh --date AAAA-MM-DD` e `--check`.
+- O gate ainda não rodou no GitHub (só localmente, com a resolução Linux simulada); conferir o primeiro Actions.
+
+## Remediação da auditoria — SEC-01 a SEC-04 (2026-10-25, versão 0.9.0)
+- Detalhes em `docs/AUDITORIA-SEGURANCA.md` (seção "Remediação 1"); regressões em `tests/test_seguranca.py`.
+- `app/txguard.py`: confere a transação antes de assinar e reconcilia transação pendente. Falha fechada — no
+  primeiro teste real (carteira nova, pouco saldo, trava liberada só nessa hora) conferir se PumpPortal/Jupiter
+  passam; se recusar, ajustar a lista de programas/rotas com evidência, nunca desligar a verificação.
+- RPC pessoal: só endereço público (`app/solana_wallet.py`); bloqueio de conta serializado (`app/hub.py`).
+- pytest não rodou localmente (sem dependências no Windows); a suíte roda no Actions após o push.
+- Próximo: confirmar CI verde; depois SEC-05/06.

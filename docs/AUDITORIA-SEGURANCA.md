@@ -24,6 +24,27 @@
   mantendo os 11 achados abertos e as correções para a próxima etapa. O commit de publicação
   não altera a identificação do código auditado; consultar o histórico Git deste relatório.
 
+## Remediação 1 — SEC-01 a SEC-04 (2026-10-25, aplicação 0.9.0)
+
+- IA: Claude Code, modelo Claude Opus 5.5 (`claude-opus-5-5`). Base: commit `227d972` (0.9.0 sem as correções).
+- **SEC-01 — corrigido no código, aguardando CI:** `app/txguard.py` confere a mensagem antes de assinar
+  (única assinante/pagadora, lista fechada de programas, sem transferência/approve/troca de autoridade de token,
+  fechamento só para a própria carteira, máximo da compra e entrada da Jupiter dentro do pedido, tetos de
+  taxa para terceiros, prioridade, aluguel e contas novas). Ligado em `PumpReal._tx` e `JupiterWallet._swap_tx`.
+  Falha fechada: rotas Jupiter v2/ExactOut e programas fora da lista são recusados — validar no primeiro teste
+  real com carteira nova e pouco saldo. Regressão: `tests/test_seguranca.py` (caso dos 9 SOL: zero envios).
+- **SEC-02 — corrigido no código, aguardando CI:** carga do motor e bloqueio usam a mesma trava; a carga confere
+  o bloqueio antes de publicar; rotas de real/troca/venda/chave conferem de novo antes de agir (403).
+- **SEC-03 — corrigido no código, aguardando CI:** RPC pessoal só HTTPS na 443, sem userinfo, sem IP/nome interno
+  ao salvar; DNS conferido antes de cada uso (cache 60 s). RPC salvo antes da regra e agora inválido é ignorado
+  (usa o público). Pendência de infraestrutura: bloquear saída para rede interna no ambiente (DNS rebinding).
+- **SEC-04 — corrigido no código, aguardando CI:** "pendente" passa por reconciliação (assinatura no histórico ou
+  blockhash vencido) antes de qualquer nova tentativa; compra/venda não trocam de rota enquanto pendentes; a
+  assinatura fica gravada na posição (`sell_pending`) e segura nova venda por até 5 min, inclusive após reiniciar.
+- Validação local: lógica do `txguard` e da reconciliação com 20 casos em Python padrão; validação de RPC com
+  17 endereços. **pytest não rodou nesta máquina** (sem dependências; regra de não instalar no Windows).
+  A suíte completa roda no GitHub Actions no próximo push. SEC-05 a SEC-11 seguem abertos.
+
 `AGENTS.md` indica este relatório; `CLAUDE.md` mantém somente o resumo compartilhado.
 Ao retomar, conferir o Git e comparar com a base antes de usar linhas ou reproduções.
 Atualizar esta seção e a tabela de achados após cada etapa relevante e antes de
@@ -279,3 +300,4 @@ política Actions. Esses itens permanecem pendentes; não se acessou essa infrae
 | 2026-10-25 | 61 testes passaram/5 pulados; scanners triados | Consolidar provas |
 | 2026-10-25 | 11 achados e reproduções revisados; relatório concluído | SEC-02/03; SEC-01/04 bloqueiam aprovação para uso real |
 | 2026-10-25 | Identificação de versão/SHA/IA em cada revisão e preparação da publicação solicitada | Commit/push dos documentos; depois iniciar correções |
+| 2026-10-25 | Remediação 1: SEC-01..04 no código (0.9.0), regressões em tests/test_seguranca.py | Confirmar CI verde; depois SEC-05/06 |

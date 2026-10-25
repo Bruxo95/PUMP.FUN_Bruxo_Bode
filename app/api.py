@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .auth import AuthError
 from .db import audit
+from .hub import AccountBlocked
 from .keystore import KEY_LINKS, SECRET_NAMES, SYSTEM_NAMES
 from .settings import LB_DAYS
 from .solana_wallet import check_rpc_url, parse_keypair
@@ -140,6 +141,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 return {"error": "confirmação obrigatória"}
             if not (pf.sol_wallet and pf.sol_wallet.keypair):
                 return {"error": "configure a carteira Solana do bot antes"}
+        hub.check_active(u["id"], pf)
         pf.cfg.pump_real_enabled = on
         await audit(hub.db, u["id"], "ligar execução real" if on else "desligar execução real",
                     f"máx. {pf.cfg.pump_real_max_sol} SOL por compra" if on else "")
@@ -168,6 +170,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         if body.get("confirm") is not True:
             return {"error": "confirmação obrigatória"}
         usdc = float(body.get("usdc") or 0)
+        hub.check_active(u["id"], pf)
         r = await pf.jw.usdc_to_sol(usdc)
         await audit(hub.db, u["id"], "trocar USDC→SOL",
                     f"{usdc:.2f} USDC → {'ok ' + format(r.get('sol_received') or 0, '.4f') + ' SOL' if r.get('ok') else 'falhou: ' + str(r.get('error') or r.get('reason'))[:120]}")
@@ -203,6 +206,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         pos = next((p for p in pf.positions() if str(p["id"]) == str(pid)), None)
         if not pos:
             return {"error": "posição não encontrada"}
+        hub.check_active(u["id"], pf)
         r = pf.close_position(pid)
         await audit(hub.db, u["id"], "vender manual",
                     f"{'REAL' if pos.get('real') else 'fictícia'} · {pos.get('symbol')} · {pos.get('mint')}")
@@ -250,6 +254,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 raise ValueError("chave inválida (curta demais)")
         except ValueError as e:
             return {"error": str(e)}
+        hub.check_active(u["id"], pf)
         try:
             await hub.set_secret(pf, name, value)
         except Exception as e:
@@ -352,6 +357,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         from .logsafe import ring
         h = ring()
         return {"logs": h.since(after, level, q, max(1, min(limit, 2000))), **h.counts()}
+
+    @app.exception_handler(AccountBlocked)
+    async def blocked_err(request: Request, exc: AccountBlocked):
+        return JSONResponse({"error": "conta bloqueada pelo administrador", "detail": "conta bloqueada pelo administrador"},
+                            status_code=403)
 
     # ------------------------------------------------------------------ páginas
     @app.exception_handler(HTTPException)

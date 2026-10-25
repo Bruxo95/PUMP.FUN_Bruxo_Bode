@@ -596,8 +596,15 @@ def _jup_setup(wallet_usdc=500.0):
                                              "inAmount": q["amount"], "outAmount": str(out), "slippageBps": 50,
                                              "priceImpactPct": "0.0001"})
         if u.path.endswith("/swap/v1/swap"):
-            st["last_quote"] = json.loads(req.content)["quoteResponse"]
-            msg = MessageV0.try_compile(kp.pubkey(), [], [], Hash.default())
+            q = st["last_quote"] = json.loads(req.content)["quoteResponse"]
+            # rota Jupiter "route" v1: dados terminam com in_amount, quoted_out, slippage_bps, platform_fee_bps
+            from solders.instruction import Instruction
+            from solders.pubkey import Pubkey
+            from app import txguard
+            data = (txguard.anchor("route") + (0).to_bytes(4, "little") + int(q["inAmount"]).to_bytes(8, "little")
+                    + int(q["outAmount"]).to_bytes(8, "little") + int(q["slippageBps"]).to_bytes(2, "little") + b"\x00")
+            msg = MessageV0.try_compile(kp.pubkey(), [Instruction(Pubkey.from_string(txguard.JUPITER), data, [])],
+                                        [], Hash.default())
             return httpx.Response(200, json={"swapTransaction": b64.b64encode(bytes(VersionedTransaction(msg, [kp]))).decode()})
         js = json.loads(req.content)
         m, p = js["method"], js["params"]
@@ -621,6 +628,10 @@ def _jup_setup(wallet_usdc=500.0):
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     w = UserWallet(private_key=str(kp), rpc_url="https://rpc.exemplo.test")
+
+    async def public_dns(host):                    # sem internet nos testes: o RPC "resolve" para IP público
+        return ["93.184.216.34"]
+    w.resolver = public_dns
     jw = JupiterWallet(client, w, JupiterQuoter(client, per_min=100000))
     return jw, st
 

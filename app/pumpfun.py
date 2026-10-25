@@ -34,12 +34,15 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 
+from . import txguard
 from .settings import USER_KEYS
 
 log = logging.getLogger("pumpfun")
 
 WS_URL = "wss://pumpportal.fun/api/data"
 TRADE_LOCAL_URL = "https://pumpportal.fun/api/trade-local"
+SELL_FEE_CAP_SOL = 0.02          # teto de SOL para terceiros numa venda (taxa da PumpPortal)
+SELL_PENDING_HOLD_S = 300        # venda sem confirmação: não reenvia por 5 min (o blockhash vence em ~1-2 min)
 SOL_MINT = "So11111111111111111111111111111111111111112"
 # Monitor GRÁTIS dos traders copiados: WebSocket da própria Solana (logsSubscribe por carteira) + getTransaction.
 # (A PumpPortal passou a cobrar 0,01 SOL/10 mil eventos para trades de contas/tokens; só tokens novos são grátis.)
@@ -1823,7 +1826,25 @@ class PumpFun:
         if not p:
             return
         frac, why = float(it["frac"]), it["why"]
+        pend = p.get("sell_pending")
+        if pend:
+            # SEC-04: venda anterior ficou sem confirmação (gravada na posição, vale também depois de reiniciar).
+            # Só monta outra quando a anterior confirmou, falhou ou já não pode mais entrar (blockhash vencido).
+            try:
+                st = await self.real.signature_status(pend["signature"])
+            except Exception:
+                st = None
+            if st is None and time.time() - float(pend.get("at") or 0) < SELL_PENDING_HOLD_S:
+                p["selling"] = False
+                self._save_pos(p)
+                self._emit(f"[PUMP REAL] venda {p['symbol']} adiada: a anterior ainda não confirmou ({why})")
+                return
+            p.pop("sell_pending", None)
+            if st == "confirmada":
+                self._emit(f"[PUMP REAL] a venda pendente de {p['symbol']} confirmou depois; o saldo já reflete isso")
         res = await self.real.sell(p["mint"], frac, other=not self.is_pump(p["mint"]))
+        if res.get("status") == "pendente" and res.get("signature"):
+            p["sell_pending"] = {"signature": res["signature"], "at": time.time()}
         if not res.get("ok"):
             p["selling"] = False
             p["sell_error"] = res.get("reason") or res.get("status")
@@ -1943,8 +1964,8 @@ class PumpReal:
         return -sum(t.get("pnl_sol") or 0 for t in trades if t.get("real") and (t.get("closed_at") or "")[:10] == day)
 
     async def _rpc(self, method: str, params: list):
-        r = await self.http.post(self.wallet.rpc_url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
-                                 timeout=15)
+        r = await self.http.post(await self.wallet.safe_rpc_url(),
+                                 json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=15)
         js = r.json()
         if "error" in js:
             raise RuntimeError(str(js["error"])[:160])
@@ -1996,10 +2017,32 @@ class PumpReal:
         if r.status_code != 200:
             return {"status": "falhou", "reason": f"PumpPortal HTTP {r.status_code}: {r.text[:120]}"}
         from solders.transaction import VersionedTransaction
-        tx = VersionedTransaction.from_bytes(r.content)
+        try:
+            tx = VersionedTransaction.from_bytes(r.content)
+            # SEC-01 (auditoria 2026-10-25): só assina se a transação fizer o que foi pedido
+            txguard.check(tx.message, self.wallet.address, mint=body.get("mint"), **self._limits(body))
+        except Exception as e:
+            log.warning("PumpPortal: transação recusada antes de assinar (%s)", str(e)[:160])
+            return {"status": "recusada", "reason": f"transação recusada pela verificação: {str(e)[:120]}"}
         signed = VersionedTransaction(tx.message, [self.wallet.keypair])
         sig, st, err = await self._send_confirm(base64.b64encode(bytes(signed)).decode())
+        if st == "pendente":                     # SEC-04: espera confirmar ou vencer antes de qualquer nova tentativa
+            st, err = await txguard.reconcile(self._rpc, sig, str(tx.message.recent_blockhash))
         return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada"}
+
+    def _limits(self, body: dict) -> dict:
+        """Tetos da verificação: compra gasta no máximo o valor + slippage (+5%); taxa de terceiros até 2% + 0,001 SOL;
+        venda não pode gastar SOL e paga no máximo SELL_FEE_CAP_SOL a terceiros."""
+        slip = float(body.get("slippage") or 15)
+        prio = int(max(float(body.get("priorityFee") or 0) * 1.5, 0.002) * 1e9)
+        if body.get("action") == "buy":
+            amt = float(body.get("amount") or 0)
+            return {"max_spend_lamports": int(amt * (1 + slip / 100) * 1.05 * 1e9),
+                    "max_fee_lamports": int(amt * 0.02 * 1e9) + 1_000_000, "max_priority_lamports": prio}
+        return {"max_spend_lamports": 0, "max_fee_lamports": int(SELL_FEE_CAP_SOL * 1e9), "max_priority_lamports": prio}
+
+    async def signature_status(self, sig: str) -> str | None:
+        return (await txguard.signature_status(self._rpc, sig))[0]
 
     # erros do programa da pump.fun (Anchor: 6000 + n)
     PUMP_ERRORS = {"0x1770": "não autorizado", "0x1772": "preço subiu além do slippage (SOL insuficiente)",
@@ -2070,6 +2113,8 @@ class PumpReal:
             tried.append(f"{via if via == 'jupiter' else 'PumpPortal ' + pool}: {self.explain(r.get('reason')) or r.get('status')}")
             if tok1 - tok0 > 0:
                 break
+            if r.get("status") == "pendente":     # SEC-04: ainda pode entrar — outra rota compraria duas vezes
+                break
             if not self.retryable(r.get("reason")):
                 break
         if tok1 - tok0 <= 0:
@@ -2115,6 +2160,10 @@ class PumpReal:
             if tok1 < tok0 * 0.999:
                 return {"ok": True, "signature": last.get("signature"), "sol_received": max(0.0, sol1 - sol0),
                         "tokens_left": tok1, "attempts": tried}
+            if last.get("status") == "pendente":
+                # SEC-04 (auditoria 2026-10-25): a venda ainda pode entrar; montar outra venderia duas vezes
+                return {"ok": False, "status": "pendente", "signature": last.get("signature"), "attempts": tried,
+                        "reason": "venda sem confirmação — não reenvia até conferir a assinatura"}
             why = str(last.get("reason") or "")
             if via == "pp" and "0x1775" in why and pool_override is None:
                 pool_override = "pump-amm"                 # graduou: as próximas tentativas vão na PumpSwap
