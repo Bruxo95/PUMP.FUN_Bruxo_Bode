@@ -186,3 +186,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Atualização somente documental, aplicação segue 0.8.2. Verificação: `git diff --check`; testes Python
   não reexecutados porque o ambiente foi removido. Nenhuma dependência foi reinstalada.
 - Próximo passo: aguardar a nova instrução do usuário.
+
+## Pré-visualização de link (2026-10-25, versão 0.8.3)
+- O WhatsApp ainda mostrava "PUMP.FUN Bruxo Bode" ao colar o link: era cache da pré-visualização antiga
+  dele (o site no ar já mostrava PUMP FUN COPY, conferido por consulta pública à página).
+- Adicionadas tags Open Graph/Twitter em `web/index.html` e `web/app.html` (título, descrição, site_name,
+  imagem `web/og.png` 1200×630 com o nome novo). O endereço completo vem de `PUBLIC_BASE_URL` (`__BASE__`
+  trocado pelo servidor). Teste em `tests/test_api.py::test_pages_and_security_headers`.
+- Não verificado de verdade: a pré-visualização no WhatsApp depende do cache deles.

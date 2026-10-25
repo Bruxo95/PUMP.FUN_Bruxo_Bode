@@ -312,3 +312,6 @@ def test_pages_and_security_headers(env):
     a = c.get("/app")
     assert "__V__" not in a.text and "/static/app.js?v=" in a.text and a.headers["Cache-Control"] == "no-cache"
     assert 'id="navAdmin"' in a.text
+    # pré-visualização de link (WhatsApp, Telegram…): nome novo, imagem com endereço completo
+    assert 'og:title" content="PUMP FUN COPY' in r.text and "Bruxo Bode" not in r.text and "__BASE__" not in r.text
+    assert 'og:image" content="http' in r.text and c.get("/static/og.png").status_code == 200

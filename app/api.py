@@ -347,6 +347,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     # cada versão nova muda o endereço dos arquivos (?v=…): depois do redeploy o navegador não usa os antigos
     VTAG = hashlib.sha256(VERSION.encode()).hexdigest()[:10]
     PAGES = {n: open(os.path.join(WEB, n), encoding="utf-8").read().replace("__V__", VTAG)
+             .replace("__BASE__", (cfg.public_base_url or "").rstrip("/"))
              for n in ("index.html", "app.html")}
 
     @app.get("/")
