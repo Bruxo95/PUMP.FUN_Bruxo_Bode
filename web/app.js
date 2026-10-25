@@ -153,6 +153,53 @@
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("tkCard").hidden = true; });
 
+  // ------------------------------------------------------------------ carteiras em estudo (/api/pump/study)
+  const money = (v, u) => (v == null ? "–" : (u === "US$" ? (v < 0 ? "−$" : "$") + f(Math.abs(v), Math.abs(v) < 10 ? 2 : 0) : s4(v) + " SOL"));
+  const mny = (v, u) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + money(v, u) + "</span>");
+  async function loadStudy() {
+    const r = await BB.api("/api/pump/study");
+    if (r.error && !(r.wallets || []).length) { $("stList").innerHTML = '<tbody><tr><td class="muted">' + esc(r.error) + "</td></tr></tbody>"; return; }
+    $("stSub").textContent = "o sistema acompanha e aprende com a carteira, sem copiar · " + (r.wallets || []).length + " de " + r.limit +
+      (r.key ? " · histórico pela Solana Tracker" : " · sem chave da Solana Tracker: só o que o monitor ver daqui em diante");
+    const mm = (s) => (s == null ? "–" : s < 120 ? f(s, 0) + " s" : f(s / 60, 1) + " min");
+    table("stList", ["Carteira", "Ganho/hora (24 h)", "Ganho/dia (média 7 d)", "Acerto", "Segura (mediana)", "Tokens fechados", ""], (r.wallets || []).map((x) => { const s = x.summary || {};
+      return [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""), mny(s.per_hour, s.unit), mny(s.per_day_7d, s.unit),
+        s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed),
+        '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
+      "Nenhuma carteira em estudo. Cole um endereço acima.");
+  }
+  async function openStudy(w) {
+    const r = await BB.api("/api/pump/study/" + encodeURIComponent(w));
+    $("stProf").hidden = false; $("stPT").innerHTML = "Perfil · " + pfW(w);
+    if (r.error) { $("stK").innerHTML = '<p class="muted">' + esc(r.error) + "</p>"; return; }
+    const m = r.main || r.live || {}, u = m.unit, mm = (s) => (s == null ? "–" : s < 120 ? f(s, 0) + " s" : f(s / 60, 1) + " min");
+    $("stPS").textContent = "fonte: " + (m.source || "sem dados ainda") + " · " + r.trades_seen + " operações vistas pelo monitor";
+    kpis("stK", [["Ganho por minuto", mny(m.per_min, u), "média das últimas 24 h", "pnl"], ["Ganho por hora", mny(m.per_hour, u), (m.n_24h || 0) + " tokens fechados em 24 h", "pnl"],
+      ["Ganho por dia", mny(m.per_day_7d, u), "média dos últimos 7 dias", "pnl"], ["Últimos 7 / 30 dias", mny(m.pnl_7d, u) + "<small> / " + money(m.pnl_30d, u) + "</small>", (m.n_7d || 0) + " / " + (m.n_30d || 0) + " tokens", "tr"],
+      ["Acerto", m.win_rate == null ? "–" : f(m.win_rate * 100, 0) + "%", (m.closed || 0) + " fechados", "hit"], ["Segura (mediana)", mm(m.hold_med_s), m.invested_med != null ? "aposta mediana " + money(m.invested_med, u) : "", "pos"]]);
+    table("stDay", ["Dia", "Resultado"], (m.days || []).map((d) => [esc(d[0].split("-").reverse().join("/")), mny(d[1], u)]), "Sem dias ainda.");
+    const off = -new Date().getTimezoneOffset() / 60, hrs = (m.buys_by_hour_utc || []).map((n, h) => ({ h: (h + off + 24) % 24, n })).filter((x) => x.n).sort((a, b) => b.n - a.n).slice(0, 8);
+    table("stHr", ["Hora", "Compras"], hrs.map((x) => [String(x.h).padStart(2, "0") + "h", String(x.n)]), "Sem dados de horário.");
+    table("stBest", ["Token", "Resultado", "ROI", "Investiu", "Segurou"], (m.best || []).map((p) => [pfM(p.token, p.symbol), mny(p.realized, u), p.roi == null ? "–" : f(p.roi, 0) + "%", money(p.invested, u), mm(p.hold_s)]), "Sem histórico da Solana Tracker.");
+    table("stRec", ["Quando", "Token", "Operação", "SOL", "Market cap"], (r.recent || []).map((t) => [dt(t.at), pfM(t.mint), t.side === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', s4(t.sol), t.mcap_sol == null ? "–" : f(t.mcap_sol, 0) + " SOL"]), "O monitor ainda não viu operações desta carteira.");
+    $("stNotes").innerHTML = (r.notes || []).map((s) => "<p>" + esc(s) + "</p>").join("");
+    $("stProf").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  document.addEventListener("click", async (e) => {
+    const t = e.target;
+    if (t.id === "stAdd") {
+      const raw = $("stW").value.trim(), w = (raw.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/) || [""])[0];
+      const r = await BB.api("/api/pump/study", { body: { wallet: w, action: "add", apelido: $("stA").value.trim() } });
+      toast(r.error ? "Não adicionou: " + r.error : r.already ? "Essa carteira já está no estudo." : "Carteira adicionada ao estudo. O histórico chega em alguns segundos.");
+      if (!r.error) { $("stW").value = ""; $("stA").value = ""; setTimeout(loadStudy, 4000); }
+      return loadStudy();
+    }
+    if (t.id === "stPX") { $("stProf").hidden = true; return; }
+    if (t.dataset.stp) return openStudy(t.dataset.stp);
+    if (t.dataset.stc) { if (!confirm("Passar a COPIAR esta carteira (entra como carteira manual)?")) return; const r = await BB.api("/api/pump/wallets", { body: { wallet: t.dataset.stc, action: "add" } }); toast(r.error || "Agora copiando."); poll(true); return loadStudy(); }
+    if (t.dataset.str) { if (!confirm("Remover do estudo?")) return; await BB.api("/api/pump/study", { body: { wallet: t.dataset.str, action: "remove" } }); $("stProf").hidden = true; return loadStudy(); }
+  });
+
   // ------------------------------------------------------------------ novidades (só admin: /api/admin/novidades, lista em app/novidades.json)
   let NOV = null, NOV_TIPO = "";
   async function loadNovidades() {
@@ -183,7 +230,8 @@
   // ------------------------------------------------------------------ navegação
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
-    aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
+    estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -201,6 +249,7 @@
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "aprendizado") loadLearning();
+    if (VIEW === "estudo") loadStudy();
     render();
     window.scrollTo(0, 0);
   }

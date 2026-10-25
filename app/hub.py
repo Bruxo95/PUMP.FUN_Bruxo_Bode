@@ -36,6 +36,8 @@ class PumpHub:
         self.engines: dict[str, PumpFun] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._blocked: set[str] = set()            # contas bloqueadas (vale também para cargas já em andamento)
+        self._trade_q: list[dict] = []             # operações das carteiras em estudo a gravar (0.14.0)
+        self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
         self.started_at = time.time()
@@ -111,6 +113,10 @@ class PumpHub:
         pf.user_id = uid
         pf.keys = KeyRing(await self.vault.load(uid))
         pf.lb_key_fallback = lambda: self.shared_st_key
+        try:                                       # carteiras em estudo (tabela pode ainda não existir)
+            pf.study = [r["wallet"] for r in await self.db.select("study_wallets", {"user_id": uid}, order="criado_em.asc")]
+        except Exception:
+            pf.study = []
         self._wire_wallet(pf)
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
             if p.get("selling"):
@@ -212,6 +218,7 @@ class PumpHub:
                     await pf.store.flush()
                 except Exception as e:
                     log.warning("flush: %s", str(e)[:120])
+            await self.flush_trades()
 
     # ------------------------------------------------------------------ aprendizado diário (tabela learning_daily)
     async def learning_history(self, uid: str, days: int = 30) -> tuple[list[dict], str | None]:
@@ -240,6 +247,91 @@ class PumpHub:
         while True:
             await asyncio.sleep(1800)
             await self.save_learning()
+            await self.refresh_study()
+
+    # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
+    def record_trade(self, wallet: str, ev: dict) -> None:
+        sig = ev.get("signature")
+        if not sig or ev.get("txType") not in ("buy", "sell"):
+            return
+        bt = ev.get("blockTime")
+        at = datetime.fromtimestamp(float(bt), timezone.utc) if bt else datetime.now(timezone.utc)
+        self._trade_q.append({"signature": sig, "wallet": wallet, "mint": ev.get("mint"), "side": ev["txType"],
+                              "sol": float(ev.get("solAmount") or 0), "tokens": float(ev.get("tokenAmount") or 0),
+                              "mcap_sol": ev.get("marketCapSol"), "at": at.isoformat()})
+        del self._trade_q[:-5000]                    # banco fora do ar por muito tempo: não estoura a memória
+
+    async def flush_trades(self) -> None:
+        if not self._trade_q:
+            return
+        batch, self._trade_q = self._trade_q[:500], self._trade_q[500:]
+        try:
+            await self.db.insert("wallet_trades", batch, upsert=True, on_conflict="signature")
+        except Exception as e:
+            self._trade_q = batch + self._trade_q
+            log.warning("Carteiras em estudo: operações não gravadas (%s)", str(e)[:120])
+
+    def _study_key(self) -> str:
+        own = next((pf.lb_key() for pf in self.engines.values() if pf.lb_key_own()), "")
+        return own or self.shared_st_key
+
+    async def refresh_study_wallet(self, wallet: str, force: bool = False) -> str | None:
+        """Histórico por token da Solana Tracker (até 200 posições dos últimos 30 dias) → study_positions."""
+        from .pumpfun import ST_PNL
+        from .study import compact_position
+        key = self._study_key()
+        if not key:
+            return "sem chave da Solana Tracker (histórico só pelo monitor, a partir de agora)"
+        if not force and time.time() - self._study_at.get(wallet, 0) < 1500:
+            return None
+        self._study_at[wallet] = time.time()
+        try:
+            r = await self.http.get(ST_PNL + wallet + "/positions", params={"limit": 200, "period": "30d"},
+                                    headers={"x-api-key": key, "Accept": "application/json"}, timeout=20)
+            if r.status_code != 200:
+                return f"Solana Tracker HTTP {r.status_code}"
+            rows = [c for c in (compact_position(p) for p in (r.json() or {}).get("positions") or []) if c]
+        except Exception as e:
+            return f"Solana Tracker: {type(e).__name__}"
+        now = datetime.now(timezone.utc).isoformat()
+        if rows:
+            await self.db.insert("study_positions", [{"wallet": wallet, "token": c["token"], "data": c, "atualizado_em": now}
+                                                     for c in rows], upsert=True, on_conflict="wallet,token")
+        return None
+
+    async def refresh_study(self) -> None:
+        for w in sorted({w for pf in self.engines.values() for w in (getattr(pf, "study", []) or [])}):
+            try:
+                await self.refresh_study_wallet(w)
+            except Exception as e:
+                log.warning("Carteira em estudo %s…: %s", w[:6], str(e)[:120])
+
+    async def study_set(self, pf, wallet: str, action: str, apelido: str = "") -> dict:
+        from .study import MAX_WALLETS
+        lst = list(getattr(pf, "study", []) or [])
+        if action == "remove":
+            await self.db.delete("study_wallets", {"user_id": pf.user_id, "wallet": wallet})
+            pf.study = [w for w in lst if w != wallet]
+            return {"ok": True}
+        if wallet in lst:
+            return {"ok": True, "already": True}
+        if len(lst) >= MAX_WALLETS:
+            return {"error": f"limite de {MAX_WALLETS} carteiras em estudo"}
+        await self.db.insert("study_wallets", {"user_id": pf.user_id, "wallet": wallet, "apelido": (apelido or "")[:40] or None},
+                             upsert=True, on_conflict="user_id,wallet")
+        pf.study = lst + [wallet]
+        # o monitor relê watch_set() a cada volta e passa a assinar a carteira nova sozinho
+        asyncio.get_running_loop().create_task(self.refresh_study_wallet(wallet, force=True))
+        return {"ok": True}
+
+    async def study_profile(self, wallet: str) -> dict:
+        from .study import profile
+        try:
+            pos = await self.db.select("study_positions", {"wallet": wallet}, limit=500)
+            trades = await self.db.select("wallet_trades", {"wallet": wallet}, order="at.desc", limit=2000)
+        except Exception as e:
+            return {"error": "tabelas das carteiras em estudo ainda não criadas no banco", "detail": str(e)[:120]}
+        return profile(wallet, pos, trades)
 
     async def start(self) -> None:
         """Carrega todos os usuários (o bot copia mesmo com o painel fechado) e liga as tarefas."""

@@ -62,6 +62,7 @@ PUMP_PROGRAMS = ("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",   # pump.fun (cu
 # Leaderboard dos melhores traders do app da pump.fun (o mesmo de solanatracker.io/leaderboard/pumpfun).
 # Precisa de chave GRÁTIS da Solana Tracker (plano free: 10 mil requisições/mês; o bot usa ~1,5 mil).
 LB_URL = "https://data.solanatracker.io/v2/pnl/leaderboard/top"
+ST_PNL = "https://data.solanatracker.io/v2/pnl/wallets/"   # + {carteira}/positions (carteiras em estudo, 0.14.0)
 # Nota de risco do token (mint/freeze authority, bundlers, insiders, concentração…) — mesma chave do ranking.
 TOKEN_URL = "https://data.solanatracker.io/tokens/"
 STATS_URL = "https://data.solanatracker.io/stats/"   # por janela: compradores/vendedores únicos e volume (0.13.0)

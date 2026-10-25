@@ -171,6 +171,40 @@ def create_app(hub, auth, cfg) -> FastAPI:
             return {"error": "endereço de token inválido"}
         return pf.token_card(mint)
 
+    # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
+    @app.get("/api/pump/study")
+    async def study_list(pf=Depends(engine)):
+        from .study import MAX_WALLETS, summary
+        try:
+            rows = await hub.db.select("study_wallets", {"user_id": pf.user_id}, order="criado_em.asc")
+        except Exception:
+            return {"wallets": [], "error": "tabelas das carteiras em estudo ainda não criadas no banco"}
+        out = []
+        for r in rows:
+            p = await hub.study_profile(r["wallet"])
+            out.append({"wallet": r["wallet"], "apelido": r.get("apelido"), "followed": r["wallet"] in pf.followed,
+                        "summary": summary(p) if not p.get("error") else {}})
+        return {"wallets": out, "limit": MAX_WALLETS, "key": bool(hub._study_key())}
+
+    @app.post("/api/pump/study")
+    async def study_change(body: dict, pf=Depends(engine)):
+        w, act = str(body.get("wallet") or "").strip(), str(body.get("action") or "add")
+        if act not in ("add", "remove"):
+            return {"error": "ação inválida"}
+        if not pf.valid_addr(w):
+            return {"error": "endereço de carteira inválido"}
+        try:
+            return await hub.study_set(pf, w, act, str(body.get("apelido") or ""))
+        except Exception as e:
+            log.warning("carteiras em estudo: %s", str(e)[:120])
+            return {"error": "não consegui salvar agora (tabela criada no banco?)"}
+
+    @app.get("/api/pump/study/{wallet}")
+    async def study_profile(wallet: str, pf=Depends(engine)):
+        if not pf.valid_addr(wallet) or wallet not in (getattr(pf, "study", []) or []):
+            return {"error": "carteira não está no seu estudo"}
+        return await hub.study_profile(wallet)
+
     @app.get("/api/pump/wallet")
     async def pump_wallet(force: int = 0, pf=Depends(engine)):
         """Saldo REAL da carteira do bot: SOL (o que paga as compras) e USDC convertido em SOL."""

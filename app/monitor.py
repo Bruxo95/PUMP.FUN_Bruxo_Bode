@@ -61,6 +61,7 @@ class SharedMonitor:
         out = self.union_followed()
         for e in self.engines():
             out |= {r["wallet"] for r in e.leaderboard[:60]}
+            out |= set(getattr(e, "study", []) or [])          # carteiras em estudo (0.14.0)
         return out
 
     # ------------------------------------------------------------------ entrega de um evento a todos
@@ -203,6 +204,8 @@ class SharedMonitor:
             st["tx_errors"] += 1
             return
         ev = svc.parse_trade(tx, w, self.market.sol_usd)
+        if ev and any(w in (getattr(e, "study", []) or []) for e in self.engines()):
+            self.hub.record_trade(w, ev)                        # carteiras em estudo: guarda no banco
         if not ev:
             return
         st["parsed"] += 1

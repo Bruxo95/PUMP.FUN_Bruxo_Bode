@@ -102,6 +102,11 @@ Migrações registradas como aplicadas no projeto: `20261025000001_inicial.sql`,
 `20261025000003_chaves_sistema.sql`.
 `20261025000004_aprendizado_diario.sql` (tabela `learning_daily`, 0.10.0) — aplicada pelo job `banco` em 2026-10-25
 (run 40239286326, log "Aplicada").
+`20261025000005_carteiras_estudo.sql` (0.14.0): `study_wallets` (lista por usuário), `wallet_trades` e
+`study_positions` (dados públicos compartilhados, só o backend lê/grava); semeia as 2 carteiras pedidas pelo dono
+na lista dos admins. Carteiras em estudo: `app/study.py`, `hub.study_*`, menu "Carteiras em estudo".
+Etapas seguintes: (2) "se você tivesse copiado" com atraso e taxas + ranking de copiabilidade;
+(3) alerta de convergência (2+ carteiras no mesmo token) e "possível ganho" por faixa histórica.
 **Migrações automáticas (desde 0.12.0, autorizado pelo dono em 2026-10-25):** o job `banco` do Actions roda
 `scripts/aplicar_migracoes.py` com o segredo `SUPABASE_ACCESS_TOKEN` (Management API) e aplica, antes da imagem,
 toda migração de `supabase/migrations/` que não esteja em `public.app_migracoes` (cada uma em transação com o seu
