@@ -1,0 +1,2050 @@
+"""PUMP.FUN — copia os 10 melhores traders da pump.fun (carteira FICTÍCIA em SOL; execução real preparada, desligada).
+
+Trazido da aba PUMP.FUN do hermes-jev-trader. A lógica de cópia é a MESMA; o que mudou para o modo multiusuário:
+- `PumpMarket` guarda os dados PÚBLICOS (tokens, preços, carteiras vistas, atividade, saldo dos traders) — um só
+  para todos os usuários (o monitor compartilhado em app/hub.py alimenta ele).
+- `PumpFun` é o motor de cópia de UM usuário: configuração própria (`cfg`), dados próprios (`store`: posições,
+  histórico, listas, feed) e chaves próprias (`keys`).
+
+Dados ao vivo: PumpPortal (WebSocket público, sem chave, UMA conexão só):
+  {"method": "subscribeNewToken"}                         → cada token novo criado na pump.fun
+  {"method": "subscribeTokenTrade",   "keys": [mints]}     → compras/vendas desses tokens (até 100 por mensagem)
+  {"method": "subscribeAccountTrade", "keys": [carteiras]} → compras/vendas dessas carteiras (os traders copiados)
+  evento de trade: mint, traderPublicKey, txType (buy/sell/create), solAmount, tokenAmount, newTokenBalance,
+                   vSolInBondingCurve, vTokensInBondingCurve, marketCapSol, pool, signature
+
+Ranking próprio dos melhores traders (não depende de site de terceiros): o bot acompanha os trades dos tokens
+novos e calcula, por carteira, o lucro REALIZADO em SOL nas últimas 24 h (preço médio de compra × venda), a taxa de
+acerto por token fechado, quantos tokens fechou e o tempo médio que segura cada token. Ficam de fora: quem criou
+tokens (dev), robôs sniper (seguram poucos segundos — impossível copiar a tempo), robôs de alta frequência e
+carteiras banidas por você. Os 10 primeiros por lucro (mais as carteiras que você adicionar na mão) são copiados.
+
+Cópia (simulada): quando um trader copiado COMPRA, o bot "compra" um valor fixo em SOL no preço logo depois da
+compra dele + slippage extra (você entra depois dele), pagando a taxa da pump.fun e a priority fee. Quando ele
+VENDE, o bot vende a mesma proporção. Proteções: stop de perda, alvo opcional, tempo máximo, limite de posições.
+"""
+from __future__ import annotations
+
+import asyncio
+import base64
+import json
+import logging
+import statistics
+import time
+from collections import deque
+from datetime import datetime, timezone
+
+from .settings import USER_KEYS
+
+log = logging.getLogger("pumpfun")
+
+WS_URL = "wss://pumpportal.fun/api/data"
+TRADE_LOCAL_URL = "https://pumpportal.fun/api/trade-local"
+SOL_MINT = "So11111111111111111111111111111111111111112"
+# Monitor GRÁTIS dos traders copiados: WebSocket da própria Solana (logsSubscribe por carteira) + getTransaction.
+# (A PumpPortal passou a cobrar 0,01 SOL/10 mil eventos para trades de contas/tokens; só tokens novos são grátis.)
+SOL_WS = "wss://api.mainnet-beta.solana.com"
+SOL_HTTP = "https://api.mainnet-beta.solana.com"
+DS_TOKENS = "https://api.dexscreener.com/tokens/v1/solana/"
+USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+QUOTES = {SOL_MINT, USDC, USDT}                    # moedas de pagamento: nunca são "o token" do trade
+NO_COPY = {                                          # staking de SOL (não é trade de token)
+    "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
+    "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1", "jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v",
+    "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj", "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm"}
+PUMP_DEX = {"pumpfun", "pumpswap", "pump.fun", "pumpfun-amm"}
+PUMP_PROGRAMS = ("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",   # pump.fun (curva)
+                 "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA")   # PumpSwap (depois de migrar)
+# Leaderboard dos melhores traders do app da pump.fun (o mesmo de solanatracker.io/leaderboard/pumpfun).
+# Precisa de chave GRÁTIS da Solana Tracker (plano free: 10 mil requisições/mês; o bot usa ~1,5 mil).
+LB_URL = "https://data.solanatracker.io/v2/pnl/leaderboard/top"
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def short(addr: str) -> str:
+    return (addr[:4] + "…" + addr[-4:]) if addr and len(addr) > 10 else (addr or "")
+
+
+class PumpMarket:
+    """Dados PÚBLICOS da rede, compartilhados por todos os usuários (um conjunto só no servidor)."""
+
+    def __init__(self, jup=None):
+        self.tokens: dict[str, dict] = {}          # mint -> {symbol, name, creator, price, mcap_sol, created_t, last_t}
+        self.wallets: dict[str, dict] = {}         # carteira -> {"pos": {mint: {...}}, "closed": deque, "trades": deque}
+        self.creators: dict[str, float] = {}       # carteira que criou token -> quando
+        self.activity: dict = {}                   # carteira -> atividade na rede (online/offline)
+        self.wallet_usd: dict = {}                 # carteira do trader -> {"usd", "sol", "stable", "t"}
+        self.sol_usd = 0.0
+        self.jup = jup                             # JupiterQuoter (cotações compartilhadas)
+        self.status = {"ws": None, "connected_at": None, "error": None, "events": 0, "last_event": None,
+                       "new_tokens": 0, "trades": 0}
+        self.rpc_status = {"ws": None, "connected_at": None, "error": None, "subs": 0, "notifs": 0, "parsed": 0,
+                           "last_event": None, "tx_errors": 0, "price_at": None, "price_error": None}
+
+
+class PumpFun:
+    def __init__(self, cfg, store=None, http=None, wallet=None, market: PumpMarket | None = None):
+        from .store import MemStore
+        self.cfg, self.http, self.sol_wallet = cfg, http, wallet
+        self.store = store if store is not None else MemStore()
+        self.market = market if market is not None else PumpMarket()
+        self.sub_tokens: deque = deque()           # mints com trades assinados (os mais novos)
+        self.followed: list[str] = []              # carteiras copiadas agora
+        self._followed_sent: set[str] = set()
+        self.live: deque = deque(maxlen=400)       # monitor: entradas/saídas dos traders copiados
+        self.events: deque = deque(maxlen=300)     # mensagens para o painel (notificações/sons)
+        self._ev_id = 0
+        self.ranking_cache: list[dict] = []
+        self._rank_at = 0.0
+        self._out: list[dict] = []                 # mensagens para enviar no WebSocket
+        self._want_tokens: list[str] = []
+        self._drop_tokens: list[str] = []
+        self._rpc_subs: dict = {}                  # id da assinatura -> carteira
+        self._rpc_want: set = set()
+        self._tx_q: asyncio.Queue | None = None
+        self._seen_sigs: deque = deque(maxlen=3000)
+        self.price_fn = None                       # função que devolve o preço do SOL em US$
+        self.real = None                           # PumpReal (execução real — desligada)
+        self.on_event = None
+        self._real_q: list = []
+        self._rq: asyncio.Queue | None = None        # fila de execução REAL (compras/vendas na blockchain)
+        self._real_buying: set = set()
+        self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
+        self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
+        self.leaderboard: list[dict] = []          # top traders da pump.fun (Solana Tracker), julgados p/ este usuário
+        self.lb_status = {"at": None, "error": None, "count": 0, "days": None}
+        self._lb_at = 0.0
+
+    # ------------------------------------------------------------------ dados públicos (compartilhados)
+    @property
+    def tokens(self) -> dict:
+        return self.market.tokens
+
+    @property
+    def wallets(self) -> dict:
+        return self.market.wallets
+
+    @property
+    def creators(self) -> dict:
+        return self.market.creators
+
+    @property
+    def activity(self) -> dict:
+        return self.market.activity
+
+    @activity.setter
+    def activity(self, v: dict) -> None:
+        self.market.activity = v
+
+    @property
+    def wallet_usd(self) -> dict:
+        return self.market.wallet_usd
+
+    @wallet_usd.setter
+    def wallet_usd(self, v: dict) -> None:
+        self.market.wallet_usd = v
+
+    @property
+    def sol_usd(self) -> float:
+        return self.market.sol_usd
+
+    @sol_usd.setter
+    def sol_usd(self, v: float) -> None:
+        self.market.sol_usd = v
+
+    @property
+    def status(self) -> dict:
+        return self.market.status
+
+    @property
+    def rpc_status(self) -> dict:
+        return self.market.rpc_status
+
+    @property
+    def feed(self) -> deque:
+        """O que os traders copiados fizeram e o que o bot fez (últimos 500, guardado no banco)."""
+        return self.store._feed
+
+    @feed.setter
+    def feed(self, v) -> None:
+        items = list(v)
+        self.store._feed.clear()
+        self.store._feed.extend(items)
+
+    # ------------------------------------------------------------------ config / listas
+    def _c(self, k: str, d):
+        return getattr(self.cfg, k, d)
+
+    def _meta(self, key: str, default):
+        return self.store.meta_get(key, None) or default
+
+    def _meta_set(self, key: str, val) -> None:
+        self.store.meta_set(key, val)
+
+    @property
+    def manual(self) -> list[str]:
+        return list(self._meta("pump_manual", []))
+
+    @property
+    def banned(self) -> list[str]:
+        return list(self._meta("pump_banned", []))
+
+    @staticmethod
+    def valid_addr(a: str) -> bool:
+        import re
+        return bool(re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{32,44}", (a or "").strip()))
+
+    def add_manual(self, wallet: str) -> dict:
+        w = (wallet or "").strip()
+        if not self.valid_addr(w):
+            return {"error": "endereço de carteira inválido"}
+        m = [x for x in self.manual if x != w] + [w]
+        self._meta_set("pump_manual", m)
+        self._meta_set("pump_banned", [x for x in self.banned if x != w])
+        self.refresh_followed(force=True)
+        return {"ok": True, "manual": m}
+
+    def remove_manual(self, wallet: str) -> dict:
+        self._meta_set("pump_manual", [x for x in self.manual if x != wallet])
+        self.refresh_followed(force=True)
+        return {"ok": True}
+
+    def ban(self, wallet: str) -> dict:
+        b = [x for x in self.banned if x != wallet] + [wallet]
+        self._meta_set("pump_banned", b)
+        self._meta_set("pump_manual", [x for x in self.manual if x != wallet])
+        self.refresh_followed(force=True)
+        return {"ok": True}
+
+    # ------------------------------------------------------------------ pausar trader
+    def paused(self) -> dict:
+        """{carteira: {"until": ts|None (manual), "reason", "at"}} — pausas vencidas são limpas."""
+        d = dict(self._meta("pump_paused", {}) or {})
+        now = time.time()
+        live = {w: v for w, v in d.items() if not v.get("until") or v["until"] > now}
+        if len(live) != len(d):
+            self._meta_set("pump_paused", live)
+            for w in set(d) - set(live):
+                self._emit(f"Pump.fun: {short(w)} voltou a ser copiado (pausa de {d[w].get('hours', 24):.0f} h acabou)")
+        return live
+
+    def is_paused(self, w: str) -> bool:
+        return w in self.paused()
+
+    def pause(self, wallet: str, hours: float | None = None, reason: str = "pausado por você") -> dict:
+        d = self.paused()
+        d[wallet] = {"until": (time.time() + hours * 3600) if hours else None, "hours": hours, "reason": reason,
+                     "at": now_iso()}
+        self._meta_set("pump_paused", d)
+        self.refresh_followed(force=True)
+        return {"ok": True}
+
+    def resume(self, wallet: str) -> dict:
+        d = self.paused()
+        d.pop(wallet, None)
+        self._meta_set("pump_paused", d)
+        self.refresh_followed(force=True)
+        return {"ok": True}
+
+    def _after_close(self, tr: dict) -> None:
+        """Regra automática: o trader copiado que fizer a posição bater o STOP DE PERDA N vezes em 24 h fica
+        pausado por X h (padrão: 2 stops → 24 h)."""
+        if not str(tr.get("reason") or "").startswith("stop de perda"):
+            return
+        n = int(self._c("pump_autopause_stops", 2))
+        hrs = float(self._c("pump_autopause_hours", 24))
+        if not n or not hrs:
+            return
+        w = tr["wallet"]
+        if self.is_paused(w):
+            return
+        day = time.time() - 86400
+        cnt = 0
+        for t in self.trades(500):
+            if t.get("wallet") != w or not str(t.get("reason") or "").startswith("stop de perda"):
+                continue
+            try:
+                ts = datetime.fromisoformat(t["closed_at"]).timestamp()
+            except Exception:
+                continue
+            if ts >= day:
+                cnt += 1
+        if cnt >= n:
+            self.pause(w, hrs, f"{cnt} stops de perda em 24 h")
+            self._emit(f"Pump.fun: {short(w)} PAUSADO por {hrs:.0f} h — {cnt} stops de perda em 24 h")
+
+    def unban(self, wallet: str) -> dict:
+        self._meta_set("pump_banned", [x for x in self.banned if x != wallet])
+        self.refresh_followed(force=True)
+        return {"ok": True}
+
+    # ------------------------------------------------------------------ eventos
+    @staticmethod
+    def price_of(ev: dict) -> float | None:
+        """Preço em SOL por token depois do trade (curva: vSol ÷ vTokens); senão SOL ÷ tokens do trade."""
+        try:
+            vs, vt = float(ev.get("vSolInBondingCurve") or 0), float(ev.get("vTokensInBondingCurve") or 0)
+            if vs > 0 and vt > 0:
+                return vs / vt
+            sa, ta = float(ev.get("solAmount") or 0), float(ev.get("tokenAmount") or 0)
+            return sa / ta if sa > 0 and ta > 0 else None
+        except (TypeError, ValueError):
+            return None
+
+    def on_message(self, ev: dict, t: float | None = None) -> list[str]:
+        """Processa 1 mensagem do WebSocket. Devolve mensagens para a aba Eventos (cópias)."""
+        t = t or time.time()
+        if not isinstance(ev, dict) or "txType" not in ev:
+            return []
+        self.status["events"] += 1
+        self.status["last_event"] = t
+        mint, kind, who = ev.get("mint"), ev.get("txType"), ev.get("traderPublicKey")
+        if not mint:
+            return []
+        px = self.price_of(ev)
+        tk = self.tokens.setdefault(mint, {"created_t": t})
+        if px:
+            tk["price"] = px
+        if ev.get("marketCapSol") is not None:
+            tk["mcap_sol"] = float(ev["marketCapSol"])
+        tk["last_t"] = t
+        for k in ("symbol", "name"):
+            if ev.get(k):
+                tk[k] = ev[k]
+        if ev.get("pool"):
+            tk["pool"] = ev["pool"]
+        if kind == "create":
+            self.status["new_tokens"] += 1
+            tk["creator"] = who
+            if who:
+                self.creators[who] = t
+            self._track_token(mint)
+            if who and float(ev.get("solAmount") or 0) > 0:   # compra inicial do dev conta como compra dele
+                self._wallet_trade(who, mint, "buy", float(ev.get("solAmount") or 0),
+                                   float(ev.get("initialBuy") or ev.get("tokenAmount") or 0), t)
+            return []
+        if kind not in ("buy", "sell"):
+            return []
+        self.status["trades"] += 1
+        sol, tok = float(ev.get("solAmount") or 0), float(ev.get("tokenAmount") or 0)
+        wp = ((self.wallets.get(who) or {}).get("pos") or {}).get(mint) if who else None
+        before = wp.get("tok", 0.0) if wp else 0.0
+        avg_before = (wp["cost"] / wp["tok"]) if wp and wp.get("tok") else None
+        if who:
+            self._wallet_trade(who, mint, kind, sol, tok, t)
+        msgs = []
+        if who in self.followed:
+            self._live(who, mint, kind, sol, tok, ev, before, avg_before, t)
+            msgs += self._copy(who, mint, kind, sol, tok, ev, before, t)
+        msgs += self._check_stops(mint, t)
+        return msgs
+
+    def _live(self, who, mint, kind, sol, tok, ev, before, avg_before, t) -> None:
+        """Monitor ao vivo: cada entrada/saída de um trader copiado, com o resultado dele no token."""
+        tk = self.tokens.get(mint) or {}
+        if mint not in self.sub_tokens:            # garante preço ao vivo do token que ele está segurando
+            self._track_token(mint)
+        px = (sol / tok) if sol > 0 and tok > 0 else self.price_of(ev)
+        nb = ev.get("newTokenBalance")
+        left = float(nb) if nb is not None else max(0.0, before + (tok if kind == "buy" else -tok))
+        if kind == "buy":
+            action = "aumentou" if before > 0 else "entrou"
+            pnl_pct = None
+        else:
+            action = "saiu" if left <= max(before, tok) * 0.01 else "vendeu parte"
+            pnl_pct = ((px / avg_before) - 1) * 100 if px and avg_before else None
+        frac = (tok / before * 100) if kind == "sell" and before > 0 else None
+        self.live.appendleft({"t": t, "at": now_iso(), "wallet": who, "short": short(who), "mint": mint,
+                              "symbol": tk.get("symbol") or ev.get("symbol") or short(mint), "kind": kind,
+                              "action": action, "sol": round(sol, 4), "tokens": tok, "price": px,
+                              "mcap_sol": tk.get("mcap_sol"), "pnl_pct": None if pnl_pct is None else round(pnl_pct, 1),
+                              "sold_pct": None if frac is None else round(min(100.0, frac)), "signature": ev.get("signature")})
+
+    def trader_positions(self) -> list[dict]:
+        """Posições abertas dos traders copiados (o que eles compraram e ainda seguram), com preço ao vivo."""
+        out, now = [], time.time()
+        for w in self.followed:
+            for mint, p in ((self.wallets.get(w) or {}).get("pos") or {}).items():
+                if p.get("tok", 0) <= 0:
+                    continue
+                tk = self.tokens.get(mint) or {}
+                avg = p["cost"] / p["tok"] if p["tok"] else None
+                px = tk.get("price")
+                out.append({"wallet": w, "short": short(w), "mint": mint, "symbol": tk.get("symbol") or short(mint),
+                            "invested_sol": round(p["cost"], 4), "avg_price": avg, "price": px,
+                            "chg_pct": round((px / avg - 1) * 100, 1) if px and avg else None,
+                            "value_sol": round(p["tok"] * px, 4) if px else None, "mcap_sol": tk.get("mcap_sol"),
+                            "held_s": round(now - p.get("first_t", now)), "last_t": tk.get("last_t")})
+        out.sort(key=lambda x: x["held_s"] or 0)          # mais recentes primeiro
+        return out
+
+    def _track_token(self, mint: str) -> None:
+        self.sub_tokens.append(mint)
+        self._want_tokens.append(mint)
+        held = {p["mint"] for p in self.positions()}
+        mx = int(self._c("pump_track_tokens", 300))
+        while len(self.sub_tokens) > mx:
+            old = self.sub_tokens.popleft()
+            if old not in held:
+                self._drop_tokens.append(old)
+
+    def _wallet_trade(self, w: str, mint: str, kind: str, sol: float, tok: float, t: float) -> None:
+        st = self.wallets.setdefault(w, {"pos": {}, "closed": deque(maxlen=500), "trades": deque(maxlen=2000)})
+        st["trades"].append(t)
+        st["last_t"] = t
+        p = st["pos"].get(mint)
+        if kind == "buy":
+            if p is None:
+                p = st["pos"][mint] = {"tok": 0.0, "cost": 0.0, "first_t": t, "pnl": 0.0, "bought": 0.0}
+            p["tok"] += tok
+            p["cost"] += sol
+            p["bought"] += tok
+            return
+        if not p or p["tok"] <= 0 or tok <= 0:
+            return                                       # vendeu algo que não vimos comprar: fora do cálculo
+        frac = min(1.0, tok / p["tok"])
+        cost = p["cost"] * frac
+        p["pnl"] += sol - cost
+        p["cost"] -= cost
+        p["tok"] = max(0.0, p["tok"] - tok)
+        if p["tok"] <= p["bought"] * 0.01:              # fechou o token
+            st["closed"].append({"t": t, "pnl": p["pnl"], "hold": t - p["first_t"], "mint": mint})
+            del st["pos"][mint]
+
+    # ------------------------------------------------------------------ ranking
+    def ranking(self, limit: int = 50) -> list[dict]:
+        """Carteiras ordenadas por lucro realizado (SOL) nas últimas 24 h, com os filtros anti-robô."""
+        now = time.time()
+        win_s = float(self._c("pump_rank_hours", 24)) * 3600
+        min_closed = int(self._c("pump_min_closed", 3))
+        min_wr = float(self._c("pump_min_winrate", 50))
+        min_hold = float(self._c("pump_min_hold_s", 20))
+        max_th = float(self._c("pump_max_trades_h", 120))
+        banned = set(self.banned)
+        out = []
+        for w, st in self.wallets.items():
+            closed = [c for c in st["closed"] if now - c["t"] <= win_s]
+            if len(closed) < min_closed:
+                continue
+            pnl = sum(c["pnl"] for c in closed)
+            wins = sum(1 for c in closed if c["pnl"] > 0)
+            wr = wins / len(closed) * 100
+            hold = statistics.median(c["hold"] for c in closed)
+            th = sum(1 for x in st["trades"] if now - x <= 3600)
+            flags = []
+            if w in self.creators and now - self.creators[w] <= win_s:
+                flags.append("criou token (dev)")
+            if hold < min_hold:
+                flags.append(f"robô sniper (segura {hold:.0f} s)")
+            if th > max_th:
+                flags.append(f"alta frequência ({th} trades/h)")
+            if wr < min_wr:
+                flags.append(f"acerto {wr:.0f}% < {min_wr:.0f}%")
+            if w in banned:
+                flags.append("banida por você")
+            out.append({"wallet": w, "short": short(w), "pnl_sol": round(pnl, 4), "closed": len(closed), "wins": wins,
+                        "winrate": round(wr, 1), "hold_s": round(hold), "trades_h": th, "open": len(st["pos"]),
+                        "last_t": st.get("last_t"), "eligible": not flags and pnl > 0, "flags": flags})
+        out.sort(key=lambda x: (not x["eligible"], -x["pnl_sol"]))
+        return out[:limit]
+
+    def refresh_followed(self, force: bool = False) -> None:
+        wr = (float(self._c("pump_min_winrate", 50)), int(self._c("pump_lb_min_trades", 1000)))
+        if wr != getattr(self, "_wr_used", wr):          # mudou acerto/trades mínimos no painel: refaz já
+            force, self._lb_at = True, 0.0
+        self._wr_used = wr
+        if not force and time.time() - self._rank_at < float(self._c("pump_rank_every_s", 600)):
+            return
+        self._rank_at = time.time()
+        self.ranking_cache = self.ranking(100)
+        n = int(self._c("pump_top_n", 10))
+        banned = set(self.banned)
+        man = [w for w in self.manual if w not in banned]
+        now = time.time()
+        bots = {w for w, a in self.activity.items() if a.get("bot_until", 0) > now}
+        bots |= set(self.paused())                       # pausados também ficam fora (entra o próximo do top)
+        man = [w for w in man if w not in bots]
+        self.leaderboard = [self._lb_judge(r) for r in self.leaderboard]
+        lb = [r["wallet"] for r in self.leaderboard if r["eligible"] and r["wallet"] not in man
+              and r["wallet"] not in banned and r["wallet"] not in bots]
+        own = [r["wallet"] for r in self.ranking_cache if r["eligible"] and r["wallet"] not in man and r["wallet"] not in lb]
+        # fonte: leaderboard da pump.fun (Solana Tracker); sem chave/sem dados → ranking próprio
+        auto = lb + own if self.leaderboard else own
+        new = (man + auto)[:max(n, len(man))]
+        # quem já tem posição copiada continua sendo seguido até a posição fechar (para copiar a venda)
+        held = [p["wallet"] for p in self.positions() if p["wallet"] not in new]
+        new = new + list(dict.fromkeys(held))
+        if new != self.followed:
+            add = [w for w in new if w not in self._followed_sent]
+            rem = [w for w in self._followed_sent if w not in new]
+            if rem:
+                self._out.append({"method": "unsubscribeAccountTrade", "keys": rem})
+            if add:
+                self._out.append({"method": "subscribeAccountTrade", "keys": add})
+            self._followed_sent = set(new)
+            if self.followed or new:
+                log.info("Pump.fun: copiando %d carteiras (%d manuais, %d do ranking)", len(new), len(man),
+                         len([w for w in new if w not in man]))
+            self.followed = new
+
+    # ------------------------------------------------------------------ leaderboard pump.fun (Solana Tracker)
+    def lb_key(self) -> str:
+        return self.keys.get("solanatracker_api_key") if self.keys is not None else ""
+
+    @staticmethod
+    def _num(x):
+        try:
+            return None if x is None else float(x)
+        except (TypeError, ValueError):
+            return None
+
+    def _parse_lb(self, js: dict) -> list[dict]:
+        out = []
+        min_wr = float(self._c("pump_min_winrate", 50))
+        for i, t in enumerate((js or {}).get("traders") or []):
+            w = t.get("wallet")
+            if not w:
+                continue
+            per, idn = t.get("period") or {}, t.get("identity") or {}
+            cnt, tok, tim = t.get("counts") or {}, t.get("tokens") or {}, t.get("timing") or {}
+            wr = self._num(t.get("winRate"))
+            if wr is not None and wr <= 1:
+                wr *= 100
+            flags = []
+            if idn.get("bot"):
+                flags.append("robô (" + str((idn.get("bot") or {}).get("name") or "bot") + ")")
+            if idn.get("developer"):
+                flags.append("dev de token")
+            if idn.get("exchange"):
+                flags.append("corretora")
+            if idn.get("hacker") or idn.get("spamDusting"):
+                flags.append("carteira suspeita")
+            if w in self.banned:
+                flags.append("banida por você")
+            out.append({"rank": i + 1, "wallet": w, "short": short(w), "name": idn.get("name"),
+                        "twitter": idn.get("twitter"), "avatar": idn.get("avatar"),
+                        "realized_usd": self._num(per.get("realized")), "roi": self._num(per.get("roi")),
+                        "volume_usd": self._num(per.get("volume")), "winrate": wr,
+                        "trades": cnt.get("trades"), "tokens": cnt.get("tokensTraded"),
+                        "closed": tok.get("closed"), "last_trade": tim.get("lastTrade"),
+                        "days_active": per.get("tradingDays"), "base_flags": flags})
+        return [self._lb_judge(r) for r in out]
+
+    def _lb_judge(self, r: dict) -> dict:
+        """Apto para copiar: sem bandeiras e acerto (histórico de tokens com lucro) ACIMA do mínimo (padrão 50%).
+        Recalculado sempre, então mudar o mínimo no painel vale na hora."""
+        min_wr = float(self._c("pump_min_winrate", 50))
+        flags = list(r.get("base_flags") or [])
+        wr = r.get("winrate")
+        mt = int(self._c("pump_lb_min_trades", 1000))
+        if mt and (r.get("trades") or 0) < mt:
+            flags.append(f"{r.get('trades') or 0} trades (precisa ≥ {mt})")
+        if wr is None:
+            flags.append("acerto desconhecido")
+        elif wr <= min_wr:
+            flags.append(f"acerto {wr:.0f}% (precisa > {min_wr:.0f}%)")
+        mw = float(self._c("pump_min_wallet_usd", 5000))
+        wv = self.wallet_usd.get(r["wallet"])
+        if mw:
+            if wv is None:
+                flags.append("conferindo saldo da carteira…")
+            elif wv["usd"] < mw:
+                flags.append(f"carteira ${wv['usd']:,.0f} < ${mw:,.0f}".replace(",", "."))
+        r["wallet_usd"] = wv["usd"] if wv else None
+        if r["wallet"] in self.banned and "banida por você" not in flags:
+            flags.append("banida por você")
+        r["flags"], r["eligible"] = flags, not flags
+        return r
+
+    async def refresh_leaderboard(self, force: bool = False) -> None:
+        key = self.lb_key()
+        if not key or self.http is None:
+            self.lb_status.update(error=None if key else "sem chave da Solana Tracker")
+            return
+        if not force and time.time() - self._lb_at < float(self._c("pump_lb_every_s", 1800)):
+            return
+        self._lb_at = time.time()
+        days = int(self._c("pump_lb_days", 7))
+        params = {"sort": "realized", "direction": "desc", "days": days, "limit": 50,
+                  "minTrades": int(self._c("pump_lb_min_trades", 1000)), "minDays": 1 if days == 1 else 3,
+                  "minWinRate": float(self._c("pump_min_winrate", 50))}
+        plat = str(self._c("pump_lb_platform", "pumpfun-app") or "")
+        if plat:
+            params["platform"] = plat
+        try:
+            r = await self.http.get(LB_URL, params=params, headers={"x-api-key": key, "Accept": "application/json"},
+                                    timeout=20)
+            if r.status_code != 200:
+                msg = {401: "chave inválida", 403: "chave sem permissão para este endpoint",
+                       429: "limite de requisições da Solana Tracker"}.get(r.status_code, f"HTTP {r.status_code}")
+                self.lb_status.update(error=msg + " · " + r.text[:120].replace(key, "***"))
+                return
+            lb = self._parse_lb(r.json())
+            self.leaderboard = lb
+            self.lb_status.update(at=now_iso(), error=None, count=len(lb), days=days)
+            log.info("Pump.fun: leaderboard Solana Tracker com %d traders (%d dias)", len(lb), days)
+            self.refresh_followed(force=True)
+        except Exception as e:
+            self.lb_status.update(error=f"{type(e).__name__}: {str(e)[:120].replace(key, '***')}")
+
+    async def wallet_value(self, w: str) -> dict | None:
+        """Saldo da carteira do trader: SOL + USDC + USDT (RPC grátis), em US$."""
+        urls = []
+        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
+        if own:
+            urls.append(own)
+        urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
+        for u in urls:
+            try:
+                b = (await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": "getBalance", "params": [w]},
+                                          timeout=8)).json()["result"]["value"] / 1e9
+                st = 0.0
+                for mint in (USDC, USDT):
+                    js = (await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": "getTokenAccountsByOwner",
+                                                        "params": [w, {"mint": mint}, {"encoding": "jsonParsed"}]},
+                                               timeout=8)).json()
+                    for a in ((js.get("result") or {}).get("value") or []):
+                        st += float(a["account"]["data"]["parsed"]["info"]["tokenAmount"].get("uiAmountString") or 0)
+                return {"sol": round(b, 4), "stable": round(st, 2), "usd": round(b * (self.sol_usd or 0) + st, 2),
+                        "t": time.time()}
+            except Exception:
+                continue
+        return None
+
+    async def refresh_wallet_values(self) -> None:
+        if not float(self._c("pump_min_wallet_usd", 5000)) or not self.sol_usd:
+            return
+        cand = [r["wallet"] for r in self.leaderboard] + list(self.manual)
+        changed = False
+        for w in dict.fromkeys(cand):
+            old = self.wallet_usd.get(w)
+            if old and time.time() - old["t"] < float(self._c("pump_wallet_check_s", 1800)):
+                continue
+            v = await self.wallet_value(w)
+            if v:
+                self.wallet_usd[w] = v
+                changed = True
+            await asyncio.sleep(0.2)
+        if changed:
+            self.refresh_followed(force=True)
+
+    async def lb_loop(self) -> None:
+        while True:
+            try:
+                if getattr(self.cfg, "pump_enabled", True):
+                    await self.refresh_leaderboard()
+                    await self.refresh_wallet_values()
+            except Exception as e:
+                log.warning("Pump.fun leaderboard: %s", e)
+            await asyncio.sleep(30)
+
+    # ------------------------------------------------------------------ carteira fictícia
+    def positions(self) -> list[dict]:
+        return self.store.positions()
+
+    def _save_pos(self, p: dict) -> None:
+        self.store.save_pos(p)
+
+    def _del_pos(self, p: dict) -> None:
+        self.store.del_pos(p)
+
+    def trades(self, limit: int = 1000) -> list[dict]:
+        return self.store.trades(limit)
+
+    def _save_trade(self, t: dict) -> None:
+        self.store.save_trade(t)
+
+    def wallet(self, real: bool = False) -> dict:
+        start = 0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))
+        closed = [t for t in self.trades(100000) if bool(t.get("real")) == real]
+        pos = [p for p in self.positions() if bool(p.get("real")) == real]
+        realized = sum(t["pnl_sol"] for t in closed)
+        open_cash = sum(p.get("proceeds", 0.0) - p["sol_in"] for p in pos)
+        mark = sum(self._exit_value(p, p.get("price_now") or p["price_in"]) for p in pos)
+        cash = start + realized + open_cash
+        equity = cash + mark
+        wins = [t for t in closed if t["pnl_sol"] > 0]
+        return {"start_sol": start, "cash_sol": round(cash, 6), "equity_sol": round(equity, 6),
+                "pnl_sol": round(equity - start, 6), "realized_sol": round(realized, 6),
+                "open": len(pos), "open_value_sol": round(mark, 6), "count": len(closed), "wins": len(wins),
+                "losses": len(closed) - len(wins), "win_rate": round(len(wins) / len(closed), 3) if closed else None,
+                "gains_sol": round(sum(t["pnl_sol"] for t in wins), 6),
+                "losses_sol": round(sum(t["pnl_sol"] for t in closed if t["pnl_sol"] <= 0), 6),
+                "sol_usd": self.sol_usd}
+
+    def curve(self, real: bool = False) -> list[list]:
+        bal, pts = (0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))), []
+        for t in reversed([t for t in self.trades(5000) if bool(t.get("real")) == real]):
+            bal += t["pnl_sol"]
+            pts.append([t["closed_at"], round(bal, 6)])
+        return pts
+
+    # ------------------------------------------------------------------ cópia
+    def _feed(self, **kw) -> None:
+        kw.setdefault("at", now_iso())
+        self.store.feed_add(kw)
+
+    def _copy(self, who: str, mint: str, kind: str, sol: float, tok: float, ev: dict, before: float, t: float) -> list[str]:
+        c = self.cfg
+        tk = self.tokens.get(mint) or {}
+        sym = tk.get("symbol") or ev.get("symbol") or short(mint)
+        px = (tk.get("price") if ev.get("_delayed") and tk.get("price") else None) or self.price_of(ev) or tk.get("price")
+        allpos = self.positions()
+        mine = [p for p in allpos if p["mint"] == mint]
+        base = {"wallet": who, "short": short(who), "mint": mint, "symbol": sym, "kind": kind, "sol": round(sol, 4),
+                "mcap_sol": tk.get("mcap_sol"), "signature": ev.get("signature")}
+        delay = float(self._c("pump_copy_delay_s", 0) or 0)
+        if kind == "buy" and self.is_paused(who):
+            pz = self.paused().get(who) or {}
+            self._feed(**base, action="não copiou", reason="trader pausado" + (f" ({pz.get('reason')})" if pz.get("reason") else ""))
+            return []
+        if kind == "buy" and delay > 0 and not ev.get("_delayed"):
+            key = (who, mint)
+            if key not in self._pending:
+                self._pending[key] = {"due": t + delay, "t": t, "who": who, "mint": mint, "sol": sol, "tok": tok,
+                                      "ev": dict(ev), "before": before}
+                self._feed(**base, action="aguardando", reason=f"copia em {delay:.0f} s se o trader continuar no token")
+            return []
+        if kind == "buy":
+            why = None
+            if not getattr(c, "pump_copy_enabled", True):
+                why = "cópia desligada"
+            elif not px:
+                why = "sem preço do token"
+            elif sol < float(self._c("pump_min_trader_sol", 0.2)):
+                why = f"compra pequena do trader ({sol:.3f} SOL < mínimo {float(self._c('pump_min_trader_sol', 0.2)):.2f})"
+            else:
+                mc, lo, hi = tk.get("mcap_sol"), float(self._c("pump_min_mcap_sol", 0)), float(self._c("pump_max_mcap_sol", 0))
+                if mc is not None and lo and mc < lo:
+                    why = f"market cap {mc:.0f} SOL abaixo do mínimo {lo:.0f}"
+                elif mc is not None and hi and mc > hi:
+                    why = f"market cap {mc:.0f} SOL acima do máximo {hi:.0f}"
+                if not why:
+                    why = self.token_block(mint)
+            if why:
+                self._feed(**base, action="não copiou", reason=why)
+                return []
+            msgs = []
+            # REAL (se ligado): compra de verdade, com o valor de "SOL por compra"
+            if self.real is not None and getattr(c, "pump_real_enabled", False):
+                rwhy = None
+                if not self.is_pump(mint) and not getattr(c, "pump_copy_other_real", False):
+                    rwhy = "fora da pump.fun: real desligado para outras DEXs (só fictício)"
+                rmine = [p for p in mine if p.get("real")] or ([1] if mint in self._real_buying else [])
+                if rwhy:
+                    pass
+                elif rmine:
+                    rwhy = "já tem posição REAL neste token"
+                elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
+                    rwhy = f"limite de {int(self._c('pump_real_max_open', 5))} posições reais"
+                if rwhy:
+                    self._feed(**base, action="REAL não copiou", reason=rwhy)
+                else:
+                    self._real_buying.add(mint)
+                    self._rq_put(("buy", {"wallet": who, "mint": mint, "symbol": sym, "trader_sol": sol,
+                                          "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t}))
+                    self._feed(**base, action="REAL: comprando", reason=f"enviando compra de {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL")
+            # FICTÍCIO (sempre roda, para comparar)
+            smine = [p for p in mine if not p.get("real")]
+            amt = float(self._c("pump_copy_sol", 0.1))
+            swhy = None
+            if smine:
+                swhy = "já tem posição copiada neste token"
+            elif len([p for p in allpos if not p.get("real")]) >= int(self._c("pump_max_open", 10)):
+                swhy = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
+            elif self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
+                swhy = "saldo fictício insuficiente"
+            if swhy:
+                self._feed(**base, action="não copiou", reason=swhy)
+                return msgs
+            fr = self._fee_rates(mint)
+            slip, prio = fr["slip"], fr["prio"]
+            fee = fr["venue"] + fr["portal"]
+            price_in = px * (1 + slip)                      # você entra depois dele: preço pior
+            net_in = amt * (1 - fee)
+            tokens = net_in / price_in
+            p = {"opened_at": now_iso(), "open_t": t, "wallet": who, "mint": mint, "symbol": sym,
+                 "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
+                 "price_now": px, "trader_price": px, "trader_sol": sol, "proceeds": 0.0, "fees_sol": amt * fee + prio,
+                 "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"]}
+            self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
+                         slippage=net_in - net_in / (1 + slip))
+            self._save_pos(p)
+            self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e}")
+            msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
+            return msgs
+        # venda do trader enquanto a cópia ainda estava esperando: se ele saiu, não copia
+        pend = self._pending.get((who, mint))
+        if pend:
+            nb = ev.get("newTokenBalance")
+            left = float(nb) if nb is not None else ((self.wallets.get(who) or {}).get("pos") or {}).get(mint, {}).get("tok", 0.0)
+            if left <= pend["tok"] * 0.05:
+                self._pending.pop((who, mint), None)
+                self._feed(**base, action="não copiou",
+                           reason=f"trader saiu em {t - pend['t']:.0f} s (antes dos {float(self._c('pump_copy_delay_s', 0)):.0f} s de espera)")
+                return []
+        # venda do trader: vende a mesma proporção da nossa posição copiada dele
+        mine = [p for p in mine if p["wallet"] == who]
+        if not mine:
+            return []
+        nb = ev.get("newTokenBalance")
+        if nb is not None and tok > 0:
+            frac = min(1.0, tok / (tok + float(nb)))
+        elif before > 0:
+            frac = min(1.0, tok / before)
+        else:
+            frac = 1.0
+        if frac >= 0.97:
+            frac = 1.0
+        if frac < 0.01:                                  # venda irrelevante (<1% do que ele tinha): não mexe
+            return []
+        out = []
+        for p in mine:
+            if p.get("hold_profit"):
+                continue                                  # já está segurando até ficar positivo
+            if getattr(self.cfg, "pump_hold_until_profit", True):
+                pxn = px or p.get("price_now") or p["price_in"]
+                left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"])
+                val = self._exit_value(p, pxn)
+                chg = (val / left_cost - 1) * 100 if left_cost else 0.0
+                if chg < float(self._c("pump_hold_min_profit_pct", 0.0)):
+                    # trader saiu e NÓS estamos no prejuízo (já contando as taxas de saída): segura até ficar positivo
+                    p["hold_profit"] = True
+                    p["hold_since"] = now_iso()
+                    p["hold_chg_in"] = round(chg, 2)
+                    p["chg_pct"] = round(chg, 2)
+                    self._save_pos(p)
+                    self._feed(**base, action="segurando",
+                               reason=f"trader saiu, mas a posição está {chg:+.1f}% depois das taxas — vende quando ficar positiva")
+                    out.append(f"[PUMP {'REAL' if p.get('real') else 'SIM'}] {p['symbol']}: trader saiu no prejuízo "
+                               f"({chg:+.1f}%) — segurando até ficar positivo")
+                    continue
+            if p.get("real"):
+                self._real_sell(p, frac, f"trader vendeu {frac * 100:.0f}%")
+                self._feed(**base, action="REAL: vendendo", reason=f"vendendo {frac * 100:.0f}% da posição real")
+                continue
+            out.append(self._sell(p, frac, px or p.get("price_now"), f"trader vendeu {frac * 100:.0f}%", t))
+            self._feed(**base, action="copiou venda", reason=f"vendeu {frac * 100:.0f}% da posição")
+        return [m for m in out if m]
+
+    def _fee_rates(self, mint: str) -> dict:
+        """Taxas REAIS por lado: pump.fun na curva 1,25% (0,95% pump.fun + 0,30% criador) ou PumpSwap ~0,30% depois
+        de graduar; PumpPortal 0,5% (API que o modo real usa); priority fee fixa por transação."""
+        tk = self.tokens.get(mint) or {}
+        if not self.is_pump(mint):                     # fora da pump.fun: DEX via Jupiter, sem PumpPortal
+            return {"venue": float(self._c("pump_other_fee_pct", 0.30)) / 100,
+                    "venue_name": "DEX " + str(tk.get("main_dex") or "Jupiter"), "portal": 0.0,
+                    "prio": float(self._c("pump_priority_sol", 0.0005)),
+                    "slip": float(self._c("pump_other_slip_pct", 1.0)) / 100}
+        dexes = set(tk.get("dexes") or [])
+        graduated = tk.get("pool") in ("pump-amm", "pumpswap") or ("pumpswap" in dexes)
+        venue = float(self._c("pump_swap_fee_pct", 0.30) if graduated else self._c("pump_fee_pct", 1.25)) / 100
+        return {"venue": venue, "venue_name": "PumpSwap" if graduated else "pump.fun (curva)",
+                "portal": float(self._c("pump_portal_fee_pct", 0.5)) / 100,
+                "prio": float(self._c("pump_priority_sol", 0.0005)),
+                "slip": float(self._c("pump_extra_slip_pct", 3.0)) / 100}
+
+    def _exit_value(self, p: dict, px: float) -> float:
+        """Quanto entraria vendendo agora, já com TODAS as taxas de saída (plataforma, PumpPortal, rede, slippage)."""
+        fr = self._fee_rates(p["mint"])
+        return max(0.0, p["tokens_left"] * px * (1 - fr["slip"]) * (1 - fr["venue"] - fr["portal"]) - fr["prio"])
+
+    @staticmethod
+    def _addfee(p: dict, **kw) -> None:
+        fp = p.setdefault("fee_parts", {"platform": 0.0, "portal": 0.0, "network": 0.0, "slippage": 0.0})
+        for k, v in kw.items():
+            fp[k] = fp.get(k, 0.0) + v
+
+    def _sell(self, p: dict, frac: float, px: float | None, why: str, t: float) -> str | None:
+        if p.get("real"):
+            self._real_sell(p, frac, why)
+            return f"[PUMP REAL] {p['symbol']}: vendendo {frac * 100:.0f}% ({why})"
+        if not px:
+            return None
+        fr = self._fee_rates(p["mint"])
+        slip, prio = fr["slip"], fr["prio"]
+        fee = fr["venue"] + fr["portal"]
+        qty = p["tokens_left"] * frac
+        price_out = px * (1 - slip)
+        gross_out = qty * price_out
+        got = gross_out * (1 - fee) - prio
+        p["tokens_left"] -= qty
+        p["proceeds"] = p.get("proceeds", 0.0) + got
+        p["fees_sol"] = p.get("fees_sol", 0.0) + gross_out * fee + prio
+        self._addfee(p, platform=gross_out * fr["venue"], portal=gross_out * fr["portal"], network=prio,
+                     slippage=qty * px * slip)
+        p["price_now"] = px
+        p.setdefault("sells", []).append({"at": now_iso(), "frac": round(frac, 4), "price": price_out, "sol": round(got, 6),
+                                          "why": why})
+        if p["tokens_left"] <= p["tokens"] * 0.005 or frac >= 1.0:
+            pnl = p["proceeds"] - p["sol_in"]
+            tr = {"opened_at": p["opened_at"], "closed_at": now_iso(), "wallet": p["wallet"], "mint": p["mint"],
+                  "symbol": p["symbol"], "sol_in": p["sol_in"], "sol_out": round(p["proceeds"], 6),
+                  "pnl_sol": round(pnl, 6), "pnl_pct": round(pnl / p["sol_in"] * 100, 2), "price_in": p["price_in"],
+                  "price_out": price_out, "fees_sol": round(p["fees_sol"], 6), "reason": why,
+                  "fee_parts": {k: round(v, 6) for k, v in (p.get("fee_parts") or {}).items()},
+                  "gross_sol": round(pnl + p["fees_sol"], 6),       # resultado antes das taxas (já com slippage)
+                  "venue": p.get("venue_in"),
+                  "hold_s": round(t - p.get("open_t", t)), "sells": p.get("sells", []), "real": bool(p.get("real")),
+                  "mcap_in": p.get("mcap_in"), "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
+            self._save_trade(tr)
+            self._del_pos(p)
+            self._after_close(tr)
+            return (f"[PUMP SIM] fechou {p['symbol']} copiado de {short(p['wallet'])} ({why}) → "
+                    f"{pnl:+.4f} SOL ({tr['pnl_pct']:+.1f}%)")
+        self._save_pos(p)
+        return f"[PUMP SIM] {p['symbol']}: vendeu {frac * 100:.0f}% ({why}) → {got:.4f} SOL"
+
+    def _check_stops(self, mint: str, t: float) -> list[str]:
+        out = []
+        px = (self.tokens.get(mint) or {}).get("price")
+        stop, tp = float(self._c("pump_stop_pct", 40)), float(self._c("pump_tp_pct", 0))
+        for p in [p for p in self.positions() if p["mint"] == mint]:
+            if not px or p.get("selling"):
+                continue
+            p["price_now"] = px
+            left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"])
+            val = self._exit_value(p, px)
+            chg = (val / left_cost - 1) * 100 if left_cost else 0
+            p["chg_pct"] = round(chg, 2)
+            # STOP MÓVEL: liga quando o líquido (após taxas) passa de X%; depois sai se cair Y pontos do pico
+            trail_on = getattr(self.cfg, "pump_trail_enabled", True)
+            t_start, t_dist = float(self._c("pump_trail_start_pct", 20)), float(self._c("pump_trail_dist_pct", 10))
+            if trail_on and (p.get("trail_peak") is not None or chg >= t_start):
+                if p.get("trail_peak") is None:
+                    p["trail_since"] = now_iso()
+                p["trail_peak"] = round(max(chg, p.get("trail_peak") or chg), 2)
+                p["trail_exit"] = round(max(p["trail_peak"] - t_dist, float(self._c("pump_trail_min_lock_pct", 2))), 2)
+            if trail_on and p.get("trail_peak") is not None and chg <= p["trail_exit"]:
+                out.append(self._sell(p, 1.0, px, f"stop móvel (pico {p['trail_peak']:+.1f}% → saiu em {chg:+.1f}% líquido)", t))
+            elif p.get("hold_profit") and chg > float(self._c("pump_hold_min_profit_pct", 0.0)):
+                out.append(self._sell(p, 1.0, px, f"segurou até ficar positivo ({chg:+.1f}% líquido)", t))
+            elif chg <= -stop:
+                out.append(self._sell(p, 1.0, px, f"stop de perda (−{stop:.0f}%)", t))
+            elif tp and chg >= tp:
+                out.append(self._sell(p, 1.0, px, f"alvo (+{tp:.0f}%)", t))
+            else:
+                self._save_pos(p)
+        return [m for m in out if m]
+
+    def check_timeouts(self, t: float | None = None) -> list[str]:
+        t = t or time.time()
+        mx = float(self._c("pump_max_hold_h", 6)) * 3600
+        out = []
+        for p in self.positions():
+            if t - p.get("open_t", t) >= mx and not p.get("selling"):
+                out.append(self._sell(p, 1.0, (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now"),
+                                      f"tempo máximo ({mx / 3600:.0f} h)", t))
+        return [m for m in out if m]
+
+    def close_position(self, pid) -> dict:
+        for p in self.positions():
+            if str(p["id"]) == str(pid):
+                px = (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now")
+                msg = self._sell(p, 1.0, px, "fechada por você", time.time())
+                return {"ok": True, "msg": msg}
+        return {"error": "posição não encontrada"}
+
+    def reset_sim(self) -> dict:
+        self.store.reset_sim()
+        self.store.feed_clear()
+        return {"ok": True}
+
+    def prune(self, t: float | None = None) -> None:
+        """Libera memória: carteiras sem atividade há mais de 24 h e tokens velhos."""
+        t = t or time.time()
+        win = float(self._c("pump_rank_hours", 24)) * 3600
+        for w in [w for w, st in self.wallets.items() if t - st.get("last_t", 0) > win and w not in self.followed]:
+            del self.wallets[w]
+        for w in [w for w, x in self.creators.items() if t - x > win]:
+            del self.creators[w]
+        held = {p["mint"] for p in self.positions()}
+        for m in [m for m, tk in self.tokens.items() if t - tk.get("last_t", 0) > 6 * 3600 and m not in held]:
+            del self.tokens[m]
+
+    # ------------------------------------------------------------------ WebSocket
+    def _url(self) -> str:
+        url = str(self._c("pump_ws_url", WS_URL))
+        key = self.real.api_key() if self.real is not None else ""
+        return url + (("&" if "?" in url else "?") + "api-key=" + key if key else "")
+
+    def _paid(self) -> bool:
+        """Streams de trades da PumpPortal são PAGOS (chave + carteira com saldo). Só usa se você LIGAR
+        (PUMP_PAID_STREAM); ter a chave salva não basta — antes isso desligava a atualização de preços."""
+        return bool(getattr(self.cfg, "pump_paid_stream", False) and self.real is not None and self.real.api_key())
+
+    def _flush_subs(self) -> list[dict]:
+        out, self._out = self._out, []
+        if not self._paid():
+            self._want_tokens, self._drop_tokens = [], []
+            return []
+        held = {p["mint"] for p in self.positions()}
+        want = list(dict.fromkeys(self._want_tokens + [m for m in held if m not in self.sub_tokens]))
+        drop = [m for m in dict.fromkeys(self._drop_tokens) if m not in held]
+        self._want_tokens, self._drop_tokens = [], []
+        for i in range(0, len(want), 100):
+            out.append({"method": "subscribeTokenTrade", "keys": want[i:i + 100]})
+        for i in range(0, len(drop), 100):
+            out.append({"method": "unsubscribeTokenTrade", "keys": drop[i:i + 100]})
+        return out
+
+    async def run(self) -> None:
+        import websockets
+        backoff = 2.0
+        while True:
+            if not getattr(self.cfg, "pump_enabled", True):
+                self.status.update(ws=False, error="desligado")
+                await asyncio.sleep(5)
+                continue
+            try:
+                async with websockets.connect(self._url(), open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
+                    self.status.update(ws=True, connected_at=now_iso(), error=None)
+                    log.info("Pump.fun: conectado à PumpPortal")
+                    backoff = 2.0
+                    self._followed_sent = set()
+                    await ws.send(json.dumps({"method": "subscribeNewToken"}))
+                    self.refresh_followed(force=True)
+                    if self._paid() and self.followed and not any(m.get("method") == "subscribeAccountTrade" for m in self._out):
+                        self._out.append({"method": "subscribeAccountTrade", "keys": list(self.followed)})
+                        self._followed_sent = set(self.followed)
+                    self._want_tokens = list(dict.fromkeys(list(self.sub_tokens) + self._want_tokens))
+                    last_tick = 0.0
+                    while True:
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), 2.0)
+                            try:
+                                ev = json.loads(raw)
+                            except ValueError:
+                                ev = None
+                            for msg in self.on_message(ev) if ev else []:
+                                self._emit(msg)
+                        except asyncio.TimeoutError:
+                            pass
+                        if time.time() - last_tick >= 2.0:
+                            last_tick = time.time()
+                            for m in self._flush_subs():
+                                await ws.send(json.dumps(m))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                err = str(e)
+                k = self.real.api_key() if self.real is not None else ""
+                if k:
+                    err = err.replace(k, "***")
+                self.status.update(ws=False, error=f"{type(e).__name__}: {err[:120]}")
+                log.warning("Pump.fun: WebSocket caiu (%s) — reconectando em %.0f s", err[:100], backoff)
+                await asyncio.sleep(backoff)
+                backoff = min(60.0, backoff * 2)
+
+    # ------------------------------------------------------------------ monitor grátis (RPC da Solana)
+    async def aux_loops(self) -> None:
+        for p in self.positions():                 # depois de reiniciar, nenhuma venda está "em andamento"
+            if p.get("selling"):
+                p["selling"] = False
+                self._save_pos(p)
+        await asyncio.gather(self.rpc_run(), *(self.tx_worker() for _ in range(4)), self.price_loop(), self.tick_loop(),
+                             self.real_loop(), self.trail_fast_loop())
+
+    async def tick_loop(self) -> None:
+        while True:
+            try:
+                await self._tick()
+            except Exception as e:
+                log.warning("Pump.fun tick: %s", e)
+            await asyncio.sleep(2)
+
+    def _ws_url(self) -> str:
+        return str(self._c("pump_rpc_ws", SOL_WS) or SOL_WS)
+
+    async def rpc_run(self) -> None:
+        """Uma conexão WebSocket com a Solana; uma assinatura logsSubscribe (mentions) por carteira copiada.
+        Cada transação confirmada da carteira chega na hora; os detalhes vêm de getTransaction (grátis)."""
+        import websockets
+        backoff = 2.0
+        if self._tx_q is None:
+            self._tx_q = asyncio.Queue(maxsize=2000)
+        while True:
+            if not getattr(self.cfg, "pump_enabled", True):
+                self.rpc_status.update(ws=False, error="desligado")
+                await asyncio.sleep(5)
+                continue
+            try:
+                async with websockets.connect(self._ws_url(), open_timeout=15, ping_interval=20,
+                                              max_size=2 ** 22) as ws:
+                    self.rpc_status.update(ws=True, connected_at=now_iso(), error=None)
+                    log.info("Pump.fun: monitor de carteiras conectado (Solana RPC)")
+                    backoff = 2.0
+                    self._rpc_subs, pending, nid = {}, {}, 100
+                    while True:
+                        # copiados + todos do top (só para o status online; trades só dos copiados viram cópia)
+                        want = set(self.followed) | {r["wallet"] for r in self.leaderboard[:60]}
+                        have = set(self._rpc_subs.values()) | set(pending.values())
+                        for w in sorted(want - have):
+                            nid += 1
+                            pending[nid] = w
+                            await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsSubscribe",
+                                                      "params": [{"mentions": [w]}, {"commitment": "confirmed"}]}))
+                        for sid, w in list(self._rpc_subs.items()):
+                            if w not in want:
+                                nid += 1
+                                del self._rpc_subs[sid]
+                                await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsUnsubscribe",
+                                                          "params": [sid]}))
+                        self.rpc_status["subs"] = len(self._rpc_subs)
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), 2.0)
+                        except asyncio.TimeoutError:
+                            continue
+                        try:
+                            msg = json.loads(raw)
+                        except ValueError:
+                            continue
+                        if "id" in msg and msg.get("id") in pending:
+                            w = pending.pop(msg["id"])
+                            if "result" in msg:
+                                self._rpc_subs[msg["result"]] = w
+                            else:
+                                self.rpc_status["error"] = str(msg.get("error"))[:120]
+                            continue
+                        if msg.get("method") == "logsNotification":
+                            prm = msg.get("params") or {}
+                            w = self._rpc_subs.get(prm.get("subscription"))
+                            val = ((prm.get("result") or {}).get("value")) or {}
+                            sig = val.get("signature")
+                            self.rpc_status["notifs"] += 1
+                            if not w or not sig or sig in self._seen_sigs:
+                                continue
+                            self._seen_sigs.append(sig)
+                            act = self.activity.setdefault(w, {"last": None, "n": deque(maxlen=600), "pump": 0,
+                                                               "pump_last": None, "other": 0, "pn": deque(maxlen=600)})
+                            now = time.time()
+                            act["last"] = now
+                            act["n"].append(now)
+                            if self._is_bot(w, now):
+                                continue
+                            if val.get("err"):
+                                continue
+                            logs = " ".join(val.get("logs") or [])
+                            if w not in self.followed:           # só observando (status online do top)
+                                if any(pid in logs for pid in PUMP_PROGRAMS):
+                                    act["pump"] += 1
+                                    act["pump_last"] = now
+                                    act.setdefault("pn", deque(maxlen=600)).append(now)
+                                else:
+                                    act["other"] += 1
+                                continue
+                            # só transações que passam pela pump.fun/PumpSwap viram consulta (o resto — SOL↔USDC,
+                            # transferências, outras DEXs — é descartado aqui, sem gastar consulta nenhuma)
+                            if not any(pid in logs for pid in PUMP_PROGRAMS):
+                                act["other"] += 1
+                                if not getattr(self.cfg, "pump_copy_other", True):
+                                    continue
+                            else:
+                                act["pump"] += 1
+                                act["pump_last"] = now
+                                act.setdefault("pn", deque(maxlen=600)).append(now)
+                            try:
+                                self._tx_q.put_nowait((w, sig, now))
+                            except asyncio.QueueFull:
+                                self.rpc_status["dropped"] = self.rpc_status.get("dropped", 0) + 1
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                self.rpc_status.update(ws=False, error=f"{type(e).__name__}: {str(e)[:120]}")
+                log.warning("Pump.fun: monitor de carteiras caiu (%s) — reconectando em %.0f s", str(e)[:100], backoff)
+                await asyncio.sleep(backoff)
+                backoff = min(60.0, backoff * 2)
+
+    async def _get_tx(self, sig: str) -> dict | None:
+        urls = []
+        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
+        if own and "api.mainnet-beta.solana.com" not in own:
+            urls.append(own)                       # RPC da carteira (ex.: Helius) primeiro: o público dá 429 rápido
+        urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
+        body = {"jsonrpc": "2.0", "id": 1, "method": "getTransaction",
+                "params": [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0, "commitment": "confirmed"}]}
+        for attempt in range(4):
+            for u in urls:
+                try:
+                    r = await self.http.post(u, json=body, timeout=10)
+                    if r.status_code == 429:
+                        continue
+                    res = (r.json() or {}).get("result")
+                    if res:
+                        return res
+                except Exception:
+                    continue
+            await asyncio.sleep(1.0 + attempt)
+        return None
+
+    @staticmethod
+    def parse_trade(tx: dict, wallet: str, sol_usd: float = 0.0) -> dict | None:
+        """Transação → evento de trade (mesmo formato da PumpPortal): token que a carteira ganhou/perdeu e o SOL
+        (+ wSOL) que saiu/entrou. Funciona para pump.fun, PumpSwap e outras DEXs."""
+        meta, msg = tx.get("meta") or {}, ((tx.get("transaction") or {}).get("message") or {})
+        if meta.get("err"):
+            return None
+        keys = [k.get("pubkey") if isinstance(k, dict) else k for k in (msg.get("accountKeys") or [])]
+        if wallet not in keys:
+            return None
+        i = keys.index(wallet)
+        pre, post = meta.get("preBalances") or [], meta.get("postBalances") or []
+        if i >= len(pre) or i >= len(post):
+            return None
+        sol = (post[i] - pre[i]) / 1e9
+        if i == 0:
+            sol += (meta.get("fee") or 0) / 1e9          # taxa da rede não é preço do token
+        deltas: dict = {}
+        for side, arr in ((-1, meta.get("preTokenBalances") or []), (1, meta.get("postTokenBalances") or [])):
+            for b in arr:
+                if b.get("owner") != wallet:
+                    continue
+                amt = float(((b.get("uiTokenAmount") or {}).get("uiAmountString")) or
+                            ((b.get("uiTokenAmount") or {}).get("uiAmount")) or 0)
+                d = deltas.setdefault(b.get("mint"), {"delta": 0.0, "post": 0.0})
+                d["delta"] += side * amt
+                if side == 1:
+                    d["post"] += amt
+        wsol = deltas.pop(SOL_MINT, None)
+        if wsol:
+            sol += wsol["delta"]
+        for st in (USDC, USDT):                       # pagou/recebeu em dólar: converte para SOL
+            d_ = deltas.pop(st, None)
+            if d_ and abs(d_["delta"]) > 0:
+                if not sol_usd:
+                    return None
+                sol += d_["delta"] / sol_usd
+        if not deltas:
+            return None
+        mint, d = max(deltas.items(), key=lambda kv: abs(kv[1]["delta"]))
+        tok = d["delta"]
+        if tok > 0 and sol < 0:
+            kind = "buy"
+        elif tok < 0 and sol > 0:
+            kind = "sell"
+        else:
+            return None
+        sig = ((tx.get("transaction") or {}).get("signatures") or [None])[0]
+        return {"txType": kind, "traderPublicKey": wallet, "mint": mint, "solAmount": abs(sol),
+                "tokenAmount": abs(tok), "newTokenBalance": d["post"], "signature": sig,
+                "marketCapSol": abs(sol) / abs(tok) * 1e9 if tok else None,   # pump.fun: 1 bilhão de tokens
+                "source": "rpc", "blockTime": tx.get("blockTime")}
+
+    def _is_bot(self, w: str, now: float) -> bool:
+        """Robô de alta frequência (sniper/MEV/spam): mais de N transações pump.fun por minuto, ou centenas de
+        transações (mesmo falhas) por minuto. Impossível copiar: sai da cópia por 1 h e entra o próximo do top."""
+        a = self.activity.get(w) or {}
+        if a.get("bot_until", 0) > now:
+            return True
+        lim_p = float(self._c("pump_max_tx_min", 10))
+        pn = sum(1 for x in a.get("pn") or [] if now - x <= 60)
+        n = sum(1 for x in a.get("n") or [] if now - x <= 60)
+        if pn > lim_p or n > lim_p * 12:
+            a["bot_until"] = now + 3600
+            a["bot_reason"] = f"robô: {pn} trades pump.fun/min, {n} transações/min"
+            if w in self.followed:
+                self._emit(f"Pump.fun: {short(w)} parece robô ({a['bot_reason']}) — fora da cópia por 1 h")
+            self._rank_at = 0                          # refaz a lista de copiados já
+            return True
+        return False
+
+    def activity_view(self, w: str) -> dict:
+        a = self.activity.get(w) or {}
+        now = time.time()
+        last, pl = a.get("last"), a.get("pump_last")
+        per_min = sum(1 for x in a.get("n") or [] if now - x <= 60)
+        if a.get("bot_until", 0) > now:
+            st = "robô"
+        elif last and now - last <= 600:
+            st = "online"
+        elif last:
+            st = "inativo"
+        else:
+            st = "sem atividade"
+        return {"status": st, "last": last, "pump_last": pl, "pump": a.get("pump", 0), "other": a.get("other", 0),
+                "tx_min": per_min, "bot_reason": a.get("bot_reason") if st == "robô" else None}
+
+    def token_block(self, mint: str) -> str | None:
+        """Filtros do TOKEN antes de copiar (evita token só do criador/insiders, sem negociação de verdade):
+        market cap mínimo em US$, volume da última hora, número de negociações e concentração nos 10 maiores."""
+        tk = self.tokens.get(mint) or {}
+        su = self.sol_usd or 0
+        mn_mc = float(self._c("pump_min_mcap_usd", 10000))
+        if mn_mc and tk.get("mcap_sol") is not None and su and tk["mcap_sol"] * su < mn_mc:
+            return f"market cap ${tk['mcap_sol'] * su:,.0f} < ${mn_mc:,.0f}".replace(",", ".")
+        v = tk.get("vol") or {}
+        mn_v = float(self._c("pump_min_vol_h1_usd", 5000))
+        if mn_v and float(v.get("h1") or 0) < mn_v:
+            return (f"volume 1 h ${float(v.get('h1') or 0):,.0f} < ${mn_v:,.0f}".replace(",", ".")
+                    if v else "sem volume (token sem negociação / só do criador)")
+        mn_t = int(self._c("pump_min_txns_h1", 30))
+        n = int(v.get("buys_h1") or 0) + int(v.get("sells_h1") or 0)
+        if mn_t and n < mn_t:
+            return f"só {n} negociações na última hora (mínimo {mn_t})"
+        mx_top = float(self._c("pump_max_top10_pct", 35))
+        top = tk.get("top10_pct")
+        if mx_top and top is not None and top > mx_top:
+            return f"10 maiores carteiras têm {top:.0f}% (máx. {mx_top:.0f}%) — risco de insiders/dev"
+        return None
+
+    async def holders_check(self, mint: str) -> None:
+        """% do token nas 10 maiores carteiras (sem contar a curva/pool) — RPC grátis, cache de 60 s."""
+        tk = self.tokens.setdefault(mint, {"created_t": time.time()})
+        if time.time() - (tk.get("top10_t") or 0) < 60:
+            return
+        tk["top10_t"] = time.time()
+        urls = []
+        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
+        if own:
+            urls.append(own)
+        urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
+
+        async def rpc(method, params):
+            for u in urls:
+                try:
+                    r = await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=8)
+                    js = r.json()
+                    if "result" in js:
+                        return js["result"]
+                except Exception:
+                    continue
+            return None
+        sup = await rpc("getTokenSupply", [mint])
+        big = await rpc("getTokenLargestAccounts", [mint])
+        if not sup or not big:
+            return
+        total = float((sup.get("value") or {}).get("uiAmountString") or 0)
+        accs = (big.get("value") or [])[:21]
+        if not total or not accs:
+            return
+        info = await rpc("getMultipleAccounts", [[a["address"] for a in accs], {"encoding": "jsonParsed"}])
+        owners = []
+        for a in (info or {}).get("value") or []:
+            try:
+                owners.append(a["data"]["parsed"]["info"]["owner"])
+            except Exception:
+                owners.append(None)
+        curve = self.curve_pda(mint)
+        graduated = (tk.get("pool") == "pumpswap") or ("pumpswap" in (tk.get("dexes") or []))
+        holders = []
+        for i_, a in enumerate(accs):
+            own_ = owners[i_] if i_ < len(owners) else None
+            if own_ == curve:
+                continue                                       # reserva da curva da pump.fun: não é holder
+            holders.append(float(a.get("uiAmountString") or a.get("uiAmount") or 0))
+        if graduated and holders:
+            holders = holders[1:]                              # maior conta = pool da PumpSwap
+        tk["top10_pct"] = round(sum(holders[:10]) / total * 100, 1)
+
+    def _other_block(self, mint: str) -> str | None:
+        """Pode copiar este token FORA da pump.fun? (Raydium, Meteora, Orca… via Jupiter)"""
+        if not getattr(self.cfg, "pump_copy_other", True):
+            return "cópia fora da pump.fun desligada"
+        if mint in QUOTES or mint in NO_COPY:
+            return "não é trade de token"
+        liq = (self.tokens.get(mint) or {}).get("liq_usd")
+        mn = float(self._c("pump_other_min_liq_usd", 20000))
+        if liq is None:
+            return "sem pool conhecida"
+        if liq < mn:
+            return f"liquidez ${liq:,.0f} < ${mn:,.0f}"
+        return None
+
+    def is_pump(self, mint: str) -> bool:
+        """Token da pump.fun: endereço termina em 'pump' (padrão da pump.fun) ou a DexScreener mostra pool
+        pump.fun/PumpSwap."""
+        if mint in QUOTES:
+            return False
+        if mint.endswith("pump"):
+            return True
+        return bool(set((self.tokens.get(mint) or {}).get("dexes") or []) & PUMP_DEX)
+
+    async def tx_worker(self) -> None:
+        while self._tx_q is None:
+            await asyncio.sleep(0.5)
+        while True:
+            w, sig, t0 = await self._tx_q.get()
+            if time.time() - t0 > 120:                  # atrasou demais: copiar agora não faz sentido
+                self.rpc_status["stale"] = self.rpc_status.get("stale", 0) + 1
+                continue
+            try:
+                tx = await self._get_tx(sig)
+                if not tx:
+                    self.rpc_status["tx_errors"] += 1
+                    continue
+                ev = self.parse_trade(tx, w, self.sol_usd)
+                if not ev:
+                    continue
+                self.rpc_status["parsed"] += 1
+                self.rpc_status["last_event"] = time.time()
+                tk0 = self.tokens.get(ev["mint"]) or {}
+                if not tk0.get("symbol") or tk0.get("liq_usd") is None or time.time() - (tk0.get("last_t") or 0) > 30:
+                    await self._fetch_prices([ev["mint"]])
+                if not self.is_pump(ev["mint"]):
+                    why = self._other_block(ev["mint"])
+                    if why:
+                        # fora da pump.fun e não copiável (cópia fora desligada, staking, pool pequena…)
+                        self.rpc_status["ignored"] = self.rpc_status.get("ignored", 0) + 1
+                        ig = self.rpc_status.setdefault("ignored_by", {})
+                        ig[w] = ig.get(w, 0) + 1
+                        continue
+                    ev["marketCapSol"] = (self.tokens.get(ev["mint"]) or {}).get("mcap_sol")
+                    ev["other"] = True
+                    oc = self.rpc_status.setdefault("other_by", {})
+                    oc[w] = oc.get(w, 0) + 1
+                if ev["txType"] == "buy" and w in self.followed:
+                    tk1 = self.tokens.get(ev["mint"]) or {}
+                    if time.time() - (tk1.get("vol_t") or 0) > 20:
+                        await self._fetch_prices([ev["mint"]], set_price=not self.is_pump(ev["mint"]))
+                    try:
+                        await self.holders_check(ev["mint"])
+                    except Exception:
+                        pass
+                for m in self.on_message(ev):
+                    self._emit(m)
+            except Exception as e:
+                self.rpc_status["tx_errors"] += 1
+                log.warning("Pump.fun: transação %s: %s", sig[:12], e)
+
+    async def _fetch_prices(self, mints: list[str], set_price: bool = True) -> None:
+        """Preço (em SOL), símbolo, market cap e VOLUME pela DexScreener (até 30 tokens por consulta, grátis).
+        set_price=False: só os dados de mercado (o preço vem da curva on-chain, mais rápido)."""
+        sol_usd = self.sol_usd or 0
+        for i in range(0, len(mints), 30):
+            chunk = mints[i:i + 30]
+            try:
+                r = await self.http.get(DS_TOKENS + ",".join(chunk), timeout=10)
+                js = r.json() if r.status_code == 200 else []
+            except Exception as e:
+                self.rpc_status["price_error"] = str(e)[:100]
+                continue
+            best: dict = {}
+            vols: dict = {}
+            for p in js if isinstance(js, list) else []:
+                base = (p.get("baseToken") or {}).get("address")
+                if base not in chunk:
+                    continue
+                v = vols.setdefault(base, {"m5": 0.0, "h1": 0.0, "h6": 0.0, "h24": 0.0, "buys_h1": 0, "sells_h1": 0})
+                for k_ in ("m5", "h1", "h6", "h24"):
+                    v[k_] += float((p.get("volume") or {}).get(k_) or 0)
+                tx1 = (p.get("txns") or {}).get("h1") or {}
+                v["buys_h1"] += int(tx1.get("buys") or 0)
+                v["sells_h1"] += int(tx1.get("sells") or 0)
+                dx = self.tokens.setdefault(base, {"created_t": time.time()}).setdefault("dexes", [])
+                if p.get("dexId") and p["dexId"] not in dx:
+                    dx.append(p["dexId"])
+                if p.get("dexId") == "pumpswap" and p.get("pairAddress"):
+                    self.tokens[base]["pumpswap_pool"] = p["pairAddress"]
+                liq = float((p.get("liquidity") or {}).get("usd") or 0)
+                if base in best and best[base][0] >= liq:
+                    continue
+                best[base] = (liq, p)
+            now = time.time()
+            for m, (liq, p) in best.items():
+                q = (p.get("quoteToken") or {}).get("address")
+                pn, pu = float(p.get("priceNative") or 0), float(p.get("priceUsd") or 0)
+                px = pn if q == SOL_MINT and pn > 0 else (pu / sol_usd if sol_usd and pu else None)
+                tk = self.tokens.setdefault(m, {"created_t": now})
+                tk["liq_usd"] = liq
+                tk["main_dex"] = p.get("dexId")
+                if m in vols:
+                    tk["vol"] = {k_: round(v_, 2) if isinstance(v_, float) else v_ for k_, v_ in vols[m].items()}
+                    tk["vol_t"] = now
+                if px and (set_price or not tk.get("price") or now - (tk.get("last_t") or 0) > 30):
+                    tk["price"] = px
+                    tk["last_t"] = now
+                sym = (p.get("baseToken") or {}).get("symbol")
+                if sym:
+                    tk["symbol"] = sym
+                if p.get("marketCap") and sol_usd:
+                    tk["mcap_sol"] = float(p["marketCap"]) / sol_usd
+            self.rpc_status.update(price_at=now_iso(), price_error=None)
+
+    @staticmethod
+    def curve_pda(mint: str) -> str | None:
+        try:
+            from solders.pubkey import Pubkey
+            return str(Pubkey.find_program_address([b"bonding-curve", bytes(Pubkey.from_string(mint))],
+                                                   Pubkey.from_string(PUMP_PROGRAMS[0]))[0])
+        except Exception:
+            return None
+
+    async def _rpc_multi(self, keys: list[str], enc: str, public_first: bool = False):
+        urls = []
+        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
+        pub = str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP)
+        urls = ([pub] + ([own] if own else [])) if public_first else (([own] if own else []) + [pub])
+        for u in urls:
+            try:
+                r = await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": "getMultipleAccounts",
+                                                  "params": [keys, {"encoding": enc, "commitment": "confirmed"}]},
+                                         timeout=6)
+                vals = ((r.json() or {}).get("result") or {}).get("value")
+                if vals is not None:
+                    return vals
+            except Exception:
+                continue
+        return None
+
+    async def _pumpswap_prices(self, mints: list[str], public_first: bool = False, qty: dict | None = None) -> list[str]:
+        """Preço AO VIVO de tokens já graduados (PumpSwap/outras DEXs): cotação da Jupiter para VENDER a quantidade
+        que o bot segura (preço executável de verdade, com impacto). Obs.: o saldo dos cofres do pool NÃO dá o preço
+        certo (testado: ~9% de diferença), por isso a cotação. Devolve os que não deu para cotar.
+        qty: quantidade por token (o monitor compartilhado soma a de todos os usuários)."""
+        jup = self.market.jup
+        if jup is None:
+            jup = getattr(getattr(self.real, "jup", None), "dex", None) if self.real is not None else None
+        if jup is None:
+            return mints
+        rest, now = [], time.time()
+        if qty is None:
+            qty = {}
+            for p in self.positions():
+                qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)
+        for m in mints:
+            q_tok = qty.get(m) or 0.0
+            dec = (self.tokens.get(m) or {}).get("decimals") or 6
+            if q_tok <= 0:
+                rest.append(m)
+                continue
+            try:
+                q = await jup._quote(m, SOL_MINT, int(q_tok * 10 ** dec), None, direct=False)
+            except Exception:
+                q = None
+            out = int((q or {}).get("outAmount") or 0) / 1e9
+            if out <= 0:
+                rest.append(m)
+                continue
+            fee = self._fee_rates(m)["venue"]
+            tk = self.tokens.setdefault(m, {"created_t": now})
+            tk["price"] = out / q_tok / max(1e-9, 1 - fee)        # tira a taxa da pool (o cálculo de saída aplica de novo)
+            tk["last_t"], tk["price_src"] = now, "cotação Jupiter (venda da posição)"
+        return rest
+
+    async def trail_fast_loop(self) -> None:
+        """Posições com STOP MÓVEL ligado: preço on-chain a cada ~1 s (curva da pump.fun ou pool da PumpSwap) e
+        checagem do stop — só para essas posições (as outras seguem no ritmo normal de ~3 s)."""
+        while True:
+            dt = float(self._c("pump_trail_fast_s", 1.0))
+            try:
+                ms = list(dict.fromkeys(p["mint"] for p in self.positions()
+                                        if p.get("trail_peak") is not None and not p.get("selling")))
+                if ms and dt > 0:
+                    pump = [m for m in ms if self.is_pump(m)]
+                    rest = await self._curve_prices(pump, public_first=True) if pump else []
+                    rest += [m for m in ms if m not in pump]
+                    # graduados: cotação Jupiter no máx. a cada 3 s por token (não sobrecarrega as outras abas)
+                    due = [m for m in rest if time.time() - (self.tokens.get(m) or {}).get("jq_t", 0) >= 3]
+                    for m in due:
+                        self.tokens.setdefault(m, {})["jq_t"] = time.time()
+                    if due:
+                        await self._pumpswap_prices(due, public_first=True)
+                    for m in ms:
+                        for msg in self._check_stops(m, time.time()):
+                            self._emit(msg)
+                    self.rpc_status["trail_fast_at"] = now_iso()
+            except Exception as e:
+                self.rpc_status["trail_fast_error"] = str(e)[:100]
+            await asyncio.sleep(max(0.3, dt) if dt > 0 else 5)
+
+    async def _curve_prices(self, mints: list[str], public_first: bool = False) -> list[str]:
+        """Preço AO VIVO direto da curva da pump.fun (conta on-chain: reservas virtuais) — 1 consulta para até 100
+        tokens, grátis. Devolve os tokens que já graduaram (curva completa) ou que não são da curva."""
+        pdas = {m: self.curve_pda(m) for m in mints}
+        keys = [v for v in pdas.values() if v]
+        if not keys:
+            return mints
+        vals = await self._rpc_multi(keys, "base64", public_first)
+        if vals is None:
+            return mints
+        by_pda = dict(zip(keys, vals))
+        rest, now = [], time.time()
+        for m, pda in pdas.items():
+            acc = by_pda.get(pda) if pda else None
+            try:
+                raw = base64.b64decode(acc["data"][0]) if acc else b""
+            except Exception:
+                raw = b""
+            if len(raw) < 49:
+                rest.append(m)
+                continue
+            vt = int.from_bytes(raw[8:16], "little")
+            vs = int.from_bytes(raw[16:24], "little")
+            complete = raw[48] == 1
+            tk = self.tokens.setdefault(m, {"created_t": now})
+            if complete or not vt:
+                tk["pool"] = "pumpswap" if complete else tk.get("pool")
+                rest.append(m)
+                continue
+            tk["price"] = (vs / 1e9) / (vt / 1e6)
+            tk["mcap_sol"] = tk["price"] * 1e9
+            tk["last_t"] = now
+            tk["price_src"] = "curva pump.fun (on-chain)"
+        return rest
+
+    async def price_loop(self) -> None:
+        """A cada ~3 s: preço ao vivo dos tokens que o bot (fictício e REAL) e os traders copiados seguram —
+        direto da curva da pump.fun on-chain; tokens graduados/fora da pump.fun pela DexScreener (a cada ~10 s).
+        Depois aplica stop/alvo/segurar-até-lucro e atualiza a variação."""
+        last_ds = 0.0
+        while True:
+            try:
+                held = [p["mint"] for p in self.positions()]
+                held += [p["mint"] for p in self.trader_positions()]
+                held = list(dict.fromkeys(held))[:100]
+                if held:
+                    pump = [m for m in held if self.is_pump(m)]
+                    rest = [m for m in held if m not in pump]
+                    rest += await self._curve_prices(pump) if pump else []
+                    if time.time() - last_ds >= float(self._c("pump_ds_every_s", 10)):
+                        last_ds = time.time()
+                        if rest:
+                            await self._fetch_prices(list(dict.fromkeys(rest)))
+                        mine = [m for m in dict.fromkeys(p["mint"] for p in self.positions()) if m not in rest]
+                        if mine:                            # volume/mcap dos tokens da curva (preço já veio on-chain)
+                            await self._fetch_prices(mine, set_price=False)
+                    for m in {p["mint"] for p in self.positions()}:
+                        for msg in self._check_stops(m, time.time()):
+                            self._emit(msg)
+                    self.rpc_status["price_at"] = now_iso()
+            except Exception as e:
+                self.rpc_status["price_error"] = str(e)[:100]
+            await asyncio.sleep(float(self._c("pump_price_every_s", 3)))
+
+    def _purge_quote_positions(self) -> None:
+        if any(e.get("mint") in QUOTES for e in self.feed) or any(e.get("mint") in QUOTES for e in self.live):
+            self.feed = deque([e for e in self.feed if e.get("mint") not in QUOTES], maxlen=300)
+            self.live = deque([e for e in self.live if e.get("mint") not in QUOTES], maxlen=400)
+        for p in self.positions():
+            if p["mint"] in QUOTES:
+                self._del_pos(p)
+                self._emit(f"Pump.fun: posição fictícia em {p.get('symbol')} removida (não é memecoin — era um "
+                           f"trade SOL↔dólar do trader; valor devolvido à carteira fictícia)")
+
+    async def _process_pending(self) -> None:
+        """Cópias com espera: depois de X s, se o trader ainda segura o token, copia no preço de AGORA."""
+        now = time.time()
+        for key, pd in list(self._pending.items()):
+            if pd["due"] > now:
+                continue
+            self._pending.pop(key, None)
+            who, mint = pd["who"], pd["mint"]
+            held = ((self.wallets.get(who) or {}).get("pos") or {}).get(mint, {}).get("tok", 0.0)
+            if held <= pd["tok"] * 0.05:
+                continue
+            try:
+                await self._fetch_prices([mint])               # preço atualizado (você entra agora, não no preço dele)
+            except Exception:
+                pass
+            ev = dict(pd["ev"], _delayed=True)
+            for m in self._copy(who, mint, "buy", pd["sol"], pd["tok"], ev, pd["before"], now):
+                self._emit(m)
+
+    async def _tick(self) -> None:
+        await self._process_pending()
+        self._purge_quote_positions()
+        self.refresh_followed()
+        for msg in self.check_timeouts():
+            self._emit(msg)
+        if int(time.time()) % 60 < 2:
+            self.prune()
+        if self.price_fn:
+            try:
+                self.sol_usd = float(self.price_fn() or 0) or self.sol_usd
+            except Exception:
+                pass
+        if self.real is not None and self._real_q:
+            await self._real_process()
+
+    def _emit(self, msg: str) -> None:
+        log.info(msg)
+        self._ev_id += 1
+        self.events.append({"id": self._ev_id, "at": now_iso(), "msg": msg})
+        if self.on_event:
+            self.on_event("pump", msg)
+
+    def events_after(self, after: int = 0) -> list[dict]:
+        return [e for e in self.events if e["id"] > after]
+
+    # ------------------------------------------------------------------ real (preparado, desligado)
+    def _rq_put(self, item) -> None:
+        if self._rq is None:
+            self._rq = asyncio.Queue()
+        self._rq.put_nowait(item)
+
+    def _real_sell(self, p: dict, frac: float, why: str) -> None:
+        if p.get("selling"):
+            return
+        p["selling"] = True
+        self._save_pos(p)
+        self._rq_put(("sell", {"id": p["id"], "frac": frac, "why": why}))
+
+    async def _real_process(self) -> None:          # compatibilidade (fila antiga)
+        self._real_q = []
+
+    async def real_loop(self) -> None:
+        """Executa compras/vendas REAIS uma de cada vez (cada uma espera a confirmação na blockchain e mede o saldo)."""
+        if self._rq is None:
+            self._rq = asyncio.Queue()
+        while True:
+            kind, it = await self._rq.get()
+            try:
+                if kind == "buy":
+                    await self._real_buy(it)
+                else:
+                    await self._real_do_sell(it)
+            except Exception as e:
+                self._emit(f"[PUMP REAL] {kind} {it.get('symbol') or it.get('id')}: erro {type(e).__name__}: {str(e)[:120]}")
+                if kind == "buy":
+                    self._real_buying.discard(it.get("mint"))
+                else:
+                    self._unmark_selling(it.get("id"))
+
+    def _unmark_selling(self, pid) -> None:
+        for p in self.positions():
+            if p["id"] == pid and p.get("selling"):
+                p["selling"] = False
+                self._save_pos(p)
+
+    async def _real_buy(self, it: dict) -> None:
+        mint, sym = it["mint"], it["symbol"]
+        try:
+            lim = float(self._c("pump_real_daily_loss_sol", 0.5))
+            if not getattr(self.cfg, "pump_real_enabled", False):
+                return
+            if lim and self.real.today_loss(self.trades(2000)) >= lim:
+                self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
+                           action="REAL não copiou", reason=f"perda do dia chegou a {lim} SOL")
+                return
+            amt = float(self._c("pump_real_max_sol", 0.05))
+            res = await self.real.buy(mint, amt, other=not self.is_pump(mint))
+            if not res.get("ok"):
+                self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
+                           action="REAL falhou", reason=res.get("reason") or res.get("status"))
+                self._emit(f"[PUMP REAL] compra {sym} NÃO feita: {res.get('reason') or res.get('status')}")
+                return
+            fr = self._fee_rates(mint)
+            spent, toks = res["sol_spent"], res["tokens"]
+            p = {"opened_at": now_iso(), "open_t": time.time(), "wallet": it["wallet"], "mint": mint, "symbol": sym,
+                 "sol_in": round(spent, 9), "tokens": toks, "tokens_left": toks, "price_in": spent / toks,
+                 "price_now": it.get("trader_price"), "trader_price": it.get("trader_price"),
+                 "trader_sol": it.get("trader_sol"), "proceeds": 0.0, "mcap_in": it.get("mcap_in"), "real": True,
+                 "venue_in": fr["venue_name"], "signature": res.get("signature"), "fees_sol": 0.0}
+            self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"],
+                         network=max(0.0, spent - amt * (1 + fr["venue"] + fr["portal"])))
+            p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
+            self._save_pos(p)
+            self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
+                       action="REAL comprou", reason=f"gastou {spent:.4f} SOL · recebeu {toks:,.0f} tokens",
+                       signature=res.get("signature"))
+            self._emit(f"[PUMP REAL] comprou {sym}: {spent:.4f} SOL (copiando {short(it['wallet'])})")
+        finally:
+            self._real_buying.discard(mint)
+
+    async def _real_do_sell(self, it: dict) -> None:
+        p = next((x for x in self.positions() if x["id"] == it["id"]), None)
+        if not p:
+            return
+        frac, why = float(it["frac"]), it["why"]
+        res = await self.real.sell(p["mint"], frac, other=not self.is_pump(p["mint"]))
+        if not res.get("ok"):
+            p["selling"] = False
+            p["sell_error"] = res.get("reason") or res.get("status")
+            self._save_pos(p)
+            self._emit(f"[PUMP REAL] venda {p['symbol']} NÃO feita ({why}): {p['sell_error']} — tenta de novo no próximo sinal")
+            return
+        got, left = res["sol_received"], res["tokens_left"]
+        fr = self._fee_rates(p["mint"])
+        sold = max(0.0, p["tokens_left"] - left)
+        p["proceeds"] = p.get("proceeds", 0.0) + got
+        p["tokens_left"] = left
+        p["price_now"] = (got / sold) if sold else p.get("price_now")
+        gross_out = got / max(1e-9, 1 - fr["venue"] - fr["portal"])
+        self._addfee(p, platform=gross_out * fr["venue"], portal=gross_out * fr["portal"], network=fr["prio"])
+        p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
+        p.setdefault("sells", []).append({"at": now_iso(), "frac": round(frac, 4), "sol": round(got, 6), "why": why,
+                                          "signature": res.get("signature")})
+        p["selling"] = False
+        if left <= p["tokens"] * 0.005 or frac >= 1.0:
+            pnl = p["proceeds"] - p["sol_in"]          # diferença REAL de SOL na carteira: já com todas as taxas
+            tr = {"opened_at": p["opened_at"], "closed_at": now_iso(), "wallet": p["wallet"], "mint": p["mint"],
+                  "symbol": p["symbol"], "sol_in": p["sol_in"], "sol_out": round(p["proceeds"], 6),
+                  "pnl_sol": round(pnl, 6), "pnl_pct": round(pnl / p["sol_in"] * 100, 2), "price_in": p["price_in"],
+                  "price_out": p.get("price_now"), "fees_sol": round(p["fees_sol"], 6), "reason": why,
+                  "fee_parts": {k: round(v, 6) for k, v in (p.get("fee_parts") or {}).items()},
+                  "gross_sol": round(pnl + p["fees_sol"], 6), "venue": p.get("venue_in"),
+                  "hold_s": round(time.time() - p.get("open_t", time.time())), "sells": p.get("sells", []),
+                  "real": True, "signature": p.get("signature"), "mcap_in": p.get("mcap_in"),
+                  "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
+            self._save_trade(tr)
+            self._del_pos(p)
+            self._after_close(tr)
+            self._emit(f"[PUMP REAL] fechou {p['symbol']} ({why}) → {pnl:+.4f} SOL ({tr['pnl_pct']:+.1f}%) líquido")
+        else:
+            self._save_pos(p)
+            self._emit(f"[PUMP REAL] {p['symbol']}: vendeu {frac * 100:.0f}% ({why}) → {got:.4f} SOL")
+
+    # ------------------------------------------------------------------ painel
+    def snapshot(self) -> dict:
+        c = self.cfg
+        rk = self.ranking_cache or self.ranking(100)
+        fol = set(self.followed)
+        man = set(self.manual)
+        stats_by_w = {r["wallet"]: r for r in rk}
+        lbmap = {r["wallet"]: r for r in self.leaderboard}
+        copied = {}
+        for t in self.trades(5000):
+            d = copied.setdefault(t["wallet"], {"n": 0, "pnl_sol": 0.0, "wins": 0})
+            d["n"] += 1
+            d["pnl_sol"] += t["pnl_sol"]
+            d["wins"] += t["pnl_sol"] > 0
+        followed = []
+        for w in self.followed:
+            r = stats_by_w.get(w) or {"wallet": w, "short": short(w)}
+            lbr = lbmap.get(w)
+            followed.append({**r, "manual": w in man, "copied": copied.get(w), "lb": lbr,
+                             "ignored": (self.rpc_status.get("ignored_by") or {}).get(w, 0),
+                             "other_copied": (self.rpc_status.get("other_by") or {}).get(w, 0),
+                             "act": self.activity_view(w),
+                             "source": "manual" if w in man else "leaderboard" if lbr else "ranking"})
+        for p in (pos := self.positions()):
+            px = (self.tokens.get(p["mint"]) or {}).get("price")
+            if px:
+                p["price_now"] = px
+                left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"]) if p.get("tokens") else 0
+                val = self._exit_value(p, px)
+                p["chg_pct"] = round((val / left_cost - 1) * 100, 2) if left_cost else None
+                p["value_sol"] = round(val, 6)
+                p["price_at"] = (self.tokens.get(p["mint"]) or {}).get("last_t")
+            tkp = self.tokens.get(p["mint"]) or {}
+            p["vol"] = tkp.get("vol")
+            p["mcap_now"] = tkp.get("mcap_sol")
+            p["liq_usd"] = tkp.get("liq_usd")
+        return {"enabled": getattr(c, "pump_enabled", True), "copy_enabled": getattr(c, "pump_copy_enabled", True),
+                "rpc": dict(self.rpc_status), "paid_stream": self._paid(),
+                "status": {**self.status, "followed": len(self.followed), "tracked_tokens": len(self.sub_tokens),
+                           "wallets_seen": len(self.wallets)},
+                "paused": [{"wallet": w, "short": short(w), **v,
+                            "act": self.activity_view(w), "lb": lbmap.get(w), "copied": copied.get(w)}
+                           for w, v in self.paused().items()],
+                "leaderboard": [r | {"followed": r["wallet"] in fol, "manual": r["wallet"] in man,
+                                     "paused": r["wallet"] in self.paused(),
+                                     "act": self.activity_view(r["wallet"])} for r in self.leaderboard],
+                "lb_status": {**self.lb_status, "key_set": bool(self.lb_key()),
+                              "source": "leaderboard" if self.leaderboard else "ranking próprio"},
+                "followed": followed, "ranking": [r | {"followed": r["wallet"] in fol} for r in rk[:50]],
+                "manual": self.manual, "banned": self.banned,
+                "positions": pos, "trades": self.trades(300), "feed": list(self.feed)[:150],
+                "live": [e for e in list(self.live) if e["wallet"] in fol][:200], "trader_pos": self.trader_positions(),
+                "wallet": self.wallet(), "real_wallet": self.wallet(real=True), "curve": self.curve(),
+                "real_curve": self.curve(real=True), "pending": [{"wallet": k[0], "mint": k[1], "in_s": round(v["due"] - time.time())}
+                                                          for k, v in self._pending.items()], "real_pending": {"buying": sorted(self._real_buying),
+                                                                     "queue": self._rq.qsize() if self._rq else 0},
+                "sol_usd": self.sol_usd,
+                "cfg": {**{k: getattr(c, k, None) for k in USER_KEYS},
+                        "pump_real_enabled": bool(getattr(c, "pump_real_enabled", False))},
+                "real": {"enabled": bool(getattr(c, "pump_real_enabled", False)),
+                         "wallet_configured": bool(self.sol_wallet and getattr(self.sol_wallet, "keypair", None)),
+                         "api_key_set": bool(self.real and self.real.api_key()),
+                         "address": getattr(self.sol_wallet, "address", None) if self.sol_wallet else None}}
+
+
+class PumpReal:
+    """Execução REAL na pump.fun pela API de transação local da PumpPortal (a transação é montada por eles e
+    ASSINADA aqui pela carteira do bot — a chave nunca sai do bot). DESLIGADA por padrão."""
+
+    def __init__(self, cfg, http, wallet, keys, jup=None):
+        self.cfg, self.http, self.wallet, self.keys = cfg, http, wallet, keys
+        self.jup = jup                                   # DexCexReal (_dex_swap pela Jupiter) para tokens fora da pump.fun
+
+    def api_key(self) -> str:
+        return self.keys.get("pumpportal_api_key") if self.keys is not None else ""
+
+    def today_loss(self, trades: list[dict]) -> float:
+        day = datetime.now(timezone.utc).date().isoformat()
+        return -sum(t.get("pnl_sol") or 0 for t in trades if t.get("real") and (t.get("closed_at") or "")[:10] == day)
+
+    async def _rpc(self, method: str, params: list):
+        r = await self.http.post(self.wallet.rpc_url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                                 timeout=15)
+        js = r.json()
+        if "error" in js:
+            raise RuntimeError(str(js["error"])[:160])
+        return js["result"]
+
+    async def balances(self, mint: str) -> tuple[float, float]:
+        """(SOL, tokens do mint) da carteira do bot, direto da blockchain."""
+        sol = (await self._rpc("getBalance", [self.wallet.address, {"commitment": "confirmed"}]))["value"] / 1e9
+        tok = 0.0
+        res = await self._rpc("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
+                                                          {"encoding": "jsonParsed", "commitment": "confirmed"}])
+        for a in (res or {}).get("value") or []:
+            ta = a["account"]["data"]["parsed"]["info"]["tokenAmount"]
+            tok += float(ta.get("uiAmountString") or ta.get("uiAmount") or 0)
+        return sol, tok
+
+    async def _send_confirm(self, raw_b64: str) -> tuple[str | None, str, str | None]:
+        try:
+            sig = await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": False,
+                                                                "preflightCommitment": "processed", "maxRetries": 3}])
+        except Exception as e:
+            return None, "recusada", str(e)[:160]
+        for i in range(80):
+            await asyncio.sleep(0.75)
+            if i % 3 == 2:
+                try:
+                    await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 0}])
+                except Exception:
+                    pass
+            try:
+                st = (await self._rpc("getSignatureStatuses", [[sig]]))["value"][0]
+            except Exception:
+                continue
+            if st and st.get("err"):
+                return sig, "falhou", str(st["err"])[:120]
+            if st and st.get("confirmationStatus") in ("confirmed", "finalized"):
+                return sig, "confirmada", None
+        return sig, "pendente", "sem confirmação em 60 s"
+
+    async def _tx(self, body: dict) -> dict:
+        if body.get("action") == "buy" and not getattr(self.cfg, "pump_real_enabled", False):
+            return {"status": "não executou", "reason": "execução real desligada"}
+        if not self.wallet or not self.wallet.keypair:
+            return {"status": "não executou", "reason": "carteira Solana do bot não configurada"}
+        body = {"publicKey": self.wallet.address, "slippage": float(getattr(self.cfg, "pump_real_slippage_pct", 15)),
+                "priorityFee": float(getattr(self.cfg, "pump_priority_sol", 0.0005)), "pool": "auto", **body}
+        body = {k: (str(v) if not isinstance(v, str) else v) for k, v in body.items()}
+        r = await self.http.post(TRADE_LOCAL_URL, data=body, timeout=15)
+        if r.status_code != 200:
+            return {"status": "falhou", "reason": f"PumpPortal HTTP {r.status_code}: {r.text[:120]}"}
+        from solders.transaction import VersionedTransaction
+        tx = VersionedTransaction.from_bytes(r.content)
+        signed = VersionedTransaction(tx.message, [self.wallet.keypair])
+        sig, st, err = await self._send_confirm(base64.b64encode(bytes(signed)).decode())
+        return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada"}
+
+    # erros do programa da pump.fun (Anchor: 6000 + n)
+    PUMP_ERRORS = {"0x1770": "não autorizado", "0x1772": "preço subiu além do slippage (SOL insuficiente)",
+                   "0x1773": "preço caiu além do slippage (SOL recebido baixo)", "0x1774": "token não bate com a curva",
+                   "0x1775": "curva já completou — token graduou para a PumpSwap",
+                   "0x1776": "curva ainda não completou", "0x1777": "curva não inicializada",
+                   "0x1771": "slippage excedido"}
+
+    @classmethod
+    def explain(cls, reason) -> str | None:
+        if not reason:
+            return None
+        r = str(reason)
+        for code, txt in cls.PUMP_ERRORS.items():
+            if code in r:
+                return f"{txt} ({code})"
+        if "insufficient" in r.lower():
+            return "saldo insuficiente para a transação"
+        return r[:140]
+
+    @staticmethod
+    def retryable(reason) -> bool:
+        """Vale tentar outro caminho? (curva completa, rota errada, slippage)"""
+        r = str(reason or "")
+        return any(c in r for c in ("0x1775", "0x1774", "0x1772", "0x1773", "0x1771", "HTTP 400", "HTTP 500"))
+
+    async def _jup(self, inp: str, out: str, amount: int, slip_bps: int) -> dict:
+        """Troca pela Jupiter (melhor rota entre as DEXs) — para tokens fora da pump.fun."""
+        if self.jup is None:
+            return {"status": "não executou", "reason": "Jupiter indisponível"}
+        r = await self.jup._dex_swap(inp, out, amount, slip_bps=slip_bps, prio="high")
+        return {"status": r.get("status") or ("confirmada" if r.get("ok") else "falhou"), "signature": r.get("signature"),
+                "reason": r.get("reason"), "ok": bool(r.get("ok"))}
+
+    async def _raw_tok(self, mint: str) -> tuple[int, int]:
+        res = await self._rpc("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
+                                                          {"encoding": "jsonParsed", "commitment": "confirmed"}])
+        raw, dec = 0, 0
+        for a in (res or {}).get("value") or []:
+            ta = a["account"]["data"]["parsed"]["info"]["tokenAmount"]
+            raw += int(ta.get("amount") or 0)
+            dec = int(ta.get("decimals") or 0)
+        return raw, dec
+
+    async def buy(self, mint: str, amt: float, other: bool = False) -> dict:
+        """Compra REAL de `amt` SOL do token. Mede o que saiu e o que entrou na carteira (valores reais).
+        other=True: token fora da pump.fun → compra pela Jupiter."""
+        if not getattr(self.cfg, "pump_real_enabled", False):
+            return {"ok": False, "reason": "execução real desligada"}
+        if not self.wallet or not self.wallet.keypair:
+            return {"ok": False, "reason": "carteira Solana do bot não configurada"}
+        sol0, tok0 = await self.balances(mint)
+        if sol0 < amt + 0.02:
+            return {"ok": False, "reason": f"saldo insuficiente: {sol0:.4f} SOL (precisa {amt:.3f} + 0,02 de reserva)"}
+        jslip = int(float(getattr(self.cfg, "pump_other_slip_pct", 1.0)) * 100) + 100
+        tried = []
+        # pump.fun: curva → se a curva já completou (token graduou), PumpSwap → se ainda falhar, Jupiter
+        routes = [("jupiter", None)] if other else [("pumpportal", "auto"), ("pumpportal", "pump-amm"), ("jupiter", None)]
+        r, sol1, tok1 = {}, sol0, tok0
+        for via, pool in routes:
+            if via == "jupiter":
+                r = await self._jup(SOL_MINT, mint, int(amt * 1e9), max(jslip, 300 if not other else jslip))
+            else:
+                r = await self._tx({"action": "buy", "mint": mint, "amount": amt, "denominatedInSol": "true", "pool": pool})
+            if r.get("status") == "pendente":
+                await asyncio.sleep(3)
+            sol1, tok1 = await self.balances(mint)
+            tried.append(f"{via if via == 'jupiter' else 'PumpPortal ' + pool}: {self.explain(r.get('reason')) or r.get('status')}")
+            if tok1 - tok0 > 0:
+                break
+            if not self.retryable(r.get("reason")):
+                break
+        if tok1 - tok0 <= 0:
+            return {"ok": False, "status": r.get("status"), "signature": r.get("signature"),
+                    "reason": " → ".join(tried)[:300] or "o token não entrou na carteira"}
+        return {"ok": True, "signature": r.get("signature"), "sol_spent": max(0.0, sol0 - sol1), "tokens": tok1 - tok0}
+
+    async def sell(self, mint: str, frac: float, other: bool = False) -> dict:
+        """Venda REAL de `frac` da posição (100% = tudo). Mede o SOL que entrou e quanto token sobrou.
+        pump.fun: PumpPortal com slippage crescente (15% → 30% → 50%); se o token graduou, PumpSwap; Jupiter só
+        como último recurso (a Jupiter não negocia tokens novos ainda na curva). Guarda o motivo de cada tentativa."""
+        if not self.wallet or not self.wallet.keypair:
+            return {"ok": False, "reason": "carteira Solana do bot não configurada"}
+        sol0, tok0 = await self.balances(mint)
+        if tok0 <= 0:
+            return {"ok": True, "sol_received": 0.0, "tokens_left": 0.0, "reason": "sem saldo do token"}
+        pct = f"{max(1, min(100, round(frac * 100)))}%"
+        base_slip = float(getattr(self.cfg, "pump_real_slippage_pct", 15))
+        tried, last = [], {}
+        if other:
+            plan = [("jupiter", None, s_) for s_ in (3.0, 6.0, 10.0)]
+        else:
+            plan = [("pp", "auto", base_slip), ("pp", "auto", max(30.0, base_slip)), ("pp", "auto", 50.0)]
+        pool_override = None
+        k = 0
+        while k < len(plan):
+            via, pool, slip = plan[k]
+            k += 1
+            if via == "jupiter":
+                raw, _dec = await self._raw_tok(mint)
+                amount = raw if frac >= 0.999 else int(raw * frac)
+                last = await self._jup(mint, SOL_MINT, amount, int(slip * 100))
+                label = f"Jupiter {slip:.0f}%"
+            else:
+                pool = pool_override or pool
+                last = await self._tx({"action": "sell", "mint": mint, "amount": pct, "denominatedInSol": "false",
+                                       "slippage": slip, "pool": pool})
+                label = f"PumpPortal {pool} {slip:.0f}%"
+            if last.get("status") == "pendente":
+                await asyncio.sleep(3)
+            sol1, tok1 = await self.balances(mint)
+            tried.append(f"{label}: {self.explain(last.get('reason')) or last.get('status')}")
+            if tok1 < tok0 * 0.999:
+                return {"ok": True, "signature": last.get("signature"), "sol_received": max(0.0, sol1 - sol0),
+                        "tokens_left": tok1, "attempts": tried}
+            why = str(last.get("reason") or "")
+            if via == "pp" and "0x1775" in why and pool_override is None:
+                pool_override = "pump-amm"                 # graduou: as próximas tentativas vão na PumpSwap
+            if via == "pp" and ("HTTP" in why or "0x1774" in why) and not any(p_[0] == "jupiter" for p_ in plan):
+                plan.append(("jupiter", None, 10.0))       # PumpPortal não montou: tenta a Jupiter no fim
+        return {"ok": False, "status": last.get("status"), "attempts": tried,
+                "reason": " → ".join(tried)[:400] or "o token não saiu da carteira"}
