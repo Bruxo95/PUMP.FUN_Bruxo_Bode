@@ -148,6 +148,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         pf._emit(f"[PUMP REAL] execução real {'LIGADA' if on else 'DESLIGADA'} por você")
         return {"ok": True, "enabled": on}
 
+    @app.get("/api/pump/reports")
+    async def pump_reports(days: int = 7, real: int = 0, pf=Depends(engine)):
+        """Aba Relatórios: resultado por trader copiado, por motivo de saída, cópias barradas e por dia."""
+        from .reports import build
+        d = days if days in (1, 7, 30, 90) else None                 # 0 ou outro valor = todo o histórico
+        return build(pf.trades(100000), list(pf.feed), d, bool(real), pf.followed, list(pf.paused()))
+
     @app.get("/api/pump/wallet")
     async def pump_wallet(force: int = 0, pf=Depends(engine)):
         """Saldo REAL da carteira do bot: SOL (o que paga as compras) e USDC convertido em SOL."""
