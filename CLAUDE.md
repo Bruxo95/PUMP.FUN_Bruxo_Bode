@@ -100,8 +100,11 @@ autorizado (somente GitHub) e exige uma solicitação explícita para essa açã
 
 ## Fluxo de entrega autorizado (somente GitHub)
 1. Conferir o remoto, validar as alterações e fazer commit + push no `main` deste repositório.
-2. GitHub Actions roda os testes e, se passarem, publica a imagem no GHCR. O workflow atual não faz
-   atualização de servidor. Informar o resultado observado; se não foi conferido, dizer que está pendente.
+2. GitHub Actions roda os testes e, se passarem, publica a imagem no GHCR. Se o segredo
+   `PORTAINER_WEBHOOK_URL` existir no repositório (configurado pelo dono, pedido dele em 2026-10-25),
+   o job `deploy` avisa o webhook do serviço no Portainer, que baixa a imagem nova sozinho, e confere
+   `/health`. Sem o segredo, o job só avisa que a atualização é manual. Informar o resultado observado;
+   se não foi conferido, dizer que está pendente.
 3. Encerrar a entrega no GitHub. Não executar SSH, atualização de stack, migração remota ou comandos
    em servidores. Não afirmar que a versão do site mudou apenas porque houve push ou publicação da imagem.
 
@@ -141,3 +144,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   não foi validado localmente. Há um aviso de depreciação do TestClient/HTTPX nas dependências instaladas.
 - Ambiente `.venv/` local e ignorado pelo Git. CI e publicação da imagem devem ser conferidos no GitHub;
   nenhum resultado local comprova atualização do servidor de produção.
+
+## Atualização automática (2026-10-25, versão 0.8.2)
+- Pedido do dono: atualizar sozinho a cada versão nova, "estilo Vercel". Implementado no workflow
+  (`.github/workflows/imagem.yml`, job `deploy`): só age se o segredo `PORTAINER_WEBHOOK_URL` estiver
+  configurado no GitHub; o próprio agente não acessa o Portainer. Passo a passo no README.
+- `tests/test_rls_postgres.py`: `pwd` agora é importado só em Linux/macOS; no Windows o teste é pulado
+  (antes quebrava a coleta da suíte).

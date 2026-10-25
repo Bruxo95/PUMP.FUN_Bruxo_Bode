@@ -5,7 +5,6 @@ Precisa dos programas do Postgres (initdb/pg_ctl/psql). Se a máquina não tiver
 """
 import glob
 import os
-import pwd
 import shutil
 import subprocess
 import tempfile
@@ -45,7 +44,10 @@ def pg():
     tmp = tempfile.mkdtemp(prefix="pgrls")
     data, sock = os.path.join(tmp, "data"), tmp
     pre = []
+    if os.name != "posix":
+        pytest.skip("teste de RLS com Postgres local só roda em Linux/macOS")
     if os.geteuid() == 0:                       # o Postgres não roda como root
+        import pwd
         user = "nobody"
         pw = pwd.getpwnam(user)
         os.chown(tmp, pw.pw_uid, pw.pw_gid)
