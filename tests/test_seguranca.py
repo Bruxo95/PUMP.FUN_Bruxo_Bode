@@ -267,3 +267,13 @@ def test_rpc_host_never_shows_credentials_and_huge_numbers_are_validation_errors
     assert r.status_code == 200 and set(r.json()["errors"]) == {"pump_max_open", "pump_stop_pct"}
     r = c.post("/api/pump/swap", json={"confirm": True, "usdc": "abc"}, headers=tok(UA))
     assert r.status_code == 200 and r.json()["error"] == "valor inválido"
+
+
+def test_txguard_program_ids_match_the_rest_of_the_engine():
+    """O ID da PumpSwap no txguard estava digitado errado (achado em 2026-10-25): toda venda/compra na PumpSwap
+    seria recusada. Os IDs e discriminadores precisam bater com o motor e com o IDL oficial."""
+    from app import txguard
+    from app.pumpfun import PUMP_PROGRAMS
+    assert (txguard.PUMP, txguard.PUMP_AMM) == PUMP_PROGRAMS
+    assert txguard.PUMP_BUY.hex() == "66063d1201daebea" and txguard.PUMP_SELL.hex() == "33e685a4017f83ad"
+    assert txguard.PUMP_BUY_SOL_IN.hex() == "38fc74089edfcd5f"

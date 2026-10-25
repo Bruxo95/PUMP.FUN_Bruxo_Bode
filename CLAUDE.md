@@ -130,6 +130,13 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Ranking próprio fica vazio sem o stream pago da PumpPortal (comportamento igual ao original).
 
 ## Ideias / pendências
+- Pesquisa de mercado (2026-10-25; Trojan, GMGN, BullX, Cielo, Kolscan, chainstacklabs/pumpfun-bonkfun-bot,
+  arXiv 2601.08641). Ideias por prioridade: (1) checagem de risco do token antes de copiar pelo `risk` da
+  Solana Tracker (mint/freeze authority, bundlers, insiders, top 10, score); (2) não copiar se o preço já subiu
+  X% desde a compra do trader; (3) venda automática quando o dev vende e ao migrar para a PumpSwap;
+  (4) nota de qualidade do trader (consistência, não só acerto/lucro; evitar carteiras "isca" e bundles);
+  (5) resultado por trader copiado, para pausar quem dá prejuízo depois das taxas; (6) avisos no Telegram;
+  (7) só para o real: envio protegido contra MEV (Jito/relay) e feed gRPC para reduzir atraso.
 - Acompanhar as primeiras horas de cópia fictícia ao vivo e ajustar o que aparecer nos logs (Administração → Logs).
 - Antes de qualquer uso real: testar com carteira nova e pouco saldo, com a trava liberada só nesse momento.
 
