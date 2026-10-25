@@ -299,3 +299,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `classify()` passou a tratar "Top traders atualizados" como `trader` (antes caía como venda).
 - CSS: `.kpirow` com `.kpis{display:contents}` — o mascote é o 8º cartão da mesma grade (ao lado do Monitor
   também no celular). Animações respeitam `prefers-reduced-motion`.
+- Lembrete: o inventário de dependências guarda o hash de `app/version.py` e `web/app.html`; toda subida de
+  versão ou mudança no HTML exige `python scripts/inventario_dependencias.py --refresh --date AAAA-MM-DD`
+  antes do push, senão o Actions para em "conferir inventário de dependências".
