@@ -1,0 +1,3 @@
+# Dependencia direta de teste; resolver e triar a versao exata antes de instalar.
+# Faixa ainda nao fixada. A versao historica permanece no inventario da auditoria.
+pytest

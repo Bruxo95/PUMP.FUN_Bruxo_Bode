@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "reviews": [
+    {
+      "ecosystem": "PyPI",
+      "name": "jsonalias",
+      "version": "0.1.1",
+      "reviewed_at": "2026-10-25",
+      "reviewer": "Claude Opus 5.5 (claude-opus-5-5)",
+      "decision": "favorable",
+      "reason": "Os metadados da 0.1.1 nao trazem link de repositorio, por isso o coletor marca atencao. Revisao manual: o solders 0.29.0 exige exatamente jsonalias==0.1.1; mesmo autor do solders (Kevin Heavey); a versao 0.1.2 do mesmo projeto aponta github.com/kevinheavey/jsonalias (nao arquivado); release de 2022 sem alertas OSV. Nao e auditoria do codigo."
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "pluggy",
+      "version": "1.6.0",
+      "reviewed_at": "2026-10-25",
+      "reviewer": "Claude Opus 5.5 (claude-opus-5-5)",
+      "decision": "favorable",
+      "reason": "Os metadados da 1.6.0 nao trazem link de repositorio. Revisao manual: dependencia so de teste (pytest), do projeto pytest-dev; a 1.7.0 do mesmo pacote aponta github.com/pytest-dev/pluggy (nao arquivado); release de 2025 sem alertas OSV. Nao entra na imagem de producao."
+    }
+  ]
+}

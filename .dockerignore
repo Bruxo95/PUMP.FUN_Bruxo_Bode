@@ -2,9 +2,15 @@
 .github
 .env
 tests
-docs
+docs/*
+!docs/dependencias/
+docs/dependencias/*
+!docs/dependencias/triagem-seguranca.json
 deploy
 supabase
 __pycache__
 *.pyc
 .pytest_cache
+.venv
+tmp
+output

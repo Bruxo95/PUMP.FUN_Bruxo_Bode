@@ -21,6 +21,24 @@ Não recriar `.venv`, instalar scanners nem reinstalar pacotes para rodar testes
 combinar antes um ambiente de execução isolado/remoto com o usuário. Registrar a
 limitação de testes quando esse ambiente ainda não estiver disponível.
 
+Inventário permanente de dependências: `docs/DEPENDENCIAS.md`, dados em
+`docs/dependencias/inventario.json` e PDF em `output/pdf/relatorio-dependencias.pdf`.
+Sempre que adicionar, remover ou atualizar dependências, extras, runtime, Actions,
+scripts externos ou o snapshot usado, atualizar os três artefatos juntos com
+`scripts/inventario_dependencias.py --refresh --date AAAA-MM-DD` em runtime com PDF
+preexistente ou ambiente isolado/remoto aprovado. Não instalar pacotes no Windows.
+Antes de publicar, executar `scripts/inventario_dependencias.py --check` com Python
+padrão já disponível; o CI também verifica. Preservar versões históricas, informar
+versão/faixa não fixada e nunca inventar a resolução efetiva em produção.
+
+Antes de instalar ou atualizar qualquer versão, seguir
+`docs/dependencias/POLITICA-DE-DEPENDENCIAS.md`: consultar malware/vulnerabilidades
+e origem para nome/ecossistema/versão exatos, registrar data/fontes/classificação
+em `docs/dependencias/triagem-seguranca.json` e atualizar o PDF. Usar downloads,
+estrelas e assinantes apenas como contexto, nunca como garantia de segurança.
+Versões não triadas, consultas incompletas/antigas ou alertas aplicáveis devem
+bloquear a instalação até avaliação. Não contornar o gate nem reinstalar no Windows.
+
 - Mantenha decisões, pendências e resultados de validação no `CLAUDE.md`, sem
   duplicar a memória em arquivos específicos de cada ferramenta.
 - Confira o código e o estado atual do Git; diferencie informações históricas de

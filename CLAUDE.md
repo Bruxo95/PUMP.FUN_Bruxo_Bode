@@ -218,3 +218,28 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   fixture para manter o comportamento original; a regra nova tem `tests/test_online.py`.
 - `/health` e o rodapé mostram `no_ar_desde` (hora em que o container subiu, fuso Europe/Berlin; `tzdata`
   no requirements). O "Updated" da tela Stacks do Portainer NÃO muda com o webhook (ele atualiza o serviço).
+## Inventário permanente de dependências (2026-10-25, aplicação 0.8.2)
+- Pedido do usuário: manter quantidade, nomes e versões em documento e PDF, atualizando ao mudar dependências.
+- Artefatos: `docs/DEPENDENCIAS.md`, `docs/dependencias/inventario.json` e
+  `output/pdf/relatorio-dependencias.pdf`; geradores em `scripts/inventario_dependencias.py` e `scripts/pdf_dependencias.py`.
+- Contagens separadas: 7 Python diretas de execução + 1 JavaScript direta; pytest de teste separado.
+  Snapshot da auditoria contém 34 pacotes Python (inclui diretos e teste), de ambiente já removido;
+  não somar 34 aos diretos nem afirmar que representam produção ou instalação atual.
+- Sempre atualizar Markdown/JSON/PDF juntos após mudança de dependências/runtime/Actions/scripts externos;
+  preservar o snapshot histórico e registrar versões novas somente com fonte comprovada.
+- CI verifica consistência sem dependências extras. Gerar PDF apenas com recurso preexistente ou ambiente
+  isolado/remoto aprovado; não recriar `.venv` nem instalar pacotes no Windows principal.
+- Validação desta entrega: PDF de 3 páginas renderizado e inspecionado; todos os 34 nomes/versões presentes.
+  Checker passou sem site-packages e rejeitou dependência nova sem documento atualizado, PDF divergente
+  e manifesto novo não catalogado. Nenhuma dependência instalada; ReportLab 4.4.9 preexistente foi usado.
+- Testes da aplicação não reexecutados (ambiente removido). Aplicação segue em 0.8.2. Arquivos e alteração
+  de CI ainda locais, sem commit/push; publicar quando solicitado. Nenhum servidor foi alterado.
+
+## Triagem de versões antes de instalar (iniciada em 2026-10-25)
+- Novo pedido do usuário: consultar relatos de malware/comprometimento e vulnerabilidades antes de
+  qualquer instalação/atualização; acrescentar downloads, estrelas, assinantes e classificação ao PDF.
+- Política: `docs/dependencias/POLITICA-DE-DEPENDENCIAS.md`. Dados: `docs/dependencias/triagem-seguranca.json`.
+- Popularidade não representa instalações/pessoas únicas nem garante segurança; ausência de métricas é N/D.
+- Estado: coleta de metadados/avisos e preparação de gates/atualização do PDF em andamento.
+- Nenhuma instalação no Windows autorizada ou executada. Versões desconhecidas ou consultas incompletas
+  devem bloquear instalação; preservar as limitações e o ponto de retomada ao concluir.

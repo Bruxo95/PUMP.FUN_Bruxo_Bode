@@ -19,7 +19,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt pytest
+      - name: conferir inventário de dependências
+        run: python scripts/inventario_dependencias.py --check
+      - name: resolver somente wheels sem instalar
+        run: >-
+          python -m pip --isolated install --dry-run --ignore-installed
+          --only-binary=:all: --index-url https://pypi.org/simple
+          --report "$RUNNER_TEMP/candidatos-pump.json" -c constraints.txt
+          -r requirements.txt -r requirements-test.txt
+      - name: verificar triagem, alertas atuais e hashes
+        run: >-
+          python -B scripts/verificar_triagem_dependencias.py
+          --pip-report "$RUNNER_TEMP/candidatos-pump.json"
+          --frontend-dir web
+          --output-lock "$RUNNER_TEMP/requirements-triados-pump.txt"
+      - name: instalar somente versões e hashes triados
+        run: >-
+          python -m pip --isolated install --only-binary=:all:
+          --require-hashes --no-deps --index-url https://pypi.org/simple
+          -r "$RUNNER_TEMP/requirements-triados-pump.txt"
       - run: pytest -q
 
   imagem:
