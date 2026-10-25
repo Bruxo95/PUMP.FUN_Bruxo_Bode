@@ -36,6 +36,7 @@
       <a href="#visao" data-v="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>Visão geral</a>
       <a href="#traders" data-v="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Top traders<b class="nb" id="nbTr"></b></a>
       <a href="#estudo" data-v="estudo" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3M8.5 11h5M11 8.5v5"/></svg>Carteiras em estudo</a>
+      <a href="#radar" data-v="radar" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6M12 3v2M3 12h2"/><circle cx="12" cy="12" r="1"/></svg>Radar de KOLs</a>
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
       <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
@@ -155,6 +156,30 @@
           <h3 class="h3s">Melhores operações (30 dias)</h3><div class="tbl-wrap"><table id="stBest"></table></div>
           <h3 class="h3s">Últimas operações vistas pelo monitor</h3><div class="tbl-wrap"><table id="stRec"></table></div>
           <div class="prose" id="stNotes" style="margin-top:12px"></div></div>
+      </section>
+
+      <!-- ========================================================= RADAR DE KOLS -->
+      <section class="view" data-view="radar" hidden>
+        <div class="card radar-intro" data-novo-ate="2026-11-08">
+          <header><div><h2>Compras em conjunto</h2><div class="sub">várias carteiras da sua lista entrando no mesmo token em poucos minutos</div></div><div class="sp"></div>
+            <button class="btn tgl off" id="radarToggle" type="button" aria-pressed="false" disabled>Radar: OFF</button></header>
+          <p class="muted">O radar observa as carteiras que você adicionou em <a href="#estudo">Carteiras em estudo</a>. Esta primeira versão não descobre influencers automaticamente nem confirma que uma carteira pertence a um KOL.</p>
+          <form class="radar-form" id="radarForm">
+            <div class="field"><label for="radarMin">Mínimo de carteiras distintas</label><input class="in" id="radarMin" type="number" min="2" max="30" step="1" value="2" required disabled></div>
+            <div class="field"><label for="radarWindow">Janela de compras (minutos)</label><input class="in" id="radarWindow" type="number" min="1" max="30" step="1" value="5" required disabled></div>
+            <button class="btn primary" id="radarSave" type="submit" disabled>Salvar critérios</button>
+            <a class="btn" href="#estudo">Gerenciar carteiras</a>
+          </form>
+          <div class="hint muted small" id="radarDraft" hidden>Critérios editados; salve para aplicar. As ondas abaixo ainda usam os critérios salvos.</div>
+          <div class="radar-status" id="radarStatus" role="status" aria-live="polite">Carregando o radar…</div>
+          <div class="small muted" id="radarSince"></div>
+        </div>
+        <div class="kpis radar-kpis" id="radarKpis"></div>
+        <div class="card"><header><div><h2>Ondas na janela atual</h2><div class="sub" id="radarSub">cada carteira conta uma vez, mesmo comprando várias vezes</div></div></header>
+          <div class="radar-waves" id="radarWaves"><p class="muted">Aguardando os dados do monitor.</p></div>
+        </div>
+        <div class="card"><div class="prose"><p><b>Somente observação.</b> O radar não abre nem fecha posições, no simulado ou no real. Uma nova onda e a primeira venda de um participante geram avisos enquanto o painel está conectado; o som depende do botão Notificações.</p>
+          <p>Pressão de compra é a participação das compras no volume observado dessas carteiras, em SOL. Não representa todo o mercado, saldo restante, previsão de lucro nem garantia de entrada segura. O monitor pode perder movimentos; os dados desta tela recomeçam quando o servidor reinicia.</p></div></div>
       </section>
 
       <!-- ========================================================= APRENDIZADO DIÁRIO (app/learning.py) -->

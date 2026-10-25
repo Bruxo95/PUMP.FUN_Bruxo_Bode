@@ -127,6 +127,15 @@ Cada alteração vale na hora e fica salva só para o usuário.
 - **Notificações**: botão no topo liga sons e avisos para compras, vendas, lucros, prejuízos e erros.
 - **Busca**: Ctrl+K / ⌘K procura token, trader ou carteira.
 
+**Radar de KOLs (0.16.0):** adicione as carteiras que quer observar em **Carteiras em estudo** e abra
+**Radar de KOLs**. Escolha o mínimo de carteiras distintas (2 a 30) e a janela de compras (1 a 30 minutos),
+salve e ligue o Radar. Quando elas compram o mesmo token dentro da janela, aparece uma onda com participantes,
+volumes em SOL e primeiras vendas. O painel conectado recebe um aviso por onda e outro no início das vendas;
+o botão Notificações controla o som. A pressão é só a parcela de compras no volume observado desses participantes.
+Esta primeira etapa usa sua lista em estudo, sem descobrir ou certificar influencers e sem criar ordens.
+Os dados das ondas recomeçam após reiniciar o servidor; movimentos podem faltar se o monitor desconectar ou
+atingir o limite de memória indicado na tela.
+
 ### 2.5 Modo real (quando autorizado)
 1. O responsável pela infraestrutura libera `PUMP_REAL_ALLOWED=true` no stack.
 2. O usuário salva a chave privada da carteira do bot e envia SOL para o endereço mostrado.

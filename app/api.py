@@ -123,9 +123,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     @app.post("/api/pump/settings")
     async def pump_settings(body: dict, pf=Depends(engine)):
+        radar_keys = ("pump_radar_enabled", "pump_radar_min_wallets", "pump_radar_window_min")
+        radar_before = {key: getattr(pf.cfg, key) for key in radar_keys}
         applied, errors = pf.cfg.apply(body or {})
         if applied:
             await hub.save_settings(pf)
+            if any(key in applied and applied[key] != radar_before[key] for key in radar_keys):
+                pf._radar_alerts = {}
             if {"pump_min_winrate", "pump_lb_min_trades", "pump_top_n", "pump_only_online", "pump_online_min"} & set(applied):
                 pf.refresh_followed(force=True)
         return {"applied": applied, "errors": errors}
@@ -170,6 +174,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
         if not pf.valid_addr(mint):
             return {"error": "endereço de token inválido"}
         return pf.token_card(mint)
+
+    @app.get("/api/pump/radar")
+    async def radar(pf=Depends(engine)):
+        return hub.radar_snapshot(pf)
 
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
     @app.get("/api/pump/study")

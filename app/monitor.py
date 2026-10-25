@@ -139,31 +139,36 @@ class SharedMonitor:
                 backoff = min(60.0, backoff * 2)
 
     def on_notification(self, msg: dict) -> None:
-        """Uma transação de carteira observada: atualiza atividade/robô e, se alguém copia, vai para a fila."""
+        """Atualiza atividade e lê trades de carteiras copiadas ou em estudo."""
         st = self.market.rpc_status
         prm = msg.get("params") or {}
         w = self._subs.get(prm.get("subscription"))
         val = ((prm.get("result") or {}).get("value")) or {}
         sig = val.get("signature")
         st["notifs"] += 1
-        if not w or not sig or sig in self._seen:
+        seen_key = (w, sig)
+        if not w or not sig or seen_key in self._seen:
             return
-        self._seen.append(sig)
+        self._seen.append(seen_key)
         act = self.market.activity.setdefault(w, {"last": None, "n": deque(maxlen=600), "pump": 0, "pump_last": None,
                                                    "other": 0, "pn": deque(maxlen=600)})
         now = time.time()
         act["last"] = now
         act["n"].append(now)
         fol = self.followers(w)
+        studied = any(w in (getattr(e, "study", []) or []) for e in self.engines())
         was_bot = act.get("bot_until", 0) > now
-        if self.svc._is_bot(w, now):
+        is_bot = self.svc._is_bot(w, now)
+        if is_bot:
             if not was_bot:
                 for e in self.engines():               # refaz a lista de copiados de todos já
                     e._rank_at = 0
                     if e in fol:
                         e._emit(f"Pump.fun: {w[:4]}…{w[-4:]} parece robô ({act.get('bot_reason')}) — fora da cópia por 1 h")
-            return
-        self._fill_slot(w)
+            if not studied:
+                return
+        else:
+            self._fill_slot(w)
         if val.get("err"):
             return
         logs = " ".join(val.get("logs") or [])
@@ -174,9 +179,9 @@ class SharedMonitor:
             act.setdefault("pn", deque(maxlen=600)).append(now)
         else:
             act["other"] += 1
-        if not fol:
+        if not fol and not studied:
             return                                     # só observando (status online do top)
-        if not is_pump and not any(getattr(e.cfg, "pump_copy_other", True) for e in fol):
+        if not is_pump and not studied and not any(getattr(e.cfg, "pump_copy_other", True) for e in fol):
             return
         try:
             self._tx_q.put_nowait((w, sig, now))
@@ -210,6 +215,9 @@ class SharedMonitor:
             return
         st["parsed"] += 1
         st["last_event"] = time.time()
+        # Observar não autoriza copiar. Robôs seguem bloqueados mesmo que estejam no estudo.
+        if not self.followers(w) or (self.market.activity.get(w) or {}).get("bot_until", 0) > time.time():
+            return
         mint = ev["mint"]
         tk0 = self.market.tokens.get(mint) or {}
         if not tk0.get("symbol") or tk0.get("liq_usd") is None or time.time() - (tk0.get("last_t") or 0) > 30:

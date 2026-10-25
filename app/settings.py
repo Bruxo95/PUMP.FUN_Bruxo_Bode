@@ -26,6 +26,9 @@ def _cast(typ, raw: str):
 
 # nome: (tipo, padrão, mínimo, máximo)  — mesmos padrões do app/config.py original
 USER_KEYS: dict[str, tuple] = {
+    "pump_radar_enabled": (bool, False, 0, 1),
+    "pump_radar_min_wallets": (int, 2, 2, 30),
+    "pump_radar_window_min": (int, 5, 1, 30),
     "pump_copy_enabled": (bool, True, 0, 1),
     "pump_sim_balance_sol": (float, 5.0, 0.01, 100000.0),
     "pump_copy_sol": (float, 0.1, 0.001, 100.0),
@@ -152,6 +155,16 @@ class PumpSettings:
         if not spec:
             raise ValueError("não pode ser alterado pelo painel")
         typ, _d, lo, hi = spec
+        if k == "pump_radar_enabled":
+            if not isinstance(v, (bool, int, str)) or str(v).lower() not in (
+                    "true", "false", "1", "0", "sim", "não", "nao", "on", "off", "yes", "no"):
+                raise ValueError("use ON ou OFF")
+        if k in ("pump_radar_min_wallets", "pump_radar_window_min"):
+            try:
+                if isinstance(v, bool) or float(v) != int(float(v)):
+                    raise ValueError
+            except (TypeError, ValueError, OverflowError):
+                raise ValueError("use um número inteiro") from None
         if typ is bool:
             return v if isinstance(v, bool) else str(v).lower() in ("1", "true", "sim", "on", "yes")
         try:

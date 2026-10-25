@@ -150,11 +150,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Ranking próprio fica vazio sem o stream pago da PumpPortal (comportamento igual ao original).
 
 ## Ideias / pendências
-- **Radar de KOLs / "ondas de influencer" (pedido do dono em 2026-10-25, para outra IA implementar).** Exemplo:
+- **Radar de KOLs / "ondas de influencer" (pedido do dono em 2026-10-25; primeira etapa implementada na 0.16.0, detalhes abaixo).** Exemplo:
   https://pump.fun/coin/C5xph2yL6gMdxmuLGxJBkGpmuDFfyi5fqkBNhvL6pump — no gráfico da pump.fun aparecem dezenas de
   avatares de traders conhecidos comprando em sequência e o preço sobe forte. Objetivo: identificar RÁPIDO quando
   várias carteiras conhecidas entram no mesmo token e decidir se vale entrar cedo e sair na onda. Sugestão:
-  1. Detectar a "onda": N carteiras rotuladas (KOL/influencer/smart money) comprando o mesmo token em X minutos.
+  1. Primeira etapa FEITA: N carteiras em estudo comprando o mesmo token em X minutos; sem identidade KOL verificada.
+     Pendente: carteiras rotuladas (KOL/influencer/smart money).
      Fontes: rótulos `identity` da Solana Tracker (ex.: `/trades/{token}?enrich=identity`, identidade nas posições
      PnL v2), carteiras em estudo, top do ranking e lista de KOLs (Kolscan). Conferir na doc o que a chave cobre.
   2. Nota da onda: quantas carteiras distintas, se são as que dão lucro para quem copia (ranking de copiabilidade,
@@ -333,3 +334,32 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   0.13.1). Mensagens novas emitidas pelo motor devem ganhar uma linha ali. `mascReact` enfileira (até 5; 2,5 s
   cada, a última 6 s). Teste no console do navegador: `BB.mascote("[PUMP SIM] fechou X (stop de perda) → -0.04 SOL (-40.0%)")`.
 - `classify()` (som): PAUSADO/robô agora é "alert" (antes caía em "stop" → som de venda); "segurando" não toca som.
+
+## Radar de KOLs — primeira etapa (2026-10-25, versão 0.16.0)
+- Novo menu `Radar de KOLs`, com marca NOVO, ON/OFF (começa OFF) e critérios por usuário:
+  `pump_radar_min_wallets` (2–30, padrão 2), `pump_radar_window_min` (1–30 minutos, padrão 5).
+  Configurações salvas pela rota existente `/api/pump/settings`; leitura autenticada `/api/pump/radar`.
+- `app/radar.py`: buffer compartilhado limitado a 5.000 eventos/30 min; deduplica por carteira+assinatura
+  e filtra a lista ATUAL `pf.study` de cada conta antes de calcular. Conta carteiras distintas por token,
+  volume de compras/vendas em SOL, pressão desse volume e vendas posteriores à primeira compra observada.
+  Mostra início, participantes e janela incompleta caso atinja limites. Reiniciar o processo zera as ondas.
+- `app/monitor.py`: carteiras apenas em estudo agora chegam à fila de leitura mesmo sem seguidores.
+  Notificação deduplicada por carteira+assinatura para observar duas carteiras na mesma transação.
+  Observação de robô/outro mercado não libera cópia: filtros existentes continuam no caminho de execução.
+- Avisos efêmeros `Radar:` via `_emit` para nova onda e primeira venda, com toast, reação do mascote e
+  som opcional no painel conectado. Consultar o radar não repete alertas; OFF e remoção do estudo suprimem sinais.
+  Avisos não entram no histórico persistido do Feed. Nenhuma ordem simulada ou real é criada pelo Radar.
+- Fonte nesta etapa: somente carteiras adicionadas ao estudo, sem identidade de influencer comprovada,
+  descoberta automática, importação Kolscan ou consultas novas à Solana Tracker. Pressão observada não é
+  todo o mercado, saldo da carteira nem previsão de lucro. Monitor pode perder eventos.
+- Limitação histórica preservada: `wallet_trades` ainda tem PK só por assinatura e guarda uma carteira por
+  transação. `flush_trades` remove assinaturas repetidas no lote antes do upsert para o PostgreSQL não recusar
+  o lote inteiro. O Radar guarda as carteiras separadas em memória; corrigir a PK histórica exige migração futura.
+- Sem dependências, migrações ou acesso administrativo remoto novos. Inventário Markdown/JSON/PDF regenerado
+  com runtime PDF preexistente por causa dos hashes de versão/HTML; nenhum pacote instalado no Windows.
+- Validação local: 8 testes puros do Radar com Python padrão; sintaxe Python/JS e `git diff --check`.
+  Integração coberta por 18 novos casos para o CI; pytest local indisponível sem dependências (não reinstaladas).
+  Prévia com dados fictícios inspecionada em desktop e 390 px, sem rolagem lateral; controles ON/OFF conferidos.
+  Aguardar resultado observado do Actions após publicação; dados reais, login de produção e RLS não foram testados.
+- Próximas etapas: fontes de identidade verificadas e ranking de copiabilidade na onda; simulação de entrada/saída
+  específica do Radar e medição de atraso; Telegram somente se solicitado. Não habilitar execução automática real.

@@ -52,7 +52,7 @@ def create_pdf(data: dict, output: Path, fingerprint: str) -> None:
         t = LongTable(content, colWidths=widths, repeatRows=1, hAlign='LEFT')
         t.setStyle(TableStyle([
             ('BACKGROUND',(0,0),(-1,0),navy), ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('LEFTPADDING',(0,0),(-1,-1),9), ('RIGHTPADDING',(0,0),(-1,-1),9),
+            ('LEFTPADDING',(0,0),(-1,-1),6 if small else 9), ('RIGHTPADDING',(0,0),(-1,-1),6 if small else 9),
             ('TOPPADDING',(0,0),(-1,0),9), ('BOTTOMPADDING',(0,0),(-1,0),9),
             ('TOPPADDING',(0,1),(-1,-1),2.2 if small else 7),
             ('BOTTOMPADDING',(0,1),(-1,-1),2.2 if small else 7),
@@ -100,7 +100,7 @@ def create_pdf(data: dict, output: Path, fingerprint: str) -> None:
         story.append(rich(f"<b>JavaScript:</b> {escape(r['name'])} <b>{escape(r['version'])}</b> - CDN com integridade SRI registrada.",'Lead'))
     for r in data['python_test_direct']:
         story.append(rich(f"<b>Teste:</b> {escape(r['name'])} - versão declarada {escape(r['constraint'])}; observada {escape(r['observed_version'] or 'não registrada')}.",'Lead'))
-    story += [p('As 7 dependências Python e a biblioteca JavaScript formam as 8 diretas de execução. O pytest é contado separadamente. Extras [standard] e [crypto] não são pacotes adicionais por si só.','SmallNote'),
+    story += [p(f"As {c['python_runtime_direct']} dependências Python e {c['javascript_runtime_direct']} JavaScript formam as {c['runtime_direct_total']} diretas de execução. O pytest é contado separadamente. Extras [standard] e [crypto] não são pacotes adicionais por si só.",'SmallNote'),
         p('As faixas permitem versões diferentes em instalações futuras. As versões históricas foram registradas na auditoria e não representam um inventário da produção.','SmallNote'),PageBreak()]
 
     story += [p('02  Pacotes Python observados','SectionTitle'),
@@ -130,7 +130,7 @@ def create_pdf(data: dict, output: Path, fingerprint: str) -> None:
         '<b>Atualização:</b> python scripts/inventario_dependencias.py --refresh --date AAAA-MM-DD','SmallNote'),
         p('Fontes e limites','SectionTitle'),
         p('Fontes: requirements.txt, HTMLs do projeto, Dockerfile, workflow de imagem e snapshot da auditoria de 25/10/2026. Hashes completos e origem das versões estão no JSON do inventário.','SmallNote'),
-        p('Não há lockfile de versões exatas nesta emissão. O inventário de dependências transitivas JavaScript, da imagem efetiva e dos pacotes do sistema operacional permanece pendente. Este documento não substitui a auditoria de segurança.','SmallNote'),
+        p('As versões Python são fixadas em constraints.txt; cada build verifica os candidatos e gera uma lista temporária com hashes. O inventário de dependências transitivas JavaScript, da imagem efetiva e dos pacotes do sistema operacional permanece pendente. Este documento não substitui a auditoria de segurança.','SmallNote'),
         p('Memória: AGENTS.md e CLAUDE.md. Dados: docs/dependencias/inventario.json. Documento editável: docs/DEPENDENCIAS.md. Emissão: '+data['issuer']+'. Auditoria original: OpenAI Codex, família GPT-6.','SmallNote')]
     # 04 - triagem antes de instalar (pedido do dono em 2026-10-25): malware/avisos,
     # popularidade so como contexto e classificacao Favoravel/Atencao/Perigo com motivo.
@@ -163,7 +163,7 @@ def create_pdf(data: dict, output: Path, fingerprint: str) -> None:
                      number(gh.get('stars')), number(gh.get('subscribers')), level_name[lv]])
         styles_rows.append(('BACKGROUND',(5,i),(5,i),level_color[lv]))
     t = table(['Pacote / versão','Papel','Downloads/mês','Estrelas','Assinantes','Triagem'], rows,
-              [width*.25,width*.27,width*.15,width*.10,width*.11,width*.12], small=True)
+              [width*.24,width*.24,width*.18,width*.10,width*.13,width*.11], small=True)
     t.setStyle(TableStyle(styles_rows))
     story += [t, Spacer(1,6), p('Cor da coluna Triagem: verde = Favorável, amarelo = Atenção, vermelho = Perigo. * Gitleaks: soma de downloads da release desde a publicação.','SmallNote'),
               p('Motivos de Atenção, Perigo e revisões manuais','SectionTitle')]

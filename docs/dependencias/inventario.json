@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "52832aca65e07880e43a297346761b57503e4754",
-    "application_version": "0.15.0 · 2026-10-25 · Carteiras em estudo: se você tivesse copiado e ranking",
+    "repository_reference": "6665bcd5df172752356b52156c6d3ec730c7d7a7",
+    "application_version": "0.16.0 · 2026-10-25 · Radar de KOLs: ondas de compras e primeiras vendas",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -13,12 +13,12 @@
       "exact_model_revision": null,
       "limitation": "O identificador exato do modelo/revisao nao foi exposto nesta sessao."
     },
-    "issuer": "Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5)",
+    "issuer": "OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão",
     "source_sha256": {
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "4fac32cf36317464b12345fbf31900f59f271e01d9bd495546ce4a1473bb0780",
+      "app/version.py": "90686d53c3360f9976955f8752ed9e5b9309e3a9372f0f68d9d790ac5139990e",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -31,10 +31,10 @@
       "requirements.txt": "19536a896a1baf0afcfd9fa5cca9583e4e79e137323832967b5df7df3480eb78",
       "scripts/aplicar_migracoes.py": "d6fc39a856af058b84c516be1b101649be0c5e16c56bc1309896ba9cad4f3ea4",
       "scripts/coletar_risco_dependencias.py": "8f642babe9bd74a7669687b2cb84ee92d5acbaa8d04a8f83b291fb0b46381f75",
-      "scripts/inventario_dependencias.py": "212b629975bdde865f8623b0fc6892f0ded2a3f6b4ab1817c868a0957825d35a",
-      "scripts/pdf_dependencias.py": "d23001997899daa383f8bec52dc459abcc6e3cf78f17659b1703823bf965960c",
+      "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
+      "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "90d777431c459cf88814539285b85cdf02ca8ea130761c08944e8b40f4801aca",
+      "web/app.html": "3d3d4cb685ae402c1edaf2c0c16eb78eeeca14c74422b5007a6b1a902cce38ca",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "4.4.9",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "630b5da6e00b589443efc64bc6ab878b692869aa198475b7e6a9016f07bec634"
+  "pdf_sha256": "abe473208a803b0db9eac7b8dfbe15083cc69c5f7d06ed3166959d7a280b8b2f"
 }

@@ -23,7 +23,7 @@ SNAPSHOT = "docs/auditoria/2026-10-25/pacotes-testados.json"
 AUDIT_META = "docs/auditoria/2026-10-25/identificacao-auditoria.json"
 TRIAGE = "docs/auditoria/2026-10-25/triagem-scanners.json"
 SECURITY = "docs/dependencias/triagem-seguranca.json"
-ISSUER = "Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5)"
+ISSUER = "OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão"
 FIXED_SOURCES = [
     "requirements.txt", "requirements-test.txt", "constraints.txt", "app/version.py", "Dockerfile", ".dockerignore", ".github/workflows/imagem.yml",
     "web/index.html", "web/app.html", SNAPSHOT, AUDIT_META, TRIAGE,

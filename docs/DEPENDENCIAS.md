@@ -1,9 +1,9 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-25**; revisão documental **2.0**.
-Aplicação: **0.15.0 · 2026-10-25 · Carteiras em estudo: se você tivesse copiado e ranking**.
-Referência Git na emissão: `52832aca65e07880e43a297346761b57503e4754`; fontes locais identificadas por SHA-256 no JSON.
-Emissão: Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5). Auditoria original: OpenAI Codex, família GPT-6.
+Aplicação: **0.16.0 · 2026-10-25 · Radar de KOLs: ondas de compras e primeiras vendas**.
+Referência Git na emissão: `6665bcd5df172752356b52156c6d3ec730c7d7a7`; fontes locais identificadas por SHA-256 no JSON.
+Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
 
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 4.4.9. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

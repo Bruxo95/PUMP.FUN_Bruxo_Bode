@@ -371,3 +371,38 @@ select.in{padding-right:24px}
 .h3s{font-size:13px;margin:16px 0 8px;color:var(--text)}
 .stcopy{margin:14px 0 4px;padding-top:10px}
 .stcopy>h2{font-size:14px;margin-bottom:10px}
+
+/* radar de KOLs: cartões que cabem no celular, com critérios separados dos controles de cópia */
+.side .nav{min-height:0;overflow-y:auto}.side .nav a{flex-shrink:0}
+.radar-intro>p{margin:0 0 18px;max-width:900px;font-size:13px;line-height:1.7}
+.radar-form{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.radar-form .field{flex:1 1 200px;max-width:270px;min-width:0}
+.radar-form input.in{width:100%;height:38px}
+.radar-status{margin:16px 0 5px;font-size:13px;font-weight:500;overflow-wrap:anywhere}
+#radarDraft{margin-top:10px;color:var(--warn)}
+#radarSince{overflow-wrap:anywhere}
+.radar-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+.radar-waves{display:grid;gap:14px}
+.radar-wave{border:1px solid var(--line2);border-left:3px solid var(--info);border-radius:8px;padding:16px;min-width:0;background:var(--bg2)}
+.radar-wave.selling{border-left-color:var(--warn)}
+.radar-wave-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.radar-wave-head h3{font-size:15px;min-width:0;overflow-wrap:anywhere;max-width:100%}
+.radar-wave-head h3>a{color:#b9cdfa;text-decoration:none;word-break:break-word}
+.radar-wave-head h3>a:hover{text-decoration:underline}
+.radar-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 20px;margin:18px 0;min-width:0}
+.radar-stats>div{min-width:0}
+.radar-stats dt{font-size:11.5px;color:var(--muted);margin-bottom:4px}
+.radar-stats dd{margin:0;font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}
+.radar-stats dd small{display:block;font:11.5px var(--font);color:var(--muted);margin-top:3px}
+.radar-wallets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:12px;border-top:1px solid var(--line)}
+.radar-wallet{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:6px;padding:3px 7px;font-size:12px;max-width:100%;min-width:0}
+.radar-wallet a{color:#b9cdfa;text-decoration:none}.radar-wallet a:hover{text-decoration:underline}
+.radar-wallet.sold{border-color:rgba(245,165,36,.35);color:var(--warn)}
+.radar-last{margin-top:10px}.radar-empty{color:var(--muted);padding:20px 4px;font-size:13px;line-height:1.7}
+@media(max-width:860px){
+  .radar-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .radar-form .field{flex:1 1 calc(50% - 12px);max-width:none}
+  .radar-form>.btn{flex:1 1 calc(50% - 12px);min-width:0;padding:0 9px;font-size:12px}
+  .radar-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+  .radar-wave{padding:12px}.radar-wave-head .tag{font-size:9.5px}
+}

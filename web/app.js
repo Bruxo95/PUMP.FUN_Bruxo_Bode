@@ -153,6 +153,95 @@
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("tkCard").hidden = true; });
 
+  // ------------------------------------------------------------------ radar de KOLs (/api/pump/radar)
+  const RADAR = { data: null, at: 0, busy: false, pending: false, revision: 0, dirty: false, saving: false };
+  const radarDate = (v) => dt(typeof v === "number" ? v * 1000 : v);
+  function radarControls() {
+    const r = RADAR.data, disabled = !r || RADAR.saving;
+    ["radarToggle", "radarMin", "radarWindow", "radarSave"].forEach((id) => { $(id).disabled = disabled; });
+    const b = $("radarToggle"), on = !!(r && r.enabled);
+    b.textContent = RADAR.saving ? "Salvando…" : "Radar: " + (on ? "ON" : "OFF");
+    b.className = "btn tgl " + (on ? "on" : "off"); b.setAttribute("aria-pressed", String(on));
+    if (r && !RADAR.dirty && !RADAR.saving) { $("radarMin").value = r.min_wallets; $("radarWindow").value = r.window_min; }
+    $("radarDraft").hidden = !RADAR.dirty;
+  }
+  function renderRadar() {
+    const r = RADAR.data; radarControls(); if (!r) return;
+    const waves = r.enabled ? r.waves || [] : [], mon = r.monitor || {}, connected = !!(mon.running && mon.connected);
+    const status = $("radarStatus");
+    status.className = "radar-status " + (!r.enabled ? "muted" : !connected ? "warn" : "up");
+    status.textContent = !r.enabled ? "Radar desligado. Ligue para receber avisos de compras em conjunto."
+      : !connected ? "Monitor desconectado. Os dados abaixo podem estar incompletos; aguardando reconexão."
+      : r.wallet_count < r.min_wallets ? "Adicione mais carteiras ao estudo: são necessárias " + r.min_wallets + " e sua lista tem " + r.wallet_count + "."
+      : "Radar ligado · observando compras e primeiras vendas dos participantes.";
+    $("radarSince").textContent = "Observação desde " + radarDate(r.observed_since) + " · atualização da tela a cada 4 s."
+      + (r.truncated ? " Limite de eventos atingido: parte da janela pode estar ausente." : "");
+    kpis("radarKpis", [["Carteiras da sua lista", f(r.wallet_count, 0), "gerenciadas em Carteiras em estudo", "usr"],
+      ["Ondas nesta janela", f(waves.length, 0), "mínimo " + f(r.min_wallets, 0) + " carteiras em " + f(r.window_min, 0) + " min", "mon"],
+      ["Ondas com vendas", f(waves.filter((w) => w.status === "selling").length, 0), "participantes já começaram a vender", "tr"]]);
+    $("radarSub").textContent = "compras nos últimos " + f(r.window_min, 0) + " min · cada carteira conta uma vez · " + f(r.event_count, 0) + " eventos da sua lista na janela";
+    if (!waves.length) {
+      $("radarWaves").innerHTML = '<div class="radar-empty">' + (!r.enabled ? "Ligue o radar para acompanhar as ondas."
+        : r.wallet_count < r.min_wallets ? 'Sua lista ainda não tem carteiras suficientes. <a href="#estudo">Adicionar carteiras ao estudo</a>.'
+        : !connected ? "Aguardando o monitor conectar para observar novas operações."
+        : "Nenhuma onda com esses critérios por enquanto. As compras precisam ser de carteiras diferentes, no mesmo token e dentro da janela.") + "</div>";
+      return;
+    }
+    $("radarWaves").innerHTML = waves.map((w) => {
+      const selling = w.status === "selling", mint = String(w.mint || ""), participants = w.wallets || [];
+      const pressure = w.buy_pressure == null ? "–" : f(w.buy_pressure, 0) + "%";
+      const stat = (label, value) => "<div><dt>" + label + "</dt><dd>" + value + "</dd></div>";
+      return '<article class="radar-wave' + (selling ? " selling" : "") + '"><div class="radar-wave-head"><h3>' + pfM(mint, String(w.symbol || "")) + '</h3><span class="tag ' + (selling ? "pause" : "buy") + '">'
+        + (selling ? "Participantes vendendo" : "Compras em conjunto") + '</span></div><dl class="radar-stats">'
+        + stat("Carteiras distintas", f(w.wallet_count, 0)) + stat("Compras observadas", s4(w.buy_sol) + " SOL <small>" + f(w.buy_count, 0) + " operações</small>")
+        + stat("Vendas após a compra", s4(w.sell_sol) + " SOL <small>" + f(w.seller_count, 0) + (w.seller_count === 1 ? " participante" : " participantes") + "</small>")
+        + stat("Saldo do fluxo", sg(w.net_sol)) + stat("Pressão de compra", pressure)
+        + stat("Primeira compra na janela", esc(radarDate(w.first_buy)) + "<small>há " + hms(w.age_s) + "</small>")
+        + '</dl><div class="radar-wallets"><span class="muted small">Participantes:</span>' + participants.map((p) => {
+          const sold = p.last_sell != null, title = "Primeira compra: " + radarDate(p.first_buy) + " · comprou " + s4(p.buy_sol) + " SOL · vendeu " + s4(p.sell_sol) + " SOL";
+          return '<span class="radar-wallet' + (sold ? " sold" : "") + '" title="' + esc(title) + '">' + pfW(String(p.wallet || "")) + (sold ? '<span class="small">vendeu</span>' : "") + "</span>";
+        }).join("") + '</div><div class="small muted radar-last">Último movimento: ' + esc(radarDate(w.last_trade)) + "</div></article>";
+    }).join("");
+  }
+  async function loadRadar(force) {
+    if (RADAR.saving) return;
+    if (RADAR.busy) { if (force) RADAR.pending = true; return; }
+    if (!force && Date.now() - RADAR.at < 4000) return;
+    RADAR.busy = true; RADAR.at = Date.now(); const revision = RADAR.revision;
+    try {
+      const r = await BB.api("/api/pump/radar");
+      if (revision !== RADAR.revision) return;
+      if (r.error) throw new Error(r.error);
+      RADAR.data = r; renderRadar();
+    } catch (e) {
+      if (revision === RADAR.revision) { $("radarStatus").textContent = "Não foi possível atualizar o radar: " + (e.message || "falha de conexão"); $("radarStatus").className = "radar-status warn"; }
+    } finally {
+      RADAR.busy = false;
+      if (RADAR.pending) { RADAR.pending = false; loadRadar(true); }
+    }
+  }
+  async function saveRadar(body, criteria) {
+    if (RADAR.saving || !RADAR.data) return;
+    RADAR.saving = true; RADAR.revision += 1; radarControls();
+    try {
+      const r = await BB.api("/api/pump/settings", { body: body }), errors = Object.values(r.errors || {});
+      if (r.error || errors.length) throw new Error(r.error || errors.join("; "));
+      const applied = r.applied || {}, fields = { pump_radar_enabled: "enabled", pump_radar_min_wallets: "min_wallets", pump_radar_window_min: "window_min" };
+      Object.keys(fields).forEach((key) => { if (Object.prototype.hasOwnProperty.call(applied, key)) RADAR.data[fields[key]] = applied[key]; });
+      if (criteria) RADAR.dirty = false;
+      toast(criteria ? "Critérios do radar salvos." : body.pump_radar_enabled ? "Radar ligado." : "Radar desligado.");
+    } catch (e) { toast("Não salvou o radar: " + (e.message || "falha de conexão")); }
+    finally { RADAR.saving = false; renderRadar(); await loadRadar(true); }
+  }
+  $("radarToggle").addEventListener("click", () => saveRadar({ pump_radar_enabled: !RADAR.data.enabled }, false));
+  ["radarMin", "radarWindow"].forEach((id) => $(id).addEventListener("input", () => { RADAR.dirty = true; $("radarDraft").hidden = false; }));
+  $("radarForm").addEventListener("submit", (e) => {
+    e.preventDefault(); if (!$("radarForm").reportValidity()) return;
+    const n = Number($("radarMin").value), windowMin = Number($("radarWindow").value);
+    if (!Number.isInteger(n) || n < 2 || n > 30 || !Number.isInteger(windowMin) || windowMin < 1 || windowMin > 30) { toast("Use 2 a 30 carteiras e uma janela de 1 a 30 minutos, com números inteiros."); return; }
+    saveRadar({ pump_radar_min_wallets: n, pump_radar_window_min: windowMin }, true);
+  });
+
   // ------------------------------------------------------------------ carteiras em estudo (/api/pump/study)
   const money = (v, u) => (v == null ? "–" : (u === "US$" ? (v < 0 ? "−$" : "$") + f(Math.abs(v), Math.abs(v) < 10 ? 2 : 0) : s4(v) + " SOL"));
   const mny = (v, u) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + money(v, u) + "</span>");
@@ -246,7 +335,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -265,6 +354,7 @@
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
+    if (VIEW === "radar") loadRadar(true);
     render();
     window.scrollTo(0, 0);
   }
@@ -287,6 +377,7 @@
   }
   function classify(m) {
     m = String(m || "");
+    if (/^Radar\b/i.test(m)) return "alert";
     if (/^Top traders atualizados/i.test(m)) return "trader";
     if (/PAUSADO|parece robô/.test(m)) return "alert";
     if (/segurando/i.test(m)) return null;
@@ -299,7 +390,7 @@
   function onEvent(e) {
     const k = classify(e.msg); const real = /REAL/.test(e.msg);
     mascReact(e.msg);
-    if (real || k === "error") toast(e.msg.slice(0, 180));
+    if (real || k === "error" || /^Radar\b/i.test(e.msg)) toast(e.msg.slice(0, 180));
     if (!NTF || !k || k === "trader") return;
     const now = Date.now(); if (now - NTF_AT < 1200 && k !== "error") return; NTF_AT = now;
     play(k, real ? 0.55 : 0.28);
@@ -350,6 +441,7 @@
     const pc = (m.split("→")[1] || "").match(/\(([+−-]?[0-9]+(?:[.,][0-9]+)?)%\)/);
     const pct = pc ? " " + (/^[+−-]/.test(pc[1]) ? "" : "+") + pc[1].replace(".", ",") + "%" : "";
     const neg = /→\s*[−-]/.test(m), pos = /→\s*\+/.test(m);
+    if (/^Radar\b/i.test(m)) return /vend/i.test(m) ? ["pensativo", "m-pensa", "Venda na onda"] : ["pensativo", "m-pula", "Onda no radar"];
     if (/^Top traders atualizados/i.test(m)) return ["timido", "m-balanca", "Troquei os traders"];
     if (/PAUSADO/.test(m)) return ["bravo", "m-treme", "Trader pausado"];
     if (/parece robô/i.test(m)) return ["bravo", "m-treme", "Robô detectado"];
@@ -431,6 +523,7 @@
     else if (VIEW === "historico") renderHistory();
     else if (VIEW === "relatorios" && (Date.now() - REP_AT > 30000 || REP_MODE !== realMode())) loadReports();
     else if (VIEW === "aprendizado" && (Date.now() - AP_AT > 60000 || AP_MODE !== realMode())) loadLearning();
+    else if (VIEW === "radar") loadRadar(false);
     else if (VIEW === "feed") renderFeed();
     else if (VIEW === "real") renderReal();
   }

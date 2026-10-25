@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -16,6 +17,7 @@ from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
 from .logsafe import add_secret
 from .pumpfun import PumpFun, PumpMarket, PumpReal
+from .radar import RadarBuffer
 from .settings import PumpSettings
 from .solana_wallet import UserWallet
 
@@ -37,6 +39,7 @@ class PumpHub:
         self._locks: dict[str, asyncio.Lock] = {}
         self._blocked: set[str] = set()            # contas bloqueadas (vale também para cargas já em andamento)
         self._trade_q: list[dict] = []             # operações das carteiras em estudo a gravar (0.14.0)
+        self.radar = RadarBuffer()                # só observações ao vivo; não gera ordens
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
@@ -250,23 +253,76 @@ class PumpHub:
             await self.refresh_study()
 
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
+    def radar_snapshot(self, pf) -> dict:
+        enabled = bool(getattr(pf.cfg, "pump_radar_enabled", False))
+        wallets = set(getattr(pf, "study", []) or [])
+        minimum = int(getattr(pf.cfg, "pump_radar_min_wallets", 2))
+        window = int(getattr(pf.cfg, "pump_radar_window_min", 5))
+        data = (self.radar.snapshot(wallets, minimum, window) if enabled else
+                {"observed_since": self.radar.observed_since, "event_count": 0, "truncated": False, "waves": []})
+        for wave in data["waves"]:
+            symbol = (self.market.tokens.get(wave["mint"]) or {}).get("symbol")
+            wave["symbol"] = str(symbol)[:80] if symbol else None
+        # Remoção da lista, janela vencida ou OFF suprimem os estados antigos.
+        active = {w["mint"] for w in data["waves"]}
+        pf._radar_alerts = {m: s for m, s in getattr(pf, "_radar_alerts", {}).items() if m in active}
+        return {"enabled": enabled, "min_wallets": minimum, "window_min": window,
+                "wallet_count": len(wallets), **data,
+                "monitor": {"running": bool(self.running and self.monitor is not None),
+                            "connected": bool(self.market.rpc_status.get("ws"))}}
+
+    def _radar_notify(self, wallet: str) -> None:
+        for pf in list(self.engines.values()):
+            if not getattr(pf.cfg, "pump_radar_enabled", False):
+                pf._radar_alerts = {}
+                continue
+            if wallet not in (getattr(pf, "study", []) or []):
+                continue
+            data = self.radar_snapshot(pf)
+            states = pf._radar_alerts
+            for wave in data["waves"]:
+                mint = wave["mint"]
+                state = states.get(mint)
+                name = (wave["symbol"] or mint[:6] + "…" + mint[-4:])
+                if state is None:
+                    pf._emit(f"Radar: onda em {name} — {wave['wallet_count']} carteiras em estudo compraram "
+                             f"em {data['window_min']} min (apenas observação)")
+                    state = states[mint] = {"selling": False}
+                if wave["sell_count"] and not state["selling"]:
+                    pf._emit(f"Radar: vendas na onda de {name} — uma das carteiras compradoras começou a vender "
+                             "(apenas observação)")
+                    state["selling"] = True
+
     def record_trade(self, wallet: str, ev: dict) -> None:
+        radar_new = self.radar.record(wallet, ev)
         sig = ev.get("signature")
         if not sig or ev.get("txType") not in ("buy", "sell"):
             return
         bt = ev.get("blockTime")
-        at = datetime.fromtimestamp(float(bt), timezone.utc) if bt else datetime.now(timezone.utc)
+        try:
+            at = datetime.fromtimestamp(float(bt), timezone.utc) if bt else datetime.now(timezone.utc)
+            sol, tokens = float(ev.get("solAmount") or 0), float(ev.get("tokenAmount") or 0)
+        except (TypeError, ValueError, OverflowError, OSError):
+            return
+        if not all(math.isfinite(v) and v >= 0 for v in (sol, tokens)):
+            return
         self._trade_q.append({"signature": sig, "wallet": wallet, "mint": ev.get("mint"), "side": ev["txType"],
-                              "sol": float(ev.get("solAmount") or 0), "tokens": float(ev.get("tokenAmount") or 0),
+                              "sol": sol, "tokens": tokens,
                               "mcap_sol": ev.get("marketCapSol"), "at": at.isoformat()})
         del self._trade_q[:-5000]                    # banco fora do ar por muito tempo: não estoura a memória
+        if radar_new:
+            self._radar_notify(wallet)
 
     async def flush_trades(self) -> None:
         if not self._trade_q:
             return
         batch, self._trade_q = self._trade_q[:500], self._trade_q[500:]
         try:
-            await self.db.insert("wallet_trades", batch, upsert=True, on_conflict="signature")
+            # PostgreSQL recusa atualizar a mesma PK duas vezes no mesmo INSERT.
+            # O histórico legado admite só uma carteira por assinatura; o Radar
+            # mantém os eventos de todas as carteiras separadamente em memória.
+            unique = list({row["signature"]: row for row in batch}.values())
+            await self.db.insert("wallet_trades", unique, upsert=True, on_conflict="signature")
         except Exception as e:
             self._trade_q = batch + self._trade_q
             log.warning("Carteiras em estudo: operações não gravadas (%s)", str(e)[:120])
@@ -312,6 +368,7 @@ class PumpHub:
         if action == "remove":
             await self.db.delete("study_wallets", {"user_id": pf.user_id, "wallet": wallet})
             pf.study = [w for w in lst if w != wallet]
+            self.radar_snapshot(pf)
             return {"ok": True}
         if wallet in lst:
             return {"ok": True, "already": True}

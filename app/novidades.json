@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.16.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Menu → Radar de KOLs",
+      "titulo": "Radar de KOLs: compras em conjunto e primeiras vendas",
+      "oque": "Ligue o radar para observar várias carteiras da sua lista em estudo comprando o mesmo token. Escolha de 2 a 30 carteiras distintas e uma janela de 1 a 30 minutos. Mostra participantes, volume em SOL, pressão de compra e primeiras vendas, com avisos no painel conectado. Carteiras apenas em estudo agora também têm suas operações lidas pelo monitor, sem precisar copiá-las. Esta etapa não descobre influencers automaticamente e não abre nem fecha posições. As ondas usam somente dados vistos ao vivo e recomeçam quando o servidor reinicia."
+    },
+    {
       "versao": "0.15.0",
       "data": "2026-10-25",
       "tipo": "novo",
