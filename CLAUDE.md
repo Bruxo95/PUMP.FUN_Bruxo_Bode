@@ -360,6 +360,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Validação local: 8 testes puros do Radar com Python padrão; sintaxe Python/JS e `git diff --check`.
   Integração coberta por 18 novos casos para o CI; pytest local indisponível sem dependências (não reinstaladas).
   Prévia com dados fictícios inspecionada em desktop e 390 px, sem rolagem lateral; controles ON/OFF conferidos.
-  Aguardar resultado observado do Actions após publicação; dados reais, login de produção e RLS não foram testados.
+  CI do commit `ae0e81054f7285e06b95cfbbf2e7255872a061eb`: **130 testes passaram**, 7 subtestes passaram e 1 aviso.
+  Actions `40242835935` concluído com sucesso (testes, banco, imagem e deploy); o próprio workflow confirmou
+  a versão 0.16.0 no `/health`. Nenhum acesso administrativo remoto feito pelo agente. O fluxo do Radar com
+  dados reais, login de produção e RLS efetivo do Supabase não foram validados nesta tarefa.
 - Próximas etapas: fontes de identidade verificadas e ranking de copiabilidade na onda; simulação de entrada/saída
   específica do Radar e medição de atraso; Telegram somente se solicitado. Não habilitar execução automática real.
