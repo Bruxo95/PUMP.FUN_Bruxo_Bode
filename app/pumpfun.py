@@ -296,15 +296,22 @@ class PumpFun:
             return None
 
     def on_message(self, ev: dict, t: float | None = None) -> list[str]:
-        """Processa 1 mensagem do WebSocket. Devolve mensagens para a aba Eventos (cópias)."""
+        """Processa 1 mensagem do WebSocket. Devolve mensagens para a aba Eventos (cópias).
+        = parte pública (ingest, uma vez por evento) + reação DESTE usuário (react)."""
         t = t or time.time()
+        info = self.ingest(ev, t)
+        return self.react(ev, t, info) if info else []
+
+    def ingest(self, ev: dict, t: float) -> dict | None:
+        """Parte PÚBLICA do evento (preço/mcap do token, carteiras vistas, devs). No modo multiusuário roda uma vez
+        só, no monitor compartilhado. Devolve o que cada usuário precisa para reagir (ou None)."""
         if not isinstance(ev, dict) or "txType" not in ev:
-            return []
+            return None
         self.status["events"] += 1
         self.status["last_event"] = t
         mint, kind, who = ev.get("mint"), ev.get("txType"), ev.get("traderPublicKey")
         if not mint:
-            return []
+            return None
         px = self.price_of(ev)
         tk = self.tokens.setdefault(mint, {"created_t": t})
         if px:
@@ -326,9 +333,9 @@ class PumpFun:
             if who and float(ev.get("solAmount") or 0) > 0:   # compra inicial do dev conta como compra dele
                 self._wallet_trade(who, mint, "buy", float(ev.get("solAmount") or 0),
                                    float(ev.get("initialBuy") or ev.get("tokenAmount") or 0), t)
-            return []
+            return None
         if kind not in ("buy", "sell"):
-            return []
+            return None
         self.status["trades"] += 1
         sol, tok = float(ev.get("solAmount") or 0), float(ev.get("tokenAmount") or 0)
         wp = ((self.wallets.get(who) or {}).get("pos") or {}).get(mint) if who else None
@@ -336,6 +343,13 @@ class PumpFun:
         avg_before = (wp["cost"] / wp["tok"]) if wp and wp.get("tok") else None
         if who:
             self._wallet_trade(who, mint, kind, sol, tok, t)
+        return {"mint": mint, "kind": kind, "who": who, "sol": sol, "tok": tok, "before": before,
+                "avg_before": avg_before}
+
+    def react(self, ev: dict, t: float, info: dict) -> list[str]:
+        """Parte DESTE usuário: monitor ao vivo + cópia (se segue o trader) + stops das posições no token."""
+        mint, kind, who, sol, tok = info["mint"], info["kind"], info["who"], info["sol"], info["tok"]
+        before, avg_before = info["before"], info["avg_before"]
         msgs = []
         if who in self.followed:
             self._live(who, mint, kind, sol, tok, ev, before, avg_before, t)

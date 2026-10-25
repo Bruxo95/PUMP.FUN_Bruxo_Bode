@@ -33,6 +33,8 @@ class PumpHub:
         self.started_at = time.time()
         self.errors: list[dict] = []
         # trava geral da execução real (no .env): enquanto false, ninguém liga o real
+        self.monitor = None                        # SharedMonitor (ligado em start)
+        self.running = False
         self.real_allowed = os.environ.get("PUMP_REAL_ALLOWED", "false").strip().lower() in ("1", "true", "sim", "yes")
 
     # ------------------------------------------------------------------ perfis
@@ -74,7 +76,18 @@ class PumpHub:
         pf.keys = KeyRing(await self.vault.load(uid))
         pf.lb_key_fallback = lambda: self.shared_st_key
         self._wire_wallet(pf)
+        for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
+            if p.get("selling"):
+                p["selling"] = False
+                pf._save_pos(p)
+        if self.running:
+            self._start_engine(pf)
         return pf
+
+    def _start_engine(self, pf: PumpFun) -> None:
+        """Fila de execução REAL própria do usuário (uma de cada vez, espera a confirmação na blockchain)."""
+        if getattr(pf, "_real_task", None) is None:
+            pf._real_task = asyncio.get_running_loop().create_task(pf.real_loop())
 
     def _wire_wallet(self, pf: PumpFun) -> None:
         """(Re)monta carteira, Jupiter e execução real do usuário a partir das chaves dele."""
@@ -141,11 +154,22 @@ class PumpHub:
         except Exception as e:
             log.warning("Não consegui carregar os usuários do Supabase: %s", str(e)[:160])
         await self.refresh_shared_key()
+        self.running = True
+        for pf in list(self.engines.values()):
+            self._start_engine(pf)
         self._tasks.append(asyncio.create_task(self.flush_loop()))
+        from .monitor import SharedMonitor
+        self.monitor = SharedMonitor(self)
+        self.monitor.start()
 
     async def stop(self) -> None:
+        if self.monitor:
+            self.monitor.stop()
         for t in self._tasks:
             t.cancel()
+        for pf in self.engines.values():
+            if getattr(pf, "_real_task", None):
+                pf._real_task.cancel()
         for pf in list(self.engines.values()):
             try:
                 await pf.store.flush()
