@@ -74,7 +74,14 @@ Tabelas: `profiles` (role admin/user, bloqueado, ultimo_acesso), `user_settings`
 compartilhar_chave_st), `user_secrets` (valor_criptografado), `pump_positions`, `pump_trades`, `pump_lists`
 (manual/banida/pausada), `pump_feed` (últimos 500), `audit_log`. Gatilho `handle_new_user`: o **1º usuário
 vira admin**. O navegador só lê as próprias linhas e nunca escreve.
-Migrações aplicadas no projeto: `20261025000001_inicial.sql` e `20261025000002_admin.sql`. Migração nova =
+Tabela `app_secrets`: **chaves do sistema** (Solana Tracker, PumpPortal, Jupiter) que o admin configura em
+Administração para todo mundo VER a ferramenta funcionando sem chave própria (ranking, cotações, conexão
+PumpPortal). Nunca são usadas para executar nada em nome de usuário: trocas usam a chave Jupiter do próprio
+usuário ou a API pública; execução real usa só as chaves do usuário. Chave pessoal sempre tem prioridade.
+Nenhum usuário lê `app_secrets` (RLS sem política). Em Configurações cada chave mostra "Usando: sua chave /
+chave do sistema / não configurada" e o link para criar a própria.
+Migrações aplicadas no projeto: `20261025000001_inicial.sql`, `20261025000002_admin.sql` e
+`20261025000003_chaves_sistema.sql`. Migração nova =
 arquivo novo em `supabase/migrations/` **e** aplicar no projeto (SQL Editor ou ferramenta do Supabase).
 
 ## Variáveis do servidor (Portainer → Environment variables do stack)
@@ -92,7 +99,7 @@ arquivo novo em `supabase/migrations/` **e** aplicar no projeto (SQL Editor ou f
 - `cp .env.example .env` (preencher) e `docker compose up -d --build` → http://localhost:8080
   (no Supabase, adicionar `http://localhost:8080/app` nas Redirect URLs).
 
-## Situação atual (2026-10-25, versão 0.7.0)
+## Situação atual (2026-10-25, versão 0.8.0)
 - Etapas 1–7 do plano concluídas: núcleo + Jupiter, Supabase/RLS/criptografia, login Google + painel,
   monitor compartilhado + motores por usuário, Docker/Portainer/README, menu de Administração (usuários,
   categoria, bloqueio, desligar real de alguém, registro de todas as contas, logs do servidor).

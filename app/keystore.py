@@ -17,6 +17,24 @@ SECRET_NAMES = {
 }
 
 
+# chaves que o ADMIN pode configurar para todos usarem na VISUALIZAÇÃO (dados e cotações; nunca execução real)
+SYSTEM_NAMES = {
+    "solanatracker_api_key": "Chave da Solana Tracker",
+    "pumpportal_api_key": "Chave da PumpPortal",
+    "jupiter_api_key": "Chave da Jupiter (opcional)",
+}
+SYSTEM_OWNER = "__sistema__"                        # "dono" usado na criptografia das chaves do sistema
+
+# onde cada pessoa cria a própria chave (mostrado em Configurações)
+KEY_LINKS = {
+    "solanatracker_api_key": "https://www.solanatracker.io/account/data-api",
+    "pumpportal_api_key": "https://pumpportal.fun/trading-api/setup",
+    "jupiter_api_key": "https://developers.jup.ag/portal",
+    "rpc_url": "https://dashboard.helius.dev",
+    "wallet_private_key": "https://phantom.com",
+}
+
+
 class KeyRing:
     def __init__(self, values: dict | None = None):
         self._d: dict[str, str] = {}

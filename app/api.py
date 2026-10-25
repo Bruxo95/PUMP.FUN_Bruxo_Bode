@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .auth import AuthError
 from .db import audit
-from .keystore import SECRET_NAMES
+from .keystore import KEY_LINKS, SECRET_NAMES, SYSTEM_NAMES
 from .settings import LB_DAYS
 from .solana_wallet import check_rpc_url, parse_keypair
 from .version import VERSION
@@ -216,7 +216,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
     # ------------------------------------------------------------------ chaves pessoais
     @app.get("/api/secrets")
     async def secrets_list(pf=Depends(engine)):
-        return {"keys": {k: {"label": v, "configured": bool(pf.keys.get(k))} for k, v in SECRET_NAMES.items()},
+        sysk = hub.system_keys
+        return {"keys": {k: {"label": v, "configured": bool(pf.keys.get(k)), "system": bool(sysk.get(k)),
+                             "link": KEY_LINKS.get(k)} for k, v in SECRET_NAMES.items()},
                 "wallet": pf.sol_wallet.public() if pf.sol_wallet else None}
 
     @app.post("/api/secrets")
@@ -271,12 +273,35 @@ def create_app(hub, auth, cfg) -> FastAPI:
         profs = await hub.db.select("profiles", None, columns="user_id")
         return {**hub.admin_status(), "users_total": len(profs)}
 
-    @app.post("/api/admin/share-key")
-    async def admin_share(body: dict, u: dict = Depends(admin_only)):
-        share = bool(body.get("share"))
-        await hub.db.update("user_settings", {"user_id": u["id"]}, {"compartilhar_chave_st": share})
-        await hub.refresh_shared_key()
-        return {"ok": True, "share": share, "active": bool(hub.shared_st_key)}
+    @app.get("/api/admin/keys")
+    async def admin_keys(u: dict = Depends(admin_only)):
+        """Chaves do SISTEMA (só "configurada: sim/não" — o valor nunca volta)."""
+        return {"keys": await hub.system_keys_view()}
+
+    @app.post("/api/admin/keys")
+    async def admin_keys_save(body: dict, u: dict = Depends(admin_only)):
+        name, value = str(body.get("name") or ""), str(body.get("value") or "").strip()
+        if name not in SYSTEM_NAMES:
+            return {"error": "chave desconhecida"}
+        if len(value) < 16:
+            return {"error": "chave inválida (curta demais)"}
+        try:
+            await hub.set_system_key(u["id"], name, value)
+        except Exception as e:
+            log.warning("salvar chave do sistema %s: %s", name, str(e)[:120])
+            return {"error": "não consegui salvar no banco agora"}
+        out = {"ok": True, "configured": True}
+        if name == "solanatracker_api_key" and hub.monitor:
+            await hub.monitor.lb_once(force=True)
+        return out
+
+    @app.post("/api/admin/keys/remove")
+    async def admin_keys_remove(body: dict, u: dict = Depends(admin_only)):
+        name = str(body.get("name") or "")
+        if name not in SYSTEM_NAMES:
+            return {"error": "chave desconhecida"}
+        await hub.remove_system_key(u["id"], name)
+        return {"ok": True, "configured": False}
 
     # ------------------------------------------------------------------ admin: gestão de usuários e logs
     UUID = __import__("re").compile(r"^[0-9a-fA-F-]{36}$")

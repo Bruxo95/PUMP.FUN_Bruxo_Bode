@@ -13,7 +13,8 @@ from datetime import datetime, timezone
 
 from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
-from .keystore import KeyRing
+from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
+from .logsafe import add_secret
 from .pumpfun import PumpFun, PumpMarket, PumpReal
 from .settings import PumpSettings
 from .solana_wallet import UserWallet
@@ -25,11 +26,13 @@ class PumpHub:
     def __init__(self, cfg, http, db, box):
         self.cfg, self.http, self.db = cfg, http, db
         self.vault = Vault(db, box)
-        self.market = PumpMarket(jup=JupiterQuoter(http))
+        self.public_quoter = JupiterQuoter(http)       # sem chave: usado nas trocas de quem não tem chave própria
+        self.market = PumpMarket(jup=self.public_quoter)
+        self.system_keys: dict[str, str] = {}          # chaves do sistema (admin), já abertas, só na memória
         self.engines: dict[str, PumpFun] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._tasks: list[asyncio.Task] = []
-        self.shared_st_key = ""                    # chave da Solana Tracker emprestada pelo admin
+        self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
         self.started_at = time.time()
         self.errors: list[dict] = []
         self._touched: dict[str, float] = {}
@@ -107,7 +110,8 @@ class PumpHub:
         except ValueError:
             w = UserWallet("", k.get("rpc_url"), self.cfg.solana_rpc_public)
         pf.sol_wallet = w
-        jw = JupiterWallet(self.http, w, self.market.jup, priority_sol=float(pf.cfg.pump_priority_sol))
+        # trocas da carteira do usuário: chave Jupiter PRÓPRIA dele ou a API pública — nunca a chave do sistema
+        jw = JupiterWallet(self.http, w, self.public_quoter, priority_sol=float(pf.cfg.pump_priority_sol))
         pf.jw = jw
         pf.real = PumpReal(pf.cfg, self.http, w, k, jup=jw)
         if not w.keypair:                            # sem carteira: real desliga
@@ -132,18 +136,48 @@ class PumpHub:
         await audit(self.db, pf.user_id, "remover chave", name)
 
     async def refresh_shared_key(self) -> None:
-        """Chave da Solana Tracker do admin, se ele marcou "compartilhar com todos"."""
+        """Chaves do SISTEMA (configuradas pelo admin): servem para todo mundo VER a ferramenta funcionando —
+        ranking de top traders (Solana Tracker), cotações (Jupiter) e a conexão com a PumpPortal. Nunca são
+        usadas para executar nada em nome de ninguém."""
         try:
-            rows = await self.db.select("user_settings", {"compartilhar_chave_st": True})
-            admins = {r["user_id"] for r in await self.db.select("profiles", {"role": "admin"})}
-            key = ""
-            for r in rows:
-                if r["user_id"] in admins:
-                    pf = await self.engine(r["user_id"])
-                    key = pf.keys.get("solanatracker_api_key") or key
-            self.shared_st_key = key
+            keys = {}
+            for r in await self.db.select("app_secrets", None):
+                try:
+                    keys[r["nome"]] = self.vault.box.decrypt(SYSTEM_OWNER, r["nome"], r["valor_criptografado"])
+                    add_secret(keys[r["nome"]])
+                except Exception:
+                    log.warning("Chave do sistema %s não abriu (APP_ENCRYPTION_KEY trocada?)", r["nome"])
+            self.system_keys = keys
         except Exception as e:
-            log.warning("Chave compartilhada: %s", str(e)[:120])
+            log.warning("Chaves do sistema: %s", str(e)[:120])
+        self.shared_st_key = self.system_keys.get("solanatracker_api_key", "")
+        jk = self.system_keys.get("jupiter_api_key", "")
+        if jk != getattr(self, "_jup_key_in_use", ""):
+            self.market.jup = JupiterQuoter(self.http, jk) if jk else self.public_quoter
+            self._jup_key_in_use = jk
+
+    async def system_keys_view(self) -> dict:
+        rows = {r["nome"]: r for r in await self.db.select("app_secrets", None, columns="nome,atualizado_em")}
+        return {k: {"label": v, "configured": k in rows, "updated_at": (rows.get(k) or {}).get("atualizado_em"),
+                    "link": KEY_LINKS.get(k)} for k, v in SYSTEM_NAMES.items()}
+
+    async def set_system_key(self, admin_id: str, name: str, value: str) -> None:
+        await self.db.insert("app_secrets", {"nome": name, "valor_criptografado": self.vault.box.encrypt(SYSTEM_OWNER, name, value),
+                                             "atualizado_por": admin_id,
+                                             "atualizado_em": datetime.now(timezone.utc).isoformat()},
+                             upsert=True, on_conflict="nome")
+        await self.refresh_shared_key()
+        await audit(self.db, admin_id, "admin: salvar chave do sistema", name)
+
+    async def remove_system_key(self, admin_id: str, name: str) -> None:
+        await self.db.delete("app_secrets", {"nome": name})
+        await self.refresh_shared_key()
+        if name == "solanatracker_api_key":           # quem dependia dela fica sem ranking até pôr a própria
+            for pf in self.engines.values():
+                if not pf.lb_key_own():
+                    pf.leaderboard = []
+                    pf.refresh_followed(force=True)
+        await audit(self.db, admin_id, "admin: remover chave do sistema", name)
 
     # ------------------------------------------------------------------ segundo plano
     async def flush_loop(self) -> None:
@@ -280,5 +314,6 @@ class PumpHub:
                             "jupiter": m.jup.status if m.jup else None, "sol_usd": m.sol_usd,
                             "tokens": len(m.tokens), "wallets_seen": len(m.wallets)},
                 "shared_st_key": bool(self.shared_st_key),
+                "system_keys": {k: bool(self.system_keys.get(k)) for k in SYSTEM_NAMES},
                 "db_errors": [{"user": uid[:8] + "…", "error": p.store.last_error, "queued": len(p.store._q)}
                               for uid, p in self.engines.items() if p.store.last_error or len(p.store._q) > 50]}

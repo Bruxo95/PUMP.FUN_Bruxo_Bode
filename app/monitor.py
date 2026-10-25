@@ -247,6 +247,9 @@ class SharedMonitor:
                 continue
             try:
                 url = str(self.hub.cfg.defaults.get("pump_ws_url") or "wss://pumpportal.fun/api/data")
+                pk = self.hub.system_keys.get("pumpportal_api_key")
+                if pk:
+                    url += ("&" if "?" in url else "?") + "api-key=" + pk
                 async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
                     st.update(ws=True, connected_at=now_iso(), error=None)
                     backoff = 2.0
@@ -262,7 +265,8 @@ class SharedMonitor:
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                st.update(ws=False, error=f"{type(e).__name__}: {str(e)[:120]}")
+                from .logsafe import redact
+                st.update(ws=False, error=redact(f"{type(e).__name__}: {str(e)[:120]}"))
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
 

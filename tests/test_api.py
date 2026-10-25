@@ -168,14 +168,58 @@ def test_admin_status_only_for_admin_and_never_keys(env):
     assert c.get("/api/admin/status", headers=tok(UB, "b@x.com")).status_code == 403
     r = c.get("/api/admin/status", headers=tok(UA))
     assert r.status_code == 200 and r.json()["users_total"] == 2 and "q" * 30 not in r.text
-    assert c.post("/api/admin/share-key", json={"share": True}, headers=tok(UB, "b@x.com")).status_code == 403
-    r = c.post("/api/admin/share-key", json={"share": True}, headers=tok(UA)).json()
-    assert r["active"] is True
-    # B não tem chave própria mas usa a emprestada (sem nunca ver a chave)
-    d = c.post("/api/pump/leaderboard", json={"days": 7}, headers=tok(UB, "b@x.com")).json()
-    assert d["count"] == 3 and "q" * 30 not in json.dumps(d)
-    snap = c.get("/api/pump", headers=tok(UB, "b@x.com")).json()
-    assert snap["lb_status"]["key_set"] is True and snap["lb_status"]["own_key"] is False
+
+
+def test_system_keys_let_everyone_view_and_personal_key_wins(env):
+    c, db, hub = env["c"], env["db"], env["hub"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    SYS = "st-SISTEMA-" + "s" * 30
+    # só admin mexe nas chaves do sistema
+    assert c.get("/api/admin/keys", headers=B).status_code == 403
+    assert c.post("/api/admin/keys", json={"name": "solanatracker_api_key", "value": SYS}, headers=B).status_code == 403
+    assert c.post("/api/admin/keys", json={"name": "wallet_private_key", "value": "x" * 40}, headers=A).json()["error"]
+    assert c.post("/api/admin/keys", json={"name": "solanatracker_api_key", "value": SYS}, headers=A).json()["ok"]
+    for name in ("pumpportal_api_key", "jupiter_api_key"):
+        assert c.post("/api/admin/keys", json={"name": name, "value": "k-" + name + "-" + "z" * 20}, headers=A).json()["ok"]
+    view = c.get("/api/admin/keys", headers=A)
+    assert all(v["configured"] for v in view.json()["keys"].values()) and SYS not in view.text
+    assert SYS not in json.dumps(db.tables["app_secrets"])                       # no banco só a cifra
+    # B não tem chave nenhuma: vê o ranking pela chave do sistema, sem nunca ver a chave
+    d = c.post("/api/pump/leaderboard", json={"days": 7}, headers=B).json()
+    assert d["count"] == 3 and SYS not in json.dumps(d)
+    snap = c.get("/api/pump", headers=B)
+    assert snap.json()["lb_status"]["own_key"] is False and SYS not in snap.text
+    sec = c.get("/api/secrets", headers=B).json()["keys"]
+    st = sec["solanatracker_api_key"]
+    assert st["configured"] is False and st["system"] is True and st["link"].startswith("https://www.solanatracker.io")
+    assert sec["wallet_private_key"]["system"] is False                          # carteira nunca é do sistema
+    # chave do sistema não vira chave do usuário: execução e trocas continuam só com o que é dele
+    eb = asyncio.run(hub.engine(UB))
+    assert eb.real.api_key() == "" and eb.keys.get("jupiter_api_key") == ""
+    assert eb.jw.dex is hub.public_quoter and hub.market.jup is not hub.public_quoter
+    # B põe a própria chave: passa a usar a dele
+    c.post("/api/secrets", json={"name": "solanatracker_api_key", "value": "st-da-B-" + "b" * 30}, headers=B)
+    assert c.get("/api/pump", headers=B).json()["lb_status"]["own_key"] is True
+    assert c.get("/api/secrets", headers=B).json()["keys"]["solanatracker_api_key"]["configured"] is True
+    # remover a do sistema: quem não tem a própria deixa de ver; B (com a dele) continua
+    c.post("/api/admin/keys/remove", json={"name": "solanatracker_api_key"}, headers=A)
+    assert c.get("/api/secrets", headers=A).json()["keys"]["solanatracker_api_key"]["system"] is False
+    assert c.get("/api/pump", headers=B).json()["lb_status"]["key_set"] is True
+    acoes = [a["acao"] for a in db.tables["audit_log"] if a["user_id"] == UA]
+    assert acoes.count("admin: salvar chave do sistema") == 3 and "admin: remover chave do sistema" in acoes
+
+
+def test_system_keys_survive_restart(env):
+    from app.crypto import SecretBox
+    from app.hub import PumpHub
+    c, db, cfg = env["c"], env["db"], env["cfg"]
+    c.post("/api/admin/keys", json={"name": "solanatracker_api_key", "value": "st-SISTEMA-" + "r" * 30}, headers=tok(UA))
+    hub2 = PumpHub(cfg, httpx.AsyncClient(transport=httpx.MockTransport(net_handler)), db, SecretBox(cfg.encryption_key))
+
+    async def go():
+        await hub2.refresh_shared_key()
+        return hub2.shared_st_key
+    assert asyncio.run(go()) == "st-SISTEMA-" + "r" * 30
 
 
 # ---------------------------------------------------------------- execução real e chaves

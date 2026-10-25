@@ -215,7 +215,7 @@
           </div>
         </div>
         <div class="card" id="secretsCard">
-          <header><div><h2>Chaves pessoais</h2><div class="sub">guardadas criptografadas · nunca voltam para a tela · só aparece se estão configuradas</div></div></header>
+          <header><div><h2>Chaves pessoais</h2><div class="sub">guardadas criptografadas · nunca voltam para a tela · enquanto você não põe a sua, a ferramenta usa a chave do sistema só para visualização</div></div></header>
           <div id="secrets"></div>
         </div>
         <div class="card">
@@ -233,8 +233,11 @@
           <div class="tbl-wrap"><table id="tUsers"></table></div>
         </div>
         <div class="card">
-          <header><div><h2>Status geral do sistema</h2><div class="sub">monitor compartilhado, conexões e erros</div></div><div class="sp"></div>
-            <button class="btn sm tgl" id="shareB">…</button></header>
+          <header><div><h2>Chaves do sistema — visualização para todos</h2><div class="sub">usadas por quem ainda não tem chave própria, só para VER a ferramenta funcionando (top traders, cotações). Nunca executam nada em nome de ninguém · o valor nunca volta para a tela</div></div></header>
+          <div id="sysKeys"></div>
+        </div>
+        <div class="card">
+          <header><div><h2>Status geral do sistema</h2><div class="sub">monitor compartilhado, conexões e erros</div></div></header>
           <div class="cfgs" id="adminS"></div>
         </div>
         <div class="card">

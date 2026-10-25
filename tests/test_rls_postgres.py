@@ -124,3 +124,10 @@ def test_feed_trim_keeps_last_n(pg):
     assert pg(f"select count(*) from public.pump_feed where user_id='{UB}'")[1] == "1"   # o do outro fica
     rc, _, _ = pg(f"select public.trim_pump_feed('{UB}', 0)", claims=UA, role="authenticated")
     assert rc != 0                                   # o navegador não chama esta função
+
+
+def test_system_keys_table_is_closed_to_browsers(pg):
+    assert pg("insert into public.app_secrets (nome, valor_criptografado) values ('jupiter_api_key', 'cifra')")[0] == 0
+    for role in ("authenticated", "anon"):
+        rc, out, err = pg("select count(*) from public.app_secrets", claims=UA, role=role)
+        assert rc != 0 and "permission denied" in err, role
