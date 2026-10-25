@@ -3,6 +3,9 @@
 Leia isto antes de mexer no projeto. Vale para qualquer pessoa (ou Claude) que for trabalhar aqui.
 
 ## O que é
+Nome no site: **PUMP FUN COPY** (logo, títulos e rodapé). O repositório e as pastas continuam com o nome
+interno `PUMP.FUN_Bruxo_Bode`.
+
 Sistema web **multiusuário** de cópia de traders da **pump.fun** (Solana). Cada pessoa entra com Google,
 tem o próprio painel, carteira fictícia, posições, histórico, configurações, chaves e (opcional) execução real.
 Nasceu da aba PUMP.FUN do repositório `github.com/Bruxo95/hermes-jev-trader` (só essa aba foi trazida;
@@ -89,7 +92,7 @@ arquivo novo em `supabase/migrations/` **e** aplicar no projeto (SQL Editor ou f
 - `cp .env.example .env` (preencher) e `docker compose up -d --build` → http://localhost:8080
   (no Supabase, adicionar `http://localhost:8080/app` nas Redirect URLs).
 
-## Situação atual (2026-10-25, versão 0.6.1)
+## Situação atual (2026-10-25, versão 0.7.0)
 - Etapas 1–7 do plano concluídas: núcleo + Jupiter, Supabase/RLS/criptografia, login Google + painel,
   monitor compartilhado + motores por usuário, Docker/Portainer/README, menu de Administração (usuários,
   categoria, bloqueio, desligar real de alguém, registro de todas as contas, logs do servidor).

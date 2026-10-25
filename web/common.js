@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const BB = (window.BB = { cfg: null, sb: null });
-  const LOGO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9C4 8 3 5 4 3c2 1 4 3 5 5"/><path d="M17 9c3-1 4-4 3-6-2 1-4 3-5 5"/><path d="M8 10h8l-1.5 7L12 21l-2.5-4z"/><path d="M10.5 13.5h.01M13.5 13.5h.01"/></svg>';
+  const LOGO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/><path d="M15.2 11.5l-2 3h2.6l-2 3"/></svg>';
   BB.logo = LOGO;
 
   BB.init = async function () {

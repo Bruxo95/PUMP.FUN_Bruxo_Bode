@@ -29,7 +29,7 @@ USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
 
 def create_app(hub, auth, cfg) -> FastAPI:
-    app = FastAPI(title="PUMP.FUN Bruxo Bode", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="PUMP FUN COPY", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):

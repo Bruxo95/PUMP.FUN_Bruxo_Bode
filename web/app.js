@@ -1,4 +1,4 @@
-/* Painel do usuário — PUMP.FUN Bruxo Bode.
+/* Painel do usuário — PUMP FUN COPY.
    Tudo o que a aba PUMP.FUN original mostrava, reorganizado: visão geral, top traders, posições, histórico,
    feed, execução real, configurações (com chaves pessoais) e como funciona. Sem handlers inline (CSP). */
 (function () {
@@ -160,7 +160,7 @@
     const day = (rm ? D.real_curve : D.curve) || [];
     const since = Date.now() - 86400000; let d24 = 0; day.forEach((p, i) => { if (new Date(p[0]) >= since) d24 += p[1] - (i ? day[i - 1][1] : (rm ? 0 : Wt.start_sol)); });
     kpis("kpis", [
-      [rm ? "Carteira real" : "Saldo fictício", rm ? (W && W.sol != null ? s4(W.sol) + " SOL" : "–") : s4(Wt.equity_sol) + " SOL", rm ? (W && W.configured ? "na blockchain" : "carteira não configurada") : (D.sol_usd ? "≈ " + usd(Wt.equity_sol * D.sol_usd, 2) : "início " + s4(Wt.start_sol) + " SOL"), "wallet"],
+      [rm ? "Carteira real" : "Saldo fictício", rm ? (W && W.sol != null ? s4(W.sol) + "<small> SOL</small>" : "–") : s4(Wt.equity_sol) + "<small> SOL</small>", rm ? (W && W.configured ? "na blockchain" : "carteira não configurada") : (D.sol_usd ? "≈ " + usd(Wt.equity_sol * D.sol_usd, 2) : "início " + s4(Wt.start_sol) + " SOL"), "wallet"],
       ["Resultado", sg(Wt.pnl_sol, ""), (pnlPct != null ? pc(pnlPct) + " desde o início · " : "") + "24 h " + sg(d24, ""), "pnl"],
       ["Posições abertas", String(Wt.open || 0), "valor " + s4(Wt.open_value_sol) + " SOL · máx. " + (rm ? c.pump_real_max_open : c.pump_max_open), "pos"],
       ["Trades fechados", String(Wt.count || 0), '<span class="up">' + (Wt.wins || 0) + " ganhos</span> · <span class=\"down\">" + (Wt.losses || 0) + " perdas</span>", "tr"],

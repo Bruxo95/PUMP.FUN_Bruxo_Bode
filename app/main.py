@@ -28,7 +28,7 @@ def build_app():
                               ("APP_ENCRYPTION_KEY", cfg.encryption_key)) if not v]
     if missing:
         raise SystemExit("Falta no .env: " + ", ".join(missing) + " (veja o .env.example)")
-    http = httpx.AsyncClient(timeout=15, follow_redirects=False, headers={"User-Agent": "pumpfun-bruxo-bode"})
+    http = httpx.AsyncClient(timeout=15, follow_redirects=False, headers={"User-Agent": "pump-fun-copy"})
     db = SupaREST(cfg.supabase_url, cfg.supabase_service_key, http)
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
     auth = Auth(cfg.supabase_url, cfg.supabase_anon_key, http, cfg.supabase_jwt_secret)
@@ -36,7 +36,7 @@ def build_app():
 
     @asynccontextmanager
     async def lifespan(_app):
-        log.info("PUMP.FUN Bruxo Bode %s iniciando — execução real DESLIGADA para todos", VERSION)
+        log.info("PUMP FUN COPY %s iniciando — execução real DESLIGADA para todos", VERSION)
         await hub.start()
         yield
         await hub.stop()
