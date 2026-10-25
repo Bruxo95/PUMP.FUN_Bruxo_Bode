@@ -23,6 +23,19 @@ from .settings import LB_DAYS
 from .solana_wallet import check_rpc_url, parse_keypair
 from .version import VERSION
 
+
+def _started_at() -> str:
+    """Hora em que este container subiu (= hora do último deploy), no fuso de Berlim."""
+    from datetime import datetime, timezone
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo(os.environ.get("TZ_PAINEL", "Europe/Berlin"))).strftime("%d/%m/%Y %H:%M:%S %Z")
+    except Exception:
+        return datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC")
+
+
+STARTED_AT = _started_at()
+
 log = logging.getLogger("api")
 WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
@@ -81,7 +94,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     # ------------------------------------------------------------------ público
     @app.get("/health")
     def health():
-        return {"ok": True, "version": VERSION}
+        return {"ok": True, "version": VERSION, "no_ar_desde": STARTED_AT}
 
     @app.get("/api/public-config")
     def public_config():
@@ -104,6 +117,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         snap["lb_status"]["own_key"] = pf.lb_key_own()
         snap["real"]["allowed"] = hub.real_allowed
         snap["version"] = VERSION
+        snap["started_at"] = STARTED_AT
         return snap
 
     @app.post("/api/pump/settings")
@@ -111,7 +125,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         applied, errors = pf.cfg.apply(body or {})
         if applied:
             await hub.save_settings(pf)
-            if {"pump_min_winrate", "pump_lb_min_trades", "pump_top_n"} & set(applied):
+            if {"pump_min_winrate", "pump_lb_min_trades", "pump_top_n", "pump_only_online", "pump_online_min"} & set(applied):
                 pf.refresh_followed(force=True)
         return {"applied": applied, "errors": errors}
 

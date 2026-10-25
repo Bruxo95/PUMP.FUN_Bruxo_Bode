@@ -95,7 +95,8 @@ def test_pump_wallet_endpoint_without_wallet(env):
 # ---------------------------------------------------------------- login
 def test_requires_valid_supabase_login(env):
     c = env["c"]
-    assert c.get("/health").json() == {"ok": True, "version": __import__("app.version").version.VERSION}
+    h = c.get("/health").json()
+    assert h["ok"] is True and h["version"] == __import__("app.version").version.VERSION and h["no_ar_desde"]
     pub = c.get("/api/public-config").json()
     assert pub["supabase_url"] == SB and pub["supabase_anon_key"] == "anon-publica" and "SECRETA" not in json.dumps(pub)
     for path in ("/api/pump", "/api/me", "/api/secrets", "/api/pump/wallet", "/api/audit"):
