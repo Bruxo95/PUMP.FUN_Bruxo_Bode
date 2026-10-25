@@ -395,6 +395,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   falhas e consulta pendurada; sintaxe Python/JS e diff. Mais 4 testes API novos preparados para o CI, sem
   reinstalar dependências no Windows. Prévia com dados fictícios conferida no desktop e em 390 px, sem rolagem
   lateral; salvar o mínimo de 3 carteiras atualizou os destaques e falha simulada retirou todos os HOTs.
-  Resultado remoto será informado após publicação.
+  CI do commit `0d1415f64a4c8d6e2cd00e22d743eb2c0d5ab0db`: **148 testes passaram**, 12 subtestes passaram e 1 aviso.
+  Actions `40244372068` concluído com sucesso em testes, banco, imagem e deploy; o workflow confirmou a versão
+  0.17.0 no `/health`. Nenhum acesso administrativo remoto foi feito pelo agente.
 - Inventário Markdown/JSON/PDF atualizado por mudança de versão/HTML, usando o runtime PDF preexistente.
   O fluxo com dados reais e o login de produção não foram executados; execução real permaneceu fora do escopo.
