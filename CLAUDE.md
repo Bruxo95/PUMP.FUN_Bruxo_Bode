@@ -137,6 +137,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Ranking próprio fica vazio sem o stream pago da PumpPortal (comportamento igual ao original).
 
 ## Ideias / pendências
+- Aprendizado diário (menu, `app/learning.py`, 0.9.9): 1ª etapa só com dados existentes (trades do usuário +
+  memória do monitor, que zera ao reiniciar). Próximas: (2) tabela nova no Supabase para guardar o resumo de cada
+  dia e aprender por semanas — criar a migração, mas APLICAR no Supabase remoto só com autorização explícita do dono;
+  (3) simulação "e se" (stop/filtros) sobre o histórico; (4) opcional: resumo escrito por IA (custo por uso).
 - Pesquisa de mercado (2026-10-25; Trojan, GMGN, BullX, Cielo, Kolscan, chainstacklabs/pumpfun-bonkfun-bot,
   arXiv 2601.08641). Ideias por prioridade: (1) FEITA na 0.9.3 — checagem de risco do token pelo `risk` da
   Solana Tracker (`risk_check`/`risk_block` em `app/pumpfun.py`; não testada com a API de verdade); (2) FEITA na

@@ -418,7 +418,8 @@ class PumpFun:
         p = st["pos"].get(mint)
         if kind == "buy":
             if p is None:
-                p = st["pos"][mint] = {"tok": 0.0, "cost": 0.0, "first_t": t, "pnl": 0.0, "bought": 0.0}
+                p = st["pos"][mint] = {"tok": 0.0, "cost": 0.0, "first_t": t, "pnl": 0.0, "bought": 0.0,
+                                       "mcap_in": (self.tokens.get(mint) or {}).get("mcap_sol")}   # aprendizado diário
             p["tok"] += tok
             p["cost"] += sol
             p["bought"] += tok
@@ -431,7 +432,8 @@ class PumpFun:
         p["cost"] -= cost
         p["tok"] = max(0.0, p["tok"] - tok)
         if p["tok"] <= p["bought"] * 0.01:              # fechou o token
-            st["closed"].append({"t": t, "pnl": p["pnl"], "hold": t - p["first_t"], "mint": mint})
+            st["closed"].append({"t": t, "pnl": p["pnl"], "hold": t - p["first_t"], "mint": mint,
+                                 "mcap_in": p.get("mcap_in")})
             del st["pos"][mint]
 
     # ------------------------------------------------------------------ ranking

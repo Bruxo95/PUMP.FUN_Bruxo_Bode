@@ -75,6 +75,41 @@
     REP_DAYS = +b.dataset.d; document.querySelectorAll("#repDays button").forEach((x) => x.classList.toggle("on", x === b)); loadReports();
   });
 
+  // ------------------------------------------------------------------ aprendizado diário (/api/pump/aprendizado)
+  let AP_AT = 0, AP_MODE = null, AP_SUG = [];
+  async function loadLearning() {
+    const rm = realMode(), r = await BB.api("/api/pump/aprendizado?real=" + (rm ? 1 : 0));
+    if (r.error) { toast(r.error); return; }
+    AP_AT = Date.now(); AP_MODE = rm; AP_SUG = r.suggestions || [];
+    $("apSub").textContent = "atualizado " + dt(r.generated_at) + " · o que os top traders fizeram e o que as suas cópias fizeram";
+    $("apSum").innerHTML = (r.summary || []).map((s) => "<p>" + esc(s) + "</p>").join("");
+    $("apSug").innerHTML = AP_SUG.length ? AP_SUG.map((s, i) => '<div class="sug"><div><span class="tag neutral">base: ' + s.base + " casos</span> " + esc(s.text) + "</div>" +
+      (s.action ? '<button class="btn sm" data-ap="' + i + '">Aplicar</button>' : "") + "</div>").join("")
+      : '<p class="muted">Nenhuma sugestão por enquanto: ainda não há casos suficientes ou nada fora do normal. As sugestões aparecem quando os números têm base mínima.</p>';
+    const tt = r.traders_today || {}, w = tt.winners || {}, l = tt.losers || {}, mm = (s) => (s == null ? "–" : f(s / 60, 1) + " min");
+    kpis("apKpis", [["Tokens fechados", String(tt.tokens_closed || 0), (tt.watched || 0) + " carteiras acompanhadas", "tr"],
+      ["Com lucro", String(w.n || 0), "seguraram " + mm(w.hold_med_s) + " (mediana)", "hit"],
+      ["Market cap na entrada (acertos)", w.mcap_in_med == null ? "–" : f(w.mcap_in_med, 0) + "<small> SOL</small>", "erros: " + (l.mcap_in_med == null ? "–" : f(l.mcap_in_med, 0) + " SOL"), "pnl"]]);
+    $("apTtSub").textContent = "carteiras que você copia + top do ranking, vistas pelo monitor · " + (tt.traders || []).length + " negociaram";
+    table("apTr", ["Trader", "Tokens", "Acerto", "Resultado dele", "Segurou (mediana)", "Market cap na entrada", "Saldo"], (tt.traders || []).map((x) => [pfW(x.wallet) + (x.followed ? ' <span class="tag win">copiando</span>' : ""), String(x.closed),
+      f(x.win_rate * 100, 0) + "%", sg(x.pnl_sol), mm(x.hold_med_s), x.mcap_in_med == null ? "–" : f(x.mcap_in_med, 0) + " SOL", x.wallet_usd == null ? "–" : "$" + f(x.wallet_usd, 0)]), "Sem tokens fechados pelos traders nas últimas 24 h.");
+    const off = -new Date().getTimezoneOffset() / 60, hrs = (tt.trades_by_hour_utc || []).map((n, h) => ({ h: (h + off + 24) % 24, n }));
+    const top = hrs.filter((x) => x.n).sort((a, b) => b.n - a.n).slice(0, 8);
+    table("apHr", ["Hora", "Negociações"], top.map((x) => [String(x.h).padStart(2, "0") + "h", String(x.n)]), "Sem negociações registradas.");
+    table("apRich", ["Carteira", "Saldo"], (tt.richest || []).map((x) => [pfW(x.wallet), "$" + f(x.usd, 0)]), "Saldo das carteiras ainda não consultado.");
+    $("apLim").innerHTML = (r.limits || []).map((s) => "<p>" + esc(s) + "</p>").join("");
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-ap]"); if (!b) return;
+    const s = AP_SUG[+b.dataset.ap]; if (!s || !s.action) return;
+    if (!confirm("Aplicar esta sugestão?\n\n" + s.text)) return;
+    const a = s.action;
+    const r = a.type === "pause" ? await BB.api("/api/pump/wallets", { body: { wallet: a.wallet, action: "pause", hours: a.hours } })
+      : await BB.api("/api/pump/settings", { body: a.values });
+    toast(r.error ? "Não aplicou: " + r.error : "Aplicado.");
+    poll(true); loadLearning();
+  });
+
   // ------------------------------------------------------------------ novidades (só admin: /api/admin/novidades, lista em app/novidades.json)
   let NOV = null, NOV_TIPO = "";
   async function loadNovidades() {
@@ -104,7 +139,8 @@
 
   // ------------------------------------------------------------------ navegação
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
-    historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
+    aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -121,6 +157,7 @@
     if (VIEW === "real") walletLoad(true);
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
+    if (VIEW === "aprendizado") loadLearning();
     render();
     window.scrollTo(0, 0);
   }
@@ -204,6 +241,7 @@
     else if (VIEW === "posicoes") renderPositions();
     else if (VIEW === "historico") renderHistory();
     else if (VIEW === "relatorios" && (Date.now() - REP_AT > 30000 || REP_MODE !== realMode())) loadReports();
+    else if (VIEW === "aprendizado" && (Date.now() - AP_AT > 60000 || AP_MODE !== realMode())) loadLearning();
     else if (VIEW === "feed") renderFeed();
     else if (VIEW === "real") renderReal();
   }

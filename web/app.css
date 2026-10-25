@@ -312,3 +312,7 @@ select.in{padding-right:24px}
 /* página Novidades: linha verde nas entregas dos últimos 14 dias */
 #tNov td{vertical-align:top;white-space:normal}
 #tNov tr.nov-recente td:first-child{box-shadow:inset 3px 0 0 var(--up)}
+/* aprendizado diário: uma sugestão por linha, botão à direita */
+.sug{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.sug:last-child{border-bottom:0}
+.sug>div{color:var(--muted);line-height:1.6}

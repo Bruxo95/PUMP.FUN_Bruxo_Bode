@@ -155,6 +155,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
         d = days if days in (1, 7, 30, 90) else None                 # 0 ou outro valor = todo o histórico
         return build(pf.trades(100000), list(pf.feed), d, bool(real), pf.followed, list(pf.paused()))
 
+    @app.get("/api/pump/aprendizado")
+    async def pump_aprendizado(real: int = 0, pf=Depends(engine)):
+        """Aprendizado diário: resumo, o que os top traders fizeram e sugestões (nunca aplicadas sozinhas)."""
+        from .learning import build
+        return build(pf, bool(real))
+
     @app.get("/api/pump/wallet")
     async def pump_wallet(force: int = 0, pf=Depends(engine)):
         """Saldo REAL da carteira do bot: SOL (o que paga as compras) e USDC convertido em SOL."""

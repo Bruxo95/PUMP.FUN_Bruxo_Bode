@@ -38,6 +38,7 @@
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
       <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
+      <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
       <a href="#feed" data-v="feed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg>Feed ao vivo</a>
       <a href="#real" data-v="real"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Execução real<b class="nb" id="nbReal"></b></a>
       <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configurações</a>
@@ -124,6 +125,24 @@
       <section class="view" data-view="posicoes" hidden>
         <div class="card"><header><div><h2>Posições copiadas <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub" id="posSub"></div></div></header>
           <div class="tbl-wrap"><table id="tPos"></table></div></div>
+      </section>
+
+      <!-- ========================================================= APRENDIZADO DIÁRIO (app/learning.py) -->
+      <section class="view" data-view="aprendizado" hidden>
+        <div class="card"><header><div><h2>Resumo do dia <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub" id="apSub">o que os top traders fizeram e o que as suas cópias fizeram</div></div></header>
+          <div class="prose" id="apSum"></div></div>
+        <div class="card"><header><div><h2>O que podemos fazer</h2><div class="sub">sugestões com base nos números — nada muda sem você confirmar</div></div></header>
+          <div id="apSug"></div></div>
+        <div class="card"><header><div><h2>O que os top traders fizeram nas últimas 24 h</h2><div class="sub" id="apTtSub">carteiras que você copia + top do ranking, vistas pelo monitor</div></div></header>
+          <div class="kpis" id="apKpis"></div>
+          <div class="tbl-wrap"><table id="apTr"></table></div></div>
+        <div class="grid2">
+          <div class="card"><header><div><h2>Horários com mais negociações</h2><div class="sub">no seu fuso, últimas 24 h</div></div></header>
+            <div class="tbl-wrap"><table id="apHr"></table></div></div>
+          <div class="card"><header><div><h2>Carteiras com mais dinheiro</h2><div class="sub">entre as acompanhadas (SOL + USDC + USDT)</div></div></header>
+            <div class="tbl-wrap"><table id="apRich"></table></div></div>
+        </div>
+        <div class="card"><header><div><h2>Limites desta análise</h2></div></header><div class="prose" id="apLim"></div></div>
       </section>
 
       <!-- ========================================================= RELATÓRIOS (app/reports.py) -->
