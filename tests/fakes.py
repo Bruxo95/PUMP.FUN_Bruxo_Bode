@@ -93,5 +93,6 @@ class FakeREST:
     def add_user(self, uid, email, nome=None):
         role = "admin" if not self.tables["profiles"] else "user"
         self.tables["profiles"].append({"user_id": uid, "email": email, "nome": nome, "avatar_url": None,
-                                        "role": role, "criado_em": datetime.now(timezone.utc).isoformat()})
+                                        "role": role, "criado_em": datetime.now(timezone.utc).isoformat(),
+                                        "bloqueado": False, "ultimo_acesso": None})
         self.tables["user_settings"].append({"user_id": uid, "settings": {}, "compartilhar_chave_st": False})

@@ -58,6 +58,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         except Exception as e:
             log.warning("perfil: %s", str(e)[:160])
             raise HTTPException(503, "banco indisponível, tente de novo em instantes") from None
+        if prof.get("bloqueado"):
+            raise HTTPException(403, "conta bloqueada pelo administrador")
         meta = claims.get("user_metadata") or {}
         return {"id": claims["sub"], "email": prof.get("email") or claims.get("email"),
                 "nome": prof.get("nome") or meta.get("full_name") or meta.get("name"),
@@ -271,6 +273,42 @@ def create_app(hub, auth, cfg) -> FastAPI:
         await hub.db.update("user_settings", {"user_id": u["id"]}, {"compartilhar_chave_st": share})
         await hub.refresh_shared_key()
         return {"ok": True, "share": share, "active": bool(hub.shared_st_key)}
+
+    # ------------------------------------------------------------------ admin: gestão de usuários e logs
+    UUID = __import__("re").compile(r"^[0-9a-fA-F-]{36}$")
+
+    @app.get("/api/admin/users")
+    async def admin_users(u: dict = Depends(admin_only)):
+        """Lista de contas com números de uso — nunca as chaves (só "configurada: sim/não")."""
+        return {"users": await hub.admin_users(), "me": u["id"]}
+
+    @app.post("/api/admin/users/{uid}")
+    async def admin_user_update(uid: str, body: dict, u: dict = Depends(admin_only)):
+        if not UUID.match(uid):
+            return {"error": "usuário inválido"}
+        allowed = {k: body[k] for k in ("role", "bloqueado", "real_off") if k in (body or {})}
+        if not allowed:
+            return {"error": "nada para alterar"}
+        return await hub.admin_update_user(u["id"], uid, allowed)
+
+    @app.get("/api/admin/audit")
+    async def admin_audit(user_id: str = "", limit: int = 200, u: dict = Depends(admin_only)):
+        """Registro de segurança de todas as contas (o detalhe nunca contém chaves)."""
+        if user_id and not UUID.match(user_id):
+            return []
+        limit = max(1, min(limit, 1000))
+        rows = await hub.db.select("audit_log", {"user_id": user_id} if user_id else None, order="at.desc", limit=limit)
+        emails = {p["user_id"]: p.get("email") for p in await hub.db.select("profiles", None, columns="user_id,email")}
+        return [{"at": r.get("at"), "user_id": r.get("user_id"), "email": emails.get(r.get("user_id")),
+                 "acao": r.get("acao"), "detalhe": r.get("detalhe")} for r in rows]
+
+    @app.get("/api/admin/logs")
+    async def admin_logs(after: int = 0, level: str = "INFO", q: str = "", limit: int = 400,
+                         u: dict = Depends(admin_only)):
+        """Logs do servidor em tempo real (sem precisar do Portainer). Segredos já vêm mascarados."""
+        from .logsafe import ring
+        h = ring()
+        return {"logs": h.since(after, level, q, max(1, min(limit, 2000))), **h.counts()}
 
     # ------------------------------------------------------------------ páginas
     @app.exception_handler(HTTPException)

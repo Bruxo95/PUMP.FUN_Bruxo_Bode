@@ -49,6 +49,8 @@ def build_app():
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     install()
+    from .logsafe import ring
+    ring()
     for noisy in ("httpx", "httpcore", "websockets"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     app, cfg = build_app()

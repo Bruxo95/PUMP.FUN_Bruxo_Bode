@@ -267,3 +267,14 @@ td a{color:#b9cdfa;text-decoration:none}td a:hover{text-decoration:underline}
   .lp-nav .btn.ghost{display:none}
 }
 @media (max-width:420px){.lp-nav .btn{padding:0 10px}.logo small{display:none}}
+
+/* administração */
+.logs{background:#0b0b0c;border:1px solid var(--line);border-radius:8px;height:420px;overflow:auto;font-family:var(--mono);font-size:11.8px;padding:8px 10px;line-height:1.55}
+.logs div{white-space:pre-wrap;word-break:break-word;border-bottom:1px solid #141416;padding:2px 0}
+.logs .WARNING{color:var(--warn)}.logs .ERROR,.logs .CRITICAL{color:#fca5a5}
+.logs .t{color:var(--dim);margin-right:8px}.logs .n{color:var(--muted);margin-right:8px}
+.who{display:flex;align-items:center;gap:10px;min-width:200px}
+.who img,.who .ph{width:28px;height:28px;border-radius:50%;flex:none;background:#1b1b1f;display:grid;place-items:center;font-size:11px;font-weight:600;object-fit:cover}
+select.in{padding-right:24px}
+.keys{display:flex;gap:4px;flex-wrap:wrap;max-width:150px}
+#tUsers td{white-space:nowrap}#tUsers select.in{height:30px}

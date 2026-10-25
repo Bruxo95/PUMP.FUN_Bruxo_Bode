@@ -54,16 +54,18 @@
   // ------------------------------------------------------------------ navegação
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
-    config: ["Configurações", "regras de cópia, proteções e chaves"], ajuda: ["Como funciona", ""] };
+    config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
   function route() {
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
+    if (VIEW === "admin" && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
-    if (VIEW === "config") { loadSecrets(); loadAudit(); if (ME && ME.role === "admin") loadAdmin(); }
+    if (VIEW === "config") { loadSecrets(); loadAudit(); }
+    if (VIEW === "admin") { loadAdmin(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") walletLoad(true);
     render();
     window.scrollTo(0, 0);
@@ -365,16 +367,74 @@
     table("tAudit", ["Quando", "Ação", "Detalhe"], L.map((a) => [dt(a.at), esc(a.acao), '<span style="white-space:normal">' + esc(a.detalhe || "") + "</span>"]), "Nenhuma ação registrada ainda.");
   }
   async function loadAdmin() {
-    $("adminCard").hidden = false;
     const A = (ADMIN = await BB.api("/api/admin/status")); if (A.error) return;
     const m = A.monitor || {}, rpc = m.rpc || {}, pp = m.pumpportal || {}, j = m.jupiter || {};
     $("adminS").innerHTML = [["Usuários cadastrados", A.users_total], ["Motores carregados", A.users_loaded], ["Com execução real ON", A.real_on], ["Trava do real (.env)", A.real_allowed ? "liberado" : "travado"],
       ["Monitor Solana", rpc.ws ? "conectado · " + (rpc.subs || 0) + " carteiras" : rpc.error || "desconectado"], ["Trades lidos / erros", (rpc.parsed || 0) + " / " + (rpc.tx_errors || 0)], ["PumpPortal (tokens novos)", pp.ws ? "conectado · " + (pp.new_tokens || 0) : pp.error || "desconectado"],
       ["Jupiter", j && j.on ? "ok " + (j.latency_ms || "") + " ms" : (j && j.error) || "–"], ["Preço do SOL", m.sol_usd ? "$" + f(m.sol_usd, 2) : "–"], ["Chave Solana Tracker compartilhada", A.shared_st_key ? "sim" : "não"], ["No ar há", hms(A.uptime_s)],
-      ["Erros de gravação no banco", (A.db_errors || []).length ? A.db_errors.map((e) => e.user + ": " + e.error).join(" · ") : "nenhum"]]
+      ["Erros de gravação no banco", (A.db_errors || []).length ? A.db_errors.map((e) => e.user + ": " + (e.error || e.queued + " gravações na fila")).join(" · ") : "nenhum"]]
       .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + esc(x[1]) + "</span></div>").join("");
     const b = $("shareB"); b.textContent = "Emprestar minha chave da Solana Tracker: " + (A.shared_st_key ? "ON" : "OFF"); b.className = "btn sm tgl " + (A.shared_st_key ? "on" : "off");
   }
+
+  // ------------------------------------------------------------------ administração: usuários, registro e logs
+  let USERS = [], LOG_AFTER = 0, LOG_LV = "INFO", LOG_LIVE = true;
+  async function loadUsers() {
+    const r = await BB.api("/api/admin/users"); if (r.error) { toast(r.error); return; }
+    USERS = r.users || []; USERS.me = r.me; renderUsers();
+    const sel = $("aAudUser"), cur = sel.value;
+    sel.innerHTML = '<option value="">Todos os usuários</option>' + USERS.map((u) => '<option value="' + esc(u.user_id) + '">' + esc(u.email || u.user_id.slice(0, 8)) + "</option>").join("");
+    sel.value = cur;
+    const day = Date.now() - 86400000, A = ADMIN || {};
+    kpis("aKpis", [["Usuários", String(USERS.length), USERS.filter((u) => u.role === "admin").length + " admin", "usr"],
+      ["Ativos em 24 h", String(USERS.filter((u) => u.ultimo_acesso && new Date(u.ultimo_acesso) > day).length), "abriram o painel", "mon"],
+      ["Bloqueados", String(USERS.filter((u) => u.bloqueado).length), "não copiam nem entram", "hit"],
+      ["Com real ON", String(USERS.filter((u) => u.stats && u.stats.real_enabled).length), A.real_allowed ? "trava do servidor: liberado" : "trava do servidor: travado", "pnl"],
+      ["Copiando agora", String(USERS.filter((u) => u.stats && u.stats.copy_enabled && u.stats.followed).length), "cópia ligada e com traders", "tr"],
+      ["Erros de banco", String((A.db_errors || []).length), (A.db_errors || []).length ? "veja o status geral" : "nenhum", "pos"]]);
+    $("nbAdm").textContent = USERS.filter((u) => u.bloqueado).length || "";
+  }
+  function renderUsers() {
+    const q = ($("aFind").value || "").toLowerCase().trim(), me = USERS.me;
+    const L = USERS.filter((u) => !q || (String(u.email || "") + " " + String(u.nome || "")).toLowerCase().indexOf(q) >= 0);
+    const key = (on, label) => '<span class="tag ' + (on ? "win" : "neutral") + '" title="' + label + (on ? ": configurada" : ": não configurada") + '">' + label + "</span>";
+    table("tUsers", ["Usuário", "Categoria", "Situação", "Último acesso", "Desde", "Cópia", "Fictício", "Real", "Chaves", "Ações"], L.map((u) => {
+      const S = u.stats || {}, k = S.keys || {}, mine = u.user_id === me;
+      return ['<div class="who">' + (u.avatar_url ? '<img alt="" referrerpolicy="no-referrer" src="' + esc(u.avatar_url) + '">' : '<span class="ph">' + esc((u.nome || u.email || "?").slice(0, 1).toUpperCase()) + "</span>") +
+          "<div>" + esc(u.nome || "—") + (mine ? ' <span class="tag neutral">você</span>' : "") + "<small>" + esc(u.email || u.user_id) + "</small></div></div>",
+        '<select class="in" data-urole="' + esc(u.user_id) + '"><option value="user"' + (u.role !== "admin" ? " selected" : "") + '>Usuário</option><option value="admin"' + (u.role === "admin" ? " selected" : "") + ">Admin</option></select>",
+        u.bloqueado ? '<span class="tag loss">Bloqueado</span>' : '<span class="tag win">Ativo</span>',
+        u.ultimo_acesso ? "há " + agoIso(u.ultimo_acesso) + "<small>" + dt(u.ultimo_acesso) + "</small>" : '<span class="dim">nunca</span>',
+        u.criado_em ? new Date(u.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "–",
+        u.stats ? st(S.copy_enabled) + "<small>" + S.followed + " traders</small>" : '<span class="dim">–</span>',
+        u.stats ? sg(S.pnl_sol) + "<small>" + S.trades + " trades · " + S.open + " abertas" + (S.win_rate != null ? " · " + f(S.win_rate * 100, 0) + "%" : "") + "</small>" : "–",
+        u.stats ? st(S.real_enabled, 1) + (S.real_trades ? " " + sg(S.real_pnl_sol) : "") + "<small>" + (S.wallet ? "carteira configurada" : "sem carteira") + "</small>" : "–",
+        u.stats ? '<div class="keys">' + key(k.solanatracker_api_key, "Tracker") + key(k.wallet_private_key, "Carteira") + key(k.rpc_url, "RPC") + "</div>" + (S.db_error ? '<small class="down">banco: ' + esc(S.db_error) + "</small>" : "") : '<span class="dim">–</span>',
+        '<div style="display:flex;flex-direction:column;gap:4px;align-items:stretch">' + (mine ? "" : u.bloqueado ? btn("Desbloquear", "u-block", { uid: u.user_id, v: "0" }, "tgl on") : btn("Bloquear", "u-block", { uid: u.user_id, v: "1" }, "tgl off")) +
+          (S.real_enabled ? btn("Desligar real", "u-realoff", { uid: u.user_id }, "tgl off") : "") + btn("Registro", "u-audit", { uid: u.user_id }) + "</div>"];
+    }), "Nenhum usuário encontrado.");
+  }
+  async function adminUser(uid, body, msg) {
+    const r = await BB.api("/api/admin/users/" + encodeURIComponent(uid), { body: body });
+    toast(r.error ? "Não alterou: " + r.error : (r.changed && r.changed.length ? msg || "Alterado: " + r.changed.join("; ") : "Nada mudou."));
+    loadUsers(); loadAAudit(); loadAdmin();
+  }
+  async function loadAAudit() {
+    const u = $("aAudUser").value;
+    const L = await BB.api("/api/admin/audit?limit=300" + (u ? "&user_id=" + encodeURIComponent(u) : "")); if (!Array.isArray(L)) return;
+    table("tAAudit", ["Quando", "Usuário", "Ação", "Detalhe"], L.map((a) => [dt(a.at), esc(a.email || (a.user_id || "").slice(0, 8)), esc(a.acao), '<span style="white-space:normal;display:block;max-width:520px">' + esc(a.detalhe || "") + "</span>"]), "Nada registrado ainda.");
+  }
+  async function loadLogs() {
+    const r = await BB.api("/api/admin/logs?after=" + LOG_AFTER + "&level=" + LOG_LV + "&q=" + encodeURIComponent($("logQ").value || "")); if (r.error) return;
+    const el = $("logs"), atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+    (r.logs || []).forEach((x) => { LOG_AFTER = Math.max(LOG_AFTER, x.id); const d = document.createElement("div"); d.className = x.level;
+      d.innerHTML = '<span class="t">' + new Date(x.t * 1000).toLocaleString("pt-BR") + '</span><span class="n">' + esc(x.level) + " · " + esc(x.name) + "</span>" + esc(x.msg); el.appendChild(d); });
+    while (el.childNodes.length > 1500) el.removeChild(el.firstChild);
+    if (atEnd) el.scrollTop = el.scrollHeight;
+    $("logSub").textContent = (r.total || 0) + " registros guardados · " + (r.warnings || 0) + " avisos · " + (r.errors || 0) + " erros · chaves mascaradas";
+    document.querySelectorAll("#logLv button").forEach((b) => b.classList.toggle("on", b.dataset.lv === LOG_LV));
+  }
+  function logsReset() { LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
 
   // ------------------------------------------------------------------ busca (⌘K / Ctrl+K)
   let CK = [], CKI = 0;
@@ -421,6 +481,11 @@
     if (t.dataset.goto) { $("menu").hidden = true; location.hash = t.dataset.goto; return; }
     const a = t.dataset.act; if (!a) return;
     if (a === "w") return wallet(t.dataset.a, t.dataset.w);
+    if (a === "u-block") { const blk = t.dataset.v === "1", u = USERS.find((x) => x.user_id === t.dataset.uid) || {};
+      if (!confirm((blk ? "Bloquear " : "Desbloquear ") + (u.email || "este usuário") + "?" + (blk ? "\n\nA conta para de copiar na hora, a execução real dele desliga e ele não consegue mais entrar no painel." : ""))) return;
+      return adminUser(t.dataset.uid, { bloqueado: blk }); }
+    if (a === "u-realoff") { if (!confirm("Desligar a execução REAL deste usuário agora?")) return; return adminUser(t.dataset.uid, { real_off: true }, "Execução real do usuário desligada."); }
+    if (a === "u-audit") { $("aAudUser").value = t.dataset.uid; loadAAudit(); $("tAAudit").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (a === "addw") return wallet("add", $("addW").value);
     if (a === "close") { if (!confirm(t.dataset.real === "1" ? "VENDER de verdade esta posição REAL agora (100%)?" : "Fechar esta posição fictícia agora no preço atual?")) return; const r = await BB.api("/api/pump/close", { body: { id: t.dataset.id } }); toast(r.error || r.msg || "Fechada."); return poll(true); }
     if (a === "reset") { if (!confirm("Zerar a carteira fictícia? Apaga posições e histórico simulados.")) return; await BB.api("/api/pump/reset", { body: {} }); toast("Carteira fictícia zerada."); return poll(true); }
@@ -434,7 +499,14 @@
     }
     if (a === "secret-del") { if (!confirm("Remover esta chave? Ela será apagada do banco.")) return; const r = await BB.api("/api/secrets/remove", { body: { name: t.dataset.k } }); toast(r.error || "Chave removida."); loadSecrets(); loadAudit(); poll(true); return; }
   });
-  document.addEventListener("change", (ev) => { const el = ev.target; if (el.dataset && el.dataset.cfg) setCfg({ [el.dataset.cfg]: +el.value }); });
+  document.addEventListener("change", (ev) => {
+    const el = ev.target; if (!el.dataset) return;
+    if (el.dataset.cfg) setCfg({ [el.dataset.cfg]: +el.value });
+    if (el.dataset.urole) { const u = USERS.find((x) => x.user_id === el.dataset.urole) || {}, role = el.value;
+      if (!confirm("Mudar " + (u.email || "este usuário") + " para " + (role === "admin" ? "ADMIN (vê o status geral, logs e gerencia usuários)" : "USUÁRIO comum") + "?")) { el.value = u.role; return; }
+      adminUser(el.dataset.urole, { role: role }); }
+    if (el.id === "aAudUser") loadAAudit();
+  });
 
   // ------------------------------------------------------------------ início
   async function boot() {
@@ -458,6 +530,11 @@
     $("ntfB").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();
     $("realB").onclick = realToggle;
+    if (ME.role === "admin") { $("navAdmin").hidden = false; }
+    $("aFind").oninput = renderUsers;
+    $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
+    $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };
+    $("logLive").onclick = () => { LOG_LIVE = !LOG_LIVE; $("logLive").textContent = "Ao vivo: " + (LOG_LIVE ? "ON" : "OFF"); $("logLive").className = "btn sm tgl " + (LOG_LIVE ? "on" : "off"); };
     $("shareB").onclick = async () => { const r = await BB.api("/api/admin/share-key", { body: { share: !(ADMIN && ADMIN.shared_st_key) } }); toast(r.error || (r.active ? "Chave emprestada a quem não tem." : "Chave não é mais emprestada.")); loadAdmin(); poll(true); };
     $("cvU").oninput = () => conv("u"); $("cvS").oninput = () => conv("s");
     $("searchBtn").onclick = ckOpen; $("searchBtn").onkeydown = (e) => { if (e.key === "Enter") ckOpen(); };
@@ -476,6 +553,8 @@
     walletLoad(false);
     setInterval(() => poll(false), 2000);
     setInterval(() => walletLoad(false), 20000);
+    setInterval(() => { if (VIEW === "admin" && LOG_LIVE) loadLogs(); }, 4000);
+    setInterval(() => { if (VIEW === "admin") { loadUsers(); loadAdmin(); } }, 30000);
   }
   boot();
 })();

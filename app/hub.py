@@ -32,6 +32,7 @@ class PumpHub:
         self.shared_st_key = ""                    # chave da Solana Tracker emprestada pelo admin
         self.started_at = time.time()
         self.errors: list[dict] = []
+        self._touched: dict[str, float] = {}
         # trava geral da execução real (no .env): enquanto false, ninguém liga o real
         self.monitor = None                        # SharedMonitor (ligado em start)
         self.running = False
@@ -42,6 +43,14 @@ class PumpHub:
         uid = claims["sub"]
         rows = await self.db.select("profiles", {"user_id": uid})
         if rows:
+            now = time.time()
+            if now - self._touched.get(uid, 0) > 300:          # último acesso (no máx. 1 gravação a cada 5 min)
+                self._touched[uid] = now
+                try:
+                    await self.db.update("profiles", {"user_id": uid},
+                                         {"ultimo_acesso": datetime.now(timezone.utc).isoformat()})
+                except Exception:
+                    pass
             return rows[0]
         # o gatilho do banco já cria o perfil; isto é só uma garantia (ex.: usuário criado antes da migração)
         meta = claims.get("user_metadata") or {}
@@ -149,8 +158,9 @@ class PumpHub:
     async def start(self) -> None:
         """Carrega todos os usuários (o bot copia mesmo com o painel fechado) e liga as tarefas."""
         try:
-            for r in await self.db.select("profiles", None, columns="user_id"):
-                await self.engine(r["user_id"])
+            for r in await self.db.select("profiles", None, columns="user_id,bloqueado"):
+                if not r.get("bloqueado"):
+                    await self.engine(r["user_id"])
         except Exception as e:
             log.warning("Não consegui carregar os usuários do Supabase: %s", str(e)[:160])
         await self.refresh_shared_key()
@@ -175,6 +185,89 @@ class PumpHub:
                 await pf.store.flush()
             except Exception:
                 pass
+
+    # ------------------------------------------------------------------ gestão de usuários (admin)
+    async def unload(self, uid: str) -> None:
+        """Tira o motor do usuário da memória (conta bloqueada): para de copiar e a fila real é cancelada."""
+        pf = self.engines.pop(uid, None)
+        if pf is None:
+            return
+        pf.cfg.pump_real_enabled = False
+        t = getattr(pf, "_real_task", None)
+        if t:
+            t.cancel()
+        try:
+            await pf.store.flush()
+        except Exception:
+            pass
+
+    def user_stats(self, uid: str) -> dict | None:
+        pf = self.engines.get(uid)
+        if pf is None:
+            return None
+        w, rw = pf.wallet(), pf.wallet(real=True)
+        return {"loaded": True, "copy_enabled": bool(pf.cfg.pump_copy_enabled), "real_enabled": bool(pf.cfg.pump_real_enabled),
+                "followed": len(pf.followed), "open": w["open"], "trades": w["count"], "pnl_sol": w["pnl_sol"],
+                "win_rate": w["win_rate"], "real_open": rw["open"], "real_trades": rw["count"], "real_pnl_sol": rw["pnl_sol"],
+                "keys": pf.keys.configured(), "wallet": bool(pf.sol_wallet and pf.sol_wallet.keypair),
+                "db_error": pf.store.last_error, "db_queue": len(pf.store._q)}
+
+    async def admin_users(self) -> list[dict]:
+        out = []
+        for p in await self.db.select("profiles", None, order="criado_em.asc"):
+            uid = p["user_id"]
+            out.append({"user_id": uid, "email": p.get("email"), "nome": p.get("nome"), "avatar_url": p.get("avatar_url"),
+                        "role": p.get("role") or "user", "bloqueado": bool(p.get("bloqueado")),
+                        "criado_em": p.get("criado_em"), "ultimo_acesso": p.get("ultimo_acesso"),
+                        "stats": self.user_stats(uid)})
+        return out
+
+    async def admin_update_user(self, admin_id: str, uid: str, body: dict) -> dict:
+        rows = await self.db.select("profiles", {"user_id": uid})
+        if not rows:
+            return {"error": "usuário não encontrado"}
+        prof, done = rows[0], []
+        who = prof.get("email") or uid[:8]
+        if "role" in body:
+            role = body["role"]
+            if role not in ("admin", "user"):
+                return {"error": "categoria inválida"}
+            if role != prof.get("role"):
+                if role == "user":
+                    admins = await self.db.select("profiles", {"role": "admin"}, columns="user_id")
+                    if len(admins) <= 1:
+                        return {"error": "precisa existir pelo menos um admin"}
+                await self.db.update("profiles", {"user_id": uid}, {"role": role})
+                done.append(f"categoria → {'admin' if role == 'admin' else 'usuário'}")
+                if role == "user" and prof.get("role") == "admin":
+                    await self.refresh_shared_key()
+        if "bloqueado" in body:
+            blk = bool(body["bloqueado"])
+            if blk and uid == admin_id:
+                return {"error": "você não pode bloquear a própria conta"}
+            if blk and prof.get("role") == "admin" and "role" not in body:
+                return {"error": "tire a categoria admin antes de bloquear"}
+            if blk != bool(prof.get("bloqueado")):
+                await self.db.update("profiles", {"user_id": uid}, {"bloqueado": blk})
+                if blk:
+                    await self.unload(uid)
+                else:
+                    await self.engine(uid)
+                done.append("conta BLOQUEADA (parou de copiar)" if blk else "conta desbloqueada")
+        if body.get("real_off"):
+            pf = self.engines.get(uid)
+            if pf is not None and pf.cfg.pump_real_enabled:
+                pf.cfg.pump_real_enabled = False
+                pf._emit("[PUMP REAL] execução real DESLIGADA pelo administrador")
+            done.append("execução real desligada")
+        if not done:
+            return {"ok": True, "changed": []}
+        txt = "; ".join(done)
+        await audit(self.db, admin_id, "admin: alterou usuário", f"{who}: {txt}")
+        if uid != admin_id:
+            await audit(self.db, uid, "alterado pelo administrador", txt)
+        log.info("Admin alterou usuário %s…: %s", uid[:8], txt)
+        return {"ok": True, "changed": done}
 
     def admin_status(self) -> dict:
         m = self.market

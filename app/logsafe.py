@@ -55,3 +55,57 @@ def install() -> None:
     for h in root.handlers:
         h.addFilter(f)
     root.addFilter(f)
+
+
+class RingHandler(logging.Handler):
+    """Últimos N registros do servidor (já com os segredos mascarados) para a tela de Logs do admin."""
+
+    def __init__(self, size: int = 3000):
+        super().__init__(level=logging.INFO)
+        from collections import deque
+        import threading
+        self.buf = deque(maxlen=size)
+        self._id = 0
+        self._lock = threading.Lock()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.name.split(".")[0].rstrip("0123456789") in ("httpx", "httpcore", "websockets", "asyncio", "uvicorn") and record.levelno < logging.WARNING:
+            return
+        try:
+            msg = redact(record.getMessage())
+            if record.exc_info and record.levelno >= logging.ERROR:
+                msg += "\n" + redact(logging.Formatter().formatException(record.exc_info))[-1500:]
+        except Exception:
+            return
+        with self._lock:
+            self._id += 1
+            self.buf.append({"id": self._id, "t": record.created, "level": record.levelname, "name": record.name,
+                             "msg": msg[:2000]})
+
+    def since(self, after: int = 0, level: str = "INFO", q: str = "", limit: int = 400) -> list[dict]:
+        lv = logging.getLevelName(level.upper()) if isinstance(logging.getLevelName(level.upper()), int) else 20
+        q = (q or "").lower()
+        with self._lock:
+            rows = [r for r in self.buf if r["id"] > after and logging.getLevelName(r["level"]) >= lv
+                    and (not q or q in r["msg"].lower() or q in r["name"].lower())]
+        return rows[-limit:]
+
+    def counts(self) -> dict:
+        with self._lock:
+            return {"warnings": sum(1 for r in self.buf if r["level"] == "WARNING"),
+                    "errors": sum(1 for r in self.buf if r["level"] in ("ERROR", "CRITICAL")), "total": len(self.buf)}
+
+
+RING: RingHandler | None = None
+
+
+def ring() -> RingHandler:
+    """Instala (uma vez) o buffer de logs no logger raiz e devolve ele."""
+    global RING
+    if RING is None:
+        RING = RingHandler()
+        RING.addFilter(RedactFilter())
+        logging.getLogger().addHandler(RING)
+        if logging.getLogger().level > logging.INFO or logging.getLogger().level == logging.NOTSET:
+            logging.getLogger().setLevel(logging.INFO)
+    return RING
