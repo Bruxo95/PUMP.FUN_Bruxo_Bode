@@ -95,7 +95,7 @@ def test_share_study_wallet_with_another_user(env):
     c.get("/api/pump/study", headers=B)                                                  # B já tem conta
     assert c.post("/api/pump/study", json={"wallet": W, "action": "add", "apelido": "baleia"}, headers=A).json()["ok"]
     us = c.get("/api/pump/study/share-targets", headers=A).json()["users"]
-    assert [u["user_id"] for u in us] == [UB] and us[0]["email"] == "bi***@x.com"        # sem A e sem e-mail completo
+    assert [u["user_id"] for u in us] == [UB] and us[0]["email"] == "b***@x.com"        # sem A e sem e-mail completo
     assert c.post("/api/pump/study/share", json={"wallet": W, "to": "x"}, headers=A).json()["error"]
     assert c.post("/api/pump/study/share", json={"wallet": W, "to": UA}, headers=A).json()["error"]
     # B não pode "compartilhar" uma carteira que não estuda (não serve para mexer na lista dos outros)
