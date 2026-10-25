@@ -406,3 +406,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   e-mail mascarado `ab***@dominio`) e `POST /api/pump/study/share` (`hub.study_share`): só quem estuda a carteira
   compartilha; insere em `study_wallets` do destino com o apelido de quem envia (ou "de <nome>"); respeita o limite
   de 30; `audit_log` nos dois lados. Sem migração. Teste em `tests/test_estudo.py`.
+
+## Menu "Usar ou descartar" (2026-10-25, versão 0.17.2)
+- Pedido do dono: tudo que foi criado nas entregas do douglasdeodato fica num menu só, como submenu, para ele
+  decidir o que usar ou descartar. Grupo `#navGrp` em `web/app.html` (abre/fecha, lembra em `pf_menu_grp`):
+  Carteiras em estudo, Radar de KOLs, Relatórios, Aprendizado diário, Opções novas de cópia (`data-view="novas"`)
+  e Novidades (admin). As opções ON/OFF novas saíram de Configurações para `novas` (mesmas chaves `pump_*`;
+  "Só copiar traders online" é da 0.9.0 do Bruxo95 e ficou em Configurações). Marcas NOVO mantidas.
+- Funcionalidade nova que ainda está em teste entra nesse grupo.

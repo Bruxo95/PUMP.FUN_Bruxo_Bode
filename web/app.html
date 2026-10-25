@@ -35,17 +35,23 @@
     <nav class="nav" id="nav">
       <a href="#visao" data-v="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>Visão geral</a>
       <a href="#traders" data-v="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Top traders<b class="nb" id="nbTr"></b></a>
-      <a href="#estudo" data-v="estudo" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3M8.5 11h5M11 8.5v5"/></svg>Carteiras em estudo</a>
-      <a href="#radar" data-v="radar" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6M12 3v2M3 12h2"/><circle cx="12" cy="12" r="1"/></svg>Radar de KOLs</a>
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
-      <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
-      <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
+      <div class="navgrp" id="navGrp">
+        <button type="button" class="navgrp-h" id="navGrpH" aria-expanded="true" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg><span>Usar ou descartar</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="navsub" id="navSub">
+        <a href="#estudo" data-v="estudo" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3M8.5 11h5M11 8.5v5"/></svg>Carteiras em estudo</a>
+        <a href="#radar" data-v="radar" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6M12 3v2M3 12h2"/><circle cx="12" cy="12" r="1"/></svg>Radar de KOLs</a>
+        <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
+        <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
+        <a href="#novas" data-v="novas" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Opções novas de cópia</a>
+        <a href="#novidades" data-v="novidades" id="navNov" hidden data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Novidades</a>
+        </div>
+      </div>
       <a href="#feed" data-v="feed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg>Feed ao vivo</a>
       <a href="#real" data-v="real"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Execução real<b class="nb" id="nbReal"></b></a>
       <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configurações</a>
       <a href="#admin" data-v="admin" id="navAdmin" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 16a3.5 3.5 0 0 1 7 0"/></svg>Administração<b class="nb" id="nbAdm"></b></a>
-      <a href="#novidades" data-v="novidades" id="navNov" hidden data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Novidades</a>
       <a href="#ajuda" data-v="ajuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg>Como funciona</a>
     </nav>
     <div class="sp"></div>
@@ -276,6 +282,38 @@
       </section>
 
       <!-- ========================================================= CONFIGURAÇÕES -->
+      <!-- ========================================================= OPÇÕES NOVAS DE CÓPIA (0.17.2: saíram de Configurações para o menu "Usar ou descartar") -->
+      <section class="view" data-view="novas" hidden>
+        <div class="card"><header><div><h2>Opções novas de cópia</h2><div class="sub">em teste: ligue (verde = ON) para usar ou deixe vermelho (OFF) para descartar · cada mudança vale na hora e fica salva só para você</div></div></header></div>
+        <div class="card">
+          <header><div><h2>Proteções novas</h2></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-08"><label>Venda em partes</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tp1_on">…</button><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp1_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp1_frac_pct"><span class="muted">%</span></div>
+              <div class="hint">Realiza parte do lucro cedo e deixa o resto no stop móvel. Já vem com a sugestão para testar (+30% vende 50%); ligue no ON.</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Sair antes da graduação</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_exit_on">…</button><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_curve_exit_pct"><span class="muted">%</span></div>
+              <div class="hint">Na pesquisa, 92% dos tokens tiveram derrubada forte e vender antes de graduar rendeu mais. Já vem com a sugestão (85%); ligue no ON.</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <header><div><h2>Filtros novos antes de copiar</h2><div class="sub">0 desliga o filtro</div></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-08"><label>Não copiar se o preço já subiu mais de</label><div class="row"><button class="btn sm tgl" data-toggle="pump_chase_on">…</button><input class="in w80" type="number" min="0" max="1000" step="5" data-cfg="pump_max_chase_pct"><span class="muted">% desde a compra do trader</span></div>
+              <div class="hint">Quem copia entra depois e paga mais caro; essa diferença é o que mais faz perder. Vale para a cópia com espera e para a compra real (conferida de novo na hora de enviar).</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Pressão de compra mínima</label><div class="row"><button class="btn sm tgl" data-toggle="pump_buy_pressure_on">…</button><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_min_buy_pressure_pct"><span class="muted">% de compras</span></div>
+              <div class="hint">Só copia se, no momento, as compras forem pelo menos essa parte das negociações (volume de compra quando disponível; senão número de compras × vendas). Evita entrar quando todo mundo está saindo. Já vem com a sugestão (55%); ligue no ON.</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Velocidade mínima da curva</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_speed_on">…</button><input class="in w80" type="number" min="0" step="1" data-cfg="pump_min_curve_speed"><span class="muted">% da curva por minuto</span></div>
+              <div class="hint">Só copia token que enche a curva rápido — o sinal que mais indicou graduação no estudo. Vale só para tokens cuja criação o monitor viu. Já vem com a sugestão (5); ligue no ON.</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Não copiar token já graduado</label><div class="row"><button class="btn sm tgl" data-toggle="pump_skip_graduated">…</button></div>
+              <div class="hint">ON: ignora compras de tokens que já foram para a PumpSwap (mais sujeitos a derrubada).</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Valor da cópia conforme o trader</label><div class="row"><button class="btn sm tgl" data-toggle="pump_size_by_trader">…</button></div>
+              <div class="hint">ON: com 5+ trades seus copiando o trader em 7 dias, copia ×1,5 de quem te dá lucro e ×0,5 de quem te dá prejuízo. No modo real só reduz, nunca passa do máximo por compra.</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Checar risco do token antes de copiar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_risk_check">…</button>
+              <span class="muted">nota máxima</span><input class="in w80" type="number" min="1" max="10" step="1" data-cfg="pump_max_risk_score"><span class="muted">de 10</span></div>
+              <div class="hint">Usa a nota da Solana Tracker (mesma chave do ranking): não copia token já sem liquidez, com alerta de perigo (ex.: criador pode criar mais tokens ou congelar carteiras, muitos bundlers/insiders) ou com nota acima da máxima. 1–3 baixo, 4–6 médio, 7–8 alto, 9–10 crítico.</div></div>
+          </div>
+        </div>
+      </section>
+
       <section class="view" data-view="config" hidden>
         <div class="card">
           <header><div><h2>Cópia</h2><div class="sub">cada mudança vale na hora e fica salva só para você</div></div></header>
@@ -302,10 +340,6 @@
               <input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_dist_pct"><span class="muted">pontos</span></div><div class="hint" id="trailN"></div></div>
             <div class="field"><label>Stop de perda</label><div class="row"><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_stop_pct"><span class="muted">%</span></div></div>
             <div class="field"><label>Tempo máximo na posição</label><div class="row"><input class="in w80" type="number" min="0.1" step="0.5" data-cfg="pump_max_hold_h"><span class="muted">h</span></div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Venda em partes</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tp1_on">…</button><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp1_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp1_frac_pct"><span class="muted">%</span></div>
-              <div class="hint">Realiza parte do lucro cedo e deixa o resto no stop móvel. Já vem com a sugestão para testar (+30% vende 50%); ligue no ON.</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Sair antes da graduação</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_exit_on">…</button><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_curve_exit_pct"><span class="muted">%</span></div>
-              <div class="hint">Na pesquisa, 92% dos tokens tiveram derrubada forte e vender antes de graduar rendeu mais. Já vem com a sugestão (85%); ligue no ON.</div></div>
             <div class="field"><label>Alvo fixo de lucro (0 = sem alvo)</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp_pct"><span class="muted">%</span></div></div>
             <div class="field"><label>Pausa automática do trader</label><div class="row"><input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_stops"><span class="muted">stops em 24 h → pausa</span>
               <input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_hours"><span class="muted">h</span></div></div>
@@ -328,19 +362,6 @@
             <div class="field"><label>Volume mínimo na última hora</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_vol_h1_usd"></div></div>
             <div class="field"><label>Negociações mínimas na última hora</label><div class="row"><input class="in w80" type="number" min="0" step="10" data-cfg="pump_min_txns_h1"></div></div>
             <div class="field"><label>10 maiores carteiras do token (máx.)</label><div class="row"><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_max_top10_pct"><span class="muted">%</span></div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Não copiar se o preço já subiu mais de</label><div class="row"><button class="btn sm tgl" data-toggle="pump_chase_on">…</button><input class="in w80" type="number" min="0" max="1000" step="5" data-cfg="pump_max_chase_pct"><span class="muted">% desde a compra do trader</span></div>
-              <div class="hint">Quem copia entra depois e paga mais caro; essa diferença é o que mais faz perder. Vale para a cópia com espera e para a compra real (conferida de novo na hora de enviar).</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Pressão de compra mínima</label><div class="row"><button class="btn sm tgl" data-toggle="pump_buy_pressure_on">…</button><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_min_buy_pressure_pct"><span class="muted">% de compras</span></div>
-              <div class="hint">Só copia se, no momento, as compras forem pelo menos essa parte das negociações (volume de compra quando disponível; senão número de compras × vendas). Evita entrar quando todo mundo está saindo. Já vem com a sugestão (55%); ligue no ON.</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Velocidade mínima da curva</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_speed_on">…</button><input class="in w80" type="number" min="0" step="1" data-cfg="pump_min_curve_speed"><span class="muted">% da curva por minuto</span></div>
-              <div class="hint">Só copia token que enche a curva rápido — o sinal que mais indicou graduação no estudo. Vale só para tokens cuja criação o monitor viu. Já vem com a sugestão (5); ligue no ON.</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Não copiar token já graduado</label><div class="row"><button class="btn sm tgl" data-toggle="pump_skip_graduated">…</button></div>
-              <div class="hint">ON: ignora compras de tokens que já foram para a PumpSwap (mais sujeitos a derrubada).</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Valor da cópia conforme o trader</label><div class="row"><button class="btn sm tgl" data-toggle="pump_size_by_trader">…</button></div>
-              <div class="hint">ON: com 5+ trades seus copiando o trader em 7 dias, copia ×1,5 de quem te dá lucro e ×0,5 de quem te dá prejuízo. No modo real só reduz, nunca passa do máximo por compra.</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Checar risco do token antes de copiar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_risk_check">…</button>
-              <span class="muted">nota máxima</span><input class="in w80" type="number" min="1" max="10" step="1" data-cfg="pump_max_risk_score"><span class="muted">de 10</span></div>
-              <div class="hint">Usa a nota da Solana Tracker (mesma chave do ranking): não copia token já sem liquidez, com alerta de perigo (ex.: criador pode criar mais tokens ou congelar carteiras, muitos bundlers/insiders) ou com nota acima da máxima. 1–3 baixo, 4–6 médio, 7–8 alto, 9–10 crítico.</div></div>
           </div>
         </div>
         <div class="card">

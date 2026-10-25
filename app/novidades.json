@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.17.2",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar",
+      "titulo": "Tudo que é novo num menu só: Usar ou descartar",
+      "oque": "Carteiras em estudo, Radar de KOLs, Relatórios, Aprendizado diário, Novidades (só admin) e a nova tela Opções novas de cópia ficam agora dentro do menu Usar ou descartar, como submenu. A tela Opções novas de cópia reúne os botões ON/OFF que antes ficavam espalhados em Configurações: venda em partes, sair antes da graduação, não copiar se o preço já subiu, pressão de compra, velocidade da curva, token já graduado, valor conforme o trader e checagem de risco. Os valores salvos não mudaram. Clique no título do menu para abrir ou fechar; ele lembra a escolha. As marcas verdes NOVO continuam."
+    },
+    {
       "versao": "0.17.1",
       "data": "2026-10-25",
       "tipo": "novo",

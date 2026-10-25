@@ -419,3 +419,22 @@ select.in{padding-right:24px}
   .radar-wave{padding:12px}.radar-wave-head .tag{font-size:9.5px}
   .radar-reasons{display:block}.radar-reasons li+li{margin-top:3px}
 }
+
+/* menu "Usar ou descartar" (0.17.2): cabeçalho que abre/fecha e submenu recuado */
+.navgrp{display:flex;flex-direction:column;gap:2px;margin:4px 0}
+.navgrp-h{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border:0;border-radius:8px;background:none;color:var(--text);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;width:100%}
+.navgrp-h:hover{background:#141416}
+.navgrp-h svg{width:17px;height:17px;flex:none}
+.navgrp-h .chev{margin-left:auto;width:14px;height:14px;transition:transform .15s}
+.navgrp.fechado .chev{transform:rotate(-90deg)}
+.navgrp.fechado .navsub{display:none}
+.navsub{display:flex;flex-direction:column;gap:2px;margin-left:14px;padding-left:6px;border-left:1px solid #26262b}
+.navgrp-h.novo{box-shadow:inset 3px 0 0 var(--up);border-left:0;padding-left:10px;background:none}
+.navgrp-h.novo .chev{margin-left:8px}
+.navgrp-h.novo span::after{content:"NOVO";margin-left:8px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.04em;color:#0a0a0a;background:var(--up)}
+.navgrp-h.novo span{flex:1}
+.shell.mini .navgrp-h{font-size:0;justify-content:center;padding:0}
+.shell.mini .navgrp-h .chev,.shell.mini .navgrp-h span{display:none}
+.shell.mini .navsub{margin-left:0;padding-left:0;border-left:0}
+@media (prefers-reduced-motion:reduce){.navgrp-h .chev{transition:none}}
+.side .nav .navgrp,.side .nav .navgrp-h{flex-shrink:0}

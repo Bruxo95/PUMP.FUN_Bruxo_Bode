@@ -399,7 +399,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -409,6 +409,7 @@
     if ((VIEW === "admin" || VIEW === "novidades") && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
+    if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
     if (VIEW === "config") { loadSecrets(); loadAudit(); }
@@ -1020,6 +1021,10 @@
       if ($("cmdk").hidden) return;
       if (e.key === "Escape") ckClose(); else if (e.key === "ArrowDown") { CKI = Math.min(CK.length - 1, CKI + 1); ckDraw(); e.preventDefault(); } else if (e.key === "ArrowUp") { CKI = Math.max(0, CKI - 1); ckDraw(); e.preventDefault(); } else if (e.key === "Enter") ckGo(CKI);
     });
+  // menu "Usar ou descartar" (0.17.2): agrupa o que é novo e ainda em teste; abre/fecha e lembra a escolha
+  const grpOpen = (on) => { $("navGrp").classList.toggle("fechado", !on); $("navGrpH").setAttribute("aria-expanded", on ? "true" : "false"); };
+  try { grpOpen(localStorage.getItem("pf_menu_grp") !== "0"); } catch (e) { /* */ }
+  $("navGrpH").addEventListener("click", () => { const on = $("navGrp").classList.contains("fechado"); grpOpen(on); try { localStorage.setItem("pf_menu_grp", on ? "1" : "0"); } catch (e) { /* */ } });
     $("addW").onkeydown = (e) => { if (e.key === "Enter") wallet("add", $("addW").value); };
     window.addEventListener("hashchange", route);
     window.addEventListener("resize", () => { if (VIEW === "visao" && D) renderOverview(); });
