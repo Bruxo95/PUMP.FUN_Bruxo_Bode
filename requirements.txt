@@ -1,0 +1,7 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+httpx>=0.27,<1
+websockets>=13,<16
+solders>=0.21,<1
+cryptography>=42
+PyJWT[crypto]>=2.8,<3
