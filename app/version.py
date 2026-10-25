@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.16.0 · 2026-10-25 · Radar de KOLs: ondas de compras e primeiras vendas"
+VERSION = "0.17.0 · 2026-10-25 · Hot callouts dentro do Radar de KOLs"

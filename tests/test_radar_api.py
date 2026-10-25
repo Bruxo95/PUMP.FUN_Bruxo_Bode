@@ -184,3 +184,125 @@ def test_shared_signature_does_not_poison_study_upsert_or_erase_radar_participan
     assert len(stored) == 1 and stored[0]["wallet"] == W2  # limite do histórico existente: PK(signature)
     wave = radar(c, headers)["waves"][0]
     assert wave["wallet_count"] == 2 and {row["wallet"] for row in wave["wallets"]} == {W, W2}
+
+
+def connected_monitor(hub):
+    """Só estado de conexão para o snapshot; não inicia monitor nem usa a rede."""
+    hub.running = True
+    hub.monitor = object()
+    hub.market.rpc_status["ws"] = True
+
+
+def hot_events(pf):
+    return [event for event in radar_events(pf) if "HOT callout" in event["msg"]]
+
+
+def test_hot_callout_policy_uses_existing_radar_settings_and_switch(env):
+    c, hub = env["c"], env["hub"]
+    headers = tok(UA)
+    initial = radar(c, headers)
+    assert initial["waves"] == [] and initial["callout_policy"]["min_wallets"] == 2
+    settings = {"pump_radar_enabled": True, "pump_radar_min_wallets": 3, "pump_radar_window_min": 10}
+    assert c.post("/api/pump/settings", json=settings, headers=headers).json()["applied"] == settings
+    third = "TraderGamma".ljust(44, "1")
+    for wallet in (W, W2, third):
+        add_study(c, headers, wallet)
+    connected_monitor(hub)
+    record(hub, W, "minimum-a")
+    record(hub, W2, "minimum-b")
+    assert radar(c, headers)["waves"] == []
+    record(hub, third, "minimum-c")
+    result = radar(c, headers)
+    assert result["min_wallets"] == result["callout_policy"]["min_wallets"] == 3
+    assert result["window_min"] == 10
+    assert result["callout_policy"]["entry_window_s"] == 120
+    assert result["callout_policy"]["last_buy_max_age_s"] == 60
+    assert result["waves"][0]["callout"]["state"] == "hot"
+    assert result["waves"][0]["callout"]["recent_wallets"] == 3
+    c.post("/api/pump/settings", json={"pump_radar_enabled": False}, headers=headers)
+    disabled = radar(c, headers)
+    assert disabled["waves"] == [] and disabled["callout_policy"]["min_wallets"] == 3
+    before = len(radar_events(hub.engines[UA]))
+    record(hub, W, "switched-off")
+    assert len(radar_events(hub.engines[UA])) == before
+
+
+def test_initial_hot_callout_emits_once_and_sales_block_it_without_creating_positions(env):
+    c, hub = env["c"], env["hub"]
+    headers = tok(UA)
+    for wallet in (W, W2):
+        add_study(c, headers, wallet)
+    c.post("/api/pump/settings", json={"pump_radar_enabled": True}, headers=headers)
+    connected_monitor(hub)
+    pf = hub.engines[UA]
+    record(hub, W, "initial-hot-a")
+    record(hub, W2, "initial-hot-b")
+    result = radar(c, headers)
+    assert result["waves"][0]["callout"]["state"] == "hot"
+    assert result["waves"][0]["callout"]["rank"] == 1
+    assert len(hot_events(pf)) == len(radar_events(pf)) == 1
+    record(hub, W2, "initial-hot-b")  # a mesma operação não promove de novo
+    record(hub, W, "initial-hot-repeat")
+    radar(c, headers)
+    radar(c, headers)
+    # Reaplicar os mesmos critérios também preserva o estado já alertado.
+    c.post("/api/pump/settings", json={"pump_radar_enabled": True}, headers=headers)
+    record(hub, W, "same-setting-repeat")
+    assert len(hot_events(pf)) == len(radar_events(pf)) == 1
+    record(hub, W, "hot-sale", side="sell", sol=0.01)
+    sold = radar(c, headers)["waves"][0]
+    assert sold["callout"]["state"] == "selling" and sold["seller_count"] == 1
+    assert len(hot_events(pf)) == 1 and len(radar_events(pf)) == 2
+    hub.market.rpc_status["ws"] = False
+    disconnected = radar(c, headers)["waves"][0]
+    assert disconnected["callout"]["state"] == "incomplete"
+    assert any("vender" in reason for reason in disconnected["callout"]["reasons"])
+    assert pf.positions() == [] and pf.trades() == []
+    assert not pf.cfg.pump_real_enabled and (pf._rq is None or pf._rq.empty())
+
+
+def test_reconnection_promotes_once_on_a_new_event_and_get_never_emits_hot(env):
+    c, hub = env["c"], env["hub"]
+    headers = tok(UA)
+    for wallet in (W, W2):
+        add_study(c, headers, wallet)
+    c.post("/api/pump/settings", json={"pump_radar_enabled": True}, headers=headers)
+    pf = hub.engines[UA]
+    record(hub, W, "reconnect-a")
+    record(hub, W2, "reconnect-b")
+    assert radar(c, headers)["waves"][0]["callout"]["state"] == "incomplete"
+    assert hot_events(pf) == [] and len(radar_events(pf)) == 1
+    connected_monitor(hub)
+    for _ in range(3):
+        assert radar(c, headers)["waves"][0]["callout"]["state"] == "hot"
+    assert hot_events(pf) == [] and len(radar_events(pf)) == 1
+    record(hub, W, "reconnect-new-event")
+    assert len(hot_events(pf)) == 1 and len(radar_events(pf)) == 2
+    hub.market.rpc_status["ws"] = False
+    assert radar(c, headers)["waves"][0]["callout"]["state"] == "incomplete"
+    hub.market.rpc_status["ws"] = True
+    record(hub, W2, "second-reconnection")
+    assert len(hot_events(pf)) == 1 and len(radar_events(pf)) == 2
+
+
+def test_hot_callout_and_its_rank_are_scoped_to_the_current_users_study_list(env):
+    c, hub = env["c"], env["hub"]
+    a, b = tok(UA), tok(UB, "b@x.com")
+    for wallet in (W, W2):
+        add_study(c, a, wallet)
+    add_study(c, b, W)
+    for headers in (a, b):
+        c.post("/api/pump/settings", json={"pump_radar_enabled": True}, headers=headers)
+    connected_monitor(hub)
+    record(hub, W, "private-hot-a")
+    record(hub, W2, "private-hot-b")
+    assert radar(c, a)["waves"][0]["callout"]["state"] == "hot"
+    assert radar(c, a)["waves"][0]["callout"]["recent_wallets"] == 2
+    other = c.get("/api/pump/radar?user_id=" + UA, headers=b).json()
+    assert other["waves"] == [] and other["event_count"] == 1
+    assert hot_events(hub.engines[UB]) == []
+    assert c.post("/api/pump/study", json={"wallet": W2, "action": "remove"}, headers=a).json()["ok"]
+    assert radar(c, a)["waves"] == []
+    before = len(hot_events(hub.engines[UA]))
+    record(hub, W2, "removed-private-hot")
+    assert len(hot_events(hub.engines[UA])) == before

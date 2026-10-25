@@ -136,6 +136,18 @@ Esta primeira etapa usa sua lista em estudo, sem descobrir ou certificar influen
 Os dados das ondas recomeçam após reiniciar o servidor; movimentos podem faltar se o monitor desconectar ou
 atingir o limite de memória indicado na tela.
 
+**Hot callouts (0.17.0):** dentro desse mesmo Radar, as ondas são ordenadas por destaque e cada cartão explica
+se está HOT, com participantes vendendo, em observação, esfriando ou com dados incompletos. HOT exige o mínimo
+configurado de carteiras fazendo sua primeira entrada observada nos últimos 120 segundos, uma compra
+nos últimos 60 segundos, pressão observada de pelo menos 80%, fluxo positivo e nenhuma venda dos participantes.
+Essa primeira entrada é conferida nos 30 minutos de memória do Radar: repetir uma compra não transforma uma
+carteira antiga em entrada nova quando a operação inicial sai da janela menor escolhida. Participantes e volumes
+continuam usando a janela configurada. Os HOTs vêm primeiro; depois aparecem alertas
+de vendas, observação, ondas frias e dados incompletos. Dentro de cada grupo, pesam as entradas recentes distintas,
+o total de carteiras, a pressão e a última compra. O destaque some quando os critérios deixam de valer;
+desconexão ou dados incompletos impedem HOT. A marca organiza o que foi observado na sua lista e não estima lucro.
+Os avisos usam as notificações do Radar: uma promoção a HOT por onda, sem repetir a cada atualização da tela.
+
 ### 2.5 Modo real (quando autorizado)
 1. O responsável pela infraestrutura libera `PUMP_REAL_ALLOWED=true` no stack.
 2. O usuário salva a chave privada da carteira do bot e envia SOL para o endereço mostrado.

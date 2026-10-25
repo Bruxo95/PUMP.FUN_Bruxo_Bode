@@ -366,3 +366,35 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   dados reais, login de produção e RLS efetivo do Supabase não foram validados nesta tarefa.
 - Próximas etapas: fontes de identidade verificadas e ranking de copiabilidade na onda; simulação de entrada/saída
   específica do Radar e medição de atraso; Telegram somente se solicitado. Não habilitar execução automática real.
+
+## Hot callouts dentro do Radar (2026-10-25, versão 0.17.0)
+- Pedido confirmado pelo dono: destacar e ordenar as ondas existentes dentro do Radar de KOLs.
+  A lista de ondas virou `Hot callouts`, com posição, estado, motivos e KPI `HOT agora`. Mesma tela,
+  GET `/api/pump/radar`, buffer, lista em estudo, configurações e botão ON/OFF; sem módulo, rota ou monitor paralelo.
+- `app/radar.py`: `callout_policy` devolve os critérios junto da resposta. HOT exige o mínimo configurado de
+  primeiras entradas distintas nos últimos 120 s, última compra até 60 s, pressão observada >=80%, fluxo positivo,
+  zero vendas observadas dos participantes e dados completos com monitor conectado. Sem compra por mais de
+  180 s, a onda esfria. Estados: `hot`, `selling`, `watch`, `stale`, `incomplete`; dados incompletos e vendas
+  impedem HOT. Não há nota de lucro, probabilidade ou verificação de identidade de influencer.
+- Recompras não viram primeiras entradas novas ao sair da janela visível: uma varredura dos eventos retidos
+  constrói âncoras efêmeras por carteira/token nos últimos 30 min (`entry_memory_s=1800`). Participantes, volumes,
+  vendas e `convergence_span_s` continuam na janela configurada; `recent_wallets` usa essas âncoras maiores.
+  Perda de âncoras por capacidade torna os callouts incompletos mesmo se anterior à janela visível. A memória
+  continua limitada a 5.000 eventos e zera ao reiniciar; não reconstrói entradas anteriores ao que foi observado.
+- Classifica e ordena antes de cortar as 100 ondas: HOT, vendas, observação, esfriou, incompleto; desempate por
+  entradas recentes distintas, total de carteiras, pressão e última compra, depois mint. O filtro da lista ATUAL
+  da conta vem antes de todas as métricas. Nenhuma nova consulta externa, migração ou dependência.
+- Avisos `Radar: HOT callout...` reaproveitam `_radar_alerts`: primeira onda já HOT gera um único aviso;
+  promoção posterior gera no máximo mais um por onda. GET só reclassifica; não avisa. ON/OFF, remoção e
+  vendas continuam no caminho existente. Saturação com mais de 100 ondas pode repetir avisos normais quando
+  uma onda sai/volta à lista limitada; nesse estado nenhuma recebe HOT. Não há ordens simuladas ou reais novas.
+- `web/app.js`: critérios visíveis vindos da API, escape de motivos e símbolos, rascunho preservado.
+  Falha de GET Radar ou `/api/pump` retira HOT; o intervalo existente do painel também vence a leitura após 8 s,
+  antes da trava BUSY, inclusive se a consulta ficar pendurada. Salvar critérios/ON-OFF exige nova leitura.
+- Validação local: 22 testes puros com Python padrão; QA Node/vm de renderização, escapes, rascunho, ON/OFF,
+  falhas e consulta pendurada; sintaxe Python/JS e diff. Mais 4 testes API novos preparados para o CI, sem
+  reinstalar dependências no Windows. Prévia com dados fictícios conferida no desktop e em 390 px, sem rolagem
+  lateral; salvar o mínimo de 3 carteiras atualizou os destaques e falha simulada retirou todos os HOTs.
+  Resultado remoto será informado após publicação.
+- Inventário Markdown/JSON/PDF atualizado por mudança de versão/HTML, usando o runtime PDF preexistente.
+  O fluxo com dados reais e o login de produção não foram executados; execução real permaneceu fora do escopo.

@@ -381,11 +381,23 @@ select.in{padding-right:24px}
 .radar-status{margin:16px 0 5px;font-size:13px;font-weight:500;overflow-wrap:anywhere}
 #radarDraft{margin-top:10px;color:var(--warn)}
 #radarSince{overflow-wrap:anywhere}
-.radar-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+.radar-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
 .radar-waves{display:grid;gap:14px}
 .radar-wave{border:1px solid var(--line2);border-left:3px solid var(--info);border-radius:8px;padding:16px;min-width:0;background:var(--bg2)}
 .radar-wave.selling{border-left-color:var(--warn)}
+.radar-wave.hot{border-left-color:var(--up);background:linear-gradient(120deg,rgba(34,197,94,.06),transparent 70%),var(--bg2)}
+.radar-wave.stale,.radar-wave.incomplete{border-left-color:var(--muted)}
 .radar-wave-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.radar-wave-title{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
+.radar-wave-title h3{flex:1;min-width:0}
+.radar-rank{font:11px var(--mono);color:var(--muted);flex-shrink:0}
+.radar-callout{margin:13px 0 0;border-top:1px solid var(--line);padding-top:11px}
+.radar-callout strong{display:block;font-size:11.5px;color:var(--text);margin-bottom:5px}
+.radar-reasons{display:flex;flex-wrap:wrap;gap:5px 18px;padding-left:16px;margin:0;color:var(--muted);font-size:11.5px;line-height:1.6}
+.radar-reasons li{overflow-wrap:anywhere;max-width:100%}
+.radar-policy{margin:-3px 0 17px;padding:11px 13px;border:1px solid var(--line);border-radius:7px;font-size:12px;color:var(--muted);line-height:1.7}
+.radar-policy summary{cursor:pointer;color:var(--text);font-weight:500}
+.radar-policy p{margin:10px 0 0;overflow-wrap:anywhere}
 .radar-wave-head h3{font-size:15px;min-width:0;overflow-wrap:anywhere;max-width:100%}
 .radar-wave-head h3>a{color:#b9cdfa;text-decoration:none;word-break:break-word}
 .radar-wave-head h3>a:hover{text-decoration:underline}
@@ -405,4 +417,5 @@ select.in{padding-right:24px}
   .radar-form>.btn{flex:1 1 calc(50% - 12px);min-width:0;padding:0 9px;font-size:12px}
   .radar-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
   .radar-wave{padding:12px}.radar-wave-head .tag{font-size:9.5px}
+  .radar-reasons{display:block}.radar-reasons li+li{margin-top:3px}
 }

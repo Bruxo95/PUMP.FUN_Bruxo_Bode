@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.17.0",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Menu → Radar de KOLs → Hot callouts",
+      "titulo": "Hot callouts nas próprias ondas do Radar",
+      "oque": "As ondas do Radar agora aparecem por prioridade e mostram o motivo do destaque. HOT exige o mínimo configurado de carteiras iniciando compras nos últimos 2 minutos, última compra no último minuto, pressão observada de pelo menos 80% e nenhuma venda dos participantes. As ondas também indicam vendas, esfriamento e dados incompletos. Monitor desconectado, falha de atualização ou janela incompleta retiram o destaque HOT. Reutiliza o mesmo Radar, sua lista em estudo e o botão ON/OFF, sem criar ordens."
+    },
+    {
       "versao": "0.16.0",
       "data": "2026-10-25",
       "tipo": "novo",

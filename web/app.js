@@ -154,8 +154,35 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("tkCard").hidden = true; });
 
   // ------------------------------------------------------------------ radar de KOLs (/api/pump/radar)
-  const RADAR = { data: null, at: 0, busy: false, pending: false, revision: 0, dirty: false, saving: false };
+  const RADAR = { data: null, at: 0, updatedAt: 0, stale: false, error: "", busy: false, pending: false, revision: 0, dirty: false, saving: false };
   const radarDate = (v) => dt(typeof v === "number" ? v * 1000 : v);
+  const radarOutdated = () => RADAR.stale || !RADAR.updatedAt || Date.now() - RADAR.updatedAt > 8000;
+  const RADAR_LABELS = { hot: "HOT", selling: "Participantes vendendo", watch: "Em observação", stale: "Esfriou", incomplete: "Dados incompletos" };
+  function radarCallout(w, r) {
+    const c = w.callout || {}, mon = r.monitor || {}, selling = w.status === "selling" || w.seller_count > 0;
+    let state = Object.prototype.hasOwnProperty.call(RADAR_LABELS, c.state) ? c.state : "watch";
+    const reasons = Array.isArray(c.reasons) ? c.reasons.filter((s) => typeof s === "string").slice(0, 5) : [];
+    if (!c.state || (state === "hot" && (!reasons.length || !r.callout_policy))) {
+      state = "watch"; reasons.unshift("Classificação dos destaques ainda não disponível nesta leitura.");
+    }
+    if (state === "hot" && selling) state = "selling";
+    if (radarOutdated() || !mon.running || !mon.connected || r.truncated) {
+      state = "incomplete";
+      const warnings = [];
+      if (radarOutdated()) warnings.push("A tela está sem uma leitura atual; os destaques HOT ficam suspensos até atualizar.");
+      if (!mon.running || !mon.connected) warnings.push("Monitor desconectado; movimentos podem estar ausentes.");
+      if (r.truncated) warnings.push("A memória do radar atingiu o limite; primeiras entradas ou movimentos podem estar ausentes.");
+      if (selling) warnings.push("Há vendas observadas de participantes nesta onda.");
+      reasons.unshift(...warnings);
+    }
+    return { state: state, label: RADAR_LABELS[state], reasons: [...new Set(reasons)].slice(0, 5),
+      rank: Number.isInteger(c.rank) && c.rank > 0 ? c.rank : null };
+  }
+  function invalidateRadar(message) {
+    RADAR.stale = true; RADAR.error = message || "falha de conexão";
+    if (RADAR.data) renderRadar();
+    else { $("radarStatus").textContent = "Não foi possível atualizar o radar: " + RADAR.error; $("radarStatus").className = "radar-status warn"; }
+  }
   function radarControls() {
     const r = RADAR.data, disabled = !r || RADAR.saving;
     ["radarToggle", "radarMin", "radarWindow", "radarSave"].forEach((id) => { $(id).disabled = disabled; });
@@ -168,18 +195,30 @@
   function renderRadar() {
     const r = RADAR.data; radarControls(); if (!r) return;
     const waves = r.enabled ? r.waves || [] : [], mon = r.monitor || {}, connected = !!(mon.running && mon.connected);
+    const outdated = radarOutdated(), callouts = waves.map((w) => radarCallout(w, r)), policy = r.callout_policy || {};
     const status = $("radarStatus");
-    status.className = "radar-status " + (!r.enabled ? "muted" : !connected ? "warn" : "up");
+    status.className = "radar-status " + (!r.enabled ? "muted" : !connected || outdated || r.truncated ? "warn" : "up");
     status.textContent = !r.enabled ? "Radar desligado. Ligue para receber avisos de compras em conjunto."
+      : outdated ? (RADAR.error ? "Não foi possível atualizar o radar: " + RADAR.error + ". " : "Aguardando uma leitura atual do radar. ") + "Destaques HOT suspensos; mostrando a última leitura."
       : !connected ? "Monitor desconectado. Os dados abaixo podem estar incompletos; aguardando reconexão."
+      : r.truncated ? "Memória incompleta: limite de dados atingido. Os destaques HOT ficam suspensos."
       : r.wallet_count < r.min_wallets ? "Adicione mais carteiras ao estudo: são necessárias " + r.min_wallets + " e sua lista tem " + r.wallet_count + "."
-      : "Radar ligado · observando compras e primeiras vendas dos participantes.";
+      : "Radar ligado · Hot callouts ordenam as ondas e mostram o motivo de cada destaque.";
     $("radarSince").textContent = "Observação desde " + radarDate(r.observed_since) + " · atualização da tela a cada 4 s."
-      + (r.truncated ? " Limite de eventos atingido: parte da janela pode estar ausente." : "");
+      + (RADAR.updatedAt ? " Última leitura da tela: " + dt(RADAR.updatedAt) + "." : "")
+      + (r.truncated ? " Limite de eventos atingido: parte da memória pode estar ausente." : "");
     kpis("radarKpis", [["Carteiras da sua lista", f(r.wallet_count, 0), "gerenciadas em Carteiras em estudo", "usr"],
       ["Ondas nesta janela", f(waves.length, 0), "mínimo " + f(r.min_wallets, 0) + " carteiras em " + f(r.window_min, 0) + " min", "mon"],
+      ["HOT agora", f(callouts.filter((c) => c.state === "hot").length, 0), outdated || !connected || r.truncated ? "aguardando dados atuais e completos" : "convergência recente sem vendas observadas", "hit"],
       ["Ondas com vendas", f(waves.filter((w) => w.status === "selling").length, 0), "participantes já começaram a vender", "tr"]]);
-    $("radarSub").textContent = "compras nos últimos " + f(r.window_min, 0) + " min · cada carteira conta uma vez · " + f(r.event_count, 0) + " eventos da sua lista na janela";
+    $("radarSub").textContent = (outdated ? "última ordem recebida · " : "ondas por prioridade · ") + "janela de " + f(r.window_min, 0) + " min · " + f(r.event_count, 0) + " eventos da sua lista · cada carteira conta uma vez";
+    $("radarPolicy").textContent = policy.entry_window_s != null && policy.last_buy_max_age_s != null && policy.stale_after_s != null && policy.min_buy_pressure_pct != null
+      ? "HOT exige pelo menos " + f(r.min_wallets, 0) + " carteiras distintas com primeira entrada observada nos últimos " + hms(policy.entry_window_s)
+        + ", última compra há no máximo " + hms(policy.last_buy_max_age_s) + ", pressão de compra observada de pelo menos " + f(policy.min_buy_pressure_pct, 0)
+        + "% e fluxo em SOL positivo, sem vendas observadas dos participantes. Sem compra por mais de " + hms(policy.stale_after_s)
+        + ", a onda esfria. " + (policy.entry_memory_s != null ? "A primeira entrada é conferida na memória de " + hms(policy.entry_memory_s) + " do radar, para uma recompra não parecer uma carteira nova. " : "Repetir a compra da mesma carteira não renova sua entrada. ")
+        + "Participantes e volumes usam a janela de compras salva acima. Monitor desconectado, memória incompleta ou tela sem atualizar suspendem HOT."
+      : "Os critérios dos destaques ainda não chegaram nesta leitura. Nenhuma onda será marcada HOT sem a classificação atual do radar.";
     if (!waves.length) {
       $("radarWaves").innerHTML = '<div class="radar-empty">' + (!r.enabled ? "Ligue o radar para acompanhar as ondas."
         : r.wallet_count < r.min_wallets ? 'Sua lista ainda não tem carteiras suficientes. <a href="#estudo">Adicionar carteiras ao estudo</a>.'
@@ -187,12 +226,14 @@
         : "Nenhuma onda com esses critérios por enquanto. As compras precisam ser de carteiras diferentes, no mesmo token e dentro da janela.") + "</div>";
       return;
     }
-    $("radarWaves").innerHTML = waves.map((w) => {
+    $("radarWaves").innerHTML = waves.map((w, i) => {
       const selling = w.status === "selling", mint = String(w.mint || ""), participants = w.wallets || [];
+      const callout = callouts[i], tone = { hot: "win", selling: "pause", watch: "buy", stale: "neutral", incomplete: "neutral" }[callout.state];
       const pressure = w.buy_pressure == null ? "–" : f(w.buy_pressure, 0) + "%";
       const stat = (label, value) => "<div><dt>" + label + "</dt><dd>" + value + "</dd></div>";
-      return '<article class="radar-wave' + (selling ? " selling" : "") + '"><div class="radar-wave-head"><h3>' + pfM(mint, String(w.symbol || "")) + '</h3><span class="tag ' + (selling ? "pause" : "buy") + '">'
-        + (selling ? "Participantes vendendo" : "Compras em conjunto") + '</span></div><dl class="radar-stats">'
+      return '<article class="radar-wave ' + callout.state + '"><div class="radar-wave-head"><div class="radar-wave-title"><span class="radar-rank" title="Posição na ordem de atenção recebida">#' + f(callout.rank || i + 1, 0) + '</span><h3>' + pfM(mint, String(w.symbol || "")) + '</h3></div><span class="tag ' + tone + '">'
+        + esc(callout.label) + '</span></div><div class="radar-callout"><strong>' + (outdated ? "Motivos da última leitura" : "Por que está aqui") + '</strong><ul class="radar-reasons">'
+        + callout.reasons.map((reason) => "<li>" + esc(reason) + "</li>").join("") + '</ul></div><dl class="radar-stats">'
         + stat("Carteiras distintas", f(w.wallet_count, 0)) + stat("Compras observadas", s4(w.buy_sol) + " SOL <small>" + f(w.buy_count, 0) + " operações</small>")
         + stat("Vendas após a compra", s4(w.sell_sol) + " SOL <small>" + f(w.seller_count, 0) + (w.seller_count === 1 ? " participante" : " participantes") + "</small>")
         + stat("Saldo do fluxo", sg(w.net_sol)) + stat("Pressão de compra", pressure)
@@ -204,6 +245,7 @@
     }).join("");
   }
   async function loadRadar(force) {
+    if (RADAR.data && !RADAR.stale && radarOutdated()) { RADAR.stale = true; renderRadar(); }
     if (RADAR.saving) return;
     if (RADAR.busy) { if (force) RADAR.pending = true; return; }
     if (!force && Date.now() - RADAR.at < 4000) return;
@@ -212,9 +254,11 @@
       const r = await BB.api("/api/pump/radar");
       if (revision !== RADAR.revision) return;
       if (r.error) throw new Error(r.error);
-      RADAR.data = r; renderRadar();
+      RADAR.data = r; RADAR.updatedAt = Date.now(); RADAR.stale = false; RADAR.error = ""; renderRadar();
     } catch (e) {
-      if (revision === RADAR.revision) { $("radarStatus").textContent = "Não foi possível atualizar o radar: " + (e.message || "falha de conexão"); $("radarStatus").className = "radar-status warn"; }
+      if (revision === RADAR.revision) {
+        invalidateRadar(e.message || "falha de conexão");
+      }
     } finally {
       RADAR.busy = false;
       if (RADAR.pending) { RADAR.pending = false; loadRadar(true); }
@@ -229,6 +273,7 @@
       const applied = r.applied || {}, fields = { pump_radar_enabled: "enabled", pump_radar_min_wallets: "min_wallets", pump_radar_window_min: "window_min" };
       Object.keys(fields).forEach((key) => { if (Object.prototype.hasOwnProperty.call(applied, key)) RADAR.data[fields[key]] = applied[key]; });
       if (criteria) RADAR.dirty = false;
+      RADAR.stale = true; RADAR.error = "";
       toast(criteria ? "Critérios do radar salvos." : body.pump_radar_enabled ? "Radar ligado." : "Radar desligado.");
     } catch (e) { toast("Não salvou o radar: " + (e.message || "falha de conexão")); }
     finally { RADAR.saving = false; renderRadar(); await loadRadar(true); }
@@ -441,7 +486,7 @@
     const pc = (m.split("→")[1] || "").match(/\(([+−-]?[0-9]+(?:[.,][0-9]+)?)%\)/);
     const pct = pc ? " " + (/^[+−-]/.test(pc[1]) ? "" : "+") + pc[1].replace(".", ",") + "%" : "";
     const neg = /→\s*[−-]/.test(m), pos = /→\s*\+/.test(m);
-    if (/^Radar\b/i.test(m)) return /vend/i.test(m) ? ["pensativo", "m-pensa", "Venda na onda"] : ["pensativo", "m-pula", "Onda no radar"];
+    if (/^Radar\b/i.test(m)) return /vend/i.test(m) ? ["pensativo", "m-pensa", "Venda na onda"] : /\bHOT\b/i.test(m) ? ["pensativo", "m-pula", "HOT no radar"] : ["pensativo", "m-pula", "Onda no radar"];
     if (/^Top traders atualizados/i.test(m)) return ["timido", "m-balanca", "Troquei os traders"];
     if (/PAUSADO/.test(m)) return ["bravo", "m-treme", "Trader pausado"];
     if (/parece robô/i.test(m)) return ["bravo", "m-treme", "Robô detectado"];
@@ -478,16 +523,18 @@
 
   // ------------------------------------------------------------------ dados
   async function poll(force) {
+    // O intervalo do painel continua expirando os destaques mesmo se uma consulta ficar pendurada.
+    if (VIEW === "radar" && RADAR.data && !RADAR.stale && radarOutdated()) { RADAR.stale = true; renderRadar(); }
     if (BUSY && !force) return; BUSY = true;
     try {
       const r = await BB.api("/api/pump?ev=" + Math.max(EV, 0));
-      if (r.error) { $("sysS").textContent = r.error; return; }
+      if (r.error) { $("sysS").textContent = r.error; if (VIEW === "radar") invalidateRadar(r.error); return; }
       D = r;
       const evs = r.events || [];
       if (EV < 0) EV = evs.length ? evs[evs.length - 1].id : 0;
       else evs.forEach((e) => { if (e.id > EV) { EV = e.id; onEvent(e); } });
       render();
-    } catch (e) { /* tenta de novo */ } finally { BUSY = false; }
+    } catch (e) { if (VIEW === "radar") invalidateRadar(e.message || "falha de conexão"); } finally { BUSY = false; }
   }
   async function walletLoad(force) { try { W = await BB.api("/api/pump/wallet" + (force ? "?force=1" : "")); if (VIEW === "real") renderReal(); } catch (e) { /* */ } }
 

@@ -17,7 +17,7 @@ from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
 from .logsafe import add_secret
 from .pumpfun import PumpFun, PumpMarket, PumpReal
-from .radar import RadarBuffer
+from .radar import RadarBuffer, callout_policy
 from .settings import PumpSettings
 from .solana_wallet import UserWallet
 
@@ -258,8 +258,11 @@ class PumpHub:
         wallets = set(getattr(pf, "study", []) or [])
         minimum = int(getattr(pf.cfg, "pump_radar_min_wallets", 2))
         window = int(getattr(pf.cfg, "pump_radar_window_min", 5))
-        data = (self.radar.snapshot(wallets, minimum, window) if enabled else
-                {"observed_since": self.radar.observed_since, "event_count": 0, "truncated": False, "waves": []})
+        running = bool(self.running and self.monitor is not None)
+        connected = bool(self.market.rpc_status.get("ws"))
+        data = (self.radar.snapshot(wallets, minimum, window, connected=running and connected) if enabled else
+                {"observed_since": self.radar.observed_since, "event_count": 0, "truncated": False,
+                 "callout_policy": callout_policy(minimum), "waves": []})
         for wave in data["waves"]:
             symbol = (self.market.tokens.get(wave["mint"]) or {}).get("symbol")
             wave["symbol"] = str(symbol)[:80] if symbol else None
@@ -268,8 +271,7 @@ class PumpHub:
         pf._radar_alerts = {m: s for m, s in getattr(pf, "_radar_alerts", {}).items() if m in active}
         return {"enabled": enabled, "min_wallets": minimum, "window_min": window,
                 "wallet_count": len(wallets), **data,
-                "monitor": {"running": bool(self.running and self.monitor is not None),
-                            "connected": bool(self.market.rpc_status.get("ws"))}}
+                "monitor": {"running": running, "connected": connected}}
 
     def _radar_notify(self, wallet: str) -> None:
         for pf in list(self.engines.values()):
@@ -284,10 +286,20 @@ class PumpHub:
                 mint = wave["mint"]
                 state = states.get(mint)
                 name = (wave["symbol"] or mint[:6] + "…" + mint[-4:])
+                hot = wave["callout"]["state"] == "hot"
                 if state is None:
-                    pf._emit(f"Radar: onda em {name} — {wave['wallet_count']} carteiras em estudo compraram "
-                             f"em {data['window_min']} min (apenas observação)")
-                    state = states[mint] = {"selling": False}
+                    if hot:
+                        pf._emit(f"Radar: HOT callout em {name} — {wave['callout']['recent_wallets']} carteiras "
+                                 f"distintas entraram em {data['callout_policy']['entry_window_s']} s "
+                                 "(apenas observação)")
+                    else:
+                        pf._emit(f"Radar: onda em {name} — {wave['wallet_count']} carteiras em estudo compraram "
+                                 f"em {data['window_min']} min (apenas observação)")
+                    state = states[mint] = {"selling": False, "hot_sent": hot}
+                elif hot and not state.get("hot_sent", False):
+                    pf._emit(f"Radar: HOT callout em {name} — convergência recente de "
+                             f"{wave['callout']['recent_wallets']} carteiras distintas (apenas observação)")
+                    state["hot_sent"] = True
                 if wave["sell_count"] and not state["selling"]:
                     pf._emit(f"Radar: vendas na onda de {name} — uma das carteiras compradoras começou a vender "
                              "(apenas observação)")

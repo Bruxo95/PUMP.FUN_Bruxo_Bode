@@ -15,6 +15,65 @@ MAX_WINDOW_S = 30 * 60
 MAX_WAVES = 100
 
 
+def callout_policy(min_wallets: int) -> dict:
+    """Critérios observáveis do destaque; não são previsão ou chance de lucro."""
+    return {"entry_window_s": 120, "entry_memory_s": MAX_WINDOW_S,
+            "last_buy_max_age_s": 60, "stale_after_s": 180,
+            "min_buy_pressure_pct": 80, "min_wallets": min_wallets,
+            "order": ["hot", "selling", "watch", "stale", "incomplete"]}
+
+
+def _callout(wave: dict, policy: dict, now: float, connected: bool, truncated: bool,
+             first_entries: dict[tuple[str, str], float]) -> dict:
+    participants = wave["wallets"]
+    # A memória maior impede que uma recompra vire entrada nova ao sair da janela.
+    recent = sum(first_entries[(wave["mint"], p["wallet"])] >= now - policy["entry_window_s"]
+                 for p in participants)
+    last_buy = max(p["last_buy"] for p in participants)
+    age = max(0, now - last_buy)
+    # Dispersão dos participantes na janela visível; não usa a memória de entradas.
+    span = max(p["first_buy"] for p in participants) - min(p["first_buy"] for p in participants)
+    pressure = wave["buy_pressure"]
+    selling = wave["seller_count"] > 0
+    if not connected or truncated:
+        state = "incomplete"
+    elif selling:
+        state = "selling"
+    elif age > policy["stale_after_s"]:
+        state = "stale"
+    elif (recent >= policy["min_wallets"] and age <= policy["last_buy_max_age_s"]
+          and pressure is not None and pressure >= policy["min_buy_pressure_pct"] and wave["net_sol"] > 0):
+        state = "hot"
+    else:
+        state = "watch"
+    labels = {"hot": "HOT", "selling": "Participantes vendendo", "watch": "Em observação",
+              "stale": "Esfriou", "incomplete": "Dados incompletos"}
+    reasons = []
+    if state == "incomplete":
+        missing = []
+        if not connected:
+            missing.append("monitor desconectado")
+        if truncated:
+            missing.append("limite da janela atingido")
+        reasons.append(" e ".join(missing).capitalize() + "; destaque HOT suspenso.")
+    if selling:
+        sellers = wave["seller_count"]
+        reasons.append(("1 participante começou a vender" if sellers == 1 else f"{sellers} participantes começaram a vender")
+                       + " após a primeira compra observada.")
+    pressure_text = f"{pressure:.1f}".replace(".", ",") if pressure is not None else None
+    net_text = f"{wave['net_sol']:+.4f}".replace(".", ",")
+    reasons.extend([
+        f"{recent} carteiras distintas começaram a comprar nos últimos {policy['entry_window_s']} s; "
+        f"mínimo HOT: {policy['min_wallets']}.",
+        f"Última compra há {age:.0f} s; HOT até {policy['last_buy_max_age_s']} s, "
+        f"esfria após {policy['stale_after_s']} s.",
+        (f"Pressão observada: {pressure_text}%" if pressure is not None else "Pressão observada: sem volume")
+        + f"; mínimo HOT: {policy['min_buy_pressure_pct']}%. Fluxo líquido: {net_text} SOL.",
+    ])
+    return {"state": state, "label": labels[state], "reasons": reasons,
+            "recent_wallets": recent, "last_buy_age_s": age, "convergence_span_s": max(0, span), "rank": 0}
+
+
 class RadarBuffer:
     def __init__(self, max_events: int = 5000, now: float | None = None):
         if not isinstance(max_events, int) or isinstance(max_events, bool) or max_events < 1:
@@ -70,12 +129,22 @@ class RadarBuffer:
         return True
 
     def snapshot(self, wallets, min_wallets: int = 2, window_min: int = 5,
-                 now: float | None = None) -> dict:
+                 now: float | None = None, *, connected: bool = True) -> dict:
         now = time.time() if now is None else now
         self._trim(now)
         allowed = set(wallets)
+        policy = callout_policy(min_wallets)
         cutoff = now - min(MAX_WINDOW_S, max(60, window_min * 60))
-        events = [e for e in self._events if e["wallet"] in allowed and cutoff <= e["at"] <= now]
+        events = []
+        first_entries: dict[tuple[str, str], float] = {}
+        for e in self._events:
+            if e["wallet"] not in allowed or not now - policy["entry_memory_s"] <= e["at"] <= now:
+                continue
+            if e["side"] == "buy":
+                key = (e["mint"], e["wallet"])
+                first_entries[key] = min(e["at"], first_entries.get(key, e["at"]))
+            if e["at"] >= cutoff:
+                events.append(e)
         by_token: dict[str, list[dict]] = {}
         for e in events:
             by_token.setdefault(e["mint"], []).append(e)
@@ -110,7 +179,17 @@ class RadarBuffer:
                           "seller_count": len({e["wallet"] for e in sells}),
                           "buy_pressure": round(100 * buy_sol / (buy_sol + sell_sol), 1)
                           if buy_sol + sell_sol else None, "wallets": details})
-        waves.sort(key=lambda w: (-w["last_trade"], -w["wallet_count"], w["mint"]))
-        truncated = any(self._dropped_at.get(w, 0) >= cutoff for w in allowed) or len(waves) > MAX_WAVES
+        # Uma perda anterior à janela visível também pode apagar a âncora de entrada.
+        truncated = any(w in self._dropped_at and self._dropped_at[w] >= now - policy["entry_memory_s"]
+                        for w in allowed) or len(waves) > MAX_WAVES
+        for wave in waves:
+            wave["callout"] = _callout(wave, policy, now, connected, truncated, first_entries)
+        priority = {state: rank for rank, state in enumerate(policy["order"])}
+        waves.sort(key=lambda w: (priority[w["callout"]["state"]], -w["callout"]["recent_wallets"],
+                                 -w["wallet_count"], -(w["buy_pressure"] if w["buy_pressure"] is not None else -1),
+                                 -max(p["last_buy"] for p in w["wallets"]), w["mint"]))
+        waves = waves[:MAX_WAVES]
+        for rank, wave in enumerate(waves, 1):
+            wave["callout"]["rank"] = rank
         return {"observed_since": self.observed_since, "event_count": len(events),
-                "truncated": truncated, "waves": waves[:MAX_WAVES]}
+                "truncated": truncated, "callout_policy": policy, "waves": waves}

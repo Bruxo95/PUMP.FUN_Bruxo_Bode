@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-25**; revisão documental **2.0**.
-Aplicação: **0.16.0 · 2026-10-25 · Radar de KOLs: ondas de compras e primeiras vendas**.
-Referência Git na emissão: `6665bcd5df172752356b52156c6d3ec730c7d7a7`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.17.0 · 2026-10-25 · Hot callouts dentro do Radar de KOLs**.
+Referência Git na emissão: `ea257ffc2596e768f18c03060e54825c758eccf2`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
