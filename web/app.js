@@ -224,6 +224,8 @@
   function classify(m) {
     m = String(m || "");
     if (/^Top traders atualizados/i.test(m)) return "trader";
+    if (/PAUSADO|parece robô/.test(m)) return "alert";
+    if (/segurando/i.test(m)) return null;
     if (/falhou|N[ÃA]O feita|N[ÃA]O feito|n[ãa]o comprou|n[ãa]o vendeu|(^|[^a-z])erro([^a-z]|$)|ATEN[ÇC][ÃA]O/i.test(m)) return "error";
     if (/fechou|vendeu|saiu|stop|alvo/i.test(m)) { const tail = m.split("→").pop(); const mm = tail.match(/([+−-]) ?[$]?[0-9]/); if (mm) return mm[1] === "+" ? "win" : "loss"; return "sell"; }
     if (/comprou|copiou [^:]*: compra|copiou compra|entrou/i.test(m)) return "buy";
@@ -232,7 +234,7 @@
   }
   function onEvent(e) {
     const k = classify(e.msg); const real = /REAL/.test(e.msg);
-    mascReact(k, e.msg);
+    mascReact(e.msg);
     if (real || k === "error") toast(e.msg.slice(0, 180));
     if (!NTF || !k || k === "trader") return;
     const now = Date.now(); if (now - NTF_AT < 1200 && k !== "error") return; NTF_AT = now;
@@ -278,15 +280,45 @@
     if (pct > -5) return mascShow("triste", "", "Meio pra baixo", "carteira " + txt);
     return mascShow("chorando", "", "Dia difícil…", "carteira " + txt);
   }
-  function mascReact(kind, msg) {
-    const R = { buy: ["pensativo", "m-pula", "Copiei uma compra!"], win: ["rindo", "m-pula-forte", "Lucro! 🎉"], sell: ["feliz", "m-balanca", "Vendi"],
-      loss: [/stop/i.test(msg) ? "chorando" : "triste", "m-treme", "Saiu no prejuízo"], alert: ["bravo", "m-treme", "Atenção"],
-      error: ["bravo", "m-treme", "Algo deu errado"], trader: ["timido", "m-balanca", "Troquei os traders"] }[kind];
-    if (!R) return;
-    M.until = Date.now() + 6000;
-    mascShow(R[0], R[1], R[2], String(msg || "").replace(/^Pump\.fun:\s*/, "").slice(0, 110), true);
-    clearTimeout(M.t); M.t = setTimeout(() => { M.until = 0; mascMood(); }, 6050);
+  // Lê a notificação e diz QUAL ação foi (título curto) e como o mascote reage. A mais específica vem primeiro.
+  function mascKind(msg) {
+    const m = String(msg || ""), real = /\[PUMP REAL\]/.test(m) ? " (REAL)" : "";
+    const pc = (m.split("→")[1] || "").match(/\(([+−-]?[0-9]+(?:[.,][0-9]+)?)%\)/);
+    const pct = pc ? " " + (/^[+−-]/.test(pc[1]) ? "" : "+") + pc[1].replace(".", ",") + "%" : "";
+    const neg = /→\s*[−-]/.test(m), pos = /→\s*\+/.test(m);
+    if (/^Top traders atualizados/i.test(m)) return ["timido", "m-balanca", "Troquei os traders"];
+    if (/PAUSADO/.test(m)) return ["bravo", "m-treme", "Trader pausado"];
+    if (/parece robô/i.test(m)) return ["bravo", "m-treme", "Robô detectado"];
+    if (/voltou a ser copiado/i.test(m)) return ["feliz", "m-balanca", "Trader voltou"];
+    if (/DESLIGADA/.test(m)) return ["bravo", "m-pensa", "Modo real desligado"];
+    if (/N[ÃA]O feit|falhou|(^|[^a-z])erro([^a-z]|$)|ATEN[ÇC][ÃA]O/i.test(m)) return ["bravo", "m-treme", "Deu erro" + real];
+    if (/adiada|pendente/i.test(m)) return ["pensativo", "m-pensa", "Venda aguardando" + real];
+    if (/segurando/i.test(m)) return ["pensativo", "m-pensa", "Segurando a posição"];
+    if (/: compra |\] comprou /i.test(m)) return ["pensativo", "m-pula", "Compra copiada" + real];
+    if (/fechou/i.test(m)) {
+      if (pos) return ["rindo", "m-pula-forte", (/stop móvel/i.test(m) ? "Stop móvel no lucro" : /gradua/i.test(m) ? "Saiu antes da graduação" : "Venda com lucro") + pct + real];
+      if (neg) return [/stop/i.test(m) ? "chorando" : "triste", "m-treme", (/stop de perda|stop/i.test(m) ? "Stop de perda" : /tempo/i.test(m) ? "Saiu por tempo" : "Venda com prejuízo") + pct + real];
+      return ["feliz", "m-balanca", "Posição fechada" + real];
+    }
+    if (/vendeu [0-9]+%|vendendo [0-9]+%/i.test(m)) { const q = m.match(/vend(?:eu|endo) ([0-9]+%)/i); return ["feliz", /em partes/i.test(m) ? "m-pula" : "m-balanca", (/em partes/i.test(m) ? "Realizou lucro " : "Venda parcial ") + (q ? q[1] : "") + real]; }
+    if (/removida/i.test(m)) return ["timido", "m-balanca", "Posição removida"];
+    return null;
   }
+  // Várias notificações juntas: mostra uma de cada vez (2,5 s cada); a última fica 6 s e ele volta ao humor da carteira.
+  function mascReact(msg) {
+    const R = mascKind(msg); if (!R) return;
+    M.q = (M.q || []).concat([[R, String(msg || "")]]).slice(-5);
+    if (!M.busy) mascNext();
+  }
+  function mascNext() {
+    const it = (M.q || []).shift();
+    if (!it) { M.busy = false; M.until = 0; mascMood(); return; }
+    M.busy = true; M.until = Date.now() + 7000;
+    const [R, msg] = it;
+    mascShow(R[0], R[1], R[2], msg.replace(/^Pump\.fun:\s*/, "").replace(/^\[PUMP (SIM|REAL)\]\s*/, "").slice(0, 110), true);
+    clearTimeout(M.t); M.t = setTimeout(mascNext, M.q.length ? 2500 : 6000);
+  }
+  window.BB.mascote = mascReact;   // para testar a reação no console: BB.mascote("[PUMP SIM] fechou X … → +0.01 SOL (+5.0%)")
 
   // ------------------------------------------------------------------ dados
   async function poll(force) {

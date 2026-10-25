@@ -307,3 +307,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Lembrete: o inventário de dependências guarda o hash de `app/version.py` e `web/app.html`; toda subida de
   versão ou mudança no HTML exige `python scripts/inventario_dependencias.py --refresh --date AAAA-MM-DD`
   antes do push, senão o Actions para em "conferir inventário de dependências".
+
+## Mascote: ação de cada notificação (2026-10-25, versão 0.13.1)
+- `mascKind(msg)` em `web/app.js` traduz cada mensagem de evento num título de ação + pose (lista na novidade
+  0.13.1). Mensagens novas emitidas pelo motor devem ganhar uma linha ali. `mascReact` enfileira (até 5; 2,5 s
+  cada, a última 6 s). Teste no console do navegador: `BB.mascote("[PUMP SIM] fechou X (stop de perda) → -0.04 SOL (-40.0%)")`.
+- `classify()` (som): PAUSADO/robô agora é "alert" (antes caía em "stop" → som de venda); "segurando" não toca som.

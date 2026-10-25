@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.13.1",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Menu → Visão geral → mascote ao lado do Monitor",
+      "titulo": "Mascote diz qual foi a ação",
+      "oque": "A cada notificação o mascote troca de pose na hora e mostra o nome da ação: Compra copiada, Venda com lucro +X%, Stop de perda −X%, Stop móvel no lucro, Venda parcial, Realizou lucro, Saiu antes da graduação, Segurando a posição, Trader pausado, Robô detectado, Trader voltou, Troquei os traders, Venda aguardando, Deu erro, Modo real desligado (com “(REAL)” quando é na carteira real). Se chegam várias juntas, mostra uma de cada vez. Também corrigido: trader pausado tocava o som de venda."
+    },
+    {
       "versao": "0.13.0",
       "data": "2026-10-25",
       "tipo": "novo",
