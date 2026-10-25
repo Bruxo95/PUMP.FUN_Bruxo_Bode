@@ -48,6 +48,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_min_vol_h1_usd": (float, 5000.0, 0.0, 1e10),
     "pump_min_txns_h1": (int, 30, 0, 100000),
     "pump_max_top10_pct": (float, 35.0, 0.0, 100.0),
+    "pump_max_chase_pct": (float, 30.0, 0.0, 1000.0),  # não copia se o preço subiu mais que isso desde a compra do trader
     "pump_risk_check": (bool, True, 0, 1),          # nota de risco do token (Solana Tracker) antes de copiar
     "pump_max_risk_score": (int, 7, 1, 10),         # 1 = só tokens de risco baixo; 10 = só bloqueia "perigo"
     "pump_min_wallet_usd": (float, 5000.0, 0.0, 1e10),

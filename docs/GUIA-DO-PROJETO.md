@@ -105,6 +105,8 @@ banco e **nunca voltam para a tela**: o painel mostra apenas o estado de cada um
   market cap, volume e negociações mínimas do token, concentração máxima nas 10 maiores carteiras e (0.9.3)
   nota de risco da Solana Tracker: não copia token sem liquidez, com alerta de perigo (mint/freeze authority,
   bundlers, insiders) ou com nota acima da máxima (padrão 7 de 10). Sem chave da Solana Tracker, não checa.
+  (0.9.4) Não copia se o preço já subiu mais que X% (padrão 30%) desde a compra do trader — na cópia com espera
+  e na compra real, conferida de novo na hora de enviar.
 - **Só copiar traders online** (padrão ON, janela de 10 min): dos traders aptos do top, só entram na cópia os
   que negociaram nos últimos X minutos. A cada 10 min a lista é refeita: quem ficou inativo sai e entra o
   melhor do top que estiver online. Se sobrar vaga e um trader do top negociar, ele entra na hora. Carteiras

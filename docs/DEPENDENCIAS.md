@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-25**; revisão documental **2.0**.
-Aplicação: **0.9.3 · 2026-10-25 · checagem de risco do token e novidades marcadas em verde**.
-Referência Git na emissão: `5ba6f47c5a9714a3ce4feb76ee96fe3a2ac93d31`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.9.4 · 2026-10-25 · não copia se o preço já subiu demais desde a compra do trader**.
+Referência Git na emissão: `31645a67a5fe7857161a6abddc611491c14a9280`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5). Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

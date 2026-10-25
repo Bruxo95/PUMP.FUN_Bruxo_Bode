@@ -645,3 +645,41 @@ def test_wallet_usdc_to_sol_swap(tmp_path):
     assert r["ok"] and len(st["sent"]) == n + 1 and st["sent"][-1]["inputMint"].startswith("EPj")
     assert r["sol_received"] > 0.06
     assert "saldo insuficiente" in asyncio.run(jw.usdc_to_sol(1e9))["error"]
+
+
+def test_pump_does_not_chase_price_after_trader_entry(tmp_path):
+    """0.9.4: quem copia entra depois; se o preço já fugiu mais que pump_max_chase_pct da entrada do trader, não
+    copia — nem na cópia com espera, nem na compra real (conferida de novo na hora de enviar)."""
+    import time as _t
+    pf = _pump(tmp_path, paid=False, pump_copy_delay_s=30.0, pump_max_chase_pct=30.0)
+    pf.add_manual(_W)
+
+    async def no_fetch(m):
+        return None
+    pf._fetch_prices = no_fetch
+    m = "Chase".ljust(40, "1") + "pump"
+    now = _t.time()
+    pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7), now)                # trader entra a 1e-6
+    pf.tokens[m]["price"] = 1.5e-6                                          # +50% durante a espera
+    for k in pf._pending:
+        pf._pending[k]["due"] = now - 1
+    asyncio.run(pf._process_pending())
+    assert not pf.positions() and "subiu 50%" in pf.feed[0]["reason"]
+    assert pf.chase_block(1e-6, 1.29e-6) is None and pf.chase_block(1e-6, 1.31e-6)
+    pf.cfg.pump_max_chase_pct = 0
+    assert pf.chase_block(1e-6, 9e-6) is None                               # 0 desliga
+
+    pf.cfg.pump_max_chase_pct, pf.cfg.pump_real_enabled = 30.0, True
+    bought = []
+
+    class FakeReal:
+        def today_loss(self, trades):
+            return 0.0
+
+        async def buy(self, *a, **k):
+            bought.append(a)
+            return {"ok": False}
+    pf.real = FakeReal()
+    pf.tokens[m]["price"] = 2e-6
+    asyncio.run(pf._real_buy({"wallet": _W, "mint": m, "symbol": "CH", "trader_price": 1e-6}))
+    assert bought == [] and "subiu 100%" in pf.feed[0]["reason"] and pf.feed[0]["action"] == "REAL não copiou"

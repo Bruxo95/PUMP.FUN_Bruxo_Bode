@@ -824,6 +824,8 @@ class PumpFun:
                     why = f"market cap {mc:.0f} SOL acima do máximo {hi:.0f}"
                 if not why:
                     why = self.token_block(mint)
+                if not why:
+                    why = self.chase_block(self.price_of(ev), px)
             if why:
                 self._feed(**base, action="não copiou", reason=why)
                 return []
@@ -845,7 +847,7 @@ class PumpFun:
                 else:
                     self._real_buying.add(mint)
                     self._rq_put(("buy", {"wallet": who, "mint": mint, "symbol": sym, "trader_sol": sol,
-                                          "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t}))
+                                          "trader_price": self.price_of(ev) or px, "mcap_in": tk.get("mcap_sol"), "t": t}))
                     self._feed(**base, action="REAL: comprando", reason=f"enviando compra de {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL")
             # FICTÍCIO (sempre roda, para comparar)
             smine = [p for p in mine if not p.get("real")]
@@ -1390,6 +1392,14 @@ class PumpFun:
             return f"10 maiores carteiras têm {top:.0f}% (máx. {mx_top:.0f}%) — risco de insiders/dev"
         return self.risk_block(tk)
 
+    def chase_block(self, trader_px: float | None, now_px: float | None) -> str | None:
+        """Não "correr atrás" do preço (pesquisa de 2026-10-25): quem copia entra depois e mais caro, e é essa
+        diferença que faz o copiador perder mesmo quando o trader ganha. 0 desliga."""
+        mx = float(self._c("pump_max_chase_pct", 30) or 0)
+        if not mx or not trader_px or not now_px or now_px <= trader_px * (1 + mx / 100):
+            return None
+        return f"preço já subiu {(now_px / trader_px - 1) * 100:.0f}% desde a compra do trader (máx. {mx:.0f}%)"
+
     def risk_block(self, tk: dict) -> str | None:
         """Nota de risco da Solana Tracker (pesquisa de 2026-10-25: copiar sem olhar o token deixa quem copia como
         "saída" de bundles e insiders). Sem chave ou sem resposta, não bloqueia — o painel mostra que não checou."""
@@ -1857,6 +1867,12 @@ class PumpFun:
                            action="REAL não copiou", reason=f"perda do dia chegou a {lim} SOL")
                 return
             amt = float(self._c("pump_real_max_sol", 0.05))
+            # a compra real sai da fila depois: confere de novo se o preço já não fugiu da entrada do trader
+            chase = self.chase_block(it.get("trader_price"), (self.tokens.get(mint) or {}).get("price"))
+            if chase:
+                self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
+                           action="REAL não copiou", reason=chase)
+                return
             res = await self.real.buy(mint, amt, other=not self.is_pump(mint))
             if not res.get("ok"):
                 self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",

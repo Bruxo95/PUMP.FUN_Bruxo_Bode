@@ -135,7 +135,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 ## Ideias / pendências
 - Pesquisa de mercado (2026-10-25; Trojan, GMGN, BullX, Cielo, Kolscan, chainstacklabs/pumpfun-bonkfun-bot,
   arXiv 2601.08641). Ideias por prioridade: (1) FEITA na 0.9.3 — checagem de risco do token pelo `risk` da
-  Solana Tracker (`risk_check`/`risk_block` em `app/pumpfun.py`; não testada com a API de verdade); (2) não copiar se o preço já subiu
+  Solana Tracker (`risk_check`/`risk_block` em `app/pumpfun.py`; não testada com a API de verdade); (2) FEITA na
+  0.9.4 — `chase_block` (padrão 30%; na cópia imediata do simulado o preço é o do próprio trader, então só age na
+  cópia com espera e no real); não copiar se o preço já subiu
   X% desde a compra do trader; (3) venda automática quando o dev vende e ao migrar para a PumpSwap;
   (4) nota de qualidade do trader (consistência, não só acerto/lucro; evitar carteiras "isca" e bundles);
   (5) resultado por trader copiado, para pausar quem dá prejuízo depois das taxas; (6) avisos no Telegram;
