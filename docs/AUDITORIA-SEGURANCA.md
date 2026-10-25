@@ -43,7 +43,7 @@
   assinatura fica gravada na posição (`sell_pending`) e segura nova venda por até 5 min, inclusive após reiniciar.
 - Validação local: lógica do `txguard` e da reconciliação com 20 casos em Python padrão; validação de RPC com
   17 endereços. **pytest não rodou nesta máquina** (sem dependências; regra de não instalar no Windows).
-  A suíte completa roda no GitHub Actions no próximo push. SEC-05 a SEC-11 seguem abertos.
+  Suíte completa passou no GitHub Actions (commit eb27091) e a 0.9.1 está no ar. SEC-05 a SEC-11 seguem abertos.
 
 `AGENTS.md` indica este relatório; `CLAUDE.md` mantém somente o resumo compartilhado.
 Ao retomar, conferir o Git e comparar com a base antes de usar linhas ou reproduções.
@@ -300,4 +300,4 @@ política Actions. Esses itens permanecem pendentes; não se acessou essa infrae
 | 2026-10-25 | 61 testes passaram/5 pulados; scanners triados | Consolidar provas |
 | 2026-10-25 | 11 achados e reproduções revisados; relatório concluído | SEC-02/03; SEC-01/04 bloqueiam aprovação para uso real |
 | 2026-10-25 | Identificação de versão/SHA/IA em cada revisão e preparação da publicação solicitada | Commit/push dos documentos; depois iniciar correções |
-| 2026-10-25 | Remediação 1: SEC-01..04 no código (0.9.1), regressões em tests/test_seguranca.py | Confirmar CI verde; depois SEC-05/06 |
+| 2026-10-25 | Remediação 1: SEC-01..04 no código (0.9.1), regressões em tests/test_seguranca.py | CI verde, 0.9.1 no ar; próximo SEC-05/06 |

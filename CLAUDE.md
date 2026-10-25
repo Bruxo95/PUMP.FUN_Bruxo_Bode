@@ -257,4 +257,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   passam; se recusar, ajustar a lista de programas/rotas com evidência, nunca desligar a verificação.
 - RPC pessoal: só endereço público (`app/solana_wallet.py`); bloqueio de conta serializado (`app/hub.py`).
 - pytest não rodou localmente (sem dependências no Windows); a suíte roda no Actions após o push.
-- Próximo: confirmar CI verde; depois SEC-05/06.
+- CI verde e 0.9.1 no ar em 2026-10-25 (/health conferido). Próximo: SEC-05/06 (cotas e limites).
