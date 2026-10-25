@@ -1,13 +1,13 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-25**; revisão documental **2.0**.
-Aplicação: **0.9.0 · 2026-10-25 · correções de segurança e triagem de dependências**.
-Referência Git na emissão: `eca6e7ae76f6376f674bb9312e4626a0af090301`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.9.1 · 2026-10-25 · correções de segurança e triagem de dependências**.
+Referência Git na emissão: `1055e52ba3c00d2dcdda821be90b06812fef0efa`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5). Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
 
-- **8 dependências diretas de execução:** 7 Python e 1 JavaScript.
+- **9 dependências diretas de execução:** 8 Python e 1 JavaScript.
 - **1 dependência direta de teste**, declarada separadamente no CI.
 - **34 pacotes Python no snapshot histórico:** inclui os diretos, teste e 26 outros pacotes.
 - **5 Actions únicas** e **2 fontes externas**, contabilizadas à parte.
@@ -25,6 +25,7 @@ Emissão: Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5). Auditoria origi
 | solders | `>=0.21,<1` | 0.29.0 |
 | cryptography | `>=42` | 50.0.2 |
 | PyJWT[crypto] | `>=2.8,<3` | 2.15.1 |
+| tzdata | `>=2024.1` | Não registrada |
 
 Extras como [standard] e [crypto] ativam dependências adicionais; não são pacotes separados.
 As faixas declaradas não fixam versões exatas. A coluna observada é histórica, não um lockfile.
@@ -141,9 +142,9 @@ Se o gerador de PDF não estiver disponível, não instalar automaticamente no W
 
 ## Triagem de malware, vulnerabilidades e procedência
 
-Coleta: **2026-10-25T20:08:10+00:00**. 45 versões/ferramentas avaliadas: **42 favoráveis, 2 em atenção, 1 em perigo**.
+Coleta: **2026-10-25T20:44:04+00:00**. 46 versões/ferramentas avaliadas: **43 favoráveis, 2 em atenção, 1 em perigo**.
 
-O conjunto inclui os 34 pacotes históricos Python, as versões fixadas em constraints.txt, a biblioteca JS, o gerador PDF preexistente e três ferramentas de auditoria removidas. Não são 45 dependências de execução.
+O conjunto inclui os 34 pacotes históricos Python, as versões fixadas em constraints.txt, a biblioteca JS, o gerador PDF preexistente e três ferramentas de auditoria removidas. Não são 46 dependências de execução.
 Favorável significa consulta concluída sem alerta aplicável no escopo e sinais de origem; não garante ausência de malware nem autoriza instalação no Windows.
 Atenção significa verificação incompleta ou origem não confirmada neste método; não é acusação de malware. Perigo exige alerta/motivo aplicável registrado.
 
@@ -192,13 +193,14 @@ PyPI/npm: período mensal informado pelo provedor; Gitleaks: acumulado dos arqui
 | reportlab 4.4.9 | documentação opcional preexistente | 66.000.604 | N/D | N/D | Atenção |
 | bandit 1.9.4 | ferramenta de auditoria removida | 24.417.585 | 8.347 | 70 | Favorável |
 | pip-audit 2.10.1 | ferramenta de auditoria removida | 26.723.596 | 1.383 | 27 | Favorável |
-| gitleaks 8.30.1 | ferramenta de auditoria removida | 18.091.943* | 30.321 | 179 | Atenção |
+| gitleaks 8.30.1 | ferramenta de auditoria removida | 18.098.461* | 30.321 | 179 | Atenção |
 | certifi 2026.7.22 | rejeitada: aviso GHSA-6q48-6c7w-9gw2 (nao usar) | 1.286.781.208 | 1.022 | 38 | Perigo |
 | fastapi 0.143.0 | fixada em constraints.txt (14+ dias) | 381.578.963 | 104.168 | 770 | Favorável |
 | pluggy 1.6.0 | fixada em constraints.txt (14+ dias) | 856.331.218 | N/D | N/D | Favorável |
 | pycparser 3.11 | fixada em constraints.txt (14+ dias) | 839.516.278 | 3.580 | 85 | Favorável |
 | starlette 1.7.0 | fixada em constraints.txt (14+ dias) | 500.961.483 | 12.684 | 98 | Favorável |
 | uvloop 0.23.0 | fixada em constraints.txt (14+ dias) | 216.734.647 | 11.913 | 216 | Favorável |
+| tzdata 2026.5 | execução direta (fuso do /health), fixada em constraints.txt | 382.367.011 | 121 | 11 | Favorável |
 
 ### Pendências e motivos
 

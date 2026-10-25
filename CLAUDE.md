@@ -218,6 +218,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   fixture para manter o comportamento original; a regra nova tem `tests/test_online.py`.
 - `/health` e o rodapé mostram `no_ar_desde` (hora em que o container subiu, fuso Europe/Berlin; `tzdata`
   no requirements). O "Updated" da tela Stacks do Portainer NÃO muda com o webhook (ele atualiza o serviço).
+
 ## Inventário permanente de dependências (2026-10-25, aplicação 0.8.2)
 - Pedido do usuário: manter quantidade, nomes e versões em documento e PDF, atualizando ao mudar dependências.
 - Artefatos: `docs/DEPENDENCIAS.md`, `docs/dependencias/inventario.json` e
@@ -240,16 +241,16 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   qualquer instalação/atualização; acrescentar downloads, estrelas, assinantes e classificação ao PDF.
 - Política: `docs/dependencias/POLITICA-DE-DEPENDENCIAS.md`. Dados: `docs/dependencias/triagem-seguranca.json`.
 - Popularidade não representa instalações/pessoas únicas nem garante segurança; ausência de métricas é N/D.
-- Concluída em 2026-10-25 (Claude Opus 5.5, versão 0.9.0): versões exatas em `constraints.txt` (publicadas há
+- Concluída em 2026-10-25 (Claude Opus 5.5, versão 0.9.1): versões exatas em `constraints.txt` (publicadas há
   14+ dias; exceção certifi 2026.10.23 por CA comprometida nas anteriores); CI e Dockerfile resolvem só metadados,
   conferem a triagem e consultam OSV/PyPI ao vivo; instalam com hash. Sem prazo de validade do registro (7 dias
   travaria o deploy automático toda semana). Revisões manuais em `docs/dependencias/revisoes-manuais.json`
   (jsonalias 0.1.1, pluggy 1.6.0). PDF ganhou a seção 04 (downloads, estrelas, assinantes, Favorável/Atenção/Perigo).
 - Versão nova de dependência: rodar `py -I scripts/coletar_risco_dependencias.py --candidates-json <lista>`,
   revisar, trocar `constraints.txt`, `py scripts/inventario_dependencias.py --refresh --date AAAA-MM-DD` e `--check`.
-- O gate ainda não rodou no GitHub (só localmente, com a resolução Linux simulada); conferir o primeiro Actions.
+- tzdata 2026.5 (entrou pelo remoto) triado Favorável e fixado. O gate ainda não rodou no GitHub; conferir o primeiro Actions.
 
-## Remediação da auditoria — SEC-01 a SEC-04 (2026-10-25, versão 0.9.0)
+## Remediação da auditoria — SEC-01 a SEC-04 (2026-10-25, versão 0.9.1)
 - Detalhes em `docs/AUDITORIA-SEGURANCA.md` (seção "Remediação 1"); regressões em `tests/test_seguranca.py`.
 - `app/txguard.py`: confere a transação antes de assinar e reconcilia transação pendente. Falha fechada — no
   primeiro teste real (carteira nova, pouco saldo, trava liberada só nessa hora) conferir se PumpPortal/Jupiter

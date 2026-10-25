@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "eca6e7ae76f6376f674bb9312e4626a0af090301",
-    "application_version": "0.9.0 · 2026-10-25 · correções de segurança e triagem de dependências",
+    "repository_reference": "1055e52ba3c00d2dcdda821be90b06812fef0efa",
+    "application_version": "0.9.1 · 2026-10-25 · correções de segurança e triagem de dependências",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -16,25 +16,25 @@
     "issuer": "Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5)",
     "source_sha256": {
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
-      ".github/workflows/imagem.yml": "484f712e1014b58ed3081d6b899be86b4d6a038df0e7be86a9c2350e80882aeb",
+      ".github/workflows/imagem.yml": "97e2f8229c18e7edefa249b8e0ad12d15f12b873cb3b0ffe243d494018c08266",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "18059fa166db3c24cc2a316ed6156a52da523224f5ba9b4c56bcc2b46ea6bba3",
-      "constraints.txt": "d74d8d39bdd0be839b6eeff1e82d447516b76076b79d240035b7ce5ecfacefb0",
+      "app/version.py": "e2a8bb6ce34308938320f9b117fe4a9c4069aa1b8554afe28e5a10d06bd991cb",
+      "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
       "docs/auditoria/2026-10-25/triagem-scanners.json": "33265530b9c0d44687dbf732b3b5f9323d77fdca0559c1d37111ed8ab2bdfc77",
       "docs/dependencias/POLITICA-DE-DEPENDENCIAS.md": "f9c9864b0dd5aaf340cb6dabdb7093d4be2ac20074eca97a3ef33682b05f937e",
       "docs/dependencias/pesquisa-malware.md": "828c5231feb1f28c3caa2978955375175b7a00ac0b74ad7183225661561b8f41",
       "docs/dependencias/revisoes-manuais.json": "218826416d7a6f29f715feb3cbb0f738644b12c738b8cb852fbac2adb9a74405",
-      "docs/dependencias/triagem-seguranca.json": "c7f9a3a7316eab9fc417f586eab69c3d46c3d871ac83a0f6c0caf071ad1cbdc9",
+      "docs/dependencias/triagem-seguranca.json": "182c3e42c55b5998772aeb85bd2f64cd017f79f24cc58bc78cb4410f9a2fab61",
       "requirements-test.txt": "4d31f2778625031500fd7279af137185cb1001b3aeaf69fb1f0d43777d1bc519",
-      "requirements.txt": "fee5a6eff2e0e1bf49b04e3b1619174551b60e508405af8d43a0e52d3a4d6c22",
+      "requirements.txt": "19536a896a1baf0afcfd9fa5cca9583e4e79e137323832967b5df7df3480eb78",
       "scripts/coletar_risco_dependencias.py": "8f642babe9bd74a7669687b2cb84ee92d5acbaa8d04a8f83b291fb0b46381f75",
       "scripts/inventario_dependencias.py": "9a1472d17d9d14c4713341eea723eade94710c6b2a2c20b5ffed5b5ea3a46514",
       "scripts/pdf_dependencias.py": "d23001997899daa383f8bec52dc459abcc6e3cf78f17659b1703823bf965960c",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "dbf87a302bd515121f3606e590d19dacc6ddcee6952fd60b66cafa3fbefb4830",
-      "web/index.html": "ddf72e650e00dda22d3efc2a7d64fe0df76f6902bc73e8c707fa4d6179348fb9"
+      "web/app.html": "f9d2e5d7d742e39bc6a855384390fa4cccfbbb6e192450e1265dcc3bbace6386",
+      "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
       {
@@ -78,13 +78,19 @@
         "extras": "[crypto]",
         "constraint": ">=2.8,<3",
         "observed_version": "2.15.1"
+      },
+      {
+        "name": "tzdata",
+        "extras": "",
+        "constraint": ">=2024.1",
+        "observed_version": null
       }
     ],
     "security_review": {
       "schema_version": 1,
-      "collection_started_at": "2026-10-25T20:08:08+00:00",
-      "collected_at": "2026-10-25T20:08:10+00:00",
-      "application_version": "0.9.0",
+      "collection_started_at": "2026-10-25T20:44:01+00:00",
+      "collected_at": "2026-10-25T20:44:04+00:00",
+      "application_version": "0.9.1",
       "audit_snapshot_commit": "1cec6a04dfe076be8ddbad5258359d2afb225f38",
       "reviewer": {
         "agent": "Claude Code",
@@ -117,7 +123,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/annotated-doc/0.0.5/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/annotated-doc/0.0.5/json",
             "version_exists": true,
             "canonical_name": "annotated-doc",
@@ -177,7 +183,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -207,7 +213,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/annotated-types/0.8.0/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/annotated-types/0.8.0/json",
             "version_exists": true,
             "canonical_name": "annotated-types",
@@ -267,7 +273,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -297,7 +303,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/anyio/4.15.1/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/anyio/4.15.1/json",
             "version_exists": true,
             "canonical_name": "anyio",
@@ -357,7 +363,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -387,7 +393,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/certifi/2026.10.23/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/certifi/2026.10.23/json",
             "version_exists": true,
             "canonical_name": "certifi",
@@ -447,7 +453,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -477,7 +483,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/cffi/2.1.1/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/cffi/2.1.1/json",
             "version_exists": true,
             "canonical_name": "cffi",
@@ -1125,7 +1131,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -1155,7 +1161,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/click/8.5.0/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/click/8.5.0/json",
             "version_exists": true,
             "canonical_name": "click",
@@ -1215,7 +1221,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -1245,7 +1251,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/colorama/0.4.6/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/colorama/0.4.6/json",
             "version_exists": true,
             "canonical_name": "colorama",
@@ -1305,7 +1311,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -1335,7 +1341,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/cryptography/50.0.2/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/cryptography/50.0.2/json",
             "version_exists": true,
             "canonical_name": "cryptography",
@@ -1737,7 +1743,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -1767,7 +1773,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/fastapi/0.162.0/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/fastapi/0.162.0/json",
             "version_exists": true,
             "canonical_name": "fastapi",
@@ -1827,7 +1833,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -1857,7 +1863,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/h11/0.16.0/json",
-            "checked_at": "2026-10-25T20:08:08+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/h11/0.16.0/json",
             "version_exists": true,
             "canonical_name": "h11",
@@ -1917,7 +1923,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -1947,7 +1953,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/httpcore/1.0.9/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/httpcore/1.0.9/json",
             "version_exists": true,
             "canonical_name": "httpcore",
@@ -2007,7 +2013,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -2037,7 +2043,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/httptools/0.9.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/httptools/0.9.0/json",
             "version_exists": true,
             "canonical_name": "httptools",
@@ -2793,7 +2799,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -2823,7 +2829,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/httpx/0.28.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/httpx/0.28.1/json",
             "version_exists": true,
             "canonical_name": "httpx",
@@ -2883,7 +2889,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -2913,7 +2919,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/idna/3.20/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/idna/3.20/json",
             "version_exists": true,
             "canonical_name": "idna",
@@ -2973,7 +2979,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3003,7 +3009,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/iniconfig/2.3.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/iniconfig/2.3.1/json",
             "version_exists": true,
             "canonical_name": "iniconfig",
@@ -3063,7 +3069,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3093,7 +3099,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/jsonalias/0.1.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/jsonalias/0.1.1/json",
             "version_exists": true,
             "canonical_name": "jsonalias",
@@ -3142,14 +3148,14 @@
               "subscribers": null,
               "archived": null,
               "source_url": null,
-              "checked_at": "2026-10-25T20:08:10+00:00",
+              "checked_at": "2026-10-25T20:44:04+00:00",
               "scope": "Sem repositorio GitHub confirmado; nao usar contagem de espelho como origem oficial."
             }
           },
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3191,7 +3197,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/opentelemetry-api/1.45.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:01+00:00",
             "url": "https://pypi.org/pypi/opentelemetry-api/1.45.1/json",
             "version_exists": true,
             "canonical_name": "opentelemetry-api",
@@ -3251,7 +3257,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3281,7 +3287,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/packaging/26.3/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/packaging/26.3/json",
             "version_exists": true,
             "canonical_name": "packaging",
@@ -3341,7 +3347,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3371,7 +3377,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pluggy/1.7.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/pluggy/1.7.0/json",
             "version_exists": true,
             "canonical_name": "pluggy",
@@ -3431,7 +3437,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3461,7 +3467,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pycparser/3.12/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/pycparser/3.12/json",
             "version_exists": true,
             "canonical_name": "pycparser",
@@ -3521,7 +3527,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3551,7 +3557,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pydantic/2.14.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/pydantic/2.14.1/json",
             "version_exists": true,
             "canonical_name": "pydantic",
@@ -3611,7 +3617,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -3641,7 +3647,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pydantic_core/2.50.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/pydantic_core/2.50.1/json",
             "version_exists": true,
             "canonical_name": "pydantic_core",
@@ -4511,7 +4517,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -4541,7 +4547,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/Pygments/2.21.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/Pygments/2.21.0/json",
             "version_exists": true,
             "canonical_name": "Pygments",
@@ -4601,7 +4607,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -4631,7 +4637,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/PyJWT/2.15.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/PyJWT/2.15.1/json",
             "version_exists": true,
             "canonical_name": "PyJWT",
@@ -4691,7 +4697,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -4721,7 +4727,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pytest/9.1.1/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/pytest/9.1.1/json",
             "version_exists": true,
             "canonical_name": "pytest",
@@ -4781,7 +4787,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -4811,7 +4817,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/python-dotenv/1.2.4/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/python-dotenv/1.2.4/json",
             "version_exists": true,
             "canonical_name": "python-dotenv",
@@ -4871,7 +4877,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -4901,7 +4907,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/PyYAML/6.0.3/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/PyYAML/6.0.3/json",
             "version_exists": true,
             "canonical_name": "PyYAML",
@@ -5387,7 +5393,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -5417,7 +5423,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/solders/0.29.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/solders/0.29.0/json",
             "version_exists": true,
             "canonical_name": "solders",
@@ -5507,7 +5513,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -5537,7 +5543,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/starlette/1.10.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/starlette/1.10.0/json",
             "version_exists": true,
             "canonical_name": "starlette",
@@ -5597,7 +5603,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -5627,7 +5633,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/typing-inspection/0.4.4/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/typing-inspection/0.4.4/json",
             "version_exists": true,
             "canonical_name": "typing-inspection",
@@ -5687,7 +5693,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -5717,7 +5723,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/typing_extensions/4.16.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/typing_extensions/4.16.0/json",
             "version_exists": true,
             "canonical_name": "typing-extensions",
@@ -5777,7 +5783,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -5807,7 +5813,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/uvicorn/0.54.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/uvicorn/0.54.0/json",
             "version_exists": true,
             "canonical_name": "uvicorn",
@@ -5867,7 +5873,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -5897,7 +5903,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/watchfiles/1.3.0/json",
-            "checked_at": "2026-10-25T20:08:09+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/watchfiles/1.3.0/json",
             "version_exists": true,
             "canonical_name": "watchfiles",
@@ -6143,7 +6149,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -6173,7 +6179,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/websockets/15.0.1/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/websockets/15.0.1/json",
             "version_exists": true,
             "canonical_name": "websockets",
@@ -6635,7 +6641,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -6665,7 +6671,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://registry.npmjs.org/@supabase%2Fsupabase-js/2.118.0",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://registry.npmjs.org/@supabase%2Fsupabase-js/2.118.0",
             "version_exists": true,
             "canonical_name": "@supabase/supabase-js",
@@ -6681,7 +6687,7 @@
             "downloads": {
               "status": "ok",
               "source_url": "https://api.npmjs.org/downloads/point/last-month/@supabase%2Fsupabase-js",
-              "checked_at": "2026-10-25T20:08:10+00:00",
+              "checked_at": "2026-10-25T20:44:03+00:00",
               "count": 114658331,
               "period": "last-month",
               "start": "2026-09-23",
@@ -6708,7 +6714,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -6738,7 +6744,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/reportlab/4.4.9/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/reportlab/4.4.9/json",
             "version_exists": true,
             "canonical_name": "reportlab",
@@ -6787,14 +6793,14 @@
               "subscribers": null,
               "archived": null,
               "source_url": null,
-              "checked_at": "2026-10-25T20:08:10+00:00",
+              "checked_at": "2026-10-25T20:44:04+00:00",
               "scope": "Sem repositorio GitHub confirmado; nao usar contagem de espelho como origem oficial."
             }
           },
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -6824,7 +6830,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/bandit/1.9.4/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:02+00:00",
             "url": "https://pypi.org/pypi/bandit/1.9.4/json",
             "version_exists": true,
             "canonical_name": "bandit",
@@ -6884,7 +6890,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -6914,7 +6920,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pip-audit/2.10.1/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://pypi.org/pypi/pip-audit/2.10.1/json",
             "version_exists": true,
             "canonical_name": "pip-audit",
@@ -6974,7 +6980,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -7004,7 +7010,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://api.github.com/repos/gitleaks/gitleaks/releases/tags/v8.30.1",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://api.github.com/repos/gitleaks/gitleaks/releases/tags/v8.30.1",
             "version_exists": true,
             "canonical_name": "gitleaks",
@@ -7018,11 +7024,11 @@
             "downloads": {
               "status": "ok",
               "source_url": "https://api.github.com/repos/gitleaks/gitleaks/releases/tags/v8.30.1",
-              "checked_at": "2026-10-25T20:08:10+00:00",
-              "count": 18091943,
+              "checked_at": "2026-10-25T20:44:03+00:00",
+              "count": 18098461,
               "period": "Desde publicacao da release v8.30.1",
               "start": "2026-03-21T02:17:58Z",
-              "end": "2026-10-25T20:08:10+00:00",
+              "end": "2026-10-25T20:44:03+00:00",
               "scope": "Soma de downloads dos arquivos da release em todas plataformas, incluindo checksums; nao instalacoes/pessoas unicas.",
               "provider": "GitHub Release API"
             },
@@ -7047,7 +7053,7 @@
             "ids": [],
             "malware_ids": [],
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "scope": "Release binaria GitHub nao consultada como modulo Go; nao presumir ausencia de alertas."
           },
           "classification": {
@@ -7067,7 +7073,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/certifi/2026.7.22/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://pypi.org/pypi/certifi/2026.7.22/json",
             "version_exists": true,
             "canonical_name": "certifi",
@@ -7127,7 +7133,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [
               "GHSA-6q48-6c7w-9gw2",
               "PYSEC-2026-4320"
@@ -7163,7 +7169,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/fastapi/0.143.0/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://pypi.org/pypi/fastapi/0.143.0/json",
             "version_exists": true,
             "canonical_name": "fastapi",
@@ -7223,7 +7229,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -7253,7 +7259,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pluggy/1.6.0/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://pypi.org/pypi/pluggy/1.6.0/json",
             "version_exists": true,
             "canonical_name": "pluggy",
@@ -7302,14 +7308,14 @@
               "subscribers": null,
               "archived": null,
               "source_url": null,
-              "checked_at": "2026-10-25T20:08:10+00:00",
+              "checked_at": "2026-10-25T20:44:04+00:00",
               "scope": "Sem repositorio GitHub confirmado; nao usar contagem de espelho como origem oficial."
             }
           },
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -7351,7 +7357,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/pycparser/3.11/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://pypi.org/pypi/pycparser/3.11/json",
             "version_exists": true,
             "canonical_name": "pycparser",
@@ -7411,7 +7417,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -7441,7 +7447,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/starlette/1.7.0/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://pypi.org/pypi/starlette/1.7.0/json",
             "version_exists": true,
             "canonical_name": "starlette",
@@ -7501,7 +7507,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -7531,7 +7537,7 @@
           "registry": {
             "status": "ok",
             "source_url": "https://pypi.org/pypi/uvloop/0.23.0/json",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:03+00:00",
             "url": "https://pypi.org/pypi/uvloop/0.23.0/json",
             "version_exists": true,
             "canonical_name": "uvloop",
@@ -7945,7 +7951,7 @@
           "advisories": {
             "status": "ok",
             "source_url": "https://api.osv.dev/v1/querybatch",
-            "checked_at": "2026-10-25T20:08:10+00:00",
+            "checked_at": "2026-10-25T20:44:04+00:00",
             "ids": [],
             "malware_ids": [],
             "query": {
@@ -7966,16 +7972,104 @@
             "automatic_install_approval": false,
             "limitation": "Sinais favoraveis nao certificam ausencia de malware; popularidade nao determina esta classificacao."
           }
+        },
+        {
+          "ecosystem": "PyPI",
+          "name": "tzdata",
+          "version": "2026.5",
+          "role": "execução direta (fuso do /health), fixada em constraints.txt",
+          "registry": {
+            "status": "ok",
+            "source_url": "https://pypi.org/pypi/tzdata/2026.5/json",
+            "checked_at": "2026-10-25T20:44:03+00:00",
+            "url": "https://pypi.org/pypi/tzdata/2026.5/json",
+            "version_exists": true,
+            "canonical_name": "tzdata",
+            "yanked": false,
+            "yanked_reason": [],
+            "repository": "python/tzdata",
+            "repository_url": "https://github.com/python/tzdata",
+            "artifact_count": 2,
+            "hashes_present": true,
+            "published_at": "2026-10-03T09:23:12.535688Z",
+            "requires_python": ">=2",
+            "artifact_hashes": [
+              {
+                "filename": "tzdata-2026.5-py2.py3-none-any.whl",
+                "sha256": "b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac",
+                "type": "bdist_wheel",
+                "yanked": false
+              },
+              {
+                "filename": "tzdata-2026.5.tar.gz",
+                "sha256": "8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7",
+                "type": "sdist",
+                "yanked": false
+              }
+            ],
+            "repository_evidence": "Link publicado nos metadados PyPI; nao verifica identidade do mantenedor."
+          },
+          "popularity": {
+            "downloads": {
+              "status": "ok",
+              "source_url": "https://pypistats.org/api/packages/tzdata/recent",
+              "checked_at": "2026-10-25T20:44:04+00:00",
+              "count": 382367011,
+              "period": "last_month (janela movel do provedor)",
+              "start": null,
+              "end": null,
+              "scope": "Downloads de todas as versoes do projeto, nao instalacoes nem pessoas unicas.",
+              "provider": "PyPI Stats, agregador de dados publicos de downloads PyPI"
+            },
+            "github": {
+              "status": "ok",
+              "source_url": "https://api.github.com/repos/python/tzdata",
+              "checked_at": "2026-10-25T20:44:04+00:00",
+              "repository": "python/tzdata",
+              "url": "https://github.com/python/tzdata",
+              "stars": 121,
+              "subscribers": 11,
+              "archived": false,
+              "disabled": false,
+              "pushed_at": "2026-09-30T16:29:05Z",
+              "created_at": "2020-02-21T14:32:53Z",
+              "scope": "Estrelas e assinantes/watchers do repositorio; nao usuarios, auditorias ou garantia de seguranca."
+            }
+          },
+          "advisories": {
+            "status": "ok",
+            "source_url": "https://api.osv.dev/v1/querybatch",
+            "checked_at": "2026-10-25T20:44:04+00:00",
+            "ids": [],
+            "malware_ids": [],
+            "query": {
+              "package": {
+                "ecosystem": "PyPI",
+                "name": "tzdata"
+              },
+              "version": "2026.5"
+            },
+            "record_urls": [],
+            "scope": "Relatos de vulnerabilidades e malware que a base OSV associa a este nome/ecossistema/versao; ausencia nao garante seguranca."
+          },
+          "classification": {
+            "level": "favorable",
+            "reasons": [
+              "Versao existente, origem vinculada ao registro confirmada e consulta OSV sem avisos retornados nesta data."
+            ],
+            "automatic_install_approval": false,
+            "limitation": "Sinais favoraveis nao certificam ausencia de malware; popularidade nao determina esta classificacao."
+          }
         }
       ],
       "summary": {
-        "total": 45,
-        "favorable": 42,
+        "total": 46,
+        "favorable": 43,
         "attention": 2,
         "danger": 1,
-        "downloads_available": 45,
-        "github_available": 42,
-        "osv_queries_ok": 44
+        "downloads_available": 46,
+        "github_available": 43,
+        "osv_queries_ok": 45
       }
     },
     "python_test_direct": [
@@ -8228,9 +8322,9 @@
       }
     ],
     "counts": {
-      "python_runtime_direct": 7,
+      "python_runtime_direct": 8,
       "javascript_runtime_direct": 1,
-      "runtime_direct_total": 8,
+      "runtime_direct_total": 9,
       "python_test_direct": 1,
       "python_observed_snapshot": 34,
       "other_observed_python": 26,
@@ -8238,11 +8332,11 @@
       "external_fonts": 2
     },
     "security_counts": {
-      "reviewed": 45,
-      "favorable": 42,
+      "reviewed": 46,
+      "favorable": 43,
       "attention": 2,
       "danger": 1
     }
   },
-  "pdf_sha256": "e96211e9d1cd1262643f2a6a2be586554bbb0303d914e93778f66ee347b98936"
+  "pdf_sha256": "20d8fbcd60be5659869912caa80674302b60a4f3e8e3b0b22b73781b57fff635"
 }

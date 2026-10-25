@@ -24,9 +24,9 @@
   mantendo os 11 achados abertos e as correções para a próxima etapa. O commit de publicação
   não altera a identificação do código auditado; consultar o histórico Git deste relatório.
 
-## Remediação 1 — SEC-01 a SEC-04 (2026-10-25, aplicação 0.9.0)
+## Remediação 1 — SEC-01 a SEC-04 (2026-10-25, aplicação 0.9.1)
 
-- IA: Claude Code, modelo Claude Opus 5.5 (`claude-opus-5-5`). Base: commit `227d972` (0.9.0 sem as correções).
+- IA: Claude Code, modelo Claude Opus 5.5 (`claude-opus-5-5`). Base: main com a 0.9.0 do remoto (top traders online).
 - **SEC-01 — corrigido no código, aguardando CI:** `app/txguard.py` confere a mensagem antes de assinar
   (única assinante/pagadora, lista fechada de programas, sem transferência/approve/troca de autoridade de token,
   fechamento só para a própria carteira, máximo da compra e entrada da Jupiter dentro do pedido, tetos de
@@ -300,4 +300,4 @@ política Actions. Esses itens permanecem pendentes; não se acessou essa infrae
 | 2026-10-25 | 61 testes passaram/5 pulados; scanners triados | Consolidar provas |
 | 2026-10-25 | 11 achados e reproduções revisados; relatório concluído | SEC-02/03; SEC-01/04 bloqueiam aprovação para uso real |
 | 2026-10-25 | Identificação de versão/SHA/IA em cada revisão e preparação da publicação solicitada | Commit/push dos documentos; depois iniciar correções |
-| 2026-10-25 | Remediação 1: SEC-01..04 no código (0.9.0), regressões em tests/test_seguranca.py | Confirmar CI verde; depois SEC-05/06 |
+| 2026-10-25 | Remediação 1: SEC-01..04 no código (0.9.1), regressões em tests/test_seguranca.py | Confirmar CI verde; depois SEC-05/06 |
