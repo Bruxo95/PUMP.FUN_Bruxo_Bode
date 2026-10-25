@@ -1,0 +1,93 @@
+{
+  "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
+  "itens": [
+    {
+      "versao": "0.9.5",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Menu → Novidades",
+      "titulo": "Página de novidades",
+      "oque": "Lista tudo o que foi implementado, em qual versão, em qual menu fica e o que faz. As mais novas ficam em cima, com a marca verde NOVO nos primeiros 14 dias."
+    },
+    {
+      "versao": "0.9.4",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Filtros antes de copiar",
+      "titulo": "Não copiar se o preço já subiu demais",
+      "oque": "Se o preço do token subiu mais que o limite (padrão 30%) desde a compra do trader, a cópia é cancelada. Vale para a cópia com espera e para a compra real, conferida de novo na hora de enviar. O motivo aparece no Feed ao vivo. 0 desliga."
+    },
+    {
+      "versao": "0.9.3",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Filtros antes de copiar",
+      "titulo": "Checagem de risco do token",
+      "oque": "Antes de copiar, consulta a nota de risco do token na Solana Tracker (mesma chave do ranking). Não copia token sem liquidez, com alerta de perigo (criador pode criar mais tokens ou congelar carteiras, muitos bundlers/insiders) ou com nota acima da máxima (padrão 7 de 10)."
+    },
+    {
+      "versao": "0.9.3",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Todo o painel",
+      "titulo": "Novidades marcadas em verde",
+      "oque": "Opções novas aparecem com uma linha verde à esquerda e o selo NOVO, que some sozinho depois de cerca de 14 dias."
+    },
+    {
+      "versao": "0.9.3",
+      "data": "2026-10-25",
+      "tipo": "correção",
+      "onde": "Execução real",
+      "titulo": "Venda e compra na PumpSwap no modo real",
+      "oque": "Corrigido o endereço da PumpSwap usado na conferência antes de assinar; sem isso, operações reais em tokens já graduados seriam recusadas."
+    },
+    {
+      "versao": "0.9.2",
+      "data": "2026-10-25",
+      "tipo": "segurança",
+      "onde": "Top traders (botões de período) e sistema",
+      "titulo": "Limites contra uso abusivo",
+      "oque": "Atualizar o ranking pelo painel tem intervalo de 1 minuto por conta e limite geral na chave do sistema. Login com token inválido não sobrecarrega mais o servidor. Atualizações do site entram uma de cada vez. Valores absurdos nas configurações viram mensagem de erro."
+    },
+    {
+      "versao": "0.9.1",
+      "data": "2026-10-25",
+      "tipo": "segurança",
+      "onde": "Execução real e Configurações → Chaves pessoais",
+      "titulo": "Correções da auditoria de segurança",
+      "oque": "A transação é conferida antes de ser assinada (só assina o que foi pedido). Venda sem confirmação não é repetida até se saber o resultado. O RPC pessoal só aceita endereço público da internet. Conta bloqueada pelo admin para de copiar na hora."
+    },
+    {
+      "versao": "0.9.1",
+      "data": "2026-10-25",
+      "tipo": "segurança",
+      "onde": "Sistema (atualização do site)",
+      "titulo": "Dependências conferidas antes de instalar",
+      "oque": "Cada atualização do site só instala bibliotecas em versões fixas, já conferidas contra relatos de malware e vulnerabilidades, e consulta os alertas de novo na hora."
+    },
+    {
+      "versao": "0.9.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Filtros antes de copiar e Top traders",
+      "titulo": "Só copia traders online",
+      "oque": "Copia só quem negociou nos últimos minutos (padrão 10). A cada 10 minutos quem ficou inativo sai e entra o melhor do top que estiver online. Carteiras manuais e traders com posição aberta continuam."
+    },
+    {
+      "versao": "0.8.4",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Rodapé do painel",
+      "titulo": "Hora em que o servidor subiu",
+      "oque": "O rodapé e o /health mostram desde quando a versão atual está no ar, para conferir se a atualização entrou."
+    },
+    {
+      "versao": "0.8.3",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Link do site (WhatsApp/Telegram)",
+      "titulo": "Pré-visualização do link",
+      "oque": "Ao colar o link do site, aparece o nome PUMP FUN COPY com imagem própria."
+    }
+  ]
+}

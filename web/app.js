@@ -53,6 +53,28 @@
     document.querySelectorAll("[data-novo-ate]").forEach((el) => el.classList.toggle("novo", el.dataset.novoAte >= hoje));
   }
   marcarNovos();
+  // ------------------------------------------------------------------ novidades (lista em web/novidades.json)
+  let NOV = null, NOV_TIPO = "";
+  async function loadNovidades() {
+    if (!NOV) {
+      try { NOV = (await (await fetch("/static/novidades.json", { cache: "no-cache" })).json()).itens || []; }
+      catch (e) { $("tNov").innerHTML = '<tbody><tr><td class="muted">Não consegui carregar a lista de novidades.</td></tr></tbody>'; return; }
+    }
+    const hoje = Date.now(), TAG = { novo: "win", melhoria: "buy", "segurança": "pause", "correção": "trail" };
+    const rows = NOV.filter((x) => !NOV_TIPO || x.tipo === NOV_TIPO);
+    $("tNov").innerHTML = "<thead><tr><th>Versão</th><th>Data</th><th>Tipo</th><th>Onde fica</th><th>O que é e o que faz</th></tr></thead><tbody>" +
+      rows.map((x) => {
+        const recente = hoje - new Date(x.data + "T00:00:00").getTime() < 14 * 86400000;
+        return '<tr class="' + (recente ? "nov-recente" : "") + '"><td class="mono">' + esc(x.versao) +
+          '</td><td class="mono">' + esc(x.data.split("-").reverse().join("/")) + '</td><td><span class="tag ' + (TAG[x.tipo] || "neutral") + '">' + esc(x.tipo) +
+          "</span></td><td>" + esc(x.onde) + "</td><td><b>" + esc(x.titulo) + '</b><br><span class="muted">' + esc(x.oque) + "</span></td></tr>";
+      }).join("") + "</tbody>";
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("#novTipo button"); if (!b) return;
+    NOV_TIPO = b.dataset.t; document.querySelectorAll("#novTipo button").forEach((x) => x.classList.toggle("on", x === b)); loadNovidades();
+  });
+
   function toast(m) { const d = document.createElement("div"); d.textContent = m; $("toasts").prepend(d); setTimeout(() => d.remove(), 8000); }
   const cfg = () => (D && D.cfg) || {};
   const realMode = () => (MODE ? MODE === "real" : !!(D && D.real && D.real.enabled));
@@ -60,7 +82,8 @@
   // ------------------------------------------------------------------ navegação
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
-    config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"], ajuda: ["Como funciona", ""] };
+    config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
+    novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
   function route() {
     const v = (location.hash || "#visao").slice(1);
@@ -73,6 +96,7 @@
     if (VIEW === "config") { loadSecrets(); loadAudit(); }
     if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") walletLoad(true);
+    if (VIEW === "novidades") loadNovidades();
     render();
     window.scrollTo(0, 0);
   }
