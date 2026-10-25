@@ -573,6 +573,17 @@
     document.addEventListener("click", (e) => { if (!e.target.closest("#menu")) $("menu").hidden = true; });
     $("logoutB").onclick = BB.logout;
     $("burger").onclick = () => { $("side").classList.add("open"); $("scrim").classList.add("open"); };
+    // computador: botão no topo do menu recolhe para só ícones (fica lembrado neste navegador)
+    document.querySelectorAll("#nav a").forEach((a) => { a.title = a.textContent.trim().replace(/NOVO$/, "").replace(/\d+$/, "").trim(); });
+    const setMini = (on) => {
+      $("shell").classList.toggle("mini", on);
+      $("sideTgl").title = $("sideTgl").ariaLabel = on ? "Abrir o menu" : "Recolher o menu";
+      try { localStorage.setItem("pf_menu_mini", on ? "1" : "0"); } catch (e) { /* sem armazenamento: só não lembra */ }
+    };
+    let mini = false;
+    try { mini = localStorage.getItem("pf_menu_mini") === "1"; } catch (e) { mini = false; }
+    setMini(mini);
+    $("sideTgl").onclick = () => setMini(!$("shell").classList.contains("mini"));
     $("scrim").onclick = closeDrawer;
     $("ntfB").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();

@@ -245,6 +245,25 @@ td a{color:#b9cdfa;text-decoration:none}td a:hover{text-decoration:underline}
 .loading{display:grid;place-items:center;min-height:100vh;color:var(--muted)}
 
 /* ---------- celular ---------- */
+/* menu lateral recolhível (computador): botão ☰ no topo deixa só os ícones */
+.side-top{display:flex;align-items:center;gap:6px}
+.side-top .logo{flex:1;min-width:0;white-space:nowrap;overflow:hidden}
+.side-tgl{flex:none;width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:8px;
+  background:transparent;color:var(--muted);cursor:pointer;margin-bottom:12px}
+.side-tgl:hover{color:var(--text);background:#141416}
+.side-tgl svg{width:17px;height:17px}
+.shell{transition:grid-template-columns .18s ease}
+.shell.mini{grid-template-columns:68px 1fr}
+.shell.mini .side{padding:14px 10px}
+.shell.mini .side-top{flex-direction:column;gap:8px}
+.shell.mini .side-top .logo{font-size:0;padding:0 0 4px;flex:none;justify-content:center}
+.shell.mini .side-tgl{margin-bottom:6px}
+.shell.mini .side .lbl,.shell.mini .side .ver,.shell.mini .sysbox>div{display:none}
+.shell.mini .sysbox{padding:10px;justify-content:center}
+.shell.mini .nav a{font-size:0;justify-content:center;padding:0;position:relative}
+.shell.mini .nav a .nb{display:none}
+.shell.mini .nav a.novo{padding:0}
+.shell.mini .nav a.novo::after{content:"";position:absolute;top:7px;right:9px;width:7px;height:7px;padding:0;border-radius:50%;margin:0}
 @media (max-width:1100px){.grid2{grid-template-columns:1fr}.search{width:auto}.search span,.search kbd{display:none}}
 @media (max-width:860px){
   .shell{grid-template-columns:1fr}
@@ -252,6 +271,8 @@ td a{color:#b9cdfa;text-decoration:none}td a:hover{text-decoration:underline}
   .side.open{transform:none;box-shadow:20px 0 60px rgba(0,0,0,.6)}
   .scrim.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:35}
   .burger{display:grid}
+  .side-tgl{display:none}
+  .shell.mini{grid-template-columns:1fr}
   .topbar{grid-template-columns:1fr auto;padding:0 14px}
   .topbar .tb-center{grid-column:1/-1;grid-row:2;justify-self:stretch;padding-bottom:10px}
   .topbar{height:auto;min-height:var(--top);padding-top:10px;row-gap:8px}
