@@ -4,6 +4,17 @@ Antes de trabalhar, leia `CLAUDE.md` inteiro. Ele é o contexto compartilhado de
 projeto para Claude Code, Codex e Cursor. Leia também `README.md` e
 `docs/ORIGEM.md` quando a tarefa envolver instalação ou arquitetura.
 
+Para segurança, leia `docs/AUDITORIA-SEGURANCA.md`: contém o escopo, as evidências,
+os achados e o ponto de retomada. Atualize seu checklist ao concluir cada etapa
+relevante e antes de encerrar a tarefa; mantenha no `CLAUDE.md` apenas o resumo e
+o link, sem duplicar o relatório nem registrar segredos.
+
+Em cada auditoria, registrar data, versão da aplicação, SHA completo do código
+auditado, IA/família e identificador exato do modelo quando disponível, estado dos
+achados e próxima ação. Se o identificador da IA não estiver exposto, declarar isso;
+nunca adivinhar. Associar os arquivos brutos dos scanners a essa identificação por
+um manifesto, preservando seus formatos e a base histórica auditada.
+
 - Mantenha decisões, pendências e resultados de validação no `CLAUDE.md`, sem
   duplicar a memória em arquivos específicos de cada ferramenta.
 - Confira o código e o estado atual do Git; diferencie informações históricas de

@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-25",
+  "repository": "Bruxo95/PUMP.FUN_Bruxo_Bode",
+  "mode": "read-only GitHub metadata; no secrets values",
+  "repository_settings": {
+    "private": true,
+    "visibility": "private",
+    "default_branch": "main",
+    "archived": false,
+    "security_and_analysis": null
+  },
+  "main": {
+    "protected": false
+  },
+  "actions_workflow_permissions": {
+    "unavailable_http": 404
+  },
+  "latest_workflow": {
+    "head_sha": "1cec6a04dfe076be8ddbad5258359d2afb225f38",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/Bruxo95/PUMP.FUN_Bruxo_Bode/actions/runs/40218550673"
+  },
+  "deploy_steps": [
+    {
+      "name": "Set up job",
+      "conclusion": "success"
+    },
+    {
+      "name": "avisar o Portainer",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "conferir a versão no ar",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "sem webhook configurado",
+      "conclusion": "success"
+    },
+    {
+      "name": "Complete job",
+      "conclusion": "success"
+    }
+  ]
+}

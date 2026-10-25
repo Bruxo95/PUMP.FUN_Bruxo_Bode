@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "audit_id": "AUD-2026-10-25-0.8.2-1cec6a0",
+  "report_revision": "1.0",
+  "audit_date": "2026-10-25",
+  "timezone": "Europe/Dublin",
+  "repository": "https://github.com/Bruxo95/PUMP.FUN_Bruxo_Bode",
+  "application_version_audited": "0.8.2",
+  "code_commit_audited": "1cec6a04dfe076be8ddbad5258359d2afb225f38",
+  "reviewer": {
+    "agent": "OpenAI Codex",
+    "model_family": "GPT-6",
+    "exact_model_id": null,
+    "exact_model_revision": null,
+    "limitation": "O identificador exato do modelo/revisao nao foi exposto nesta sessao."
+  },
+  "status": "repository_review_complete_remediation_not_started",
+  "findings_open": { "high_conditional": 1, "medium": 7, "low": 3 },
+  "product_code_changed": false,
+  "publication_authorized_date": "2026-10-25",
+  "publication_scope": "commit e push dos documentos para o repositorio indicado; correcoes depois",
+  "main_report": "../../AUDITORIA-SEGURANCA.md",
+  "artifacts": [
+    "revisao-auth-db.md",
+    "revisao-carteiras-integracoes.md",
+    "revisao-web-entrega.md",
+    "reproduzir-auth-db.py",
+    "poc-carteiras.py",
+    "poc-web-render.cjs",
+    "pacotes-testados.json",
+    "pip-audit.json",
+    "bandit.json",
+    "gitleaks.json",
+    "gitleaks-ferramenta.json",
+    "triagem-scanners.json",
+    "verificacao-publica.json",
+    "github-configuracao.json"
+  ],
+  "next_steps": [
+    "SEC-02: bloqueio concorrente",
+    "SEC-03: RPC/SSRF",
+    "SEC-01 e SEC-04 antes de qualquer uso real"
+  ],
+  "limits": [
+    "Cinco testes PostgreSQL/RLS nao executados no Windows.",
+    "Infraestrutura administrativa e imagem efetiva em producao nao auditadas.",
+    "Nenhuma transacao real ou correcao de produto nesta auditoria."
+  ]
+}

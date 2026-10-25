@@ -1,0 +1,68 @@
+{
+  "baseline": "1cec6a04dfe076be8ddbad5258359d2afb225f38",
+  "tests": {
+    "passed": 61,
+    "skipped": 5,
+    "skip_reason": "integracao PostgreSQL indisponivel no Windows",
+    "warning": "depreciacao TestClient/HTTPX"
+  },
+  "pip_audit": {
+    "version": "2.10.1",
+    "packages": 34,
+    "known_vulnerabilities": 0,
+    "skipped_packages": 0,
+    "scope": "versoes instaladas localmente, sem inventario da imagem de producao"
+  },
+  "bandit": {
+    "version": "1.9.4",
+    "lines": 3970,
+    "raw_findings": 20,
+    "high": 0,
+    "medium": 1,
+    "low": 19,
+    "triage": [
+      {
+        "rules": [
+          "B107"
+        ],
+        "classification": "falso positivo",
+        "reason": "jwt_secret=\"\" e fallback configuravel, nao senha real embutida"
+      },
+      {
+        "rules": [
+          "B104"
+        ],
+        "classification": "esperado no container",
+        "reason": "bind 0.0.0.0 para acesso via Docker/Traefik; exposicao real depende da rede"
+      },
+      {
+        "rules": [
+          "B110",
+          "B112"
+        ],
+        "classification": "revisao manual de tratamento de falhas",
+        "reason": "18 catches silenciosos; nao equivalem a 18 vulnerabilidades. Ver achados de persistencia/execucao e limites do relatorio."
+      }
+    ]
+  },
+  "gitleaks": {
+    "version": "8.30.1",
+    "commits": 15,
+    "shallow": false,
+    "raw_findings": 1,
+    "confirmed_real_secrets": 0,
+    "triage": [
+      {
+        "file": "tests/test_admin.py",
+        "line": 86,
+        "rule": "generic-api-key",
+        "classification": "dado ficticio de teste",
+        "reason": "string deliberada para verificar mascaramento de logs, nao credencial de servico"
+      }
+    ]
+  },
+  "notes": [
+    "Scan nao garante ausencia de segredos, malware ou vulnerabilidades desconhecidas.",
+    "As bases de vulnerabilidades podem mudar; repetir ao retomar."
+  ]
+}

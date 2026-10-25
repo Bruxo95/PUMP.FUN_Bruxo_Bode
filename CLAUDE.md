@@ -151,3 +151,24 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   configurado no GitHub; o próprio agente não acessa o Portainer. Passo a passo no README.
 - `tests/test_rls_postgres.py`: `pwd` agora é importado só em Linux/macOS; no Windows o teste é pulado
   (antes quebrava a coleta da suíte).
+
+## Auditoria de segurança (iniciada em 2026-10-25)
+- Solicitada pelo usuário: revisão completa do escopo disponível e registro do ponto de retomada.
+- Relatório e checklist: `docs/AUDITORIA-SEGURANCA.md`; consultar antes de continuar trabalho de segurança.
+- Base inicial: commit `1cec6a04dfe076be8ddbad5258359d2afb225f38`, aplicação 0.8.2.
+- IA responsável: OpenAI Codex, família GPT-6; identificador exato do modelo/revisão não exposto
+  nesta sessão. Identificação comum: `docs/auditoria/2026-10-25/identificacao-auditoria.json`.
+- Estado: revisão do repositório concluída; remediação não iniciada. Não interpretar como aprovação de segurança.
+- Resultado: 11 achados abertos (1 alto condicional, 7 médios, 3 baixos); IDs e evidências no relatório.
+- Validação: 61 testes passaram, 5 PostgreSQL/RLS pulados no Windows. Bandit triado; pip-audit sem
+  vulnerabilidades conhecidas nas 34 dependências locais; Gitleaks sem segredo real confirmado em 15 commits.
+- Próximo ponto de retomada: SEC-02 (bloqueio concorrente) e SEC-03 (RPC/SSRF); antes de uso real,
+  resolver SEC-01 (validar mensagem antes de assinar) e SEC-04 (reconciliar vendas pendentes).
+- A fase técnica não alterou a aplicação nem fez commit/push/deploy. Em seguida, o usuário autorizou
+  commit e push dos relatórios em 2026-10-25; correções ficam para a próxima etapa. Aplicação segue 0.8.2.
+  Relatório e reproduções em `docs/auditoria/2026-10-25/`; infraestrutura e RLS real seguem pendentes.
+- Escopo operacional preservado: inspeção local, testes com fakes e consultas públicas sem alterações;
+  sem acesso administrativo a servidores, sem transações reais e sem alterações no Supabase remoto.
+- Regra para futuras auditorias: sempre identificar data, versão da aplicação, SHA auditado, IA/modelo
+  (ou indisponibilidade do identificador exato), achados, validações e ponto de retomada; preservar a base
+  histórica ao corrigir versões posteriores. Não confundir commit do relatório com commit auditado.

@@ -1,0 +1,18 @@
+[
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+    "StartLine": 86,
+    "EndLine": 86,
+    "StartColumn": 91,
+    "EndColumn": 111,
+    "File": "tests/test_admin.py",
+    "SymlinkFile": "",
+    "Commit": "2bc642c08deb57637da2cf4189c2ba92b3aaaf56",
+    "Link": "https://github.com/Bruxo95/PUMP.FUN_Bruxo_Bode/blob/2bc642c08deb57637da2cf4189c2ba92b3aaaf56/tests/test_admin.py#L86",
+    "Entropy": 3.5849626,
+    "Date": "2026-10-25T17:04:42Z",
+    "Tags": [],
+    "Fingerprint": "2bc642c08deb57637da2cf4189c2ba92b3aaaf56:tests/test_admin.py:generic-api-key:86"
+  }
+]
