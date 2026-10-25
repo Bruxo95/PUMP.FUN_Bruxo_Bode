@@ -309,6 +309,8 @@ def test_pages_and_security_headers(env):
     r = c.get("/")
     assert r.status_code == 200 and "Entrar com Google" in r.text and "Content-Security-Policy" in r.headers
     assert c.get("/app").status_code == 200 and c.get("/static/app.js").status_code == 200
+    for pose in ("rindo", "acenando", "ideia", "triste", "chorando", "bravo", "timido"):     # mascote da Visão geral
+        assert c.get(f"/static/mascote/{pose}.webp").status_code == 200
     assert r.headers["X-Frame-Options"] == "DENY"
     a = c.get("/app")
     assert "__V__" not in a.text and "/static/app.js?v=" in a.text and a.headers["Cache-Control"] == "no-cache"

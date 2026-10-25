@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.11.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Menu → Visão geral → cartão ao lado do Monitor",
+      "titulo": "Mascote animado",
+      "oque": "Um mascote mostra como a carteira está: rindo e pulando quando sobe 5% ou mais, acenando quando está positiva, pensativo perto do zero, triste quando cai e chorando quando cai mais de 5%. A cada notificação ele reage por alguns segundos (compra copiada, venda com lucro ou prejuízo, trader pausado, erro, troca de top traders) e depois volta ao humor da carteira. No modo Real o humor usa o resultado das últimas 24 h."
+    },
+    {
       "versao": "0.10.0",
       "data": "2026-10-25",
       "tipo": "novo",

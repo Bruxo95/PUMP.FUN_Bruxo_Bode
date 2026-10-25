@@ -288,3 +288,14 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Todos os 11 achados da auditoria de 2026-10-25 têm correção no código. Pendências fora do código: saída do
   container para rede interna e proteção do branch `main` (exigem acesso do dono).
 - Próximo: confirmar o CI da 0.9.2; nova auditoria completa quando houver mudança grande ou antes do uso real.
+
+## Mascote animado na Visão geral (2026-10-25, versão 0.11.0)
+- Pedido do dono: mascote do tamanho de um cartão, ao lado do Monitor, que mostra o humor da carteira e reage
+  às notificações. Imagens em `web/mascote/*.webp` (recortadas do SVG que o dono enviou; ficou de fora a pose
+  segurando o logo do Photoshop, por ser marca de terceiros).
+- `web/app.js`: `mascMood()` (humor: ≥+5% rindo, ≥+1% acenando, entre −1% e +1% pensativo, até −5% triste,
+  abaixo chorando; monitor parado = bravo; sem trades = acenando "Oi"). Simulado usa o resultado desde o início;
+  Real usa as últimas 24 h. `mascReact()` reage a cada evento por 6 s (usa `classify()`), mesmo com o som desligado.
+  `classify()` passou a tratar "Top traders atualizados" como `trader` (antes caía como venda).
+- CSS: `.kpirow` com `.kpis{display:contents}` — o mascote é o 8º cartão da mesma grade (ao lado do Monitor
+  também no celular). Animações respeitam `prefers-reduced-motion`.

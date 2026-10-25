@@ -316,3 +316,38 @@ select.in{padding-right:24px}
 .sug{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
 .sug:last-child{border-bottom:0}
 .sug>div{color:var(--muted);line-height:1.6}
+
+/* ---------------------------------------------------------------- mascote (Visão geral, ao lado do Monitor) */
+/* os cartões do .kpis viram filhos diretos da grade: o mascote fica sempre ao lado do Monitor, do mesmo tamanho */
+.kpirow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) minmax(176px,1.25fr);gap:12px;align-items:stretch}
+.kpirow .kpis{display:contents}
+.masc{display:flex;align-items:flex-end;gap:10px;padding:8px 12px 8px 10px;overflow:hidden;position:relative}
+.masc.novo{padding-left:10px}
+.masc-fig{flex:0 0 52px;height:100px;display:flex;align-items:flex-end;justify-content:center}
+.masc-fig img{height:100%;width:auto;display:block;transform-origin:50% 100%;filter:drop-shadow(0 4px 6px rgba(0,0,0,.45));animation:m-respira 3.2s ease-in-out infinite}
+.masc-txt{min-width:0;align-self:center;display:flex;flex-direction:column;gap:3px}
+.masc-txt b{font-size:13.5px;line-height:1.25}
+.masc-txt small{font-size:11.5px;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.masc.ok b{color:var(--up)}.masc.bad b{color:var(--down)}.masc.warn b{color:var(--warn)}
+.masc.pop .masc-txt{animation:m-balao .5s ease-out}
+.masc-fig img.m-pula{animation:m-pula 1.1s ease-in-out infinite}
+.masc-fig img.m-pula-forte{animation:m-pula .7s ease-in-out infinite}
+.masc-fig img.m-balanca{animation:m-balanca 1.8s ease-in-out infinite}
+.masc-fig img.m-pensa{animation:m-pensa 4.5s ease-in-out infinite}
+.masc-fig img.m-murcha{animation:m-murcha 3.6s ease-in-out infinite}
+.masc-fig img.m-soluca{animation:m-soluca 1.3s ease-in-out infinite}
+.masc-fig img.m-treme{animation:m-treme .28s linear infinite}
+.masc-fig img.m-entra{animation:m-entra .35s ease-out}
+@keyframes m-respira{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px) scaleY(1.01)}}
+@keyframes m-pula{0%,100%{transform:translateY(0) scale(1,1)}25%{transform:translateY(-12px) scale(.97,1.03)}45%{transform:translateY(0) scale(1.06,.94)}60%{transform:translateY(-4px) scale(1,1)}75%{transform:translateY(0)}}
+@keyframes m-balanca{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes m-pensa{0%,100%{transform:rotate(0) translateX(0)}30%{transform:rotate(-3deg) translateX(-1px)}60%{transform:rotate(1.5deg) translateX(1px)}}
+@keyframes m-murcha{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(3px) scaleY(.97)}}
+@keyframes m-soluca{0%,100%{transform:translateY(0)}10%{transform:translateY(-2px)}20%{transform:translateY(1px)}30%{transform:translateY(-2px)}40%{transform:translateY(0)}}
+@keyframes m-treme{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-2px) rotate(-1.5deg)}75%{transform:translateX(2px) rotate(1.5deg)}}
+@keyframes m-entra{0%{transform:scale(.82) translateY(6px);opacity:.3}100%{transform:none;opacity:1}}
+@keyframes m-balao{0%{transform:translateX(-4px);opacity:.2}100%{transform:none;opacity:1}}
+@media (max-width:1100px){.kpirow{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:860px){.kpirow{grid-template-columns:repeat(2,minmax(0,1fr))}.kpirow .kpis .kpi:last-child:nth-child(odd){grid-column:auto}
+  .masc{gap:6px;padding:8px}.masc-fig{flex-basis:44px;height:92px}.masc-txt b{font-size:13px}}
+@media (prefers-reduced-motion:reduce){.masc-fig img,.masc.pop .masc-txt{animation:none!important}}

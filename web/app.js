@@ -185,6 +185,7 @@
   }
   function classify(m) {
     m = String(m || "");
+    if (/^Top traders atualizados/i.test(m)) return "trader";
     if (/falhou|N[ÃA]O feita|N[ÃA]O feito|n[ãa]o comprou|n[ãa]o vendeu|(^|[^a-z])erro([^a-z]|$)|ATEN[ÇC][ÃA]O/i.test(m)) return "error";
     if (/fechou|vendeu|saiu|stop|alvo/i.test(m)) { const tail = m.split("→").pop(); const mm = tail.match(/([+−-]) ?[$]?[0-9]/); if (mm) return mm[1] === "+" ? "win" : "loss"; return "sell"; }
     if (/comprou|copiou [^:]*: compra|copiou compra|entrou/i.test(m)) return "buy";
@@ -193,11 +194,60 @@
   }
   function onEvent(e) {
     const k = classify(e.msg); const real = /REAL/.test(e.msg);
+    mascReact(k, e.msg);
     if (real || k === "error") toast(e.msg.slice(0, 180));
-    if (!NTF || !k) return;
+    if (!NTF || !k || k === "trader") return;
     const now = Date.now(); if (now - NTF_AT < 1200 && k !== "error") return; NTF_AT = now;
     play(k, real ? 0.55 : 0.28);
     try { if (document.hidden && window.Notification && Notification.permission === "granted") new Notification({ buy: "Compra", win: "Lucro", loss: "Prejuízo", sell: "Venda", alert: "Aviso", error: "Erro" }[k] + (real ? " (REAL)" : ""), { body: e.msg.slice(0, 200), silent: true }); } catch (x) { /* */ }
+  }
+
+  // ------------------------------------------------------------------ mascote (Visão geral)
+  // Humor = como a carteira está; cada notificação faz ele reagir por alguns segundos e depois volta ao humor.
+  const MASC = {
+    rindo: ["rindo", "m-pula", "ok"], feliz: ["acenando", "m-balanca", "ok"], pensativo: ["ideia", "m-pensa", ""],
+    triste: ["triste", "m-murcha", "bad"], chorando: ["chorando", "m-soluca", "bad"], bravo: ["bravo", "m-treme", "warn"],
+    timido: ["timido", "m-balanca", ""], oi: ["acenando", "m-balanca", ""],
+  };
+  const M = { pose: "", anim: "", until: 0, t: null };
+  function mascSrc(n) { const im = $("mascImg"); return im ? im.getAttribute("src").replace(/\/[a-z]+\.webp/, "/" + n + ".webp") : ""; }
+  (function preload() { if ($("mascImg")) ["rindo", "acenando", "ideia", "triste", "chorando", "bravo", "timido"].forEach((n) => { const i = new Image(); i.src = mascSrc(n); }); })();
+  function mascShow(key, anim, title, sub, pop) {
+    const box = $("masc"), im = $("mascImg"); if (!box || !im) return;
+    const [pose, a0, tone] = MASC[key]; const an = anim || a0;
+    $("mascT").textContent = title; $("mascS").textContent = sub || "";
+    box.classList.remove("ok", "bad", "warn"); if (tone) box.classList.add(tone);
+    if (pop) { box.classList.remove("pop"); void box.offsetWidth; box.classList.add("pop"); }
+    if (pose === M.pose && an === M.anim) return;
+    clearTimeout(M.t2);
+    if (pose !== M.pose) { im.src = mascSrc(pose); im.className = "m-entra"; M.t2 = setTimeout(() => { im.className = an; }, 350); }
+    else im.className = an;
+    M.pose = pose; M.anim = an;
+  }
+  function mascMood() {
+    if (!D || Date.now() < M.until) return;
+    const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, RP = D.rpc || {};
+    if (!RP.ws) return mascShow("bravo", "m-pensa", "Monitor parado", "sem o monitor eu não vejo os traders; já tentando reconectar");
+    let pct = null;
+    if (rm) { const base = W && W.sol ? W.sol : 0; const day = D.real_curve || []; const since = Date.now() - 86400000; let d = 0; day.forEach((p, i) => { if (new Date(p[0]) >= since) d += p[1] - (i ? day[i - 1][1] : 0); }); if (base) pct = (d / base) * 100; }
+    else if (Wt.start_sol) pct = (Wt.pnl_sol / Wt.start_sol) * 100;
+    const txt = pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(1).replace(".", ",") + "%" + (rm ? " em 24 h" : " desde o início");
+    if (!Wt.count && !Wt.open) return mascShow("oi", "", "Oi! Tudo pronto", "esperando o primeiro trade dos traders copiados");
+    if (pct == null) return mascShow("pensativo", "", "Pensando…", "ainda sem saldo para comparar");
+    if (pct >= 5) return mascShow("rindo", "", "Tá voando!", "carteira " + txt);
+    if (pct >= 1) return mascShow("feliz", "", "Indo bem", "carteira " + txt);
+    if (pct > -1) return mascShow("pensativo", "", "Hmm, no zero a zero", "carteira " + txt + (Wt.open ? " · " + Wt.open + " posições abertas" : ""));
+    if (pct > -5) return mascShow("triste", "", "Meio pra baixo", "carteira " + txt);
+    return mascShow("chorando", "", "Dia difícil…", "carteira " + txt);
+  }
+  function mascReact(kind, msg) {
+    const R = { buy: ["pensativo", "m-pula", "Copiei uma compra!"], win: ["rindo", "m-pula-forte", "Lucro! 🎉"], sell: ["feliz", "m-balanca", "Vendi"],
+      loss: [/stop/i.test(msg) ? "chorando" : "triste", "m-treme", "Saiu no prejuízo"], alert: ["bravo", "m-treme", "Atenção"],
+      error: ["bravo", "m-treme", "Algo deu errado"], trader: ["timido", "m-balanca", "Troquei os traders"] }[kind];
+    if (!R) return;
+    M.until = Date.now() + 6000;
+    mascShow(R[0], R[1], R[2], String(msg || "").replace(/^Pump\.fun:\s*/, "").slice(0, 110), true);
+    clearTimeout(M.t); M.t = setTimeout(() => { M.until = 0; mascMood(); }, 6050);
   }
 
   // ------------------------------------------------------------------ dados
@@ -271,6 +321,7 @@
     drawCurve(rm ? 0 : Wt.start_sol, rm ? D.real_curve : D.curve);
     renderOps(rm);
     renderCfgStatus();
+    mascMood();
   }
 
   function drawCurve(start, pts) {
