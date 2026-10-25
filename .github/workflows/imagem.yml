@@ -58,16 +58,20 @@ jobs:
           code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$WEBHOOK")
           echo "Portainer respondeu HTTP $code"
           test "$code" -lt 300
-      - name: conferir a versão no ar
+      - uses: actions/checkout@v4
+        if: env.WEBHOOK != ''
+      - name: conferir se a versão NOVA está no ar
         if: env.WEBHOOK != ''
         run: |
-          for i in $(seq 1 24); do
+          esperada=$(python3 -c "import re;print(re.search(r'VERSION = \"([^\"]+)\"', open('app/version.py').read()).group(1).split(' ')[0])")
+          echo "Versão esperada: $esperada"
+          for i in $(seq 1 30); do
             sleep 10
             v=$(curl -s https://pump.rachar.app.br/health || true)
             echo "$v"
-            echo "$v" | grep -q '"ok":true' && exit 0
+            echo "$v" | grep -q "\"version\":\"$esperada " && { echo "OK: versão $esperada no ar"; exit 0; }
           done
-          echo "o site não respondeu em 4 minutos — confira o serviço no Portainer"; exit 1
+          echo "A versão $esperada não apareceu em 5 minutos — confira o serviço no Portainer"; exit 1
       - name: sem webhook configurado
         if: env.WEBHOOK == ''
         run: echo "PORTAINER_WEBHOOK_URL não configurado — atualize pelo Portainer (Update the stack + Re-pull image)."

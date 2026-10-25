@@ -196,3 +196,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   imagem `web/og.png` 1200×630 com o nome novo). O endereço completo vem de `PUBLIC_BASE_URL` (`__BASE__`
   trocado pelo servidor). Teste em `tests/test_api.py::test_pages_and_security_headers`.
 - Não verificado de verdade: a pré-visualização no WhatsApp depende do cache deles.
+
+## Webhook do Portainer testado (2026-10-25, versão 0.8.4)
+- A pedido do dono, o webhook do serviço foi testado: respondeu HTTP 204 e o site seguiu no ar.
+  O job `deploy` do Actions já vinha rodando com sucesso (ex.: run #13, passos "avisar o Portainer" e
+  "conferir a versão").
+- O job `deploy` agora espera aparecer em `/health` exatamente a versão de `app/version.py` do commit
+  (até 5 min); antes só conferia se o site respondia.
+- O dono colou a URL do webhook no chat: recomendado gerar uma nova no Portainer e atualizar o segredo
+  `PORTAINER_WEBHOOK_URL` no GitHub. A URL não foi gravada em nenhum arquivo.
