@@ -42,3 +42,32 @@ jobs:
           tags: |
             ${{ env.IMG }}:latest
             ${{ env.IMG }}:${{ github.sha }}
+
+  # Atualização automática (estilo Vercel): depois que a imagem nova está publicada, avisa o Portainer
+  # pelo webhook do serviço, que baixa a imagem nova e reinicia sozinho. Só roda se o segredo
+  # PORTAINER_WEBHOOK_URL existir no repositório (Settings → Secrets and variables → Actions).
+  deploy:
+    needs: imagem
+    runs-on: ubuntu-latest
+    env:
+      WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+    steps:
+      - name: avisar o Portainer
+        if: env.WEBHOOK != ''
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$WEBHOOK")
+          echo "Portainer respondeu HTTP $code"
+          test "$code" -lt 300
+      - name: conferir a versão no ar
+        if: env.WEBHOOK != ''
+        run: |
+          for i in $(seq 1 24); do
+            sleep 10
+            v=$(curl -s https://pump.rachar.app.br/health || true)
+            echo "$v"
+            echo "$v" | grep -q '"ok":true' && exit 0
+          done
+          echo "o site não respondeu em 4 minutos — confira o serviço no Portainer"; exit 1
+      - name: sem webhook configurado
+        if: env.WEBHOOK == ''
+        run: echo "PORTAINER_WEBHOOK_URL não configurado — atualize pelo Portainer (Update the stack + Re-pull image)."

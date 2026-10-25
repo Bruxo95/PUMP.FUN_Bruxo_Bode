@@ -83,7 +83,16 @@ outros). Em Configurações → Chaves pessoais, cole a chave grátis da Solana 
 
 ---
 
-## Atualizar (depois de cada mudança)
+## Atualização automática (recomendado, uma vez)
+1. Portainer → **Services** → `pump_bruxo_bode_pump_bruxo_bode` → ligue **Service webhook** → copie a URL.
+2. GitHub → repositório → **Settings → Secrets and variables → Actions → New repository secret**:
+   nome `PORTAINER_WEBHOOK_URL`, valor = a URL copiada.
+3. Pronto: a cada push no `main`, o GitHub testa, publica a imagem e manda o Portainer atualizar sozinho.
+   O último passo do Actions mostra a resposta de `/health`.
+
+A URL do webhook é secreta (quem tiver ela consegue reiniciar o serviço): não coloque no código nem no chat.
+
+## Atualizar manualmente (se não usar o webhook)
 1. Espere o GitHub terminar a imagem (aba **Actions**, bolinha verde).
 2. Portainer → Stacks → `pump_bruxo_bode` → **Update the stack** → marque **Re-pull image and redeploy** → Update.
 3. Confira a versão em `/health` ou no rodapé do painel.
