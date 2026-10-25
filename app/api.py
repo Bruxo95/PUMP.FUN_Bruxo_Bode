@@ -1,0 +1,289 @@
+"""Rotas HTTP. Tudo em /api/* exige login (token do Supabase); o usuário vem SEMPRE do token.
+
+Regras de segurança:
+- Nenhuma rota devolve chave: só "configurada: sim/não" (e o endereço PÚBLICO da carteira).
+- Ligar a execução real pede confirmação e fica no audit_log; volta a desligar quando o servidor reinicia.
+- Salvar/remover chave, vender manual e trocar USDC→SOL também vão para o audit_log.
+"""
+from __future__ import annotations
+
+import logging
+import os
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from .auth import AuthError
+from .db import audit
+from .keystore import SECRET_NAMES
+from .settings import LB_DAYS
+from .solana_wallet import check_rpc_url, parse_keypair
+from .version import VERSION
+
+log = logging.getLogger("api")
+WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
+USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+
+def create_app(hub, auth, cfg) -> FastAPI:
+    app = FastAPI(title="PUMP.FUN Bruxo Bode", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        resp = await call_next(request)
+        sb = cfg.supabase_url or ""
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        resp.headers["X-Frame-Options"] = "DENY"
+        resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        resp.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
+            f"img-src 'self' data: https:; connect-src 'self' {sb} {sb.replace('https://', 'wss://')}; "
+            "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+        if request.url.path.startswith("/api/"):
+            resp.headers["Cache-Control"] = "no-store"
+        return resp
+
+    # ------------------------------------------------------------------ usuário logado
+    async def user(request: Request) -> dict:
+        h = request.headers.get("authorization") or ""
+        token = h[7:].strip() if h.lower().startswith("bearer ") else ""
+        try:
+            claims = await auth.verify(token)
+        except AuthError as e:
+            raise HTTPException(401, str(e)) from None
+        try:
+            prof = await hub.ensure_profile(claims)
+        except Exception as e:
+            log.warning("perfil: %s", str(e)[:160])
+            raise HTTPException(503, "banco indisponível, tente de novo em instantes") from None
+        meta = claims.get("user_metadata") or {}
+        return {"id": claims["sub"], "email": prof.get("email") or claims.get("email"),
+                "nome": prof.get("nome") or meta.get("full_name") or meta.get("name"),
+                "avatar": prof.get("avatar_url") or meta.get("avatar_url") or meta.get("picture"),
+                "role": prof.get("role") or "user"}
+
+    async def engine(u: dict = Depends(user)):
+        return await hub.engine(u["id"])
+
+    def admin_only(u: dict = Depends(user)) -> dict:
+        if u["role"] != "admin":
+            raise HTTPException(403, "só o admin")
+        return u
+
+    # ------------------------------------------------------------------ público
+    @app.get("/health")
+    def health():
+        return {"ok": True, "version": VERSION}
+
+    @app.get("/api/public-config")
+    def public_config():
+        """O que o navegador precisa para o botão "Entrar com Google" (chave ANON é pública por natureza)."""
+        return {"supabase_url": cfg.supabase_url, "supabase_anon_key": cfg.supabase_anon_key,
+                "base_url": cfg.public_base_url, "version": VERSION,
+                "configured": bool(cfg.supabase_url and cfg.supabase_anon_key)}
+
+    # ------------------------------------------------------------------ conta
+    @app.get("/api/me")
+    async def me(u: dict = Depends(user)):
+        return {**u, "version": VERSION}
+
+    # ------------------------------------------------------------------ painel PUMP.FUN
+    @app.get("/api/pump")
+    async def pump(ev: int = 0, pf=Depends(engine)):
+        snap = pf.snapshot()
+        snap["events"] = pf.events_after(ev)
+        snap["keys"] = pf.keys.configured()
+        snap["lb_status"]["own_key"] = pf.lb_key_own()
+        snap["real"]["allowed"] = hub.real_allowed
+        snap["version"] = VERSION
+        return snap
+
+    @app.post("/api/pump/settings")
+    async def pump_settings(body: dict, pf=Depends(engine)):
+        applied, errors = pf.cfg.apply(body or {})
+        if applied:
+            await hub.save_settings(pf)
+            if {"pump_min_winrate", "pump_lb_min_trades", "pump_top_n"} & set(applied):
+                pf.refresh_followed(force=True)
+        return {"applied": applied, "errors": errors}
+
+    @app.post("/api/pump/real")
+    async def pump_real(body: dict, u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        on = bool(body.get("enabled"))
+        if on:
+            if not hub.real_allowed:
+                return {"error": "a execução real está travada no servidor (PUMP_REAL_ALLOWED=false no .env)"}
+            if body.get("confirm") != "LIGAR":
+                return {"error": "confirmação obrigatória"}
+            if not (pf.sol_wallet and pf.sol_wallet.keypair):
+                return {"error": "configure a carteira Solana do bot antes"}
+        pf.cfg.pump_real_enabled = on
+        await audit(hub.db, u["id"], "ligar execução real" if on else "desligar execução real",
+                    f"máx. {pf.cfg.pump_real_max_sol} SOL por compra" if on else "")
+        pf._emit(f"[PUMP REAL] execução real {'LIGADA' if on else 'DESLIGADA'} por você")
+        return {"ok": True, "enabled": on}
+
+    @app.get("/api/pump/wallet")
+    async def pump_wallet(force: int = 0, pf=Depends(engine)):
+        """Saldo REAL da carteira do bot: SOL (o que paga as compras) e USDC convertido em SOL."""
+        sb = await pf.jw.sol_balances(force=bool(force))
+        sol_usd = pf.sol_usd
+        usdc = (sb.get("tokens") or {}).get(USDC, 0.0)
+        return {"configured": bool(sb.get("configured")), "address": pf.sol_wallet.address if pf.sol_wallet else None,
+                "error": sb.get("error"), "sol": sb.get("sol"), "usdc": usdc, "sol_usd": sol_usd,
+                "usdc_in_sol": (usdc / sol_usd) if sol_usd else None, "reserve_sol": 0.02,
+                "rpc": pf.sol_wallet.public() if pf.sol_wallet else None}
+
+    @app.get("/api/pump/swap/quote")
+    async def pump_swap_quote(usdc: float = 0, pf=Depends(engine)):
+        return await pf.jw.usdc_to_sol(float(usdc), preview=True)
+
+    @app.post("/api/pump/swap")
+    async def pump_swap(body: dict, u: dict = Depends(user)):
+        """Troca USDC → SOL na carteira do bot (transação REAL; o painel pede confirmação)."""
+        pf = await hub.engine(u["id"])
+        if body.get("confirm") is not True:
+            return {"error": "confirmação obrigatória"}
+        usdc = float(body.get("usdc") or 0)
+        r = await pf.jw.usdc_to_sol(usdc)
+        await audit(hub.db, u["id"], "trocar USDC→SOL",
+                    f"{usdc:.2f} USDC → {'ok ' + format(r.get('sol_received') or 0, '.4f') + ' SOL' if r.get('ok') else 'falhou: ' + str(r.get('error') or r.get('reason'))[:120]}")
+        if r.get("ok"):
+            pf._emit(f"Carteira: trocou {r['usdc']:.2f} USDC → {r['sol_received']:.4f} SOL ({r.get('venue')})")
+        elif r.get("reason"):
+            pf._emit(f"Carteira: troca USDC→SOL falhou — {r['reason']}")
+        return r
+
+    @app.post("/api/pump/wallets")
+    async def pump_wallets(body: dict, pf=Depends(engine)):
+        w, act = str(body.get("wallet") or "").strip(), body.get("action") or "add"
+        fn = {"add": pf.add_manual, "remove": pf.remove_manual, "ban": pf.ban, "unban": pf.unban,
+              "pause": pf.pause, "resume": pf.resume}.get(act)
+        if not fn:
+            return {"error": "ação inválida"}
+        if not pf.valid_addr(w):
+            return {"error": "endereço de carteira inválido"}
+        if act == "pause" and body.get("hours"):
+            try:
+                hrs = float(body["hours"])
+            except (TypeError, ValueError):
+                return {"error": "horas inválidas"}
+            if not 0 < hrs <= 720:
+                return {"error": "horas inválidas"}
+            return pf.pause(w, hrs)
+        return fn(w)
+
+    @app.post("/api/pump/close")
+    async def pump_close(body: dict, u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        pid = body.get("id")
+        pos = next((p for p in pf.positions() if str(p["id"]) == str(pid)), None)
+        if not pos:
+            return {"error": "posição não encontrada"}
+        r = pf.close_position(pid)
+        await audit(hub.db, u["id"], "vender manual",
+                    f"{'REAL' if pos.get('real') else 'fictícia'} · {pos.get('symbol')} · {pos.get('mint')}")
+        if r.get("msg"):
+            pf._emit(r["msg"])
+        return r
+
+    @app.post("/api/pump/leaderboard")
+    async def pump_lb(body: dict, pf=Depends(engine)):
+        """Troca o período do leaderboard (1/7/30/90 dias) e atualiza agora."""
+        try:
+            d = int(body.get("days") or 7)
+        except (TypeError, ValueError):
+            d = 7
+        pf.cfg.pump_lb_days = d if d in LB_DAYS else 7
+        await hub.save_settings(pf)
+        await pf.refresh_leaderboard(force=True)
+        return {"ok": not pf.lb_status.get("error"), **pf.lb_status}
+
+    @app.post("/api/pump/reset")
+    async def pump_reset(pf=Depends(engine)):
+        pf._emit("Pump.fun: carteira fictícia zerada (volta ao saldo inicial)")
+        return pf.reset_sim()
+
+    # ------------------------------------------------------------------ chaves pessoais
+    @app.get("/api/secrets")
+    async def secrets_list(pf=Depends(engine)):
+        return {"keys": {k: {"label": v, "configured": bool(pf.keys.get(k))} for k, v in SECRET_NAMES.items()},
+                "wallet": pf.sol_wallet.public() if pf.sol_wallet else None}
+
+    @app.post("/api/secrets")
+    async def secrets_save(body: dict, u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        name, value = str(body.get("name") or ""), str(body.get("value") or "").strip()
+        if name not in SECRET_NAMES:
+            return {"error": "chave desconhecida"}
+        try:
+            if name == "wallet_private_key":
+                parse_keypair(value)
+            elif name == "rpc_url":
+                value = check_rpc_url(value)
+            elif len(value) < 16:
+                raise ValueError("chave inválida (curta demais)")
+        except ValueError as e:
+            return {"error": str(e)}
+        try:
+            await hub.set_secret(pf, name, value)
+        except Exception as e:
+            log.warning("salvar chave %s: %s", name, str(e)[:120])
+            return {"error": "não consegui salvar no banco agora"}
+        out = {"ok": True, "configured": True}
+        if name == "solanatracker_api_key":
+            await pf.refresh_leaderboard(force=True)
+            st = pf.lb_status
+            out.update(ok=not st.get("error"), error=st.get("error"), count=st.get("count"))
+        if name == "wallet_private_key":
+            out["address"] = pf.sol_wallet.address
+        return out
+
+    @app.post("/api/secrets/remove")
+    async def secrets_remove(body: dict, u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        name = str(body.get("name") or "")
+        if name not in SECRET_NAMES:
+            return {"error": "chave desconhecida"}
+        await hub.remove_secret(pf, name)
+        if name == "solanatracker_api_key":
+            pf.leaderboard = []
+            pf.refresh_followed(force=True)
+        return {"ok": True, "configured": False}
+
+    @app.get("/api/audit")
+    async def audit_list(u: dict = Depends(user)):
+        rows = await hub.db.select("audit_log", {"user_id": u["id"]}, order="at.desc", limit=50)
+        return [{"acao": r.get("acao"), "detalhe": r.get("detalhe"), "at": r.get("at")} for r in rows]
+
+    # ------------------------------------------------------------------ admin (status geral, nunca chaves)
+    @app.get("/api/admin/status")
+    async def admin_status(u: dict = Depends(admin_only)):
+        profs = await hub.db.select("profiles", None, columns="user_id")
+        return {**hub.admin_status(), "users_total": len(profs)}
+
+    @app.post("/api/admin/share-key")
+    async def admin_share(body: dict, u: dict = Depends(admin_only)):
+        share = bool(body.get("share"))
+        await hub.db.update("user_settings", {"user_id": u["id"]}, {"compartilhar_chave_st": share})
+        await hub.refresh_shared_key()
+        return {"ok": True, "share": share, "active": bool(hub.shared_st_key)}
+
+    # ------------------------------------------------------------------ páginas
+    @app.exception_handler(HTTPException)
+    async def http_err(request: Request, exc: HTTPException):
+        return JSONResponse({"error": exc.detail, "detail": exc.detail}, status_code=exc.status_code)
+
+    @app.get("/")
+    def landing():
+        return FileResponse(os.path.join(WEB, "index.html"))
+
+    @app.get("/app")
+    def panel():
+        return FileResponse(os.path.join(WEB, "app.html"))
+
+    app.mount("/static", StaticFiles(directory=WEB), name="static")
+    return app

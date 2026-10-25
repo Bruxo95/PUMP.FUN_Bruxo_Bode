@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel — PUMP.FUN Bruxo Bode</title>
+<meta name="theme-color" content="#0a0a0a">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23f2f2f2'/%3E%3Cpath d='M8 10h8l-1.5 7L12 21l-2.5-4z' fill='%230a0a0a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="loading" id="boot">Carregando o painel…</div>
+
+<div class="shell" id="shell" hidden>
+  <aside class="side" id="side">
+    <a class="logo" href="#visao"><span class="mark" data-logo></span>PUMP.FUN <small>Bruxo Bode</small></a>
+    <div class="lbl">Painel</div>
+    <nav class="nav" id="nav">
+      <a href="#visao" data-v="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>Visão geral</a>
+      <a href="#traders" data-v="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Top traders<b class="nb" id="nbTr"></b></a>
+      <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
+      <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
+      <a href="#feed" data-v="feed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg>Feed ao vivo</a>
+      <a href="#real" data-v="real"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Execução real<b class="nb" id="nbReal"></b></a>
+      <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configurações</a>
+      <a href="#ajuda" data-v="ajuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg>Como funciona</a>
+    </nav>
+    <div class="sp"></div>
+    <div class="sysbox"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></div>
+    <div class="ver" id="ver"></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-left">
+        <button class="burger" id="burger" aria-label="Abrir menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div style="min-width:0"><h1 id="pgTitle">Visão geral</h1><div class="sub" id="pgSub"></div></div>
+      </div>
+      <div class="tb-center"><button class="btn tgl off ntf" id="ntfB" title="Som e aviso a cada operação">🔔 Notificações: OFF</button></div>
+      <div class="tb-right">
+        <div class="seg" id="modeSeg" title="Mostrar carteira"><button data-mode="sim">Fictícia</button><button data-mode="real">Real</button></div>
+        <div class="search" id="searchBtn" role="button" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Buscar token, trader…</span><kbd id="kbdHint">Ctrl K</kbd></div>
+        <button class="avatar" id="avatarB" aria-label="Conta"></button>
+      </div>
+    </header>
+    <div class="menu" id="menu" hidden>
+      <div class="who"><b id="mName"></b><small id="mMail"></small><small id="mRole"></small></div>
+      <button data-goto="config">Configurações e chaves</button>
+      <button id="logoutB">Sair</button>
+    </div>
+
+    <main class="page">
+      <!-- ========================================================= VISÃO GERAL -->
+      <section class="view" data-view="visao">
+        <div class="kpis" id="kpis"></div>
+        <div class="grid2">
+          <div class="card">
+            <header><div><h2>Evolução da carteira</h2><div class="sub" id="curveSub">SOL</div></div><div class="sp"></div>
+              <div class="seg" id="rangeSeg"><button data-r="1">24h</button><button data-r="7">7d</button><button data-r="30">30d</button></div></header>
+            <div class="chart" id="curve"></div>
+          </div>
+          <div class="card">
+            <header><div><h2>Operações recentes</h2><div class="sub">compras, vendas, stops e erros</div></div><div class="sp"></div><a class="btn sm" href="#historico">Ver tudo</a></header>
+            <div class="ops" id="ops"></div>
+          </div>
+        </div>
+        <div class="card">
+          <header><div><h2>Status das configurações</h2><div class="sub">verde = ligado · vermelho = desligado · valores atuais</div></div><div class="sp"></div><a class="btn sm" href="#config">Ajustar</a></header>
+          <div class="cfgs" id="cfgS"></div>
+        </div>
+      </section>
+
+      <!-- ========================================================= TOP TRADERS -->
+      <section class="view" data-view="traders" hidden>
+        <div class="card">
+          <header><div><h2>Top traders da pump.fun</h2><div class="sub" id="lbSub"></div></div><div class="sp"></div>
+            <div class="seg" id="lbDays"><button data-d="1">24 h</button><button data-d="7">7 dias</button><button data-d="30">30 dias</button><button data-d="90">90 dias</button></div></header>
+          <div id="lbKey" class="alert" hidden style="margin-bottom:12px">Para puxar o ranking oficial do app da pump.fun, cole uma chave <b>grátis</b> da Solana Tracker
+            (solanatracker.io → Data API → plano Free) em <a href="#config">Configurações → Chaves</a>. Sem chave, o bot usa o ranking próprio lá embaixo.</div>
+          <div class="tbl-wrap tall"><table id="tLb"></table></div>
+          <div class="sub" id="lbNote" style="margin-top:10px;color:var(--muted);font-size:12.5px"></div>
+        </div>
+        <div class="card">
+          <header><div><h2>Traders copiados agora</h2><div class="sub" id="folSub"></div></div><div class="sp"></div></header>
+          <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><input class="in" id="addW" style="flex:1;min-width:220px" placeholder="Adicionar carteira manual (endereço Solana do trader)"><button class="btn sm primary" data-act="addw">Adicionar</button></div>
+          <div class="tbl-wrap"><table id="tFol"></table></div>
+        </div>
+        <div class="card">
+          <header><div><h2>Monitor ao vivo — traders copiados</h2><div class="sub" id="monSub"></div></div><div class="sp"></div>
+            <div class="seg" id="monSeg"><button data-f="all">Tudo</button><button data-f="buy">Entradas</button><button data-f="sell">Saídas</button></div></header>
+          <div class="tbl-wrap tall"><table id="tMon"></table></div>
+          <h3 style="font-size:14px;margin:18px 0 10px">Posições abertas deles agora</h3>
+          <div class="tbl-wrap tall"><table id="tTP"></table></div>
+        </div>
+        <div class="card">
+          <header><div><h2>Ranking próprio (visto pelo bot)</h2><div class="sub" id="rkSub"></div></div></header>
+          <div class="tbl-wrap"><table id="tRk"></table></div>
+          <div class="sub" id="rkNote" style="margin-top:10px;color:var(--muted);font-size:12.5px"></div>
+        </div>
+      </section>
+
+      <!-- ========================================================= POSIÇÕES -->
+      <section class="view" data-view="posicoes" hidden>
+        <div class="card"><header><div><h2>Posições copiadas <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub" id="posSub"></div></div></header>
+          <div class="tbl-wrap"><table id="tPos"></table></div></div>
+      </section>
+
+      <!-- ========================================================= HISTÓRICO -->
+      <section class="view" data-view="historico" hidden>
+        <div class="card"><header><div><h2>Resultado por trader copiado <span class="tag sim" data-mtag>Simulado</span></h2></div></header>
+          <div class="tbl-wrap"><table id="tBy"></table></div></div>
+        <div class="card"><header><div><h2>Trades fechados <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub" id="trSub"></div></div></header>
+          <div class="tbl-wrap tall"><table id="tTr"></table></div></div>
+      </section>
+
+      <!-- ========================================================= FEED -->
+      <section class="view" data-view="feed" hidden>
+        <div class="card"><header><div><h2>O que os traders copiados fizeram</h2><div class="sub">compras, vendas e o que o bot fez com cada uma</div></div></header>
+          <div class="tbl-wrap tall"><table id="tFeed"></table></div></div>
+      </section>
+
+      <!-- ========================================================= EXECUÇÃO REAL -->
+      <section class="view" data-view="real" hidden>
+        <div class="alert red">Use uma carteira <b>nova, só para o bot, com pouco saldo</b>. Quem tem a chave privada tem todo o dinheiro dela.
+          A execução real começa DESLIGADA e volta a desligar sempre que o servidor reinicia.</div>
+        <div class="kpis" id="wKpis"></div>
+        <div class="card">
+          <header><div><h2>Execução real <span class="tag real">Real</span></h2><div class="sub" id="realSub"></div></div></header>
+          <div class="realbox">
+            <button class="btn tgl off big" id="realB">REAL: OFF</button>
+            <div style="flex:1;min-width:220px" id="realInfo"></div>
+          </div>
+          <div class="form" style="margin-top:18px">
+            <div class="field"><label>SOL por compra (máximo de cada trade real)</label>
+              <div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_real_max_sol"><span class="muted">SOL</span>
+                <button class="btn sm" data-set="pump_real_max_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.1">0,1</button></div>
+              <div class="hint" id="rMaxN"></div></div>
+            <div class="field"><label>Parar no dia se perder</label>
+              <div class="row"><input class="in w100" type="number" min="0" step="0.05" data-cfg="pump_real_daily_loss_sol"><span class="muted">SOL</span><span class="muted" id="rLossU"></span></div></div>
+            <div class="field"><label>Posições reais ao mesmo tempo</label>
+              <div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_real_max_open"></div></div>
+            <div class="field"><label>Copiar no real também fora da pump.fun (Jupiter)</label>
+              <div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other_real" data-confirm="Copiar também NO REAL os trades fora da pump.fun (compra/venda pela Jupiter)?">…</button></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <header><div><h2>Conversor e troca USDC → SOL</h2><div class="sub">a carteira paga as compras em SOL</div></div></header>
+          <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input class="in w120" id="cvU" type="number" min="0" step="1" placeholder="USDC"><span class="muted">USDC =</span>
+            <input class="in w120" id="cvS" type="number" min="0" step="0.01" placeholder="SOL"><span class="muted">SOL</span>
+            <button class="btn sm" data-act="swapmax">Usar todo o USDC</button><button class="btn sm primary" data-act="swap">Trocar USDC → SOL</button></div>
+          <div class="hint muted" id="cvN" style="margin-top:8px;font-size:12.5px"></div>
+          <div class="hint" id="swN" style="margin-top:4px;font-size:12.5px"></div>
+        </div>
+      </section>
+
+      <!-- ========================================================= CONFIGURAÇÕES -->
+      <section class="view" data-view="config" hidden>
+        <div class="card">
+          <header><div><h2>Cópia</h2><div class="sub">cada mudança vale na hora e fica salva só para você</div></div></header>
+          <div class="form">
+            <div class="field"><label>Cópia automática</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_enabled">…</button><button class="btn sm" data-act="reset">Zerar carteira fictícia</button></div></div>
+            <div class="field"><label>Valor de cada cópia (SOL fictícios)</label><div class="row"><input class="in w100" type="number" min="0.01" step="0.01" data-cfg="pump_copy_sol">
+              <button class="btn sm" data-set="pump_copy_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.5">0,5</button></div></div>
+            <div class="field"><label>Saldo inicial da carteira fictícia</label><div class="row"><input class="in w100" type="number" min="0.1" step="0.5" data-cfg="pump_sim_balance_sol"><span class="muted">SOL</span></div></div>
+            <div class="field"><label>Esperar antes de copiar</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_copy_delay_s"><span class="muted">s</span>
+              <button class="btn sm" data-set="pump_copy_delay_s" data-val="0">0</button><button class="btn sm" data-set="pump_copy_delay_s" data-val="30">30 s</button><button class="btn sm" data-set="pump_copy_delay_s" data-val="60">60 s</button></div>
+              <div class="hint" id="delayN"></div></div>
+            <div class="field"><label>Fora da pump.fun (Raydium, Meteora, Orca… via Jupiter) — fictício</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other">…</button>
+              <span class="muted">pool mín. $</span><input class="in w100" type="number" min="0" step="1000" data-cfg="pump_other_min_liq_usd"></div></div>
+            <div class="field"><label>Trader saiu e estou no prejuízo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_hold_until_profit">…</button></div>
+              <div class="hint">ON: segura até o líquido (depois de todas as taxas) ficar positivo. OFF: vende junto com o trader.</div></div>
+            <div class="field"><label>Posições fictícias ao mesmo tempo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_max_open"></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <header><div><h2>Proteções</h2></div></header>
+          <div class="form">
+            <div class="field"><label>Stop móvel (quando estiver ganhando)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_trail_enabled">…</button>
+              <span class="muted">liga em +</span><input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_start_pct"><span class="muted">% · sai se cair</span>
+              <input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_dist_pct"><span class="muted">pontos</span></div><div class="hint" id="trailN"></div></div>
+            <div class="field"><label>Stop de perda</label><div class="row"><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_stop_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>Tempo máximo na posição</label><div class="row"><input class="in w80" type="number" min="0.1" step="0.5" data-cfg="pump_max_hold_h"><span class="muted">h</span></div></div>
+            <div class="field"><label>Alvo fixo de lucro (0 = sem alvo)</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>Pausa automática do trader</label><div class="row"><input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_stops"><span class="muted">stops em 24 h → pausa</span>
+              <input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_hours"><span class="muted">h</span></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <header><div><h2>Filtros antes de copiar</h2><div class="sub">0 desliga o filtro</div></div></header>
+          <div class="form">
+            <div class="field"><label>Só copiar traders com acerto acima de</label><div class="row"><input class="in w80" type="number" min="0" max="95" step="5" data-cfg="pump_min_winrate"><span class="muted">%</span>
+              <button class="btn sm" data-set="pump_min_winrate" data-val="50">50%</button><button class="btn sm" data-set="pump_min_winrate" data-val="60">60%</button></div></div>
+            <div class="field"><label>… e com no mínimo</label><div class="row"><input class="in w100" type="number" min="0" step="100" data-cfg="pump_lb_min_trades"><span class="muted">trades no período</span>
+              <button class="btn sm" data-set="pump_lb_min_trades" data-val="100">100</button><button class="btn sm" data-set="pump_lb_min_trades" data-val="500">500</button><button class="btn sm" data-set="pump_lb_min_trades" data-val="1000">1000</button></div></div>
+            <div class="field"><label>Quantos traders copiar (top N)</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_top_n"></div></div>
+            <div class="field"><label>Saldo mínimo do trader (SOL+USDC+USDT)</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_wallet_usd"></div></div>
+            <div class="field"><label>Compra mínima do trader</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_min_trader_sol"><span class="muted">SOL</span></div></div>
+            <div class="field"><label>Market cap mínimo do token</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_mcap_usd"></div></div>
+            <div class="field"><label>Volume mínimo na última hora</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_vol_h1_usd"></div></div>
+            <div class="field"><label>Negociações mínimas na última hora</label><div class="row"><input class="in w80" type="number" min="0" step="10" data-cfg="pump_min_txns_h1"></div></div>
+            <div class="field"><label>10 maiores carteiras do token (máx.)</label><div class="row"><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_max_top10_pct"><span class="muted">%</span></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <header><div><h2>Taxas usadas na simulação</h2><div class="sub">as mesmas que o modo real paga</div></div></header>
+          <div class="form">
+            <div class="field"><label>Slippage extra (você entra depois do trader)</label><div class="row"><input class="in w80" type="number" min="0" step="0.5" data-cfg="pump_extra_slip_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>pump.fun na curva / PumpSwap</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_fee_pct"><span class="muted">% /</span><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_swap_fee_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>PumpPortal / taxa de prioridade</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_portal_fee_pct"><span class="muted">% /</span><input class="in w100" type="number" min="0" step="0.0001" data-cfg="pump_priority_sol"><span class="muted">SOL</span></div></div>
+          </div>
+        </div>
+        <div class="card" id="secretsCard">
+          <header><div><h2>Chaves pessoais</h2><div class="sub">guardadas criptografadas · nunca voltam para a tela · só aparece se estão configuradas</div></div></header>
+          <div id="secrets"></div>
+        </div>
+        <div class="card" id="adminCard" hidden>
+          <header><div><h2>Admin — status geral</h2><div class="sub">conexões, usuários e erros (nunca as chaves de ninguém)</div></div><div class="sp"></div>
+            <button class="btn sm tgl" id="shareB">…</button></header>
+          <div class="cfgs" id="adminS"></div>
+        </div>
+        <div class="card">
+          <header><div><h2>Registro de segurança</h2><div class="sub">últimas ações sensíveis da sua conta</div></div></header>
+          <div class="tbl-wrap"><table id="tAudit"></table></div>
+        </div>
+      </section>
+
+      <!-- ========================================================= COMO FUNCIONA -->
+      <section class="view" data-view="ajuda" hidden>
+        <div class="card"><div class="prose">
+          <p><b>Dados:</b> top traders do app da pump.fun pela Solana Tracker (chave grátis) e, para as compras e vendas deles em tempo real, o WebSocket da própria rede Solana (grátis) — um monitor só para todos os usuários. Preço ao vivo direto da curva da pump.fun; tokens já graduados pela Jupiter; volume e market cap pela DexScreener.</p>
+          <p><b>Ranking próprio:</b> para cada carteira o bot calcula o lucro realizado em SOL nas últimas 24 h, a taxa de acerto e o tempo que segura cada token. Ficam de fora quem criou token, robôs sniper, robôs de alta frequência e quem você banir.</p>
+          <p><b>Cópia simulada:</b> quando um trader copiado compra, o bot compra o valor escolhido no preço logo depois dele, mais o slippage extra, pagando as taxas reais (pump.fun ou PumpSwap, PumpPortal e rede). Quando ele vende, o bot vende a mesma proporção. Os resultados já vêm líquidos.</p>
+          <p><b>Proteções:</b> stop de perda, stop móvel (conferido a cada ~1 s), tempo máximo, alvo opcional, segurar até lucro, espera antes de copiar, pausa manual ou automática do trader (padrão: 2 stops em 24 h → 24 h fora) e filtros de token e de trader.</p>
+          <p><b>Real:</b> a PumpPortal monta a transação, o servidor assina com a SUA carteira (a chave nunca sai do servidor nem volta para a tela) e envia. Fora da pump.fun, pela Jupiter. Limites: valor por compra, posições ao mesmo tempo e perda máxima no dia. Começa desligado e desliga sozinho a cada reinício.</p>
+          <p><b>Privacidade:</b> cada conta só vê os próprios dados — o banco bloqueia o resto. Chaves ficam criptografadas (AES-256-GCM) com uma chave mestra que só existe no servidor.</p>
+          <p><b>Atenção:</b> memecoins da pump.fun são extremamente arriscadas — a maioria vai a zero e copiar sempre tem atraso. Use a simulação por bastante tempo antes de pensar em dinheiro real.</p>
+        </div></div>
+      </section>
+      <footer class="dim mono" style="font-size:11.5px;padding:10px 2px 24px" id="foot"></footer>
+    </main>
+  </div>
+</div>
+
+<div class="cmdk" id="cmdk" hidden><div class="box"><input id="cmdkIn" placeholder="Buscar token, trader ou carteira…" autocomplete="off"><ul id="cmdkList"></ul><div class="foot">↑↓ para escolher · Enter abre · Esc fecha</div></div></div>
+<div class="toasts" id="toasts"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="/static/common.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

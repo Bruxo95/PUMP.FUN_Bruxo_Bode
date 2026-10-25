@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PUMP.FUN Bruxo Bode — cópia de traders da pump.fun</title>
+<meta name="description" content="Siga os melhores traders da pump.fun com carteira simulada, stop, stop móvel e filtros. Execução real opcional, sempre começando desligada.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23f2f2f2'/%3E%3Cpath d='M8 10h8l-1.5 7L12 21l-2.5-4z' fill='%230a0a0a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<nav class="lp-nav">
+  <a class="logo" href="/"><span class="mark" data-logo></span>PUMP.FUN <small>Bruxo Bode</small></a>
+  <div class="lp-links"><a href="#recursos">Recursos</a><a href="#protecoes">Proteções</a><a href="#perguntas">Perguntas</a></div>
+  <div class="sp"></div>
+  <button class="btn ghost" data-login>Entrar com Google</button>
+  <button class="btn primary" data-login data-start>Começar</button>
+</nav>
+
+<header class="lp-hero">
+  <span class="eyebrow"><span class="dot on"></span>Simulação primeiro · real só quando você ligar</span>
+  <h1>Siga os <b>melhores traders</b><br>da pump.fun em tempo real</h1>
+  <p class="lead">O painel acompanha as carteiras do topo do ranking, copia as entradas e saídas numa carteira de teste
+    e protege cada posição com stop, stop móvel e filtros de token. Você vê tudo antes de arriscar um centavo.</p>
+  <div class="lp-cta">
+    <button class="btn primary lg" data-login>
+      <svg class="ic" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.4-.2-2.1H12v4h6c-.1 1-.8 2.5-2.3 3.6v3h3.7c2.2-2 3.2-5 3.2-8.5z"/><path fill="#34A853" d="M12 23c3 0 5.6-1 7.4-2.7l-3.7-3c-1 .7-2.3 1.2-3.7 1.2-2.9 0-5.3-1.9-6.2-4.6H2v3C3.8 20.6 7.6 23 12 23z"/><path fill="#FBBC05" d="M5.8 13.9c-.2-.7-.4-1.4-.4-2s.1-1.4.4-2v-3H2C1.3 8.3 1 10.1 1 12s.4 3.7 1.2 5.2l3.6-3.3z"/><path fill="#EA4335" d="M12 5.4c1.7 0 3.1.6 4.3 1.7l3.2-3.2C17.6 2.1 15 1 12 1 7.6 1 3.8 3.4 2 7l3.8 3c.9-2.7 3.3-4.6 6.2-4.6z"/></svg>
+      Entrar com Google</button>
+    <a class="btn lg" href="#recursos">Como funciona</a>
+  </div>
+  <div class="lp-note">Login só com Google. Cada pessoa tem o próprio painel, a própria carteira e as próprias chaves.</div>
+  <div class="lp-err" id="lpErr" hidden></div>
+
+  <!-- prévia ilustrativa do painel (números de exemplo) -->
+  <div class="preview" aria-label="Prévia ilustrativa do painel">
+    <div class="pv-bar"><i></i><i></i><i></i><span>Painel · dados ilustrativos</span></div>
+    <div class="pv-body">
+      <div class="pv-side">
+        <div class="lbl">Painel</div>
+        <div class="it on">Visão geral</div><div class="it">Top traders</div><div class="it">Posições</div>
+        <div class="it">Histórico</div><div class="it">Feed ao vivo</div><div class="it">Execução real</div>
+      </div>
+      <div class="pv-main">
+        <div class="kpis">
+          <div class="kpi"><div class="k">Saldo fictício</div><div class="v">6,412 SOL</div><div class="d up">↗ +28,2% desde o início</div></div>
+          <div class="kpi"><div class="k">Resultado</div><div class="v up">+1,412</div><div class="d">líquido de taxas</div></div>
+          <div class="kpi"><div class="k">Acerto</div><div class="v">61%</div><div class="d">47 ganhos · 30 perdas</div></div>
+          <div class="kpi"><div class="k">Traders copiados</div><div class="v">10</div><div class="d"><span class="dot on"></span> monitor ON</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="padding:14px">
+            <header style="margin-bottom:6px"><div><h2>Evolução da carteira</h2><div class="sub">SOL · simulado</div></div><div class="sp"></div>
+              <div class="seg"><button class="on">24h</button><button>7d</button><button>30d</button></div></header>
+            <svg viewBox="0 0 600 180" style="width:100%;height:180px" preserveAspectRatio="none">
+              <defs><linearGradient id="pvg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22c55e" stop-opacity=".28"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs>
+              <g stroke="#1e1e22"><line x1="0" x2="600" y1="40" y2="40"/><line x1="0" x2="600" y1="90" y2="90"/><line x1="0" x2="600" y1="140" y2="140"/></g>
+              <path d="M0 150 C40 146 60 128 90 132 S140 150 170 120 S220 96 250 104 S300 120 330 84 S380 70 410 78 S460 92 490 58 S550 40 600 34 L600 180 L0 180Z" fill="url(#pvg)"/>
+              <path d="M0 150 C40 146 60 128 90 132 S140 150 170 120 S220 96 250 104 S300 120 330 84 S380 70 410 78 S460 92 490 58 S550 40 600 34" fill="none" stroke="#22c55e" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="card" style="padding:14px">
+            <header style="margin-bottom:4px"><h2>Operações recentes</h2></header>
+            <div class="ops">
+              <div class="op"><div><div class="t">BODE · copiou 7xKp…9fQa</div><div class="m">há 2 min</div></div><div class="tags"><span class="tag buy">Compra</span><span class="tag sim">Simulado</span></div></div>
+              <div class="op"><div><div class="t">MOON · stop móvel no pico</div><div class="m">há 9 min</div></div><div class="tags"><span class="tag trail">Stop móvel</span><span class="tag sim">Simulado</span></div></div>
+              <div class="op"><div><div class="t">PEPE2 · trader saiu</div><div class="m">há 21 min</div></div><div class="tags"><span class="tag win">Venda c/ lucro</span><span class="tag sim">Simulado</span></div></div>
+              <div class="op"><div><div class="t">RUG · −40%</div><div class="m">há 48 min</div></div><div class="tags"><span class="tag stop">Stop</span><span class="tag sim">Simulado</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pv-fade"></div>
+</header>
+
+<section class="lp-sec" id="recursos">
+  <div class="kicker">Recursos</div>
+  <h2>Tudo o que o bot faz, <span>num painel só seu.</span></h2>
+  <div class="feat" id="protecoes">
+    <article>
+      <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+      <h3>Top traders</h3>
+      <p>O ranking oficial do app da pump.fun (Solana Tracker) por lucro realizado, com acerto, número de trades e saldo de cada carteira.</p>
+      <ul><li>Períodos de 24 h, 7, 30 ou 90 dias</li><li>Robôs, devs de token e corretoras ficam de fora</li><li>Status online e o que cada um está segurando</li></ul>
+    </article>
+    <article>
+      <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg></div>
+      <h3>Cópia automática</h3>
+      <p>Quando um trader seguido compra, o bot entra; quando ele vende, o bot vende a mesma proporção — com as taxas reais já descontadas.</p>
+      <ul><li>Carteira fictícia para testar sem risco</li><li>Espera opcional antes de copiar</li><li>Também copia fora da pump.fun (via Jupiter)</li></ul>
+    </article>
+    <article>
+      <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h3>Proteções</h3>
+      <p>Cada posição tem stop de perda, stop móvel conferido a cada segundo, tempo máximo e a opção de segurar até virar lucro.</p>
+      <ul><li>Filtros de market cap, volume e concentração</li><li>Pausa automática de quem bate stop seguido</li><li>Limite de perda no dia para o modo real</li></ul>
+    </article>
+  </div>
+</section>
+
+<section class="lp-sec" id="perguntas">
+  <div class="kicker">Perguntas frequentes</div>
+  <h2>Antes de começar</h2>
+  <div class="faq">
+    <details><summary>Preciso colocar dinheiro para usar?</summary><p>Não. Todo usuário começa só com a carteira fictícia. A execução real fica desligada e só liga se você configurar uma carteira, confirmar e o servidor permitir. Ela volta a desligar sempre que o servidor reinicia.</p></details>
+    <details><summary>Quais chaves eu preciso?</summary><p>Para o ranking oficial, uma chave grátis da Solana Tracker. Para o modo real, a chave privada de uma carteira Solana feita só para o bot, com pouco saldo. Um RPC próprio (Helius etc.) é opcional. Você cola tudo no painel; elas são guardadas criptografadas e nunca voltam para a tela.</p></details>
+    <details><summary>Outras pessoas veem meus dados?</summary><p>Não. Cada conta enxerga só a própria carteira, posições, histórico, configurações e chaves — isso é garantido no banco de dados, não só na tela. O administrador vê apenas o status geral do sistema.</p></details>
+    <details><summary>Copiar trader dá lucro garantido?</summary><p>Não. Memecoins da pump.fun são extremamente arriscadas, a maioria vai a zero e a cópia sempre chega depois do trader. Use a simulação por bastante tempo antes de pensar em dinheiro real.</p></details>
+    <details><summary>Funciona no celular?</summary><p>Sim. O painel se ajusta à tela, o menu vira uma gaveta e os avisos sonoros funcionam no navegador do celular.</p></details>
+  </div>
+</section>
+
+<section class="lp-final">
+  <h2>Comece pela simulação.</h2>
+  <div class="lp-cta"><button class="btn primary lg" data-login>Entrar com Google</button></div>
+</section>
+
+<footer class="lp-foot">
+  <span class="logo"><span class="mark" data-logo></span>PUMP.FUN <small>Bruxo Bode</small></span>
+  <span class="sp"></span>
+  <span>Não é recomendação de investimento. Cripto envolve risco de perda total.</span>
+  <span class="mono" id="ver"></span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="/static/common.js"></script>
+<script src="/static/landing.js"></script>
+</body>
+</html>

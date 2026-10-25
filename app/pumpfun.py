@@ -492,8 +492,19 @@ class PumpFun:
             self.followed = new
 
     # ------------------------------------------------------------------ leaderboard pump.fun (Solana Tracker)
+    lb_key_fallback = None                      # chave emprestada pelo admin ("compartilhar com todos")
+
     def lb_key(self) -> str:
-        return self.keys.get("solanatracker_api_key") if self.keys is not None else ""
+        own = self.keys.get("solanatracker_api_key") if self.keys is not None else ""
+        if not own and self.lb_key_fallback is not None:
+            try:
+                return self.lb_key_fallback() or ""
+            except Exception:
+                return ""
+        return own
+
+    def lb_key_own(self) -> bool:
+        return bool(self.keys.get("solanatracker_api_key")) if self.keys is not None else False
 
     @staticmethod
     def _num(x):
