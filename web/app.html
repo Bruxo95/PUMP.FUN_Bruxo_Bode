@@ -210,7 +210,7 @@
             <div class="field"><label>… e com no mínimo</label><div class="row"><input class="in w100" type="number" min="0" step="100" data-cfg="pump_lb_min_trades"><span class="muted">trades no período</span>
               <button class="btn sm" data-set="pump_lb_min_trades" data-val="100">100</button><button class="btn sm" data-set="pump_lb_min_trades" data-val="500">500</button><button class="btn sm" data-set="pump_lb_min_trades" data-val="1000">1000</button></div></div>
             <div class="field"><label>Quantos traders copiar (top N)</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_top_n"></div></div>
-            <div class="field"><label>Só copiar traders online</label><div class="row"><button class="btn sm tgl" data-toggle="pump_only_online">…</button>
+            <div class="field" data-novo-ate="2026-11-08"><label>Só copiar traders online</label><div class="row"><button class="btn sm tgl" data-toggle="pump_only_online">…</button>
               <span class="muted">online = negociou nos últimos</span><input class="in w80" type="number" min="1" max="1440" step="5" data-cfg="pump_online_min"><span class="muted">min</span></div>
               <div class="hint">A cada 10 min o painel refaz a lista: quem ficou inativo sai e entra o melhor do top que estiver online. Carteiras que você adicionou na mão e traders com posição aberta continuam.</div></div>
             <div class="field"><label>Saldo mínimo do trader (SOL+USDC+USDT)</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_wallet_usd"></div></div>
@@ -219,6 +219,9 @@
             <div class="field"><label>Volume mínimo na última hora</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_vol_h1_usd"></div></div>
             <div class="field"><label>Negociações mínimas na última hora</label><div class="row"><input class="in w80" type="number" min="0" step="10" data-cfg="pump_min_txns_h1"></div></div>
             <div class="field"><label>10 maiores carteiras do token (máx.)</label><div class="row"><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_max_top10_pct"><span class="muted">%</span></div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Checar risco do token antes de copiar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_risk_check">…</button>
+              <span class="muted">nota máxima</span><input class="in w80" type="number" min="1" max="10" step="1" data-cfg="pump_max_risk_score"><span class="muted">de 10</span></div>
+              <div class="hint">Usa a nota da Solana Tracker (mesma chave do ranking): não copia token já sem liquidez, com alerta de perigo (ex.: criador pode criar mais tokens ou congelar carteiras, muitos bundlers/insiders) ou com nota acima da máxima. 1–3 baixo, 4–6 médio, 7–8 alto, 9–10 crítico.</div></div>
           </div>
         </div>
         <div class="card">

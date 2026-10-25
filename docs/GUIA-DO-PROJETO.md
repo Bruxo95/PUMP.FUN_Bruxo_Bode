@@ -102,7 +102,9 @@ banco e **nunca voltam para a tela**: o painel mostra apenas o estado de cada um
 - **Proteções**: stop móvel (liga em +X%, sai se cair Y pontos do pico), stop de perda, tempo máximo, alvo
   fixo e pausa automática do trader.
 - **Filtros**: acerto e trades mínimos do trader, top N, saldo mínimo do trader, compra mínima do trader,
-  market cap, volume e negociações mínimas do token, concentração máxima nas 10 maiores carteiras.
+  market cap, volume e negociações mínimas do token, concentração máxima nas 10 maiores carteiras e (0.9.3)
+  nota de risco da Solana Tracker: não copia token sem liquidez, com alerta de perigo (mint/freeze authority,
+  bundlers, insiders) ou com nota acima da máxima (padrão 7 de 10). Sem chave da Solana Tracker, não checa.
 - **Só copiar traders online** (padrão ON, janela de 10 min): dos traders aptos do top, só entram na cópia os
   que negociaram nos últimos X minutos. A cada 10 min a lista é refeita: quem ficou inativo sai e entra o
   melhor do top que estiver online. Se sobrar vaga e um trader do top negociar, ele entra na hora. Carteiras
@@ -215,6 +217,7 @@ blockchain ou grava dados. **Uso**: *Compartilhado* = uma conexão/consulta para
 | **Solana RPC — HTTP (leitura)** | `getTransaction` | Consulta | Não | Compartilhado | Ler a transação do trader e descobrir token, lado e valores. |
 | | `getMultipleAccounts` | Consulta | Não | Compartilhado | Preço ao vivo pela curva da pump.fun (reservas virtuais on-chain), a cada ~3 s (~1 s com stop móvel). |
 | | `getTokenSupply`, `getTokenLargestAccounts` | Consulta | Não | Compartilhado | Concentração nas 10 maiores carteiras (filtro anti-insider). |
+| Solana Tracker | `GET /tokens/{mint}` (campo `risk`) | Consulta | Chave (própria ou do sistema) | Compartilhado, cache 10 min por token | Nota de risco do token antes de copiar (0.9.3). |
 | | `getBalance`, `getTokenAccountsByOwner` | Consulta | Não | Compartilhado / Pessoal | Saldo dos traders (filtro de saldo mínimo) e saldos da carteira do usuário. |
 | **Solana RPC — HTTP (envio)** | `sendTransaction`, `getSignatureStatuses` | Escrita | RPC próprio opcional | Pessoal | Enviar a transação assinada e acompanhar a confirmação (modo real e troca USDC→SOL). |
 | **PumpPortal — WebSocket** | `wss://pumpportal.fun/api/data` · `subscribeNewToken` | Consulta | Opcional (sistema) | Compartilhado | Tokens novos e seus criadores (identifica devs de token). Streams de trades são pagos e ficam desligados. |

@@ -232,6 +232,10 @@ class SharedMonitor:
                 await svc._fetch_prices([mint], set_price=not svc.is_pump(mint))
             try:
                 await svc.holders_check(mint)
+                if any(getattr(e.cfg, "pump_risk_check", True) for e in fol):
+                    # chave de quem segue (própria) ou a do sistema; uma consulta por token serve para todos
+                    key = next((e.lb_key() for e in fol if e.lb_key_own()), "") or self.hub.shared_st_key
+                    await svc.risk_check(mint, key)
             except Exception:
                 pass
         self.dispatch(ev, only=targets)

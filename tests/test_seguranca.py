@@ -277,3 +277,30 @@ def test_txguard_program_ids_match_the_rest_of_the_engine():
     assert (txguard.PUMP, txguard.PUMP_AMM) == PUMP_PROGRAMS
     assert txguard.PUMP_BUY.hex() == "66063d1201daebea" and txguard.PUMP_SELL.hex() == "33e685a4017f83ad"
     assert txguard.PUMP_BUY_SOL_IN.hex() == "38fc74089edfcd5f"
+
+
+# ---------------------------------------------------------------- risco do token antes de copiar (0.9.3)
+def test_token_risk_from_solana_tracker_blocks_dangerous_tokens(env):
+    pf = asyncio.run(env["hub"].engine(UA))
+    mint = "Risk".ljust(40, "1") + "pump"
+    seen = []
+
+    def h(req):
+        seen.append((req.url.path, req.headers.get("x-api-key")))
+        return httpx.Response(200, json={"risk": {"score": 9, "rugged": False, "risks": [
+            {"name": "Freeze Authority Enabled", "level": "danger", "score": 7500},
+            {"name": "Top 10 Holders", "level": "warn", "score": 1000}]}})
+    pf.http = httpx.AsyncClient(transport=httpx.MockTransport(h))
+    asyncio.run(pf.risk_check(mint, "chave-st"))
+    asyncio.run(pf.risk_check(mint, "chave-st"))                                # cache: 1 consulta só
+    assert seen == [("/tokens/" + mint, "chave-st")]
+    tk = pf.tokens[mint]
+    assert "Freeze Authority" in pf.risk_block(tk)
+    tk["risk"] = {"score": 8, "rugged": False, "danger": [], "warn": ["Top 10 Holders"]}
+    assert "8/10" in pf.risk_block(tk)                                          # nota acima do máximo (7)
+    tk["risk"]["score"] = 5
+    assert pf.risk_block(tk) is None
+    pf.cfg.pump_risk_check = False
+    tk["risk"] = {"score": 10, "rugged": True, "danger": ["x"], "warn": []}
+    assert pf.risk_block(tk) is None                                            # desligado: não bloqueia
+    assert pf.risk_block({}) is None                                            # sem dados: não bloqueia

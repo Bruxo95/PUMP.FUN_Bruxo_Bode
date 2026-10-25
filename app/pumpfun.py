@@ -62,6 +62,8 @@ PUMP_PROGRAMS = ("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",   # pump.fun (cu
 # Leaderboard dos melhores traders do app da pump.fun (o mesmo de solanatracker.io/leaderboard/pumpfun).
 # Precisa de chave GRÁTIS da Solana Tracker (plano free: 10 mil requisições/mês; o bot usa ~1,5 mil).
 LB_URL = "https://data.solanatracker.io/v2/pnl/leaderboard/top"
+# Nota de risco do token (mint/freeze authority, bundlers, insiders, concentração…) — mesma chave do ranking.
+TOKEN_URL = "https://data.solanatracker.io/tokens/"
 
 
 def now_iso() -> str:
@@ -1386,7 +1388,42 @@ class PumpFun:
         top = tk.get("top10_pct")
         if mx_top and top is not None and top > mx_top:
             return f"10 maiores carteiras têm {top:.0f}% (máx. {mx_top:.0f}%) — risco de insiders/dev"
+        return self.risk_block(tk)
+
+    def risk_block(self, tk: dict) -> str | None:
+        """Nota de risco da Solana Tracker (pesquisa de 2026-10-25: copiar sem olhar o token deixa quem copia como
+        "saída" de bundles e insiders). Sem chave ou sem resposta, não bloqueia — o painel mostra que não checou."""
+        rk = tk.get("risk")
+        if not getattr(self.cfg, "pump_risk_check", True) or not rk:
+            return None
+        if rk.get("rugged"):
+            return "risco: token já sem liquidez (rug)"
+        if rk.get("danger"):
+            return "risco: " + ", ".join(rk["danger"][:3])
+        mx = int(self._c("pump_max_risk_score", 7))
+        if rk.get("score") is not None and rk["score"] > mx:
+            return f"risco {rk['score']}/10 acima do máximo {mx}" + (f" ({', '.join(rk['warn'][:2])})" if rk.get("warn") else "")
         return None
+
+    async def risk_check(self, mint: str, key: str) -> None:
+        """Busca a nota de risco do token (cache de 10 min; falha tenta de novo em 1 min). Só com chave."""
+        tk = self.tokens.setdefault(mint, {"created_t": time.time()})
+        if not key or time.time() < (tk.get("risk_next") or 0):
+            return
+        tk["risk_next"] = time.time() + 60
+        try:
+            r = await self.http.get(TOKEN_URL + mint, headers={"x-api-key": key, "Accept": "application/json"}, timeout=8)
+            if r.status_code != 200:
+                return
+            rk = (r.json() or {}).get("risk") or {}
+        except Exception:
+            return
+        risks = [x for x in rk.get("risks") or [] if isinstance(x, dict)]
+        score = rk.get("score")
+        tk["risk"] = {"score": int(score) if isinstance(score, (int, float)) else None, "rugged": bool(rk.get("rugged")),
+                      "danger": [str(x.get("name"))[:60] for x in risks if x.get("level") == "danger"],
+                      "warn": [str(x.get("name"))[:60] for x in risks if x.get("level") == "warn"], "t": time.time()}
+        tk["risk_next"] = time.time() + 600
 
     async def holders_check(self, mint: str) -> None:
         """% do token nas 10 maiores carteiras (sem contar a curva/pool) — RPC grátis, cache de 60 s."""
@@ -1499,6 +1536,8 @@ class PumpFun:
                         await self._fetch_prices([ev["mint"]], set_price=not self.is_pump(ev["mint"]))
                     try:
                         await self.holders_check(ev["mint"])
+                        if getattr(self.cfg, "pump_risk_check", True):
+                            await self.risk_check(ev["mint"], self.lb_key())
                     except Exception:
                         pass
                 for m in self.on_message(ev):

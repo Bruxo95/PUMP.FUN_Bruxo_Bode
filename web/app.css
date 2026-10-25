@@ -279,3 +279,8 @@ td a{color:#b9cdfa;text-decoration:none}td a:hover{text-decoration:underline}
 select.in{padding-right:24px}
 .keys{display:flex;gap:4px;flex-wrap:wrap;max-width:150px}
 #tUsers td{white-space:nowrap}#tUsers select.in{height:30px}
+
+/* novidades: linha verde à esquerda + selo "NOVO" (some sozinho na data de data-novo-ate) */
+.novo{position:relative;border-left:3px solid var(--up);padding-left:10px;background:linear-gradient(90deg,var(--up-bg),transparent 60%)}
+.novo>label::after,.novo>.k::after,.novo>h2::after{content:"NOVO";margin-left:8px;padding:1px 6px;border-radius:4px;font-size:10px;
+  font-weight:700;letter-spacing:.04em;color:#0a0a0a;background:var(--up);vertical-align:middle}

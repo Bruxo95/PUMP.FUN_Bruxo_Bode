@@ -37,6 +37,9 @@ cada API): `docs/GUIA-DO-PROJETO.md`.
 - Rodar `pytest -q` antes de cada commit; commits pequenos com mensagem clara em português; push no `main`.
 - **Subir a versão** em `app/version.py` a cada entrega (aparece em `/health` e no rodapé — é assim que o dono
   confere se o redeploy pegou).
+- Novidade visível no painel ganha marca verde "NOVO": atributo `data-novo-ate="AAAA-MM-DD"` (cerca de 14 dias
+  depois da entrega) no elemento; `marcarNovos()` em `web/app.js` aplica a classe `novo` e ela some sozinha depois
+  da data. Pedido do dono em 2026-10-25 ("está tudo preto, quero distinguir o que é novo").
 - Visual: tema escuro "painel profissional" (estilo inspirado em rbp-security-template.vercel.app — só o
   estilo, nada copiado). Botões liga/desliga: **verde = ON, vermelho = OFF**. Tem que funcionar no celular
   (menu vira gaveta, sem rolagem lateral). JS sem handlers inline (a CSP bloqueia).
@@ -131,8 +134,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 ## Ideias / pendências
 - Pesquisa de mercado (2026-10-25; Trojan, GMGN, BullX, Cielo, Kolscan, chainstacklabs/pumpfun-bonkfun-bot,
-  arXiv 2601.08641). Ideias por prioridade: (1) checagem de risco do token antes de copiar pelo `risk` da
-  Solana Tracker (mint/freeze authority, bundlers, insiders, top 10, score); (2) não copiar se o preço já subiu
+  arXiv 2601.08641). Ideias por prioridade: (1) FEITA na 0.9.3 — checagem de risco do token pelo `risk` da
+  Solana Tracker (`risk_check`/`risk_block` em `app/pumpfun.py`; não testada com a API de verdade); (2) não copiar se o preço já subiu
   X% desde a compra do trader; (3) venda automática quando o dev vende e ao migrar para a PumpSwap;
   (4) nota de qualidade do trader (consistência, não só acerto/lucro; evitar carteiras "isca" e bundles);
   (5) resultado por trader copiado, para pausar quem dá prejuízo depois das taxas; (6) avisos no Telegram;
