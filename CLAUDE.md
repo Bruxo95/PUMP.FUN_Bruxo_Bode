@@ -150,6 +150,20 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Ranking próprio fica vazio sem o stream pago da PumpPortal (comportamento igual ao original).
 
 ## Ideias / pendências
+- **Radar de KOLs / "ondas de influencer" (pedido do dono em 2026-10-25, para outra IA implementar).** Exemplo:
+  https://pump.fun/coin/C5xph2yL6gMdxmuLGxJBkGpmuDFfyi5fqkBNhvL6pump — no gráfico da pump.fun aparecem dezenas de
+  avatares de traders conhecidos comprando em sequência e o preço sobe forte. Objetivo: identificar RÁPIDO quando
+  várias carteiras conhecidas entram no mesmo token e decidir se vale entrar cedo e sair na onda. Sugestão:
+  1. Detectar a "onda": N carteiras rotuladas (KOL/influencer/smart money) comprando o mesmo token em X minutos.
+     Fontes: rótulos `identity` da Solana Tracker (ex.: `/trades/{token}?enrich=identity`, identidade nas posições
+     PnL v2), carteiras em estudo, top do ranking e lista de KOLs (Kolscan). Conferir na doc o que a chave cobre.
+  2. Nota da onda: quantas carteiras distintas, se são as que dão lucro para quem copia (ranking de copiabilidade,
+     0.15.0), pressão de compra, risco do token, progresso da curva e tempo desde a 1ª compra (entrar no começo).
+  3. Alerta no painel (e depois Telegram); entrada automática primeiro só no SIMULADO, com ON/OFF e marca NOVO.
+  4. Saída própria da onda: venda em partes rápida, stop curto, e sair quando os KOLs começarem a vender.
+  5. Riscos a mostrar: KOL costuma vender em cima de quem chega depois (copiador vira "saída"); atraso decide tudo;
+     medir no simulado por semanas antes de qualquer real. Base: arXiv 2601.08641 (bundles/snipers/isca) e
+     etapa 3 das Carteiras em estudo (alerta de convergência), que é a mesma ideia e pode ser reaproveitada.
 - Aprendizado diário (menu, `app/learning.py`, 0.9.9): 1ª etapa só com dados existentes (trades do usuário +
   memória do monitor, que zera ao reiniciar). (2) FEITA no código na 0.10.0: `learning_daily` guarda o resumo
   do dia a cada 30 min (`hub.save_learning`) e a página mostra a consistência por dias;
