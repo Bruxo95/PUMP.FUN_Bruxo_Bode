@@ -28,7 +28,7 @@ FIXED_SOURCES = [
     "requirements.txt", "requirements-test.txt", "constraints.txt", "app/version.py", "Dockerfile", ".dockerignore", ".github/workflows/imagem.yml",
     "web/index.html", "web/app.html", SNAPSHOT, AUDIT_META, TRIAGE,
     "scripts/inventario_dependencias.py", "scripts/pdf_dependencias.py",
-    "scripts/coletar_risco_dependencias.py", "scripts/verificar_triagem_dependencias.py",
+    "scripts/coletar_risco_dependencias.py", "scripts/verificar_triagem_dependencias.py", "scripts/aplicar_migracoes.py",
     "docs/dependencias/POLITICA-DE-DEPENDENCIAS.md", "docs/dependencias/pesquisa-malware.md", SECURITY,
     "docs/dependencias/revisoes-manuais.json",
 ]

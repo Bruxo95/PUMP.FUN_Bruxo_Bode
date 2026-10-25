@@ -828,6 +828,8 @@ class PumpFun:
                     why = self.token_block(mint)
                 if not why:
                     why = self.chase_block(self.price_of(ev), px)
+                if not why:
+                    why = self.curve_block(mint)
             if why:
                 self._feed(**base, action="não copiou", reason=why)
                 return []
@@ -849,11 +851,15 @@ class PumpFun:
                 else:
                     self._real_buying.add(mint)
                     self._rq_put(("buy", {"wallet": who, "mint": mint, "symbol": sym, "trader_sol": sol,
-                                          "trader_price": self.price_of(ev) or px, "mcap_in": tk.get("mcap_sol"), "t": t}))
+                                          "trader_price": self.price_of(ev) or px, "mcap_in": tk.get("mcap_sol"), "t": t,
+                                          "block_t": ev.get("blockTime")}))
                     self._feed(**base, action="REAL: comprando", reason=f"enviando compra de {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL")
             # FICTÍCIO (sempre roda, para comparar)
             smine = [p for p in mine if not p.get("real")]
-            amt = float(self._c("pump_copy_sol", 0.1))
+            mult, mwhy = self.trust_mult(who)
+            amt = round(float(self._c("pump_copy_sol", 0.1)) * mult, 6)
+            bt = ev.get("blockTime")
+            lag = round(max(0.0, t - float(bt)), 1) if bt else None     # do trade do trader até a nossa cópia
             swhy = None
             if smine:
                 swhy = "já tem posição copiada neste token"
@@ -873,11 +879,12 @@ class PumpFun:
             p = {"opened_at": now_iso(), "open_t": t, "wallet": who, "mint": mint, "symbol": sym,
                  "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
                  "price_now": px, "trader_price": px, "trader_sol": sol, "proceeds": 0.0, "fees_sol": amt * fee + prio,
-                 "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"]}
+                 "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": lag}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
-            self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e}")
+            self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e}"
+                       + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
             return msgs
         # venda do trader enquanto a cópia ainda estava esperando: se ele saiu, não copia
@@ -994,6 +1001,7 @@ class PumpFun:
                   "venue": p.get("venue_in"),
                   "hold_s": round(t - p.get("open_t", t)), "sells": p.get("sells", []), "real": bool(p.get("real")),
                   "mcap_in": p.get("mcap_in"), "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
+            tr["lag_s"] = p.get("lag_s")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1022,6 +1030,18 @@ class PumpFun:
                     p["trail_since"] = now_iso()
                 p["trail_peak"] = round(max(chg, p.get("trail_peak") or chg), 2)
                 p["trail_exit"] = round(max(p["trail_peak"] - t_dist, float(self._c("pump_trail_min_lock_pct", 2))), 2)
+            tp1, prog = float(self._c("pump_tp1_pct", 0) or 0), None
+            cx = float(self._c("pump_curve_exit_pct", 0) or 0)
+            if cx and self.is_pump(mint) and not self.graduated(mint):
+                prog = self.curve_progress((self.tokens.get(mint) or {}).get("mcap_sol"))
+            if cx and prog is not None and prog >= cx:
+                out.append(self._sell(p, 1.0, px, f"saiu antes da graduação (curva em {prog:.0f}%, {chg:+.1f}% líquido)", t))
+                continue
+            if tp1 and not p.get("tp1_done") and chg >= tp1 and p["tokens_left"] > p["tokens"] * 0.05:
+                p["tp1_done"] = True
+                frac = float(self._c("pump_tp1_frac_pct", 50)) / 100
+                out.append(self._sell(p, frac, px, f"venda em partes: realizou {frac * 100:.0f}% em {chg:+.1f}% líquido", t))
+                continue
             if trail_on and p.get("trail_peak") is not None and chg <= p["trail_exit"]:
                 out.append(self._sell(p, 1.0, px, f"stop móvel (pico {p['trail_peak']:+.1f}% → saiu em {chg:+.1f}% líquido)", t))
             elif p.get("hold_profit") and chg > float(self._c("pump_hold_min_profit_pct", 0.0)):
@@ -1393,6 +1413,51 @@ class PumpFun:
         if mx_top and top is not None and top > mx_top:
             return f"10 maiores carteiras têm {top:.0f}% (máx. {mx_top:.0f}%) — risco de insiders/dev"
         return self.risk_block(tk)
+
+    @staticmethod
+    def curve_progress(mcap_sol: float | None) -> float | None:
+        """% da curva da pump.fun já preenchida, a partir do market cap em SOL (curva x*y=k: começa com 30 SOL
+        virtuais e gradua com 115, ~28 SOL → ~410 SOL de market cap)."""
+        if not mcap_sol or mcap_sol <= 0:
+            return None
+        return max(0.0, min(100.0, ((32.19 * mcap_sol) ** 0.5 - 30) / 85 * 100))
+
+    def graduated(self, mint: str) -> bool:
+        tk = self.tokens.get(mint) or {}
+        return tk.get("pool") in ("pumpswap", "pump-amm") or "pumpswap" in (tk.get("dexes") or [])
+
+    def curve_block(self, mint: str) -> str | None:
+        """Filtros de token da pump.fun (0.12.0): já graduado e velocidade da curva (o sinal mais forte do estudo)."""
+        if not self.is_pump(mint):
+            return None
+        if getattr(self.cfg, "pump_skip_graduated", False) and self.graduated(mint):
+            return "token já graduou (PumpSwap) — depois da graduação o risco de derrubada é maior"
+        mn = float(self._c("pump_min_curve_speed", 0) or 0)
+        tk = self.tokens.get(mint) or {}
+        if mn and not self.graduated(mint) and tk.get("creator"):      # só com a hora de criação vista de verdade
+            prog = self.curve_progress(tk.get("mcap_sol"))
+            mins = max(0.1, (time.time() - float(tk.get("created_t") or time.time())) / 60)
+            if prog is not None and prog / mins < mn:
+                return f"curva enchendo devagar ({prog / mins:.1f}%/min, mínimo {mn:.1f}%/min)"
+        return None
+
+    def trust_mult(self, who: str) -> tuple[float, str]:
+        """Valor da cópia conforme o SEU resultado copiando este trader nos últimos 7 dias (mín. 5 trades)."""
+        if not getattr(self.cfg, "pump_size_by_trader", False):
+            return 1.0, ""
+        real = bool(getattr(self.cfg, "pump_real_enabled", False))
+        lim = datetime.now(timezone.utc).timestamp() - 7 * 86400
+        mine = [t for t in self.trades(5000) if t.get("wallet") == who and bool(t.get("real")) == real
+                and (self._ts(t.get("closed_at")) or 0) >= lim]
+        if len(mine) < 5:
+            return 1.0, ""
+        pnl = sum(t.get("pnl_sol") or 0 for t in mine)
+        wins = sum(1 for t in mine if (t.get("pnl_sol") or 0) > 0) / len(mine)
+        if pnl > 0 and wins >= 0.5:
+            return 1.5, f"×1,5: você lucra copiando este trader ({len(mine)} trades)"
+        if pnl < 0:
+            return 0.5, f"×0,5: você perde copiando este trader ({len(mine)} trades)"
+        return 1.0, ""
 
     def chase_block(self, trader_px: float | None, now_px: float | None) -> str | None:
         """Não "correr atrás" do preço (pesquisa de 2026-10-25): quem copia entra depois e mais caro, e é essa
@@ -1868,7 +1933,8 @@ class PumpFun:
                 self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
                            action="REAL não copiou", reason=f"perda do dia chegou a {lim} SOL")
                 return
-            amt = float(self._c("pump_real_max_sol", 0.05))
+            mult, mwhy = self.trust_mult(it["wallet"])
+            amt = float(self._c("pump_real_max_sol", 0.05)) * min(1.0, mult)
             # a compra real sai da fila depois: confere de novo se o preço já não fugiu da entrada do trader
             chase = self.chase_block(it.get("trader_price"), (self.tokens.get(mint) or {}).get("price"))
             if chase:
@@ -1887,7 +1953,8 @@ class PumpFun:
                  "sol_in": round(spent, 9), "tokens": toks, "tokens_left": toks, "price_in": spent / toks,
                  "price_now": it.get("trader_price"), "trader_price": it.get("trader_price"),
                  "trader_sol": it.get("trader_sol"), "proceeds": 0.0, "mcap_in": it.get("mcap_in"), "real": True,
-                 "venue_in": fr["venue_name"], "signature": res.get("signature"), "fees_sol": 0.0}
+                 "venue_in": fr["venue_name"], "signature": res.get("signature"), "fees_sol": 0.0,
+                 "lag_s": round(max(0.0, time.time() - float(it.get("block_t") or it.get("t") or time.time())), 1)}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"],
                          network=max(0.0, spent - amt * (1 + fr["venue"] + fr["portal"])))
             p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
@@ -1952,6 +2019,7 @@ class PumpFun:
                   "hold_s": round(time.time() - p.get("open_t", time.time())), "sells": p.get("sells", []),
                   "real": True, "signature": p.get("signature"), "mcap_in": p.get("mcap_in"),
                   "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
+            tr["lag_s"] = p.get("lag_s")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)

@@ -99,10 +99,14 @@ Nenhum usuário lê `app_secrets` (RLS sem política). Em Configurações cada c
 chave do sistema / não configurada" e o link para criar a própria.
 Migrações registradas como aplicadas no projeto: `20261025000001_inicial.sql`, `20261025000002_admin.sql` e
 `20261025000003_chaves_sistema.sql`.
-`20261025000004_aprendizado_diario.sql` (tabela `learning_daily`, 0.10.0): aplicação no Supabase remoto AUTORIZADA
-pelo dono em 2026-10-25; registrar aqui quando for confirmada aplicada. Sem ela o app funciona, só não guarda histórico.
-Migração nova = arquivo novo em `supabase/migrations/`. Aplicar no Supabase remoto fica fora do deploy
-autorizado (somente GitHub) e exige uma solicitação explícita para essa ação.
+`20261025000004_aprendizado_diario.sql` (tabela `learning_daily`, 0.10.0).
+**Migrações automáticas (desde 0.12.0, autorizado pelo dono em 2026-10-25):** o job `banco` do Actions roda
+`scripts/aplicar_migracoes.py` com o segredo `SUPABASE_ACCESS_TOKEN` (Management API) e aplica, antes da imagem,
+toda migração de `supabase/migrations/` que não esteja em `public.app_migracoes` (cada uma em transação com o seu
+registro). 0001–0003 entram só como linha de base. Migração nova = arquivo novo com nome `AAAAMMDDHHMMSS_nome.sql`,
+nunca editar uma já aplicada. O token dá poder total sobre o banco: SQL de migração é revisado antes do push
+(sem `WHERE` aberto, sem `drop` de dados).
+Migração nova = arquivo novo em `supabase/migrations/`; o Actions aplica sozinho (job `banco`, ver acima).
 
 ## Variáveis do servidor (Portainer → Environment variables do stack)
 `SUPABASE_URL`, `SUPABASE_ANON_KEY` (pública), `SUPABASE_SERVICE_ROLE_KEY` (secreta), `APP_ENCRYPTION_KEY`

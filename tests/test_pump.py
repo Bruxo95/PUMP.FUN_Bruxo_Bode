@@ -683,3 +683,51 @@ def test_pump_does_not_chase_price_after_trader_entry(tmp_path):
     pf.tokens[m]["price"] = 2e-6
     asyncio.run(pf._real_buy({"wallet": _W, "mint": m, "symbol": "CH", "trader_price": 1e-6}))
     assert bought == [] and "subiu 100%" in pf.feed[0]["reason"] and pf.feed[0]["action"] == "REAL não copiou"
+
+
+def test_pump_partial_take_profit_and_exit_before_graduation(tmp_path):
+    """0.12.0: venda em partes realiza uma fração uma vez; saída antes da graduação vende tudo com a curva alta."""
+    pf = _pump(tmp_path, paid=False, pump_tp1_pct=20.0, pump_tp1_frac_pct=50.0, pump_extra_slip_pct=0.0)
+    pf.add_manual(_W)
+    m = "Part".ljust(40, "1") + "pump"
+    pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7))
+    p = pf.positions()[0]
+    full = p["tokens"]
+    pf.tokens[m]["price"] = 3e-6
+    pf._check_stops(m, 0)
+    p = pf.positions()[0]
+    assert p["tp1_done"] and abs(p["tokens_left"] - full * 0.5) < full * 1e-6
+    assert "venda em partes" in pf.feed[0]["reason"] or any("venda em partes" in str(s.get("why")) for s in p.get("sells", []))
+    pf._check_stops(m, 0)                                                     # não repete a venda parcial
+    assert abs(pf.positions()[0]["tokens_left"] - full * 0.5) < full * 1e-6
+    pf.cfg.pump_curve_exit_pct = 50.0
+    pf.tokens[m]["mcap_sol"] = 300.0                                          # curva ~76%
+    pf._check_stops(m, 0)
+    assert not pf.positions() and "antes da graduação" in pf.trades()[0]["reason"]
+    assert abs(pf.curve_progress(28.0)) < 0.5 and pf.curve_progress(410.0) > 99 and pf.curve_progress(None) is None
+
+
+def test_pump_curve_filters_trust_size_and_lag(tmp_path):
+    import time as _t
+    pf = _pump(tmp_path, paid=False)
+    m = "Grad".ljust(40, "1") + "pump"
+    pf.tokens[m] = {"created_t": _t.time() - 600, "creator": "Dev", "mcap_sol": 60.0, "pool": "pumpswap"}
+    assert pf.curve_block(m) is None                                          # tudo desligado por padrão
+    pf.cfg.pump_skip_graduated = True
+    assert "graduou" in pf.curve_block(m)
+    pf.cfg.pump_skip_graduated, pf.tokens[m]["pool"] = False, "pump"
+    pf.cfg.pump_min_curve_speed = 5.0                                         # ~16% em 10 min = 1,6%/min
+    assert "devagar" in pf.curve_block(m)
+    pf.tokens[m]["created_t"] = _t.time() - 60
+    assert pf.curve_block(m) is None                                          # ~16% em 1 min: rápido
+    pf.cfg.pump_size_by_trader = True
+    for _ in range(5):
+        pf._save_trade({"wallet": _W, "pnl_sol": 0.02, "real": False, "closed_at": __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc).isoformat()})
+    assert pf.trust_mult(_W)[0] == 1.5 and pf.trust_mult("Outro".ljust(44, "1"))[0] == 1.0
+    pf.cfg.pump_min_curve_speed, pf.cfg.pump_size_by_trader = 0.0, False
+    pf.add_manual(_W)
+    n = "Lag".ljust(41, "1") + "pump"
+    now = _t.time()
+    pf.on_message(_ev("buy", _W, n, 1.0, 1e6, 30, 3e7, blockTime=int(now) - 4), now)
+    assert "atraso 4 s" in pf.feed[0]["reason"] and pf.positions()[-1]["lag_s"] >= 3.5

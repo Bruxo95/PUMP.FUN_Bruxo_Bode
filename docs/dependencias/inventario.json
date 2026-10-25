@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "f1c3549d3a9c3fcfc13ce917c4c32c21af5cafd0",
-    "application_version": "0.11.0 · 2026-10-25 · mascote animado na Visão geral",
+    "repository_reference": "85f7378887937ba6f5c84892d33d6d18a9065b45",
+    "application_version": "0.12.0 · 2026-10-25 · venda em partes, saída antes da graduação, filtros de curva, atraso e banco automático",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -16,9 +16,9 @@
     "issuer": "Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5)",
     "source_sha256": {
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
-      ".github/workflows/imagem.yml": "2d43c0e1e6d86c25f1bd4a13f33c8aeaf52710fa77f11ace327533bcaa405bbe",
+      ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "b4a58be669e7e39bb5d78d29b163e91bd172f62d40a02e0bbec62fd8acddc367",
+      "app/version.py": "ba33b238ea3a1fa5383603aa4fe585c0372a2df00e16957a9e3a57ec8966b88a",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -29,11 +29,12 @@
       "docs/dependencias/triagem-seguranca.json": "182c3e42c55b5998772aeb85bd2f64cd017f79f24cc58bc78cb4410f9a2fab61",
       "requirements-test.txt": "4d31f2778625031500fd7279af137185cb1001b3aeaf69fb1f0d43777d1bc519",
       "requirements.txt": "19536a896a1baf0afcfd9fa5cca9583e4e79e137323832967b5df7df3480eb78",
+      "scripts/aplicar_migracoes.py": "d6fc39a856af058b84c516be1b101649be0c5e16c56bc1309896ba9cad4f3ea4",
       "scripts/coletar_risco_dependencias.py": "8f642babe9bd74a7669687b2cb84ee92d5acbaa8d04a8f83b291fb0b46381f75",
-      "scripts/inventario_dependencias.py": "9a1472d17d9d14c4713341eea723eade94710c6b2a2c20b5ffed5b5ea3a46514",
+      "scripts/inventario_dependencias.py": "212b629975bdde865f8623b0fc6892f0ded2a3f6b4ab1817c868a0957825d35a",
       "scripts/pdf_dependencias.py": "d23001997899daa383f8bec52dc459abcc6e3cf78f17659b1703823bf965960c",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "7579f10f4f743ae1f93f167b7a58f3345280d7326110911cdecaa3a986ab3069",
+      "web/app.html": "a24a4b80deb2b89d5d2bdf629d5fbf2bfe1443f5ecf0b1c3e0bcbede55dc5b0b",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8303,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8338,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e8c569c14f0c83bdb4ea6eaeeb316e0fab12076b14696aa02d5ea4b297044800"
+  "pdf_sha256": "d1006c76050b274bf010d9cd033bb01bd7bc361ed1d97c6e0c737f109bc4feda"
 }

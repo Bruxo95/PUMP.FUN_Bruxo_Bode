@@ -172,3 +172,21 @@ def test_supa_rest_sends_service_key_and_user_filter():
     assert r.headers["apikey"] == "service-key-xyz-123456"
     with pytest.raises(Exception):
         asyncio.run(rest.delete("pump_positions", {}))           # delete sem filtro é bloqueado
+
+
+def test_migration_runner_only_applies_pending_in_order():
+    """scripts/aplicar_migracoes.py: aplica só o que falta, em ordem; nome fora do padrão para tudo."""
+    import importlib.util
+    import pathlib
+    import pytest
+    path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "aplicar_migracoes.py"
+    spec = importlib.util.spec_from_file_location("aplicar_migracoes", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    files = ["20261025000004_aprendizado_diario.sql", "20261025000001_inicial.sql", "20261026000001_outra.sql"]
+    assert mod.pending(files, {"20261025000001_inicial.sql"}) == ["20261025000004_aprendizado_diario.sql",
+                                                                   "20261026000001_outra.sql"]
+    with pytest.raises(SystemExit):
+        mod.pending(["x;drop table.sql"], set())
+    real = sorted(p.name for p in (path.parents[1] / "supabase" / "migrations").glob("*.sql"))
+    assert set(mod.BASELINE) <= set(real) and mod.pending(real, set(real)) == []

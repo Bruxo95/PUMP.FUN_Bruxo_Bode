@@ -46,8 +46,20 @@ jobs:
           -r "$RUNNER_TEMP/requirements-triados-pump.txt"
       - run: pytest -q
 
-  imagem:
+  # Aplica no Supabase as migrações novas (tabelas) antes de publicar a versão que depende delas.
+  # Usa o segredo SUPABASE_ACCESS_TOKEN (autorizado pelo dono em 2026-10-25); sem ele, só avisa.
+  banco:
     needs: testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: aplicar migrações pendentes no Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: python3 -B scripts/aplicar_migracoes.py
+
+  imagem:
+    needs: [testes, banco]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

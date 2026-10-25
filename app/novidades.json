@@ -2,6 +2,62 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.12.0",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Sistema (atualização do site)",
+      "titulo": "Banco atualizado sozinho a cada versão",
+      "oque": "Quando uma versão precisa de tabela nova no banco (como o histórico do Aprendizado diário), a atualização do site cria a tabela sozinha antes de publicar. Cada mudança no banco fica registrada e só é aplicada uma vez."
+    },
+    {
+      "versao": "0.12.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Proteções",
+      "titulo": "Venda em partes",
+      "oque": "Ao chegar em +X% líquido, vende uma parte (padrão 50%) e deixa o resto no stop móvel. Desligada por padrão (0); sugestão para testar: +30%."
+    },
+    {
+      "versao": "0.12.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Proteções",
+      "titulo": "Sair antes da graduação",
+      "oque": "Vende tudo quando a curva da pump.fun passa de X% (antes de ir para a PumpSwap, quando as derrubadas são comuns). Desligado por padrão; sugestão para testar: 85%."
+    },
+    {
+      "versao": "0.12.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Filtros antes de copiar",
+      "titulo": "Velocidade mínima da curva",
+      "oque": "Só copia token que enche a curva ao menos X% por minuto, o sinal que mais indicou graduação no estudo. Desligado por padrão; sugestão: 5."
+    },
+    {
+      "versao": "0.12.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Filtros antes de copiar",
+      "titulo": "Não copiar token já graduado",
+      "oque": "Ignora compras de tokens que já foram para a PumpSwap. Desligado por padrão."
+    },
+    {
+      "versao": "0.12.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Filtros antes de copiar",
+      "titulo": "Valor da cópia conforme o trader",
+      "oque": "Com 5+ trades seus copiando o trader em 7 dias: ×1,5 para quem te dá lucro, ×0,5 para quem te dá prejuízo. No real só reduz. Desligado por padrão."
+    },
+    {
+      "versao": "0.12.0",
+      "data": "2026-10-25",
+      "tipo": "melhoria",
+      "onde": "Feed ao vivo e Relatórios",
+      "titulo": "Atraso das cópias medido",
+      "oque": "Cada cópia mostra quantos segundos depois do trader ela aconteceu, e Relatórios mostra o atraso médio. Se passar de alguns segundos, um feed mais rápido (pago) faz diferença no real."
+    },
+    {
       "versao": "0.11.0",
       "data": "2026-10-25",
       "tipo": "novo",

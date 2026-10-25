@@ -12,7 +12,8 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta, timezone
 
-EXITS = [("stop móvel", "Stop móvel"), ("stop de perda", "Stop de perda"), ("trader vendeu", "Trader vendeu"),
+EXITS = [("venda em partes", "Venda em partes"), ("antes da graduação", "Saída antes da graduação"),
+         ("stop móvel", "Stop móvel"), ("stop de perda", "Stop de perda"), ("trader vendeu", "Trader vendeu"),
          ("segurou até", "Segurou até ficar positivo"), ("alvo", "Alvo de lucro"), ("tempo máximo", "Tempo máximo"),
          ("fechada por você", "Fechada por você")]
 SKIPS = [("10 maiores", "Concentração nas 10 maiores"), ("risco", "Risco do token"),
@@ -22,7 +23,8 @@ SKIPS = [("10 maiores", "Concentração nas 10 maiores"), ("risco", "Risco do to
          ("pausado", "Trader pausado"), ("já tem posição", "Já tinha posição no token"),
          ("limite de", "Limite de posições abertas"), ("saldo", "Saldo insuficiente"),
          ("trader saiu em", "Trader saiu antes da espera"), ("sem preço", "Token sem preço"),
-         ("cópia desligada", "Cópia desligada"), ("perda do dia", "Perda máxima do dia (real)"),
+         ("cópia desligada", "Cópia desligada"), ("graduou", "Token já graduado"),
+         ("curva enchendo", "Curva enchendo devagar"), ("perda do dia", "Perda máxima do dia (real)"),
          ("fora da pump.fun", "Fora da pump.fun"), ("liquidez", "Liquidez baixa")]
 
 
@@ -54,7 +56,8 @@ def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, fo
                 "fees_sol": round(sum(t.get("fees_sol") or 0 for t in rows), 6),
                 "invested_sol": round(sum(t.get("sol_in") or 0 for t in rows), 6),
                 "avg_pnl_sol": round(pnl / n, 6) if n else None,
-                "avg_hold_s": round(sum(t.get("hold_s") or 0 for t in rows) / n) if n else None}
+                "avg_hold_s": round(sum(t.get("hold_s") or 0 for t in rows) / n) if n else None,
+                "avg_lag_s": (round(sum(lags) / len(lags), 1) if (lags := [t["lag_s"] for t in rows if t.get("lag_s") is not None]) else None)}
 
     by_trader: dict[str, list] = {}
     by_exit: dict[str, list] = {}
