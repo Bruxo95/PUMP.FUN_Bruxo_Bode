@@ -37,8 +37,9 @@ cada API): `docs/GUIA-DO-PROJETO.md`.
 - Rodar `pytest -q` antes de cada commit; commits pequenos com mensagem clara em português; push no `main`.
 - **Subir a versão** em `app/version.py` a cada entrega (aparece em `/health` e no rodapé — é assim que o dono
   confere se o redeploy pegou).
-- Toda entrega acrescenta uma entrada NO TOPO de `web/novidades.json` (versão, data, tipo, onde fica no menu,
-  título e o que faz, em linguagem de usuário); aparece no menu Novidades. `tests/test_novidades.py` falha se a
+- Toda entrega acrescenta uma entrada NO TOPO de `app/novidades.json` (versão, data, tipo, onde fica no menu,
+  título e o que faz, em linguagem de usuário); aparece no menu Novidades, SÓ PARA ADMIN (rota
+  `/api/admin/novidades`; o arquivo fica fora de `web/` para não ser público — pedido do dono em 2026-10-25). `tests/test_novidades.py` falha se a
   primeira entrada não for a versão de `app/version.py`. Pedido do dono em 2026-10-25.
 - Novidade visível no painel ganha marca verde "NOVO": atributo `data-novo-ate="AAAA-MM-DD"` (cerca de 14 dias
   depois da entrega) no elemento; `marcarNovos()` em `web/app.js` aplica a classe `novo` e ela some sozinha depois

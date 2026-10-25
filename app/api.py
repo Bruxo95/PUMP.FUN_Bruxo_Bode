@@ -355,6 +355,15 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return [{"at": r.get("at"), "user_id": r.get("user_id"), "email": emails.get(r.get("user_id")),
                  "acao": r.get("acao"), "detalhe": r.get("detalhe")} for r in rows]
 
+    NOVIDADES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "novidades.json")
+
+    @app.get("/api/admin/novidades")
+    async def admin_novidades(u: dict = Depends(admin_only)):
+        """Histórico do que foi implementado (versão, onde fica, o que faz). Só admin, pedido do dono em 2026-10-25."""
+        import json as _json
+        with open(NOVIDADES, encoding="utf-8") as f:
+            return {"itens": _json.load(f)["itens"]}
+
     @app.get("/api/admin/logs")
     async def admin_logs(after: int = 0, level: str = "INFO", q: str = "", limit: int = 400,
                          u: dict = Depends(admin_only)):

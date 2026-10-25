@@ -53,12 +53,13 @@
     document.querySelectorAll("[data-novo-ate]").forEach((el) => el.classList.toggle("novo", el.dataset.novoAte >= hoje));
   }
   marcarNovos();
-  // ------------------------------------------------------------------ novidades (lista em web/novidades.json)
+  // ------------------------------------------------------------------ novidades (só admin: /api/admin/novidades, lista em app/novidades.json)
   let NOV = null, NOV_TIPO = "";
   async function loadNovidades() {
     if (!NOV) {
-      try { NOV = (await (await fetch("/static/novidades.json", { cache: "no-cache" })).json()).itens || []; }
-      catch (e) { $("tNov").innerHTML = '<tbody><tr><td class="muted">Não consegui carregar a lista de novidades.</td></tr></tbody>'; return; }
+      const r = await BB.api("/api/admin/novidades");
+      if (r.error || !r.itens) { $("tNov").innerHTML = '<tbody><tr><td class="muted">Não consegui carregar a lista de novidades.</td></tr></tbody>'; return; }
+      NOV = r.itens;
     }
     const hoje = Date.now(), TAG = { novo: "win", melhoria: "buy", "segurança": "pause", "correção": "trail" };
     const rows = NOV.filter((x) => !NOV_TIPO || x.tipo === NOV_TIPO);
@@ -88,7 +89,7 @@
   function route() {
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
-    if (VIEW === "admin" && !(ME && ME.role === "admin")) VIEW = "visao";
+    if ((VIEW === "admin" || VIEW === "novidades") && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
@@ -577,6 +578,7 @@
     ntfBtn();
     $("realB").onclick = realToggle;
     $("navAdmin").hidden = ME.role !== "admin";
+    $("navNov").hidden = ME.role !== "admin";
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };
