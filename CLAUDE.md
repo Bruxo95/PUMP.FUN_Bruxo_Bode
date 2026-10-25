@@ -14,6 +14,8 @@ tem o próprio painel, carteira fictícia, posições, histórico, configuraçõ
 Nasceu da aba PUMP.FUN do repositório `github.com/Bruxo95/hermes-jev-trader` (só essa aba foi trazida;
 Futuros, Spot, Solana DEX, DEX-CEX, Relógio, Macro, Hermes/Jev e Gate.io ficaram de fora). O mapa do que veio
 de onde está em `docs/ORIGEM.md`.
+Guia completo para usuários e desenvolvedores (uso, chaves, como as transações chegam à Solana e o papel de
+cada API): `docs/GUIA-DO-PROJETO.md`.
 
 - Produção: **https://pump.rachar.app.br** · versão no ar: `/health` (também no rodapé do painel)
 - Repositório: `github.com/Bruxo95/PUMP.FUN_Bruxo_Bode` (privado), branch `main`

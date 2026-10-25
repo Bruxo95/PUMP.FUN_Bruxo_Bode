@@ -3,6 +3,7 @@
 Sistema web multiusuário de cópia de traders da pump.fun. Login só com Google (Supabase), cada pessoa com o
 próprio painel, carteira, configurações e chaves. Criado a partir da aba PUMP.FUN do `hermes-jev-trader` —
 veja `docs/ORIGEM.md`.
+Guia completo (uso, chaves, transações e APIs): **`docs/GUIA-DO-PROJETO.md`**.
 
 - Endereço: **https://pump.rachar.app.br**
 - Conferir a versão no ar: **https://pump.rachar.app.br/health** (a mesma aparece no rodapé do painel)
