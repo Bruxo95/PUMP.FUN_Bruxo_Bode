@@ -306,8 +306,18 @@
     table("stList", ["Carteira", "Ganho/hora (24 h)", "Ganho/dia (média 7 d)", "Acerto", "Segura (mediana)", "Tokens fechados", ""], (r.wallets || []).map((x) => { const s = x.summary || {};
       return [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""), mny(s.per_hour, s.unit), mny(s.per_day_7d, s.unit),
         s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed),
-        '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
+        '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> <button class="btn sm" data-sts="' + esc(x.wallet) + '">Compartilhar</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
       "Nenhuma carteira em estudo. Cole um endereço acima.");
+  }
+  // compartilhar uma carteira em estudo com outro usuário (0.17.1): ela entra na lista de estudo da pessoa
+  async function openShare(w) {
+    const r = await BB.api("/api/pump/study/share-targets");
+    const us = r.users || [];
+    $("stShW").textContent = w.slice(0, 4) + "…" + w.slice(-4); $("stShare").dataset.w = w;
+    $("stShU").innerHTML = us.length ? us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "")) + "</option>").join("")
+      : '<option value="">Nenhum outro usuário cadastrado</option>';
+    $("stShGo").disabled = !us.length; $("stShare").hidden = false;
+    $("stShare").scrollIntoView({ behavior: "smooth", block: "center" });
   }
   async function openStudy(w) {
     const r = await BB.api("/api/pump/study/" + encodeURIComponent(w));
@@ -345,6 +355,15 @@
     }
     if (t.id === "stPX") { $("stProf").hidden = true; return; }
     if (t.dataset.stp) return openStudy(t.dataset.stp);
+    if (t.dataset.sts) return openShare(t.dataset.sts);
+    if (t.id === "stShX") { $("stShare").hidden = true; return; }
+    if (t.id === "stShGo") {
+      const to = $("stShU").value; if (!to) return;
+      const r = await BB.api("/api/pump/study/share", { body: { wallet: $("stShare").dataset.w, to } });
+      toast(r.error ? "Não compartilhou: " + r.error : r.already ? "Essa pessoa já estuda essa carteira." : "Carteira compartilhada. Ela já aparece nas Carteiras em estudo da pessoa.");
+      if (!r.error) $("stShare").hidden = true;
+      return;
+    }
     if (t.dataset.stc) { if (!confirm("Passar a COPIAR esta carteira (entra como carteira manual)?")) return; const r = await BB.api("/api/pump/wallets", { body: { wallet: t.dataset.stc, action: "add" } }); toast(r.error || "Agora copiando."); poll(true); return loadStudy(); }
     if (t.dataset.str) { if (!confirm("Remover do estudo?")) return; await BB.api("/api/pump/study", { body: { wallet: t.dataset.str, action: "remove" } }); $("stProf").hidden = true; return loadStudy(); }
   });

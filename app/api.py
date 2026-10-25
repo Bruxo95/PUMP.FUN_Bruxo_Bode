@@ -213,6 +213,22 @@ def create_app(hub, auth, cfg) -> FastAPI:
             log.warning("carteiras em estudo: %s", str(e)[:120])
             return {"error": "não consegui salvar agora (tabela criada no banco?)"}
 
+    @app.get("/api/pump/study/share-targets")
+    async def study_share_targets(u: dict = Depends(user)):
+        return {"users": await hub.study_share_targets(u["id"])}
+
+    @app.post("/api/pump/study/share")
+    async def study_share(body: dict, u: dict = Depends(user)):
+        w, to = str(body.get("wallet") or "").strip(), str(body.get("to") or "").strip()
+        pf = await hub.engine(u["id"])
+        if not pf.valid_addr(w) or not UUID.match(to):
+            return {"error": "carteira ou usuário inválido"}
+        try:
+            return await hub.study_share(pf, u, w, to)
+        except Exception as e:
+            log.warning("compartilhar carteira em estudo: %s", str(e)[:120])
+            return {"error": "não consegui compartilhar agora"}
+
     @app.get("/api/pump/study/{wallet}")
     async def study_profile(wallet: str, pf=Depends(engine)):
         if not pf.valid_addr(wallet) or wallet not in (getattr(pf, "study", []) or []):

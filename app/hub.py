@@ -393,6 +393,46 @@ class PumpHub:
         asyncio.get_running_loop().create_task(self.refresh_study_wallet(wallet, force=True))
         return {"ok": True}
 
+    async def study_share_targets(self, uid: str) -> list[dict]:
+        """Para quem dá para compartilhar: nome e e-mail mascarado; nunca a lista completa de e-mails (0.17.1)."""
+        out = []
+        for p in await self.db.select("profiles", None, order="criado_em.asc", columns="user_id,nome,email,bloqueado"):
+            if p["user_id"] == uid or p.get("bloqueado"):
+                continue
+            em = str(p.get("email") or "")
+            nm, _, dom = em.partition("@")
+            out.append({"user_id": p["user_id"], "nome": p.get("nome") or "",
+                        "email": (nm[:2] + "***@" + dom) if dom else ""})
+        return out
+
+    async def study_share(self, pf, sender: dict, wallet: str, to_uid: str) -> dict:
+        """Coloca a carteira (que está no estudo de quem envia) na lista de estudo de outro usuário. Pedido do dono
+        em 2026-10-25. Só acrescenta: nunca mexe no que o outro já tem nem copia nada."""
+        from .study import MAX_WALLETS
+        if wallet not in (getattr(pf, "study", []) or []):
+            return {"error": "carteira não está no seu estudo"}
+        if to_uid == pf.user_id:
+            return {"error": "escolha outro usuário"}
+        rows = await self.db.select("profiles", {"user_id": to_uid}, columns="user_id,bloqueado")
+        if not rows or rows[0].get("bloqueado"):
+            return {"error": "usuário não encontrado"}
+        tem = [r["wallet"] for r in await self.db.select("study_wallets", {"user_id": to_uid}, columns="wallet")]
+        if wallet in tem:
+            return {"ok": True, "already": True}
+        if len(tem) >= MAX_WALLETS:
+            return {"error": "a lista dessa pessoa já está cheia"}
+        mine = await self.db.select("study_wallets", {"user_id": pf.user_id, "wallet": wallet}, columns="apelido")
+        de = "de " + ((sender.get("nome") or sender.get("email") or "").split("@")[0].split(" ")[0] or "outro usuário")
+        apelido = ((mine[0].get("apelido") if mine else "") or de)[:40]
+        await self.db.insert("study_wallets", {"user_id": to_uid, "wallet": wallet, "apelido": apelido},
+                             upsert=True, on_conflict="user_id,wallet")
+        other = self.engines.get(to_uid)
+        if other is not None and wallet not in (getattr(other, "study", []) or []):
+            other.study = list(getattr(other, "study", []) or []) + [wallet]
+        await audit(self.db, pf.user_id, "compartilhar carteira em estudo", f"{wallet[:6]}… para {to_uid}")
+        await audit(self.db, to_uid, "recebeu carteira em estudo", f"{wallet[:6]}… de {pf.user_id}")
+        return {"ok": True}
+
     async def study_profile(self, wallet: str, prm: dict | None = None) -> dict:
         from .study import profile
         try:

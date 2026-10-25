@@ -86,3 +86,25 @@ def test_study_list_has_copy_ranking(env):
     assert r["params"]["lag_s"] == 3.0 and not r["params"]["lag_measured"]
     prof = c.get(f"/api/pump/study/{W}", headers=A).json()
     assert prof["copy"]["verdict"] == "compensa copiar" and "closed_list" not in (prof["main"] or {})
+
+
+def test_share_study_wallet_with_another_user(env):
+    """0.17.1: Compartilhar coloca a carteira na lista de estudo de outro usuário (pedido do dono em 2026-10-25)."""
+    c, hub, db = env["c"], env["hub"], env["db"]
+    A, B = tok(UA, "ana@x.com"), tok(UB, "bia@x.com")
+    c.get("/api/pump/study", headers=B)                                                  # B já tem conta
+    assert c.post("/api/pump/study", json={"wallet": W, "action": "add", "apelido": "baleia"}, headers=A).json()["ok"]
+    us = c.get("/api/pump/study/share-targets", headers=A).json()["users"]
+    assert [u["user_id"] for u in us] == [UB] and us[0]["email"] == "bi***@x.com"        # sem A e sem e-mail completo
+    assert c.post("/api/pump/study/share", json={"wallet": W, "to": "x"}, headers=A).json()["error"]
+    assert c.post("/api/pump/study/share", json={"wallet": W, "to": UA}, headers=A).json()["error"]
+    # B não pode "compartilhar" uma carteira que não estuda (não serve para mexer na lista dos outros)
+    assert c.post("/api/pump/study/share", json={"wallet": W, "to": UA}, headers=B).json()["error"]
+    assert c.post("/api/pump/study/share", json={"wallet": W, "to": UB}, headers=A).json()["ok"]
+    lst = c.get("/api/pump/study", headers=B).json()["wallets"]
+    assert [x["wallet"] for x in lst] == [W] and lst[0]["apelido"] == "baleia"
+    assert c.get(f"/api/pump/study/{W}", headers=B).json().get("error") is None           # B já abre o perfil
+    assert c.post("/api/pump/study/share", json={"wallet": W, "to": UB}, headers=A).json()["already"]
+    acoes = [r["acao"] for r in db.tables["audit_log"]]
+    assert "compartilhar carteira em estudo" in acoes and "recebeu carteira em estudo" in acoes
+    assert c.post("/api/pump/study/share", json={"wallet": W, "to": UB}).status_code == 401
