@@ -1,0 +1,11 @@
+# Uso local (sem Traefik): docker compose up -d --build  →  http://localhost:8080
+# No Google/Supabase, "localhost" é aceito sem HTTPS. Na VPS use deploy/portainer-stack.yml.
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      - PUBLIC_BASE_URL=http://localhost:8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped

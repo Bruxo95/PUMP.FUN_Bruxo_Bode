@@ -1,0 +1,10 @@
+.git
+.github
+.env
+tests
+docs
+deploy
+supabase
+__pycache__
+*.pyc
+.pytest_cache
