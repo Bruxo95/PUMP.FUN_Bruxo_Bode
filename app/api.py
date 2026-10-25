@@ -159,7 +159,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def pump_aprendizado(real: int = 0, pf=Depends(engine)):
         """Aprendizado diário: resumo, o que os top traders fizeram e sugestões (nunca aplicadas sozinhas)."""
         from .learning import build
-        return build(pf, bool(real))
+        hist, err = await hub.learning_history(pf.user_id)
+        out = build(pf, bool(real), hist)
+        out["history_error"] = "histórico ainda não disponível (tabela do aprendizado não criada no banco)" if err else None
+        return out
 
     @app.get("/api/pump/wallet")
     async def pump_wallet(force: int = 0, pf=Depends(engine)):

@@ -43,3 +43,30 @@ def test_learning_route_requires_login_and_is_per_user(env):
     ra = c.get("/api/pump/aprendizado", headers=tok(UA)).json()
     rb = c.get("/api/pump/aprendizado", headers=tok(UB, "b@x.com")).json()
     assert ra["summary"] and rb["mine_24h"]["trades"] == 0 and isinstance(rb["suggestions"], list)
+
+
+def test_learning_saves_one_row_per_day_and_learns_consistency(env):
+    """0.10.0: o resumo do dia vai para learning_daily; com 3+ dias, sugere quem lucra com consistência."""
+    from app.learning import build
+    hub, db = env["hub"], env["db"]
+    pf = asyncio.run(hub.engine(UA))
+    assert asyncio.run(hub.save_learning()) >= 1
+    rows = [r for r in db.tables["learning_daily"] if r["user_id"] == UA]
+    assert len(rows) == 1 and rows[0]["data"]["summary"]
+    asyncio.run(hub.save_learning())                                    # mesma data: atualiza, não duplica
+    assert len([r for r in db.tables["learning_daily"] if r["user_id"] == UA]) == 1
+    good = "Consistente".ljust(44, "1")
+    hist = [{"dia": f"2026-10-2{i}", "data": {"traders": [{"wallet": good, "closed": 4, "pnl_sol": 0.3}],
+                                              "mine_24h": {"trades": 1, "pnl_sol": 0.01}}} for i in range(1, 5)]
+    r = build(pf, False, hist)
+    assert r["history"]["days"] == 4 and r["history"]["traders"][0]["days_positive"] == 4
+    s = next(x for x in r["suggestions"] if x["kind"] == "consistente")
+    assert s["action"] == {"type": "add", "wallet": good}
+    assert not [x for x in build(pf, False, hist[:2])["suggestions"] if x["kind"] == "consistente"]   # 2 dias: pouco
+
+
+def test_learning_page_works_without_the_table(env):
+    c, db = env["c"], env["db"]
+    del db.tables["learning_daily"]                                    # banco sem a migração aplicada
+    r = c.get("/api/pump/aprendizado", headers=tok(UA))
+    assert r.status_code == 200 and "não criada" in r.json()["history_error"]

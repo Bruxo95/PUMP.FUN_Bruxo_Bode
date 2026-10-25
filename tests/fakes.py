@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 
 PKS = {"profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": ("user_id", "nome"),
        "pump_positions": ("id",), "pump_trades": ("id",), "pump_lists": ("user_id", "tipo", "wallet"),
-       "pump_feed": ("id",), "audit_log": ("id",), "app_secrets": ("nome",)}
+       "pump_feed": ("id",), "audit_log": ("id",), "app_secrets": ("nome",),
+       "learning_daily": ("user_id", "dia")}
 AUTO_ID = {"pump_feed", "audit_log"}
 DEFAULT_TS = {"pump_trades": "fechada_em", "pump_positions": "aberta_em", "audit_log": "at", "pump_feed": "at",
               "profiles": "criado_em", "user_secrets": "criado_em",

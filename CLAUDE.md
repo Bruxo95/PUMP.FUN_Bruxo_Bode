@@ -99,6 +99,8 @@ Nenhum usuário lê `app_secrets` (RLS sem política). Em Configurações cada c
 chave do sistema / não configurada" e o link para criar a própria.
 Migrações registradas como aplicadas no projeto: `20261025000001_inicial.sql`, `20261025000002_admin.sql` e
 `20261025000003_chaves_sistema.sql`.
+`20261025000004_aprendizado_diario.sql` (tabela `learning_daily`, 0.10.0): aplicação no Supabase remoto AUTORIZADA
+pelo dono em 2026-10-25; registrar aqui quando for confirmada aplicada. Sem ela o app funciona, só não guarda histórico.
 Migração nova = arquivo novo em `supabase/migrations/`. Aplicar no Supabase remoto fica fora do deploy
 autorizado (somente GitHub) e exige uma solicitação explícita para essa ação.
 
@@ -138,8 +140,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 ## Ideias / pendências
 - Aprendizado diário (menu, `app/learning.py`, 0.9.9): 1ª etapa só com dados existentes (trades do usuário +
-  memória do monitor, que zera ao reiniciar). Próximas: (2) tabela nova no Supabase para guardar o resumo de cada
-  dia e aprender por semanas — criar a migração, mas APLICAR no Supabase remoto só com autorização explícita do dono;
+  memória do monitor, que zera ao reiniciar). (2) FEITA no código na 0.10.0: `learning_daily` guarda o resumo
+  do dia a cada 30 min (`hub.save_learning`) e a página mostra a consistência por dias;
   (3) simulação "e se" (stop/filtros) sobre o histórico; (4) opcional: resumo escrito por IA (custo por uso).
 - Pesquisa de mercado (2026-10-25; Trojan, GMGN, BullX, Cielo, Kolscan, chainstacklabs/pumpfun-bonkfun-bot,
   arXiv 2601.08641). Ideias por prioridade: (1) FEITA na 0.9.3 — checagem de risco do token pelo `risk` da

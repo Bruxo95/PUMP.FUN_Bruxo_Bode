@@ -213,6 +213,34 @@ class PumpHub:
                 except Exception as e:
                     log.warning("flush: %s", str(e)[:120])
 
+    # ------------------------------------------------------------------ aprendizado diário (tabela learning_daily)
+    async def learning_history(self, uid: str, days: int = 30) -> tuple[list[dict], str | None]:
+        try:
+            return await self.db.select("learning_daily", {"user_id": uid}, order="dia.desc", limit=days), None
+        except Exception as e:                       # tabela ainda não criada no Supabase: a página segue sem histórico
+            return [], str(e)[:160]
+
+    async def save_learning(self) -> int:
+        """Guarda o resumo do dia de cada conta carregada (uma linha por dia, atualizada a cada rodada)."""
+        from .learning import build, snapshot
+        dia, n = datetime.now(timezone.utc).date().isoformat(), 0
+        for uid, pf in list(self.engines.items()):
+            try:
+                snap = snapshot(build(pf, bool(pf.cfg.pump_real_enabled)))
+                await self.db.insert("learning_daily", {"user_id": uid, "dia": dia, "data": snap,
+                                                        "atualizado_em": datetime.now(timezone.utc).isoformat()},
+                                     upsert=True, on_conflict="user_id,dia")
+                n += 1
+            except Exception as e:
+                log.warning("Aprendizado diário não gravou (%s…): %s", uid[:8], str(e)[:160])
+                break                                    # tabela ausente/banco fora: tenta na próxima rodada
+        return n
+
+    async def learning_loop(self) -> None:
+        while True:
+            await asyncio.sleep(1800)
+            await self.save_learning()
+
     async def start(self) -> None:
         """Carrega todos os usuários (o bot copia mesmo com o painel fechado) e liga as tarefas."""
         try:
@@ -228,6 +256,7 @@ class PumpHub:
         for pf in list(self.engines.values()):
             self._start_engine(pf)
         self._tasks.append(asyncio.create_task(self.flush_loop()))
+        self._tasks.append(asyncio.create_task(self.learning_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
         self.monitor.start()

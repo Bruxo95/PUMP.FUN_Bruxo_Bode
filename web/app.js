@@ -98,6 +98,10 @@
     table("apHr", ["Hora", "Negociações"], top.map((x) => [String(x.h).padStart(2, "0") + "h", String(x.n)]), "Sem negociações registradas.");
     table("apRich", ["Carteira", "Saldo"], (tt.richest || []).map((x) => [pfW(x.wallet), "$" + f(x.usd, 0)]), "Saldo das carteiras ainda não consultado.");
     $("apLim").innerHTML = (r.limits || []).map((s) => "<p>" + esc(s) + "</p>").join("");
+    const hi = r.history || {};
+    $("apHiSub").textContent = r.history_error ? r.history_error : hi.days ? hi.days + " dias guardados desde " + esc(String(hi.first).split("-").reverse().join("/")) + " · consistência vale mais que um dia bom" : "o primeiro dia é guardado em até 30 min";
+    table("apHiTr", ["Trader", "Dias com lucro", "Resultado somado", "Tokens"], (hi.traders || []).map((x) => [pfW(x.wallet) + (x.followed ? ' <span class="tag win">copiando</span>' : ""), x.days_positive + " de " + x.days_seen, sg(x.pnl_sol), String(x.tokens)]), "Ainda sem dias guardados.");
+    table("apHiDay", ["Dia", "Suas cópias", "Acerto", "Resultado"], (hi.mine_by_day || []).map((x) => [esc(String(x.dia).split("-").reverse().join("/")), String(x.trades || 0), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%", sg(x.pnl_sol)]), "Ainda sem dias guardados.");
   }
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-ap]"); if (!b) return;
@@ -105,6 +109,7 @@
     if (!confirm("Aplicar esta sugestão?\n\n" + s.text)) return;
     const a = s.action;
     const r = a.type === "pause" ? await BB.api("/api/pump/wallets", { body: { wallet: a.wallet, action: "pause", hours: a.hours } })
+      : a.type === "add" ? await BB.api("/api/pump/wallets", { body: { wallet: a.wallet, action: "add" } })
       : await BB.api("/api/pump/settings", { body: a.values });
     toast(r.error ? "Não aplicou: " + r.error : "Aplicado.");
     poll(true); loadLearning();

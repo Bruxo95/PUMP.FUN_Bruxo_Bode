@@ -103,12 +103,53 @@ def suggestions(pf, mine7: dict, tt: dict) -> list[dict]:
     return out
 
 
-def build(pf, real: bool = False) -> dict:
+def snapshot(r: dict) -> dict:
+    """O que fica guardado do dia (tabela learning_daily): compacto, sem dados de outros usuários."""
+    tt = r["traders_today"]
+    return {"summary": r["summary"], "mine_24h": r["mine_24h"], "real": r["real"],
+            "winners": tt["winners"], "losers": tt["losers"], "tokens_closed": tt["tokens_closed"],
+            "traders": [{k: x.get(k) for k in ("wallet", "closed", "wins", "pnl_sol", "hold_med_s", "mcap_in_med", "followed")}
+                        for x in tt["traders"][:40]],
+            "suggestions": [{"kind": s["kind"], "text": s["text"], "base": s["base"]} for s in r["suggestions"]]}
+
+
+def weekly(history: list[dict], followed) -> dict:
+    """Junta os dias guardados: quem lucrou em vários dias (consistência vale mais do que um dia bom)."""
+    days = sorted({h["dia"] for h in history})
+    per: dict[str, dict] = {}
+    for h in history:
+        for x in (h.get("data") or {}).get("traders") or []:
+            w = x.get("wallet")
+            if not w:
+                continue
+            a = per.setdefault(w, {"wallet": w, "days_seen": 0, "days_positive": 0, "pnl_sol": 0.0, "tokens": 0})
+            a["days_seen"] += 1
+            a["days_positive"] += 1 if (x.get("pnl_sol") or 0) > 0 else 0
+            a["pnl_sol"] = round(a["pnl_sol"] + (x.get("pnl_sol") or 0), 4)
+            a["tokens"] += x.get("closed") or 0
+    fol = set(followed)
+    rows = sorted(per.values(), key=lambda a: (-a["days_positive"], -a["pnl_sol"]))
+    for a in rows:
+        a["followed"] = a["wallet"] in fol
+    mine = [{"dia": h["dia"], **((h.get("data") or {}).get("mine_24h") or {})} for h in sorted(history, key=lambda h: h["dia"], reverse=True)]
+    return {"days": len(days), "first": days[0] if days else None, "traders": rows[:30], "mine_by_day": mine[:30]}
+
+
+def build(pf, real: bool = False, history: list[dict] | None = None) -> dict:
     trades, feed = pf.trades(100000), list(pf.feed)
     mine1 = report(trades, feed, 1, real, pf.followed, list(pf.paused()))
     mine7 = report(trades, feed, 7, real, pf.followed, list(pf.paused()))
     tt = traders_today(pf)
     sug = suggestions(pf, mine7, tt)
+    wk = weekly(history or [], pf.followed)
+    for a in wk["traders"]:
+        # consistente: lucrou em pelo menos 3 dias e em 70% dos dias em que apareceu, e você ainda não copia
+        if (wk["days"] >= 3 and a["days_positive"] >= 3 and a["days_positive"] >= 0.7 * a["days_seen"]
+                and not a["followed"] and a["wallet"] not in pf.banned):
+            sug.append({"kind": "consistente", "text": f"{a['wallet'][:4]}…{a['wallet'][-4:]} lucrou em {a['days_positive']} "
+                        f"de {a['days_seen']} dias guardados ({a['pnl_sol']:+.3f} SOL em {a['tokens']} tokens). Adicionar à "
+                        f"cópia como carteira manual?", "base": a["days_seen"],
+                        "action": {"type": "add", "wallet": a["wallet"]}})
     best = tt["traders"][0] if tt["traders"] else None
     summary = []
     if tt["tokens_closed"]:
@@ -131,8 +172,9 @@ def build(pf, real: bool = False) -> dict:
     if sk:
         summary.append(f"O filtro que mais barrou cópias hoje: {sk[0]['reason']} ({sk[0]['count']} vezes).")
     return {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "real": real,
-            "summary": summary, "suggestions": sug, "traders_today": tt, "mine_24h": mine1["total"],
+            "summary": summary, "suggestions": sug, "traders_today": tt, "mine_24h": mine1["total"], "history": wk,
             "mine_7d": mine7["total"], "days": mine7["days_list"][:7],
-            "limits": ["Comportamento dos traders: últimas 24 h vistas pelo monitor; recomeça quando o servidor reinicia.",
+            "limits": ["Comportamento dos traders: últimas 24 h vistas pelo monitor; recomeça quando o servidor reinicia. "
+                       "O resumo de cada dia fica guardado (a cada 30 min) e forma o histórico abaixo.",
                        "Sugestões só aparecem com base mínima de casos e nunca são aplicadas sozinhas.",
                        "Resultado passado não garante o futuro; em memecoins os padrões mudam rápido."]}
