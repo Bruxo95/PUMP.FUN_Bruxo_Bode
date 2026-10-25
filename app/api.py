@@ -11,7 +11,9 @@ import logging
 import os
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+import hashlib
+
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .auth import AuthError
@@ -43,6 +45,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
+        elif request.url.path in ("/", "/app") or request.url.path.startswith("/static/"):
+            resp.headers["Cache-Control"] = "no-cache"          # o navegador sempre confere se há versão nova
         return resp
 
     # ------------------------------------------------------------------ usuário logado
@@ -315,13 +319,18 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def http_err(request: Request, exc: HTTPException):
         return JSONResponse({"error": exc.detail, "detail": exc.detail}, status_code=exc.status_code)
 
+    # cada versão nova muda o endereço dos arquivos (?v=…): depois do redeploy o navegador não usa os antigos
+    VTAG = hashlib.sha256(VERSION.encode()).hexdigest()[:10]
+    PAGES = {n: open(os.path.join(WEB, n), encoding="utf-8").read().replace("__V__", VTAG)
+             for n in ("index.html", "app.html")}
+
     @app.get("/")
     def landing():
-        return FileResponse(os.path.join(WEB, "index.html"))
+        return HTMLResponse(PAGES["index.html"])
 
     @app.get("/app")
     def panel():
-        return FileResponse(os.path.join(WEB, "app.html"))
+        return HTMLResponse(PAGES["app.html"])
 
     app.mount("/static", StaticFiles(directory=WEB), name="static")
     return app

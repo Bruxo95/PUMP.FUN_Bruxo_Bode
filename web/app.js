@@ -530,7 +530,7 @@
     $("ntfB").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();
     $("realB").onclick = realToggle;
-    if (ME.role === "admin") { $("navAdmin").hidden = false; }
+    $("navAdmin").hidden = ME.role !== "admin";
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };
