@@ -162,6 +162,7 @@ class SharedMonitor:
                     if e in fol:
                         e._emit(f"Pump.fun: {w[:4]}…{w[-4:]} parece robô ({act.get('bot_reason')}) — fora da cópia por 1 h")
             return
+        self._fill_slot(w)
         if val.get("err"):
             return
         logs = " ".join(val.get("logs") or [])
@@ -393,6 +394,15 @@ class SharedMonitor:
             except Exception as e:
                 log.warning("tick: %s", str(e)[:160])
             await asyncio.sleep(2)
+
+    def _fill_slot(self, w: str) -> None:
+        """Um trader do top acabou de negociar (ficou online). Se algum usuário tem vaga sobrando na cópia, refaz a
+        lista dele já, sem esperar os 10 min."""
+        for e in self.engines():
+            if w in e.followed or not e._c("pump_only_online", True):
+                continue
+            if len(e.followed) < int(e._c("pump_top_n", 10)) and any(r.get("wallet") == w for r in e.leaderboard):
+                e._rank_at = 0
 
     # ------------------------------------------------------------------ leaderboard e saldo dos traders
     @staticmethod

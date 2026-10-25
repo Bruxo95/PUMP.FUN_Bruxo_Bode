@@ -488,6 +488,15 @@ class PumpFun:
         own = [r["wallet"] for r in self.ranking_cache if r["eligible"] and r["wallet"] not in man and r["wallet"] not in lb]
         # fonte: leaderboard da pump.fun (Solana Tracker); sem chave/sem dados → ranking próprio
         auto = lb + own if self.leaderboard else own
+        off: dict[str, float | None] = {}
+        if self._c("pump_only_online", True):
+            # só entra quem está ONLINE (negociou nos últimos X min); o melhor do top que estiver online ocupa a vaga
+            win = float(self._c("pump_online_min", 10)) * 60
+            keep = []
+            for w in auto:
+                ls = self.last_seen(w)
+                (keep.append(w) if ls and now - ls <= win else off.__setitem__(w, ls))
+            auto = keep
         new = (man + auto)[:max(n, len(man))]
         # quem já tem posição copiada continua sendo seguido até a posição fechar (para copiar a venda)
         held = [p["wallet"] for p in self.positions() if p["wallet"] not in new]
@@ -500,10 +509,49 @@ class PumpFun:
             if add:
                 self._out.append({"method": "subscribeAccountTrade", "keys": add})
             self._followed_sent = set(new)
+            if self._c("pump_only_online", True) and self.followed:
+                gone = [w for w in self.followed if w not in new and w in off]
+                came = [w for w in new if w not in self.followed and w not in man]
+                if gone or came:
+                    def ago(w):
+                        return f"há {int((now - off[w]) // 60)} min" if off.get(w) else "sem atividade"
+                    self._emit("Top traders atualizados: " + "; ".join(
+                        ([f"entrou {short(w)} (online)" for w in came]) +
+                        ([f"saiu {short(w)} (inativo, último trade {ago(w)})" for w in gone])))
             if self.followed or new:
                 log.info("Pump.fun: copiando %d carteiras (%d manuais, %d do ranking)", len(new), len(man),
                          len([w for w in new if w not in man]))
             self.followed = new
+
+    def is_online(self, w: str) -> bool:
+        ls = self.last_seen(w)
+        return bool(ls and time.time() - ls <= float(self._c("pump_online_min", 10)) * 60)
+
+    def last_seen(self, w: str) -> float | None:
+        """Último momento em que a carteira negociou: o que o WebSocket viu, o que entrou no ranking próprio ou o
+        "último trade" informado pela Solana Tracker (vale logo depois de reiniciar, antes de o WebSocket ver algo)."""
+        ts = [(self.activity.get(w) or {}).get("last"), (self.wallets.get(w) or {}).get("last_t")]
+        r = next((r for r in self.leaderboard if r.get("wallet") == w), None)
+        if r:
+            ts.append(self._ts(r.get("last_trade")))
+        ts = [float(t) for t in ts if t]
+        return max(ts) if ts else None
+
+    @staticmethod
+    def _ts(x) -> float | None:
+        """Data em segundos a partir de número (s ou ms) ou texto ISO."""
+        if x in (None, ""):
+            return None
+        try:
+            v = float(x)
+            return v / 1000 if v > 1e11 else v
+        except (TypeError, ValueError):
+            pass
+        try:
+            from datetime import datetime
+            return datetime.fromisoformat(str(x).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return None
 
     # ------------------------------------------------------------------ leaderboard pump.fun (Solana Tracker)
     lb_key_fallback = None                      # chave emprestada pelo admin ("compartilhar com todos")
@@ -1858,7 +1906,8 @@ class PumpFun:
                            for w, v in self.paused().items()],
                 "leaderboard": [r | {"followed": r["wallet"] in fol, "manual": r["wallet"] in man,
                                      "paused": r["wallet"] in self.paused(),
-                                     "act": self.activity_view(r["wallet"])} for r in self.leaderboard],
+                                     "act": self.activity_view(r["wallet"]),
+                                     "online": self.is_online(r["wallet"])} for r in self.leaderboard],
                 "lb_status": {**self.lb_status, "key_set": bool(self.lb_key()),
                               "source": "leaderboard" if self.leaderboard else "ranking próprio"},
                 "followed": followed, "ranking": [r | {"followed": r["wallet"] in fol} for r in rk[:50]],

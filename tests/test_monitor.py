@@ -65,6 +65,7 @@ def setup(monkeypatch):
         c.pump_min_mcap_usd = c.pump_min_vol_h1_usd = c.pump_max_top10_pct = c.pump_min_wallet_usd = 0
         c.pump_min_txns_h1 = 0
         c.pump_rank_every_s = 0
+        c.pump_only_online = False
     mon = SharedMonitor(hub)
 
     async def no_fetch(*a, **k):
@@ -223,3 +224,19 @@ def test_tick_updates_sol_price_and_prunes_without_touching_followed(setup):
     assert abs(mon.market.sol_usd - 175.5) < 1e-9
     mon.prune()
     assert WA in mon.market.wallets and "Old".ljust(44, "1") not in mon.market.wallets
+
+
+def test_top_trader_going_online_fills_free_slot_right_away(setup):
+    a, b, mon = setup["a"], setup["b"], setup["mon"]
+    a.cfg.pump_only_online = True
+    a.leaderboard = [{"wallet": WA, "eligible": True, "rank": 1, "winrate": 70.0, "trades": 2000}]
+    a.refresh_followed(force=True)
+    assert a.followed == []                                            # ainda não negociou
+    a._rank_at = b._rank_at = time.time()
+    mon._tx_q = asyncio.Queue()
+    mon._subs = {1: WA}
+    mon.on_notification({"method": "logsNotification", "params": {"subscription": 1, "result": {"value": {
+        "signature": "on1", "err": None, "logs": ["Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke"]}}}})
+    assert a._rank_at == 0 and b._rank_at != 0                         # só quem tem o trader no top e vaga
+    a.refresh_followed()
+    assert a.followed == [WA]

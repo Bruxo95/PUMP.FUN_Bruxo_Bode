@@ -17,6 +17,7 @@ def _pump(tmp_path, paid=True, **kw):
     cfg.pump_lb_min_trades = 0
     cfg.pump_min_mcap_usd = cfg.pump_min_vol_h1_usd = cfg.pump_max_top10_pct = cfg.pump_min_wallet_usd = 0
     cfg.pump_min_txns_h1 = 0
+    cfg.pump_only_online = False          # regra nova (só online) tem testes próprios em test_online.py
     for k, v in kw.items():
         setattr(cfg, k, v)
     pf = PumpFun(cfg, MemStore())

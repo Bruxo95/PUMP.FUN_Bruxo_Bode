@@ -205,3 +205,16 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (até 5 min); antes só conferia se o site respondia.
 - O dono colou a URL do webhook no chat: recomendado gerar uma nova no Portainer e atualizar o segredo
   `PORTAINER_WEBHOOK_URL` no GitHub. A URL não foi gravada em nenhum arquivo.
+
+## Top traders só online + hora do deploy (2026-10-25, versão 0.9.0)
+- Novas configs por usuário: `pump_only_online` (padrão true) e `pump_online_min` (padrão 10 min).
+  `refresh_followed` (roda a cada `pump_rank_every_s`=600 s) filtra os aptos automáticos por
+  `PumpFun.last_seen()` = maior entre atividade do WebSocket, `wallets[w].last_t` e `last_trade` da Solana
+  Tracker. Quem ficou inativo sai, entra o próximo melhor online; evento "Top traders atualizados: …".
+  Manuais e quem tem posição aberta ficam. `SharedMonitor._fill_slot` refaz a lista na hora quando um trader
+  do top negocia e o usuário tem vaga.
+- Leaderboard da Solana Tracker agora renovado a cada 10 min (`pump_lb_every_s` padrão 600).
+- Os testes de referência (`tests/test_pump.py`, `tests/test_monitor.py`) desligam `pump_only_online` no
+  fixture para manter o comportamento original; a regra nova tem `tests/test_online.py`.
+- `/health` e o rodapé mostram `no_ar_desde` (hora em que o container subiu, fuso Europe/Berlin; `tzdata`
+  no requirements). O "Updated" da tela Stacks do Portainer NÃO muda com o webhook (ele atualiza o serviço).

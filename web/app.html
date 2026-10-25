@@ -210,6 +210,9 @@
             <div class="field"><label>… e com no mínimo</label><div class="row"><input class="in w100" type="number" min="0" step="100" data-cfg="pump_lb_min_trades"><span class="muted">trades no período</span>
               <button class="btn sm" data-set="pump_lb_min_trades" data-val="100">100</button><button class="btn sm" data-set="pump_lb_min_trades" data-val="500">500</button><button class="btn sm" data-set="pump_lb_min_trades" data-val="1000">1000</button></div></div>
             <div class="field"><label>Quantos traders copiar (top N)</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_top_n"></div></div>
+            <div class="field"><label>Só copiar traders online</label><div class="row"><button class="btn sm tgl" data-toggle="pump_only_online">…</button>
+              <span class="muted">online = negociou nos últimos</span><input class="in w80" type="number" min="1" max="1440" step="5" data-cfg="pump_online_min"><span class="muted">min</span></div>
+              <div class="hint">A cada 10 min o painel refaz a lista: quem ficou inativo sai e entra o melhor do top que estiver online. Carteiras que você adicionou na mão e traders com posição aberta continuam.</div></div>
             <div class="field"><label>Saldo mínimo do trader (SOL+USDC+USDT)</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_wallet_usd"></div></div>
             <div class="field"><label>Compra mínima do trader</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_min_trader_sol"><span class="muted">SOL</span></div></div>
             <div class="field"><label>Market cap mínimo do token</label><div class="row"><span class="muted">$</span><input class="in w120" type="number" min="0" step="1000" data-cfg="pump_min_mcap_usd"></div></div>

@@ -103,6 +103,11 @@ banco e **nunca voltam para a tela**: o painel mostra apenas o estado de cada um
   fixo e pausa automática do trader.
 - **Filtros**: acerto e trades mínimos do trader, top N, saldo mínimo do trader, compra mínima do trader,
   market cap, volume e negociações mínimas do token, concentração máxima nas 10 maiores carteiras.
+- **Só copiar traders online** (padrão ON, janela de 10 min): dos traders aptos do top, só entram na cópia os
+  que negociaram nos últimos X minutos. A cada 10 min a lista é refeita: quem ficou inativo sai e entra o
+  melhor do top que estiver online. Se sobrar vaga e um trader do top negociar, ele entra na hora. Carteiras
+  manuais e traders com posição copiada aberta continuam. "Online" vem do WebSocket da Solana (top 60
+  observados) ou, logo após reiniciar, do "último trade" informado pela Solana Tracker.
 - **Taxas da simulação**: as mesmas cobradas no modo real.
 
 Cada alteração vale na hora e fica salva só para o usuário.
@@ -214,7 +219,7 @@ blockchain ou grava dados. **Uso**: *Compartilhado* = uma conexão/consulta para
 | **Solana RPC — HTTP (envio)** | `sendTransaction`, `getSignatureStatuses` | Escrita | RPC próprio opcional | Pessoal | Enviar a transação assinada e acompanhar a confirmação (modo real e troca USDC→SOL). |
 | **PumpPortal — WebSocket** | `wss://pumpportal.fun/api/data` · `subscribeNewToken` | Consulta | Opcional (sistema) | Compartilhado | Tokens novos e seus criadores (identifica devs de token). Streams de trades são pagos e ficam desligados. |
 | **PumpPortal — Trading API** | `POST /api/trade-local` | Montagem | Não | Pessoal | Montar a transação de compra/venda da pump.fun/PumpSwap para o servidor assinar. |
-| **Solana Tracker** | `GET /v2/pnl/leaderboard/top` | Consulta | Sim (pessoal ou do sistema) | Compartilhado com cache | Ranking dos top traders do app da pump.fun; cache por período e filtros, renovado a cada 30 min. |
+| **Solana Tracker** | `GET /v2/pnl/leaderboard/top` | Consulta | Sim (pessoal ou do sistema) | Compartilhado com cache | Ranking dos top traders do app da pump.fun; cache por período e filtros, renovado a cada 10 min. |
 | **DexScreener** | `GET /tokens/v1/solana/{mints}` | Consulta | Não | Compartilhado | Símbolo, preço, market cap, liquidez e volume/negociações por hora (filtros e tokens graduados). |
 | **Jupiter — Quote** | `GET /swap/v1/quote` | Consulta | Opcional | Compartilhado (cotações) / Pessoal (trocas) | Preço do SOL em US$, preço executável de tokens graduados e escolha de rota nas trocas. |
 | **Jupiter — Swap** | `POST /swap/v1/swap` | Montagem | Opcional (do usuário) | Pessoal | Montar a transação de troca fora da pump.fun e USDC→SOL. |
