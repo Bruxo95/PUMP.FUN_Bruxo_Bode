@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "1055e52ba3c00d2dcdda821be90b06812fef0efa",
-    "application_version": "0.9.1 · 2026-10-25 · correções de segurança e triagem de dependências",
+    "repository_reference": "927218675f004010ff00a8caa5fdc9c37541e51a",
+    "application_version": "0.9.2 · 2026-10-25 · segurança: limites de ranking/login, deploy em fila, validações",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -16,9 +16,9 @@
     "issuer": "Claude Code, modelo Claude Opus 5.5 (claude-opus-5-5)",
     "source_sha256": {
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
-      ".github/workflows/imagem.yml": "97e2f8229c18e7edefa249b8e0ad12d15f12b873cb3b0ffe243d494018c08266",
+      ".github/workflows/imagem.yml": "2d43c0e1e6d86c25f1bd4a13f33c8aeaf52710fa77f11ace327533bcaa405bbe",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "e2a8bb6ce34308938320f9b117fe4a9c4069aa1b8554afe28e5a10d06bd991cb",
+      "app/version.py": "eaf41b2c25931d24cba6b13391dbd75557caf1fc446e7fbda47f523170517af4",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8338,5 +8338,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "20d8fbcd60be5659869912caa80674302b60a4f3e8e3b0b22b73781b57fff635"
+  "pdf_sha256": "b7cd62b659412ecea852888afd3e05ddff7f9c3c60279e1e85dcf138cfcfeda9"
 }

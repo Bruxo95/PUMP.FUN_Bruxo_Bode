@@ -258,3 +258,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - RPC pessoal: só endereço público (`app/solana_wallet.py`); bloqueio de conta serializado (`app/hub.py`).
 - pytest não rodou localmente (sem dependências no Windows); a suíte roda no Actions após o push.
 - CI verde e 0.9.1 no ar em 2026-10-25 (/health conferido). Próximo: SEC-05/06 (cotas e limites).
+
+## Remediação da auditoria — SEC-05 a SEC-11 (2026-10-25, versão 0.9.2)
+- Ranking pelo painel: 60 s por conta e 6/min na chave do sistema; token recusado lembrado 60 s; JWKS com
+  recarga limitada; workflow com `concurrency` (um deploy por vez); RPC mostra só o hostname; erros externos
+  escapados no painel; números absurdos viram erro de validação. SEC-07 já vinha resolvido (0.8.4).
+- Todos os 11 achados da auditoria de 2026-10-25 têm correção no código. Pendências fora do código: saída do
+  container para rede interna e proteção do branch `main` (exigem acesso do dono).
+- Próximo: confirmar o CI da 0.9.2; nova auditoria completa quando houver mudança grande ou antes do uso real.

@@ -129,6 +129,6 @@ class UserWallet:
         return bool(self._rpc)
 
     def public(self) -> dict:
-        host = self.rpc_url.split("/")[2] if "://" in self.rpc_url else None
+        host = urllib.parse.urlsplit(self.rpc_url).hostname   # nunca usuário/senha da URL (SEC-09, 2026-10-25)
         return {"configured": self._kp is not None, "address": self.address, "rpc_set": self.own_rpc,
                 "rpc_host": host, "rpc_rejected": self.rpc_rejected}

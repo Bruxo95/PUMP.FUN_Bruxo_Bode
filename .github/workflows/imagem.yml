@@ -7,6 +7,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# SEC-08 (auditoria 2026-10-25): dois envios seguidos podiam terminar fora de ordem e o mais antigo
+# republicava "latest". Agora só roda um por vez e o envio novo cancela o anterior.
+concurrency:
+  group: imagem-main
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write

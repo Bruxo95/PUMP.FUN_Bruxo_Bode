@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import math
 import time
 from datetime import datetime, timezone
 
@@ -241,7 +242,7 @@ class JupiterWallet:
         """Troca USDC por SOL na carteira do bot (melhor rota/DEX). preview=True só cota, não troca."""
         if self.wallet is None or not self.wallet.keypair:
             return {"error": "carteira Solana do bot não configurada"}
-        if usdc <= 0:
+        if not math.isfinite(usdc) or usdc <= 0:            # NaN/infinito passavam e davam HTTP 500 (SEC-11)
             return {"error": "valor inválido"}
         sb = await self.sol_balances(force=True)
         have = (sb.get("tokens") or {}).get(USDC, 0.0)

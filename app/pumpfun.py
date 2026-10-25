@@ -636,6 +636,27 @@ class PumpFun:
         r["flags"], r["eligible"] = flags, not flags
         return r
 
+    # SEC-05 (auditoria 2026-10-25): cada clique forçava uma consulta com a chave do sistema, sem limite.
+    LB_USER_COOLDOWN_S = 60                     # por conta
+    LB_SHARED_PER_MIN = 6                       # soma de todas as contas usando a chave do sistema
+    _lb_shared_calls: deque = deque()
+
+    async def refresh_leaderboard_user(self) -> str | None:
+        """Atualização pedida pelo painel. Devolve o motivo quando precisa esperar (nada é consultado)."""
+        now = time.time()
+        wait = self.LB_USER_COOLDOWN_S - (now - self._lb_at)
+        if wait > 0:
+            return f"o ranking acabou de ser atualizado; tente de novo em {int(wait) + 1} s"
+        if self.lb_key() and not self.lb_key_own():
+            q = PumpFun._lb_shared_calls
+            while q and now - q[0] > 60:
+                q.popleft()
+            if len(q) >= self.LB_SHARED_PER_MIN:
+                return "muitas atualizações com a chave do sistema agora; tente em 1 minuto (ou use sua chave)"
+            q.append(now)
+        await self.refresh_leaderboard(force=True)
+        return None
+
     async def refresh_leaderboard(self, force: bool = False) -> None:
         key = self.lb_key()
         if not key or self.http is None:

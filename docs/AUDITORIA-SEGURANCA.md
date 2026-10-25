@@ -45,6 +45,25 @@
   17 endereços. **pytest não rodou nesta máquina** (sem dependências; regra de não instalar no Windows).
   Suíte completa passou no GitHub Actions (commit eb27091) e a 0.9.1 está no ar. SEC-05 a SEC-11 seguem abertos.
 
+## Remediação 2 — SEC-05 a SEC-11 (2026-10-25, aplicação 0.9.2)
+
+- IA: Claude Code, modelo Claude Opus 5.5 (`claude-opus-5-5`). Base: commit `9272186` (0.9.1).
+- **SEC-05 — corrigido no código:** atualizar o ranking pelo painel tem intervalo de 60 s por conta e, com a
+  chave do sistema, no máximo 6 consultas por minuto somando todas as contas (`refresh_leaderboard_user`).
+  Limite de tamanho das listas manuais não foi alterado (segue como observação).
+- **SEC-06 — corrigido no código:** token recusado fica lembrado por 60 s (falha de rede não); lista de chaves
+  públicas vazia fica guardada 1 min e a recarga forçada por "kid" desconhecido acontece no máximo 1x por minuto.
+- **SEC-07 — já corrigido** pelo commit `28b0465` (0.8.4, outra IA): o deploy exige a versão nova no `/health`;
+  confirmado na publicação da 0.9.1.
+- **SEC-08 — corrigido no workflow:** `concurrency` com `cancel-in-progress` — um envio novo cancela o anterior,
+  então um run antigo não republica `latest` depois do novo.
+- **SEC-09 — corrigido:** usuário/senha na URL do RPC são recusados desde a 0.9.1 (SEC-03); a 0.9.2 também passa
+  a mostrar só o nome do servidor (`hostname`), mesmo para URL antiga.
+- **SEC-10 — corrigido:** erros do RPC externo e do monitor entram escapados nos cartões do painel (`web/app.js`).
+- **SEC-11 — corrigido:** `1e1000`/`nan`/infinito viram erro de validação (configurações e troca USDC→SOL).
+- Regressões em `tests/test_seguranca.py`. pytest não rodou nesta máquina; a suíte roda no Actions no push.
+- Fora do código, ainda pendente: bloquear saída do container para a rede interna e proteger o branch `main`.
+
 `AGENTS.md` indica este relatório; `CLAUDE.md` mantém somente o resumo compartilhado.
 Ao retomar, conferir o Git e comparar com a base antes de usar linhas ou reproduções.
 Atualizar esta seção e a tabela de achados após cada etapa relevante e antes de
@@ -301,3 +320,4 @@ política Actions. Esses itens permanecem pendentes; não se acessou essa infrae
 | 2026-10-25 | 11 achados e reproduções revisados; relatório concluído | SEC-02/03; SEC-01/04 bloqueiam aprovação para uso real |
 | 2026-10-25 | Identificação de versão/SHA/IA em cada revisão e preparação da publicação solicitada | Commit/push dos documentos; depois iniciar correções |
 | 2026-10-25 | Remediação 1: SEC-01..04 no código (0.9.1), regressões em tests/test_seguranca.py | CI verde, 0.9.1 no ar; próximo SEC-05/06 |
+| 2026-10-25 | Remediação 2: SEC-05..11 (0.9.2); SEC-07 já resolvido na 0.8.4 | Confirmar CI; pendências de infraestrutura |

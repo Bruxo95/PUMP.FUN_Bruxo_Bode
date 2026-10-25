@@ -204,3 +204,66 @@ def test_block_during_engine_load_does_not_put_account_back(env):
             await hub.engine(UB)
     asyncio.run(go())
     assert env["c"].get("/api/pump", headers=tok(UB, "b@x.com")).status_code == 403
+
+
+# ---------------------------------------------------------------- SEC-05: ranking forçado com a chave do sistema
+def test_leaderboard_refresh_from_panel_has_cooldown_and_shared_limit(env):
+    from app.pumpfun import PumpFun
+    c, hub = env["c"], env["hub"]
+    PumpFun._lb_shared_calls.clear()
+    assert c.post("/api/admin/keys", json={"name": "solanatracker_api_key", "value": "st-SIS-" + "s" * 30},
+                  headers=tok(UA)).json()["ok"]
+    eb = asyncio.run(hub.engine(UB))
+    hits = []
+
+    def h(req):
+        hits.append(req.url.host)
+        return httpx.Response(200, json={"traders": []})
+    eb.http = httpx.AsyncClient(transport=httpx.MockTransport(h))
+    B = tok(UB, "b@x.com")
+    c.post("/api/pump/leaderboard", json={"days": 7}, headers=B)
+    r = c.post("/api/pump/leaderboard", json={"days": 7}, headers=B).json()
+    assert len(hits) == 1 and "tente de novo" in r["error"]                     # 2º clique: nada consultado
+    eb._lb_at = 0                                                               # passou o intervalo da conta…
+    PumpFun._lb_shared_calls.extend([__import__("time").time()] * PumpFun.LB_SHARED_PER_MIN)
+    msg = asyncio.run(eb.refresh_leaderboard_user())                            # …mas o limite geral segura
+    assert "chave do sistema" in msg and len(hits) == 1
+    PumpFun._lb_shared_calls.clear()
+
+
+# ---------------------------------------------------------------- SEC-06: token falso repetido
+def test_rejected_token_is_remembered_and_jwks_reload_is_limited():
+    import time as _t
+    import jwt as _jwt
+    from app.auth import Auth, AuthError
+    from tests.test_api import SB
+    calls = []
+
+    def h(req):
+        calls.append(req.url.path)
+        if req.url.path.endswith("jwks.json"):
+            return httpx.Response(200, json={"keys": []})
+        return httpx.Response(401, json={"msg": "invalid"})
+    a = Auth(SB, "anon", httpx.AsyncClient(transport=httpx.MockTransport(h)))
+    fake = _jwt.encode({"sub": UA, "exp": int(_t.time()) + 60}, "x" * 32, algorithm="HS256")
+    for _ in range(3):
+        with pytest.raises(AuthError):
+            asyncio.run(a.verify(fake))
+    assert calls == ["/auth/v1/user"]                                           # antes: 1 consulta por tentativa
+    calls.clear()
+    for i in range(3):                                                          # tokens diferentes, kid desconhecido
+        t = "eyJhbGciOiJFUzI1NiIsImtpZCI6Im5vdm8ifQ." + f"e30{i}" + ".c2ln"
+        with pytest.raises(AuthError):
+            asyncio.run(a.verify(t))
+    assert calls.count("/auth/v1/.well-known/jwks.json") <= 2                  # 1 normal + no máx. 1 forçada
+
+
+# ---------------------------------------------------------------- SEC-09 e SEC-11
+def test_rpc_host_never_shows_credentials_and_huge_numbers_are_validation_errors(env):
+    from app.solana_wallet import UserWallet
+    assert UserWallet("", "https://rpc.exemplo.com/?api-key=segredo").public()["rpc_host"] == "rpc.exemplo.com"
+    c = env["c"]
+    r = c.post("/api/pump/settings", json={"pump_max_open": "1e1000", "pump_stop_pct": "nan"}, headers=tok(UA))
+    assert r.status_code == 200 and set(r.json()["errors"]) == {"pump_max_open", "pump_stop_pct"}
+    r = c.post("/api/pump/swap", json={"confirm": True, "usdc": "abc"}, headers=tok(UA))
+    assert r.status_code == 200 and r.json()["error"] == "valor inválido"

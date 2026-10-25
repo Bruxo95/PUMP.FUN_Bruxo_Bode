@@ -29,10 +29,18 @@ class Auth:
         self._jwks: dict = {}
         self._jwks_at = 0.0
         self._cache: dict = {}
+        self._bad: dict = {}                    # hash do token recusado -> até quando lembrar (SEC-06, 2026-10-25)
+        self._jwks_forced_at = 0.0
 
     async def _load_jwks(self, force: bool = False) -> dict:
-        if not force and self._jwks and time.time() - self._jwks_at < 600:
+        # lista vazia (ou falha) também fica guardada, por 1 min, para não buscar de novo a cada pedido (SEC-06)
+        if not force and time.time() - self._jwks_at < (600 if self._jwks else 60):
             return self._jwks
+        if force:
+            # token com "kid" desconhecido forçava nova busca a cada pedido (SEC-06): no máximo 1 por minuto
+            if time.time() - self._jwks_forced_at < 60:
+                return self._jwks
+            self._jwks_forced_at = time.time()
         try:
             r = await self.http.get(f"{self.url}/auth/v1/.well-known/jwks.json", timeout=8)
             keys = (r.json() or {}).get("keys") or [] if r.status_code == 200 else []
@@ -52,6 +60,19 @@ class Auth:
     async def verify(self, token: str) -> dict:
         if not token or token.count(".") != 2:
             raise AuthError("faça login")
+        hk = hashlib.sha256(token.encode()).hexdigest()
+        if self._bad.get(hk, 0) > time.time():
+            raise AuthError("token inválido")
+        try:
+            return await self._verify(token)
+        except AuthError as e:
+            if "Supabase" not in str(e):           # falha de rede com o Supabase não fica lembrada
+                if len(self._bad) > 5000:
+                    self._bad.clear()
+                self._bad[hk] = time.time() + 60
+            raise
+
+    async def _verify(self, token: str) -> dict:
         try:
             head = jwt.get_unverified_header(token)
         except jwt.PyJWTError:

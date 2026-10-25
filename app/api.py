@@ -169,7 +169,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
         pf = await hub.engine(u["id"])
         if body.get("confirm") is not True:
             return {"error": "confirmação obrigatória"}
-        usdc = float(body.get("usdc") or 0)
+        try:
+            usdc = float(body.get("usdc") or 0)
+        except (TypeError, ValueError):
+            return {"error": "valor inválido"}
         hub.check_active(u["id"], pf)
         r = await pf.jw.usdc_to_sol(usdc)
         await audit(hub.db, u["id"], "trocar USDC→SOL",
@@ -223,7 +226,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
             d = 7
         pf.cfg.pump_lb_days = d if d in LB_DAYS else 7
         await hub.save_settings(pf)
-        await pf.refresh_leaderboard(force=True)
+        wait = await pf.refresh_leaderboard_user()
+        if wait:
+            return {"ok": False, "error": wait, **{k: v for k, v in pf.lb_status.items() if k != "error"}}
         return {"ok": not pf.lb_status.get("error"), **pf.lb_status}
 
     @app.post("/api/pump/reset")

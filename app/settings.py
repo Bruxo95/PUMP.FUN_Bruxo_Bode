@@ -139,7 +139,7 @@ class PumpSettings:
             return v if isinstance(v, bool) else str(v).lower() in ("1", "true", "sim", "on", "yes")
         try:
             val = typ(float(v)) if typ is int else typ(v)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):     # "1e1000" virava HTTP 500 (SEC-11, 2026-10-25)
             raise ValueError("valor inválido") from None
         if val != val or not lo <= val <= hi:          # NaN ou fora do limite
             raise ValueError(f"fora do limite {lo}–{hi}")
