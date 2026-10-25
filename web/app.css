@@ -351,3 +351,19 @@ select.in{padding-right:24px}
 @media (max-width:860px){.kpirow{grid-template-columns:repeat(2,minmax(0,1fr))}.kpirow .kpis .kpi:last-child:nth-child(odd){grid-column:auto}
   .masc{gap:6px;padding:8px}.masc-fig{flex-basis:44px;height:92px}.masc-txt b{font-size:13px}}
 @media (prefers-reduced-motion:reduce){.masc-fig img,.masc.pop .masc-txt{animation:none!important}}
+/* ficha do token (0.13.0) */
+.tkinfo{margin-left:6px;width:17px;height:17px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--muted);
+  font:600 10px/15px var(--mono);cursor:pointer;padding:0;vertical-align:middle}
+.tkinfo:hover{color:var(--text);border-color:var(--up)}
+.tkbox{width:min(760px,100%)!important;max-height:84vh;display:flex;flex-direction:column}
+.tkhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.tkhead small{display:block;font-size:11px;word-break:break-all}
+.tkbody{padding:14px 16px;overflow:auto}
+.tkbody h3{font-size:13px;margin:16px 0 8px;color:var(--text)}
+.tkwin{margin-bottom:10px}.tkwin .k{font-size:12px;color:var(--muted);margin-bottom:4px}
+.tkbar{margin:4px 0}.tkbar .row2{display:flex;justify-content:space-between;font-size:12px}
+.track{height:6px;background:var(--down-bg);border-radius:4px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--up)}
+.tkh{display:grid;grid-template-columns:minmax(0,1.4fr) 1fr 52px;gap:8px;align-items:center;font-size:12.5px;margin:3px 0}
+.tkh .track{background:#1b1b1f}.tkh .track i{background:var(--info)}
+.small{font-size:12px}

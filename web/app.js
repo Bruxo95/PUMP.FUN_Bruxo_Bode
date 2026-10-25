@@ -24,7 +24,8 @@
   const dt = (x) => { if (!x) return "–"; const d = new Date(x); return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
   const shortW = (w) => (w ? w.slice(0, 4) + "…" + w.slice(-4) : "");
   const pfW = (w) => '<a href="https://pump.fun/profile/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + '">' + esc(shortW(w)) + "</a>";
-  const pfM = (m, s) => '<a href="https://pump.fun/coin/' + encodeURIComponent(m) + '" target="_blank" rel="noopener" title="' + esc(m) + '">' + esc(s || m.slice(0, 6)) + "</a>";
+  const pfM = (m, s) => '<a href="https://pump.fun/coin/' + encodeURIComponent(m) + '" target="_blank" rel="noopener" title="' + esc(m) + '">' + esc(s || m.slice(0, 6)) + "</a>" +
+    '<button class="tkinfo" data-tk="' + esc(m) + '" title="Ficha do token">i</button>';
   const tx = (sig) => (sig ? '<a href="https://solscan.io/tx/' + encodeURIComponent(sig) + '" target="_blank" rel="noopener">tx</a>' : "");
   const btn = (label, act, data, extra) => '<button class="btn sm ' + (extra || "") + '" data-act="' + act + '"' + Object.entries(data || {}).map(([k, v]) => " data-" + k + '="' + esc(v) + '"').join("") + ">" + label + "</button>";
   const st = (on, real) => '<span class="st ' + (on ? (real ? "real" : "on") : "off") + '">' + (on ? "ON" : "OFF") + "</span>";
@@ -115,6 +116,42 @@
     toast(r.error ? "Não aplicou: " + r.error : "Aplicado.");
     poll(true); loadLearning();
   });
+
+  // ------------------------------------------------------------------ ficha do token (/api/pump/token/{mint})
+  async function openToken(m) {
+    $("tkCard").hidden = false; $("tkT").textContent = "Carregando…"; $("tkM").textContent = m; $("tkB").innerHTML = "";
+    const r = await BB.api("/api/pump/token/" + encodeURIComponent(m));
+    if (r.error) { $("tkB").innerHTML = '<p class="muted">' + esc(r.error) + "</p>"; return; }
+    $("tkT").innerHTML = esc(r.symbol || "Token") + (r.name ? ' <span class="muted">' + esc(r.name) + "</span>" : "") +
+      ' <a class="muted" href="https://pump.fun/coin/' + encodeURIComponent(m) + '" target="_blank" rel="noopener">abrir na pump.fun ↗</a>';
+    if (!r.seen) { $("tkB").innerHTML = '<p class="muted">O sistema ainda não acompanhou este token.</p>'; return; }
+    const v = r.vol || {}, ch = r.chg || {}, fl = r.flow || {}, rk = r.risk;
+    const bar = (a, b, la, lb) => { const t = (a || 0) + (b || 0), p = t ? (a / t) * 100 : 50;
+      return '<div class="tkbar"><div class="row2"><span class="up">' + la + '</span><span class="down">' + lb + '</span></div><div class="track"><i style="width:' + f(p, 1).replace(",", ".") + '%"></i></div></div>'; };
+    const win = (k, lab) => { const b = v["buys_" + k], s = v["sells_" + k], u = fl[k] || {};
+      return '<div class="tkwin"><div class="k">' + lab + (ch[k] != null ? ' · <span class="' + (ch[k] >= 0 ? "up" : "down") + '">' + (ch[k] > 0 ? "+" : "") + f(ch[k], 1) + "%</span>" : "") + "</div>" +
+        (b != null ? bar(b, s, f(b, 0) + " compras", f(s, 0) + " vendas") : "") +
+        (u.buy_vol != null ? bar(u.buy_vol, u.sell_vol, "$" + f(u.buy_vol, 0) + " vol. compra", "$" + f(u.sell_vol, 0) + " vol. venda") : "") +
+        (u.buyers != null ? bar(u.buyers, u.sellers, f(u.buyers, 0) + " compradores", f(u.sellers, 0) + " vendedores") : "") + "</div>"; };
+    const hold = (r.holders || []).map((h) => '<div class="tkh"><span>' + pfW(h.owner) + (h.creator ? ' <span class="tag loss">criador</span>' : "") + (h.followed ? ' <span class="tag win">seu trader</span>' : "") +
+      '</span><div class="track"><i style="width:' + Math.min(100, h.pct * 3).toFixed(1) + '%"></i></div><b class="mono">' + f(h.pct, 1) + "%</b></div>").join("");
+    $("tkB").innerHTML =
+      '<div class="cfgs">' + [["Market cap", r.mcap_usd ? "$" + f(r.mcap_usd, 0) : r.mcap_sol ? f(r.mcap_sol, 0) + " SOL" : "–"], ["Liquidez", r.liq_usd ? "$" + f(r.liq_usd, 0) : "–"],
+        ["Curva", r.graduated ? "graduou (PumpSwap)" : r.curve_pct != null ? f(r.curve_pct, 0) + "%" : "–"], ["Idade", r.age_min != null ? f(r.age_min, 0) + " min" : "–"],
+        ["Pressão de compra", r.pressure != null ? f(r.pressure, 0) + "% · " + esc(r.pressure_src) : "–"], ["10 maiores carteiras", r.top10_pct != null ? f(r.top10_pct, 0) + "%" : "–"],
+        ["Risco", rk ? (rk.rugged ? "sem liquidez (rug)" : (rk.score != null ? rk.score + "/10" : "–") + (rk.danger && rk.danger.length ? " · " + rk.danger.join(", ") : "")) : "não checado"]]
+        .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + esc(x[1]) + "</span></div>").join("") + "</div>" +
+      "<h3>Compras × vendas</h3>" + win("m5", "5 min") + win("h1", "1 h") + win("h24", "24 h") +
+      (!r.flow ? '<p class="muted small">Compradores/vendedores únicos e volume de compra × venda aparecem quando a Solana Tracker responder para este token.</p>' : "") +
+      "<h3>Maiores carteiras</h3>" + (hold || '<p class="muted">Ainda não consultado.</p>') +
+      ((r.traders_in || []).length ? "<h3>Seus traders neste token</h3>" + r.traders_in.map((x) => "<div>" + pfW(x.wallet) + " · investiu " + s4(x.invested_sol) + " SOL · " + (x.chg_pct == null ? "–" : f(x.chg_pct, 1) + "%") + "</div>").join("") : "") +
+      ((r.my_trades || []).length ? "<h3>Suas operações neste token</h3>" + r.my_trades.map((t) => "<div>" + dt(t.closed_at) + " · " + sg(t.pnl_sol) + " · " + esc(t.reason || "") + "</div>").join("") : "");
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".tkinfo"); if (b) { e.preventDefault(); openToken(b.dataset.tk); return; }
+    if (e.target.id === "tkX" || e.target.id === "tkCard") $("tkCard").hidden = true;
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("tkCard").hidden = true; });
 
   // ------------------------------------------------------------------ novidades (só admin: /api/admin/novidades, lista em app/novidades.json)
   let NOV = null, NOV_TIPO = "";
@@ -379,6 +416,7 @@
       ["Market cap mínimo", "$" + n(c.pump_min_mcap_usd), st(c.pump_min_mcap_usd > 0)], ["Volume 1 h mínimo", "$" + n(c.pump_min_vol_h1_usd), st(c.pump_min_vol_h1_usd > 0)],
       ["Negociações 1 h mínimas", n(c.pump_min_txns_h1), st(c.pump_min_txns_h1 > 0)], ["10 maiores carteiras máx.", n(c.pump_max_top10_pct) + "%", st(c.pump_max_top10_pct > 0)], ["Venda em partes", c.pump_tp1_pct > 0 ? "+" + n(c.pump_tp1_pct) + "% → " + n(c.pump_tp1_frac_pct) + "%" : "desligada", st(c.pump_tp1_pct > 0)],
       ["Sair antes da graduação", c.pump_curve_exit_pct > 0 ? "curva " + n(c.pump_curve_exit_pct) + "%" : "desligado", st(c.pump_curve_exit_pct > 0)],
+      ["Pressão de compra mín.", c.pump_min_buy_pressure_pct > 0 ? n(c.pump_min_buy_pressure_pct) + "%" : "desligada", st(c.pump_min_buy_pressure_pct > 0)],
       ["Velocidade mín. da curva", c.pump_min_curve_speed > 0 ? n(c.pump_min_curve_speed) + "%/min" : "desligada", st(c.pump_min_curve_speed > 0)],
       ["Token já graduado", c.pump_skip_graduated ? "não copia" : "copia", st(!!c.pump_skip_graduated)],
       ["Valor conforme o trader", c.pump_size_by_trader ? "ligado" : "desligado", st(!!c.pump_size_by_trader)],

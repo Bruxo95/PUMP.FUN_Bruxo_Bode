@@ -731,3 +731,25 @@ def test_pump_curve_filters_trust_size_and_lag(tmp_path):
     now = float(int(_t.time()))                                               # blockTime é inteiro: atraso exato
     pf.on_message(_ev("buy", _W, n, 1.0, 1e6, 30, 3e7, blockTime=int(now) - 4), now)
     assert "atraso 4 s" in pf.feed[0]["reason"] and pf.positions()[-1]["lag_s"] >= 3.5
+
+
+def test_pump_buy_pressure_filter_flow_parse_and_token_card(tmp_path):
+    """0.13.0: pressão de compra (volume da Solana Tracker ou compras × vendas da DexScreener) e ficha do token."""
+    pf = _pump(tmp_path, paid=False)
+    m = "Flow".ljust(40, "1") + "pump"
+    pf.tokens[m] = {"created_t": 0, "creator": "Dev".ljust(44, "1"), "mcap_sol": 100.0, "symbol": "FLW",
+                    "vol": {"buys_m5": 3, "sells_m5": 2, "buys_h1": 40, "sells_h1": 60},
+                    "holders_top": [{"owner": "Dev".ljust(44, "1"), "pct": 12.5}, {"owner": _W, "pct": 4.0}]}
+    assert pf.flow_block(m) is None                                         # desligado por padrão
+    pf.cfg.pump_min_buy_pressure_pct = 55.0
+    pr, src = pf.pressure(m)
+    assert pr == 40.0 and "1 h" in src                                       # 5 min com < 10 negociações: usa 1 h
+    assert "40%" in pf.flow_block(m)
+    pf.tokens[m]["flow"] = pf.parse_flow({"5m": {"buyers": 30, "sellers": 10, "volume": {"buys": 900, "sells": 100}}})
+    assert pf.pressure(m)[0] == 90.0 and pf.flow_block(m) is None           # volume de compra 90%
+    assert pf.parse_flow("x") is None and pf.parse_flow({"outro": 1}) is None
+    pf.add_manual(_W)
+    card = pf.token_card(m)
+    assert card["symbol"] == "FLW" and card["pressure"] == 90.0 and card["curve_pct"] > 0
+    assert card["holders"][0]["creator"] and card["holders"][1]["followed"]
+    assert pf.token_card("Nada".ljust(40, "1"))["seen"] is False

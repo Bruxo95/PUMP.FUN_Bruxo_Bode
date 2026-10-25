@@ -2,6 +2,38 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.13.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Configurações → Filtros antes de copiar",
+      "titulo": "Pressão de compra mínima",
+      "oque": "Só copia se, no momento, as compras forem pelo menos X% das negociações (volume de compra × venda quando disponível; senão número de compras × vendas). Desligada por padrão; sugestão: 55%."
+    },
+    {
+      "versao": "0.13.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Botão i ao lado de cada token (Posições, Histórico, Feed…)",
+      "titulo": "Ficha do token",
+      "oque": "Abre um quadro com market cap, liquidez, progresso da curva, idade, pressão de compra, risco, compras × vendas em 5 min, 1 h e 24 h (com a variação de preço), maiores carteiras (marcando o criador e os seus traders), seus traders no token e as suas operações nele."
+    },
+    {
+      "versao": "0.13.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Ficha do token",
+      "titulo": "Compradores e vendedores únicos",
+      "oque": "Quando a Solana Tracker responde para o token, a ficha mostra compradores × vendedores únicos e volume de compra × venda, e a pressão de compra passa a usar o volume. O formato dessa consulta não estava documentado; se não vier, o resto funciona igual."
+    },
+    {
+      "versao": "0.13.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Ficha do token → Maiores carteiras",
+      "titulo": "Maiores carteiras do token",
+      "oque": "Lista as maiores carteiras (sem contar a curva/pool) com o % de cada uma, marcando o criador e os traders que você segue — uma versão simples do mapa de bolhas."
+    },
+    {
       "versao": "0.12.0",
       "data": "2026-10-25",
       "tipo": "melhoria",

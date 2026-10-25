@@ -164,6 +164,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         out["history_error"] = "histórico ainda não disponível (tabela do aprendizado não criada no banco)" if err else None
         return out
 
+    @app.get("/api/pump/token/{mint}")
+    async def pump_token(mint: str, pf=Depends(engine)):
+        """Ficha do token: o que o sistema já sabe (mercado, curva, compras × vendas, risco, maiores carteiras)."""
+        if not pf.valid_addr(mint):
+            return {"error": "endereço de token inválido"}
+        return pf.token_card(mint)
+
     @app.get("/api/pump/wallet")
     async def pump_wallet(force: int = 0, pf=Depends(engine)):
         """Saldo REAL da carteira do bot: SOL (o que paga as compras) e USDC convertido em SOL."""

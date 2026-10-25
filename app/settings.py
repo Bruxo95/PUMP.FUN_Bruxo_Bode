@@ -55,7 +55,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_curve_exit_pct": (float, 0.0, 0.0, 100.0),   # vende tudo quando a curva passa de X% (antes de graduar)
     "pump_min_curve_speed": (float, 0.0, 0.0, 1000.0), # só copia se a curva enche ao menos X% por minuto
     "pump_skip_graduated": (bool, False, 0, 1),        # não copia compra de token que já graduou (PumpSwap)
-    "pump_size_by_trader": (bool, False, 0, 1),        # valor da cópia conforme o seu resultado com o trader  # não copia se o preço subiu mais que isso desde a compra do trader
+    "pump_size_by_trader": (bool, False, 0, 1),
+    "pump_min_buy_pressure_pct": (float, 0.0, 0.0, 100.0),  # 0.13.0: só copia se as compras forem ≥ X% das negociações        # valor da cópia conforme o seu resultado com o trader  # não copia se o preço subiu mais que isso desde a compra do trader
     "pump_risk_check": (bool, True, 0, 1),          # nota de risco do token (Solana Tracker) antes de copiar
     "pump_max_risk_score": (int, 7, 1, 10),         # 1 = só tokens de risco baixo; 10 = só bloqueia "perigo"
     "pump_min_wallet_usd": (float, 5000.0, 0.0, 1e10),

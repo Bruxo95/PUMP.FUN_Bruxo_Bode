@@ -99,7 +99,8 @@ Nenhum usuário lê `app_secrets` (RLS sem política). Em Configurações cada c
 chave do sistema / não configurada" e o link para criar a própria.
 Migrações registradas como aplicadas no projeto: `20261025000001_inicial.sql`, `20261025000002_admin.sql` e
 `20261025000003_chaves_sistema.sql`.
-`20261025000004_aprendizado_diario.sql` (tabela `learning_daily`, 0.10.0).
+`20261025000004_aprendizado_diario.sql` (tabela `learning_daily`, 0.10.0) — aplicada pelo job `banco` em 2026-10-25
+(run 40239286326, log "Aplicada").
 **Migrações automáticas (desde 0.12.0, autorizado pelo dono em 2026-10-25):** o job `banco` do Actions roda
 `scripts/aplicar_migracoes.py` com o segredo `SUPABASE_ACCESS_TOKEN` (Management API) e aplica, antes da imagem,
 toda migração de `supabase/migrations/` que não esteja em `public.app_migracoes` (cada uma em transação com o seu

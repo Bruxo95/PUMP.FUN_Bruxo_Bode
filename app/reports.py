@@ -24,7 +24,7 @@ SKIPS = [("10 maiores", "Concentração nas 10 maiores"), ("risco", "Risco do to
          ("limite de", "Limite de posições abertas"), ("saldo", "Saldo insuficiente"),
          ("trader saiu em", "Trader saiu antes da espera"), ("sem preço", "Token sem preço"),
          ("cópia desligada", "Cópia desligada"), ("graduou", "Token já graduado"),
-         ("curva enchendo", "Curva enchendo devagar"), ("perda do dia", "Perda máxima do dia (real)"),
+         ("curva enchendo", "Curva enchendo devagar"), ("pressão de compra", "Pressão de compra fraca"), ("perda do dia", "Perda máxima do dia (real)"),
          ("fora da pump.fun", "Fora da pump.fun"), ("liquidez", "Liquidez baixa")]
 
 

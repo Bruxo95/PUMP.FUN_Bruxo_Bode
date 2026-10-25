@@ -64,6 +64,7 @@ PUMP_PROGRAMS = ("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",   # pump.fun (cu
 LB_URL = "https://data.solanatracker.io/v2/pnl/leaderboard/top"
 # Nota de risco do token (mint/freeze authority, bundlers, insiders, concentração…) — mesma chave do ranking.
 TOKEN_URL = "https://data.solanatracker.io/tokens/"
+STATS_URL = "https://data.solanatracker.io/stats/"   # por janela: compradores/vendedores únicos e volume (0.13.0)
 
 
 def now_iso() -> str:
@@ -830,6 +831,8 @@ class PumpFun:
                     why = self.chase_block(self.price_of(ev), px)
                 if not why:
                     why = self.curve_block(mint)
+                if not why:
+                    why = self.flow_block(mint)
             if why:
                 self._feed(**base, action="não copiou", reason=why)
                 return []
@@ -1467,6 +1470,72 @@ class PumpFun:
             return None
         return f"preço já subiu {(now_px / trader_px - 1) * 100:.0f}% desde a compra do trader (máx. {mx:.0f}%)"
 
+    @staticmethod
+    def parse_flow(js) -> dict | None:
+        """Estatísticas por janela da Solana Tracker. Formato não confirmado em documentação pública (2026-10-25):
+        lê de forma defensiva e devolve None se não reconhecer — nada depende disso para funcionar."""
+        if not isinstance(js, dict):
+            return None
+        out = {}
+        for key, name in (("5m", "m5"), ("1h", "h1"), ("24h", "h24")):
+            w = js.get(key)
+            if not isinstance(w, dict):
+                continue
+            vol = w.get("volume") if isinstance(w.get("volume"), dict) else {}
+
+            def num(x):
+                return float(x) if isinstance(x, (int, float)) else None
+            out[name] = {"buyers": num(w.get("buyers")), "sellers": num(w.get("sellers")),
+                         "buys": num(w.get("buys")), "sells": num(w.get("sells")),
+                         "buy_vol": num(vol.get("buys")), "sell_vol": num(vol.get("sells"))}
+        return out or None
+
+    def pressure(self, mint: str) -> tuple[float | None, str]:
+        """% de compras na janela mais recente com movimento: volume de compra (Solana Tracker) se houver; senão
+        número de compras × vendas da DexScreener (5 min com 10+ negociações, senão 1 h)."""
+        tk = self.tokens.get(mint) or {}
+        for w in ("m5", "h1"):
+            f = ((tk.get("flow") or {}).get(w)) or {}
+            if f.get("buy_vol") is not None and f.get("sell_vol") is not None and f["buy_vol"] + f["sell_vol"] > 0:
+                return f["buy_vol"] / (f["buy_vol"] + f["sell_vol"]) * 100, f"volume {w.replace('m', '').replace('h', '')}{'min' if w == 'm5' else 'h'}"
+        v = tk.get("vol") or {}
+        for w, mn in (("m5", 10), ("h1", 1)):
+            b, s = int(v.get("buys_" + w) or 0), int(v.get("sells_" + w) or 0)
+            if b + s >= mn:
+                return b / (b + s) * 100, ("negociações 5 min" if w == "m5" else "negociações 1 h")
+        return None, ""
+
+    def flow_block(self, mint: str) -> str | None:
+        mn = float(self._c("pump_min_buy_pressure_pct", 0) or 0)
+        if not mn:
+            return None
+        pr, src = self.pressure(mint)
+        if pr is not None and pr < mn:
+            return f"pressão de compra fraca: {pr:.0f}% de compras ({src}; mínimo {mn:.0f}%)"
+        return None
+
+    def token_card(self, mint: str) -> dict:
+        """Ficha do token (painel): mercado, curva, compras × vendas, risco, maiores carteiras e o que é seu nele."""
+        tk = dict(self.tokens.get(mint) or {})
+        su = self.sol_usd or 0
+        fol = set(self.followed)
+        holders = [{**h, "creator": h["owner"] == tk.get("creator"), "followed": h["owner"] in fol}
+                   for h in tk.get("holders_top") or []]
+        pr, src = self.pressure(mint)
+        mine = [p for p in self.positions() if p["mint"] == mint]
+        trades = [t for t in self.trades(3000) if t.get("mint") == mint][:20]
+        traders = [x for x in self.trader_positions() if x["mint"] == mint]
+        return {"mint": mint, "symbol": tk.get("symbol"), "name": tk.get("name"), "price_sol": tk.get("price"),
+                "mcap_sol": tk.get("mcap_sol"), "mcap_usd": (tk["mcap_sol"] * su) if tk.get("mcap_sol") and su else None,
+                "liq_usd": tk.get("liq_usd"), "dex": tk.get("main_dex"), "graduated": self.graduated(mint),
+                "curve_pct": None if self.graduated(mint) else self.curve_progress(tk.get("mcap_sol")),
+                "age_min": round((time.time() - tk["created_t"]) / 60, 1) if tk.get("creator") and tk.get("created_t") else None,
+                "vol": tk.get("vol"), "chg": tk.get("chg"), "flow": tk.get("flow"), "pressure": pr, "pressure_src": src,
+                "risk": tk.get("risk"), "top10_pct": tk.get("top10_pct"), "holders": holders, "creator": tk.get("creator"),
+                "my_positions": [{k: p.get(k) for k in ("symbol", "sol_in", "chg_pct", "real", "opened_at", "wallet")} for p in mine],
+                "my_trades": [{k: t.get(k) for k in ("closed_at", "pnl_sol", "pnl_pct", "reason", "real", "wallet")} for t in trades],
+                "traders_in": traders, "seen": bool(self.tokens.get(mint))}
+
     def risk_block(self, tk: dict) -> str | None:
         """Nota de risco da Solana Tracker (pesquisa de 2026-10-25: copiar sem olhar o token deixa quem copia como
         "saída" de bundles e insiders). Sem chave ou sem resposta, não bloqueia — o painel mostra que não checou."""
@@ -1497,6 +1566,11 @@ class PumpFun:
             return
         risks = [x for x in rk.get("risks") or [] if isinstance(x, dict)]
         score = rk.get("score")
+        try:
+            rs = await self.http.get(STATS_URL + mint, headers={"x-api-key": key, "Accept": "application/json"}, timeout=8)
+            tk["flow"] = self.parse_flow(rs.json()) if rs.status_code == 200 else tk.get("flow")
+        except Exception:
+            pass
         tk["risk"] = {"score": int(score) if isinstance(score, (int, float)) else None, "rugged": bool(rk.get("rugged")),
                       "danger": [str(x.get("name"))[:60] for x in risks if x.get("level") == "danger"],
                       "warn": [str(x.get("name"))[:60] for x in risks if x.get("level") == "warn"], "t": time.time()}
@@ -1550,6 +1624,13 @@ class PumpFun:
         if graduated and holders:
             holders = holders[1:]                              # maior conta = pool da PumpSwap
         tk["top10_pct"] = round(sum(holders[:10]) / total * 100, 1)
+        top = []
+        for i_, a in enumerate(accs):
+            own_ = owners[i_] if i_ < len(owners) else None
+            if own_ == curve or not own_:
+                continue
+            top.append({"owner": own_, "pct": round(float(a.get("uiAmountString") or a.get("uiAmount") or 0) / total * 100, 2)})
+        tk["holders_top"] = (top[1:] if graduated else top)[:12]
 
     def _other_block(self, mint: str) -> str | None:
         """Pode copiar este token FORA da pump.fun? (Raydium, Meteora, Orca… via Jupiter)"""
@@ -1641,12 +1722,14 @@ class PumpFun:
                 base = (p.get("baseToken") or {}).get("address")
                 if base not in chunk:
                     continue
-                v = vols.setdefault(base, {"m5": 0.0, "h1": 0.0, "h6": 0.0, "h24": 0.0, "buys_h1": 0, "sells_h1": 0})
+                v = vols.setdefault(base, {"m5": 0.0, "h1": 0.0, "h6": 0.0, "h24": 0.0, "buys_h1": 0, "sells_h1": 0,
+                                           "buys_m5": 0, "sells_m5": 0, "buys_h24": 0, "sells_h24": 0})
                 for k_ in ("m5", "h1", "h6", "h24"):
                     v[k_] += float((p.get("volume") or {}).get(k_) or 0)
-                tx1 = (p.get("txns") or {}).get("h1") or {}
-                v["buys_h1"] += int(tx1.get("buys") or 0)
-                v["sells_h1"] += int(tx1.get("sells") or 0)
+                for w_ in ("m5", "h1", "h24"):                 # compras × vendas por janela (ficha e pressão)
+                    tx_ = (p.get("txns") or {}).get(w_) or {}
+                    v["buys_" + w_] += int(tx_.get("buys") or 0)
+                    v["sells_" + w_] += int(tx_.get("sells") or 0)
                 dx = self.tokens.setdefault(base, {"created_t": time.time()}).setdefault("dexes", [])
                 if p.get("dexId") and p["dexId"] not in dx:
                     dx.append(p["dexId"])
@@ -1664,6 +1747,8 @@ class PumpFun:
                 tk = self.tokens.setdefault(m, {"created_t": now})
                 tk["liq_usd"] = liq
                 tk["main_dex"] = p.get("dexId")
+                tk["chg"] = {k_: float(v_) for k_, v_ in (p.get("priceChange") or {}).items()
+                             if k_ in ("m5", "h1", "h6", "h24") and isinstance(v_, (int, float))}
                 if m in vols:
                     tk["vol"] = {k_: round(v_, 2) if isinstance(v_, float) else v_ for k_, v_ in vols[m].items()}
                     tk["vol_t"] = now

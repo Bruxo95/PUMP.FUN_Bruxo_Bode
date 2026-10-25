@@ -275,6 +275,8 @@
             <div class="field"><label>10 maiores carteiras do token (máx.)</label><div class="row"><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_max_top10_pct"><span class="muted">%</span></div></div>
             <div class="field" data-novo-ate="2026-11-08"><label>Não copiar se o preço já subiu mais de</label><div class="row"><input class="in w80" type="number" min="0" max="1000" step="5" data-cfg="pump_max_chase_pct"><span class="muted">% desde a compra do trader</span></div>
               <div class="hint">Quem copia entra depois e paga mais caro; essa diferença é o que mais faz perder. Vale para a cópia com espera e para a compra real (conferida de novo na hora de enviar). 0 desliga.</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Pressão de compra mínima (0 desliga)</label><div class="row"><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_min_buy_pressure_pct"><span class="muted">% de compras</span></div>
+              <div class="hint">Só copia se, no momento, as compras forem pelo menos essa parte das negociações (volume de compra quando disponível; senão número de compras × vendas). Evita entrar quando todo mundo está saindo. Sugestão para testar: 55.</div></div>
             <div class="field" data-novo-ate="2026-11-08"><label>Velocidade mínima da curva (0 desliga)</label><div class="row"><input class="in w80" type="number" min="0" step="1" data-cfg="pump_min_curve_speed"><span class="muted">% da curva por minuto</span></div>
               <div class="hint">Só copia token que enche a curva rápido — o sinal que mais indicou graduação no estudo. Vale só para tokens cuja criação o monitor viu. Sugestão para testar: 5.</div></div>
             <div class="field" data-novo-ate="2026-11-08"><label>Não copiar token já graduado</label><div class="row"><button class="btn sm tgl" data-toggle="pump_skip_graduated">…</button></div>
@@ -361,6 +363,7 @@
   </div>
 </div>
 
+<div class="cmdk" id="tkCard" hidden><div class="box tkbox"><div class="tkhead"><div><b id="tkT">Token</b><small class="muted mono" id="tkM"></small></div><button class="btn sm" id="tkX">Fechar</button></div><div id="tkB" class="tkbody"></div></div></div>
 <div class="cmdk" id="cmdk" hidden><div class="box"><input id="cmdkIn" placeholder="Buscar token, trader ou carteira…" autocomplete="off"><ul id="cmdkList"></ul><div class="foot">↑↓ para escolher · Enter abre · Esc fecha</div></div></div>
 <div class="toasts" id="toasts"></div>
 

@@ -318,3 +318,11 @@ def test_pages_and_security_headers(env):
     # pré-visualização de link (WhatsApp, Telegram…): nome novo, imagem com endereço completo
     assert 'og:title" content="PUMP FUN COPY' in r.text and "Bruxo Bode" not in r.text and "__BASE__" not in r.text
     assert 'og:image" content="http' in r.text and c.get("/static/og.png").status_code == 200
+
+
+def test_token_card_route_validates_address(env):
+    c = env["c"]
+    assert c.get("/api/pump/token/x;drop", headers=tok(UA)).json()["error"] == "endereço de token inválido"
+    r = c.get("/api/pump/token/" + "Tok".ljust(40, "1") + "pump", headers=tok(UA)).json()
+    assert r["seen"] is False
+    assert c.get("/api/pump/token/" + "Tok".ljust(40, "1") + "pump").status_code == 401
