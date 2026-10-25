@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "ea257ffc2596e768f18c03060e54825c758eccf2",
-    "application_version": "0.17.0 · 2026-10-25 · Hot callouts dentro do Radar de KOLs",
+    "repository_reference": "04748f18ac772e1eb5ab0f5f719f9f8b282e9e6d",
+    "application_version": "0.17.1 · 2026-10-25 · Compartilhar carteira em estudo com outro usuário",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "dc063a3cae6fecd075a1e04598b1b45328e7c59bcf6f32ace5057328183821bf",
+      "app/version.py": "7a78d6e10d7c34781184c8d969aefb9baa6a08ae2f01413ebb5c8ed57df563f4",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "e995238fea9f4183a03aa52dbd576c6b61c295ba6e5fde6992e9ffaeb6b367dc",
+      "web/app.html": "42be3a998e9504180b14ad1ec1049488e726e0a34a9a8a1f230f51baa3844428",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "4.4.9",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "6762ee41210194406959d4e22ca3fa0b5be6762d71f56e7a698c59a814f0d7d4"
+  "pdf_sha256": "9aed98f24cb90577497ab1ecfd7eb457e748a759b3c51e815469bcb0d57107c9"
 }

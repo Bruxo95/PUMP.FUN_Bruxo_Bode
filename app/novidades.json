@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.17.1",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Menu → Carteiras em estudo → Carteiras estudadas → Compartilhar",
+      "titulo": "Compartilhar uma carteira em estudo com outro usuário",
+      "oque": "Cada carteira estudada ganhou o botão Compartilhar. Ele mostra a lista dos outros usuários (nome e e-mail parcialmente escondido) e, ao escolher, a carteira entra nas Carteiras em estudo da pessoa com o mesmo apelido. É só estudo: a pessoa não passa a copiar nada. Só dá para compartilhar carteiras que você estuda, o limite de 30 da outra pessoa vale e tudo fica no registro de segurança dos dois."
+    },
+    {
       "versao": "0.17.0",
       "data": "2026-10-25",
       "tipo": "melhoria",

@@ -400,3 +400,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   0.17.0 no `/health`. Nenhum acesso administrativo remoto foi feito pelo agente.
 - Inventário Markdown/JSON/PDF atualizado por mudança de versão/HTML, usando o runtime PDF preexistente.
   O fluxo com dados reais e o login de produção não foram executados; execução real permaneceu fora do escopo.
+
+## Compartilhar carteira em estudo (2026-10-25, versão 0.17.1)
+- Botão Compartilhar em Carteiras estudadas: `GET /api/pump/study/share-targets` (outros usuários, sem bloqueados,
+  e-mail mascarado `ab***@dominio`) e `POST /api/pump/study/share` (`hub.study_share`): só quem estuda a carteira
+  compartilha; insere em `study_wallets` do destino com o apelido de quem envia (ou "de <nome>"); respeita o limite
+  de 30; `audit_log` nos dois lados. Sem migração. Teste em `tests/test_estudo.py`.
