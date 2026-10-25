@@ -1,52 +1,33 @@
-## PUMP.FUN Bruxo Bode — stack para o Portainer (Docker Swarm + Traefik, mesmo padrão da VPS).
-## As chaves NÃO ficam aqui: preencha em "Environment variables" do stack no Portainer.
+## PUMP.FUN Bruxo Bode — stack do Portainer (Swarm + Traefik). Chaves em "Environment variables" do stack.
 version: "3.7"
 services:
-
-## --------------------------- PUMP.FUN BRUXO BODE --------------------------- ##
-
   pump_bruxo_bode:
     image: ghcr.io/bruxo95/pump.fun_bruxo_bode:latest
-
     networks:
-      - vpsrachar ## Nome da rede interna
-
+      - vpsrachar
     environment:
-      ## 🌐 Endereço público (igual ao Site URL do Supabase)
-      - PUBLIC_BASE_URL=https://pump.rachar.app.br
-      - PORT=8080
-
-      ## 🗄️ Supabase (Project Settings → API)
-      - SUPABASE_URL=https://vnvfluimpqvxbvdbmwqa.supabase.co
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-
-      ## 🔐 Chave mestra que criptografa as chaves dos usuários (32 bytes base64 — gere uma vez e guarde)
-      - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
-
-      ## ☀️ Solana (monitor compartilhado)
-      - SOLANA_RPC_PUBLIC=https://api.mainnet-beta.solana.com
-
-      ## ⚠️ Trava geral do modo REAL (false = ninguém liga a execução real)
-      - PUMP_REAL_ALLOWED=false
-
+      PUBLIC_BASE_URL: "https://pump.rachar.app.br"
+      PORT: "8080"
+      SUPABASE_URL: "https://vnvfluimpqvxbvdbmwqa.supabase.co"
+      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
+      APP_ENCRYPTION_KEY: "${APP_ENCRYPTION_KEY}"
+      SOLANA_RPC_PUBLIC: "https://api.mainnet-beta.solana.com"
+      PUMP_REAL_ALLOWED: "false"
     deploy:
-      replicas: 1   ## sempre 1: o monitor e as filas reais vivem dentro deste container
+      replicas: 1
       placement:
         constraints:
-          - node.role == manager
+          - "node.role == manager"
       labels:
-        - traefik.enable=true
-        - traefik.http.routers.pump_bruxo_bode.rule=Host(`pump.rachar.app.br`)
-        - traefik.http.routers.pump_bruxo_bode.entrypoints=websecure
-        - traefik.http.routers.pump_bruxo_bode.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.pump_bruxo_bode.service=pump_bruxo_bode
-        - traefik.http.services.pump_bruxo_bode.loadbalancer.server.port=8080
-        - traefik.http.services.pump_bruxo_bode.loadbalancer.passHostHeader=true
-
-## --------------------------- PUMP.FUN BRUXO BODE --------------------------- ##
-
+        - "traefik.enable=true"
+        - "traefik.http.routers.pump_bruxo_bode.rule=Host(`pump.rachar.app.br`)"
+        - "traefik.http.routers.pump_bruxo_bode.entrypoints=websecure"
+        - "traefik.http.routers.pump_bruxo_bode.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.pump_bruxo_bode.service=pump_bruxo_bode"
+        - "traefik.http.services.pump_bruxo_bode.loadbalancer.server.port=8080"
+        - "traefik.http.services.pump_bruxo_bode.loadbalancer.passHostHeader=true"
 networks:
-  vpsrachar: ## Nome da rede interna
+  vpsrachar:
     external: true
-    name: vpsrachar ## Nome da rede interna
+    name: vpsrachar
