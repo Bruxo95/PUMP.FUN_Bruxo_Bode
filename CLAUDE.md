@@ -25,6 +25,7 @@ cada API): `docs/GUIA-DO-PROJETO.md`.
 - **Responder sempre em português do Brasil**, direto e sem jargão.
 - Ao terminar cada tarefa: dizer **o que mudou, a versão** e **o que o dono precisa fazer**
   (ex.: "commit enviado ao GitHub; confira o resultado do Actions"). Dizer o que **não** foi testado de verdade.
+- **Antes de todo push/deploy: `git pull` (ou `git fetch` + rebase) no `main`, integrar o que chegou, rodar a checagem e os testes e, se aparecer erro, corrigir ANTES de enviar.** Outra IA (Codex) e o dono também enviam ao mesmo repositório; push sem pull rejeita ou atropela a versão deles. Se a versão já foi usada por outro, subir para a próxima. Pedido do dono em 2026-10-25.
 - **Escopo de deploy definido pelo dono em 2026-10-25: somente GitHub.** Neste projeto, pedidos de
   "deploy", "publicar" ou "subir" autorizam commit + push apenas para
   `https://github.com/Bruxo95/PUMP.FUN_Bruxo_Bode`, branch `main`, e o workflow existente do GitHub Actions.

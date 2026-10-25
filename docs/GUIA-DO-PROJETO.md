@@ -279,6 +279,8 @@ opcionais (`.env.example`). Instalação e atualização: `README.md`.
 - Python 3.12 + FastAPI; front em HTML/CSS/JS sem framework (sem handlers inline por causa da CSP).
 - Testes: `pytest -q`, **todos sem internet** (respostas de rede simuladas). `tests/test_pump.py` é a
   referência do comportamento de cópia herdado do projeto original.
+- Antes de cada push: `git pull` no `main`, integrar o que chegou e rodar os testes; erro encontrado é corrigido
+  antes de enviar (outras IAs e o dono também publicam aqui).
 - A cada entrega: subir a versão em `app/version.py`, rodar os testes, commit e push no `main`. O GitHub
   Actions testa, publica a imagem e (se configurado) atualiza o servidor.
 - Nunca registrar chaves em código, logs, documentos ou mensagens.

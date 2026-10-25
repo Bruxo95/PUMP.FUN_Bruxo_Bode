@@ -21,6 +21,8 @@ Não recriar `.venv`, instalar scanners nem reinstalar pacotes para rodar testes
 combinar antes um ambiente de execução isolado/remoto com o usuário. Registrar a
 limitação de testes quando esse ambiente ainda não estiver disponível.
 
+**Antes de todo push/deploy: `git pull` (ou `git fetch` + rebase) no `main`, integrar o que chegou, rodar a checagem e os testes e, se aparecer erro, corrigir ANTES de enviar.** Outra IA (Codex) e o dono também enviam ao mesmo repositório; push sem pull rejeita ou atropela a versão deles. Se a versão já foi usada por outro, subir para a próxima. Pedido do dono em 2026-10-25.
+
 Inventário permanente de dependências: `docs/DEPENDENCIAS.md`, dados em
 `docs/dependencias/inventario.json` e PDF em `output/pdf/relatorio-dependencias.pdf`.
 Sempre que adicionar, remover ou atualizar dependências, extras, runtime, Actions,

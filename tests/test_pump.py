@@ -668,6 +668,9 @@ def test_pump_does_not_chase_price_after_trader_entry(tmp_path):
     assert pf.chase_block(1e-6, 1.29e-6) is None and pf.chase_block(1e-6, 1.31e-6)
     pf.cfg.pump_max_chase_pct = 0
     assert pf.chase_block(1e-6, 9e-6) is None                               # 0 desliga
+    pf.cfg.pump_max_chase_pct, pf.cfg.pump_chase_on = 30.0, False
+    assert pf.chase_block(1e-6, 9e-6) is None                               # OFF desliga
+    pf.cfg.pump_chase_on = True
 
     pf.cfg.pump_max_chase_pct, pf.cfg.pump_real_enabled = 30.0, True
     bought = []
@@ -687,7 +690,7 @@ def test_pump_does_not_chase_price_after_trader_entry(tmp_path):
 
 def test_pump_partial_take_profit_and_exit_before_graduation(tmp_path):
     """0.12.0: venda em partes realiza uma fração uma vez; saída antes da graduação vende tudo com a curva alta."""
-    pf = _pump(tmp_path, paid=False, pump_tp1_pct=20.0, pump_tp1_frac_pct=50.0, pump_extra_slip_pct=0.0)
+    pf = _pump(tmp_path, paid=False, pump_tp1_on=True, pump_tp1_pct=20.0, pump_tp1_frac_pct=50.0, pump_extra_slip_pct=0.0)
     pf.add_manual(_W)
     m = "Part".ljust(40, "1") + "pump"
     pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7))
@@ -700,7 +703,7 @@ def test_pump_partial_take_profit_and_exit_before_graduation(tmp_path):
     assert "venda em partes" in pf.feed[0]["reason"] or any("venda em partes" in str(s.get("why")) for s in p.get("sells", []))
     pf._check_stops(m, 0)                                                     # não repete a venda parcial
     assert abs(pf.positions()[0]["tokens_left"] - full * 0.5) < full * 1e-6
-    pf.cfg.pump_curve_exit_pct = 50.0
+    pf.cfg.pump_curve_exit_on, pf.cfg.pump_curve_exit_pct = True, 50.0
     pf.tokens[m]["mcap_sol"] = 300.0                                          # curva ~76%
     pf._check_stops(m, 0)
     assert not pf.positions() and "antes da graduação" in pf.trades()[0]["reason"]
@@ -716,7 +719,7 @@ def test_pump_curve_filters_trust_size_and_lag(tmp_path):
     pf.cfg.pump_skip_graduated = True
     assert "graduou" in pf.curve_block(m)
     pf.cfg.pump_skip_graduated, pf.tokens[m]["pool"] = False, "pump"
-    pf.cfg.pump_min_curve_speed = 5.0                                         # ~16% em 10 min = 1,6%/min
+    pf.cfg.pump_curve_speed_on, pf.cfg.pump_min_curve_speed = True, 5.0     # ~16% em 10 min = 1,6%/min
     assert "devagar" in pf.curve_block(m)
     pf.tokens[m]["created_t"] = _t.time() - 60
     assert pf.curve_block(m) is None                                          # ~16% em 1 min: rápido
@@ -741,7 +744,7 @@ def test_pump_buy_pressure_filter_flow_parse_and_token_card(tmp_path):
                     "vol": {"buys_m5": 3, "sells_m5": 2, "buys_h1": 40, "sells_h1": 60},
                     "holders_top": [{"owner": "Dev".ljust(44, "1"), "pct": 12.5}, {"owner": _W, "pct": 4.0}]}
     assert pf.flow_block(m) is None                                         # desligado por padrão
-    pf.cfg.pump_min_buy_pressure_pct = 55.0
+    pf.cfg.pump_buy_pressure_on, pf.cfg.pump_min_buy_pressure_pct = True, 55.0
     pr, src = pf.pressure(m)
     assert pr == 40.0 and "1 h" in src                                       # 5 min com < 10 negociações: usa 1 h
     assert "40%" in pf.flow_block(m)

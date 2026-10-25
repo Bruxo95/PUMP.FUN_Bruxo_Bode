@@ -1033,8 +1033,8 @@ class PumpFun:
                     p["trail_since"] = now_iso()
                 p["trail_peak"] = round(max(chg, p.get("trail_peak") or chg), 2)
                 p["trail_exit"] = round(max(p["trail_peak"] - t_dist, float(self._c("pump_trail_min_lock_pct", 2))), 2)
-            tp1, prog = float(self._c("pump_tp1_pct", 0) or 0), None
-            cx = float(self._c("pump_curve_exit_pct", 0) or 0)
+            tp1, prog = self._onv("pump_tp1_on", "pump_tp1_pct"), None
+            cx = self._onv("pump_curve_exit_on", "pump_curve_exit_pct")
             if cx and self.is_pump(mint) and not self.graduated(mint):
                 prog = self.curve_progress((self.tokens.get(mint) or {}).get("mcap_sol"))
             if cx and prog is not None and prog >= cx:
@@ -1435,7 +1435,7 @@ class PumpFun:
             return None
         if getattr(self.cfg, "pump_skip_graduated", False) and self.graduated(mint):
             return "token já graduou (PumpSwap) — depois da graduação o risco de derrubada é maior"
-        mn = float(self._c("pump_min_curve_speed", 0) or 0)
+        mn = self._onv("pump_curve_speed_on", "pump_min_curve_speed")
         tk = self.tokens.get(mint) or {}
         if mn and not self.graduated(mint) and tk.get("creator"):      # só com a hora de criação vista de verdade
             prog = self.curve_progress(tk.get("mcap_sol"))
@@ -1462,10 +1462,14 @@ class PumpFun:
             return 0.5, f"×0,5: você perde copiando este trader ({len(mine)} trades)"
         return 1.0, ""
 
+    def _onv(self, on_key: str, val_key: str) -> float:
+        """Valor de uma opção com botão ON/OFF: 0 quando desligada (ou com 0 no campo)."""
+        return float(self._c(val_key, 0) or 0) if getattr(self.cfg, on_key, False) else 0.0
+
     def chase_block(self, trader_px: float | None, now_px: float | None) -> str | None:
         """Não "correr atrás" do preço (pesquisa de 2026-10-25): quem copia entra depois e mais caro, e é essa
         diferença que faz o copiador perder mesmo quando o trader ganha. 0 desliga."""
-        mx = float(self._c("pump_max_chase_pct", 30) or 0)
+        mx = self._onv("pump_chase_on", "pump_max_chase_pct")
         if not mx or not trader_px or not now_px or now_px <= trader_px * (1 + mx / 100):
             return None
         return f"preço já subiu {(now_px / trader_px - 1) * 100:.0f}% desde a compra do trader (máx. {mx:.0f}%)"
@@ -1506,7 +1510,7 @@ class PumpFun:
         return None, ""
 
     def flow_block(self, mint: str) -> str | None:
-        mn = float(self._c("pump_min_buy_pressure_pct", 0) or 0)
+        mn = self._onv("pump_buy_pressure_on", "pump_min_buy_pressure_pct")
         if not mn:
             return None
         pr, src = self.pressure(mint)
