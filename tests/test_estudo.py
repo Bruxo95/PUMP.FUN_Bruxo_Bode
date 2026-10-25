@@ -54,3 +54,35 @@ def test_study_without_tables_does_not_break(env):
         del db.tables[t]
     r = c.get("/api/pump/study", headers=tok(UA))
     assert r.status_code == 200 and "não criadas" in r.json()["error"]
+
+
+def test_copy_simulation_counts_fees_slippage_and_lag():
+    """Etapa 2 (0.15.0): mesmo com a carteira lucrando, taxas + slippage + atraso podem tirar o lucro de quem copia."""
+    from app.study import copy_sim
+    now = time.time()
+    prm = {"amt": 0.1, "fee": 0.0175, "prio": 0.0005, "slip": 0.03, "lag_s": 3.0, "lag_measured": True, "delay_s": 0.0}
+    good = [{"realized": 50.0, "invested": 100.0, "last_sell": now - 3600, "hold_s": 120} for _ in range(5)]
+    c = copy_sim(good, prm, now)
+    keep = (0.97 ** 2) * (0.9825 ** 2)
+    assert abs(c["pnl_30d"] - 5 * (0.1 * (1.5 * keep - 1) - 0.001)) < 1e-4 and c["verdict"] == "compensa copiar"
+    small = [{"realized": 3.0, "invested": 100.0, "last_sell": now - 3600, "hold_s": 120} for _ in range(5)]
+    assert copy_sim(small, prm, now)["pnl_30d"] < 0                     # +3% da carteira vira prejuízo para quem copia
+    fast = [{"realized": 80.0, "invested": 100.0, "last_sell": now - 60, "hold_s": 2} for _ in range(5)]
+    cf = copy_sim(fast, prm, now)
+    assert cf["fast_pct"] == 1.0 and cf["pnl_30d"] < 0 and cf["verdict"] == "não compensa"
+    assert copy_sim([], prm, now) is None and copy_sim(good[:2], prm, now)["verdict"] == "poucos dados"
+
+
+def test_study_list_has_copy_ranking(env):
+    c, db = env["c"], env["db"]
+    A = tok(UA)
+    c.post("/api/pump/study", json={"wallet": W, "action": "add"}, headers=A)
+    now = time.time()
+    for i in range(6):
+        db.tables["study_positions"].append({"wallet": W, "token": f"T{i}", "data": {
+            "token": f"T{i}", "realized": 60.0, "invested": 100.0, "sells": 1, "last_sell": now - 3600, "hold_s": 300, "holding": 0}})
+    r = c.get("/api/pump/study", headers=A).json()
+    assert r["ranking"][0]["wallet"] == W and r["ranking"][0]["n_30d"] == 6 and r["ranking"][0]["pnl_30d"] > 0
+    assert r["params"]["lag_s"] == 3.0 and not r["params"]["lag_measured"]
+    prof = c.get(f"/api/pump/study/{W}", headers=A).json()
+    assert prof["copy"]["verdict"] == "compensa copiar" and "closed_list" not in (prof["main"] or {})

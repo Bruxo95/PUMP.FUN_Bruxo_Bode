@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "ab9caad3169f99779ad75f2ded9fdbbb191745f7",
-    "application_version": "0.14.0 · 2026-10-25 · Carteiras em estudo (etapa 1)",
+    "repository_reference": "52832aca65e07880e43a297346761b57503e4754",
+    "application_version": "0.15.0 · 2026-10-25 · Carteiras em estudo: se você tivesse copiado e ranking",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "a2c5a115c11af693bc82b41057e3d197993b864bf616345b892d906a264cc1d7",
+      "app/version.py": "4fac32cf36317464b12345fbf31900f59f271e01d9bd495546ce4a1473bb0780",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "212b629975bdde865f8623b0fc6892f0ded2a3f6b4ab1817c868a0957825d35a",
       "scripts/pdf_dependencias.py": "d23001997899daa383f8bec52dc459abcc6e3cf78f17659b1703823bf965960c",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "f3f9d32d6d72308f96d61d2dfa9c50427ec2bbfd48454b0ef34801e0904df012",
+      "web/app.html": "90d777431c459cf88814539285b85cdf02ca8ea130761c08944e8b40f4801aca",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "2b19827a701a1d4da3a1925f36dcffad1ed052661fbac8d013d2b7018c04d31a"
+  "pdf_sha256": "630b5da6e00b589443efc64bc6ab878b692869aa198475b7e6a9016f07bec634"
 }

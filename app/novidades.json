@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.15.0",
+      "data": "2026-10-25",
+      "tipo": "novo",
+      "onde": "Menu → Carteiras em estudo",
+      "titulo": "Se você tivesse copiado + ranking de copiabilidade",
+      "oque": "Para cada carteira estudada, recalcula os tokens que ela fechou como se você tivesse copiado com o seu valor por cópia: taxas e slippage nos dois lados, prioridade e o atraso real medido nas suas cópias (mais a espera). Mostra resultado em 30 dias, por dia, acerto copiando, quanto ela é rápida demais para copiar e um veredito (compensa, no limite, não compensa, poucos dados). O ranking no topo ordena quem renderia mais para você."
+    },
+    {
       "versao": "0.14.0",
       "data": "2026-10-25",
       "tipo": "novo",

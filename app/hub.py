@@ -324,14 +324,14 @@ class PumpHub:
         asyncio.get_running_loop().create_task(self.refresh_study_wallet(wallet, force=True))
         return {"ok": True}
 
-    async def study_profile(self, wallet: str) -> dict:
+    async def study_profile(self, wallet: str, prm: dict | None = None) -> dict:
         from .study import profile
         try:
             pos = await self.db.select("study_positions", {"wallet": wallet}, limit=500)
             trades = await self.db.select("wallet_trades", {"wallet": wallet}, order="at.desc", limit=2000)
         except Exception as e:
             return {"error": "tabelas das carteiras em estudo ainda não criadas no banco", "detail": str(e)[:120]}
-        return profile(wallet, pos, trades)
+        return profile(wallet, pos, trades, prm=prm)
 
     async def start(self) -> None:
         """Carrega todos os usuários (o bot copia mesmo com o painel fechado) e liga as tarefas."""

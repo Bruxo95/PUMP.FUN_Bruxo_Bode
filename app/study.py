@@ -77,6 +77,7 @@ def from_positions(rows: list[dict], now: float) -> dict | None:
     best = sorted(closed, key=lambda p: -p["realized"])[:10]
     worst = sorted(closed, key=lambda p: p["realized"])[:5]
     return {"source": "Solana Tracker (US$)", "unit": "US$", "positions": len(pos), "closed": len(closed),
+            "closed_list": [p for p in closed if (p.get("holding") or 0) < 1],          # só tokens vendidos por inteiro
             "pnl_1h": h1, "pnl_24h": d1, "pnl_7d": d7, "pnl_30d": d30, "n_24h": nd1, "n_7d": nd7, "n_30d": nd30,
             "per_min": round(d1 / 1440, 4), "per_hour": round(d1 / 24, 3), "per_day_7d": round(d7 / 7, 2),
             "win_rate": len(wins) / len(closed) if closed else None,
@@ -95,11 +96,12 @@ def from_trades(trades: list[dict], now: float) -> dict | None:
     closed = []
     for t in sorted(trades, key=lambda x: _ts(x.get("at")) or 0):
         at, m = _ts(t.get("at")) or now, t.get("mint")
-        b = book.setdefault(m, {"tok": 0.0, "cost": 0.0, "first": at, "pnl": 0.0})
+        b = book.setdefault(m, {"tok": 0.0, "cost": 0.0, "first": at, "pnl": 0.0, "in": 0.0})
         sol, tok = float(t.get("sol") or 0), float(t.get("tokens") or 0)
         if t.get("side") == "buy":
             b["tok"] += tok
             b["cost"] += sol
+            b["in"] += sol
             continue
         if b["tok"] <= 0 or tok <= 0:
             continue
@@ -109,7 +111,7 @@ def from_trades(trades: list[dict], now: float) -> dict | None:
         b["cost"] -= cost
         b["tok"] = max(0.0, b["tok"] - tok)
         if b["tok"] <= 1e-9:
-            closed.append({"token": m, "realized": b["pnl"], "last_sell": at, "hold_s": at - b["first"]})
+            closed.append({"token": m, "realized": b["pnl"], "last_sell": at, "hold_s": at - b["first"], "invested": b["in"]})
             del book[m]
 
     def win(sec):
@@ -117,11 +119,60 @@ def from_trades(trades: list[dict], now: float) -> dict | None:
         return round(sum(c["realized"] for c in sel), 4), len(sel)
     d1, nd1 = win(86400)
     d7, nd7 = win(7 * 86400)
-    return {"source": "monitor do sistema (SOL)", "unit": "SOL", "closed": len(closed), "pnl_1h": win(3600)[0],
+    return {"source": "monitor do sistema (SOL)", "unit": "SOL", "closed": len(closed), "closed_list": closed,
+            "pnl_1h": win(3600)[0],
             "pnl_24h": d1, "pnl_7d": d7, "n_24h": nd1, "n_7d": nd7, "per_min": round(d1 / 1440, 6),
             "per_hour": round(d1 / 24, 5), "per_day_7d": round(d7 / 7, 4),
             "win_rate": (sum(1 for c in closed if c["realized"] > 0) / len(closed)) if closed else None,
             "hold_med_s": _med([c["hold_s"] for c in closed])}
+
+
+# ---------------------------------------------------------------- etapa 2: e se você tivesse copiado (0.15.0)
+def copy_params(pf) -> dict:
+    """Mesmas taxas do modo simulado + o atraso real medido nas suas cópias (mediana; 3 s se ainda não houver)."""
+    c = pf.cfg
+    lags = [t["lag_s"] for t in pf.trades(1000) if t.get("lag_s") is not None]
+    return {"amt": float(getattr(c, "pump_copy_sol", 0.1)),
+            "fee": (float(getattr(c, "pump_fee_pct", 1.25)) + float(getattr(c, "pump_portal_fee_pct", 0.5))) / 100,
+            "prio": float(getattr(c, "pump_priority_sol", 0.0005)), "slip": float(getattr(c, "pump_extra_slip_pct", 3.0)) / 100,
+            "lag_s": statistics.median(lags) if lags else 3.0, "lag_measured": bool(lags),
+            "delay_s": float(getattr(c, "pump_copy_delay_s", 0) or 0)}
+
+
+def copy_sim(closed: list[dict], prm: dict, now: float) -> dict | None:
+    """Recalcula cada token fechado pela carteira como se você tivesse copiado com o seu valor por cópia:
+    entra e sai com slippage extra, paga taxa (plataforma + PumpPortal) nos dois lados e a prioridade.
+    Se a carteira saiu antes do seu atraso + espera, você compraria depois da saída dela: conta como perda das
+    taxas e do slippage (estimativa otimista — na prática o preço costuma cair depois que ela vende)."""
+    rows = [p for p in closed if (p.get("invested") or 0) > 0 and p.get("realized") is not None and p.get("last_sell")]
+    if not rows:
+        return None
+    a, fee, prio, slip = prm["amt"], prm["fee"], prm["prio"], prm["slip"]
+    wait = prm["lag_s"] + prm["delay_s"]
+    keep = (1 - slip) ** 2 * (1 - fee) ** 2
+    out = []
+    for p in rows:
+        r = max(-1.0, p["realized"] / p["invested"])                   # retorno da carteira nesse token
+        fast = p.get("hold_s") is not None and p["hold_s"] <= wait
+        mine = a * (keep - 1) - 2 * prio if fast else a * ((1 + r) * keep - 1) - 2 * prio
+        out.append({"t": p["last_sell"], "trader_r": r, "pnl": mine, "fast": fast})
+
+    def win(sec):
+        sel = [x for x in out if now - x["t"] <= sec]
+        return sel, round(sum(x["pnl"] for x in sel), 4)
+    s7, p7 = win(7 * 86400)
+    s30, p30 = win(30 * 86400)
+    n = len(s30)
+    wins = sum(1 for x in s30 if x["pnl"] > 0)
+    verdict = ("poucos dados" if n < 5 else "compensa copiar" if p30 > 0 and wins / n >= 0.4 else
+               "não compensa" if p30 < 0 else "no limite")
+    return {"amt": a, "pnl_7d": p7, "pnl_30d": p30, "per_day_7d": round(p7 / 7, 4), "n_30d": n, "n_7d": len(s7),
+            "win_rate": wins / n if n else None, "fast_pct": (sum(1 for x in s30 if x["fast"]) / n) if n else None,
+            "trader_win_rate": (sum(1 for x in s30 if x["trader_r"] > 0) / n) if n else None,
+            "avg_pnl": round(p30 / n, 5) if n else None, "verdict": verdict,
+            "assumptions": {"fee_pct_each_side": round(fee * 100, 2), "slip_pct_each_side": round(slip * 100, 2),
+                            "prio_sol": prio, "lag_s": round(prm["lag_s"], 1), "lag_measured": prm["lag_measured"],
+                            "delay_s": prm["delay_s"]}}
 
 
 def _count(xs) -> dict:
@@ -132,12 +183,20 @@ def _count(xs) -> dict:
     return dict(sorted(out.items(), key=lambda kv: -kv[1])[:5])
 
 
-def profile(wallet: str, positions: list[dict], trades: list[dict], now: float | None = None) -> dict:
+def profile(wallet: str, positions: list[dict], trades: list[dict], now: float | None = None,
+            prm: dict | None = None) -> dict:
     now = now or time.time()
     main = from_positions([r.get("data") if "data" in r else r for r in positions], now)
     live = from_trades(trades, now)
+    copy = None
+    if prm:
+        src = (main or {}).get("closed_list") or (live or {}).get("closed_list") or []
+        copy = copy_sim(src, prm, now)
+    for m in (main, live):
+        if m:
+            m.pop("closed_list", None)
     recent = sorted(trades, key=lambda t: _ts(t.get("at")) or 0, reverse=True)[:40]
-    return {"wallet": wallet, "main": main, "live": live, "recent": recent,
+    return {"wallet": wallet, "main": main, "live": live, "recent": recent, "copy": copy,
             "trades_seen": len(trades), "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "notes": ["Ganho por minuto/hora = lucro realizado nas últimas 24 h dividido pelo tempo; por dia = média dos últimos 7 dias.",
                       "Lucro do trader não é o lucro de quem copia: quem copia entra depois e paga taxas (etapa 2 calcula isso).",
@@ -148,4 +207,6 @@ def summary(p: dict) -> dict:
     m = p.get("main") or p.get("live") or {}
     return {"source": m.get("source"), "unit": m.get("unit"), "per_hour": m.get("per_hour"), "per_day_7d": m.get("per_day_7d"),
             "pnl_24h": m.get("pnl_24h"), "pnl_7d": m.get("pnl_7d"), "win_rate": m.get("win_rate"),
-            "hold_med_s": m.get("hold_med_s"), "closed": m.get("closed"), "trades_seen": p.get("trades_seen")}
+            "hold_med_s": m.get("hold_med_s"), "closed": m.get("closed"), "trades_seen": p.get("trades_seen"),
+            "copy": {k: (p.get("copy") or {}).get(k) for k in ("pnl_7d", "pnl_30d", "per_day_7d", "win_rate", "n_30d",
+                                                                 "verdict", "fast_pct", "amt")} if p.get("copy") else None}

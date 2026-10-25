@@ -159,6 +159,13 @@
   async function loadStudy() {
     const r = await BB.api("/api/pump/study");
     if (r.error && !(r.wallets || []).length) { $("stList").innerHTML = '<tbody><tr><td class="muted">' + esc(r.error) + "</td></tr></tbody>"; return; }
+    const VD = { "compensa copiar": "win", "não compensa": "loss", "no limite": "pause", "poucos dados": "neutral" };
+    const pr = r.params || {};
+    $("stRkSub").textContent = "quanto VOCÊ teria ganho copiando com " + s4(pr.amt) + " SOL por cópia nos últimos 30 dias · atraso " + f(pr.lag_s, 1) + " s" + (pr.lag_measured ? " (medido nas suas cópias)" : " (estimado)") + (pr.delay_s ? " + espera " + f(pr.delay_s, 0) + " s" : "") + " · taxas e slippage do simulado";
+    table("stRank", ["#", "Carteira", "Você copiando (30 d)", "Por dia (7 d)", "Acerto copiando", "Rápido demais p/ copiar", "Veredito", ""], (r.ranking || []).map((x, i) => [String(i + 1),
+      pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : ""), "<b>" + sg(x.pnl_30d) + "</b><small>" + x.n_30d + " tokens</small>", sg(x.per_day_7d),
+      x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%", x.fast_pct == null ? "–" : f(x.fast_pct * 100, 0) + "%", '<span class="tag ' + (VD[x.verdict] || "neutral") + '">' + esc(x.verdict) + "</span>",
+      x.followed ? '<span class="tag win">copiando</span>' : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button>']), "Ainda sem tokens fechados suficientes para calcular.");
     $("stSub").textContent = "o sistema acompanha e aprende com a carteira, sem copiar · " + (r.wallets || []).length + " de " + r.limit +
       (r.key ? " · histórico pela Solana Tracker" : " · sem chave da Solana Tracker: só o que o monitor ver daqui em diante");
     const mm = (s) => (s == null ? "–" : s < 120 ? f(s, 0) + " s" : f(s / 60, 1) + " min");
@@ -177,6 +184,14 @@
     kpis("stK", [["Ganho por minuto", mny(m.per_min, u), "média das últimas 24 h", "pnl"], ["Ganho por hora", mny(m.per_hour, u), (m.n_24h || 0) + " tokens fechados em 24 h", "pnl"],
       ["Ganho por dia", mny(m.per_day_7d, u), "média dos últimos 7 dias", "pnl"], ["Últimos 7 / 30 dias", mny(m.pnl_7d, u) + "<small> / " + money(m.pnl_30d, u) + "</small>", (m.n_7d || 0) + " / " + (m.n_30d || 0) + " tokens", "tr"],
       ["Acerto", m.win_rate == null ? "–" : f(m.win_rate * 100, 0) + "%", (m.closed || 0) + " fechados", "hit"], ["Segura (mediana)", mm(m.hold_med_s), m.invested_med != null ? "aposta mediana " + money(m.invested_med, u) : "", "pos"]]);
+    const cp = r.copy;
+    if (cp) {
+      const as = cp.assumptions || {};
+      kpis("stCK", [["Você copiando (30 d)", sg(cp.pnl_30d), cp.n_30d + " tokens · " + s4(cp.amt) + " SOL por cópia", "pnl"], ["Por dia (7 d)", sg(cp.per_day_7d), "média por dia", "pnl"],
+        ["Acerto copiando", cp.win_rate == null ? "–" : f(cp.win_rate * 100, 0) + "%", "a carteira: " + (cp.trader_win_rate == null ? "–" : f(cp.trader_win_rate * 100, 0) + "%"), "hit"],
+        ["Rápido demais", cp.fast_pct == null ? "–" : f(cp.fast_pct * 100, 0) + "%", "saiu antes do seu atraso + espera", "mon"]]);
+      $("stCN").textContent = "Veredito: " + cp.verdict + ". Premissas: taxa " + f(as.fee_pct_each_side, 2) + "% e slippage " + f(as.slip_pct_each_side, 2) + "% em cada lado, prioridade " + s4(as.prio_sol) + " SOL por operação, atraso " + f(as.lag_s, 1) + " s" + (as.lag_measured ? " (medido)" : " (estimado)") + (as.delay_s ? " + espera " + f(as.delay_s, 0) + " s" : "") + ". Estimativa: quando a carteira sai antes de você entrar, conta só a perda de taxas e slippage — na prática costuma ser pior.";
+    } else { $("stCK").innerHTML = '<p class="muted">Ainda sem tokens vendidos por inteiro para calcular.</p>'; $("stCN").textContent = ""; }
     table("stDay", ["Dia", "Resultado"], (m.days || []).map((d) => [esc(d[0].split("-").reverse().join("/")), mny(d[1], u)]), "Sem dias ainda.");
     const off = -new Date().getTimezoneOffset() / 60, hrs = (m.buys_by_hour_utc || []).map((n, h) => ({ h: (h + off + 24) % 24, n })).filter((x) => x.n).sort((a, b) => b.n - a.n).slice(0, 8);
     table("stHr", ["Hora", "Compras"], hrs.map((x) => [String(x.h).padStart(2, "0") + "h", String(x.n)]), "Sem dados de horário.");

@@ -174,17 +174,23 @@ def create_app(hub, auth, cfg) -> FastAPI:
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
     @app.get("/api/pump/study")
     async def study_list(pf=Depends(engine)):
-        from .study import MAX_WALLETS, summary
+        from .study import MAX_WALLETS, copy_params, summary
+        prm = copy_params(pf)
         try:
             rows = await hub.db.select("study_wallets", {"user_id": pf.user_id}, order="criado_em.asc")
         except Exception:
             return {"wallets": [], "error": "tabelas das carteiras em estudo ainda não criadas no banco"}
         out = []
         for r in rows:
-            p = await hub.study_profile(r["wallet"])
+            p = await hub.study_profile(r["wallet"], prm)
             out.append({"wallet": r["wallet"], "apelido": r.get("apelido"), "followed": r["wallet"] in pf.followed,
                         "summary": summary(p) if not p.get("error") else {}})
-        return {"wallets": out, "limit": MAX_WALLETS, "key": bool(hub._study_key())}
+        # ranking de copiabilidade: quem renderia mais para VOCÊ copiando nos últimos 30 dias (0.15.0)
+        ranked = sorted([x for x in out if (x["summary"].get("copy") or {}).get("n_30d")],
+                        key=lambda x: -(x["summary"]["copy"]["pnl_30d"] or 0))
+        return {"wallets": out, "ranking": [{"wallet": x["wallet"], "apelido": x["apelido"], "followed": x["followed"],
+                                             **x["summary"]["copy"]} for x in ranked],
+                "limit": MAX_WALLETS, "key": bool(hub._study_key()), "params": prm}
 
     @app.post("/api/pump/study")
     async def study_change(body: dict, pf=Depends(engine)):
@@ -203,7 +209,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def study_profile(wallet: str, pf=Depends(engine)):
         if not pf.valid_addr(wallet) or wallet not in (getattr(pf, "study", []) or []):
             return {"error": "carteira não está no seu estudo"}
-        return await hub.study_profile(wallet)
+        from .study import copy_params
+        return await hub.study_profile(wallet, copy_params(pf))
 
     @app.get("/api/pump/wallet")
     async def pump_wallet(force: int = 0, pf=Depends(engine)):

@@ -141,10 +141,13 @@
             <input class="in" id="stW" placeholder="Endereço da carteira (ou link pump.fun/profile/…)" style="flex:1;min-width:240px">
             <input class="in" id="stA" placeholder="Apelido (opcional)" style="width:180px" maxlength="40">
             <button class="btn sm primary" id="stAdd">Adicionar ao estudo</button></div></div></div></div>
+        <div class="card" data-novo-ate="2026-11-08"><header><div><h2>Ranking: quem compensa copiar</h2><div class="sub" id="stRkSub">quanto VOCÊ teria ganho copiando cada carteira nos últimos 30 dias, com atraso e taxas</div></div></header>
+          <div class="tbl-wrap"><table id="stRank"></table></div></div>
         <div class="card"><header><div><h2>Carteiras estudadas</h2><div class="sub">ganho = lucro realizado da carteira (não o seu copiando) · clique em Perfil para ver tudo</div></div></header>
           <div class="tbl-wrap"><table id="stList"></table></div></div>
         <div class="card" id="stProf" hidden><header><div><h2 id="stPT">Perfil</h2><div class="sub" id="stPS"></div></div><div class="sp"></div><button class="btn sm" id="stPX">Fechar perfil</button></header>
           <div class="kpis" id="stK"></div>
+          <div data-novo-ate="2026-11-08" class="stcopy"><h2>Se você tivesse copiado</h2><div class="kpis" id="stCK"></div><div class="hint muted" id="stCN"></div></div>
           <div class="grid2">
             <div><h3 class="h3s">Resultado por dia</h3><div class="tbl-wrap"><table id="stDay"></table></div></div>
             <div><h3 class="h3s">Horários em que mais compra (seu fuso)</h3><div class="tbl-wrap"><table id="stHr"></table></div></div>
