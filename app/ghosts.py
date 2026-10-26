@@ -32,7 +32,15 @@ MAX_OPEN = 720       # trava de memória (12 variantes × 60 posições)
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")      # mesmo formato do motor (pumpfun.now_iso)
+
+
+def _ts(x) -> float:
+    try:
+        d = datetime.fromisoformat(str(x).replace("Z", "+00:00"))
+        return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).timestamp()
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def params(vid: str) -> dict:
@@ -171,7 +179,9 @@ class Ghosts:
                             s.get("invested_sol", 0.0), s.get("best_sum", 0.0),
                             sum(1 for g in self.open if g["v"] == vid)))
         # as SUAS regras atuais, no mesmo período (trades fictícios fechados desde o início dos fantasmas)
-        mine = [t for t in trades if not t.get("real") and self.since and str(t.get("closed_at") or "") >= self.since]
+        # compara como horário, não como texto: "…:05+00:00" < "…:05.123+00:00" no texto (falhou no CI da 0.18.0)
+        since = _ts(self.since) if self.since else None
+        mine = [t for t in trades if not t.get("real") and since is not None and _ts(t.get("closed_at")) >= since]
         n, wins = len(mine), sum(1 for t in mine if (t.get("pnl_sol") or 0) > 0)
         best = sum((t.get("best_pct") or 0) for t in mine)
         yours = row("suas", "Suas regras atuais (carteira fictícia)", n, wins, sum(t.get("pnl_sol") or 0 for t in mine),
