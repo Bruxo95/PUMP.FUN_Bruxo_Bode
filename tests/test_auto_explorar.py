@@ -16,7 +16,7 @@ CREATOR = "DevA".ljust(40, "1")
 def _pf(**settings):
     cfg = PumpSettings()
     # travas da 0.31.0 (idade, carteiras novas, trader bom) têm testes próprios em test_auto_seguranca.py
-    settings = {"pump_ar_min_age_min": 0, "pump_ar_fresh_on": False, "pump_ar_smart_on": False, **settings}
+    settings = {"pump_ar_min_age_min": 0, "pump_ar_fresh_on": False, "pump_ar_smart_on": False, "pump_ar_learn": False, **settings}
     for key, value in settings.items():
         setattr(cfg, key, value)
     pf = PumpFun(cfg, MemStore())

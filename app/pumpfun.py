@@ -1788,6 +1788,24 @@ class PumpFun:
                    kind="buy", action="compra automática pausada", reason=reason, origem=origem)
         self._emit("[PUMP SIM] " + msg)
 
+    def learned(self, origem: str, t: float | None = None) -> dict:
+        """Aprender com os erros (0.31.12, app/autolearn.py): faixas das compras automáticas fechadas; avisa quando uma
+        faixa nova passa a ser bloqueada. Recalculado do histórico a cada 60 s."""
+        from .autolearn import study
+        t = time.time() if t is None else t
+        cache = self.__dict__.setdefault("_learned", {})
+        hit = cache.get(origem)
+        if hit and t - hit[0] < 60:
+            return hit[1]
+        st = study(self.trades(100000), origem)
+        before = {(x["feature"], x["faixa"]) for x in (hit[1]["bloqueios"] if hit else [])}
+        for x in st["bloqueios"]:
+            if hit and (x["feature"], x["faixa"]) not in before:
+                self._emit(f"Aprendi com os erros ({origem}): não entro mais com {x['nome']} {x['faixa']} — perdeu em {x['n']} "
+                           f"operações (acerto {x['acerto'] * 100:.0f}%, média {x['media_pct']:+.0f}%)")
+        cache[origem] = (t, st)
+        return st
+
     def explore_entry_reason(self, row: dict) -> str | None:
         """Filtros da lista Quase graduando; dado obrigatório ausente não libera entrada."""
         if not isinstance(row, dict) or not isinstance(row.get("mint"), str) or not self.valid_addr(row["mint"]):
@@ -1825,6 +1843,11 @@ class PumpFun:
         age = None
         if created:
             age = (time.time() - (created / 1000 if created > 1e12 else created)) / 60
+        if getattr(self.cfg, "pump_ar_learn", True):
+            from .autolearn import blocked_reason
+            why = blocked_reason(self.learned("explorar"), row)
+            if why:
+                return why
         return self.auto_safety(row["mint"], age, "explorar")
 
     def explore_auto_check(self, lists: dict, t: float | None = None) -> list[str]:

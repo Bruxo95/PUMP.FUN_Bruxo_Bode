@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.12",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Explorar → O que a IA aprendeu com os erros",
+      "titulo": "A IA aprende sozinha com os erros das compras automáticas",
+      "oque": "Cada compra automática do Explorar guarda os números do momento da entrada (pressão de compra, holders, curva, variação em 5 min, risco e boost). Quando uma faixa desses números junta 10 ou mais operações fechadas com acerto abaixo de 35% e resultado médio pior que -5%, o robô para de entrar nela sozinho e avisa no Feed e no Telegram (\"Aprendi com os erros\"). Só aperta, nunca afrouxa um filtro, e o bloqueio sai sozinho se a faixa melhorar. O quadro novo no Explorar mostra cada faixa (ok, aprendendo ou bloqueada) e quantas perdas aconteceram em até 60 s depois da compra (entrou no topo). O que foi aprendido também aparece no relatório do dia. Botão Aprender sozinho (ligado)."
+    },
+    {
       "versao": "0.31.11",
       "data": "2026-10-26",
       "tipo": "novo",

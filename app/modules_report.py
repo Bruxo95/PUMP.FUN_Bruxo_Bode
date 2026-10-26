@@ -82,6 +82,9 @@ def _auto(origem, menu):
         stops = sum(1 for t in rows if str(t.get("reason") or "").startswith("stop de perda"))
         sec = {"menu": menu, "linhas": [f"{n} operações · {pnl:+.4f} SOL · acerto " + (f"{wr * 100:.0f}%" if wr is not None else "-")
                                         + f" · {stops} stops de perda"], "sugestoes": []}
+        if origem == "explorar":                      # o que o aprendizado automático já bloqueou (0.31.12)
+            for x in pf.learned("explorar")["bloqueios"]:
+                sec["linhas"].append(f"aprendeu: não entra mais com {x['nome']} {x['faixa']} ({x['n']} operações, média {x['media_pct']:+.0f}%)")
         if n >= 5 and pnl < 0:
             sec["sugestoes"].append(_sug(menu, "lógica", "automatica_no_prejuizo", f"{menu}: {pnl:+.4f} SOL em {n} operações hoje. Aperte a regra "
                                          "de entrada desse menu (mais traders/filtros) ou deixe só observando até o estudo mostrar lucro.", n))

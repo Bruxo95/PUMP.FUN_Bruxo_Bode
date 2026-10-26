@@ -529,7 +529,7 @@ class PumpHub:
 
     # ------------------------------------------------------------------ avisos no Telegram (0.20.0)
     TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas",
-               "compra automática", "boost on")
+               "compra automática", "boost on", "aprendi com os erros")
 
     def tg_wanted(self, pf, msg: str) -> bool:
         if not getattr(pf.cfg, "pump_tg_on", False):

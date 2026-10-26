@@ -374,6 +374,11 @@
       x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
       x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
       '<button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");
+    const al = r.learned_auto || {};
+    $("alSub").textContent = (al.fechadas || 0) + " compras automáticas fechadas · " + (al.bloqueios || []).length + " faixas bloqueadas · " + (al.morte_rapida || 0) + " perdas em até 60 s depois da compra (entrou no topo)" + (r.learn_on ? "" : " · aprender sozinho DESLIGADO");
+    table("alTbl", ["Número da entrada", "Faixa", "Operações", "Acerto", "Média", "Resultado", "Situação"], (al.faixas || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n), f(x.acerto * 100, 0) + "%",
+      (x.media_pct > 0 ? "+" : "") + f(x.media_pct, 1) + "%", sg(x.pnl_sol), x.bloqueada ? '<span class="tag loss">bloqueada</span>' : x.n < al.min_n ? '<span class="tag neutral">aprendendo (' + x.n + "/" + al.min_n + ")</span>" : '<span class="tag win">ok</span>']),
+      "Ainda sem compras automáticas fechadas para aprender.");
     table("exLs", ["Curva quando apareceu", "Tokens", "Graduaram"], (r.learned || []).map((x) => [esc(x.faixa), String(x.n), f(x.grad_pct, 0) + "%"]), "Ainda aprendendo: cada token espera até 6 h para contar.");
   }
   document.addEventListener("click", (e) => {

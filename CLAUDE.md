@@ -653,3 +653,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.11 (Explorar): `pump_ex_auto_on` passa a vir LIGADO (fictício) a pedido do dono ("tem muita chance alta e nada
   foi feito"); `auto_safety(..., origem="explorar")` não exige trader bom (só com `pump_ex_auto_need_smart`) e não
   espera a checagem de carteiras novas; a rota do Explorar devolve `auto` (compra ou motivo) por token.
+
+## Aprender com os erros sozinho (2026-10-26, versão 0.31.12)
+- Pedido do dono. `app/autolearn.py` (faixas por número da entrada guardado em `auto_info`; bloqueio com
+  `MIN_N`=10, acerto <35% e média <-5%), `PumpFun.learned(origem)` (cache 60 s, avisa bloqueio novo), aplicado em
+  `explore_entry_reason` com `pump_ar_learn` (ON). Base/elite ainda não guardam esses números na entrada (o Codex
+  conecta a Base na 0.32.0 do plano). Relatório da mudança: `app/relatorios_ia/2026-10-26-0.31.12.md`.

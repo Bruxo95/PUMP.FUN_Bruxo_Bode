@@ -201,6 +201,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
                     why = pf.explore_entry_reason({**x, "cat": x.get("cat")}) or pf.auto_guard(x["mint"])
                     held = any(p["mint"] == x["mint"] for p in pf.positions())
                     x["auto"] = {"ok": not why, "motivo": "já comprou (posição aberta)" if held else (why or "entra na próxima leitura")}
+        out["learned_auto"] = pf.learned("explorar")
+        out["learn_on"] = bool(getattr(pf.cfg, "pump_ar_learn", True))
         return out
 
     def safety_marks(pf, x: dict) -> None:
