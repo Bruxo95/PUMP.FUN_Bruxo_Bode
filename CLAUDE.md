@@ -599,3 +599,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `SharedMonitor.elite_follow_sync` põe `Elite.recommended()` em `PumpFun.elite_follow`; `refresh_followed` trata como
   manuais (copia compra e venda proporcional pelo motor normal, com os filtros de Configurações).
   `Elite.steps` junta cada negociação deles com o feed do usuário (±180 s) e a posição; rota `/api/pump/elite/steps`.
+
+## Relatório do dia (2026-10-26, versão 0.31.5)
+- Pedido do dono: guardar os números da Visão geral, aprender e, no fim do dia, sugerir melhorias no código, trades e
+  lógica. `app/daily.py` (`kpis`, `build`, `telegram_text`), `hub.save_daily` a cada 30 min (`daily_loop`), tabela
+  `daily_report` (migração `20261026000008`, uma linha por usuário/dia com as fotos); na virada do dia (UTC) fecha o dia
+  anterior e manda o resumo no Telegram (se ligado). Rota `/api/pump/daily` (admin; hoje é calculado ao vivo).
+  Quadro "Relatório do dia" na Visão geral só para admin. Testes: `tests/test_daily.py`.

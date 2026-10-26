@@ -568,6 +568,44 @@ class PumpHub:
         except Exception as e:
             return False, "não consegui falar com o Telegram: " + type(e).__name__
 
+    # ------------------------------------------------------------------ relatório do dia (0.31.5)
+    async def save_daily(self, now: float | None = None) -> int:
+        """Foto dos números da Visão geral + relatório do dia (tabela daily_report). Na virada do dia (UTC) fecha o dia
+        anterior e, com o Telegram ligado, manda o resumo com as sugestões."""
+        from .daily import build, day_of, kpis, telegram_text
+        now = time.time() if now is None else now
+        dia, prev, n = day_of(now), day_of(now - 86400), 0
+        for uid, pf in list(self.engines.items()):
+            try:
+                rows = await self.db.select("daily_report", {"user_id": uid, "dia": dia})
+                pts = list(((rows[0].get("data") or {}).get("points") or [])) if rows else []
+                pts.append(kpis(pf))
+                await self.db.insert("daily_report", {"user_id": uid, "dia": dia, "data": build(pf, dia, pts),
+                                                      "atualizado_em": datetime.now(timezone.utc).isoformat()},
+                                     upsert=True, on_conflict="user_id,dia")
+                if getattr(pf, "_daily_closed", None) != prev:
+                    old = await self.db.select("daily_report", {"user_id": uid, "dia": prev})
+                    if old and not (old[0].get("data") or {}).get("closed"):
+                        rep = build(pf, prev, (old[0].get("data") or {}).get("points"))
+                        rep["closed"] = True
+                        await self.db.insert("daily_report", {"user_id": uid, "dia": prev, "data": rep,
+                                                              "atualizado_em": datetime.now(timezone.utc).isoformat()},
+                                             upsert=True, on_conflict="user_id,dia")
+                        if getattr(pf.cfg, "pump_tg_on", False):
+                            await self.tg_send_now(pf, telegram_text(rep), force=True)
+                    pf._daily_closed = prev
+                n += 1
+            except Exception as e:
+                log.warning("Relatório do dia não gravou (%s…): %s", uid[:8], str(e)[:160])
+                break                                   # tabela ausente/banco fora: tenta na próxima rodada
+        return n
+
+    async def daily_loop(self) -> None:
+        await asyncio.sleep(60)
+        while True:
+            await self.save_daily()
+            await asyncio.sleep(1800)
+
     async def learning_loop(self) -> None:
         while True:
             await asyncio.sleep(1800)
@@ -785,6 +823,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.flush_loop()))
         self._tasks.append(asyncio.create_task(self.learning_loop()))
         self._tasks.append(asyncio.create_task(self.ghosts_loop()))
+        self._tasks.append(asyncio.create_task(self.daily_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
         self.monitor.start()

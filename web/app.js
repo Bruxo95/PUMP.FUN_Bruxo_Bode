@@ -136,6 +136,31 @@
       return '<g class="tipg"><text x="0" y="' + (y + 15) + '">' + svgEsc(r.label.slice(0, 30)) + '</text><rect class="' + (r.v >= 0 ? "bup" : "bdn") + '" x="' + x + '" y="' + (y + 4) + '" width="' + w + '" height="14" rx="3"><title>' + svgEsc(r.label + ": " + (r.v > 0 ? "+" : "") + r.v.toFixed(1) + "% em média · " + r.n + " sinais") + '</title></rect><text x="' + (W - 60) + '" y="' + (y + 15) + '">' + (r.v > 0 ? "+" : "") + r.v.toFixed(0) + "%</text></g>";
     }).join("") + "</svg>";
   }
+  // ------------------------------------------------------------------ relatório do dia (/api/pump/daily, 0.31.5, só admin)
+  let DAY = "", DAY_T = null;
+  async function loadDaily() {
+    if (!(ME && ME.role === "admin")) return;
+    clearTimeout(DAY_T); DAY_T = setTimeout(() => { if (VIEW === "visao") loadDaily(); }, 60000);
+    const r = await BB.api("/api/pump/daily" + (DAY ? "?dia=" + encodeURIComponent(DAY) : ""));
+    if (r.error || !r.report) return;
+    $("dayCard").hidden = false;
+    const rep = r.report, pts = rep.points || [], first = pts[0] || {}, last = pts[pts.length - 1] || {};
+    const sel = $("daySel"), cur = DAY || r.today;
+    sel.innerHTML = [r.today].concat((r.days || []).map((d) => d.dia).filter((d) => d !== r.today)).map((d) => '<option value="' + esc(d) + '"' + (d === cur ? " selected" : "") + ">" + esc(d.split("-").reverse().join("/")) + (d === r.today ? " (hoje)" : "") + "</option>").join("");
+    $("daySub").textContent = (rep.closed ? "dia fechado" : "ao vivo") + " · " + pts.length + " fotos guardadas · atualizado " + dt(rep.generated_at) + " · carteira fictícia";
+    const ch = first.saldo && last.saldo != null ? (last.saldo / first.saldo - 1) * 100 : null;
+    kpis("dayK", [["Resultado do dia", sg(rep.pnl_sol), rep.trades + " trades fechados · taxas " + s4(rep.fees_sol) + " SOL", "pnl"],
+      ["Acerto do dia", rep.acerto == null ? "–" : f(rep.acerto * 100, 0) + "%", rep.wins + " ganhos", "hit"],
+      ["Saldo no dia", ch == null ? "–" : '<span class="' + (ch >= 0 ? "up" : "down") + '">' + (ch > 0 ? "+" : "") + f(ch, 1) + "%</span>", first.saldo ? s4(first.saldo) + " → " + s4(last.saldo) + " SOL" : "", "wallet"],
+      ["Devolveu lucro", String(rep.gave_back || 0), "chegaram a +30% e fecharam no zero ou pior", "mon"]]);
+    $("dayChart").innerHTML = lineChart(pts.filter((p) => p.saldo != null).map((p) => ({ t: p.t * 1000, v: p.saldo - (first.saldo || 0), label: "saldo " + s4(p.saldo) + " SOL" })));
+    $("daySug").innerHTML = "<p><b>O que melhorar</b></p>" + (rep.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
+    const g = (rows) => (rows || []).map((x) => [esc(x.nome), String(x.trades), x.acerto == null ? "–" : f(x.acerto * 100, 0) + "%", sg(x.pnl_sol)]);
+    table("dayOri", ["Origem", "Trades", "Acerto", "Resultado"], g(rep.by_origin), "Nenhum trade fechado neste dia.");
+    table("dayExit", ["Saída", "Trades", "Acerto", "Resultado"], g(rep.by_exit), "Nenhum trade fechado neste dia.");
+  }
+  document.addEventListener("change", (e) => { if (e.target.id === "daySel") { DAY = e.target.value; loadDaily(); } });
+
   let STP80 = 1, STP_T = null;
   async function loadSteps() {
     clearTimeout(STP_T); STP_T = setTimeout(() => { if (VIEW === "elite") loadSteps(); }, 5000);
@@ -776,6 +801,7 @@
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
+    if (VIEW === "visao") loadDaily();
     if (VIEW === "config") { loadSecrets(); loadAudit(); }
     if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") walletLoad(true);

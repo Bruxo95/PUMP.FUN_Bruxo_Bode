@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.5",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Visão geral → Relatório do dia (só admin)",
+      "titulo": "Relatório do dia: números guardados, o que deu certo e errado e o que melhorar",
+      "oque": "Os números do topo da Visão geral (saldo, resultado, posições, trades, acerto, traders e monitor) são guardados no banco a cada 30 minutos. O quadro novo Relatório do dia mostra o resultado e o acerto do dia, a evolução do saldo em gráfico, o resultado por origem (cópias, automáticas, maiores traders) e por motivo de saída, e sugestões do que melhorar nos trades, na lógica e no código, cada uma com o número que a justifica (acerto baixo, muitos stops, lucro devolvido, trader que dá prejuízo, taxas, atraso, filtro que barra demais, saldo caindo). Dá para ver os dias anteriores. Na virada do dia o relatório fecha e, com o Telegram ligado, o resumo chega no celular."
+    },
+    {
       "versao": "0.31.4",
       "data": "2026-10-26",
       "tipo": "novo",

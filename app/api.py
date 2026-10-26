@@ -231,6 +231,26 @@ def create_app(hub, auth, cfg) -> FastAPI:
         out["has_key"] = bool(pf.lb_key())
         return out
 
+    @app.get("/api/pump/daily")
+    async def pump_daily(dia: str = "", pf=Depends(admin_engine)):
+        """Relatório do dia (0.31.5): números da Visão geral ao longo do dia, diagnóstico e sugestões; e os dias anteriores."""
+        from .daily import build, day_of, kpis
+        today = day_of(__import__("time").time())
+        dia = dia if __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", dia or "") else today
+        try:
+            rows = await hub.db.select("daily_report", {"user_id": pf.user_id}, order="dia.desc", limit=30)
+        except Exception:
+            rows = []
+        saved = {str(r.get("dia")): (r.get("data") or {}) for r in rows}
+        pts = list((saved.get(dia) or {}).get("points") or [])
+        if dia == today:
+            rep = build(pf, dia, pts + [kpis(pf)])            # hoje: ao vivo, com a foto de agora no fim
+        else:
+            rep = saved.get(dia) or build(pf, dia, pts)
+        hist = [{"dia": d, "pnl_sol": x.get("pnl_sol"), "trades": x.get("trades"), "acerto": x.get("acerto"),
+                 "sugestoes": len(x.get("suggestions") or []), "closed": bool(x.get("closed"))} for d, x in saved.items()]
+        return {"report": rep, "days": hist, "today": today}
+
     @app.get("/api/pump/elite/steps")
     async def pump_elite_steps(only80: int = 1, pf=Depends(admin_engine)):
         """Steps ao vivo (0.31.4): o que os maiores traders (só os 80%+, ou todos) fizeram e o que o robô fez junto."""
