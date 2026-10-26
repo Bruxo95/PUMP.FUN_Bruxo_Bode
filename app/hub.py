@@ -294,6 +294,9 @@ class PumpHub:
             hrs = await self.db.select("market_hourly", None, order="hora.desc", limit=48)
             crs = await self.db.select("creator_stats", None, limit=50000)
             self.lab.load(hrs, crs)
+            st = await self.db.select("lab_state", {"id": "live"})
+            recent = await self.db.select("token_life", None, order="criado_em.desc", limit=30000)
+            self.lab.restore(st[0].get("data") if st else None, recent)
         except Exception as e:
             log.warning("Base da pump.fun não carregou (tabelas criadas?): %s", str(e)[:120])
 
@@ -306,8 +309,9 @@ class PumpHub:
                 await self.db.insert("market_hourly", hrs, upsert=True, on_conflict="hora")
             for i in range(0, len(crs), 500):
                 await self.db.insert("creator_stats", crs[i:i + 500], upsert=True, on_conflict="creator")
-            if trim:                                     # guarda só 7 dias de tokens interessantes
-                await self.db.rpc("trim_token_life", {"p_days": 7})
+            await self.db.insert("lab_state", {"id": "live", "data": self.lab.dump_live()}, upsert=True, on_conflict="id")
+            if trim:                                     # guarda 14 dias de tokens (todos, para estudar; 0.24.0)
+                await self.db.rpc("trim_token_life", {"p_days": 14})
         except Exception:
             self.lab.new_rows = [dict(r["data"], mint=r["mint"], creator=r["creator"], label=r["label"]) for r in tl] + self.lab.new_rows
             self.lab.dirty_hours |= {h["hora"] for h in hrs}

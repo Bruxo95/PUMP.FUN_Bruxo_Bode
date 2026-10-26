@@ -346,6 +346,30 @@ class SharedMonitor:
             lab.observe(now, chunk)
         return len(due)
 
+    async def boost_once(self) -> int:
+        """Boost pago na DexScreener (0.24.0): tokens de "Subindo agora" e os que alguém segura, no máx. 20 por minuto
+        (limite público da DexScreener: 60/min) e cada um no máx. a cada 2 min."""
+        lab = getattr(self.hub, "lab", None)
+        want = [x["mint"] for x in (lab.rising(time.time()) if lab is not None else [])]
+        want += list(self.held()["qty"])
+        now, n = time.time(), 0
+        for m in dict.fromkeys(want):
+            if n >= 20:
+                break
+            if now - float((self.market.boosts.get(m) or {}).get("t") or 0) < 120:
+                continue
+            await self.svc.fetch_boost(m)
+            n += 1
+        return n
+
+    async def boost_loop(self) -> None:
+        while True:
+            try:
+                await self.boost_once()
+            except Exception as e:
+                log.warning("boost DexScreener: %s", str(e)[:160])
+            await asyncio.sleep(60)
+
     async def lab_loop(self) -> None:
         while True:
             try:
@@ -524,7 +548,7 @@ class SharedMonitor:
         loop = asyncio.get_running_loop()
         self._tasks = [loop.create_task(c) for c in (self.rpc_run(), self.pumpportal_run(), self.price_loop(),
                                                      self.trail_loop(), self.tick_loop(), self.lb_loop(),
-                                                     self.lab_loop())]
+                                                     self.lab_loop(), self.boost_loop())]
         self._tasks += [loop.create_task(self.tx_worker()) for _ in range(4)]
 
     def stop(self) -> None:

@@ -88,6 +88,7 @@ class PumpMarket:
         self.blacklist: dict[str, dict] = {}       # 0.20.0: lista negra compartilhada (endereço -> tipo, motivo)
         self.bl_new: list[str] = []                # endereços novos ainda não gravados no banco
         self.creator_stats: dict[str, dict] = {}   # 0.21.0: criador -> tokens, x2, rugs (base da pump.fun)
+        self.boosts: dict[str, dict] = {}          # 0.24.0: mint -> boost/pedidos pagos na DexScreener
         self.sol_usd = 0.0
         self.jup = jup                             # JupiterQuoter (cotações compartilhadas)
         self.status = {"ws": None, "connected_at": None, "error": None, "events": 0, "last_event": None,
@@ -1051,6 +1052,7 @@ class PumpFun:
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             tr["score"] = p.get("score")
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
+            tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1631,6 +1633,40 @@ class PumpFun:
                 out["real"] = f"enviando compra real de até {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL"
         return out
 
+    @staticmethod
+    def parse_orders(js, now: float | None = None) -> dict:
+        """Pedidos pagos na DexScreener (GET /orders/v1/solana/{token}, documentado em docs.dexscreener.com; formato
+        conferido em 2026-10-26): "boosts" (valor e hora do pagamento) e "orders" (perfil, anúncio, CTO…).
+        Boost ON = algum boost pago nas últimas 24 h (a duração exata do boost não é documentada: estimativa)."""
+        now = now or time.time()
+        js = js if isinstance(js, dict) else {}
+        day = (now - 86400) * 1000
+        bs = [b for b in js.get("boosts") or [] if isinstance(b, dict)]
+        recent = [b for b in bs if float(b.get("paymentTimestamp") or 0) >= day]
+        paid = sorted({str(o.get("type")) for o in js.get("orders") or [] if isinstance(o, dict)
+                       and o.get("status") in ("approved", "processing", "on-hold")
+                       and float(o.get("paymentTimestamp") or 0) >= (now - 7 * 86400) * 1000})
+        last = max([float(b.get("paymentTimestamp") or 0) for b in bs] or [0]) / 1000
+        return {"t": now, "active": bool(recent), "amount_24h": sum(int(b.get("amount") or 0) for b in recent),
+                "boosts_total": len(bs), "last_boost": last or None, "paid": paid}
+
+    async def fetch_boost(self, mint: str) -> dict | None:
+        try:
+            r = await self.http.get(f"https://api.dexscreener.com/orders/v1/solana/{mint}", timeout=10)
+            if r.status_code != 200:
+                return None
+            info = self.parse_orders(r.json())
+        except Exception:
+            return None
+        self.market.boosts[mint] = info
+        return info
+
+    def boost_info(self, mint: str) -> dict:
+        b = dict(self.market.boosts.get(mint) or {})
+        if (self.tokens.get(mint) or {}).get("boost_active"):
+            b["active"], b["pair_active"] = True, int(self.tokens[mint]["boost_active"])
+        return b
+
     def blacklist_add(self, addr: str, tipo: str, motivo: str) -> None:
         """Lista negra COMPARTILHADA (0.20.0): o que um usuário descobre protege todos. Entra sozinho o criador de
         token que deu rug ou que vendeu e deixou a cópia no prejuízo; o admin também adiciona e remove."""
@@ -1749,7 +1785,7 @@ class PumpFun:
                 "risk": tk.get("risk"), "top10_pct": tk.get("top10_pct"), "holders": holders, "creator": tk.get("creator"),
                 "my_positions": [{k: p.get(k) for k in ("symbol", "sol_in", "chg_pct", "real", "opened_at", "wallet")} for p in mine],
                 "my_trades": [{k: t.get(k) for k in ("closed_at", "pnl_sol", "pnl_pct", "reason", "real", "wallet")} for t in trades],
-                "traders_in": traders, "seen": bool(self.tokens.get(mint))}
+                "traders_in": traders, "seen": bool(self.tokens.get(mint)), "boost": self.boost_info(mint)}
 
     def risk_block(self, tk: dict) -> str | None:
         """Nota de risco da Solana Tracker (pesquisa de 2026-10-25: copiar sem olhar o token deixa quem copia como
@@ -1952,6 +1988,9 @@ class PumpFun:
                     dx.append(p["dexId"])
                 if p.get("dexId") == "pumpswap" and p.get("pairAddress"):
                     self.tokens[base]["pumpswap_pool"] = p["pairAddress"]
+                ba = int(((p.get("boosts") or {}).get("active")) or 0)     # 0.24.0: boost ativo no par
+                if ba:
+                    self.tokens[base]["boost_active"] = max(ba, int(self.tokens[base].get("boost_active") or 0))
                 liq = float((p.get("liquidity") or {}).get("usd") or 0)
                 if base in best and best[base][0] >= liq:
                     continue
@@ -2330,6 +2369,7 @@ class PumpFun:
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             tr["score"] = p.get("score")
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
+            tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)

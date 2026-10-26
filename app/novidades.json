@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.24.0",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar → Base da pump.fun",
+      "titulo": "Boost pago ON/OFF, base que não some, suas compras e o que a base aprendeu",
+      "oque": "Cada token de Subindo agora, Tokens que subiram e Suas compras mostra Boost ON ou OFF: se o time do token pagou boost na DexScreener nas últimas 24 h (e outros pagamentos, como perfil ou anúncio). A base não se perde mais quando sai uma versão nova: os tokens em observação e a lista das últimas horas ficam guardados no banco. Nova lista Suas compras desta tela, com o que você comprou pelo botão Comprar (aberto ou fechado), mesmo depois que o token sai das outras listas. Todos os tokens vigiados passam a ser guardados por 14 dias e estudados: o cartão O que a base aprendeu mostra, para cada sinal dos primeiros minutos (ganho no 1º e no 5º minuto, compra do dev, histórico do criador, boost, horário), quantos % subiram ou despencaram, e destaca os sinais fortes."
+    },
+    {
       "versao": "0.23.0",
       "data": "2026-10-26",
       "tipo": "novo",

@@ -474,3 +474,16 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   houver preço; `audit_log` "compra manual"). O real continua travado por `PUMP_REAL_ALLOWED`.
 - `TokenLab.rising()` → lista "Subindo agora"; rótulo "nasceu graduado" quando o market cap da criação já é ≥ 300 SOL
   (caso GTA6). Tela com "Como ler esta tela" e atualização a cada 20 s. Testes: `tests/test_compra_manual.py`.
+
+## Boost, base persistente e aprendizado da base (2026-10-26, versão 0.24.0)
+- Boost pago: `GET /orders/v1/solana/{mint}` da DexScreener (documentado; formato conferido em 2026-10-26) →
+  `PumpFun.parse_orders` (ON = boost pago nas últimas 24 h; duração real do boost não documentada) e `boosts.active`
+  dos pares; `SharedMonitor.boost_loop` (60 s, máx. 20 tokens/min, cada um a cada 2 min) para "Subindo agora" e
+  tokens em posição; `market.boosts`. Ficha do token também traz `boost`.
+- Pedido do dono: 3 tokens sumiram da tela depois da publicação da 0.23.0 (memória zerada no reinício). Agora
+  `lab_state` (migração `20261026000004`) guarda os tokens em observação a cada 2 min e `load_lab` restaura;
+  `token_life` guarda TODOS os tokens fechados por 14 dias (antes só os interessantes, 7 dias) e volta para a memória
+  (`TokenLab.restore`, até 30 mil). Lista "Suas compras desta tela" (`mine` em `/api/pump/base`; trades com `manual`).
+- `TokenLab.lessons()`: % que sobe/despenca por faixa de sinal (ganho 1 e 5 min, compra do dev, criador, boost,
+  hora); "sinal forte" = 30+ tokens e o dobro da média. Testes: `test_boost.py`, `test_base_estado.py`.
+- Volume esperado do `token_life`: até 40 tokens/min → algumas dezenas de MB em 14 dias; acompanhar o tamanho do banco.

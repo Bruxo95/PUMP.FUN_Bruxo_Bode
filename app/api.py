@@ -188,7 +188,21 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/base")
     async def pump_base(pf=Depends(admin_engine)):
         """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""
-        return hub.lab.snapshot()
+        out = hub.lab.snapshot()
+        # suas compras feitas pelo botão Comprar (abertas e fechadas nas últimas 48 h), com o boost de cada uma
+        lim = __import__("time").time() - 172800
+        mine = [{"mint": p["mint"], "symbol": p.get("symbol"), "open": True, "real": bool(p.get("real")),
+                 "sol_in": p.get("sol_in"), "chg_pct": p.get("chg_pct"), "opened_at": p.get("opened_at"),
+                 "mcap": (pf.tokens.get(p["mint"]) or {}).get("mcap_sol"), "boost": pf.boost_info(p["mint"])}
+                for p in pf.positions() if p.get("manual") or p.get("wallet") == "manual"]
+        mine += [{"mint": t["mint"], "symbol": t.get("symbol"), "open": False, "real": bool(t.get("real")),
+                  "sol_in": t.get("sol_in"), "pnl_sol": t.get("pnl_sol"), "pnl_pct": t.get("pnl_pct"),
+                  "reason": t.get("reason"), "opened_at": t.get("opened_at"), "closed_at": t.get("closed_at"),
+                  "boost": pf.boost_info(t["mint"])}
+                 for t in pf.trades(3000) if (t.get("manual") or t.get("wallet") == "manual")
+                 and (pf._ts(t.get("closed_at")) or 0) >= lim]
+        out["mine"] = mine
+        return out
 
     @app.post("/api/pump/manual-buy")
     async def manual_buy(body: dict, pf=Depends(admin_engine)):
