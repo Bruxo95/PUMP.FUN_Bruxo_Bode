@@ -462,6 +462,35 @@ class SharedMonitor:
                 log.warning("Automática do Explorar não executada (%s…): %s", engine.user_id[:8], type(exc).__name__)
         return count
 
+    async def fresh_once(self, limit: int = 4) -> int:
+        """Carteiras novas (0.31.0) dos tokens que podem virar entrada: "Subindo agora" da Base e listas do Explorar sem
+        veredito lixo. No máx. `limit` tokens por volta (cada um custa ~22 consultas no RPC público)."""
+        want = []
+        lab = getattr(self.hub, "lab", None)
+        if lab is not None:
+            want += [x["mint"] for x in lab.rising(time.time()) if (x.get("pred") or {}).get("verdict") not in ("lixo", "suspeito")]
+        ex = getattr(self.hub, "explore", None)
+        if ex is not None:
+            for cat in ("graduating", "latest"):
+                want += [x["mint"] for x in (ex.lists.get(cat) or [])[:20]]
+        now, n = time.time(), 0
+        for m in dict.fromkeys(want):
+            if n >= limit:
+                break
+            if now - float(((self.market.tokens.get(m) or {}).get("fresh") or {}).get("t") or 0) < 180:
+                continue
+            await self.svc.fresh_check(m, now)
+            n += 1
+        return n
+
+    async def fresh_loop(self) -> None:
+        while True:
+            try:
+                await self.fresh_once()
+            except Exception as e:
+                log.warning("carteiras novas: %s", str(e)[:160])
+            await asyncio.sleep(30)
+
     async def boost_loop(self) -> None:
         while True:
             try:
@@ -666,7 +695,8 @@ class SharedMonitor:
         loop = asyncio.get_running_loop()
         self._tasks = [loop.create_task(c) for c in (self.rpc_run(), self.pumpportal_run(), self.price_loop(),
                                                      self.trail_loop(), self.tick_loop(), self.lb_loop(),
-                                                     self.lab_loop(), self.boost_loop(), self.explore_loop())]
+                                                     self.lab_loop(), self.boost_loop(), self.explore_loop(),
+                                                     self.fresh_loop())]
         self._tasks += [loop.create_task(self.tx_worker()) for _ in range(4)]
 
     def stop(self) -> None:

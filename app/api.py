@@ -190,7 +190,21 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/explore")
     async def pump_explore(pf=Depends(admin_engine)):
         """Explorar (0.28.0): novos, quase graduando, graduados e os que mais sobem, com veredito e o que aprendeu."""
-        return hub.explore.snapshot(hub.market.blacklist, hub.market.creator_stats, pf.boost_info)
+        out = hub.explore.snapshot(hub.market.blacklist, hub.market.creator_stats, pf.boost_info)
+        for rows in list(out.get("lists", {}).values()) + [out.get("movers") or []]:
+            for x in rows:
+                safety_marks(pf, x)
+        return out
+
+    def safety_marks(pf, x: dict) -> None:
+        """0.31.0: carteiras novas e traders bons em cada token da tela; muita carteira nova vira "lixo" na hora."""
+        fr = (pf.tokens.get(x["mint"]) or {}).get("fresh")
+        x["fresh"] = {k: fr.get(k) for k in ("n", "of", "pct")} if fr else None
+        x["smart"] = len(pf.smart_in(x["mint"]))
+        if fr and getattr(pf.cfg, "pump_ar_fresh_on", True) and fr["pct"] >= float(pf._c("pump_ar_fresh_max_pct", 30)):
+            p = dict(x.get("pred") or {})
+            p["verdict"], p["why"] = "lixo", [f"{fr['n']} de {fr['of']} maiores detentores são carteiras novas (robôs)"] + list(p.get("why") or [])
+            x["pred"] = p
 
     @app.get("/api/pump/auto-trades")
     async def auto_trades(origem: str = "explorar", days: int = 30, pf=Depends(admin_engine)):
@@ -204,6 +218,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def pump_base(pf=Depends(admin_engine)):
         """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""
         out = hub.lab.snapshot()
+        for x in out.get("rising") or []:
+            safety_marks(pf, x)
         out["hide_trash"] = bool(getattr(pf.cfg, "pump_base_hide_trash", False))
         # suas compras feitas pelo botão Comprar (abertas e fechadas nas últimas 48 h), com o boost de cada uma
         lim = __import__("time").time() - 172800

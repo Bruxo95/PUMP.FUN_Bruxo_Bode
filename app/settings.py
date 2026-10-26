@@ -76,10 +76,17 @@ USER_KEYS: dict[str, tuple] = {
     "pump_manual_trail_start": (float, 30.0, 1.0, 10000.0),  # stop móvel liga em +X%
     "pump_manual_trail_dist": (float, 15.0, 1.0, 1000.0),    # e sai se cair Y pontos do pico
     # 0.27.0: compra automática da Base da pump.fun (roda no servidor, mesmo com o painel fechado) — começa DESLIGADA
+    # 0.31.0: segurança das entradas automáticas (Base e Explorar), pedidos do dono em áudio (2026-10-26):
+    # "esperar uns 20 minutos", "muita carteira nova = robô, não entrar", "só entrar quando um bom trader entrou"
+    "pump_ar_min_age_min": (float, 20.0, 0.0, 1440.0),  # idade mínima do token para entrar sozinho
+    "pump_ar_fresh_on": (bool, True, 0, 1),             # barra token com muita carteira nova entre os maiores detentores
+    "pump_ar_fresh_max_pct": (float, 30.0, 1.0, 100.0), # % máx. de carteiras novas entre os 20 maiores detentores
+    "pump_ar_smart_on": (bool, True, 0, 1),             # só entra se um trader bom (seguido/ranking/estudo) já está no token
+    "pump_ar_smart_min": (int, 1, 1, 30),
     "pump_auto_on": (bool, False, 0, 1),
     "pump_auto_boost": (bool, True, 0, 1),              # entra sozinho quando o token está com Boost ON
     "pump_auto_chance": (bool, False, 0, 1),            # entra sozinho quando a previsão diz "chance alta"
-    "pump_auto_max_age": (float, 15.0, 1.0, 60.0),      # só tokens com até X min de vida
+    "pump_auto_max_age": (float, 45.0, 1.0, 60.0),      # só tokens com até X min de vida (0.31.0: 15 → 45, por causa da idade mínima)
     "pump_auto_max_h": (int, 5, 1, 100),                # no máx. N compras automáticas por hora
     "pump_auto_real": (bool, False, 0, 1),              # também na real (se a Execução real estiver ligada)
     "pump_manual_boost_on": (bool, True, 0, 1),         # token com boost pago: vende em +X% (pedido do dono, 2026-10-26)

@@ -213,5 +213,10 @@ Rota `GET /api/pump/auto-study` (admin) e quadro **"O que as automáticas ensina
   Python padrão e recursos já existentes são locais; `pytest -q` completo roda no GitHub Actions existente.
   Nenhum ambiente local, scanner ou pacote é recriado. A publicação só é confirmada pelo resultado do workflow.
 - [ ] 0.30.0 — etapas 1–4 aplicáveis ao Explorar, proteções, registro no banco e tela; validar Actions e versão.
-- [ ] 0.31.0 — conectar a Base às proteções e ao registro compartilhados (etapa 5 e itens da Base acima).
-- [ ] 0.32.0 — aprendizado por faixas e filtro que só aperta as entradas (etapa 6).
+- [x] 0.30.0 — publicada em 2026-10-26 (Actions verde, /health conferido).
+- [x] 0.31.0 — FEITA pelo Claude a pedido do dono (áudios de 2026-10-26), fora deste plano: travas novas para TODA
+  entrada automática (Base e Explorar) — idade mínima do token (`pump_ar_min_age_min`, 20 min), carteiras novas entre
+  os 20 maiores detentores (`pump_ar_fresh_*`, `PumpFun.fresh_check`) e trader bom já no token (`pump_ar_smart_*`,
+  `PumpFun.smart_in`), todas em `PumpFun.auto_safety`. Respeitar ao fazer as próximas etapas.
+- [ ] 0.32.0 — conectar a Base às proteções e ao registro compartilhados (etapa 5 e itens da Base acima).
+- [ ] 0.33.0 — aprendizado por faixas e filtro que só aperta as entradas (etapa 6).

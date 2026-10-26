@@ -1785,7 +1785,11 @@ class PumpFun:
             return "curva ausente ou fora da faixa"
         if change is None or not 0 <= change <= float(self._c("pump_ex_auto_max_chg5", 150)):
             return "variação em 5 min ausente ou fora da faixa"
-        return None
+        created = self._auto_num(row.get("created"))
+        age = None
+        if created:
+            age = (time.time() - (created / 1000 if created > 1e12 else created)) / 60
+        return self.auto_safety(row["mint"], age)
 
     def explore_auto_check(self, lists: dict, t: float | None = None) -> list[str]:
         if not getattr(self.cfg, "pump_ex_auto_on", False) or getattr(self, "role", None) != "admin":
@@ -1952,8 +1956,10 @@ class PumpFun:
             if len(recent) >= int(self._c("pump_auto_max_h", 5)):
                 break
             mint, pred = x["mint"], x.get("pred") or {}
-            if mint in done or pred.get("verdict") in ("lixo", "suspeito") or x.get("age_min", 99) > float(self._c("pump_auto_max_age", 15)):
+            if mint in done or pred.get("verdict") in ("lixo", "suspeito") or x.get("age_min", 99) > float(self._c("pump_auto_max_age", 45)):
                 continue
+            if self.auto_safety(mint, x.get("age_min")):
+                continue                                    # 0.31.0: idade mínima, carteiras novas, trader bom
             why = []
             if getattr(self.cfg, "pump_auto_boost", True) and (x.get("boost") or {}).get("active"):
                 why.append("Boost ON")
@@ -2202,6 +2208,73 @@ class PumpFun:
                 continue
             top.append({"owner": own_, "pct": round(float(a.get("uiAmountString") or a.get("uiAmount") or 0) / total * 100, 2)})
         tk["holders_top"] = (top[1:] if graduated else top)[:12]
+        tk["holder_owners"] = [h["owner"] for h in (top[1:] if graduated else top)][:20]   # 0.31.0: carteiras novas
+
+    async def fresh_check(self, mint: str, now: float | None = None) -> dict | None:
+        """Carteiras novas entre os 20 maiores detentores (0.31.0, pedido do dono: "muita carteira nova = robô inflando
+        a moeda"). Nova = menos de 25 transações na vida e a primeira há menos de 72 h (RPC grátis; cache de 3 min).
+        A pump.fun mostra o total de "Carteira nova" de TODOS os detentores; aqui só dá para olhar os 20 maiores."""
+        now = time.time() if now is None else now
+        tk = self.tokens.setdefault(mint, {"created_t": now})
+        if now - float((tk.get("fresh") or {}).get("t") or 0) < 180:
+            return tk.get("fresh")
+        await self.holders_check(mint)
+        owners = list(tk.get("holder_owners") or [])[:20]
+        if not owners:
+            return None
+        urls = []
+        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
+        if own:
+            urls.append(own)
+        urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
+        fresh = checked = 0
+        for w in owners:
+            sigs = None
+            for u in urls:
+                try:
+                    r = await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": "getSignaturesForAddress",
+                                                      "params": [w, {"limit": 25}]}, timeout=8)
+                    js = r.json()
+                    if isinstance(js.get("result"), list):
+                        sigs = js["result"]
+                        break
+                except Exception:
+                    continue
+            if sigs is None:
+                continue
+            checked += 1
+            first = min([float(s.get("blockTime") or now) for s in sigs] or [now])
+            if len(sigs) < 25 and now - first < 72 * 3600:
+                fresh += 1
+        if not checked:
+            return None
+        tk["fresh"] = {"n": fresh, "of": checked, "pct": round(fresh / checked * 100, 1), "t": now}
+        return tk["fresh"]
+
+    def smart_in(self, mint: str) -> list[str]:
+        """Traders bons que estão no token agora (0.31.0, "triangulação" pedida pelo dono): carteiras que você copia,
+        aptas do ranking e carteiras em estudo, com saldo do token visto pelo monitor."""
+        good = set(self.followed) | set(getattr(self, "study", None) or [])
+        good |= {r["wallet"] for r in self.leaderboard if r.get("eligible") and r.get("wallet")}
+        return sorted(w for w in good if (((self.wallets.get(w) or {}).get("pos") or {}).get(mint) or {}).get("tok", 0) > 0)
+
+    def auto_safety(self, mint: str, age_min: float | None) -> str | None:
+        """Travas extras de TODA entrada automática (Base e Explorar), 0.31.0."""
+        mn = float(self._c("pump_ar_min_age_min", 20) or 0)
+        if mn and age_min is not None and age_min < mn:
+            return f"token com {age_min:.0f} min de vida (mínimo {mn:.0f})"
+        if getattr(self.cfg, "pump_ar_fresh_on", True):
+            fr = (self.tokens.get(mint) or {}).get("fresh")
+            if not fr:
+                return "esperando checar as carteiras novas dos maiores detentores"
+            if fr["pct"] >= float(self._c("pump_ar_fresh_max_pct", 30)):
+                return f"{fr['n']} de {fr['of']} maiores detentores são carteiras novas (robôs)"
+        if getattr(self.cfg, "pump_ar_smart_on", True):
+            n = len(self.smart_in(mint))
+            need = int(self._c("pump_ar_smart_min", 1))
+            if n < need:
+                return f"nenhum trader bom no token ainda ({n} de {need})"
+        return None
 
     def _other_block(self, mint: str) -> str | None:
         """Pode copiar este token FORA da pump.fun? (Raydium, Meteora, Orca… via Jupiter)"""

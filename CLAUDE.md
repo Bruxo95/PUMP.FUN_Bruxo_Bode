@@ -553,3 +553,14 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   completo fica no Actions existente antes dos jobs de banco/imagem/deploy. Resultado do CI/publicação a registrar.
 - Segurança: esta entrega inclui regressões de autorização/RLS; não é nova auditoria completa e não altera os
   achados históricos em `docs/AUDITORIA-SEGURANCA.md`. Nenhuma transação real ou acesso direto a infraestrutura.
+
+## Travas das entradas automáticas (2026-10-26, versão 0.31.0)
+- Pedidos do dono em áudio (transcritos com o Whisper local, `~/whisper-local`, pasta `C:\Users\doug\audios-pump`):
+  "esperar uns 20 min", "muita carteira nova = robô, não entrar", "só entrar quando um dos melhores traders entrou".
+- `PumpFun.auto_safety(mint, idade)` em TODA entrada automática (Base `auto_check` e Explorar
+  `explore_entry_reason`): `pump_ar_min_age_min` (20), `pump_ar_fresh_on`/`_max_pct` (30% dos 20 maiores
+  detentores; `fresh_check` via RPC `getSignaturesForAddress`: nova = <25 transações e 1ª há <72 h; cache 3 min;
+  `SharedMonitor.fresh_loop` checa até 4 candidatos a cada 30 s), `pump_ar_smart_on`/`_min` (`smart_in`: seguidas,
+  aptas do ranking e em estudo com saldo no token). `pump_auto_max_age` padrão 15 → 45. `safety_marks` na API marca
+  lixo por carteiras novas. Limite honesto: a pump.fun conta TODAS as carteiras novas; aqui só os 20 maiores.
+- Plano do Codex renumerado: Base = 0.32.0, estudo = 0.33.0. Testes: `tests/test_auto_seguranca.py`.

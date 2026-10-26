@@ -214,11 +214,12 @@
     const rows = EX_TAB === "movers" ? r.movers || [] : ((r.lists || {})[EX_TAB] || []);
     const usd = (v) => (v == null ? "–" : "$" + f(v, v >= 1000 ? 0 : 2));
     const pc = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 0) + "%</span>");
-    table("exTbl", ["Token", "Veredito", "Market cap", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
+    const frs = (x) => !x.fresh ? '<span class="muted">…</span>' : '<span class="' + (x.fresh.pct >= (cfg().pump_ar_fresh_max_pct || 30) ? "down" : "") + '">' + x.fresh.n + " de " + x.fresh.of + "</span>";
+    table("exTbl", ["Token", "Veredito", "Market cap", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
       '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>",
       usd(x.mcap_usd), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
       x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
-      x.risk == null ? "–" : f(x.risk, 0) + "/10", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
+      x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
       '<button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");
     table("exLs", ["Curva quando apareceu", "Tokens", "Graduaram"], (r.learned || []).map((x) => [esc(x.faixa), String(x.n), f(x.grad_pct, 0) + "%"]), "Ainda aprendendo: cada token espera até 6 h para contar.");
   }
@@ -258,9 +259,10 @@
     const pred = (p) => !p ? "–" : '<span class="tag ' + (PV[p.verdict] || "neutral") + '" title="' + esc((p.why || []).join(" · ")) + '">' + esc(p.verdict) + "</span>" + (p.chance == null ? "" : "<small>" + f(p.chance, 0) + "% de chance</small>") + '<small class="muted">' + esc((p.why || [])[0] || "") + "</small>";
     const hideT = !!cfg().pump_base_hide_trash;
     const rise = (r.rising || []).filter((x) => !(hideT && x.pred && (x.pred.verdict === "lixo" || x.pred.verdict === "suspeito")));
-    table("bsRise", ["Token", "Previsão", "Ganho", "Market cap início → última foto", "Idade", "Criador", "Boost pago", ""], rise.map((x) => [pfM(x.mint, x.symbol), pred(x.pred), '<span class="up">+' + f(x.gain_pct, 0) + "%</span>",
+    const frs2 = (x) => !x.fresh ? '<span class="muted">…</span>' : x.fresh.n + " de " + x.fresh.of;
+    table("bsRise", ["Token", "Previsão", "Ganho", "Market cap início → última foto", "Idade", "Criador", "Carteiras novas", "Traders bons", "Boost pago", ""], rise.map((x) => [pfM(x.mint, x.symbol), pred(x.pred), '<span class="up">+' + f(x.gain_pct, 0) + "%</span>",
       f(x.mcap0, 0) + " → " + f(x.mcap, 0) + " SOL", f(x.age_min, 0) + " min · " + x.fotos + "/4 fotos",
-      x.creator_stats ? x.creator_stats.tokens + " tokens · " + x.creator_stats.x2 + " subiram · " + x.creator_stats.rugs + " despencaram" : "novo", bst(x.boost), buy(x.mint, x.symbol)]), hideT && (r.rising || []).length ? "Só lixo agora (desligue \"Esconder lixo\" para ver)." : "Nenhum token em observação subiu ainda.");
+      x.creator_stats ? x.creator_stats.tokens + " tokens · " + x.creator_stats.x2 + " subiram · " + x.creator_stats.rugs + " despencaram" : "novo", frs2(x), String(x.smart || 0), bst(x.boost), buy(x.mint, x.symbol)]), hideT && (r.rising || []).length ? "Só lixo agora (desligue \"Esconder lixo\" para ver)." : "Nenhum token em observação subiu ainda.");
     table("bsUp", ["Token", "Rótulo", "Market cap inicial → pico", "Criado", "Boost pago", ""], (r.recent_up || []).map((x) => [pfM(x.mint, x.symbol), '<span class="tag win">' + esc(x.label) + "</span>", f(x.mcap0 || 0, 0) + " → " + (x.label === "graduou" ? "graduou (~410)" : f(x.peak || 0, 0)) + " SOL", dt(x.created_at), bst(x.boost), buy(x.mint, x.symbol)]), "Nenhum ainda.");
     const crt = (L2) => (L2 || []).map((c) => [pfW(c.creator), String(c.tokens), String(c.x2), String(c.rugs)]);
     table("bsBad", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.bad_creators), "Nenhum criador com 2+ tokens ainda.");

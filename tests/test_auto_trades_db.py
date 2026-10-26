@@ -12,7 +12,10 @@ M = "AutoRegistro".ljust(40, "1") + "pump"
 
 
 def engine(env, uid=UA):
-    return asyncio.run(env["hub"].engine(uid))
+    pf = asyncio.run(env["hub"].engine(uid))
+    # travas da 0.31.0 têm testes próprios em test_auto_seguranca.py
+    pf.cfg.pump_ar_min_age_min, pf.cfg.pump_ar_fresh_on, pf.cfg.pump_ar_smart_on = 0, False, False
+    return pf
 
 
 def buy(pf, t=None):

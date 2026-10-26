@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.0",
+      "data": "2026-10-26",
+      "tipo": "segurança",
+      "onde": "Menu → Usar ou descartar → Explorar e Base da pump.fun → Proteções das automáticas",
+      "titulo": "Entradas automáticas mais seguras: idade mínima, carteiras novas e trader bom no token",
+      "oque": "Pedidos dos seus áudios. Toda entrada automática (Base e Explorar) agora só acontece se: o token tiver pelo menos 20 minutos de vida; os 20 maiores detentores não forem 30% ou mais carteiras novas (menos de 25 transações e criadas há menos de 3 dias, o sinal de robôs inflando a moeda); e pelo menos um trader bom (carteira que você copia, apta no ranking ou em estudo) já estiver no token. As telas Explorar e Subindo agora ganharam as colunas Carteiras novas e Traders bons, e token com muita carteira nova aparece como lixo. Tudo ajustável, com ON/OFF."
+    },
+    {
       "versao": "0.30.0",
       "data": "2026-10-26",
       "tipo": "novo",

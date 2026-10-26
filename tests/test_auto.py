@@ -14,6 +14,7 @@ def _row(mint, boost=True, verdict="possível", age=3.0, chance=15.0):
 
 
 def _pf(tmp_path, **kw):
+    kw = {"pump_ar_min_age_min": 0, "pump_ar_fresh_on": False, "pump_ar_smart_on": False, **kw}   # travas 0.31.0
     pf = _pump(tmp_path, paid=False, **kw)
     for m in (A, B):
         pf.tokens[m] = {"price": 1e-6, "symbol": m[:5], "mcap_sol": 40.0}
@@ -53,7 +54,8 @@ def test_auto_never_buys_real_unless_allowed(tmp_path):
 def test_monitor_runs_auto_buy_for_who_turned_it_on(env):
     from app.monitor import SharedMonitor
     c, hub = env["c"], env["hub"]
-    assert c.post("/api/pump/settings", json={"pump_auto_on": True}, headers=tok(UA)).json()["applied"]
+    assert c.post("/api/pump/settings", json={"pump_auto_on": True, "pump_ar_min_age_min": 0, "pump_ar_fresh_on": False,
+                                                 "pump_ar_smart_on": False}, headers=tok(UA)).json()["applied"]
     mon = SharedMonitor(hub)
     t0 = time.time() - 180
     hub.lab.on_create({"mint": A, "marketCapSol": 30.0, "symbol": "AUT"}, t0)
