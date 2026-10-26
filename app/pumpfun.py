@@ -87,6 +87,7 @@ class PumpMarket:
         self.wallet_usd: dict = {}                 # carteira do trader -> {"usd", "sol", "stable", "t"}
         self.blacklist: dict[str, dict] = {}       # 0.20.0: lista negra compartilhada (endereço -> tipo, motivo)
         self.bl_new: list[str] = []                # endereços novos ainda não gravados no banco
+        self.creator_stats: dict[str, dict] = {}   # 0.21.0: criador -> tokens, x2, rugs (base da pump.fun)
         self.sol_usd = 0.0
         self.jup = jup                             # JupiterQuoter (cotações compartilhadas)
         self.status = {"ws": None, "connected_at": None, "error": None, "events": 0, "last_event": None,
@@ -1566,10 +1567,13 @@ class PumpFun:
                 parts["curva"] = min(1.0, prog / mins / 10)
         if trader_px and px:
             parts["preço"] = max(0.0, 1 - max(0.0, px / trader_px - 1) / 0.5)
+        cs = self.market.creator_stats.get(tk.get("creator") or "")
+        if cs and cs.get("tokens", 0) >= 2:                                   # histórico do criador (0.21.0)
+            parts["criador"] = max(0.0, min(1.0, 0.5 + (cs.get("x2", 0) - cs.get("rugs", 0)) / (2 * cs["tokens"])))
         others = (set(self.followed) | set(getattr(self, "study", None) or [])) - {who}
         n = sum(1 for w in others if (((self.wallets.get(w) or {}).get("pos") or {}).get(mint) or {}).get("tok", 0) > 0)
         parts["onda"] = min(1.0, 0.2 + n / 3)
-        W = {"trader": 25, "risco": 20, "pressão": 15, "curva": 15, "preço": 15, "onda": 10}
+        W = {"trader": 25, "risco": 20, "pressão": 15, "curva": 15, "preço": 15, "onda": 10, "criador": 10}
         tot = sum(W[k] for k in parts)
         score = round(sum(parts[k] * W[k] for k in parts) / tot * 100, 1) if tot else 50.0
         return score, {k: round(v * 100) for k, v in parts.items()}

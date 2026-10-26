@@ -45,6 +45,7 @@
         <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
         <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
         <a href="#fantasma" data-v="fantasma" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10a6 6 0 0 1 12 0v10l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5z"/><circle cx="10" cy="10" r="1"/><circle cx="14" cy="10" r="1"/></svg>Estratégias fantasma</a>
+        <a href="#base" data-v="base" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Base da pump.fun</a>
         <a href="#listanegra" data-v="listanegra" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>Lista negra</a>
         <a href="#novas" data-v="novas" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Opções novas de cópia</a>
         <a href="#novidades" data-v="novidades" id="navNov" hidden data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Novidades</a>
@@ -237,6 +238,26 @@
           <div class="tbl-wrap"><table id="repScore"></table></div></div>
         <div class="card"><header><div><h2>Resultado por dia</h2></div></header>
           <div class="tbl-wrap"><table id="repDay"></table></div></div>
+      </section>
+
+      <!-- ========================================================= BASE DA PUMP.FUN (app/tokenlab.py, 0.21.0) -->
+      <section class="view" data-view="base" hidden>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Base da pump.fun</h2><div class="sub" id="bsSub">cada token novo ganha 4 fotos do market cap (1, 5, 15 e 60 min) e um rótulo no fim</div></div></header>
+          <div class="kpis" id="bsKpis"></div></div>
+        <div class="card"><header><div><h2>Mercado por hora</h2><div class="sub">horário do seu computador · "subiram" = graduou, 5x ou 2x entre as fotos</div></div></header>
+          <div class="tbl-wrap"><table id="bsHours"></table></div></div>
+        <div class="grid2">
+          <div class="card"><header><div><h2>Palavras dos tokens que subiram (24 h)</h2><div class="sub">narrativas do momento: quantos subiram × quantos foram criados com a palavra</div></div></header>
+            <div class="tbl-wrap"><table id="bsWords"></table></div></div>
+          <div class="card"><header><div><h2>Tokens que subiram (24 h)</h2></div></header>
+            <div class="tbl-wrap"><table id="bsUp"></table></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><header><div><h2>Criadores que mais despencam</h2><div class="sub">3+ despencados sem nenhum 2x vão sozinhos para a lista negra</div></div></header>
+            <div class="tbl-wrap"><table id="bsBad"></table></div></div>
+          <div class="card"><header><div><h2>Criadores com tokens que subiram</h2><div class="sub">o histórico do criador também entra na nota da entrada</div></div></header>
+            <div class="tbl-wrap"><table id="bsGood"></table></div></div>
+        </div>
       </section>
 
       <!-- ========================================================= LISTA NEGRA COMPARTILHADA (0.20.0) -->

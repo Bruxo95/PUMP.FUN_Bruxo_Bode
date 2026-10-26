@@ -40,6 +40,8 @@ class PumpHub:
         self._blocked: set[str] = set()            # contas bloqueadas (vale também para cargas já em andamento)
         self._trade_q: list[dict] = []             # operações das carteiras em estudo a gravar (0.14.0)
         self.radar = RadarBuffer()                # só observações ao vivo; não gera ordens
+        from .tokenlab import TokenLab
+        self.lab = TokenLab(self.market)          # base própria da pump.fun (0.21.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
@@ -278,8 +280,40 @@ class PumpHub:
             except Exception:
                 pass                                   # já registrado; tenta de novo na próxima volta
             n += 1
+            if n % 2 == 0:
+                try:
+                    await self.save_lab(trim=n % 360 == 0)
+                except Exception as e:
+                    log.warning("Base da pump.fun não gravou: %s", str(e)[:120])
             if n % 5 == 0:
                 await self.save_ghosts()
+
+    # ------------------------------------------------------------------ base própria da pump.fun (0.21.0)
+    async def load_lab(self) -> None:
+        try:
+            hrs = await self.db.select("market_hourly", None, order="hora.desc", limit=48)
+            crs = await self.db.select("creator_stats", None, limit=50000)
+            self.lab.load(hrs, crs)
+        except Exception as e:
+            log.warning("Base da pump.fun não carregou (tabelas criadas?): %s", str(e)[:120])
+
+    async def save_lab(self, trim: bool = False) -> int:
+        tl, hrs, crs = self.lab.take_dirty()
+        try:
+            if tl:
+                await self.db.insert("token_life", tl, upsert=True, on_conflict="mint")
+            if hrs:
+                await self.db.insert("market_hourly", hrs, upsert=True, on_conflict="hora")
+            for i in range(0, len(crs), 500):
+                await self.db.insert("creator_stats", crs[i:i + 500], upsert=True, on_conflict="creator")
+            if trim:                                     # guarda só 7 dias de tokens interessantes
+                await self.db.rpc("trim_token_life", {"p_days": 7})
+        except Exception:
+            self.lab.new_rows = [dict(r["data"], mint=r["mint"], creator=r["creator"], label=r["label"]) for r in tl] + self.lab.new_rows
+            self.lab.dirty_hours |= {h["hora"] for h in hrs}
+            self.lab.dirty_creators |= {c["creator"] for c in crs}
+            raise
+        return len(tl)
 
     # ------------------------------------------------------------------ lista negra compartilhada (0.20.0)
     async def load_blacklist(self) -> None:
@@ -558,6 +592,7 @@ class PumpHub:
             log.warning("Não consegui carregar os usuários do Supabase: %s", str(e)[:160])
         await self.refresh_shared_key()
         await self.load_blacklist()
+        await self.load_lab()
         self.running = True
         for pf in list(self.engines.values()):
             self._start_engine(pf)
@@ -583,6 +618,7 @@ class PumpHub:
                 pass
         try:
             await self.save_ghosts()
+            await self.save_lab()
         except Exception:
             pass
 

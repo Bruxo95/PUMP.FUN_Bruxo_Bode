@@ -75,6 +75,9 @@ class SharedMonitor:
         """Parte pública do evento UMA vez; depois cada motor reage (cópia de quem segue + stops de quem tem
         posição no token)."""
         t = t or time.time()
+        lab = getattr(self.hub, "lab", None)
+        if lab is not None and ev.get("txType") == "create":
+            lab.on_create(ev, t)                                  # base própria da pump.fun (0.21.0)
         info = self.svc.ingest(ev, t)
         if not info:
             return
@@ -330,6 +333,27 @@ class SharedMonitor:
                 for msg in e._check_stops(m, time.time()):
                     e._emit(msg)
 
+    async def lab_once(self) -> int:
+        """Fotos da base da pump.fun: market cap dos tokens novos aos 1, 5, 15 e 60 min (curva on-chain, em lotes)."""
+        lab = getattr(self.hub, "lab", None)
+        if lab is None:
+            return 0
+        now = time.time()
+        due = lab.due(now)[:300]
+        for i in range(0, len(due), 100):
+            chunk = due[i:i + 100]
+            await self.svc._curve_prices(chunk)
+            lab.observe(now, chunk)
+        return len(due)
+
+    async def lab_loop(self) -> None:
+        while True:
+            try:
+                await self.lab_once()
+            except Exception as e:
+                log.warning("base da pump.fun: %s", str(e)[:160])
+            await asyncio.sleep(20)
+
     async def price_loop(self) -> None:
         last_ds = 0.0
         while True:
@@ -499,7 +523,8 @@ class SharedMonitor:
     def start(self) -> None:
         loop = asyncio.get_running_loop()
         self._tasks = [loop.create_task(c) for c in (self.rpc_run(), self.pumpportal_run(), self.price_loop(),
-                                                     self.trail_loop(), self.tick_loop(), self.lb_loop())]
+                                                     self.trail_loop(), self.tick_loop(), self.lb_loop(),
+                                                     self.lab_loop())]
         self._tasks += [loop.create_task(self.tx_worker()) for _ in range(4)]
 
     def stop(self) -> None:

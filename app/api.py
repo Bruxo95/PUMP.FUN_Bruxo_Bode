@@ -185,6 +185,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """Estratégias fantasma (0.18.0): mesmas entradas da cópia fictícia, saídas diferentes, lado a lado."""
         return pf.ghosts.snapshot(pf.trades(100000))
 
+    @app.get("/api/pump/base")
+    async def pump_base(pf=Depends(admin_engine)):
+        """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""
+        return hub.lab.snapshot()
+
     @app.post("/api/pump/telegram/test")
     async def telegram_test(pf=Depends(admin_engine)):
         ok, err = await hub.tg_send_now(pf, "PUMP FUN COPY: teste de aviso no Telegram ✅", force=True)

@@ -82,6 +82,24 @@
   }
 
   // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
+  // ------------------------------------------------------------------ base da pump.fun (/api/pump/base, 0.21.0)
+  async function loadBase() {
+    const r = await BB.api("/api/pump/base");
+    if (r.error) { toast(r.error); return; }
+    const d = r.day || {}, L = d.labels || {}, pc = (a, b) => (b ? f(a / b * 100, 0) + "%" : "–");
+    $("bsSub").textContent = "observando desde " + dt(r.since) + " · " + r.live + " tokens em observação agora · até " + r.max_per_min + " novos por minuto" + (r.dropped ? " (" + r.dropped + " ficaram de fora por limite)" : "");
+    kpis("bsKpis", [["Tokens fechados (24 h)", String(d.finished || 0), "com as 4 fotos ou graduados", "tr"], ["Subiram", pc(d.up || 0, d.finished), (L.graduou || 0) + " graduaram · " + (L["5x"] || 0) + " deram 5x · " + (L["2x"] || 0) + " deram 2x", "hit"],
+      ["Despencaram", pc(L.despencou || 0, d.finished), "subiram e caíram mais da metade", "pos"], ["Morreram", pc(L.morreu || 0, d.finished), "ficaram parados no market cap inicial", "mon"]]);
+    const hr = (k) => new Date(k).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    table("bsHours", ["Hora", "Criados", "Observados", "Fechados", "Subiram", "Graduaram", "Despencaram", "Morreram"], (r.hours || []).slice().reverse().map((h) => [hr(h.hora), String(h.created), String(h.tracked), String(h.finished),
+      h.up_pct == null ? "–" : f(h.up_pct, 1) + "%", String(h.grad), h.rug_pct == null ? "–" : f(h.rug_pct, 1) + "%", h.dead_pct == null ? "–" : f(h.dead_pct, 1) + "%"]), "Ainda sem dados: a primeira hora fecha em até 60 min.");
+    table("bsWords", ["Palavra", "Subiram", "Criados"], (r.words || []).map((w) => [esc(w.word), String(w.up), String(w.all)]), "Nenhuma palavra repetida entre os que subiram.");
+    table("bsUp", ["Token", "Rótulo", "Market cap inicial → pico", "Criado"], (r.recent_up || []).map((x) => [pfM(x.mint, x.symbol), '<span class="tag win">' + esc(x.label) + "</span>", f(x.mcap0 || 0, 0) + " → " + f(x.peak || 0, 0) + " SOL", dt(x.created_at)]), "Nenhum ainda.");
+    const crt = (L2) => (L2 || []).map((c) => [pfW(c.creator), String(c.tokens), String(c.x2), String(c.rugs)]);
+    table("bsBad", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.bad_creators), "Nenhum criador com 2+ tokens ainda.");
+    table("bsGood", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.good_creators), "Nenhum ainda.");
+  }
+
   // ------------------------------------------------------------------ lista negra (/api/pump/blacklist, 0.20.0)
   async function loadBlacklist() {
     const r = await BB.api("/api/pump/blacklist");
@@ -454,7 +472,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -462,7 +480,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -475,6 +493,7 @@
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
+    if (VIEW === "base") loadBase();
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);

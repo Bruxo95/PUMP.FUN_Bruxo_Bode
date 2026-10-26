@@ -14,7 +14,8 @@ PKS = {"profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": 
        "pump_feed": ("id",), "audit_log": ("id",), "app_secrets": ("nome",),
        "learning_daily": ("user_id", "dia"), "study_wallets": ("user_id", "wallet"),
        "wallet_trades": ("signature",), "study_positions": ("wallet", "token"), "ghost_stats": ("user_id",),
-       "blacklist": ("endereco",)}
+       "blacklist": ("endereco",), "token_life": ("mint",), "market_hourly": ("hora",),
+       "creator_stats": ("creator",)}
 AUTO_ID = {"pump_feed", "audit_log"}
 DEFAULT_TS = {"study_wallets": "criado_em", "pump_trades": "fechada_em", "pump_positions": "aberta_em", "audit_log": "at", "pump_feed": "at",
               "profiles": "criado_em", "user_secrets": "criado_em",

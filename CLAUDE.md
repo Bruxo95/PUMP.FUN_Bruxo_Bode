@@ -449,3 +449,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Telegram: chaves pessoais `telegram_bot_token` e `telegram_chat_id` (validadas em `/api/secrets`); `pf.tg` →
   `hub.tg_queue` (só com `pump_tg_on`; `pump_tg_all` OFF = só `TG_KEYS`); `hub.tg_send_now` (máx. 20/min);
   `POST /api/pump/telegram/test` (admin). Testes: `tests/test_lista_telegram.py`.
+
+## Base própria da pump.fun (2026-10-26, versão 0.21.0)
+- `app/tokenlab.py` (`hub.lab`): todo `create` da PumpPortal (até `MAX_PER_MIN`=40/min) entra em observação;
+  `SharedMonitor.lab_loop` (20 s) lê a curva on-chain em lotes de 100 e tira fotos aos 1/5/15/60 min; `label()` dá
+  graduou/5x/2x/subiu pouco/morreu/despencou. Limite: só 4 fotos, o pico real entre elas não é visto.
+- Tabelas (migração `20261026000003`, só backend): `token_life` (só tokens interessantes, 7 dias via
+  `trim_token_life`), `market_hourly`, `creator_stats`. `hub.save_lab` a cada 2 min; `load_lab` no start.
+- `PumpMarket.creator_stats` → parte "criador" (peso 10) da nota da entrada; criador com 3+ despencados e nenhum 2x
+  entra na lista negra. Tela `#base` e rota `/api/pump/base` (admin). Testes: `tests/test_tokenlab.py`.
