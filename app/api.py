@@ -435,7 +435,29 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return {"wallets": out, "ranking": [{"wallet": x["wallet"], "apelido": x["apelido"], "followed": x["followed"],
                                              **x["summary"]["copy"]} for x in ranked],
                 "limit": MAX_WALLETS, "key": bool(hub._study_key()), "params": prm,
-                "mine": study_my_results(pf, out)}
+                "mine": study_my_results(pf, out), "auto": await study_auto_info(pf)}
+
+    async def study_auto_info(pf) -> dict:
+        from datetime import datetime, timezone
+        from .autostudy import AUTO_TAG, rates
+        try:
+            log_rows = await hub.db.select("study_auto_log", {"user_id": pf.user_id}, order="em.desc", limit=1000)
+        except Exception:
+            log_rows = []
+        last = hub._study_auto_at.get(pf.user_id)
+        return {"on": bool(getattr(pf.cfg, "pump_st_auto_on", True)), "max": int(getattr(pf.cfg, "pump_st_auto_max", 15)),
+                "tag": AUTO_TAG, "last_run": datetime.fromtimestamp(last, timezone.utc).isoformat() if last else None,
+                "log": [{k: r.get(k) for k in ("wallet", "acao", "motivo", "em")} for r in log_rows[:60]],
+                "counts": {a: sum(1 for r in log_rows if r.get("acao") == a) for a in ("adicionou", "aprovou", "descartou")},
+                "rates": rates(log_rows)}
+
+    @app.post("/api/pump/study/auto/run")
+    async def study_auto_run(pf=Depends(admin_engine)):
+        try:
+            return await hub.study_auto(pf)
+        except Exception as e:
+            log.warning("estudo automático: %s", str(e)[:120])
+            return {"error": "não consegui rodar agora (tabela criada no banco?)"}
 
     def study_my_results(pf, wallets: list[dict]) -> dict:
         """O SEU resultado de verdade copiando cada carteira em estudo (0.29.0, pedido do dono): trades fechados e

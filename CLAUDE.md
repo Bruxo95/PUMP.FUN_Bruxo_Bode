@@ -659,3 +659,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `MIN_N`=10, acerto <35% e média <-5%), `PumpFun.learned(origem)` (cache 60 s, avisa bloqueio novo), aplicado em
   `explore_entry_reason` com `pump_ar_learn` (ON). Base/elite ainda não guardam esses números na entrada (o Codex
   conecta a Base na 0.32.0 do plano). Relatório da mudança: `app/relatorios_ia/2026-10-26-0.31.12.md`.
+
+## Estudo automático de carteiras (2026-10-26, versão 0.31.13)
+- Pedido do dono. `app/autostudy.py` + `PumpHub.study_auto` (`study_auto_loop`, 30 min; `pump_st_auto_on` ON,
+  `pump_st_auto_max` 15; 3 por volta). Só carteiras com apelido "auto · " são julgadas/removidas. Decisões em
+  `study_auto_log` (migração `20261026000009`); `rates()` aprende por fonte/faixa de acerto/faixa de trades.
+  Rota `POST /api/pump/study/auto/run` e campo `auto` em `/api/pump/study` (admin). Não copia nada sozinho.
+  Testes: `tests/test_autostudy.py`.

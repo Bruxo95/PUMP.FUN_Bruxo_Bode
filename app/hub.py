@@ -48,6 +48,7 @@ class PumpHub:
         from .elite import Elite
         self.elite = Elite(self.market)           # maiores traders (0.31.2)                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
+        self._study_auto_at: dict[str, float] = {}  # usuário -> última volta do estudo automático (0.31.13)
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
         self.started_at = time.time()
@@ -529,7 +530,7 @@ class PumpHub:
 
     # ------------------------------------------------------------------ avisos no Telegram (0.20.0)
     TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas",
-               "compra automática", "boost on", "aprendi com os erros")
+               "compra automática", "boost on", "aprendi com os erros", "estudo automático")
 
     def tg_wanted(self, pf, msg: str) -> bool:
         if not getattr(pf.cfg, "pump_tg_on", False):
@@ -639,6 +640,66 @@ class PumpHub:
             log.warning("relatórios passados: %s", str(e)[:160])
         while True:
             await self.save_daily()
+            await asyncio.sleep(1800)
+
+    async def study_auto(self, pf, now: float | None = None) -> dict:
+        """Estudo automático (0.31.13, app/autostudy.py): julga as carteiras que o robô pôs no estudo, tira as que não
+        compensam, põe candidatas novas nas vagas e aprende que tipo de carteira costuma compensar."""
+        from .auto_trades import ts
+        from .autostudy import AUTO_TAG, BAN_S, PER_CYCLE, candidates, features, judge, rates
+        from .study import MAX_WALLETS, copy_params, summary
+        now = time.time() if now is None else now
+        if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_st_auto_on", True):
+            return {"ok": False, "motivo": "desligado"}
+        rows = await self.db.select("study_wallets", {"user_id": pf.user_id}, order="criado_em.asc")
+        log_rows = await self.db.select("study_auto_log", {"user_id": pf.user_id}, order="em.desc", limit=1000)
+        info_of = {r["wallet"]: r.get("info") or {} for r in reversed(log_rows) if r.get("acao") == "adicionou"}
+        approved = {r["wallet"] for r in log_rows if r.get("acao") == "aprovou"}
+        prm = copy_params(pf)
+        done = {"descartou": 0, "aprovou": 0, "adicionou": 0}
+
+        async def note(w, acao, motivo, info):
+            await self.db.insert("study_auto_log", {"user_id": pf.user_id, "wallet": w, "acao": acao, "motivo": motivo,
+                                                    "info": info, "em": datetime.fromtimestamp(now, timezone.utc).isoformat()})
+            done[acao] += 1
+            pf._emit(f"Estudo automático: {acao} {w[:4]}…{w[-4:]} — {motivo}")
+
+        auto = [r for r in rows if str(r.get("apelido") or "").startswith(AUTO_TAG)]
+        for r in auto:
+            p = await self.study_profile(r["wallet"], prm)
+            if p.get("error"):
+                continue
+            j = judge(ts(r.get("criado_em")) or now, summary(p), now)
+            if not j or (j[0] == "aprovou" and r["wallet"] in approved):
+                continue
+            if j[0] == "descartou":
+                await self.study_set(pf, r["wallet"], "remove")
+            await note(r["wallet"], j[0], j[1], info_of.get(r["wallet"], {}))
+        cur = list(getattr(pf, "study", []) or [])
+        n_auto = len(auto) - done["descartou"]
+        free = min(int(getattr(pf.cfg, "pump_st_auto_max", 15)) - n_auto, MAX_WALLETS - len(cur), PER_CYCLE)
+        recent_out = {r["wallet"] for r in log_rows if r.get("acao") == "descartou" and now - (ts(r.get("em")) or 0) < BAN_S}
+        rt = rates(log_rows)
+        pool = [{**x, "fonte": "ranking"} for x in (pf.leaderboard or [])]
+        pool += [{"wallet": w, **n, "fonte": "maiores traders"} for w, n in self.elite.names.items() if not self.elite.bot_reason(w, now)]
+        for c in candidates(pool, set(cur) | recent_out | set(getattr(pf, "banned", []) or []), rt)[:max(0, free)]:
+            nome = (c.get("name") or c["fonte"])[:30]
+            res = await self.study_set(pf, c["wallet"], "add", AUTO_TAG + nome)
+            if res.get("ok") and not res.get("already"):
+                await note(c["wallet"], "adicionou", f"{c['fonte']}, nota {c['nota']:.2f}, acerto no ranking "
+                           + ("–" if c.get("winrate") is None else f"{c['winrate']:.0f}%"),
+                           {"features": features(c), "nota": c["nota"], "fonte": c["fonte"]})
+        self._study_auto_at[pf.user_id] = now
+        return {"ok": True, **done}
+
+    async def study_auto_loop(self) -> None:
+        await asyncio.sleep(120)
+        while True:
+            for pf in list(self.engines.values()):
+                try:
+                    await self.study_auto(pf)
+                except Exception as e:
+                    log.warning("estudo automático (%s…): %s", pf.user_id[:8], str(e)[:160])
             await asyncio.sleep(1800)
 
     async def learning_loop(self) -> None:
@@ -859,6 +920,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.learning_loop()))
         self._tasks.append(asyncio.create_task(self.ghosts_loop()))
         self._tasks.append(asyncio.create_task(self.daily_loop()))
+        self._tasks.append(asyncio.create_task(self.study_auto_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
         self.monitor.start()
