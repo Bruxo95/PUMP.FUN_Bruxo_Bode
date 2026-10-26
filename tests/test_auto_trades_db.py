@@ -133,6 +133,7 @@ def test_auto_after_exit_keeps_token_in_prices_and_saves_only_fresh_15m_and_60m_
     assert row["depois"]["60m"] == -50 and row["info"]["depois_em"]["60m"]
     flush(env, pf)
     assert env["db"].tables["auto_trades"][0]["depois"] == {"15m": 50, "60m": -50}
+    pf.check_timeouts(exited + 3601)          # 0.31.21: os fantasmas das automáticas saem pelo tempo máximo (30 min)
     assert M not in mon.held()["trader"]
 
 
