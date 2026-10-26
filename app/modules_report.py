@@ -32,7 +32,7 @@ def _sum(rows):
 def build(hub, pf, day: str, live: bool) -> list[dict]:
     T = _today_trades(pf, day)
     out = []
-    for fn in (_copies, _study, _auto("explorar", "Explorar"), _auto("base", "Base da pump.fun (compra automática)"),
+    for fn in (_copies, _study, _auto("explorar", "Explorar (compra automática)"), _auto("base", "Base da pump.fun (compra automática)"),
                _auto("elite", "Maiores traders (compra automática)"), _manual, _ghosts, _whatif, _options, _learning,
                _elite, _explore, _base, _radar, _blacklist):
         try:

@@ -19,11 +19,11 @@ def test_each_menu_reports_and_suggests(env):
     c.post("/api/pump/study", json={"wallet": W, "action": "add"}, headers=tok(UA))
     menus = build(hub, pf, day_of(now), True)
     names = [m["menu"] for m in menus]
-    for want in ("Top traders (cópias)", "Carteiras em estudo", "Explorar", "Relatórios (E se…)", "Opções novas de cópia",
+    for want in ("Top traders (cópias)", "Carteiras em estudo", "Explorar", "Explorar (compra automática)", "Opções novas de cópia",
                  "Base da pump.fun", "Radar de KOLs", "Lista negra"):
         assert want in names, (want, names)
-    ex = next(m for m in menus if m["menu"] == "Explorar")
-    assert any(s["tipo"] == "menu:Explorar:automatica_no_prejuizo" for s in ex["sugestoes"])
+    ex = next(m for m in menus if m["menu"] == "Explorar (compra automática)")
+    assert any(s["tipo"] == "menu:Explorar (compra automática):automatica_no_prejuizo" for s in ex["sugestoes"])
     op = next(m for m in menus if m["menu"] == "Opções novas de cópia")
     assert any("venda em partes" in s["texto"].lower() for s in op["sugestoes"])
     past = build(hub, pf, day_of(now - 86400), False)
