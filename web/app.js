@@ -158,6 +158,17 @@
     const g = (rows) => (rows || []).map((x) => [esc(x.nome), String(x.trades), x.acerto == null ? "–" : f(x.acerto * 100, 0) + "%", sg(x.pnl_sol)]);
     table("dayOri", ["Origem", "Trades", "Acerto", "Resultado"], g(rep.by_origin), "Nenhum trade fechado neste dia.");
     table("dayExit", ["Saída", "Trades", "Acerto", "Resultado"], g(rep.by_exit), "Nenhum trade fechado neste dia.");
+    const L = r.study || {};
+    $("learnCard").hidden = false;
+    $("lrnSub").textContent = (L.days || 0) + " dias guardados · " + (L.positive_days || 0) + " no lucro · todos juntos para estudar o que se repete";
+    kpis("lrnK", [["Resultado somado", sg(L.pnl_sol), (L.days || 0) + " dias", "pnl"], ["Dias no lucro", (L.positive_days || 0) + " de " + (L.days || 0), "", "hit"],
+      ["Melhor dia", L.best ? esc(L.best.split("-").reverse().join("/")) : "–", "", "tr"], ["Pior dia", L.worst ? esc(L.worst.split("-").reverse().join("/")) : "–", "", "pos"]]);
+    let accD = 0;
+    $("lrnChart").innerHTML = lineChart((L.series || []).map((d) => { accD += d.pnl_sol || 0; return { t: new Date(d.dia + "T23:59:59Z").getTime(), v: accD, label: d.dia.split("-").reverse().join("/") + " " + (d.pnl_sol > 0 ? "+" : "") + s4(d.pnl_sol) + " SOL no dia" }; }));
+    $("lrnSug").innerHTML = "<p><b>Sugestões de melhoria (todos os dias)</b></p>" + (L.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "repetido" ? "loss" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
+    table("lrnRec", ["Problema", "Dias", "Último"], (L.recurring || []).map((x) => [esc(x.titulo), String(x.dias), esc((x.ultimo || "").split("-").reverse().join("/"))]), "Nada se repetiu ainda.");
+    table("lrnOri", ["Origem", "Dias", "Dias no lucro", "Trades", "Resultado"], (L.origins || []).map((x) => [esc(x.nome), String(x.dias), String(x.dias_positivos), String(x.trades), sg(x.pnl_sol)]), "Sem dias guardados.");
+    table("lrnDays", ["Dia", "Resultado", "Trades", "Acerto", "Saldo no fim"], (L.series || []).slice().reverse().map((d) => [esc(d.dia.split("-").reverse().join("/")), sg(d.pnl_sol), String(d.trades || 0), d.acerto == null ? "–" : f(d.acerto * 100, 0) + "%", d.equity_end == null ? "–" : s4(d.equity_end) + " SOL"]), "Sem dias guardados.");
   }
   document.addEventListener("change", (e) => { if (e.target.id === "daySel") { DAY = e.target.value; loadDaily(); } });
 

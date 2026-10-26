@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.6",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Visão geral → Relatório do dia e Aprendizado dos dias (só admin)",
+      "titulo": "Relatórios dos dias que já passaram e aprendizado de vários dias",
+      "oque": "Os dias anteriores agora têm relatório também: o sistema refaz cada dia a partir dos trades guardados (até 60 dias), com resultado, acerto, saldo no fim do dia, origens, saídas e sugestões, e guarda no banco. O quadro novo Aprendizado dos dias junta todos os dias: gráfico do resultado acumulado, melhor e pior dia, dias no lucro, problemas que se repetem (por exemplo muitos stops em 4 de 4 dias), origens que dão lucro de forma consistente e as que não dão, trader que dá prejuízo todo dia, e Sugestões de melhoria para todos os dias. Os dias aparecem também no seletor do Relatório do dia."
+    },
+    {
       "versao": "0.31.5",
       "data": "2026-10-26",
       "tipo": "novo",

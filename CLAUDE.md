@@ -606,3 +606,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `daily_report` (migração `20261026000008`, uma linha por usuário/dia com as fotos); na virada do dia (UTC) fecha o dia
   anterior e manda o resumo no Telegram (se ligado). Rota `/api/pump/daily` (admin; hoje é calculado ao vivo).
   Quadro "Relatório do dia" na Visão geral só para admin. Testes: `tests/test_daily.py`.
+
+## Relatórios dos dias passados e aprendizado de vários dias (2026-10-26, versão 0.31.6)
+- `daily.days_with_trades` + `hub.backfill_daily` (uma vez por motor, até 60 dias, só os que faltam; marcados
+  `backfilled`, sem as fotos de 30 min, com `equity_end`); também disparado pela rota se ainda não há dias passados.
+  Cada sugestão tem `tipo`; `daily.study` junta os dias: problemas que se repetem (`recurring`), origens/saídas/traders
+  somados, sugestões de vários dias. Quadro "Aprendizado dos dias" na Visão geral (admin). Onde ficam as sugestões:
+  Visão geral (dia e vários dias), Maiores traders, Aprendizado diário e Relatórios.

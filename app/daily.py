@@ -88,43 +88,46 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
 
     sug: list[dict] = []
 
-    def add(area, texto, base):
-        sug.append({"area": area, "texto": texto, "base": base})
+    def add(area, texto, base, tipo="outro"):
+        sug.append({"area": area, "tipo": tipo, "texto": texto, "base": base})
     if n >= 10 and len(wins) / n < 0.45:
         add("trades", f"Acerto do dia {len(wins) / n * 100:.0f}% em {n} trades: aperte a entrada (Configurações → Filtros: acerto mínimo do "
-            "trader, pressão de compra mínima, nota mínima) ou copie só os traders que dão lucro para você.", n)
+            "trader, pressão de compra mínima, nota mínima) ou copie só os traders que dão lucro para você.", n, tipo="acerto_baixo")
     if n >= 8 and len(stops) / n >= 0.4:
         add("lógica", f"{len(stops)} de {n} trades fecharam no stop de perda: compare em Relatórios → \"E se…\" um stop diferente e veja "
-            "em Estratégias fantasma qual regra de saída ganhou.", n)
+            "em Estratégias fantasma qual regra de saída ganhou.", n, tipo="muitos_stops")
     if len(gave_back) >= 3:
         add("lógica", f"{len(gave_back)} trades chegaram a +30% ou mais e fecharam no zero ou pior: ligue a venda em partes "
-            "(Opções novas) ou use um stop móvel mais justo.", len(gave_back))
+            "(Opções novas) ou use um stop móvel mais justo.", len(gave_back), tipo="devolveu_lucro")
     for tr in by_trader:
         if tr["trades"] >= 3 and tr["pnl_sol"] < 0 and tr["acerto"] < 0.34 and tr["nome"] not in ("manual", "?"):
             add("trades", f"O trader {tr['nome'][:4]}…{tr['nome'][-4:]} deu {tr['pnl_sol']:+.4f} SOL em {tr['trades']} cópias com "
-                f"{tr['acerto'] * 100:.0f}% de acerto: pause ou bana em Top traders.", tr["trades"])
+                f"{tr['acerto'] * 100:.0f}% de acerto: pause ou bana em Top traders.", tr["trades"], tipo="trader_ruim")
     for og in by_origin:
         if og["trades"] >= 5 and og["pnl_sol"] < 0:
             add("lógica", f"{og['nome']}: {og['pnl_sol']:+.4f} SOL em {og['trades']} trades hoje. Se repetir amanhã, desligue essa origem "
-                "até o estudo mostrar uma regra que dá lucro.", og["trades"])
+                "até o estudo mostrar uma regra que dá lucro.", og["trades"], tipo="origem_ruim")
     if inv and fees / inv >= 0.05 and n >= 5:
         add("trades", f"As taxas levaram {fees / inv * 100:.1f}% do valor investido hoje ({fees:.4f} SOL): menos trades e valor por cópia "
-            "um pouco maior diluem a taxa fixa de rede.", n)
+            "um pouco maior diluem a taxa fixa de rede.", n, tipo="taxas")
     if len(lags) >= 5 and sum(lags) / len(lags) > 5:
         add("código", f"Atraso médio das cópias {sum(lags) / len(lags):.1f} s: um RPC próprio (Configurações → Chaves) reduz o atraso e o "
-            "preço pior na entrada.", len(lags))
+            "preço pior na entrada.", len(lags), tipo="atraso")
     if top_skips and top_skips[0][1] >= 20:
         add("lógica", f"O filtro \"{top_skips[0][0]}\" barrou {top_skips[0][1]} cópias hoje: confira se ele está protegendo ou só tirando "
-            "boas entradas (Relatórios → Por que o bot não copiou).", top_skips[0][1])
+            "boas entradas (Relatórios → Por que o bot não copiou).", top_skips[0][1], tipo="filtro")
     pts = points or []
     if len(pts) >= 2 and pts[0].get("saldo") and pts[-1].get("saldo") is not None:
         ch = (pts[-1]["saldo"] / pts[0]["saldo"] - 1) * 100
         if ch <= -5:
             add("lógica", f"O saldo caiu {ch:.1f}% no dia: ligue \"Pausar depois de perdas seguidas\" (Opções novas) e o limite de perda "
-                "do dia das automáticas.", len(pts))
+                "do dia das automáticas.", len(pts), tipo="queda_saldo")
     if not sug:
-        add("info", "Sem problema claro hoje (ou poucos trades para concluir). As sugestões aparecem com base mínima.", n)
-    return {"dia": day, "trades": n, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
+        add("info", "Sem problema claro hoje (ou poucos trades para concluir). As sugestões aparecem com base mínima.", n, tipo="info")
+    start = float(pf._c("pump_sim_balance_sol", 5.0))
+    end_t = datetime.fromisoformat(day + "T23:59:59+00:00").timestamp()
+    equity_end = round(start + sum(t.get("pnl_sol") or 0 for t in trades if (_ts(t.get("closed_at")) or 0) <= end_t), 6)
+    return {"dia": day, "equity_end": equity_end, "trades": n, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
             "avg_lag_s": round(sum(lags) / len(lags), 1) if lags else None, "top_skips": [{"motivo": k, "n": v} for k, v in top_skips],
@@ -138,3 +141,74 @@ def telegram_text(rep: dict) -> str:
     for s in rep.get("suggestions") or []:
         lines.append(f"• [{s['area']}] {s['texto']}")
     return "\n".join(lines)[:3500]
+
+
+def days_with_trades(pf, before_day: str, limit: int = 60) -> list[str]:
+    """Dias (UTC) com trades fictícios fechados antes de `before_day`, os mais recentes primeiro."""
+    ds = sorted({day_of(t) for x in pf.trades(100000) if not x.get("real") and (t := _ts(x.get("closed_at")))}, reverse=True)
+    return [d for d in ds if d < before_day][:limit]
+
+
+TITLES = {"acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
+          "trader_ruim": "Trader que dá prejuízo", "origem_ruim": "Origem no prejuízo", "taxas": "Taxas altas",
+          "atraso": "Atraso alto", "filtro": "Filtro barrando demais", "queda_saldo": "Saldo caindo no dia"}
+
+
+def study(reports: list[dict]) -> dict:
+    """Aprendizado de vários dias (0.31.6): o que se repete, o que dá lucro de forma consistente e o que não dá."""
+    R = sorted([r for r in reports if r.get("dia")], key=lambda r: r["dia"])
+    n = len(R)
+    pos = [r for r in R if (r.get("pnl_sol") or 0) > 0]
+    rec: dict[str, dict] = {}
+    for r in R:
+        for s in r.get("suggestions") or []:
+            t = s.get("tipo") or "outro"
+            if t in ("info", "outro"):
+                continue
+            x = rec.setdefault(t, {"tipo": t, "titulo": TITLES.get(t, t), "dias": 0, "ultimo": None, "exemplo": None})
+            x["dias"] += 1
+            x["ultimo"], x["exemplo"] = r["dia"], s.get("texto")
+    def across(key):
+        g: dict[str, dict] = {}
+        for r in R:
+            for x in r.get(key) or []:
+                y = g.setdefault(x["nome"], {"nome": x["nome"], "dias": 0, "dias_positivos": 0, "trades": 0, "pnl_sol": 0.0})
+                y["dias"] += 1
+                y["dias_positivos"] += 1 if (x.get("pnl_sol") or 0) > 0 else 0
+                y["trades"] += x.get("trades") or 0
+                y["pnl_sol"] = round(y["pnl_sol"] + (x.get("pnl_sol") or 0), 6)
+        return sorted(g.values(), key=lambda y: y["pnl_sol"])
+    origins, exits, traders = across("by_origin"), across("by_exit"), across("by_trader")
+    sug: list[dict] = []
+    for x in sorted(rec.values(), key=lambda x: -x["dias"]):
+        if x["dias"] >= 2:
+            sug.append({"area": "repetido", "texto": f"\"{x['titulo']}\" apareceu em {x['dias']} de {n} dias: é um problema que se repete, "
+                        "não um dia ruim. Priorize essa correção.", "base": x["dias"]})
+    for o in origins:
+        if o["dias"] >= 3 and o["pnl_sol"] < 0 and o["dias_positivos"] <= o["dias"] / 3:
+            sug.append({"area": "lógica", "texto": f"{o['nome']}: {o['pnl_sol']:+.4f} SOL somando {o['dias']} dias e só {o['dias_positivos']} "
+                        "positivos: desligue essa origem até mudar a regra.", "base": o["trades"]})
+        if o["dias"] >= 3 and o["pnl_sol"] > 0 and o["dias_positivos"] >= o["dias"] * 0.6:
+            sug.append({"area": "trades", "texto": f"{o['nome']} é consistente: {o['pnl_sol']:+.4f} SOL e {o['dias_positivos']} de {o['dias']} dias "
+                        "positivos. É a melhor candidata a ganhar mais valor por trade.", "base": o["trades"]})
+    for t in traders:
+        if t["dias"] >= 2 and t["pnl_sol"] < 0 and t["dias_positivos"] == 0 and t["nome"] not in ("manual", "?"):
+            sug.append({"area": "trades", "texto": f"Trader {t['nome'][:4]}…{t['nome'][-4:]} deu prejuízo em todos os {t['dias']} dias "
+                        f"({t['pnl_sol']:+.4f} SOL): bana em Top traders.", "base": t["trades"]})
+    for e in exits:
+        if e["trades"] >= 15 and e["pnl_sol"] < 0 and e["nome"] in ("stop de perda", "tempo máximo"):
+            sug.append({"area": "lógica", "texto": f"Saída \"{e['nome']}\" somou {e['pnl_sol']:+.4f} SOL em {e['trades']} trades nos dias "
+                        "estudados: revise essa regra em Relatórios → \"E se…\" e nas Estratégias fantasma.", "base": e["trades"]})
+    if n >= 5 and len(pos) / n < 0.4:
+        sug.append({"area": "lógica", "texto": f"Só {len(pos)} de {n} dias fecharam no lucro: a estratégia atual não está pagando. Reduza o "
+                    "valor por trade e teste mudanças uma de cada vez no simulado.", "base": n})
+    if not sug:
+        sug.append({"area": "info", "texto": "Ainda sem padrão que se repita: o estudo melhora a cada dia guardado.", "base": n})
+    total = round(sum(r.get("pnl_sol") or 0 for r in R), 6)
+    return {"days": n, "positive_days": len(pos), "pnl_sol": total,
+            "best": max(R, key=lambda r: r.get("pnl_sol") or 0)["dia"] if R else None,
+            "worst": min(R, key=lambda r: r.get("pnl_sol") or 0)["dia"] if R else None,
+            "series": [{"dia": r["dia"], "pnl_sol": r.get("pnl_sol") or 0, "equity_end": r.get("equity_end"),
+                        "trades": r.get("trades"), "acerto": r.get("acerto")} for r in R],
+            "recurring": sorted(rec.values(), key=lambda x: -x["dias"]), "origins": origins, "exits": exits,
+            "traders": traders[:10], "suggestions": sug}

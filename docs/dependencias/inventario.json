@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "bb63f93efd00389193f7dcfc2b9cc7ce6d035d93",
-    "application_version": "0.31.5 · 2026-10-26 · Relatório do dia com sugestões",
+    "repository_reference": "27a4b3d4a0dfc5dbf91d8b8a59e6853fb81fd2e9",
+    "application_version": "0.31.6 · 2026-10-26 · Relatórios dos dias passados e aprendizado de vários dias",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "0b7982d74fed12b25fe56f2a2f86e76962862b9625330ef719af9b1b9adb2cb6",
+      "app/version.py": "4b07d6e32ac15d700dc06ad0aa29f28ad377d3929c35d77795cb8e6b3aec05e4",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "b03a616d123a0f7a7b5b47c83bc267c4503385d9b19f4a4f4f581e8c356eb76c",
+      "web/app.html": "0c7990273f6e9e4f05a2e3417bb2f8608bd70d2f054686754c96d64f46b7ebcc",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5bd48d0c7923612b399fdd89186c08aa293e5762b968942fd1e665c6bcfceaf4"
+  "pdf_sha256": "6527aa9779ecfda0f979b9f47ff6c968e1aad244119e3351a46580000fd74ff5"
 }

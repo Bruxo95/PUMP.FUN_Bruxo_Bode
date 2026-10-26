@@ -249,7 +249,19 @@ def create_app(hub, auth, cfg) -> FastAPI:
             rep = saved.get(dia) or build(pf, dia, pts)
         hist = [{"dia": d, "pnl_sol": x.get("pnl_sol"), "trades": x.get("trades"), "acerto": x.get("acerto"),
                  "sugestoes": len(x.get("suggestions") or []), "closed": bool(x.get("closed"))} for d, x in saved.items()]
-        return {"report": rep, "days": hist, "today": today}
+        if not [d for d in saved if d != today]:                 # ainda sem dias passados guardados: refaz agora
+            try:
+                pf._daily_backfilled = False
+                if await hub.backfill_daily():
+                    rows = await hub.db.select("daily_report", {"user_id": pf.user_id}, order="dia.desc", limit=30)
+                    saved = {str(r.get("dia")): (r.get("data") or {}) for r in rows}
+                    hist = [{"dia": d, "pnl_sol": x.get("pnl_sol"), "trades": x.get("trades"), "acerto": x.get("acerto"),
+                             "sugestoes": len(x.get("suggestions") or []), "closed": bool(x.get("closed"))} for d, x in saved.items()]
+            except Exception:
+                pass
+        from .daily import study
+        past = [x for d, x in saved.items() if d != today]
+        return {"report": rep, "days": hist, "today": today, "study": study(past + [rep])}
 
     @app.get("/api/pump/elite/steps")
     async def pump_elite_steps(only80: int = 1, pf=Depends(admin_engine)):

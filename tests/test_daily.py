@@ -62,3 +62,25 @@ def test_hub_saves_points_and_closes_previous_day_with_telegram(env):
     old = c.get("/api/pump/daily?dia=" + prev, headers=tok(UA)).json()
     assert old["report"]["closed"] is True
     assert c.get("/api/pump/daily", headers=tok(UB, "b@x.com")).status_code == 403
+
+
+def test_past_days_are_rebuilt_saved_and_studied(env):
+    """0.31.6: dias que já passaram viram relatório (a partir dos trades) e entram no aprendizado de vários dias."""
+    from app.daily import day_of
+    c, hub, db = env["c"], env["hub"], env["db"]
+    c.get("/api/pump", headers=tok(UA))
+    pf = hub.engines[UA]
+    now = time.time()
+    for d in (1, 2, 3):
+        _trades(pf, now - d * 86400)
+    assert asyncio.run(hub.backfill_daily(now)) == 3
+    assert asyncio.run(hub.backfill_daily(now)) == 0                       # uma vez só
+    saved = {r["dia"]: r["data"] for r in db.tables["daily_report"]}
+    d1 = day_of(now - 86400)
+    assert saved[d1]["closed"] and saved[d1]["backfilled"] and saved[d1]["trades"] == 10
+    assert saved[d1]["equity_end"] is not None
+    r = c.get("/api/pump/daily", headers=tok(UA)).json()
+    st = r["study"]
+    assert st["days"] >= 3 and st["positive_days"] == 0
+    assert any(x["tipo"] == "muitos_stops" and x["dias"] >= 3 for x in st["recurring"])
+    assert any(s["area"] == "repetido" for s in st["suggestions"])

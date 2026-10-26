@@ -600,8 +600,38 @@ class PumpHub:
                 break                                   # tabela ausente/banco fora: tenta na próxima rodada
         return n
 
+    async def backfill_daily(self, now: float | None = None) -> int:
+        """Relatórios dos dias que já passaram (0.31.6), refeitos a partir dos trades guardados: um por dia com trade,
+        até 60 dias, só os que ainda não existem. Sem as fotos de 30 min (não existiam), com o saldo do fim do dia."""
+        from .daily import build, day_of, days_with_trades
+        now = time.time() if now is None else now
+        n = 0
+        for uid, pf in list(self.engines.items()):
+            if getattr(pf, "_daily_backfilled", False):
+                continue
+            try:
+                have = {str(r.get("dia")) for r in await self.db.select("daily_report", {"user_id": uid}, columns="dia", limit=400)}
+                for d in days_with_trades(pf, day_of(now)):
+                    if d in have:
+                        continue
+                    rep = build(pf, d, [])
+                    rep.update(closed=True, backfilled=True)
+                    await self.db.insert("daily_report", {"user_id": uid, "dia": d, "data": rep,
+                                                          "atualizado_em": datetime.now(timezone.utc).isoformat()},
+                                         upsert=True, on_conflict="user_id,dia")
+                    n += 1
+                pf._daily_backfilled = True
+            except Exception as e:
+                log.warning("Relatórios dos dias passados não gravaram (%s…): %s", uid[:8], str(e)[:160])
+                break
+        return n
+
     async def daily_loop(self) -> None:
         await asyncio.sleep(60)
+        try:
+            await self.backfill_daily()
+        except Exception as e:
+            log.warning("relatórios passados: %s", str(e)[:160])
         while True:
             await self.save_daily()
             await asyncio.sleep(1800)
