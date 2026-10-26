@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.20",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Explorar, Configurações, Opções novas, Base da pump.fun e Maiores traders",
+      "titulo": "Quadros de opções fechados (sanfona)",
+      "oque": "Os quadros cheios de opções começam fechados, mostrando só o título (e o botão ON/OFF e o Compartilhar, quando houver). Clique no título para abrir ou fechar; a seta mostra o estado e o navegador lembra a sua escolha. Vale para Entrada automática e Proteções das automáticas no Explorar, as seções de Configurações (inclusive Chaves pessoais), Opções novas, Botão Comprar e Compra automática da Base e Compra automática pelos sinais. Execução real e as telas de relatório continuam abertas."
+    },
+    {
       "versao": "0.31.19",
       "data": "2026-10-26",
       "tipo": "novo",

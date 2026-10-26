@@ -67,6 +67,25 @@
       '<div class="hint muted">Opções: ' + esc((o.nomes || []).join(", ")) + "</div></div>").join("");
   }
   const cfgShareCards = () => [...document.querySelectorAll('[data-view="config"] .card')].filter((c) => c.querySelector("[data-cfsh]"));
+  // sanfona (0.31.20): quadro com 3+ opções (ou as chaves pessoais) começa fechado; clique no título abre/fecha e a
+  // escolha fica lembrada neste navegador. Execução real e relatórios ficam sempre abertos.
+  function sanfona() {
+    let saved = {}; try { saved = JSON.parse(localStorage.getItem("pf_sanf") || "{}"); } catch (e) { /* */ }
+    document.querySelectorAll("section.view .card").forEach((card, i) => {
+      const view = card.closest("section.view").dataset.view, h = card.querySelector(":scope > header");
+      if (!h || card.classList.contains("sanf") || ["real", "estudo"].includes(view) || /Share$/.test(card.id || "")) return;
+      if (card.id !== "secretsCard" && card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").length < 3) return;
+      const key = view + ":" + ((card.querySelector("h2") || {}).textContent || i).toString().trim().slice(0, 40);
+      card.classList.add("sanf"); card.classList.toggle("fechado", saved[key] !== 1);
+      h.setAttribute("aria-expanded", String(saved[key] === 1)); h.title = "Clique para abrir ou fechar";
+      h.addEventListener("click", (e) => {
+        if (e.target.closest("button,input,select,a,label")) return;
+        const open = card.classList.toggle("fechado") === false;
+        h.setAttribute("aria-expanded", String(open));
+        try { const s = JSON.parse(localStorage.getItem("pf_sanf") || "{}"); s[key] = open ? 1 : 0; localStorage.setItem("pf_sanf", JSON.stringify(s)); } catch (err) { /* */ }
+      });
+    });
+  }
   function cfgShareButtons() {
     if (!(ME && ME.role === "admin")) return;
     $("cfShareTop").hidden = false;
@@ -1646,6 +1665,7 @@
     await poll(true);
     walletLoad(false);
     cfgShareButtons();
+    sanfona();
     loadOffers();
     setInterval(loadOffers, 30000);
     setInterval(() => poll(false), 2000);

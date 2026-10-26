@@ -483,3 +483,11 @@ select.in{padding-right:24px}
 .chartbox .bup{fill:var(--up)}.chartbox .bdn{fill:var(--down)}.chartbox .dot{fill:var(--text)}
 .chartbox .hit{fill:transparent}.chartbox .hit:hover+.tip,.chartbox .tipg:hover .tip{opacity:1}
 .chartbox .tip{opacity:0;pointer-events:none}.chartbox .tip rect{fill:#141416;stroke:#33333a}.chartbox .tip text{fill:var(--text)}
+
+/* sanfona (0.31.20, pedido do dono: quadros de opções começam fechados para economizar espaço) */
+.card.sanf > header{cursor:pointer;user-select:none}
+.card.sanf > header h2::before{content:"BE";display:inline-block;width:1.1em;color:var(--muted,#8a8f98);transition:transform .15s}
+.card.sanf.fechado > header h2::before{transform:rotate(-90deg)}
+.card.sanf.fechado > :not(header){display:none!important}
+.card.sanf.fechado > header{margin-bottom:0}
+@media (prefers-reduced-motion:reduce){.card.sanf > header h2::before{transition:none}}

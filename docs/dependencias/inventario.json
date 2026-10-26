@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "965ecd2acdf77fb5b1c6d2f0993af5da369ab087",
-    "application_version": "0.31.19 · 2026-10-26 · Ganhou e perdeu no Explorar",
+    "repository_reference": "8abccf34e86d8dbb26d3c8bf244e23d8d2e398e7",
+    "application_version": "0.31.20 · 2026-10-26 · Quadros de opções em sanfona",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "0c39fd72a72be6e5b307556222abc8dc10b5fc47f1f599d0fad81a9ad648364e",
+      "app/version.py": "5887e63dc8945e46bebd17d404c6e65820e59d70adaf521850f210fe3ad4fb00",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "2dfe3a40e86d3958994eb5d4911a338e561f04c13292831cf59e4d0768748d58"
+  "pdf_sha256": "094a4325f946710f38089b9de9072d8025a469dc84d4219fcb8a4a335818b647"
 }

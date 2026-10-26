@@ -697,3 +697,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.19: Explorar → Minhas operações automáticas ganhou "Ganhou × perdeu" (`#exAutoWL`, calculado no navegador a partir
   de `items` de `/api/pump/auto-trades`) e filtro Todas/Ganhou/Perdeu/Abertas (`EX_AUTO.filt`). Pedido do dono.
+
+- 0.31.20: sanfona (`sanfona()` em `web/app.js`, classes `.sanf`/`.fechado` em `app.css`): cartão com 3+ `data-cfg/
+  toggle/set` (ou `#secretsCard`) começa fechado; estado em `localStorage` `pf_sanf`. Fora: telas `real` e `estudo` e
+  os painéis `*Share`. Pedido do dono.
