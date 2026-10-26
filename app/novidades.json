@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.23.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Base da pump.fun",
+      "titulo": "Botão Comprar, lista Subindo agora e explicação da Base da pump.fun",
+      "oque": "A Base da pump.fun ganhou a lista Subindo agora (tokens ainda vigiados que já subiram desde a criação, com o histórico do criador) e o botão Comprar, também na lista dos que subiram: compra na hora, sem abrir outra tela, na carteira fictícia (valor de SOL por cópia) e na real só se a Execução real estiver ligada. A compra entra em Posições e segue o seu stop e as suas saídas. A tela agora explica o que faz e o que cada rótulo quer dizer, atualiza sozinha a cada 20 s, e token que já nasce com a curva completa ganha o rótulo nasceu graduado (antes contava errado como subiu)."
+    },
+    {
       "versao": "0.22.0",
       "data": "2026-10-26",
       "tipo": "melhoria",

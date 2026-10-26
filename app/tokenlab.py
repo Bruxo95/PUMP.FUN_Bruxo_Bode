@@ -30,6 +30,10 @@ def _hour(t: float) -> str:
 def label(mcap0: float | None, snaps: dict, graduated: bool) -> str:
     vals = [v for v in snaps.values() if v]
     if graduated:
+        # já nasceu com a curva completa (o criador comprou quase tudo): não "subiu" nada (visto no GTA6, 2026-10-26)
+        # (a foto de quem gradua guarda o market cap anterior, então só o valor da criação serve de sinal)
+        if mcap0 and mcap0 >= 300:
+            return "nasceu graduado"
         return "graduou"
     if not mcap0 or not vals:
         return "sem dado"
@@ -136,6 +140,20 @@ class TokenLab:
             self.new_rows.append(out)
         return out
 
+    def rising(self, t: float, n: int = 15) -> list[dict]:
+        """Tokens ainda em observação que mais subiram desde a criação (pela última foto) — para comprar a tempo."""
+        out = []
+        for r in self.live.values():
+            vals = [v for v in r["snaps"].values() if v]
+            if not vals or not r["mcap0"]:
+                continue
+            tk = self.market.tokens.get(r["mint"]) or {}
+            out.append({"mint": r["mint"], "symbol": r["symbol"], "name": r["name"], "creator": r["creator"],
+                        "mcap0": r["mcap0"], "mcap": vals[-1], "gain_pct": round((vals[-1] / r["mcap0"] - 1) * 100, 1),
+                        "age_min": round((t - r["t0"]) / 60, 1), "fotos": len(r["snaps"]),
+                        "price": bool(tk.get("price")), "creator_stats": self.creator_info(r["creator"])})
+        return sorted([x for x in out if x["gain_pct"] > 0], key=lambda x: -x["gain_pct"])[:n]
+
     def creator_info(self, cr: str | None) -> dict | None:
         c = self.creators.get(cr) if cr else None
         return dict(c) if c else None
@@ -189,7 +207,9 @@ class TokenLab:
         return {"since": self.since, "live": len(self.live), "dropped": self.dropped, "max_per_min": MAX_PER_MIN,
                 "day": {"finished": len(day), "up": len(ups),
                         "labels": {lb: sum(1 for r in day if r["label"] == lb) for lb in
-                                   ("graduou", "5x", "2x", "subiu pouco", "morreu", "despencou", "sem dado")}},
+                                   ("graduou", "5x", "2x", "subiu pouco", "morreu", "despencou", "nasceu graduado",
+                                    "sem dado")}},
+                "rising": self.rising(t),
                 "hours": hours,
                 "words": [{"word": w, "up": n, "all": a} for w, n, a in hot],
                 "bad_creators": [{"creator": k, **v} for k, v in crs[:20]],

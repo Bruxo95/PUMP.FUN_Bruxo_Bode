@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "d72b3ee3a11db159036efbd3cae36ff8d0a4873d",
-    "application_version": "0.22.0 · 2026-10-26 · Simulador e se e onde o dinheiro vai",
+    "repository_reference": "276b80129e6578c7b01ccbdc40a8effc069c5c82",
+    "application_version": "0.23.0 · 2026-10-26 · Botão Comprar na Base da pump.fun",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "f4835d5d80a6916f3bbeca9fbd211aaedecf2056c32bab5c85a4bcf66b494172",
+      "app/version.py": "7deb4aa192a8d7e62c36976e4fa93d553a9dcc4427ebc64d84f812b30f38673b",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "f0cffb97b19726a8c1cbcb539e6af4421782be2cb4c81b05b9890a305c5de279",
+      "web/app.html": "125506f442ee7eaa5d3c06f1b9689662618489b5d7e511734a2142714f7b1223",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "1d8e84970a668bd9bf3181f61c6df254e66f69623557e45cc0a17a40ce301462"
+  "pdf_sha256": "39ce4b070e9264d10981ecff0f82b84b48023f54ca33afb99c4436bc84d9a1ef"
 }

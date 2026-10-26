@@ -89,7 +89,9 @@
 
   // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
   // ------------------------------------------------------------------ base da pump.fun (/api/pump/base, 0.21.0)
+  let BS_T = null;
   async function loadBase() {
+    clearTimeout(BS_T); BS_T = setTimeout(() => { if (VIEW === "base") loadBase(); }, 20000);
     const r = await BB.api("/api/pump/base");
     if (r.error) { toast(r.error); return; }
     const d = r.day || {}, L = d.labels || {}, pc = (a, b) => (b ? f(a / b * 100, 0) + "%" : "–");
@@ -100,7 +102,11 @@
     table("bsHours", ["Hora", "Criados", "Observados", "Fechados", "Subiram", "Graduaram", "Despencaram", "Morreram"], (r.hours || []).slice().reverse().map((h) => [hr(h.hora), String(h.created), String(h.tracked), String(h.finished),
       h.up_pct == null ? "–" : f(h.up_pct, 1) + "%", String(h.grad), h.rug_pct == null ? "–" : f(h.rug_pct, 1) + "%", h.dead_pct == null ? "–" : f(h.dead_pct, 1) + "%"]), "Ainda sem dados: a primeira hora fecha em até 60 min.");
     table("bsWords", ["Palavra", "Subiram", "Criados"], (r.words || []).map((w) => [esc(w.word), String(w.up), String(w.all)]), "Nenhuma palavra repetida entre os que subiram.");
-    table("bsUp", ["Token", "Rótulo", "Market cap inicial → pico", "Criado"], (r.recent_up || []).map((x) => [pfM(x.mint, x.symbol), '<span class="tag win">' + esc(x.label) + "</span>", f(x.mcap0 || 0, 0) + " → " + f(x.peak || 0, 0) + " SOL", dt(x.created_at)]), "Nenhum ainda.");
+    const buy = (m, s) => '<button class="btn sm primary" data-buy="' + esc(m) + '" data-sym="' + esc(s || "") + '">Comprar</button>';
+    table("bsRise", ["Token", "Ganho", "Market cap início → última foto", "Idade", "Criador", ""], (r.rising || []).map((x) => [pfM(x.mint, x.symbol), '<span class="up">+' + f(x.gain_pct, 0) + "%</span>",
+      f(x.mcap0, 0) + " → " + f(x.mcap, 0) + " SOL", f(x.age_min, 0) + " min · " + x.fotos + "/4 fotos",
+      x.creator_stats ? x.creator_stats.tokens + " tokens · " + x.creator_stats.x2 + " subiram · " + x.creator_stats.rugs + " despencaram" : "novo", buy(x.mint, x.symbol)]), "Nenhum token em observação subiu ainda.");
+    table("bsUp", ["Token", "Rótulo", "Market cap inicial → pico", "Criado", ""], (r.recent_up || []).map((x) => [pfM(x.mint, x.symbol), '<span class="tag win">' + esc(x.label) + "</span>", f(x.mcap0 || 0, 0) + " → " + f(x.peak || 0, 0) + " SOL", dt(x.created_at), buy(x.mint, x.symbol)]), "Nenhum ainda.");
     const crt = (L2) => (L2 || []).map((c) => [pfW(c.creator), String(c.tokens), String(c.x2), String(c.rugs)]);
     table("bsBad", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.bad_creators), "Nenhum criador com 2+ tokens ainda.");
     table("bsGood", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.good_creators), "Nenhum ainda.");
@@ -123,6 +129,15 @@
       return loadBlacklist();
     }
     if (t.dataset.blr) { if (!confirm("Tirar da lista negra?")) return; const r = await BB.api("/api/pump/blacklist", { body: { endereco: t.dataset.blr, action: "remove" } }); toast(r.error || "Removido."); return loadBlacklist(); }
+    if (t.dataset.buy) {
+      const amt = cfg().pump_copy_sol, real = !!(D && D.real && D.real.enabled);
+      if (!confirm("Comprar " + (t.dataset.sym || "este token") + " agora?\n\nCarteira fictícia: " + amt + " SOL" + (real ? "\nCarteira REAL: até " + cfg().pump_real_max_sol + " SOL (execução real ligada)" : "\nCarteira real: não (execução real desligada)"))) return;
+      t.disabled = true;
+      const r = await BB.api("/api/pump/manual-buy", { body: { mint: t.dataset.buy } });
+      t.disabled = false;
+      toast(r.error ? "Não comprou: " + r.error : "Fictícia: " + r.sim + (r.real ? " · Real: " + r.real : ""));
+      poll(true); return;
+    }
     if (t.id === "tgTest") { const r = await BB.api("/api/pump/telegram/test", { body: {} }); toast(r.error ? "Não enviou: " + r.error : "Enviado. Confira o Telegram."); }
   });
 

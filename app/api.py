@@ -190,6 +190,22 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""
         return hub.lab.snapshot()
 
+    @app.post("/api/pump/manual-buy")
+    async def manual_buy(body: dict, pf=Depends(admin_engine)):
+        """Botão Comprar (0.23.0): compra manual na fictícia (e na real só se ela estiver ligada)."""
+        mint = str(body.get("mint") or "").strip()
+        if not pf.valid_addr(mint):
+            return {"error": "endereço de token inválido"}
+        if not (pf.tokens.get(mint) or {}).get("price") and hub.monitor is not None:
+            try:                                                   # preço na hora, direto da curva on-chain
+                await hub.monitor.svc._curve_prices([mint], public_first=True)
+            except Exception:
+                pass
+        r = pf.manual_buy(mint)
+        if not r.get("error"):
+            await audit(hub.db, pf.user_id, "compra manual", f"{mint[:6]}… · fictícia: {r.get('sim')} · real: {r.get('real') or 'desligada'}")
+        return r
+
     @app.post("/api/pump/telegram/test")
     async def telegram_test(pf=Depends(admin_engine)):
         ok, err = await hub.tg_send_now(pf, "PUMP FUN COPY: teste de aviso no Telegram ✅", force=True)

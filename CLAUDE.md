@@ -466,3 +466,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Pedido "faz tudo" de 2026-10-26 entregue em 0.18.0–0.22.0. NÃO feito, por regra do projeto: velocidade para o modo
   real (RPC próprio/gRPC, Jito) — o real segue travado. Previsão por modelo fica para quando houver semanas de dados
   na base da pump.fun; por enquanto a calibração é a tabela "Nota da entrada × resultado".
+
+## Botão Comprar na Base da pump.fun (2026-10-26, versão 0.23.0)
+- Pedido do dono: comprar direto da tela ("não dá tempo de abrir e comprar"). `PumpFun.manual_buy` (sem filtros de
+  cópia; `wallet="manual"`, `p["manual"]=True`): fictícia sempre; real só com `pump_real_enabled`, pela fila
+  `_rq_put("buy")` (mesmos limites e `_real_buy`). Rota `POST /api/pump/manual-buy` (admin; lê a curva na hora se não
+  houver preço; `audit_log` "compra manual"). O real continua travado por `PUMP_REAL_ALLOWED`.
+- `TokenLab.rising()` → lista "Subindo agora"; rótulo "nasceu graduado" quando o market cap da criação já é ≥ 300 SOL
+  (caso GTA6). Tela com "Como ler esta tela" e atualização a cada 20 s. Testes: `tests/test_compra_manual.py`.

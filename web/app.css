@@ -439,3 +439,5 @@ select.in{padding-right:24px}
 @media (prefers-reduced-motion:reduce){.navgrp-h .chev{transition:none}}
 .side .nav .navgrp,.side .nav .navgrp-h{flex-shrink:0}
 .navgrp[hidden]{display:none}
+/* Base da pump.fun: texto "Como ler esta tela" (0.23.0) */
+.help p{margin:0 0 10px;line-height:1.55;color:var(--muted)}.help b{color:var(--text)}.help .tag{margin:0 2px}

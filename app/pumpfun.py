@@ -1580,6 +1580,57 @@ class PumpFun:
         score = round(sum(parts[k] * W[k] for k in parts) / tot * 100, 1) if tot else 50.0
         return score, {k: round(v * 100) for k, v in parts.items()}
 
+    def manual_buy(self, mint: str, t: float | None = None) -> dict:
+        """Compra manual (0.23.0, botão Comprar da Base da pump.fun): sem os filtros de cópia, porque foi você que
+        decidiu. Sempre compra na carteira fictícia (valor de "SOL por cópia"); na real só se a execução real estiver
+        ligada, pela mesma fila, limites e verificações da compra real. Depois segue stops e saídas normais."""
+        t = t or time.time()
+        tk = self.tokens.get(mint) or {}
+        px = tk.get("price")
+        if not px:
+            return {"error": "sem preço do token agora; tente de novo em alguns segundos"}
+        sym = tk.get("symbol") or short(mint)
+        allpos = self.positions()
+        base = {"wallet": "manual", "short": "você", "mint": mint, "symbol": sym, "kind": "buy",
+                "mcap_sol": tk.get("mcap_sol")}
+        out: dict = {"ok": True, "sim": None, "real": None}
+        amt = float(self._c("pump_copy_sol", 0.1))
+        fr = self._fee_rates(mint)
+        if any(p["mint"] == mint and not p.get("real") for p in allpos):
+            out["sim"] = "já tem posição fictícia neste token"
+        elif len([p for p in allpos if not p.get("real")]) >= int(self._c("pump_max_open", 10)):
+            out["sim"] = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
+        elif self.wallet()["cash_sol"] < amt + fr["prio"]:
+            out["sim"] = "saldo fictício insuficiente"
+        else:
+            slip, prio, fee = fr["slip"], fr["prio"], fr["venue"] + fr["portal"]
+            price_in, net_in = px * (1 + slip), amt * (1 - fee)
+            tokens = net_in / price_in
+            score, sparts = self.entry_score("manual", mint, None, px)
+            p = {"opened_at": now_iso(), "open_t": t, "wallet": "manual", "mint": mint, "symbol": sym,
+                 "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
+                 "price_now": px, "trader_price": px, "trader_sol": 0.0, "proceeds": 0.0, "fees_sol": amt * fee + prio,
+                 "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": None,
+                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True}
+            self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
+                         slippage=net_in - net_in / (1 + slip))
+            self._save_pos(p)
+            self._feed(**base, sol=round(amt, 4), action="comprou (manual)", reason=f"você comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}")
+            self._emit(f"[PUMP SIM] compra manual: {sym} {amt:.3f} SOL")
+            out["sim"] = f"comprou {amt:.3f} SOL na carteira fictícia"
+        if self.real is not None and getattr(self.cfg, "pump_real_enabled", False):
+            if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
+                out["real"] = "já tem posição REAL neste token"
+            elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
+                out["real"] = f"limite de {int(self._c('pump_real_max_open', 5))} posições reais"
+            else:
+                self._real_buying.add(mint)
+                self._rq_put(("buy", {"wallet": "manual", "mint": mint, "symbol": sym, "trader_sol": 0.0,
+                                      "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t}))
+                self._feed(**base, action="REAL: comprando", reason="compra manual enviada para a fila real")
+                out["real"] = f"enviando compra real de até {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL"
+        return out
+
     def blacklist_add(self, addr: str, tipo: str, motivo: str) -> None:
         """Lista negra COMPARTILHADA (0.20.0): o que um usuário descobre protege todos. Entra sozinho o criador de
         token que deu rug ou que vendeu e deixou a cópia no prejuízo; o admin também adiciona e remove."""
