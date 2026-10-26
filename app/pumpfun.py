@@ -1347,25 +1347,30 @@ class PumpFun:
             try:
                 async with websockets.connect(self._ws_url(), open_timeout=15, ping_interval=20,
                                               max_size=2 ** 22) as ws:
+                    connected_time = time.time()
                     self.rpc_status.update(ws=True, connected_at=now_iso(), error=None)
                     log.info("Pump.fun: monitor de carteiras conectado (Solana RPC)")
-                    backoff = 2.0
                     self._rpc_subs, pending, nid = {}, {}, 100
                     while True:
+                        if time.time() - connected_time > 30.0:
+                            backoff = 2.0
                         # copiados + todos do top (só para o status online; trades só dos copiados viram cópia)
-                        want = set(self.followed) | {r["wallet"] for r in self.leaderboard[:60]}
+                        lb_wallets = {r["wallet"] for r in self.leaderboard[:20] if r.get("wallet")}
+                        want = set(self.followed) | lb_wallets
                         have = set(self._rpc_subs.values()) | set(pending.values())
                         for w in sorted(want - have):
                             nid += 1
                             pending[nid] = w
                             await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsSubscribe",
                                                       "params": [{"mentions": [w]}, {"commitment": "confirmed"}]}))
+                            await asyncio.sleep(0.05)
                         for sid, w in list(self._rpc_subs.items()):
                             if w not in want:
                                 nid += 1
                                 del self._rpc_subs[sid]
                                 await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsUnsubscribe",
                                                           "params": [sid]}))
+                                await asyncio.sleep(0.05)
                         self.rpc_status["subs"] = len(self._rpc_subs)
                         try:
                             raw = await asyncio.wait_for(ws.recv(), 2.0)

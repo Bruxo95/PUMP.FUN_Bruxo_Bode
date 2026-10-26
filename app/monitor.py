@@ -63,11 +63,19 @@ class SharedMonitor:
         return out
 
     def watch_set(self) -> set:
-        """Carteiras assinadas no WebSocket: copiadas por alguém + top 60 de cada leaderboard (status online)."""
+        """Carteiras assinadas no WebSocket: copiadas por alguém + carteiras em estudo + top 20 do leaderboard (status online).
+        Limitado a 100 carteiras para evitar ultrapassar o limite de subscrições do RPC WebSocket."""
         out = self.union_followed()
         for e in self.engines():
-            out |= {r["wallet"] for r in e.leaderboard[:60]}
             out |= set(getattr(e, "study", []) or [])          # carteiras em estudo (0.14.0)
+        lb_wallets = set()
+        for e in self.engines():
+            lb_wallets |= {r["wallet"] for r in e.leaderboard[:20] if r.get("wallet")}
+        # Adiciona carteiras do leaderboard até atingir o limite máximo de 100
+        for w in sorted(lb_wallets):
+            if len(out) >= 100:
+                break
+            out.add(w)
         return out
 
     # ------------------------------------------------------------------ entrega de um evento a todos
@@ -103,11 +111,15 @@ class SharedMonitor:
             try:
                 url = str(self.hub.cfg.defaults.get("pump_rpc_ws") or "wss://api.mainnet-beta.solana.com")
                 async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
+                    connected_time = time.time()
                     st.update(ws=True, connected_at=now_iso(), error=None)
                     log.info("Monitor compartilhado conectado à Solana")
-                    backoff = 2.0
                     self._subs, pending, nid = {}, {}, 100
                     while True:
+                        # Reset do backoff se a conexão permaneceu estável por mais de 30s
+                        if time.time() - connected_time > 30.0:
+                            backoff = 2.0
+
                         want = self.watch_set()
                         have = set(self._subs.values()) | set(pending.values())
                         for w in sorted(want - have):
@@ -115,12 +127,14 @@ class SharedMonitor:
                             pending[nid] = w
                             await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsSubscribe",
                                                       "params": [{"mentions": [w]}, {"commitment": "confirmed"}]}))
+                            await asyncio.sleep(0.05)  # Throttle subscrições para evitar rate limit (1013)
                         for sid, w in list(self._subs.items()):
                             if w not in want:
                                 nid += 1
                                 del self._subs[sid]
                                 await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsUnsubscribe",
                                                           "params": [sid]}))
+                                await asyncio.sleep(0.05)
                         st["subs"] = len(self._subs)
                         try:
                             raw = await asyncio.wait_for(ws.recv(), 2.0)
