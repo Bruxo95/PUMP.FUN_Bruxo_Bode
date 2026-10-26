@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.4",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Maiores traders → Steps ao vivo",
+      "titulo": "Copiar sozinho os traders com 80%+ de acerto e ver cada passo ao vivo",
+      "oque": "Os maiores traders com 80% ou mais de acerto (e 100+ trades) passam a ser copiados automaticamente: o robô compra quando eles compram e vende a mesma parte quando eles vendem, com as suas regras de Configurações. Vem ligado (botão ON/OFF), só na carteira fictícia. A aba nova Steps ao vivo, no fim da tela, mostra cada compra e venda deles a cada 5 segundos, ao lado do que o robô fez (copiou, vendeu, não copiou e por quê) e de como está a sua posição naquele token. Dá para ver só os 80%+ ou todos os maiores traders."
+    },
+    {
       "versao": "0.31.3",
       "data": "2026-10-26",
       "tipo": "melhoria",

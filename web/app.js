@@ -136,6 +136,28 @@
       return '<g class="tipg"><text x="0" y="' + (y + 15) + '">' + svgEsc(r.label.slice(0, 30)) + '</text><rect class="' + (r.v >= 0 ? "bup" : "bdn") + '" x="' + x + '" y="' + (y + 4) + '" width="' + w + '" height="14" rx="3"><title>' + svgEsc(r.label + ": " + (r.v > 0 ? "+" : "") + r.v.toFixed(1) + "% em média · " + r.n + " sinais") + '</title></rect><text x="' + (W - 60) + '" y="' + (y + 15) + '">' + (r.v > 0 ? "+" : "") + r.v.toFixed(0) + "%</text></g>";
     }).join("") + "</svg>";
   }
+  let STP80 = 1, STP_T = null;
+  async function loadSteps() {
+    clearTimeout(STP_T); STP_T = setTimeout(() => { if (VIEW === "elite") loadSteps(); }, 5000);
+    const r = await BB.api("/api/pump/elite/steps?only80=" + STP80);
+    if (r.error) return;
+    $("stpFol").textContent = (r.following || []).length + " de " + (r.recommended || []).length + " sugeridos sendo copiados agora";
+    const act = (x) => {
+      const a = x.bot_action || "";
+      if (!a) return '<span class="muted">' + (x.kind === "buy" ? "não visto pelo robô" : "–") + "</span>";
+      const cls = /não copiou|falhou/.test(a) ? "loss" : /aguardando|segurando/.test(a) ? "pause" : "win";
+      return '<span class="tag ' + cls + '">' + esc(a) + "</span>" + (x.bot_reason ? "<small>" + esc(x.bot_reason) + "</small>" : "");
+    };
+    const posi = (p) => !p ? "–" : p.open ? '<span class="tag sim">aberta</span> ' + (p.chg_pct == null ? "" : '<span class="' + (p.chg_pct >= 0 ? "up" : "down") + '">' + (p.chg_pct > 0 ? "+" : "") + f(p.chg_pct, 1) + "%</span>")
+      : '<span class="tag neutral">fechada</span> ' + sg(p.pnl_sol) + (p.reason ? "<small>" + esc(p.reason) + "</small>" : "");
+    table("stpTbl", ["Quando", "Trader", "Fez", "Token", "SOL", "O robô", "Sua posição"], (r.steps || []).map((x) => [dt(x.t * 1000), esc(x.name),
+      x.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', pfM(x.mint, x.symbol), s4(x.sol), act(x), posi(x.position)]),
+      STP80 ? "Nenhum passo dos sugeridos (80%+) desde que o servidor ligou." : "Nenhum passo dos maiores traders desde que o servidor ligou.");
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("#stpTabs button"); if (!b) return;
+    STP80 = +b.dataset.stp80; document.querySelectorAll("#stpTabs button").forEach((x) => x.classList.toggle("on", x === b)); loadSteps();
+  });
   async function loadElite() {
     clearTimeout(EL_T); EL_T = setTimeout(() => { if (VIEW === "elite") loadElite(); }, 20000);
     const r = await BB.api("/api/pump/elite");
@@ -763,7 +785,7 @@
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
     if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); }
-    if (VIEW === "elite") loadElite();
+    if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);

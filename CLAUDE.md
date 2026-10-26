@@ -592,3 +592,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `Elite.recommended()` (acerto ≥80% e ≥100 trades), `PumpFun.wallet_age` (até 4 páginas de 1.000 assinaturas no RPC
   grátis; mais que isso = "pelo menos", `more=True`), `SharedMonitor.elite_info_once` (saldo via `wallet_value` e idade,
   3 consultas por minuto). "Portfólio" = SOL + USDC/USDT; memecoins que a carteira segura NÃO entram no valor.
+
+## Copiar os sugeridos 80%+ e Steps ao vivo (2026-10-26, versão 0.31.4)
+- Pedido do dono: "quando o acerto é 80%, acompanhar e copiar compra e venda; aba Steps em tempo real".
+  `pump_el_copy80` (padrão ON a pedido do dono; só simulado, real depende da execução real liberada).
+  `SharedMonitor.elite_follow_sync` põe `Elite.recommended()` em `PumpFun.elite_follow`; `refresh_followed` trata como
+  manuais (copia compra e venda proporcional pelo motor normal, com os filtros de Configurações).
+  `Elite.steps` junta cada negociação deles com o feed do usuário (±180 s) e a posição; rota `/api/pump/elite/steps`.

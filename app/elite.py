@@ -220,6 +220,34 @@ class Elite:
                         "sugestões aparecem com 10+ sinais por faixa.", "base": st["signals"]})
         return out
 
+    def steps(self, feed: list[dict], positions: list[dict], trades: list[dict], only: set | None = None,
+              limit: int = 100) -> list[dict]:
+        """Steps (0.31.4): cada compra/venda dos maiores traders ao lado do que o robô do usuário fez com ela (do feed:
+        copiou, vendeu, não copiou e por quê) e de como está a posição dele nesse token."""
+        idx: dict[tuple, list] = {}
+        for e in feed:
+            k = (e.get("wallet"), e.get("mint"), e.get("kind"))
+            if k[0] and k[1]:
+                idx.setdefault(k, []).append((ts(e.get("at")) or 0, e))
+        pos = {(p.get("wallet"), p.get("mint")): p for p in positions}
+        closed = {}
+        for t in trades[:3000]:
+            closed.setdefault((t.get("wallet"), t.get("mint")), t)
+        out = []
+        for x in reversed(list(self.trades)):
+            if only is not None and x["wallet"] not in only:
+                continue
+            near = [(abs(t0 - x["t"]), e) for t0, e in idx.get((x["wallet"], x["mint"], x["kind"]), []) if abs(t0 - x["t"]) <= 180]
+            e = min(near, key=lambda z: z[0])[1] if near else None
+            p, c = pos.get((x["wallet"], x["mint"])), closed.get((x["wallet"], x["mint"]))
+            out.append({**x, "name": self.label(x["wallet"]), "bot_action": (e or {}).get("action"),
+                        "bot_reason": (e or {}).get("reason"),
+                        "position": {"open": True, "chg_pct": p.get("chg_pct"), "sol_in": p.get("sol_in"), "real": bool(p.get("real"))} if p else
+                        ({"open": False, "pnl_sol": c.get("pnl_sol"), "pnl_pct": c.get("pnl_pct"), "reason": c.get("reason")} if c else None)})
+            if len(out) >= limit:
+                break
+        return out
+
     def snapshot(self, t: float | None = None) -> dict:
         t = t or time.time()
         recent = list(self.trades)[-80:][::-1]

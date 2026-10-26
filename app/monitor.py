@@ -552,6 +552,18 @@ class SharedMonitor:
     def elite_names(self) -> list[str]:
         return self.hub.elite.refresh_names([e.leaderboard for e in self.engines()], self.ELITE["top"])
 
+    def elite_follow_sync(self) -> int:
+        """Quem ligou "copiar os sugeridos" passa a seguir (copiar compra e venda) os maiores traders com 80%+ (0.31.4)."""
+        rec = [r["wallet"] for r in self.hub.elite.recommended()]
+        n = 0
+        for e in self.engines():
+            want = rec if getattr(e.cfg, "pump_el_copy80", True) and getattr(e, "role", "admin") == "admin" else []
+            if list(getattr(e, "elite_follow", None) or []) != want:
+                e.elite_follow = list(want)
+                e.refresh_followed(force=True)
+                n += 1
+        return n
+
     def elite_event(self, w: str, ev: dict, t: float | None = None) -> dict | None:
         el = self.hub.elite
         t = time.time() if t is None else t
@@ -577,6 +589,7 @@ class SharedMonitor:
                 self.auto_once()
                 self.elite_names()
                 self.hub.elite.tick()
+                self.elite_follow_sync()
                 await self.explore_auto_once()
             except Exception as e:
                 log.warning("base da pump.fun: %s", str(e)[:160])

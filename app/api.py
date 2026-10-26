@@ -231,6 +231,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
         out["has_key"] = bool(pf.lb_key())
         return out
 
+    @app.get("/api/pump/elite/steps")
+    async def pump_elite_steps(only80: int = 1, pf=Depends(admin_engine)):
+        """Steps ao vivo (0.31.4): o que os maiores traders (só os 80%+, ou todos) fizeram e o que o robô fez junto."""
+        rec = {r["wallet"] for r in hub.elite.recommended()}
+        return {"steps": hub.elite.steps(list(pf.feed), pf.positions(), pf.trades(3000), rec if only80 else None),
+                "copy80": bool(getattr(pf.cfg, "pump_el_copy80", True)), "recommended": sorted(rec),
+                "following": [w for w in rec if w in pf.followed]}
+
     @app.get("/api/pump/base")
     async def pump_base(pf=Depends(admin_engine)):
         """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""

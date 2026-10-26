@@ -523,6 +523,8 @@ class PumpFun:
         n = int(self._c("pump_top_n", 10))
         banned = set(self.banned)
         man = [w for w in self.manual if w not in banned]
+        # sugeridos dos Maiores traders (80%+ de acerto, 0.31.4): entram como se fossem manuais enquanto estiverem lá
+        man += [w for w in (getattr(self, "elite_follow", None) or []) if w not in banned and w not in man]
         now = time.time()
         bots = {w for w, a in self.activity.items() if a.get("bot_until", 0) > now}
         bots |= set(self.paused())                       # pausados também ficam fora (entra o próximo do top)

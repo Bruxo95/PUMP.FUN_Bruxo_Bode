@@ -169,3 +169,38 @@ def test_elite_route_brings_balance_age_and_recommended(env):
     r = c.get("/api/pump/elite", headers=tok(UA)).json()
     tr = r["traders"][0]
     assert tr["balance"]["usd"] == 1050.0 and tr["age"]["age_days"] == 90.0 and r["recommended"] == [T1]
+
+
+def test_suggested_traders_are_copied_buy_and_sell(env):
+    """0.31.4: sugeridos (80%+) entram na lista de cópia; o robô copia compra e venda; Steps mostra cada passo."""
+    from app.monitor import SharedMonitor
+    from tests.test_pump import _ev as pev
+    c, hub = env["c"], env["hub"]
+    c.get("/api/pump", headers=tok(UA))
+    pf = hub.engines[UA]
+    for k in ("pump_min_mcap_usd", "pump_min_vol_h1_usd", "pump_max_top10_pct", "pump_min_wallet_usd", "pump_min_txns_h1"):
+        setattr(pf.cfg, k, 0)
+    pf.cfg.pump_risk_check = False
+    pf.leaderboard = [{"wallet": T1, "name": "Alta", "realized_usd": 6e4, "winrate": 95, "trades": 500, "base_flags": []},
+                      {"wallet": T2, "name": "Baixa", "realized_usd": 9e4, "winrate": 50, "trades": 500, "base_flags": []}]
+    mon = SharedMonitor(hub)
+    mon.elite_names()
+    assert mon.elite_follow_sync() == 1 and pf.elite_follow == [T1] and T1 in pf.followed and T2 not in pf.followed
+    t = time.time()
+    m = "Passo".ljust(40, "1") + "pump"
+    ev = pev("buy", T1, m, 1.0, 1e6, 30, 3e7)
+    mon.dispatch(ev, t)
+    mon.elite_event(T1, ev, t)
+    assert pf.positions() and pf.positions()[0]["wallet"] == T1
+    r = c.get("/api/pump/elite/steps", headers=tok(UA)).json()
+    st = r["steps"][0]
+    assert st["wallet"] == T1 and st["kind"] == "buy" and st["bot_action"] == "copiou compra" and st["position"]["open"]
+    assert r["following"] == [T1] and r["copy80"] is True
+    sell = pev("sell", T1, m, 1.5, 1e6, 30, 3e7 / 1.5, newTokenBalance=0)
+    mon.dispatch(sell, t + 60)
+    mon.elite_event(T1, sell, t + 60)
+    assert not pf.positions() and pf.trades()[0]["wallet"] == T1                # vendeu junto com ele
+    pf.cfg.pump_el_copy80 = False
+    mon.elite_follow_sync()
+    assert pf.elite_follow == [] and T1 not in pf.followed
+    assert c.get("/api/pump/elite/steps", headers=tok(UB, "b@x.com")).status_code == 403
