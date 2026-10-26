@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.9",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Visão geral → Relatório do dia; Relatórios → Relatórios do dia (PDF e texto para IA)",
+      "titulo": "Relatório de cada menu junto no relatório do dia",
+      "oque": "O relatório do dia agora tem a seção Relatório de cada menu: Top traders (cópias), Carteiras em estudo, Explorar, Base da pump.fun, Maiores traders (sinais e compras automáticas), Botão Comprar, Estratégias fantasma, Relatórios (E se…), Opções novas de cópia, Aprendizado diário, Radar de KOLs e Lista negra. Cada um diz o que aconteceu no dia e o que mudar na lógica ou nos trades para ganhar mais, com o número que justifica. Tudo entra no PDF, no texto para IA e no Aprendizado dos dias, que passa a mostrar quando a sugestão de um menu se repete em vários dias. Menus com dados ao vivo (Base, Explorar, Maiores traders, Radar) entram a partir de hoje; nos dias que já passaram vale o que dá para tirar dos trades."
+    },
+    {
       "versao": "0.31.8",
       "data": "2026-10-26",
       "tipo": "melhoria",

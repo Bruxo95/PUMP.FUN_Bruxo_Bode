@@ -158,6 +158,9 @@
     const g = (rows) => (rows || []).map((x) => [esc(x.nome), String(x.trades), x.acerto == null ? "–" : f(x.acerto * 100, 0) + "%", sg(x.pnl_sol)]);
     table("dayOri", ["Origem", "Trades", "Acerto", "Resultado"], g(rep.by_origin), "Nenhum trade fechado neste dia.");
     table("dayExit", ["Saída", "Trades", "Acerto", "Resultado"], g(rep.by_exit), "Nenhum trade fechado neste dia.");
+    $("dayMenus").innerHTML = (rep.modules || []).map((m) => "<p><b>" + esc(m.menu) + ":</b> " + esc((m.linhas || []).join(" · ")) + "</p>" +
+      (m.sugestoes || []).map((s) => '<p style="margin-left:14px"><span class="tag ' + (s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("")).join("")
+      || '<p class="muted">Sem dados dos menus neste dia.</p>';
     $("dayTrH").textContent = "Trades do dia com horário (" + (rep.tz || "UTC") + ")";
     table("dayTr", ["Entrada", "Saída", "Duração", "Token", "Origem", "Resultado", "Melhor momento", "Motivo"], (rep.trades_list || []).slice().reverse().map((x) => [esc(x.entrada), esc(x.saida), hms(x.duracao_s),
       pfM(x.mint || "", x.token), esc(x.origem), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"),

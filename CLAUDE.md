@@ -631,3 +631,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Pedido do dono. `daily.build` devolve `trades_list` (entrada/saída em Europe/Berlin via zoneinfo, `TZ_NAME`, até 300)
   e `by_hour`; sugestão `horario_ruim` (3+ horas com 3+ trades e a pior no prejuízo). PDF/texto para IA e o quadro
   "Relatório do dia" mostram a lista.
+
+## Relatório de cada menu (2026-10-26, versão 0.31.9)
+- Pedido do dono: cada menu gera relatório diário com o que mudar para ganhar mais, tudo junto em Relatórios e no
+  aprendizado. `app/modules_report.py` (`build(hub, pf, dia, ao_vivo)`, um menu por função, falha isolada) →
+  `rep["modules"]` em `save_daily`, `backfill_daily` (sem dados ao vivo) e na rota; `daily.blocks` põe no PDF/texto
+  para IA; `daily.study` conta as sugestões dos menus (`tipo` = `menu:<menu>:<chave>`). Quadro do dia mostra a seção.
+  Menu novo daqui em diante deve ganhar uma função aqui.

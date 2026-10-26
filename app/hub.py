@@ -580,13 +580,17 @@ class PumpHub:
                 rows = await self.db.select("daily_report", {"user_id": uid, "dia": dia})
                 pts = list(((rows[0].get("data") or {}).get("points") or [])) if rows else []
                 pts.append(kpis(pf))
-                await self.db.insert("daily_report", {"user_id": uid, "dia": dia, "data": build(pf, dia, pts),
+                from .modules_report import build as menus
+                rep_today = build(pf, dia, pts)
+                rep_today["modules"] = menus(self, pf, dia, True)      # relatório de cada menu (0.31.9)
+                await self.db.insert("daily_report", {"user_id": uid, "dia": dia, "data": rep_today,
                                                       "atualizado_em": datetime.now(timezone.utc).isoformat()},
                                      upsert=True, on_conflict="user_id,dia")
                 if getattr(pf, "_daily_closed", None) != prev:
                     old = await self.db.select("daily_report", {"user_id": uid, "dia": prev})
                     if old and not (old[0].get("data") or {}).get("closed"):
                         rep = build(pf, prev, (old[0].get("data") or {}).get("points"))
+                        rep["modules"] = (old[0].get("data") or {}).get("modules") or []   # a última foto ao vivo do dia
                         rep["closed"] = True
                         await self.db.insert("daily_report", {"user_id": uid, "dia": prev, "data": rep,
                                                               "atualizado_em": datetime.now(timezone.utc).isoformat()},
@@ -615,7 +619,8 @@ class PumpHub:
                     if d in have:
                         continue
                     rep = build(pf, d, [])
-                    rep.update(closed=True, backfilled=True)
+                    from .modules_report import build as menus
+                    rep.update(closed=True, backfilled=True, modules=menus(self, pf, d, False))
                     await self.db.insert("daily_report", {"user_id": uid, "dia": d, "data": rep,
                                                           "atualizado_em": datetime.now(timezone.utc).isoformat()},
                                          upsert=True, on_conflict="user_id,dia")

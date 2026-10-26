@@ -193,11 +193,12 @@ def study(reports: list[dict]) -> dict:
     pos = [r for r in R if (r.get("pnl_sol") or 0) > 0]
     rec: dict[str, dict] = {}
     for r in R:
-        for s in r.get("suggestions") or []:
+        menu_sug = [x for m in r.get("modules") or [] for x in m.get("sugestoes") or []]     # 0.31.9: sugestões de cada menu
+        for s in (r.get("suggestions") or []) + menu_sug:
             t = s.get("tipo") or "outro"
             if t in ("info", "outro"):
                 continue
-            x = rec.setdefault(t, {"tipo": t, "titulo": TITLES.get(t, t), "dias": 0, "ultimo": None, "exemplo": None})
+            x = rec.setdefault(t, {"tipo": t, "titulo": TITLES.get(t) or s.get("titulo") or t, "dias": 0, "ultimo": None, "exemplo": None})
             x["dias"] += 1
             x["ultimo"], x["exemplo"] = r["dia"], s.get("texto")
     def across(key):
@@ -275,6 +276,11 @@ def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
             B.append(("h", title))
             B += [("mono", f"{str(x['nome'])[:44]:<44} {x['trades']:>4} trades  acerto {x['acerto'] * 100:>3.0f}%  {x['pnl_sol']:+.4f} SOL")
                   for x in rows]
+    if rep.get("modules"):
+        B.append(("h", "Relatório de cada menu"))
+        for m in rep["modules"]:
+            B.append(("p", f"{m['menu']}: " + " · ".join(m.get("linhas") or [])))
+            B += [("p", f"    -> [{s['area']}] {s['texto']} (base: {s.get('base')})") for s in m.get("sugestoes") or []]
     if rep.get("by_hour"):
         B.append(("h", f"Por hora ({rep.get('tz') or 'UTC'})"))
         B += [("mono", f"{h['hora']:>4}  {h['trades']:>4} trades  acerto {h['acerto'] * 100:>3.0f}%  {h['pnl_sol']:+.4f} SOL") for h in rep["by_hour"]]

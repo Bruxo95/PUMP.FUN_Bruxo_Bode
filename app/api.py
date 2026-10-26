@@ -303,7 +303,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
         saved = {str(r.get("dia")): (r.get("data") or {}) for r in rows}
         pts = list((saved.get(dia) or {}).get("points") or [])
         if dia == today:
+            from .modules_report import build as menus
             rep = build(pf, dia, pts + [kpis(pf)])            # hoje: ao vivo, com a foto de agora no fim
+            rep["modules"] = menus(hub, pf, dia, True)        # relatório de cada menu (0.31.9)
         else:
             rep = saved.get(dia) or build(pf, dia, pts)
         hist = [{"dia": d, "pnl_sol": x.get("pnl_sol"), "trades": x.get("trades"), "acerto": x.get("acerto"),
