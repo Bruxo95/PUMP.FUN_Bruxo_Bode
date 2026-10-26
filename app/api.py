@@ -189,6 +189,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def pump_base(pf=Depends(admin_engine)):
         """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""
         out = hub.lab.snapshot()
+        out["hide_trash"] = bool(getattr(pf.cfg, "pump_base_hide_trash", False))
         # suas compras feitas pelo botão Comprar (abertas e fechadas nas últimas 48 h), com o boost de cada uma
         lim = __import__("time").time() - 172800
         mine = [{"mint": p["mint"], "symbol": p.get("symbol"), "open": True, "real": bool(p.get("real")),

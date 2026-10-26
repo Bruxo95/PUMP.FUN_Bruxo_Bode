@@ -23,6 +23,8 @@ INTERESTING = ("graduou", "5x", "2x", "despencou")
 UP = ("graduou", "5x", "2x")
 KEEP_DAYS = 14                         # 0.24.0: o dono pediu para guardar e estudar todos os tokens
 KEEP_DONE = 30000
+CURVE_MAX = 450.0                      # market cap máx. possível ainda na curva (~410 SOL ao graduar) + folga
+VERDICTS = ("lixo", "fraco", "possível", "chance alta", "suspeito")
 STOP = {"the", "of", "and", "a", "to", "in", "on", "coin", "token", "pump", "fun", "sol", "solana", "inu", "ai"}
 
 
@@ -107,6 +109,9 @@ class TokenLab:
             for k in SNAPS:
                 if str(k) not in r["snaps"] and t - r["t0"] >= k * 60:
                     r["snaps"][str(k)] = round(float(tk["mcap_sol"]), 2) if tk.get("mcap_sol") else None
+                    r["pred"] = self.predict(r, t)
+                    if k == 5:
+                        r["pred5"] = r["pred"]                  # previsão "congelada" aos 5 min: base do acerto
                     break
             n += 1
             if grad or len(r["snaps"]) == len(SNAPS):
@@ -122,7 +127,8 @@ class TokenLab:
                "mcap0": r["mcap0"], "snaps": r["snaps"], "peak": max(vals) if vals else None,
                "created_at": datetime.fromtimestamp(r["t0"], timezone.utc).isoformat(timespec="seconds"),
                "dev_buy": r["dev_buy"], "boost": bool((self.boost(r["mint"]) or {}).get("active")),
-               "creator_before": dict(self.creators.get(r["creator"]) or {}) if r["creator"] else None}
+               "creator_before": dict(self.creators.get(r["creator"]) or {}) if r["creator"] else None,
+               "pred5": (r.get("pred5") or {}).get("verdict"), "chance5": (r.get("pred5") or {}).get("chance")}
         self.done.append(out)
         hk = _hour(r["t0"])
         h = self.hours.setdefault(hk, {"created": 0, "tracked": 0, "labels": {}})
@@ -145,7 +151,7 @@ class TokenLab:
             self.new_rows.append(out)
         return out
 
-    def rising(self, t: float, n: int = 15) -> list[dict]:
+    def rising(self, t: float, n: int = 30) -> list[dict]:
         """Tokens ainda em observação que mais subiram desde a criação (pela última foto) — para comprar a tempo."""
         out = []
         for r in self.live.values():
@@ -157,8 +163,78 @@ class TokenLab:
                         "mcap0": r["mcap0"], "mcap": vals[-1], "gain_pct": round((vals[-1] / r["mcap0"] - 1) * 100, 1),
                         "age_min": round((t - r["t0"]) / 60, 1), "fotos": len(r["snaps"]),
                         "price": bool(tk.get("price")), "creator_stats": self.creator_info(r["creator"]),
-                        "boost": self.boost(r["mint"])})
+                        "boost": self.boost(r["mint"]), "pred": self.predict(r, t)})
         return sorted([x for x in out if x["gain_pct"] > 0], key=lambda x: -x["gain_pct"])[:n]
+
+    # ------------------------------------------------------------------ previsão (0.25.0)
+    def _features(self, r: dict) -> dict:
+        def g(k):
+            v = (r.get("snaps") or {}).get(k)
+            return (v / r["mcap0"] - 1) * 100 if v and r.get("mcap0") else None
+
+        def bucket(x):
+            if x is None:
+                return None
+            return "caiu" if x < 0 else "0 a 30%" if x < 30 else "30 a 100%" if x < 100 else "mais de 100%"
+        d = float(r.get("dev_buy") or 0)
+        c = r.get("creator_before") if "creator_before" in r else self.creators.get(r.get("creator") or "")
+        cr = ("criador novo" if not c or not c.get("tokens") else "já fez token que subiu" if c.get("x2")
+              else "só despencou antes" if c.get("rugs") else "tokens parados antes")
+        return {"Ganho na foto de 1 min": bucket(g("1")), "Ganho na foto de 5 min": bucket(g("5")),
+                "Compra do dev na criação": "nada" if d <= 0 else "até 1 SOL" if d < 1 else "1 a 3 SOL" if d < 3 else "mais de 3 SOL",
+                "Histórico do criador": cr,
+                "Boost pago na DexScreener": "boost ON" if (self.boost(r["mint"]) or {}).get("active") else "boost OFF"}
+
+    def clones(self, symbol: str, t: float) -> int:
+        """Quantos tokens com o mesmo símbolo foram criados na última hora (série de clones costuma ser lixo)."""
+        s = (symbol or "").strip().lower()
+        if not s:
+            return 0
+        n = sum(1 for x in self.live.values() if (x.get("symbol") or "").strip().lower() == s and t - x["t0"] < 3600)
+        return n + sum(1 for x in list(self.done)[-3000:] if (x.get("symbol") or "").strip().lower() == s)
+
+    def predict(self, r: dict, t: float | None = None) -> dict:
+        """Chance de subir (graduou/5x/2x) com o que já se sabe do token, e um veredito: lixo, fraco, possível ou
+        chance alta. Começa pela média da base e ajusta por cada sinal que a base já aprendeu (faixas com 30+ tokens:
+        quanto aquela faixa sobe a mais ou a menos que a média). Regras duras marcam lixo. É ESTIMATIVA."""
+        t = t or time.time()
+        vals = [v for v in (r.get("snaps") or {}).values() if v]
+        why: list[str] = []
+        if vals and vals[-1] > CURVE_MAX:
+            return {"verdict": "suspeito", "chance": None,
+                    "why": [f"market cap {vals[-1]:.0f} SOL acima do máximo da curva (~410): dado fora do padrão"]}
+        ls = self.lessons(t)
+        base = (ls.get("base_up_pct") or 10.0) / 100
+        odds = base / max(1e-6, 1 - base)
+        tabs = {tb["nome"]: {ln["faixa"]: ln for ln in tb["linhas"]} for tb in ls.get("tables") or []}
+        for name, val in self._features(r).items():
+            ln = (tabs.get(name) or {}).get(val) if val else None
+            if ln and ln["n"] >= 30 and base > 0:
+                p = min(0.99, max(0.005, ln["up_pct"] / 100))
+                lr = (p / (1 - p)) / odds
+                odds *= lr
+                if lr >= 1.5 or lr <= 0.67:
+                    why.append(f"{name}: {val} ({ln['up_pct']:.0f}% subiram)")
+        chance = round(odds / (1 + odds) * 100, 1)
+        c = self.creators.get(r.get("creator") or "") or {}
+        bl = getattr(self.market, "blacklist", {}) or {}
+        lixo = []
+        if r.get("creator") and r["creator"] in bl:
+            lixo.append("criador na lista negra")
+        if c.get("rugs", 0) >= 2 and not c.get("x2"):
+            lixo.append(f"criador já despencou {c['rugs']} tokens")
+        if len(vals) >= 2 and r.get("mcap0") and vals[-1] < r["mcap0"]:
+            lixo.append("voltou para baixo do market cap inicial")
+        nc = self.clones(r.get("symbol") or "", t)
+        if nc >= 3:
+            lixo.append(f"{nc} tokens com o mesmo nome na última hora (clones)")
+        if lixo:
+            return {"verdict": "lixo", "chance": chance, "why": lixo + why}
+        b100 = base * 100
+        verdict = "chance alta" if chance >= max(2 * b100, 20) else "possível" if chance >= b100 else "fraco"
+        if not why:
+            why.append("ainda poucos dados aprendidos: chance = média da base")
+        return {"verdict": verdict, "chance": chance, "why": why}
 
     def boost(self, mint: str) -> dict | None:
         b = dict(getattr(self.market, "boosts", {}).get(mint) or {})
@@ -221,7 +297,8 @@ class TokenLab:
                 table("Compra do dev na criação", dev, ["nada", "até 1 SOL", "1 a 3 SOL", "mais de 3 SOL"]),
                 table("Histórico do criador", creator, ["criador novo", "já fez token que subiu", "tokens parados antes", "só despencou antes"]),
                 table("Boost pago na DexScreener", lambda r: "boost ON" if r.get("boost") else "boost OFF", ["boost ON", "boost OFF"]),
-                table("Hora de criação (UTC)", hour)]
+                table("Hora de criação (UTC)", hour),
+                table("Previsão feita aos 5 min (acerto)", lambda r: r.get("pred5"), list(VERDICTS))]
         best = []
         for tb in tabs[:5]:
             for ln in tb["linhas"]:

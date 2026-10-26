@@ -115,9 +115,13 @@
       x.open ? '<span class="tag sim">aberta</span>' : '<span class="tag neutral">fechada</span><small>' + esc(x.reason || "") + "</small>", s4(x.sol_in) + " SOL",
       x.open ? (x.chg_pct == null ? "–" : '<span class="' + (x.chg_pct >= 0 ? "up" : "down") + '">' + (x.chg_pct > 0 ? "+" : "") + f(x.chg_pct, 1) + "%</span>") : sg(x.pnl_sol) + "<small>" + f(x.pnl_pct || 0, 1) + "%</small>",
       bst(x.boost), dt(x.open ? x.opened_at : x.closed_at), x.open ? '<a class="btn sm" href="#posicoes">Ver posição</a>' : ""]), "Você ainda não comprou nada por esta tela.");
-    table("bsRise", ["Token", "Ganho", "Market cap início → última foto", "Idade", "Criador", "Boost pago", ""], (r.rising || []).map((x) => [pfM(x.mint, x.symbol), '<span class="up">+' + f(x.gain_pct, 0) + "%</span>",
+    const PV = { lixo: "loss", fraco: "neutral", "possível": "sim", "chance alta": "win", suspeito: "pause" };
+    const pred = (p) => !p ? "–" : '<span class="tag ' + (PV[p.verdict] || "neutral") + '" title="' + esc((p.why || []).join(" · ")) + '">' + esc(p.verdict) + "</span>" + (p.chance == null ? "" : "<small>" + f(p.chance, 0) + "% de chance</small>") + '<small class="muted">' + esc((p.why || [])[0] || "") + "</small>";
+    const hideT = !!cfg().pump_base_hide_trash;
+    const rise = (r.rising || []).filter((x) => !(hideT && x.pred && (x.pred.verdict === "lixo" || x.pred.verdict === "suspeito")));
+    table("bsRise", ["Token", "Previsão", "Ganho", "Market cap início → última foto", "Idade", "Criador", "Boost pago", ""], rise.map((x) => [pfM(x.mint, x.symbol), pred(x.pred), '<span class="up">+' + f(x.gain_pct, 0) + "%</span>",
       f(x.mcap0, 0) + " → " + f(x.mcap, 0) + " SOL", f(x.age_min, 0) + " min · " + x.fotos + "/4 fotos",
-      x.creator_stats ? x.creator_stats.tokens + " tokens · " + x.creator_stats.x2 + " subiram · " + x.creator_stats.rugs + " despencaram" : "novo", bst(x.boost), buy(x.mint, x.symbol)]), "Nenhum token em observação subiu ainda.");
+      x.creator_stats ? x.creator_stats.tokens + " tokens · " + x.creator_stats.x2 + " subiram · " + x.creator_stats.rugs + " despencaram" : "novo", bst(x.boost), buy(x.mint, x.symbol)]), hideT && (r.rising || []).length ? "Só lixo agora (desligue \"Esconder lixo\" para ver)." : "Nenhum token em observação subiu ainda.");
     table("bsUp", ["Token", "Rótulo", "Market cap inicial → pico", "Criado", "Boost pago", ""], (r.recent_up || []).map((x) => [pfM(x.mint, x.symbol), '<span class="tag win">' + esc(x.label) + "</span>", f(x.mcap0 || 0, 0) + " → " + (x.label === "graduou" ? "graduou (~410)" : f(x.peak || 0, 0)) + " SOL", dt(x.created_at), bst(x.boost), buy(x.mint, x.symbol)]), "Nenhum ainda.");
     const crt = (L2) => (L2 || []).map((c) => [pfW(c.creator), String(c.tokens), String(c.x2), String(c.rugs)]);
     table("bsBad", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.bad_creators), "Nenhum criador com 2+ tokens ainda.");
@@ -1048,7 +1052,7 @@
   }
   document.addEventListener("click", async (ev) => {
     const t = ev.target.closest("button,[data-act]"); if (!t) return;
-    if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k]; if (on && t.dataset.confirm && !confirm(t.dataset.confirm)) return; setCfg({ [k]: on }); return; }
+    if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k]; if (on && t.dataset.confirm && !confirm(t.dataset.confirm)) return; setCfg({ [k]: on }); if (k === "pump_base_hide_trash") setTimeout(loadBase, 700); return; }
     if (t.dataset.set) { setCfg({ [t.dataset.set]: +t.dataset.val }); return; }
     if (t.dataset.mode) { MODE = t.dataset.mode; try { localStorage.setItem("pf:mode", MODE); } catch (e) { /* */ } render(); return; }
     if (t.dataset.r) { RANGE = +t.dataset.r; try { localStorage.setItem("pf:range", RANGE); } catch (e) { /* */ } render(); return; }

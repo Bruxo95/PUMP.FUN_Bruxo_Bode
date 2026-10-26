@@ -491,3 +491,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 ## Ajuste da Base da pump.fun (2026-10-26, versão 0.24.1)
 - "Tokens que subiram" em largura total no fim da tela (`#bsUpCard`), pedido do dono. `TokenLab.restore` refaz os
   rótulos graduou/nasceu graduado gravados antes da 0.23.0 (market cap de criação ≥ 300 SOL = nasceu graduado).
+
+## Previsão na Base da pump.fun (2026-10-26, versão 0.25.0)
+- `TokenLab.predict`: chance = média da base ajustada pela razão de chances de cada faixa aprendida com 30+ tokens
+  (ganho 1/5 min, compra do dev, criador, boost); regras duras → "lixo" (lista negra, criador com 2+ despencados e
+  nenhum 2x, voltou abaixo do início, 3+ clones do símbolo na última hora); market cap > `CURVE_MAX` (450) → "suspeito"
+  (visto: vários tokens a 721 SOL em 2026-10-26, causa não confirmada). Previsão a cada foto; a dos 5 min fica em
+  `pred5`/`chance5` e vira a tabela de acerto em `lessons()`. Opção `pump_base_hide_trash`. Testes: `test_previsao.py`.

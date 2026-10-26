@@ -45,6 +45,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_cold_on": (bool, False, 0, 1),
     "pump_cold_wr": (float, 30.0, 0.0, 100.0),          # acerto das últimas 10 cópias em 2 h abaixo de X% -> metade do valor
     # 0.20.0: lista negra compartilhada e avisos no Telegram (começam desligados)
+    "pump_base_hide_trash": (bool, False, 0, 1),        # 0.25.0: Base da pump.fun esconde o que a previsão marca como lixo
     "pump_blacklist_on": (bool, False, 0, 1),           # não copia token de criador (ou trader) da lista negra
     "pump_tg_on": (bool, False, 0, 1),                  # avisos no Telegram (token do bot e chat em Chaves pessoais)
     "pump_tg_all": (bool, False, 0, 1),                 # OFF = só os importantes; ON = toda notificação

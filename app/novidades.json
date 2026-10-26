@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.25.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Base da pump.fun → Subindo agora",
+      "titulo": "Previsão em cada token: lixo, fraco, possível ou chance alta",
+      "oque": "Cada token de Subindo agora ganha um veredito e uma chance de subir (graduar, 5x ou 2x). Lixo: criador que só despenca ou está na lista negra, token que voltou para baixo do início ou série de clones com o mesmo nome. Suspeito: market cap acima do máximo possível da curva (dado fora do padrão, como os 721 SOL). A chance começa pela média da base e muda conforme os sinais que ela já aprendeu. Botão Esconder lixo (ON/OFF). A previsão feita aos 5 minutos de cada token fica guardada, e O que a base aprendeu passa a mostrar quanto cada veredito acerta, para a previsão ir melhorando com os dados."
+    },
+    {
       "versao": "0.24.1",
       "data": "2026-10-26",
       "tipo": "correção",
