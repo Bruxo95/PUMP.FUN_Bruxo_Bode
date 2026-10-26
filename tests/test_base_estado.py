@@ -69,3 +69,14 @@ def test_lessons_find_the_signals_that_led_to_rising():
     g1 = {x["faixa"]: x for x in ls["tables"][0]["linhas"]}
     assert g1["30 a 100%"]["up_pct"] == 75.0 and g1["0 a 30%"]["up_pct"] == 5.0 and g1["0 a 30%"]["rug_pct"] == 28.3
     assert ls["best"][0]["sinal"].startswith("Ganho na foto de 1 min: 30 a 100%") or ls["best"][0]["up_pct"] == 75.0
+
+
+def test_old_graduated_labels_are_redone_on_restore():
+    from app.pumpfun import PumpMarket
+    from app.tokenlab import TokenLab
+    lab = TokenLab(PumpMarket())
+    now = time.time()
+    when = datetime.fromtimestamp(now - 3600, timezone.utc).isoformat(timespec="seconds")
+    lab.restore(None, [{"mint": "G1", "label": "graduou", "data": {"created_at": when, "mcap0": 411.0, "snaps": {"1": 411.0}}},
+                       {"mint": "G2", "label": "graduou", "data": {"created_at": when, "mcap0": 33.0, "snaps": {"1": 33.0}}}], now)
+    assert [r["label"] for r in lab.done] == ["nasceu graduado", "graduou"]

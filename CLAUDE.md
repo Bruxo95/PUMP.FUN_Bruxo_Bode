@@ -487,3 +487,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - `TokenLab.lessons()`: % que sobe/despenca por faixa de sinal (ganho 1 e 5 min, compra do dev, criador, boost,
   hora); "sinal forte" = 30+ tokens e o dobro da média. Testes: `test_boost.py`, `test_base_estado.py`.
 - Volume esperado do `token_life`: até 40 tokens/min → algumas dezenas de MB em 14 dias; acompanhar o tamanho do banco.
+
+## Ajuste da Base da pump.fun (2026-10-26, versão 0.24.1)
+- "Tokens que subiram" em largura total no fim da tela (`#bsUpCard`), pedido do dono. `TokenLab.restore` refaz os
+  rótulos graduou/nasceu graduado gravados antes da 0.23.0 (market cap de criação ≥ 300 SOL = nasceu graduado).

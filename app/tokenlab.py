@@ -264,7 +264,10 @@ class TokenLab:
             except ValueError:
                 ok = None
             if ok is not None and row.get("mint") not in seen:
-                self.done.append({**d, "mint": row["mint"], "creator": row.get("creator"), "label": row.get("label")})
+                lab = row.get("label")
+                if lab in ("graduou", "nasceu graduado"):       # rótulos gravados antes da 0.23.0 são refeitos
+                    lab = label(d.get("mcap0"), d.get("snaps") or {}, True)
+                self.done.append({**d, "mint": row["mint"], "creator": row.get("creator"), "label": lab})
 
     def take_dirty(self) -> tuple[list[dict], list[dict], list[dict]]:
         rows, self.new_rows = self.new_rows, []

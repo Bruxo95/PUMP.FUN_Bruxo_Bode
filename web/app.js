@@ -118,7 +118,7 @@
     table("bsRise", ["Token", "Ganho", "Market cap início → última foto", "Idade", "Criador", "Boost pago", ""], (r.rising || []).map((x) => [pfM(x.mint, x.symbol), '<span class="up">+' + f(x.gain_pct, 0) + "%</span>",
       f(x.mcap0, 0) + " → " + f(x.mcap, 0) + " SOL", f(x.age_min, 0) + " min · " + x.fotos + "/4 fotos",
       x.creator_stats ? x.creator_stats.tokens + " tokens · " + x.creator_stats.x2 + " subiram · " + x.creator_stats.rugs + " despencaram" : "novo", bst(x.boost), buy(x.mint, x.symbol)]), "Nenhum token em observação subiu ainda.");
-    table("bsUp", ["Token", "Rótulo", "Market cap inicial → pico", "Criado", "Boost pago", ""], (r.recent_up || []).map((x) => [pfM(x.mint, x.symbol), '<span class="tag win">' + esc(x.label) + "</span>", f(x.mcap0 || 0, 0) + " → " + f(x.peak || 0, 0) + " SOL", dt(x.created_at), bst(x.boost), buy(x.mint, x.symbol)]), "Nenhum ainda.");
+    table("bsUp", ["Token", "Rótulo", "Market cap inicial → pico", "Criado", "Boost pago", ""], (r.recent_up || []).map((x) => [pfM(x.mint, x.symbol), '<span class="tag win">' + esc(x.label) + "</span>", f(x.mcap0 || 0, 0) + " → " + (x.label === "graduou" ? "graduou (~410)" : f(x.peak || 0, 0)) + " SOL", dt(x.created_at), bst(x.boost), buy(x.mint, x.symbol)]), "Nenhum ainda.");
     const crt = (L2) => (L2 || []).map((c) => [pfW(c.creator), String(c.tokens), String(c.x2), String(c.rugs)]);
     table("bsBad", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.bad_creators), "Nenhum criador com 2+ tokens ainda.");
     table("bsGood", ["Criador", "Tokens", "Subiram", "Despencaram"], crt(r.good_creators), "Nenhum ainda.");

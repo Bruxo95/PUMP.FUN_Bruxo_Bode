@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.24.1",
+      "data": "2026-10-26",
+      "tipo": "correção",
+      "onde": "Menu → Usar ou descartar → Base da pump.fun → Tokens que subiram",
+      "titulo": "Tokens que subiram em largura total e sem os falsos graduados",
+      "oque": "A lista Tokens que subiram foi para o fim da tela, em largura total, sem a barra de rolagem lateral. Tokens que já nasceram com a curva completa e tinham sido guardados como graduou antes da correção agora aparecem como nasceu graduado e saem da lista. Quem graduou de verdade mostra graduou no lugar do pico (a foto não pega o pico)."
+    },
+    {
       "versao": "0.24.0",
       "data": "2026-10-26",
       "tipo": "melhoria",
