@@ -108,6 +108,8 @@ class Explore:
         c = creators.get(x.get("creator") or "") or {}
         if c.get("rugs", 0) >= 2 and not c.get("x2"):
             bad.append(f"criador já despencou {c['rugs']} tokens")
+        if c.get("bundles", 0) >= 2:
+            bad.append(f"criador lança tokens com bundle ({c['bundles']}x): robô")
         if x.get("risk") is not None and x["risk"] >= 8:
             bad.append(f"risco {x['risk']:.0f}/10")
         if x.get("pressure") is not None and x["pressure"] < 40:

@@ -36,7 +36,10 @@ def test_labels():
     assert label(30, {"1": 45, "5": 20, "15": 18, "60": 18}, False) == "despencou"
     assert label(30, {"1": 30, "5": 31, "15": 30, "60": 29}, False) == "morreu"
     assert label(30, {"1": 35, "5": 40, "15": 42, "60": 41}, False) == "subiu pouco"
-    assert label(30, {"1": 31}, True) == "graduou" and label(None, {}, False) == "sem dado"
+    assert label(30, {"1": 40, "5": 60}, True) == "graduou" and label(None, {}, False) == "sem dado"
+    # bundle (0.31.1): robô compra a curva junto com a criação — medido ao vivo: 28 → 733 SOL em 1 min
+    assert label(28, {"1": 733.7}, False) == "bundle" and label(28, {"1": 310}, False) == "bundle"
+    assert label(28, {"1": 28}, True) == "bundle"
 
 
 def test_token_life_creators_words_and_blacklist():
@@ -44,12 +47,12 @@ def test_token_life_creators_words_and_blacklist():
     t0 = time.time() - 7200
     _life(lab, m, "Doge1".ljust(40, "1") + "pump", CR, (40, 70, 90, 50), t0, "Doge Moon")
     _life(lab, m, "Doge2".ljust(40, "1") + "pump", CR, (40, 30, 31, 70), t0 + 5, "Doge Mars")
-    _life(lab, m, "Grad1".ljust(40, "1") + "pump", CR, (60, 0, 0, 0), t0 + 9, "Cat", graduate_at=0)
+    _life(lab, m, "Grad1".ljust(40, "1") + "pump", CR, (60, 80, 0, 0), t0 + 9, "Cat", graduate_at=1)
     assert not lab.live and [r["label"] for r in lab.done] == ["2x", "2x", "graduou"]
-    assert lab.creators[CR] == {"tokens": 3, "x2": 3, "rugs": 0}
+    assert lab.creators[CR] == {"tokens": 3, "x2": 3, "rugs": 0, "bundles": 0}
     for i in range(3):
         _life(lab, m, f"Rug{i}".ljust(40, "1") + "pump", CR2, (45, 20, 18, 18), t0 + 20 + i, "Scam")
-    assert lab.creators[CR2] == {"tokens": 3, "x2": 0, "rugs": 3}
+    assert lab.creators[CR2] == {"tokens": 3, "x2": 0, "rugs": 3, "bundles": 0}
     assert CR2 in m.blacklist and m.bl_new == [CR2] and CR not in m.blacklist
     snap = lab.snapshot()
     assert snap["day"]["finished"] == 6 and snap["day"]["up"] == 3 and snap["day"]["labels"]["despencou"] == 3
@@ -102,6 +105,7 @@ def test_monitor_takes_the_snapshots_and_hub_persists(env):
     assert asyncio.run(mon.lab_once()) == 1 and seen == [[mint]]
     assert hub.lab.live[mint]["snaps"] == {"1": 66.0}
     rec = hub.lab.live.pop(mint)
+    rec["snaps"]["5"] = 80.0                                               # graduou depois da 2ª foto (não é bundle)
     hub.lab.finalize(rec, True, time.time())
     assert asyncio.run(hub.save_lab()) == 1
     assert db.tables["token_life"][0]["label"] == "graduou" and db.tables["creator_stats"][0]["creator"] == CR

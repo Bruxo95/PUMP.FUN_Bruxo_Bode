@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.1",
+      "data": "2026-10-26",
+      "tipo": "correção",
+      "onde": "Menu → Usar ou descartar → Base da pump.fun → Criadores",
+      "titulo": "Criadores consertados: robô de bundle não conta mais como criador bom",
+      "oque": "A lista de criadores mostrava robôs com centenas de tokens que \"subiram\". Medi ao vivo: esses robôs compram a curva inteira junto com a criação (bundle) e a base contava isso como graduou ou 2x. Agora esses tokens ganham o rótulo bundle (robô), não contam como subiu, o criador que faz isso 2 vezes vira lixo nas previsões (Base e Explorar) e vai para a lista negra, e a tabela de criadores ganhou a coluna Bundle (robô). O histórico dos criadores e os números por hora foram recalculados com a regra nova a partir dos tokens guardados. Tokens do modo mayhem deixam de ser vigiados, porque o market cap lido da curva deles não bate."
+    },
+    {
       "versao": "0.31.0",
       "data": "2026-10-26",
       "tipo": "segurança",

@@ -25,6 +25,7 @@ KEEP_DAYS = 14                         # 0.24.0: o dono pediu para guardar e est
 KEEP_DONE = 30000
 CURVE_MAX = 450.0                      # market cap máx. possível ainda na curva (~410 SOL ao graduar) + folga
 VERDICTS = ("lixo", "fraco", "possível", "chance alta", "suspeito")
+BAD_CREATOR_BUNDLES = 2                # criador com 2+ tokens "bundle" = robô (lixo e lista negra)
 STOP = {"the", "of", "and", "a", "to", "in", "on", "coin", "token", "pump", "fun", "sol", "solana", "inu", "ai"}
 
 
@@ -34,6 +35,14 @@ def _hour(t: float) -> str:
 
 def label(mcap0: float | None, snaps: dict, graduated: bool) -> str:
     vals = [v for v in snaps.values() if v]
+    # BUNDLE (0.31.1): robô que compra a curva inteira junto com a criação. Medido ao vivo em 2026-10-26: tokens que
+    # nasceram com 28 SOL apareciam com 733 SOL na foto de 1 min; a base contava como "graduou/2x" e o robô virava
+    # "criador bom" (283 tokens, 253 "subiram"). Sinal: acima do máximo da curva em qualquer foto, curva quase cheia
+    # (≥ 300 SOL) já na foto de 1 min, ou graduado antes da 2ª foto.
+    if mcap0 and mcap0 < 300:
+        s1 = snaps.get("1")
+        if any(v > CURVE_MAX for v in vals) or (s1 and s1 >= 300) or (graduated and len(snaps) <= 1):
+            return "bundle"
     if graduated:
         # já nasceu com a curva completa (o criador comprou quase tudo): não "subiu" nada (visto no GTA6, 2026-10-26)
         # (a foto de quem gradua guarda o market cap anterior, então só o valor da criação serve de sinal)
@@ -74,6 +83,8 @@ class TokenLab:
         mint = ev.get("mint")
         if not mint or mint in self.live:
             return
+        if ev.get("is_mayhem_mode"):
+            return                     # "mayhem mode": a conta da curva difere e o market cap lido não bate (2026-10-26)
         m = int(t // 60)
         n = self._minute[1] + 1 if self._minute[0] == m else 1
         self._minute = (m, n)
@@ -136,16 +147,15 @@ class TokenLab:
         self.dirty_hours.add(hk)
         cr = r["creator"]
         if cr and lab != "sem dado":
-            c = self.creators.setdefault(cr, {"tokens": 0, "x2": 0, "rugs": 0})
-            c["tokens"] += 1
-            c["x2"] += 1 if lab in ("graduou", "5x", "2x") else 0
-            c["rugs"] += 1 if lab == "despencou" else 0
+            self._count_creator(cr, lab)
             self.dirty_creators.add(cr)
-            # criador que já despencou 3+ tokens e nunca deu 2x entra na lista negra compartilhada (0.20.0)
+            c = self.creators[cr]
+            # criador que já despencou 3+ tokens e nunca deu 2x, ou que lança bundle, entra na lista negra (0.20.0/0.31.1)
             bl = getattr(self.market, "blacklist", None)
-            if bl is not None and c["rugs"] >= 3 and not c["x2"] and cr not in bl:
-                bl[cr] = {"tipo": "dev", "motivo": f"{c['rugs']} tokens despencaram (base da pump.fun)",
-                          "criado_em": out["created_at"]}
+            why = (f"{c['rugs']} tokens despencaram (base da pump.fun)" if c["rugs"] >= 3 and not c["x2"] else
+                   f"{c['bundles']} tokens com bundle (robô compra a curva junto com a criação)" if c["bundles"] >= BAD_CREATOR_BUNDLES else None)
+            if bl is not None and why and cr not in bl:
+                bl[cr] = {"tipo": "dev", "motivo": why, "criado_em": out["created_at"]}
                 self.market.bl_new.append(cr)
         if lab != "sem dado":                       # desde a 0.24.0 guarda todos para estudar (antes só os interessantes)
             self.new_rows.append(out)
@@ -178,7 +188,8 @@ class TokenLab:
             return "caiu" if x < 0 else "0 a 30%" if x < 30 else "30 a 100%" if x < 100 else "mais de 100%"
         d = float(r.get("dev_buy") or 0)
         c = r.get("creator_before") if "creator_before" in r else self.creators.get(r.get("creator") or "")
-        cr = ("criador novo" if not c or not c.get("tokens") else "já fez token que subiu" if c.get("x2")
+        cr = ("criador novo" if not c or not c.get("tokens") else "lança bundle" if c.get("bundles", 0) >= BAD_CREATOR_BUNDLES
+              else "já fez token que subiu" if c.get("x2")
               else "só despencou antes" if c.get("rugs") else "tokens parados antes")
         return {"Ganho na foto de 1 min": bucket(g("1")), "Ganho na foto de 5 min": bucket(g("5")),
                 "Compra do dev na criação": "nada" if d <= 0 else "até 1 SOL" if d < 1 else "1 a 3 SOL" if d < 3 else "mais de 3 SOL",
@@ -223,6 +234,8 @@ class TokenLab:
             lixo.append("criador na lista negra")
         if c.get("rugs", 0) >= 2 and not c.get("x2"):
             lixo.append(f"criador já despencou {c['rugs']} tokens")
+        if c.get("bundles", 0) >= BAD_CREATOR_BUNDLES:
+            lixo.append(f"criador lança tokens com bundle ({c['bundles']}x): robô")
         if len(vals) >= 2 and r.get("mcap0") and vals[-1] < r["mcap0"]:
             lixo.append("voltou para baixo do market cap inicial")
         nc = self.clones(r.get("symbol") or "", t)
@@ -268,6 +281,8 @@ class TokenLab:
             c = r.get("creator_before")
             if not c or not c.get("tokens"):
                 return "criador novo"
+            if c.get("bundles", 0) >= BAD_CREATOR_BUNDLES:
+                return "lança bundle"
             if c.get("x2"):
                 return "já fez token que subiu"
             return "só despencou antes" if c.get("rugs") else "tokens parados antes"
@@ -295,7 +310,7 @@ class TokenLab:
         tabs = [table("Ganho na foto de 1 min", lambda r: bucket_gain(gain(r, "1")), GO),
                 table("Ganho na foto de 5 min", lambda r: bucket_gain(gain(r, "5")), GO),
                 table("Compra do dev na criação", dev, ["nada", "até 1 SOL", "1 a 3 SOL", "mais de 3 SOL"]),
-                table("Histórico do criador", creator, ["criador novo", "já fez token que subiu", "tokens parados antes", "só despencou antes"]),
+                table("Histórico do criador", creator, ["criador novo", "lança bundle", "já fez token que subiu", "tokens parados antes", "só despencou antes"]),
                 table("Boost pago na DexScreener", lambda r: "boost ON" if r.get("boost") else "boost OFF", ["boost ON", "boost OFF"]),
                 table("Hora de criação (UTC)", hour),
                 table("Previsão feita aos 5 min (acerto)", lambda r: r.get("pred5"), list(VERDICTS))]
@@ -308,6 +323,14 @@ class TokenLab:
                "tables": tabs, "best": sorted(best, key=lambda x: -x["up_pct"])[:8], "min_n": 30}
         self._lessons = (t, out)
         return out
+
+    def _count_creator(self, cr: str, lab: str) -> None:
+        c = self.creators.setdefault(cr, {"tokens": 0, "x2": 0, "rugs": 0, "bundles": 0})
+        c.setdefault("bundles", 0)
+        c["tokens"] += 1
+        c["x2"] += 1 if lab in UP else 0
+        c["rugs"] += 1 if lab == "despencou" else 0
+        c["bundles"] += 1 if lab == "bundle" else 0
 
     def creator_info(self, cr: str | None) -> dict | None:
         c = self.creators.get(cr) if cr else None
@@ -342,9 +365,35 @@ class TokenLab:
                 ok = None
             if ok is not None and row.get("mint") not in seen:
                 lab = row.get("label")
-                if lab in ("graduou", "nasceu graduado"):       # rótulos gravados antes da 0.23.0 são refeitos
-                    lab = label(d.get("mcap0"), d.get("snaps") or {}, True)
+                if lab not in (None, "sem dado"):               # rótulos antigos refeitos com a regra atual (0.31.1)
+                    lab = label(d.get("mcap0"), d.get("snaps") or {}, lab in ("graduou", "nasceu graduado", "bundle"))
                 self.done.append({**d, "mint": row["mint"], "creator": row.get("creator"), "label": lab})
+        if recent:
+            self.rebuild()
+
+    def rebuild(self) -> None:
+        """Refaz o histórico dos criadores e os rótulos por hora a partir dos tokens guardados (0.31.1: corrige o que
+        foi contado errado antes da regra do bundle). Tudo vai marcado para regravar no banco."""
+        self.creators.clear()
+        per_hour: dict[str, dict] = {}
+        for r in self.done:
+            lab = r.get("label")
+            if not lab or lab == "sem dado":
+                continue
+            if r.get("creator"):
+                self._count_creator(r["creator"], lab)
+            try:
+                hk = _hour(datetime.fromisoformat(str(r.get("created_at"))).timestamp())
+            except ValueError:
+                continue
+            per_hour.setdefault(hk, {})
+            per_hour[hk][lab] = per_hour[hk].get(lab, 0) + 1
+        for hk, labs in per_hour.items():
+            h = self.hours.setdefault(hk, {"created": 0, "tracked": 0, "labels": {}})
+            h["labels"] = labs
+            self.dirty_hours.add(hk)
+        self.dirty_creators |= set(self.creators)
+        self._lessons = (0.0, None)
 
     def take_dirty(self) -> tuple[list[dict], list[dict], list[dict]]:
         rows, self.new_rows = self.new_rows, []
@@ -376,17 +425,19 @@ class TokenLab:
         def words(rows):
             c: dict[str, int] = {}
             for r in rows:
-                for w in set(re.findall(r"[a-z]{3,}", (r["symbol"] + " " + r["name"]).lower())) - STOP:
+                for w in set(re.findall(r"[a-z]{3,}", ((r.get("symbol") or "") + " " + (r.get("name") or "")).lower())) - STOP:
                     c[w] = c.get(w, 0) + 1
             return c
         wa, wu = words(day), words(ups)
         hot = sorted(((w, n, wa.get(w, n)) for w, n in wu.items() if n >= 2), key=lambda x: (-x[1], x[2]))[:15]
-        crs = sorted(((k, v) for k, v in self.creators.items() if v["tokens"] >= 2), key=lambda kv: (-kv[1]["rugs"], -kv[1]["tokens"]))
-        good = sorted(((k, v) for k, v in self.creators.items() if v["x2"] >= 1), key=lambda kv: (-kv[1]["x2"], kv[1]["rugs"]))
+        crs = sorted(((k, v) for k, v in self.creators.items() if v["tokens"] >= 2),
+                     key=lambda kv: (-(kv[1]["rugs"] + kv[1].get("bundles", 0)), -kv[1]["tokens"]))
+        good = sorted(((k, v) for k, v in self.creators.items() if v["x2"] >= 1 and v.get("bundles", 0) < BAD_CREATOR_BUNDLES),
+                      key=lambda kv: (-kv[1]["x2"], kv[1]["rugs"]))
         return {"since": self.since, "live": len(self.live), "dropped": self.dropped, "max_per_min": MAX_PER_MIN,
                 "day": {"finished": len(day), "up": len(ups),
                         "labels": {lb: sum(1 for r in day if r["label"] == lb) for lb in
-                                   ("graduou", "5x", "2x", "subiu pouco", "morreu", "despencou", "nasceu graduado",
+                                   ("graduou", "5x", "2x", "subiu pouco", "morreu", "despencou", "bundle", "nasceu graduado",
                                     "sem dado")}},
                 "rising": self.rising(t),
                 "hours": hours,

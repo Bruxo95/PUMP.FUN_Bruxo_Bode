@@ -564,3 +564,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   aptas do ranking e em estudo com saldo no token). `pump_auto_max_age` padrão 15 → 45. `safety_marks` na API marca
   lixo por carteiras novas. Limite honesto: a pump.fun conta TODAS as carteiras novas; aqui só os 20 maiores.
 - Plano do Codex renumerado: Base = 0.32.0, estudo = 0.33.0. Testes: `tests/test_auto_seguranca.py`.
+
+## Criadores consertados: bundle (2026-10-26, versão 0.31.1)
+- Dono: "criadores com tokens que subiram" sem sentido (283 tokens, 253 subiram). Medido ao vivo (Node + PumpPortal +
+  RPC): robôs compram a curva inteira junto com a criação; 28 SOL viravam 733 SOL na foto de 1 min. `tokenlab.label`
+  dá "bundle" (acima de `CURVE_MAX`, ≥300 SOL na foto de 1 min ou graduado antes da 2ª foto); não conta como subiu;
+  `creator_stats.bundles` (migração `20261026000006`); 2+ bundles = lixo (`predict`, `explore.verdict`) e lista
+  negra. `TokenLab.restore` refaz todos os rótulos e `rebuild()` recalcula criadores e rótulos por hora (o que estava
+  no banco é sobrescrito). Tokens `is_mayhem_mode` não são vigiados (market cap da curva não bate).

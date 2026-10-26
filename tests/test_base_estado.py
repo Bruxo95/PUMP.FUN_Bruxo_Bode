@@ -17,6 +17,7 @@ def test_live_tokens_and_recent_list_survive_a_restart(env):
     old = hub.lab.live.pop(M2, None)
     assert old is None
     hub.lab.on_create({"mint": M2, "marketCapSol": 30.0, "symbol": "GRAD"}, t0)
+    hub.lab.live[M2]["snaps"] = {"1": 40.0, "5": 70.0}                  # graduou depois da 2ª foto (não é bundle)
     hub.lab.finalize(hub.lab.live[M2], True, time.time())
     asyncio.run(hub.save_lab())
     assert db.tables["lab_state"][0]["data"]["live"][0]["mint"] == M1
@@ -78,5 +79,5 @@ def test_old_graduated_labels_are_redone_on_restore():
     now = time.time()
     when = datetime.fromtimestamp(now - 3600, timezone.utc).isoformat(timespec="seconds")
     lab.restore(None, [{"mint": "G1", "label": "graduou", "data": {"created_at": when, "mcap0": 411.0, "snaps": {"1": 411.0}}},
-                       {"mint": "G2", "label": "graduou", "data": {"created_at": when, "mcap0": 33.0, "snaps": {"1": 33.0}}}], now)
+                       {"mint": "G2", "label": "graduou", "data": {"created_at": when, "mcap0": 33.0, "snaps": {"1": 33.0, "5": 60.0}}}], now)
     assert [r["label"] for r in lab.done] == ["nasceu graduado", "graduou"]

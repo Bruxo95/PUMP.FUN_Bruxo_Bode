@@ -37,7 +37,7 @@ def test_born_graduated_is_not_counted_as_rising():
     from app.pumpfun import PumpMarket
     from app.tokenlab import TokenLab, label
     assert label(411.0, {"1": 411.0}, True) == "nasceu graduado"
-    assert label(30.0, {"1": 30.0}, True) == "graduou"
+    assert label(30.0, {"1": 40.0, "5": 60.0}, True) == "graduou"
     lab = TokenLab(PumpMarket())
     t0 = time.time() - 400
     lab.on_create({"mint": "Rise".ljust(44, "1"), "marketCapSol": 30.0, "symbol": "RISE"}, t0)
