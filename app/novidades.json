@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.18.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Estratégias fantasma; Relatórios → Quanto ficou na mesa",
+      "titulo": "Estratégias fantasma e quanto ficou na mesa",
+      "oque": "Cada cópia fictícia agora também é seguida por 10 regras de saída diferentes ao mesmo tempo (stop 20% e 60%, stop móvel justo e largo, venda em partes, alvo +50% e +100%, ignorar a venda do trader, sair em 5 minutos). Todas usam a mesma entrada e as mesmas taxas, e a tela mostra lado a lado quanto cada uma teria dado e quanto as suas regras atuais deram. É só simulação: não mexe na sua carteira. Em Relatórios, o cartão novo Quanto ficou na mesa mostra o melhor e o pior momento de cada posição, quantas chegaram a +30% e fecharam no zero ou pior e quantos stops aconteceram depois de a posição já ter ganhado."
+    },
+    {
       "versao": "0.17.4",
       "data": "2026-10-25",
       "tipo": "segurança",

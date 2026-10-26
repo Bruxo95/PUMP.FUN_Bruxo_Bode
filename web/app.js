@@ -71,7 +71,41 @@
     $("repSkSub").textContent = "quantas cópias cada filtro barrou · " + r.skips_seen + " nos últimos " + r.feed_kept + " eventos guardados";
     table("repSk", ["Motivo", "Vezes"], (r.skips || []).map((x) => [esc(x.reason), String(x.count)]), "Nenhuma cópia barrada no período.");
     table("repDay", ["Dia", "Trades", "Acerto", "Resultado", "Taxas"], (r.days_list || []).map((x) => [esc(x.day.split("-").reverse().join("/")), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), s4(x.fees_sol)]), "Nenhum trade fechado no período.");
+    const m = r.mesa || {}, pc = (v) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
+    if (!m.trades) { $("repMesa").innerHTML = '<p class="muted">Ainda sem trades fechados com esse dado (começa a contar a partir da 0.18.0).</p>'; $("repMesaEx").innerHTML = ""; return; }
+    kpis("repMesa", [["Melhor momento (média)", pc(m.avg_best_pct), "o máximo que as posições chegaram a ganhar", "pnl"], ["Fechou em (média)", pc(m.avg_final_pct), "pior momento médio " + f(m.avg_worst_pct, 1) + "%", "tr"],
+      ["Ficou na mesa", pc(m.avg_left_pct), "diferença média entre o melhor momento e a saída", "mon"],
+      ["Devolveu o lucro", String(m.gave_back), "chegaram a +30% ou mais e fecharam no zero ou pior", "hit"],
+      ["Stop depois de ganhar", m.stops_were_up + " de " + m.stops, "stops de perda que antes estavam +10% ou mais", "pos"]]);
+    table("repMesaEx", ["Motivo de saída", "Trades", "Melhor momento (média)", "Fechou em (média)"], (m.exits || []).map((x) => [esc(x.reason), String(x.trades), pc(x.avg_best_pct), pc(x.avg_final_pct)]), "");
   }
+
+  // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
+  let GH = null;
+  async function loadGhosts() {
+    const r = await BB.api("/api/pump/ghosts");
+    if (r.error) { toast(r.error); return; }
+    GH = r;
+    const pctW = (x) => (x == null ? "–" : f(x * 100, 0) + "%"), roi = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + f(v, 1) + "%");
+    const best = (r.variants || []).find((v) => v.id === r.best), y = r.yours || {};
+    $("ghSub").textContent = r.since ? "comparando desde " + dt(r.since) + " · cada cópia fictícia também é \"copiada\" por " + (r.variants || []).length + " regras de saída" : "começa a contar na próxima cópia fictícia";
+    kpis("ghKpis", [["Suas regras atuais", sg(y.pnl_sol), y.trades + " trades · retorno " + roi(y.roi_pct), "pnl"],
+      ["Melhor variante", best ? sg(best.pnl_sol) : "–", best ? esc(best.nome) : "ainda sem trades fechados", "hit"],
+      ["Diferença", best && y.trades ? sg(best.pnl_sol - y.pnl_sol) : "–", "melhor variante − suas regras", "tr"]]);
+    const rows = [y].concat(r.variants || []);
+    table("ghTbl", ["Regra de saída", "Trades", "Abertas", "Acerto", "Resultado", "Retorno", "Melhor momento (média)"], rows.map((v) => [
+      (v.id === "suas" ? "<b>" + esc(v.nome) + "</b>" : esc(v.nome)) + (v.id === r.best ? ' <span class="tag win">melhor</span>' : ""), String(v.trades), String(v.open), pctW(v.win_rate),
+      "<b>" + sg(v.pnl_sol) + "</b>", roi(v.roi_pct), v.avg_best_pct == null ? "–" : "+" + f(v.avg_best_pct, 1) + "%"]), "");
+    const sel = $("ghSel"), cur = sel.value;
+    sel.innerHTML = (r.variants || []).map((v) => '<option value="' + esc(v.id) + '">' + esc(v.nome) + "</option>").join("");
+    if (cur) sel.value = cur;
+    ghRecent();
+  }
+  function ghRecent() {
+    const rec = ((GH && GH.recent) || {})[$("ghSel").value] || [];
+    table("ghRec", ["Quando", "Token", "Saída", "Resultado", "Melhor momento"], rec.map((x) => [dt(x.at), pfM(x.mint, x.symbol), esc(x.why), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small> " + f(x.pnl_pct, 1) + "%</small>"), "+" + f(x.best, 1) + "%"]), "Nenhum fechamento ainda nesta variante.");
+  }
+  document.addEventListener("change", (e) => { if (e.target.id === "ghSel") ghRecent(); });
   document.addEventListener("click", (e) => {
     const b = e.target.closest("#repDays button"); if (!b) return;
     REP_DAYS = +b.dataset.d; document.querySelectorAll("#repDays button").forEach((x) => x.classList.toggle("on", x === b)); loadReports();
@@ -399,7 +433,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -407,7 +441,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -418,6 +452,7 @@
     if (VIEW === "real") walletLoad(true);
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
+    if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);

@@ -27,6 +27,12 @@ from .solana_wallet import UserWallet
 log = logging.getLogger("monitor")
 
 
+
+def _gm(e) -> set:
+    """Tokens das estratégias fantasma de um motor (0.18.0); motores de teste sem fantasmas devolvem vazio."""
+    g = getattr(e, "ghosts", None)
+    return g.mints() if g is not None else set()
+
 class SharedMonitor:
     def __init__(self, hub):
         self.hub = hub
@@ -287,6 +293,9 @@ class SharedMonitor:
                 backoff = min(60.0, backoff * 2)
 
     # ------------------------------------------------------------------ preços
+    def ghost_mints(self) -> set:
+        return {m for e in self.engines() for m in _gm(e)}
+
     def held(self) -> dict:
         """Tokens em posição (de todos) → quantidade somada; e tokens segurados pelos traders copiados."""
         qty, trader = {}, []
@@ -294,6 +303,7 @@ class SharedMonitor:
             for p in e.positions():
                 qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)
             trader += [p["mint"] for p in e.trader_positions()]
+            trader += list(_gm(e))                        # estratégias fantasma (0.18.0) seguem o preço também
         return {"qty": qty, "trader": trader}
 
     async def price_once(self, do_ds: bool) -> None:
@@ -310,12 +320,12 @@ class SharedMonitor:
             mine = [m for m in h["qty"] if m not in rest]
             if mine:
                 await svc._fetch_prices(mine, set_price=False)
-        self.check_stops(set(h["qty"]))
+        self.check_stops(set(h["qty"]) | self.ghost_mints())
         self.market.rpc_status["price_at"] = now_iso()
 
     def check_stops(self, mints) -> None:
         for e in self.engines():
-            mine = {p["mint"] for p in e.positions()} & set(mints)
+            mine = ({p["mint"] for p in e.positions()} | _gm(e)) & set(mints)
             for m in mine:
                 for msg in e._check_stops(m, time.time()):
                     e._emit(msg)
@@ -398,7 +408,7 @@ class SharedMonitor:
             del m.wallets[w]
         for w in [w for w, x in m.creators.items() if t - x > win]:
             del m.creators[w]
-        held = set(self.held()["qty"])
+        held = set(self.held()["qty"]) | self.ghost_mints()
         for k in [k for k, tk in m.tokens.items() if t - tk.get("last_t", 0) > 6 * 3600 and k not in held]:
             del m.tokens[k]
 

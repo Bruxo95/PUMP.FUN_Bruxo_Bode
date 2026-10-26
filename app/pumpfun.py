@@ -125,6 +125,8 @@ class PumpFun:
         self.leaderboard: list[dict] = []          # top traders da pump.fun (Solana Tracker), julgados p/ este usuário
         self.lb_status = {"at": None, "error": None, "count": 0, "days": None}
         self._lb_at = 0.0
+        from .ghosts import Ghosts
+        self.ghosts = Ghosts(self)                   # estratégias fantasma (0.18.0): mesmas entradas, saídas diferentes
 
     # ------------------------------------------------------------------ dados públicos (compartilhados)
     @property
@@ -887,6 +889,7 @@ class PumpFun:
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
+            self.ghosts.on_open(p, t)
             self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e}"
                        + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
@@ -902,18 +905,12 @@ class PumpFun:
                            reason=f"trader saiu em {t - pend['t']:.0f} s (antes dos {float(self._c('pump_copy_delay_s', 0)):.0f} s de espera)")
                 return []
         # venda do trader: vende a mesma proporção da nossa posição copiada dele
+        frac = self._sell_frac(ev, tok, before)
+        if self.ghosts.open:
+            self.ghosts.on_trader_sell(who, mint, frac, px or tk.get("price"), t)
         mine = [p for p in mine if p["wallet"] == who]
         if not mine:
             return []
-        nb = ev.get("newTokenBalance")
-        if nb is not None and tok > 0:
-            frac = min(1.0, tok / (tok + float(nb)))
-        elif before > 0:
-            frac = min(1.0, tok / before)
-        else:
-            frac = 1.0
-        if frac >= 0.97:
-            frac = 1.0
         if frac < 0.01:                                  # venda irrelevante (<1% do que ele tinha): não mexe
             return []
         out = []
@@ -944,6 +941,17 @@ class PumpFun:
             out.append(self._sell(p, frac, px or p.get("price_now"), f"trader vendeu {frac * 100:.0f}%", t))
             self._feed(**base, action="copiou venda", reason=f"vendeu {frac * 100:.0f}% da posição")
         return [m for m in out if m]
+
+    @staticmethod
+    def _sell_frac(ev: dict, tok: float, before: float) -> float:
+        nb = ev.get("newTokenBalance")
+        if nb is not None and tok > 0:
+            frac = min(1.0, tok / (tok + float(nb)))
+        elif before > 0:
+            frac = min(1.0, tok / before)
+        else:
+            frac = 1.0
+        return 1.0 if frac >= 0.97 else frac
 
     def _fee_rates(self, mint: str) -> dict:
         """Taxas REAIS por lado: pump.fun na curva 1,25% (0,95% pump.fun + 0,30% criador) ou PumpSwap ~0,30% depois
@@ -1006,6 +1014,7 @@ class PumpFun:
                   "hold_s": round(t - p.get("open_t", t)), "sells": p.get("sells", []), "real": bool(p.get("real")),
                   "mcap_in": p.get("mcap_in"), "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
             tr["lag_s"] = p.get("lag_s")
+            tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1018,6 +1027,8 @@ class PumpFun:
         out = []
         px = (self.tokens.get(mint) or {}).get("price")
         stop, tp = float(self._c("pump_stop_pct", 40)), float(self._c("pump_tp_pct", 0))
+        if px and self.ghosts.open:
+            self.ghosts.on_price(mint, px, t)
         for p in [p for p in self.positions() if p["mint"] == mint]:
             if not px or p.get("selling"):
                 continue
@@ -1026,6 +1037,9 @@ class PumpFun:
             val = self._exit_value(p, px)
             chg = (val / left_cost - 1) * 100 if left_cost else 0
             p["chg_pct"] = round(chg, 2)
+            # pós-trade (0.18.0): melhor e pior momento da posição, para ver quanto ficou na mesa
+            p["best_pct"] = round(max(chg, p.get("best_pct", chg)), 2)
+            p["worst_pct"] = round(min(chg, p.get("worst_pct", chg)), 2)
             # STOP MÓVEL: liga quando o líquido (após taxas) passa de X%; depois sai se cair Y pontos do pico
             trail_on = getattr(self.cfg, "pump_trail_enabled", True)
             t_start, t_dist = float(self._c("pump_trail_start_pct", 20)), float(self._c("pump_trail_dist_pct", 10))
@@ -1062,6 +1076,8 @@ class PumpFun:
         t = t or time.time()
         mx = float(self._c("pump_max_hold_h", 6)) * 3600
         out = []
+        if self.ghosts.open:
+            self.ghosts.on_time(t)
         for p in self.positions():
             if t - p.get("open_t", t) >= mx and not p.get("selling"):
                 out.append(self._sell(p, 1.0, (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now"),
@@ -1079,6 +1095,7 @@ class PumpFun:
     def reset_sim(self) -> dict:
         self.store.reset_sim()
         self.store.feed_clear()
+        self.ghosts.reset()
         return {"ok": True}
 
     def prune(self, t: float | None = None) -> None:
@@ -2110,6 +2127,7 @@ class PumpFun:
                   "real": True, "signature": p.get("signature"), "mcap_in": p.get("mcap_in"),
                   "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
             tr["lag_s"] = p.get("lag_s")
+            tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)

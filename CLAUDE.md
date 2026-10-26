@@ -419,3 +419,14 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.17.4: as rotas `/api/pump/study*`, `radar`, `reports` e `aprendizado` usam `admin_engine`/`admin_only` (403 para
   usuário comum); Compartilhar só lista e aceita admins. Testes que usam o usuário B nessas rotas chamam
   `db.set_role(UB, "admin")`; regra nova em `tests/test_admin.py::test_usar_ou_descartar_routes_are_admin_only`.
+
+## Estratégias fantasma e pós-trade (2026-10-26, versão 0.18.0)
+- Pedido do dono: "faz tudo" da lista de melhorias guardada na memória (estratégias fantasma, pós-trade, saídas,
+  nota 0–100, banca, lista negra, Telegram, base da pump.fun…). Entregue em etapas; esta é a 1ª.
+- `app/ghosts.py`: cada cópia fictícia aberta abre 10 posições fantasma (`VARIANTS`) com a mesma entrada; o motor
+  avisa em `_copy` (abertura e venda do trader, via `_sell_frac`), `_check_stops` (preço) e `check_timeouts`.
+  O monitor inclui os tokens dos fantasmas no preço e nos stops (`_gm`). Resultado agregado em `ghost_stats`
+  (migração `20261026000001`, uma linha por usuário, gravada a cada 5 min em `hub.save_ghosts`); posições
+  fantasma abertas só em memória. Tela `#fantasma` (admin), rota `/api/pump/ghosts` (admin).
+- Pós-trade: `best_pct`/`worst_pct` na posição (`_check_stops`) e no trade fechado (simulado e real);
+  `reports.mesa()` → cartão "Quanto ficou na mesa" em Relatórios.

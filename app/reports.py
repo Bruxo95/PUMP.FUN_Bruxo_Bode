@@ -45,6 +45,33 @@ def _label(text: str, table: list[tuple[str, str]]) -> str:
     return re.sub(r"[\d.,%$+−-]+", "#", (text or "outro").strip())[:48] or "outro"
 
 
+def mesa(T: list[dict]) -> dict:
+    """Pós-trade (0.18.0): melhor e pior momento de cada posição × como ela fechou. Responde "estou saindo cedo
+    demais?" (subiu bem e fechou mal) e "o stop está apertado?" (só trades com o dado, gravado desde a 0.18.0)."""
+    R = [t for t in T if t.get("best_pct") is not None]
+    n = len(R)
+    if not n:
+        return {"trades": 0}
+    gave_back = [t for t in R if (t.get("best_pct") or 0) >= 30 and (t.get("pnl_pct") or 0) <= 0]
+    left = [max(0.0, (t.get("best_pct") or 0) - (t.get("pnl_pct") or 0)) for t in R]
+    stops = [t for t in R if str(t.get("reason") or "").startswith("stop de perda")]
+    by_exit: dict[str, list] = {}
+    for t in R:
+        by_exit.setdefault(_label(t.get("reason"), EXITS), []).append(t)
+    return {"trades": n,
+            "avg_best_pct": round(sum(t.get("best_pct") or 0 for t in R) / n, 1),
+            "avg_worst_pct": round(sum(t.get("worst_pct") or 0 for t in R) / n, 1),
+            "avg_final_pct": round(sum(t.get("pnl_pct") or 0 for t in R) / n, 1),
+            "avg_left_pct": round(sum(left) / n, 1),
+            "gave_back": len(gave_back),                              # chegou a +30% ou mais e fechou no zero ou pior
+            "stops": len(stops),
+            "stops_were_up": sum(1 for t in stops if (t.get("best_pct") or 0) >= 10),   # stop depois de já ter ganhado 10%+
+            "exits": sorted(({"reason": k, "trades": len(r),
+                              "avg_best_pct": round(sum(t.get("best_pct") or 0 for t in r) / len(r), 1),
+                              "avg_final_pct": round(sum(t.get("pnl_pct") or 0 for t in r) / len(r), 1)}
+                             for k, r in by_exit.items()), key=lambda x: -x["trades"])}
+
+
 def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, followed=(), paused=()) -> dict:
     since = datetime.now(timezone.utc) - timedelta(days=days) if days else None
     T = [t for t in trades if bool(t.get("real")) == real and (since is None or ((_when(t.get("closed_at")) or since) >= since))]
@@ -89,7 +116,7 @@ def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, fo
         k = _label(e.get("reason"), SKIPS)
         skips[k] = skips.get(k, 0) + 1
 
-    return {"days": days, "real": real, "total": agg(T), "fee_parts": fee_parts,
+    return {"days": days, "real": real, "total": agg(T), "fee_parts": fee_parts, "mesa": mesa(T),
             "traders": traders,                                        # pior primeiro: é quem você quer ver
             "exits": sorted(({"reason": k, **agg(r)} for k, r in by_exit.items()), key=lambda x: -x["trades"]),
             "days_list": [{"day": d, **agg(r)} for d, r in sorted(by_day.items(), reverse=True)][:60],

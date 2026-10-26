@@ -120,6 +120,11 @@ class PumpHub:
             pf.study = [r["wallet"] for r in await self.db.select("study_wallets", {"user_id": uid}, order="criado_em.asc")]
         except Exception:
             pf.study = []
+        try:                                       # estratégias fantasma (0.18.0; tabela pode ainda não existir)
+            rows = await self.db.select("ghost_stats", {"user_id": uid})
+            pf.ghosts.load(rows[0].get("data") if rows else None)
+        except Exception:
+            pass
         self._wire_wallet(pf)
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
             if p.get("selling"):
@@ -245,6 +250,28 @@ class PumpHub:
                 log.warning("Aprendizado diário não gravou (%s…): %s", uid[:8], str(e)[:160])
                 break                                    # tabela ausente/banco fora: tenta na próxima rodada
         return n
+
+    async def save_ghosts(self) -> int:
+        """Grava o resultado das estratégias fantasma de quem teve novidade (uma linha por usuário)."""
+        n = 0
+        for uid, pf in list(self.engines.items()):
+            if not pf.ghosts.dirty:
+                continue
+            try:
+                await self.db.insert("ghost_stats", {"user_id": uid, "data": pf.ghosts.dump(),
+                                                     "atualizado_em": datetime.now(timezone.utc).isoformat()},
+                                     upsert=True, on_conflict="user_id")
+                pf.ghosts.dirty = False
+                n += 1
+            except Exception as e:
+                log.warning("Estratégias fantasma não gravaram (%s…): %s", uid[:8], str(e)[:160])
+                break
+        return n
+
+    async def ghosts_loop(self) -> None:
+        while True:
+            await asyncio.sleep(300)
+            await self.save_ghosts()
 
     async def learning_loop(self) -> None:
         while True:
@@ -459,6 +486,7 @@ class PumpHub:
             self._start_engine(pf)
         self._tasks.append(asyncio.create_task(self.flush_loop()))
         self._tasks.append(asyncio.create_task(self.learning_loop()))
+        self._tasks.append(asyncio.create_task(self.ghosts_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
         self.monitor.start()
@@ -476,6 +504,10 @@ class PumpHub:
                 await pf.store.flush()
             except Exception:
                 pass
+        try:
+            await self.save_ghosts()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ gestão de usuários (admin)
     async def unload(self, uid: str) -> None:

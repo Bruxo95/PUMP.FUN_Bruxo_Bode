@@ -180,6 +180,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
             return {"error": "endereço de token inválido"}
         return pf.token_card(mint)
 
+    @app.get("/api/pump/ghosts")
+    async def pump_ghosts(pf=Depends(admin_engine)):
+        """Estratégias fantasma (0.18.0): mesmas entradas da cópia fictícia, saídas diferentes, lado a lado."""
+        return pf.ghosts.snapshot(pf.trades(100000))
+
     @app.get("/api/pump/radar")
     async def radar(pf=Depends(admin_engine)):
         return hub.radar_snapshot(pf)

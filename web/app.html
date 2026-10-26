@@ -44,6 +44,7 @@
         <a href="#radar" data-v="radar" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6M12 3v2M3 12h2"/><circle cx="12" cy="12" r="1"/></svg>Radar de KOLs</a>
         <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
         <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
+        <a href="#fantasma" data-v="fantasma" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10a6 6 0 0 1 12 0v10l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5z"/><circle cx="10" cy="10" r="1"/><circle cx="14" cy="10" r="1"/></svg>Estratégias fantasma</a>
         <a href="#novas" data-v="novas" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Opções novas de cópia</a>
         <a href="#novidades" data-v="novidades" id="navNov" hidden data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Novidades</a>
         </div>
@@ -228,8 +229,21 @@
           <div class="card"><header><div><h2>Por que o bot não copiou</h2><div class="sub" id="repSkSub">quantas cópias cada filtro barrou</div></div></header>
             <div class="tbl-wrap"><table id="repSk"></table></div></div>
         </div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Quanto ficou na mesa</h2><div class="sub" id="repMesaSub">melhor e pior momento de cada posição × como ela fechou (trades fechados a partir da 0.18.0)</div></div></header>
+          <div class="kpis" id="repMesa"></div>
+          <div class="tbl-wrap"><table id="repMesaEx"></table></div></div>
         <div class="card"><header><div><h2>Resultado por dia</h2></div></header>
           <div class="tbl-wrap"><table id="repDay"></table></div></div>
+      </section>
+
+      <!-- ========================================================= ESTRATÉGIAS FANTASMA (app/ghosts.py, 0.18.0) -->
+      <section class="view" data-view="fantasma" hidden>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Estratégias fantasma</h2><div class="sub" id="ghSub">cada cópia fictícia também é "copiada" por várias regras de saída ao mesmo tempo · só simulação, não mexe na sua carteira</div></div></header>
+          <div class="kpis" id="ghKpis"></div>
+          <div class="tbl-wrap"><table id="ghTbl"></table></div>
+          <p class="muted" style="margin-top:10px">Todas usam a mesma entrada e as mesmas taxas da sua carteira fictícia. Compare o resultado com "Suas regras atuais" e, quando uma variante ganhar por vários dias seguidos, copie a regra dela em Configurações ou em Opções novas de cópia. Posições fantasma abertas se perdem se o servidor reiniciar; o resultado fechado fica guardado.</p></div>
+        <div class="card"><header><div><h2>Últimos fechamentos</h2><div class="sub">escolha a variante</div></div><div class="sp"></div><select class="in" id="ghSel" style="width:260px"></select></header>
+          <div class="tbl-wrap"><table id="ghRec"></table></div></div>
       </section>
 
       <!-- ========================================================= HISTÓRICO -->
