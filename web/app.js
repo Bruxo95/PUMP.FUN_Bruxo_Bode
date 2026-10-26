@@ -56,7 +56,18 @@
   marcarNovos();
   // ------------------------------------------------------------------ relatórios (/api/pump/reports)
   let REP_DAYS = 7, REP_AT = 0, REP_MODE = null;
+  async function loadTune() {
+    const r = await BB.api("/api/pump/tune");
+    if (r.error) return;
+    const ru = r.rules || {};
+    $("tuSub").textContent = (r.on ? "LIGADO" : "DESLIGADO") + (r.real_on ? " · parado: a execução real está ligada" : "") + " · última volta " + (r.last_run ? dt(r.last_run) : "ainda não rodou (roda a cada 6 h)") +
+      (r.testing ? " · em teste: " + (r.testing.nome || "") + " desde " + dt(r.testing.desde) : " · nenhuma regra em teste") + " · precisa de " + ru.min_trades + " trades e " + ru.min_days + " dias de fantasmas";
+    const AC = { aplicou: "win", manteve: "win", desfez: "loss", pausou: "pause" };
+    table("tuLog", ["Quando", "O quê", "Decisão", "Por quê"], (r.log || []).map((x) => [dt(x.em), x.tipo === "saida" ? "regra de saída" : "trader", '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", esc(x.motivo || "")]),
+      "Nenhuma mudança ainda: a primeira sai quando as Estratégias fantasma tiverem base (30 trades e 2 dias) ou quando um trader repetir prejuízo.");
+  }
   async function loadReports() {
+    loadTune();
     const rm = realMode(), r = await BB.api("/api/pump/reports?days=" + REP_DAYS + "&real=" + (rm ? 1 : 0));
     if (r.error) { toast(r.error); return; }
     REP_AT = Date.now(); REP_MODE = rm;
@@ -819,6 +830,13 @@
       toast(r.error ? "Não adicionou: " + r.error : r.already ? "Essa carteira já está no estudo." : "Carteira adicionada ao estudo. O histórico chega em alguns segundos.");
       if (!r.error) { $("stW").value = ""; $("stA").value = ""; setTimeout(loadStudy, 4000); }
       return loadStudy();
+    }
+    if (t.id === "tuRun") {
+      t.disabled = true;
+      const r = await BB.api("/api/pump/tune/run", { body: {} });
+      t.disabled = false;
+      toast(r.error ? "Não rodou: " + r.error : !r.ok ? "Ajuste automático: " + (r.motivo || "desligado") : (r.acoes || []).length ? "Ajuste automático: " + r.acoes.join(", ") : r.testando ? "Ajuste automático: regra em teste, ainda sem base para decidir." : "Ajuste automático: nada para mudar agora.");
+      return loadTune();
     }
     if (t.id === "saRun") {
       t.disabled = true;

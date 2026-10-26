@@ -30,7 +30,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_ex_auto_on": (bool, True, 0, 1),             # 0.31.11: LIGADO por padrão a pedido do dono (só fictício)
     "pump_ex_auto_need_smart": (bool, False, 0, 1),
     "pump_ar_learn": (bool, True, 0, 1),
-    "pump_st_auto_on": (bool, True, 0, 1),             # 0.31.13: estudo automático de carteiras (só estudo, não copia)
+    "pump_st_auto_on": (bool, True, 0, 1),
+    "pump_tune_on": (bool, True, 0, 1),                # 0.31.14: ajuste automático (saída pelos fantasmas + pausar trader ruim)             # 0.31.13: estudo automático de carteiras (só estudo, não copia)
     "pump_st_auto_max": (int, 15, 1, 30),                # 0.31.12: aprender com os erros (bloqueia faixas que perdem; só aperta)     # exigir trader bom também no Explorar (na Base continua exigido)
     "pump_ex_auto_min_pressure": (float, 60.0, 0.0, 100.0),
     "pump_ex_auto_min_holders": (int, 100, 0, 1000000),

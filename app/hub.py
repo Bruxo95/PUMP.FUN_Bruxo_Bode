@@ -49,6 +49,7 @@ class PumpHub:
         self.elite = Elite(self.market)           # maiores traders (0.31.2)                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._study_auto_at: dict[str, float] = {}  # usuário -> última volta do estudo automático (0.31.13)
+        self._tune_at: dict[str, float] = {}        # usuário -> última volta do ajuste automático (0.31.14)
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
         self.started_at = time.time()
@@ -530,7 +531,7 @@ class PumpHub:
 
     # ------------------------------------------------------------------ avisos no Telegram (0.20.0)
     TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas",
-               "compra automática", "boost on", "aprendi com os erros", "estudo automático")
+               "compra automática", "boost on", "aprendi com os erros", "estudo automático", "ajuste automático")
 
     def tg_wanted(self, pf, msg: str) -> bool:
         if not getattr(pf.cfg, "pump_tg_on", False):
@@ -693,6 +694,78 @@ class PumpHub:
                            {"features": features(c), "nota": c["nota"], "fonte": c["fonte"]})
         self._study_auto_at[pf.user_id] = now
         return {"ok": True, **done}
+
+    async def auto_tune(self, pf, now: float | None = None) -> dict:
+        """Ajuste automático (0.31.14, app/autotune.py): aplica a regra de saída que os fantasmas mostram render mais,
+        desfaz se piorar e pausa trader que só dá prejuízo. Só com a execução real desligada."""
+        from .auto_trades import ts
+        from .autotune import (KEYS, PAUSE_H, REJECT_S, bad_traders, evaluate, pick_exit, variant_settings)
+        from .reports import autopsy
+        now = time.time() if now is None else now
+        if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_tune_on", True):
+            return {"ok": False, "motivo": "desligado"}
+        if getattr(pf.cfg, "pump_real_enabled", False):
+            return {"ok": False, "motivo": "execução real ligada: o ajuste automático só mexe com o real desligado"}
+        log_rows = await self.db.select("auto_tune_log", {"user_id": pf.user_id}, order="em.desc", limit=500)
+        done: list[str] = []
+
+        async def note(tipo, acao, motivo, detalhe):
+            await self.db.insert("auto_tune_log", {"user_id": pf.user_id, "tipo": tipo, "acao": acao, "motivo": motivo,
+                                                   "detalhe": detalhe, "em": datetime.fromtimestamp(now, timezone.utc).isoformat()})
+            done.append(acao)
+            pf._emit(f"Ajuste automático: {acao} — {motivo}")
+
+        trades = pf.trades(100000)
+        last = next((r for r in log_rows if r.get("tipo") == "saida"), None)
+        testing = False
+        if last and last.get("acao") == "aplicou":
+            ev = evaluate(last, trades, now, ts)
+            det = last.get("detalhe") or {}
+            if ev is None:
+                testing = True
+            else:
+                if ev[0] == "desfez":
+                    pf.cfg.apply(det.get("antes") or {})
+                    await self.save_settings(pf)
+                await note("saida", ev[0], f"{det.get('nome', det.get('variante'))}: {ev[1]}",
+                           {"variante": det.get("variante"), "nome": det.get("nome")})
+        if not testing:
+            rejected = {(r.get("detalhe") or {}).get("variante") for r in log_rows
+                        if r.get("tipo") == "saida" and r.get("acao") == "desfez" and now - (ts(r.get("em")) or 0) < REJECT_S}
+            if done and done[-1] == "desfez":
+                rejected.add((last.get("detalhe") or {}).get("variante"))
+            snap = pf.ghosts.snapshot(trades)
+            days = (now - (ts(snap.get("since")) or now)) / 86400
+            pick = pick_exit(snap, days, rejected)
+            new = variant_settings(pick["id"]) if pick else None
+            if new:
+                antes = {k: getattr(pf.cfg, k) for k in KEYS}
+                if any(antes.get(k) != v for k, v in new.items()):
+                    pf.cfg.apply(new)
+                    await self.save_settings(pf)
+                    await note("saida", "aplicou", f"{pick['nome']}: {pick['avg']:+.5f} SOL/trade nos fantasmas ({pick['trades']} trades) "
+                               f"× suas regras {pick['mine_avg']:+.5f}; fica em teste 48 h",
+                               {"variante": pick["id"], "nome": pick["nome"], "antes": antes, "depois": new})
+        from .pumpfun import AUTO_ORIGINS
+        # só cópias de trader: compras manuais e automáticas (Explorar, Base, elite) não têm trader para pausar
+        week = [t for t in trades if not t.get("real") and not t.get("manual") and t.get("origem") not in AUTO_ORIGINS
+                and pf.valid_addr(t.get("wallet") or "") and now - (ts(t.get("closed_at")) or 0) < 7 * 86400]
+        for x in bad_traders(autopsy(week), set(pf.paused())):
+            pf.pause(x["wallet"], PAUSE_H, f"ajuste automático: {x['trades']} cópias, acerto {x['acerto'] * 100:.0f}%, {x['pnl_sol']:+.4f} SOL")
+            await note("trader", "pausou", f"{x['wallet'][:4]}…{x['wallet'][-4:]} por {PAUSE_H} h: {x['trades']} cópias, acerto "
+                       f"{x['acerto'] * 100:.0f}%, {x['pnl_sol']:+.4f} SOL ({x['causa_nome']})", {"wallet": x["wallet"]})
+        self._tune_at[pf.user_id] = now
+        return {"ok": True, "acoes": done, "testando": testing}
+
+    async def tune_loop(self) -> None:
+        await asyncio.sleep(300)
+        while True:
+            for pf in list(self.engines.values()):
+                try:
+                    await self.auto_tune(pf)
+                except Exception as e:
+                    log.warning("ajuste automático (%s…): %s", pf.user_id[:8], str(e)[:160])
+            await asyncio.sleep(6 * 3600)
 
     async def study_auto_loop(self) -> None:
         await asyncio.sleep(120)
@@ -923,6 +996,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.ghosts_loop()))
         self._tasks.append(asyncio.create_task(self.daily_loop()))
         self._tasks.append(asyncio.create_task(self.study_auto_loop()))
+        self._tasks.append(asyncio.create_task(self.tune_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
         self.monitor.start()

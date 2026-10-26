@@ -666,3 +666,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `study_auto_log` (migração `20261026000009`); `rates()` aprende por fonte/faixa de acerto/faixa de trades.
   Rota `POST /api/pump/study/auto/run` e campo `auto` em `/api/pump/study` (admin). Não copia nada sozinho.
   Testes: `tests/test_autostudy.py`.
+
+## Ajuste automático (2026-10-26, versão 0.31.14)
+- Pedido do dono ("a IA ver, rever e corrigir sozinha"). `app/autotune.py` + `PumpHub.auto_tune` (`tune_loop`, 6 h;
+  `pump_tune_on` ON). Aplica a variante dos fantasmas (`variant_settings`; `sem_trader` não tem opção equivalente)
+  com `MIN_TRADES`=30, `MIN_DAYS`=2, margem 0,001 SOL/trade; avalia após 48 h/15 trades e desfaz se piorar
+  (rejeita 7 dias); pausa trader ruim 48 h (só cópias de trader). Para com o real ligado. `auto_tune_log`
+  (migração `20261026000010`), rotas `/api/pump/tune` e `/api/pump/tune/run` (admin). Testes: `tests/test_autotune.py`.
+  Não é uma IA de linguagem: são regras com medição antes × depois.

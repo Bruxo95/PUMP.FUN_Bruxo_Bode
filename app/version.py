@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.31.13 · 2026-10-26 · Estudo automático de carteiras"
+VERSION = "0.31.14 · 2026-10-26 · Ajuste automático"

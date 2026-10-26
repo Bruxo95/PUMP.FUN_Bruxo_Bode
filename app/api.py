@@ -451,6 +451,30 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 "counts": {a: sum(1 for r in log_rows if r.get("acao") == a) for a in ("adicionou", "aprovou", "descartou")},
                 "rates": rates(log_rows)}
 
+    @app.get("/api/pump/tune")
+    async def tune_info(pf=Depends(admin_engine)):
+        from datetime import datetime, timezone
+        from .autotune import EVAL_S, EVAL_TRADES, MIN_DAYS, MIN_TRADES
+        try:
+            rows = await hub.db.select("auto_tune_log", {"user_id": pf.user_id}, order="em.desc", limit=200)
+        except Exception:
+            rows = []
+        last = hub._tune_at.get(pf.user_id)
+        sai = next((r for r in rows if r.get("tipo") == "saida"), None)
+        return {"on": bool(getattr(pf.cfg, "pump_tune_on", True)), "real_on": bool(getattr(pf.cfg, "pump_real_enabled", False)),
+                "last_run": datetime.fromtimestamp(last, timezone.utc).isoformat() if last else None,
+                "testing": {"nome": (sai.get("detalhe") or {}).get("nome"), "desde": sai.get("em")} if sai and sai.get("acao") == "aplicou" else None,
+                "rules": {"min_trades": MIN_TRADES, "min_days": MIN_DAYS, "eval_h": EVAL_S // 3600, "eval_trades": EVAL_TRADES},
+                "log": [{k: r.get(k) for k in ("tipo", "acao", "motivo", "em")} for r in rows[:60]]}
+
+    @app.post("/api/pump/tune/run")
+    async def tune_run(pf=Depends(admin_engine)):
+        try:
+            return await hub.auto_tune(pf)
+        except Exception as e:
+            log.warning("ajuste automático: %s", str(e)[:120])
+            return {"error": "não consegui rodar agora (tabela criada no banco?)"}
+
     @app.post("/api/pump/study/auto/run")
     async def study_auto_run(pf=Depends(admin_engine)):
         try:

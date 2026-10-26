@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.14",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Relatórios → Números → Ajuste automático",
+      "titulo": "Ajuste automático: o servidor corrige sozinho o que os relatórios mostram",
+      "oque": "A cada 6 horas o servidor olha as Estratégias fantasma: se uma regra de saída rende mais por trade que as suas (com 30+ trades e 2+ dias de teste), ela passa a ser a sua regra na carteira fictícia. A regra fica 48 h em teste e, se o resultado por trade piorar, volta sozinha ao que era e fica de fora por 7 dias. Também pausa por 48 h o trader que deu prejuízo com 5+ cópias e acerto abaixo de 30% na semana. Cada decisão aparece no quadro com o porquê e no Feed/Telegram. Só age com a execução real desligada. Botões: Automático (ligado) e Rodar agora. Nenhum sistema garante lucro sempre: o objetivo é cortar o que perde e manter o que ganha."
+    },
+    {
       "versao": "0.31.13",
       "data": "2026-10-26",
       "tipo": "novo",

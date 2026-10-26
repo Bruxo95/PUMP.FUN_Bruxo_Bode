@@ -252,6 +252,10 @@
       <section class="view" data-view="relatorios" hidden>
         <div class="seg" id="repTabs" style="margin-bottom:12px" data-novo-ate="2026-11-09"><button data-rt="num" class="on">Números</button><button data-rt="pdf">Relatórios do dia (PDF)</button><button data-rt="ia">Mudanças feitas pela IA</button></div>
         <div id="repNum">
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Ajuste automático: a IA corrige sozinha</h2><div class="sub" id="tuSub">lê os relatórios e as Estratégias fantasma, aplica o que rende mais e desfaz o que piora</div></div><div class="sp"></div>
+            <span class="muted" style="margin-right:6px">Automático</span><button class="btn sm tgl" data-toggle="pump_tune_on">…</button> <button class="btn sm" id="tuRun">Rodar agora</button></header>
+          <div class="help"><p>A cada 6 h: <b>(1) saída</b> — se uma regra das Estratégias fantasma rende mais por trade que as suas regras (com 30+ trades e 2+ dias de teste), ela vira a sua regra; fica <b>48 h em teste</b> e, se o resultado por trade piorar, <b>volta sozinha</b> ao que era e a regra fica de fora por 7 dias. <b>(2) traders</b> — quem deu prejuízo com 5+ cópias e acerto abaixo de 30% em 7 dias é pausado por 48 h. <b>(3)</b> O Explorar e as Carteiras em estudo já aprendem sozinhos. Só age com a execução real <b>desligada</b>. Nenhum sistema garante lucro sempre: o objetivo é cortar o que perde e manter o que ganha.</p></div>
+          <div class="tbl-wrap"><table id="tuLog"></table></div></div>
         <div class="card"><header><div><h2>Período <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub">tudo líquido: depois de todas as taxas e do slippage · troque Fictícia/Real no topo</div></div><div class="sp"></div>
           <div class="seg" id="repDays"><button data-d="1">24 h</button><button data-d="7" class="on">7 dias</button><button data-d="30">30 dias</button><button data-d="0">Tudo</button></div></header>
           <div class="kpis" id="repKpis"></div></div>
