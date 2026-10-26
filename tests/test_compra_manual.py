@@ -4,7 +4,7 @@ import time
 from tests.test_api import UA, UB, env, tok  # noqa: F401  (fixture env)
 from tests.test_pump import _pump
 
-M = "Manual".ljust(40, "1") + "pump"
+M = "Compra".ljust(40, "1") + "pump"            # sem "l": endereço Solana não usa essa letra
 
 
 def test_manual_buy_opens_simulated_position_without_copy_filters(tmp_path):
