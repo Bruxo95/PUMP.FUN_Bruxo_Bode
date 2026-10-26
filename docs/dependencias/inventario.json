@@ -4,7 +4,7 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "fab0a8334b4d318738eb6a5920b639d140bef298",
+    "repository_reference": "78547537be25a3e5f89cdb408964e9a93829fb5c",
     "application_version": "0.31.11 · 2026-10-26 · Por que está no vermelho",
     "reviewer": {
       "agent": "OpenAI Codex",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5c9d3e49b6cba3a5d9d9d552227a53e86947955f4ce950b3ddda1fda6fd1db65"
+  "pdf_sha256": "da2eb4482bd45556fdc9717ae02fc57969c73a5cf3bb8b4266e72ebd848a557a"
 }

@@ -46,10 +46,12 @@ def _reject(**changes):
 
 
 class AutoExplorarTests(unittest.TestCase):
-    def test_explore_auto_starts_off(self):
+    def test_explore_auto_starts_on_but_only_simulated(self):
+        # 0.31.11: o dono pediu o Explorar comprando "chance alta" sozinho; continua só no fictício
         pf = _pf()
-        assert pf.cfg.pump_ex_auto_on is False and pf.cfg.pump_auto_real is False
-        assert _run(pf) == [] and not pf.positions()
+        assert pf.cfg.pump_ex_auto_on is True and pf.cfg.pump_auto_real is False
+        off = _pf(pump_ex_auto_on=False)
+        assert _run(off) == [] and not off.positions()
 
 
     def test_explore_auto_uses_own_rules_and_keeps_entry_snapshot(self):

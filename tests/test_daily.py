@@ -91,7 +91,7 @@ def test_report_lists_each_trade_with_time_and_by_hour(tmp_path):
     from app.daily import blocks, build, day_of, hhmm
     from tests.test_pump import _pump
     pf = _pump(tmp_path, paid=False)
-    base = time.time() - 3 * 3600
+    base = (time.time() - 3 * 3600) // 3600 * 3600 + 60                 # começo de hora: 3 horas certinhas
     for i in range(9):
         c = base + (i // 3) * 3600 + i * 60
         pf._save_trade({"wallet": "W", "symbol": f"T{i}", "mint": "M" * 40, "sol_in": 0.1, "hold_s": 125,

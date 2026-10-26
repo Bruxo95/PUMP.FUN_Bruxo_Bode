@@ -2,7 +2,7 @@
 
 Emissão: **2026-10-26**; revisão documental **2.0**.
 Aplicação: **0.31.11 · 2026-10-26 · Por que está no vermelho**.
-Referência Git na emissão: `fab0a8334b4d318738eb6a5920b639d140bef298`; fontes locais identificadas por SHA-256 no JSON.
+Referência Git na emissão: `78547537be25a3e5f89cdb408964e9a93829fb5c`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

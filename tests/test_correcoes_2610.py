@@ -56,3 +56,17 @@ def test_ghosts_measure_stale_and_one_hour_rules():
     from app.ghosts import VARIANTS
     ids = [v for v, _, _ in VARIANTS]
     assert "parado45" in ids and "max1h" in ids
+
+
+def test_explore_does_not_require_a_good_trader_nor_a_finished_fresh_check():
+    """0.31.11: no Explorar, trader bom só com pump_ex_auto_need_smart; carteira nova não checada não trava."""
+    from tests.test_auto_explorar import A, _pf, _row
+    pf = _pf(pump_ex_auto_on=True, pump_ar_min_age_min=20, pump_ar_fresh_on=True, pump_ar_smart_on=True)
+    old = (time.time() - 3600) * 1000
+    assert pf.explore_entry_reason(_row(created=old)) is None             # sem trader bom e sem checagem: compra
+    assert pf.auto_safety(A, 60.0, "base").startswith("esperando checar")  # na Base continua exigindo
+    pf.tokens[A]["fresh"] = {"n": 9, "of": 20, "pct": 45.0, "t": time.time()}
+    assert "carteiras novas" in pf.explore_entry_reason(_row(created=old))
+    pf.tokens[A]["fresh"]["pct"] = 5.0
+    pf.cfg.pump_ex_auto_need_smart = True
+    assert pf.explore_entry_reason(_row(created=old)).startswith("nenhum trader bom")

@@ -650,3 +650,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`CAUSES` com a correção de cada causa; por trader: causa principal, holder longo ≥3 h, 0 acertos → pausar/banir).
   `daily.build` guarda `loss_causes`/`loss_traders` no `daily_report` e cria sugestões `causa_*` (recorrência no
   aprendizado). Quadro em Relatórios → Números. Testes: `tests/test_autopsy.py`.
+- 0.31.11 (Explorar): `pump_ex_auto_on` passa a vir LIGADO (fictício) a pedido do dono ("tem muita chance alta e nada
+  foi feito"); `auto_safety(..., origem="explorar")` não exige trader bom (só com `pump_ex_auto_need_smart`) e não
+  espera a checagem de carteiras novas; a rota do Explorar devolve `auto` (compra ou motivo) por token.

@@ -194,6 +194,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         for rows in list(out.get("lists", {}).values()) + [out.get("movers") or []]:
             for x in rows:
                 safety_marks(pf, x)
+                # 0.31.11: por que o automático compra ou não este token (só faz sentido na lista Quase graduando)
+                if not getattr(pf.cfg, "pump_ex_auto_on", True):
+                    x["auto"] = {"ok": False, "motivo": "entrada automática do Explorar desligada"}
+                else:
+                    why = pf.explore_entry_reason({**x, "cat": x.get("cat")}) or pf.auto_guard(x["mint"])
+                    held = any(p["mint"] == x["mint"] for p in pf.positions())
+                    x["auto"] = {"ok": not why, "motivo": "já comprou (posição aberta)" if held else (why or "entra na próxima leitura")}
         return out
 
     def safety_marks(pf, x: dict) -> None:

@@ -1825,7 +1825,7 @@ class PumpFun:
         age = None
         if created:
             age = (time.time() - (created / 1000 if created > 1e12 else created)) / 60
-        return self.auto_safety(row["mint"], age)
+        return self.auto_safety(row["mint"], age, "explorar")
 
     def explore_auto_check(self, lists: dict, t: float | None = None) -> list[str]:
         if not getattr(self.cfg, "pump_ex_auto_on", False) or getattr(self, "role", None) != "admin":
@@ -2324,18 +2324,24 @@ class PumpFun:
         good |= {r["wallet"] for r in self.leaderboard if r.get("eligible") and r.get("wallet")}
         return sorted(w for w in good if (((self.wallets.get(w) or {}).get("pos") or {}).get(mint) or {}).get("tok", 0) > 0)
 
-    def auto_safety(self, mint: str, age_min: float | None) -> str | None:
-        """Travas extras de TODA entrada automática (Base e Explorar), 0.31.0."""
+    def auto_safety(self, mint: str, age_min: float | None, origem: str = "base") -> str | None:
+        """Travas extras de TODA entrada automática (Base e Explorar), 0.31.0. No Explorar (0.31.11, pedido do dono: "tem
+        muita chance alta e nada foi feito") o trader bom só é exigido com pump_ex_auto_need_smart, e carteira nova ainda
+        não checada não trava (muita carteira nova já checada continua travando)."""
         mn = float(self._c("pump_ar_min_age_min", 20) or 0)
         if mn and age_min is not None and age_min < mn:
             return f"token com {age_min:.0f} min de vida (mínimo {mn:.0f})"
         if getattr(self.cfg, "pump_ar_fresh_on", True):
             fr = (self.tokens.get(mint) or {}).get("fresh")
-            if not fr:
+            if not fr and origem != "explorar":
                 return "esperando checar as carteiras novas dos maiores detentores"
+            if not fr:
+                fr = {"pct": 0.0, "n": 0, "of": 0}
             if fr["pct"] >= float(self._c("pump_ar_fresh_max_pct", 30)):
                 return f"{fr['n']} de {fr['of']} maiores detentores são carteiras novas (robôs)"
-        if getattr(self.cfg, "pump_ar_smart_on", True):
+        need_smart = getattr(self.cfg, "pump_ar_smart_on", True) if origem != "explorar" else \
+            getattr(self.cfg, "pump_ex_auto_need_smart", False)
+        if need_smart:
             n = len(self.smart_in(mint))
             need = int(self._c("pump_ar_smart_min", 1))
             if n < need:

@@ -367,8 +367,9 @@
     const usd = (v) => (v == null ? "–" : "$" + f(v, v >= 1000 ? 0 : 2));
     const pc = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 0) + "%</span>");
     const frs = (x) => !x.fresh ? '<span class="muted">…</span>' : '<span class="' + (x.fresh.pct >= (cfg().pump_ar_fresh_max_pct || 30) ? "down" : "") + '">' + x.fresh.n + " de " + x.fresh.of + "</span>";
-    table("exTbl", ["Token", "Veredito", "Market cap", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
-      '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>",
+    const aut = (x) => !x.auto ? "–" : x.auto.ok ? '<span class="tag win">compra</span><small>' + esc(x.auto.motivo) + "</small>" : '<span class="tag neutral">não</span><small>' + esc(x.auto.motivo) + "</small>";
+    table("exTbl", ["Token", "Veredito", "Automático", "Market cap", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
+      '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>", aut(x),
       usd(x.mcap_usd), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
       x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
       x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',

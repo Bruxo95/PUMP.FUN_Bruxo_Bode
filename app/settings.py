@@ -27,7 +27,8 @@ def _cast(typ, raw: str):
 # nome: (tipo, padrão, mínimo, máximo)  — mesmos padrões do app/config.py original
 USER_KEYS: dict[str, tuple] = {
     # 0.30.0: Explorar automático e proteções próprias das operações automáticas.
-    "pump_ex_auto_on": (bool, False, 0, 1),
+    "pump_ex_auto_on": (bool, True, 0, 1),             # 0.31.11: LIGADO por padrão a pedido do dono (só fictício)
+    "pump_ex_auto_need_smart": (bool, False, 0, 1),     # exigir trader bom também no Explorar (na Base continua exigido)
     "pump_ex_auto_min_pressure": (float, 60.0, 0.0, 100.0),
     "pump_ex_auto_min_holders": (int, 100, 0, 1000000),
     "pump_ex_auto_max_risk": (int, 6, 1, 10),
