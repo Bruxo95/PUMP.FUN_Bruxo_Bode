@@ -727,7 +727,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
         name, value = str(body.get("name") or ""), str(body.get("value") or "").strip()
         if name not in SYSTEM_NAMES:
             return {"error": "chave desconhecida"}
-        if len(value) < 16:
+        if name == "rpc_url":
+            try:
+                value = check_rpc_url(value)
+            except ValueError as e:
+                return {"error": str(e)}
+        elif len(value) < 16:
             return {"error": "chave inválida (curta demais)"}
         try:
             await hub.set_system_key(u["id"], name, value)

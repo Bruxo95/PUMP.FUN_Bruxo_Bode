@@ -24,6 +24,7 @@ SYSTEM_NAMES = {
     "solanatracker_api_key": "Chave da Solana Tracker",
     "pumpportal_api_key": "Chave da PumpPortal",
     "jupiter_api_key": "Chave da Jupiter (opcional)",
+    "rpc_url": "RPC próprio (Helius etc.)",
 }
 SYSTEM_OWNER = "__sistema__"                        # "dono" usado na criptografia das chaves do sistema
 
