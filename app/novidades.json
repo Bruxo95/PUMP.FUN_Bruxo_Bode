@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.27.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Base da pump.fun → Compra automática",
+      "titulo": "Compra automática: entra sozinho em token com Boost ON (e, se quiser, com chance alta)",
+      "oque": "O servidor passa a comprar sozinho, mesmo com o painel fechado, usando os valores prontos do botão Comprar (0,1 SOL, stop −30%, alvo +100%, stop móvel e venda em +80% com Boost ON). Regras com ON/OFF: entrar quando o token está com Boost ON e entrar quando a previsão diz chance alta. Limites: só tokens novos (até 15 min de vida), no máximo 5 compras por hora, nunca token marcado como lixo ou suspeito e nunca o mesmo token duas vezes. Começa desligada; compra só na carteira fictícia, a não ser que você ligue também na real (que hoje está travada no servidor). Cada compra aparece em Suas compras desta tela, no Feed e no Telegram."
+    },
+    {
       "versao": "0.26.0",
       "data": "2026-10-26",
       "tipo": "melhoria",

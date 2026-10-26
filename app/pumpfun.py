@@ -1587,7 +1587,7 @@ class PumpFun:
         score = round(sum(parts[k] * W[k] for k in parts) / tot * 100, 1) if tot else 50.0
         return score, {k: round(v * 100) for k, v in parts.items()}
 
-    def manual_buy(self, mint: str, t: float | None = None) -> dict:
+    def manual_buy(self, mint: str, t: float | None = None, auto: str = "") -> dict:
         """Compra manual (0.23.0, botão Comprar da Base da pump.fun): sem os filtros de cópia, porque foi você que
         decidiu. Sempre compra na carteira fictícia (valor de "SOL por cópia"); na real só se a execução real estiver
         ligada, pela mesma fila, limites e verificações da compra real. Depois segue stops e saídas normais."""
@@ -1598,7 +1598,7 @@ class PumpFun:
             return {"error": "sem preço do token agora; tente de novo em alguns segundos"}
         sym = tk.get("symbol") or short(mint)
         allpos = self.positions()
-        base = {"wallet": "manual", "short": "você", "mint": mint, "symbol": sym, "kind": "buy",
+        base = {"wallet": "manual", "short": "automático" if auto else "você", "mint": mint, "symbol": sym, "kind": "buy",
                 "mcap_sol": tk.get("mcap_sol")}
         out: dict = {"ok": True, "sim": None, "real": None}
         amt = float(self._c("pump_manual_sol", 0.1))
@@ -1619,14 +1619,16 @@ class PumpFun:
                  "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
                  "price_now": px, "trader_price": px, "trader_sol": 0.0, "proceeds": 0.0, "fees_sol": amt * fee + prio,
                  "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": None,
-                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True, **rules}
+                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True, **rules,
+                 "auto": auto or None}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
-            self._feed(**base, sol=round(amt, 4), action="comprou (manual)", reason=f"você comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}")
-            self._emit(f"[PUMP SIM] compra manual: {sym} {amt:.3f} SOL")
+            self._feed(**base, sol=round(amt, 4), action="comprou (automático)" if auto else "comprou (manual)",
+                       reason=(f"{auto} · " if auto else "você ") + f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}")
+            self._emit(f"[PUMP SIM] compra {'automática' if auto else 'manual'}: {sym} {amt:.3f} SOL" + (f" ({auto})" if auto else ""))
             out["sim"] = f"comprou {amt:.3f} SOL na carteira fictícia"
-        if self.real is not None and getattr(self.cfg, "pump_real_enabled", False):
+        if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or getattr(self.cfg, "pump_auto_real", False)):
             if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
                 out["real"] = "já tem posição REAL neste token"
             elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
@@ -1673,6 +1675,39 @@ class PumpFun:
         if (self.tokens.get(mint) or {}).get("boost_active"):
             b["active"], b["pair_active"] = True, int(self.tokens[mint]["boost_active"])
         return b
+
+    def auto_check(self, rising: list[dict], t: float | None = None) -> list[str]:
+        """Compra automática da Base da pump.fun (0.27.0, pedido do dono: "não vamos estar online"). Roda no servidor a
+        cada ~20 s. Entra com os valores do botão Comprar quando o token (até X min de vida, sem veredito lixo/suspeito)
+        está com Boost ON e/ou com previsão "chance alta". No máx. N por hora e uma vez por token."""
+        if not getattr(self.cfg, "pump_auto_on", False):
+            return []
+        t = t or time.time()
+        done = self.__dict__.setdefault("_auto_done", {})
+        recent = [x for x in done.values() if t - x < 3600]
+        out = []
+        for x in rising:
+            if len(recent) >= int(self._c("pump_auto_max_h", 5)):
+                break
+            mint, pred = x["mint"], x.get("pred") or {}
+            if mint in done or pred.get("verdict") in ("lixo", "suspeito") or x.get("age_min", 99) > float(self._c("pump_auto_max_age", 15)):
+                continue
+            why = []
+            if getattr(self.cfg, "pump_auto_boost", True) and (x.get("boost") or {}).get("active"):
+                why.append("Boost ON")
+            if getattr(self.cfg, "pump_auto_chance", False) and pred.get("verdict") == "chance alta":
+                why.append(f"chance alta ({pred.get('chance') or 0:.0f}%)")
+            if not why:
+                continue
+            done[mint] = t
+            r = self.manual_buy(mint, t, auto="automático: " + " + ".join(why))
+            if r.get("error") or (r.get("sim") or "").startswith(("já tem", "limite", "saldo")):
+                if r.get("error"):
+                    done.pop(mint, None)                    # sem preço ainda: tenta de novo na próxima volta
+                continue
+            recent.append(t)
+            out.append(mint)
+        return out
 
     def manual_rules(self) -> dict:
         """Stop, alvo e stop móvel que o botão Comprar grava na posição (configurados na Base da pump.fun)."""

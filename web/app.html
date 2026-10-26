@@ -259,6 +259,17 @@
             <p><b>Boost pago:</b> <span class="tag win">Boost ON</span> quer dizer que o time do token pagou "boost" na DexScreener nas últimas 24 h (o "1x/10x/50x" é o tamanho do pacote) — dinheiro gasto para aparecer em destaque. <span class="tag neutral">Boost OFF</span> = nenhum boost recente. "pagou:" lista outros pagamentos dos últimos 7 dias (perfil do token, anúncio, takeover da comunidade). Boost atrai compradores, mas também é usado para empurrar token fraco: use junto com o histórico do criador. "…" = ainda não consultado (o sistema confere até 20 tokens por minuto).</p>
             <p><b>Por que um token some da lista:</b> "Subindo agora" mostra só quem ainda está sendo vigiado (menos de 60 min de vida) e está acima do market cap inicial; se cair ou passar de 60 min, sai dela. Quando fecha, só vai para "Tokens que subiram" se graduou ou deu 2x/5x. O que você comprou fica sempre em "Suas compras desta tela" e em Posições/Histórico. Desde a 0.24.0 a base também não se perde quando sai uma versão nova.</p>
           </div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Compra automática</h2><div class="sub">o servidor compra sozinho, mesmo com o painel fechado · usa os valores prontos do botão Comprar (abaixo)</div></div></header>
+          <div class="form">
+            <div class="field"><label>Compra automática</label><div class="row"><button class="btn sm tgl" data-toggle="pump_auto_on">…</button><span class="muted">liga ou desliga tudo abaixo</span></div></div>
+            <div class="field"><label>Entrar quando o token está com Boost ON</label><div class="row"><button class="btn sm tgl" data-toggle="pump_auto_boost">…</button></div></div>
+            <div class="field"><label>Entrar quando a previsão diz "chance alta"</label><div class="row"><button class="btn sm tgl" data-toggle="pump_auto_chance">…</button></div>
+              <div class="hint">Deixe desligado até "O que a base aprendeu" mostrar que "chance alta" acerta.</div></div>
+            <div class="field"><label>Limites</label><div class="row"><span class="muted">só tokens com até</span><input class="in w80" type="number" min="1" max="60" step="1" data-cfg="pump_auto_max_age"><span class="muted">min de vida · no máximo</span><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_auto_max_h"><span class="muted">compras por hora</span></div>
+              <div class="hint">Nunca compra token marcado como lixo ou suspeito, nem o mesmo token duas vezes. Cada compra aparece em "Suas compras desta tela", no Feed e no Telegram (se ligado).</div></div>
+            <div class="field"><label>Também na carteira real</label><div class="row"><button class="btn sm tgl" data-toggle="pump_auto_real" data-confirm="Comprar sozinho também com dinheiro de verdade quando a Execução real estiver ligada?">…</button></div>
+              <div class="hint">Só vale se a Execução real estiver ligada (hoje travada no servidor). Sem isso, compra só na fictícia.</div></div>
+          </div></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Botão Comprar: valores prontos</h2><div class="sub">já vem preenchido · cada compra pelo botão usa estes valores (fica gravado na posição) · mude se quiser, vale na hora</div></div></header>
           <div class="form">
             <div class="field"><label>Quanto comprar (carteira fictícia)</label><div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_manual_sol"><span class="muted">SOL</span>

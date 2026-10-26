@@ -53,6 +53,13 @@ USER_KEYS: dict[str, tuple] = {
     "pump_manual_trail_on": (bool, True, 0, 1),
     "pump_manual_trail_start": (float, 30.0, 1.0, 10000.0),  # stop móvel liga em +X%
     "pump_manual_trail_dist": (float, 15.0, 1.0, 1000.0),    # e sai se cair Y pontos do pico
+    # 0.27.0: compra automática da Base da pump.fun (roda no servidor, mesmo com o painel fechado) — começa DESLIGADA
+    "pump_auto_on": (bool, False, 0, 1),
+    "pump_auto_boost": (bool, True, 0, 1),              # entra sozinho quando o token está com Boost ON
+    "pump_auto_chance": (bool, False, 0, 1),            # entra sozinho quando a previsão diz "chance alta"
+    "pump_auto_max_age": (float, 15.0, 1.0, 60.0),      # só tokens com até X min de vida
+    "pump_auto_max_h": (int, 5, 1, 100),                # no máx. N compras automáticas por hora
+    "pump_auto_real": (bool, False, 0, 1),              # também na real (se a Execução real estiver ligada)
     "pump_manual_boost_on": (bool, True, 0, 1),         # token com boost pago: vende em +X% (pedido do dono, 2026-10-26)
     "pump_manual_boost_tp": (float, 80.0, 1.0, 10000.0),        # 0.25.0: Base da pump.fun esconde o que a previsão marca como lixo
     "pump_blacklist_on": (bool, False, 0, 1),           # não copia token de criador (ou trader) da lista negra

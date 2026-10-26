@@ -505,3 +505,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   boost tá on 80% ele dá um stop"). `PumpFun.manual_rules()` grava na posição (`stop_pct`, `tp_pct`, `trail_*`,
   `boost_tp`); `_check_stops` usa os da posição quando existem (cópias seguem as regras gerais). Real: `pos_cfg` na fila.
   Testes: `tests/test_botao_comprar.py`.
+
+## Compra automática da Base (2026-10-26, versão 0.27.0)
+- Pedido do dono: entrar sozinho quando o token tiver Boost ON e deixar tudo automático ("não vamos estar online").
+  `PumpFun.auto_check(rising)` (opções `pump_auto_*`, tudo OFF por padrão; real só com `pump_auto_real` E a execução
+  real ligada) chama `manual_buy(..., auto=motivo)`; `SharedMonitor.auto_once` roda a cada ~20 s no `lab_loop`.
+  Um token por vez (`_auto_done`, só memória), máx. N/hora, até X min de vida, nunca lixo/suspeito. Telegram avisa
+  "compra automática" e "boost on". Testes: `tests/test_auto.py`.

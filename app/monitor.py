@@ -370,10 +370,27 @@ class SharedMonitor:
                 log.warning("boost DexScreener: %s", str(e)[:160])
             await asyncio.sleep(60)
 
+    def auto_once(self) -> int:
+        """Compra automática da Base (0.27.0) de cada usuário que ligou: mesma lista "Subindo agora" da tela."""
+        lab = getattr(self.hub, "lab", None)
+        if lab is None:
+            return 0
+        engines = [e for e in self.engines() if getattr(e.cfg, "pump_auto_on", False)]
+        if not engines:
+            return 0
+        rising, n = lab.rising(time.time()), 0
+        for e in engines:
+            try:
+                n += len(e.auto_check(rising))
+            except Exception as ex:
+                log.warning("compra automática (%s…): %s", getattr(e, "user_id", "?")[:8], str(ex)[:160])
+        return n
+
     async def lab_loop(self) -> None:
         while True:
             try:
                 await self.lab_once()
+                self.auto_once()
             except Exception as e:
                 log.warning("base da pump.fun: %s", str(e)[:160])
             await asyncio.sleep(20)

@@ -348,7 +348,8 @@ class PumpHub:
         await self.db.delete("blacklist", {"endereco": addr})
 
     # ------------------------------------------------------------------ avisos no Telegram (0.20.0)
-    TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas")
+    TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas",
+               "compra automática", "boost on")
 
     def tg_wanted(self, pf, msg: str) -> bool:
         if not getattr(pf.cfg, "pump_tg_on", False):
