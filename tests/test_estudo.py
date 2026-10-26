@@ -110,3 +110,20 @@ def test_share_study_wallet_with_another_user(env):
     acoes = [r["acao"] for r in db.tables["audit_log"]]
     assert "compartilhar carteira em estudo" in acoes and "recebeu carteira em estudo" in acoes
     assert c.post("/api/pump/study/share", json={"wallet": W, "to": UB}).status_code == 401
+
+
+def test_study_shows_your_own_result_copying_each_wallet(env):
+    """0.29.0: "Seu resultado copiando" = trades e posições do próprio usuário com a carteira (fictício e real)."""
+    c, hub = env["c"], env["hub"]
+    A = tok(UA)
+    assert c.post("/api/pump/study", json={"wallet": W, "action": "add"}, headers=A).json()["ok"]
+    pf = hub.engines[UA]
+    for pnl in (0.05, -0.02):
+        pf._save_trade({"wallet": W, "mint": "M", "pnl_sol": pnl, "sol_in": 0.1, "real": False,
+                        "opened_at": "2026-10-26T01:00:00+00:00", "closed_at": "2026-10-26T02:00:00+00:00"})
+    pf._save_trade({"wallet": "Outra".ljust(44, "1"), "pnl_sol": 9.0, "sol_in": 0.1, "real": False})
+    mine = c.get("/api/pump/study", headers=A).json()["mine"]
+    row = mine["rows"][0]
+    assert len(mine["rows"]) == 1 and row["wallet"] == W and row["real"] is False and row["trades"] == 2
+    assert row["pnl_sol"] == 0.03 and row["win_rate"] == 0.5 and row["roi_pct"] == 15.0 and row["since"].startswith("2026-10-26T01")
+    assert mine["total"]["sim"]["pnl_sol"] == 0.03 and mine["total"]["real"]["trades"] == 0

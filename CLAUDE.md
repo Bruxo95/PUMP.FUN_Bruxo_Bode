@@ -522,3 +522,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - `app/explore.py`: veredito (lixo/fraco/possível/chance alta) e aprendizado "quase graduando → graduou?" por faixa
   de curva (só memória; recomeça no reinício). Tela `#explorar`, rota `/api/pump/explore` (admin). A compra manual
   agora busca o preço na DexScreener quando o token já graduou. Testes: `tests/test_explore.py`.
+
+## Seu resultado copiando (2026-10-26, versão 0.29.0)
+- Pedido do dono: ver o ganho real depois de copiar, separado da estimativa do ranking. `study_my_results` em
+  `app/api.py` (campo `mine` de `/api/pump/study`): trades e posições do usuário com `wallet` = carteira em estudo,
+  fictício e real separados. Quadro "Seu resultado copiando" abaixo de Carteiras estudadas. Teste em `test_estudo.py`.

@@ -281,7 +281,37 @@ def create_app(hub, auth, cfg) -> FastAPI:
                         key=lambda x: -(x["summary"]["copy"]["pnl_30d"] or 0))
         return {"wallets": out, "ranking": [{"wallet": x["wallet"], "apelido": x["apelido"], "followed": x["followed"],
                                              **x["summary"]["copy"]} for x in ranked],
-                "limit": MAX_WALLETS, "key": bool(hub._study_key()), "params": prm}
+                "limit": MAX_WALLETS, "key": bool(hub._study_key()), "params": prm,
+                "mine": study_my_results(pf, out)}
+
+    def study_my_results(pf, wallets: list[dict]) -> dict:
+        """O SEU resultado de verdade copiando cada carteira em estudo (0.29.0, pedido do dono): trades fechados e
+        posições abertas do próprio usuário com essa carteira, separados em fictício e real."""
+        trades, poss = pf.trades(100000), pf.positions()
+        rows, tot = [], {"sim": [0, 0, 0.0, 0.0], "real": [0, 0, 0.0, 0.0]}
+        for x in wallets:
+            w = x["wallet"]
+            for real in (False, True):
+                T = [t for t in trades if t.get("wallet") == w and bool(t.get("real")) == real]
+                P = [p for p in poss if p.get("wallet") == w and bool(p.get("real")) == real]
+                if not T and not P:
+                    continue
+                n, wins = len(T), sum(1 for t in T if (t.get("pnl_sol") or 0) > 0)
+                pnl, inv = sum(t.get("pnl_sol") or 0 for t in T), sum(t.get("sol_in") or 0 for t in T)
+                k = tot["real" if real else "sim"]
+                k[0] += n; k[1] += wins; k[2] += pnl; k[3] += inv
+                opened = min([str(t.get("opened_at") or "") for t in T] + [str(p.get("opened_at") or "") for p in P]) or None
+                rows.append({"wallet": w, "apelido": x.get("apelido"), "followed": x.get("followed"), "real": real,
+                             "since": opened, "trades": n, "win_rate": wins / n if n else None,
+                             "pnl_sol": round(pnl, 6), "invested_sol": round(inv, 6),
+                             "roi_pct": round(pnl / inv * 100, 2) if inv else None,
+                             "open": len(P), "open_sol": round(sum(p.get("sol_in") or 0 for p in P), 6),
+                             "open_chg": round(sum(p.get("chg_pct") or 0 for p in P) / len(P), 2) if P else None,
+                             "last": max([str(t.get("closed_at") or "") for t in T] or [""]) or None})
+        rows.sort(key=lambda r: -r["pnl_sol"])
+        return {"rows": rows, "total": {k: {"trades": v[0], "win_rate": v[1] / v[0] if v[0] else None,
+                                            "pnl_sol": round(v[2], 6), "roi_pct": round(v[2] / v[3] * 100, 2) if v[3] else None}
+                                        for k, v in tot.items()}}
 
     @app.post("/api/pump/study")
     async def study_change(body: dict, pf=Depends(admin_engine)):

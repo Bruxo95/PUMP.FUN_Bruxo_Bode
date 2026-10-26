@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.29.0",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar → Carteiras em estudo → Seu resultado copiando",
+      "titulo": "Seu resultado de verdade copiando cada carteira",
+      "oque": "Abaixo de Carteiras estudadas, o quadro novo Seu resultado copiando mostra o que VOCÊ ganhou ou perdeu de verdade com cada carteira desde que começou a copiar: trades fechados, acerto, resultado em SOL já com taxas, retorno sobre o investido e o que ainda está aberto, separado em carteira fictícia e real, com o total no topo. O ranking de cima continua sendo a estimativa do que você teria ganho."
+    },
+    {
       "versao": "0.28.0",
       "data": "2026-10-26",
       "tipo": "novo",

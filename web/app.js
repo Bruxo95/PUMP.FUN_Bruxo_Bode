@@ -447,6 +447,16 @@
         s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed),
         '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> <button class="btn sm" data-sts="' + esc(x.wallet) + '">Compartilhar</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
       "Nenhuma carteira em estudo. Cole um endereço acima.");
+    const mi = r.mine || {}, tt = mi.total || {}, ts = tt.sim || {}, tr = tt.real || {};
+    const roi = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
+    kpis("stMineK", [["Fictícia: seu resultado", sg(ts.pnl_sol), (ts.trades || 0) + " trades · acerto " + (ts.win_rate == null ? "–" : f(ts.win_rate * 100, 0) + "%"), "pnl"],
+      ["Fictícia: retorno", roi(ts.roi_pct), "sobre o valor investido", "tr"],
+      ["Real: seu resultado", sg(tr.pnl_sol), (tr.trades || 0) + " trades" + (tr.trades ? " · retorno " + (tr.roi_pct == null ? "–" : f(tr.roi_pct, 1) + "%") : ""), "wallet"]]);
+    table("stMine", ["Carteira", "Carteira usada", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último"], (mi.rows || []).map((x) => [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
+      x.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">fictícia</span>', dt(x.since), String(x.trades), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%",
+      "<b>" + sg(x.pnl_sol) + "</b><small>investiu " + s4(x.invested_sol) + " SOL</small>", roi(x.roi_pct),
+      x.open ? x.open + " · " + s4(x.open_sol) + " SOL" + (x.open_chg == null ? "" : " · " + (x.open_chg > 0 ? "+" : "") + f(x.open_chg, 1) + "%") : "–", dt(x.last)]),
+      "Você ainda não copiou nenhuma destas carteiras. Clique em Copiar numa delas e o resultado aparece aqui.");
   }
   // compartilhar uma carteira em estudo com outro usuário (0.17.1): ela entra na lista de estudo da pessoa
   async function openShare(w) {
