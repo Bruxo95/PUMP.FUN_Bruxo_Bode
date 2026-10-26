@@ -159,14 +159,14 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
         add("lógica", f"{len(tmax)} trades saíram por tempo máximo com {sum(t.get('pnl_sol') or 0 for t in tmax):+.4f} SOL: ficaram parados "
             "por horas e saíram no prejuízo. Ligue \"Sair quando a posição fica parada\" (Opções novas) ou diminua o tempo máximo "
             "em Configurações; compare antes em Estratégias fantasma (\"parado 45 min\" e \"tempo máximo 1 h\").", len(tmax), tipo="tempo_maximo")
-    worst = sorted([x for x in tl if (x.get("pnl_sol") or 0) < 0], key=lambda x: x.get("pnl_sol") or 0)[:5]
+    worst_trades = sorted([x for x in tl if (x.get("pnl_sol") or 0) < 0], key=lambda x: x.get("pnl_sol") or 0)[:5]
     if len([h for h in by_hour if h["trades"] >= 3]) >= 3:
         worst = min((h for h in by_hour if h["trades"] >= 3), key=lambda h: h["pnl_sol"])
         if worst["pnl_sol"] < 0:
             add("trades", f"O pior horário foi {worst['hora']} ({TZ_NAME}): {worst['pnl_sol']:+.4f} SOL em {worst['trades']} trades. "
                 "Se repetir em outros dias, evite operar nesse horário.", worst["trades"], tipo="horario_ruim")
     return {"dia": day, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
-            "worst_trades": worst, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
+            "worst_trades": worst_trades, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
             "avg_lag_s": round(sum(lags) / len(lags), 1) if lags else None, "top_skips": [{"motivo": k, "n": v} for k, v in top_skips],
