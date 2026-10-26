@@ -133,7 +133,7 @@ def loss_cause(t: dict) -> str:
         return "parado"
     if best >= 10:
         return "devolveu"
-    if (t.get("gross_sol") or 0) >= 0 > (t.get("pnl_sol") or 0):
+    if t.get("gross_sol") is not None and t["gross_sol"] >= 0 > (t.get("pnl_sol") or 0):   # sem o bruto não dá para dizer
         return "taxas"
     tp, pi = t.get("trader_px"), t.get("price_in")
     if tp and pi and pi / tp - 1 >= 0.10:
