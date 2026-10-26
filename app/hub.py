@@ -657,6 +657,7 @@ class PumpHub:
         approved = {r["wallet"] for r in log_rows if r.get("acao") == "aprovou"}
         prm = copy_params(pf)
         done = {"descartou": 0, "aprovou": 0, "adicionou": 0}
+        out_now: set[str] = set()                   # descartadas nesta volta não podem voltar na mesma volta
 
         async def note(w, acao, motivo, info):
             await self.db.insert("study_auto_log", {"user_id": pf.user_id, "wallet": w, "acao": acao, "motivo": motivo,
@@ -674,6 +675,7 @@ class PumpHub:
                 continue
             if j[0] == "descartou":
                 await self.study_set(pf, r["wallet"], "remove")
+                out_now.add(r["wallet"])
             await note(r["wallet"], j[0], j[1], info_of.get(r["wallet"], {}))
         cur = list(getattr(pf, "study", []) or [])
         n_auto = len(auto) - done["descartou"]
@@ -682,7 +684,7 @@ class PumpHub:
         rt = rates(log_rows)
         pool = [{**x, "fonte": "ranking"} for x in (pf.leaderboard or [])]
         pool += [{"wallet": w, **n, "fonte": "maiores traders"} for w, n in self.elite.names.items() if not self.elite.bot_reason(w, now)]
-        for c in candidates(pool, set(cur) | recent_out | set(getattr(pf, "banned", []) or []), rt)[:max(0, free)]:
+        for c in candidates(pool, set(cur) | recent_out | out_now | set(getattr(pf, "banned", []) or []), rt)[:max(0, free)]:
             nome = (c.get("name") or c["fonte"])[:30]
             res = await self.study_set(pf, c["wallet"], "add", AUTO_TAG + nome)
             if res.get("ok") and not res.get("already"):
