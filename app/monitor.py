@@ -309,11 +309,11 @@ class SharedMonitor:
                 qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)
             trader += [p["mint"] for p in e.trader_positions()]
             trader += list(_gm(e))                        # estratégias fantasma (0.18.0) seguem o preço também
+            from .auto_trades import follow_mints
+            trader += list(follow_mints(getattr(e, "auto_rows", {}), time.time()))
         el = getattr(self.hub, "elite", None)
         if el is not None:
             trader += list(el.open_mints())               # sinais dos maiores traders: 60 min de preço (0.31.2)
-            from .auto_trades import follow_mints
-            trader += list(follow_mints(getattr(e, "auto_rows", {}), time.time()))
         return {"qty": qty, "trader": trader}
 
     def auto_after_once(self, now: float | None = None) -> int:
