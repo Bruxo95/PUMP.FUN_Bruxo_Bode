@@ -586,3 +586,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   lucro acumulado (SVG, uma série) e barras por trader; rota `/api/pump/elite` (admin).
 - Carteiras em estudo: "Seu resultado copiando" mostra carteiras copiadas sem trade e o `diag` (compras vistas,
   copiadas e motivos de "não copiou" do feed). Versão 0.31.2 para não colidir com a 0.32.0 do plano do Codex.
+
+## Maiores traders: acerto, saldo, idade e sugeridos (2026-10-26, versão 0.31.3)
+- Pedido do dono: abas por % de acerto em cima, portfólio, idade da carteira, sugestões de 80%+ de acerto.
+  `Elite.recommended()` (acerto ≥80% e ≥100 trades), `PumpFun.wallet_age` (até 4 páginas de 1.000 assinaturas no RPC
+  grátis; mais que isso = "pelo menos", `more=True`), `SharedMonitor.elite_info_once` (saldo via `wallet_value` e idade,
+  3 consultas por minuto). "Portfólio" = SOL + USDC/USDT; memecoins que a carteira segura NÃO entram no valor.

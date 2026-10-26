@@ -106,3 +106,66 @@ def test_monitor_and_route(env):
     assert r["open"][0]["mint"] == MINT and len(r["traders"]) == 2 and r["feed"][0]["name"] == "Moon"
     assert r["suggestions"] and "summary" in r["auto"]
     assert c.get("/api/pump/elite", headers=tok(UB, "b@x.com")).status_code == 403
+
+
+def test_recommended_traders_need_80_percent_and_enough_trades():
+    from app.elite import Elite
+    from app.pumpfun import PumpMarket
+    el = Elite(PumpMarket())
+    lb = [{"wallet": T1, "name": "Alta", "realized_usd": 60000, "winrate": 95, "trades": 9626, "base_flags": []},
+          {"wallet": T2, "name": "Sorte", "realized_usd": 90000, "winrate": 100, "trades": 12, "base_flags": []},
+          {"wallet": T3, "name": "Media", "realized_usd": 500000, "winrate": 50, "trades": 7704, "base_flags": []}]
+    el.refresh_names([lb], 15)
+    assert [r["wallet"] for r in el.recommended()] == [T1]                 # poucos trades ou acerto baixo ficam fora
+    sug = el.suggestions(el.study())
+    assert any("Alta tem 95% de acerto em 9626 trades" in s["texto"] for s in sug)
+
+
+def test_wallet_age_reads_the_oldest_transaction(tmp_path):
+    import asyncio
+    import json
+    import httpx
+    from tests.test_pump import _pump
+    pf = _pump(tmp_path, paid=False)
+    now = time.time()
+    calls = []
+
+    def handler(req):
+        p = json.loads(req.content)["params"]
+        calls.append(p[1].get("before"))
+        if p[1].get("before") is None:
+            return httpx.Response(200, json={"result": [{"signature": f"s{i}", "blockTime": now - i} for i in range(1000)]})
+        return httpx.Response(200, json={"result": [{"signature": "velha", "blockTime": now - 30 * 86400}]})
+    pf.http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    a = asyncio.run(pf.wallet_age(T1))
+    assert a["age_days"] == 30.0 and a["more"] is False and calls == [None, "s999"]
+
+    def busy(req):
+        p = json.loads(req.content)["params"]
+        return httpx.Response(200, json={"result": [{"signature": f"x{i}", "blockTime": now - 86400} for i in range(1000)]})
+    pf.http = httpx.AsyncClient(transport=httpx.MockTransport(busy))
+    b = asyncio.run(pf.wallet_age(T1, pages=2))
+    assert b["more"] is True and b["age_days"] == 1.0                      # muito ativa: "pelo menos 1 dia"
+
+
+def test_elite_route_brings_balance_age_and_recommended(env):
+    import asyncio
+    from app.monitor import SharedMonitor
+    c, hub = env["c"], env["hub"]
+    c.get("/api/pump", headers=tok(UA))
+    pf = hub.engines[UA]
+    pf.leaderboard = [{"wallet": T1, "name": "Alta", "realized_usd": 6e4, "winrate": 95, "trades": 500, "base_flags": []}]
+    mon = SharedMonitor(hub)
+    mon.elite_names()
+    hub.market.sol_usd = 100.0
+
+    async def value(w):
+        return {"sol": 10.0, "stable": 50.0, "usd": 1050.0, "t": time.time()}
+
+    async def age(w):
+        return {"first_t": time.time() - 90 * 86400, "age_days": 90.0, "more": False, "t": time.time()}
+    mon.svc.wallet_value, mon.svc.wallet_age = value, age
+    assert asyncio.run(mon.elite_info_once()) == 2
+    r = c.get("/api/pump/elite", headers=tok(UA)).json()
+    tr = r["traders"][0]
+    assert tr["balance"]["usd"] == 1050.0 and tr["age"]["age_days"] == 90.0 and r["recommended"] == [T1]

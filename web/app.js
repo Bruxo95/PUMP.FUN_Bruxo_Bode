@@ -89,7 +89,33 @@
 
   // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
   // ------------------------------------------------------------------ maiores traders (/api/pump/elite, 0.31.2)
-  let EL_T = null;
+  let EL_T = null, EL = null, EL_TAB = "lucro";
+  function renderEliteTraders() {
+    const r = EL || {}, rec = new Set(r.recommended || []), fol = new Set(r.followed || []), stu = new Set(r.studying || []);
+    let rows = (r.traders || []).slice();
+    const by = { lucro: (x) => -(x.realized_usd || 0), acerto: (x) => -(x.winrate || 0), top80: (x) => -(x.realized_usd || 0),
+      saldo: (x) => -((x.balance || {}).usd || 0), idade: (x) => -((x.age || {}).age_days || 0) };
+    if (EL_TAB === "top80") rows = rows.filter((x) => rec.has(x.wallet));
+    rows.sort((a, b) => by[EL_TAB](a) - by[EL_TAB](b));
+    const age = (a) => !a || a.age_days == null ? '<span class="muted">…</span>' : (a.more ? "+" : "") + f(a.age_days, a.age_days < 10 ? 1 : 0) + " dias";
+    table("elTr", ["#", "Trader", "Acerto", "Lucro (ranking)", "Trades", "Saldo (SOL+USD)", "Idade da carteira", "Dias ativos", "Última ação", ""], rows.map((x, i) => [String(i + 1),
+      pfW(x.wallet) + (x.name ? " <b>" + esc(x.name) + "</b>" : "") + (x.twitter ? ' <a href="' + esc(x.twitter) + '" target="_blank" rel="noopener">X</a>' : "") + (rec.has(x.wallet) ? ' <span class="tag win">80%+</span>' : ""),
+      x.winrate == null ? "–" : '<b class="' + (x.winrate >= 80 ? "up" : "") + '">' + f(x.winrate, 0) + "%</b>", x.realized_usd == null ? "–" : "$" + f(x.realized_usd, 0), x.trades == null ? "–" : f(x.trades, 0),
+      x.balance ? "$" + f(x.balance.usd, 0) + "<small>" + f(x.balance.sol, 1) + " SOL</small>" : '<span class="muted">…</span>', age(x.age), x.days_active == null ? "–" : String(x.days_active),
+      x.last ? (x.last.kind === "buy" ? "comprou " : "vendeu ") + esc(x.last.symbol || x.last.mint.slice(0, 6)) + "<small>" + dt(x.last.t * 1000) + "</small>" : "–",
+      (fol.has(x.wallet) ? '<span class="tag win">copiando</span> ' : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') +
+      (stu.has(x.wallet) ? '<span class="tag sim">em estudo</span>' : '<button class="btn sm" data-elst="' + esc(x.wallet) + '" data-name="' + esc(x.name || "") + '">Estudar</button>')]),
+      EL_TAB === "top80" ? "Nenhum dos maiores traders tem 80%+ de acerto com 100+ trades agora." : "Sem ranking ainda.");
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("#elTabs button");
+    if (b) { EL_TAB = b.dataset.el; document.querySelectorAll("#elTabs button").forEach((x) => x.classList.toggle("on", x === b)); renderEliteTraders(); return; }
+    const t = e.target;
+    if (t.dataset && t.dataset.elst) {
+      const r = await BB.api("/api/pump/study", { body: { wallet: t.dataset.elst, action: "add", apelido: (t.dataset.name || "").slice(0, 40) } });
+      toast(r.error ? "Não adicionou: " + r.error : "Carteira em estudo: veja em Carteiras em estudo se compensa copiar."); loadElite();
+    }
+  });
   const svgEsc = (s) => esc(String(s));
   // linha do lucro acumulado: uma série, com ponto e valor no fim e dica (title) em cada ponto
   function lineChart(pts) {
@@ -136,8 +162,7 @@
     $("elBars").innerHTML = barChart(trs.map((x) => ({ label: x.name, v: x.avg_60 || 0, n: x.n })));
     table("elTrSt", ["Trader", "Sinais", "Chegou a +30%", "Caiu 30%+", "Pico médio", "Fim (60 min)", "Vende em até 5 min"], trs.map((x) => [esc(x.name), String(x.n), f(x.hit30_pct, 0) + "%", f(x.dump30_pct, 0) + "%", pct(x.avg_peak), pct(x.avg_60), f(x.sells_fast_pct, 0) + "%"]), "Sem sinais encerrados ainda.");
     table("elFeed", ["Quando", "Trader", "Operação", "Token", "SOL"], (r.feed || []).slice(0, 40).map((x) => [dt(x.t * 1000), esc(x.name), x.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', pfM(x.mint, x.symbol), s4(x.sol)]), "Ainda nenhuma negociação vista desde que o servidor ligou.");
-    table("elTr", ["#", "Trader", "Lucro (ranking)", "Acerto", "Trades", "Última ação"], (r.traders || []).map((x, i) => [String(i + 1), pfW(x.wallet) + (x.name ? " <b>" + esc(x.name) + "</b>" : "") + (x.twitter ? ' <a href="' + esc(x.twitter) + '" target="_blank" rel="noopener">X</a>' : ""),
-      x.realized_usd == null ? "–" : "$" + f(x.realized_usd, 0), x.winrate == null ? "–" : f(x.winrate, 0) + "%", x.trades == null ? "–" : String(x.trades), x.last ? (x.last.kind === "buy" ? "comprou " : "vendeu ") + esc(x.last.symbol || x.last.mint.slice(0, 6)) + "<small>" + dt(x.last.t * 1000) + "</small>" : "–"]), "Sem ranking ainda.");
+    EL = r; renderEliteTraders();
     table("elClosed", ["Token", "Traders", "Quando", "5 min", "15 min", "60 min", "Pico", "Queda máx."], (r.closed || []).map((s) => [pfM(s.mint, s.symbol), esc((s.names || []).join(", ")), dt(s.created_at), pct((s.marks || {})["5"]), pct((s.marks || {})["15"]), pct((s.marks || {})["60"]), pct(s.peak_pct), pct(s.low_pct)]), "Nenhum sinal encerrado ainda.");
   }
 

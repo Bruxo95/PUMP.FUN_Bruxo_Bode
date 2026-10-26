@@ -754,6 +754,33 @@ class PumpFun:
                 continue
         return None
 
+    async def wallet_age(self, w: str, pages: int = 4) -> dict | None:
+        """Idade da carteira (0.31.3): hora da transação mais antiga, lendo até `pages` páginas de 1.000 assinaturas no
+        RPC grátis. Carteira muito ativa passa disso: aí a idade é "pelo menos" (more=True)."""
+        url = str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP)
+        before, oldest = None, None
+        for _ in range(pages):
+            opts = {"limit": 1000, **({"before": before} if before else {})}
+            try:
+                js = (await self.http.post(url, json={"jsonrpc": "2.0", "id": 1, "method": "getSignaturesForAddress",
+                                                      "params": [w, opts]}, timeout=15)).json()
+            except Exception:
+                return None
+            res = js.get("result")
+            if not isinstance(res, list):
+                return None
+            if not res:
+                break
+            bt = [float(x["blockTime"]) for x in res if x.get("blockTime")]
+            if bt:
+                oldest = min(bt + ([oldest] if oldest else []))
+            before = res[-1].get("signature")
+            if len(res) < 1000:
+                return {"first_t": oldest, "age_days": round((time.time() - oldest) / 86400, 1) if oldest else None,
+                        "more": False, "t": time.time()}
+        return {"first_t": oldest, "age_days": round((time.time() - oldest) / 86400, 1) if oldest else None,
+                "more": True, "t": time.time()}
+
     async def refresh_wallet_values(self) -> None:
         if not float(self._c("pump_min_wallet_usd", 5000)) or not self.sol_usd:
             return

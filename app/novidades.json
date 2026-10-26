@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.3",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar → Maiores traders → Quem são",
+      "titulo": "Maiores traders: abas por acerto, saldo, idade da carteira e sugeridos com 80%+",
+      "oque": "O quadro Quem são subiu para o topo e ganhou abas: Por lucro, Por acerto, Acerto 80%+ (sugeridos), Maior saldo e Carteiras mais antigas. Cada trader mostra acerto em destaque, lucro, número de trades, saldo na carteira (SOL + USDC/USDT, lido na blockchain), idade da carteira (primeira transação; carteira muito ativa mostra \"+X dias\"), dias ativos, última ação e os botões Copiar e Estudar. Sugeridos = acerto de 80% ou mais com pelo menos 100 trades (acerto alto com poucos trades é sorte); eles também aparecem nas Sugestões de melhoria."
+    },
+    {
       "versao": "0.31.2",
       "data": "2026-10-26",
       "tipo": "novo",

@@ -39,6 +39,7 @@ class Elite:
         self.signals: dict[str, dict] = {}               # id -> sinal (abertos e fechados recentes)
         self.dirty: set[str] = set()
         self.names: dict[str, dict] = {}                 # carteira -> nome, twitter, avatar, lucro (do ranking)
+        self.ages: dict[str, dict] = {}                  # carteira -> idade (0.31.3; RPC, renovada a cada 12 h)
 
     # ------------------------------------------------------------------ quem são
     def refresh_names(self, leaderboards: list[list[dict]], top: int) -> list[str]:
@@ -172,6 +173,13 @@ class Elite:
                           for w, rows in per.items()), key=lambda x: -x.get("avg_peak", 0))
         return {"signals": len(done), "all": agg(done), "by_n": by_n, "traders": traders}
 
+    def recommended(self, min_wr: float = 80.0, min_trades: int = 100) -> list[dict]:
+        """Sugeridos (0.31.3, pedido do dono): acerto de 80%+ no ranking com base mínima de trades, os mais lucrativos
+        primeiro. Acerto alto com poucos trades não entra (sorte)."""
+        out = [{"wallet": w, **n} for w, n in self.names.items()
+               if (n.get("winrate") or 0) >= min_wr and (n.get("trades") or 0) >= min_trades]
+        return sorted(out, key=lambda x: -(x.get("realized_usd") or 0))
+
     def suggestions(self, st: dict, auto: dict | None = None) -> list[dict]:
         """Sugestões de melhoria tiradas do que aconteceu (só com base mínima; nada é aplicado sozinho)."""
         out = []
@@ -202,6 +210,11 @@ class Elite:
         if (ar.get("closed") or 0) >= 15 and (ar.get("profit_factor") or 0) < 1:
             out.append({"tipo": "código", "texto": "As compras automáticas desta tela estão no prejuízo depois das taxas: "
                         "deixe só observando até o estudo mostrar uma regra que dá lucro.", "base": ar.get("closed")})
+        for r in self.recommended()[:5]:
+            out.append({"tipo": "trader", "texto": f"{r.get('name') or r['wallet'][:4] + '…' + r['wallet'][-4:]} tem "
+                        f"{r['winrate']:.0f}% de acerto em {int(r.get('trades') or 0)} trades e lucro de "
+                        f"${(r.get('realized_usd') or 0):,.0f} no ranking: coloque em Carteiras em estudo e veja no "
+                        "ranking de copiabilidade se compensa copiar com o seu atraso.", "base": int(r.get("trades") or 0)})
         if not out:
             out.append({"tipo": "info", "texto": "Ainda sem base para sugerir mudanças: cada sinal é estudado por 60 min e as "
                         "sugestões aparecem com 10+ sinais por faixa.", "base": st["signals"]})
@@ -213,7 +226,9 @@ class Elite:
         last = {}
         for x in self.trades:
             last[x["wallet"]] = x
-        traders = [{"wallet": w, **n, "last": last.get(w)} for w, n in self.names.items()]
+        usd = getattr(self.market, "wallet_usd", {}) or {}
+        traders = [{"wallet": w, **n, "last": last.get(w), "balance": usd.get(w), "age": self.ages.get(w)}
+                   for w, n in self.names.items()]
         sigs = sorted(self.signals.values(), key=lambda s: -s["t"])
         st = self.study()
         return {"traders": traders, "feed": [{**x, "name": self.label(x["wallet"])} for x in recent],

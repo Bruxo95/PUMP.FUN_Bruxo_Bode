@@ -496,12 +496,39 @@ class SharedMonitor:
                 log.warning("carteiras novas: %s", str(e)[:160])
             await asyncio.sleep(30)
 
+    async def elite_info_once(self, limit: int = 3) -> int:
+        """Saldo (SOL + USDC/USDT) e idade das carteiras dos maiores traders (0.31.3), poucas por volta (RPC grátis)."""
+        el = getattr(self.hub, "elite", None)
+        if el is None:
+            return 0
+        now, n = time.time(), 0
+        for w in list(el.names):
+            if n >= limit:
+                break
+            bal = self.market.wallet_usd.get(w)
+            if (not bal or now - float(bal.get("t") or 0) > 1800) and self.market.sol_usd:
+                v = await self.svc.wallet_value(w)
+                if v:
+                    self.market.wallet_usd[w] = v
+                n += 1
+            age = el.ages.get(w)
+            if not age or now - float(age.get("t") or 0) > 12 * 3600:
+                v = await self.svc.wallet_age(w)
+                if v:
+                    el.ages[w] = v
+                n += 1
+        return n
+
     async def boost_loop(self) -> None:
         while True:
             try:
                 await self.boost_once()
             except Exception as e:
                 log.warning("boost DexScreener: %s", str(e)[:160])
+            try:
+                await self.elite_info_once()
+            except Exception as e:
+                log.warning("saldo/idade dos maiores traders: %s", str(e)[:160])
             await asyncio.sleep(60)
 
     def auto_once(self) -> int:

@@ -316,6 +316,10 @@
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Maiores traders</h2><div class="sub" id="elSub">os maiores ganhadores da pump.fun, o que fazem minuto a minuto, sinais, estudo e compra automática</div></div></header>
           <div class="kpis" id="elKpis"></div>
           <div class="help"><p><b>Como funciona:</b> segue os 15 maiores por lucro no ranking da Solana Tracker (o ranking do site da pump.fun bloqueia leitura automática). Cada compra e venda deles chega em segundos. Quando <b>2 ou mais</b> compram o mesmo token em 10 min (ou um compra 5+ SOL), vira um <b>sinal</b>. Cada sinal é acompanhado por 60 min: isso vira o estudo, o ranking de quem dá sinal bom e as sugestões de melhoria. A compra automática usa as proteções das automáticas (valor, stop, venda em partes, stop móvel, limites do dia), configuradas em Explorar.</p></div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Quem são</h2><div class="sub" id="elTrSub">os maiores traders · ranking da Solana Tracker (período em Configurações) · saldo e idade lidos na blockchain</div></div></header>
+          <div class="seg" id="elTabs"><button data-el="lucro" class="on">Por lucro</button><button data-el="acerto">Por acerto</button><button data-el="top80">Acerto 80%+ (sugeridos)</button><button data-el="saldo">Maior saldo</button><button data-el="idade">Carteiras mais antigas</button></div>
+          <div class="tbl-wrap" style="margin-top:10px"><table id="elTr"></table></div>
+          <p class="muted" style="margin-top:8px">Saldo = SOL + USDC/USDT na carteira (sem contar os memecoins que ela segura). Idade = primeira transação vista na blockchain; carteira muito ativa mostra "+X dias" (pelo menos). Sugeridos = acerto de 80% ou mais com pelo menos 100 trades.</p></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Compra automática pelos sinais</h2><div class="sub">começa desligada · só na carteira fictícia (real só com "Também na carteira real" e a execução real liberada)</div></div></header>
           <div class="form">
             <div class="field"><label>Comprar sozinho nos sinais</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_auto_on">…</button></div></div>
@@ -338,11 +342,10 @@
             <div><h3 style="margin:6px 0">Resultado médio em 60 min por trader</h3><div id="elBars" class="chartbox"></div></div>
           </div>
           <div class="tbl-wrap" style="margin-top:10px"><table id="elTrSt"></table></div></div>
-        <div class="grid2">
+        <div>
           <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Minuto a minuto</h2><div class="sub">compras e vendas dos maiores traders</div></div></header>
             <div class="tbl-wrap"><table id="elFeed"></table></div></div>
-          <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Quem são</h2><div class="sub">ranking por lucro realizado (Solana Tracker, período do ranking em Configurações)</div></div></header>
-            <div class="tbl-wrap"><table id="elTr"></table></div></div>
+
         </div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Sinais encerrados</h2><div class="sub">últimos 40 · ganho no momento 5, 15 e 60 min depois do sinal e o pico</div></div></header>
           <div class="tbl-wrap"><table id="elClosed"></table></div></div>

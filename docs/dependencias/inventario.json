@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9fcf5b925978a409668a43c4cf5b47d75b7dd0fa",
-    "application_version": "0.31.2 · 2026-10-26 · Maiores traders: sinais, estudo e compra automática",
+    "repository_reference": "dd1338f279683b0a5c8ac9795e4736647c7083b7",
+    "application_version": "0.31.3 · 2026-10-26 · Maiores traders: acerto, saldo, idade e sugeridos",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "2562e073a3b3cddd38e57e838ecd1b5ec8fca65287a5330bbc2170be91ebbf87",
+      "app/version.py": "430bde08ebb8df8132cb6a2eb0e3a298cff45d48ab6dfbdd7aabf7dfe9d533b7",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "9dac830b4583b17bd8d968043ff810e8d952d1ef2895cc54963febcfa916576a",
+      "web/app.html": "64897fb4086d35ab00eea3e3cc9d9a6ddc18e9cbfd905d804af6c25bcc10620a",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "2487eee1918187e64881dfa78b60be05102afdbdba31300abc4d722e7659bb18"
+  "pdf_sha256": "c82b16862f6735e16b5c7e85dd960e749d3e48d98476ff55a863f47de1050f59"
 }

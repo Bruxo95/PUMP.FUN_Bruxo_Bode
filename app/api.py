@@ -221,6 +221,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
         auto = await hub.auto_history(pf, "elite", 30)
         out["auto"] = auto
         out["suggestions"] = hub.elite.suggestions(out["study"], auto)
+        out["recommended"] = [r["wallet"] for r in hub.elite.recommended()]
+        out["followed"] = list(pf.followed)
+        out["studying"] = list(getattr(pf, "study", []) or [])
         for s in out["open"]:
             s["boost"] = pf.boost_info(s["mint"])
             s["fresh"] = (pf.tokens.get(s["mint"]) or {}).get("fresh")
