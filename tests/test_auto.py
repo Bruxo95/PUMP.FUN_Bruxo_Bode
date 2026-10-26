@@ -29,7 +29,7 @@ def test_auto_buy_is_off_by_default(tmp_path):
 
 def test_auto_buys_boosted_tokens_once_and_skips_trash(tmp_path):
     pf = _pf(tmp_path, pump_auto_on=True)
-    assert pf.auto_check([_row(A, verdict="lixo"), _row(B, age=30.0)]) == []          # lixo e velho demais
+    assert pf.auto_check([_row(A, verdict="lixo"), _row(B, age=50.0)]) == []          # lixo e velho demais (máx. 45 min desde a 0.31.0)
     assert pf.auto_check([_row(A, boost=False, verdict="chance alta")]) == []          # chance alta está OFF
     assert pf.auto_check([_row(A)]) == [A]
     p = pf.positions()[0]
