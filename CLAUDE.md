@@ -678,3 +678,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 ## Tempo legível nas Carteiras em estudo (2026-10-26, versão 0.31.15)
 - Pedido do dono: tempos em s/min/h/dias. `hms()` em `web/app.js` (agora "N dias" em vez de "N d") usado também em
   Carteiras em estudo (lista e perfil) e no Aprendizado diário.
+
+## Compartilhar configuração do Explorar (2026-10-26, versão 0.31.16)
+- Pedido do dono. `POST /api/pump/explore/share` {to, part: filtros|protecoes|tudo} → `hub.explore_share` (só para
+  admin não bloqueado; copia `pump_ex_auto_*` e/ou `pump_ar_*`, salva, avisa e registra no `audit_log`). Destinos pela
+  rota já existente `/api/pump/study/share-targets`. Testes: `tests/test_explore_share.py`.

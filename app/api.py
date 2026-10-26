@@ -537,6 +537,15 @@ def create_app(hub, auth, cfg) -> FastAPI:
             log.warning("carteiras em estudo: %s", str(e)[:120])
             return {"error": "não consegui salvar agora (tabela criada no banco?)"}
 
+    @app.post("/api/pump/explore/share")
+    async def explore_share(body: dict, u: dict = Depends(admin_only)):
+        pf = await hub.engine(u["id"])
+        try:
+            return await hub.explore_share(pf, u, str(body.get("to") or ""), str(body.get("part") or ""))
+        except Exception as e:
+            log.warning("compartilhar Explorar: %s", str(e)[:120])
+            return {"error": "não consegui compartilhar agora"}
+
     @app.get("/api/pump/study/share-targets")
     async def study_share_targets(u: dict = Depends(admin_only)):
         return {"users": await hub.study_share_targets(u["id"])}

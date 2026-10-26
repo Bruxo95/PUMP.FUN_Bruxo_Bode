@@ -965,6 +965,35 @@ class PumpHub:
         await audit(self.db, to_uid, "recebeu carteira em estudo", f"{wallet[:6]}… de {pf.user_id}")
         return {"ok": True}
 
+    @staticmethod
+    def explore_share_keys(part: str) -> list[str]:
+        """Partes da configuração do Explorar que dá para compartilhar (0.31.16)."""
+        from .settings import USER_KEYS
+        filtros = [k for k in USER_KEYS if k.startswith("pump_ex_auto_") and k != "pump_ex_auto_on"]
+        protecoes = [k for k in USER_KEYS if k.startswith("pump_ar_")]
+        return {"filtros": filtros, "protecoes": protecoes, "tudo": ["pump_ex_auto_on"] + filtros + protecoes}.get(part, [])
+
+    async def explore_share(self, pf, sender: dict, to_uid: str, part: str) -> dict:
+        """Copia a configuração do Explorar (filtros, proteções ou tudo) para outro admin. Pedido do dono em
+        2026-10-26. Só opções da carteira fictícia/automáticas do Explorar; nunca chaves nem a execução real."""
+        keys = self.explore_share_keys(part)
+        if not keys:
+            return {"error": "parte inválida"}
+        if to_uid == pf.user_id:
+            return {"error": "escolha outro usuário"}
+        rows = await self.db.select("profiles", {"user_id": to_uid}, columns="user_id,bloqueado,role")
+        if not rows or rows[0].get("bloqueado") or rows[0].get("role") != "admin":
+            return {"error": "usuário não encontrado"}
+        other = await self.engine(to_uid)
+        applied, _ = other.cfg.apply({k: getattr(pf.cfg, k) for k in keys})
+        await self.save_settings(other)
+        nome = {"filtros": "filtros de entrada", "protecoes": "proteções das automáticas", "tudo": "toda a configuração"}[part]
+        de = ((sender.get("nome") or sender.get("email") or "").split("@")[0].split(" ")[0] or "outro usuário")
+        other._emit(f"Explorar: você recebeu {nome} de {de} ({len(applied)} opções)")
+        await audit(self.db, pf.user_id, "compartilhar configuração do Explorar", f"{nome} para {to_uid}")
+        await audit(self.db, to_uid, "recebeu configuração do Explorar", f"{nome} de {pf.user_id}")
+        return {"ok": True, "opcoes": len(applied)}
+
     async def study_profile(self, wallet: str, prm: dict | None = None) -> dict:
         from .study import profile
         try:

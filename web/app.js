@@ -831,6 +831,26 @@
       if (!r.error) { $("stW").value = ""; $("stA").value = ""; setTimeout(loadStudy, 4000); }
       return loadStudy();
     }
+    if (t.dataset.exsh) {
+      const part = t.dataset.exsh, r = await BB.api("/api/pump/study/share-targets"), us = r.users || [];
+      const NM = { tudo: "toda a configuração do Explorar", filtros: "os filtros de entrada", protecoes: "as proteções das automáticas" };
+      $("exShT").textContent = "Compartilhar " + NM[part]; $("exShare").dataset.part = part;
+      $("exShU").innerHTML = us.length ? us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "")) + "</option>").join("")
+        : '<option value="">Nenhum outro admin cadastrado</option>';
+      $("exShGo").disabled = !us.length; $("exShare").hidden = false;
+      $("exShare").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (t.id === "exShX") { $("exShare").hidden = true; return; }
+    if (t.id === "exShGo") {
+      const to = $("exShU").value; if (!to) return;
+      t.disabled = true;
+      const r = await BB.api("/api/pump/explore/share", { body: { to, part: $("exShare").dataset.part } });
+      t.disabled = false;
+      toast(r.error ? "Não compartilhou: " + r.error : "Enviado: " + r.opcoes + " opções já valem para essa pessoa.");
+      if (!r.error) $("exShare").hidden = true;
+      return;
+    }
     if (t.id === "tuRun") {
       t.disabled = true;
       const r = await BB.api("/api/pump/tune/run", { body: {} });
