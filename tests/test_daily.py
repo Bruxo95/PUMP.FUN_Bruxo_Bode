@@ -84,3 +84,24 @@ def test_past_days_are_rebuilt_saved_and_studied(env):
     assert st["days"] >= 3 and st["positive_days"] == 0
     assert any(x["tipo"] == "muitos_stops" and x["dias"] >= 3 for x in st["recurring"])
     assert any(s["area"] == "repetido" for s in st["suggestions"])
+
+
+def test_report_lists_each_trade_with_time_and_by_hour(tmp_path):
+    """0.31.8: cada trade do dia com horário de entrada e saída, resultado por hora e horário ruim."""
+    from app.daily import blocks, build, day_of, hhmm
+    from tests.test_pump import _pump
+    pf = _pump(tmp_path, paid=False)
+    base = time.time() - 3 * 3600
+    for i in range(9):
+        c = base + (i // 3) * 3600 + i * 60
+        pf._save_trade({"wallet": "W", "symbol": f"T{i}", "mint": "M" * 40, "sol_in": 0.1, "hold_s": 125,
+                        "pnl_sol": -0.05 if i < 3 else 0.01, "pnl_pct": -50.0 if i < 3 else 10.0, "reason": "stop de perda" if i < 3 else "alvo",
+                        "opened_at": _iso(c - 125), "closed_at": _iso(c), "real": False})
+    day = day_of(base + 10)
+    rep = build(pf, day, [])
+    tl = [x for x in rep["trades_list"]]
+    assert tl and tl[0]["entrada"] == hhmm(base - 125) and tl[0]["saida"] == hhmm(base) and tl[0]["duracao_s"] == 125
+    if all(day_of(base + k * 3600) == day for k in range(3)):
+        assert len(rep["by_hour"]) == 3 and any(s["tipo"] == "horario_ruim" for s in rep["suggestions"])
+    txt = " ".join(t for _, t in blocks(rep, None, "x"))
+    assert "Trades do dia com horário" in txt and tl[0]["entrada"] in txt and "T0" in txt

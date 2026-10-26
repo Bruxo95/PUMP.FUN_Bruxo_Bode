@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.8",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Visão geral → Relatório do dia; Relatórios → Relatórios do dia (PDF e texto para IA)",
+      "titulo": "Relatórios com o horário de cada trade e o resultado por hora",
+      "oque": "O relatório do dia agora lista cada trade com o horário de entrada e de saída (horário de Berlim, o mesmo do rodapé), a duração, o token, a origem, o resultado, o melhor momento e o motivo da saída. Também mostra o resultado por hora do dia, e uma sugestão nova aponta o pior horário quando ele se repete. Tudo aparece no quadro do dia na Visão geral, no PDF e no texto para IA."
+    },
+    {
       "versao": "0.31.7",
       "data": "2026-10-26",
       "tipo": "novo",

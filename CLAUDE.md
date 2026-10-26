@@ -626,3 +626,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (baixa com o token). `app/changes.py` + pasta `app/relatorios_ia/` (vai na imagem Docker com `COPY app`), rotas
   `/api/pump/changes` e `/api/pump/changes/{nome}?pdf=1`. Abas em Relatórios. Regra para as IAs na seção "Como
   trabalhar aqui". Primeiro relatório: `app/relatorios_ia/2026-10-26-0.31.7.md` (projeção não estimada: sem base).
+
+## Horário dos trades nos relatórios (2026-10-26, versão 0.31.8)
+- Pedido do dono. `daily.build` devolve `trades_list` (entrada/saída em Europe/Berlin via zoneinfo, `TZ_NAME`, até 300)
+  e `by_hour`; sugestão `horario_ruim` (3+ horas com 3+ trades e a pior no prejuízo). PDF/texto para IA e o quadro
+  "Relatório do dia" mostram a lista.

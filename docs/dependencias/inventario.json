@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "74df2c03da26065bd262438279cdf0a996832a06",
-    "application_version": "0.31.7 · 2026-10-26 · Relatórios em PDF e mudanças da IA",
+    "repository_reference": "7242e3053d3f6c7d8cadaad397e96c0f52697f5a",
+    "application_version": "0.31.8 · 2026-10-26 · Horário de cada trade nos relatórios",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "5ba5d0038d5db1254ca4f0084c355c095c825d8f0c2eabf1a26779807a519cde",
+      "app/version.py": "0b97631a92683e1a64adbcb1e0eac72041eb9dce026965e5fddec1230cf42728",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "9ed87ad4d3642ad19c8dc0f28672be032d5790d56f90c32d083eb54e8153f859",
+      "web/app.html": "72812d8da785541945d5321bdce82512101b29ea718915945926c00b7fb0f99e",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5af55ee2d5bdd94855bae68986b33f560bb0e7292a1ba436f35a5c33f55367c2"
+  "pdf_sha256": "853ab9c7e2c54d29f20e7423af87a05b0a07bc16a869f6ec451652ceb78706ff"
 }

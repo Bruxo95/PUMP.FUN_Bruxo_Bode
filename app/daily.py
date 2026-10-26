@@ -14,6 +14,19 @@ import time
 from datetime import datetime, timezone
 
 MAX_POINTS = 60
+MAX_TRADES = 300
+try:                                                   # mesmo fuso do /health e do rodapé (Europe/Berlin)
+    from zoneinfo import ZoneInfo
+    TZ = ZoneInfo("Europe/Berlin")
+except Exception:                                      # sem tzdata: horário UTC
+    TZ = timezone.utc
+TZ_NAME = "horário de Berlim (CET)" if TZ is not timezone.utc else "UTC"
+
+
+def hhmm(t: float | None, seconds: bool = True) -> str:
+    if not t:
+        return "-"
+    return datetime.fromtimestamp(t, TZ).strftime("%H:%M:%S" if seconds else "%H:%M")
 
 
 def _ts(x) -> float | None:
@@ -127,7 +140,26 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
     start = float(pf._c("pump_sim_balance_sol", 5.0))
     end_t = datetime.fromisoformat(day + "T23:59:59+00:00").timestamp()
     equity_end = round(start + sum(t.get("pnl_sol") or 0 for t in trades if (_ts(t.get("closed_at")) or 0) <= end_t), 6)
-    return {"dia": day, "equity_end": equity_end, "trades": n, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
+    # 0.31.8: cada trade com horário de entrada e saída, e o resultado por hora do dia (pedido do dono)
+    tl = []
+    for t in sorted(T, key=lambda x: _ts(x.get("closed_at")) or 0):
+        o, c = _ts(t.get("opened_at")), _ts(t.get("closed_at"))
+        tl.append({"entrada": hhmm(o), "saida": hhmm(c), "t_entrada": o, "t_saida": c, "token": t.get("symbol") or str(t.get("mint") or "")[:6],
+                   "mint": t.get("mint"), "origem": _origin(t), "trader": t.get("wallet"), "sol_in": t.get("sol_in"),
+                   "pnl_sol": t.get("pnl_sol"), "pnl_pct": t.get("pnl_pct"), "motivo": t.get("reason"), "duracao_s": t.get("hold_s"),
+                   "melhor_pct": t.get("best_pct")})
+    hours: dict[str, list] = {}
+    for x in tl:
+        if x["t_saida"]:
+            hours.setdefault(hhmm(x["t_saida"], False)[:2] + "h", []).append(x)
+    by_hour = [{"hora": h, "trades": len(r), "pnl_sol": round(sum(x.get("pnl_sol") or 0 for x in r), 6),
+                "acerto": round(sum(1 for x in r if (x.get("pnl_sol") or 0) > 0) / len(r), 3)} for h, r in sorted(hours.items())]
+    if len([h for h in by_hour if h["trades"] >= 3]) >= 3:
+        worst = min((h for h in by_hour if h["trades"] >= 3), key=lambda h: h["pnl_sol"])
+        if worst["pnl_sol"] < 0:
+            add("trades", f"O pior horário foi {worst['hora']} ({TZ_NAME}): {worst['pnl_sol']:+.4f} SOL em {worst['trades']} trades. "
+                "Se repetir em outros dias, evite operar nesse horário.", worst["trades"], tipo="horario_ruim")
+    return {"dia": day, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
             "avg_lag_s": round(sum(lags) / len(lags), 1) if lags else None, "top_skips": [{"motivo": k, "n": v} for k, v in top_skips],
@@ -149,7 +181,7 @@ def days_with_trades(pf, before_day: str, limit: int = 60) -> list[str]:
     return [d for d in ds if d < before_day][:limit]
 
 
-TITLES = {"acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
+TITLES = {"horario_ruim": "Horário ruim", "acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
           "trader_ruim": "Trader que dá prejuízo", "origem_ruim": "Origem no prejuízo", "taxas": "Taxas altas",
           "atraso": "Atraso alto", "filtro": "Filtro barrando demais", "queda_saldo": "Saldo caindo no dia"}
 
@@ -243,6 +275,17 @@ def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
             B.append(("h", title))
             B += [("mono", f"{str(x['nome'])[:44]:<44} {x['trades']:>4} trades  acerto {x['acerto'] * 100:>3.0f}%  {x['pnl_sol']:+.4f} SOL")
                   for x in rows]
+    if rep.get("by_hour"):
+        B.append(("h", f"Por hora ({rep.get('tz') or 'UTC'})"))
+        B += [("mono", f"{h['hora']:>4}  {h['trades']:>4} trades  acerto {h['acerto'] * 100:>3.0f}%  {h['pnl_sol']:+.4f} SOL") for h in rep["by_hour"]]
+    if rep.get("trades_list"):
+        B.append(("h", f"Trades do dia com horário ({rep.get('tz') or 'UTC'})"))
+        B.append(("mono", "entrada   saída     token        resultado        motivo"))
+        for x in rep["trades_list"]:
+            pct = f"{x['pnl_pct']:+.1f}%" if x.get("pnl_pct") is not None else ""
+            dur = f" ({int(x['duracao_s'] // 60)}m{int(x['duracao_s'] % 60):02d}s)" if x.get("duracao_s") is not None else ""
+            B.append(("mono", f"{x['entrada']}  {x['saida']}  {str(x['token'])[:12]:<12} {(x.get('pnl_sol') or 0):+.4f} {pct:<8} "
+                              f"{str(x.get('motivo') or '')[:44]}{dur}"))
     if rep.get("top_skips"):
         B.append(("h", "Por que o robô não copiou (mais frequentes)"))
         B += [("mono", f"{x['n']:>5}x  {x['motivo']}") for x in rep["top_skips"]]
