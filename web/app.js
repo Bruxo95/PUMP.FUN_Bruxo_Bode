@@ -88,6 +88,34 @@
   }
 
   // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
+  // ------------------------------------------------------------------ explorar (/api/pump/explore, 0.28.0)
+  let EX = null, EX_TAB = "graduating", EX_T = null;
+  async function loadExplore() {
+    clearTimeout(EX_T); EX_T = setTimeout(() => { if (VIEW === "explorar") loadExplore(); }, 60000);
+    const r = await BB.api("/api/pump/explore");
+    if (r.error && !r.lists) { toast(r.error); return; }
+    EX = r; renderExplore();
+  }
+  function renderExplore() {
+    const r = EX || {};
+    $("exSub").textContent = r.error ? "Solana Tracker: " + r.error : r.at ? "atualizado " + dt(r.at * 1000) + " · a cada " + Math.round(r.every_s / 60) + " min · " + r.watching + " tokens em observação para aprender" : "primeira leitura em até 5 min";
+    const PV = { lixo: "loss", fraco: "neutral", "possível": "sim", "chance alta": "win" };
+    const rows = EX_TAB === "movers" ? r.movers || [] : ((r.lists || {})[EX_TAB] || []);
+    const usd = (v) => (v == null ? "–" : "$" + f(v, v >= 1000 ? 0 : 2));
+    const pc = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 0) + "%</span>");
+    table("exTbl", ["Token", "Veredito", "Market cap", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
+      '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>",
+      usd(x.mcap_usd), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
+      x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
+      x.risk == null ? "–" : f(x.risk, 0) + "/10", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
+      '<button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");
+    table("exLs", ["Curva quando apareceu", "Tokens", "Graduaram"], (r.learned || []).map((x) => [esc(x.faixa), String(x.n), f(x.grad_pct, 0) + "%"]), "Ainda aprendendo: cada token espera até 6 h para contar.");
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("#exTabs button"); if (!b) return;
+    EX_TAB = b.dataset.ex; document.querySelectorAll("#exTabs button").forEach((x) => x.classList.toggle("on", x === b)); renderExplore();
+  });
+
   // ------------------------------------------------------------------ base da pump.fun (/api/pump/base, 0.21.0)
   let BS_T = null;
   async function loadBase() {
@@ -510,7 +538,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -518,7 +546,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -532,6 +560,7 @@
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
+    if (VIEW === "explorar") loadExplore();
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);

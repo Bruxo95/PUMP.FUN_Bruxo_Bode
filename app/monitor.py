@@ -362,6 +362,32 @@ class SharedMonitor:
             n += 1
         return n
 
+    async def explore_once(self) -> bool:
+        ex = getattr(self.hub, "explore", None)
+        if ex is None:
+            return False
+        key = next((e.lb_key() for e in self.engines() if e.lb_key_own()), "") or self.hub.shared_st_key
+        if not key:
+            ex.error = "sem chave da Solana Tracker (Configurações → Chaves, ou a chave do sistema em Administração)"
+            return False
+        try:
+            data = await self.svc.fetch_explore(key)
+        except Exception as e:
+            from .logsafe import redact
+            ex.error = redact(str(e)[:160])
+            return False
+        ex.update(data or {})
+        return True
+
+    async def explore_loop(self) -> None:
+        from .explore import EVERY_S
+        while True:
+            try:
+                await self.explore_once()
+            except Exception as e:
+                log.warning("explorar: %s", str(e)[:160])
+            await asyncio.sleep(EVERY_S)
+
     async def boost_loop(self) -> None:
         while True:
             try:
@@ -565,7 +591,7 @@ class SharedMonitor:
         loop = asyncio.get_running_loop()
         self._tasks = [loop.create_task(c) for c in (self.rpc_run(), self.pumpportal_run(), self.price_loop(),
                                                      self.trail_loop(), self.tick_loop(), self.lb_loop(),
-                                                     self.lab_loop(), self.boost_loop())]
+                                                     self.lab_loop(), self.boost_loop(), self.explore_loop())]
         self._tasks += [loop.create_task(self.tx_worker()) for _ in range(4)]
 
     def stop(self) -> None:

@@ -1659,6 +1659,17 @@ class PumpFun:
         return {"t": now, "active": bool(recent), "amount_24h": sum(int(b.get("amount") or 0) for b in recent),
                 "boosts_total": len(bs), "last_boost": last or None, "paid": paid}
 
+    async def fetch_explore(self, key: str) -> dict | None:
+        """Explorar (0.28.0): listas novos / quase graduando / graduados da Solana Tracker (ver app/explore.py)."""
+        from .explore import URL, parse
+        if not key:
+            return None
+        r = await self.http.get(URL, params={"limit": 40, "reduceSpam": "true"},
+                                headers={"x-api-key": key, "Accept": "application/json"}, timeout=20)
+        if r.status_code != 200:
+            raise RuntimeError(f"Solana Tracker respondeu HTTP {r.status_code}")
+        return parse(r.json())
+
     async def fetch_boost(self, mint: str) -> dict | None:
         try:
             r = await self.http.get(f"https://api.dexscreener.com/orders/v1/solana/{mint}", timeout=10)

@@ -45,6 +45,7 @@
         <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
         <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
         <a href="#fantasma" data-v="fantasma" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10a6 6 0 0 1 12 0v10l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5z"/><circle cx="10" cy="10" r="1"/><circle cx="14" cy="10" r="1"/></svg>Estratégias fantasma</a>
+        <a href="#explorar" data-v="explorar" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Explorar</a>
         <a href="#base" data-v="base" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Base da pump.fun</a>
         <a href="#listanegra" data-v="listanegra" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>Lista negra</a>
         <a href="#novas" data-v="novas" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Opções novas de cópia</a>
@@ -304,6 +305,16 @@
         <!-- 0.24.1: largura total, no fim da tela (pedido do dono: estava apertado e com rolagem lateral) -->
         <div class="card" id="bsUpCard"><header><div><h2>Tokens que subiram (24 h)</h2><div class="sub">graduou = encheu a curva (a foto não mostra o pico, por isso aparece "graduou" no lugar do valor)</div></div></header>
           <div class="tbl-wrap"><table id="bsUp"></table></div></div>
+      </section>
+
+      <!-- ========================================================= EXPLORAR (app/explore.py, 0.28.0) -->
+      <section class="view" data-view="explorar" hidden>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Explorar</h2><div class="sub" id="exSub">as mesmas listas do pump.fun/explore: novos, quase graduando, graduados e os que mais sobem</div></div></header>
+          <div class="help"><p><b>De onde vem:</b> a página da pump.fun bloqueia leitura automática, então os dados vêm da Solana Tracker (mesma chave do ranking), atualizados a cada 5 minutos. Cada token ganha um veredito: <span class="tag loss">lixo</span> rug, criador ruim, risco 8+ ou mais vendas que compras · <span class="tag neutral">fraco</span> / <span class="tag sim">possível</span> / <span class="tag win">chance alta</span> conforme compras × vendas, alta em 5 min, holders e o que a base aprendeu sobre a curva. O botão Comprar usa os valores prontos da Base da pump.fun.</p></div>
+          <div class="seg" id="exTabs"><button data-ex="graduating" class="on">Quase graduando</button><button data-ex="latest">Novos</button><button data-ex="graduated">Graduados</button><button data-ex="movers">Mais sobem (1 h)</button></div>
+          <div class="tbl-wrap" style="margin-top:10px"><table id="exTbl"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>O que aprendeu: quase graduando → graduou?</h2><div class="sub" id="exLsSub">de cada token visto em "quase graduando", quantos % graduaram, pela % da curva quando apareceu (espera até 6 h)</div></div></header>
+          <div class="tbl-wrap"><table id="exLs"></table></div></div>
       </section>
 
       <!-- ========================================================= LISTA NEGRA COMPARTILHADA (0.20.0) -->

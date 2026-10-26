@@ -185,6 +185,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """Estratégias fantasma (0.18.0): mesmas entradas da cópia fictícia, saídas diferentes, lado a lado."""
         return pf.ghosts.snapshot(pf.trades(100000))
 
+    @app.get("/api/pump/explore")
+    async def pump_explore(pf=Depends(admin_engine)):
+        """Explorar (0.28.0): novos, quase graduando, graduados e os que mais sobem, com veredito e o que aprendeu."""
+        return hub.explore.snapshot(hub.market.blacklist, hub.market.creator_stats, pf.boost_info)
+
     @app.get("/api/pump/base")
     async def pump_base(pf=Depends(admin_engine)):
         """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""
@@ -214,6 +219,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         if not (pf.tokens.get(mint) or {}).get("price") and hub.monitor is not None:
             try:                                                   # preço na hora, direto da curva on-chain
                 await hub.monitor.svc._curve_prices([mint], public_first=True)
+                if not (pf.tokens.get(mint) or {}).get("price"):        # já graduado: preço pela DexScreener
+                    await hub.monitor.svc._fetch_prices([mint])
             except Exception:
                 pass
         r = pf.manual_buy(mint)

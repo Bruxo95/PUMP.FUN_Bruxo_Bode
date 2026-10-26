@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.28.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Explorar",
+      "titulo": "Explorar: as listas do pump.fun/explore com veredito, aprendizado e botão Comprar",
+      "oque": "Tela nova com as mesmas listas da página Explore da pump.fun: Quase graduando, Novos, Graduados e Mais sobem (1 h). Cada token mostra market cap, % da curva, holders, compras × vendas, variação em 5 min e 1 h, risco, Boost ON/OFF, um veredito (lixo, fraco, possível, chance alta) com o motivo e o botão Comprar com os valores prontos. O sistema também aprende: anota cada token visto em Quase graduando e mostra, por faixa da curva, quantos % realmente graduaram; isso entra no veredito. Os dados vêm da Solana Tracker (a página da pump.fun bloqueia leitura automática), a cada 5 minutos."
+    },
+    {
       "versao": "0.27.0",
       "data": "2026-10-26",
       "tipo": "novo",

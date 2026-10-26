@@ -512,3 +512,13 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   real ligada) chama `manual_buy(..., auto=motivo)`; `SharedMonitor.auto_once` roda a cada ~20 s no `lab_loop`.
   Um token por vez (`_auto_done`, só memória), máx. N/hora, até X min de vida, nunca lixo/suspeito. Telegram avisa
   "compra automática" e "boost on". Testes: `tests/test_auto.py`.
+
+## Explorar (2026-10-26, versão 0.28.0)
+- Pedido do dono: usar o pump.fun/explore. A API do site (`frontend-api-v3.pump.fun`) responde com o desafio
+  anti-robô da Cloudflare ("Just a moment...", conferido em 2026-10-26) — não burlar. Fonte: Solana Tracker
+  `GET /tokens/multi/all` (documentada; latest/graduating/graduated), chave própria de algum usuário ou a do sistema,
+  1 consulta a cada 5 min (`explore.EVERY_S`) no `SharedMonitor.explore_loop`. Formato lido de forma defensiva e NÃO
+  testado com a chave real nesta entrega.
+- `app/explore.py`: veredito (lixo/fraco/possível/chance alta) e aprendizado "quase graduando → graduou?" por faixa
+  de curva (só memória; recomeça no reinício). Tela `#explorar`, rota `/api/pump/explore` (admin). A compra manual
+  agora busca o preço na DexScreener quando o token já graduou. Testes: `tests/test_explore.py`.

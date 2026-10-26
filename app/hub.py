@@ -42,6 +42,8 @@ class PumpHub:
         self.radar = RadarBuffer()                # só observações ao vivo; não gera ordens
         from .tokenlab import TokenLab
         self.lab = TokenLab(self.market)          # base própria da pump.fun (0.21.0)
+        from .explore import Explore
+        self.explore = Explore()                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
