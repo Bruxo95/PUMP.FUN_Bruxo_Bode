@@ -14,6 +14,8 @@ SECRET_NAMES = {
     "wallet_private_key": "Chave privada da carteira Solana do bot",
     "rpc_url": "RPC próprio (Helius etc.)",
     "jupiter_api_key": "Chave da Jupiter (opcional)",
+    "telegram_bot_token": "Bot do Telegram (token do @BotFather)",
+    "telegram_chat_id": "ID do seu chat no Telegram",
 }
 
 
@@ -32,6 +34,8 @@ KEY_LINKS = {
     "jupiter_api_key": "https://developers.jup.ag/portal",
     "rpc_url": "https://dashboard.helius.dev",
     "wallet_private_key": "https://phantom.com",
+    "telegram_bot_token": "https://t.me/BotFather",
+    "telegram_chat_id": "https://t.me/userinfobot",
 }
 
 

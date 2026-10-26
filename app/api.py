@@ -185,6 +185,36 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """Estratégias fantasma (0.18.0): mesmas entradas da cópia fictícia, saídas diferentes, lado a lado."""
         return pf.ghosts.snapshot(pf.trades(100000))
 
+    @app.post("/api/pump/telegram/test")
+    async def telegram_test(pf=Depends(admin_engine)):
+        ok, err = await hub.tg_send_now(pf, "PUMP FUN COPY: teste de aviso no Telegram ✅", force=True)
+        return {"ok": True} if ok else {"error": err}
+
+    @app.get("/api/pump/blacklist")
+    async def blacklist_list(pf=Depends(admin_engine)):
+        rows = sorted(hub.market.blacklist.items(), key=lambda kv: str(kv[1].get("criado_em") or ""), reverse=True)
+        return {"items": [{"endereco": k, **v} for k, v in rows][:500], "count": len(rows),
+                "on": bool(getattr(pf.cfg, "pump_blacklist_on", False))}
+
+    @app.post("/api/pump/blacklist")
+    async def blacklist_change(body: dict, u: dict = Depends(admin_only)):
+        pf = await hub.engine(u["id"])
+        addr, act = str(body.get("endereco") or "").strip(), str(body.get("action") or "add")
+        tipo, motivo = str(body.get("tipo") or "dev"), str(body.get("motivo") or "adicionado pelo admin")[:120]
+        if not pf.valid_addr(addr) or act not in ("add", "remove") or tipo not in ("dev", "carteira"):
+            return {"error": "endereço, ação ou tipo inválido"}
+        try:
+            if act == "remove":
+                await hub.blacklist_remove(addr)
+            else:
+                pf.blacklist_add(addr, tipo, motivo)
+                await hub.flush_blacklist()
+        except Exception as e:
+            log.warning("lista negra: %s", str(e)[:120])
+            return {"error": "não consegui salvar agora (tabela criada no banco?)"}
+        await audit(hub.db, u["id"], "lista negra: " + ("remover" if act == "remove" else "adicionar"), f"{tipo} {addr[:6]}…")
+        return {"ok": True}
+
     @app.get("/api/pump/radar")
     async def radar(pf=Depends(admin_engine)):
         return hub.radar_snapshot(pf)
@@ -353,6 +383,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 parse_keypair(value)
             elif name == "rpc_url":
                 value = check_rpc_url(value)
+            elif name == "telegram_chat_id":
+                if not __import__("re").fullmatch(r"-?\d{3,20}", value):
+                    raise ValueError("ID do chat inválido (só números, ex.: 123456789)")
+            elif name == "telegram_bot_token":
+                if not __import__("re").fullmatch(r"\d{5,15}:[A-Za-z0-9_-]{30,60}", value):
+                    raise ValueError("token do bot inválido (formato 123456:ABC…)")
             elif len(value) < 16:
                 raise ValueError("chave inválida (curta demais)")
         except ValueError as e:

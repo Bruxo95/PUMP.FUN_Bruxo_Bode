@@ -126,6 +126,7 @@ class PumpHub:
         except Exception:
             pass
         self._wire_wallet(pf)
+        pf.tg = lambda msg, _pf=pf: self.tg_queue(_pf, msg)
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
             if p.get("selling"):
                 p["selling"] = False
@@ -269,9 +270,84 @@ class PumpHub:
         return n
 
     async def ghosts_loop(self) -> None:
+        n = 0
         while True:
-            await asyncio.sleep(300)
-            await self.save_ghosts()
+            await asyncio.sleep(60)
+            try:
+                await self.flush_blacklist()
+            except Exception:
+                pass                                   # já registrado; tenta de novo na próxima volta
+            n += 1
+            if n % 5 == 0:
+                await self.save_ghosts()
+
+    # ------------------------------------------------------------------ lista negra compartilhada (0.20.0)
+    async def load_blacklist(self) -> None:
+        try:
+            for r in await self.db.select("blacklist", None, limit=20000):
+                self.market.blacklist[r["endereco"]] = {"tipo": r.get("tipo"), "motivo": r.get("motivo"),
+                                                       "criado_em": r.get("criado_em")}
+        except Exception as e:
+            log.warning("Lista negra não carregou (tabela criada?): %s", str(e)[:120])
+
+    async def flush_blacklist(self) -> int:
+        new, self.market.bl_new = self.market.bl_new, []
+        rows = [{"endereco": a, **{k: v for k, v in self.market.blacklist[a].items() if k in ("tipo", "motivo")}}
+                for a in dict.fromkeys(new) if a in self.market.blacklist]
+        if not rows:
+            return 0
+        try:
+            await self.db.insert("blacklist", rows, upsert=True, on_conflict="endereco")
+        except Exception as e:
+            self.market.bl_new = new + self.market.bl_new          # tenta de novo na próxima volta
+            log.warning("Lista negra não gravou: %s", str(e)[:120])
+            raise
+        return len(rows)
+
+    async def blacklist_remove(self, addr: str) -> None:
+        self.market.blacklist.pop(addr, None)
+        self.market.bl_new = [a for a in self.market.bl_new if a != addr]
+        await self.db.delete("blacklist", {"endereco": addr})
+
+    # ------------------------------------------------------------------ avisos no Telegram (0.20.0)
+    TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas")
+
+    def tg_wanted(self, pf, msg: str) -> bool:
+        if not getattr(pf.cfg, "pump_tg_on", False):
+            return False
+        if getattr(pf.cfg, "pump_tg_all", False):
+            return True
+        low = msg.lower()
+        return any(k in low for k in self.TG_KEYS)
+
+    def tg_queue(self, pf, msg: str) -> None:
+        """Chamado por pf._emit: envia em segundo plano, sem travar o motor (fora de um loop, não faz nada)."""
+        if not self.tg_wanted(pf, msg):
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.create_task(self.tg_send_now(pf, msg))
+
+    async def tg_send_now(self, pf, msg: str, force: bool = False) -> tuple[bool, str]:
+        tok, chat = pf.keys.get("telegram_bot_token"), pf.keys.get("telegram_chat_id")
+        if not tok or not chat:
+            return False, "configure o token do bot e o ID do chat em Configurações → Chaves pessoais"
+        now = time.time()
+        sent = [x for x in getattr(pf, "_tg_sent", []) if now - x < 60]
+        if len(sent) >= 20 and not force:                       # no máx. 20 avisos por minuto por pessoa
+            return False, "limite de avisos por minuto"
+        pf._tg_sent = sent + [now]
+        try:
+            r = await self.http.post(f"https://api.telegram.org/bot{tok}/sendMessage",
+                                     json={"chat_id": chat, "text": msg[:3500], "disable_web_page_preview": True},
+                                     timeout=10)
+            if r.status_code == 200:
+                return True, ""
+            return False, f"o Telegram recusou (HTTP {r.status_code}) — confira o token e se você mandou /start ao bot"
+        except Exception as e:
+            return False, "não consegui falar com o Telegram: " + type(e).__name__
 
     async def learning_loop(self) -> None:
         while True:
@@ -481,6 +557,7 @@ class PumpHub:
         except Exception as e:
             log.warning("Não consegui carregar os usuários do Supabase: %s", str(e)[:160])
         await self.refresh_shared_key()
+        await self.load_blacklist()
         self.running = True
         for pf in list(self.engines.values()):
             self._start_engine(pf)

@@ -45,6 +45,7 @@
         <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
         <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
         <a href="#fantasma" data-v="fantasma" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10a6 6 0 0 1 12 0v10l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5z"/><circle cx="10" cy="10" r="1"/><circle cx="14" cy="10" r="1"/></svg>Estratégias fantasma</a>
+        <a href="#listanegra" data-v="listanegra" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>Lista negra</a>
         <a href="#novas" data-v="novas" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>Opções novas de cópia</a>
         <a href="#novidades" data-v="novidades" id="navNov" hidden data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Novidades</a>
         </div>
@@ -238,6 +239,17 @@
           <div class="tbl-wrap"><table id="repDay"></table></div></div>
       </section>
 
+      <!-- ========================================================= LISTA NEGRA COMPARTILHADA (0.20.0) -->
+      <section class="view" data-view="listanegra" hidden>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Lista negra compartilhada</h2><div class="sub" id="blSub">criadores e carteiras que ninguém copia (quando a opção está ligada)</div></div></header>
+          <div class="form"><div class="field full"><div class="row">
+            <input class="in" id="blAddr" placeholder="Endereço (criador do token ou carteira)" style="flex:1;min-width:240px">
+            <select class="in" id="blTipo" style="width:140px"><option value="dev">criador (dev)</option><option value="carteira">carteira</option></select>
+            <input class="in" id="blMot" placeholder="Motivo (opcional)" style="width:220px" maxlength="120">
+            <button class="btn sm primary" id="blAdd">Adicionar</button></div></div></div>
+          <div class="tbl-wrap"><table id="blTbl"></table></div></div>
+      </section>
+
       <!-- ========================================================= ESTRATÉGIAS FANTASMA (app/ghosts.py, 0.18.0) -->
       <section class="view" data-view="fantasma" hidden>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Estratégias fantasma</h2><div class="sub" id="ghSub">cada cópia fictícia também é "copiada" por várias regras de saída ao mesmo tempo · só simulação, não mexe na sua carteira</div></div></header>
@@ -352,6 +364,15 @@
               <div class="hint">As posições abertas continuam com stop e saídas normais; só não entram cópias novas. A pausa some se o servidor reiniciar.</div></div>
             <div class="field" data-novo-ate="2026-11-09"><label>Mercado frio: copiar com metade do valor</label><div class="row"><button class="btn sm tgl" data-toggle="pump_cold_on">…</button><span class="muted">quando o acerto das últimas cópias em 2 h ficar abaixo de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_cold_wr"><span class="muted">%</span></div>
               <div class="hint">Olha as últimas 10 cópias fictícias fechadas nas últimas 2 h (mínimo 5).</div></div>
+          </div>
+        </div>
+        <div class="card" data-novo-ate="2026-11-09">
+          <header><div><h2>Lista negra e avisos no Telegram</h2><div class="sub">proteção compartilhada entre todos e avisos no celular</div></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-09"><label>Não copiar quem está na lista negra</label><div class="row"><button class="btn sm tgl" data-toggle="pump_blacklist_on">…</button><a class="btn sm" href="#listanegra">Ver a lista</a></div>
+              <div class="hint">A lista é de todos: entra sozinho o criador de token que deu rug ou que vendeu e deixou uma cópia no prejuízo, e o admin pode adicionar ou tirar endereços.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Avisos no Telegram</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tg_on">…</button><span class="muted">tudo</span><button class="btn sm tgl" data-toggle="pump_tg_all">…</button><button class="btn sm" id="tgTest">Enviar teste</button></div>
+              <div class="hint">Cole o token do bot (crie com o @BotFather) e o ID do seu chat (pegue com o @userinfobot) em Configurações → Chaves pessoais e mande /start para o seu bot. Com "tudo" OFF chegam só os importantes: HOT callout, stop de perda, dev vendeu, trader ou robô pausado, graduou e modo real.</div></div>
           </div>
         </div>
       </section>

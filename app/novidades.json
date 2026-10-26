@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.20.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Lista negra e Opções novas de cópia; Configurações → Chaves pessoais",
+      "titulo": "Lista negra compartilhada e avisos no Telegram",
+      "oque": "Lista negra de todos: entra sozinho o criador de token que deu rug (Solana Tracker) ou que vendeu e deixou uma cópia no prejuízo, e o admin pode adicionar ou tirar endereços na tela Lista negra. Com a opção ligada, o robô não copia token desses criadores nem essas carteiras. Avisos no Telegram: cole o token do seu bot e o ID do seu chat em Chaves pessoais, ligue a opção e use Enviar teste; por padrão chegam só os avisos importantes (HOT callout, stop de perda, dev vendeu, pausas, graduação e modo real)."
+    },
+    {
       "versao": "0.19.0",
       "data": "2026-10-26",
       "tipo": "novo",

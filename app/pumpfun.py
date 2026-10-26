@@ -85,6 +85,8 @@ class PumpMarket:
         self.creators: dict[str, float] = {}       # carteira que criou token -> quando
         self.activity: dict = {}                   # carteira -> atividade na rede (online/offline)
         self.wallet_usd: dict = {}                 # carteira do trader -> {"usd", "sol", "stable", "t"}
+        self.blacklist: dict[str, dict] = {}       # 0.20.0: lista negra compartilhada (endereço -> tipo, motivo)
+        self.bl_new: list[str] = []                # endereços novos ainda não gravados no banco
         self.sol_usd = 0.0
         self.jup = jup                             # JupiterQuoter (cotações compartilhadas)
         self.status = {"ws": None, "connected_at": None, "error": None, "events": 0, "last_event": None,
@@ -128,6 +130,7 @@ class PumpFun:
         from .ghosts import Ghosts
         self.ghosts = Ghosts(self)                   # estratégias fantasma (0.18.0): mesmas entradas, saídas diferentes
         self._halt_until = 0.0                       # pausa geral por sequência de perdas (0.19.0; só memória)
+        self.tg = None                               # avisos no Telegram (0.20.0; ligado pelo hub)
 
     # ------------------------------------------------------------------ dados públicos (compartilhados)
     @property
@@ -264,6 +267,10 @@ class PumpFun:
         """Regra automática: o trader copiado que fizer a posição bater o STOP DE PERDA N vezes em 24 h fica
         pausado por X h (padrão: 2 stops → 24 h)."""
         self._streak_check(tr)
+        if str(tr.get("reason") or "").startswith("dev vendeu") and (tr.get("pnl_sol") or 0) < 0:
+            cr = (self.tokens.get(tr.get("mint")) or {}).get("creator")
+            if cr:
+                self.blacklist_add(cr, "dev", f"vendeu {tr.get('symbol') or 'token'} e a cópia fechou no prejuízo")
         if not str(tr.get("reason") or "").startswith("stop de perda"):
             return
         n = int(self._c("pump_autopause_stops", 2))
@@ -848,6 +855,8 @@ class PumpFun:
                     why = self.curve_block(mint)
                 if not why:
                     why = self.flow_block(mint)
+                if not why:
+                    why = self.blacklist_block(who, mint)
                 mn = self._onv("pump_score_min_on", "pump_score_min")
                 if not why and mn and score < mn:
                     why = f"nota da entrada {score:.0f} abaixo do mínimo {mn:.0f}"
@@ -1565,6 +1574,26 @@ class PumpFun:
         score = round(sum(parts[k] * W[k] for k in parts) / tot * 100, 1) if tot else 50.0
         return score, {k: round(v * 100) for k, v in parts.items()}
 
+    def blacklist_add(self, addr: str, tipo: str, motivo: str) -> None:
+        """Lista negra COMPARTILHADA (0.20.0): o que um usuário descobre protege todos. Entra sozinho o criador de
+        token que deu rug ou que vendeu e deixou a cópia no prejuízo; o admin também adiciona e remove."""
+        bl = self.market.blacklist
+        if not addr or addr in bl:
+            return
+        bl[addr] = {"tipo": tipo, "motivo": motivo[:120], "criado_em": now_iso()}
+        self.market.bl_new.append(addr)
+
+    def blacklist_block(self, who: str, mint: str) -> str | None:
+        if not getattr(self.cfg, "pump_blacklist_on", False):
+            return None
+        bl = self.market.blacklist
+        cr = (self.tokens.get(mint) or {}).get("creator")
+        if cr and cr in bl:
+            return f"criador na lista negra ({bl[cr].get('motivo')})"
+        if who in bl:
+            return f"trader na lista negra ({bl[who].get('motivo')})"
+        return None
+
     def cold_market(self) -> str:
         """Mercado frio (0.19.0): as últimas 10 cópias fictícias fechadas nas últimas 2 h acertaram pouco."""
         mn = self._onv("pump_cold_on", "pump_cold_wr")
@@ -1704,6 +1733,8 @@ class PumpFun:
                       "danger": [str(x.get("name"))[:60] for x in risks if x.get("level") == "danger"],
                       "warn": [str(x.get("name"))[:60] for x in risks if x.get("level") == "warn"], "t": time.time()}
         tk["risk_next"] = time.time() + 600
+        if tk["risk"]["rugged"] and tk.get("creator"):
+            self.blacklist_add(tk["creator"], "dev", f"token {tk.get('symbol') or short(mint)} deu rug (Solana Tracker)")
 
     async def holders_check(self, mint: str) -> None:
         """% do token nas 10 maiores carteiras (sem contar a curva/pool) — RPC grátis, cache de 60 s."""
@@ -2091,6 +2122,11 @@ class PumpFun:
         log.info(msg)
         self._ev_id += 1
         self.events.append({"id": self._ev_id, "at": now_iso(), "msg": msg})
+        if self.tg is not None:
+            try:
+                self.tg(msg)
+            except Exception:
+                pass
         if self.on_event:
             self.on_event("pump", msg)
 

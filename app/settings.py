@@ -44,6 +44,10 @@ USER_KEYS: dict[str, tuple] = {
     "pump_streak_h": (float, 2.0, 0.1, 72.0),
     "pump_cold_on": (bool, False, 0, 1),
     "pump_cold_wr": (float, 30.0, 0.0, 100.0),          # acerto das últimas 10 cópias em 2 h abaixo de X% -> metade do valor
+    # 0.20.0: lista negra compartilhada e avisos no Telegram (começam desligados)
+    "pump_blacklist_on": (bool, False, 0, 1),           # não copia token de criador (ou trader) da lista negra
+    "pump_tg_on": (bool, False, 0, 1),                  # avisos no Telegram (token do bot e chat em Chaves pessoais)
+    "pump_tg_all": (bool, False, 0, 1),                 # OFF = só os importantes; ON = toda notificação
     "pump_copy_enabled": (bool, True, 0, 1),
     "pump_sim_balance_sol": (float, 5.0, 0.01, 100000.0),
     "pump_copy_sol": (float, 0.1, 0.001, 100.0),

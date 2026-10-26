@@ -82,6 +82,26 @@
   }
 
   // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
+  // ------------------------------------------------------------------ lista negra (/api/pump/blacklist, 0.20.0)
+  async function loadBlacklist() {
+    const r = await BB.api("/api/pump/blacklist");
+    if (r.error) { toast(r.error); return; }
+    $("blSub").textContent = r.count + " endereços · a opção \"Não copiar quem está na lista negra\" está " + (r.on ? "LIGADA" : "DESLIGADA") + " para você";
+    table("blTbl", ["Endereço", "Tipo", "Motivo", "Desde", ""], (r.items || []).map((x) => [pfW(x.endereco), x.tipo === "dev" ? "criador" : "carteira", esc(x.motivo || ""), dt(x.criado_em),
+      '<button class="btn sm" data-blr="' + esc(x.endereco) + '">Tirar</button>']), "Lista vazia.");
+  }
+  document.addEventListener("click", async (e) => {
+    const t = e.target;
+    if (t.id === "blAdd") {
+      const raw = $("blAddr").value.trim(), a = (raw.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/) || [""])[0];
+      const r = await BB.api("/api/pump/blacklist", { body: { endereco: a, tipo: $("blTipo").value, motivo: $("blMot").value.trim(), action: "add" } });
+      toast(r.error ? "Não adicionou: " + r.error : "Adicionado à lista negra."); if (!r.error) { $("blAddr").value = ""; $("blMot").value = ""; }
+      return loadBlacklist();
+    }
+    if (t.dataset.blr) { if (!confirm("Tirar da lista negra?")) return; const r = await BB.api("/api/pump/blacklist", { body: { endereco: t.dataset.blr, action: "remove" } }); toast(r.error || "Removido."); return loadBlacklist(); }
+    if (t.id === "tgTest") { const r = await BB.api("/api/pump/telegram/test", { body: {} }); toast(r.error ? "Não enviou: " + r.error : "Enviado. Confira o Telegram."); }
+  });
+
   let GH = null;
   async function loadGhosts() {
     const r = await BB.api("/api/pump/ghosts");
@@ -434,7 +454,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -442,7 +462,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -454,6 +474,7 @@
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "fantasma") loadGhosts();
+    if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);
@@ -714,13 +735,14 @@
       ["Token já graduado", c.pump_skip_graduated ? "não copia" : "copia", st(!!c.pump_skip_graduated)],
       ["Valor conforme o trader", c.pump_size_by_trader ? "ligado" : "desligado", st(!!c.pump_size_by_trader)],
       ["Preço subiu desde o trader (máx.)", c.pump_chase_on && c.pump_max_chase_pct > 0 ? n(c.pump_max_chase_pct) + "%" : "OFF", st(c.pump_chase_on && c.pump_max_chase_pct > 0)], ["Risco do token máx.", c.pump_risk_check ? n(c.pump_max_risk_score) + "/10" : "não checa", st(!!c.pump_risk_check)],
+      ["Lista negra", c.pump_blacklist_on ? "não copia" : "desligada", st(!!c.pump_blacklist_on)], ["Telegram", c.pump_tg_on ? (c.pump_tg_all ? "tudo" : "só importantes") : "desligado", st(!!c.pump_tg_on)],
       ["Sair quando o dev vende", c.pump_exit_dev_sell ? "ligado" : "desligado", st(!!c.pump_exit_dev_sell)], ["Sair quando gradua", c.pump_exit_migrate ? "ligado" : "desligado", st(!!c.pump_exit_migrate)],
       ["Sair com pressão virando", c.pump_exit_pressure_on ? "< " + n(c.pump_exit_pressure_pct) + "%" : "OFF", st(!!c.pump_exit_pressure_on)], ["Sair com outras vendendo", c.pump_exit_kol_on ? n(c.pump_exit_kol_n) + " carteiras" : "OFF", st(!!c.pump_exit_kol_on)],
       ["Nota mínima", c.pump_score_min_on ? n(c.pump_score_min) : "OFF", st(!!c.pump_score_min_on)], ["Valor pela nota", c.pump_size_by_score ? "ligado" : "desligado", st(!!c.pump_size_by_score)],
       ["Pausa por perdas seguidas", c.pump_streak_on ? n(c.pump_streak_n) + " → " + n(c.pump_streak_h) + " h" : "OFF", st(!!c.pump_streak_on)], ["Mercado frio", c.pump_cold_on ? "< " + n(c.pump_cold_wr) + "%" : "OFF", st(!!c.pump_cold_on)],
       ["Posições máx.", "fictício " + n(c.pump_max_open) + " · real " + n(c.pump_real_max_open), ""], ["Perda máx. no dia (real)", n(c.pump_real_daily_loss_sol) + " SOL", st(c.pump_real_daily_loss_sol > 0)], ["Período do top", n(c.pump_lb_days) + " dias", ""]];
     // opções da tela "Opções novas de cópia" (menu Usar ou descartar) só aparecem para o admin (0.17.3)
-    const NOVAS = ["Sair quando o dev vende", "Sair quando gradua", "Sair com pressão virando", "Sair com outras vendendo", "Nota mínima", "Valor pela nota", "Pausa por perdas seguidas", "Mercado frio", "Venda em partes", "Sair antes da graduação", "Pressão de compra mín.", "Velocidade mín. da curva", "Token já graduado", "Valor conforme o trader", "Preço subiu desde o trader (máx.)", "Risco do token máx."];
+    const NOVAS = ["Lista negra", "Telegram", "Sair quando o dev vende", "Sair quando gradua", "Sair com pressão virando", "Sair com outras vendendo", "Nota mínima", "Valor pela nota", "Pausa por perdas seguidas", "Mercado frio", "Venda em partes", "Sair antes da graduação", "Pressão de compra mín.", "Velocidade mín. da curva", "Token já graduado", "Valor conforme o trader", "Preço subiu desde o trader (máx.)", "Risco do token máx."];
     $("cfgS").innerHTML = it.filter((x) => (ME && ME.role === "admin") || !NOVAS.includes(x[0])).map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + esc(x[1]) + x[2] + "</span></div>").join("");
   }
 
@@ -840,7 +862,8 @@
   }
 
   // ------------------------------------------------------------------ chaves / admin / auditoria
-  const KEY_HINT = { solanatracker_api_key: "Grátis em solanatracker.io → Data API. Usada para o ranking oficial dos top traders.",
+  const KEY_HINT = { telegram_bot_token: "Crie um bot no Telegram com o @BotFather e cole o token aqui. Usado só para mandar os avisos para você.",
+    telegram_chat_id: "Mande uma mensagem para o @userinfobot e cole o número (Id). Depois mande /start para o seu bot.", solanatracker_api_key: "Grátis em solanatracker.io → Data API. Usada para o ranking oficial dos top traders.",
     pumpportal_api_key: "Opcional. Só para dados extras pagos da PumpPortal.",
     wallet_private_key: "Chave privada (base58 da Phantom/Solflare ou os 64 números do id.json) de uma carteira NOVA só para o bot. Fica criptografada e só é usada no servidor para assinar.",
     rpc_url: "Opcional. Endereço https:// de um RPC próprio (Helius, QuickNode…) — mais rápido e sem limite do público.",

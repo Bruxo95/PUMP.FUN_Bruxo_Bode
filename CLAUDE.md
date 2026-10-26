@@ -440,3 +440,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   conta) gravado em `p["score"]`, no trade e no feed. `cold_market` e `_streak_check` (pausa só em memória).
 - `reports.build` → `by_score` (faixas de nota). Fantasmas ganharam as variantes `dev` e `migra`.
 - Testes: `tests/test_saidas.py`.
+
+## Lista negra e Telegram (2026-10-26, versão 0.20.0)
+- Lista negra compartilhada: `PumpMarket.blacklist` (+ `bl_new`), tabela `blacklist` (migração `20261026000002`,
+  só backend). Entra sozinho: criador com `risk.rugged` e criador quando a cópia fecha por "dev vendeu" no prejuízo.
+  `hub.load_blacklist` no start, `flush_blacklist` a cada 60 s (no `ghosts_loop`). Bloqueio só com
+  `pump_blacklist_on`. Tela `#listanegra` e rotas `/api/pump/blacklist` (admin).
+- Telegram: chaves pessoais `telegram_bot_token` e `telegram_chat_id` (validadas em `/api/secrets`); `pf.tg` →
+  `hub.tg_queue` (só com `pump_tg_on`; `pump_tg_all` OFF = só `TG_KEYS`); `hub.tg_send_now` (máx. 20/min);
+  `POST /api/pump/telegram/test` (admin). Testes: `tests/test_lista_telegram.py`.
