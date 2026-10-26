@@ -18,7 +18,7 @@
   const usdS = (v) => (v == null ? "–" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : v < 0 ? "−" : "") + "$" + f(Math.abs(v), 0) + "</span>");
   const uk = (v) => (v == null ? "–" : v >= 1e6 ? "$" + f(v / 1e6, 2) + " M" : v >= 1e3 ? "$" + f(v / 1e3, 1) + " mil" : "$" + f(v, 0));
   const ex = (n) => (n ? Number(n).toExponential(3) : "–");
-  const hms = (s) => { if (s == null) return "–"; s = Math.max(0, Math.round(s)); if (s < 60) return s + " s"; if (s < 3600) return Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " s"; if (s < 86400) return Math.floor(s / 3600) + " h " + String(Math.floor((s % 3600) / 60)).padStart(2, "0") + " min"; return Math.floor(s / 86400) + " d " + Math.floor((s % 86400) / 3600) + " h"; };
+  const hms = (s) => { if (s == null) return "–"; s = Math.max(0, Math.round(s)); if (s < 60) return s + " s"; if (s < 3600) return Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " s"; if (s < 86400) return Math.floor(s / 3600) + " h " + String(Math.floor((s % 3600) / 60)).padStart(2, "0") + " min"; const d = Math.floor(s / 86400); return d + (d === 1 ? " dia " : " dias ") + Math.floor((s % 86400) / 3600) + " h"; };
   const agoT = (t) => hms(Date.now() / 1000 - t);
   const agoIso = (x) => (x ? hms((Date.now() - new Date(x)) / 1000) : "–");
   const dt = (x) => { if (!x) return "–"; const d = new Date(x); return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
@@ -547,7 +547,7 @@
     $("apSug").innerHTML = AP_SUG.length ? AP_SUG.map((s, i) => '<div class="sug"><div><span class="tag neutral">base: ' + s.base + " casos</span> " + esc(s.text) + "</div>" +
       (s.action ? '<button class="btn sm" data-ap="' + i + '">Aplicar</button>' : "") + "</div>").join("")
       : '<p class="muted">Nenhuma sugestão por enquanto: ainda não há casos suficientes ou nada fora do normal. As sugestões aparecem quando os números têm base mínima.</p>';
-    const tt = r.traders_today || {}, w = tt.winners || {}, l = tt.losers || {}, mm = (s) => (s == null ? "–" : f(s / 60, 1) + " min");
+    const tt = r.traders_today || {}, w = tt.winners || {}, l = tt.losers || {}, mm = hms;
     kpis("apKpis", [["Tokens fechados", String(tt.tokens_closed || 0), (tt.watched || 0) + " carteiras acompanhadas", "tr"],
       ["Com lucro", String(w.n || 0), "seguraram " + mm(w.hold_med_s) + " (mediana)", "hit"],
       ["Market cap na entrada (acertos)", w.mcap_in_med == null ? "–" : f(w.mcap_in_med, 0) + "<small> SOL</small>", "erros: " + (l.mcap_in_med == null ? "–" : f(l.mcap_in_med, 0) + " SOL"), "pnl"]]);
@@ -761,7 +761,7 @@
       x.followed ? '<span class="tag win">copiando</span>' : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button>']), "Ainda sem tokens fechados suficientes para calcular.");
     $("stSub").textContent = "o sistema acompanha e aprende com a carteira, sem copiar · " + (r.wallets || []).length + " de " + r.limit +
       (r.key ? " · histórico pela Solana Tracker" : " · sem chave da Solana Tracker: só o que o monitor ver daqui em diante");
-    const mm = (s) => (s == null ? "–" : s < 120 ? f(s, 0) + " s" : f(s / 60, 1) + " min");
+    const mm = hms;
     table("stList", ["Carteira", "Ganho/hora (24 h)", "Ganho/dia (média 7 d)", "Acerto", "Segura (mediana)", "Tokens fechados", ""], (r.wallets || []).map((x) => { const s = x.summary || {};
       return [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""), mny(s.per_hour, s.unit), mny(s.per_day_7d, s.unit),
         s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed),
@@ -801,7 +801,7 @@
     const r = await BB.api("/api/pump/study/" + encodeURIComponent(w));
     $("stProf").hidden = false; $("stPT").innerHTML = "Perfil · " + pfW(w);
     if (r.error) { $("stK").innerHTML = '<p class="muted">' + esc(r.error) + "</p>"; return; }
-    const m = r.main || r.live || {}, u = m.unit, mm = (s) => (s == null ? "–" : s < 120 ? f(s, 0) + " s" : f(s / 60, 1) + " min");
+    const m = r.main || r.live || {}, u = m.unit, mm = hms;
     $("stPS").textContent = "fonte: " + (m.source || "sem dados ainda") + " · " + r.trades_seen + " operações vistas pelo monitor";
     kpis("stK", [["Ganho por minuto", mny(m.per_min, u), "média das últimas 24 h", "pnl"], ["Ganho por hora", mny(m.per_hour, u), (m.n_24h || 0) + " tokens fechados em 24 h", "pnl"],
       ["Ganho por dia", mny(m.per_day_7d, u), "média dos últimos 7 dias", "pnl"], ["Últimos 7 / 30 dias", mny(m.pnl_7d, u) + "<small> / " + money(m.pnl_30d, u) + "</small>", (m.n_7d || 0) + " / " + (m.n_30d || 0) + " tokens", "tr"],

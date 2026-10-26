@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.15",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar → Carteiras em estudo",
+      "titulo": "Tempo em dias, horas, minutos e segundos",
+      "oque": "A coluna \"Segura (mediana)\" e o perfil da carteira mostram o tempo em s, min, h e dias (ex.: 14 h 56 min, 1 dia 21 h, 86 dias 4 h) em vez de só minutos. O Aprendizado diário também. Em todo o painel, tempos com mais de um dia agora aparecem como \"dias\" em vez de \"d\"."
+    },
+    {
       "versao": "0.31.14",
       "data": "2026-10-26",
       "tipo": "novo",

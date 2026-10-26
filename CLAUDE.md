@@ -674,3 +674,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (rejeita 7 dias); pausa trader ruim 48 h (só cópias de trader). Para com o real ligado. `auto_tune_log`
   (migração `20261026000010`), rotas `/api/pump/tune` e `/api/pump/tune/run` (admin). Testes: `tests/test_autotune.py`.
   Não é uma IA de linguagem: são regras com medição antes × depois.
+
+## Tempo legível nas Carteiras em estudo (2026-10-26, versão 0.31.15)
+- Pedido do dono: tempos em s/min/h/dias. `hms()` em `web/app.js` (agora "N dias" em vez de "N d") usado também em
+  Carteiras em estudo (lista e perfil) e no Aprendizado diário.
