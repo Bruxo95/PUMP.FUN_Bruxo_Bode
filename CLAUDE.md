@@ -691,3 +691,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `share_filter` tira chaves com "real" e `pump_tg_*`; para não admin tira `pump_ex_auto_*`/`pump_ar_*`.
   Explorar → Compartilhar (0.31.16) agora também vira convite. Barra `#offerBar` no topo (`loadOffers`, a cada 30 s);
   botões das seções criados por `cfgShareButtons()`. Testes: `tests/test_explore_share.py`.
+
+- 0.31.18: o quadro Compartilhar de Configurações lista as seções com caixinhas (`cfgShareCards()`, `#cfShSecs`) e
+  "Marcar todas"; todas marcadas = `all` (toda a configuração). Pedido do dono ("enviar todas, não só uma").

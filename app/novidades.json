@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.18",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Menu → Configurações → Compartilhar",
+      "titulo": "Compartilhar várias seções ou todas de uma vez",
+      "oque": "O quadro Compartilhar agora mostra todas as seções da tela com uma caixinha em cada (Cópia, Proteções, Filtros antes de copiar, Taxas) e \"Marcar todas\". A seção em que você clicou já vem marcada; marque quantas quiser e envie um convite só."
+    },
+    {
       "versao": "0.31.17",
       "data": "2026-10-26",
       "tipo": "novo",

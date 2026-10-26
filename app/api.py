@@ -556,7 +556,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         from .settings import USER_KEYS
         pf = await hub.engine(u["id"])
         keys = list(USER_KEYS) if body.get("all") else [str(k) for k in (body.get("keys") or [])][:300]
-        parte = str(body.get("parte") or ("toda a configuração" if body.get("all") else "configuração"))[:80]
+        parte = str(body.get("parte") or ("toda a configuração" if body.get("all") else "configuração"))[:200]
         try:
             return await hub.config_offer(pf, u, str(body.get("to") or ""), parte, keys)
         except Exception as e:

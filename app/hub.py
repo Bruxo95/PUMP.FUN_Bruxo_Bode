@@ -1015,7 +1015,7 @@ class PumpHub:
         if not keys:
             return {"error": "nada para compartilhar nesta parte"}
         de = (sender.get("nome") or (sender.get("email") or "").split("@")[0] or "outro usuário")[:60]
-        await self.db.insert("config_offers", {"de_user": pf.user_id, "para_user": to_uid, "de_nome": de, "parte": str(parte)[:80],
+        await self.db.insert("config_offers", {"de_user": pf.user_id, "para_user": to_uid, "de_nome": de, "parte": str(parte)[:200],
                                                "valores": {k: getattr(pf.cfg, k) for k in keys}, "status": "pendente"})
         other = self.engines.get(to_uid)
         if other is not None:

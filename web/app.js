@@ -66,6 +66,7 @@
       '<button class="btn sm primary" data-ofa="' + esc(String(o.id)) + '">Aceitar e aplicar</button> <button class="btn sm" data-ofr="' + esc(String(o.id)) + '">Não aceitar</button></header>' +
       '<div class="hint muted">Opções: ' + esc((o.nomes || []).join(", ")) + "</div></div>").join("");
   }
+  const cfgShareCards = () => [...document.querySelectorAll('[data-view="config"] .card')].filter((c) => c.querySelector("[data-cfsh]"));
   function cfgShareButtons() {
     if (!(ME && ME.role === "admin")) return;
     $("cfShareTop").hidden = false;
@@ -872,14 +873,12 @@
       return;
     }
     if (t.dataset.cfsh) {
-      let keys = [], parte = "toda a configuração";
-      if (t.dataset.cfsh !== "all") {
-        const card = t.closest(".card");
-        card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").forEach((el) => { const k = el.dataset.cfg || el.dataset.toggle || el.dataset.set; if (k && !keys.includes(k)) keys.push(k); });
-        parte = "Configurações · " + ((card.querySelector("h2") || {}).textContent || "seção").trim();
-      }
+      // 0.31.18: escolhe uma, várias ou todas as seções da tela (pedido do dono: "enviar todas, não só uma")
+      const cards = cfgShareCards(), mine = t.closest(".card");
+      $("cfShSecs").innerHTML = '<label><input type="checkbox" id="cfShAll"' + (t.dataset.cfsh === "all" ? " checked" : "") + "> <b>Marcar todas</b></label>" +
+        cards.map((c, i) => '<label><input type="checkbox" data-cfsec="' + i + '"' + (t.dataset.cfsh === "all" || c === mine ? " checked" : "") + "> " + esc(((c.querySelector("h2") || {}).textContent || "seção").trim()) + "</label>").join("");
       const r = await BB.api("/api/pump/config/share-targets"), us = r.users || [];
-      $("cfShT").textContent = "Compartilhar " + parte; $("cfShare").dataset.parte = parte; $("cfShare").dataset.keys = JSON.stringify(keys); $("cfShare").dataset.all = t.dataset.cfsh === "all" ? "1" : "";
+      $("cfShT").textContent = "Compartilhar configurações (marque as seções)";
       $("cfShU").innerHTML = us.length ? us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "") + (u.admin ? " · admin" : "")) + "</option>").join("")
         : '<option value="">Nenhum outro usuário cadastrado</option>';
       $("cfShGo").disabled = !us.length; $("cfShare").hidden = false;
@@ -887,10 +886,17 @@
       return;
     }
     if (t.id === "cfShX") { $("cfShare").hidden = true; return; }
+    if (t.id === "cfShAll") { document.querySelectorAll("[data-cfsec]").forEach((x) => { x.checked = t.checked; }); return; }
+    if (t.dataset.cfsec) { const xs = [...document.querySelectorAll("[data-cfsec]")]; $("cfShAll").checked = xs.every((x) => x.checked); return; }
     if (t.id === "cfShGo") {
       const to = $("cfShU").value, sh = $("cfShare"); if (!to) return;
+      const cards = cfgShareCards(), sel = [...document.querySelectorAll("[data-cfsec]")].filter((x) => x.checked).map((x) => cards[+x.dataset.cfsec]).filter(Boolean);
+      if (!sel.length) { toast("Marque pelo menos uma seção."); return; }
+      const keys = [];
+      sel.forEach((card) => card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").forEach((el) => { const k = el.dataset.cfg || el.dataset.toggle || el.dataset.set; if (k && !keys.includes(k)) keys.push(k); }));
+      const all = sel.length === cards.length, parte = all ? "toda a configuração" : "Configurações · " + sel.map((c) => ((c.querySelector("h2") || {}).textContent || "seção").trim()).join(", ");
       t.disabled = true;
-      const r = await BB.api("/api/pump/config/share", { body: { to, parte: sh.dataset.parte, all: !!sh.dataset.all, keys: JSON.parse(sh.dataset.keys || "[]") } });
+      const r = await BB.api("/api/pump/config/share", { body: { to, parte, all, keys } });
       t.disabled = false;
       toast(r.error ? "Não enviou: " + r.error : "Convite enviado (" + r.opcoes + " opções). A pessoa decide se aceita.");
       if (!r.error) sh.hidden = true;
