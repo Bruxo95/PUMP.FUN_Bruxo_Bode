@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.19",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Explorar → Minhas operações automáticas → Ganhou × perdeu",
+      "titulo": "Ganhou × perdeu nas compras automáticas do Explorar",
+      "oque": "Quadro novo acima da lista: quantas operações ganharam e quantas perderam (com a % das fechadas), quanto somaram em SOL, a média % de ganho e de perda, o maior ganho, a maior perda e as abertas agora. Tudo já com taxas. Os botões Todas, Ganhou, Perdeu e Abertas filtram a lista."
+    },
+    {
       "versao": "0.31.18",
       "data": "2026-10-26",
       "tipo": "melhoria",

@@ -694,3 +694,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.18: o quadro Compartilhar de Configurações lista as seções com caixinhas (`cfgShareCards()`, `#cfShSecs`) e
   "Marcar todas"; todas marcadas = `all` (toda a configuração). Pedido do dono ("enviar todas, não só uma").
+
+- 0.31.19: Explorar → Minhas operações automáticas ganhou "Ganhou × perdeu" (`#exAutoWL`, calculado no navegador a partir
+  de `items` de `/api/pump/auto-trades`) e filtro Todas/Ganhou/Perdeu/Abertas (`EX_AUTO.filt`). Pedido do dono.

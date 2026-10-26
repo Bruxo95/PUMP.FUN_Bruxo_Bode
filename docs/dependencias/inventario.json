@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "7d556108771497bb3fa6ec55a90a8c69fde73b9c",
-    "application_version": "0.31.18 · 2026-10-26 · Compartilhar várias seções de uma vez",
+    "repository_reference": "965ecd2acdf77fb5b1c6d2f0993af5da369ab087",
+    "application_version": "0.31.19 · 2026-10-26 · Ganhou e perdeu no Explorar",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "81bb864c5a24b00fd6b443da94c5f8227cd938395c0f4de96951b3d1d72aa2d4",
+      "app/version.py": "0c39fd72a72be6e5b307556222abc8dc10b5fc47f1f599d0fad81a9ad648364e",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "c4b75c4880717eb9f89f4aaf76256a46e90671116cc32b37faf5f65c3adabc97",
+      "web/app.html": "390bcf21fd528faa3a6b5373577f453514e940ebb642fce801bfc9cac6b8facd",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "6cf65df6cb0374f463dc4b9a6e2087c26c024f92faeb9ae30248cbc59c029b23"
+  "pdf_sha256": "2dfe3a40e86d3958994eb5d4911a338e561f04c13292831cf59e4d0768748d58"
 }
