@@ -109,7 +109,11 @@ class SharedMonitor:
                 await asyncio.sleep(5)
                 continue
             try:
-                url = str(self.hub.cfg.defaults.get("pump_rpc_ws") or "wss://api.mainnet-beta.solana.com")
+                sys_rpc = self.hub.system_keys.get("rpc_url") or ""
+                if sys_rpc:
+                    url = sys_rpc.replace("https://", "wss://").replace("http://", "ws://")
+                else:
+                    url = str(self.hub.cfg.defaults.get("pump_rpc_ws") or "wss://api.mainnet-beta.solana.com")
                 async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
                     connected_time = time.time()
                     st.update(ws=True, connected_at=now_iso(), error=None)
