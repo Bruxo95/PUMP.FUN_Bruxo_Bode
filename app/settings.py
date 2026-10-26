@@ -57,7 +57,12 @@ USER_KEYS: dict[str, tuple] = {
     "pump_exit_pressure_on": (bool, False, 0, 1),
     "pump_exit_pressure_pct": (float, 35.0, 0.0, 100.0),  # vende se as compras caírem abaixo de X% das negociações
     "pump_exit_kol_on": (bool, False, 0, 1),
-    "pump_exit_kol_n": (int, 2, 1, 30),                 # vende quando N outras carteiras seguidas/estudadas vendem o token
+    "pump_exit_kol_n": (int, 2, 1, 30),
+    # 0.31.10: saída por estagnação (visto em 2026-10-26: as perdas do dia vieram de "tempo máximo (6 h)", posições
+    # paradas de -4% a -17% por horas). Começa DESLIGADA; as Estratégias fantasma medem antes de ligar.
+    "pump_exit_stale_on": (bool, False, 0, 1),
+    "pump_exit_stale_min": (float, 45.0, 5.0, 1440.0),  # depois de X min na posição…
+    "pump_exit_stale_band": (float, 5.0, 0.5, 50.0),    # …se o resultado estiver entre -Y% e +Y%, sai                 # vende quando N outras carteiras seguidas/estudadas vendem o token
     "pump_score_min_on": (bool, False, 0, 1),
     "pump_score_min": (float, 50.0, 0.0, 100.0),        # só copia com nota da entrada >= X
     "pump_size_by_score": (bool, False, 0, 1),          # valor da cópia fictícia de x0,5 (nota 0) a x1,5 (nota 100)

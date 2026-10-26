@@ -154,12 +154,19 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
             hours.setdefault(hhmm(x["t_saida"], False)[:2] + "h", []).append(x)
     by_hour = [{"hora": h, "trades": len(r), "pnl_sol": round(sum(x.get("pnl_sol") or 0 for x in r), 6),
                 "acerto": round(sum(1 for x in r if (x.get("pnl_sol") or 0) > 0) / len(r), 3)} for h, r in sorted(hours.items())]
+    tmax = [t for t in T if _exit(t.get("reason")) == "tempo máximo"]
+    if len(tmax) >= 2 and sum(t.get("pnl_sol") or 0 for t in tmax) < 0:
+        add("lógica", f"{len(tmax)} trades saíram por tempo máximo com {sum(t.get('pnl_sol') or 0 for t in tmax):+.4f} SOL: ficaram parados "
+            "por horas e saíram no prejuízo. Ligue \"Sair quando a posição fica parada\" (Opções novas) ou diminua o tempo máximo "
+            "em Configurações; compare antes em Estratégias fantasma (\"parado 45 min\" e \"tempo máximo 1 h\").", len(tmax), tipo="tempo_maximo")
+    worst = sorted([x for x in tl if (x.get("pnl_sol") or 0) < 0], key=lambda x: x.get("pnl_sol") or 0)[:5]
     if len([h for h in by_hour if h["trades"] >= 3]) >= 3:
         worst = min((h for h in by_hour if h["trades"] >= 3), key=lambda h: h["pnl_sol"])
         if worst["pnl_sol"] < 0:
             add("trades", f"O pior horário foi {worst['hora']} ({TZ_NAME}): {worst['pnl_sol']:+.4f} SOL em {worst['trades']} trades. "
                 "Se repetir em outros dias, evite operar nesse horário.", worst["trades"], tipo="horario_ruim")
-    return {"dia": day, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
+    return {"dia": day, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
+            "worst_trades": worst, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
             "avg_lag_s": round(sum(lags) / len(lags), 1) if lags else None, "top_skips": [{"motivo": k, "n": v} for k, v in top_skips],
@@ -181,7 +188,7 @@ def days_with_trades(pf, before_day: str, limit: int = 60) -> list[str]:
     return [d for d in ds if d < before_day][:limit]
 
 
-TITLES = {"horario_ruim": "Horário ruim", "acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
+TITLES = {"tempo_maximo": "Perdas por tempo máximo", "horario_ruim": "Horário ruim", "acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
           "trader_ruim": "Trader que dá prejuízo", "origem_ruim": "Origem no prejuízo", "taxas": "Taxas altas",
           "atraso": "Atraso alto", "filtro": "Filtro barrando demais", "queda_saldo": "Saldo caindo no dia"}
 
@@ -268,6 +275,11 @@ def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
     if len(pts) >= 2:
         B.append(("p", "Saldo ao longo do dia: " + " · ".join(f"{datetime.fromtimestamp(p['t'], timezone.utc).strftime('%H:%M')} "
                                                               f"{p.get('saldo', 0):.4f}" for p in pts[:: max(1, len(pts) // 12)])))
+    if rep.get("worst_trades"):
+        B.append(("h", "Maiores perdas do dia (onde o dinheiro foi perdido)"))
+        B += [("mono", f"{x['entrada']}->{x['saida']}  {str(x['token'])[:12]:<12} {(x.get('pnl_sol') or 0):+.4f} SOL "
+                       f"{(x.get('pnl_pct') or 0):+.1f}%  {str(x.get('origem'))[:22]:<22} {str(x.get('motivo') or '')[:40]}")
+              for x in rep["worst_trades"]]
     B.append(("h", "O que melhorar (dia)"))
     B += [("p", f"[{s['area']}] {s['texto']} (base: {s.get('base')})") for s in rep.get("suggestions") or []]
     for key, title in (("by_origin", "Por origem"), ("by_exit", "Por motivo de saída"), ("by_trader", "Por trader")):

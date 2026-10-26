@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.10",
+      "data": "2026-10-26",
+      "tipo": "correção",
+      "onde": "Maiores traders (Quem são e Steps); Opções novas de cópia; Estratégias fantasma; Relatório do dia",
+      "titulo": "Correções a partir dos relatórios de 26/10: robôs fora dos sugeridos, saída de posição parada e perdas em destaque",
+      "oque": "Revisei os relatórios e o histórico de 26/10. O trader Gladey, com 95% de acerto, é um robô de volume (compra 0,001 SOL e vende em segundos): carteiras assim saem dos sugeridos 80%+ e da cópia automática, aparecem marcadas como robô, e o Steps agora explica \"ignorado: robô\" no lugar de \"não visto pelo robô\". As perdas do dia vieram de posições paradas até o tempo máximo de 6 h; há uma opção nova \"Sair quando a posição fica parada\" (desligada; 45 min entre -5% e +5%) e duas estratégias fantasma para medir antes de ligar (parado 45 min e tempo máximo de 1 h). O relatório do dia mostra as maiores perdas (onde o dinheiro foi perdido) e a lista de trades logo abaixo do gráfico, e sugere a correção quando o tempo máximo dá prejuízo. O relatório da correção, com a projeção de +0,02 SOL/dia, está em Relatórios → Mudanças feitas pela IA."
+    },
+    {
       "versao": "0.31.9",
       "data": "2026-10-26",
       "tipo": "melhoria",

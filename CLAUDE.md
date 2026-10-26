@@ -638,3 +638,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `rep["modules"]` em `save_daily`, `backfill_daily` (sem dados ao vivo) e na rota; `daily.blocks` põe no PDF/texto
   para IA; `daily.study` conta as sugestões dos menus (`tipo` = `menu:<menu>:<chave>`). Quadro do dia mostra a seção.
   Menu novo daqui em diante deve ganhar uma função aqui.
+
+## Correções a partir dos relatórios de 26/10 (2026-10-26, versão 0.31.10)
+- Relatório da mudança: `app/relatorios_ia/2026-10-26-0.31.10.md` (projeção +0,02 SOL/dia se a saída por
+  estagnação for ligada). `Elite.bot_reason` (compras <0,01 SOL repetidas ou `_is_bot`) tira dos sugeridos 24 h e o
+  Steps explica; `pump_exit_stale_*` (OFF) em `smart_exit`; fantasmas `parado45` e `max1h`; `daily`: sugestão
+  `tempo_maximo` e `worst_trades`. Testes: `tests/test_correcoes_2610.py`.

@@ -99,7 +99,7 @@
     rows.sort((a, b) => by[EL_TAB](a) - by[EL_TAB](b));
     const age = (a) => !a || a.age_days == null ? '<span class="muted">…</span>' : (a.more ? "+" : "") + f(a.age_days, a.age_days < 10 ? 1 : 0) + " dias";
     table("elTr", ["#", "Trader", "Acerto", "Lucro (ranking)", "Trades", "Saldo (SOL+USD)", "Idade da carteira", "Dias ativos", "Última ação", ""], rows.map((x, i) => [String(i + 1),
-      pfW(x.wallet) + (x.name ? " <b>" + esc(x.name) + "</b>" : "") + (x.twitter ? ' <a href="' + esc(x.twitter) + '" target="_blank" rel="noopener">X</a>' : "") + (rec.has(x.wallet) ? ' <span class="tag win">80%+</span>' : ""),
+      pfW(x.wallet) + (x.name ? " <b>" + esc(x.name) + "</b>" : "") + (x.twitter ? ' <a href="' + esc(x.twitter) + '" target="_blank" rel="noopener">X</a>' : "") + (rec.has(x.wallet) ? ' <span class="tag win">80%+</span>' : "") + (x.bot ? ' <span class="tag loss" title="' + esc(x.bot) + '">robô</span>' : ""),
       x.winrate == null ? "–" : '<b class="' + (x.winrate >= 80 ? "up" : "") + '">' + f(x.winrate, 0) + "%</b>", x.realized_usd == null ? "–" : "$" + f(x.realized_usd, 0), x.trades == null ? "–" : f(x.trades, 0),
       x.balance ? "$" + f(x.balance.usd, 0) + "<small>" + f(x.balance.sol, 1) + " SOL</small>" : '<span class="muted">…</span>', age(x.age), x.days_active == null ? "–" : String(x.days_active),
       x.last ? (x.last.kind === "buy" ? "comprou " : "vendeu ") + esc(x.last.symbol || x.last.mint.slice(0, 6)) + "<small>" + dt(x.last.t * 1000) + "</small>" : "–",
@@ -162,6 +162,8 @@
       (m.sugestoes || []).map((s) => '<p style="margin-left:14px"><span class="tag ' + (s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("")).join("")
       || '<p class="muted">Sem dados dos menus neste dia.</p>';
     $("dayTrH").textContent = "Trades do dia com horário (" + (rep.tz || "UTC") + ")";
+    table("dayWorst", ["Entrada → saída", "Token", "Origem", "Perdeu", "Melhor momento", "Motivo"], (rep.worst_trades || []).map((x) => [esc(x.entrada + " → " + x.saida), pfM(x.mint || "", x.token), esc(x.origem),
+      sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + f(x.pnl_pct, 1) + "%</small>"), x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]), "Nenhuma perda neste dia.");
     table("dayTr", ["Entrada", "Saída", "Duração", "Token", "Origem", "Resultado", "Melhor momento", "Motivo"], (rep.trades_list || []).slice().reverse().map((x) => [esc(x.entrada), esc(x.saida), hms(x.duracao_s),
       pfM(x.mint || "", x.token), esc(x.origem), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"),
       x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]), "Nenhum trade fechado neste dia.");
@@ -188,7 +190,7 @@
     const act = (x) => {
       const a = x.bot_action || "";
       if (!a) return '<span class="muted">' + (x.kind === "buy" ? "não visto pelo robô" : "–") + "</span>";
-      const cls = /não copiou|falhou/.test(a) ? "loss" : /aguardando|segurando/.test(a) ? "pause" : "win";
+      const cls = /não copiou|falhou|robô|não chegou/.test(a) ? "loss" : /aguardando|segurando/.test(a) ? "pause" : "win";
       return '<span class="tag ' + cls + '">' + esc(a) + "</span>" + (x.bot_reason ? "<small>" + esc(x.bot_reason) + "</small>" : "");
     };
     const posi = (p) => !p ? "–" : p.open ? '<span class="tag sim">aberta</span> ' + (p.chg_pct == null ? "" : '<span class="' + (p.chg_pct >= 0 ? "up" : "down") + '">' + (p.chg_pct > 0 ? "+" : "") + f(p.chg_pct, 1) + "%</span>")

@@ -98,11 +98,13 @@
           <select class="in" id="daySel" style="width:170px"></select></header>
           <div class="kpis" id="dayK"></div>
           <div id="dayChart" class="chartbox"></div>
+          <h3 style="margin:10px 0 6px">Maiores perdas do dia (onde o dinheiro foi perdido)</h3><div class="tbl-wrap"><table id="dayWorst"></table></div>
+          <h3 style="margin:10px 0 6px" id="dayTrH">Trades do dia com horário</h3><div class="tbl-wrap"><table id="dayTr"></table></div>
           <div class="help" id="daySug"></div>
           <div class="grid2"><div><h3 style="margin:6px 0">Por origem</h3><div class="tbl-wrap"><table id="dayOri"></table></div></div>
             <div><h3 style="margin:6px 0">Por motivo de saída</h3><div class="tbl-wrap"><table id="dayExit"></table></div></div></div>
           <h3 style="margin:10px 0 6px">Relatório de cada menu</h3><div class="help" id="dayMenus"></div>
-          <h3 style="margin:10px 0 6px" id="dayTrH">Trades do dia com horário</h3><div class="tbl-wrap"><table id="dayTr"></table></div></div>
+</div>
         <div class="card" id="learnCard" hidden data-novo-ate="2026-11-09"><header><div><h2>Aprendizado dos dias</h2><div class="sub" id="lrnSub">todos os dias guardados juntos: o que se repete, o que dá lucro de forma consistente e o que não dá</div></div></header>
           <div class="kpis" id="lrnK"></div>
           <div id="lrnChart" class="chartbox"></div>
@@ -542,6 +544,8 @@
               <div class="hint">Comprou ainda na curva e o token foi para a PumpSwap: vende. Depois da graduação a derrubada é comum.</div></div>
             <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a pressão de compra vira</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_pressure_on">…</button><span class="muted">compras abaixo de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_exit_pressure_pct"><span class="muted">%</span></div>
               <div class="hint">Depois de 1 minuto na posição, se as compras caírem abaixo dessa parte das negociações, vende tudo.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a posição fica parada</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_stale_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="5" max="1440" step="5" data-cfg="pump_exit_stale_min"><span class="muted">min, se estiver entre −</span><input class="in w80" type="number" min="0.5" max="50" step="0.5" data-cfg="pump_exit_stale_band"><span class="muted">% e +esse %</span></div>
+              <div class="hint">As perdas de 26/10 vieram de posições paradas até o tempo máximo de 6 h. Antes de ligar, veja em Estratégias fantasma a variante "Sai se ficar parado 45 min".</div></div>
             <div class="field" data-novo-ate="2026-11-09"><label>Sair quando outras carteiras vendem</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_kol_on">…</button><input class="in w80" type="number" min="1" max="30" step="1" data-cfg="pump_exit_kol_n"><span class="muted">carteiras seguidas ou em estudo vendendo o mesmo token</span></div>
               <div class="hint">Quando os outros da onda começam a sair, você sai junto, sem esperar o trader que você copiou.</div></div>
           </div>

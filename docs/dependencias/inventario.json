@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "03b1f309f56bc29a73ece4670e77156bbd14b69f",
-    "application_version": "0.31.9 · 2026-10-26 · Relatório de cada menu no relatório do dia",
+    "repository_reference": "20c870f30dfb707aa83715f7f906753442885cc9",
+    "application_version": "0.31.10 · 2026-10-26 · Correções a partir dos relatórios de 26/10",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "1c1d43365bd7587931b5c06b182085a4bf7c8bb5fa5e7b970edc0c71adc3d469",
+      "app/version.py": "ceb36ef056036e9399deec16b4aedf0e8dfe9ead71cabcc3f0dd8eae0b36997b",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "ba804a9d6b8649bb0e6bbd0739a295414ca9c749fc1be287982d494ff9a7c799",
+      "web/app.html": "4cec31e2e1844b5901ffa24b934b37b16aadb4802090c8ac3a9ed554df710cab",
       "web/index.html": "dea769d24ce608884c6c556b546fca68961f25e7379ee09b2f84700474d18346"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "7e4e1c2d226f0a70e91731bad00fea3f700bbd9d7f6a0227a5497d84efb72724"
+  "pdf_sha256": "03afb901ed852423211de607c931ff6a7eb240dc8f7f95fd50a9d418d02f3f05"
 }

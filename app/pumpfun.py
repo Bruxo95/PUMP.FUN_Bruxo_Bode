@@ -1616,6 +1616,10 @@ class PumpFun:
         opened = float(p.get("open_t") or 0)
         if (force or getattr(self.cfg, "pump_exit_dev_sell", False)) and tk.get("dev_sold_t") and tk["dev_sold_t"] >= opened:
             return "dev vendeu"
+        sm = float(self._c("pump_exit_stale_min", 45)) if getattr(self.cfg, "pump_exit_stale_on", False) else 0
+        if sm and t and t - opened >= sm * 60 and p.get("chg_pct") is not None \
+                and abs(float(p["chg_pct"])) <= float(self._c("pump_exit_stale_band", 5)):
+            return f"parado há {(t - opened) / 60:.0f} min"
         if (force or getattr(self.cfg, "pump_exit_migrate", False)) and p.get("grad_in") is False and self.graduated(p["mint"]):
             return "token graduou (PumpSwap)"
         mn = 40.0 if force else self._onv("pump_exit_pressure_on", "pump_exit_pressure_pct")

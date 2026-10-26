@@ -133,7 +133,8 @@ def _options(hub, pf, day, T, live):
     c = pf.cfg
     keys = [("pump_exit_dev_sell", "sair quando o dev vende"), ("pump_exit_migrate", "sair quando gradua"),
             ("pump_exit_pressure_on", "sair com pressão virando"), ("pump_tp1_on", "venda em partes"),
-            ("pump_score_min_on", "nota mínima"), ("pump_streak_on", "pausa por perdas seguidas"), ("pump_blacklist_on", "lista negra")]
+            ("pump_score_min_on", "nota mínima"), ("pump_streak_on", "pausa por perdas seguidas"), ("pump_blacklist_on", "lista negra"),
+            ("pump_exit_stale_on", "sair quando fica parada")]
     on = [n for k, n in keys if getattr(c, k, False)]
     off = [n for k, n in keys if not getattr(c, k, False)]
     sec = {"menu": "Opções novas de cópia", "linhas": ["ligadas: " + (", ".join(on) or "nenhuma"), "desligadas: " + (", ".join(off) or "nenhuma")],

@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 BASE = {"stop": 40.0, "trail": None, "tp1": None, "tp": None, "max_s": 6 * 3600.0, "follow": True, "dev": False,
-        "migrate": False}
+        "migrate": False, "stale": None}
 VARIANTS = [
     ("base", "Base: stop 40%, sai quando o trader vende", {}),
     ("stop20", "Stop de perda curto (20%)", {"stop": 20.0}),
@@ -25,10 +25,12 @@ VARIANTS = [
     ("rapido", "Sai em no máximo 5 minutos", {"max_s": 300.0}),
     ("dev", "Sai quando o dev vende (0.19.0)", {"dev": True}),
     ("migra", "Sai quando o token gradua (0.19.0)", {"migrate": True}),
+    ("parado45", "Sai se ficar parado 45 min (entre -5% e +5%) (0.31.10)", {"stale": 45.0}),
+    ("max1h", "Tempo máximo de 1 h (0.31.10)", {"max_s": 3600.0}),
 ]
 NAMES = {v: n for v, n, _ in VARIANTS}
 KEEP = 30            # últimos fechados guardados por variante
-MAX_OPEN = 720       # trava de memória (12 variantes × 60 posições)
+MAX_OPEN = 840       # trava de memória (14 variantes × 60 posições)
 
 
 def now_iso() -> str:
@@ -97,6 +99,9 @@ class Ghosts:
                 continue
             if P["migrate"] and g.get("grad_in") is False and self.pf.graduated(mint):
                 self._sell(g, 1.0, px, "token graduou")
+                continue
+            if P["stale"] and t and t - g["open_t"] >= P["stale"] * 60 and abs(chg) <= 5:
+                self._sell(g, 1.0, px, "parado")
                 continue
             if P["trail"]:
                 start, dist = P["trail"]

@@ -40,6 +40,8 @@ class Elite:
         self.dirty: set[str] = set()
         self.names: dict[str, dict] = {}                 # carteira -> nome, twitter, avatar, lucro (do ranking)
         self.ages: dict[str, dict] = {}                  # carteira -> idade (0.31.3; RPC, renovada a cada 12 h)
+        self.bots: dict[str, dict] = {}                  # carteira -> {"t", "motivo"}: cara de robô (0.31.10)
+        self._tiny: dict[str, list] = {}                 # compras minúsculas recentes por carteira
 
     # ------------------------------------------------------------------ quem são
     def refresh_names(self, leaderboards: list[list[dict]], top: int) -> list[str]:
@@ -84,6 +86,13 @@ class Elite:
                     s["sold_by"][w] = round(t - s["t"])
                     self.dirty.add(s["id"])
             return None
+        # 0.31.10 (visto no Steps em 2026-10-26: "Gladey" comprava 0,001 SOL e vendia 1–2 SOL em segundos, várias
+        # vezes por minuto): compras minúsculas repetidas = robô de volume. Sai dos sugeridos por 24 h.
+        if sol < 0.01:
+            tl = [x for x in self._tiny.get(w, []) if t - x <= 600] + [t]
+            self._tiny[w] = tl
+            if len(tl) >= 5:
+                self.bots[w] = {"t": t, "motivo": f"{len(tl)} compras de menos de 0,01 SOL em 10 min (robô de volume)"}
         b = x["buys"].setdefault(w, {"t": t, "sol": 0.0})
         b["sol"] += sol
         if any(s["mint"] == mint and not s.get("closed") for s in self.signals.values()):
@@ -176,9 +185,21 @@ class Elite:
     def recommended(self, min_wr: float = 80.0, min_trades: int = 100) -> list[dict]:
         """Sugeridos (0.31.3, pedido do dono): acerto de 80%+ no ranking com base mínima de trades, os mais lucrativos
         primeiro. Acerto alto com poucos trades não entra (sorte)."""
+        now = time.time()
         out = [{"wallet": w, **n} for w, n in self.names.items()
-               if (n.get("winrate") or 0) >= min_wr and (n.get("trades") or 0) >= min_trades]
+               if (n.get("winrate") or 0) >= min_wr and (n.get("trades") or 0) >= min_trades and not self.bot_reason(w, now)]
         return sorted(out, key=lambda x: -(x.get("realized_usd") or 0))
+
+    def bot_reason(self, w: str, now: float | None = None) -> str | None:
+        """Robô nas últimas 24 h: pelo padrão de compras minúsculas (aqui) ou pela velocidade (monitor, `_is_bot`)."""
+        now = time.time() if now is None else now
+        b = self.bots.get(w)
+        if b and now - b["t"] < 86400:
+            return b["motivo"]
+        a = (getattr(self.market, "activity", {}) or {}).get(w) or {}
+        if a.get("bot_until", 0) > now - 23 * 3600:
+            return a.get("bot_reason") or "negocia rápido demais para copiar (robô)"
+        return None
 
     def suggestions(self, st: dict, auto: dict | None = None) -> list[dict]:
         """Sugestões de melhoria tiradas do que aconteceu (só com base mínima; nada é aplicado sozinho)."""
@@ -240,8 +261,12 @@ class Elite:
             near = [(abs(t0 - x["t"]), e) for t0, e in idx.get((x["wallet"], x["mint"], x["kind"]), []) if abs(t0 - x["t"]) <= 180]
             e = min(near, key=lambda z: z[0])[1] if near else None
             p, c = pos.get((x["wallet"], x["mint"])), closed.get((x["wallet"], x["mint"]))
-            out.append({**x, "name": self.label(x["wallet"]), "bot_action": (e or {}).get("action"),
-                        "bot_reason": (e or {}).get("reason"),
+            act, why = (e or {}).get("action"), (e or {}).get("reason")
+            if not e and x["kind"] == "buy":                  # 0.31.10: diz por que não chegou à cópia
+                br = self.bot_reason(x["wallet"], x["t"] + 1)
+                act, why = (("ignorado: robô", br) if br else
+                            ("não chegou à cópia", "o trader não estava sendo copiado nesse momento ou a transação chegou atrasada"))
+            out.append({**x, "name": self.label(x["wallet"]), "bot_action": act, "bot_reason": why,
                         "position": {"open": True, "chg_pct": p.get("chg_pct"), "sol_in": p.get("sol_in"), "real": bool(p.get("real"))} if p else
                         ({"open": False, "pnl_sol": c.get("pnl_sol"), "pnl_pct": c.get("pnl_pct"), "reason": c.get("reason")} if c else None)})
             if len(out) >= limit:
@@ -255,7 +280,7 @@ class Elite:
         for x in self.trades:
             last[x["wallet"]] = x
         usd = getattr(self.market, "wallet_usd", {}) or {}
-        traders = [{"wallet": w, **n, "last": last.get(w), "balance": usd.get(w), "age": self.ages.get(w)}
+        traders = [{"wallet": w, **n, "last": last.get(w), "balance": usd.get(w), "age": self.ages.get(w), "bot": self.bot_reason(w)}
                    for w, n in self.names.items()]
         sigs = sorted(self.signals.values(), key=lambda s: -s["t"])
         st = self.study()
