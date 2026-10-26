@@ -205,13 +205,13 @@ class TokenLab:
                     "why": [f"market cap {vals[-1]:.0f} SOL acima do máximo da curva (~410): dado fora do padrão"]}
         ls = self.lessons(t)
         base = (ls.get("base_up_pct") or 10.0) / 100
-        odds = base / max(1e-6, 1 - base)
+        odds = base_odds = base / max(1e-6, 1 - base)
         tabs = {tb["nome"]: {ln["faixa"]: ln for ln in tb["linhas"]} for tb in ls.get("tables") or []}
         for name, val in self._features(r).items():
             ln = (tabs.get(name) or {}).get(val) if val else None
             if ln and ln["n"] >= 30 and base > 0:
                 p = min(0.99, max(0.005, ln["up_pct"] / 100))
-                lr = (p / (1 - p)) / odds
+                lr = (p / (1 - p)) / base_odds           # cada faixa comparada com a MÉDIA (falhou no CI da 0.25.0)
                 odds *= lr
                 if lr >= 1.5 or lr <= 0.67:
                     why.append(f"{name}: {val} ({ln['up_pct']:.0f}% subiram)")
