@@ -72,6 +72,43 @@ def mesa(T: list[dict]) -> dict:
                              for k, r in by_exit.items()), key=lambda x: -x["trades"])}
 
 
+def whatif(T: list[dict]) -> dict:
+    """Simulador "e se" (0.22.0): refaz o resultado com outro alvo ou outro stop usando o melhor e o pior momento de
+    cada trade. É ESTIMATIVA: não se sabe o que veio primeiro, então quando o trade passou pelos dois o stop conta
+    primeiro (o caso pior). Só trades com o dado (0.18.0 em diante)."""
+    R = [t for t in T if t.get("best_pct") is not None and t.get("worst_pct") is not None and t.get("sol_in")]
+    real = round(sum(t.get("pnl_sol") or 0 for t in R), 6)
+
+    def total(stop=None, tp=None):
+        out = 0.0
+        for t in R:
+            pct = t.get("pnl_pct") or 0.0
+            if stop is not None and t["worst_pct"] <= -stop:
+                pct = -stop
+            elif tp is not None and t["best_pct"] >= tp:
+                pct = tp
+            out += t["sol_in"] * pct / 100
+        return round(out, 6)
+    rows = [{"regra": f"Alvo fixo +{x}%", "pnl_sol": total(tp=x)} for x in (20, 30, 50, 100)]
+    rows += [{"regra": f"Stop de perda {x}%", "pnl_sol": total(stop=x)} for x in (15, 25, 40, 60)]
+    rows += [{"regra": f"Stop {s}% + alvo +{x}%", "pnl_sol": total(stop=s, tp=x)} for s, x in ((20, 30), (25, 50), (40, 100))]
+    for r in rows:
+        r["diff_sol"] = round(r["pnl_sol"] - real, 6)
+    return {"trades": len(R), "real_sol": real, "rows": sorted(rows, key=lambda r: -r["pnl_sol"])}
+
+
+def custo(T: list[dict]) -> dict:
+    """Onde o dinheiro vai (0.22.0): quanto mais caro você entrou que o trader (atraso + slippage) e o peso das taxas."""
+    E = [t for t in T if t.get("trader_px") and t.get("price_in")]
+    inv = sum(t.get("sol_in") or 0 for t in T)
+    fees = sum(t.get("fees_sol") or 0 for t in T)
+    gross = sum(t.get("gross_sol") or 0 for t in T)
+    return {"trades": len(T), "with_px": len(E),
+            "entry_worse_pct": round(sum((t["price_in"] / t["trader_px"] - 1) * 100 for t in E) / len(E), 2) if E else None,
+            "fees_pct": round(fees / inv * 100, 2) if inv else None, "fees_sol": round(fees, 6),
+            "gross_sol": round(gross, 6), "net_sol": round(sum(t.get("pnl_sol") or 0 for t in T), 6)}
+
+
 def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, followed=(), paused=()) -> dict:
     since = datetime.now(timezone.utc) - timedelta(days=days) if days else None
     T = [t for t in trades if bool(t.get("real")) == real and (since is None or ((_when(t.get("closed_at")) or since) >= since))]
@@ -120,6 +157,7 @@ def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, fo
     by_score = [{"faixa": name, **agg([t for t in T if t.get("score") is not None and lo <= t["score"] < hi])}
                 for lo, hi, name in buckets]
     return {"days": days, "real": real, "total": agg(T), "fee_parts": fee_parts, "mesa": mesa(T), "by_score": by_score,
+            "whatif": whatif(T), "custo": custo(T),
             "traders": traders,                                        # pior primeiro: é quem você quer ver
             "exits": sorted(({"reason": k, **agg(r)} for k, r in by_exit.items()), key=lambda x: -x["trades"]),
             "days_list": [{"day": d, **agg(r)} for d, r in sorted(by_day.items(), reverse=True)][:60],

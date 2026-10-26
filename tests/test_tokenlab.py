@@ -67,7 +67,7 @@ def test_new_tokens_per_minute_are_capped():
     lab, _ = _lab()
     t = 1_800_000_000.0
     for i in range(MAX_PER_MIN + 3):
-        lab.on_create({"mint": f"Cap{i}".ljust(44, "1"), "marketCapSol": 30}, t)
+        lab.on_create({"mint": f"Cap{i:03d}x".ljust(44, "1"), "marketCapSol": 30}, t)
     assert len(lab.live) == MAX_PER_MIN and lab.dropped == 3
 
 

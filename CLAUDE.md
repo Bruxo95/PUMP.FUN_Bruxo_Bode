@@ -458,3 +458,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `trim_token_life`), `market_hourly`, `creator_stats`. `hub.save_lab` a cada 2 min; `load_lab` no start.
 - `PumpMarket.creator_stats` → parte "criador" (peso 10) da nota da entrada; criador com 3+ despencados e nenhum 2x
   entra na lista negra. Tela `#base` e rota `/api/pump/base` (admin). Testes: `tests/test_tokenlab.py`.
+
+## E se e onde o dinheiro vai (2026-10-26, versão 0.22.0)
+- `reports.whatif()` (estimativa com `best_pct`/`worst_pct`; se o trade passou pelos dois, o stop conta primeiro) e
+  `reports.custo()` (entrada × `trader_px`, taxas sobre o investido, bruto × líquido). Trades guardam `trader_px`
+  (preço do trader no evento) desde a 0.22.0. Testes: `tests/test_whatif.py`.
+- Pedido "faz tudo" de 2026-10-26 entregue em 0.18.0–0.22.0. NÃO feito, por regra do projeto: velocidade para o modo
+  real (RPC próprio/gRPC, Jito) — o real segue travado. Previsão por modelo fica para quando houver semanas de dados
+  na base da pump.fun; por enquanto a calibração é a tabela "Nota da entrada × resultado".

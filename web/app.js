@@ -71,6 +71,12 @@
     $("repSkSub").textContent = "quantas cópias cada filtro barrou · " + r.skips_seen + " nos últimos " + r.feed_kept + " eventos guardados";
     table("repSk", ["Motivo", "Vezes"], (r.skips || []).map((x) => [esc(x.reason), String(x.count)]), "Nenhuma cópia barrada no período.");
     table("repDay", ["Dia", "Trades", "Acerto", "Resultado", "Taxas"], (r.days_list || []).map((x) => [esc(x.day.split("-").reverse().join("/")), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), s4(x.fees_sol)]), "Nenhum trade fechado no período.");
+    const wi = r.whatif || {}, cu = r.custo || {};
+    $("repWiSub").textContent = wi.trades ? "estimativa com " + wi.trades + " trades · resultado real no período: " + s4(wi.real_sol) + " SOL · quando o trade passou pelo alvo e pelo stop, conta o stop" : "ainda sem trades com o dado (a partir da 0.18.0)";
+    table("repWi", ["Regra", "Resultado estimado", "Diferença p/ o real"], wi.trades ? (wi.rows || []).map((x) => [esc(x.regra), sg(x.pnl_sol), sg(x.diff_sol)]) : [], "");
+    kpis("repCusto", [["Entrada mais cara que o trader", cu.entry_worse_pct == null ? "–" : "+" + f(cu.entry_worse_pct, 1) + "%", "média de " + (cu.with_px || 0) + " trades (atraso + slippage)", "mon"],
+      ["Taxas", cu.fees_pct == null ? "–" : f(cu.fees_pct, 1) + "%", "do valor investido · " + s4(cu.fees_sol) + " SOL", "wallet"],
+      ["Antes × depois das taxas", sg(cu.gross_sol), "líquido: " + s4(cu.net_sol) + " SOL", "pnl"]]);
     table("repScore", ["Nota", "Trades", "Acerto", "Resultado", "Média por trade"], (r.by_score || []).map((x) => [esc(x.faixa), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), sg(x.avg_pnl_sol)]), "");
     const m = r.mesa || {}, pc = (v) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
     if (!m.trades) { $("repMesa").innerHTML = '<p class="muted">Ainda sem trades fechados com esse dado (começa a contar a partir da 0.18.0).</p>'; $("repMesaEx").innerHTML = ""; return; }

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.22.0",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar → Relatórios → E se… e Onde o dinheiro vai",
+      "titulo": "Simulador e se e onde o dinheiro vai",
+      "oque": "Relatórios ganhou dois cartões. E se…: refaz o resultado do período com outras regras de saída (alvos de +20% a +100%, stops de 15% a 60% e combinações) usando o melhor e o pior momento de cada trade; é estimativa e, quando o trade passou pelo alvo e pelo stop, conta o stop. Onde o dinheiro vai: quanto mais caro, em média, você entrou que o trader (atraso + slippage), quanto as taxas pesaram sobre o valor investido e o resultado antes e depois das taxas."
+    },
+    {
       "versao": "0.21.0",
       "data": "2026-10-26",
       "tipo": "novo",

@@ -918,7 +918,8 @@ class PumpFun:
                  "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
                  "price_now": px, "trader_price": px, "trader_sol": sol, "proceeds": 0.0, "fees_sol": amt * fee + prio,
                  "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": lag,
-                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint)}
+                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint),
+                 "trader_px": self.price_of(ev)}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
@@ -1049,6 +1050,7 @@ class PumpFun:
             tr["lag_s"] = p.get("lag_s")
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             tr["score"] = p.get("score")
+            tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -2276,6 +2278,7 @@ class PumpFun:
             tr["lag_s"] = p.get("lag_s")
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             tr["score"] = p.get("score")
+            tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
