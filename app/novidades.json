@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.30.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Usar ou descartar → Explorar",
+      "titulo": "Entrada automática do Explorar com proteções e histórico",
+      "oque": "Começa desligada. Quando você liga, observa somente Quase graduando com veredito chance alta e passa pelos filtros de pressão, holders, risco, curva e variação em 5 minutos. No simulado entra com 0,05 SOL, stop de 25%, venda de metade em +40%, stop móvel, alvo e tempo máximo, com limites de posições, entradas por hora, perda diária e perdas seguidas. O histórico guarda entrada, saída, motivo, resultado após taxas e o que aconteceu 15 e 60 minutos depois; leitura perdida aparece sem dado. Não repete o token por 24 horas mesmo após reiniciar. A tela explica o critério mínimo de observação para pensar no real, sem ligar dinheiro real sozinha. A integração da Base com essas proteções fica para a próxima etapa, versão 0.31.0."
+    },
+    {
       "versao": "0.29.0",
       "data": "2026-10-26",
       "tipo": "melhoria",

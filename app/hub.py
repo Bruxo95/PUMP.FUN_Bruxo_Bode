@@ -6,6 +6,7 @@ memória) e carteira/execução real próprias (desligada ao iniciar).
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import math
 import os
@@ -118,6 +119,9 @@ class PumpHub:
         await store.load()
         pf = PumpFun(cfg, store, self.http, None, market=self.market)
         pf.user_id = uid
+        profiles = await self.db.select("profiles", {"user_id": uid}, columns="role")
+        pf.role = (profiles[0].get("role") if profiles else None) or "user"
+        await self.load_auto(pf)
         pf.keys = KeyRing(await self.vault.load(uid))
         pf.lb_key_fallback = lambda: self.shared_st_key
         try:                                       # carteiras em estudo (tabela pode ainda não existir)
@@ -229,9 +233,159 @@ class PumpHub:
             for pf in list(self.engines.values()):
                 try:
                     await pf.store.flush()
+                    await self.save_auto(pf)
                 except Exception as e:
                     log.warning("flush: %s", str(e)[:120])
             await self.flush_trades()
+
+    # ------------------------------------------------------------------ operações automáticas (0.30.0)
+    async def _auto_select(self, pf, *, gte=None, is_null=(), limit=10000) -> list[dict]:
+        """Paginação explícita, sempre na conta; não depende do limite padrão de 1.000 do PostgREST."""
+        out = []
+        for offset in range(0, limit, 500):
+            batch = await self.db.select("auto_trades", {"user_id": pf.user_id}, order="entrada_em.desc",
+                                         limit=min(500, limit - offset), offset=offset, gte=gte, is_null=is_null)
+            out.extend(batch)
+            if len(batch) < 500:
+                return out
+        raise RuntimeError("histórico automático excede o limite de leitura; entradas pausadas")
+
+    async def load_auto(self, pf) -> bool:
+        from .auto_trades import iso, operation_row, ts
+        pf.auto_ready = False
+        pf._auto_loaded = False
+        pf._auto_load_retry_at = time.time()
+        now = time.time()
+        day = datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        try:
+            rows = await self._auto_select(pf, gte={"entrada_em": iso(now - 86400)})
+            # Fechadas hoje / sequência de perdas: podem ter sido abertas antes das últimas 24 h.
+            streak_since = now - max(86400, float(getattr(pf.cfg, "pump_ar_streak_h", 1)) * 3600)
+            rows += await self._auto_select(pf, gte={"saida_em": iso(min(day, streak_since))})
+            rows += await self._auto_select(pf, is_null=("saida_em",))
+            restored = {str(row["id"]): {k: copy.deepcopy(v) for k, v in row.items() if k != "user_id"} for row in rows}
+            # A recuperação pode coincidir com um fechamento; mudanças ainda não gravadas têm prioridade.
+            for rid in getattr(pf, "_auto_dirty", set()):
+                if rid in pf.auto_rows:
+                    restored[rid] = copy.deepcopy(pf.auto_rows[rid])
+            for trade in pf.trades(20000):
+                if trade.get("auto") is True and trade.get("origem") in ("base", "explorar"):
+                    rid = str(trade["id"])
+                    if (rid not in restored and (ts(trade.get("opened_at")) or 0) < now - 86400
+                            and (ts(trade.get("closed_at")) or 0) < min(day, streak_since)):
+                        continue
+                    # O histórico normal pode ter sido gravado antes de uma interrupção do flush automático.
+                    row = operation_row(trade, previous=restored.get(rid), closed=True)
+                    if row != restored.get(rid):
+                        restored[rid] = row
+                        pf._auto_dirty.add(rid)
+            for pos in pf.positions():
+                if pos.get("auto") is True and pos.get("origem") in ("base", "explorar"):
+                    rid = str(pos["id"])
+                    if (restored.get(rid) or {}).get("saida_em"):
+                        raise RuntimeError("posição aberta diverge do registro automático fechado")
+                    restored[rid] = operation_row(pos, previous=restored.get(rid))
+                    pf._auto_dirty.add(rid)
+            pf.auto_rows = restored
+            pf._auto_loaded = True
+            pf.auto_ready, pf.auto_error = True, None
+            return True
+        except Exception as exc:
+            pf.auto_error = "histórico automático indisponível; novas entradas pausadas"
+            log.warning("Operações automáticas não carregaram (%s…): %s", pf.user_id[:8], type(exc).__name__)
+            return False
+
+    async def save_auto(self, pf=None) -> int:
+        total = 0
+        for engine in ([pf] if pf is not None else list(self.engines.values())):
+            if getattr(engine.store, "last_error", None):
+                engine.auto_ready = False
+                engine.auto_error = "gravação das posições indisponível; novas entradas pausadas"
+                continue  # não confirmar um fechamento na tabela auxiliar antes de persistir posições/trades
+            if not getattr(engine, "_auto_loaded", False):
+                if time.time() - getattr(engine, "_auto_load_retry_at", 0) >= 30:
+                    await self.load_auto(engine)
+                if not getattr(engine, "_auto_loaded", False):
+                    continue
+            pending = {rid: copy.deepcopy(engine.auto_rows[rid]) for rid in list(engine._auto_dirty)
+                       if rid in engine.auto_rows}
+            if not pending:
+                if not getattr(engine.store, "last_error", None):
+                    engine.auto_ready, engine.auto_error = True, None
+                continue
+            try:
+                await self.db.insert("auto_trades", [{**row, "user_id": engine.user_id} for row in pending.values()],
+                                     upsert=True, on_conflict="id")
+                for rid, row in pending.items():
+                    if engine.auto_rows.get(rid) == row:
+                        engine._auto_dirty.discard(rid)
+                if not getattr(engine.store, "last_error", None):
+                    engine.auto_ready, engine.auto_error = True, None
+                total += len(pending)
+            except Exception as exc:
+                engine.auto_ready = False
+                engine.auto_error = "gravação automática indisponível; novas entradas pausadas"
+                log.warning("Operações automáticas não gravaram (%s…): %s", engine.user_id[:8], type(exc).__name__)
+        return total
+
+    def auto_status(self, pf, origem="explorar", now=None) -> dict:
+        from .auto_trades import number, ts
+        now = time.time() if now is None else now
+        day = datetime.fromtimestamp(now, timezone.utc).date()
+        rows = pf._auto_operations()
+        day_rows = [row for row in rows if (closed := ts(row.get("saida_em"))) is not None
+                    and closed <= now and datetime.fromtimestamp(closed, timezone.utc).date() == day]
+        reason = pf.auto_guard(t=now)
+        enabled = bool(getattr(pf.cfg, "pump_ex_auto_on", False)) if origem == "explorar" else bool(getattr(pf.cfg, "pump_auto_on", False))
+        until = getattr(pf, "_auto_pause_until", None)
+        opened = {str(pos["id"]) for pos in pf.positions() if pos.get("auto")}
+        opened.update(rid for rid, row in pf.auto_rows.items() if not row.get("saida_em"))
+        return {"enabled": enabled, "paused": bool(reason), "reason": reason, "until": until,
+                "ready": bool(pf.auto_ready), "open": len(opened) + len(getattr(pf, "_auto_pending", {})),
+                "entries_h": sum((entry := number(row.get("_entry_t")) or ts(row.get("entrada_em"))) is not None
+                                 and now - 3600 <= entry <= now for row in rows),
+                "day_pnl_sol": round(sum(number(row.get("pnl_sol")) or 0 for row in day_rows), 8)}
+
+    async def auto_history(self, pf, origem="explorar", days=30) -> dict:
+        from .auto_trades import api_item, iso, readiness, summary, ts
+        now = time.time()
+        error = None
+        try:
+            history = await self._auto_select(pf, gte={"entrada_em": iso(now - days * 86400)})
+            merged = {str(row["id"]): row for row in history}
+        except Exception:
+            merged = {}
+            error = "histórico automático indisponível; exibindo somente dados já carregados"
+        merged.update({rid: copy.deepcopy(row) for rid, row in pf.auto_rows.items()})
+        rows = [row for row in merged.values() if row.get("origem") == origem
+                and ((entry := ts(row.get("entrada_em"))) is not None and entry >= now - days * 86400
+                     or not row.get("saida_em"))]
+        rows.sort(key=lambda row: ts(row.get("entrada_em")) or 0, reverse=True)
+        simulated = [row for row in rows if not row.get("real")]
+        today = datetime.fromtimestamp(now, timezone.utc).date()
+        today_rows = [row for row in simulated if (closed := ts(row.get("saida_em"))) is not None
+                      and datetime.fromtimestamp(closed, timezone.utc).date() == today]
+        criterion = readiness(simulated)
+        if error:
+            criterion.update(recommended=False, reason="Ainda não recomendado para dinheiro real: histórico incompleto.")
+        real = [row for row in rows if row.get("real")]
+        real_today = [row for row in real if (closed := ts(row.get("saida_em"))) is not None
+                      and datetime.fromtimestamp(closed, timezone.utc).date() == today]
+        positions = {str(pos["id"]): pos for pos in pf.positions()}
+        items = []
+        for row in rows:
+            item = api_item(row, now)
+            pos = positions.get(str(row["id"]))
+            if item["open"] and pos is not None:
+                price = (pf.tokens.get(pos["mint"]) or {}).get("price") or pos.get("price_now")
+                if price and pos.get("sol_in"):
+                    marked = (pos.get("proceeds") or 0) + pf._exit_value(pos, price) - pos["sol_in"]
+                    item.update(pnl_sol=round(marked, 8), pnl_pct=round(marked / pos["sol_in"] * 100, 4), estimated=True)
+            items.append(item)
+        return {"origem": origem, "days": days, "items": items,
+                "status": self.auto_status(pf, origem, now), "summary": {"day": summary(today_rows), "period": summary(simulated)},
+                "summary_mode": "simulado", "real_summary": {"day": summary(real_today), "period": summary(real)} if real else None,
+                "readiness": criterion, "error": error or pf.auto_error}
 
     # ------------------------------------------------------------------ aprendizado diário (tabela learning_daily)
     async def learning_history(self, uid: str, days: int = 30) -> tuple[list[dict], str | None]:
@@ -621,6 +775,7 @@ class PumpHub:
         for pf in list(self.engines.values()):
             try:
                 await pf.store.flush()
+                await self.save_auto(pf)
             except Exception:
                 pass
         try:
@@ -640,6 +795,7 @@ class PumpHub:
         self._stop_engine(pf)
         try:
             await pf.store.flush()
+            await self.save_auto(pf)
         except Exception:
             pass
 
@@ -680,6 +836,12 @@ class PumpHub:
                     if len(admins) <= 1:
                         return {"error": "precisa existir pelo menos um admin"}
                 await self.db.update("profiles", {"user_id": uid}, {"role": role})
+                loaded = self.engines.get(uid)
+                if loaded is not None:
+                    loaded.role = role
+                    if role != "admin":
+                        loaded.cfg.pump_ex_auto_on = False
+                        await self.save_settings(loaded)
                 done.append(f"categoria → {'admin' if role == 'admin' else 'usuário'}")
                 if role == "user" and prof.get("role") == "admin":
                     await self.refresh_shared_key()

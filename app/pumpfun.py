@@ -27,8 +27,10 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 import json
 import logging
+import math
 import statistics
 import time
 from collections import deque
@@ -133,6 +135,11 @@ class PumpFun:
         self.ghosts = Ghosts(self)                   # estratégias fantasma (0.18.0): mesmas entradas, saídas diferentes
         self._halt_until = 0.0                       # pausa geral por sequência de perdas (0.19.0; só memória)
         self.tg = None                               # avisos no Telegram (0.20.0; ligado pelo hub)
+        self.auto_rows: dict[str, dict] = {}           # operações próprias; o hub carrega antes de liberar entradas
+        self._auto_dirty: set[str] = set()
+        self._auto_pending: dict[str, float] = {}      # reservas automáticas na fila real, ainda sem posição
+        self.auto_ready = True                        # motores avulsos dos testes; o hub bloqueia até carregar
+        self.auto_error = None
 
     # ------------------------------------------------------------------ dados públicos (compartilhados)
     @property
@@ -268,11 +275,15 @@ class PumpFun:
     def _after_close(self, tr: dict) -> None:
         """Regra automática: o trader copiado que fizer a posição bater o STOP DE PERDA N vezes em 24 h fica
         pausado por X h (padrão: 2 stops → 24 h)."""
-        self._streak_check(tr)
+        own_auto = tr.get("auto") is True and tr.get("origem") in ("explorar", "base")
+        if not own_auto:
+            self._streak_check(tr)
         if str(tr.get("reason") or "").startswith("dev vendeu") and (tr.get("pnl_sol") or 0) < 0:
             cr = (self.tokens.get(tr.get("mint")) or {}).get("creator")
             if cr:
                 self.blacklist_add(cr, "dev", f"vendeu {tr.get('symbol') or 'token'} e a cópia fechou no prejuízo")
+        if own_auto:
+            return                                  # pausa das automáticas não pausa traders nem cópias
         if not str(tr.get("reason") or "").startswith("stop de perda"):
             return
         n = int(self._c("pump_autopause_stops", 2))
@@ -285,6 +296,8 @@ class PumpFun:
         day = time.time() - 86400
         cnt = 0
         for t in self.trades(500):
+            if t.get("auto") is True and t.get("origem") in ("explorar", "base"):
+                continue
             if t.get("wallet") != w or not str(t.get("reason") or "").startswith("stop de perda"):
                 continue
             try:
@@ -771,6 +784,7 @@ class PumpFun:
 
     def _save_pos(self, p: dict) -> None:
         self.store.save_pos(p)
+        self._auto_record(p, closed=False)
 
     def _del_pos(self, p: dict) -> None:
         self.store.del_pos(p)
@@ -780,6 +794,18 @@ class PumpFun:
 
     def _save_trade(self, t: dict) -> None:
         self.store.save_trade(t)
+        self._auto_record(t, closed=True)
+
+    def _auto_record(self, p: dict, closed: bool) -> None:
+        if p.get("auto") is not True or p.get("origem") not in ("explorar", "base"):
+            return
+        from .auto_trades import operation_row
+        key = str(p["id"])
+        previous = self.auto_rows.get(key)
+        row = operation_row(p, previous=previous, closed=closed)
+        if row != previous:
+            self.auto_rows[key] = row
+            self._auto_dirty.add(key)
 
     def wallet(self, real: bool = False) -> dict:
         start = 0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))
@@ -1053,6 +1079,9 @@ class PumpFun:
             tr["score"] = p.get("score")
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
+            if p.get("auto") is True and p.get("origem") in ("explorar", "base"):
+                tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
+                          closed_t=t, closed_at=datetime.fromtimestamp(t, timezone.utc).isoformat(), exit_price=px)
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1078,6 +1107,11 @@ class PumpFun:
             # pós-trade (0.18.0): melhor e pior momento da posição, para ver quanto ficou na mesa
             p["best_pct"] = round(max(chg, p.get("best_pct", chg)), 2)
             p["worst_pct"] = round(min(chg, p.get("worst_pct", chg)), 2)
+            own_auto = p.get("auto") is True and p.get("origem") in ("explorar", "base")
+            max_hold = self._auto_num(p.get("max_hold_s"))
+            if max_hold is not None and t - p.get("open_t", t) >= max_hold:
+                out.append(self._sell(p, 1.0, px, f"tempo máximo ({max_hold / 60:g} min)", t))
+                continue
             # STOP MÓVEL: liga quando o líquido (após taxas) passa de X%; depois sai se cair Y pontos do pico
             trail_on = p["trail_on"] if "trail_on" in p else getattr(self.cfg, "pump_trail_enabled", True)
             t_start = float(p.get("trail_start") or self._c("pump_trail_start_pct", 20))
@@ -1089,20 +1123,29 @@ class PumpFun:
                     p["trail_since"] = now_iso()
                 p["trail_peak"] = round(max(chg, p.get("trail_peak") or chg), 2)
                 p["trail_exit"] = round(max(p["trail_peak"] - t_dist, float(self._c("pump_trail_min_lock_pct", 2))), 2)
-            tp1, prog = self._onv("pump_tp1_on", "pump_tp1_pct"), None
+            tp1 = float(p["tp1_pct"]) if p.get("tp1_pct") is not None else self._onv("pump_tp1_on", "pump_tp1_pct")
+            prog = None
             cx = self._onv("pump_curve_exit_on", "pump_curve_exit_pct")
             if cx and self.is_pump(mint) and not self.graduated(mint):
                 prog = self.curve_progress((self.tokens.get(mint) or {}).get("mcap_sol"))
             if cx and prog is not None and prog >= cx:
                 out.append(self._sell(p, 1.0, px, f"saiu antes da graduação (curva em {prog:.0f}%, {chg:+.1f}% líquido)", t))
                 continue
-            smart = self.smart_exit(p, t)
+            smart = self.smart_exit(p, t, force=p.get("smart") is True)
             if smart:
                 out.append(self._sell(p, 1.0, px, f"{smart} ({chg:+.1f}% líquido)", t))
                 continue
+            # Saltos diretos ao alvo/Boost encerram a automática inteira, sem começar por uma parcial.
+            if own_auto and p.get("boost_tp") and chg >= float(p["boost_tp"]) and self.boost_info(mint).get("active"):
+                out.append(self._sell(p, 1.0, px, f"boost ON: alvo +{float(p['boost_tp']):.0f}% ({chg:+.1f}% líquido)", t))
+                continue
+            if own_auto and tp and chg >= tp:
+                out.append(self._sell(p, 1.0, px, f"alvo (+{tp:.0f}%)", t))
+                continue
             if tp1 and not p.get("tp1_done") and chg >= tp1 and p["tokens_left"] > p["tokens"] * 0.05:
                 p["tp1_done"] = True
-                frac = float(self._c("pump_tp1_frac_pct", 50)) / 100
+                frac = float(p["tp1_frac"]) if p.get("tp1_frac") is not None else float(self._c("pump_tp1_frac_pct", 50))
+                frac /= 100
                 out.append(self._sell(p, frac, px, f"venda em partes: realizou {frac * 100:.0f}% em {chg:+.1f}% líquido", t))
                 continue
             if trail_on and p.get("trail_peak") is not None and chg <= p["trail_exit"]:
@@ -1126,9 +1169,11 @@ class PumpFun:
         if self.ghosts.open:
             self.ghosts.on_time(t)
         for p in self.positions():
-            if t - p.get("open_t", t) >= mx and not p.get("selling"):
+            hold = self._auto_num(p.get("max_hold_s"))
+            hold = hold if hold is not None else mx
+            if t - p.get("open_t", t) >= hold and not p.get("selling"):
                 out.append(self._sell(p, 1.0, (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now"),
-                                      f"tempo máximo ({mx / 3600:.0f} h)", t))
+                                      f"tempo máximo ({hold / 60:g} min)" if p.get("max_hold_s") is not None else f"tempo máximo ({hold / 3600:.0f} h)", t))
         return [m for m in out if m]
 
     def close_position(self, pid) -> dict:
@@ -1140,6 +1185,10 @@ class PumpFun:
         return {"error": "posição não encontrada"}
 
     def reset_sim(self) -> dict:
+        if (any(not p.get("real") and p.get("auto") is True and p.get("origem") in ("explorar", "base")
+                for p in self.positions())
+                or any(not row.get("real") and not row.get("saida_em") for row in self.auto_rows.values())):
+            return {"error": "feche as posições automáticas simuladas antes de zerar a carteira fictícia"}
         self.store.reset_sim()
         self.store.feed_clear()
         self.ghosts.reset()
@@ -1528,16 +1577,16 @@ class PumpFun:
         return 1.0, ""
 
     # ------------------------------------------------------------------ 0.19.0: saídas inteligentes, nota e banca
-    def smart_exit(self, p: dict, t: float) -> str | None:
+    def smart_exit(self, p: dict, t: float, force: bool = False) -> str | None:
         """Saídas que não dependem do preço da posição (todas começam desligadas): dev vendeu, token graduou,
         pressão de compra virou, outras carteiras seguidas/estudadas vendendo."""
         tk = self.tokens.get(p["mint"]) or {}
         opened = float(p.get("open_t") or 0)
-        if getattr(self.cfg, "pump_exit_dev_sell", False) and tk.get("dev_sold_t") and tk["dev_sold_t"] >= opened:
+        if (force or getattr(self.cfg, "pump_exit_dev_sell", False)) and tk.get("dev_sold_t") and tk["dev_sold_t"] >= opened:
             return "dev vendeu"
-        if getattr(self.cfg, "pump_exit_migrate", False) and p.get("grad_in") is False and self.graduated(p["mint"]):
+        if (force or getattr(self.cfg, "pump_exit_migrate", False)) and p.get("grad_in") is False and self.graduated(p["mint"]):
             return "token graduou (PumpSwap)"
-        mn = self._onv("pump_exit_pressure_on", "pump_exit_pressure_pct")
+        mn = 40.0 if force else self._onv("pump_exit_pressure_on", "pump_exit_pressure_pct")
         if mn and (not t or t - opened >= 60):
             pr, src = self.pressure(p["mint"])
             if pr is not None and pr < mn:
@@ -1587,13 +1636,201 @@ class PumpFun:
         score = round(sum(parts[k] * W[k] for k in parts) / tot * 100, 1) if tot else 50.0
         return score, {k: round(v * 100) for k, v in parts.items()}
 
-    def manual_buy(self, mint: str, t: float | None = None, auto: str = "") -> dict:
+    @staticmethod
+    def _auto_num(value) -> float | None:
+        if isinstance(value, bool):
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        return number if math.isfinite(number) else None
+
+    def auto_rules(self) -> dict:
+        """Regras próprias da operação automática; o botão manual mantém seus valores."""
+        return {"stop_pct": float(self._c("pump_ar_stop_pct", 25)),
+                "tp_pct": float(self._c("pump_ar_tp_pct", 150)), "trail_on": True,
+                "trail_start": float(self._c("pump_ar_trail_start", 40)),
+                "trail_dist": float(self._c("pump_ar_trail_dist", 15)),
+                "boost_tp": float(self._c("pump_manual_boost_tp", 80)) if getattr(self.cfg, "pump_manual_boost_on", True) else None,
+                "tp1_pct": float(self._c("pump_ar_tp1_pct", 40)),
+                "tp1_frac": float(self._c("pump_ar_tp1_frac", 50)),
+                "max_hold_s": float(self._c("pump_ar_max_hold_min", 30)) * 60,
+                "smart": bool(getattr(self.cfg, "pump_ar_smart", True))}
+
+    def _auto_operations(self) -> list[dict]:
+        """Histórico carregado + posições/legado da Base, sem duplicar uma entrada já conhecida."""
+        rows = {str(key): dict(row) for key, row in self.auto_rows.items()}
+        for p in self.positions():
+            if not p.get("auto"):
+                continue
+            key = str(p.get("id"))
+            if key not in rows:
+                rows[key] = {"id": key, "mint": p.get("mint"), "real": bool(p.get("real")),
+                             "entrada_em": p.get("opened_at"), "_entry_t": p.get("open_t"), "saida_em": None}
+        for tr in self.trades(100000):
+            if not tr.get("auto"):
+                continue
+            key = str(tr.get("id"))
+            if key not in rows:
+                rows[key] = {"id": key, "mint": tr.get("mint"), "real": bool(tr.get("real")),
+                             "entrada_em": tr.get("opened_at"), "saida_em": tr.get("closed_at"),
+                             "pnl_sol": tr.get("pnl_sol")}
+        for mint, entered in getattr(self, "_auto_done", {}).items():
+            if not any(row.get("mint") == mint for row in rows.values()):
+                rows["legacy:" + mint] = {"id": "legacy:" + mint, "mint": mint, "_entry_t": entered,
+                                          "entrada_em": None, "saida_em": None, "legacy": True}
+        for mint, entered in self._auto_pending.items():
+            rows["pending:" + mint] = {"id": "pending:" + mint, "mint": mint, "_entry_t": entered,
+                                      "entrada_em": None, "saida_em": None, "real": True}
+        return list(rows.values())
+
+    def auto_guard(self, mint: str | None = None, t: float | None = None) -> str | None:
+        """Travas só das automáticas, antes de reservar saldo ou criar uma posição."""
+        t = time.time() if t is None else t
+        self._auto_pause_until = None                # derivado novamente do histórico, nunca estende ao consultar
+        if not self.auto_ready:
+            return "histórico das automáticas indisponível; aguardando o banco"
+        # Uma linha aberta persistida também reserva vaga se o processo caiu entre as duas gravações.
+        opened = {str(p["id"]) for p in self.positions() if p.get("auto")}
+        opened.update(str(key) for key, row in self.auto_rows.items() if not row.get("saida_em"))
+        maximum = int(self._c("pump_ar_max_open", 3))
+        if len(opened) + len(self._auto_pending) >= maximum:
+            return f"limite de {maximum} posições automáticas abertas"
+        rows = self._auto_operations()
+
+        def entered(row):
+            at = self._auto_num(row.get("_entry_t"))
+            return at if at is not None else self._ts(row.get("entrada_em"))
+
+        entries = [(row, entered(row)) for row in rows]
+        if mint and any(row.get("mint") == mint and at is not None and 0 <= t - at < 86400 for row, at in entries):
+            return "token já teve entrada automática nas últimas 24 h"
+        hourly = sum(at is not None and 0 <= t - at < 3600 for _row, at in entries)
+        maximum = int(self._c("pump_ar_max_h", 4))
+        if hourly >= maximum:
+            return f"limite de {maximum} entradas automáticas por hora"
+        day = datetime.fromtimestamp(t, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        closed = []
+        for row in rows:
+            at, pnl = self._ts(row.get("saida_em")), self._auto_num(row.get("pnl_sol"))
+            if at is not None and at <= t and pnl is not None:
+                closed.append((at, pnl))
+        ordered = sorted(closed)
+        day_result, day_low = 0.0, 0.0
+        for at, pnl in ordered:
+            if at >= day:
+                day_result += pnl
+                day_low = min(day_low, day_result)
+        limit = float(self._c("pump_ar_daily_loss", 0.25))
+        if limit and day_low <= -limit:
+            self._auto_pause_until = day + 86400
+            return f"perda do dia atingiu {day_low:+.4f} SOL; pausada até 00:00 UTC"
+        streak = int(self._c("pump_ar_streak_n", 3))
+        count, until = 0, None
+        if streak:
+            hours = float(self._c("pump_ar_streak_h", 1)) * 3600
+            for at, pnl in ordered:
+                count = count + 1 if pnl < 0 else 0
+                if count >= streak:
+                    until = max(until or 0, at + hours)
+        if until is not None and until > t:
+            self._auto_pause_until = until
+            hour = datetime.fromtimestamp(until, timezone.utc).strftime("%H:%M UTC")
+            return f"{streak} perdas seguidas até {hour}"
+        return None
+
+    def _auto_blocked(self, reason: str, mint: str, origem: str, t: float) -> None:
+        notices = self.__dict__.setdefault("_auto_notices", {})
+        key = (origem, reason)
+        if t - notices.get(key, -1e30) < 60:
+            return
+        notices[key] = t
+        self._auto_notices = {k: at for k, at in notices.items() if t - at < 3600}
+        msg = "compra automática pausada: " + reason
+        self._feed(wallet="manual", short="automático", mint=mint, symbol=(self.tokens.get(mint) or {}).get("symbol"),
+                   kind="buy", action="compra automática pausada", reason=reason, origem=origem)
+        self._emit("[PUMP SIM] " + msg)
+
+    def explore_entry_reason(self, row: dict) -> str | None:
+        """Filtros da lista Quase graduando; dado obrigatório ausente não libera entrada."""
+        if not isinstance(row, dict) or not isinstance(row.get("mint"), str) or not self.valid_addr(row["mint"]):
+            return "endereço do token inválido"
+        if row.get("cat") not in (None, "graduating"):
+            return "só entra na lista Quase graduando"
+        if self.graduated(row["mint"]):
+            return "token já graduou desde a lista do Explorar"
+        pred = row.get("pred") if isinstance(row.get("pred"), dict) else {}
+        if pred.get("verdict") != "chance alta":
+            return "veredito não é chance alta"
+        if row.get("rugged"):
+            return "token marcado como rug"
+        creator = row.get("creator") or (self.tokens.get(row["mint"]) or {}).get("creator")
+        if creator and creator in self.market.blacklist:
+            return "criador na lista negra"
+        history = self.market.creator_stats.get(creator or "") or {}
+        if (self._auto_num(history.get("rugs")) or 0) >= 2:
+            return "criador com 2 ou mais tokens despencados"
+        pressure, holders = self._auto_num(row.get("pressure")), self._auto_num(row.get("holders"))
+        curve, change = self._auto_num(row.get("curve_pct")), self._auto_num(row.get("chg_5m"))
+        if pressure is None or not 0 <= pressure <= 100 or pressure < float(self._c("pump_ex_auto_min_pressure", 60)):
+            return "pressão de compra ausente ou abaixo do mínimo"
+        if holders is None or holders < 0 or holders < int(self._c("pump_ex_auto_min_holders", 100)):
+            return "holders ausentes ou abaixo do mínimo"
+        if row.get("risk") is not None:
+            risk = self._auto_num(row["risk"])
+            if risk is None or not 0 <= risk <= int(self._c("pump_ex_auto_max_risk", 6)):
+                return "risco inválido ou acima do máximo"
+        if curve is None or not float(self._c("pump_ex_auto_curve_min", 60)) <= curve <= float(self._c("pump_ex_auto_curve_max", 95)):
+            return "curva ausente ou fora da faixa"
+        if change is None or not 0 <= change <= float(self._c("pump_ex_auto_max_chg5", 150)):
+            return "variação em 5 min ausente ou fora da faixa"
+        return None
+
+    def explore_auto_check(self, lists: dict, t: float | None = None) -> list[str]:
+        if not getattr(self.cfg, "pump_ex_auto_on", False) or getattr(self, "role", None) != "admin":
+            return []
+        t = time.time() if t is None else t
+        out = []
+        for row in (lists.get("graduating") or [])[:40]:
+            if self.explore_entry_reason(row):
+                continue
+            mint = row["mint"]
+            guard = self.auto_guard(mint, t)
+            if guard:
+                self._auto_blocked(guard, mint, "explorar", t)
+                continue
+            pred = row["pred"]
+            info = {"veredito": pred["verdict"], "chance": self._auto_num(pred.get("chance")),
+                    **{k: copy.deepcopy(row.get(k)) for k in ("pressure", "holders", "curve_pct", "risk", "chg_5m", "boost")},
+                    "creator": row.get("creator") or (self.tokens.get(mint) or {}).get("creator"),
+                    "score": self._auto_num(row.get("score")), "why": copy.deepcopy(pred.get("why") or []), "source": "explorar"}
+            result = self.manual_buy(mint, t, auto="automático: chance alta", origem="explorar", info=info)
+            if result.get("auto_id"):
+                out.append(mint)
+        return out
+
+    def manual_buy(self, mint: str, t: float | None = None, auto: str = "", origem: str = "", info: dict | None = None) -> dict:
         """Compra manual (0.23.0, botão Comprar da Base da pump.fun): sem os filtros de cópia, porque foi você que
         decidiu. Sempre compra na carteira fictícia (valor de "SOL por cópia"); na real só se a execução real estiver
         ligada, pela mesma fila, limites e verificações da compra real. Depois segue stops e saídas normais."""
-        t = t or time.time()
+        t = time.time() if t is None else t
+        own_auto = bool(auto) and origem in ("explorar", "base")
+        if own_auto:
+            if not self.valid_addr(mint):
+                return {"error": "endereço do token inválido"}
+            if origem == "explorar" and self.graduated(mint):
+                return {"error": "token já graduou desde a lista do Explorar"}
+            guard = self.auto_guard(mint, t)
+            if guard:
+                self._auto_blocked(guard, mint, origem, t)
+                return {"error": guard}
         tk = self.tokens.get(mint) or {}
         px = tk.get("price")
+        if own_auto:
+            px = self._auto_num(px)
+            if px is not None and px <= 0:
+                px = None
         if not px:
             return {"error": "sem preço do token agora; tente de novo em alguns segundos"}
         sym = tk.get("symbol") or short(mint)
@@ -1601,8 +1838,8 @@ class PumpFun:
         base = {"wallet": "manual", "short": "automático" if auto else "você", "mint": mint, "symbol": sym, "kind": "buy",
                 "mcap_sol": tk.get("mcap_sol")}
         out: dict = {"ok": True, "sim": None, "real": None}
-        amt = float(self._c("pump_manual_sol", 0.1))
-        rules = self.manual_rules()
+        amt = float(self._c("pump_ar_sol", 0.05) if own_auto else self._c("pump_manual_sol", 0.1))
+        rules = self.auto_rules() if own_auto else self.manual_rules()
         fr = self._fee_rates(mint)
         if any(p["mint"] == mint and not p.get("real") for p in allpos):
             out["sim"] = "já tem posição fictícia neste token"
@@ -1621,23 +1858,37 @@ class PumpFun:
                  "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": None,
                  "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True, **rules,
                  "auto": auto or None}
+            if own_auto:
+                p.update(auto=True, origem=origem, auto_info=copy.deepcopy(info or {}),
+                         opened_at=datetime.fromtimestamp(t, timezone.utc).isoformat())
+                p["auto_info"]["score"] = score
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
+            if own_auto:
+                out["auto_id"] = str(p["id"])
             self._feed(**base, sol=round(amt, 4), action="comprou (automático)" if auto else "comprou (manual)",
                        reason=(f"{auto} · " if auto else "você ") + f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}")
             self._emit(f"[PUMP SIM] compra {'automática' if auto else 'manual'}: {sym} {amt:.3f} SOL" + (f" ({auto})" if auto else ""))
             out["sim"] = f"comprou {amt:.3f} SOL na carteira fictícia"
+        if own_auto and not out.get("auto_id"):
+            return out                              # uma falha fictícia não dispara compra real automática
         if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or getattr(self.cfg, "pump_auto_real", False)):
             if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
                 out["real"] = "já tem posição REAL neste token"
             elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
                 out["real"] = f"limite de {int(self._c('pump_real_max_open', 5))} posições reais"
+            elif own_auto and (guard := self.auto_guard(t=t)):
+                out["real"] = guard
+                self._auto_blocked(guard, mint, origem, t)
             else:
                 self._real_buying.add(mint)
+                if own_auto:
+                    self._auto_pending[mint] = t
                 self._rq_put(("buy", {"wallet": "manual", "mint": mint, "symbol": sym, "trader_sol": 0.0,
                                       "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t,
-                                      "pos_cfg": {**rules, "manual": True}}))
+                                      "pos_cfg": {**rules, "manual": True,
+                                                  **({"auto": True, "origem": origem, "auto_info": copy.deepcopy(p["auto_info"])} if own_auto else {})}}))
                 self._feed(**base, action="REAL: comprando", reason="compra manual enviada para a fila real")
                 out["real"] = f"enviando compra real de até {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL"
         return out
@@ -1755,17 +2006,22 @@ class PumpFun:
         if not mn:
             return ""
         lim = time.time() - 7200
-        last = [x for x in self.trades(200) if not x.get("real") and (self._ts(x.get("closed_at")) or 0) >= lim][:10]
+        last = [x for x in self.trades(200) if not x.get("real")
+                and not (x.get("auto") is True and x.get("origem") in ("explorar", "base"))
+                and (self._ts(x.get("closed_at")) or 0) >= lim][:10]
         if len(last) < 5:
             return ""
         wr = sum(1 for x in last if (x.get("pnl_sol") or 0) > 0) / len(last) * 100
         return f"×0,5: mercado frio (acerto {wr:.0f}% nas últimas {len(last)} cópias em 2 h)" if wr < mn else ""
 
     def _streak_check(self, tr: dict) -> None:
+        if tr.get("auto") is True and tr.get("origem") in ("explorar", "base"):
+            return
         if not getattr(self.cfg, "pump_streak_on", False) or (tr.get("pnl_sol") or 0) >= 0:
             return
         n = int(self._c("pump_streak_n", 4))
-        last = [x for x in self.trades(max(50, n)) if bool(x.get("real")) == bool(tr.get("real"))][:n]
+        last = [x for x in self.trades(max(50, n)) if bool(x.get("real")) == bool(tr.get("real"))
+                and not (x.get("auto") is True and x.get("origem") in ("explorar", "base"))][:n]
         if len(last) >= n and all((x.get("pnl_sol") or 0) < 0 for x in last):
             hrs = float(self._c("pump_streak_h", 2))
             self._halt_until = time.time() + hrs * 3600
@@ -2322,6 +2578,7 @@ class PumpFun:
                 self._emit(f"[PUMP REAL] {kind} {it.get('symbol') or it.get('id')}: erro {type(e).__name__}: {str(e)[:120]}")
                 if kind == "buy":
                     self._real_buying.discard(it.get("mint"))
+                    self._auto_pending.pop(it.get("mint"), None)
                 else:
                     self._unmark_selling(it.get("id"))
 
@@ -2337,6 +2594,21 @@ class PumpFun:
             lim = float(self._c("pump_real_daily_loss_sol", 0.5))
             if not getattr(self.cfg, "pump_real_enabled", False):
                 return
+            own_auto = (it.get("pos_cfg") or {}).get("auto") is True
+            if own_auto and (not getattr(self.cfg, "pump_auto_real", False) or not self.auto_ready):
+                return
+            if own_auto and (getattr(self, "role", None) != "admin"
+                             or ((it.get("pos_cfg") or {}).get("origem") == "explorar"
+                                 and not getattr(self.cfg, "pump_ex_auto_on", False))):
+                return
+            if own_auto:
+                reserved = self._auto_pending.pop(mint, None)
+                guard = self.auto_guard(t=time.time())
+                if reserved is not None:
+                    self._auto_pending[mint] = reserved
+                if guard:
+                    self._auto_blocked(guard, mint, (it.get("pos_cfg") or {}).get("origem", "explorar"), time.time())
+                    return
             if lim and self.real.today_loss(self.trades(2000)) >= lim:
                 self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
                            action="REAL não copiou", reason=f"perda do dia chegou a {lim} SOL")
@@ -2367,6 +2639,8 @@ class PumpFun:
                          network=max(0.0, spent - amt * (1 + fr["venue"] + fr["portal"])))
             p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
             p.update(it.get("pos_cfg") or {})              # compra do botão: stop/alvo próprios (0.26.0)
+            if own_auto:
+                p["opened_at"] = datetime.fromtimestamp(p["open_t"], timezone.utc).isoformat()
             self._save_pos(p)
             self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
                        action="REAL comprou", reason=f"gastou {spent:.4f} SOL · recebeu {toks:,.0f} tokens",
@@ -2374,6 +2648,7 @@ class PumpFun:
             self._emit(f"[PUMP REAL] comprou {sym}: {spent:.4f} SOL (copiando {short(it['wallet'])})")
         finally:
             self._real_buying.discard(mint)
+            self._auto_pending.pop(mint, None)
 
     async def _real_do_sell(self, it: dict) -> None:
         p = next((x for x in self.positions() if x["id"] == it["id"]), None)
@@ -2433,6 +2708,11 @@ class PumpFun:
             tr["score"] = p.get("score")
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
+            if p.get("auto") is True and p.get("origem") in ("explorar", "base"):
+                closed = time.time()
+                tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
+                          closed_t=closed, closed_at=datetime.fromtimestamp(closed, timezone.utc).isoformat(),
+                          exit_price=p.get("price_now"))
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)

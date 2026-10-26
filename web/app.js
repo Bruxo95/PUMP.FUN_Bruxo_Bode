@@ -90,6 +90,117 @@
   // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
   // ------------------------------------------------------------------ explorar (/api/pump/explore, 0.28.0)
   let EX = null, EX_TAB = "graduating", EX_T = null;
+  const EX_AUTO = { data: null, at: 0, updatedAt: 0, stale: false, busy: false, pending: false, revision: 0, days: 30, error: "", saving: false, values: {} };
+  const AUTO_PRESETS = {
+    filters: { pump_ex_auto_min_pressure: 60, pump_ex_auto_min_holders: 100, pump_ex_auto_max_risk: 6, pump_ex_auto_curve_min: 60, pump_ex_auto_curve_max: 95, pump_ex_auto_max_chg5: 150 },
+    protections: { pump_ar_sol: 0.05, pump_ar_max_open: 3, pump_ar_max_h: 4, pump_ar_daily_loss: 0.25, pump_ar_streak_n: 3, pump_ar_streak_h: 1, pump_ar_stop_pct: 25, pump_ar_tp1_pct: 40, pump_ar_tp1_frac: 50, pump_ar_trail_start: 40, pump_ar_trail_dist: 15, pump_ar_tp_pct: 150, pump_ar_max_hold_min: 30, pump_ar_smart: true }
+  };
+  const isAutoCfg = (key) => key.startsWith("pump_ex_auto_") || key.startsWith("pump_ar_");
+  const autoValue = (key, c) => Object.prototype.hasOwnProperty.call(EX_AUTO.values, key) ? EX_AUTO.values[key] : c[key];
+  const autoNum = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
+  const autoDate = (v) => v && Number.isFinite(new Date(v).getTime()) ? esc(dt(v)) : "n/d";
+  const autoRate = (v) => autoNum(v) == null ? "n/d" : f(v * 100, 1) + "%";
+  const autoFactor = (s) => s.profit_factor_unbounded ? "sem perdas" : autoNum(s.profit_factor) == null ? "n/d" : f(s.profit_factor, 2);
+  function autoControls() {
+    document.querySelectorAll('[data-view="explorar"] [data-cfg], [data-view="explorar"] [data-toggle], [data-auto-preset], [data-view="explorar"] [data-set]').forEach((el) => {
+      const key = el.dataset.cfg || el.dataset.toggle || el.dataset.set;
+      if (el.dataset.autoPreset || key && isAutoCfg(key)) el.disabled = EX_AUTO.saving || !D;
+    });
+  }
+  async function loadAutoTrades(force) {
+    if (EX_AUTO.busy) { if (force) EX_AUTO.pending = true; return; }
+    if (EX_AUTO.saving || !force && Date.now() - EX_AUTO.at < 10000) return;
+    EX_AUTO.busy = true; EX_AUTO.at = Date.now();
+    const revision = EX_AUTO.revision, days = EX_AUTO.days;
+    try {
+      const r = await BB.api("/api/pump/auto-trades?origem=explorar&days=" + days);
+      if (revision !== EX_AUTO.revision) { EX_AUTO.pending = true; return; }
+      if (!r.status || !Array.isArray(r.items)) { EX_AUTO.error = r.error || "resposta do histórico indisponível"; }
+      else { EX_AUTO.data = r; EX_AUTO.updatedAt = Date.now(); EX_AUTO.stale = false; EX_AUTO.error = ""; }
+    } catch (e) {
+      if (revision === EX_AUTO.revision) EX_AUTO.error = e.message || "falha de conexão";
+    } finally {
+      EX_AUTO.busy = false;
+      if (VIEW === "explorar") renderAutoTrades();
+      if (EX_AUTO.pending && !EX_AUTO.saving) { EX_AUTO.pending = false; if (VIEW === "explorar") loadAutoTrades(true); }
+    }
+  }
+  function renderAutoState() {
+    autoControls();
+    const c = cfg(), enabled = !!autoValue("pump_ex_auto_on", c), r = EX_AUTO.data, status = r && r.status || {};
+    const stale = !EX_AUTO.updatedAt || Date.now() - EX_AUTO.updatedAt > 30000;
+    let text, tone = "muted";
+    if (EX_AUTO.saving) text = "Salvando as opções das automáticas…";
+    else if (!D) text = "Carregando as opções das entradas automáticas…";
+    else if (!enabled) text = "Desligada · nenhuma nova entrada automática do Explorar. Posições abertas continuam protegidas.";
+    else if (EX_AUTO.error || stale) { text = "Estado aguardando atualização" + (EX_AUTO.error ? ": " + EX_AUTO.error : ".") + " As entradas dependem das travas do motor."; tone = "warn"; }
+    else if (status.paused || status.ready === false) {
+      text = "Pausada: " + (status.reason || "aguardando o histórico para operar com segurança"); tone = "warn";
+      if (autoNum(status.until) != null && status.until * 1000 > Date.now()) text += " · até " + new Date(status.until * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+    } else { text = "Ativa · " + f(autoNum(status.open) || 0, 0) + " posições automáticas abertas · " + f(autoNum(status.entries_h) || 0, 0) + " entradas na última hora."; tone = "up"; }
+    $("exAutoState").textContent = text; $("exAutoState").className = "auto-state " + tone;
+    const real = D && D.real || {};
+    $("exAutoMode").textContent = c.pump_auto_real && real.enabled && real.allowed
+      ? "A cópia REAL das automáticas já está ligada nos controles existentes. Cada operação REAL aparece identificada; os resumos abaixo usam só o simulado."
+      : "Modo simulado para estas entradas. Para considerar dinheiro real, primeiro acompanhe o critério do histórico abaixo.";
+    $("exAutoBoost").textContent = c.pump_manual_boost_on ? "Boost ON no token: vende todo o restante em +" + f(autoNum(c.pump_manual_boost_tp) == null ? 80 : c.pump_manual_boost_tp, 0) + "%. Usa a regra de Boost já configurada no botão Comprar." : "A saída por Boost está desligada na configuração existente do botão Comprar.";
+  }
+  function autoAfter(row, key) {
+    if (row.open) return key.replace("m", " min") + ": aguarda a saída";
+    const after = row.depois && typeof row.depois === "object" ? row.depois : {};
+    if (!Object.prototype.hasOwnProperty.call(after, key)) return key.replace("m", " min") + ": aguardando foto";
+    const v = autoNum(after[key]);
+    if (v == null) return key.replace("m", " min") + ": foto indisponível";
+    return key.replace("m", " min") + ": " + (v > 0 ? "subiu " : v < 0 ? "caiu " : "não variou ") + pc(v) + " depois que saiu";
+  }
+  function renderAutoTrades() {
+    renderAutoState();
+    const r = EX_AUTO.data, notice = $("exAutoReadiness");
+    document.querySelectorAll("[data-auto-days]").forEach((b) => { b.classList.toggle("on", +b.dataset.autoDays === EX_AUTO.days); b.setAttribute("aria-pressed", String(+b.dataset.autoDays === EX_AUTO.days)); });
+    if (!r) {
+      $("exAutoKpis").innerHTML = "";
+      $("exAutoTradesSub").textContent = EX_AUTO.error ? "Não foi possível carregar: " + EX_AUTO.error : "Explorar · carregando as operações automáticas…";
+      notice.textContent = "Ainda não recomendado para dinheiro real: aguardando o histórico das automáticas."; notice.className = "auto-readiness muted";
+      table("exAutoTrades", ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], [], EX_AUTO.error ? "Histórico indisponível. A tela tentará atualizar novamente." : "Carregando…");
+      return;
+    }
+    const sums = r.summary || {}, day = sums.day || {}, period = sums.period || {}, ready = r.readiness || {};
+    const stale = EX_AUTO.error || Date.now() - EX_AUTO.updatedAt > 30000;
+    $("exAutoTradesSub").textContent = "Explorar · últimos " + EX_AUTO.days + " dias · resumos só do simulado, após taxas · " + (stale ? "dados desatualizados: " + (EX_AUTO.error || "aguardando atualização") : r.error || "atualizado " + dt(EX_AUTO.updatedAt));
+    kpis("exAutoKpis", [["Hoje (UTC) · simulado", sg(autoNum(day.pnl_sol)), f(autoNum(day.closed) || 0, 0) + " operações fechadas", "pnl"],
+      ["Período · simulado", sg(autoNum(period.pnl_sol)), f(autoNum(period.closed) || 0, 0) + " operações fechadas em " + EX_AUTO.days + " dias", "tr"],
+      ["Acerto · simulado", autoRate(period.win_rate), "hoje: " + autoRate(day.win_rate), "hit"],
+      ["Fator de lucro · simulado", autoFactor(period), "hoje: " + autoFactor(day), "pnl"]]);
+    const readyText = ready.reason || "Ainda não recomendado para dinheiro real: histórico insuficiente.";
+    notice.textContent = (stale || r.error ? "Ainda não recomendado para dinheiro real: histórico incompleto ou desatualizado. " : "") + readyText + " · " + f(autoNum(ready.closed_sim) || 0, 0) + " fechadas em " + f(autoNum(ready.days_sim) || 0, 0) + " dias de simulado · acerto " + autoRate(ready.win_rate) + " · fator " + autoFactor(ready) + (ready.recommended && !stale && !r.error ? ". A execução real continua dependendo dos controles existentes." : "");
+    notice.className = "auto-readiness " + (ready.recommended && !stale && !r.error ? "up" : "warn");
+    const PV = { lixo: "loss", fraco: "neutral", "possível": "sim", "chance alta": "win", suspeito: "pause" };
+    table("exAutoTrades", ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], r.items.map((row) => {
+      const mint = String(row.mint || ""), partials = Array.isArray(row.partial_exits) ? row.partial_exits.length : 0;
+      return [pfM(mint, String(row.symbol || "")) + '<small><span class="tag ' + (row.real ? 'real">REAL' : 'sim">SIMULADO') + "</span> · Explorar</small>",
+        autoDate(row.entrada_em) + "<small>" + s4(autoNum(row.sol_in)) + " SOL</small>" + '<span class="tag ' + (PV[row.veredito] || "neutral") + '">' + esc(String(row.veredito || "n/d")) + "</span><small>chance: " + (autoNum(row.chance) == null ? "n/d" : f(row.chance, 0) + "%") + "</small>",
+        '<span class="tag ' + (row.open ? 'sim">aberta' : 'neutral">fechada') + "</span>" + (partials ? "<small>" + partials + " venda(s) em partes</small>" : ""),
+        sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>",
+        row.open ? "–" : autoDate(row.saida_em), esc(String(row.motivo_saida || (row.open ? partials ? "venda em partes; restante protegido" : "aguardando saída" : "n/d"))),
+        hms(autoNum(row.duration_s)), pc(autoNum(row.best_pct)) + "<small>pior: " + pc(autoNum(row.worst_pct)) + "</small>",
+        '<div class="auto-after">' + autoAfter(row, "15m") + "<small>" + autoAfter(row, "60m") + "</small></div>"];
+    }), "Nenhuma operação automática do Explorar neste período. Começa desligada; ao ligar, só entra quando todos os filtros passam.");
+  }
+  async function saveAutoCfg(body) {
+    if (EX_AUTO.saving) return;
+    EX_AUTO.saving = true; EX_AUTO.revision++; EX_AUTO.values = { ...body }; if (D) render(); else renderAutoState();
+    try {
+      const r = await BB.api("/api/pump/settings", { body: body }), errs = Object.entries(r.errors || {});
+      if (r.applied && D) D.cfg = Object.assign({}, D.cfg || {}, r.applied);
+      EX_AUTO.values = r.applied || {};
+      toast(r.error || (errs.length ? "Não aplicado: " + errs.map((e) => e[0].replace("pump_", "") + " (" + e[1] + ")").join(", ") : "Opções das automáticas salvas."));
+      await poll(true);
+    } catch (e) { toast("Não foi possível salvar as automáticas: " + (e.message || "falha de conexão")); }
+    finally {
+      EX_AUTO.saving = false; EX_AUTO.values = {}; EX_AUTO.pending = false; EX_AUTO.revision++;
+      if (VIEW === "explorar") { render(); loadAutoTrades(true); }
+    }
+  }
   async function loadExplore() {
     clearTimeout(EX_T); EX_T = setTimeout(() => { if (VIEW === "explorar") loadExplore(); }, 60000);
     const r = await BB.api("/api/pump/explore");
@@ -570,7 +681,7 @@
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
-    if (VIEW === "explorar") loadExplore();
+    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);
@@ -699,6 +810,7 @@
   async function poll(force) {
     // O intervalo do painel continua expirando os destaques mesmo se uma consulta ficar pendurada.
     if (VIEW === "radar" && RADAR.data && !RADAR.stale && radarOutdated()) { RADAR.stale = true; renderRadar(); }
+    if (VIEW === "explorar" && EX_AUTO.data && !EX_AUTO.stale && Date.now() - EX_AUTO.updatedAt > 30000) { EX_AUTO.stale = true; renderAutoTrades(); }
     if (BUSY && !force) return; BUSY = true;
     try {
       const r = await BB.api("/api/pump?ev=" + Math.max(EV, 0));
@@ -713,6 +825,7 @@
   async function walletLoad(force) { try { W = await BB.api("/api/pump/wallet" + (force ? "?force=1" : "")); if (VIEW === "real") renderReal(); } catch (e) { /* */ } }
 
   async function setCfg(body) {
+    if (Object.keys(body).every(isAutoCfg)) return saveAutoCfg(body);
     const r = await BB.api("/api/pump/settings", { body: body });
     const errs = Object.entries(r.errors || {});
     toast(r.error || (errs.length ? "Não aplicado: " + errs.map((e) => e[0].replace("pump_", "") + " (" + e[1] + ")").join(", ") : "Salvo."));
@@ -733,8 +846,8 @@
     $("sysT").textContent = "Monitor " + (RP.ws ? "ON" : "OFF");
     $("sysS").textContent = RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades lidos" : (RP.error || "aguardando o monitor compartilhado");
     // controles de configuração (inputs, liga/desliga)
-    document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = c[el.dataset.cfg] ?? ""; });
-    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!c[b.dataset.toggle]; b.textContent = on ? "ON" : "OFF"; b.classList.add("tgl"); b.classList.toggle("on", on); b.classList.toggle("off", !on); });
+    document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
+    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "ON" : "OFF"; b.classList.add("tgl"); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
@@ -745,6 +858,7 @@
     else if (VIEW === "relatorios" && (Date.now() - REP_AT > 30000 || REP_MODE !== realMode())) loadReports();
     else if (VIEW === "aprendizado" && (Date.now() - AP_AT > 60000 || AP_MODE !== realMode())) loadLearning();
     else if (VIEW === "radar") loadRadar(false);
+    else if (VIEW === "explorar") { renderAutoState(); loadAutoTrades(false); }
     else if (VIEW === "feed") renderFeed();
     else if (VIEW === "real") renderReal();
   }
@@ -1093,6 +1207,12 @@
   }
   document.addEventListener("click", async (ev) => {
     const t = ev.target.closest("button,[data-act]"); if (!t) return;
+    if (t.dataset.autoPreset && AUTO_PRESETS[t.dataset.autoPreset]) { setCfg({ ...AUTO_PRESETS[t.dataset.autoPreset] }); return; }
+    if (t.dataset.autoDays && [7, 30, 90].includes(+t.dataset.autoDays)) {
+      if (+t.dataset.autoDays === EX_AUTO.days) return;
+      EX_AUTO.days = +t.dataset.autoDays; EX_AUTO.revision++; EX_AUTO.data = null; EX_AUTO.error = "";
+      renderAutoTrades(); loadAutoTrades(true); return;
+    }
     if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k]; if (on && t.dataset.confirm && !confirm(t.dataset.confirm)) return; setCfg({ [k]: on }); if (k === "pump_base_hide_trash") setTimeout(loadBase, 700); return; }
     if (t.dataset.set) { setCfg({ [t.dataset.set]: +t.dataset.val }); return; }
     if (t.dataset.mode) { MODE = t.dataset.mode; try { localStorage.setItem("pf:mode", MODE); } catch (e) { /* */ } render(); return; }
@@ -1109,7 +1229,7 @@
     if (a === "u-audit") { $("aAudUser").value = t.dataset.uid; loadAAudit(); $("tAAudit").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (a === "addw") return wallet("add", $("addW").value);
     if (a === "close") { if (!confirm(t.dataset.real === "1" ? "VENDER de verdade esta posição REAL agora (100%)?" : "Fechar esta posição fictícia agora no preço atual?")) return; const r = await BB.api("/api/pump/close", { body: { id: t.dataset.id } }); toast(r.error || r.msg || "Fechada."); return poll(true); }
-    if (a === "reset") { if (!confirm("Zerar a carteira fictícia? Apaga posições e histórico simulados.")) return; await BB.api("/api/pump/reset", { body: {} }); toast("Carteira fictícia zerada."); return poll(true); }
+    if (a === "reset") { if (!confirm("Zerar a carteira fictícia? Apaga posições e histórico simulados.")) return; const r = await BB.api("/api/pump/reset", { body: {} }); toast(r.error || "Carteira fictícia zerada."); return poll(true); }
     if (a === "swap") return swap(t);
     if (a === "swapmax") { $("cvU").value = Math.floor(((W && W.usdc) || 0) * 100) / 100; return conv("u"); }
     if (a === "secret-save") {
@@ -1129,7 +1249,10 @@
   });
   document.addEventListener("change", (ev) => {
     const el = ev.target; if (!el.dataset) return;
-    if (el.dataset.cfg) setCfg({ [el.dataset.cfg]: +el.value });
+    if (el.dataset.cfg) {
+      if (isAutoCfg(el.dataset.cfg) && (!el.value.trim() || !el.checkValidity())) { el.reportValidity(); toast("Confira o limite desse campo antes de salvar."); return; }
+      setCfg({ [el.dataset.cfg]: +el.value });
+    }
     if (el.dataset.urole) { const u = USERS.find((x) => x.user_id === el.dataset.urole) || {}, role = el.value;
       if (!confirm("Mudar " + (u.email || "este usuário") + " para " + (role === "admin" ? "ADMIN (vê o status geral, logs e gerencia usuários)" : "USUÁRIO comum") + "?")) { el.value = u.role; return; }
       adminUser(el.dataset.urole, { role: role }); }

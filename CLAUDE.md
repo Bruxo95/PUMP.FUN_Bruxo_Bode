@@ -527,3 +527,29 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Pedido do dono: ver o ganho real depois de copiar, separado da estimativa do ranking. `study_my_results` em
   `app/api.py` (campo `mine` de `/api/pump/study`): trades e posições do usuário com `wallet` = carteira em estudo,
   fictício e real separados. Quadro "Seu resultado copiando" abaixo de Carteiras estudadas. Teste em `test_estudo.py`.
+
+## Entrada automática do Explorar (2026-10-26, versão 0.30.0)
+- Plano: `docs/PLANO-AUTO-EXPLORAR-E-BASE.md`. O dono confirmou a divisão: **0.30.0 = Explorar e estrutura
+  compartilhada; Base na 0.31.0; estudo por faixas na 0.32.0**. `auto_check` e as regras antigas da Base continuam
+  nesta entrega; o botão Comprar mantém `pump_manual_*`. Não avançar a próxima versão nesta tarefa.
+- `pump_ex_auto_on` começa OFF, só admin: Quase graduando, veredito chance alta, pressão ≥60%, holders ≥100,
+  risco ≤6 quando disponível, curva 60–95%, variação 5 min 0–150%, sem rug/criador bloqueado ou com 2+ rugs.
+  Monitor usa a lista com até 5 min e cotação com até 30 s, revalida conta/admin e fonte depois dos awaits.
+- `pump_ar_*`: 0,05 SOL fictício; máx. 3 posições/4 entradas por hora; perda diária 0,25 SOL pausa até 00 UTC;
+  3 perdas seguidas pausam 1 h. Pausas derivadas do histórico sobrevivem ao reinício e à recuperação posterior.
+  Stop25%, metade em +40%, stop móvel +40%/15 pontos, alvo150%, Boost80% pelas opções existentes, tempo30min;
+  dev vendeu/pressão<40% após1min/graduação forçam saída só das posições configuradas. Perdas dessas operações
+  não acionam a pausa ou a redução de valor das cópias. Real depende das duas travas existentes; não foi ligado.
+- Migração nova `20261026000005_operacoes_auto.sql`: `auto_trades`, leitura RLS da própria conta, escrita do
+  navegador revogada. `app/auto_trades.py` calcula registro/resumos; Hub carrega 24 h, fechamentos relevantes e
+  aberturas antigas antes de liberar entradas. Falha no banco mantém pendências e pausa novas entradas.
+  Posição e trade final compartilham id; cooldown do mint24h persiste. Fotos de preço15/60min exigem cotação
+  após o marco em janela de até120s; foto perdida fica N/D. Saturação do limite de100 tokens da rotina de preços
+  pode perder uma foto, sem inventar resultado. `GET /api/pump/auto-trades` é só admin, filtra user_id do token.
+- Explorar ganhou três quadros: entrada/filtros, proteções e operações. Resumos de fechadas simuladas após taxas;
+  critério informativo100fechadas/7dias distintos/acerto45%/fator1,3, sem ligar real. Ausência de chance não vira0%.
+- Validação local: testes novos do motor e cálculos puros com Python já disponível, harnessJS e prévia fictícia
+  desktop/celular; nenhum pacote instalado no Windows. O dono reiterou "fazer os commits e enviar": pytest
+  completo fica no Actions existente antes dos jobs de banco/imagem/deploy. Resultado do CI/publicação a registrar.
+- Segurança: esta entrega inclui regressões de autorização/RLS; não é nova auditoria completa e não altera os
+  achados históricos em `docs/AUDITORIA-SEGURANCA.md`. Nenhuma transação real ou acesso direto a infraestrutura.

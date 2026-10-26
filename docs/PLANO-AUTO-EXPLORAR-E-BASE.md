@@ -203,3 +203,15 @@ Rota `GET /api/pump/auto-study` (admin) e quadro **"O que as automáticas ensina
 - Se "Depois que saiu" mostrar muitos tokens subindo forte depois do stop, aumente o stop aos poucos (25% → 30%);
   se mostrar quedas grandes depois do alvo, o alvo está bom.
 - Ligue o Telegram para acompanhar sem abrir o painel.
+
+## Execução e divisão confirmada pelo dono (2026-10-26)
+
+- O dono confirmou neste chat: **0.30.0 com Explorar e a estrutura compartilhada; Base na 0.31.0**.
+  Assim, a conexão de `auto_check` e os quadros da Base citados nas etapas 2/4 ficam na entrega 0.31.0,
+  junto da etapa 5. A Base atual e seus testes de referência permanecem com as regras anteriores na 0.30.0.
+- O dono reiterou: **não instalar nada no Windows; fazer os commits e enviar**. Validações possíveis com
+  Python padrão e recursos já existentes são locais; `pytest -q` completo roda no GitHub Actions existente.
+  Nenhum ambiente local, scanner ou pacote é recriado. A publicação só é confirmada pelo resultado do workflow.
+- [ ] 0.30.0 — etapas 1–4 aplicáveis ao Explorar, proteções, registro no banco e tela; validar Actions e versão.
+- [ ] 0.31.0 — conectar a Base às proteções e ao registro compartilhados (etapa 5 e itens da Base acima).
+- [ ] 0.32.0 — aprendizado por faixas e filtro que só aperta as entradas (etapa 6).

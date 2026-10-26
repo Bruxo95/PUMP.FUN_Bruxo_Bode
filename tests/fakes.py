@@ -15,7 +15,7 @@ PKS = {"profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": 
        "learning_daily": ("user_id", "dia"), "study_wallets": ("user_id", "wallet"),
        "wallet_trades": ("signature",), "study_positions": ("wallet", "token"), "ghost_stats": ("user_id",),
        "blacklist": ("endereco",), "token_life": ("mint",), "market_hourly": ("hora",),
-       "creator_stats": ("creator",), "lab_state": ("id",)}
+       "creator_stats": ("creator",), "lab_state": ("id",), "auto_trades": ("id",)}
 AUTO_ID = {"pump_feed", "audit_log"}
 DEFAULT_TS = {"study_wallets": "criado_em", "pump_trades": "fechada_em", "pump_positions": "aberta_em", "audit_log": "at", "pump_feed": "at",
               "profiles": "criado_em", "user_secrets": "criado_em",
@@ -37,13 +37,24 @@ class FakeREST:
     def _match(row, filters):
         return all(row.get(k) == v for k, v in (filters or {}).items())
 
-    async def select(self, table, filters=None, order=None, limit=None, columns="*"):
+    async def select(self, table, filters=None, order=None, limit=None, columns="*", *, gte=None,
+                     lte=None, is_null=(), offset=0):
         self._check()
         self.calls.append(("select", table, dict(filters or {})))
         rows = [copy.deepcopy(r) for r in self.tables[table] if self._match(r, filters)]
+        from app.auto_trades import ts
+        def comparable(value):
+            parsed = ts(value)
+            return parsed if parsed is not None else value
+        rows = [row for row in rows if all(row.get(k) is not None and comparable(row[k]) >= comparable(v)
+                                           for k, v in (gte or {}).items())
+                and all(row.get(k) is not None and comparable(row[k]) <= comparable(v)
+                        for k, v in (lte or {}).items()) and all(row.get(k) is None for k in is_null)]
         if order:
             col, _, d = order.partition(".")
             rows.sort(key=lambda r: (r.get(col) is None, r.get(col)), reverse=(d == "desc"))
+        if offset:
+            rows = rows[offset:]
         if limit:
             rows = rows[:limit]
         if columns != "*":

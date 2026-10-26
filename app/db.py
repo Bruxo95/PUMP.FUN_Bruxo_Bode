@@ -61,13 +61,19 @@ class SupaREST:
             return []
 
     async def select(self, table: str, filters: dict | None = None, order: str | None = None,
-                     limit: int | None = None, columns: str = "*") -> list[dict]:
+                     limit: int | None = None, columns: str = "*", *, gte: dict | None = None,
+                     lte: dict | None = None, is_null: tuple[str, ...] = (), offset: int = 0) -> list[dict]:
         p = self._params(filters)
+        p.update({k: f"gte.{v}" for k, v in (gte or {}).items()})
+        p.update({k: f"lte.{v}" for k, v in (lte or {}).items()})
+        p.update({k: "is.null" for k in is_null})
         p["select"] = columns
         if order:
             p["order"] = order
         if limit:
             p["limit"] = str(limit)
+        if offset:
+            p["offset"] = str(max(0, int(offset)))
         return await self._req("GET", table, p)
 
     async def insert(self, table: str, rows: list[dict] | dict, upsert: bool = False,

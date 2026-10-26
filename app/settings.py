@@ -26,6 +26,28 @@ def _cast(typ, raw: str):
 
 # nome: (tipo, padrão, mínimo, máximo)  — mesmos padrões do app/config.py original
 USER_KEYS: dict[str, tuple] = {
+    # 0.30.0: Explorar automático e proteções próprias das operações automáticas.
+    "pump_ex_auto_on": (bool, False, 0, 1),
+    "pump_ex_auto_min_pressure": (float, 60.0, 0.0, 100.0),
+    "pump_ex_auto_min_holders": (int, 100, 0, 1000000),
+    "pump_ex_auto_max_risk": (int, 6, 1, 10),
+    "pump_ex_auto_curve_min": (float, 60.0, 0.0, 100.0),
+    "pump_ex_auto_curve_max": (float, 95.0, 0.0, 100.0),
+    "pump_ex_auto_max_chg5": (float, 150.0, 0.0, 10000.0),
+    "pump_ar_sol": (float, 0.05, 0.001, 100.0),
+    "pump_ar_max_open": (int, 3, 1, 50),
+    "pump_ar_max_h": (int, 4, 1, 100),
+    "pump_ar_daily_loss": (float, 0.25, 0.0, 1000.0),
+    "pump_ar_streak_n": (int, 3, 0, 50),
+    "pump_ar_streak_h": (float, 1.0, 0.1, 72.0),
+    "pump_ar_stop_pct": (float, 25.0, 1.0, 100.0),
+    "pump_ar_tp1_pct": (float, 40.0, 0.0, 10000.0),
+    "pump_ar_tp1_frac": (float, 50.0, 1.0, 99.0),
+    "pump_ar_trail_start": (float, 40.0, 1.0, 10000.0),
+    "pump_ar_trail_dist": (float, 15.0, 1.0, 1000.0),
+    "pump_ar_tp_pct": (float, 150.0, 0.0, 10000.0),
+    "pump_ar_max_hold_min": (float, 30.0, 1.0, 1440.0),
+    "pump_ar_smart": (bool, True, 0, 1),
     "pump_radar_enabled": (bool, False, 0, 1),
     "pump_radar_min_wallets": (int, 2, 2, 30),
     "pump_radar_window_min": (int, 5, 1, 30),

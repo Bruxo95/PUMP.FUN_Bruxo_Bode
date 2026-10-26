@@ -307,12 +307,25 @@ class SharedMonitor:
                 qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)
             trader += [p["mint"] for p in e.trader_positions()]
             trader += list(_gm(e))                        # estratégias fantasma (0.18.0) seguem o preço também
+            from .auto_trades import follow_mints
+            trader += list(follow_mints(getattr(e, "auto_rows", {}), time.time()))
         return {"qty": qty, "trader": trader}
+
+    def auto_after_once(self, now: float | None = None) -> int:
+        from .auto_trades import observe_after
+        now = time.time() if now is None else now
+        changed = 0
+        for engine in self.engines():
+            dirty = observe_after(getattr(engine, "auto_rows", {}), self.market.tokens, now)
+            engine._auto_dirty.update(dirty)
+            changed += len(dirty)
+        return changed
 
     async def price_once(self, do_ds: bool) -> None:
         svc, h = self.svc, self.held()
         held = list(dict.fromkeys(list(h["qty"]) + h["trader"]))[:100]
         if not held:
+            self.auto_after_once()
             return
         pump = [m for m in held if svc.is_pump(m)]
         rest = [m for m in held if m not in pump]
@@ -324,6 +337,7 @@ class SharedMonitor:
             if mine:
                 await svc._fetch_prices(mine, set_price=False)
         self.check_stops(set(h["qty"]) | self.ghost_mints())
+        self.auto_after_once()
         self.market.rpc_status["price_at"] = now_iso()
 
     def check_stops(self, mints) -> None:
@@ -388,6 +402,66 @@ class SharedMonitor:
                 log.warning("explorar: %s", str(e)[:160])
             await asyncio.sleep(EVERY_S)
 
+    async def explore_auto_once(self, now: float | None = None) -> int:
+        """Entrada nova só com lista atual, conta admin ativa e cotação recente. Nunca usa cache do Explorar vencido."""
+        from .explore import EVERY_S
+        fixed_now = now
+        now = time.time() if now is None else now
+        ex = getattr(self.hub, "explore", None)
+        if ex is None or ex.error or not ex.at or not 0 <= now - ex.at <= EVERY_S:
+            return 0
+        source_at = ex.at
+        candidates = [e for e in self.engines() if getattr(e, "role", "user") == "admin"
+                      and getattr(e.cfg, "pump_ex_auto_on", False)]
+        if not candidates:
+            return 0
+        lists = {}
+        wanted = set()
+        for engine in candidates:
+            snap = ex.snapshot(self.market.blacklist, self.market.creator_stats, engine.boost_info, now)
+            lists[engine.user_id] = snap["lists"]
+            for row in snap["lists"].get("graduating", []):
+                if engine.explore_entry_reason(row) or engine.auto_guard(row["mint"], now):
+                    continue
+                wanted.add(row["mint"])
+                token = self.market.tokens.setdefault(row["mint"], {})
+                for key in ("symbol", "creator"):
+                    if row.get(key) and not token.get(key):
+                        token[key] = row[key]
+        missing = [mint for mint in wanted if not (self.market.tokens.get(mint) or {}).get("price")
+                   or now - float((self.market.tokens.get(mint) or {}).get("last_t") or 0) > 30]
+        for offset in range(0, len(missing), 100):
+            chunk = missing[offset:offset + 100]
+            try:
+                await self.svc._curve_prices(chunk, public_first=True)
+                fallback = [mint for mint in chunk if not (self.market.tokens.get(mint) or {}).get("price")
+                            or time.time() - float((self.market.tokens.get(mint) or {}).get("last_t") or 0) > 30]
+                if fallback:
+                    await self.svc._fetch_prices(fallback)
+            except Exception as exc:
+                log.warning("Preço da automática do Explorar indisponível: %s", type(exc).__name__)
+        count = 0
+        for engine in candidates:
+            # Conferir depois dos awaits de preço: demissão de admin/bloqueio não pode liberar uma compra atrasada.
+            try:
+                profiles = await self.hub.db.select("profiles", {"user_id": engine.user_id}, columns="role,bloqueado")
+                profile = profiles[0] if profiles else {}
+                engine.role = profile.get("role") or "user"
+                self.hub.check_active(engine.user_id, engine)
+                if engine.role != "admin" or profile.get("bloqueado"):
+                    engine.cfg.pump_ex_auto_on = False
+                    continue
+                stamp = time.time() if fixed_now is None else fixed_now
+                if ex.error or ex.at != source_at or not 0 <= stamp - source_at <= EVERY_S:
+                    continue
+                fresh = [row for row in lists[engine.user_id].get("graduating", [])
+                         if (tk := self.market.tokens.get(row["mint"]) or {}).get("price")
+                         and 0 <= stamp - float(tk.get("last_t") or 0) <= 30]
+                count += len(engine.explore_auto_check({"graduating": fresh}, stamp))
+            except Exception as exc:
+                log.warning("Automática do Explorar não executada (%s…): %s", engine.user_id[:8], type(exc).__name__)
+        return count
+
     async def boost_loop(self) -> None:
         while True:
             try:
@@ -417,6 +491,7 @@ class SharedMonitor:
             try:
                 await self.lab_once()
                 self.auto_once()
+                await self.explore_auto_once()
             except Exception as e:
                 log.warning("base da pump.fun: %s", str(e)[:160])
             await asyncio.sleep(20)
@@ -499,7 +574,7 @@ class SharedMonitor:
             del m.wallets[w]
         for w in [w for w, x in m.creators.items() if t - x > win]:
             del m.creators[w]
-        held = set(self.held()["qty"]) | self.ghost_mints()
+        held = set(self.held()["qty"]) | set(self.held()["trader"]) | self.ghost_mints()
         for k in [k for k, tk in m.tokens.items() if t - tk.get("last_t", 0) > 6 * 3600 and k not in held]:
             del m.tokens[k]
 

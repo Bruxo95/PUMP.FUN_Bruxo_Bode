@@ -297,6 +297,25 @@ opcionais (`.env.example`). Instalação e atualização: `README.md`.
 
 ## 6. Desenvolvimento
 
+### Entrada automática no Explorar (0.30.0)
+
+Em **Usar ou descartar → Explorar**, "Entrada automática (chance alta)" começa desligada. Ao ligar, compra na
+carteira fictícia apenas tokens de **Quase graduando** com chance alta que passem em todos os filtros exibidos.
+Pressão, holders, curva e variação precisam estar disponíveis. A lista renova a cada 5 minutos; isso pode atrasar
+um sinal. O botão **Comprar** continua usando suas opções manuais.
+
+"Proteções das automáticas" vem preenchido com 0,05 SOL, até 3 posições e 4 entradas/hora, perda diária máxima de
+0,25 SOL, pausa de 1 h após 3 perdas, stop de 25%, metade vendida em +40%, stop móvel, alvo e tempo máximo de 30 min.
+Alterações valem para novas posições. O estado informa quando novas entradas estão pausadas; as posições abertas
+continuam protegidas. O mesmo token não pode gerar outra entrada automática por 24 h, inclusive após reiniciar.
+
+"Minhas operações automáticas" mostra entrada, saída, motivo, duração, resultado após taxas, melhor/pior momento e
+o preço 15/60 min após sair. Foto perdida aparece sem dado; não significa 0%. Totais e critério para avaliar real
+usam apenas operações simuladas fechadas; atingir o critério nunca liga execução real. A integração da Base fica
+para a 0.31.0; o estudo das faixas de resultado fica para a 0.32.0.
+
+### Validação e publicação
+
 - Python 3.12 + FastAPI; front em HTML/CSS/JS sem framework (sem handlers inline por causa da CSP).
 - Testes: `pytest -q`, **todos sem internet** (respostas de rede simuladas). `tests/test_pump.py` é a
   referência do comportamento de cópia herdado do projeto original.

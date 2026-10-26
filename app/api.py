@@ -127,7 +127,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return snap
 
     @app.post("/api/pump/settings")
-    async def pump_settings(body: dict, pf=Depends(engine)):
+    async def pump_settings(body: dict, pf=Depends(engine), u: dict = Depends(user)):
+        if u["role"] != "admin" and any(key.startswith(("pump_ex_auto_", "pump_ar_")) for key in body):
+            raise HTTPException(403, "só o admin pode configurar as novas entradas automáticas")
         radar_keys = ("pump_radar_enabled", "pump_radar_min_wallets", "pump_radar_window_min")
         radar_before = {key: getattr(pf.cfg, key) for key in radar_keys}
         applied, errors = pf.cfg.apply(body or {})
@@ -190,6 +192,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """Explorar (0.28.0): novos, quase graduando, graduados e os que mais sobem, com veredito e o que aprendeu."""
         return hub.explore.snapshot(hub.market.blacklist, hub.market.creator_stats, pf.boost_info)
 
+    @app.get("/api/pump/auto-trades")
+    async def auto_trades(origem: str = "explorar", days: int = 30, pf=Depends(admin_engine)):
+        if origem not in ("base", "explorar"):
+            raise HTTPException(422, "origem deve ser base ou explorar")
+        if days not in (1, 7, 30, 90):
+            raise HTTPException(422, "período deve ser 1, 7, 30 ou 90 dias")
+        return await hub.auto_history(pf, origem, days)
+
     @app.get("/api/pump/base")
     async def pump_base(pf=Depends(admin_engine)):
         """Base própria da pump.fun (0.21.0): ficha de vida dos tokens novos, criadores e mercado por hora."""
@@ -200,12 +210,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
         mine = [{"mint": p["mint"], "symbol": p.get("symbol"), "open": True, "real": bool(p.get("real")),
                  "sol_in": p.get("sol_in"), "chg_pct": p.get("chg_pct"), "opened_at": p.get("opened_at"),
                  "mcap": (pf.tokens.get(p["mint"]) or {}).get("mcap_sol"), "boost": pf.boost_info(p["mint"])}
-                for p in pf.positions() if p.get("manual") or p.get("wallet") == "manual"]
+                for p in pf.positions() if p.get("origem") != "explorar" and (p.get("manual") or p.get("wallet") == "manual")]
         mine += [{"mint": t["mint"], "symbol": t.get("symbol"), "open": False, "real": bool(t.get("real")),
                   "sol_in": t.get("sol_in"), "pnl_sol": t.get("pnl_sol"), "pnl_pct": t.get("pnl_pct"),
                   "reason": t.get("reason"), "opened_at": t.get("opened_at"), "closed_at": t.get("closed_at"),
                   "boost": pf.boost_info(t["mint"])}
-                 for t in pf.trades(3000) if (t.get("manual") or t.get("wallet") == "manual")
+                 for t in pf.trades(3000) if t.get("origem") != "explorar" and (t.get("manual") or t.get("wallet") == "manual")
                  and (pf._ts(t.get("closed_at")) or 0) >= lim]
         out["mine"] = mine
         return out
@@ -434,8 +444,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     @app.post("/api/pump/reset")
     async def pump_reset(pf=Depends(engine)):
-        pf._emit("Pump.fun: carteira fictícia zerada (volta ao saldo inicial)")
-        return pf.reset_sim()
+        result = pf.reset_sim()
+        if result.get("ok"):
+            pf._emit("Pump.fun: carteira fictícia zerada (volta ao saldo inicial)")
+        return result
 
     # ------------------------------------------------------------------ chaves pessoais
     @app.get("/api/secrets")
