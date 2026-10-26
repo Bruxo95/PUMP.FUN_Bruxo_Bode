@@ -71,6 +71,7 @@
     $("repSkSub").textContent = "quantas cópias cada filtro barrou · " + r.skips_seen + " nos últimos " + r.feed_kept + " eventos guardados";
     table("repSk", ["Motivo", "Vezes"], (r.skips || []).map((x) => [esc(x.reason), String(x.count)]), "Nenhuma cópia barrada no período.");
     table("repDay", ["Dia", "Trades", "Acerto", "Resultado", "Taxas"], (r.days_list || []).map((x) => [esc(x.day.split("-").reverse().join("/")), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), s4(x.fees_sol)]), "Nenhum trade fechado no período.");
+    table("repScore", ["Nota", "Trades", "Acerto", "Resultado", "Média por trade"], (r.by_score || []).map((x) => [esc(x.faixa), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), sg(x.avg_pnl_sol)]), "");
     const m = r.mesa || {}, pc = (v) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
     if (!m.trades) { $("repMesa").innerHTML = '<p class="muted">Ainda sem trades fechados com esse dado (começa a contar a partir da 0.18.0).</p>'; $("repMesaEx").innerHTML = ""; return; }
     kpis("repMesa", [["Melhor momento (média)", pc(m.avg_best_pct), "o máximo que as posições chegaram a ganhar", "pnl"], ["Fechou em (média)", pc(m.avg_final_pct), "pior momento médio " + f(m.avg_worst_pct, 1) + "%", "tr"],
@@ -713,9 +714,13 @@
       ["Token já graduado", c.pump_skip_graduated ? "não copia" : "copia", st(!!c.pump_skip_graduated)],
       ["Valor conforme o trader", c.pump_size_by_trader ? "ligado" : "desligado", st(!!c.pump_size_by_trader)],
       ["Preço subiu desde o trader (máx.)", c.pump_chase_on && c.pump_max_chase_pct > 0 ? n(c.pump_max_chase_pct) + "%" : "OFF", st(c.pump_chase_on && c.pump_max_chase_pct > 0)], ["Risco do token máx.", c.pump_risk_check ? n(c.pump_max_risk_score) + "/10" : "não checa", st(!!c.pump_risk_check)],
+      ["Sair quando o dev vende", c.pump_exit_dev_sell ? "ligado" : "desligado", st(!!c.pump_exit_dev_sell)], ["Sair quando gradua", c.pump_exit_migrate ? "ligado" : "desligado", st(!!c.pump_exit_migrate)],
+      ["Sair com pressão virando", c.pump_exit_pressure_on ? "< " + n(c.pump_exit_pressure_pct) + "%" : "OFF", st(!!c.pump_exit_pressure_on)], ["Sair com outras vendendo", c.pump_exit_kol_on ? n(c.pump_exit_kol_n) + " carteiras" : "OFF", st(!!c.pump_exit_kol_on)],
+      ["Nota mínima", c.pump_score_min_on ? n(c.pump_score_min) : "OFF", st(!!c.pump_score_min_on)], ["Valor pela nota", c.pump_size_by_score ? "ligado" : "desligado", st(!!c.pump_size_by_score)],
+      ["Pausa por perdas seguidas", c.pump_streak_on ? n(c.pump_streak_n) + " → " + n(c.pump_streak_h) + " h" : "OFF", st(!!c.pump_streak_on)], ["Mercado frio", c.pump_cold_on ? "< " + n(c.pump_cold_wr) + "%" : "OFF", st(!!c.pump_cold_on)],
       ["Posições máx.", "fictício " + n(c.pump_max_open) + " · real " + n(c.pump_real_max_open), ""], ["Perda máx. no dia (real)", n(c.pump_real_daily_loss_sol) + " SOL", st(c.pump_real_daily_loss_sol > 0)], ["Período do top", n(c.pump_lb_days) + " dias", ""]];
     // opções da tela "Opções novas de cópia" (menu Usar ou descartar) só aparecem para o admin (0.17.3)
-    const NOVAS = ["Venda em partes", "Sair antes da graduação", "Pressão de compra mín.", "Velocidade mín. da curva", "Token já graduado", "Valor conforme o trader", "Preço subiu desde o trader (máx.)", "Risco do token máx."];
+    const NOVAS = ["Sair quando o dev vende", "Sair quando gradua", "Sair com pressão virando", "Sair com outras vendendo", "Nota mínima", "Valor pela nota", "Pausa por perdas seguidas", "Mercado frio", "Venda em partes", "Sair antes da graduação", "Pressão de compra mín.", "Velocidade mín. da curva", "Token já graduado", "Valor conforme o trader", "Preço subiu desde o trader (máx.)", "Risco do token máx."];
     $("cfgS").innerHTML = it.filter((x) => (ME && ME.role === "admin") || !NOVAS.includes(x[0])).map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + esc(x[1]) + x[2] + "</span></div>").join("");
   }
 

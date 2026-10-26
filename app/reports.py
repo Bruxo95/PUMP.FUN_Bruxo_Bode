@@ -116,7 +116,10 @@ def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, fo
         k = _label(e.get("reason"), SKIPS)
         skips[k] = skips.get(k, 0) + 1
 
-    return {"days": days, "real": real, "total": agg(T), "fee_parts": fee_parts, "mesa": mesa(T),
+    buckets = [(0, 40, "0–39"), (40, 60, "40–59"), (60, 80, "60–79"), (80, 101, "80–100")]
+    by_score = [{"faixa": name, **agg([t for t in T if t.get("score") is not None and lo <= t["score"] < hi])}
+                for lo, hi, name in buckets]
+    return {"days": days, "real": real, "total": agg(T), "fee_parts": fee_parts, "mesa": mesa(T), "by_score": by_score,
             "traders": traders,                                        # pior primeiro: é quem você quer ver
             "exits": sorted(({"reason": k, **agg(r)} for k, r in by_exit.items()), key=lambda x: -x["trades"]),
             "days_list": [{"day": d, **agg(r)} for d, r in sorted(by_day.items(), reverse=True)][:60],

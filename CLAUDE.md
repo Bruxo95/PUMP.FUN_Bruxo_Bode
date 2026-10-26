@@ -430,3 +430,13 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   fantasma abertas só em memória. Tela `#fantasma` (admin), rota `/api/pump/ghosts` (admin).
 - Pós-trade: `best_pct`/`worst_pct` na posição (`_check_stops`) e no trade fechado (simulado e real);
   `reports.mesa()` → cartão "Quanto ficou na mesa" em Relatórios.
+
+## Saídas inteligentes, nota e banca (2026-10-26, versão 0.19.0)
+- Opções novas em `USER_KEYS` (todas OFF): `pump_exit_dev_sell`, `pump_exit_migrate`, `pump_exit_pressure_*`,
+  `pump_exit_kol_*`, `pump_score_min_*`, `pump_size_by_score`, `pump_streak_*`, `pump_cold_*`. Tela "Opções novas".
+- `PumpFun.smart_exit` (em `_check_stops`): dev vendeu (`tk["dev_sold_t"]`, marcado no `ingest`), graduou
+  (`p["grad_in"]`), pressão virou (após 60 s), N carteiras seguidas/estudadas vendendo (`p["kol_sellers"]`, no `react`).
+- `entry_score` (0–100, pesos trader 25, risco 20, pressão 15, curva 15, preço 15, onda 10; parte sem dado sai da
+  conta) gravado em `p["score"]`, no trade e no feed. `cold_market` e `_streak_check` (pausa só em memória).
+- `reports.build` → `by_score` (faixas de nota). Fantasmas ganharam as variantes `dev` e `migra`.
+- Testes: `tests/test_saidas.py`.

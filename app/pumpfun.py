@@ -127,6 +127,7 @@ class PumpFun:
         self._lb_at = 0.0
         from .ghosts import Ghosts
         self.ghosts = Ghosts(self)                   # estratégias fantasma (0.18.0): mesmas entradas, saídas diferentes
+        self._halt_until = 0.0                       # pausa geral por sequência de perdas (0.19.0; só memória)
 
     # ------------------------------------------------------------------ dados públicos (compartilhados)
     @property
@@ -262,6 +263,7 @@ class PumpFun:
     def _after_close(self, tr: dict) -> None:
         """Regra automática: o trader copiado que fizer a posição bater o STOP DE PERDA N vezes em 24 h fica
         pausado por X h (padrão: 2 stops → 24 h)."""
+        self._streak_check(tr)
         if not str(tr.get("reason") or "").startswith("stop de perda"):
             return
         n = int(self._c("pump_autopause_stops", 2))
@@ -352,6 +354,8 @@ class PumpFun:
         avg_before = (wp["cost"] / wp["tok"]) if wp and wp.get("tok") else None
         if who:
             self._wallet_trade(who, mint, kind, sol, tok, t)
+        if kind == "sell" and who and who == tk.get("creator") and tok > 0:
+            tk["dev_sold_t"] = t                           # 0.19.0: saída quando o criador vende
         return {"mint": mint, "kind": kind, "who": who, "sol": sol, "tok": tok, "before": before,
                 "avg_before": avg_before}
 
@@ -360,6 +364,11 @@ class PumpFun:
         mint, kind, who, sol, tok = info["mint"], info["kind"], info["who"], info["sol"], info["tok"]
         before, avg_before = info["before"], info["avg_before"]
         msgs = []
+        if kind == "sell" and who and (who in self.followed or who in (getattr(self, "study", None) or [])):
+            for p in self.positions():
+                if p["mint"] == mint and p["wallet"] != who and who not in p.setdefault("kol_sellers", []):
+                    p["kol_sellers"].append(who)
+                    self._save_pos(p)
         if who in self.followed:
             self._live(who, mint, kind, sol, tok, ev, before, avg_before, t)
             msgs += self._copy(who, mint, kind, sol, tok, ev, before, t)
@@ -816,8 +825,11 @@ class PumpFun:
             return []
         if kind == "buy":
             why = None
+            score, sparts = self.entry_score(who, mint, self.price_of(ev), px)
             if not getattr(c, "pump_copy_enabled", True):
                 why = "cópia desligada"
+            elif getattr(c, "pump_streak_on", False) and self._halt_until > time.time():
+                why = "pausa por sequência de perdas até " + datetime.fromtimestamp(self._halt_until).strftime("%H:%M")
             elif not px:
                 why = "sem preço do token"
             elif sol < float(self._c("pump_min_trader_sol", 0.2)):
@@ -836,6 +848,9 @@ class PumpFun:
                     why = self.curve_block(mint)
                 if not why:
                     why = self.flow_block(mint)
+                mn = self._onv("pump_score_min_on", "pump_score_min")
+                if not why and mn and score < mn:
+                    why = f"nota da entrada {score:.0f} abaixo do mínimo {mn:.0f}"
             if why:
                 self._feed(**base, action="não copiou", reason=why)
                 return []
@@ -863,6 +878,13 @@ class PumpFun:
             # FICTÍCIO (sempre roda, para comparar)
             smine = [p for p in mine if not p.get("real")]
             mult, mwhy = self.trust_mult(who)
+            if getattr(c, "pump_size_by_score", False):
+                mult *= 0.5 + score / 100
+                mwhy = (mwhy + " · " if mwhy else "") + f"×{0.5 + score / 100:.2f} pela nota {score:.0f}"
+            cold = self.cold_market()
+            if cold:
+                mult *= 0.5
+                mwhy = (mwhy + " · " if mwhy else "") + cold
             amt = round(float(self._c("pump_copy_sol", 0.1)) * mult, 6)
             bt = ev.get("blockTime")
             lag = round(max(0.0, t - float(bt)), 1) if bt else None     # do trade do trader até a nossa cópia
@@ -885,12 +907,13 @@ class PumpFun:
             p = {"opened_at": now_iso(), "open_t": t, "wallet": who, "mint": mint, "symbol": sym,
                  "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
                  "price_now": px, "trader_price": px, "trader_sol": sol, "proceeds": 0.0, "fees_sol": amt * fee + prio,
-                 "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": lag}
+                 "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": lag,
+                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint)}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
             self.ghosts.on_open(p, t)
-            self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e}"
+            self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}"
                        + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
             return msgs
@@ -1015,6 +1038,7 @@ class PumpFun:
                   "mcap_in": p.get("mcap_in"), "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
             tr["lag_s"] = p.get("lag_s")
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
+            tr["score"] = p.get("score")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1054,6 +1078,10 @@ class PumpFun:
                 prog = self.curve_progress((self.tokens.get(mint) or {}).get("mcap_sol"))
             if cx and prog is not None and prog >= cx:
                 out.append(self._sell(p, 1.0, px, f"saiu antes da graduação (curva em {prog:.0f}%, {chg:+.1f}% líquido)", t))
+                continue
+            smart = self.smart_exit(p, t)
+            if smart:
+                out.append(self._sell(p, 1.0, px, f"{smart} ({chg:+.1f}% líquido)", t))
                 continue
             if tp1 and not p.get("tp1_done") and chg >= tp1 and p["tokens_left"] > p["tokens"] * 0.05:
                 p["tp1_done"] = True
@@ -1479,6 +1507,85 @@ class PumpFun:
         if pnl < 0:
             return 0.5, f"×0,5: você perde copiando este trader ({len(mine)} trades)"
         return 1.0, ""
+
+    # ------------------------------------------------------------------ 0.19.0: saídas inteligentes, nota e banca
+    def smart_exit(self, p: dict, t: float) -> str | None:
+        """Saídas que não dependem do preço da posição (todas começam desligadas): dev vendeu, token graduou,
+        pressão de compra virou, outras carteiras seguidas/estudadas vendendo."""
+        tk = self.tokens.get(p["mint"]) or {}
+        opened = float(p.get("open_t") or 0)
+        if getattr(self.cfg, "pump_exit_dev_sell", False) and tk.get("dev_sold_t") and tk["dev_sold_t"] >= opened:
+            return "dev vendeu"
+        if getattr(self.cfg, "pump_exit_migrate", False) and p.get("grad_in") is False and self.graduated(p["mint"]):
+            return "token graduou (PumpSwap)"
+        mn = self._onv("pump_exit_pressure_on", "pump_exit_pressure_pct")
+        if mn and (not t or t - opened >= 60):
+            pr, src = self.pressure(p["mint"])
+            if pr is not None and pr < mn:
+                return f"pressão de compra virou ({pr:.0f}% de compras, {src})"
+        n = int(self._c("pump_exit_kol_n", 2)) if getattr(self.cfg, "pump_exit_kol_on", False) else 0
+        if n and len(p.get("kol_sellers") or []) >= n:
+            return f"{len(p['kol_sellers'])} carteiras seguidas/estudadas vendendo"
+        return None
+
+    def entry_score(self, who: str, mint: str, trader_px: float | None, px: float | None) -> tuple[float, dict]:
+        """Nota da entrada de 0 a 100: junta trader, risco, pressão, curva, quanto o preço já subiu e quantas outras
+        carteiras seguidas/estudadas estão no token. Parte sem dado fica de fora (o peso se redistribui)."""
+        tk = self.tokens.get(mint) or {}
+        parts: dict[str, float] = {}
+        tr = []
+        row = next((r for r in self.leaderboard if r.get("wallet") == who), None)
+        if row and row.get("winrate") is not None:
+            tr.append(min(1.0, float(row["winrate"]) / 100))
+        mine = [x for x in self.trades(2000) if x.get("wallet") == who and not x.get("real")][:30]
+        if len(mine) >= 3:
+            tr.append(sum(1 for x in mine if (x.get("pnl_sol") or 0) > 0) / len(mine))
+        if tr:
+            parts["trader"] = sum(tr) / len(tr)
+        rk = tk.get("risk") or {}
+        if rk.get("rugged"):
+            parts["risco"] = 0.0
+        elif isinstance(rk.get("score"), (int, float)):
+            parts["risco"] = max(0.0, 1 - float(rk["score"]) / 10)
+        pr, _ = self.pressure(mint)
+        if pr is not None:
+            parts["pressão"] = pr / 100
+        if self.is_pump(mint) and not self.graduated(mint) and tk.get("creator") and tk.get("created_t"):
+            prog = self.curve_progress(tk.get("mcap_sol"))
+            if prog is not None:
+                mins = max(0.1, (time.time() - float(tk["created_t"])) / 60)
+                parts["curva"] = min(1.0, prog / mins / 10)
+        if trader_px and px:
+            parts["preço"] = max(0.0, 1 - max(0.0, px / trader_px - 1) / 0.5)
+        others = (set(self.followed) | set(getattr(self, "study", None) or [])) - {who}
+        n = sum(1 for w in others if (((self.wallets.get(w) or {}).get("pos") or {}).get(mint) or {}).get("tok", 0) > 0)
+        parts["onda"] = min(1.0, 0.2 + n / 3)
+        W = {"trader": 25, "risco": 20, "pressão": 15, "curva": 15, "preço": 15, "onda": 10}
+        tot = sum(W[k] for k in parts)
+        score = round(sum(parts[k] * W[k] for k in parts) / tot * 100, 1) if tot else 50.0
+        return score, {k: round(v * 100) for k, v in parts.items()}
+
+    def cold_market(self) -> str:
+        """Mercado frio (0.19.0): as últimas 10 cópias fictícias fechadas nas últimas 2 h acertaram pouco."""
+        mn = self._onv("pump_cold_on", "pump_cold_wr")
+        if not mn:
+            return ""
+        lim = time.time() - 7200
+        last = [x for x in self.trades(200) if not x.get("real") and (self._ts(x.get("closed_at")) or 0) >= lim][:10]
+        if len(last) < 5:
+            return ""
+        wr = sum(1 for x in last if (x.get("pnl_sol") or 0) > 0) / len(last) * 100
+        return f"×0,5: mercado frio (acerto {wr:.0f}% nas últimas {len(last)} cópias em 2 h)" if wr < mn else ""
+
+    def _streak_check(self, tr: dict) -> None:
+        if not getattr(self.cfg, "pump_streak_on", False) or (tr.get("pnl_sol") or 0) >= 0:
+            return
+        n = int(self._c("pump_streak_n", 4))
+        last = [x for x in self.trades(max(50, n)) if bool(x.get("real")) == bool(tr.get("real"))][:n]
+        if len(last) >= n and all((x.get("pnl_sol") or 0) < 0 for x in last):
+            hrs = float(self._c("pump_streak_h", 2))
+            self._halt_until = time.time() + hrs * 3600
+            self._emit(f"Pump.fun: {n} perdas seguidas — robô PAUSADO por {hrs:g} h (novas cópias)")
 
     def _onv(self, on_key: str, val_key: str) -> float:
         """Valor de uma opção com botão ON/OFF: 0 quando desligada (ou com 0 no campo)."""
@@ -2128,6 +2235,7 @@ class PumpFun:
                   "mcap_out": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")}
             tr["lag_s"] = p.get("lag_s")
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
+            tr["score"] = p.get("score")
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)

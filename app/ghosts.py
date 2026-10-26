@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-BASE = {"stop": 40.0, "trail": None, "tp1": None, "tp": None, "max_s": 6 * 3600.0, "follow": True}
+BASE = {"stop": 40.0, "trail": None, "tp1": None, "tp": None, "max_s": 6 * 3600.0, "follow": True, "dev": False,
+        "migrate": False}
 VARIANTS = [
     ("base", "Base: stop 40%, sai quando o trader vende", {}),
     ("stop20", "Stop de perda curto (20%)", {"stop": 20.0}),
@@ -22,10 +23,12 @@ VARIANTS = [
     ("alvo100", "Alvo fixo +100%", {"tp": 100.0}),
     ("sem_trader", "Ignora a venda do trader (stop 40% + stop móvel +20%/10)", {"follow": False, "trail": (20.0, 10.0)}),
     ("rapido", "Sai em no máximo 5 minutos", {"max_s": 300.0}),
+    ("dev", "Sai quando o dev vende (0.19.0)", {"dev": True}),
+    ("migra", "Sai quando o token gradua (0.19.0)", {"migrate": True}),
 ]
 NAMES = {v: n for v, n, _ in VARIANTS}
 KEEP = 30            # últimos fechados guardados por variante
-MAX_OPEN = 600       # trava de memória (10 variantes × 60 posições)
+MAX_OPEN = 720       # trava de memória (12 variantes × 60 posições)
 
 
 def now_iso() -> str:
@@ -69,7 +72,8 @@ class Ghosts:
             self.open.append({"v": vid, "mint": p["mint"], "wallet": p["wallet"], "symbol": p.get("symbol"),
                               "sol_in": p["sol_in"], "tokens": p["tokens"], "left": p["tokens"], "proceeds": 0.0,
                               "open_t": t, "opened_at": p.get("opened_at") or now_iso(), "peak": None,
-                              "tp1_done": False, "best": 0.0, "worst": 0.0})
+                              "tp1_done": False, "best": 0.0, "worst": 0.0,
+                              "grad_in": self.pf.graduated(p["mint"])})
         self.dirty = True
 
     def on_price(self, mint: str, px: float | None, t: float) -> None:
@@ -79,6 +83,13 @@ class Ghosts:
             P = params(g["v"])
             chg = self._chg(g, px)
             g["best"], g["worst"] = max(g["best"], chg), min(g["worst"], chg)
+            tk = self.pf.tokens.get(mint) or {}
+            if P["dev"] and tk.get("dev_sold_t") and tk["dev_sold_t"] >= g["open_t"]:
+                self._sell(g, 1.0, px, "dev vendeu")
+                continue
+            if P["migrate"] and g.get("grad_in") is False and self.pf.graduated(mint):
+                self._sell(g, 1.0, px, "token graduou")
+                continue
             if P["trail"]:
                 start, dist = P["trail"]
                 if g["peak"] is not None or chg >= start:

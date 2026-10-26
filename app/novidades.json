@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.19.0",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Opções novas de cópia; Relatórios → Nota da entrada × resultado; Estratégias fantasma",
+      "titulo": "Saídas inteligentes, nota da entrada e gestão de banca",
+      "oque": "Opções novas, todas começando desligadas: sair quando o dev vende, quando o token gradua, quando a pressão de compra vira e quando outras carteiras seguidas ou em estudo vendem o mesmo token. Cada cópia ganha uma nota de 0 a 100 (trader, risco, pressão, curva, quanto o preço já subiu e onda de carteiras); dá para copiar só acima de uma nota mínima e copiar mais ou menos conforme a nota. Gestão de banca: pausa de novas cópias depois de X perdas seguidas e metade do valor quando o mercado está frio. Relatórios mostra o resultado por faixa de nota, e as Estratégias fantasma ganharam as variantes sair quando o dev vende e sair quando o token gradua."
+    },
+    {
       "versao": "0.18.0",
       "data": "2026-10-26",
       "tipo": "novo",

@@ -3,6 +3,7 @@ melhor e pior momento de cada posição gravados no trade fechado."""
 import asyncio
 import time
 
+from app.ghosts import VARIANTS
 from tests.test_api import UA, UB, env, tok  # noqa: F401  (fixture env)
 from tests.test_pump import _W, _ev, _pump
 
@@ -17,7 +18,7 @@ def test_ghost_variants_share_entry_and_exit_differently(tmp_path):
     pf.add_manual(_W)
     m = "Ghost".ljust(40, "1") + "pump"
     pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7))                     # entra a 1e-6
-    assert len(pf.positions()) == 1 and len(pf.ghosts.open) == 10
+    assert len(pf.positions()) == 1 and len(pf.ghosts.open) == len(VARIANTS)
     _price(pf, m, 0.75e-6)                                                   # −28% líquido
     st = pf.ghosts.stats
     assert st["stop20"]["trades"] == 1 and st["stop20"]["pnl_sol"] < 0 and "base" not in st
@@ -33,7 +34,7 @@ def test_ghost_variants_share_entry_and_exit_differently(tmp_path):
     t = pf.trades()[0]
     assert t["best_pct"] > 50 and t["worst_pct"] < -25                       # pós-trade da cópia fictícia
     snap = pf.ghosts.snapshot(pf.trades())
-    assert snap["yours"]["trades"] == 1 and snap["best"] == "alvo50" and len(snap["variants"]) == 10
+    assert snap["yours"]["trades"] == 1 and snap["best"] == "alvo50" and len(snap["variants"]) == len(VARIANTS)
     copy = type(pf.ghosts)(pf)
     copy.load(pf.ghosts.dump())
     assert copy.stats == pf.ghosts.stats and copy.since == pf.ghosts.since
@@ -44,7 +45,7 @@ def test_ghost_variants_share_entry_and_exit_differently(tmp_path):
 def test_ghosts_route_reports_mesa_and_persistence(env):
     c, hub, db = env["c"], env["hub"], env["db"]
     r = c.get("/api/pump/ghosts", headers=tok(UA)).json()
-    assert r["yours"]["trades"] == 0 and len(r["variants"]) == 10 and r["best"] is None
+    assert r["yours"]["trades"] == 0 and len(r["variants"]) == len(VARIANTS) and r["best"] is None
     assert c.get("/api/pump/ghosts", headers=tok(UB, "b@x.com")).status_code == 403
     assert c.get("/api/pump/ghosts").status_code == 401
     rep = c.get("/api/pump/reports?days=0", headers=tok(UA)).json()

@@ -232,6 +232,8 @@
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Quanto ficou na mesa</h2><div class="sub" id="repMesaSub">melhor e pior momento de cada posição × como ela fechou (trades fechados a partir da 0.18.0)</div></div></header>
           <div class="kpis" id="repMesa"></div>
           <div class="tbl-wrap"><table id="repMesaEx"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Nota da entrada × resultado</h2><div class="sub">se nota alta dá mais lucro, vale ligar a nota mínima (Opções novas de cópia) · trades a partir da 0.19.0</div></div></header>
+          <div class="tbl-wrap"><table id="repScore"></table></div></div>
         <div class="card"><header><div><h2>Resultado por dia</h2></div></header>
           <div class="tbl-wrap"><table id="repDay"></table></div></div>
       </section>
@@ -324,6 +326,32 @@
             <div class="field" data-novo-ate="2026-11-08"><label>Checar risco do token antes de copiar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_risk_check">…</button>
               <span class="muted">nota máxima</span><input class="in w80" type="number" min="1" max="10" step="1" data-cfg="pump_max_risk_score"><span class="muted">de 10</span></div>
               <div class="hint">Usa a nota da Solana Tracker (mesma chave do ranking): não copia token já sem liquidez, com alerta de perigo (ex.: criador pode criar mais tokens ou congelar carteiras, muitos bundlers/insiders) ou com nota acima da máxima. 1–3 baixo, 4–6 médio, 7–8 alto, 9–10 crítico.</div></div>
+          </div>
+        </div>
+        <div class="card" data-novo-ate="2026-11-09">
+          <header><div><h2>Saídas inteligentes</h2><div class="sub">vendem tudo sem esperar o preço · teste antes em Estratégias fantasma (variantes "dev" e "gradua")</div></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o dev vende</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_dev_sell">…</button></div>
+              <div class="hint">Se o criador do token vender depois da sua entrada, vende a posição na hora. Só funciona quando o monitor viu a criação do token.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o token gradua</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_migrate">…</button></div>
+              <div class="hint">Comprou ainda na curva e o token foi para a PumpSwap: vende. Depois da graduação a derrubada é comum.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a pressão de compra vira</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_pressure_on">…</button><span class="muted">compras abaixo de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_exit_pressure_pct"><span class="muted">%</span></div>
+              <div class="hint">Depois de 1 minuto na posição, se as compras caírem abaixo dessa parte das negociações, vende tudo.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando outras carteiras vendem</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_kol_on">…</button><input class="in w80" type="number" min="1" max="30" step="1" data-cfg="pump_exit_kol_n"><span class="muted">carteiras seguidas ou em estudo vendendo o mesmo token</span></div>
+              <div class="hint">Quando os outros da onda começam a sair, você sai junto, sem esperar o trader que você copiou.</div></div>
+          </div>
+        </div>
+        <div class="card" data-novo-ate="2026-11-09">
+          <header><div><h2>Nota da entrada e gestão de banca</h2><div class="sub">a nota (0–100) junta trader, risco, pressão, curva, quanto o preço já subiu e a onda · veja em Relatórios se nota alta dá mais lucro</div></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-09"><label>Nota mínima para copiar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_score_min_on">…</button><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_score_min"></div>
+              <div class="hint">Só copia entradas com nota igual ou acima. Ligue só depois de ver em Relatórios a partir de qual faixa a nota dá lucro.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Valor da cópia conforme a nota</label><div class="row"><button class="btn sm tgl" data-toggle="pump_size_by_score">…</button></div>
+              <div class="hint">Simulado: nota 0 copia ×0,5 do valor, nota 50 ×1, nota 100 ×1,5.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Pausar depois de perdas seguidas</label><div class="row"><button class="btn sm tgl" data-toggle="pump_streak_on">…</button><input class="in w80" type="number" min="2" max="50" step="1" data-cfg="pump_streak_n"><span class="muted">perdas seguidas → para de abrir cópias por</span><input class="in w80" type="number" min="0.1" max="72" step="0.5" data-cfg="pump_streak_h"><span class="muted">h</span></div>
+              <div class="hint">As posições abertas continuam com stop e saídas normais; só não entram cópias novas. A pausa some se o servidor reiniciar.</div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Mercado frio: copiar com metade do valor</label><div class="row"><button class="btn sm tgl" data-toggle="pump_cold_on">…</button><span class="muted">quando o acerto das últimas cópias em 2 h ficar abaixo de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_cold_wr"><span class="muted">%</span></div>
+              <div class="hint">Olha as últimas 10 cópias fictícias fechadas nas últimas 2 h (mínimo 5).</div></div>
           </div>
         </div>
       </section>

@@ -29,6 +29,21 @@ USER_KEYS: dict[str, tuple] = {
     "pump_radar_enabled": (bool, False, 0, 1),
     "pump_radar_min_wallets": (int, 2, 2, 30),
     "pump_radar_window_min": (int, 5, 1, 30),
+    # 0.19.0: saídas inteligentes, nota da entrada (0–100) e gestão de banca — todas começam DESLIGADAS
+    "pump_exit_dev_sell": (bool, False, 0, 1),          # vende tudo quando o criador do token vende
+    "pump_exit_migrate": (bool, False, 0, 1),           # vende quando o token gradua (comprado ainda na curva)
+    "pump_exit_pressure_on": (bool, False, 0, 1),
+    "pump_exit_pressure_pct": (float, 35.0, 0.0, 100.0),  # vende se as compras caírem abaixo de X% das negociações
+    "pump_exit_kol_on": (bool, False, 0, 1),
+    "pump_exit_kol_n": (int, 2, 1, 30),                 # vende quando N outras carteiras seguidas/estudadas vendem o token
+    "pump_score_min_on": (bool, False, 0, 1),
+    "pump_score_min": (float, 50.0, 0.0, 100.0),        # só copia com nota da entrada >= X
+    "pump_size_by_score": (bool, False, 0, 1),          # valor da cópia fictícia de x0,5 (nota 0) a x1,5 (nota 100)
+    "pump_streak_on": (bool, False, 0, 1),
+    "pump_streak_n": (int, 4, 2, 50),                   # N perdas seguidas -> para de abrir cópias por X h
+    "pump_streak_h": (float, 2.0, 0.1, 72.0),
+    "pump_cold_on": (bool, False, 0, 1),
+    "pump_cold_wr": (float, 30.0, 0.0, 100.0),          # acerto das últimas 10 cópias em 2 h abaixo de X% -> metade do valor
     "pump_copy_enabled": (bool, True, 0, 1),
     "pump_sim_balance_sol": (float, 5.0, 0.01, 100000.0),
     "pump_copy_sol": (float, 0.1, 0.001, 100.0),
