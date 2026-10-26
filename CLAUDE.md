@@ -701,3 +701,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.20: sanfona (`sanfona()` em `web/app.js`, classes `.sanf`/`.fechado` em `app.css`): cartão com 3+ `data-cfg/
   toggle/set` (ou `#secretsCard`) começa fechado; estado em `localStorage` `pf_sanf`. Fora: telas `real` e `estudo` e
   os painéis `*Share`. Pedido do dono.
+
+## Melhorias do Explorar depois de 9 perdas em 12 (2026-10-26, versão 0.31.21)
+- Pedido do dono. `Ghosts(pf, variants, base, mine)` (configurável); `pf.ghosts_auto` com `AUTO_VARIANTS`/`AUTO_BASE`
+  (abre em `manual_buy` para origem explorar; preço/tempo nos mesmos ganchos; salvo em `ghost_stats.data.auto`).
+  `auto_variant_settings` + `tipo saida_auto` no `auto_tune` (`AUTO_MIN_TRADES`=20; migração `20261026000012`).
+  Opções `pump_ar_press_min` (1; 0 = não usa) e `pump_ar_exit_grad` (ON) em `auto_rules`/`smart_exit`.
+  `autolearn.MIN_N` 10 → 6; `autolearn.compare` → `compare_auto` em `/api/pump/explore`. Testes:
+  `tests/test_explorar_melhorias.py`. Relatório: `app/relatorios_ia/2026-10-26-0.31.21.md`.

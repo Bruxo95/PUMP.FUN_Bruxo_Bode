@@ -30,8 +30,8 @@ def test_losing_band_is_blocked_and_good_band_is_not():
 
 def test_needs_minimum_base_and_warns_when_it_learns():
     pf = _pf(pump_ex_auto_on=True, pump_ar_learn=True)
-    _closed(pf, 9, 65, -0.02)
-    assert pf.learned("explorar", time.time())["bloqueios"] == []                       # 9 < 10: ainda aprendendo
+    _closed(pf, 5, 65, -0.02)
+    assert pf.learned("explorar", time.time())["bloqueios"] == []                       # 5 < 6: ainda aprendendo
     _closed(pf, 1, 65, -0.02)
     st = pf.learned("explorar", time.time() + 61)
     assert st["bloqueios"] and any("Aprendi com os erros" in e["msg"] for e in pf.events)

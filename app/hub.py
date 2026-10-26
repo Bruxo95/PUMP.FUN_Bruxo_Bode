@@ -134,7 +134,9 @@ class PumpHub:
             pf.study = []
         try:                                       # estratégias fantasma (0.18.0; tabela pode ainda não existir)
             rows = await self.db.select("ghost_stats", {"user_id": uid})
-            pf.ghosts.load(rows[0].get("data") if rows else None)
+            data = (rows[0].get("data") if rows else None) or {}
+            pf.ghosts.load(data)
+            pf.ghosts_auto.load(data.get("auto"))
         except Exception:
             pass
         self._wire_wallet(pf)
@@ -418,13 +420,13 @@ class PumpHub:
         """Grava o resultado das estratégias fantasma de quem teve novidade (uma linha por usuário)."""
         n = 0
         for uid, pf in list(self.engines.items()):
-            if not pf.ghosts.dirty:
+            if not pf.ghosts.dirty and not pf.ghosts_auto.dirty:
                 continue
             try:
-                await self.db.insert("ghost_stats", {"user_id": uid, "data": pf.ghosts.dump(),
+                await self.db.insert("ghost_stats", {"user_id": uid, "data": {**pf.ghosts.dump(), "auto": pf.ghosts_auto.dump()},
                                                      "atualizado_em": datetime.now(timezone.utc).isoformat()},
                                      upsert=True, on_conflict="user_id")
-                pf.ghosts.dirty = False
+                pf.ghosts.dirty = pf.ghosts_auto.dirty = False
                 n += 1
             except Exception as e:
                 log.warning("Estratégias fantasma não gravaram (%s…): %s", uid[:8], str(e)[:160])
@@ -699,7 +701,8 @@ class PumpHub:
         """Ajuste automático (0.31.14, app/autotune.py): aplica a regra de saída que os fantasmas mostram render mais,
         desfaz se piorar e pausa trader que só dá prejuízo. Só com a execução real desligada."""
         from .auto_trades import ts
-        from .autotune import (KEYS, PAUSE_H, REJECT_S, bad_traders, evaluate, pick_exit, variant_settings)
+        from .autotune import (AUTO_KEYS, AUTO_MIN_TRADES, KEYS, MIN_TRADES, PAUSE_H, REJECT_S, auto_variant_settings,
+                               bad_traders, evaluate, pick_exit, variant_settings)
         from .reports import autopsy
         now = time.time() if now is None else now
         if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_tune_on", True):
@@ -716,35 +719,44 @@ class PumpHub:
             pf._emit(f"Ajuste automático: {acao} — {motivo}")
 
         trades = pf.trades(100000)
-        last = next((r for r in log_rows if r.get("tipo") == "saida"), None)
         testing = False
-        if last and last.get("acao") == "aplicou":
-            ev = evaluate(last, trades, now, ts)
-            det = last.get("detalhe") or {}
-            if ev is None:
-                testing = True
-            else:
-                if ev[0] == "desfez":
-                    pf.cfg.apply(det.get("antes") or {})
-                    await self.save_settings(pf)
-                await note("saida", ev[0], f"{det.get('nome', det.get('variante'))}: {ev[1]}",
-                           {"variante": det.get("variante"), "nome": det.get("nome")})
-        if not testing:
+        # 1) saída das cópias (fantasmas das cópias) e 2) saída das automáticas do Explorar (fantasmas das automáticas)
+        for tipo, ghosts, mapper, keys, min_n, sel in (
+                ("saida", pf.ghosts, variant_settings, KEYS, MIN_TRADES, lambda t: not t.get("manual") and not t.get("auto")),
+                ("saida_auto", pf.ghosts_auto, auto_variant_settings, AUTO_KEYS, AUTO_MIN_TRADES,
+                 lambda t: t.get("origem") == "explorar")):
+            last = next((r for r in log_rows if r.get("tipo") == tipo), None)
+            busy, undone = False, None
+            if last and last.get("acao") == "aplicou":
+                ev = evaluate(last, trades, now, ts, sel)
+                det = last.get("detalhe") or {}
+                if ev is None:
+                    busy = testing = True
+                else:
+                    if ev[0] == "desfez":
+                        pf.cfg.apply(det.get("antes") or {})
+                        await self.save_settings(pf)
+                        undone = det.get("variante")
+                    await note(tipo, ev[0], f"{det.get('nome', det.get('variante'))}: {ev[1]}",
+                               {"variante": det.get("variante"), "nome": det.get("nome")})
+            if busy:
+                continue
             rejected = {(r.get("detalhe") or {}).get("variante") for r in log_rows
-                        if r.get("tipo") == "saida" and r.get("acao") == "desfez" and now - (ts(r.get("em")) or 0) < REJECT_S}
-            if done and done[-1] == "desfez":
-                rejected.add((last.get("detalhe") or {}).get("variante"))
-            snap = pf.ghosts.snapshot(trades)
+                        if r.get("tipo") == tipo and r.get("acao") == "desfez" and now - (ts(r.get("em")) or 0) < REJECT_S}
+            if undone:
+                rejected.add(undone)
+            snap = ghosts.snapshot(trades)
             days = (now - (ts(snap.get("since")) or now)) / 86400
-            pick = pick_exit(snap, days, rejected)
-            new = variant_settings(pick["id"]) if pick else None
+            pick = pick_exit(snap, days, rejected, mapper, min_n)
+            new = mapper(pick["id"]) if pick else None
             if new:
-                antes = {k: getattr(pf.cfg, k) for k in KEYS}
+                antes = {k: getattr(pf.cfg, k) for k in keys}
                 if any(antes.get(k) != v for k, v in new.items()):
                     pf.cfg.apply(new)
                     await self.save_settings(pf)
-                    await note("saida", "aplicou", f"{pick['nome']}: {pick['avg']:+.5f} SOL/trade nos fantasmas ({pick['trades']} trades) "
-                               f"× suas regras {pick['mine_avg']:+.5f}; fica em teste 48 h",
+                    alvo = "automáticas do Explorar" if tipo == "saida_auto" else "cópias"
+                    await note(tipo, "aplicou", f"{alvo} · {pick['nome']}: {pick['avg']:+.5f} SOL/trade nos fantasmas "
+                               f"({pick['trades']} trades) × suas regras {pick['mine_avg']:+.5f}; fica em teste 48 h",
                                {"variante": pick["id"], "nome": pick["nome"], "antes": antes, "depois": new})
         from .pumpfun import AUTO_ORIGINS
         # só cópias de trader: compras manuais e automáticas (Explorar, Base, elite) não têm trader para pausar

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.21",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Explorar",
+      "titulo": "Explorar: fantasmas das automáticas, aprender mais rápido e ganhou × perdeu pela entrada",
+      "oque": "(1) Cada compra automática do Explorar abre 9 posições fantasma com saídas diferentes: stop 15%, 25% ou 40%, saída por pressão depois de 1 ou 3 min ou sem ela, segurar quando gradua, 10 min, stop móvel justo, alvo +60%. O Ajuste automático aplica a melhor regra sozinho (com 20+ trades e 2+ dias) e desfaz se piorar. (2) O aprender com os erros bloqueia uma faixa de entrada ruim já com 6 operações (antes 10). (3) Quadro novo \"Ganhou × perdeu: o que muda na entrada\": os números do momento da compra nas operações que ganharam e nas que perderam, quanto o stop escorregou além do configurado, quantas perdas entraram no topo e por que as perdas saíram."
+    },
+    {
       "versao": "0.31.20",
       "data": "2026-10-26",
       "tipo": "melhoria",

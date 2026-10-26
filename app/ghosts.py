@@ -29,6 +29,23 @@ VARIANTS = [
     ("max1h", "Tempo máximo de 1 h (0.31.10)", {"max_s": 3600.0}),
 ]
 NAMES = {v: n for v, n, _ in VARIANTS}
+
+# Fantasmas das compras automáticas do Explorar (0.31.21, pedido do dono em 2026-10-26: "tive mais perdas do que
+# ganhos"). Base = proteções sugeridas das automáticas; cada variante muda UMA coisa. "press" = depois de X min, sai se
+# a pressão de compra cair abaixo de 40% (None = não usa); "migrate" = sai quando gradua; "dev" = sai quando o dev vende.
+AUTO_BASE = {"stop": 25.0, "trail": (40.0, 15.0), "tp1": (40.0, 50.0), "tp": 150.0, "max_s": 1800.0, "follow": False,
+             "dev": True, "migrate": True, "stale": None, "press": 1.0}
+AUTO_VARIANTS = [
+    ("a_base", "Proteções sugeridas (stop 25%, metade em +40%, móvel +40/15, alvo 150%, 30 min)", {}),
+    ("a_stop15", "Stop de perda curto (15%)", {"stop": 15.0}),
+    ("a_stop40", "Stop de perda largo (40%)", {"stop": 40.0}),
+    ("a_press3", "Saída por pressão só depois de 3 min", {"press": 3.0}),
+    ("a_sem_press", "Sem saída por pressão de compra", {"press": None}),
+    ("a_segura_grad", "Não sai quando o token gradua", {"migrate": False}),
+    ("a_rapido", "Tempo máximo de 10 min", {"max_s": 600.0}),
+    ("a_trail_justo", "Stop móvel justo (liga em +15%, sai 8 pontos abaixo do pico)", {"trail": (15.0, 8.0)}),
+    ("a_alvo60", "Alvo fixo +60% (sem venda em partes)", {"tp": 60.0, "tp1": None}),
+]
 KEEP = 30            # últimos fechados guardados por variante
 MAX_OPEN = 840       # trava de memória (14 variantes × 60 posições)
 
@@ -45,14 +62,18 @@ def _ts(x) -> float:
         return 0.0
 
 
-def params(vid: str) -> dict:
-    over = next((o for v, _, o in VARIANTS if v == vid), {})
-    return {**BASE, **over}
+def params(vid: str, variants=None, base=None) -> dict:
+    over = next((o for v, _, o in (variants or VARIANTS) if v == vid), {})
+    return {"press": None, **(base or BASE), **over}
 
 
 class Ghosts:
-    def __init__(self, pf):
+    def __init__(self, pf, variants=None, base=None, mine=None):
         self.pf = pf
+        self.variants, self.base = variants or VARIANTS, base or BASE
+        self.names = {v: n for v, n, _ in self.variants}
+        # quais trades fechados são "as suas regras atuais" para comparar (cópias por padrão; o Explorar passa o seu)
+        self.mine = mine or (lambda t: not t.get("manual") and not t.get("auto"))
         self.open: list[dict] = []
         self.stats: dict[str, dict] = {}
         self.since: str | None = None
@@ -71,14 +92,14 @@ class Ghosts:
     def load(self, d: dict | None) -> None:
         d = d or {}
         self.since = d.get("since")
-        self.stats = {k: v for k, v in (d.get("stats") or {}).items() if k in NAMES}
+        self.stats = {k: v for k, v in (d.get("stats") or {}).items() if k in self.names}
 
     # ------------------------------------------------------------------ eventos do motor
     def on_open(self, p: dict, t: float) -> None:
         if len(self.open) >= MAX_OPEN:
             return
         self.since = self.since or now_iso()
-        for vid, _, _ in VARIANTS:
+        for vid, _, _ in self.variants:
             self.open.append({"v": vid, "mint": p["mint"], "wallet": p["wallet"], "symbol": p.get("symbol"),
                               "sol_in": p["sol_in"], "tokens": p["tokens"], "left": p["tokens"], "proceeds": 0.0,
                               "open_t": t, "opened_at": p.get("opened_at") or now_iso(), "peak": None,
@@ -90,7 +111,7 @@ class Ghosts:
         if not px:
             return
         for g in [g for g in self.open if g["mint"] == mint]:
-            P = params(g["v"])
+            P = self.params(g["v"])
             chg = self._chg(g, px)
             g["best"], g["worst"] = max(g["best"], chg), min(g["worst"], chg)
             tk = self.pf.tokens.get(mint) or {}
@@ -100,6 +121,11 @@ class Ghosts:
             if P["migrate"] and g.get("grad_in") is False and self.pf.graduated(mint):
                 self._sell(g, 1.0, px, "token graduou")
                 continue
+            if P.get("press") and t and t - g["open_t"] >= P["press"] * 60:
+                pr, _ = self.pf.pressure(mint)
+                if pr is not None and pr < 40:
+                    self._sell(g, 1.0, px, "pressão de compra virou")
+                    continue
             if P["stale"] and t and t - g["open_t"] >= P["stale"] * 60 and abs(chg) <= 5:
                 self._sell(g, 1.0, px, "parado")
                 continue
@@ -125,17 +151,20 @@ class Ghosts:
         if not px or frac < 0.01:
             return
         for g in [g for g in self.open if g["mint"] == mint and g["wallet"] == who]:
-            if params(g["v"])["follow"]:
+            if self.params(g["v"])["follow"]:
                 self._sell(g, frac, px, "trader vendeu")
 
     def on_time(self, t: float) -> None:
         for g in list(self.open):
-            if t - g["open_t"] >= params(g["v"])["max_s"]:
+            if t - g["open_t"] >= self.params(g["v"])["max_s"]:
                 px = (self.pf.tokens.get(g["mint"]) or {}).get("price")
                 if px:
                     self._sell(g, 1.0, px, "tempo máximo")
-                elif t - g["open_t"] >= params(g["v"])["max_s"] + 3600:
+                elif t - g["open_t"] >= self.params(g["v"])["max_s"] + 3600:
                     self._sell(g, 1.0, 0.0, "sem preço")           # token sumiu: conta como perda total
+
+    def params(self, vid: str) -> dict:
+        return params(vid, self.variants, self.base)
 
     # ------------------------------------------------------------------ contas (mesmas taxas da cópia fictícia)
     def _value(self, g: dict, px: float) -> float:
@@ -178,7 +207,7 @@ class Ghosts:
                     "pnl_sol": round(pnl, 6), "roi_pct": round(pnl / inv * 100, 2) if inv else None,
                     "avg_best_pct": round(best_sum / n, 1) if n else None, "open": opened}
         rows = []
-        for vid, name, _ in VARIANTS:
+        for vid, name, _ in self.variants:
             s = self.stats.get(vid) or {}
             rows.append(row(vid, name, s.get("trades", 0), s.get("wins", 0), s.get("pnl_sol", 0.0),
                             s.get("invested_sol", 0.0), s.get("best_sum", 0.0),
@@ -186,7 +215,7 @@ class Ghosts:
         # as SUAS regras atuais, no mesmo período (trades fictícios fechados desde o início dos fantasmas)
         # compara como horário, não como texto: "…:05+00:00" < "…:05.123+00:00" no texto (falhou no CI da 0.18.0)
         since = _ts(self.since) if self.since else None
-        mine = [t for t in trades if not t.get("real") and since is not None and _ts(t.get("closed_at")) >= since]
+        mine = [t for t in trades if not t.get("real") and self.mine(t) and since is not None and _ts(t.get("closed_at")) >= since]
         n, wins = len(mine), sum(1 for t in mine if (t.get("pnl_sol") or 0) > 0)
         best = sum((t.get("best_pct") or 0) for t in mine)
         yours = row("suas", "Suas regras atuais (carteira fictícia)", n, wins, sum(t.get("pnl_sol") or 0 for t in mine),
@@ -195,4 +224,4 @@ class Ghosts:
         ranked = sorted([r for r in rows if r["trades"]], key=lambda r: -r["pnl_sol"])
         return {"since": self.since, "yours": yours, "variants": rows,
                 "best": ranked[0]["id"] if ranked else None,
-                "recent": {vid: (self.stats.get(vid) or {}).get("recent", [])[:10] for vid, _, _ in VARIANTS}}
+                "recent": {vid: (self.stats.get(vid) or {}).get("recent", [])[:10] for vid, _, _ in self.variants}}

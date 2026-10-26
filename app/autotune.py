@@ -46,19 +46,42 @@ def variant_settings(vid: str) -> dict | None:
     return out
 
 
+AUTO_KEYS = ("pump_ar_stop_pct", "pump_ar_trail_start", "pump_ar_trail_dist", "pump_ar_tp1_pct", "pump_ar_tp1_frac",
+             "pump_ar_tp_pct", "pump_ar_max_hold_min", "pump_ar_press_min", "pump_ar_exit_grad")
+AUTO_MIN_TRADES = 20             # automáticas do Explorar: base menor (entram menos que as cópias)
+
+
+def auto_variant_settings(vid: str) -> dict | None:
+    """Opções das automáticas (pump_ar_*) que reproduzem um fantasma das automáticas (0.31.21)."""
+    from .ghosts import AUTO_BASE, AUTO_VARIANTS
+    if vid not in {v for v, _, _ in AUTO_VARIANTS}:
+        return None
+    p = params(vid, AUTO_VARIANTS, AUTO_BASE)
+    if not p["trail"]:
+        return None                               # as automáticas sempre usam stop móvel
+    out = {"pump_ar_stop_pct": p["stop"], "pump_ar_trail_start": p["trail"][0], "pump_ar_trail_dist": p["trail"][1],
+           "pump_ar_tp1_pct": p["tp1"][0] if p["tp1"] else 0.0, "pump_ar_tp_pct": p["tp"] or 0.0,
+           "pump_ar_max_hold_min": round(p["max_s"] / 60, 2), "pump_ar_press_min": p["press"] or 0.0,
+           "pump_ar_exit_grad": bool(p["migrate"])}
+    if p["tp1"]:
+        out["pump_ar_tp1_frac"] = p["tp1"][1]
+    return out
+
+
 def per_trade(rows: list[dict]) -> float | None:
     return sum(r.get("pnl_sol") or 0 for r in rows) / len(rows) if rows else None
 
 
-def pick_exit(snap: dict, ghosts_days: float, rejected: set) -> dict | None:
+def pick_exit(snap: dict, ghosts_days: float, rejected: set, mapper=None, min_trades: int = MIN_TRADES) -> dict | None:
     """A regra de saída que mais rende por trade, se passar a sua com folga e tiver base."""
+    mapper = mapper or variant_settings
     yours = snap.get("yours") or {}
-    if ghosts_days < MIN_DAYS or (yours.get("trades") or 0) < MIN_TRADES:
+    if ghosts_days < MIN_DAYS or (yours.get("trades") or 0) < min_trades:
         return None
     mine = (yours.get("pnl_sol") or 0) / yours["trades"]
     best = None
     for v in snap.get("variants") or []:
-        if v["trades"] < MIN_TRADES or v["id"] in rejected or variant_settings(v["id"]) is None:
+        if v["trades"] < min_trades or v["id"] in rejected or mapper(v["id"]) is None:
             continue
         avg = v["pnl_sol"] / v["trades"]
         if avg > 0 and avg >= mine + MARGIN_SOL and (best is None or avg > best["avg"]):
@@ -66,10 +89,10 @@ def pick_exit(snap: dict, ghosts_days: float, rejected: set) -> dict | None:
     return best
 
 
-def evaluate(change: dict, trades: list[dict], now: float, ts) -> tuple[str, str] | None:
+def evaluate(change: dict, trades: list[dict], now: float, ts, sel=None) -> tuple[str, str] | None:
     """('manteve' | 'desfez', motivo) quando a regra em teste já tem base; None enquanto ainda testa."""
     t0 = ts(change.get("em")) or now
-    sim = [t for t in trades if not t.get("real")]
+    sim = [t for t in trades if not t.get("real") and (sel is None or sel(t))]
     after = [t for t in sim if (ts(t.get("closed_at")) or 0) >= t0]
     if now - t0 < EVAL_S or len(after) < EVAL_TRADES:
         return None

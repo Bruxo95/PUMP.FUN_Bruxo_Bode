@@ -30,8 +30,12 @@ log = logging.getLogger("monitor")
 
 def _gm(e) -> set:
     """Tokens das estratégias fantasma de um motor (0.18.0); motores de teste sem fantasmas devolvem vazio."""
-    g = getattr(e, "ghosts", None)
-    return g.mints() if g is not None else set()
+    out = set()
+    for name in ("ghosts", "ghosts_auto"):                # 0.31.21: fantasmas das automáticas do Explorar também
+        g = getattr(e, name, None)
+        if g is not None:
+            out |= g.mints()
+    return out
 
 class SharedMonitor:
     def __init__(self, hub):

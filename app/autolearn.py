@@ -11,7 +11,7 @@ reiniciar.
 """
 from __future__ import annotations
 
-MIN_N = 10
+MIN_N = 6                        # 0.31.21: 10 → 6, pedido do dono ("aprender mais rápido"); só aperta filtros
 MAX_WR = 0.35                    # acerto abaixo disso…
 MAX_AVG_PCT = -5.0               # …e resultado médio pior que isso → bloqueia
 
@@ -71,6 +71,48 @@ def study(trades: list[dict], origem: str) -> dict:
     quick = [t for t in rows if (t.get("pnl_sol") or 0) < 0 and (t.get("hold_s") or 1e9) <= 60]
     return {"origem": origem, "fechadas": len(rows), "faixas": out, "bloqueios": [x for x in out if x["bloqueada"]],
             "morte_rapida": len(quick), "min_n": MIN_N}
+
+
+def _median(xs):
+    xs = sorted(x for x in xs if x is not None)
+    if not xs:
+        return None
+    m = len(xs) // 2
+    return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
+
+
+def compare(trades: list[dict], origem: str) -> dict:
+    """Ganhou × perdeu pelos números da entrada (0.31.21): mediana de cada número nas que ganharam e nas que perderam,
+    quanto o stop escorregou e quantas entraram no topo (nunca passaram de +1%)."""
+    import re
+    rows = [t for t in trades if t.get("origem") == origem and not t.get("real")]
+    W = [t for t in rows if (t.get("pnl_sol") or 0) > 0]
+    L = [t for t in rows if (t.get("pnl_sol") or 0) <= 0]
+    feats = [(k, FEATURES[k][0]) for k in ("pressure", "holders", "curve_pct", "chg_5m", "risk")] + [("score", "Nota da entrada")]
+    out = []
+    for k, nome in feats:
+        w = _median([_num((t.get("auto_info") or {}).get(k)) for t in W])
+        lo = _median([_num((t.get("auto_info") or {}).get(k)) for t in L])
+        out.append({"feature": k, "nome": nome, "ganhou": None if w is None else round(w, 1),
+                    "perdeu": None if lo is None else round(lo, 1)})
+    for k, nome in (("hold_s", "Duração (s)"), ("best_pct", "Melhor momento (%)")):
+        w, lo = _median([_num(t.get(k)) for t in W]), _median([_num(t.get(k)) for t in L])
+        out.append({"feature": k, "nome": nome, "ganhou": None if w is None else round(w, 1), "perdeu": None if lo is None else round(lo, 1)})
+    slips = []
+    for t in rows:
+        m = re.search(r"stop de perda \(\D?(\d+(?:[.,]\d+)?)%", str(t.get("reason") or ""))
+        if m and t.get("pnl_pct") is not None:
+            stop = float(m.group(1).replace(",", "."))
+            slips.append({"symbol": t.get("symbol"), "mint": t.get("mint"), "stop": stop, "saiu": round(t["pnl_pct"], 1),
+                          "escorregou": round(-stop - t["pnl_pct"], 1)})
+    top = [t for t in L if (t.get("best_pct") if t.get("best_pct") is not None else 99) <= 1]
+    why: dict[str, int] = {}
+    for t in L:
+        r = re.sub(r"\s*\(.*", "", str(t.get("reason") or "outro")).strip() or "outro"
+        why[r] = why.get(r, 0) + 1
+    return {"ganhou": len(W), "perdeu": len(L), "numeros": out, "stops": sorted(slips, key=lambda x: -x["escorregou"])[:15],
+            "stop_medio_escorregou": round(sum(x["escorregou"] for x in slips) / len(slips), 1) if slips else None,
+            "entrou_no_topo": len(top), "saidas_perdas": sorted(([k, v] for k, v in why.items()), key=lambda x: -x[1])}
 
 
 def blocked_reason(learned: dict, info: dict) -> str | None:

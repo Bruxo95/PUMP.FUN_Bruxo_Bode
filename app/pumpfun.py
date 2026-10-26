@@ -136,6 +136,9 @@ class PumpFun:
         self._lb_at = 0.0
         from .ghosts import Ghosts
         self.ghosts = Ghosts(self)                   # estratégias fantasma (0.18.0): mesmas entradas, saídas diferentes
+        from .ghosts import AUTO_BASE, AUTO_VARIANTS
+        # 0.31.21: fantasmas das compras automáticas do Explorar (mesma compra, saídas diferentes)
+        self.ghosts_auto = Ghosts(self, AUTO_VARIANTS, AUTO_BASE, mine=lambda t: t.get("origem") == "explorar")
         self._halt_until = 0.0                       # pausa geral por sequência de perdas (0.19.0; só memória)
         self.tg = None                               # avisos no Telegram (0.20.0; ligado pelo hub)
         self.auto_rows: dict[str, dict] = {}           # operações próprias; o hub carrega antes de liberar entradas
@@ -1128,6 +1131,8 @@ class PumpFun:
         stop, tp = float(self._c("pump_stop_pct", 40)), float(self._c("pump_tp_pct", 0))
         if px and self.ghosts.open:
             self.ghosts.on_price(mint, px, t)
+        if px and self.ghosts_auto.open:
+            self.ghosts_auto.on_price(mint, px, t)
         for p in [p for p in self.positions() if p["mint"] == mint]:
             if not px or p.get("selling"):
                 continue
@@ -1200,6 +1205,8 @@ class PumpFun:
         out = []
         if self.ghosts.open:
             self.ghosts.on_time(t)
+        if self.ghosts_auto.open:
+            self.ghosts_auto.on_time(t)
         for p in self.positions():
             hold = self._auto_num(p.get("max_hold_s"))
             hold = hold if hold is not None else mx
@@ -1224,6 +1231,7 @@ class PumpFun:
         self.store.reset_sim()
         self.store.feed_clear()
         self.ghosts.reset()
+        self.ghosts_auto.reset()
         return {"ok": True}
 
     def prune(self, t: float | None = None) -> None:
@@ -1625,10 +1633,15 @@ class PumpFun:
         if sm and t and t - opened >= sm * 60 and p.get("chg_pct") is not None \
                 and abs(float(p["chg_pct"])) <= float(self._c("pump_exit_stale_band", 5)):
             return f"parado há {(t - opened) / 60:.0f} min"
-        if (force or getattr(self.cfg, "pump_exit_migrate", False)) and p.get("grad_in") is False and self.graduated(p["mint"]):
+        if ((p.get("grad_exit", True) if force else getattr(self.cfg, "pump_exit_migrate", False))
+                and p.get("grad_in") is False and self.graduated(p["mint"])):
             return "token graduou (PumpSwap)"
-        mn = 40.0 if force else self._onv("pump_exit_pressure_on", "pump_exit_pressure_pct")
-        if mn and (not t or t - opened >= 60):
+        pm = p.get("press_min")                     # 0.31.21: atraso da saída por pressão nas automáticas (0 = não usa)
+        if force:
+            mn, wait = (40.0 if pm is None or pm > 0 else 0.0), (float(pm) if pm else 1.0) * 60
+        else:
+            mn, wait = self._onv("pump_exit_pressure_on", "pump_exit_pressure_pct"), 60
+        if mn and (not t or t - opened >= wait):
             pr, src = self.pressure(p["mint"])
             if pr is not None and pr < mn:
                 return f"pressão de compra virou ({pr:.0f}% de compras, {src})"
@@ -1697,7 +1710,10 @@ class PumpFun:
                 "tp1_pct": float(self._c("pump_ar_tp1_pct", 40)),
                 "tp1_frac": float(self._c("pump_ar_tp1_frac", 50)),
                 "max_hold_s": float(self._c("pump_ar_max_hold_min", 30)) * 60,
-                "smart": bool(getattr(self.cfg, "pump_ar_smart", True))}
+                "smart": bool(getattr(self.cfg, "pump_ar_smart", True)),
+                # 0.31.21: ajustáveis pelo ajuste automático a partir dos fantasmas das automáticas
+                "press_min": float(self._c("pump_ar_press_min", 1.0)),
+                "grad_exit": bool(getattr(self.cfg, "pump_ar_exit_grad", True))}
 
     def _auto_operations(self) -> list[dict]:
         """Histórico carregado + posições/legado da Base, sem duplicar uma entrada já conhecida."""
@@ -1935,6 +1951,8 @@ class PumpFun:
             self._save_pos(p)
             if own_auto:
                 out["auto_id"] = str(p["id"])
+                if origem == "explorar":
+                    self.ghosts_auto.on_open(p, t)
             self._feed(**base, sol=round(amt, 4), action="comprou (automático)" if auto else "comprou (manual)",
                        reason=(f"{auto} · " if auto else "você ") + f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}")
             self._emit(f"[PUMP SIM] compra {'automática' if auto else 'manual'}: {sym} {amt:.3f} SOL" + (f" ({auto})" if auto else ""))

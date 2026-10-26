@@ -53,6 +53,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_ar_tp_pct": (float, 150.0, 0.0, 10000.0),
     "pump_ar_max_hold_min": (float, 30.0, 1.0, 1440.0),
     "pump_ar_smart": (bool, True, 0, 1),
+    "pump_ar_press_min": (float, 1.0, 0.0, 60.0),      # 0.31.21: saída por pressão depois de X min (0 = não usa)
+    "pump_ar_exit_grad": (bool, True, 0, 1),           # 0.31.21: sai quando o token gradua
     "pump_radar_enabled": (bool, False, 0, 1),
     "pump_radar_min_wallets": (int, 2, 2, 30),
     "pump_radar_window_min": (int, 5, 1, 30),

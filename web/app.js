@@ -103,7 +103,7 @@
     $("tuSub").textContent = (r.on ? "LIGADO" : "DESLIGADO") + (r.real_on ? " · parado: a execução real está ligada" : "") + " · última volta " + (r.last_run ? dt(r.last_run) : "ainda não rodou (roda a cada 6 h)") +
       (r.testing ? " · em teste: " + (r.testing.nome || "") + " desde " + dt(r.testing.desde) : " · nenhuma regra em teste") + " · precisa de " + ru.min_trades + " trades e " + ru.min_days + " dias de fantasmas";
     const AC = { aplicou: "win", manteve: "win", desfez: "loss", pausou: "pause" };
-    table("tuLog", ["Quando", "O quê", "Decisão", "Por quê"], (r.log || []).map((x) => [dt(x.em), x.tipo === "saida" ? "regra de saída" : "trader", '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", esc(x.motivo || "")]),
+    table("tuLog", ["Quando", "O quê", "Decisão", "Por quê"], (r.log || []).map((x) => [dt(x.em), x.tipo === "saida" ? "saída das cópias" : x.tipo === "saida_auto" ? "saída das automáticas" : "trader", '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", esc(x.motivo || "")]),
       "Nenhuma mudança ainda: a primeira sai quando as Estratégias fantasma tiverem base (30 trades e 2 dias) ou quando um trader repetir prejuízo.");
   }
   async function loadReports() {
@@ -439,6 +439,18 @@
       x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
       x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
       '<button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");
+    const cp = r.compare_auto || {};
+    $("cmpSub").textContent = (cp.ganhou || 0) + " ganharam × " + (cp.perdeu || 0) + " perderam · mediana dos números do momento da compra";
+    kpis("cmpK", [["Entrou no topo", String(cp.entrou_no_topo || 0), "perdas que nunca passaram de +1%", "mon"],
+      ["Stop escorregou (média)", cp.stop_medio_escorregou == null ? "–" : f(cp.stop_medio_escorregou, 1) + " pts", "além do stop configurado", "pnl"],
+      ["Por que as perdas saíram", esc(((cp.saidas_perdas || [])[0] || ["–"])[0]), (cp.saidas_perdas || []).map((x) => esc(x[0]) + " " + x[1]).join(" · ") || "sem perdas", "hit"]]);
+    const cv = (v) => (v == null ? "–" : f(v, 1));
+    table("cmpTbl", ["Número", "Nas que ganharam", "Nas que perderam"], (cp.numeros || []).map((x) => [esc(x.nome), '<span class="up">' + cv(x.ganhou) + "</span>", '<span class="down">' + cv(x.perdeu) + "</span>"]), "Ainda sem operações fechadas.");
+    table("cmpStops", ["Token", "Stop", "Saiu em", "Escorregou"], (cp.stops || []).map((x) => [pfM(x.mint || "", x.symbol), "−" + f(x.stop, 0) + "%", pc(x.saiu), f(x.escorregou, 1) + " pts"]), "Nenhuma saída por stop ainda.");
+    const ga = r.ghosts_auto || {}, gy = ga.yours || {};
+    $("gaSub").textContent = "desde " + (ga.since ? dt(ga.since) : "a próxima compra automática") + " · suas regras: " + (gy.trades || 0) + " trades, " + s4(gy.pnl_sol || 0) + " SOL · o Ajuste automático troca a regra com 20+ trades e 2+ dias";
+    table("gaTbl", ["Regra de saída", "Trades", "Acerto", "Resultado", "Por trade", "Abertas"], [gy].concat(ga.variants || []).filter((x) => x && x.nome).map((x) => [(x.id === ga.best ? '<span class="tag win">melhor</span> ' : "") + esc(x.nome), String(x.trades || 0),
+      x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%", sg(x.pnl_sol || 0), x.trades ? s4(x.pnl_sol / x.trades) : "–", String(x.open || 0)]), "Sem dados ainda.");
     const al = r.learned_auto || {};
     $("alSub").textContent = (al.fechadas || 0) + " compras automáticas fechadas · " + (al.bloqueios || []).length + " faixas bloqueadas · " + (al.morte_rapida || 0) + " perdas em até 60 s depois da compra (entrou no topo)" + (r.learn_on ? "" : " · aprender sozinho DESLIGADO");
     table("alTbl", ["Número da entrada", "Faixa", "Operações", "Acerto", "Média", "Resultado", "Situação"], (al.faixas || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n), f(x.acerto * 100, 0) + "%",

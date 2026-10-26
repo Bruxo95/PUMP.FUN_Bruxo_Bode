@@ -202,6 +202,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
                     held = any(p["mint"] == x["mint"] for p in pf.positions())
                     x["auto"] = {"ok": not why, "motivo": "já comprou (posição aberta)" if held else (why or "entra na próxima leitura")}
         out["learned_auto"] = pf.learned("explorar")
+        from .autolearn import compare
+        trades = pf.trades(100000)
+        out["compare_auto"] = compare(trades, "explorar")
+        out["ghosts_auto"] = pf.ghosts_auto.snapshot(trades)
         out["learn_on"] = bool(getattr(pf.cfg, "pump_ar_learn", True))
         return out
 
