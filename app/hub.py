@@ -974,24 +974,82 @@ class PumpHub:
         return {"filtros": filtros, "protecoes": protecoes, "tudo": ["pump_ex_auto_on"] + filtros + protecoes}.get(part, [])
 
     async def explore_share(self, pf, sender: dict, to_uid: str, part: str) -> dict:
-        """Copia a configuração do Explorar (filtros, proteções ou tudo) para outro admin. Pedido do dono em
-        2026-10-26. Só opções da carteira fictícia/automáticas do Explorar; nunca chaves nem a execução real."""
+        """Explorar → Compartilhar (0.31.16): vira um convite que a pessoa aceita ou recusa (0.31.17)."""
         keys = self.explore_share_keys(part)
         if not keys:
             return {"error": "parte inválida"}
+        nome = {"filtros": "Explorar · filtros de entrada", "protecoes": "Explorar · proteções das automáticas",
+                "tudo": "Explorar · toda a configuração"}[part]
+        return await self.config_offer(pf, sender, to_uid, nome, keys)
+
+    # ------------------------------------------------------------------ convites de configuração (0.31.17)
+    SHARE_BLOCK = ("real", "pump_tg_")             # nunca vai junto: nada da carteira real nem do Telegram pessoal
+
+    def share_filter(self, keys, admin: bool) -> list[str]:
+        from .settings import USER_KEYS
+        out = [k for k in keys if k in USER_KEYS and not any(b in k for b in self.SHARE_BLOCK)]
+        if not admin:                               # quem não é admin não usa as opções do "Usar ou descartar"
+            out = [k for k in out if not k.startswith(("pump_ex_auto_", "pump_ar_"))]
+        return out
+
+    async def share_targets(self, uid: str) -> list[dict]:
+        out = []
+        for p in await self.db.select("profiles", None, order="criado_em.asc", columns="user_id,nome,email,bloqueado,role"):
+            if p["user_id"] == uid or p.get("bloqueado"):
+                continue
+            em = str(p.get("email") or "")
+            nm, _, dom = em.partition("@")
+            out.append({"user_id": p["user_id"], "nome": p.get("nome") or "", "admin": p.get("role") == "admin",
+                        "email": (nm[:2] + "***@" + dom) if dom else ""})
+        return out
+
+    async def config_offer(self, pf, sender: dict, to_uid: str, parte: str, keys) -> dict:
+        """Convite: o usuário X quer compartilhar a configuração dele (pedido do dono em 2026-10-26). Nada muda na conta
+        de quem recebe até ela clicar em Aceitar e aplicar. Os valores vão no convite (como estavam ao enviar)."""
         if to_uid == pf.user_id:
             return {"error": "escolha outro usuário"}
         rows = await self.db.select("profiles", {"user_id": to_uid}, columns="user_id,bloqueado,role")
-        if not rows or rows[0].get("bloqueado") or rows[0].get("role") != "admin":
+        if not rows or rows[0].get("bloqueado"):
             return {"error": "usuário não encontrado"}
-        other = await self.engine(to_uid)
-        applied, _ = other.cfg.apply({k: getattr(pf.cfg, k) for k in keys})
-        await self.save_settings(other)
-        nome = {"filtros": "filtros de entrada", "protecoes": "proteções das automáticas", "tudo": "toda a configuração"}[part]
-        de = ((sender.get("nome") or sender.get("email") or "").split("@")[0].split(" ")[0] or "outro usuário")
-        other._emit(f"Explorar: você recebeu {nome} de {de} ({len(applied)} opções)")
-        await audit(self.db, pf.user_id, "compartilhar configuração do Explorar", f"{nome} para {to_uid}")
-        await audit(self.db, to_uid, "recebeu configuração do Explorar", f"{nome} de {pf.user_id}")
+        keys = self.share_filter(keys, rows[0].get("role") == "admin")
+        if not keys:
+            return {"error": "nada para compartilhar nesta parte"}
+        de = (sender.get("nome") or (sender.get("email") or "").split("@")[0] or "outro usuário")[:60]
+        await self.db.insert("config_offers", {"de_user": pf.user_id, "para_user": to_uid, "de_nome": de, "parte": str(parte)[:80],
+                                               "valores": {k: getattr(pf.cfg, k) for k in keys}, "status": "pendente"})
+        other = self.engines.get(to_uid)
+        if other is not None:
+            other._emit(f"Configuração: {de} quer compartilhar com você — {parte} ({len(keys)} opções). Aceite ou recuse no topo do painel.")
+        await audit(self.db, pf.user_id, "convite de configuração", f"{parte} para {to_uid}")
+        return {"ok": True, "opcoes": len(keys)}
+
+    async def config_offers(self, uid: str) -> list[dict]:
+        from .auto_trades import ts
+        rows = await self.db.select("config_offers", {"para_user": uid, "status": "pendente"}, order="criado_em.desc", limit=20)
+        now = time.time()
+        return [{"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "opcoes": len(r.get("valores") or {}),
+                 "nomes": sorted(r.get("valores") or {}), "em": r.get("criado_em")}
+                for r in rows if now - (ts(r.get("criado_em")) or now) < 7 * 86400]
+
+    async def config_answer(self, pf, offer_id: int, accept: bool) -> dict:
+        rows = await self.db.select("config_offers", {"id": offer_id, "para_user": pf.user_id, "status": "pendente"})
+        if not rows:
+            return {"error": "convite não encontrado"}
+        r = rows[0]
+        applied = {}
+        if accept:
+            vals = {k: v for k, v in (r.get("valores") or {}).items()
+                    if k in self.share_filter([k], getattr(pf, "role", "user") == "admin")}
+            applied, _ = pf.cfg.apply(vals)
+            await self.save_settings(pf)
+            pf._emit(f"Configuração de {r.get('de_nome')} aplicada: {r.get('parte')} ({len(applied)} opções)")
+        await self.db.update("config_offers", {"id": offer_id}, {"status": "aceita" if accept else "recusada",
+                                                                 "respondido_em": datetime.now(timezone.utc).isoformat()})
+        await audit(self.db, pf.user_id, "aceitou configuração" if accept else "recusou configuração",
+                    f"{r.get('parte')} de {r.get('de_user')}")
+        sender = self.engines.get(r.get("de_user"))
+        if sender is not None:
+            sender._emit(f"Configuração: seu convite ({r.get('parte')}) foi {'aceito' if accept else 'recusado'}.")
         return {"ok": True, "opcoes": len(applied)}
 
     async def study_profile(self, wallet: str, prm: dict | None = None) -> dict:

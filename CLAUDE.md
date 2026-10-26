@@ -683,3 +683,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Pedido do dono. `POST /api/pump/explore/share` {to, part: filtros|protecoes|tudo} → `hub.explore_share` (só para
   admin não bloqueado; copia `pump_ex_auto_*` e/ou `pump_ar_*`, salva, avisa e registra no `audit_log`). Destinos pela
   rota já existente `/api/pump/study/share-targets`. Testes: `tests/test_explore_share.py`.
+
+## Convites de configuração (2026-10-26, versão 0.31.17)
+- Pedido do dono. `hub.config_offer/config_offers/config_answer` + tabela `config_offers` (migração
+  `20261026000011`). Rotas: `/api/pump/config/share-targets` e `/api/pump/config/share` (admin; seção = chaves dos
+  campos do cartão, ou `all`), `/api/pump/config/offers` e `/api/pump/config/offers/{id}` (quem recebe).
+  `share_filter` tira chaves com "real" e `pump_tg_*`; para não admin tira `pump_ex_auto_*`/`pump_ar_*`.
+  Explorar → Compartilhar (0.31.16) agora também vira convite. Barra `#offerBar` no topo (`loadOffers`, a cada 30 s);
+  botões das seções criados por `cfgShareButtons()`. Testes: `tests/test_explore_share.py`.

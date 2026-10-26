@@ -56,6 +56,26 @@
   marcarNovos();
   // ------------------------------------------------------------------ relatórios (/api/pump/reports)
   let REP_DAYS = 7, REP_AT = 0, REP_MODE = null;
+  // convites de configuração (0.31.17): "usuário X quer compartilhar a configuração dele" no topo do painel
+  async function loadOffers() {
+    let r; try { r = await BB.api("/api/pump/config/offers"); } catch (e) { return; }
+    const of = (r && r.offers) || [], bar = $("offerBar");
+    bar.hidden = !of.length;
+    bar.innerHTML = of.map((o) => '<div class="card" style="border-color:var(--accent,#22c55e);margin-bottom:12px"><header><div><h2>' + esc(o.de || "Outro usuário") + " quer compartilhar a configuração dele</h2>" +
+      '<div class="sub">' + esc(o.parte || "") + " · " + o.opcoes + " opções · " + dt(o.em) + '</div></div><div class="sp"></div>' +
+      '<button class="btn sm primary" data-ofa="' + esc(String(o.id)) + '">Aceitar e aplicar</button> <button class="btn sm" data-ofr="' + esc(String(o.id)) + '">Não aceitar</button></header>' +
+      '<div class="hint muted">Opções: ' + esc((o.nomes || []).join(", ")) + "</div></div>").join("");
+  }
+  function cfgShareButtons() {
+    if (!(ME && ME.role === "admin")) return;
+    $("cfShareTop").hidden = false;
+    document.querySelectorAll('[data-view="config"] .card').forEach((card) => {
+      const h = card.querySelector("header");
+      if (!h || card.id === "secretsCard" || card.id === "cfShare" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
+      if (!h.querySelector(".sp")) { const sp = document.createElement("div"); sp.className = "sp"; h.appendChild(sp); }
+      const b = document.createElement("button"); b.className = "btn sm"; b.dataset.cfsh = "card"; b.textContent = "Compartilhar"; h.appendChild(b);
+    });
+  }
   async function loadTune() {
     const r = await BB.api("/api/pump/tune");
     if (r.error) return;
@@ -847,9 +867,41 @@
       t.disabled = true;
       const r = await BB.api("/api/pump/explore/share", { body: { to, part: $("exShare").dataset.part } });
       t.disabled = false;
-      toast(r.error ? "Não compartilhou: " + r.error : "Enviado: " + r.opcoes + " opções já valem para essa pessoa.");
+      toast(r.error ? "Não compartilhou: " + r.error : "Convite enviado (" + r.opcoes + " opções). A pessoa decide se aceita.");
       if (!r.error) $("exShare").hidden = true;
       return;
+    }
+    if (t.dataset.cfsh) {
+      let keys = [], parte = "toda a configuração";
+      if (t.dataset.cfsh !== "all") {
+        const card = t.closest(".card");
+        card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").forEach((el) => { const k = el.dataset.cfg || el.dataset.toggle || el.dataset.set; if (k && !keys.includes(k)) keys.push(k); });
+        parte = "Configurações · " + ((card.querySelector("h2") || {}).textContent || "seção").trim();
+      }
+      const r = await BB.api("/api/pump/config/share-targets"), us = r.users || [];
+      $("cfShT").textContent = "Compartilhar " + parte; $("cfShare").dataset.parte = parte; $("cfShare").dataset.keys = JSON.stringify(keys); $("cfShare").dataset.all = t.dataset.cfsh === "all" ? "1" : "";
+      $("cfShU").innerHTML = us.length ? us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "") + (u.admin ? " · admin" : "")) + "</option>").join("")
+        : '<option value="">Nenhum outro usuário cadastrado</option>';
+      $("cfShGo").disabled = !us.length; $("cfShare").hidden = false;
+      $("cfShare").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (t.id === "cfShX") { $("cfShare").hidden = true; return; }
+    if (t.id === "cfShGo") {
+      const to = $("cfShU").value, sh = $("cfShare"); if (!to) return;
+      t.disabled = true;
+      const r = await BB.api("/api/pump/config/share", { body: { to, parte: sh.dataset.parte, all: !!sh.dataset.all, keys: JSON.parse(sh.dataset.keys || "[]") } });
+      t.disabled = false;
+      toast(r.error ? "Não enviou: " + r.error : "Convite enviado (" + r.opcoes + " opções). A pessoa decide se aceita.");
+      if (!r.error) sh.hidden = true;
+      return;
+    }
+    if (t.dataset.ofa || t.dataset.ofr) {
+      const id = t.dataset.ofa || t.dataset.ofr, ok = !!t.dataset.ofa;
+      if (ok && !confirm("Aplicar essa configuração na sua conta? Os valores atuais dessas opções serão trocados.")) return;
+      const r = await BB.api("/api/pump/config/offers/" + encodeURIComponent(id), { body: { accept: ok } });
+      toast(r.error ? "Não deu: " + r.error : ok ? "Configuração aplicada (" + r.opcoes + " opções)." : "Convite recusado.");
+      return loadOffers();
     }
     if (t.id === "tuRun") {
       t.disabled = true;
@@ -1572,6 +1624,9 @@
     route();
     await poll(true);
     walletLoad(false);
+    cfgShareButtons();
+    loadOffers();
+    setInterval(loadOffers, 30000);
     setInterval(() => poll(false), 2000);
     setInterval(() => walletLoad(false), 20000);
     setInterval(() => { if (VIEW === "admin" && LOG_LIVE) loadLogs(); }, 4000);

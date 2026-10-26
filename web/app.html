@@ -85,6 +85,7 @@
     </div>
 
     <main class="page">
+      <div id="offerBar" hidden></div>
       <!-- ========================================================= VISÃO GERAL -->
       <section class="view" data-view="visao">
         <div class="kpirow">
@@ -406,10 +407,10 @@
 
       <!-- ========================================================= EXPLORAR (app/explore.py, 0.28.0) -->
       <section class="view" data-view="explorar" hidden>
-        <div class="card" id="exShare" hidden><header><div><h2 id="exShT">Compartilhar configuração do Explorar</h2><div class="sub">os valores atuais vão para a pessoa escolhida e já valem para ela (só admin; nunca chaves nem a execução real)</div></div><div class="sp"></div><button class="btn sm" id="exShX">Fechar</button></header>
+        <div class="card" id="exShare" hidden><header><div><h2 id="exShT">Compartilhar configuração do Explorar</h2><div class="sub">a pessoa recebe um convite no topo do painel e decide se aceita e aplica (só admin; nunca chaves nem a execução real)</div></div><div class="sp"></div><button class="btn sm" id="exShX">Fechar</button></header>
           <div class="form"><div class="field full"><div class="row">
             <select class="in" id="exShU" style="flex:1;min-width:240px"></select>
-            <button class="btn sm primary" id="exShGo">Enviar</button></div></div></div></div>
+            <button class="btn sm primary" id="exShGo">Enviar convite</button></div></div></div></div>
         <div class="card auto-entry" data-novo-ate="2026-11-09"><header><div><h2>Entrada automática (chance alta)</h2><div class="sub">somente a lista Quase graduando, com todos os filtros abaixo</div></div><div class="sp"></div><button class="btn sm" data-exsh="tudo" data-novo-ate="2026-11-09" style="margin-right:8px">Compartilhar tudo</button><button class="btn tgl off" data-toggle="pump_ex_auto_on" aria-label="Entrada automática do Explorar">OFF</button></header>
           <div class="auto-state muted" id="exAutoState" role="status" aria-live="polite">Carregando o estado das entradas automáticas…</div>
           <div class="help"><p><b>Como funciona:</b> começa desligada e usa a carteira fictícia. Quando o veredito for <b>chance alta</b> e todos os filtros passarem, entra com as proteções abaixo. Novos, Graduados e Mais sobem não geram entrada automática nesta etapa. A fonte renova a cada 5 minutos e pode chegar atrasada.</p><p id="exAutoMode">O dinheiro real depende das travas e dos controles existentes de execução real; esta tela não liga esses controles.</p></div>
@@ -599,6 +600,11 @@
       </section>
 
       <section class="view" data-view="config" hidden>
+        <div class="row" id="cfShareTop" hidden data-novo-ate="2026-11-09" style="margin-bottom:12px"><button class="btn sm" data-cfsh="all">Compartilhar toda a configuração</button><span class="muted">ou use o Compartilhar de cada seção · a pessoa recebe um convite no topo do painel e escolhe aceitar ou não</span></div>
+        <div class="card" id="cfShare" hidden><header><div><h2 id="cfShT">Compartilhar</h2><div class="sub">a pessoa recebe um convite no topo do painel e decide se aceita e aplica · nunca vai nada da carteira real, chaves ou Telegram</div></div><div class="sp"></div><button class="btn sm" id="cfShX">Fechar</button></header>
+          <div class="form"><div class="field full"><div class="row">
+            <select class="in" id="cfShU" style="flex:1;min-width:240px"></select>
+            <button class="btn sm primary" id="cfShGo">Enviar convite</button></div></div></div></div>
         <div class="card">
           <header><div><h2>Cópia</h2><div class="sub">cada mudança vale na hora e fica salva só para você</div></div></header>
           <div class="form">

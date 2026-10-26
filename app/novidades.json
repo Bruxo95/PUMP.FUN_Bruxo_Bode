@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.17",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Configurações (e Explorar) → Compartilhar",
+      "titulo": "Compartilhar configuração com convite: a pessoa aceita ou recusa",
+      "oque": "Em Configurações, cada seção (Cópia, Proteções, Filtros antes de copiar, Taxas) ganhou um botão Compartilhar, e no topo há \"Compartilhar toda a configuração\". Você escolhe a pessoa e envia o convite. Ela vê no topo do painel \"Fulano quer compartilhar a configuração dele\", com o nome da seção e a lista de opções, e escolhe Aceitar e aplicar ou Não aceitar. Nada muda na conta dela antes de aceitar. Os botões Compartilhar do Explorar agora também enviam convite. Nunca vai nada da carteira real, chaves ou Telegram. Quem não é admin não recebe as opções do menu Usar ou descartar."
+    },
+    {
       "versao": "0.31.16",
       "data": "2026-10-26",
       "tipo": "novo",

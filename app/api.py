@@ -546,6 +546,36 @@ def create_app(hub, auth, cfg) -> FastAPI:
             log.warning("compartilhar Explorar: %s", str(e)[:120])
             return {"error": "não consegui compartilhar agora"}
 
+    @app.get("/api/pump/config/share-targets")
+    async def config_share_targets(u: dict = Depends(admin_only)):
+        return {"users": await hub.share_targets(u["id"])}
+
+    @app.post("/api/pump/config/share")
+    async def config_share(body: dict, u: dict = Depends(admin_only)):
+        """Configurações → Compartilhar (0.31.17): uma seção (lista de opções da tela) ou tudo."""
+        from .settings import USER_KEYS
+        pf = await hub.engine(u["id"])
+        keys = list(USER_KEYS) if body.get("all") else [str(k) for k in (body.get("keys") or [])][:300]
+        parte = str(body.get("parte") or ("toda a configuração" if body.get("all") else "configuração"))[:80]
+        try:
+            return await hub.config_offer(pf, u, str(body.get("to") or ""), parte, keys)
+        except Exception as e:
+            log.warning("compartilhar configuração: %s", str(e)[:120])
+            return {"error": "não consegui enviar agora (tabela criada no banco?)"}
+
+    @app.get("/api/pump/config/offers")
+    async def config_offers(u: dict = Depends(user)):
+        try:
+            return {"offers": await hub.config_offers(u["id"])}
+        except Exception:
+            return {"offers": []}
+
+    @app.post("/api/pump/config/offers/{offer_id}")
+    async def config_answer(offer_id: int, body: dict, u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        hub.check_active(u["id"], pf)
+        return await hub.config_answer(pf, offer_id, bool(body.get("accept")))
+
     @app.get("/api/pump/study/share-targets")
     async def study_share_targets(u: dict = Depends(admin_only)):
         return {"users": await hub.study_share_targets(u["id"])}
