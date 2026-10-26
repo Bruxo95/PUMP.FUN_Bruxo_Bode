@@ -460,6 +460,44 @@
     table("ghRec", ["Quando", "Token", "Saída", "Resultado", "Melhor momento"], rec.map((x) => [dt(x.at), pfM(x.mint, x.symbol), esc(x.why), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small> " + f(x.pnl_pct, 1) + "%</small>"), "+" + f(x.best, 1) + "%"]), "Nenhum fechamento ainda nesta variante.");
   }
   document.addEventListener("change", (e) => { if (e.target.id === "ghSel") ghRecent(); });
+  // ---- abas de Relatórios (0.31.7): números, PDFs do dia e mudanças da IA
+  let REP_TAB = "num";
+  async function loadRepTab() {
+    $("repNum").hidden = REP_TAB !== "num"; $("repPdf").hidden = REP_TAB !== "pdf"; $("repIa").hidden = REP_TAB !== "ia";
+    if (REP_TAB === "pdf") {
+      const r = await BB.api("/api/pump/daily");
+      if (r.error) { $("pdfTbl").innerHTML = '<tr><td class="empty">' + esc(r.error) + "</td></tr>"; return; }
+      const days = [{ dia: r.today, pnl_sol: r.report.pnl_sol, trades: r.report.trades, acerto: r.report.acerto, sugestoes: (r.report.suggestions || []).length, closed: false }]
+        .concat((r.days || []).filter((d) => d.dia !== r.today));
+      table("pdfTbl", ["Dia", "Resultado", "Trades", "Acerto", "Sugestões", "", ""], days.map((d) => [esc(d.dia.split("-").reverse().join("/")) + (d.dia === r.today ? " <small>em andamento</small>" : ""),
+        sg(d.pnl_sol), String(d.trades || 0), d.acerto == null ? "–" : f(d.acerto * 100, 0) + "%", String(d.sugestoes || 0),
+        '<button class="btn sm" data-pdfopen="' + esc(d.dia) + '">Abrir PDF</button> <button class="btn sm" data-pdfdl="' + esc(d.dia) + '">Baixar PDF</button>',
+        '<button class="btn sm primary" data-aitxt="' + esc(d.dia) + '">Texto para IA</button>']), "Nenhum relatório ainda.");
+    }
+    if (REP_TAB === "ia") {
+      const r = await BB.api("/api/pump/changes");
+      const ch = (r.changes || []).filter((c) => !c.erro), tot = ch.reduce((a, c) => a + (c.projecao_sol_dia || 0), 0);
+      kpis("iaK", [["Mudanças registradas", String(ch.length), "relatórios das IAs", "tr"], ["Projeção somada", sg(tot) , "SOL por dia, se todas acertarem", "pnl"],
+        ["Com resultado medido", String(ch.filter((c) => c.real && c.real.dias_depois).length), "7 dias antes × depois", "hit"]]);
+      const pd = (v) => (v == null ? "–" : sg(v) + "<small>/dia</small>");
+      table("iaTbl", ["Versão", "Data", "Autor", "Baseado em", "Projeção", "Antes", "Depois", "Diferença real", ""], (r.changes || []).map((c) => c.erro ? [esc(c.nome), "–", "–", '<span class="down">' + esc(c.erro) + "</span>", "–", "–", "–", "–", ""] :
+        [esc(c.versao), esc(c.data.split("-").reverse().join("/")), esc(c.autor), esc(c.baseado_em), pd(c.projecao_sol_dia) + "<small>" + esc(c.projecao_texto) + "</small>",
+          pd(c.real.antes_sol_dia) + "<small>" + c.real.dias_antes + " dias</small>", pd(c.real.depois_sol_dia) + "<small>" + c.real.dias_depois + " dias</small>", pd(c.real.diferenca_sol_dia),
+          '<button class="btn sm" data-chview="' + esc(c.nome) + '">Ver</button> <button class="btn sm" data-chpdf="' + esc(c.nome) + '">PDF</button>']), "Nenhuma mudança registrada ainda.");
+    }
+  }
+  document.addEventListener("click", async (e) => {
+    const tb = e.target.closest("#repTabs button");
+    if (tb) { REP_TAB = tb.dataset.rt; document.querySelectorAll("#repTabs button").forEach((x) => x.classList.toggle("on", x === tb)); return loadRepTab(); }
+    const t = e.target, d = t.dataset || {};
+    try {
+      if (d.pdfopen) return await BB.download("/api/pump/daily/pdf?dia=" + encodeURIComponent(d.pdfopen), "", true);
+      if (d.pdfdl) return await BB.download("/api/pump/daily/pdf?dia=" + encodeURIComponent(d.pdfdl), "relatorio-" + d.pdfdl + ".pdf");
+      if (d.aitxt) return await BB.download("/api/pump/daily/ai?dia=" + encodeURIComponent(d.aitxt), "relatorio-" + d.aitxt + "-para-ia.md");
+      if (d.chpdf) return await BB.download("/api/pump/changes/" + encodeURIComponent(d.chpdf) + "?pdf=1", "mudanca-" + d.chpdf + ".pdf");
+      if (d.chview) { const c = await BB.api("/api/pump/changes/" + encodeURIComponent(d.chview)); $("iaTxt").innerHTML = "<p><b>" + esc(c.versao + " · " + c.data) + "</b></p>" + esc(c.texto || c.error || "").split("\n").map((l) => "<p>" + l + "</p>").join(""); }
+    } catch (err) { toast("Não abriu: " + err.message); }
+  });
   document.addEventListener("click", (e) => {
     const b = e.target.closest("#repDays button"); if (!b) return;
     REP_DAYS = +b.dataset.d; document.querySelectorAll("#repDays button").forEach((x) => x.classList.toggle("on", x === b)); loadReports();

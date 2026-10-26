@@ -51,5 +51,18 @@
     return js;
   };
 
+  /* Baixa (ou abre) um arquivo da API com o token do usuário (0.31.7: PDFs dos relatórios). */
+  BB.download = async function (path, filename, open) {
+    const s = await BB.session();
+    if (!s) { location.href = "/"; return; }
+    const r = await fetch(path, { headers: { Authorization: "Bearer " + s.access_token }, cache: "no-store" });
+    if (!r.ok) throw new Error("erro " + r.status);
+    const url = URL.createObjectURL(await r.blob());
+    if (open) { window.open(url, "_blank", "noopener"); } else {
+      const a = document.createElement("a"); a.href = url; a.download = filename || "arquivo"; document.body.appendChild(a); a.click(); a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+
   BB.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 })();

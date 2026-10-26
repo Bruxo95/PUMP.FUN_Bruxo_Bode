@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.7",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Relatórios → abas Relatórios do dia (PDF) e Mudanças feitas pela IA",
+      "titulo": "Relatórios em PDF para mandar à IA e registro do que cada IA mudou, com projeção × realizado",
+      "oque": "Relatórios ganhou três abas. Números: o que já existia. Relatórios do dia (PDF): um relatório por dia, guardado no banco, com Abrir PDF, Baixar PDF e Texto para IA (o mesmo relatório em texto, já com as instruções para a IA revisar, corrigir o código e registrar a mudança com a projeção de ganho). Mudanças feitas pela IA: cada correção feita por uma IA vira um relatório com o que mudou, por quê, em que relatório se baseou e a projeção de ganho em SOL por dia; ao lado, o resultado real 7 dias antes e 7 dias depois, para ver se a projeção acertou. Cada mudança também tem PDF."
+    },
+    {
       "versao": "0.31.6",
       "data": "2026-10-26",
       "tipo": "novo",

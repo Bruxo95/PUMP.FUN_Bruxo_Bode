@@ -51,3 +51,5 @@ bloquear a instalação até avaliação. Não contornar o gate nem reinstalar n
   servidores ou outros projetos sem uma solicitação explícita para essa ação.
 - Antes de enviar alterações, confirme que o remoto pertence a este repositório.
   Informe o commit, as verificações realizadas e o que não foi validado.
+
+Ao corrigir algo a partir de um relatório do dia, crie também `app/relatorios_ia/AAAA-MM-DD-versao.md` (formato em `app/changes.py`) com a projeção de ganho. Detalhes no CLAUDE.md.

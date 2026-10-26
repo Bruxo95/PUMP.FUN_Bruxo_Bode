@@ -13,7 +13,7 @@ import os
 from fastapi import Depends, FastAPI, HTTPException, Request
 import hashlib
 
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .auth import AuthError
@@ -234,6 +234,65 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/daily")
     async def pump_daily(dia: str = "", pf=Depends(admin_engine)):
         """Relatório do dia (0.31.5): números da Visão geral ao longo do dia, diagnóstico e sugestões; e os dias anteriores."""
+        return await daily_data(pf, dia)
+
+    @app.get("/api/pump/daily/pdf")
+    async def pump_daily_pdf(dia: str = "", pf=Depends(admin_engine)):
+        """PDF do relatório do dia (0.31.7) para ver e mandar para uma IA revisar."""
+        from .daily import blocks
+        from .pdf import make
+        d = await daily_data(pf, dia)
+        rep = d["report"]
+        pdf = make(blocks(rep, d["study"], VERSION), f"Relatório {rep['dia']}")
+        return Response(pdf, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="relatorio-{rep["dia"]}.pdf"'})
+
+    @app.get("/api/pump/daily/ai")
+    async def pump_daily_ai(dia: str = "", pf=Depends(admin_engine)):
+        """O relatório do dia em texto, já com as instruções para a IA revisar e corrigir (0.31.7)."""
+        from .daily import ai_text
+        d = await daily_data(pf, dia)
+        return PlainTextResponse(ai_text(d["report"], d["study"], VERSION),
+                                 headers={"Content-Disposition": f'attachment; filename="relatorio-{d["report"]["dia"]}-para-ia.md"'})
+
+    @app.get("/api/pump/changes")
+    async def pump_changes(pf=Depends(admin_engine)):
+        """Relatórios das mudanças feitas pela IA (app/relatorios_ia) com projeção × realizado (0.31.7)."""
+        from .changes import load, realized
+        try:
+            rows = await hub.db.select("daily_report", {"user_id": pf.user_id}, order="dia.desc", limit=120)
+        except Exception:
+            rows = []
+        days = [{"dia": str(r.get("dia")), "pnl_sol": (r.get("data") or {}).get("pnl_sol")} for r in rows]
+        out = []
+        for ch in load():
+            if ch.get("erro"):
+                out.append(ch)
+                continue
+            out.append({**{k: v for k, v in ch.items() if k != "texto"}, "resumo": ch["texto"][:400], "real": realized(ch, days)})
+        return {"changes": out}
+
+    @app.get("/api/pump/changes/{nome}")
+    async def pump_change(nome: str, pdf: int = 0, pf=Depends(admin_engine)):
+        from .changes import load
+        from .pdf import make
+        ch = next((c for c in load() if c.get("nome") == nome and not c.get("erro")), None)
+        if not ch:
+            raise HTTPException(404, "relatório não encontrado")
+        if not pdf:
+            return ch
+        head = [("title", f"Mudança {ch['versao']} - {ch['data']}"),
+                ("small", f"Autor: {ch['autor']} · baseado em: {ch['baseado_em']}"),
+                ("h", "Projeção"),
+                ("p", (f"{ch['projecao_sol_dia']:+.4f} SOL por dia (carteira fictícia). " if ch["projecao_sol_dia"] is not None else "Não estimada. ")
+                 + ch["projecao_texto"]), ("h", "O que foi feito")]
+        body = []
+        for ln in ch["texto"].splitlines():
+            body.append(("h", ln.lstrip("# ")) if ln.startswith("#") else ("p", ln))
+        return Response(make(head + body, f"Mudança {ch['versao']}"), media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="mudanca-{nome}.pdf"'})
+
+    async def daily_data(pf, dia: str = "") -> dict:
         from .daily import build, day_of, kpis
         today = day_of(__import__("time").time())
         dia = dia if __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", dia or "") else today

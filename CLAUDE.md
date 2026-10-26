@@ -45,6 +45,12 @@ cada API): `docs/GUIA-DO-PROJETO.md`.
 - Novidade visível no painel ganha marca verde "NOVO": atributo `data-novo-ate="AAAA-MM-DD"` (cerca de 14 dias
   depois da entrega) no elemento; `marcarNovos()` em `web/app.js` aplica a classe `novo` e ela some sozinha depois
   da data. Pedido do dono em 2026-10-25 ("está tudo preto, quero distinguir o que é novo").
+- **Relatório da mudança (regra do dono, 2026-10-26):** toda IA que corrigir ou mudar a lógica de trades (a partir de
+  um relatório do dia ou de um pedido) cria, na MESMA entrega, `app/relatorios_ia/AAAA-MM-DD-versao.md` no formato de
+  `app/changes.py` (cabeçalho com versao, data, autor, baseado_em, projecao_sol_dia, projecao_texto + texto do que
+  mudou e como medir). A projeção é em SOL por dia na carteira fictícia, com a conta; sem base, `nao_estimado` e por
+  quê. Aparece em Relatórios → "Mudanças feitas pela IA" com o realizado 7 dias antes × depois.
+  `tests/test_changes.py` falha se algum arquivo estiver fora do formato.
 - Visual: tema escuro "painel profissional" (estilo inspirado em rbp-security-template.vercel.app — só o
   estilo, nada copiado). Botões liga/desliga: **verde = ON, vermelho = OFF**. Tem que funcionar no celular
   (menu vira gaveta, sem rolagem lateral). JS sem handlers inline (a CSP bloqueia).
@@ -613,3 +619,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   Cada sugestão tem `tipo`; `daily.study` junta os dias: problemas que se repetem (`recurring`), origens/saídas/traders
   somados, sugestões de vários dias. Quadro "Aprendizado dos dias" na Visão geral (admin). Onde ficam as sugestões:
   Visão geral (dia e vários dias), Maiores traders, Aprendizado diário e Relatórios.
+
+## Relatórios em PDF e mudanças da IA (2026-10-26, versão 0.31.7)
+- `app/pdf.py`: PDF só com a biblioteca padrão (Helvetica/WinAnsi; sem dependência nova). `daily.blocks`/`ai_text`;
+  rotas `/api/pump/daily/pdf` e `/api/pump/daily/ai` (admin; `daily_data` em api.py), `BB.download` no common.js
+  (baixa com o token). `app/changes.py` + pasta `app/relatorios_ia/` (vai na imagem Docker com `COPY app`), rotas
+  `/api/pump/changes` e `/api/pump/changes/{nome}?pdf=1`. Abas em Relatórios. Regra para as IAs na seção "Como
+  trabalhar aqui". Primeiro relatório: `app/relatorios_ia/2026-10-26-0.31.7.md` (projeção não estimada: sem base).

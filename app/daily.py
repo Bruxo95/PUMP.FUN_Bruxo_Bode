@@ -212,3 +212,62 @@ def study(reports: list[dict]) -> dict:
                         "trades": r.get("trades"), "acerto": r.get("acerto")} for r in R],
             "recurring": sorted(rec.values(), key=lambda x: -x["dias"]), "origins": origins, "exits": exits,
             "traders": traders[:10], "suggestions": sug}
+
+
+def _br(d: str) -> str:
+    return "/".join(reversed(str(d).split("-")))
+
+
+def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
+    """Conteúdo do PDF do relatório (0.31.7): o dia, as sugestões e o aprendizado de vários dias."""
+    B = [("title", f"PUMP FUN COPY - relatório de {_br(rep['dia'])}"),
+         ("small", f"Versão do sistema: {version} · gerado em {rep.get('generated_at')} · carteira fictícia"
+                   + (" · dia fechado" if rep.get("closed") else " · dia em andamento")
+                   + (" · refeito a partir dos trades" if rep.get("backfilled") else "")),
+         ("h", "Resumo do dia"),
+         ("p", f"Resultado {rep.get('pnl_sol', 0):+.4f} SOL em {rep.get('trades', 0)} trades fechados; acerto "
+               + (f"{rep['acerto'] * 100:.0f}%" if rep.get("acerto") is not None else "-")
+               + f"; taxas {rep.get('fees_sol', 0):.4f} SOL; investido {rep.get('invested_sol', 0):.4f} SOL"
+               + (f"; saldo no fim do dia {rep['equity_end']:.4f} SOL" if rep.get("equity_end") is not None else "")
+               + f"; {rep.get('gave_back', 0)} trades devolveram lucro; {rep.get('stops', 0)} stops de perda"
+               + (f"; atraso médio {rep['avg_lag_s']} s" if rep.get("avg_lag_s") is not None else "") + ".")]
+    pts = rep.get("points") or []
+    if len(pts) >= 2:
+        B.append(("p", "Saldo ao longo do dia: " + " · ".join(f"{datetime.fromtimestamp(p['t'], timezone.utc).strftime('%H:%M')} "
+                                                              f"{p.get('saldo', 0):.4f}" for p in pts[:: max(1, len(pts) // 12)])))
+    B.append(("h", "O que melhorar (dia)"))
+    B += [("p", f"[{s['area']}] {s['texto']} (base: {s.get('base')})") for s in rep.get("suggestions") or []]
+    for key, title in (("by_origin", "Por origem"), ("by_exit", "Por motivo de saída"), ("by_trader", "Por trader")):
+        rows = rep.get(key) or []
+        if rows:
+            B.append(("h", title))
+            B += [("mono", f"{str(x['nome'])[:44]:<44} {x['trades']:>4} trades  acerto {x['acerto'] * 100:>3.0f}%  {x['pnl_sol']:+.4f} SOL")
+                  for x in rows]
+    if rep.get("top_skips"):
+        B.append(("h", "Por que o robô não copiou (mais frequentes)"))
+        B += [("mono", f"{x['n']:>5}x  {x['motivo']}") for x in rep["top_skips"]]
+    if st:
+        B.append(("h", f"Aprendizado de {st.get('days', 0)} dias"))
+        B.append(("p", f"Resultado somado {st.get('pnl_sol', 0):+.4f} SOL; {st.get('positive_days', 0)} de {st.get('days', 0)} dias no lucro; "
+                       f"melhor dia {_br(st.get('best') or '-')}; pior dia {_br(st.get('worst') or '-')}."))
+        B += [("p", f"[{s['area']}] {s['texto']} (base: {s.get('base')})") for s in st.get("suggestions") or []]
+        if st.get("series"):
+            B.append(("h", "Dia a dia"))
+            B += [("mono", f"{_br(d['dia'])}  {d.get('pnl_sol') or 0:+.4f} SOL  {d.get('trades') or 0:>4} trades  "
+                           f"acerto {((d.get('acerto') or 0) * 100):>3.0f}%") for d in st["series"]]
+    return B
+
+
+def ai_text(rep: dict, st: dict | None, version: str) -> str:
+    """O mesmo relatório em texto, com as instruções para a IA que vai revisar e corrigir (0.31.7)."""
+    lines = [f"# Relatório PUMP FUN COPY - {_br(rep['dia'])} (sistema {version})", ""]
+    lines += [("## " + t) if s in ("h", "title") else t for s, t in blocks(rep, st, version)[1:]]
+    lines += ["", "## Instruções para a IA que vai revisar",
+              "Repositório: github.com/Bruxo95/PUMP.FUN_Bruxo_Bode (leia CLAUDE.md antes de mexer).",
+              "1. Diga as 3 causas principais do resultado acima, com os números do relatório.",
+              "2. Proponha mudanças no código ou nas configurações (arquivo e função), uma por problema, da mais importante para a menos.",
+              "3. Implemente seguindo o CLAUDE.md (testes sem internet, versão nova, novidades.json, inventário, pull antes do push).",
+              "4. Na mesma entrega, crie app/relatorios_ia/AAAA-MM-DD-versao.md no formato descrito em app/changes.py, com a "
+              "PROJEÇÃO de ganho em SOL por dia depois da mudança e a conta que levou a ela (ex.: E se…, Estratégias fantasma).",
+              "5. Não ligue a execução real e não faça transação real."]
+    return "\n".join(lines)

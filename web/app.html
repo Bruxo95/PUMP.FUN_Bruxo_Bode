@@ -239,6 +239,8 @@
 
       <!-- ========================================================= RELATÓRIOS (app/reports.py) -->
       <section class="view" data-view="relatorios" hidden>
+        <div class="seg" id="repTabs" style="margin-bottom:12px" data-novo-ate="2026-11-09"><button data-rt="num" class="on">Números</button><button data-rt="pdf">Relatórios do dia (PDF)</button><button data-rt="ia">Mudanças feitas pela IA</button></div>
+        <div id="repNum">
         <div class="card"><header><div><h2>Período <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub">tudo líquido: depois de todas as taxas e do slippage · troque Fictícia/Real no topo</div></div><div class="sp"></div>
           <div class="seg" id="repDays"><button data-d="1">24 h</button><button data-d="7" class="on">7 dias</button><button data-d="30">30 dias</button><button data-d="0">Tudo</button></div></header>
           <div class="kpis" id="repKpis"></div></div>
@@ -263,6 +265,18 @@
           <div class="tbl-wrap"><table id="repScore"></table></div></div>
         <div class="card"><header><div><h2>Resultado por dia</h2></div></header>
           <div class="tbl-wrap"><table id="repDay"></table></div></div>
+        </div>
+        <div id="repPdf" hidden>
+          <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Relatórios do dia</h2><div class="sub">um por dia, guardados no banco · abra o PDF para ver ou baixe o texto para mandar para uma IA revisar e corrigir</div></div></header>
+            <div class="help"><p><b>Como usar:</b> 1) Baixe "Texto para IA" (ou o PDF) do dia. 2) Mande para a IA (Claude, Codex…) revisar: o texto já traz as instruções. 3) A IA corrige o código e cria o relatório da mudança com a projeção de ganho, que aparece na aba "Mudanças feitas pela IA" com o realizado depois.</p></div>
+            <div class="tbl-wrap"><table id="pdfTbl"></table></div></div>
+        </div>
+        <div id="repIa" hidden>
+          <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Mudanças feitas pela IA</h2><div class="sub">cada correção vem com o que mudou, por quê e a projeção de ganho · ao lado, o resultado real 7 dias antes × 7 dias depois</div></div></header>
+            <div class="kpis" id="iaK"></div>
+            <div class="tbl-wrap"><table id="iaTbl"></table></div>
+            <div class="help" id="iaTxt"></div></div>
+        </div>
       </section>
 
       <!-- ========================================================= BASE DA PUMP.FUN (app/tokenlab.py, 0.21.0) -->
