@@ -644,3 +644,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   estagnação for ligada). `Elite.bot_reason` (compras <0,01 SOL repetidas ou `_is_bot`) tira dos sugeridos 24 h e o
   Steps explica; `pump_exit_stale_*` (OFF) em `smart_exit`; fantasmas `parado45` e `max1h`; `daily`: sugestão
   `tempo_maximo` e `worst_trades`. Testes: `tests/test_correcoes_2610.py`.
+
+## Por que está no vermelho (2026-10-26, versão 0.31.11)
+- Pedido do dono (print de "Quanto você ganhou ou perdeu copiando cada trader"). `reports.loss_cause`/`autopsy`
+  (`CAUSES` com a correção de cada causa; por trader: causa principal, holder longo ≥3 h, 0 acertos → pausar/banir).
+  `daily.build` guarda `loss_causes`/`loss_traders` no `daily_report` e cria sugestões `causa_*` (recorrência no
+  aprendizado). Quadro em Relatórios → Números. Testes: `tests/test_autopsy.py`.

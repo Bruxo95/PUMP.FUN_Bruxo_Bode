@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.11",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Relatórios → Números → Por que está no vermelho",
+      "titulo": "Por que está no vermelho: a causa de cada prejuízo e o que fazer",
+      "oque": "Relatórios ganhou o quadro Por que está no vermelho. Cada trade no prejuízo recebe uma causa principal (ficou parado até o tempo máximo, chegou a ganhar e devolveu, entrou e só caiu, entrou bem mais caro que o trader, as taxas viraram o resultado, o próprio trader saiu no prejuízo, rug ou dev vendeu) com a correção recomendada. Cada trader no vermelho mostra a causa principal e o que fazer: por exemplo, quem segura por horas é um holder longo, que não combina com a cópia de memecoin, e quem tem 0 acertos deve ser pausado ou banido. As causas de cada dia são guardadas no banco com o relatório do dia, entram no PDF e no texto para IA, e o Aprendizado dos dias mostra quando a mesma causa se repete."
+    },
+    {
       "versao": "0.31.10",
       "data": "2026-10-26",
       "tipo": "correção",

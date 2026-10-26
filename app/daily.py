@@ -159,6 +159,13 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
         add("lógica", f"{len(tmax)} trades saíram por tempo máximo com {sum(t.get('pnl_sol') or 0 for t in tmax):+.4f} SOL: ficaram parados "
             "por horas e saíram no prejuízo. Ligue \"Sair quando a posição fica parada\" (Opções novas) ou diminua o tempo máximo "
             "em Configurações; compare antes em Estratégias fantasma (\"parado 45 min\" e \"tempo máximo 1 h\").", len(tmax), tipo="tempo_maximo")
+    from .reports import autopsy
+    aut = autopsy(T)                                   # por que está no vermelho (0.31.11): vai para o banco no daily_report
+    for c in aut["causes"]:
+        if c["trades"] >= 3:
+            add("lógica" if c["causa"] in ("parado", "devolveu", "so_caiu", "entrada_cara") else "trades",
+                f"Causa de prejuízo \"{c['nome']}\": {c['trades']} trades, {c['perdido_sol']:+.4f} SOL. {c['correcao']}",
+                c["trades"], tipo="causa_" + c["causa"])
     worst_trades = sorted([x for x in tl if (x.get("pnl_sol") or 0) < 0], key=lambda x: x.get("pnl_sol") or 0)[:5]
     if len([h for h in by_hour if h["trades"] >= 3]) >= 3:
         worst = min((h for h in by_hour if h["trades"] >= 3), key=lambda h: h["pnl_sol"])
@@ -166,7 +173,7 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
             add("trades", f"O pior horário foi {worst['hora']} ({TZ_NAME}): {worst['pnl_sol']:+.4f} SOL em {worst['trades']} trades. "
                 "Se repetir em outros dias, evite operar nesse horário.", worst["trades"], tipo="horario_ruim")
     return {"dia": day, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
-            "worst_trades": worst_trades, "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
+            "worst_trades": worst_trades, "loss_causes": aut["causes"], "loss_traders": aut["traders"][:8], "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
             "avg_lag_s": round(sum(lags) / len(lags), 1) if lags else None, "top_skips": [{"motivo": k, "n": v} for k, v in top_skips],
@@ -188,7 +195,9 @@ def days_with_trades(pf, before_day: str, limit: int = 60) -> list[str]:
     return [d for d in ds if d < before_day][:limit]
 
 
-TITLES = {"tempo_maximo": "Perdas por tempo máximo", "horario_ruim": "Horário ruim", "acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
+TITLES = {"causa_parado": "Prejuízo: ficou parado", "causa_devolveu": "Prejuízo: devolveu o lucro",
+          "causa_so_caiu": "Prejuízo: entrou e só caiu", "causa_taxas": "Prejuízo: taxas", "causa_entrada_cara": "Prejuízo: entrada cara",
+          "causa_trader_perdeu": "Prejuízo: o trader errou", "causa_rug": "Prejuízo: rug/dev", "tempo_maximo": "Perdas por tempo máximo", "horario_ruim": "Horário ruim", "acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
           "trader_ruim": "Trader que dá prejuízo", "origem_ruim": "Origem no prejuízo", "taxas": "Taxas altas",
           "atraso": "Atraso alto", "filtro": "Filtro barrando demais", "queda_saldo": "Saldo caindo no dia"}
 
@@ -275,6 +284,11 @@ def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
     if len(pts) >= 2:
         B.append(("p", "Saldo ao longo do dia: " + " · ".join(f"{datetime.fromtimestamp(p['t'], timezone.utc).strftime('%H:%M')} "
                                                               f"{p.get('saldo', 0):.4f}" for p in pts[:: max(1, len(pts) // 12)])))
+    if rep.get("loss_causes"):
+        B.append(("h", "Por que ficou no vermelho (causas)"))
+        B += [("p", f"{c['nome']}: {c['trades']} trades, {c['perdido_sol']:+.4f} SOL. Correção: {c['correcao']}") for c in rep["loss_causes"]]
+        B += [("p", f"Trader {str(x['wallet'])[:4]}...{str(x['wallet'])[-4:]}: {x['trades']} trades, {x['pnl_sol']:+.4f} SOL, causa {x['causa_nome']}. "
+                    f"{x['recomendacao']}") for x in rep.get("loss_traders") or []]
     if rep.get("worst_trades"):
         B.append(("h", "Maiores perdas do dia (onde o dinheiro foi perdido)"))
         B += [("mono", f"{x['entrada']}->{x['saida']}  {str(x['token'])[:12]:<12} {(x.get('pnl_sol') or 0):+.4f} SOL "

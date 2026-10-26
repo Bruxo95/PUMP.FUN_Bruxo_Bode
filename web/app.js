@@ -77,6 +77,13 @@
     kpis("repCusto", [["Entrada mais cara que o trader", cu.entry_worse_pct == null ? "–" : "+" + f(cu.entry_worse_pct, 1) + "%", "média de " + (cu.with_px || 0) + " trades (atraso + slippage)", "mon"],
       ["Taxas", cu.fees_pct == null ? "–" : f(cu.fees_pct, 1) + "%", "do valor investido · " + s4(cu.fees_sol) + " SOL", "wallet"],
       ["Antes × depois das taxas", sg(cu.gross_sol), "líquido: " + s4(cu.net_sol) + " SOL", "pnl"]]);
+    const au = r.autopsy || {};
+    $("autSub").textContent = (au.losses || 0) + " trades no prejuízo no período · " + s4(au.lost_sol || 0) + " SOL · as causas do dia ficam guardadas no banco para o aprendizado";
+    kpis("autK", (au.causes || []).slice(0, 4).map((c) => [c.nome, sg(c.perdido_sol), c.trades + " trades", "pos"]));
+    table("autCause", ["Causa", "Trades", "Perdido", "Correção recomendada"], (au.causes || []).map((c) => [esc(c.nome), String(c.trades), sg(c.perdido_sol), esc(c.correcao)]), "Nenhum trade no prejuízo no período.");
+    table("autTr", ["Trader", "Trades", "Acerto", "Resultado", "Segura (média)", "Causa principal", "O que fazer"], (au.traders || []).map((x) => [pfW(x.wallet), String(x.trades), f(x.acerto * 100, 0) + "%", sg(x.pnl_sol), hms(x.hold_s), esc(x.causa_nome), esc(x.recomendacao)]), "Nenhum trader no vermelho.");
+    table("autTrades", ["Fechou", "Token", "Trader", "Resultado", "Melhor momento", "Segurou", "Motivo", "Causa"], (au.trades || []).map((x) => [dt(x.closed_at), pfM(x.mint || "", x.symbol), pfW(x.wallet || ""),
+      sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + f(x.pnl_pct, 1) + "%</small>"), x.best_pct == null ? "–" : (x.best_pct > 0 ? "+" : "") + f(x.best_pct, 1) + "%", hms(x.hold_s), esc(x.reason || ""), '<span class="tag loss">' + esc(x.causa_nome) + "</span>"]), "Nenhum.");
     table("repScore", ["Nota", "Trades", "Acerto", "Resultado", "Média por trade"], (r.by_score || []).map((x) => [esc(x.faixa), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), sg(x.avg_pnl_sol)]), "");
     const m = r.mesa || {}, pc = (v) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
     if (!m.trades) { $("repMesa").innerHTML = '<p class="muted">Ainda sem trades fechados com esse dado (começa a contar a partir da 0.18.0).</p>'; $("repMesaEx").innerHTML = ""; return; }

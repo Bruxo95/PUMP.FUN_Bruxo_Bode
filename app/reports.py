@@ -109,6 +109,81 @@ def custo(T: list[dict]) -> dict:
             "gross_sol": round(gross, 6), "net_sol": round(sum(t.get("pnl_sol") or 0 for t in T), 6)}
 
 
+# Por que está no vermelho (0.31.11, pedido do dono em 2026-10-26): cada trade no prejuízo ganha UMA causa principal
+# (a primeira que bate, na ordem abaixo) e cada causa tem a correção recomendada. O relatório do dia guarda as contagens
+# no banco (daily_report) e o "Aprendizado dos dias" mostra quando a mesma causa se repete.
+CAUSES = {
+    "rug": ("Rug ou dev vendeu", "Ligue a lista negra e \"sair quando o dev vende\" (Opções novas)."),
+    "parado": ("Ficou parado até o tempo máximo", "Ligue \"sair quando a posição fica parada\" ou diminua o tempo máximo (veja antes as Estratégias fantasma)."),
+    "devolveu": ("Chegou a ganhar e devolveu", "Ligue a venda em partes e use um stop móvel mais justo."),
+    "taxas": ("As taxas viraram o resultado", "Copie com valor um pouco maior ou evite trades pequenos: a taxa fixa de rede pesa."),
+    "entrada_cara": ("Entrou bem mais caro que o trader", "Ligue \"não copiar se o preço já subiu\" e use um RPC próprio para reduzir o atraso."),
+    "trader_perdeu": ("O próprio trader saiu no prejuízo", "O erro é do trader: pause ou bana quem repete isso."),
+    "so_caiu": ("Entrou e só caiu", "Aperte a entrada: pressão de compra mínima, nota mínima e barrar carteiras novas."),
+    "outro": ("Outro motivo", "Veja o motivo de saída na lista."),
+}
+
+
+def loss_cause(t: dict) -> str:
+    why = str(t.get("reason") or "").lower()
+    best = t.get("best_pct") or 0
+    if "dev vendeu" in why or "rug" in why or "graduou" in why:
+        return "rug"
+    if "tempo máximo" in why or "parado" in why:
+        return "parado"
+    if best >= 10:
+        return "devolveu"
+    if (t.get("gross_sol") or 0) >= 0 > (t.get("pnl_sol") or 0):
+        return "taxas"
+    tp, pi = t.get("trader_px"), t.get("price_in")
+    if tp and pi and pi / tp - 1 >= 0.10:
+        return "entrada_cara"
+    if "trader vendeu" in why or "elite vendeu" in why:
+        return "trader_perdeu"
+    if "stop de perda" in why:
+        return "so_caiu"
+    return "outro"
+
+
+def autopsy(T: list[dict]) -> dict:
+    L = [t for t in T if (t.get("pnl_sol") or 0) < 0]
+    causes: dict[str, dict] = {}
+    for t in L:
+        k = loss_cause(t)
+        c = causes.setdefault(k, {"causa": k, "nome": CAUSES[k][0], "correcao": CAUSES[k][1], "trades": 0, "perdido_sol": 0.0})
+        c["trades"] += 1
+        c["perdido_sol"] = round(c["perdido_sol"] + (t.get("pnl_sol") or 0), 6)
+    by_tr: dict[str, list] = {}
+    for t in T:
+        by_tr.setdefault(t.get("wallet") or "?", []).append(t)
+    traders = []
+    for w, rows in by_tr.items():
+        pnl = sum(t.get("pnl_sol") or 0 for t in rows)
+        if pnl >= 0:
+            continue
+        ks: dict[str, int] = {}
+        for t in rows:
+            if (t.get("pnl_sol") or 0) < 0:
+                ks[loss_cause(t)] = ks.get(loss_cause(t), 0) + 1
+        main = max(ks, key=ks.get) if ks else "outro"
+        wins = sum(1 for t in rows if (t.get("pnl_sol") or 0) > 0)
+        hold = sum(t.get("hold_s") or 0 for t in rows) / len(rows)
+        rec = CAUSES[main][1]
+        if len(rows) >= 3 and wins == 0:
+            rec = f"0 acertos em {len(rows)} cópias: pause ou bana este trader. " + rec
+        if hold >= 3 * 3600:
+            rec = f"Ele segura em média {hold / 3600:.1f} h (holder longo): não combina com a cópia de memecoin. " + rec
+        traders.append({"wallet": w, "trades": len(rows), "acerto": round(wins / len(rows), 3), "pnl_sol": round(pnl, 6),
+                        "causa": main, "causa_nome": CAUSES[main][0], "hold_s": round(hold), "recomendacao": rec})
+    traders.sort(key=lambda x: x["pnl_sol"])
+    worst = sorted(L, key=lambda t: t.get("pnl_sol") or 0)[:30]
+    return {"losses": len(L), "lost_sol": round(sum(t.get("pnl_sol") or 0 for t in L), 6),
+            "causes": sorted(causes.values(), key=lambda c: c["perdido_sol"]), "traders": traders[:15],
+            "trades": [{"wallet": t.get("wallet"), "symbol": t.get("symbol"), "mint": t.get("mint"), "closed_at": t.get("closed_at"),
+                        "pnl_sol": t.get("pnl_sol"), "pnl_pct": t.get("pnl_pct"), "best_pct": t.get("best_pct"), "hold_s": t.get("hold_s"),
+                        "reason": t.get("reason"), "causa": loss_cause(t), "causa_nome": CAUSES[loss_cause(t)][0]} for t in worst]}
+
+
 def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, followed=(), paused=()) -> dict:
     since = datetime.now(timezone.utc) - timedelta(days=days) if days else None
     T = [t for t in trades if bool(t.get("real")) == real and (since is None or ((_when(t.get("closed_at")) or since) >= since))]
@@ -157,7 +232,7 @@ def build(trades: list[dict], feed: list[dict], days: int | None, real: bool, fo
     by_score = [{"faixa": name, **agg([t for t in T if t.get("score") is not None and lo <= t["score"] < hi])}
                 for lo, hi, name in buckets]
     return {"days": days, "real": real, "total": agg(T), "fee_parts": fee_parts, "mesa": mesa(T), "by_score": by_score,
-            "whatif": whatif(T), "custo": custo(T),
+            "whatif": whatif(T), "custo": custo(T), "autopsy": autopsy(T),
             "traders": traders,                                        # pior primeiro: é quem você quer ver
             "exits": sorted(({"reason": k, **agg(r)} for k, r in by_exit.items()), key=lambda x: -x["trades"]),
             "days_list": [{"day": d, **agg(r)} for d, r in sorted(by_day.items(), reverse=True)][:60],
