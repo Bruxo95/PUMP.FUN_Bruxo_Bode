@@ -127,3 +127,19 @@ def test_study_shows_your_own_result_copying_each_wallet(env):
     assert len(mine["rows"]) == 1 and row["wallet"] == W and row["real"] is False and row["trades"] == 2
     assert row["pnl_sol"] == 0.03 and row["win_rate"] == 0.5 and row["roi_pct"] == 15.0 and row["since"].startswith("2026-10-26T01")
     assert mine["total"]["sim"]["pnl_sol"] == 0.03 and mine["total"]["real"]["trades"] == 0
+
+
+def test_copied_wallet_without_trades_shows_why(env):
+    """0.31.2: carteira copiada sem trade fechado aparece com o motivo (o dono via "0" e não sabia por quê)."""
+    c, hub = env["c"], env["hub"]
+    A = tok(UA)
+    assert c.post("/api/pump/study", json={"wallet": W, "action": "add"}, headers=A).json()["ok"]
+    pf = hub.engines[UA]
+    pf.add_manual(W)
+    for _ in range(3):
+        pf._feed(wallet=W, short="x", mint="M", symbol="S", kind="buy", sol=0.1, action="não copiou",
+                 reason="compra pequena do trader (0.100 SOL < mínimo 0.20)")
+    mine = c.get("/api/pump/study", headers=A).json()["mine"]
+    row = mine["rows"][0]
+    assert row["trades"] == 0 and row["diag"]["buys_seen"] == 3 and row["diag"]["copied"] == 0
+    assert row["diag"]["top_skips"][0]["n"] == 3 and "compra pequena" in row["diag"]["top_skips"][0]["reason"]

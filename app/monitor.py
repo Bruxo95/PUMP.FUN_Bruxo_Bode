@@ -220,6 +220,8 @@ class SharedMonitor:
         ev = svc.parse_trade(tx, w, self.market.sol_usd)
         if ev and any(w in (getattr(e, "study", []) or []) for e in self.engines()):
             self.hub.record_trade(w, ev)                        # carteiras em estudo: guarda no banco
+        if ev and w in self.hub.elite.wallets():
+            self.elite_event(w, ev)                             # maiores traders (0.31.2)
         if not ev:
             return
         st["parsed"] += 1
@@ -307,6 +309,9 @@ class SharedMonitor:
                 qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)
             trader += [p["mint"] for p in e.trader_positions()]
             trader += list(_gm(e))                        # estratégias fantasma (0.18.0) seguem o preço também
+        el = getattr(self.hub, "elite", None)
+        if el is not None:
+            trader += list(el.open_mints())               # sinais dos maiores traders: 60 min de preço (0.31.2)
             from .auto_trades import follow_mints
             trader += list(follow_mints(getattr(e, "auto_rows", {}), time.time()))
         return {"qty": qty, "trader": trader}
@@ -515,11 +520,36 @@ class SharedMonitor:
                 log.warning("compra automática (%s…): %s", getattr(e, "user_id", "?")[:8], str(ex)[:160])
         return n
 
+    ELITE = {"min_wallets": 2, "window_min": 10, "big_sol": 5.0, "top": 15}
+
+    def elite_names(self) -> list[str]:
+        return self.hub.elite.refresh_names([e.leaderboard for e in self.engines()], self.ELITE["top"])
+
+    def elite_event(self, w: str, ev: dict, t: float | None = None) -> dict | None:
+        el = self.hub.elite
+        t = time.time() if t is None else t
+        s = el.on_trade(w, ev, t, self.ELITE)
+        if ev.get("txType") == "sell":
+            for e in self.engines():
+                for msg in e.elite_sell(w, ev["mint"], el.label(w), t):
+                    e._emit(msg)
+        if s:
+            for e in self.engines():
+                try:
+                    r = e.elite_auto(s, t)
+                    if r and r.get("auto_id"):
+                        e._emit(f"Maiores traders: compra automática em {s.get('symbol') or s['mint'][:6]} ({s['reason']})")
+                except Exception as ex:
+                    log.warning("maiores traders (%s…): %s", getattr(e, "user_id", "?")[:8], str(ex)[:160])
+        return s
+
     async def lab_loop(self) -> None:
         while True:
             try:
                 await self.lab_once()
                 self.auto_once()
+                self.elite_names()
+                self.hub.elite.tick()
                 await self.explore_auto_once()
             except Exception as e:
                 log.warning("base da pump.fun: %s", str(e)[:160])

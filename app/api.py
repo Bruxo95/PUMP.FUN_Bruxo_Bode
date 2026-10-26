@@ -208,11 +208,25 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     @app.get("/api/pump/auto-trades")
     async def auto_trades(origem: str = "explorar", days: int = 30, pf=Depends(admin_engine)):
-        if origem not in ("base", "explorar"):
-            raise HTTPException(422, "origem deve ser base ou explorar")
+        if origem not in ("base", "explorar", "elite"):
+            raise HTTPException(422, "origem deve ser base, explorar ou elite")
         if days not in (1, 7, 30, 90):
             raise HTTPException(422, "período deve ser 1, 7, 30 ou 90 dias")
         return await hub.auto_history(pf, origem, days)
+
+    @app.get("/api/pump/elite")
+    async def pump_elite(pf=Depends(admin_engine)):
+        """Maiores traders (0.31.2): quem são, o que fizeram minuto a minuto, sinais, estudo, sugestões e resultados."""
+        out = hub.elite.snapshot()
+        auto = await hub.auto_history(pf, "elite", 30)
+        out["auto"] = auto
+        out["suggestions"] = hub.elite.suggestions(out["study"], auto)
+        for s in out["open"]:
+            s["boost"] = pf.boost_info(s["mint"])
+            s["fresh"] = (pf.tokens.get(s["mint"]) or {}).get("fresh")
+        out["settings_on"] = bool(getattr(pf.cfg, "pump_el_auto_on", False))
+        out["has_key"] = bool(pf.lb_key())
+        return out
 
     @app.get("/api/pump/base")
     async def pump_base(pf=Depends(admin_engine)):
@@ -315,25 +329,37 @@ def create_app(hub, auth, cfg) -> FastAPI:
         posições abertas do próprio usuário com essa carteira, separados em fictício e real."""
         trades, poss = pf.trades(100000), pf.positions()
         rows, tot = [], {"sim": [0, 0, 0.0, 0.0], "real": [0, 0, 0.0, 0.0]}
+        feed = list(pf.feed)
         for x in wallets:
             w = x["wallet"]
+            # 0.31.2: por que ainda não há resultado (o dono viu "0" copiando 2 carteiras): o que o feed mostra
+            F = [e for e in feed if e.get("wallet") == w and e.get("kind") == "buy"]
+            skips: dict[str, int] = {}
+            for e in F:
+                if str(e.get("action") or "").endswith("não copiou"):
+                    k = __import__("re").sub(r"[\d.,%$+−-]+", "#", str(e.get("reason") or "?"))[:70]
+                    skips[k] = skips.get(k, 0) + 1
+            diag = {"buys_seen": len(F), "copied": sum(1 for e in F if str(e.get("action") or "").startswith("copiou")),
+                    "skipped": sum(skips.values()),
+                    "top_skips": sorted(({"reason": k, "n": v} for k, v in skips.items()), key=lambda r: -r["n"])[:3]}
             for real in (False, True):
                 T = [t for t in trades if t.get("wallet") == w and bool(t.get("real")) == real]
                 P = [p for p in poss if p.get("wallet") == w and bool(p.get("real")) == real]
-                if not T and not P:
+                if not T and not P and not (x.get("followed") and not real):
                     continue
                 n, wins = len(T), sum(1 for t in T if (t.get("pnl_sol") or 0) > 0)
                 pnl, inv = sum(t.get("pnl_sol") or 0 for t in T), sum(t.get("sol_in") or 0 for t in T)
                 k = tot["real" if real else "sim"]
                 k[0] += n; k[1] += wins; k[2] += pnl; k[3] += inv
-                opened = min([str(t.get("opened_at") or "") for t in T] + [str(p.get("opened_at") or "") for p in P]) or None
+                opened = min([str(t.get("opened_at") or "") for t in T] + [str(p.get("opened_at") or "") for p in P] or [""]) or None
                 rows.append({"wallet": w, "apelido": x.get("apelido"), "followed": x.get("followed"), "real": real,
                              "since": opened, "trades": n, "win_rate": wins / n if n else None,
                              "pnl_sol": round(pnl, 6), "invested_sol": round(inv, 6),
                              "roi_pct": round(pnl / inv * 100, 2) if inv else None,
                              "open": len(P), "open_sol": round(sum(p.get("sol_in") or 0 for p in P), 6),
                              "open_chg": round(sum(p.get("chg_pct") or 0 for p in P) / len(P), 2) if P else None,
-                             "last": max([str(t.get("closed_at") or "") for t in T] or [""]) or None})
+                             "last": max([str(t.get("closed_at") or "") for t in T] or [""]) or None,
+                             "diag": diag if not real else None})
         rows.sort(key=lambda r: -r["pnl_sol"])
         return {"rows": rows, "total": {k: {"trades": v[0], "win_rate": v[1] / v[0] if v[0] else None,
                                             "pnl_sol": round(v[2], 6), "roi_pct": round(v[2] / v[3] * 100, 2) if v[3] else None}

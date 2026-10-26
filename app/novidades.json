@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.2",
+      "data": "2026-10-26",
+      "tipo": "novo",
+      "onde": "Menu → Usar ou descartar → Maiores traders; Carteiras em estudo → Seu resultado copiando",
+      "titulo": "Maiores traders: o que fazem minuto a minuto, sinais, estudo, compra automática e gráficos",
+      "oque": "Menu novo com os 15 maiores traders por lucro (ranking da Solana Tracker; o do site da pump.fun bloqueia leitura automática). Mostra quem são, o que compraram e venderam minuto a minuto e os sinais: quando 2 ou mais deles compram o mesmo token em 10 minutos (ou um compra 5+ SOL). Cada sinal é acompanhado por 60 minutos e vira estudo (quanto chegou a subir, onde terminou, quem dá sinal bom e quem vende rápido), com gráfico do resultado médio por trader e sugestões de melhoria tiradas do que aconteceu. Compra automática pelos sinais (desligada no início, só fictícia, com as proteções das automáticas), saindo junto quando o trader do sinal vende, e gráfico do lucro acumulado. Em Carteiras em estudo, o quadro Seu resultado copiando agora mostra as carteiras copiadas mesmo sem trade fechado, com quantas compras do trader foram vistas, quantas foram copiadas e por que as outras não foram."
+    },
+    {
       "versao": "0.31.1",
       "data": "2026-10-26",
       "tipo": "correção",

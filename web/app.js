@@ -88,6 +88,59 @@
   }
 
   // ------------------------------------------------------------------ estratégias fantasma (/api/pump/ghosts, 0.18.0)
+  // ------------------------------------------------------------------ maiores traders (/api/pump/elite, 0.31.2)
+  let EL_T = null;
+  const svgEsc = (s) => esc(String(s));
+  // linha do lucro acumulado: uma série, com ponto e valor no fim e dica (title) em cada ponto
+  function lineChart(pts) {
+    if (pts.length < 2) return '<p class="muted">O gráfico aparece com 2 ou mais compras automáticas fechadas.</p>';
+    const W = 640, H = 180, P = 34, xs = pts.map((p) => p.t), ys = pts.map((p) => p.v), x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const y0 = Math.min(0, ...ys), y1 = Math.max(0, ...ys), sx = (t) => P + (W - 2 * P) * (x1 > x0 ? (t - x0) / (x1 - x0) : 1), sy = (v) => H - P + (y1 > y0 ? -(H - 2 * P) * (v - y0) / (y1 - y0) : 0);
+    const d = pts.map((p, i) => (i ? "L" : "M") + sx(p.t).toFixed(1) + " " + sy(p.v).toFixed(1)).join(" "), last = pts[pts.length - 1];
+    return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Lucro acumulado das compras automáticas"><line class="ax" x1="' + P + '" x2="' + (W - P) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/><text x="2" y="' + (sy(0) + 4) + '">0</text>' +
+      '<path class="' + (last.v >= 0 ? "ln" : "lnd") + '" d="' + d + '"/>' + pts.map((p) => '<circle class="hit" cx="' + sx(p.t) + '" cy="' + sy(p.v) + '" r="9"><title>' + svgEsc(dt(p.t) + " · " + (p.label || "") + " · acumulado " + (p.v > 0 ? "+" : "") + p.v.toFixed(4) + " SOL") + "</title></circle>").join("") +
+      '<circle class="dot" cx="' + sx(last.t) + '" cy="' + sy(last.v) + '" r="4"/><text x="' + Math.min(sx(last.t) + 6, W - 70) + '" y="' + (sy(last.v) - 8) + '">' + (last.v > 0 ? "+" : "") + last.v.toFixed(4) + " SOL</text></svg>";
+  }
+  // barras horizontais (resultado médio em 60 min por trader): positivo verde, negativo vermelho, valor escrito
+  function barChart(rows) {
+    if (!rows.length) return '<p class="muted">Aparece quando houver sinais encerrados.</p>';
+    const W = 640, row = 26, H = rows.length * row + 10, mx = Math.max(1, ...rows.map((r) => Math.abs(r.v))), mid = 260, half = (W - mid - 70) / 2, c = mid + half;
+    return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Resultado médio em 60 minutos por trader"><line class="ax" x1="' + c + '" x2="' + c + '" y1="0" y2="' + H + '"/>' + rows.map((r, i) => {
+      const y = 5 + i * row, w = Math.max(2, Math.abs(r.v) / mx * half), x = r.v >= 0 ? c : c - w;
+      return '<g class="tipg"><text x="0" y="' + (y + 15) + '">' + svgEsc(r.label.slice(0, 30)) + '</text><rect class="' + (r.v >= 0 ? "bup" : "bdn") + '" x="' + x + '" y="' + (y + 4) + '" width="' + w + '" height="14" rx="3"><title>' + svgEsc(r.label + ": " + (r.v > 0 ? "+" : "") + r.v.toFixed(1) + "% em média · " + r.n + " sinais") + '</title></rect><text x="' + (W - 60) + '" y="' + (y + 15) + '">' + (r.v > 0 ? "+" : "") + r.v.toFixed(0) + "%</text></g>";
+    }).join("") + "</svg>";
+  }
+  async function loadElite() {
+    clearTimeout(EL_T); EL_T = setTimeout(() => { if (VIEW === "elite") loadElite(); }, 20000);
+    const r = await BB.api("/api/pump/elite");
+    if (r.error) { toast(r.error); return; }
+    const st = r.study || {}, a = st.all || {}, au = r.auto || {}, per = (au.summary || {}).period || {}, pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + f(v, 0) + "%");
+    $("elSub").textContent = (r.traders || []).length ? (r.traders || []).length + " maiores traders seguidos · atualiza a cada 20 s" : (r.has_key ? "esperando o ranking da Solana Tracker carregar" : "sem chave da Solana Tracker: cole a sua em Configurações → Chaves (ou o admin configura a do sistema)");
+    kpis("elKpis", [["Traders seguidos", String((r.traders || []).length), "os maiores por lucro realizado", "usr"], ["Sinais abertos", String((r.open || []).length), "acompanhados por 60 min", "mon"],
+      ["Sinais estudados", String(st.signals || 0), a.n ? "pico médio " + pct(a.avg_peak) + " · fim " + pct(a.avg_60) : "aparecem depois de 60 min", "tr"],
+      ["Compra automática", r.settings_on ? "ligada" : "desligada", "resultado: " + s4(per.pnl_sol || 0) + " SOL", "pnl"]]);
+    kpis("elResK", [["Lucro acumulado", sg(per.pnl_sol || 0), (per.closed || 0) + " operações fechadas", "pnl"], ["Acerto", per.win_rate == null ? "–" : f(per.win_rate * 100, 0) + "%", "depois das taxas", "hit"],
+      ["Fator de lucro", per.profit_factor == null ? "–" : f(per.profit_factor, 2), "ganhos ÷ perdas (acima de 1,3 é bom)", "tr"]]);
+    const closed = (au.items || []).filter((x) => !x.open && x.saida_em).sort((x, y) => new Date(x.saida_em) - new Date(y.saida_em));
+    let acc = 0;
+    $("elChart").innerHTML = lineChart(closed.map((x) => { acc += x.pnl_sol || 0; return { t: new Date(x.saida_em).getTime(), v: acc, label: (x.symbol || "") + " " + (x.pnl_sol > 0 ? "+" : "") + s4(x.pnl_sol) }; }));
+    table("elOps", ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração"], (au.items || []).slice(0, 30).map((x) => [pfM(x.mint, x.symbol), dt(x.entrada_em) + "<small>" + s4(x.sol_in) + " SOL</small>",
+      x.open ? '<span class="tag sim">aberta</span>' : '<span class="tag neutral">fechada</span>', x.pnl_sol == null ? (x.pnl_pct == null ? "–" : pct(x.pnl_pct)) : sg(x.pnl_sol) + "<small>" + pct(x.pnl_pct) + "</small>", dt(x.saida_em), esc(x.motivo_saida || ""), hms(x.duration_s)]), "Nenhuma compra automática ainda.");
+    const buy = (m, s) => '<button class="btn sm primary" data-buy="' + esc(m) + '" data-sym="' + esc(s || "") + '">Comprar</button>';
+    table("elOpen", ["Token", "Sinal", "Traders", "SOL deles", "Desde", "Agora", "Pico", ""], (r.open || []).map((s) => [pfM(s.mint, s.symbol), esc(s.reason), esc((s.names || []).join(", ")), s4(s.sol), dt(s.created_at), pct(s.now_pct), pct(s.peak_pct), buy(s.mint, s.symbol)]), "Nenhum sinal agora.");
+    $("elSug").innerHTML = (r.suggestions || []).map((s) => '<p><span class="tag ' + (s.tipo === "info" ? "neutral" : "sim") + '">' + esc(s.tipo) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
+    $("elStSub").textContent = "o que aconteceu em 60 min depois de cada sinal · " + (st.signals || 0) + " sinais encerrados";
+    kpis("elStK", [["Chegaram a +30%", a.n ? f(a.hit30_pct, 0) + "%" : "–", "em algum momento dos 60 min", "hit"], ["Caíram 30% ou mais", a.n ? f(a.dump30_pct, 0) + "%" : "–", "em algum momento", "pos"], ["Pico médio", pct(a.avg_peak), "maior alta depois do sinal", "pnl"], ["Fim (60 min)", pct(a.avg_60), "onde estava depois de 1 hora", "tr"]]);
+    table("elByN", ["Traders no token", "Sinais", "Chegou a +30%", "Caiu 30%+", "Fim (60 min)"], ["1", "2", "3+"].map((k) => { const b = (st.by_n || {})[k] || {}; return [k, String(b.n || 0), b.n ? f(b.hit30_pct, 0) + "%" : "–", b.n ? f(b.dump30_pct, 0) + "%" : "–", pct(b.avg_60)]; }), "");
+    const trs = (st.traders || []).filter((x) => x.n >= 1).slice(0, 12);
+    $("elBars").innerHTML = barChart(trs.map((x) => ({ label: x.name, v: x.avg_60 || 0, n: x.n })));
+    table("elTrSt", ["Trader", "Sinais", "Chegou a +30%", "Caiu 30%+", "Pico médio", "Fim (60 min)", "Vende em até 5 min"], trs.map((x) => [esc(x.name), String(x.n), f(x.hit30_pct, 0) + "%", f(x.dump30_pct, 0) + "%", pct(x.avg_peak), pct(x.avg_60), f(x.sells_fast_pct, 0) + "%"]), "Sem sinais encerrados ainda.");
+    table("elFeed", ["Quando", "Trader", "Operação", "Token", "SOL"], (r.feed || []).slice(0, 40).map((x) => [dt(x.t * 1000), esc(x.name), x.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', pfM(x.mint, x.symbol), s4(x.sol)]), "Ainda nenhuma negociação vista desde que o servidor ligou.");
+    table("elTr", ["#", "Trader", "Lucro (ranking)", "Acerto", "Trades", "Última ação"], (r.traders || []).map((x, i) => [String(i + 1), pfW(x.wallet) + (x.name ? " <b>" + esc(x.name) + "</b>" : "") + (x.twitter ? ' <a href="' + esc(x.twitter) + '" target="_blank" rel="noopener">X</a>' : ""),
+      x.realized_usd == null ? "–" : "$" + f(x.realized_usd, 0), x.winrate == null ? "–" : f(x.winrate, 0) + "%", x.trades == null ? "–" : String(x.trades), x.last ? (x.last.kind === "buy" ? "comprou " : "vendeu ") + esc(x.last.symbol || x.last.mint.slice(0, 6)) + "<small>" + dt(x.last.t * 1000) + "</small>" : "–"]), "Sem ranking ainda.");
+    table("elClosed", ["Token", "Traders", "Quando", "5 min", "15 min", "60 min", "Pico", "Queda máx."], (r.closed || []).map((s) => [pfM(s.mint, s.symbol), esc((s.names || []).join(", ")), dt(s.created_at), pct((s.marks || {})["5"]), pct((s.marks || {})["15"]), pct((s.marks || {})["60"]), pct(s.peak_pct), pct(s.low_pct)]), "Nenhum sinal encerrado ainda.");
+  }
+
   // ------------------------------------------------------------------ explorar (/api/pump/explore, 0.28.0)
   let EX = null, EX_TAB = "graduating", EX_T = null;
   const EX_AUTO = { data: null, at: 0, updatedAt: 0, stale: false, busy: false, pending: false, revision: 0, days: 30, error: "", saving: false, values: {} };
@@ -565,10 +618,11 @@
     kpis("stMineK", [["Fictícia: seu resultado", sg(ts.pnl_sol), (ts.trades || 0) + " trades · acerto " + (ts.win_rate == null ? "–" : f(ts.win_rate * 100, 0) + "%"), "pnl"],
       ["Fictícia: retorno", roi(ts.roi_pct), "sobre o valor investido", "tr"],
       ["Real: seu resultado", sg(tr.pnl_sol), (tr.trades || 0) + " trades" + (tr.trades ? " · retorno " + (tr.roi_pct == null ? "–" : f(tr.roi_pct, 1) + "%") : ""), "wallet"]]);
-    table("stMine", ["Carteira", "Carteira usada", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último"], (mi.rows || []).map((x) => [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
+    const dg = (d) => !d ? "–" : d.buys_seen + " compras vistas · " + d.copied + " copiadas" + (d.top_skips && d.top_skips.length ? "<small>não copiou: " + d.top_skips.map((s) => esc(s.reason) + " (" + s.n + ")").join(" · ") + "</small>" : "");
+    table("stMine", ["Carteira", "Carteira usada", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último", "O que aconteceu"], (mi.rows || []).map((x) => [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
       x.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">fictícia</span>', dt(x.since), String(x.trades), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%",
       "<b>" + sg(x.pnl_sol) + "</b><small>investiu " + s4(x.invested_sol) + " SOL</small>", roi(x.roi_pct),
-      x.open ? x.open + " · " + s4(x.open_sol) + " SOL" + (x.open_chg == null ? "" : " · " + (x.open_chg > 0 ? "+" : "") + f(x.open_chg, 1) + "%") : "–", dt(x.last)]),
+      x.open ? x.open + " · " + s4(x.open_sol) + " SOL" + (x.open_chg == null ? "" : " · " + (x.open_chg > 0 ? "+" : "") + f(x.open_chg, 1) + "%") : "–", dt(x.last), dg(x.diag)]),
       "Você ainda não copiou nenhuma destas carteiras. Clique em Copiar numa delas e o resultado aparece aqui.");
   }
   // compartilhar uma carteira em estudo com outro usuário (0.17.1): ela entra na lista de estudo da pessoa
@@ -661,7 +715,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Novidades", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -669,7 +723,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -684,6 +738,7 @@
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
     if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); }
+    if (VIEW === "elite") loadElite();
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);

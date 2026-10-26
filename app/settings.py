@@ -83,6 +83,11 @@ USER_KEYS: dict[str, tuple] = {
     "pump_ar_fresh_max_pct": (float, 30.0, 1.0, 100.0), # % máx. de carteiras novas entre os 20 maiores detentores
     "pump_ar_smart_on": (bool, True, 0, 1),             # só entra se um trader bom (seguido/ranking/estudo) já está no token
     "pump_ar_smart_min": (int, 1, 1, 30),
+    # 0.31.2: Maiores traders — compra automática pelos sinais (começa DESLIGADA; usa as proteções pump_ar_*)
+    "pump_el_auto_on": (bool, False, 0, 1),
+    "pump_el_auto_min_wallets": (int, 2, 1, 15),        # só compra sinal com N+ maiores traders no token
+    "pump_el_auto_big": (bool, False, 0, 1),            # também compra o sinal de "compra grande" de um só
+    "pump_el_follow_sell": (bool, True, 0, 1),          # vende quando um dos traders do sinal vende
     "pump_auto_on": (bool, False, 0, 1),
     "pump_auto_boost": (bool, True, 0, 1),              # entra sozinho quando o token está com Boost ON
     "pump_auto_chance": (bool, False, 0, 1),            # entra sozinho quando a previsão diz "chance alta"

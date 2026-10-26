@@ -572,3 +572,17 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `creator_stats.bundles` (migração `20261026000006`); 2+ bundles = lixo (`predict`, `explore.verdict`) e lista
   negra. `TokenLab.restore` refaz todos os rótulos e `rebuild()` recalcula criadores e rótulos por hora (o que estava
   no banco é sobrescrito). Tokens `is_mayhem_mode` não são vigiados (market cap da curva não bate).
+
+## Maiores traders (2026-10-26, versão 0.31.2)
+- Pedido do dono: menu dos maiores traders (como o leaderboard da pump.fun), atividade minuto a minuto, estudo,
+  sinais, compra automática, gráficos e sugestões. O leaderboard do site da pump.fun fica atrás da Cloudflare; a fonte
+  é o ranking da Solana Tracker que o sistema já usa (top 15 por lucro, sem bandeira de robô/dev/corretora).
+- `app/elite.py` (`hub.elite`): `on_trade` (chamado em `SharedMonitor.handle_tx` para essas carteiras, que já são
+  assinadas por estarem no top 60), sinal = 2+ em 10 min ou compra ≥5 SOL de um só (`SharedMonitor.ELITE`);
+  `tick` acompanha 60 min (preço pelo `held()`), `study`/`suggestions` (base mínima 8–15). Tabela `elite_signals`
+  (migração `20261026000007`, também libera `origem='elite'` em `auto_trades`). `AUTO_ORIGINS` em `pumpfun.py`.
+- Compra automática: `pump_el_auto_*` (OFF), `PumpFun.elite_auto` usa `manual_buy(origem="elite")` com as proteções
+  `pump_ar_*`; `elite_sell` vende quando um trader do sinal vende (`pump_el_follow_sell`). Tela `#elite` com gráfico de
+  lucro acumulado (SVG, uma série) e barras por trader; rota `/api/pump/elite` (admin).
+- Carteiras em estudo: "Seu resultado copiando" mostra carteiras copiadas sem trade e o `diag` (compras vistas,
+  copiadas e motivos de "não copiou" do feed). Versão 0.31.2 para não colidir com a 0.32.0 do plano do Codex.

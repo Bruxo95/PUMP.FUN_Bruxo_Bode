@@ -17,7 +17,7 @@ from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
 from .logsafe import add_secret
-from .pumpfun import PumpFun, PumpMarket, PumpReal
+from .pumpfun import AUTO_ORIGINS, PumpFun, PumpMarket, PumpReal
 from .radar import RadarBuffer, callout_policy
 from .settings import PumpSettings
 from .solana_wallet import UserWallet
@@ -44,7 +44,9 @@ class PumpHub:
         from .tokenlab import TokenLab
         self.lab = TokenLab(self.market)          # base própria da pump.fun (0.21.0)
         from .explore import Explore
-        self.explore = Explore()                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
+        self.explore = Explore()
+        from .elite import Elite
+        self.elite = Elite(self.market)           # maiores traders (0.31.2)                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._tasks: list[asyncio.Task] = []
         self.shared_st_key = ""                    # chave da Solana Tracker do sistema (visualização para todos)
@@ -269,7 +271,7 @@ class PumpHub:
                 if rid in pf.auto_rows:
                     restored[rid] = copy.deepcopy(pf.auto_rows[rid])
             for trade in pf.trades(20000):
-                if trade.get("auto") is True and trade.get("origem") in ("base", "explorar"):
+                if trade.get("auto") is True and trade.get("origem") in AUTO_ORIGINS:
                     rid = str(trade["id"])
                     if (rid not in restored and (ts(trade.get("opened_at")) or 0) < now - 86400
                             and (ts(trade.get("closed_at")) or 0) < min(day, streak_since)):
@@ -280,7 +282,7 @@ class PumpHub:
                         restored[rid] = row
                         pf._auto_dirty.add(rid)
             for pos in pf.positions():
-                if pos.get("auto") is True and pos.get("origem") in ("base", "explorar"):
+                if pos.get("auto") is True and pos.get("origem") in AUTO_ORIGINS:
                     rid = str(pos["id"])
                     if (restored.get(rid) or {}).get("saida_em"):
                         raise RuntimeError("posição aberta diverge do registro automático fechado")
@@ -443,6 +445,28 @@ class PumpHub:
                     log.warning("Base da pump.fun não gravou: %s", str(e)[:120])
             if n % 5 == 0:
                 await self.save_ghosts()
+            if n % 2 == 0:
+                try:
+                    await self.save_elite()
+                except Exception as e:
+                    log.warning("Sinais dos maiores traders não gravaram: %s", str(e)[:120])
+
+    # ------------------------------------------------------------------ maiores traders (0.31.2)
+    async def save_elite(self) -> int:
+        rows = self.elite.take_dirty()
+        if rows:
+            try:
+                await self.db.insert("elite_signals", rows, upsert=True, on_conflict="id")
+            except Exception:
+                self.elite.dirty |= {r["id"] for r in rows}
+                raise
+        return len(rows)
+
+    async def load_elite(self) -> None:
+        try:
+            self.elite.load(await self.db.select("elite_signals", None, order="criado_em.desc", limit=3000))
+        except Exception as e:
+            log.warning("Sinais dos maiores traders não carregaram (tabela criada?): %s", str(e)[:120])
 
     # ------------------------------------------------------------------ base própria da pump.fun (0.21.0)
     async def load_lab(self) -> None:
@@ -754,6 +778,7 @@ class PumpHub:
         await self.refresh_shared_key()
         await self.load_blacklist()
         await self.load_lab()
+        await self.load_elite()
         self.running = True
         for pf in list(self.engines.values()):
             self._start_engine(pf)

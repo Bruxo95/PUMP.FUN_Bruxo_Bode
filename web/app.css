@@ -476,3 +476,10 @@ select.in{padding-right:24px}
   .auto-kpis{gap:8px}
   .auto-kpis .kpi{padding:10px}
 }
+/* Maiores traders (0.31.2): gráficos simples em SVG, uma série, sem eixo duplo */
+.chartbox{width:100%;min-height:40px;margin:8px 0}.chartbox svg{display:block;width:100%;height:auto}
+.chartbox .ax{stroke:var(--line,#26262b);stroke-width:1}.chartbox .ln{fill:none;stroke:var(--up);stroke-width:2}
+.chartbox .lnd{fill:none;stroke:var(--down);stroke-width:2}.chartbox text{fill:var(--muted);font-size:11px}
+.chartbox .bup{fill:var(--up)}.chartbox .bdn{fill:var(--down)}.chartbox .dot{fill:var(--text)}
+.chartbox .hit{fill:transparent}.chartbox .hit:hover+.tip,.chartbox .tipg:hover .tip{opacity:1}
+.chartbox .tip{opacity:0;pointer-events:none}.chartbox .tip rect{fill:#141416;stroke:#33333a}.chartbox .tip text{fill:var(--text)}

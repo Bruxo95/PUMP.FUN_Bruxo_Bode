@@ -45,6 +45,7 @@
         <a href="#relatorios" data-v="relatorios" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg>Relatórios</a>
         <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
         <a href="#fantasma" data-v="fantasma" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10a6 6 0 0 1 12 0v10l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5z"/><circle cx="10" cy="10" r="1"/><circle cx="14" cy="10" r="1"/></svg>Estratégias fantasma</a>
+        <a href="#elite" data-v="elite" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Maiores traders</a>
         <a href="#explorar" data-v="explorar" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Explorar</a>
         <a href="#base" data-v="base" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Base da pump.fun</a>
         <a href="#listanegra" data-v="listanegra" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>Lista negra</a>
@@ -308,6 +309,43 @@
         <!-- 0.24.1: largura total, no fim da tela (pedido do dono: estava apertado e com rolagem lateral) -->
         <div class="card" id="bsUpCard"><header><div><h2>Tokens que subiram (24 h)</h2><div class="sub">graduou = encheu a curva (a foto não mostra o pico, por isso aparece "graduou" no lugar do valor)</div></div></header>
           <div class="tbl-wrap"><table id="bsUp"></table></div></div>
+      </section>
+
+      <!-- ========================================================= MAIORES TRADERS (app/elite.py, 0.31.2) -->
+      <section class="view" data-view="elite" hidden>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Maiores traders</h2><div class="sub" id="elSub">os maiores ganhadores da pump.fun, o que fazem minuto a minuto, sinais, estudo e compra automática</div></div></header>
+          <div class="kpis" id="elKpis"></div>
+          <div class="help"><p><b>Como funciona:</b> segue os 15 maiores por lucro no ranking da Solana Tracker (o ranking do site da pump.fun bloqueia leitura automática). Cada compra e venda deles chega em segundos. Quando <b>2 ou mais</b> compram o mesmo token em 10 min (ou um compra 5+ SOL), vira um <b>sinal</b>. Cada sinal é acompanhado por 60 min: isso vira o estudo, o ranking de quem dá sinal bom e as sugestões de melhoria. A compra automática usa as proteções das automáticas (valor, stop, venda em partes, stop móvel, limites do dia), configuradas em Explorar.</p></div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Compra automática pelos sinais</h2><div class="sub">começa desligada · só na carteira fictícia (real só com "Também na carteira real" e a execução real liberada)</div></div></header>
+          <div class="form">
+            <div class="field"><label>Comprar sozinho nos sinais</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_auto_on">…</button></div></div>
+            <div class="field"><label>Mínimo de maiores traders no token</label><div class="row"><input class="in w80" type="number" min="1" max="15" step="1" data-cfg="pump_el_auto_min_wallets"><button class="btn sm" data-set="pump_el_auto_min_wallets" data-val="2">2</button><button class="btn sm" data-set="pump_el_auto_min_wallets" data-val="3">3</button></div></div>
+            <div class="field"><label>Também comprar "compra grande" de um só</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_auto_big">…</button></div></div>
+            <div class="field"><label>Sair quando um trader do sinal vender</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_follow_sell">…</button></div><div class="hint">O jeito mais simples de não virar "saída" de quem entrou antes: ele vendeu, você vende.</div></div>
+          </div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Resultado das compras automáticas</h2><div class="sub" id="elResSub">lucro acumulado (carteira fictícia, depois das taxas)</div></div></header>
+          <div class="kpis" id="elResK"></div>
+          <div id="elChart" class="chartbox"></div>
+          <div class="tbl-wrap"><table id="elOps"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Sinais agora</h2><div class="sub">tokens em que os maiores traders estão entrando · acompanha 60 min</div></div></header>
+          <div class="tbl-wrap"><table id="elOpen"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Sugestões de melhoria</h2><div class="sub">tiradas do que aconteceu com os sinais e com as suas compras · nada é aplicado sozinho</div></div></header>
+          <div class="help" id="elSug"></div></div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Estudo dos sinais</h2><div class="sub" id="elStSub">o que aconteceu em 60 min depois de cada sinal</div></div></header>
+          <div class="kpis" id="elStK"></div>
+          <div class="grid2">
+            <div><h3 style="margin:6px 0">Por número de traders no token</h3><div class="tbl-wrap"><table id="elByN"></table></div></div>
+            <div><h3 style="margin:6px 0">Resultado médio em 60 min por trader</h3><div id="elBars" class="chartbox"></div></div>
+          </div>
+          <div class="tbl-wrap" style="margin-top:10px"><table id="elTrSt"></table></div></div>
+        <div class="grid2">
+          <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Minuto a minuto</h2><div class="sub">compras e vendas dos maiores traders</div></div></header>
+            <div class="tbl-wrap"><table id="elFeed"></table></div></div>
+          <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Quem são</h2><div class="sub">ranking por lucro realizado (Solana Tracker, período do ranking em Configurações)</div></div></header>
+            <div class="tbl-wrap"><table id="elTr"></table></div></div>
+        </div>
+        <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Sinais encerrados</h2><div class="sub">últimos 40 · ganho no momento 5, 15 e 60 min depois do sinal e o pico</div></div></header>
+          <div class="tbl-wrap"><table id="elClosed"></table></div></div>
       </section>
 
       <!-- ========================================================= EXPLORAR (app/explore.py, 0.28.0) -->

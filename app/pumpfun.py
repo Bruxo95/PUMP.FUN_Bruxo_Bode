@@ -70,6 +70,9 @@ TOKEN_URL = "https://data.solanatracker.io/tokens/"
 STATS_URL = "https://data.solanatracker.io/stats/"   # por janela: compradores/vendedores únicos e volume (0.13.0)
 
 
+AUTO_ORIGINS = ("explorar", "base", "elite")   # origens das compras automáticas com proteções e registro (0.31.2: elite)
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -275,7 +278,7 @@ class PumpFun:
     def _after_close(self, tr: dict) -> None:
         """Regra automática: o trader copiado que fizer a posição bater o STOP DE PERDA N vezes em 24 h fica
         pausado por X h (padrão: 2 stops → 24 h)."""
-        own_auto = tr.get("auto") is True and tr.get("origem") in ("explorar", "base")
+        own_auto = tr.get("auto") is True and tr.get("origem") in AUTO_ORIGINS
         if not own_auto:
             self._streak_check(tr)
         if str(tr.get("reason") or "").startswith("dev vendeu") and (tr.get("pnl_sol") or 0) < 0:
@@ -296,7 +299,7 @@ class PumpFun:
         day = time.time() - 86400
         cnt = 0
         for t in self.trades(500):
-            if t.get("auto") is True and t.get("origem") in ("explorar", "base"):
+            if t.get("auto") is True and t.get("origem") in AUTO_ORIGINS:
                 continue
             if t.get("wallet") != w or not str(t.get("reason") or "").startswith("stop de perda"):
                 continue
@@ -797,7 +800,7 @@ class PumpFun:
         self._auto_record(t, closed=True)
 
     def _auto_record(self, p: dict, closed: bool) -> None:
-        if p.get("auto") is not True or p.get("origem") not in ("explorar", "base"):
+        if p.get("auto") is not True or p.get("origem") not in AUTO_ORIGINS:
             return
         from .auto_trades import operation_row
         key = str(p["id"])
@@ -1079,7 +1082,7 @@ class PumpFun:
             tr["score"] = p.get("score")
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
-            if p.get("auto") is True and p.get("origem") in ("explorar", "base"):
+            if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
                           closed_t=t, closed_at=datetime.fromtimestamp(t, timezone.utc).isoformat(), exit_price=px)
             self._save_trade(tr)
@@ -1107,7 +1110,7 @@ class PumpFun:
             # pós-trade (0.18.0): melhor e pior momento da posição, para ver quanto ficou na mesa
             p["best_pct"] = round(max(chg, p.get("best_pct", chg)), 2)
             p["worst_pct"] = round(min(chg, p.get("worst_pct", chg)), 2)
-            own_auto = p.get("auto") is True and p.get("origem") in ("explorar", "base")
+            own_auto = p.get("auto") is True and p.get("origem") in AUTO_ORIGINS
             max_hold = self._auto_num(p.get("max_hold_s"))
             if max_hold is not None and t - p.get("open_t", t) >= max_hold:
                 out.append(self._sell(p, 1.0, px, f"tempo máximo ({max_hold / 60:g} min)", t))
@@ -1185,7 +1188,7 @@ class PumpFun:
         return {"error": "posição não encontrada"}
 
     def reset_sim(self) -> dict:
-        if (any(not p.get("real") and p.get("auto") is True and p.get("origem") in ("explorar", "base")
+        if (any(not p.get("real") and p.get("auto") is True and p.get("origem") in AUTO_ORIGINS
                 for p in self.positions())
                 or any(not row.get("real") and not row.get("saida_em") for row in self.auto_rows.values())):
             return {"error": "feche as posições automáticas simuladas antes de zerar a carteira fictícia"}
@@ -1819,7 +1822,7 @@ class PumpFun:
         decidiu. Sempre compra na carteira fictícia (valor de "SOL por cópia"); na real só se a execução real estiver
         ligada, pela mesma fila, limites e verificações da compra real. Depois segue stops e saídas normais."""
         t = time.time() if t is None else t
-        own_auto = bool(auto) and origem in ("explorar", "base")
+        own_auto = bool(auto) and origem in AUTO_ORIGINS
         if own_auto:
             if not self.valid_addr(mint):
                 return {"error": "endereço do token inválido"}
@@ -1977,6 +1980,36 @@ class PumpFun:
             out.append(mint)
         return out
 
+    def elite_auto(self, s: dict, t: float | None = None) -> dict | None:
+        """Maiores traders (0.31.2): compra sozinho no sinal, com as proteções das automáticas (pump_ar_*)."""
+        if not getattr(self.cfg, "pump_el_auto_on", False) or getattr(self, "role", "admin") != "admin":
+            return None
+        big = s.get("reason", "").startswith("compra grande")
+        if big and not getattr(self.cfg, "pump_el_auto_big", False):
+            return None
+        if not big and len(s.get("wallets") or []) < int(self._c("pump_el_auto_min_wallets", 2)):
+            return None
+        fr = (self.tokens.get(s["mint"]) or {}).get("fresh")
+        if fr and getattr(self.cfg, "pump_ar_fresh_on", True) and fr["pct"] >= float(self._c("pump_ar_fresh_max_pct", 30)):
+            return {"error": "muitas carteiras novas entre os maiores detentores"}
+        info = {"veredito": "sinal dos maiores traders", "chance": None, "wallets": list(s.get("wallets") or []),
+                "names": list(s.get("names") or []), "sinal": s.get("id"), "why": [s.get("reason")], "sol_traders": s.get("sol")}
+        return self.manual_buy(s["mint"], t, auto="maiores traders: " + ", ".join((s.get("names") or [])[:3]),
+                               origem="elite", info=info)
+
+    def elite_sell(self, w: str, mint: str, name: str, t: float | None = None) -> list[str]:
+        """Um trader do sinal vendeu: as compras automáticas desse sinal saem junto (opção pump_el_follow_sell)."""
+        if not getattr(self.cfg, "pump_el_follow_sell", True):
+            return []
+        t = time.time() if t is None else t
+        px = (self.tokens.get(mint) or {}).get("price")
+        out = []
+        for p in self.positions():
+            if p.get("origem") == "elite" and p["mint"] == mint and not p.get("selling") \
+                    and w in ((p.get("auto_info") or {}).get("wallets") or []):
+                out.append(self._sell(p, 1.0, px or p.get("price_now"), f"trader da elite vendeu ({name})", t))
+        return [m for m in out if m]
+
     def manual_rules(self) -> dict:
         """Stop, alvo e stop móvel que o botão Comprar grava na posição (configurados na Base da pump.fun)."""
         return {"stop_pct": float(self._c("pump_manual_stop_pct", 30)),
@@ -2013,7 +2046,7 @@ class PumpFun:
             return ""
         lim = time.time() - 7200
         last = [x for x in self.trades(200) if not x.get("real")
-                and not (x.get("auto") is True and x.get("origem") in ("explorar", "base"))
+                and not (x.get("auto") is True and x.get("origem") in AUTO_ORIGINS)
                 and (self._ts(x.get("closed_at")) or 0) >= lim][:10]
         if len(last) < 5:
             return ""
@@ -2021,13 +2054,13 @@ class PumpFun:
         return f"×0,5: mercado frio (acerto {wr:.0f}% nas últimas {len(last)} cópias em 2 h)" if wr < mn else ""
 
     def _streak_check(self, tr: dict) -> None:
-        if tr.get("auto") is True and tr.get("origem") in ("explorar", "base"):
+        if tr.get("auto") is True and tr.get("origem") in AUTO_ORIGINS:
             return
         if not getattr(self.cfg, "pump_streak_on", False) or (tr.get("pnl_sol") or 0) >= 0:
             return
         n = int(self._c("pump_streak_n", 4))
         last = [x for x in self.trades(max(50, n)) if bool(x.get("real")) == bool(tr.get("real"))
-                and not (x.get("auto") is True and x.get("origem") in ("explorar", "base"))][:n]
+                and not (x.get("auto") is True and x.get("origem") in AUTO_ORIGINS)][:n]
         if len(last) >= n and all((x.get("pnl_sol") or 0) < 0 for x in last):
             hrs = float(self._c("pump_streak_h", 2))
             self._halt_until = time.time() + hrs * 3600
@@ -2781,7 +2814,7 @@ class PumpFun:
             tr["score"] = p.get("score")
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
-            if p.get("auto") is True and p.get("origem") in ("explorar", "base"):
+            if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
                           closed_t=closed, closed_at=datetime.fromtimestamp(closed, timezone.utc).isoformat(),
