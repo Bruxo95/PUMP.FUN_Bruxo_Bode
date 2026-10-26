@@ -498,3 +498,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   nenhum 2x, voltou abaixo do início, 3+ clones do símbolo na última hora); market cap > `CURVE_MAX` (450) → "suspeito"
   (visto: vários tokens a 721 SOL em 2026-10-26, causa não confirmada). Previsão a cada foto; a dos 5 min fica em
   `pred5`/`chance5` e vira a tabela de acerto em `lessons()`. Opção `pump_base_hide_trash`. Testes: `test_previsao.py`.
+
+## Botão Comprar configurado (2026-10-26, versão 0.26.0)
+- Pedido do dono: valores prontos para comprar sem digitar. Opções `pump_manual_*` (sol 0,1; stop 30%; alvo 100%;
+  stop móvel +30%/15 pts; `pump_manual_boost_on`/`_tp` = com Boost ON vende em +80%, interpretação do pedido "se o
+  boost tá on 80% ele dá um stop"). `PumpFun.manual_rules()` grava na posição (`stop_pct`, `tp_pct`, `trail_*`,
+  `boost_tp`); `_check_stops` usa os da posição quando existem (cópias seguem as regras gerais). Real: `pos_cfg` na fila.
+  Testes: `tests/test_botao_comprar.py`.

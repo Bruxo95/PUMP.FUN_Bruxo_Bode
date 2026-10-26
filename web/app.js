@@ -146,8 +146,9 @@
     }
     if (t.dataset.blr) { if (!confirm("Tirar da lista negra?")) return; const r = await BB.api("/api/pump/blacklist", { body: { endereco: t.dataset.blr, action: "remove" } }); toast(r.error || "Removido."); return loadBlacklist(); }
     if (t.dataset.buy) {
-      const amt = cfg().pump_copy_sol, real = !!(D && D.real && D.real.enabled);
-      if (!confirm("Comprar " + (t.dataset.sym || "este token") + " agora?\n\nCarteira fictícia: " + amt + " SOL" + (real ? "\nCarteira REAL: até " + cfg().pump_real_max_sol + " SOL (execução real ligada)" : "\nCarteira real: não (execução real desligada)"))) return;
+      const c0 = cfg(), amt = c0.pump_manual_sol, real = !!(D && D.real && D.real.enabled);
+      const regras = "Stop −" + c0.pump_manual_stop_pct + "% · alvo " + (c0.pump_manual_tp_pct > 0 ? "+" + c0.pump_manual_tp_pct + "%" : "sem alvo") + (c0.pump_manual_trail_on ? " · stop móvel em +" + c0.pump_manual_trail_start + "% (−" + c0.pump_manual_trail_dist + " pts)" : "") + (c0.pump_manual_boost_on ? " · com Boost ON vende em +" + c0.pump_manual_boost_tp + "%" : "");
+      if (!confirm("Comprar " + (t.dataset.sym || "este token") + " agora?\n\n" + regras + "\nCarteira fictícia: " + amt + " SOL" + (real ? "\nCarteira REAL: até " + cfg().pump_real_max_sol + " SOL (execução real ligada)" : "\nCarteira real: não (execução real desligada)"))) return;
       t.disabled = true;
       const r = await BB.api("/api/pump/manual-buy", { body: { mint: t.dataset.buy } });
       t.disabled = false;

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.26.0",
+      "data": "2026-10-26",
+      "tipo": "melhoria",
+      "onde": "Menu → Usar ou descartar → Base da pump.fun → Botão Comprar: valores prontos",
+      "titulo": "Botão Comprar já configurado: valor, stop, alvo, stop móvel e regra do boost",
+      "oque": "O botão Comprar agora usa valores prontos, sem digitar nada na hora: compra 0,1 SOL na carteira fictícia, stop de perda em −30%, alvo de ganho em +100%, stop móvel que liga em +30% e sai 15 pontos abaixo do pico e, se o token estiver com Boost ON, vende tudo em +80%. Tudo já vem preenchido no quadro novo da Base da pump.fun, com botões rápidos para trocar, e fica gravado em cada compra. As cópias automáticas continuam com as regras gerais de Configurações."
+    },
+    {
       "versao": "0.25.0",
       "data": "2026-10-26",
       "tipo": "novo",

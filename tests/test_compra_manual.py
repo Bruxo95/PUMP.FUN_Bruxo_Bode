@@ -8,7 +8,7 @@ M = "Compra".ljust(40, "1") + "pump"            # sem "l": endereço Solana não
 
 
 def test_manual_buy_opens_simulated_position_without_copy_filters(tmp_path):
-    pf = _pump(tmp_path, paid=False, pump_score_min_on=True, pump_score_min=99.0, pump_copy_sol=0.2)
+    pf = _pump(tmp_path, paid=False, pump_score_min_on=True, pump_score_min=99.0, pump_manual_sol=0.2)
     assert pf.manual_buy(M)["error"]                                       # sem preço ainda
     pf.tokens[M] = {"price": 1e-6, "symbol": "MAN", "mcap_sol": 30.0}
     r = pf.manual_buy(M)

@@ -1079,8 +1079,11 @@ class PumpFun:
             p["best_pct"] = round(max(chg, p.get("best_pct", chg)), 2)
             p["worst_pct"] = round(min(chg, p.get("worst_pct", chg)), 2)
             # STOP MÓVEL: liga quando o líquido (após taxas) passa de X%; depois sai se cair Y pontos do pico
-            trail_on = getattr(self.cfg, "pump_trail_enabled", True)
-            t_start, t_dist = float(self._c("pump_trail_start_pct", 20)), float(self._c("pump_trail_dist_pct", 10))
+            trail_on = p["trail_on"] if "trail_on" in p else getattr(self.cfg, "pump_trail_enabled", True)
+            t_start = float(p.get("trail_start") or self._c("pump_trail_start_pct", 20))
+            t_dist = float(p.get("trail_dist") or self._c("pump_trail_dist_pct", 10))
+            stop = float(p.get("stop_pct") or self._c("pump_stop_pct", 40))      # 0.26.0: compra do botão tem as suas
+            tp = float(p["tp_pct"]) if p.get("tp_pct") is not None else float(self._c("pump_tp_pct", 0))
             if trail_on and (p.get("trail_peak") is not None or chg >= t_start):
                 if p.get("trail_peak") is None:
                     p["trail_since"] = now_iso()
@@ -1108,6 +1111,8 @@ class PumpFun:
                 out.append(self._sell(p, 1.0, px, f"segurou até ficar positivo ({chg:+.1f}% líquido)", t))
             elif chg <= -stop:
                 out.append(self._sell(p, 1.0, px, f"stop de perda (−{stop:.0f}%)", t))
+            elif p.get("boost_tp") and chg >= float(p["boost_tp"]) and self.boost_info(mint).get("active"):
+                out.append(self._sell(p, 1.0, px, f"boost ON: alvo +{float(p['boost_tp']):.0f}% ({chg:+.1f}% líquido)", t))
             elif tp and chg >= tp:
                 out.append(self._sell(p, 1.0, px, f"alvo (+{tp:.0f}%)", t))
             else:
@@ -1596,7 +1601,8 @@ class PumpFun:
         base = {"wallet": "manual", "short": "você", "mint": mint, "symbol": sym, "kind": "buy",
                 "mcap_sol": tk.get("mcap_sol")}
         out: dict = {"ok": True, "sim": None, "real": None}
-        amt = float(self._c("pump_copy_sol", 0.1))
+        amt = float(self._c("pump_manual_sol", 0.1))
+        rules = self.manual_rules()
         fr = self._fee_rates(mint)
         if any(p["mint"] == mint and not p.get("real") for p in allpos):
             out["sim"] = "já tem posição fictícia neste token"
@@ -1613,7 +1619,7 @@ class PumpFun:
                  "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
                  "price_now": px, "trader_price": px, "trader_sol": 0.0, "proceeds": 0.0, "fees_sol": amt * fee + prio,
                  "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": None,
-                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True}
+                 "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True, **rules}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
@@ -1628,7 +1634,8 @@ class PumpFun:
             else:
                 self._real_buying.add(mint)
                 self._rq_put(("buy", {"wallet": "manual", "mint": mint, "symbol": sym, "trader_sol": 0.0,
-                                      "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t}))
+                                      "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t,
+                                      "pos_cfg": {**rules, "manual": True}}))
                 self._feed(**base, action="REAL: comprando", reason="compra manual enviada para a fila real")
                 out["real"] = f"enviando compra real de até {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL"
         return out
@@ -1666,6 +1673,15 @@ class PumpFun:
         if (self.tokens.get(mint) or {}).get("boost_active"):
             b["active"], b["pair_active"] = True, int(self.tokens[mint]["boost_active"])
         return b
+
+    def manual_rules(self) -> dict:
+        """Stop, alvo e stop móvel que o botão Comprar grava na posição (configurados na Base da pump.fun)."""
+        return {"stop_pct": float(self._c("pump_manual_stop_pct", 30)),
+                "tp_pct": float(self._c("pump_manual_tp_pct", 100)),
+                "trail_on": bool(getattr(self.cfg, "pump_manual_trail_on", True)),
+                "trail_start": float(self._c("pump_manual_trail_start", 30)),
+                "trail_dist": float(self._c("pump_manual_trail_dist", 15)),
+                "boost_tp": float(self._c("pump_manual_boost_tp", 80)) if getattr(self.cfg, "pump_manual_boost_on", True) else None}
 
     def blacklist_add(self, addr: str, tipo: str, motivo: str) -> None:
         """Lista negra COMPARTILHADA (0.20.0): o que um usuário descobre protege todos. Entra sozinho o criador de
@@ -2304,6 +2320,7 @@ class PumpFun:
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"],
                          network=max(0.0, spent - amt * (1 + fr["venue"] + fr["portal"])))
             p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
+            p.update(it.get("pos_cfg") or {})              # compra do botão: stop/alvo próprios (0.26.0)
             self._save_pos(p)
             self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
                        action="REAL comprou", reason=f"gastou {spent:.4f} SOL · recebeu {toks:,.0f} tokens",

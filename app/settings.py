@@ -45,7 +45,16 @@ USER_KEYS: dict[str, tuple] = {
     "pump_cold_on": (bool, False, 0, 1),
     "pump_cold_wr": (float, 30.0, 0.0, 100.0),          # acerto das últimas 10 cópias em 2 h abaixo de X% -> metade do valor
     # 0.20.0: lista negra compartilhada e avisos no Telegram (começam desligados)
-    "pump_base_hide_trash": (bool, False, 0, 1),        # 0.25.0: Base da pump.fun esconde o que a previsão marca como lixo
+    "pump_base_hide_trash": (bool, False, 0, 1),
+    # 0.26.0: botão Comprar já configurado (pedido do dono: não ter que digitar valores na hora de comprar)
+    "pump_manual_sol": (float, 0.1, 0.001, 100.0),      # quanto o botão compra na carteira fictícia
+    "pump_manual_stop_pct": (float, 30.0, 1.0, 100.0),  # stop de perda das compras do botão
+    "pump_manual_tp_pct": (float, 100.0, 0.0, 10000.0), # alvo de ganho (vende tudo); 0 = sem alvo
+    "pump_manual_trail_on": (bool, True, 0, 1),
+    "pump_manual_trail_start": (float, 30.0, 1.0, 10000.0),  # stop móvel liga em +X%
+    "pump_manual_trail_dist": (float, 15.0, 1.0, 1000.0),    # e sai se cair Y pontos do pico
+    "pump_manual_boost_on": (bool, True, 0, 1),         # token com boost pago: vende em +X% (pedido do dono, 2026-10-26)
+    "pump_manual_boost_tp": (float, 80.0, 1.0, 10000.0),        # 0.25.0: Base da pump.fun esconde o que a previsão marca como lixo
     "pump_blacklist_on": (bool, False, 0, 1),           # não copia token de criador (ou trader) da lista negra
     "pump_tg_on": (bool, False, 0, 1),                  # avisos no Telegram (token do bot e chat em Chaves pessoais)
     "pump_tg_all": (bool, False, 0, 1),                 # OFF = só os importantes; ON = toda notificação
