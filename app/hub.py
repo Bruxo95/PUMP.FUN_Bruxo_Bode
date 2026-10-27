@@ -1188,7 +1188,7 @@ class PumpHub:
                         "opcoes": len(r.get("valores") or {})})
         return out
 
-    async def compare_one(self, uid: str, offer_id: int) -> dict:
+    async def compare_one(self, uid: str, offer_id: int, origem: str | None = None) -> dict:
         from .compare import compare
         rows = await self.db.select("config_offers", {"id": offer_id, "status": "aceita"})
         if not rows or uid not in (rows[0].get("de_user"), rows[0].get("para_user")):
@@ -1196,7 +1196,8 @@ class PumpHub:
         o = rows[0]
         x, y = await self.engine(o["de_user"]), await self.engine(o["para_user"])
         r = compare({"em": o.get("respondido_em"), "valores": o.get("valores") or {}}, x.trades(3000), y.trades(3000),
-                    x.cfg.user_dict(), y.cfg.user_dict(), o.get("de_nome") or await self._nome(o["de_user"]), await self._nome(o["para_user"]))
+                    x.cfg.user_dict(), y.cfg.user_dict(), o.get("de_nome") or await self._nome(o["de_user"]), await self._nome(o["para_user"]),
+                    origem=origem)
         r.update({"id": o["id"], "parte": o.get("parte")})
         return r
 

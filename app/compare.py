@@ -57,12 +57,17 @@ def _by_mint(trades: list[dict]) -> dict:
         m = t.get("mint")
         if not m:
             continue
-        g = out.setdefault(m, {"mint": m, "token": t.get("symbol") or m[:6], "pnl_sol": 0.0, "trades": 0, "abriu": None, "motivos": []})
+        g = out.setdefault(m, {"mint": m, "token": t.get("symbol") or m[:6], "pnl_sol": 0.0, "trades": 0, "abriu": None,
+                               "fechou": None, "pnl_pct": None, "motivos": []})
         g["pnl_sol"] += t.get("pnl_sol") or 0
         g["trades"] += 1
+        g["pnl_pct"] = t.get("pnl_pct") if g["trades"] == 1 else None
         a = _ts(t.get("opened_at"))
         if a and (g["abriu"] is None or a < g["abriu"]):
             g["abriu"] = a
+        f = _ts(t.get("closed_at"))
+        if f and (g["fechou"] is None or f > g["fechou"]):
+            g["fechou"] = f
         if t.get("reason") and len(g["motivos"]) < 3:
             g["motivos"].append(str(t["reason"])[:80])
     for g in out.values():
@@ -74,10 +79,16 @@ def drift(cfg_values: dict, offer_values: dict) -> list[str]:
     return [k for k, v in offer_values.items() if k in cfg_values and not _eq(cfg_values[k], v)]
 
 
+def _iso(t):
+    return datetime.fromtimestamp(t).astimezone().isoformat() if t else None
+
+
 def compare(offer: dict, src_trades: list[dict], my_trades: list[dict], src_cfg: dict, my_cfg: dict,
-            src_nome: str, my_nome: str) -> dict:
+            src_nome: str, my_nome: str, origem: str | None = None) -> dict:
+    """origem="explorar" (0.31.40): só as compras automáticas do Explorar, para a tela do Explorar."""
     since = _ts(offer.get("em")) or 0
-    pick = lambda L: [t for t in L if not t.get("real") and (_ts(t.get("closed_at")) or 0) >= since]   # noqa: E731
+    pick = lambda L: [t for t in L if not t.get("real") and (_ts(t.get("closed_at")) or 0) >= since   # noqa: E731
+                      and (origem is None or t.get("origem") == origem)]
     S, M = pick(src_trades), pick(my_trades)
     a, b = summary(S), summary(M)
     ms, mm = _by_mint(S), _by_mint(M)
@@ -85,6 +96,9 @@ def compare(offer: dict, src_trades: list[dict], my_trades: list[dict], src_cfg:
     for m in set(ms) & set(mm):
         x, y = ms[m], mm[m]
         common.append({"mint": m, "token": x["token"], "pnl_x": x["pnl_sol"], "pnl_y": y["pnl_sol"],
+                       "pct_x": x["pnl_pct"], "pct_y": y["pnl_pct"],
+                       "abriu_x": _iso(x["abriu"]), "abriu_y": _iso(y["abriu"]), "fechou_x": _iso(x["fechou"]), "fechou_y": _iso(y["fechou"]),
+                       "saida_dif_s": round(y["fechou"] - x["fechou"]) if x["fechou"] and y["fechou"] else None,
                        "atraso_s": round(y["abriu"] - x["abriu"]) if x["abriu"] and y["abriu"] else None,
                        "motivo_x": "; ".join(x["motivos"]), "motivo_y": "; ".join(y["motivos"])})
     common.sort(key=lambda c: -abs((c["pnl_x"] or 0) - (c["pnl_y"] or 0)))
@@ -124,7 +138,16 @@ def compare(offer: dict, src_trades: list[dict], my_trades: list[dict], src_cfg:
     if a["trades"] and b["trades"]:
         conc.append(f"Resultado desde a cópia: {src_nome} {a['pnl_sol']:+.4f} SOL em {a['trades']} trades; "
                     f"{my_nome} {b['pnl_sol']:+.4f} SOL em {b['trades']} trades.")
-    return {"desde": offer.get("em"), "x": {"nome": src_nome, **a}, "y": {"nome": my_nome, **b},
+    for g in only_x + only_y:
+        g["abriu_iso"], g["fechou_iso"] = _iso(g["abriu"]), _iso(g["fechou"])
+    # chance de fazer os MESMOS trades (0.31.40): dos tokens que a origem operou depois da cópia, quantos a cópia também
+    # operou — e o contrário. Mesmo com a configuração idêntica fica abaixo de 100% por horário, saldo, limite de
+    # posições e atraso de leitura de cada conta.
+    chance = {"de_x_que_y_fez": round(len(common) / len(ms) * 100, 1) if ms else None,
+              "de_y_que_x_fez": round(len(common) / len(mm) * 100, 1) if mm else None,
+              "em_comum": len(common), "tokens_x": len(ms), "tokens_y": len(mm),
+              "geral": round(len(common) / len(set(ms) | set(mm)) * 100, 1) if (ms or mm) else None}
+    return {"desde": offer.get("em"), "chance": chance, "x": {"nome": src_nome, **a}, "y": {"nome": my_nome, **b},
             "comum": common[:50], "so_x": only_x[:30], "so_y": only_y[:30],
             "drift_x": dx, "drift_y": dy, "opcoes": len(vals), "conclusoes": conc}
 

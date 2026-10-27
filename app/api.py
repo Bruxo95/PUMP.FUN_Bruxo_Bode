@@ -881,8 +881,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return {"copias": await hub.compare_list(u["id"]), "salvas": saved}
 
     @app.get("/api/pump/compare/{offer_id}")
-    async def compare_one(offer_id: int, u: dict = Depends(admin_only)):
-        return await hub.compare_one(u["id"], offer_id)
+    async def compare_one(offer_id: int, origem: str = "", u: dict = Depends(admin_only)):
+        return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None)
 
     @app.get("/api/pump/compare/{offer_id}/ai")
     async def compare_ai(offer_id: int, u: dict = Depends(admin_only)):

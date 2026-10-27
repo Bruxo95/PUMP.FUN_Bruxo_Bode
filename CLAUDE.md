@@ -788,3 +788,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   na tela Comparar. Teste: `tests/test_bruxo_aprendizagem.py`. Causa do preço do SEALLIS não investigada (sem acesso ao banco).
 
 - 0.31.39: a pedido do dono os ganhos ≥1.900% voltam aos totais (`auto_trades.summary` inclui todos; `suspects` só informa); marca "acima de 20×". A correção da curva cotada em outra moeda (SPCX/ZEC — causa provável do SEALLIS) está pronta em patch fora do repositório e NÃO foi aplicada: aguarda decisão do dono.
+
+- 0.31.40: quadro `#exCopyCard` no Explorar (`loadExCopy`/`renderExCopy`; `compare(..., origem="explorar")` com `chance` e horários `abriu_x/abriu_y/fechou_x/fechou_y`). Pedido do dono. Áudios do Bruxo: não marcar ganho grande e não alterar o Explorar — marca removida da tela; lógica de entrada/saída do Explorar não mudou nesta sessão (só o registro do funil e o espelho da real).

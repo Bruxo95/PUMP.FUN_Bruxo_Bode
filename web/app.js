@@ -61,6 +61,40 @@
   // conferindo AGORA cada valor (idêntica ou mudou depois), com "Ver o que mudou" (antes de aceitar → enviado → agora).
   let APPLIED = [];
   // 0.31.37 (pedido do dono em 2026-10-27): "você tem N usuários usando a sua configuração · ver usuários"
+  // 0.31.40 (pedido do dono em 2026-10-27): no Explorar, a chance de fazer os mesmos trades da conta copiada e os
+  // trades depois da cópia com o horário de cada um e a diferença
+  let XC = { r: null, f: "comum" };
+  async function loadExCopy() {
+    const o = APPLIED.find((a) => Object.keys(a.valores || {}).some((k) => k.startsWith("pump_ex_auto_") || k.startsWith("pump_ar_")));
+    if (!o || !$("exCopyCard")) { if ($("exCopyCard")) $("exCopyCard").hidden = true; return; }
+    const r = await BB.api("/api/pump/compare/" + encodeURIComponent(o.id) + "?origem=explorar");
+    if (r.error) { $("exCopyCard").hidden = true; return; }
+    XC.r = r; $("exCopyCard").hidden = false; renderExCopy();
+  }
+  const difT = (s) => s == null ? "–" : (s === 0 ? "mesmo segundo" : (s > 0 ? "você " : "você ") + hms(Math.abs(s)) + (s > 0 ? " depois" : " antes"));
+  const hora = (iso) => iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "–";
+  function renderExCopy() {
+    const r = XC.r; if (!r) return;
+    const x = r.x, y = r.y, c = r.chance || {}, pct = (v) => v == null ? "–" : f(v, 0) + "%";
+    $("exCopyT").textContent = "Configuração copiada de " + x.nome + ": você × " + x.nome;
+    $("exCopyS").textContent = "desde " + dt(r.desde) + " · só compras automáticas do Explorar · " + (r.drift_y.length ? "a sua mudou em " + r.drift_y.length + " opção(ões) depois" : "a sua continua idêntica");
+    const at = (r.comum || []).filter((m) => m.atraso_s != null).map((m) => m.atraso_s).sort((a, b) => a - b), med = at.length ? at[Math.floor(at.length / 2)] : null;
+    kpis("exCopyK", [["Chance de fazer os mesmos trades", pct(c.de_x_que_y_fez), (c.em_comum || 0) + " de " + (c.tokens_x || 0) + " tokens de " + esc(x.nome) + " você também fez", "hit"],
+      ["Você fez e " + esc(x.nome) + " também", pct(c.de_y_que_x_fez), (c.em_comum || 0) + " de " + (c.tokens_y || 0) + " dos seus", "tr"],
+      [esc(x.nome) + " depois da cópia", sg(x.pnl_sol), x.trades + " trades · acerto " + (x.acerto == null ? "–" : f(x.acerto * 100, 0) + "%"), "pnl"],
+      ["Você depois da cópia", sg(y.pnl_sol), y.trades + " trades · acerto " + (y.acerto == null ? "–" : f(y.acerto * 100, 0) + "%"), "pnl"],
+      ["Diferença de horário (mediana)", med == null ? "–" : difT(med), "na entrada, nos tokens que os dois fizeram", "mon"]]);
+    document.querySelectorAll("#exCopyF button").forEach((b) => b.classList.toggle("on", b.dataset.xcf === XC.f));
+    if (XC.f === "comum") {
+      table("exCopyTbl", ["Token", "Entrada " + esc(x.nome), "Sua entrada", "Diferença na entrada", "Saída " + esc(x.nome), "Sua saída", "Diferença na saída", "Resultado " + esc(x.nome), "Seu resultado"],
+        (r.comum || []).map((m) => [pfM(m.mint, m.token), esc(hora(m.abriu_x)), esc(hora(m.abriu_y)), esc(difT(m.atraso_s)), esc(hora(m.fechou_x)), esc(hora(m.fechou_y)), esc(difT(m.saida_dif_s)),
+          sg(m.pnl_x) + (m.pct_x == null ? "" : "<small>" + pc(m.pct_x) + "</small>"), sg(m.pnl_y) + (m.pct_y == null ? "" : "<small>" + pc(m.pct_y) + "</small>")]), "Nenhum token que os dois fizeram depois da cópia ainda.");
+    } else {
+      const L = XC.f === "x" ? r.so_x : r.so_y, who = XC.f === "x" ? x.nome : "você";
+      table("exCopyTbl", ["Token", "Entrada (" + esc(who) + ")", "Saída", "Resultado", "Motivo da saída"], (L || []).map((g) => [pfM(g.mint, g.token), esc(hora(g.abriu_iso)), esc(hora(g.fechou_iso)), sg(g.pnl_sol), esc((g.motivos || []).join("; "))]),
+        XC.f === "x" ? "Você fez todos os trades que " + esc(x.nome) + " fez." : "Nenhum trade só seu.");
+    }
+  }
   async function loadConfigUsers() {
     let r; try { r = await BB.api("/api/pump/config/users"); } catch (e) { return; }
     const L = (r && r.users) || [], idn = L.filter((u) => u.identica).length;
@@ -77,6 +111,7 @@
   async function loadApplied() {
     try { const r = await BB.api("/api/pump/config/applied"); APPLIED = (r && r.applied) || []; } catch (e) { return; }
     renderApplied();
+    if (VIEW === "explorar") loadExCopy();
   }
   const cfgEq = (a, b) => (typeof a === "number" || typeof b === "number") && a !== "" && b !== "" && a != null && b != null && !isNaN(+a) && !isNaN(+b) ? Math.abs(+a - +b) < 1e-9 : String(a) === String(b);
   const cfgNow = (k) => { const c = cfg(); return isAutoCfg(k) ? autoValue(k, c) : c[k]; };
@@ -578,7 +613,7 @@
       return [pfM(mint, String(row.symbol || "")) + '<small><span class="tag ' + (row.real ? 'real">REAL' : 'sim">SIMULADO') + "</span> · Explorar</small>",
         autoDate(row.entrada_em) + "<small>" + s4(autoNum(row.sol_in)) + " SOL</small>" + '<span class="tag ' + (PV[row.veredito] || "neutral") + '">' + esc(String(row.veredito || "n/d")) + "</span><small>chance: " + (autoNum(row.chance) == null ? "n/d" : f(row.chance, 0) + "%") + "</small>",
         '<span class="tag ' + (row.open ? 'sim">aberta' : 'neutral">fechada') + "</span>" + (partials ? "<small>" + partials + " venda(s) em partes</small>" : ""),
-        sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>" + (row.suspeito ? '<span class="tag win" title="' + esc(row.suspeito) + '">acima de 20×</span>' : ""),
+        sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>",
         row.open ? "–" : autoDate(row.saida_em), esc(String(row.motivo_saida || (row.open ? partials ? "venda em partes; restante protegido" : "aguardando saída" : "n/d"))),
         hms(autoNum(row.duration_s)), pc(autoNum(row.best_pct)) + "<small>pior: " + pc(autoNum(row.worst_pct)) + "</small>",
         '<div class="auto-after">' + autoAfter(row, "15m") + "<small>" + autoAfter(row, "60m") + "</small></div>"];
@@ -1161,6 +1196,7 @@
     }
     if (t.id === "cmpCopy") { const id = $("cmpSel").value; if (!id) return; const r = await BB.api("/api/pump/compare/" + encodeURIComponent(id) + "/ai"); if (r.error) { toast(r.error); return; } copyText(r.texto); return; }
     if (t.dataset.cmptxt) { const s = CMP.saved.find((x) => String(x.id) === t.dataset.cmptxt); if (s) copyText(s.texto || ""); return; }
+    if (t.dataset.xcf) { XC.f = t.dataset.xcf; renderExCopy(); return; }
     if (t.dataset.utf) { UTR.f = t.dataset.utf; renderUserTrades(); return; }
     if (t.id === "uTrX" || t.id === "uTrades") { $("uTrades").hidden = true; return; }
     if (t.hasAttribute && t.hasAttribute("data-cfgu-ver")) {

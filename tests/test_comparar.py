@@ -106,3 +106,21 @@ def test_config_users_lists_who_uses_my_config(env):
     us = c.get("/api/pump/config/users", headers=B).json()["users"]
     assert us[0]["identica"] is False and us[0]["mudou"] == 1
     assert c.get("/api/pump/config/users", headers=A).json()["users"] == []
+
+
+def test_compare_explorar_only_with_times_and_chance(env):
+    c, hub = env["c"], env["hub"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=B)
+    c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A)
+    x, y = hub.engines[UB], hub.engines[UA]
+    for pf, sym, m, pnl in ((x, "AAA", "A" * 40, 0.05), (x, "BBB", "B" * 40, 0.02), (y, "AAA", "A" * 40, 0.04)):
+        pf._save_trade({"wallet": "manual", "symbol": sym, "mint": m, "sol_in": 0.05, "pnl_sol": pnl, "pnl_pct": pnl * 2000,
+                        "reason": "alvo", "real": False, "origem": "explorar",
+                        "opened_at": _iso(time.time() - (60 if pf is x else 45)), "closed_at": _iso(time.time() + 5)})
+    _t(x, "CPY", "C" * 40, 0.09)                                            # cópia de trader: fora da conta do Explorar
+    oid = c.get("/api/pump/compare", headers=A).json()["copias"][0]["id"]
+    r = c.get(f"/api/pump/compare/{oid}?origem=explorar", headers=A).json()
+    assert r["chance"]["de_x_que_y_fez"] == 50.0 and r["chance"]["de_y_que_x_fez"] == 100.0
+    m = r["comum"][0]
+    assert m["token"] == "AAA" and m["atraso_s"] == 15 and m["abriu_x"] and m["abriu_y"] and m["fechou_y"]
