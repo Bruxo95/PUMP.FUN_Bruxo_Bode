@@ -1471,13 +1471,50 @@
     wallet_private_key: "Chave privada (base58 da Phantom/Solflare ou os 64 números do id.json) de uma carteira NOVA só para o bot. Fica criptografada e só é usada no servidor para assinar.",
     rpc_url: "Opcional. Endereço https:// de um RPC próprio (Helius, QuickNode…) — mais rápido e sem limite do público.",
     jupiter_api_key: "Opcional. Aumenta o limite de cotações da Jupiter para a sua carteira." };
+  // 0.31.25: passo a passo de cada chave, para quem nunca fez (pedido do dono em 2026-10-27: "muito usuário sem
+  // experiência"). Os nomes dos botões nos sites de fora podem mudar; por isso o texto diz o que procurar.
+  const KEY_HOW = {
+    solanatracker_api_key: { custo: "Tem plano grátis.", ganha: "Ranking oficial dos top traders, checagem de risco do token e a tela Explorar com a sua própria cota.",
+      passos: ["Clique em \"Criar minha chave →\" (abre o site da Solana Tracker).", "Crie a conta (e-mail ou Google) e escolha o plano grátis (Free).",
+        "No painel do site, abra Data API. A sua chave (API key) aparece ali.", "Clique para copiar a chave, volte aqui, cole no campo abaixo e clique em Salvar.",
+        "Pronto quando aparecer \"Usando: sua chave\" em verde."] },
+    pumpportal_api_key: { custo: "Opcional. A chave é grátis, mas os dados extras da PumpPortal são pagos.", ganha: "Dados extras do stream pago da PumpPortal (ranking próprio). Sem ela, o painel funciona normalmente.",
+      passos: ["Clique em \"Criar minha chave →\" (abre a PumpPortal).", "Clique para gerar a chave (API key). O site também cria uma carteira junto: guarde tudo que ele mostrar, porque ele não mostra de novo.",
+        "Copie só a API key, cole no campo abaixo e clique em Salvar.", "Não cole aqui a chave privada da carteira que a PumpPortal criou."] },
+    jupiter_api_key: { custo: "Opcional. Tem plano grátis.", ganha: "Mais cotações por minuto (preço dos tokens) só para você.",
+      passos: ["Clique em \"Criar minha chave →\" (abre o portal da Jupiter).", "Entre com a sua conta (e-mail ou Google).",
+        "Procure API Keys e crie uma chave nova.", "Copie a chave, cole no campo abaixo e clique em Salvar."] },
+    rpc_url: { custo: "Opcional. A Helius tem plano grátis.", ganha: "Leitura da rede Solana mais rápida e sem os limites do servidor público.",
+      passos: ["Clique em \"Criar um RPC →\" (abre o painel da Helius).", "Crie a conta (e-mail, Google ou GitHub). O plano grátis basta.",
+        "Na tela inicial (ou em RPCs/Endpoints), copie o endereço da Mainnet. Ele começa com https://mainnet.helius-rpc.com/?api-key=",
+        "Cole o endereço inteiro no campo abaixo e clique em Salvar.", "Use sempre o da Mainnet, não o da Devnet."] },
+    wallet_private_key: { custo: "Grátis. Só é usada no modo real (dinheiro de verdade).", ganha: "Permite o modo real e a troca USDC→SOL. No simulado não precisa.",
+      passos: ["NUNCA use a sua carteira principal. Crie uma carteira NOVA só para o bot e coloque nela pouco saldo.",
+        "Na Phantom (ou Solflare): clique na conta lá em cima → Adicionar/Criar conta nova.",
+        "Na conta nova: Configurações → Gerenciar contas → a conta nova → Mostrar chave privada. Digite a senha da Phantom.",
+        "Copie a chave privada, cole no campo abaixo e clique em Salvar. O endereço público aparece aqui para você conferir.",
+        "Ninguém do suporte pede essa chave. Cole só aqui no painel, nunca em conversa."] },
+    telegram_bot_token: { custo: "Grátis.", ganha: "Avisos do bot no seu Telegram (compras, stops, convites…).",
+      passos: ["Clique no link (abre o @BotFather no Telegram) e toque em Iniciar.", "Mande /newbot.",
+        "Escolha um nome (ex.: Meu PUMP) e depois um usuário que termine em bot (ex.: meupump123_bot).",
+        "O BotFather responde com o token (números:letras). Copie, cole no campo abaixo e clique em Salvar.",
+        "Abra o seu bot novo (link na resposta do BotFather) e toque em Iniciar. Sem isso ele não consegue mandar mensagem para você."] },
+    telegram_chat_id: { custo: "Grátis.", ganha: "Diz ao bot para quem mandar os avisos.",
+      passos: ["Clique no link (abre o @userinfobot no Telegram) e toque em Iniciar.", "Ele responde com o seu Id (só números).",
+        "Copie o número, cole no campo abaixo e clique em Salvar.", "Com as duas chaves salvas (token e Id), os avisos podem ser ligados."] },
+  };
+  function keyHow(k) {
+    const h = KEY_HOW[k]; if (!h) return "";
+    return '<details class="keyhow"><summary>Como fazer (passo a passo)</summary><div class="hint"><b>Custo:</b> ' + esc(h.custo) + "<br><b>O que melhora:</b> " + esc(h.ganha) + "</div>" +
+      "<ol>" + h.passos.map((p) => "<li>" + esc(p) + "</li>").join("") + "</ol></details>";
+  }
   async function loadSecrets() {
     const r = await BB.api("/api/secrets"); if (r.error) return;
     const w = r.wallet || {};
     const using = (v) => v.configured ? '<span class="tag win">Usando: sua chave</span>' : v.system ? '<span class="tag sim">Usando: chave do sistema (só visualização)</span>' : '<span class="tag loss">Não configurada</span>';
     $("secrets").innerHTML = Object.entries(r.keys).map(([k, v]) => '<div class="secret"><div><div class="name">' + esc(v.label) + '</div><div class="muted" style="font-size:12.5px">' + esc(KEY_HINT[k] || "") +
       (v.link ? ' <a href="' + esc(v.link) + '" target="_blank" rel="noopener">' + (k === "wallet_private_key" ? "Criar uma carteira nova →" : k === "rpc_url" ? "Criar um RPC →" : "Criar minha chave →") + "</a>" : "") +
-      (k === "wallet_private_key" && w.address ? '<br>Endereço público: <span class="mono">' + esc(w.address) + "</span>" : "") + (k === "rpc_url" && w.rpc_set ? '<br>Servidor: <span class="mono">' + esc(w.rpc_host || "") + "</span>" : "") + "</div></div>" +
+      (k === "wallet_private_key" && w.address ? '<br>Endereço público: <span class="mono">' + esc(w.address) + "</span>" : "") + (k === "rpc_url" && w.rpc_set ? '<br>Servidor: <span class="mono">' + esc(w.rpc_host || "") + "</span>" : "") + "</div>" + keyHow(k) + "</div>" +
       "<div>" + using(v) + "</div>" +
       '<div class="row"><input class="in" type="password" autocomplete="new-password" spellcheck="false" data-secret="' + k + '" placeholder="' + (v.configured ? "colar nova para trocar" : "colar a sua chave aqui") + '">' +
       btn("Salvar", "secret-save", { k: k }, "primary") + (v.configured ? btn("Remover", "secret-del", { k: k }, "tgl off") : "") + "</div></div>").join("");
@@ -1485,7 +1522,7 @@
   async function loadSysKeys() {
     const r = await BB.api("/api/admin/keys"); if (r.error) return;
     $("sysKeys").innerHTML = Object.entries(r.keys).map(([k, v]) => '<div class="secret"><div><div class="name">' + esc(v.label) + '</div><div class="muted" style="font-size:12.5px">' + esc(KEY_HINT[k] || "") +
-      (v.link ? ' <a href="' + esc(v.link) + '" target="_blank" rel="noopener">Onde criar →</a>' : "") + (v.updated_at ? "<br>Atualizada em " + dt(v.updated_at) : "") + "</div></div>" +
+      (v.link ? ' <a href="' + esc(v.link) + '" target="_blank" rel="noopener">Onde criar →</a>' : "") + (v.updated_at ? "<br>Atualizada em " + dt(v.updated_at) : "") + "</div>" + keyHow(k) + "</div>" +
       "<div>" + (v.configured ? '<span class="tag win">Configurada: sim</span>' : '<span class="tag loss">Configurada: não</span>') + "</div>" +
       '<div class="row"><input class="in" type="password" autocomplete="new-password" spellcheck="false" data-syskey="' + k + '" placeholder="' + (v.configured ? "colar nova para trocar" : "colar aqui") + '">' +
       btn("Salvar", "syskey-save", { k: k }, "primary") + (v.configured ? btn("Remover", "syskey-del", { k: k }, "tgl off") : "") + "</div></div>").join("");

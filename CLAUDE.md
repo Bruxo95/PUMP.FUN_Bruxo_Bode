@@ -720,3 +720,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.24: a seta da sanfona em `app.css` tinha um byte de controle no lugar do `\25BE` (aparecia "BE"); corrigido.
   Escapes com barra invertida gravados por heredoc viram bytes: gravar CSS/JS com escape por script Python.
+
+- 0.31.25: `KEY_HOW`/`keyHow()` em `web/app.js` (passo a passo por chave, em `<details class="keyhow">`) em Chaves pessoais
+  e Chaves do sistema. Pedido do dono. Os nomes de botões dos sites externos podem mudar: revisar o texto se mudarem.

@@ -491,3 +491,13 @@ select.in{padding-right:24px}
 .card.sanf.fechado > :not(header){display:none!important}
 .card.sanf.fechado > header{margin-bottom:0}
 @media (prefers-reduced-motion:reduce){.card.sanf > header h2::before{transition:none}}
+/* passo a passo das chaves (0.31.25) */
+.keyhow{margin-top:8px;font-size:13px}
+.keyhow summary{cursor:pointer;color:var(--accent,#22c55e);font-weight:500;list-style:none}
+.keyhow summary::-webkit-details-marker{display:none}
+.keyhow summary::before{content:"\25B8";display:inline-block;width:1.1em;transition:transform .15s}
+.keyhow[open] summary::before{transform:rotate(90deg)}
+.keyhow .hint{margin:8px 0 4px}
+.keyhow ol{margin:6px 0 0 18px;padding:0;line-height:1.55}
+.keyhow li{margin:3px 0}
+@media (prefers-reduced-motion:reduce){.keyhow summary::before{transition:none}}
