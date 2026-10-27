@@ -927,3 +927,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.73: `whoLabel`/`shortW(w, x)`/`pfW(w, x)` em `web/app.js`: carteira "manual" vira a origem (Explorar/Base/Maiores traders/
   botão Comprar/copiou a conta X), sem link; chamadas `pfW(x.wallet)` → `pfW(x.wallet, x)`; "Resultado por trader" agrupa por origem. Pedido do dono.
+
+- 0.31.74: `PumpHub.traders_offer` + `POST /api/pump/traders/share` (convite `config_offers` com `tipo="traders"` e
+  `valores._traders`; `config_answer` soma em `pf.manual`); `_no_traders` tira esse tipo de comparar/selo/atualização/
+  "usuários usando a sua configuração". Botão `#trShBtn` em Top traders; `offerList` mostra as carteiras. Legenda `.origleg`
+  e `ORIG_DESC` (dica do mouse) em Histórico e Posições. Pedido do dono. Teste `tests/test_compartilhar_traders.py`.

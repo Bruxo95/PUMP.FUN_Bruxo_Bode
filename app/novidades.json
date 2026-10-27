@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.74",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Top traders (Compartilhar minha lista); Histórico e Posições (legenda)",
+      "titulo": "Compartilhar a lista de traders e legenda do que é cada origem",
+      "oque": "Em Top traders, o botão 'Compartilhar minha lista' envia as carteiras que você adicionou à mão para outra pessoa, como convite: ela vê a lista no topo do painel e só entram se ela aceitar (nada é removido da lista dela). Em Histórico e Posições, a legenda explica o que é cada origem quando a coluna Trader não é uma carteira, por exemplo 'Explorar (automática)': o robô comprou sozinho um token da lista Quase graduando com veredito chance alta, depois de passar em todos os filtros."
+    },
+    {
       "versao": "0.31.73",
       "data": "2026-10-27",
       "tipo": "correção",
