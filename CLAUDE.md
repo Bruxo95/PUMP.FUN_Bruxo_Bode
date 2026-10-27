@@ -754,3 +754,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.33: Admin → Usuários: `POST /api/admin/users/{uid}/copy-config` (`hub.admin_copy_config`: cria um convite do usuário
   para o admin e aceita na hora com `config_answer(..., notify_sender=False)`) e `GET /api/admin/users/{uid}/trades`
   (fictícios). Modal `#uTrades` (`openUserTrades`/`renderUserTrades`). Pedido do dono. Teste em `tests/test_explore_share.py`.
+
+## Comparar config copiada e atualização da origem (2026-10-27, versão 0.31.34)
+- Pedido do dono. Explorar saiu do grupo (`#navExp`, só admin). `app/compare.py` (`compare`, `ai_text`, `summary`) +
+  `hub.compare_list/compare_one/compare_save/compare_saved`; rotas `/api/pump/compare*` (admin); tela `#comparar`.
+  Migração `20261027000002_comparar_config.sql`: `config_compare_reports` (análises salvas para IA) e colunas `tipo`/`base_id`
+  em `config_offers`. `hub.config_watch` (`config_watch_loop`, 5 min): cópia mais recente de cada par; se quem recebeu
+  ainda está idêntico e a origem mudou, cria convite `tipo=atualizacao` (não repete a mesma alteração recusada);
+  `config_offers` devolve `mudou` e `efeito` (origem antes × depois da mudança e quem recebeu no mesmo período);
+  banner `offerUpdate` no painel. Testes: `tests/test_comparar.py`.

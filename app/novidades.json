@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.34",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Menu → Explorar; Usar ou descartar → Comparar config copiada; topo do painel",
+      "titulo": "Comparar config copiada e aviso quando a origem altera",
+      "oque": "(1) Explorar saiu do grupo Usar ou descartar e ficou no menu principal (só admin, com a marca NOVO). (2) Novo menu \"Comparar config copiada\": escolha uma cópia (Fulano → Você) e clique em Analisar para ver, desde a cópia, o resultado de cada um, acerto, por origem, os tokens em comum com o resultado e o atraso de cada lado, o que só aconteceu com um e não com o outro, quantas opções mudaram depois e conclusões em texto. \"Salvar para a IA estudar\" guarda a análise no banco e \"Copiar texto para IA\" copia um texto pronto com ganhos, perdas e a pergunta para a IA. (3) Quando você usa a configuração idêntica à de alguém e essa pessoa altera alguma opção, aparece um aviso no topo do painel com o que ela mudou, se ganhou ou perdeu mais depois da mudança (média por trade antes × depois), como você foi no mesmo período com a configuração antiga, e os botões Aplicar a mudança ou Não aplicar. A conferência roda a cada 5 minutos."
+    },
+    {
       "versao": "0.31.33",
       "data": "2026-10-27",
       "tipo": "novo",

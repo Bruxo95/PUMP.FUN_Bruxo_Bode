@@ -1,0 +1,79 @@
+"""Comparar configuração copiada: usuário X (origem) × usuário Y (copiou) depois da cópia (0.31.34)."""
+import time
+from datetime import datetime, timezone
+
+from tests.test_api import UA, UB, env, tok  # noqa: F401  (fixture env)
+
+
+def _t(pf, sym, mint, pnl, why="alvo"):
+    pf._save_trade({"wallet": "W", "symbol": sym, "mint": mint, "sol_in": 0.1, "pnl_sol": pnl, "pnl_pct": pnl * 1000,
+                    "reason": why, "real": False, "opened_at": _iso(time.time() - 60), "closed_at": _iso(time.time() + 5)})
+
+
+def _iso(t):
+    return datetime.fromtimestamp(t, timezone.utc).isoformat()
+
+
+def test_compare_after_copy_and_save_for_ai(env):
+    c, hub, db = env["c"], env["hub"], env["db"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=B)
+    assert c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A).json()["ok"]   # A copiou a config de B
+    x, y = hub.engines[UB], hub.engines[UA]
+    _t(x, "AAA", "A" * 40, 0.05)
+    _t(x, "BBB", "B" * 40, 0.02)
+    _t(y, "AAA", "A" * 40, -0.01, "stop de perda")
+    _t(y, "CCC", "C" * 40, -0.03, "stop de perda")
+    lst = c.get("/api/pump/compare", headers=A).json()
+    assert lst["copias"] and lst["copias"][0]["eu_sou"] == "copiou"
+    oid = lst["copias"][0]["id"]
+    r = c.get(f"/api/pump/compare/{oid}", headers=A).json()
+    assert r["x"]["trades"] == 2 and r["y"]["trades"] == 2 and r["x"]["pnl_sol"] == 0.07
+    assert [g["token"] for g in r["comum"]] == ["AAA"] and r["so_x"][0]["token"] == "BBB" and r["so_y"][0]["token"] == "CCC"
+    assert any("tokens que você não pegou" in s for s in r["conclusoes"])
+    assert "PERGUNTA PARA A IA" in c.get(f"/api/pump/compare/{oid}/ai", headers=A).json()["texto"]
+    assert c.post(f"/api/pump/compare/{oid}/save", json={}, headers=A).json()["ok"]
+    assert c.get("/api/pump/compare", headers=A).json()["salvas"][0]["x"]["trades"] == 2
+    assert c.get(f"/api/pump/compare/{oid}", headers=B).status_code == 403                 # só admin
+
+
+def test_compare_hides_other_accounts_copies(env):
+    c, db = env["c"], env["db"]
+    A = tok(UA)
+    db.tables["config_offers"].append({"id": 999, "de_user": UB, "para_user": UB, "status": "aceita", "valores": {},
+                                       "respondido_em": "2026-10-27T10:00:00+00:00"})
+    assert c.get("/api/pump/compare/999", headers=A).json()["error"]
+
+
+def test_origin_change_creates_update_offer_with_effect(env):
+    c, hub, db = env["c"], env["hub"], env["db"]
+    import asyncio
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=B)
+    assert c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A).json()["ok"]   # A usa a config idêntica à de B
+    assert asyncio.run(hub.config_watch()) == 0                                            # nada mudou ainda
+    c.post("/api/pump/settings", json={"pump_stop_pct": 33}, headers=B)                      # B altera
+    assert asyncio.run(hub.config_watch()) == 1
+    assert asyncio.run(hub.config_watch()) == 0                                            # não repete a mesma alteração
+    of = c.get("/api/pump/config/offers", headers=A).json()["offers"]
+    up = [o for o in of if o["tipo"] == "atualizacao"][0]
+    assert up["mudou"][0]["k"] == "pump_stop_pct" and up["mudou"][0]["agora"] == 33 and "efeito" in up
+    assert any("alterou a configuração" in e["msg"] for e in hub.engines[UA].events)
+    c.post(f"/api/pump/config/offers/{up['id']}", json={"accept": False}, headers=A)        # não aplica
+    assert hub.engines[UA].cfg.pump_stop_pct != 33 and asyncio.run(hub.config_watch()) == 0
+    c.post("/api/pump/settings", json={"pump_stop_pct": 35}, headers=B)                      # mudou de novo: avisa outra vez
+    assert asyncio.run(hub.config_watch()) == 1
+    up = [o for o in c.get("/api/pump/config/offers", headers=A).json()["offers"] if o["tipo"] == "atualizacao"][0]
+    c.post(f"/api/pump/config/offers/{up['id']}", json={"accept": True}, headers=A)         # aplica
+    assert hub.engines[UA].cfg.pump_stop_pct == 35 and asyncio.run(hub.config_watch()) == 0
+
+
+def test_no_update_when_receiver_changed_own_config(env):
+    c, hub = env["c"], env["hub"]
+    import asyncio
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=B)
+    c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A)
+    c.post("/api/pump/settings", json={"pump_copy_sol": 0.77}, headers=A)                    # A se afastou por conta própria
+    c.post("/api/pump/settings", json={"pump_stop_pct": 33}, headers=B)
+    assert asyncio.run(hub.config_watch()) == 0

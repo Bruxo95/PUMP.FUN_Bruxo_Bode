@@ -17,9 +17,9 @@ PKS = {"profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": 
        "blacklist": ("endereco",), "token_life": ("mint",), "market_hourly": ("hora",),
        "creator_stats": ("creator",), "lab_state": ("id",), "auto_trades": ("id",),
        "elite_signals": ("id",), "daily_report": ("user_id", "dia"), "study_auto_log": ("id",),
-       "auto_tune_log": ("id",), "config_offers": ("id",)}
-AUTO_ID = {"pump_feed", "audit_log", "study_auto_log", "auto_tune_log", "config_offers"}
-DEFAULT_TS = {"config_offers": "criado_em", "study_wallets": "criado_em", "pump_trades": "fechada_em", "pump_positions": "aberta_em", "audit_log": "at", "pump_feed": "at",
+       "auto_tune_log": ("id",), "config_offers": ("id",), "config_compare_reports": ("id",)}
+AUTO_ID = {"pump_feed", "audit_log", "study_auto_log", "auto_tune_log", "config_offers", "config_compare_reports"}
+DEFAULT_TS = {"config_compare_reports": "criado_em", "config_offers": "criado_em", "study_wallets": "criado_em", "pump_trades": "fechada_em", "pump_positions": "aberta_em", "audit_log": "at", "pump_feed": "at",
               "profiles": "criado_em", "user_secrets": "criado_em",
               "app_secrets": "atualizado_em"}
 

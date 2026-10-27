@@ -832,6 +832,33 @@ def create_app(hub, auth, cfg) -> FastAPI:
             return {"error": "nada para alterar"}
         return await hub.admin_update_user(u["id"], uid, allowed)
 
+    # ------------------------------------------------------------------ comparar configuração copiada (0.31.34, admin)
+    @app.get("/api/pump/compare")
+    async def compare_list(u: dict = Depends(admin_only)):
+        try:
+            saved = await hub.compare_saved(u["id"])
+        except Exception:
+            saved = []                                  # tabela ainda não criada
+        return {"copias": await hub.compare_list(u["id"]), "salvas": saved}
+
+    @app.get("/api/pump/compare/{offer_id}")
+    async def compare_one(offer_id: int, u: dict = Depends(admin_only)):
+        return await hub.compare_one(u["id"], offer_id)
+
+    @app.get("/api/pump/compare/{offer_id}/ai")
+    async def compare_ai(offer_id: int, u: dict = Depends(admin_only)):
+        from .compare import ai_text
+        r = await hub.compare_one(u["id"], offer_id)
+        return r if r.get("error") else {"texto": ai_text(r, r.get("parte") or "")}
+
+    @app.post("/api/pump/compare/{offer_id}/save")
+    async def compare_save(offer_id: int, u: dict = Depends(admin_only)):
+        try:
+            return await hub.compare_save(u["id"], offer_id)
+        except Exception as e:
+            log.warning("salvar comparação: %s", str(e)[:120])
+            return {"error": "não consegui salvar agora"}
+
     @app.post("/api/admin/users/{uid}/copy-config")
     async def admin_copy_config(uid: str, u: dict = Depends(admin_only)):
         if not UUID.match(uid):

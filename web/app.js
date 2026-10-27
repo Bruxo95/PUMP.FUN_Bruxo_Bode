@@ -109,14 +109,73 @@
     table("cfgDiffTbl", ["Opção", "Antes de aceitar", "Enviado por " + esc(quem), "Agora", "Situação"], rows, "Nada deste quadro veio no convite.");
     $("cfgDiff").hidden = false; $("cfgDiffX").focus();
   }
+  // 0.31.34 (pedido do dono em 2026-10-27): Comparar config copiada — usuário X (origem) × usuário Y (copiou), depois da cópia
+  let CMP = { list: [], saved: [], cur: null };
+  async function loadCompare() {
+    const r = await BB.api("/api/pump/compare"); if (r.error) { $("cmpHelp").textContent = r.error; return; }
+    CMP.list = r.copias || []; CMP.saved = r.salvas || [];
+    const keep = $("cmpSel").value;
+    $("cmpSel").innerHTML = CMP.list.length ? CMP.list.map((c) => '<option value="' + c.id + '">' + esc(c.de + " → " + c.para + " · " + (c.parte || "") + " · " + dt(c.em)) + "</option>").join("")
+      : '<option value="">Nenhuma configuração copiada ainda</option>';
+    if (keep && CMP.list.some((c) => String(c.id) === keep)) $("cmpSel").value = keep;
+    $("cmpGo").disabled = !CMP.list.length;
+    table("cmpSaved", ["Salva em", "Origem", "Copiou", "Texto para IA"], CMP.saved.map((s) => [esc(dt(s.em)),
+      esc(s.x.nome || "") + "<small>" + (s.x.trades || 0) + " trades · " + f(s.x.pnl_sol || 0, 4) + " SOL</small>",
+      esc(s.y.nome || "") + "<small>" + (s.y.trades || 0) + " trades · " + f(s.y.pnl_sol || 0, 4) + " SOL</small>",
+      '<button class="btn sm" data-cmptxt="' + s.id + '">Copiar texto</button>']), "Nenhuma análise salva ainda.");
+  }
+  async function runCompare() {
+    const id = $("cmpSel").value; if (!id) return;
+    $("cmpGo").disabled = true; $("cmpHelp").textContent = "Analisando…";
+    const r = await BB.api("/api/pump/compare/" + encodeURIComponent(id)); $("cmpGo").disabled = false;
+    if (r.error) { $("cmpHelp").textContent = r.error; return; }
+    CMP.cur = r; const x = r.x, y = r.y, pc = (v) => v == null ? "–" : f(v * 100, 0) + "%";
+    $("cmpHelp").textContent = "Desde " + dt(r.desde) + " · " + (r.parte || "") + " · " + r.opcoes + " opções copiadas";
+    kpis("cmpK", [[esc(x.nome) + " (origem)", sg(x.pnl_sol), x.trades + " trades · acerto " + pc(x.acerto)], [esc(y.nome) + " (copiou)", sg(y.pnl_sol), y.trades + " trades · acerto " + pc(y.acerto)],
+      ["Diferença", sg((y.pnl_sol || 0) - (x.pnl_sol || 0)), "copiou − origem"], ["Tokens em comum", String(r.comum.length), r.so_x.length + " só na origem · " + r.so_y.length + " só na cópia"]]);
+    $("cmpConc").innerHTML = (r.conclusoes || []).map((c) => "<p>" + esc(c) + "</p>").join("") || '<p class="muted">Sem conclusões ainda.</p>';
+    const ori = (o) => (o.por_origem || []).map((g) => [esc(g.nome), String(g.trades), g.acerto == null ? "–" : f(g.acerto * 100, 0) + "%", sg(g.pnl_sol)]);
+    $("cmpXo").textContent = x.nome + " por origem"; $("cmpYo").textContent = y.nome + " por origem";
+    table("cmpXOri", ["Origem", "Trades", "Acerto", "Resultado"], ori(x), "Nenhum trade depois da cópia.");
+    table("cmpYOri", ["Origem", "Trades", "Acerto", "Resultado"], ori(y), "Nenhum trade depois da cópia.");
+    table("cmpCom", ["Token", x.nome, y.nome, "Atraso de " + esc(y.nome), "Motivo (" + esc(x.nome) + ")", "Motivo (" + esc(y.nome) + ")"], r.comum.map((c) => [pfM(c.mint, c.token), sg(c.pnl_x), sg(c.pnl_y),
+      c.atraso_s == null ? "–" : (c.atraso_s > 0 ? "+" : "") + hms(Math.abs(c.atraso_s)).replace(/^/, c.atraso_s < 0 ? "−" : ""), esc(c.motivo_x), esc(c.motivo_y)]), "Nenhum token em comum ainda.");
+    $("cmpOxH").textContent = "Só com " + x.nome + " (não aconteceu com " + y.nome + ")"; $("cmpOyH").textContent = "Só com " + y.nome + " (não aconteceu com " + x.nome + ")";
+    const only = (L) => L.map((g) => [pfM(g.mint, g.token), String(g.trades), sg(g.pnl_sol), esc((g.motivos || []).join("; "))]);
+    table("cmpOx", ["Token", "Trades", "Resultado", "Motivo da saída"], only(r.so_x), "Nada.");
+    table("cmpOy", ["Token", "Trades", "Resultado", "Motivo da saída"], only(r.so_y), "Nada.");
+    $("cmpDrift").textContent = "Opções que mudaram depois da cópia: " + x.nome + " " + r.drift_x.length + " · " + y.nome + " " + r.drift_y.length;
+    $("cmpOut").hidden = false;
+  }
+  async function copyText(txt) {
+    try { await navigator.clipboard.writeText(txt); toast("Texto copiado. Cole na IA que você usa."); }
+    catch (e) { const w = window.open("", "_blank"); if (w) { w.document.body.innerText = txt; } else toast("Não consegui copiar."); }
+  }
   async function loadOffers() {
     let r; try { r = await BB.api("/api/pump/config/offers"); } catch (e) { return; }
     const of = (r && r.offers) || [], bar = $("offerBar");
     bar.hidden = !of.length;
-    bar.innerHTML = of.map((o) => '<div class="card" style="border-color:var(--accent,#22c55e);margin-bottom:12px"><header><div><h2>' + esc(o.de || "Outro usuário") + " quer compartilhar a configuração dele</h2>" +
+    bar.innerHTML = of.map((o) => o.tipo === "atualizacao" ? offerUpdate(o) : '<div class="card" style="border-color:var(--accent,#22c55e);margin-bottom:12px"><header><div><h2>' + esc(o.de || "Outro usuário") + " quer compartilhar a configuração dele</h2>" +
       '<div class="sub">' + esc(o.parte || "") + " · " + o.opcoes + " opções · " + dt(o.em) + '</div></div><div class="sp"></div>' +
       '<button class="btn sm primary" data-ofa="' + esc(String(o.id)) + '">Aceitar e aplicar</button> <button class="btn sm" data-ofr="' + esc(String(o.id)) + '">Não aceitar</button></header>' +
       offerList(o) + "</div>").join("");
+  }
+  // 0.31.34 (pedido do dono em 2026-10-27): a pessoa de quem você copiou alterou a configuração — o que mudou, se ela
+  // ganhou ou perdeu mais depois da mudança (e você, com a configuração antiga, no mesmo período) e aplicar ou não.
+  function offerUpdate(o) {
+    const e = o.efeito || {}, A = e.origem_antes || {}, D = e.origem_depois || {}, V = e.voce_depois || {}, de = o.de || "outro usuário";
+    const lin = (r) => !r.trades ? "nenhum trade" : r.trades + " trades · " + sg(r.pnl_sol) + " · média " + sg(r.media_sol) + "/trade · acerto " + (r.acerto == null ? "–" : f(r.acerto * 100, 0) + "%");
+    const verd = !D.trades ? '<span class="tag pause">Ainda sem trades depois da mudança</span> espere alguns trades para ver se a mudança foi boa.'
+      : !A.trades ? '<span class="tag sim">Sem base de antes</span> não dá para comparar com o período anterior.'
+      : (D.media_sol || 0) > (A.media_sol || 0) ? '<span class="tag win">Ganhou mais depois da mudança</span> média por trade melhorou de ' + sg(A.media_sol) + " para " + sg(D.media_sol) + "."
+      : '<span class="tag loss">Perdeu mais depois da mudança</span> média por trade piorou de ' + sg(A.media_sol) + " para " + sg(D.media_sol) + ".";
+    const ch = (o.mudou || []).map((m) => "<tr><td>" + esc(cfgLabel(m.k)) + '</td><td class="muted">' + esc(cfgVal(m.k, m.antes)) + "</td><td>→</td><td><b>" + esc(cfgVal(m.k, m.agora)) + "</b></td></tr>").join("");
+    return '<div class="card" style="border-color:var(--warn,#f5a524);margin-bottom:12px"><header><div><h2>' + esc(de) + " alterou a configuração que você copiou</h2>" +
+      '<div class="sub">você usa a configuração idêntica à dele · ' + (o.mudou || []).length + " opção(ões) mudaram · " + dt(o.em) + '</div></div><div class="sp"></div>' +
+      '<button class="btn sm primary" data-ofa="' + esc(String(o.id)) + '">Aplicar a mudança</button> <button class="btn sm" data-ofr="' + esc(String(o.id)) + '">Não aplicar</button></header>' +
+      '<p style="margin:4px 0 8px">' + verd + "</p>" +
+      '<div class="hint">' + esc(de) + " antes da mudança: " + lin(A) + "<br>" + esc(de) + " depois da mudança: " + lin(D) + "<br>Você no mesmo período (configuração antiga): " + lin(V) + "</div>" +
+      (ch ? '<div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>O que ' + esc(de) + ' mudou</th><th>Antes</th><th></th><th>Agora</th></tr></thead><tbody>' + ch + "</tbody></table></div>" : "") + "</div>";
   }
   // 0.31.22: o convite mostrava os códigos (pump_ar_stop_pct...). Pedido do dono em 2026-10-27 ("está muito sujo"):
   // agora mostra o nome que a opção tem na tela e "seu valor → valor enviado"; as iguais às suas só são contadas.
@@ -1058,6 +1117,14 @@
       loadApplied();
       return loadOffers();
     }
+    if (t.id === "cmpGo") { runCompare(); return; }
+    if (t.id === "cmpSave") {
+      const id = $("cmpSel").value; if (!id) return;
+      t.disabled = true; const r = await BB.api("/api/pump/compare/" + encodeURIComponent(id) + "/save", { body: {} }); t.disabled = false;
+      toast(r.error ? "Não salvou: " + r.error : "Análise salva no banco para a IA estudar."); if (!r.error) loadCompare(); return;
+    }
+    if (t.id === "cmpCopy") { const id = $("cmpSel").value; if (!id) return; const r = await BB.api("/api/pump/compare/" + encodeURIComponent(id) + "/ai"); if (r.error) { toast(r.error); return; } copyText(r.texto); return; }
+    if (t.dataset.cmptxt) { const s = CMP.saved.find((x) => String(x.id) === t.dataset.cmptxt); if (s) copyText(s.texto || ""); return; }
     if (t.dataset.utf) { UTR.f = t.dataset.utf; renderUserTrades(); return; }
     if (t.id === "uTrX" || t.id === "uTrades") { $("uTrades").hidden = true; return; }
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
@@ -1125,13 +1192,13 @@
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
     elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
-    novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], ajuda: ["Como funciona", ""] };
+    novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
   function route() {
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -1147,6 +1214,7 @@
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
     if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); }
+    if (VIEW === "comparar") loadCompare();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
@@ -1859,6 +1927,7 @@
     $("navAdmin").hidden = ME.role !== "admin";
     $("navNov").hidden = ME.role !== "admin";
     $("navGrp").hidden = ME.role !== "admin";
+    $("navExp").hidden = ME.role !== "admin";
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };

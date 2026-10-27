@@ -546,7 +546,7 @@ class PumpHub:
     # ------------------------------------------------------------------ avisos no Telegram (0.20.0)
     TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas",
                "compra automática", "boost on", "aprendi com os erros", "estudo automático", "ajuste automático",
-               "seu convite de configuração")
+               "seu convite de configuração", "alterou a configuração")
 
     def tg_wanted(self, pf, msg: str) -> bool:
         if not getattr(pf.cfg, "pump_tg_on", False):
@@ -1052,9 +1052,89 @@ class PumpHub:
         from .auto_trades import ts
         rows = await self.db.select("config_offers", {"para_user": uid, "status": "pendente"}, order="criado_em.desc", limit=20)
         now = time.time()
-        return [{"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "opcoes": len(r.get("valores") or {}),
-                 "nomes": sorted(r.get("valores") or {}), "valores": r.get("valores") or {}, "em": r.get("criado_em")}
-                for r in rows if now - (ts(r.get("criado_em")) or now) < 7 * 86400]
+        out = []
+        for r in rows:
+            if now - (ts(r.get("criado_em")) or now) >= 7 * 86400:
+                continue
+            o = {"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "opcoes": len(r.get("valores") or {}),
+                 "nomes": sorted(r.get("valores") or {}), "valores": r.get("valores") or {}, "em": r.get("criado_em"),
+                 "tipo": r.get("tipo") or "convite"}
+            if o["tipo"] == "atualizacao":
+                try:
+                    o.update(await self._update_effect(r, uid))
+                except Exception as e:
+                    log.warning("efeito da atualização de configuração: %s", str(e)[:120])
+            out.append(o)
+        return out
+
+    async def _update_effect(self, r: dict, uid: str) -> dict:
+        """Atualização de configuração copiada (0.31.34): o que a origem mudou e quanto ela fez ANTES e DEPOIS da mudança,
+        comparado com quem ficou com a configuração antiga no mesmo período."""
+        from .compare import _ts, summary
+        base = (await self.db.select("config_offers", {"id": r.get("base_id")}) or [{}])[0] if r.get("base_id") else {}
+        old = base.get("valores") or {}
+        mudou = [{"k": k, "antes": old.get(k), "agora": v} for k, v in (r.get("valores") or {}).items()
+                 if k in old and str(old.get(k)) != str(v)]
+        t0, t1 = _ts(base.get("respondido_em")) or 0, _ts(r.get("criado_em")) or time.time()
+        x, y = self.engines.get(r["de_user"]), self.engines.get(uid)
+        when = lambda t: _ts(t.get("closed_at")) or 0                                       # noqa: E731
+        sel = lambda pf, a, b: [t for t in (pf.trades(3000) if pf else []) if not t.get("real") and a <= when(t) < b]   # noqa: E731
+        res = lambda L: {k: summary(L)[k] for k in ("trades", "wins", "acerto", "pnl_sol")} | {   # noqa: E731
+            "media_sol": round(summary(L)["pnl_sol"] / len(L), 6) if L else None}
+        return {"mudou": mudou, "base_em": base.get("respondido_em"),
+                "efeito": {"origem_antes": res(sel(x, t0, t1)), "origem_depois": res(sel(x, t1, 4e12)),
+                           "voce_depois": res(sel(y, t1, 4e12))}}
+
+    async def config_watch(self) -> int:
+        """0.31.34 (pedido do dono em 2026-10-27): quem usa a configuração IDÊNTICA à de outra pessoa é avisado quando
+        ela altera algo, e recebe um convite do tipo "atualizacao" para aplicar ou não. Só a cópia mais recente de cada
+        par conta; quem já mudou a própria configuração não recebe (escolheu se afastar); a mesma alteração recusada não
+        volta a ser oferecida."""
+        from .compare import _eq
+        rows = await self.db.select("config_offers", {"status": "aceita"}, order="respondido_em.desc", limit=500)
+        seen, n = set(), 0
+        for o in rows:
+            pair = (o.get("de_user"), o.get("para_user"))
+            if pair in seen:
+                continue
+            seen.add(pair)
+            x, y = self.engines.get(pair[0]), self.engines.get(pair[1])
+            vals = o.get("valores") or {}
+            if x is None or y is None or not vals or pair[0] == pair[1]:
+                continue
+            if any(not _eq(getattr(y.cfg, k, None), v) for k, v in vals.items()):
+                continue                                   # não está mais idêntica: a pessoa mudou por conta própria
+            ch = [k for k, v in vals.items() if not _eq(getattr(x.cfg, k, None), v)]
+            if not ch:
+                continue
+            keys = self.share_filter(list(vals), getattr(y, "role", "user") == "admin")
+            novo = {k: getattr(x.cfg, k) for k in keys}
+            prev = await self.db.select("config_offers", {"de_user": pair[0], "para_user": pair[1], "tipo": "atualizacao", "base_id": o["id"]},
+                                        order="criado_em.desc", limit=5)
+            if any(p.get("status") in ("pendente", "recusada") and all(_eq((p.get("valores") or {}).get(k), v) for k, v in novo.items()) for p in prev):
+                continue
+            pend = [p for p in prev if p.get("status") == "pendente"]
+            de = o.get("de_nome") or await self._nome(pair[0])
+            parte = f"atualização da configuração de {de}: {len(ch)} opção(ões) mudaram"
+            if pend:                                       # mudou de novo antes de a pessoa responder: atualiza o convite
+                await self.db.update("config_offers", {"id": pend[0]["id"]}, {"valores": novo, "parte": parte})
+            else:
+                await self.db.insert("config_offers", {"de_user": pair[0], "para_user": pair[1], "de_nome": de, "parte": parte,
+                                                       "valores": novo, "status": "pendente", "tipo": "atualizacao", "base_id": o["id"]})
+            y._emit(f"Configuração: {de} alterou a configuração que você copiou ({len(ch)} opção(ões)). "
+                    "No topo do painel aparece se ele ganhou ou perdeu mais depois da mudança; você escolhe aplicar ou não.")
+            await audit(self.db, pair[1], "configuração copiada foi alterada pela origem", f"{de}: {len(ch)} opção(ões)")
+            n += 1
+        return n
+
+    async def config_watch_loop(self) -> None:
+        await asyncio.sleep(180)
+        while True:
+            try:
+                await self.config_watch()
+            except Exception as e:
+                log.warning("vigiar configurações copiadas: %s", str(e)[:160])
+            await asyncio.sleep(300)
 
     async def config_applied(self, uid: str) -> list[dict]:
         """Convites aceitos (60 dias): o painel compara com os valores de agora e diz se a configuração continua
@@ -1065,6 +1145,57 @@ class PumpHub:
         return [{"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "em": r.get("respondido_em"),
                  "valores": r.get("valores") or {}, "antes": r.get("antes") or {}}
                 for r in rows if now - (ts(r.get("respondido_em")) or now) < 60 * 86400]
+
+    async def _nome(self, uid: str) -> str:
+        try:
+            r = await self.db.select("profiles", {"user_id": uid}, columns="nome,email")
+            if r:
+                return (r[0].get("nome") or (r[0].get("email") or "").split("@")[0] or "usuário")[:60]
+        except Exception:
+            pass
+        return "usuário"
+
+    async def compare_list(self, uid: str) -> list[dict]:
+        """Cópias de configuração em que esta conta participa (recebeu ou enviou), para a tela Comparar (0.31.34)."""
+        rows = []
+        for f in ({"para_user": uid, "status": "aceita"}, {"de_user": uid, "status": "aceita"}):
+            rows += await self.db.select("config_offers", f, order="respondido_em.desc", limit=30)
+        seen, out = set(), []
+        for r in sorted(rows, key=lambda r: str(r.get("respondido_em") or ""), reverse=True):
+            if r["id"] in seen:
+                continue
+            seen.add(r["id"])
+            out.append({"id": r["id"], "de": r.get("de_nome") or await self._nome(r["de_user"]), "para": await self._nome(r["para_user"]),
+                        "eu_sou": "origem" if r["de_user"] == uid else "copiou", "parte": r.get("parte"), "em": r.get("respondido_em"),
+                        "opcoes": len(r.get("valores") or {})})
+        return out
+
+    async def compare_one(self, uid: str, offer_id: int) -> dict:
+        from .compare import compare
+        rows = await self.db.select("config_offers", {"id": offer_id, "status": "aceita"})
+        if not rows or uid not in (rows[0].get("de_user"), rows[0].get("para_user")):
+            return {"error": "cópia não encontrada"}
+        o = rows[0]
+        x, y = await self.engine(o["de_user"]), await self.engine(o["para_user"])
+        r = compare({"em": o.get("respondido_em"), "valores": o.get("valores") or {}}, x.trades(3000), y.trades(3000),
+                    x.cfg.user_dict(), y.cfg.user_dict(), o.get("de_nome") or await self._nome(o["de_user"]), await self._nome(o["para_user"]))
+        r.update({"id": o["id"], "parte": o.get("parte")})
+        return r
+
+    async def compare_save(self, uid: str, offer_id: int) -> dict:
+        from .compare import ai_text
+        r = await self.compare_one(uid, offer_id)
+        if r.get("error"):
+            return r
+        txt = ai_text(r, r.get("parte") or "")
+        await self.db.insert("config_compare_reports", {"user_id": uid, "offer_id": offer_id, "data": r, "texto": txt})
+        await audit(self.db, uid, "salvou análise de configuração copiada", f"{r['x']['nome']} × {r['y']['nome']}")
+        return {"ok": True, "texto": txt}
+
+    async def compare_saved(self, uid: str) -> list[dict]:
+        rows = await self.db.select("config_compare_reports", {"user_id": uid}, order="criado_em.desc", limit=30)
+        return [{"id": r["id"], "offer_id": r.get("offer_id"), "em": r.get("criado_em"), "texto": r.get("texto"),
+                 "x": ((r.get("data") or {}).get("x") or {}), "y": ((r.get("data") or {}).get("y") or {})} for r in rows]
 
     async def admin_copy_config(self, pf, uid: str) -> dict:
         """0.31.33 (pedido do dono em 2026-10-27): o admin copia TODA a configuração de um usuário para a própria conta,
@@ -1161,6 +1292,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.daily_loop()))
         self._tasks.append(asyncio.create_task(self.study_auto_loop()))
         self._tasks.append(asyncio.create_task(self.tune_loop()))
+        self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
         self.monitor.start()
