@@ -952,3 +952,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.79: `_auto_blocked` não grava no feed "token já teve entrada automática nas últimas 24 h" (normal; fica no funil) e os
   demais motivos no máximo 1 vez/6 h por token (antes 1/min por motivo, lotava o feed de 500). Feed com filtro "Só traders"
   (padrão, `FEEDF`) / "Tudo". Pedido do dono.
+
+- 0.31.80: campo na tela para `pump_hold_min_profit_pct` (já existia no motor, sem campo) ao lado de "Trader saiu e estou no
+  prejuízo", com atalhos 0/5/10/20%. Lógica igual: segura se o líquido < X% quando o trader vende; vende quando passa de X%;
+  stop de perda segue valendo. Pedido do dono.

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.80",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Configurações → Cópia (Trader saiu e estou no prejuízo)",
+      "titulo": "Escolher o lucro para sair depois que o trader vendeu",
+      "oque": "A proteção 'Trader saiu e estou no prejuízo' já segurava a cópia até cobrir todas as taxas. Agora dá para escolher quanto lucro esperar antes de vender (0%, 5%, 10%, 20% ou outro valor). Ex.: com 10%, depois que o trader saiu, a posição só vende quando chegar a +10% líquido. O stop de perda continua protegendo enquanto ela espera. Vale para as cópias de trader."
+    },
+    {
       "versao": "0.31.79",
       "data": "2026-10-27",
       "tipo": "correção",

@@ -703,7 +703,10 @@
             <div class="field"><label>Fora da pump.fun (Raydium, Meteora, Orca… via Jupiter) — fictício</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other">…</button>
               <span class="muted">pool mín. $</span><input class="in w100" type="number" min="0" step="1000" data-cfg="pump_other_min_liq_usd"></div></div>
             <div class="field"><label>Trader saiu e estou no prejuízo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_hold_until_profit">…</button></div>
-              <div class="hint">ON: segura até o líquido (depois de todas as taxas) ficar positivo. OFF: vende junto com o trader.</div></div>
+              <div class="hint">ON: segura até o líquido (depois de todas as taxas) ficar positivo. OFF: vende junto com o trader. O stop de perda continua valendo enquanto segura.</div></div>
+            <div class="field" data-novo-ate="2026-11-11"><label for="holdMinPct">Ao segurar, só vender quando estiver em</label><div class="row"><span class="muted">+</span><input id="holdMinPct" class="in w80" type="number" min="0" max="1000" step="1" data-cfg="pump_hold_min_profit_pct"><span class="muted">% líquido</span>
+              <button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="0">0%</button><button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="5">5%</button><button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="10">10%</button><button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="20">20%</button></div>
+              <div class="hint">0% = vende assim que cobrir todas as taxas. Ex.: 10% = depois que o trader saiu, espera a posição chegar a +10% líquido para vender. Vale só para cópias de trader; o stop de perda continua protegendo.</div></div>
             <div class="field"><label>Posições fictícias ao mesmo tempo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_max_open"></div></div>
           </div>
         </div>

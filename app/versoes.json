@@ -655,6 +655,11 @@
    "versao": "0.31.79",
    "inicio": "2026-10-27T22:45:10+00:00",
    "titulo": "Feed só dos traders"
+  },
+  {
+   "versao": "0.31.80",
+   "inicio": "2026-10-27T22:57:30+00:00",
+   "titulo": "Lucro para sair depois do trader"
   }
  ]
 }
