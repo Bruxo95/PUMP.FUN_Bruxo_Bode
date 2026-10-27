@@ -525,6 +525,11 @@
    "versao": "0.31.53",
    "inicio": "2026-10-27T15:33:25+00:00",
    "titulo": "Ver e aplicar o que está diferente"
+  },
+  {
+   "versao": "0.31.54",
+   "inicio": "2026-10-27T15:36:41+00:00",
+   "titulo": "Tudo do mais novo para o mais antigo"
   }
  ]
 }

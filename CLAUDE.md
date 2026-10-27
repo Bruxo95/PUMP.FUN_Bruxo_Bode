@@ -852,3 +852,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.53: `liveCopies()` (só a cópia mais nova de cada opção conta; a antiga de 08:24 aparecia como "1 diferente"),
   botão `data-copydiff` → `openCopyDiff` (modal `#cfgDiff`: seu × dele) e `data-copyapply` (aplica só as diferentes via
   `setCfg`, ação do próprio usuário). `#navNov` (Changelog) saiu de `#navGrp` para o menu principal, ainda só admin.
+
+- 0.31.54: `table()` ordena sozinha do mais novo para o mais antigo quando o cabeçalho tem coluna de data/hora (`TCOL`,
+  `timeKey`, `byTimeDesc`; aceita "dd/mm hh:mm:ss", "dd/mm/aaaa" e "hh:mm:ss"; se a maioria das linhas não tiver horário, mantém
+  a ordem). `mirror_misses.por_motivo` mostra o texto real do motivo. Pedido do dono.

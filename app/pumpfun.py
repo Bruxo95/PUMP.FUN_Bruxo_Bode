@@ -2970,7 +2970,7 @@ class PumpFun:
                         "sim_pct": t.get("pnl_pct"), "origem": t.get("origem") or ("manual" if t.get("wallet") == "manual" else "cópia"),
                         "motivo": why, "dica": tip})
             k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", why)[:80]
-            g = por.setdefault(k, {"motivo": k, "n": 0, "sim_sol": 0.0, "dica": tip})
+            g = por.setdefault(k, {"motivo": why[:80], "n": 0, "sim_sol": 0.0, "dica": tip})   # 0.31.54: texto real, sem "#.#"
             g["n"] += 1
             g["sim_sol"] = round(g["sim_sol"] + (t.get("pnl_sol") or 0), 6)
         out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)

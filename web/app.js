@@ -30,9 +30,33 @@
   const btn = (label, act, data, extra) => '<button class="btn sm ' + (extra || "") + '" data-act="' + act + '"' + Object.entries(data || {}).map(([k, v]) => " data-" + k + '="' + esc(v) + '"').join("") + ">" + label + "</button>";
   const st = (on, real) => '<span class="st ' + (on ? (real ? "real" : "on") : "off") + '">' + (on ? "ON" : "OFF") + "</span>";
 
+  // 0.31.54 (pedido do dono: "os horários estão fora de ordem, deixe todos do mais novo para o mais velho"): toda tabela
+  // com coluna de data/hora (Fechou, Entrou, Entrada, Quando, Hora, Dia…) sai ordenada do mais recente para o mais antigo
+  const TCOL = /^(fechou|fechada|entrou|entrada|sa[ií]da|saiu|quando|hora|data|dia|abriu|aceita|desde|em)\b/i;
+  function timeKey(html) {
+    const s = String(html == null ? "" : html).replace(/<[^>]*>/g, " ");
+    let m = s.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?,?\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+    const now = new Date();
+    if (m) { let y = m[3] ? +m[3] : now.getFullYear(); if (!m[3] && +m[2] > now.getMonth() + 2) y--; return new Date(y, +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0)).getTime(); }
+    m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
+    m = s.match(/(\d{2})-(\d{2})-(\d{2})/);
+    if (m && /^\s*\d{4}-/.test(s)) { const d = new Date(s.trim().slice(0, 10)); if (!isNaN(d)) return d.getTime(); }
+    m = s.match(/\b(\d{2}):(\d{2})(?::(\d{2}))?\b/);
+    if (m) return (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0));
+    return null;
+  }
+  function byTimeDesc(head, rows) {
+    const col = head.findIndex((h) => TCOL.test(String(h).replace(/<[^>]*>/g, "").trim()));
+    if (col < 0 || rows.length < 2) return rows;
+    const keys = rows.map((r) => timeKey(r[col]));
+    if (keys.filter((k) => k != null).length < Math.ceil(rows.length / 2)) return rows;
+    return rows.map((r, i) => [r, keys[i], i]).sort((a, b) => (b[1] == null ? -Infinity : b[1]) - (a[1] == null ? -Infinity : a[1]) || a[2] - b[2]).map((x) => x[0]);
+  }
   function table(id, head, rows, empty) {
     const el = $(id); if (!el) return;
     if (!rows.length) { el.innerHTML = '<tr><td class="empty" colspan="' + head.length + '">' + (empty || "Nada por aqui ainda.") + "</td></tr>"; return; }
+    rows = byTimeDesc(head, rows);
     el.innerHTML = "<thead><tr>" + head.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" + rows.map((r) => "<tr>" + r.map((c) => "<td>" + (c == null ? "" : c) + "</td>").join("") + "</tr>").join("") + "</tbody>";
   }
   const IC = {

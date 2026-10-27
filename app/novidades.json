@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.54",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Todas as tabelas do painel",
+      "titulo": "Tudo em ordem: do mais novo para o mais antigo",
+      "oque": "Toda tabela que tem data ou hora (Fechou, Entrou, Entrada, Quando, Hora, Dia…) agora aparece do mais recente para o mais antigo, em todas as telas, inclusive Maiores ganhos e perdas do dia. Em 'Trades da fictícia que NÃO foram para a real', o motivo aparece com o texto certo (antes saía '#.#' no lugar da versão)."
+    },
+    {
       "versao": "0.31.53",
       "data": "2026-10-27",
       "tipo": "melhoria",
