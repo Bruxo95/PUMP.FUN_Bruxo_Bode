@@ -901,3 +901,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.66: `baseTag(total, sua)` nas colunas "De onde" (alTbl, gaTbl, ghTbl): "BASE GERAL n · sua conta m". Funil do filtro com
   `<header><h2>` próprio. Pedido do dono.
+
+- 0.31.67: `explore_funnel` mostra o texto real do motivo (um exemplo por grupo) em vez do texto com "#". Pedido do dono.

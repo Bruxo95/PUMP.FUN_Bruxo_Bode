@@ -2039,12 +2039,13 @@ class PumpFun:
         now = time.time() if now is None else now
         fn = {k: v for k, v in (getattr(self, "_ex_funnel", None) or {}).items() if now - v["t"] < 86400}
         self._ex_funnel = fn
-        motivos, barr = {}, []
+        motivos, barr, exemplo = {}, [], {}
         for mint, g in fn.items():
             if g.get("entrou"):
                 continue
             key = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", str(g.get("why") or "outro"))[:90]
             motivos[key] = motivos.get(key, 0) + 1
+            exemplo.setdefault(key, str(g.get("why") or "outro")[:120])     # 0.31.67: mostra o texto real, sem "#"
             px, px0 = (self.tokens.get(mint) or {}).get("price"), g.get("px0")
             if px and px0:
                 barr.append({"mint": mint, "symbol": g.get("symbol"), "chg_pct": round((px / px0 - 1) * 100, 1), "motivo": g.get("why")})
@@ -2052,7 +2053,7 @@ class PumpFun:
         alta = [b for b in barr if b["chg_pct"] >= 50]
         return {"vistos": len(fn), "chance_alta": sum(1 for g in fn.values() if g.get("chance") == "chance alta"),
                 "entrou": sum(1 for g in fn.values() if g.get("entrou")), "barrados": len(fn) - sum(1 for g in fn.values() if g.get("entrou")),
-                "motivos": sorted(({"motivo": k, "n": v} for k, v in motivos.items()), key=lambda m: -m["n"])[:12],
+                "motivos": sorted(({"motivo": exemplo.get(k, k), "n": v} for k, v in motivos.items()), key=lambda m: -m["n"])[:12],
                 "barrados_com_preco": len(barr), "subiram_50": len(alta), "cairam_30": sum(1 for b in barr if b["chg_pct"] <= -30),
                 "top_subiram": alta[:8]}
 

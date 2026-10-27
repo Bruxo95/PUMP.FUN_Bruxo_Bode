@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.67",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Explorar → Funil do filtro",
+      "titulo": "Funil do filtro com o motivo escrito por inteiro",
+      "oque": "Os motivos do funil apareciam com '#' no lugar dos números (ex.: 'Pressão de compra # a #%'). Agora aparece o texto real, como 'Pressão de compra 60 a 70% perdeu em 48 operações (acerto 35%, média −12%)'."
+    },
+    {
       "versao": "0.31.66",
       "data": "2026-10-27",
       "tipo": "melhoria",
