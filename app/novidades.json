@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.31",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Configurações e Explorar (cada quadro de opções); Configurações → Registro de segurança",
+      "titulo": "Saber de quem é a configuração que você usa",
+      "oque": "Depois de aceitar a configuração de outro usuário, cada quadro mostra: \"Você está usando a configuração idêntica à de Fulano\" (bolinha verde) ou \"Baseada na configuração de Fulano · N opções mudaram depois\" (bolinha laranja). A conferência é feita na hora, opção por opção. O botão \"Ver o que mudou\" abre uma janela com cada opção: o seu valor antes de aceitar, o valor enviado, o valor de agora e a situação (igual ao enviado, já era igual ou você mudou depois). O registro de segurança mostra o nome do usuário no lugar do código."
+    },
+    {
       "versao": "0.31.30",
       "data": "2026-10-27",
       "tipo": "melhoria",

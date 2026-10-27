@@ -535,3 +535,15 @@ table.daytbl td:nth-last-child(4){white-space:normal}
 .keyrow{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
 .keyrow input{flex:1;min-width:200px}
 @media (max-width:640px){.keyhead{flex-direction:column;gap:6px}.keystate{text-align:left;max-width:none}}
+/* configuração recebida de outro usuário (0.31.31) */
+.cfgfrom{margin-top:6px;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.cfgfrom b{color:var(--text,#fff);font-weight:600}
+.cfgfrom .btn{margin-left:4px}
+.cfgdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:2px}
+.cfgdot.ok{background:var(--up)}
+.cfgdot.diff{background:var(--warn)}
+.modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.65);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto}
+.modal[hidden]{display:none}
+.modal-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;width:min(900px,100%)}
+.modal-box > header{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+#cfgDiffTbl td{white-space:normal}

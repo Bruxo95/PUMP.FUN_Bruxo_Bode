@@ -57,6 +57,58 @@
   // ------------------------------------------------------------------ relatórios (/api/pump/reports)
   let REP_DAYS = 7, REP_AT = 0, REP_MODE = null;
   // convites de configuração (0.31.17): "usuário X quer compartilhar a configuração dele" no topo do painel
+  // 0.31.31 (pedido do dono em 2026-10-27): cada quadro de opções diz se está usando a configuração de outro usuário,
+  // conferindo AGORA cada valor (idêntica ou mudou depois), com "Ver o que mudou" (antes de aceitar → enviado → agora).
+  let APPLIED = [];
+  async function loadApplied() {
+    try { const r = await BB.api("/api/pump/config/applied"); APPLIED = (r && r.applied) || []; } catch (e) { return; }
+    renderApplied();
+  }
+  const cfgEq = (a, b) => (typeof a === "number" || typeof b === "number") && a !== "" && b !== "" && a != null && b != null && !isNaN(+a) && !isNaN(+b) ? Math.abs(+a - +b) < 1e-9 : String(a) === String(b);
+  const cfgNow = (k) => { const c = cfg(); return isAutoCfg(k) ? autoValue(k, c) : c[k]; };
+  function cardKeys(card) { return [...new Set([...card.querySelectorAll("[data-cfg],[data-toggle]")].map((e) => e.dataset.cfg || e.dataset.toggle))]; }
+  function appliedFor(keys) {
+    for (const o of APPLIED) { const ks = keys.filter((k) => Object.prototype.hasOwnProperty.call(o.valores, k)); if (ks.length) return [o, ks]; }
+    return [null, []];
+  }
+  function renderApplied() {
+    document.querySelectorAll('[data-view="config"] .card, [data-view="explorar"] .card').forEach((card, i) => {
+      const h = card.querySelector(":scope > header > div"); if (!h) return;
+      let el = h.querySelector(".cfgfrom");
+      const [o, ks] = APPLIED.length ? appliedFor(cardKeys(card)) : [null, []];
+      if (!o) { if (el) el.remove(); return; }
+      const diff = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).length, quem = o.de || "outro usuário";
+      const html = (diff ? '<span class="cfgdot diff"></span>Baseada na configuração de <b>' + esc(quem) + "</b> · " + diff + " de " + ks.length + (diff === 1 ? " opção mudou" : " opções mudaram") + " depois"
+        : '<span class="cfgdot ok"></span>Você está usando a configuração <b>idêntica</b> à de <b>' + esc(quem) + "</b> (" + ks.length + " opções conferidas agora)") +
+        ' · aceita em ' + esc(dt(o.em)) + ' <button class="btn sm" data-cfgdiff="' + o.id + '" data-card="' + i + '">Ver o que mudou</button>';
+      if (!el) { el = document.createElement("div"); el.className = "cfgfrom"; h.appendChild(el); }
+      if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; el.classList.toggle("diff", !!diff); }
+    });
+  }
+  function openCfgDiff(id, idx) {
+    const o = APPLIED.find((x) => String(x.id) === String(id)); if (!o) return;
+    const card = [...document.querySelectorAll('[data-view="config"] .card, [data-view="explorar"] .card')][+idx];
+    const keys = card ? cardKeys(card) : Object.keys(o.valores), ks = keys.filter((k) => Object.prototype.hasOwnProperty.call(o.valores, k));
+    const fora = keys.filter((k) => !ks.includes(k)), quem = o.de || "outro usuário", antes = o.antes || {};
+    const rows = ks.map((k) => {
+      const now = cfgNow(k), igual = cfgEq(now, o.valores[k]), tinha = Object.prototype.hasOwnProperty.call(antes, k);
+      const mudouAoAceitar = tinha ? !cfgEq(antes[k], o.valores[k]) : null;
+      const sit = !igual ? '<span class="tag pause">Você mudou depois</span>' : mudouAoAceitar === false ? '<span class="tag sim">Já era igual</span>' : '<span class="tag win">Igual ao enviado</span>';
+      return [esc(cfgLabel(k)), tinha ? esc(cfgVal(k, antes[k])) : '<span class="muted">não guardado</span>', esc(cfgVal(k, o.valores[k])), "<b>" + esc(cfgVal(k, now)) + "</b>", sit];
+    });
+    const nDiff = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).length, nMud = ks.filter((k) => Object.prototype.hasOwnProperty.call(antes, k) && !cfgEq(antes[k], o.valores[k])).length;
+    $("cfgDiffT").textContent = "Configuração de " + quem;
+    $("cfgDiffS").textContent = (o.parte || "") + " · aceita em " + dt(o.em);
+    $("cfgDiffB").innerHTML = '<div class="kpis" style="margin:4px 0 12px"><div class="kpi"><div class="l">Opções do convite neste quadro</div><div class="v">' + ks.length + '</div></div>' +
+      '<div class="kpi"><div class="l">Mudaram ao aceitar</div><div class="v">' + (Object.keys(antes).length ? nMud : "–") + '</div></div>' +
+      '<div class="kpi"><div class="l">Iguais ao enviado agora</div><div class="v ' + (nDiff ? "" : "up") + '">' + (ks.length - nDiff) + '</div></div>' +
+      '<div class="kpi"><div class="l">Você mudou depois</div><div class="v ' + (nDiff ? "down" : "") + '">' + nDiff + "</div></div></div>" +
+      '<div class="tbl-wrap"><table id="cfgDiffTbl"></table></div>' +
+      (fora.length ? '<p class="muted" style="margin-top:10px">Não vieram no convite (continuam suas): ' + esc(fora.map(cfgLabel).join(" · ")) + "</p>" : "") +
+      (Object.keys(antes).length ? "" : '<p class="muted">Este convite foi aceito antes da versão 0.31.31, por isso o valor de antes não foi guardado.</p>');
+    table("cfgDiffTbl", ["Opção", "Antes de aceitar", "Enviado por " + esc(quem), "Agora", "Situação"], rows, "Nada deste quadro veio no convite.");
+    $("cfgDiff").hidden = false; $("cfgDiffX").focus();
+  }
   async function loadOffers() {
     let r; try { r = await BB.api("/api/pump/config/offers"); } catch (e) { return; }
     const of = (r && r.offers) || [], bar = $("offerBar");
@@ -988,8 +1040,11 @@
       if (ok && !confirm("Aplicar essa configuração na sua conta? Os valores atuais dessas opções serão trocados.")) return;
       const r = await BB.api("/api/pump/config/offers/" + encodeURIComponent(id), { body: { accept: ok } });
       toast(r.error ? "Não deu: " + r.error : ok ? "Configuração aplicada (" + r.opcoes + " opções)." : "Convite recusado.");
+      loadApplied();
       return loadOffers();
     }
+    if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
+    if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.id === "tuRun") {
       t.disabled = true;
@@ -1066,7 +1121,7 @@
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
     if (VIEW === "visao") loadDaily();
-    if (VIEW === "config") { loadSecrets(); loadAudit(); }
+    if (VIEW === "config") { loadSecrets(); loadAudit(); loadApplied(); }
     if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") walletLoad(true);
     if (VIEW === "novidades") loadNovidades();
@@ -1074,7 +1129,7 @@
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
-    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); }
+    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); }
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
@@ -1242,6 +1297,7 @@
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
     document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "ON" : "OFF"; b.classList.add("tgl"); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
+    if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);

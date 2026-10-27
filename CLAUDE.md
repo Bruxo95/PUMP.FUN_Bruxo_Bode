@@ -741,3 +741,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.29: passo a passo da Jupiter (`KEY_HOW.jupiter_api_key`): Server key, nome 5–32 letras. Pedido do dono com print do portal.
 
 - 0.31.30: menu "Novidades" renomeado para "Changelog" (só o texto; rota, arquivo `app/novidades.json` e regras iguais). Pedido do dono.
+
+## Configuração recebida: idêntica ou mudou (2026-10-27, versão 0.31.31)
+- Pedido do dono. Migração `20261027000001_convites_antes.sql` (coluna `antes` em `config_offers`); `hub.config_answer`
+  guarda os valores de antes; `hub.config_applied` + `GET /api/pump/config/applied` (convites aceitos, 60 dias).
+  `web/app.js`: `loadApplied`/`renderApplied` (selo `.cfgfrom` no cabeçalho de cada quadro de Configurações/Explorar,
+  conferindo os valores atuais) e `openCfgDiff` (modal `#cfgDiff`). `/api/audit` e `/api/admin/audit` trocam uuid
+  pelo nome (`_names`, `UUID_ANY`). Teste em `tests/test_explore_share.py`.

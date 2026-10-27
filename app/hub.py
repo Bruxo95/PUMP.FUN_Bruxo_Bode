@@ -1056,6 +1056,16 @@ class PumpHub:
                  "nomes": sorted(r.get("valores") or {}), "valores": r.get("valores") or {}, "em": r.get("criado_em")}
                 for r in rows if now - (ts(r.get("criado_em")) or now) < 7 * 86400]
 
+    async def config_applied(self, uid: str) -> list[dict]:
+        """Convites aceitos (60 dias): o painel compara com os valores de agora e diz se a configuração continua
+        idêntica à de quem enviou (0.31.31, pedido do dono em 2026-10-27)."""
+        from .auto_trades import ts
+        rows = await self.db.select("config_offers", {"para_user": uid, "status": "aceita"}, order="respondido_em.desc", limit=30)
+        now = time.time()
+        return [{"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "em": r.get("respondido_em"),
+                 "valores": r.get("valores") or {}, "antes": r.get("antes") or {}}
+                for r in rows if now - (ts(r.get("respondido_em")) or now) < 60 * 86400]
+
     async def config_answer(self, pf, offer_id: int, accept: bool) -> dict:
         rows = await self.db.select("config_offers", {"id": offer_id, "para_user": pf.user_id, "status": "pendente"})
         if not rows:
@@ -1065,11 +1075,14 @@ class PumpHub:
         if accept:
             vals = {k: v for k, v in (r.get("valores") or {}).items()
                     if k in self.share_filter([k], getattr(pf, "role", "user") == "admin")}
+            antes = {k: getattr(pf.cfg, k, None) for k in vals}       # 0.31.31: para "ver o que mudou"
             applied, _ = pf.cfg.apply(vals)
             await self.save_settings(pf)
             pf._emit(f"Configuração de {r.get('de_nome')} aplicada: {r.get('parte')} ({len(applied)} opções)")
-        await self.db.update("config_offers", {"id": offer_id}, {"status": "aceita" if accept else "recusada",
-                                                                 "respondido_em": datetime.now(timezone.utc).isoformat()})
+        upd = {"status": "aceita" if accept else "recusada", "respondido_em": datetime.now(timezone.utc).isoformat()}
+        if accept:
+            upd["antes"] = antes
+        await self.db.update("config_offers", {"id": offer_id}, upd)
         # 0.31.23 (pedido do dono em 2026-10-27): quem compartilhou também é avisado (painel e Telegram, se ligado) e a
         # resposta fica no registro (audit_log) dos dois lados, com nomes; antes só avisava se o painel dele estivesse carregado.
         quem = "a pessoa"

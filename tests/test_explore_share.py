@@ -18,6 +18,10 @@ def test_share_explore_config_by_part_needs_accept(env):
     assert c.post(f"/api/pump/config/offers/{of[0]['id']}", json={"accept": True}, headers=A).json()["error"]
     r = c.post(f"/api/pump/config/offers/{of[0]['id']}", json={"accept": True}, headers=B).json()
     assert r["ok"] and other.cfg.pump_ex_auto_min_pressure == 75 and other.cfg.pump_ar_stop_pct == 25
+    ap = c.get("/api/pump/config/applied", headers=B).json()["applied"]                 # 0.31.31: antes × enviado
+    assert ap[0]["valores"]["pump_ex_auto_min_pressure"] == 75 and ap[0]["antes"]["pump_ex_auto_min_pressure"] == 60
+    assert c.get("/api/pump/config/applied", headers=A).json()["applied"] == []
+    assert not any(UB in (a["detalhe"] or "") for a in c.get("/api/audit", headers=A).json())   # nome, não o código
     assert c.get("/api/pump/config/offers", headers=B).json()["offers"] == []
     c.post("/api/pump/explore/share", json={"to": UB, "part": "protecoes"}, headers=A)
     of = c.get("/api/pump/config/offers", headers=B).json()["offers"]

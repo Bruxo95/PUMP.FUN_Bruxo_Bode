@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 import hashlib
@@ -23,6 +24,8 @@ from .keystore import KEY_LINKS, SECRET_NAMES, SYSTEM_NAMES
 from .settings import LB_DAYS
 from .solana_wallet import check_rpc_url, parse_keypair
 from .version import VERSION
+
+UUID_ANY = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
 def _started_at() -> str:
@@ -575,6 +578,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
         except Exception:
             return {"offers": []}
 
+    @app.get("/api/pump/config/applied")
+    async def config_applied(u: dict = Depends(user)):
+        return {"applied": await hub.config_applied(u["id"])}
+
     @app.post("/api/pump/config/offers/{offer_id}")
     async def config_answer(offer_id: int, body: dict, u: dict = Depends(user)):
         pf = await hub.engine(u["id"])
@@ -753,7 +760,19 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/audit")
     async def audit_list(u: dict = Depends(user)):
         rows = await hub.db.select("audit_log", {"user_id": u["id"]}, order="at.desc", limit=50)
-        return [{"acao": r.get("acao"), "detalhe": r.get("detalhe"), "at": r.get("at")} for r in rows]
+        nm = await _names(rows)
+        return [{"acao": r.get("acao"), "detalhe": nm(r.get("detalhe")), "at": r.get("at")} for r in rows]
+
+    async def _names(rows):
+        """0.31.31: o registro mostrava o código do usuário (uuid); troca pelo nome (ou começo do e-mail)."""
+        if not any(UUID_ANY.search(str(r.get("detalhe") or "")) for r in rows):
+            return lambda s: s
+        try:
+            ps = await hub.db.select("profiles", None, columns="user_id,nome,email")
+        except Exception:
+            return lambda s: s
+        names = {p["user_id"]: (p.get("nome") or (p.get("email") or "").split("@")[0] or "usuário") for p in ps}
+        return lambda s: UUID_ANY.sub(lambda m: names.get(m.group(0), m.group(0)), s or "")
 
     # ------------------------------------------------------------------ admin (status geral, nunca chaves)
     @app.get("/api/admin/status")
@@ -821,8 +840,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
         limit = max(1, min(limit, 1000))
         rows = await hub.db.select("audit_log", {"user_id": user_id} if user_id else None, order="at.desc", limit=limit)
         emails = {p["user_id"]: p.get("email") for p in await hub.db.select("profiles", None, columns="user_id,email")}
+        nm = await _names(rows)
         return [{"at": r.get("at"), "user_id": r.get("user_id"), "email": emails.get(r.get("user_id")),
-                 "acao": r.get("acao"), "detalhe": r.get("detalhe")} for r in rows]
+                 "acao": r.get("acao"), "detalhe": nm(r.get("detalhe"))} for r in rows]
 
     NOVIDADES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "novidades.json")
 
