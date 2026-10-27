@@ -1268,6 +1268,31 @@ class PumpHub:
                         "email": (nm[:2] + "***@" + dom) if dom else ""})
         return out
 
+    @staticmethod
+    def _no_traders(rows):
+        return [r for r in rows or [] if r.get("tipo") != "traders"]
+
+    async def traders_offer(self, pf, sender: dict, to_uid: str) -> dict:
+        """0.31.74 (pedido do dono): compartilhar a lista de traders adicionados à mão (Top traders) com outra pessoa,
+        como convite — nada entra na lista dela até ela clicar em Aceitar."""
+        if to_uid == pf.user_id:
+            return {"error": "escolha outro usuário"}
+        rows = await self.db.select("profiles", {"user_id": to_uid}, columns="user_id,bloqueado")
+        if not rows or rows[0].get("bloqueado"):
+            return {"error": "usuário não encontrado"}
+        lst = list(pf.manual)
+        if not lst:
+            return {"error": "você não tem traders adicionados à mão para compartilhar"}
+        de = (sender.get("nome") or (sender.get("email") or "").split("@")[0] or "outro usuário")[:60]
+        parte = f"Lista de traders ({len(lst)} carteira{'s' if len(lst) != 1 else ''})"
+        await self.db.insert("config_offers", {"de_user": pf.user_id, "para_user": to_uid, "de_nome": de, "parte": parte,
+                                               "valores": {"_traders": lst}, "status": "pendente", "tipo": "traders"})
+        other = self.engines.get(to_uid)
+        if other is not None:
+            other._emit(f"Traders: {de} quer compartilhar a lista de traders com você ({len(lst)}). Aceite ou recuse no topo do painel.")
+        await audit(self.db, pf.user_id, "lista de traders compartilhada", f"{len(lst)} carteiras para {to_uid}")
+        return {"ok": True, "carteiras": len(lst)}
+
     async def config_offer(self, pf, sender: dict, to_uid: str, parte: str, keys) -> dict:
         """Convite: o usuário X quer compartilhar a configuração dele (pedido do dono em 2026-10-26). Nada muda na conta
         de quem recebe até ela clicar em Aceitar e aplicar. Os valores vão no convite (como estavam ao enviar)."""
@@ -1331,7 +1356,7 @@ class PumpHub:
         par conta; quem já mudou a própria configuração não recebe (escolheu se afastar); a mesma alteração recusada não
         volta a ser oferecida."""
         from .compare import _eq
-        rows = await self.db.select("config_offers", {"status": "aceita"}, order="respondido_em.desc", limit=500)
+        rows = self._no_traders(await self.db.select("config_offers", {"status": "aceita"}, order="respondido_em.desc", limit=500))
         seen, n = set(), 0
         for o in rows:
             pair = (o.get("de_user"), o.get("para_user"))
@@ -1380,7 +1405,7 @@ class PumpHub:
         """Convites aceitos (60 dias): o painel compara com os valores de agora e diz se a configuração continua
         idêntica à de quem enviou (0.31.31, pedido do dono em 2026-10-27)."""
         from .auto_trades import ts
-        rows = await self.db.select("config_offers", {"para_user": uid, "status": "aceita"}, order="respondido_em.desc", limit=30)
+        rows = self._no_traders(await self.db.select("config_offers", {"para_user": uid, "status": "aceita"}, order="respondido_em.desc", limit=30))
         now = time.time()
         return [{"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "em": r.get("respondido_em"),
                  "valores": r.get("valores") or {}, "antes": r.get("antes") or {}}
@@ -1399,7 +1424,7 @@ class PumpHub:
         """0.31.37 (pedido do dono em 2026-10-27): quem está usando a SUA configuração — a cópia mais recente de cada
         pessoa, conferindo agora se ela continua idêntica (e quantas opções ela mudou depois)."""
         from .compare import _eq
-        rows = await self.db.select("config_offers", {"de_user": uid, "status": "aceita"}, order="respondido_em.desc", limit=200)
+        rows = self._no_traders(await self.db.select("config_offers", {"de_user": uid, "status": "aceita"}, order="respondido_em.desc", limit=200))
         seen, out = set(), []
         for r in rows:
             to = r.get("para_user")
@@ -1417,7 +1442,7 @@ class PumpHub:
         """Cópias de configuração em que esta conta participa (recebeu ou enviou), para a tela Comparar (0.31.34)."""
         rows = []
         for f in ({"para_user": uid, "status": "aceita"}, {"de_user": uid, "status": "aceita"}):
-            rows += await self.db.select("config_offers", f, order="respondido_em.desc", limit=30)
+            rows += self._no_traders(await self.db.select("config_offers", f, order="respondido_em.desc", limit=30))
         seen, out = set(), []
         for r in sorted(rows, key=lambda r: str(r.get("respondido_em") or ""), reverse=True):
             if r["id"] in seen:
@@ -1430,7 +1455,7 @@ class PumpHub:
 
     async def compare_one(self, uid: str, offer_id: int, origem: str | None = None, real: bool = False) -> dict:
         from .compare import compare
-        rows = await self.db.select("config_offers", {"id": offer_id, "status": "aceita"})
+        rows = self._no_traders(await self.db.select("config_offers", {"id": offer_id, "status": "aceita"}))
         if not rows or uid not in (rows[0].get("de_user"), rows[0].get("para_user")):
             return {"error": "cópia não encontrada"}
         o = rows[0]
@@ -1469,7 +1494,7 @@ class PumpHub:
         """0.31.35 (pedido do dono em 2026-10-27): "sua configuração ainda está diferente, quer deixar idêntica?" —
         aplica os valores ATUAIS de quem enviou, só nas opções daquela cópia, como uma nova cópia aceita (guarda o antes,
         o selo volta a "idêntica"). Nunca leva real, chaves ou Telegram."""
-        rows = await self.db.select("config_offers", {"id": offer_id, "para_user": pf.user_id, "status": "aceita"})
+        rows = self._no_traders(await self.db.select("config_offers", {"id": offer_id, "para_user": pf.user_id, "status": "aceita"}))
         if not rows:
             return {"error": "cópia não encontrada"}
         o = rows[0]
@@ -1519,7 +1544,17 @@ class PumpHub:
             return {"error": "convite não encontrado"}
         r = rows[0]
         applied = {}
-        if accept:
+        antes = {}
+        if accept and r.get("tipo") == "traders":
+            # 0.31.74: lista de traders — entra na lista "adicionados à mão" de quem aceitou (os que ela já tinha ficam)
+            antes = {"_traders": list(pf.manual)}
+            for w in (r.get("valores") or {}).get("_traders") or []:
+                res = pf.add_manual(w)
+                if not (res or {}).get("error"):
+                    applied[w] = True
+            await self.save_settings(pf)
+            pf._emit(f"Traders de {r.get('de_nome')} adicionados: {len(applied)} carteira(s)")
+        elif accept:
             vals = {k: v for k, v in (r.get("valores") or {}).items()
                     if k in self.share_filter([k], getattr(pf, "role", "user") == "admin")}
             antes = {k: getattr(pf.cfg, k, None) for k in vals}       # 0.31.31: para "ver o que mudou"

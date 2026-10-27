@@ -289,6 +289,12 @@
     return String(v).replace(".", ",") + (u ? (u === "%" ? "%" : " " + u) : "");
   }
   function offerList(o) {
+    if ((o.valores || {})._traders) {                        // 0.31.74: convite de lista de traders
+      const L = o.valores._traders, mine = new Set(((D && D.manual) || []).map(String));
+      const novos = L.filter((w) => !mine.has(w));
+      return '<div class="hint">' + novos.length + " carteira(s) nova(s) para a sua lista de traders adicionados à mão" + (L.length - novos.length ? " · " + (L.length - novos.length) + " você já tem" : "") + ":</div>" +
+        '<div class="hint">' + L.map((w) => pfW(w)).join(" · ") + "</div>";
+    }
     const vals = o.valores || {}, c = cfg(), ks = Object.keys(vals);
     const mine = (k) => (isAutoCfg(k) ? autoValue(k, c) : c[k]);
     const muda = ks.filter((k) => String(mine(k)) !== String(vals[k])), iguais = ks.length - muda.length;
@@ -1447,6 +1453,18 @@
     }
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
+    if (t.id === "trShGo") {
+      const to = $("trShU").value; if (!to) { toast("Escolha a pessoa."); return; }
+      t.disabled = true; const r = await BB.api("/api/pump/traders/share", { body: { to } }); t.disabled = false;
+      toast(r.error || "Lista enviada (" + r.carteiras + " carteiras). A pessoa recebe um convite no topo do painel."); if (!r.error) $("trShBox").hidden = true; return;
+    }
+    if (t.id === "trShBtn") {
+      const box = $("trShBox"); box.hidden = !box.hidden; if (box.hidden) return;
+      const r = await BB.api("/api/pump/config/share-targets"), us = (r && r.users) || [];
+      $("trShU").innerHTML = us.length ? '<option value="">Escolha a pessoa…</option>' + us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "")) + "</option>").join("") : '<option value="">Nenhum outro usuário</option>';
+      $("trShN").textContent = ((D && D.manual) || []).length + " carteira(s) adicionada(s) à mão serão enviadas como convite: a pessoa aceita ou não.";
+      return;
+    }
     if (t.id === "flOn" || t.id === "flOff") {
       const uid = t.id === "flOn" ? $("flSel").value : "";
       if (t.id === "flOn" && !uid) { toast("Escolha a conta primeiro."); return; }

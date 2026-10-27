@@ -951,6 +951,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
             st["ajustes"] = []
         return st
 
+    @app.post("/api/pump/traders/share")
+    async def traders_share(body: dict, u: dict = Depends(user)):
+        """0.31.74: compartilhar a lista de traders adicionados à mão (convite; a pessoa aceita ou não)."""
+        pf = await hub.engine(u["id"])
+        return await hub.traders_offer(pf, u, str((body or {}).get("to") or ""))
+
     @app.get("/api/pump/follow-user")
     async def follow_get(pf=Depends(admin_engine)):
         """0.31.61: de quem esta conta copia os trades (e quem copia os dela)."""
