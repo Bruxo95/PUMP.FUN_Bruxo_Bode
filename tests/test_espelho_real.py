@@ -88,3 +88,20 @@ def test_mirror_off_keeps_old_rule(tmp_path):
     pf.cfg.pump_real_mirror = False
     pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
     assert pf.manual_buy(A, auto="automático: Boost ON")["real"] is None
+
+
+def test_explore_last_slot_of_the_hour_still_goes_real():
+    """R1R2L1R2 (27/10): a fictícia recém-aberta não pode bloquear a real, e a real não ocupa vaga da fictícia."""
+    from tests.test_auto_explorar import A as EA, B as EB, _row, _run
+    from tests.test_auto_protecoes import _complete, _zero_fees
+    pf = _zero_fees(pump_ar_max_h=1, pump_ar_max_open=1)
+    pf.cfg.pump_real_enabled = True
+    pf.real = FakeReal()
+    import time
+    t = time.time()
+    assert _run(pf, t=t) == [EA]
+    kind, it = pf._rq.get_nowait()
+    assert kind == "buy" and it["mint"] == EA and it["sim_id"] is not None   # última vaga da hora: a real vai junto
+    _complete(pf._real_buy(it))
+    assert pf.real.calls and pf.real.calls[0][0] == "buy"
+    assert pf.auto_guard(EB, t) == "limite de 1 posições automáticas abertas"  # só a fictícia ocupa a vaga

@@ -86,6 +86,7 @@ class AutoProtecoesTests(unittest.TestCase):
     def test_auto_fake_real_reservation_survives_await_and_keeps_trade_id(self):
         pf = _zero_fees(pump_auto_real=True, pump_ar_max_open=3)
         pf.cfg.pump_real_enabled = True
+        pf.cfg.pump_real_mirror = False   # regra antiga (reserva de vaga da real); o espelho está em test_espelho_real
         t = time.time()
 
         class FakeReal:

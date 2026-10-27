@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "fd70d822082fdd19d2c7dddf50fe045f330e9af0",
-    "application_version": "0.31.41 · 2026-10-27 · Por que a sua conta não entrou",
+    "repository_reference": "867f205755dfb48f2d97166e06eb4aa0a677ef2a",
+    "application_version": "0.31.42 · 2026-10-27 · Automáticas sempre vão para a real",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "072433a91f012d2e7b328f341077077a9519620bc7ed4fbc5144039a052a33c8",
+      "app/version.py": "4d57b92b0e97572d2125206c9f99880ddb505b26a6c181ec2b66f32576d7c70d",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "822d3995e518ac6dbc9180b6cd19605f1ed213b1c9991738011be42883452d31"
+  "pdf_sha256": "0fdd40dc47d52f8600e6bd54053bc8aa047acfeccf0bb6fb5b5260a970ddfae7"
 }

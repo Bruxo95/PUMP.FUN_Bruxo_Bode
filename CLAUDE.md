@@ -792,3 +792,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.40: quadro `#exCopyCard` no Explorar (`loadExCopy`/`renderExCopy`; `compare(..., origem="explorar")` com `chance` e horários `abriu_x/abriu_y/fechou_x/fechou_y`). Pedido do dono. Áudios do Bruxo: não marcar ganho grande e não alterar o Explorar — marca removida da tela; lógica de entrada/saída do Explorar não mudou nesta sessão (só o registro do funil e o espelho da real).
 
 - 0.31.41: funil do Explorar salvo em `ghost_stats.data.funil` (`funnel_dump`, 24 h, até 800 tokens; carregado no início); `hub.compare_one` acrescenta `por_que_nao` em `so_x`/`so_y` a partir do funil da outra conta. Pedido do dono (a conta dele não repetiu R1R2L1R2/OCAINE do Bruxo).
+
+- 0.31.42: com `pump_real_mirror`, `auto_guard` conta só a fictícia e a real espelhada não repassa por ele (`manual_buy`, `_real_buy`). Relatório `app/relatorios_ia/2026-10-27-0.31.42.md`. Pedido do Bruxo (R1R2L1R2 não foi para a real).

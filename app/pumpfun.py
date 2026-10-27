@@ -1755,13 +1755,18 @@ class PumpFun:
         self._auto_pause_until = None                # derivado novamente do histórico, nunca estende ao consultar
         if not self.auto_ready:
             return "histórico das automáticas indisponível; aguardando o banco"
+        # 0.31.42 (sugestão do Bruxo, R1R2L1R2 não foi para a real): com o espelho, a real é a CÓPIA da fictícia e segue
+        # só os limites da carteira real. Então as travas das automáticas (posições abertas, por hora, perda do dia,
+        # perdas seguidas) contam SÓ a fictícia — antes a compra real ocupava vaga da fictícia e a fictícia recém-aberta
+        # bloqueava a real na última vaga da hora.
+        mirror = bool(getattr(self.cfg, "pump_real_mirror", True))
         # Uma linha aberta persistida também reserva vaga se o processo caiu entre as duas gravações.
-        opened = {str(p["id"]) for p in self.positions() if p.get("auto")}
-        opened.update(str(key) for key, row in self.auto_rows.items() if not row.get("saida_em"))
+        opened = {str(p["id"]) for p in self.positions() if p.get("auto") and not (mirror and p.get("real"))}
+        opened.update(str(key) for key, row in self.auto_rows.items() if not row.get("saida_em") and not (mirror and row.get("real")))
         maximum = int(self._c("pump_ar_max_open", 3))
-        if len(opened) + len(self._auto_pending) >= maximum:
+        if len(opened) + (0 if mirror else len(self._auto_pending)) >= maximum:
             return f"limite de {maximum} posições automáticas abertas"
-        rows = self._auto_operations()
+        rows = [row for row in self._auto_operations() if not (mirror and row.get("real"))]
 
         def entered(row):
             at = self._auto_num(row.get("_entry_t"))
@@ -2032,7 +2037,7 @@ class PumpFun:
                 out["real"] = "já tem posição REAL neste token"
             elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
                 out["real"] = f"limite de {int(self._c('pump_real_max_open', 5))} posições reais"
-            elif own_auto and (guard := self.auto_guard(t=t)):
+            elif own_auto and not mirror and (guard := self.auto_guard(t=t)):
                 out["real"] = guard
                 self._auto_blocked(guard, mint, origem, t)
             else:
@@ -2911,7 +2916,7 @@ class PumpFun:
                              or ((it.get("pos_cfg") or {}).get("origem") == "explorar"
                                  and not getattr(self.cfg, "pump_ex_auto_on", False))):
                 return
-            if own_auto:
+            if own_auto and not (getattr(self.cfg, "pump_real_mirror", True) and it.get("sim_id") is not None):
                 reserved = self._auto_pending.pop(mint, None)
                 guard = self.auto_guard(t=time.time())
                 if reserved is not None:

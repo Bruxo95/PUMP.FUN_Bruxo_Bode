@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.42",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Execução real (espelho) e Explorar",
+      "titulo": "Compra automática do Explorar sempre vai para a real (espelho)",
+      "oque": "Com o espelho ligado, a compra real das automáticas não é mais barrada pelas travas da fictícia (limite por hora, posições automáticas abertas, perda do dia, perdas seguidas): ela segue só os limites da carteira real. E as compras reais não ocupam mais as vagas da fictícia, então o Explorar fictício entra exatamente como antes. O R1R2L1R2 do Bruxo (12:21) foi antes do espelho existir (13:01), por isso não foi para a real."
+    },
+    {
       "versao": "0.31.41",
       "data": "2026-10-27",
       "tipo": "melhoria",
