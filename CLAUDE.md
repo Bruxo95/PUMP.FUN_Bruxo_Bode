@@ -808,3 +808,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   reais (curva = resultado acumulado; sem `equity_end`; "não copiou" só do feed REAL). `/api/pump/daily`, `/pdf` e `/ai`
   aceitam `real=1`; a real não é guardada no `daily_report`: cada dia (até 30) é calculado na hora. `loadDaily` manda
   `realMode()` e recarrega quando o botão muda. Teste em `tests/test_daily.py`.
+
+- 0.31.46: `real_loop` despacha cada ordem em tarefa própria (`_real_run`, `REAL_PARALLEL`=6, `asyncio.Lock` por token);
+  `_send_confirm` confere a cada 0,25 s; `PumpReal._sol_change` lê o SOL da transação (meta pré/pós) com volta para a
+  diferença de saldo. Relatório `app/relatorios_ia/2026-10-27-0.31.46.md`. Pedido do dono ("sem delay entre fictícia e real").

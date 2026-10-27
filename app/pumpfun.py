@@ -2921,12 +2921,30 @@ class PumpFun:
     async def _real_process(self) -> None:          # compatibilidade (fila antiga)
         self._real_q = []
 
+    REAL_PARALLEL = 6
+
     async def real_loop(self) -> None:
-        """Executa compras/vendas REAIS uma de cada vez (cada uma espera a confirmação na blockchain e mede o saldo)."""
+        """Executa as compras/vendas REAIS assim que chegam.
+        0.31.46 (pedido do dono: "a real tem que acontecer junto com a fictícia, sem delay"): antes era UMA de cada vez —
+        uma compra esperando confirmar (às vezes 60 s) segurava a venda de outro token na fila. Agora cada ordem sai na
+        hora, em paralelo (até REAL_PARALLEL); só as do MESMO token esperam a anterior (compra antes da venda).
+        O SOL gasto/recebido vem da própria transação (`_sol_change`), então ordens simultâneas não se misturam."""
         if self._rq is None:
             self._rq = asyncio.Queue()
+        sem, locks, tasks = asyncio.Semaphore(self.REAL_PARALLEL), {}, set()
         while True:
             kind, it = await self._rq.get()
+            mint = it.get("mint") or next((p["mint"] for p in self.positions() if p["id"] == it.get("id")), None) or str(it.get("id"))
+            lock = locks.setdefault(mint, asyncio.Lock())
+            task = asyncio.get_running_loop().create_task(self._real_run(kind, it, lock, sem))
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+            if len(locks) > 500:
+                for k in [k for k, v in locks.items() if not v.locked()][:250]:
+                    locks.pop(k, None)
+
+    async def _real_run(self, kind: str, it: dict, lock: asyncio.Lock, sem: asyncio.Semaphore) -> None:
+        async with lock, sem:
             try:
                 if kind == "buy":
                     await self._real_buy(it)
@@ -3202,9 +3220,9 @@ class PumpReal:
                                                                 "preflightCommitment": "processed", "maxRetries": 3}])
         except Exception as e:
             return None, "recusada", str(e)[:160]
-        for i in range(80):
-            await asyncio.sleep(0.75)
-            if i % 3 == 2:
+        for i in range(240):                     # 0.31.46: confere a cada 0,25 s (antes 0,75 s); reenvia a cada ~1 s
+            await asyncio.sleep(0.25)
+            if i % 4 == 3:
                 try:
                     await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 0}])
                 except Exception:
@@ -3301,6 +3319,21 @@ class PumpReal:
             dec = int(ta.get("decimals") or 0)
         return raw, dec
 
+    async def _sol_change(self, sig: str | None) -> float | None:
+        """Quanto SOL a carteira do bot ganhou (+) ou gastou (−) NESSA transação (meta pré/pós da conta que paga).
+        0.31.46: com as ordens em paralelo, a diferença de saldo da carteira misturaria duas ordens."""
+        if not sig:
+            return None
+        try:
+            tx = await self._rpc("getTransaction", [sig, {"encoding": "json", "commitment": "confirmed",
+                                                          "maxSupportedTransactionVersion": 0}])
+            meta = (tx or {}).get("meta") or {}
+            keys = (((tx or {}).get("transaction") or {}).get("message") or {}).get("accountKeys") or []
+            i = keys.index(self.wallet.address) if self.wallet.address in keys else 0
+            return (int(meta["postBalances"][i]) - int(meta["preBalances"][i])) / 1e9
+        except Exception:
+            return None
+
     async def buy(self, mint: str, amt: float, other: bool = False) -> dict:
         """Compra REAL de `amt` SOL do token. Mede o que saiu e o que entrou na carteira (valores reais).
         other=True: token fora da pump.fun → compra pela Jupiter."""
@@ -3334,7 +3367,9 @@ class PumpReal:
         if tok1 - tok0 <= 0:
             return {"ok": False, "status": r.get("status"), "signature": r.get("signature"),
                     "reason": " → ".join(tried)[:300] or "o token não entrou na carteira"}
-        return {"ok": True, "signature": r.get("signature"), "sol_spent": max(0.0, sol0 - sol1), "tokens": tok1 - tok0}
+        d = await self._sol_change(r.get("signature"))
+        return {"ok": True, "signature": r.get("signature"), "sol_spent": max(0.0, -d if d is not None else sol0 - sol1),
+                "tokens": tok1 - tok0}
 
     async def sell(self, mint: str, frac: float, other: bool = False) -> dict:
         """Venda REAL de `frac` da posição (100% = tudo). Mede o SOL que entrou e quanto token sobrou.
@@ -3372,7 +3407,8 @@ class PumpReal:
             sol1, tok1 = await self.balances(mint)
             tried.append(f"{label}: {self.explain(last.get('reason')) or last.get('status')}")
             if tok1 < tok0 * 0.999:
-                return {"ok": True, "signature": last.get("signature"), "sol_received": max(0.0, sol1 - sol0),
+                d = await self._sol_change(last.get("signature"))
+                return {"ok": True, "signature": last.get("signature"), "sol_received": max(0.0, d if d is not None else sol1 - sol0),
                         "tokens_left": tok1, "attempts": tried}
             if last.get("status") == "pendente":
                 # SEC-04 (auditoria 2026-10-25): a venda ainda pode entrar; montar outra venderia duas vezes

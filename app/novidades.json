@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.46",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Execução real",
+      "titulo": "A real sai junto com a fictícia, sem fila",
+      "oque": "As compras e vendas reais saíam uma de cada vez: uma compra esperando a blockchain confirmar segurava as outras, inclusive a venda do par da fictícia. Agora cada ordem sai na hora, em paralelo, e a confirmação é conferida 3 vezes mais rápido. O atraso de cada trade aparece em Execução real → Real × fictícia. Atraso zero não existe na blockchain: a confirmação leva perto de 1 segundo no melhor caso."
+    },
+    {
       "versao": "0.31.45",
       "data": "2026-10-27",
       "tipo": "correção",

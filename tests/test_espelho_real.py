@@ -127,3 +127,37 @@ def test_mirror_buys_even_if_price_ran_and_misses_are_explained(tmp_path):
     pf._sell(sim_b, 1.0, 1.1e-6, "alvo", 0.0)
     m = pf.mirror_misses()
     assert m["total"] == 1 and "perda do dia" in m["lista"][0]["motivo"] and m["lista"][0]["dica"]
+
+
+
+def test_real_orders_run_in_parallel_but_same_token_waits(tmp_path):
+    """0.31.46: uma compra real esperando confirmar não segura a venda de OUTRO token; o mesmo token vai em ordem."""
+    import asyncio
+    pf = _pf(tmp_path)
+    order, gate = [], None
+
+    async def buy(it):
+        order.append(("buy", it["mint"]))
+        await gate.wait()
+        order.append(("buy-ok", it["mint"]))
+
+    async def sell(it):
+        order.append(("sell", it["mint"]))
+    pf._real_buy, pf._real_do_sell = buy, sell
+
+    async def run():
+        nonlocal gate
+        gate = asyncio.Event()
+        loop = asyncio.get_running_loop().create_task(pf.real_loop())
+        pf._rq_put(("buy", {"mint": "A", "symbol": "A"}))
+        pf._rq_put(("sell", {"mint": "A", "id": "x"}))
+        pf._rq_put(("sell", {"mint": "B", "id": "y"}))
+        for _ in range(20):
+            await asyncio.sleep(0)
+        assert ("sell", "B") in order and ("sell", "A") not in order   # B não esperou a compra de A
+        gate.set()
+        for _ in range(20):
+            await asyncio.sleep(0)
+        assert order.index(("buy-ok", "A")) < order.index(("sell", "A"))
+        loop.cancel()
+    asyncio.run(run())
