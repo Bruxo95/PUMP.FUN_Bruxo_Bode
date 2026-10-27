@@ -460,14 +460,24 @@
           <div class="hint">Chance de fazer os mesmos trades = dos tokens que a origem comprou pelo Explorar depois da cópia, quantos você também comprou. Mesmo com a configuração idêntica fica abaixo de 100% por horário, saldo, limite de posições e atraso de cada conta.</div>
           <h3 class="h3s">Trades depois da cópia</h3><div class="seg" id="exCopyF" style="margin:6px 0"><button data-xcf="comum" class="on">Os dois fizeram</button><button data-xcf="x">Só a origem</button><button data-xcf="y">Só você</button></div>
           <div class="tbl-wrap"><table id="exCopyTbl" class="daytbl"></table></div></div>
-        <div class="card auto-operations" data-novo-ate="2026-11-09"><header><div><h2>Minhas operações automáticas</h2><div class="sub" id="exAutoTradesSub">Explorar · resultados simulados já com taxas · últimas operações primeiro</div></div><div class="sp"></div><div class="seg" id="exAutoDays"><button data-auto-days="7">7 dias</button><button data-auto-days="30" class="on">30 dias</button><button data-auto-days="90">90 dias</button></div></header>
+        <div class="card auto-operations" data-novo-ate="2026-11-09" data-sanf><header><div><h2>Minhas operações automáticas</h2><div class="sub" id="exAutoTradesSub">Explorar · resultados simulados já com taxas · últimas operações primeiro</div></div><div class="sp"></div><div class="seg" id="exAutoDays"><button data-auto-days="7">7 dias</button><button data-auto-days="30" class="on">30 dias</button><button data-auto-days="90">90 dias</button></div></header>
           <div class="auto-readiness muted" id="exAutoReadiness" role="status">Ainda não recomendado para dinheiro real: aguardando o histórico das automáticas.</div>
           <div class="kpis auto-kpis" id="exAutoKpis"></div>
           <div data-novo-ate="2026-11-09"><h3 class="h3s">Ganhou × perdeu (fechadas, já com taxas)</h3><div class="auto-readiness warn" id="exAutoSus" hidden></div><div class="kpis auto-kpis" id="exAutoWL"></div>
           <h3 class="h3s" data-novo-ate="2026-11-10">A conta do bot: perde pouco, ganha muito?</h3><div class="kpis auto-kpis" id="exAutoEx"></div>
           <div class="seg" id="exAutoFilt" style="margin:8px 0"><button data-auto-filt="all" class="on">Todas</button><button data-auto-filt="win">Ganhou</button><button data-auto-filt="loss">Perdeu</button><button data-auto-filt="open">Abertas</button></div></div>
           <div class="tbl-wrap tall"><table id="exAutoTrades" class="autotbl"></table></div>
-          <div data-novo-ate="2026-11-10" style="margin-top:16px"><h3 class="h3s">Funil do filtro (últimas 24 h)</h3><div class="hint">Quantos tokens o Explorar olhou, quantos entraram e por que os outros foram barrados. "Barrados que subiram" mostra se o filtro está deixando passar coisa boa (compara o preço de quando foi visto com o de agora, quando há preço).</div>
+        </div>
+        <div class="card auto-operations" id="exRealCard" data-novo-ate="2026-11-10" data-sanf><header><div><h2>Minhas operações automáticas · carteira REAL</h2><div class="sub" id="exRealSub">Explorar · só as compras reais (dinheiro de verdade), já com taxas</div></div></header>
+          <div class="auto-readiness muted" id="exRealNote" role="status">Carregando…</div>
+          <div class="kpis auto-kpis" id="exRealKpis"></div>
+          <h3 class="h3s">Ganhou × perdeu (fechadas, já com taxas)</h3><div class="kpis auto-kpis" id="exRealWL"></div>
+          <h3 class="h3s">A conta do bot: perde pouco, ganha muito?</h3><div class="kpis auto-kpis" id="exRealEx"></div>
+          <div class="seg" id="exRealFilt" style="margin:8px 0"><button data-real-filt="all" class="on">Todas</button><button data-real-filt="win">Ganhou</button><button data-real-filt="loss">Perdeu</button><button data-real-filt="open">Abertas</button></div>
+          <div class="tbl-wrap tall"><table id="exRealTrades" class="autotbl"></table></div>
+        </div>
+        <div class="card" data-novo-ate="2026-11-10">
+          <div style="margin-top:4px"><h3 class="h3s">Funil do filtro (últimas 24 h)</h3><div class="hint">Quantos tokens o Explorar olhou, quantos entraram e por que os outros foram barrados. "Barrados que subiram" mostra se o filtro está deixando passar coisa boa (compara o preço de quando foi visto com o de agora, quando há preço).</div>
             <div class="kpis auto-kpis" id="exFunK"></div><div class="grid2"><div><div class="tbl-wrap"><table id="exFunM" class="daytbl"></table></div></div><div><div class="tbl-wrap"><table id="exFunUp" class="daytbl"></table></div></div></div></div>
           <div class="hint muted auto-notes">Critério para avaliar dinheiro real: pelo menos 100 operações simuladas, em 7 dias distintos ou mais, acerto de 45% e fator de lucro de 1,3, já com taxas. Atingir esses números não liga a execução real. As fotos de 15 e 60 minutos dependem de uma cotação disponível no prazo; dado ausente não é 0%.</div>
         </div>

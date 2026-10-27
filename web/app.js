@@ -270,7 +270,7 @@
     document.querySelectorAll("section.view .card").forEach((card, i) => {
       const view = card.closest("section.view").dataset.view, h = card.querySelector(":scope > header");
       if (!h || card.classList.contains("sanf") || ["real", "estudo"].includes(view) || /Share$/.test(card.id || "")) return;
-      if (card.id !== "secretsCard" && card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").length < 3) return;
+      if (card.id !== "secretsCard" && !card.hasAttribute("data-sanf") && card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").length < 3) return;
       const key = view + ":" + ((card.querySelector("h2") || {}).textContent || i).toString().trim().slice(0, 40);
       card.classList.add("sanf"); card.classList.toggle("fechado", saved[key] !== 1);
       h.setAttribute("aria-expanded", String(saved[key] === 1)); h.title = "Clique para abrir ou fechar";
@@ -584,15 +584,41 @@
     // 0.31.19: ganhou × perdeu, pedido do dono ("mostrar trades que ganhou, que perdeu e a porcentagem")
     // 0.31.39: a pedido do dono os ganhos acima de 20× continuam na conta (na 0.31.38 saíam); só aparecem marcados
     const allClosed = r.items.filter((x) => !x.open && !x.real && autoNum(x.pnl_sol) != null), SUS = allClosed.filter((x) => x.suspeito);
-    const closed = allClosed, opn = r.items.filter((x) => x.open);
+    const closed = allClosed, opn = r.items.filter((x) => x.open && !x.real);
     $("exAutoSus").hidden = true;
     $("exAutoSus").textContent = SUS.length ? SUS.length + (SUS.length === 1 ? " trade suspeito ficou" : " trades suspeitos ficaram") + " FORA da conta (" + SUS.map((x) => String(x.symbol || "") + " " + pc(autoNum(x.pnl_pct))).join(", ") + ", somando " + s4(SUS.reduce((a, x) => a + (autoNum(x.pnl_sol) || 0), 0)) + " SOL). Ganho acima de 20× num token da pump.fun quase sempre é preço lido errado; use o filtro Suspeitos para conferir." : "";
+    autoBlocks("exAutoWL", "exAutoEx", closed, opn);
+    const FL = EX_AUTO.filt || "all", rows = r.items.filter((x) => FL === "all" || (FL === "sus" ? !!x.suspeito : FL === "open" ? x.open : !x.open && (FL === "win" ? x.pnl_sol > 0 : x.pnl_sol <= 0)));
+    document.querySelectorAll("[data-auto-filt]").forEach((b) => b.classList.toggle("on", b.dataset.autoFilt === FL));
+    autoTable("exAutoTrades", rows, "Nenhuma operação automática do Explorar neste período. Começa desligada; ao ligar, só entra quando todos os filtros passam.");
+    renderRealAuto(r);
+  }
+  // 0.31.44 (pedido do dono): o mesmo quadro para a carteira REAL — só as linhas reais do Explorar, já com taxas
+  function renderRealAuto(r) {
+    const R = (r.items || []).filter((x) => x.real), closed = R.filter((x) => !x.open && autoNum(x.pnl_sol) != null), opn = R.filter((x) => x.open);
+    const today = new Date().toISOString().slice(0, 10), dayC = closed.filter((x) => x.saida_em && new Date(x.saida_em).toISOString().slice(0, 10) === today);
+    const st = (a) => { const g = a.reduce((s, x) => s + Math.max(0, x.pnl_sol), 0), l = -a.reduce((s, x) => s + Math.min(0, x.pnl_sol), 0);
+      return { pnl_sol: g - l, closed: a.length, win_rate: a.length ? a.filter((x) => x.pnl_sol > 0).length / a.length : null, profit_factor: l ? g / l : null, profit_factor_unbounded: g > 0 && !l }; };
+    const P = st(closed), Dd = st(dayC), real = D && D.real || {};
+    $("exRealSub").textContent = "Explorar · últimos " + EX_AUTO.days + " dias · só as compras reais, já com taxas";
+    $("exRealNote").textContent = real.enabled ? "Execução real LIGADA: cada compra fictícia do Explorar também é feita na carteira real, com o valor e os limites da carteira real." : "Execução real desligada agora. Aqui aparecem as compras reais já feitas no período.";
+    $("exRealNote").className = "auto-readiness " + (real.enabled ? "up" : "muted");
+    kpis("exRealKpis", [["Hoje (UTC) · real", sg(Dd.pnl_sol), Dd.closed + " operações fechadas", "pnl"],
+      ["Período · real", sg(P.pnl_sol), P.closed + " operações fechadas em " + EX_AUTO.days + " dias", "tr"],
+      ["Acerto · real", autoRate(P.win_rate), "hoje: " + autoRate(Dd.win_rate), "hit"],
+      ["Fator de lucro · real", autoFactor(P), "hoje: " + autoFactor(Dd), "pnl"]]);
+    autoBlocks("exRealWL", "exRealEx", closed, opn);
+    const FL = EX_AUTO.rfilt || "all", rows = R.filter((x) => FL === "all" || (FL === "open" ? x.open : !x.open && (FL === "win" ? x.pnl_sol > 0 : x.pnl_sol <= 0)));
+    document.querySelectorAll("[data-real-filt]").forEach((b) => b.classList.toggle("on", b.dataset.realFilt === FL));
+    autoTable("exRealTrades", rows, "Nenhuma compra real do Explorar neste período.");
+  }
+  function autoBlocks(wlId, exId, closed, opn) {
     const W = closed.filter((x) => x.pnl_sol > 0), L = closed.filter((x) => x.pnl_sol <= 0);
     const sum = (a, k) => a.reduce((s, x) => s + (autoNum(x[k]) || 0), 0), avg = (a, k) => (a.length ? sum(a, k) / a.length : null);
     const share = (a) => (closed.length ? f(a.length / closed.length * 100, 0) + "% das fechadas" : "sem fechadas");
     const big = (a, best) => a.reduce((m, x) => (m == null || (best ? x.pnl_sol > m.pnl_sol : x.pnl_sol < m.pnl_sol) ? x : m), null);
     const bw = big(W, true), bl = big(L, false);
-    kpis("exAutoWL", [["Ganhou", '<span class="up">' + W.length + "</span>", share(W) + " · " + sg(sum(W, "pnl_sol")) + " · média " + pc(avg(W, "pnl_pct")), "hit"],
+    kpis(wlId, [["Ganhou", '<span class="up">' + W.length + "</span>", share(W) + " · " + sg(sum(W, "pnl_sol")) + " · média " + pc(avg(W, "pnl_pct")), "hit"],
       ["Perdeu", '<span class="down">' + L.length + "</span>", share(L) + " · " + sg(sum(L, "pnl_sol")) + " · média " + pc(avg(L, "pnl_pct")), "mon"],
       ["Maior ganho", bw ? pc(autoNum(bw.pnl_pct)) : "–", bw ? esc(String(bw.symbol || "")) + " · " + sg(bw.pnl_sol) : "nenhum ainda", "pnl"],
       ["Maior perda", bl ? pc(autoNum(bl.pnl_pct)) : "–", bl ? esc(String(bl.symbol || "")) + " · " + sg(bl.pnl_sol) : "nenhuma ainda", "pnl"],
@@ -602,14 +628,14 @@
     const stopCfg = autoNum(autoValue("pump_ar_stop_pct", cfg())), ST = L.filter((x) => /^stop de perda/i.test(String(x.motivo_saida || "")));
     const wr = closed.length ? W.length / closed.length : null, aw = avg(W, "pnl_sol"), al = avg(L, "pnl_sol");
     const exp = closed.length ? sum(closed, "pnl_sol") / closed.length : null;
-    kpis("exAutoEx", [["Ganho médio por acerto", aw == null ? "–" : sg(aw), W.length ? "média " + pc(avg(W, "pnl_pct")) + " · " + W.length + " acertos" : "sem acertos", "hit"],
+    kpis(exId, [["Ganho médio por acerto", aw == null ? "–" : sg(aw), W.length ? "média " + pc(avg(W, "pnl_pct")) + " · " + W.length + " acertos" : "sem acertos", "hit"],
       ["Perda média por erro", al == null ? "–" : sg(al), L.length ? "média " + pc(avg(L, "pnl_pct")) + " · " + L.length + " erros" : "sem erros", "mon"],
       ["Perda real no stop", ST.length ? pc(avg(ST, "pnl_pct")) : "–", (stopCfg ? "stop configurado −" + f(stopCfg, 0) + "%" : "stop configurado n/d") + (ST.length ? " · " + ST.length + " saídas no stop" + (avg(ST, "pnl_pct") < -(stopCfg || 0) - 5 ? " · escorregou" : "") : ""), "mon"],
       ["Ganho esperado por trade", exp == null ? "–" : sg(exp), wr == null ? "sem fechadas" : (exp > 0 ? "positivo: perde pouco e ganha mais" : "negativo: as perdas pesam mais") + " · " + closed.length + " trades", "pnl"]]);
-    const FL = EX_AUTO.filt || "all", rows = r.items.filter((x) => FL === "all" || (FL === "sus" ? !!x.suspeito : FL === "open" ? x.open : !x.open && (FL === "win" ? x.pnl_sol > 0 : x.pnl_sol <= 0)));
-    document.querySelectorAll("[data-auto-filt]").forEach((b) => b.classList.toggle("on", b.dataset.autoFilt === FL));
+  }
+  function autoTable(id, rows, empty) {
     const PV = { lixo: "loss", fraco: "neutral", "possível": "sim", "chance alta": "win", suspeito: "pause" };
-    table("exAutoTrades", ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], rows.map((row) => {
+    table(id, ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], rows.map((row) => {
       const mint = String(row.mint || ""), partials = Array.isArray(row.partial_exits) ? row.partial_exits.length : 0;
       return [pfM(mint, String(row.symbol || "")) + '<small><span class="tag ' + (row.real ? 'real">REAL' : 'sim">SIMULADO') + "</span> · Explorar</small>",
         autoDate(row.entrada_em) + "<small>" + s4(autoNum(row.sol_in)) + " SOL</small>" + '<span class="tag ' + (PV[row.veredito] || "neutral") + '">' + esc(String(row.veredito || "n/d")) + "</span><small>chance: " + (autoNum(row.chance) == null ? "n/d" : f(row.chance, 0) + "%") + "</small>",
@@ -618,7 +644,7 @@
         row.open ? "–" : autoDate(row.saida_em), esc(String(row.motivo_saida || (row.open ? partials ? "venda em partes; restante protegido" : "aguardando saída" : "n/d"))),
         hms(autoNum(row.duration_s)), pc(autoNum(row.best_pct)) + "<small>pior: " + pc(autoNum(row.worst_pct)) + "</small>",
         '<div class="auto-after">' + autoAfter(row, "15m") + "<small>" + autoAfter(row, "60m") + "</small></div>"];
-    }), "Nenhuma operação automática do Explorar neste período. Começa desligada; ao ligar, só entra quando todos os filtros passam.");
+    }), empty);
   }
   function renderFunnel() {
     const F = (EX && EX.funnel) || null; if (!F || !$("exFunK")) return;
@@ -1216,6 +1242,7 @@
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
+    if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
     if (t.id === "tuRun") {
       t.disabled = true;
       const r = await BB.api("/api/pump/tune/run", { body: {} });

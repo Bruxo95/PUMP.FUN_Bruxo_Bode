@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.44",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Explorar → Minhas operações automáticas · carteira REAL",
+      "titulo": "Quadro das operações automáticas também para a carteira real, e os dois quadros fechados",
+      "oque": "Novo quadro igual ao do simulado, só com as compras reais do Explorar: resultado de hoje e do período, acerto, fator de lucro, ganhou × perdeu, maior ganho e maior perda, a conta do bot (ganho médio, perda média, perda no stop, ganho esperado) e a lista dos trades com filtro. Os dois quadros agora abrem fechados (sanfona); clique no título para abrir, e a tela lembra a sua escolha. No quadro do simulado, 'Abertas agora' conta só as fictícias."
+    },
+    {
       "versao": "0.31.43",
       "data": "2026-10-27",
       "tipo": "correção",
