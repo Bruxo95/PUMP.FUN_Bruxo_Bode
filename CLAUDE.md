@@ -924,3 +924,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `shadow_tick`/`shadow_loop` 60 s mede px0 em até 2 min e o preço aos 15 min; `shadow_trades` entra no `_learn_pool` com
   `sombra`, resultado − 4%; tabela `base_shadows`, migração `20261027000006`; `load_shadows` no start). `autolearn` conta
   `n_sombra`. `learn_trades` não conta duas vezes o mesmo token em contas diferentes com até 10 min. Teste `tests/test_sombras.py`.
+
+- 0.31.73: `whoLabel`/`shortW(w, x)`/`pfW(w, x)` em `web/app.js`: carteira "manual" vira a origem (Explorar/Base/Maiores traders/
+  botão Comprar/copiou a conta X), sem link; chamadas `pfW(x.wallet)` → `pfW(x.wallet, x)`; "Resultado por trader" agrupa por origem. Pedido do dono.

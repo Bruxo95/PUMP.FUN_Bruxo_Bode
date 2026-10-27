@@ -22,8 +22,14 @@
   const agoT = (t) => hms(Date.now() / 1000 - t);
   const agoIso = (x) => (x ? hms((Date.now() - new Date(x)) / 1000) : "–");
   const dt = (x) => { if (!x) return "–"; const d = new Date(x); return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
-  const shortW = (w) => (w ? w.slice(0, 4) + "…" + w.slice(-4) : "");
-  const pfW = (w) => '<a href="https://pump.fun/profile/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + '">' + esc(shortW(w)) + "</a>";
+  // 0.31.73 (pedido do dono): "manual" não é carteira — é o marcador das compras que não vieram de um trader (automáticas
+  // do Explorar/Base/Maiores traders, botão Comprar, cópia de outra conta). Mostra de onde veio, sem link quebrado.
+  const ORIG_NOME = { explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)" };
+  const whoLabel = (x) => { x = x || {}; const fo = x.follow_of; if (fo) return "copiou a conta " + (fo.nome || "outra conta");
+    if (ORIG_NOME[x.origem]) return ORIG_NOME[x.origem]; if ((x.auto && x.auto !== true) || x.short === "automático") return "compra automática"; return x.manual || x.wallet === "manual" ? "botão Comprar (você)" : "compra automática"; };
+  const shortW = (w, x) => (w === "manual" ? whoLabel(x || { wallet: w }) : w ? w.slice(0, 4) + "…" + w.slice(-4) : "");
+  const pfW = (w, x) => w === "manual" ? '<span class="tag neutral" title="não veio de um trader: ' + esc(whoLabel(x || { wallet: w })) + '">' + esc(whoLabel(x || { wallet: w })) + "</span>"
+    : '<a href="https://pump.fun/profile/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + '">' + esc(shortW(w)) + "</a>";
   const pfM = (m, s) => '<a href="https://pump.fun/coin/' + encodeURIComponent(m) + '" target="_blank" rel="noopener" title="' + esc(m) + '">' + esc(s || m.slice(0, 6)) + "</a>" +
     '<button class="tkinfo" data-tk="' + esc(m) + '" title="Ficha do token">i</button>';
   const tx = (sig) => (sig ? '<a href="https://solscan.io/tx/' + encodeURIComponent(sig) + '" target="_blank" rel="noopener">tx</a>' : "");
@@ -453,7 +459,7 @@
       ["Atraso médio das cópias", t.avg_lag_s == null ? "–" : f(t.avg_lag_s, 1) + "<small> s</small>", "do trade do trader até a sua cópia", "mon"],
       ["Taxas pagas", s4(t.fees_sol) + "<small> SOL</small>", "pump.fun " + s4(fp.platform) + " · PumpPortal " + s4(fp.portal) + " · rede " + s4(fp.network), "wallet"]]);
     const ST2 = { copiando: '<span class="tag win">copiando</span>', pausado: '<span class="tag pause">pausado</span>', fora: '<span class="tag neutral">fora</span>' };
-    table("repTr", ["Trader", "Situação", "Trades", "Acerto", "Resultado p/ você", "Média", "Taxas", "Segurou (média)", "Último"], (r.traders || []).map((x) => [pfW(x.wallet), ST2[x.status] || "", String(x.trades), pctW(x.win_rate), "<b>" + sg(x.pnl_sol) + "</b>", sg(x.avg_pnl_sol), s4(x.fees_sol), hms(x.avg_hold_s), dt(x.last)]), "Nenhum trade fechado no período.");
+    table("repTr", ["Trader", "Situação", "Trades", "Acerto", "Resultado p/ você", "Média", "Taxas", "Segurou (média)", "Último"], (r.traders || []).map((x) => [pfW(x.wallet, x), ST2[x.status] || "", String(x.trades), pctW(x.win_rate), "<b>" + sg(x.pnl_sol) + "</b>", sg(x.avg_pnl_sol), s4(x.fees_sol), hms(x.avg_hold_s), dt(x.last)]), "Nenhum trade fechado no período.");
     table("repEx", ["Motivo", "Trades", "Acerto", "Resultado", "Média"], (r.exits || []).map((x) => [esc(x.reason), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), sg(x.avg_pnl_sol)]), "Nenhum trade fechado no período.");
     $("repSkSub").textContent = "quantas cópias cada filtro barrou · " + r.skips_seen + " nos últimos " + r.feed_kept + " eventos guardados";
     table("repSk", ["Motivo", "Vezes"], (r.skips || []).map((x) => [esc(x.reason), String(x.count)]), "Nenhuma cópia barrada no período.");
@@ -468,7 +474,7 @@
     $("autSub").textContent = (au.losses || 0) + " trades no prejuízo no período · " + s4(au.lost_sol || 0) + " SOL · as causas do dia ficam guardadas no banco para o aprendizado";
     kpis("autK", (au.causes || []).slice(0, 4).map((c) => [c.nome, sg(c.perdido_sol), c.trades + " trades", "pos"]));
     table("autCause", ["Causa", "Trades", "Perdido", "Correção recomendada"], (au.causes || []).map((c) => [esc(c.nome), String(c.trades), sg(c.perdido_sol), esc(c.correcao)]), "Nenhum trade no prejuízo no período.");
-    table("autTr", ["Trader", "Trades", "Acerto", "Resultado", "Segura (média)", "Causa principal", "O que fazer"], (au.traders || []).map((x) => [pfW(x.wallet), String(x.trades), f(x.acerto * 100, 0) + "%", sg(x.pnl_sol), hms(x.hold_s), esc(x.causa_nome), esc(x.recomendacao)]), "Nenhum trader no vermelho.");
+    table("autTr", ["Trader", "Trades", "Acerto", "Resultado", "Segura (média)", "Causa principal", "O que fazer"], (au.traders || []).map((x) => [pfW(x.wallet, x), String(x.trades), f(x.acerto * 100, 0) + "%", sg(x.pnl_sol), hms(x.hold_s), esc(x.causa_nome), esc(x.recomendacao)]), "Nenhum trader no vermelho.");
     table("autTrades", ["Fechou", "Token", "Trader", "Resultado", "Melhor momento", "Segurou", "Motivo", "Causa"], (au.trades || []).map((x) => [dt(x.closed_at), pfM(x.mint || "", x.symbol), pfW(x.wallet || ""),
       sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + f(x.pnl_pct, 1) + "%</small>"), x.best_pct == null ? "–" : (x.best_pct > 0 ? "+" : "") + f(x.best_pct, 1) + "%", hms(x.hold_s), esc(x.reason || ""), '<span class="tag loss">' + esc(x.causa_nome) + "</span>"]), "Nenhum.");
     table("repScore", ["Nota", "Trades", "Acerto", "Resultado", "Média por trade"], (r.by_score || []).map((x) => [esc(x.faixa), String(x.trades), pctW(x.win_rate), sg(x.pnl_sol), sg(x.avg_pnl_sol)]), "");
@@ -493,7 +499,7 @@
     rows.sort((a, b) => by[EL_TAB](a) - by[EL_TAB](b));
     const age = (a) => !a || a.age_days == null ? '<span class="muted">…</span>' : (a.more ? "+" : "") + f(a.age_days, a.age_days < 10 ? 1 : 0) + " dias";
     table("elTr", ["#", "Trader", "Acerto", "Lucro (ranking)", "Trades", "Saldo (SOL+USD)", "Idade da carteira", "Dias ativos", "Última ação", ""], rows.map((x, i) => [String(i + 1),
-      pfW(x.wallet) + (x.name ? " <b>" + esc(x.name) + "</b>" : "") + (x.twitter ? ' <a href="' + esc(x.twitter) + '" target="_blank" rel="noopener">X</a>' : "") + (rec.has(x.wallet) ? ' <span class="tag win">80%+</span>' : "") + (x.bot ? ' <span class="tag loss" title="' + esc(x.bot) + '">robô</span>' : ""),
+      pfW(x.wallet, x) + (x.name ? " <b>" + esc(x.name) + "</b>" : "") + (x.twitter ? ' <a href="' + esc(x.twitter) + '" target="_blank" rel="noopener">X</a>' : "") + (rec.has(x.wallet) ? ' <span class="tag win">80%+</span>' : "") + (x.bot ? ' <span class="tag loss" title="' + esc(x.bot) + '">robô</span>' : ""),
       x.winrate == null ? "–" : '<b class="' + (x.winrate >= 80 ? "up" : "") + '">' + f(x.winrate, 0) + "%</b>", x.realized_usd == null ? "–" : "$" + f(x.realized_usd, 0), x.trades == null ? "–" : f(x.trades, 0),
       x.balance ? "$" + f(x.balance.usd, 0) + "<small>" + f(x.balance.sol, 1) + " SOL</small>" : '<span class="muted">…</span>', age(x.age), x.days_active == null ? "–" : String(x.days_active),
       x.last ? (x.last.kind === "buy" ? "comprou " : "vendeu ") + esc(x.last.symbol || x.last.mint.slice(0, 6)) + "<small>" + dt(x.last.t * 1000) + "</small>" : "–",
@@ -1064,16 +1070,16 @@
       ["Com lucro", String(w.n || 0), "seguraram " + mm(w.hold_med_s) + " (mediana)", "hit"],
       ["Market cap na entrada (acertos)", w.mcap_in_med == null ? "–" : f(w.mcap_in_med, 0) + "<small> SOL</small>", "erros: " + (l.mcap_in_med == null ? "–" : f(l.mcap_in_med, 0) + " SOL"), "pnl"]]);
     $("apTtSub").textContent = "carteiras que você copia + top do ranking, vistas pelo monitor · " + (tt.traders || []).length + " negociaram";
-    table("apTr", ["Trader", "Tokens", "Acerto", "Resultado dele", "Segurou (mediana)", "Market cap na entrada", "Saldo"], (tt.traders || []).map((x) => [pfW(x.wallet) + (x.followed ? ' <span class="tag win">copiando</span>' : ""), String(x.closed),
+    table("apTr", ["Trader", "Tokens", "Acerto", "Resultado dele", "Segurou (mediana)", "Market cap na entrada", "Saldo"], (tt.traders || []).map((x) => [pfW(x.wallet, x) + (x.followed ? ' <span class="tag win">copiando</span>' : ""), String(x.closed),
       f(x.win_rate * 100, 0) + "%", sg(x.pnl_sol), mm(x.hold_med_s), x.mcap_in_med == null ? "–" : f(x.mcap_in_med, 0) + " SOL", x.wallet_usd == null ? "–" : "$" + f(x.wallet_usd, 0)]), "Sem tokens fechados pelos traders nas últimas 24 h.");
     const off = -new Date().getTimezoneOffset() / 60, hrs = (tt.trades_by_hour_utc || []).map((n, h) => ({ h: (h + off + 24) % 24, n }));
     const top = hrs.filter((x) => x.n).sort((a, b) => b.n - a.n).slice(0, 8);
     table("apHr", ["Hora", "Negociações"], top.map((x) => [String(x.h).padStart(2, "0") + "h", String(x.n)]), "Sem negociações registradas.");
-    table("apRich", ["Carteira", "Saldo"], (tt.richest || []).map((x) => [pfW(x.wallet), "$" + f(x.usd, 0)]), "Saldo das carteiras ainda não consultado.");
+    table("apRich", ["Carteira", "Saldo"], (tt.richest || []).map((x) => [pfW(x.wallet, x), "$" + f(x.usd, 0)]), "Saldo das carteiras ainda não consultado.");
     $("apLim").innerHTML = (r.limits || []).map((s) => "<p>" + esc(s) + "</p>").join("");
     const hi = r.history || {};
     $("apHiSub").textContent = r.history_error ? r.history_error : hi.days ? hi.days + " dias guardados desde " + esc(String(hi.first).split("-").reverse().join("/")) + " · consistência vale mais que um dia bom" : "o primeiro dia é guardado em até 30 min";
-    table("apHiTr", ["Trader", "Dias com lucro", "Resultado somado", "Tokens"], (hi.traders || []).map((x) => [pfW(x.wallet) + (x.followed ? ' <span class="tag win">copiando</span>' : ""), x.days_positive + " de " + x.days_seen, sg(x.pnl_sol), String(x.tokens)]), "Ainda sem dias guardados.");
+    table("apHiTr", ["Trader", "Dias com lucro", "Resultado somado", "Tokens"], (hi.traders || []).map((x) => [pfW(x.wallet, x) + (x.followed ? ' <span class="tag win">copiando</span>' : ""), x.days_positive + " de " + x.days_seen, sg(x.pnl_sol), String(x.tokens)]), "Ainda sem dias guardados.");
     table("apHiDay", ["Dia", "Suas cópias", "Acerto", "Resultado"], (hi.mine_by_day || []).map((x) => [esc(String(x.dia).split("-").reverse().join("/")), String(x.trades || 0), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%", sg(x.pnl_sol)]), "Ainda sem dias guardados.");
   }
   document.addEventListener("click", async (e) => {
@@ -1115,7 +1121,7 @@
       "<h3>Compras × vendas</h3>" + win("m5", "5 min") + win("h1", "1 h") + win("h24", "24 h") +
       (!r.flow ? '<p class="muted small">Compradores/vendedores únicos e volume de compra × venda aparecem quando a Solana Tracker responder para este token.</p>' : "") +
       "<h3>Maiores carteiras</h3>" + (hold || '<p class="muted">Ainda não consultado.</p>') +
-      ((r.traders_in || []).length ? "<h3>Seus traders neste token</h3>" + r.traders_in.map((x) => "<div>" + pfW(x.wallet) + " · investiu " + s4(x.invested_sol) + " SOL · " + (x.chg_pct == null ? "–" : f(x.chg_pct, 1) + "%") + "</div>").join("") : "") +
+      ((r.traders_in || []).length ? "<h3>Seus traders neste token</h3>" + r.traders_in.map((x) => "<div>" + pfW(x.wallet, x) + " · investiu " + s4(x.invested_sol) + " SOL · " + (x.chg_pct == null ? "–" : f(x.chg_pct, 1) + "%") + "</div>").join("") : "") +
       ((r.my_trades || []).length ? "<h3>Suas operações neste token</h3>" + r.my_trades.map((t) => "<div>" + dt(t.closed_at) + " · " + sg(t.pnl_sol) + " · " + esc(t.reason || "") + "</div>").join("") : "");
   }
   document.addEventListener("click", (e) => {
@@ -1268,14 +1274,14 @@
     const pr = r.params || {};
     $("stRkSub").textContent = "quanto VOCÊ teria ganho copiando com " + s4(pr.amt) + " SOL por cópia nos últimos 30 dias · atraso " + f(pr.lag_s, 1) + " s" + (pr.lag_measured ? " (medido nas suas cópias)" : " (estimado)") + (pr.delay_s ? " + espera " + f(pr.delay_s, 0) + " s" : "") + " · taxas e slippage do simulado";
     table("stRank", ["#", "Carteira", "Você copiando (30 d)", "Por dia (7 d)", "Acerto copiando", "Rápido demais p/ copiar", "Veredito", ""], (r.ranking || []).map((x, i) => [String(i + 1),
-      pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : ""), "<b>" + sg(x.pnl_30d) + "</b><small>" + x.n_30d + " tokens</small>", sg(x.per_day_7d),
+      pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : ""), "<b>" + sg(x.pnl_30d) + "</b><small>" + x.n_30d + " tokens</small>", sg(x.per_day_7d),
       x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%", x.fast_pct == null ? "–" : f(x.fast_pct * 100, 0) + "%", '<span class="tag ' + (VD[x.verdict] || "neutral") + '">' + esc(x.verdict) + "</span>",
       x.followed ? '<span class="tag win">copiando</span>' : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button>']), "Ainda sem tokens fechados suficientes para calcular.");
     $("stSub").textContent = "o sistema acompanha e aprende com a carteira, sem copiar · " + (r.wallets || []).length + " de " + r.limit +
       (r.key ? " · histórico pela Solana Tracker" : " · sem chave da Solana Tracker: só o que o monitor ver daqui em diante");
     const mm = hms;
     table("stList", ["Carteira", "Ganho/hora (24 h)", "Ganho/dia (média 7 d)", "Acerto", "Segura (mediana)", "Tokens fechados", ""], (r.wallets || []).map((x) => { const s = x.summary || {};
-      return [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""), mny(s.per_hour, s.unit), mny(s.per_day_7d, s.unit),
+      return [pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""), mny(s.per_hour, s.unit), mny(s.per_day_7d, s.unit),
         s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed),
         '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> <button class="btn sm" data-sts="' + esc(x.wallet) + '">Compartilhar</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
       "Nenhuma carteira em estudo. Cole um endereço acima.");
@@ -1285,7 +1291,7 @@
     const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss" };
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => [esc(x.valor), String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
-    table("saLog", ["Quando", "Carteira", "Decisão", "Por quê"], (sa.log || []).map((x) => [dt(x.em), pfW(x.wallet), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", esc(x.motivo || "")]),
+    table("saLog", ["Quando", "Carteira", "Decisão", "Por quê"], (sa.log || []).map((x) => [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", esc(x.motivo || "")]),
       "Nenhuma decisão ainda. Clique em Rodar agora ou espere a próxima volta.");
     const mi = r.mine || {}, tt = mi.total || {}, ts = tt.sim || {}, tr = tt.real || {};
     const roi = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
@@ -1293,7 +1299,7 @@
       ["Fictícia: retorno", roi(ts.roi_pct), "sobre o valor investido", "tr"],
       ["Real: seu resultado", sg(tr.pnl_sol), (tr.trades || 0) + " trades" + (tr.trades ? " · retorno " + (tr.roi_pct == null ? "–" : f(tr.roi_pct, 1) + "%") : ""), "wallet"]]);
     const dg = (d) => !d ? "–" : d.buys_seen + " compras vistas · " + d.copied + " copiadas" + (d.top_skips && d.top_skips.length ? "<small>não copiou: " + d.top_skips.map((s) => esc(s.reason) + " (" + s.n + ")").join(" · ") + "</small>" : "");
-    table("stMine", ["Carteira", "Carteira usada", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último", "O que aconteceu"], (mi.rows || []).map((x) => [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
+    table("stMine", ["Carteira", "Carteira usada", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último", "O que aconteceu"], (mi.rows || []).map((x) => [pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
       x.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>', dt(x.since), String(x.trades), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%",
       "<b>" + sg(x.pnl_sol) + "</b><small>investiu " + s4(x.invested_sol) + " SOL</small>", roi(x.roi_pct),
       x.open ? x.open + " · " + s4(x.open_sol) + " SOL" + (x.open_chg == null ? "" : " · " + (x.open_chg > 0 ? "+" : "") + f(x.open_chg, 1) + "%") : "–", dt(x.last), dg(x.diag)]),
@@ -1825,14 +1831,14 @@
     const out = [];
     (D.trades || []).forEach((t) => {
       const r = String(t.reason || ""); const k = /stop móvel/.test(r) ? "trail" : /^stop de perda/.test(r) ? "stop" : t.pnl_sol > 0 ? "win" : "loss";
-      out.push({ at: t.closed_at, k, real: !!t.real, t: (t.symbol || "?") + " · " + r, m: "copiado de " + shortW(t.wallet), amt: sg(t.pnl_sol) + '<div class="m">' + pc(t.pnl_pct) + "</div>" });
+      out.push({ at: t.closed_at, k, real: !!t.real, t: (t.symbol || "?") + " · " + r, m: "copiado de " + shortW(t.wallet, t), amt: sg(t.pnl_sol) + '<div class="m">' + pc(t.pnl_pct) + "</div>" });
     });
     (D.feed || []).forEach((e) => {
       const a = String(e.action || ""); let k = null;
       if (a === "copiou compra" || a === "REAL comprou") k = "buy"; else if (/falhou/.test(a)) k = "err"; else if (/pausad/.test(String(e.reason || ""))) k = "pause";
-      if (k) out.push({ at: e.at, k, real: /REAL/.test(a), t: (e.symbol || "?") + " · " + (k === "buy" ? "copiou " + shortW(e.wallet) : e.reason), m: "trader " + shortW(e.wallet) + (e.sol != null ? " · ele usou " + s4(e.sol) + " SOL" : ""), amt: "" });
+      if (k) out.push({ at: e.at, k, real: /REAL/.test(a), t: (e.symbol || "?") + " · " + (k === "buy" ? "copiou " + shortW(e.wallet, e) : e.reason), m: "trader " + shortW(e.wallet, e) + (e.sol != null ? " · ele usou " + s4(e.sol) + " SOL" : ""), amt: "" });
     });
-    (D.paused || []).forEach((p) => out.push({ at: p.at, k: "pause", real: false, t: shortW(p.wallet) + " · " + (p.reason || "pausado"), m: p.until ? "volta em " + hms(p.until - Date.now() / 1000) : "até você retomar", amt: "" }));
+    (D.paused || []).forEach((p) => out.push({ at: p.at, k: "pause", real: false, t: shortW(p.wallet, p) + " · " + (p.reason || "pausado"), m: p.until ? "volta em " + hms(p.until - Date.now() / 1000) : "até você retomar", amt: "" }));
     out.sort((a, b) => new Date(b.at) - new Date(a.at));
     const L = out.slice(0, 9);
     $("ops").innerHTML = L.length ? L.map((o) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(o.t) + '</div><div class="m">há ' + agoIso(o.at) + " · " + esc(o.m) + '</div></div><div><div class="tags">' + opTag(o.k) + (o.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + '</div><div class="amt">' + o.amt + "</div></div></div>").join("")
@@ -1881,7 +1887,7 @@
     document.querySelectorAll("#lbDays button").forEach((b) => b.classList.toggle("on", +b.dataset.d === +(c.pump_lb_days || 7)));
     $("lbKey").hidden = !!ls.key_set;
     $("lbSub").textContent = ls.key_set ? L.length + " traders · Solana Tracker (app pump.fun)" + (ls.own_key === false ? " · usando a chave do sistema (visualização)" : "") + (ls.at ? " · atualizado há " + agoIso(ls.at) : "") + " · copiando pelo " + (ls.source || "") : "precisa da chave grátis da Solana Tracker";
-    table("tLb", ["#", "Trader", "Status", "Saldo", "Lucro", "ROI", "Acerto", "Trades", "Tokens", "Dias", "Último trade", "Situação", ""], L.map((r) => [String(r.rank), pfW(r.wallet) + (r.name ? "<small>" + esc(r.name) + "</small>" : ""), stat(r.act, r.last_trade),
+    table("tLb", ["#", "Trader", "Status", "Saldo", "Lucro", "ROI", "Acerto", "Trades", "Tokens", "Dias", "Último trade", "Situação", ""], L.map((r) => [String(r.rank), pfW(r.wallet, r) + (r.name ? "<small>" + esc(r.name) + "</small>" : ""), stat(r.act, r.last_trade),
       r.wallet_usd == null ? '<span class="dim">…</span>' : usd(r.wallet_usd), usdS(r.realized_usd), r.roi == null ? "–" : pc(r.roi, 0), r.winrate == null ? "–" : f(r.winrate, 0) + "%", r.trades == null ? "–" : String(r.trades), r.tokens == null ? "–" : String(r.tokens), r.days_active == null ? "–" : String(r.days_active), r.last_trade ? agoIso(r.last_trade) : "–",
       r.paused ? '<span class="tag pause">Pausado</span>' : r.followed ? '<span class="tag win">Copiando</span>' : r.eligible ? (c.pump_only_online && !r.online ? '<span class="tag pause">Apto · fora (inativo)</span>' : '<span class="tag neutral">Apto</span>') : '<span class="dim" style="white-space:normal;display:block;max-width:260px">' + esc((r.flags || []).join(" · ")) + "</span>",
       r.paused ? btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on") : r.followed ? btn("Pausar", "w", { a: "pause", w: r.wallet }) : r.manual ? "" : btn("Copiar", "w", { a: "add", w: r.wallet })]),
@@ -1890,27 +1896,27 @@
     const F = D.followed || [];
     $("folSub").textContent = F.length + " carteiras" + ((D.paused || []).length ? " · " + D.paused.length + " pausadas" : "") + " · manuais primeiro";
     table("tFol", ["#", "Carteira", "Origem", "Status", "Última transação", "Trades pump.fun", "Fora da pump.fun", "Lucro (top)", "Copiado", "Ações"],
-      F.map((r, i) => { const cp = r.copied, a = r.act || {}, lb = r.lb || {}; return [String(i + 1), pfW(r.wallet), r.manual ? '<span class="tag pause">Manual</span>' : r.source === "leaderboard" ? '<span class="tag win">Top #' + lb.rank + "</span>" : '<span class="tag neutral">Ranking próprio</span>',
+      F.map((r, i) => { const cp = r.copied, a = r.act || {}, lb = r.lb || {}; return [String(i + 1), pfW(r.wallet, r), r.manual ? '<span class="tag pause">Manual</span>' : r.source === "leaderboard" ? '<span class="tag win">Top #' + lb.rank + "</span>" : '<span class="tag neutral">Ranking próprio</span>',
         (ST[a.status] || "–") + (a.bot_reason ? "<small>" + esc(a.bot_reason) + "</small>" : a.tx_min ? "<small>" + a.tx_min + " tx/min</small>" : ""), a.last ? "há " + agoT(a.last) + (a.pump_last ? "<small>pump.fun há " + agoT(a.pump_last) + "</small>" : "") : '<span class="dim">nenhuma desde a conexão</span>',
         String(a.pump || 0), a.other ? a.other + " tx<small>" + (r.other_copied || 0) + " de token · " + (r.ignored || 0) + " ignoradas</small>" : "0", lb.realized_usd != null ? usdS(lb.realized_usd) + "<small>" + (lb.winrate != null ? f(lb.winrate, 0) + "% acerto" : "") + "</small>" : "–",
         cp ? sg(cp.pnl_sol) + "<small>" + cp.n + " trades</small>" : '<span class="dim">–</span>',
         (r.manual ? btn("Tirar", "w", { a: "remove", w: r.wallet }) + " " : "") + btn("Pausar", "w", { a: "pause", w: r.wallet }) + " " + btn("Banir", "w", { a: "ban", w: r.wallet }, "tgl off")]; })
-        .concat((D.paused || []).map((r) => { const a = r.act || {}, lb = r.lb || {}, cp = r.copied; return ["–", pfW(r.wallet), '<span class="tag pause">⏸ Pausado</span>', ST[a.status] || "–", esc(r.reason || "") + "<small>" + (r.until ? "volta em " + hms(r.until - Date.now() / 1000) : "até você retomar") + "</small>", "–", "–", lb.realized_usd != null ? usdS(lb.realized_usd) : "–", cp ? sg(cp.pnl_sol) : "–", btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on")]; })),
+        .concat((D.paused || []).map((r) => { const a = r.act || {}, lb = r.lb || {}, cp = r.copied; return ["–", pfW(r.wallet, r), '<span class="tag pause">⏸ Pausado</span>', ST[a.status] || "–", esc(r.reason || "") + "<small>" + (r.until ? "volta em " + hms(r.until - Date.now() / 1000) : "até você retomar") + "</small>", "–", "–", lb.realized_usd != null ? usdS(lb.realized_usd) : "–", cp ? sg(cp.pnl_sol) : "–", btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on")]; })),
       "Nenhum trader copiado ainda — salve a chave da Solana Tracker ou adicione uma carteira manual.");
     // monitor
     document.querySelectorAll("#monSeg button").forEach((b) => b.classList.toggle("on", b.dataset.f === MONF));
     const RP = D.rpc || {}, Lv = (D.live || []).filter((e) => MONF === "all" || e.kind === MONF);
     $("monSub").innerHTML = (RP.ws ? '<span class="up">● conectado</span>' : '<span class="down">● desconectado</span>') + " · " + F.length + " carteiras · " + (D.live || []).length + " eventos";
     const AC = { entrou: '<span class="tag win">Entrou</span>', aumentou: '<span class="tag win">Aumentou</span>', saiu: '<span class="tag loss">Saiu</span>', "vendeu parte": '<span class="tag pause">Vendeu parte</span>' };
-    table("tMon", ["Hora", "Há", "Trader", "Ação", "Token", "SOL", "Preço", "Mcap", "Resultado dele", ""], Lv.map((e) => [dt(e.t * 1000), agoT(e.t), pfW(e.wallet), AC[e.action] || esc(e.action), pfM(e.mint, e.symbol), s4(e.sol), ex(e.price), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
+    table("tMon", ["Hora", "Há", "Trader", "Ação", "Token", "SOL", "Preço", "Mcap", "Resultado dele", ""], Lv.map((e) => [dt(e.t * 1000), agoT(e.t), pfW(e.wallet, e), AC[e.action] || esc(e.action), pfM(e.mint, e.symbol), s4(e.sol), ex(e.price), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
       e.kind === "sell" ? (e.pnl_pct == null ? '<span class="dim">entrada não vista</span>' : pc(e.pnl_pct)) + (e.sold_pct != null ? "<small>" + e.sold_pct + "% da posição</small>" : "") : '<span class="dim">–</span>', tx(e.signature)]),
       F.length ? "Aguardando a próxima compra ou venda dos traders copiados…" : "Nenhum trader copiado ainda.");
-    table("tTP", ["Trader", "Token", "Investiu", "Preço médio", "Agora", "Variação", "Valor", "Mcap", "Segurando há"], (D.trader_pos || []).map((p) => [pfW(p.wallet), pfM(p.mint, p.symbol), s4(p.invested_sol) + " SOL", ex(p.avg_price), ex(p.price), pc(p.chg_pct), p.value_sol == null ? "–" : s4(p.value_sol) + " SOL", p.mcap_sol == null ? "–" : f(p.mcap_sol, 0) + " SOL", hms(p.held_s)]),
+    table("tTP", ["Trader", "Token", "Investiu", "Preço médio", "Agora", "Variação", "Valor", "Mcap", "Segurando há"], (D.trader_pos || []).map((p) => [pfW(p.wallet, p), pfM(p.mint, p.symbol), s4(p.invested_sol) + " SOL", ex(p.avg_price), ex(p.price), pc(p.chg_pct), p.value_sol == null ? "–" : s4(p.value_sol) + " SOL", p.mcap_sol == null ? "–" : f(p.mcap_sol, 0) + " SOL", hms(p.held_s)]),
       "Nenhuma posição aberta vista ainda (aparece quando um trader copiado compra).");
     // ranking próprio
     const rr = D.ranking || [];
     $("rkSub").textContent = rr.length + " carteiras com ≥ " + c.pump_min_closed + " tokens fechados em " + (c.pump_rank_hours || 24) + " h";
-    table("tRk", ["Carteira", "Lucro 24h", "Acerto", "Segura", "Trades/h", "Abertos", "Situação", ""], rr.slice(0, 40).map((r) => [pfW(r.wallet), sg(r.pnl_sol), f(r.winrate, 0) + "% (" + r.wins + "/" + r.closed + ")", hms(r.hold_s), String(r.trades_h), String(r.open),
+    table("tRk", ["Carteira", "Lucro 24h", "Acerto", "Segura", "Trades/h", "Abertos", "Situação", ""], rr.slice(0, 40).map((r) => [pfW(r.wallet, r), sg(r.pnl_sol), f(r.winrate, 0) + "% (" + r.wins + "/" + r.closed + ")", hms(r.hold_s), String(r.trades_h), String(r.open),
       r.followed ? '<span class="tag win">Copiando</span>' : r.eligible ? '<span class="tag neutral">Apta</span>' : '<span class="dim">' + esc((r.flags || []).join(" · ")) + "</span>", r.followed ? "" : btn("Copiar", "w", { a: "add", w: r.wallet })]),
       "O ranking próprio enche com o tempo (ele precisa ver os trades de todos os tokens novos).");
     $("rkNote").innerHTML = (D.paid_stream ? "" : "<b>Sem dados:</b> o ranking próprio precisa ver os trades de todos os tokens novos, e a PumpPortal cobra por isso. Por isso o bot copia pelos Top traders acima. ") + "Filtros: acerto ≥ " + c.pump_min_winrate + "%, segura ≥ " + c.pump_min_hold_s + " s (abaixo disso é robô sniper), até " + c.pump_max_trades_h + " trades/h, sem dev." +
@@ -1932,7 +1938,7 @@
       return (rest > 0 ? "<b>faltam " + hms(rest) + "</b>" : '<b class="down">vencido · saindo</b>') + "<small>limite " + hms(h) + " ·" + src + "</small>" + holdBtns(p);
     };
     const holdBtns = (p) => p.selling ? "" : '<span class="row" style="gap:4px;margin-top:4px">' + btn("+30 min", "hold", { id: p.id, add: 30 }) + btn("+1 h", "hold", { id: p.id, add: 60 }) + btn("Sem limite", "hold", { id: p.id, add: "none" }) + "</span>";
-    table("tPos", ["Token", "Trader", "Entrada", "Investido", "Agora", "Variação", "Volume do token", "Vendido", "Aberta há", "Tempo de saída", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : "") + (p.venue_in ? "<small>" + esc(p.venue_in) + "</small>" : ""), pfW(p.wallet), ex(p.price_in), s4(p.sol_in) + " SOL",
+    table("tPos", ["Token", "Trader", "Entrada", "Investido", "Agora", "Variação", "Volume do token", "Vendido", "Aberta há", "Tempo de saída", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : "") + (p.venue_in ? "<small>" + esc(p.venue_in) + "</small>" : ""), pfW(p.wallet, p), ex(p.price_in), s4(p.sol_in) + " SOL",
       ex(p.price_now || p.price_in) + (p.price_at ? "<small>há " + agoT(p.price_at) + "</small>" : ""), pc(p.chg_pct), vol(p), (p.sells || []).length ? s4(p.proceeds) + " SOL" : "–", agoIso(p.opened_at), left(p),
       (p.trail_peak != null ? '<span class="tag trail">Stop móvel</span><small>pico ' + pc(p.trail_peak) + " · sai em +" + f(p.trail_exit, 1) + "%</small>" : "") + (p.hold_profit ? '<span class="tag pause">Segurando até lucro</span><small>desde ' + dt(p.hold_since) + "</small>" : "") +
       (p.selling ? '<span class="tag pause">Vendendo…</span>' : btn(p.real ? "Vender" : "Fechar", "close", { id: p.id, real: p.real ? 1 : 0 }, p.real ? "tgl off" : "")) + (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "")]),
@@ -1942,10 +1948,10 @@
     const rm = realMode(), T = (D.trades || []).filter((t) => !!t.real === rm);
     $("trSub").textContent = T.length + " trades · líquido = depois de TODAS as taxas (pump.fun/PumpSwap, PumpPortal, rede) e do slippage";
     const fee = (t) => { const fp = t.fee_parts || {}; if (t.fees_sol == null) return "–"; const tip = "pump.fun/PumpSwap: " + s4(fp.platform) + " · PumpPortal: " + s4(fp.portal) + " · rede: " + s4(fp.network) + (fp.slippage ? " · slippage: " + s4(fp.slippage) : ""); return '<span title="' + esc(tip) + '">' + s4(t.fees_sol) + " SOL</span><small>" + (t.sol_in ? f((t.fees_sol / t.sol_in) * 100, 1) + "% do investido" : "") + "</small>"; };
-    table("tTr", ["Fechou", "Token", "Trader", "Investido", "Recebido", "Taxas", "Bruto", "Líquido", "%", "Segurou", "Motivo", "Tipo"], T.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.venue ? "<small>" + esc(t.venue) + "</small>" : ""), pfW(t.wallet), s4(t.sol_in), s4(t.sol_out), fee(t), sg(t.gross_sol), "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
+    table("tTr", ["Fechou", "Token", "Trader", "Investido", "Recebido", "Taxas", "Bruto", "Líquido", "%", "Segurou", "Motivo", "Tipo"], T.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.venue ? "<small>" + esc(t.venue) + "</small>" : ""), pfW(t.wallet, t), s4(t.sol_in), s4(t.sol_out), fee(t), sg(t.gross_sol), "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
       '<span style="white-space:normal;display:block;max-width:280px">' + esc(t.reason) + "</span>", t.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>']), "Nenhum trade fechado ainda.");
-    const by = {}; T.forEach((t) => { const b = (by[t.wallet] = by[t.wallet] || { n: 0, w: 0, p: 0, pp: 0, po: 0, np: 0, no: 0 }); const isP = String(t.venue || "pump").toLowerCase().indexOf("pump") >= 0; b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol; if (isP) { b.pp += t.pnl_sol; b.np++; } else { b.po += t.pnl_sol; b.no++; } });
-    table("tBy", ["Trader", "Trades", "Acerto", "Resultado", "pump.fun", "Fora da pump.fun"], Object.entries(by).sort((a, b) => b[1].p - a[1].p).map(([w, b]) => [pfW(w), String(b.n), f((b.w / b.n) * 100, 0) + "%", sg(b.p), b.np ? sg(b.pp) + "<small>" + b.np + " trades</small>" : "–", b.no ? sg(b.po) + "<small>" + b.no + " trades</small>" : "–"]), "Sem trades fechados ainda.");
+    const by = {}, byX = {}; T.forEach((t) => { const key = t.wallet === "manual" ? "manual:" + whoLabel(t) : t.wallet; byX[key] = byX[key] || t; const b = (by[key] = by[key] || { n: 0, w: 0, p: 0, pp: 0, po: 0, np: 0, no: 0 }); const isP = String(t.venue || "pump").toLowerCase().indexOf("pump") >= 0; b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol; if (isP) { b.pp += t.pnl_sol; b.np++; } else { b.po += t.pnl_sol; b.no++; } });
+    table("tBy", ["Trader", "Trades", "Acerto", "Resultado", "pump.fun", "Fora da pump.fun"], Object.entries(by).sort((a, b) => b[1].p - a[1].p).map(([w, b]) => [pfW(byX[w].wallet, byX[w]), String(b.n), f((b.w / b.n) * 100, 0) + "%", sg(b.p), b.np ? sg(b.pp) + "<small>" + b.np + " trades</small>" : "–", b.no ? sg(b.po) + "<small>" + b.no + " trades</small>" : "–"]), "Sem trades fechados ainda.");
   }
   // 0.31.55 (pedido do dono): no Histórico também aparecem os erros e desistências (compra real recusada, preço suspeito…)
   const ERR_ACT = /^(REAL falhou|REAL não copiou|preço suspeito)$/;
@@ -1957,7 +1963,7 @@
       '<span class="wrapcell">' + esc(e.reason || "") + "</span>"]), "Nenhum erro ou falha nos registros recentes.");
   }
   function renderFeed() {
-    table("tFeed", ["Hora", "Trader", "Token", "Trader fez", "SOL", "Mcap", "O bot"], (D.feed || []).map((e) => [dt(e.at), pfW(e.wallet), pfM(e.mint, e.symbol), e.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', s4(e.sol), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
+    table("tFeed", ["Hora", "Trader", "Token", "Trader fez", "SOL", "Mcap", "O bot"], (D.feed || []).map((e) => [dt(e.at), pfW(e.wallet, e), pfM(e.mint, e.symbol), e.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', s4(e.sol), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
       '<span style="white-space:normal;display:block;max-width:420px" class="' + (e.action === "não copiou" ? "dim" : "") + '"><b>' + esc(e.action) + "</b>: " + esc(e.reason) + "</span>"]), "O feed enche quando os traders copiados fizerem algo.");
   }
 
@@ -2196,8 +2202,8 @@
     const add = (it) => { if (seen.has(it.key)) return; seen.add(it.key); items.push(it); };
     if (D) {
       (D.positions || []).concat(D.trades || []).forEach((p) => add({ key: "t" + p.mint, label: (p.symbol || "?") + " · " + shortW(p.mint), tag: "Token", url: "https://pump.fun/coin/" + p.mint, hay: (p.symbol + " " + p.mint).toLowerCase() }));
-      (D.followed || []).forEach((r) => add({ key: "w" + r.wallet, label: shortW(r.wallet) + (r.lb && r.lb.name ? " · " + r.lb.name : ""), tag: "Copiando", url: "https://pump.fun/profile/" + r.wallet, hay: (r.wallet + " " + ((r.lb || {}).name || "")).toLowerCase() }));
-      (D.leaderboard || []).forEach((r) => add({ key: "w" + r.wallet, label: "#" + r.rank + " " + shortW(r.wallet) + (r.name ? " · " + r.name : ""), tag: "Top", url: "https://pump.fun/profile/" + r.wallet, hay: (r.wallet + " " + (r.name || "")).toLowerCase() }));
+      (D.followed || []).forEach((r) => add({ key: "w" + r.wallet, label: shortW(r.wallet, r) + (r.lb && r.lb.name ? " · " + r.lb.name : ""), tag: "Copiando", url: "https://pump.fun/profile/" + r.wallet, hay: (r.wallet + " " + ((r.lb || {}).name || "")).toLowerCase() }));
+      (D.leaderboard || []).forEach((r) => add({ key: "w" + r.wallet, label: "#" + r.rank + " " + shortW(r.wallet, r) + (r.name ? " · " + r.name : ""), tag: "Top", url: "https://pump.fun/profile/" + r.wallet, hay: (r.wallet + " " + (r.name || "")).toLowerCase() }));
     }
     Object.entries(TITLES).forEach(([k, v]) => add({ key: "p" + k, label: v[0], tag: "Página", hash: k, hay: v[0].toLowerCase() }));
     CK = items.filter((it) => !q || it.hay.indexOf(q) >= 0).slice(0, 30);
