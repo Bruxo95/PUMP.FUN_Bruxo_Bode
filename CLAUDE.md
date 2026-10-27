@@ -786,3 +786,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`PumpFun._funnel_note`/`explore_funnel`, campo `funnel` de `/api/pump/explore`), Real × fictícia (`mirror_pairs`,
   `GET /api/pump/real/mirror`, trades com `pos_id`/`sim_id`), CSS `autotbl`. Corrigido id duplicado `cmpK` → `cxK`
   na tela Comparar. Teste: `tests/test_bruxo_aprendizagem.py`. Causa do preço do SEALLIS não investigada (sem acesso ao banco).
+
+- 0.31.39: a pedido do dono os ganhos ≥1.900% voltam aos totais (`auto_trades.summary` inclui todos; `suspects` só informa); marca "acima de 20×". A correção da curva cotada em outra moeda (SPCX/ZEC — causa provável do SEALLIS) está pronta em patch fora do repositório e NÃO foi aplicada: aguarda decisão do dono.

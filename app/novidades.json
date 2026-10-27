@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.39",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Explorar → Minhas operações automáticas",
+      "titulo": "Ganhos acima de 20× voltam para a conta",
+      "oque": "A pedido do dono, trades com ganho acima de 20× (como o SEALLIS) voltam a contar nos totais, no acerto e no fator de lucro, como era antes da 0.31.38. Eles só ganham a marca verde \"acima de 20×\" e o filtro com esse nome. Nada é bloqueado."
+    },
+    {
       "versao": "0.31.38",
       "data": "2026-10-27",
       "tipo": "melhoria",

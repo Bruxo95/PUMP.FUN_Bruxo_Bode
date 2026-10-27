@@ -80,23 +80,23 @@ def operation_row(p: dict, previous: dict | None = None, closed: bool = False) -
     return row
 
 
-# 0.31.38 — sugestão do Bruxo + aprendizagem do bot (2026-10-27): um ganho acima de 20× (+1.900%) num token da
-# pump.fun é quase sempre preço lido errado (ex.: SEALLIS +133.475%, que sozinho fez +134 SOL e o "fator 265"). Esses
-# trades ficam marcados como suspeitos e FORA dos totais, do acerto e do fator; a tela mostra quanto ficou de fora.
+# 0.31.38 — sugestão do Bruxo + aprendizagem do bot (2026-10-27): ganho acima de 20× (+1.900%) ganha só uma marca
+# "acima de 20×" para conferência. 0.31.39: a pedido do dono, esses trades CONTINUAM nos totais, no acerto e no fator
+# (na 0.31.38 eles saíam da conta); nada é bloqueado.
 SUSPECT_PCT = 1900.0
 
 
 def suspect(row: dict) -> str | None:
     pct = number(row.get("pnl_pct"))
     if pct is not None and pct >= SUSPECT_PCT:
-        return f"ganho de {pct:,.0f}% (mais de 20×): provável erro de preço; fora dos totais até ser conferido".replace(",", ".")
+        return f"ganho de {pct:,.0f}% (mais de 20×): conta normalmente nos totais".replace(",", ".")
     return None
 
 
 def summary(rows: list[dict]) -> dict:
     allc = [row for row in rows if row.get("saida_em") and number(row.get("pnl_sol")) is not None]
     sus = [row for row in allc if suspect(row)]
-    closed = [row for row in allc if not suspect(row)]
+    closed = allc
     values = [number(row["pnl_sol"]) for row in closed]
     gains = sum(max(0.0, value) for value in values)
     losses = -sum(min(0.0, value) for value in values)

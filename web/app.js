@@ -546,10 +546,10 @@
     notice.textContent = (stale || r.error ? "Ainda não recomendado para dinheiro real: histórico incompleto ou desatualizado. " : "") + readyText + " · " + f(autoNum(ready.closed_sim) || 0, 0) + " fechadas em " + f(autoNum(ready.days_sim) || 0, 0) + " dias de simulado · acerto " + autoRate(ready.win_rate) + " · fator " + autoFactor(ready) + (ready.recommended && !stale && !r.error ? ". A execução real continua dependendo dos controles existentes." : "");
     notice.className = "auto-readiness " + (ready.recommended && !stale && !r.error ? "up" : "warn");
     // 0.31.19: ganhou × perdeu, pedido do dono ("mostrar trades que ganhou, que perdeu e a porcentagem")
-    // 0.31.38 — sugestão do Bruxo + aprendizagem do bot: suspeitos (mais de 20×) ficam fora da conta
+    // 0.31.39: a pedido do dono os ganhos acima de 20× continuam na conta (na 0.31.38 saíam); só aparecem marcados
     const allClosed = r.items.filter((x) => !x.open && !x.real && autoNum(x.pnl_sol) != null), SUS = allClosed.filter((x) => x.suspeito);
-    const closed = allClosed.filter((x) => !x.suspeito), opn = r.items.filter((x) => x.open);
-    $("exAutoSus").hidden = !SUS.length;
+    const closed = allClosed, opn = r.items.filter((x) => x.open);
+    $("exAutoSus").hidden = true;
     $("exAutoSus").textContent = SUS.length ? SUS.length + (SUS.length === 1 ? " trade suspeito ficou" : " trades suspeitos ficaram") + " FORA da conta (" + SUS.map((x) => String(x.symbol || "") + " " + pc(autoNum(x.pnl_pct))).join(", ") + ", somando " + s4(SUS.reduce((a, x) => a + (autoNum(x.pnl_sol) || 0), 0)) + " SOL). Ganho acima de 20× num token da pump.fun quase sempre é preço lido errado; use o filtro Suspeitos para conferir." : "";
     const W = closed.filter((x) => x.pnl_sol > 0), L = closed.filter((x) => x.pnl_sol <= 0);
     const sum = (a, k) => a.reduce((s, x) => s + (autoNum(x[k]) || 0), 0), avg = (a, k) => (a.length ? sum(a, k) / a.length : null);
@@ -562,7 +562,7 @@
       ["Maior perda", bl ? pc(autoNum(bl.pnl_pct)) : "–", bl ? esc(String(bl.symbol || "")) + " · " + sg(bl.pnl_sol) : "nenhuma ainda", "pnl"],
       ["Abertas agora", String(opn.length), opn.length ? "estimativa " + sg(sum(opn, "pnl_sol")) : "nenhuma", "pos"]]);
     // a conta que o Bruxo faz de cabeça: perda média por erro (e no stop × stop configurado), ganho médio por acerto e
-    // ganho esperado por trade (acerto × ganho médio − erro × perda média), sem os suspeitos
+    // ganho esperado por trade (acerto × ganho médio − erro × perda média), com todos os trades
     const stopCfg = autoNum(autoValue("pump_ar_stop_pct", cfg())), ST = L.filter((x) => /^stop de perda/i.test(String(x.motivo_saida || "")));
     const wr = closed.length ? W.length / closed.length : null, aw = avg(W, "pnl_sol"), al = avg(L, "pnl_sol");
     const exp = closed.length ? sum(closed, "pnl_sol") / closed.length : null;
@@ -578,7 +578,7 @@
       return [pfM(mint, String(row.symbol || "")) + '<small><span class="tag ' + (row.real ? 'real">REAL' : 'sim">SIMULADO') + "</span> · Explorar</small>",
         autoDate(row.entrada_em) + "<small>" + s4(autoNum(row.sol_in)) + " SOL</small>" + '<span class="tag ' + (PV[row.veredito] || "neutral") + '">' + esc(String(row.veredito || "n/d")) + "</span><small>chance: " + (autoNum(row.chance) == null ? "n/d" : f(row.chance, 0) + "%") + "</small>",
         '<span class="tag ' + (row.open ? 'sim">aberta' : 'neutral">fechada') + "</span>" + (partials ? "<small>" + partials + " venda(s) em partes</small>" : ""),
-        sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>" + (row.suspeito ? '<span class="tag pause" title="' + esc(row.suspeito) + '">suspeito</span>' : ""),
+        sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>" + (row.suspeito ? '<span class="tag win" title="' + esc(row.suspeito) + '">acima de 20×</span>' : ""),
         row.open ? "–" : autoDate(row.saida_em), esc(String(row.motivo_saida || (row.open ? partials ? "venda em partes; restante protegido" : "aguardando saída" : "n/d"))),
         hms(autoNum(row.duration_s)), pc(autoNum(row.best_pct)) + "<small>pior: " + pc(autoNum(row.worst_pct)) + "</small>",
         '<div class="auto-after">' + autoAfter(row, "15m") + "<small>" + autoAfter(row, "60m") + "</small></div>"];

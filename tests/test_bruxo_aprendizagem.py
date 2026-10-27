@@ -10,11 +10,11 @@ def _row(i, pnl, pct):
             "saida_em": "2026-10-27T10:10:00+00:00", "pnl_sol": pnl, "pnl_pct": pct}
 
 
-def test_suspect_trade_is_out_of_totals():
+def test_big_gain_stays_in_totals_and_is_only_marked():
     rows = [_row(1, 134.14, 133475.5), _row(2, 0.01, 10.0), _row(3, -0.02, -40.0)]
-    s = summary(rows)
-    assert s["closed"] == 2 and s["suspects"] == 1 and abs(s["pnl_sol"] - (-0.01)) < 1e-9
-    assert s["profit_factor"] == 0.5 and abs(s["suspects_sol"] - 134.14) < 1e-9
+    s = summary(rows)                                                     # 0.31.39: pedido do dono, continua na conta
+    assert s["closed"] == 3 and s["suspects"] == 1 and abs(s["pnl_sol"] - 134.13) < 1e-9
+    assert abs(s["suspects_sol"] - 134.14) < 1e-9
     assert api_item(rows[0], 0)["suspeito"] and not api_item(rows[1], 0)["suspeito"]
 
 
