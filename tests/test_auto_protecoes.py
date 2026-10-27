@@ -123,6 +123,7 @@ class AutoProtecoesTests(unittest.TestCase):
     def test_auto_fake_real_queue_rechecks_switch_before_execution(self):
         pf = _zero_fees(pump_auto_real=True)
         pf.cfg.pump_real_enabled = True
+        pf.cfg.pump_real_mirror = False   # 0.31.37: com o espelho ligado a automática vai para a real sem pump_auto_real
         pf.real = object()  # não pode chegar a today_loss/buy depois de desligar a opção
         _buy(pf, time.time())
         _kind, queued = pf._rq.get_nowait()
