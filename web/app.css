@@ -501,3 +501,10 @@ select.in{padding-right:24px}
 .keyhow ol{margin:6px 0 0 18px;padding:0;line-height:1.55}
 .keyhow li{margin:3px 0}
 @media (prefers-reduced-motion:reduce){.keyhow summary::before{transition:none}}
+/* tabelas do Relatório do dia (0.31.26, pedido do dono): fonte menor e Origem/Motivo quebram linha, sem rolagem lateral */
+table.daytbl{font-size:12px}
+table.daytbl td{padding:7px 6px}
+table.daytbl th{padding-left:6px;padding-right:6px}
+table.daytbl td:last-child,table.daytbl th:last-child{white-space:normal;min-width:180px}
+table.daytbl td:nth-last-child(4){white-space:normal}
+@media (max-width:700px){table.daytbl{font-size:11.5px}}

@@ -167,13 +167,14 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
                 f"Causa de prejuízo \"{c['nome']}\": {c['trades']} trades, {c['perdido_sol']:+.4f} SOL. {c['correcao']}",
                 c["trades"], tipo="causa_" + c["causa"])
     worst_trades = sorted([x for x in tl if (x.get("pnl_sol") or 0) < 0], key=lambda x: x.get("pnl_sol") or 0)[:5]
+    best_trades = sorted([x for x in tl if (x.get("pnl_sol") or 0) > 0], key=lambda x: -(x.get("pnl_sol") or 0))[:5]   # 0.31.26
     if len([h for h in by_hour if h["trades"] >= 3]) >= 3:
         worst = min((h for h in by_hour if h["trades"] >= 3), key=lambda h: h["pnl_sol"])
         if worst["pnl_sol"] < 0:
             add("trades", f"O pior horário foi {worst['hora']} ({TZ_NAME}): {worst['pnl_sol']:+.4f} SOL em {worst['trades']} trades. "
                 "Se repetir em outros dias, evite operar nesse horário.", worst["trades"], tipo="horario_ruim")
     return {"dia": day, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
-            "worst_trades": worst_trades, "loss_causes": aut["causes"], "loss_traders": aut["traders"][:8], "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
+            "worst_trades": worst_trades, "best_trades": best_trades, "loss_causes": aut["causes"], "loss_traders": aut["traders"][:8], "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
             "avg_lag_s": round(sum(lags) / len(lags), 1) if lags else None, "top_skips": [{"motivo": k, "n": v} for k, v in top_skips],
@@ -294,6 +295,11 @@ def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
         B += [("mono", f"{x['entrada']}->{x['saida']}  {str(x['token'])[:12]:<12} {(x.get('pnl_sol') or 0):+.4f} SOL "
                        f"{(x.get('pnl_pct') or 0):+.1f}%  {str(x.get('origem'))[:22]:<22} {str(x.get('motivo') or '')[:40]}")
               for x in rep["worst_trades"]]
+    if rep.get("best_trades"):
+        B.append(("h", "Maiores ganhos do dia (onde o dinheiro foi ganho)"))
+        B += [("mono", f"{x['entrada']}->{x['saida']}  {str(x['token'])[:12]:<12} {(x.get('pnl_sol') or 0):+.4f} SOL "
+                       f"{(x.get('pnl_pct') or 0):+.1f}%  {str(x.get('origem'))[:22]:<22} {str(x.get('motivo') or '')[:40]}")
+              for x in rep["best_trades"]]
     B.append(("h", "O que melhorar (dia)"))
     B += [("p", f"[{s['area']}] {s['texto']} (base: {s.get('base')})") for s in rep.get("suggestions") or []]
     for key, title in (("by_origin", "Por origem"), ("by_exit", "Por motivo de saída"), ("by_trader", "Por trader")):

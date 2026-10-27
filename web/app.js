@@ -254,8 +254,10 @@
       (m.sugestoes || []).map((s) => '<p style="margin-left:14px"><span class="tag ' + (s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("")).join("")
       || '<p class="muted">Sem dados dos menus neste dia.</p>';
     $("dayTrH").textContent = "Trades do dia com horário (" + (rep.tz || "UTC") + ")";
-    table("dayWorst", ["Entrada → saída", "Token", "Origem", "Perdeu", "Melhor momento", "Motivo"], (rep.worst_trades || []).map((x) => [esc(x.entrada + " → " + x.saida), pfM(x.mint || "", x.token), esc(x.origem),
-      sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + f(x.pnl_pct, 1) + "%</small>"), x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]), "Nenhuma perda neste dia.");
+    const topRows = (L) => (L || []).map((x) => [esc(x.entrada + " → " + x.saida), pfM(x.mint || "", x.token), esc(x.origem),
+      sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"), x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]);
+    table("dayBest", ["Entrada → saída", "Token", "Origem", "Ganhou", "Melhor momento", "Motivo"], topRows(rep.best_trades), "Nenhum ganho neste dia.");
+    table("dayWorst", ["Entrada → saída", "Token", "Origem", "Perdeu", "Melhor momento", "Motivo"], topRows(rep.worst_trades), "Nenhuma perda neste dia.");
     table("dayTr", ["Entrada", "Saída", "Duração", "Token", "Origem", "Resultado", "Melhor momento", "Motivo"], (rep.trades_list || []).slice().reverse().map((x) => [esc(x.entrada), esc(x.saida), hms(x.duracao_s),
       pfM(x.mint || "", x.token), esc(x.origem), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"),
       x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]), "Nenhum trade fechado neste dia.");

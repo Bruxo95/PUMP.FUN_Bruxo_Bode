@@ -50,6 +50,7 @@ def test_daily_report_flags_time_limit_losses_and_lists_worst_trades(tmp_path):
     rep = build(pf, day_of(now), [])
     assert any(s["tipo"] == "tempo_maximo" for s in rep["suggestions"])
     assert [x["token"] for x in rep["worst_trades"]] == ["T2", "T0", "T1"]
+    assert [x["token"] for x in rep["best_trades"]] == ["T3"]                             # maiores ganhos (0.31.26)
 
 
 def test_ghosts_measure_stale_and_one_hour_rules():

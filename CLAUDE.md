@@ -723,3 +723,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.25: `KEY_HOW`/`keyHow()` em `web/app.js` (passo a passo por chave, em `<details class="keyhow">`) em Chaves pessoais
   e Chaves do sistema. Pedido do dono. Os nomes de botões dos sites externos podem mudar: revisar o texto se mudarem.
+
+- 0.31.26: `daily.build` → `best_trades` (5 maiores ganhos; PDF/texto para IA); tabela `#dayBest`; classe `daytbl` (fonte 12px,
+  Origem/Motivo quebram linha) nas tabelas do Relatório do dia. Pedido do dono.
