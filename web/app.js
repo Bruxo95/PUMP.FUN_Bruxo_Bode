@@ -839,6 +839,14 @@
     table("bgG", ["Regra de saída", "Trades", "Acerto", "Resultado", "Por trade", "Rumo aos 20 trades"], (G.variants || []).map((v) => [(v.id === G.best ? '<span class="tag win">melhor</span> ' : "") + esc(v.nome), String(v.trades || 0),
       v.win_rate == null ? "–" : f(v.win_rate * 100, 0) + "%", sg(v.pnl_sol || 0), v.trades ? s4(v.pnl_sol / v.trades) : "–", f(Math.min(100, (v.trades || 0) / 20 * 100), 0) + "%"]), "Sem trades nos fantasmas ainda.");
   }
+  async function loadApiUsage() {
+    const r = await BB.api("/api/admin/api-usage"); if (r.error || !$("apiU")) return;
+    const bar = (p) => p == null ? '<span class="muted">sem limite publicado</span>' : '<b class="' + (p >= 80 ? "down" : p >= 50 ? "" : "up") + '">' + f(p, 0) + "%</b>";
+    table("apiU", ["API", "Chave", "Chamadas no mês", "Limite grátis/mês", "Uso do mês", "No ritmo atual o mês fecha em", "Pico por minuto hoje", "Limite por minuto", "Uso por minuto"],
+      (r.apis || []).map((x) => [esc(x.api), esc(x.chave || "–"), f(x.mes, 0), x.limite_mes ? f(x.limite_mes, 0) : "–", bar(x.pct_mes),
+        x.limite_mes ? f(x.projecao_mes, 0) + " (" + bar(x.pct_projecao) + ")" : "–", String(x.pico_min), x.limite_min ? f(x.limite_min, 0) : "–", bar(x.pct_min)]),
+      "Ainda sem chamadas contadas (o medidor começou nesta versão).");
+  }
   function renderFunnel() {
     const F = (EX && EX.funnel) || null; if (!F || !$("exFunK")) return;
     kpis("exFunK", [["Tokens olhados", String(F.vistos), (F.chance_alta || 0) + " com chance alta", "tr"], ["Entraram", String(F.entrou), F.vistos ? f(F.entrou / F.vistos * 100, 0) + "% dos olhados" : "–", "hit"],
@@ -878,9 +886,9 @@
     const frs = (x) => !x.fresh ? '<span class="muted">…</span>' : '<span class="' + (x.fresh.pct >= (cfg().pump_ar_fresh_max_pct || 30) ? "down" : "") + '">' + x.fresh.n + " de " + x.fresh.of + "</span>";
     // 0.31.55: o motivo quebra linha (o texto longo do "aprendi com os erros" criava rolagem lateral)
     const aut = (x) => !x.auto ? "–" : (x.auto.ok ? '<span class="tag win">compra</span>' : '<span class="tag neutral">não</span>') + '<small class="wrapcell">' + esc(x.auto.motivo) + "</small>";
-    table("exTbl", ["Token", "Veredito", "Automático", "Market cap", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
+    table("exTbl", ["Token", "Veredito", "Automático", "Market cap", "Volume 24 h", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
       '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>", aut(x),
-      usd(x.mcap_usd), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
+      usd(x.mcap_usd), usd(x.vol24_usd), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
       x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
       x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
       '<button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");
@@ -1453,6 +1461,7 @@
     }
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
+    if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "trShGo") {
       const to = $("trShU").value; if (!to) { toast("Escolha a pessoa."); return; }
       t.disabled = true; const r = await BB.api("/api/pump/traders/share", { body: { to } }); t.disabled = false;
@@ -1563,7 +1572,7 @@
     closeDrawer();
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); }
     if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
-    if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
+    if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") { walletLoad(true); loadMirror(); }
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();

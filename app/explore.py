@@ -39,6 +39,8 @@ def item(raw: dict, cat: str) -> dict | None:
     buys = _num(raw.get("buys")) if raw.get("buys") is not None else _num(tx.get("buys"))
     sells = _num(raw.get("sells")) if raw.get("sells") is not None else _num(tx.get("sells"))
     rk = raw.get("risk") if isinstance(raw.get("risk"), dict) else {}
+    # 0.31.76 (pedido do dono): volume de 24 h em US$ (txns do pool da Solana Tracker; sem ele, a rota usa a DexScreener)
+    vol24 = _num(tx.get("volume24h")) if tx.get("volume24h") is not None else _num(tx.get("volume"))
     return {"mint": mint, "cat": cat, "symbol": str(tk.get("symbol") or "")[:20], "name": str(tk.get("name") or "")[:40],
             "creator": tk.get("creator") or tk.get("deployer"),
             "mcap_usd": _num((pool.get("marketCap") or {}).get("usd")),
@@ -49,7 +51,7 @@ def item(raw: dict, cat: str) -> dict | None:
             "chg_5m": _num((ev.get("5m") or {}).get("priceChangePercentage")),
             "chg_1h": _num((ev.get("1h") or {}).get("priceChangePercentage")),
             "risk": _num(rk.get("score")), "rugged": bool(rk.get("rugged")),
-            "created": _num(tk.get("createdAt") or pool.get("createdAt"))}
+            "created": _num(tk.get("createdAt") or pool.get("createdAt")), "vol24_usd": vol24}
 
 
 def parse(js) -> dict:

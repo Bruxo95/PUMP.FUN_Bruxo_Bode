@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.76",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Explorar (coluna Volume 24 h); Administração → Uso das APIs",
+      "titulo": "Volume de 24 h no Explorar e medidor de uso das APIs",
+      "oque": "A tabela do Explorar ganhou a coluna 'Volume 24 h' (da Solana Tracker; quando ela não traz, vem da DexScreener). Em Administração, o quadro 'Uso das APIs' mostra quantas chamadas cada API recebeu no mês, quanto isso é do limite grátis, em quanto o mês deve fechar no ritmo atual e o pico por minuto de hoje. Na Solana Tracker mostra cada chave separada (do sistema ou pessoal de alguém), sem nunca mostrar a chave. A contagem começa nesta versão."
+    },
+    {
       "versao": "0.31.75",
       "data": "2026-10-27",
       "tipo": "correção",

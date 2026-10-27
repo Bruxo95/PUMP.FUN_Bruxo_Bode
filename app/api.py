@@ -218,6 +218,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         for rows in list(out.get("lists", {}).values()) + [out.get("movers") or []]:
             for x in rows:
                 safety_marks(pf, x)
+                if x.get("vol24_usd") is None:                # 0.31.76: volume 24 h da DexScreener quando a fonte não traz
+                    x["vol24_usd"] = ((pf.tokens.get(x["mint"]) or {}).get("vol") or {}).get("h24")
                 # 0.31.11: por que o automático compra ou não este token (só faz sentido na lista Quase graduando)
                 if not getattr(pf.cfg, "pump_ex_auto_on", True):
                     x["auto"] = {"ok": False, "motivo": "entrada automática do Explorar desligada"}
@@ -1043,6 +1045,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         for x in itens:
             x["inicio"] = when.get(x.get("versao"))
         return {"itens": itens}
+
+    @app.get("/api/admin/api-usage")
+    async def admin_api_usage(u: dict = Depends(admin_only)):
+        """0.31.76: uso de cada API externa no mês e por minuto, em % do limite grátis."""
+        return {"apis": hub.api_usage_view()}
 
     @app.get("/api/admin/logs")
     async def admin_logs(after: int = 0, level: str = "INFO", q: str = "", limit: int = 400,

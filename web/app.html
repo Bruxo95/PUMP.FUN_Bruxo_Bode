@@ -775,6 +775,11 @@
           <div class="tbl-wrap tall"><table id="tAAudit"></table></div>
         </div>
         <div class="card">
+          <header><div><h2>Uso das APIs</h2><div class="sub" id="apiUSub">chamadas deste mês e pico por minuto hoje, em % do limite grátis · desde a versão 0.31.76</div></div><div class="sp"></div><button class="btn sm" id="apiURef">Atualizar</button></header>
+          <div class="help"><p>Quando uma API passar de <b>80%</b>, o certo é diminuir as consultas ou subir de plano. Criar várias contas grátis do mesmo serviço para somar limites costuma ser proibido pelos termos e pode bloquear a chave. Cada pessoa pode usar a própria chave (Configurações → Chaves), que conta separado.</p></div>
+          <div class="tbl-wrap"><table id="apiU" class="daytbl"></table></div>
+        </div>
+        <div class="card">
           <header><div><h2>Logs do servidor</h2><div class="sub" id="logSub">em tempo real · chaves mascaradas</div></div><div class="sp"></div>
             <div class="seg" id="logLv"><button data-lv="INFO">Tudo</button><button data-lv="WARNING">Avisos</button><button data-lv="ERROR">Erros</button></div>
             <input class="in" id="logQ" placeholder="Buscar no log" style="width:180px">

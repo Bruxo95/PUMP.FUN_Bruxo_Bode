@@ -935,3 +935,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.75: `unlockAudio` no primeiro pointerdown/keydown/touchstart (autoplay do navegador); `classify` e `mascKind` reconhecem
   "] compra automática/manual"; sino usa `mascKind(msg)[2]` como nome da ação. Pedido do dono (sem som).
+
+- 0.31.76: `app/apiusage.py` (`Usage`, gancho `request` do httpx em `main.py`; por API e, na Solana Tracker, por chave via hash;
+  limites grátis conferidos: ST 10 mil/mês, DexScreener 300/min, RPC público 600/min); `hub.usage_loop` grava `api_usage`
+  (migração `20261027000007`) a cada 5 min; `GET /api/admin/api-usage`; quadro em Administração. Explorar: `vol24_usd`
+  (txns do pool ou DexScreener h24) e coluna "Volume 24 h". Rodízio de várias contas grátis NÃO feito (termos de uso).

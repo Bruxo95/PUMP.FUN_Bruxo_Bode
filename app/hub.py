@@ -213,6 +213,38 @@ class PumpHub:
         snap["geral"] = True
         return snap
 
+    def api_usage_view(self) -> list:
+        """0.31.76: uso das APIs com o nome da chave da Solana Tracker (do sistema ou de quem é a chave pessoal)."""
+        from .apiusage import Usage, key_tag
+        us = getattr(self, "usage", None) or Usage()
+        labels = {}
+        if self.system_keys.get("solanatracker_api_key"):
+            labels[key_tag(self.system_keys["solanatracker_api_key"])] = "chave do sistema"
+        for e in list(self.engines.values()):
+            k = e.keys.get("solanatracker_api_key") if getattr(e, "keys", None) else None
+            if k and key_tag(k) not in labels:
+                labels[key_tag(k)] = "chave pessoal de " + (getattr(e, "_nome_cache", None) or e.user_id[:8])
+        return us.view(labels)
+
+    async def usage_loop(self) -> None:
+        from .apiusage import Usage
+        us = self.__dict__.setdefault("usage", Usage())
+        try:
+            from datetime import datetime as _dt
+            us.load(await self.db.select("api_usage", {"mes": _dt.now(timezone.utc).strftime("%Y-%m")}))
+        except Exception as e:
+            log.warning("uso das APIs não carregou: %s", str(e)[:120])
+        while True:
+            await asyncio.sleep(300)
+            if not us.dirty:
+                continue
+            try:
+                await self.db.insert("api_usage", [dict(r, atualizado_em=datetime.now(timezone.utc).isoformat()) for r in us.dump()],
+                                     upsert=True, on_conflict="mes,api,chave")
+                us.dirty = False
+            except Exception as e:
+                log.warning("uso das APIs não gravou: %s", str(e)[:120])
+
     def base_state(self, pf: PumpFun | None = None) -> dict:
         """0.31.71: o "cérebro" do robô — aprender com os erros + fantasmas das automáticas, de todas as contas."""
         from .autolearn import MAX_AVG_PCT, MAX_WR, MIN_N
@@ -1631,6 +1663,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.tune_loop()))
         self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
         self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
+        self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
