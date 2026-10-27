@@ -815,7 +815,8 @@
     const usd = (v) => (v == null ? "–" : "$" + f(v, v >= 1000 ? 0 : 2));
     const pc = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 0) + "%</span>");
     const frs = (x) => !x.fresh ? '<span class="muted">…</span>' : '<span class="' + (x.fresh.pct >= (cfg().pump_ar_fresh_max_pct || 30) ? "down" : "") + '">' + x.fresh.n + " de " + x.fresh.of + "</span>";
-    const aut = (x) => !x.auto ? "–" : x.auto.ok ? '<span class="tag win">compra</span><small>' + esc(x.auto.motivo) + "</small>" : '<span class="tag neutral">não</span><small>' + esc(x.auto.motivo) + "</small>";
+    // 0.31.55: o motivo quebra linha (o texto longo do "aprendi com os erros" criava rolagem lateral)
+    const aut = (x) => !x.auto ? "–" : (x.auto.ok ? '<span class="tag win">compra</span>' : '<span class="tag neutral">não</span>') + '<small class="wrapcell">' + esc(x.auto.motivo) + "</small>";
     table("exTbl", ["Token", "Veredito", "Automático", "Market cap", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
       '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>", aut(x),
       usd(x.mcap_usd), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
@@ -1699,7 +1700,7 @@
     if (VIEW === "config") renderAllCfgCopy();
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
-    else if (VIEW === "historico") renderHistory();
+    else if (VIEW === "historico") { renderHistory(); renderErrs(); }
     else if (VIEW === "relatorios" && (Date.now() - REP_AT > 30000 || REP_MODE !== realMode())) loadReports();
     else if (VIEW === "aprendizado" && (Date.now() - AP_AT > 60000 || AP_MODE !== realMode())) loadLearning();
     else if (VIEW === "radar") loadRadar(false);
@@ -1869,6 +1870,15 @@
       '<span style="white-space:normal;display:block;max-width:280px">' + esc(t.reason) + "</span>", t.real ? '<span class="tag real">Real</span>' : '<span class="tag sim">Sim</span>']), "Nenhum trade fechado ainda.");
     const by = {}; T.forEach((t) => { const b = (by[t.wallet] = by[t.wallet] || { n: 0, w: 0, p: 0, pp: 0, po: 0, np: 0, no: 0 }); const isP = String(t.venue || "pump").toLowerCase().indexOf("pump") >= 0; b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol; if (isP) { b.pp += t.pnl_sol; b.np++; } else { b.po += t.pnl_sol; b.no++; } });
     table("tBy", ["Trader", "Trades", "Acerto", "Resultado", "pump.fun", "Fora da pump.fun"], Object.entries(by).sort((a, b) => b[1].p - a[1].p).map(([w, b]) => [pfW(w), String(b.n), f((b.w / b.n) * 100, 0) + "%", sg(b.p), b.np ? sg(b.pp) + "<small>" + b.np + " trades</small>" : "–", b.no ? sg(b.po) + "<small>" + b.no + " trades</small>" : "–"]), "Sem trades fechados ainda.");
+  }
+  // 0.31.55 (pedido do dono): no Histórico também aparecem os erros e desistências (compra real recusada, preço suspeito…)
+  const ERR_ACT = /^(REAL falhou|REAL não copiou|preço suspeito)$/;
+  function renderErrs() {
+    const L = (D.feed || []).filter((e) => ERR_ACT.test(String(e.action || "")));
+    $("hErrSub").textContent = L.length + " nos registros recentes · o motivo e a dica ficam também no Relatório do dia (modo Real)";
+    table("hErr", ["Quando", "Token", "O que houve", "Motivo"], L.map((e) => [dt(e.at), pfM(e.mint || "", e.symbol),
+      '<span class="tag ' + (e.action === "preço suspeito" ? "pause" : "loss") + '">' + esc(e.action) + "</span>" + (/^REAL/.test(e.action) || e.real ? ' <span class="tag real">REAL</span>' : ""),
+      '<span class="wrapcell">' + esc(e.reason || "") + "</span>"]), "Nenhum erro ou falha nos registros recentes.");
   }
   function renderFeed() {
     table("tFeed", ["Hora", "Trader", "Token", "Trader fez", "SOL", "Mcap", "O bot"], (D.feed || []).map((e) => [dt(e.at), pfW(e.wallet), pfM(e.mint, e.symbol), e.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', s4(e.sol), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",

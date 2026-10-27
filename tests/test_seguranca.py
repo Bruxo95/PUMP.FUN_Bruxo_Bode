@@ -362,3 +362,45 @@ def test_txguard_pumpportal_router_needs_simulation_and_sim_guard_blocks_drain()
         return r
     pr._rpc = rpc_no_pump
     assert "pump.fun" in asyncio.run(pr._sim_guard("x", mint, caps))
+
+
+
+def test_sim_guard_retries_when_rpc_refuses_once():
+    """0.31.55 (PJAM/pfp/CLAVA): um erro passageiro do RPC não derruba a compra; tenta de novo e explica o erro."""
+    from app.pumpfun import PumpReal
+    calls = {"n": 0}
+
+    class W:
+        address = "Me".ljust(44, "1")
+
+        async def safe_rpc_url(self):
+            return "https://meu-rpc.exemplo.test"
+
+    async def rpc(method, params, url=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("{'code': 429, 'message': 'Too many requests'}")
+        if method == "getTokenAccountsByOwner":
+            return {"value": []}
+        if method == "getBalance":
+            return {"value": 1_000_000_000}
+        from app import txguard
+        return {"value": {"err": None, "logs": [f"Program {txguard.PUMP} invoke [2]"], "accounts": [{"lamports": 1_000_000_000 - 50_000_000}]}}
+    orig = asyncio.sleep
+
+    async def fast(_s):
+        await orig(0)
+    pr = PumpReal.__new__(PumpReal)
+    pr.wallet, pr._rpc = W(), rpc
+    caps = {"max_spend_lamports": 60_000_000, "max_fee_lamports": 2_000_000, "max_priority_lamports": 2_000_000}
+    asyncio.sleep = fast
+    try:
+        assert asyncio.run(pr._sim_guard("x", "M", caps)) is None
+
+        async def always_down(method, params, url=None):
+            raise RuntimeError("{'code': 429, 'message': 'Too many requests'}")
+        pr._rpc = always_down
+        why = asyncio.run(pr._sim_guard("x", "M", caps))
+    finally:
+        asyncio.sleep = orig
+    assert "não deu para simular" in why and "429" in why

@@ -2932,7 +2932,8 @@ class PumpFun:
         out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)
         return out[:limit]
 
-    MISS_TIPS = (("limite de", "Aumente \"Posições reais ao mesmo tempo\" na Execução real, ou confira se há posição real antiga presa aberta."),
+    MISS_TIPS = (("não deu para simular", "O RPC não respondeu à simulação nem depois de 3 tentativas. Um RPC próprio (Configurações → Chaves, ex.: Helius) evita o limite do RPC público."),
+                 ("limite de", "Aumente \"Posições reais ao mesmo tempo\" na Execução real, ou confira se há posição real antiga presa aberta."),
                  ("perda do dia", "A real parou no limite \"Parar no dia se perder\"; volta sozinha no dia seguinte (UTC)."),
                  ("já tem posição real", "A real já estava nesse token (de outra cópia); normal."),
                  ("desligad", "A execução real ou a entrada automática estava desligada nessa hora."),
@@ -3299,8 +3300,8 @@ class PumpReal:
         day = datetime.now(timezone.utc).date().isoformat()
         return -sum(t.get("pnl_sol") or 0 for t in trades if t.get("real") and (t.get("closed_at") or "")[:10] == day)
 
-    async def _rpc(self, method: str, params: list):
-        r = await self.http.post(await self.wallet.safe_rpc_url(),
+    async def _rpc(self, method: str, params: list, url: str | None = None):
+        r = await self.http.post(url or await self.wallet.safe_rpc_url(),
                                  json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=15)
         js = r.json()
         if "error" in js:
@@ -3380,6 +3381,22 @@ class PumpReal:
         lat = {"montar_ms": round((t1 - t0) * 1000), "confirmar_ms": round((time.monotonic() - t1) * 1000)}
         return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada", "lat": lat}
 
+    async def _rpc_retry(self, method: str, params: list):
+        """0.31.55 (PJAM, pfp e CLAVA, 27/10: "não deu para simular (RuntimeError)"): o RPC às vezes recusa um pedido
+        (limite de pedidos por segundo, nó atrasado). Tenta de novo em 0,15 s e 0,3 s; na última vez usa o RPC público
+        da Solana se a carteira usa outro. Só leitura e simulação passam por aqui; o envio da transação não muda."""
+        last = None
+        for i in range(3):
+            try:
+                if i == 2 and (await self.wallet.safe_rpc_url()) != SOL_HTTP:
+                    return await self._rpc(method, params, url=SOL_HTTP)
+                return await self._rpc(method, params)
+            except Exception as e:
+                last = e
+                if i < 2:
+                    await asyncio.sleep(0.15 * (i + 1))
+        raise last
+
     async def _sim_guard(self, raw_b64: str, mint: str | None, lim: dict) -> str | None:
         """0.31.48: para a rota intermediária da PumpPortal (txguard.PUMPPORTAL_ROUTER), simula ANTES de enviar e devolve
         o motivo para não enviar: SOL saindo da carteira acima do pedido + tetos de taxa, ou outro token da carteira mexido.
@@ -3388,10 +3405,10 @@ class PumpReal:
         try:
             others = []
             # 0.31.51: as três consultas vão juntas (antes uma esperava a outra: ~3 idas ao RPC a menos por compra)
-            r1, r2, bal = await asyncio.gather(*[self._rpc("getTokenAccountsByOwner", [owner, {"programId": prog},
-                                                                                       {"encoding": "jsonParsed", "commitment": "processed"}])
+            r1, r2, bal = await asyncio.gather(*[self._rpc_retry("getTokenAccountsByOwner", [owner, {"programId": prog},
+                                                                                             {"encoding": "jsonParsed", "commitment": "processed"}])
                                                  for prog in (txguard.TOKEN, txguard.TOKEN_2022)],
-                                               self._rpc("getBalance", [owner, {"commitment": "processed"}]))
+                                               self._rpc_retry("getBalance", [owner, {"commitment": "processed"}]))
             for res in (r1, r2):
                 for a in (res or {}).get("value") or []:
                     info = a["account"]["data"]["parsed"]["info"]
@@ -3399,11 +3416,11 @@ class PumpReal:
                         others.append((a["pubkey"], int(info["tokenAmount"]["amount"])))
             others = others[:60]
             pre = bal["value"]
-            sim = await self._rpc("simulateTransaction", [raw_b64, {
+            sim = await self._rpc_retry("simulateTransaction", [raw_b64, {
                 "encoding": "base64", "sigVerify": False, "commitment": "processed",
                 "accounts": {"encoding": "base64", "addresses": [owner] + [k for k, _ in others]}}])
         except Exception as e:
-            return f"não deu para simular ({type(e).__name__})"
+            return f"não deu para simular ({type(e).__name__}: {str(e)[:120]})"
         v = (sim or {}).get("value") or {}
         if v.get("err"):
             return f"a simulação falhou: {str(v['err'])[:100]}"

@@ -856,3 +856,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.54: `table()` ordena sozinha do mais novo para o mais antigo quando o cabeçalho tem coluna de data/hora (`TCOL`,
   `timeKey`, `byTimeDesc`; aceita "dd/mm hh:mm:ss", "dd/mm/aaaa" e "hh:mm:ss"; se a maioria das linhas não tiver horário, mantém
   a ordem). `mirror_misses.por_motivo` mostra o texto real do motivo. Pedido do dono.
+
+- 0.31.55: `PumpReal._rpc_retry` (3 tentativas, a última no `SOL_HTTP` se a carteira usa outro RPC) nas consultas e na
+  simulação de `_sim_guard`; motivo com o texto do erro; dica em `MISS_TIPS`. Histórico → `#hErr` (`renderErrs`, ações
+  "REAL falhou"/"REAL não copiou"/"preço suspeito" do feed). Explorar: classe `.wrapcell` no motivo do Automático.
