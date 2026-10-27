@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-27**; revisão documental **2.0**.
-Aplicação: **0.31.71 · 2026-10-27 · Base geral: o cérebro do robô**.
-Referência Git na emissão: `b500eec54f12b3e3886dc9d2c4f9c16b62e68b70`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.31.72 · 2026-10-27 · Base aprende com o que não comprou**.
+Referência Git na emissão: `c47bccf619c86908d7dc4a2c21741c0f448402d3`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

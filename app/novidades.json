@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.72",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Base geral; Explorar → O que a IA aprendeu",
+      "titulo": "A base aprende também com os tokens que o robô não comprou",
+      "oque": "Cada token 'chance alta' que o Explorar barrou vira uma entrada SOMBRA: o sistema guarda os números do momento e mede o preço 15 minutos depois (com 4% de custo). Isso entra no aprendizado como dado, nunca como trade ou dinheiro, e multiplica a base. Faixa bloqueada continua sendo medida pelas sombras e é liberada sozinha se melhorar. O mesmo token comprado por várias contas quase ao mesmo tempo passa a contar uma vez só."
+    },
+    {
       "versao": "0.31.71",
       "data": "2026-10-27",
       "tipo": "novo",

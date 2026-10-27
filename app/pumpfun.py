@@ -82,6 +82,17 @@ def short(addr: str) -> str:
     return (addr[:4] + "…" + addr[-4:]) if addr and len(addr) > 10 else (addr or "")
 
 
+def _ts(x) -> float | None:
+    """ISO ou número → segundos (None se não der)."""
+    if isinstance(x, (int, float)):
+        return float(x)
+    try:
+        d = datetime.fromisoformat(str(x).replace("Z", "+00:00"))
+        return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
 class PumpMarket:
     """Dados PÚBLICOS da rede, compartilhados por todos os usuários (um conjunto só no servidor)."""
 
@@ -135,6 +146,7 @@ class PumpFun:
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
         self.learn_pool = None
+        self.shadow_hook = None                       # 0.31.72: token "chance alta" barrado vira entrada sombra (hub)
         self._real_buying: set = set()
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
         self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
@@ -1932,10 +1944,17 @@ class PumpFun:
         antes da correção 0.31.52). Nada disso entra no histórico ou na carteira de ninguém."""
         from .auto_trades import SUSPECT_PCT
         pool = self.learn_pool() if self.learn_pool is not None else [(True, t) for t in self.trades(100000)]
-        out = []
-        for mine, t in pool:
+        out, kept = [], {}
+        # 0.31.72: o MESMO token comprado por várias contas com até 10 min de diferença conta uma vez só (Bruxo e Pedro
+        # com a mesma configuração compravam juntos e o token pesava em dobro); a conta aberta tem preferência
+        for mine, t in sorted(pool, key=lambda x: (not x[0], str(x[1].get("opened_at") or ""))):
             if t.get("real") or t.get("follow_of") or (t.get("pnl_pct") or 0) >= SUSPECT_PCT:
                 continue
+            if not t.get("sombra"):
+                at = _ts(t.get("opened_at")) or _ts(t.get("closed_at")) or 0
+                if any(abs(at - x) <= 600 for x in kept.get(t.get("mint"), [])):
+                    continue
+                kept.setdefault(t.get("mint"), []).append(at)
             out.append(dict(t, _mine=mine))
         return out
 
@@ -2048,6 +2067,11 @@ class PumpFun:
             g["why"], g["entrou"] = why, (why is None) or g.get("entrou", False)
         g["t"] = t
         fn[mint] = g
+        if why and self.shadow_hook is not None and (row.get("pred") or {}).get("verdict") == "chance alta":
+            try:
+                self.shadow_hook(row, why, t)
+            except Exception as e:
+                log.warning("entrada sombra: %s", str(e)[:120])
         self._funnel_dirty = True
         if len(fn) > 3000:
             for k in sorted(fn, key=lambda k: fn[k]["t"])[:500]:

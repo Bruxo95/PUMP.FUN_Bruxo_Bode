@@ -70,6 +70,7 @@ def state_summary(learned: dict, ghosts: dict) -> dict:
     fx = learned.get("faixas") or []
     best = next((v for v in ghosts.get("variants") or [] if v.get("id") == ghosts.get("best")), None)
     return {"operacoes": learned.get("fechadas") or 0, "faixas": len(fx),
+            "sombras": max((x.get("n_sombra") or 0) for x in fx) if fx else 0,
             "bloqueadas": sorted(f"{x['nome']} {x['faixa']}" for x in fx if x.get("bloqueada")),
             "aprendendo": sum(1 for x in fx if not x.get("bloqueada") and (x.get("n") or 0) < (learned.get("min_n") or 6)),
             "melhor_regra": best["nome"] if best else None, "melhor_por_trade": best.get("avg_sol") if best else None}

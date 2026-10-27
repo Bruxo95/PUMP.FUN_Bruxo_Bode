@@ -145,6 +145,7 @@ class PumpHub:
         pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
         pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
         pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
+        pf.shadow_hook = self.shadow_note                                     # 0.31.72: entradas sombra
         # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
         # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta
         # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
@@ -268,7 +269,98 @@ class PumpHub:
         for e in list(self.engines.values()):
             mine = e is me
             out += [(mine, t) for t in e.trades(100000) if t.get("origem") in AUTO_ORIGINS and not t.get("real")]
+        out += [(False, t) for t in self.shadow_trades()]                    # 0.31.72: o que teria acontecido
         return out
+
+    # ------------------------------------------------------------------ entradas sombra (0.31.72)
+    SHADOW_S = 900                 # o resultado da sombra é o preço 15 min depois de o Explorar barrar o token
+    SHADOW_COST_PCT = 4.0          # taxas + slippage de uma compra e uma venda, aproximado
+    SHADOW_SOL = 0.05
+
+    def shadow_note(self, row: dict, why: str, t: float) -> None:
+        """Token "chance alta" que alguma conta barrou: guarda os números do momento (uma vez por token, 24 h)."""
+        sh = self.__dict__.setdefault("shadows", {})
+        mint = row.get("mint")
+        if not mint or (mint in sh and t - sh[mint].get("t0", 0) < 86400):
+            return
+        info = {k: copy.deepcopy(row.get(k)) for k in ("pressure", "holders", "curve_pct", "risk", "chg_5m", "boost")}
+        sh[mint] = {"t0": t, "symbol": row.get("symbol"), "why": str(why)[:160], "info": info,
+                    "px0": (self.market.tokens.get(mint) or {}).get("price") if hasattr(self.market, "tokens") else None}
+
+    def shadow_trades(self) -> list[dict]:
+        from datetime import datetime as _dt
+        out = []
+        for mint, s in list((self.__dict__.get("shadows") or {}).items()):
+            if s.get("ret") is None:
+                continue
+            pct = round(s["ret"] - self.SHADOW_COST_PCT, 2)
+            out.append({"mint": mint, "symbol": s.get("symbol"), "origem": "explorar", "auto": True, "sombra": True,
+                        "auto_info": s.get("info") or {}, "pnl_pct": pct, "pnl_sol": round(self.SHADOW_SOL * pct / 100, 6),
+                        "opened_at": _dt.fromtimestamp(s["t0"], timezone.utc).isoformat(),
+                        "closed_at": _dt.fromtimestamp(s["t0"] + self.SHADOW_S, timezone.utc).isoformat(), "reason": "sombra: " + s.get("why", "")})
+        return out
+
+    async def shadow_tick(self, now: float | None = None) -> int:
+        """Preço de entrada (até 2 min) e de 15 min das sombras; grava as prontas. Sem preço no prazo: descarta (N/D)."""
+        from .auto_trades import SUSPECT_PCT
+        now = time.time() if now is None else now
+        sh = self.__dict__.setdefault("shadows", {})
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        need = [m for m, s in sh.items() if s.get("ret") is None and ((s.get("px0") is None and now - s["t0"] <= 120)
+                                                                      or (s.get("px0") and now - s["t0"] >= self.SHADOW_S))]
+        if need and svc is not None:
+            pump = [m for m in need if svc.is_pump(m)]
+            rest = await svc._curve_prices(pump, public_first=True) if pump else []
+            rest += [m for m in need if m not in pump]
+            if rest:
+                await svc._fetch_prices(list(dict.fromkeys(rest)))
+        done = 0
+        for m, s in list(sh.items()):
+            px = (self.market.tokens.get(m) or {}).get("price") if hasattr(self.market, "tokens") else None
+            if s.get("ret") is not None:
+                continue
+            if s.get("px0") is None:
+                if px and now - s["t0"] <= 120:
+                    s["px0"] = px
+                elif now - s["t0"] > 120:
+                    sh.pop(m, None)
+                continue
+            if now - s["t0"] >= self.SHADOW_S:
+                if px:
+                    r = (px / s["px0"] - 1) * 100
+                    if r >= SUSPECT_PCT:
+                        sh.pop(m, None)
+                        continue
+                    s["ret"] = round(r, 2)
+                    done += 1
+                    try:
+                        await self.db.insert("base_shadows", {"mint": m, "data": s}, upsert=True, on_conflict="mint")
+                    except Exception as e:
+                        log.warning("sombra não gravou: %s", str(e)[:120])
+                elif now - s["t0"] > self.SHADOW_S + 1800:
+                    sh.pop(m, None)
+        return done
+
+    async def shadow_loop(self) -> None:
+        await asyncio.sleep(60)
+        while True:
+            try:
+                await self.shadow_tick()
+            except Exception as e:
+                log.warning("entradas sombra: %s", str(e)[:160])
+            await asyncio.sleep(60)
+
+    async def load_shadows(self) -> None:
+        try:
+            from datetime import datetime as _dt
+            since = _dt.fromtimestamp(time.time() - 30 * 86400, timezone.utc).isoformat()
+            rows = await self.db.select("base_shadows", None, order="em.desc", limit=5000, gte={"em": since})
+            sh = self.__dict__.setdefault("shadows", {})
+            for r in rows:
+                if isinstance(r.get("data"), dict):
+                    sh.setdefault(r["mint"], r["data"])
+        except Exception as e:
+            log.warning("entradas sombra não carregaram: %s", str(e)[:120])
 
     def _on_leader(self, leader: PumpFun, ev: str, p: dict, why: str = "") -> None:
         """0.31.61 (pedido do dono: "o que o Bruxo faz tem que acontecer no Pedro"): quando a conta seguida abre uma posição
@@ -1485,6 +1577,7 @@ class PumpHub:
         await self.load_blacklist()
         await self.load_lab()
         await self.load_elite()
+        await self.load_shadows()
         for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
             lead = self.engines.get(getattr(pf, "follow_user", ""))
             if lead is not None:
@@ -1502,6 +1595,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.study_auto_loop()))
         self._tasks.append(asyncio.create_task(self.tune_loop()))
         self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
+        self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)

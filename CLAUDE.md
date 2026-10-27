@@ -919,3 +919,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   30% dias rumo a 7; `upcoming`; `state_summary`; `diff`). `PumpHub.base_state`, `base_tick`/`base_loop` (30 min: foto em
   `base_snapshots` + mudanças em `base_log`; migração `20261027000005_base_geral.sql`, só backend). Rota `GET /api/pump/base-geral`
   (admin; inclui `auto_tune_log` com nome). Menu `#basegeral` (`#navBaseG`, abaixo do Explorar). Teste `tests/test_base_geral.py`.
+
+- 0.31.72: entradas sombra (`PumpHub.shadow_note` via `pf.shadow_hook` no `_funnel_note` de token "chance alta" barrado;
+  `shadow_tick`/`shadow_loop` 60 s mede px0 em até 2 min e o preço aos 15 min; `shadow_trades` entra no `_learn_pool` com
+  `sombra`, resultado − 4%; tabela `base_shadows`, migração `20261027000006`; `load_shadows` no start). `autolearn` conta
+  `n_sombra`. `learn_trades` não conta duas vezes o mesmo token em contas diferentes com até 10 min. Teste `tests/test_sombras.py`.
