@@ -838,3 +838,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - `app/versions_report.py` + `app/versoes.json` (gerado do Git; o script de versão acrescenta cada entrega no fim):
   `/api/pump/versions` e `/versions/ai` (admin), aba Relatórios → Por versão, `rep["versoes"]` no PDF/texto do dia.
   Métrica: média por trade fechado; veredito contra a última versão com 5+ trades. `tests/test_versoes.py`.
+
+- 0.31.51: sino (`NTFL`/`NTFU`, `#ntfP`; som em `#ntfS`); `dhs()` dia+hora+segundos nos ganhos/perdas do dia;
+  `balances`/`_sim_guard` com `asyncio.gather`, `skipPreflight` só para transação já simulada, `lat` (montar/confirmar/total)
+  na posição/trade real e em `mirror_pairs`; `copyHtml`/`renderAllCfgCopy` (100% idêntica por tela em `#allCfgCard`);
+  `_note_suspect_price` (20× a entrada → feed "preço suspeito", sem mudar decisão) e sugestão `preco_suspeito` no dia.
+  Caso Jewlon: curva cotada em outra moeda (patch de preço continua fora, aguarda o dono).

@@ -1182,6 +1182,23 @@ class PumpFun:
         if msg:
             self._emit(msg)
 
+    def _note_suspect_price(self, mint: str, px) -> None:
+        """0.31.51 (Jewlon, 27/10: a real fechou em "alvo (+150%)" com −13% e "melhor momento" +7.612%): preço 20× acima da
+        entrada é quase sempre leitura errada (curva da pump.fun cotada em outro token, não em SOL). Aqui só ANOTA no feed,
+        uma vez por posição, para o relatório do dia e o aprendizado contarem; nenhuma regra de compra/venda muda."""
+        if not px:
+            return
+        for p in self.positions():
+            if p["mint"] != mint or p.get("sus_noted") or not p.get("price_in"):
+                continue
+            x = px / p["price_in"]
+            if x >= 20:
+                p["sus_noted"] = True
+                self._save_pos(p)
+                self._feed(wallet=p.get("wallet") or "manual", short=short(p.get("wallet") or "manual"), mint=mint, symbol=p.get("symbol"),
+                           kind="sell", action="preço suspeito", real=bool(p.get("real")),
+                           reason=f"preço {x:,.0f}× a entrada em {'posição REAL' if p.get('real') else 'posição fictícia'} — provável leitura errada (token cotado em outra moeda)")
+
     def _check_stops(self, mint: str, t: float) -> list[str]:
         out = []
         px = (self.tokens.get(mint) or {}).get("price")
@@ -1190,6 +1207,7 @@ class PumpFun:
             self.ghosts.on_price(mint, px, t)
         if px and self.ghosts_auto.open:
             self.ghosts_auto.on_price(mint, px, t)
+        self._note_suspect_price(mint, px)
         for p in [p for p in self.positions() if p["mint"] == mint]:
             if not px or p.get("selling"):
                 continue
@@ -2882,7 +2900,7 @@ class PumpFun:
                         "real_sol": r.get("pnl_sol"), "real_pct": r.get("pnl_pct"), "real_in": r.get("sol_in"),
                         "sim_sol": s.get("pnl_sol") if s else None, "sim_pct": s.get("pnl_pct") if s else None,
                         "dif_pct": round((r.get("pnl_pct") or 0) - (s.get("pnl_pct") or 0), 2) if s else None,
-                        "atraso_s": r.get("lag_s"), "motivo_real": r.get("reason"), "motivo_sim": s.get("reason") if s else None})
+                        "atraso_s": r.get("lag_s"), "lat": r.get("lat"), "motivo_real": r.get("reason"), "motivo_sim": s.get("reason") if s else None})
         out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)
         return out[:limit]
 
@@ -3074,7 +3092,8 @@ class PumpFun:
                  "price_now": it.get("trader_price"), "trader_price": it.get("trader_price"),
                  "trader_sol": it.get("trader_sol"), "proceeds": 0.0, "mcap_in": it.get("mcap_in"), "real": True,
                  "venue_in": fr["venue_name"], "signature": res.get("signature"), "fees_sol": 0.0,
-                 "lag_s": round(max(0.0, time.time() - float(it.get("block_t") or it.get("t") or time.time())), 1)}
+                 "lag_s": round(max(0.0, time.time() - float(it.get("block_t") or it.get("t") or time.time())), 1),
+                 "lat": dict(res.get("lat") or {}, total_ms=round(max(0.0, time.time() - float(it.get("t") or time.time())) * 1000))}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"],
                          network=max(0.0, spent - amt * (1 + fr["venue"] + fr["portal"])))
             p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
@@ -3157,6 +3176,7 @@ class PumpFun:
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             tr["sim_id"] = p.get("sim_id")                 # 0.31.38: par na fictícia (espelho)
+            tr["lat"] = p.get("lat")                       # 0.31.51: tempo da compra real (montar, confirmar, total)
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
@@ -3261,18 +3281,22 @@ class PumpReal:
 
     async def balances(self, mint: str) -> tuple[float, float]:
         """(SOL, tokens do mint) da carteira do bot, direto da blockchain."""
-        sol = (await self._rpc("getBalance", [self.wallet.address, {"commitment": "confirmed"}]))["value"] / 1e9
+        # 0.31.51: as duas consultas vão juntas (antes uma esperava a outra)
+        b, res = await asyncio.gather(
+            self._rpc("getBalance", [self.wallet.address, {"commitment": "confirmed"}]),
+            self._rpc("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
+                                                  {"encoding": "jsonParsed", "commitment": "confirmed"}]))
+        sol = b["value"] / 1e9
         tok = 0.0
-        res = await self._rpc("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
-                                                          {"encoding": "jsonParsed", "commitment": "confirmed"}])
         for a in (res or {}).get("value") or []:
             ta = a["account"]["data"]["parsed"]["info"]["tokenAmount"]
             tok += float(ta.get("uiAmountString") or ta.get("uiAmount") or 0)
         return sol, tok
 
-    async def _send_confirm(self, raw_b64: str) -> tuple[str | None, str, str | None]:
+    async def _send_confirm(self, raw_b64: str, simulated: bool = False) -> tuple[str | None, str, str | None]:
         try:
-            sig = await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": False,
+            # 0.31.51: transação que o servidor já simulou não passa por outra simulação no RPC (economiza uma ida)
+            sig = await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": bool(simulated),
                                                                 "preflightCommitment": "processed", "maxRetries": 3}])
         except Exception as e:
             return None, "recusada", str(e)[:160]
@@ -3301,6 +3325,7 @@ class PumpReal:
         body = {"publicKey": self.wallet.address, "slippage": float(getattr(self.cfg, "pump_real_slippage_pct", 15)),
                 "priorityFee": float(getattr(self.cfg, "pump_priority_sol", 0.0005)), "pool": "auto", **body}
         body = {k: (str(v) if not isinstance(v, str) else v) for k, v in body.items()}
+        t0 = time.monotonic()
         r = await self.http.post(TRADE_LOCAL_URL, data=body, timeout=15)
         if r.status_code != 200:
             return {"status": "falhou", "reason": f"PumpPortal HTTP {r.status_code}: {r.text[:120]}"}
@@ -3319,10 +3344,13 @@ class PumpReal:
             if why:
                 log.warning("PumpPortal: transação recusada na simulação (%s)", why[:160])
                 return {"status": "recusada", "reason": f"transação recusada pela simulação: {why}"}
-        sig, st, err = await self._send_confirm(raw)
+        t1 = time.monotonic()
+        sig, st, err = await self._send_confirm(raw, simulated=bool(summary.get("needs_simulation")))
         if st == "pendente":                     # SEC-04: espera confirmar ou vencer antes de qualquer nova tentativa
             st, err = await txguard.reconcile(self._rpc, sig, str(tx.message.recent_blockhash))
-        return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada"}
+        # 0.31.51: quanto tempo levou cada parte (montar+conferir na PumpPortal × enviar+confirmar na blockchain)
+        lat = {"montar_ms": round((t1 - t0) * 1000), "confirmar_ms": round((time.monotonic() - t1) * 1000)}
+        return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada", "lat": lat}
 
     async def _sim_guard(self, raw_b64: str, mint: str | None, lim: dict) -> str | None:
         """0.31.48: para a rota intermediária da PumpPortal (txguard.PUMPPORTAL_ROUTER), simula ANTES de enviar e devolve
@@ -3331,15 +3359,18 @@ class PumpReal:
         owner = self.wallet.address
         try:
             others = []
-            for prog in (txguard.TOKEN, txguard.TOKEN_2022):
-                res = await self._rpc("getTokenAccountsByOwner", [owner, {"programId": prog},
-                                                                  {"encoding": "jsonParsed", "commitment": "processed"}])
+            # 0.31.51: as três consultas vão juntas (antes uma esperava a outra: ~3 idas ao RPC a menos por compra)
+            r1, r2, bal = await asyncio.gather(*[self._rpc("getTokenAccountsByOwner", [owner, {"programId": prog},
+                                                                                       {"encoding": "jsonParsed", "commitment": "processed"}])
+                                                 for prog in (txguard.TOKEN, txguard.TOKEN_2022)],
+                                               self._rpc("getBalance", [owner, {"commitment": "processed"}]))
+            for res in (r1, r2):
                 for a in (res or {}).get("value") or []:
                     info = a["account"]["data"]["parsed"]["info"]
                     if info.get("mint") != mint:
                         others.append((a["pubkey"], int(info["tokenAmount"]["amount"])))
             others = others[:60]
-            pre = (await self._rpc("getBalance", [owner, {"commitment": "processed"}]))["value"]
+            pre = bal["value"]
             sim = await self._rpc("simulateTransaction", [raw_b64, {
                 "encoding": "base64", "sigVerify": False, "commitment": "processed",
                 "accounts": {"encoding": "base64", "addresses": [owner] + [k for k, _ in others]}}])
@@ -3464,7 +3495,7 @@ class PumpReal:
                 r = await self._tx({"action": "buy", "mint": mint, "amount": amt, "denominatedInSol": "true", "pool": pool})
             if r.get("status") == "pendente":
                 await asyncio.sleep(3)
-            sol1, tok1 = await self.balances(mint)
+            (sol1, tok1), dsol = await asyncio.gather(self.balances(mint), self._sol_change(r.get("signature") if r.get("ok") else None))
             tried.append(f"{via if via == 'jupiter' else 'PumpPortal ' + pool}: {self.explain(r.get('reason')) or r.get('status')}")
             if tok1 - tok0 > 0:
                 break
@@ -3475,9 +3506,9 @@ class PumpReal:
         if tok1 - tok0 <= 0:
             return {"ok": False, "status": r.get("status"), "signature": r.get("signature"),
                     "reason": " → ".join(tried)[:300] or "o token não entrou na carteira"}
-        d = await self._sol_change(r.get("signature"))
+        d = dsol
         return {"ok": True, "signature": r.get("signature"), "sol_spent": max(0.0, -d if d is not None else sol0 - sol1),
-                "tokens": tok1 - tok0}
+                "tokens": tok1 - tok0, "lat": r.get("lat")}
 
     async def sell(self, mint: str, frac: float, other: bool = False) -> dict:
         """Venda REAL de `frac` da posição (100% = tudo). Mede o SOL que entrou e quanto token sobrou.

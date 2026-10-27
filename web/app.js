@@ -313,20 +313,39 @@
       : '<input class="in w100" type="number" data-clone="1" data-cfg="' + esc(x.k) + '"' + (x.min != null ? ' min="' + esc(x.min) + '"' : "") + (x.max != null ? ' max="' + esc(x.max) + '"' : "") + (x.step != null ? ' step="' + esc(x.step) + '"' : "") + ' aria-label="' + esc(x.label) + '">' + (x.unit ? ' <span class="muted">' + esc(x.unit) + "</span>" : "");
     $("allCfg").innerHTML = Object.keys(by).map((v) => {
       let last = "";
-      return '<details class="allcfg"><summary><b>' + esc(by[v][0].vt) + "</b> <span class=\"muted\">" + by[v].length + " opções</span> <a class=\"btn sm\" href=\"#" + v + "\">abrir a tela</a></summary>" +
+      return '<details class="allcfg"><summary><b>' + esc(by[v][0].vt) + "</b> <span class=\"muted\">" + by[v].length + ' opções</span> <span data-allid="' + esc(v) + '"></span> <a class="btn sm" href="#' + v + '">abrir a tela</a></summary>' +
         by[v].map((x) => (x.ct !== last ? '<div class="allcfg-h">' + esc((last = x.ct)) + "</div>" : "") + '<div class="allcfg-r"><span>' + esc(x.label) + "</span><span>" + ctl(x) + "</span></div>").join("") + "</details>";
     }).join("") || '<p class="muted">Nenhuma opção de outra tela disponível para esta conta.</p>';
     $("allCfg").dataset.ok = "1";
     if (D) render();
   }
+  // 0.31.51 (pedido do dono): confirmação "100% igual" conferindo agora cada opção que veio de outro usuário
+  function copyHtml() {
+    const quem = (o) => esc(o.de || "outro usuário");
+    return APPLIED.length ? APPLIED.map((o) => {
+      const ks = Object.keys(o.valores || {}), dk = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])), pct = ks.length ? Math.round((ks.length - dk.length) / ks.length * 100) : 0;
+      return "<p>" + (dk.length ? '<span class="cfgdot diff"></span>' : '<span class="cfgdot ok"></span>') + "Configuração de <b>" + quem(o) + "</b> (" + ks.length + " opções, desde " + esc(dt(o.em)) + "): " +
+        (dk.length ? "<b>" + pct + "% igual · " + dk.length + " diferente(s) agora</b> <span class=\"muted\">(" + esc(dk.slice(0, 6).map(cfgLabel).join(", ")) + (dk.length > 6 ? "…" : "") + ")</span>" : "<b class=\"up\">100% idêntica agora</b> (" + ks.length + " de " + ks.length + " opções conferidas)") + "</p>";
+    }).join("") : "<p>Você <b>não</b> está usando a configuração de ninguém.</p>";
+  }
+  function renderAllCfgCopy() {
+    if (!$("allCfgCopy")) return;
+    const h = copyHtml();
+    if ($("allCfgCopy").dataset.h !== h) { $("allCfgCopy").dataset.h = h; $("allCfgCopy").innerHTML = h; }
+    const by = {};
+    cfgItems().forEach((x) => { (by[x.v] = by[x.v] || []).push(x.k); });
+    document.querySelectorAll("[data-allid]").forEach((el) => {
+      const ks = by[el.dataset.allid] || [], o = APPLIED.find((a) => ks.some((k) => Object.prototype.hasOwnProperty.call(a.valores || {}, k)));
+      if (!o) { el.innerHTML = '<span class="muted">· sua própria configuração</span>'; return; }
+      const cp = ks.filter((k) => Object.prototype.hasOwnProperty.call(o.valores, k)), d = cp.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).length;
+      el.innerHTML = d ? '<span class="cfgdot diff"></span>' + (cp.length - d) + " de " + cp.length + " iguais às de " + esc(o.de || "outro usuário")
+        : '<span class="cfgdot ok"></span><b class="up">100% idêntica</b> à de ' + esc(o.de || "outro usuário") + " (" + cp.length + " opções)";
+    });
+  }
   function renderSummary() {
     if (!$("sumCard") || !D) return;
-    const c = cfg(), R = D.real || {}, quem = (o) => esc(o.de || "outro usuário");
-    const copy = APPLIED.length ? APPLIED.map((o) => {
-      const ks = Object.keys(o.valores || {}), diff = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).length;
-      return "<p>" + (diff ? '<span class="cfgdot diff"></span>' : '<span class="cfgdot ok"></span>') + "Configuração de <b>" + quem(o) + "</b> (" + ks.length + " opções, desde " + esc(dt(o.em)) + "): " +
-        (diff ? "<b>" + diff + " diferente(s) agora</b>" : "<b>idêntica agora (100%)</b>") + "</p>";
-    }).join("") : "<p>Você <b>não</b> está usando a configuração de ninguém.</p>";
+    const c = cfg(), R = D.real || {};
+    const copy = copyHtml();
     const html = copy +
       '<p class="hint">Copiar a configuração copia as <b>regras</b>, não os <b>trades</b>: a sua conta decide sozinha, com o seu próprio histórico (aprender com os erros, pausas, limites por hora). Mesmo com a configuração idêntica, os trades podem ser diferentes; veja a comparação no Explorar.</p>' +
       "<p>Execução real: <b class=\"" + (R.enabled ? "up\">LIGADA" : "down\">DESLIGADA") + "</b> · Espelhar a fictícia na real: <b class=\"" + (c.pump_real_mirror !== false ? "up\">ON · Ligado" : "down\">OFF · Desligado") + "</b></p>";
@@ -486,10 +505,12 @@
       (m.sugestoes || []).map((s) => '<p style="margin-left:14px"><span class="tag ' + (s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("")).join("")
       || '<p class="muted">Sem dados dos menus neste dia.</p>';
     $("dayTrH").textContent = "Trades do dia com horário (" + (rep.tz || "UTC") + ")";
-    const topRows = (L) => (L || []).map((x) => [esc(x.entrada + " → " + x.saida), pfM(x.mint || "", x.token), esc(x.origem),
+    // 0.31.51 (pedido do dono): dia, hora, minuto e segundo da entrada e da saída
+    const dhs = (t, hhmm) => t ? new Date(t * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Europe/Berlin" }) : (hhmm || "–");
+    const topRows = (L) => (L || []).map((x) => [esc(dhs(x.t_entrada, x.entrada)) + "<small>saiu " + esc(dhs(x.t_saida, x.saida)) + "</small>", pfM(x.mint || "", x.token), esc(x.origem),
       sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"), x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]);
-    table("dayBest", ["Entrada → saída", "Token", "Origem", "Ganhou", "Melhor momento", "Motivo"], topRows(rep.best_trades), "Nenhum ganho neste dia.");
-    table("dayWorst", ["Entrada → saída", "Token", "Origem", "Perdeu", "Melhor momento", "Motivo"], topRows(rep.worst_trades), "Nenhuma perda neste dia.");
+    table("dayBest", ["Entrou (dia e hora) → saiu", "Token", "Origem", "Ganhou", "Melhor momento", "Motivo"], topRows(rep.best_trades), "Nenhum ganho neste dia.");
+    table("dayWorst", ["Entrou (dia e hora) → saiu", "Token", "Origem", "Perdeu", "Melhor momento", "Motivo"], topRows(rep.worst_trades), "Nenhuma perda neste dia.");
     $("dayMissBox").hidden = !RL;
     if (RL) table("dayMiss", ["Hora", "Token", "O que houve", "Motivo"], (rep.real_misses || []).map((x) => [esc(x.hora), pfM(x.mint || "", x.token), '<span class="tag loss">' + esc(x.acao) + "</span>", esc(x.motivo)]), "Nenhuma falha da real neste dia.");
     table("dayTr", ["Entrada", "Saída", "Duração", "Token", "Origem", "Resultado", "Melhor momento", "Motivo"], (rep.trades_list || []).slice().reverse().map((x) => [esc(x.entrada), esc(x.saida), hms(x.duracao_s),
@@ -1421,7 +1442,26 @@
   // ------------------------------------------------------------------ notificações (som + aviso)
   let NTF = false, NTF_AT = 0;
   try { NTF = localStorage.getItem("ntf") === "1"; } catch (e) { /* */ }
-  function ntfBtn() { const b = $("ntfB"); b.textContent = "🔔 Notificações: " + (NTF ? "ON" : "OFF"); b.className = "btn tgl ntf " + (NTF ? "on" : "off"); }
+  // 0.31.51 (pedido do dono): o sino mostra quantas notificações chegaram desde a última vez que você olhou; clicar abre a
+  // lista (o que foi, quando). O som e o aviso do navegador ligam e desligam dentro da lista.
+  let NTFL = [], NTFU = 0;
+  function ntfBtn() {
+    const b = $("ntfB");
+    b.innerHTML = "🔔 Notificações: " + (NTF ? "ON" : "OFF") + (NTFU ? ' <span class="ntfc">' + (NTFU > 99 ? "99+" : NTFU) + "</span>" : "");
+    b.className = "btn tgl ntf " + (NTF ? "on" : "off");
+    if ($("ntfS")) { $("ntfS").textContent = "Som e aviso: " + (NTF ? "ON · Ligado" : "OFF · Desligado"); $("ntfS").className = "btn sm tgl " + (NTF ? "on" : "off"); }
+  }
+  function ntfPush(e, unread) {
+    NTFL.unshift({ at: e.at, msg: e.msg, k: classify(e.msg), real: /REAL/.test(e.msg) }); NTFL = NTFL.slice(0, 100);
+    if (unread) NTFU++;
+    ntfBtn(); if (!$("ntfP").hidden) ntfList();
+  }
+  function ntfList() {
+    const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
+    $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = KN[n.k] || ["Aviso", "neutral"];
+      return '<div class="ntfi"><span class="tag ' + kk[1] + '">' + kk[0] + "</span>" + (n.real ? ' <span class="tag real">REAL</span>' : "") + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
+      : '<p class="muted">Nenhuma notificação ainda.</p>';
+  }
   function tone(C, t0, fr, dur, type, vol) { const o = C.createOscillator(), g = C.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(C.destination); o.start(t0); o.stop(t0 + dur + 0.02); }
   function play(kind, vol) {
     try {
@@ -1447,6 +1487,7 @@
   }
   function onEvent(e) {
     const k = classify(e.msg); const real = /REAL/.test(e.msg);
+    ntfPush(e, true);
     mascReact(e.msg);
     if (real || k === "error" || /^Radar\b/i.test(e.msg)) toast(e.msg.slice(0, 180));
     if (!NTF || !k || k === "trader") return;
@@ -1545,7 +1586,7 @@
       if (r.error) { $("sysS").textContent = r.error; if (VIEW === "radar") invalidateRadar(r.error); return; }
       D = r;
       const evs = r.events || [];
-      if (EV < 0) EV = evs.length ? evs[evs.length - 1].id : 0;
+      if (EV < 0) { EV = evs.length ? evs[evs.length - 1].id : 0; evs.slice(-30).forEach((e) => ntfPush(e, false)); }
       else evs.forEach((e) => { if (e.id > EV) { EV = e.id; onEvent(e); } });
       render();
     } catch (e) { if (VIEW === "radar") invalidateRadar(e.message || "falha de conexão"); } finally { BUSY = false; }
@@ -1557,7 +1598,7 @@
       ["Diferença média", r.media_dif_pct == null ? "–" : (r.media_dif_pct > 0 ? "+" : "") + f(r.media_dif_pct, 1) + " pts", "real − fictícia, em % por trade", "mon"]]);
     table("rmT", ["Fechou", "Token", "Fictícia", "Real", "Diferença", "Atraso", "Saída real / fictícia"], L.map((x) => [esc(dt(x.fechou)), pfM(x.mint || "", x.token),
       x.sim_pct == null ? '<span class="muted">sem par</span>' : sg(x.sim_sol) + "<small>" + pc(x.sim_pct) + "</small>", sg(x.real_sol) + "<small>" + pc(x.real_pct) + "</small>",
-      x.dif_pct == null ? "–" : (x.dif_pct > 0 ? '<span class="up">+' : '<span class="down">') + f(x.dif_pct, 1) + " pts</span>", x.atraso_s == null ? "–" : hms(x.atraso_s), esc((x.motivo_real || "") + (x.motivo_sim ? " / " + x.motivo_sim : ""))]),
+      x.dif_pct == null ? "–" : (x.dif_pct > 0 ? '<span class="up">+' : '<span class="down">') + f(x.dif_pct, 1) + " pts</span>", (x.atraso_s == null ? "–" : hms(x.atraso_s)) + (x.lat ? "<small>PumpPortal " + f(x.lat.montar_ms || 0, 0) + " ms · blockchain " + f(x.lat.confirmar_ms || 0, 0) + " ms</small>" : ""), esc((x.motivo_real || "") + (x.motivo_sim ? " / " + x.motivo_sim : ""))]),
       "Nenhum trade real do espelho fechado ainda.");
     const M = r.misses || { lista: [], por_motivo: [] };
     $("rmMissS").hidden = !M.total && r.real_on && r.mirror_on;
@@ -1598,6 +1639,7 @@
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
     if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); }
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
+    if (VIEW === "config") renderAllCfgCopy();
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
     else if (VIEW === "historico") renderHistory();
@@ -2145,7 +2187,10 @@
     setMini(mini);
     $("sideTgl").onclick = () => setMini(!$("shell").classList.contains("mini"));
     $("scrim").onclick = closeDrawer;
-    $("ntfB").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
+    $("ntfB").onclick = () => { const p = $("ntfP"); p.hidden = !p.hidden; if (!p.hidden) { NTFU = 0; ntfList(); } ntfBtn(); };
+    $("ntfX").onclick = () => { $("ntfP").hidden = true; };
+    $("ntfC").onclick = () => { NTFL = []; NTFU = 0; ntfList(); ntfBtn(); };
+    $("ntfS").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();
     $("realB").onclick = realToggle;
     $("navAdmin").hidden = ME.role !== "admin";

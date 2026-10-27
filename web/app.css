@@ -160,6 +160,12 @@ input.in.w80{width:80px}input.in.w100{width:100px}input.in.w120{width:120px}
 .search{display:flex;align-items:center;gap:8px;height:34px;width:250px;white-space:nowrap;overflow:hidden;padding:0 10px;border:1px solid var(--line2);border-radius:8px;
   background:var(--bg2);color:var(--dim);cursor:pointer;font-size:13px}
 .search svg{width:15px;height:15px;flex:none}.search span{overflow:hidden;text-overflow:ellipsis}.search kbd{margin-left:auto;font-family:var(--mono);font-size:11px;border:1px solid var(--line2);border-radius:4px;padding:0 5px;color:var(--muted)}
+.tb-center{position:relative}
+.ntfc{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:99px;background:var(--down);color:#fff;font-size:11px;line-height:18px;text-align:center}
+.ntfp{position:absolute;top:42px;left:50%;transform:translateX(-50%);width:min(440px,92vw);max-height:70vh;overflow:auto;z-index:60;background:var(--card,#141414);border:1px solid var(--line,rgba(255,255,255,.12));border-radius:10px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.ntfp header{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.ntfi{padding:7px 0;border-top:1px solid var(--line,rgba(255,255,255,.08));font-size:12.5px;line-height:1.4}
+.ntfi > div{margin-top:3px;word-break:break-word}
 .ntf{height:34px;border-radius:99px!important;clip-path:none!important;padding:0 14px!important;font-size:12.5px!important}
 .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:#1b1b1f;display:grid;place-items:center;font-size:12px;font-weight:600;cursor:pointer;overflow:hidden;padding:0}
 .avatar img{width:100%;height:100%;object-fit:cover}

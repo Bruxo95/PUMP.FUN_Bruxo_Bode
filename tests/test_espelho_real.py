@@ -184,3 +184,16 @@ def test_sim_takes_the_real_entry(tmp_path):
 async def _ok(amt):
     sim_eff = 1.1e-6                                   # a real entrou um pouco mais caro (10%)
     return {"ok": True, "signature": "B", "sol_spent": amt, "tokens": amt / sim_eff}
+
+
+def test_suspect_price_is_only_noted(tmp_path):
+    """0.31.51 (Jewlon): preço 20× a entrada só vira anotação no feed (aprendizado); nada é vendido por causa disso."""
+    pf = _pf(tmp_path)
+    pf.cfg.pump_real_enabled = False
+    pf.tokens[A] = {"price": 1e-6, "symbol": "JEW", "mcap_sol": 40.0}
+    pf.manual_buy(A)
+    p = [x for x in pf.positions() if not x.get("real")][0]
+    pf._note_suspect_price(A, p["price_in"] * 76)
+    pf._note_suspect_price(A, p["price_in"] * 80)
+    notes = [e for e in pf.feed if e.get("action") == "preço suspeito"]
+    assert len(notes) == 1 and "76×" in notes[0]["reason"] and [x for x in pf.positions() if x["mint"] == A]

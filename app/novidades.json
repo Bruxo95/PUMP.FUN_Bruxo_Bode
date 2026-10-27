@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.51",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Topo (sino), Visão geral, Configurações, Execução real",
+      "titulo": "Sino com contador, dia e hora nos ganhos, real mais rápida e confirmação 100% da configuração",
+      "oque": "O sino mostra quantas notificações chegaram; clique para ver a lista (o que foi e quando) e ligar o som. Maiores ganhos e perdas do dia mostram dia, hora, minuto e segundo. A compra e a venda real fazem menos idas à rede (consultas juntas, sem simulação repetida) e cada compra real mostra quanto tempo levou em Real × fictícia. Em Configurações, o quadro de todas as telas confirma, tela por tela, se está 100% idêntica à configuração do outro usuário. Preço 20× acima da entrada (caso Jewlon) passa a ser anotado como suspeito no Relatório do dia."
+    },
+    {
       "versao": "0.31.50",
       "data": "2026-10-27",
       "tipo": "melhoria",

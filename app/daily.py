@@ -186,6 +186,13 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
                "acao": e.get("action"), "motivo": str(e.get("reason") or "")[:200]}
               for e in list(pf.feed) if real and str(e.get("action") or "") in ("REAL falhou", "REAL não copiou")
               and day_of(_ts(e.get("at")) or 0) == day][:60]
+    sus = [e for e in list(pf.feed) if e.get("action") == "preço suspeito" and bool(e.get("real")) == real
+           and day_of(_ts(e.get("at")) or 0) == day]
+    if sus:
+        # 0.31.51: preço lido errado (Jewlon, SEALLIS, R1R2L1R2…) — guardado e contado para o aprendizado
+        add("código", f"{len(sus)} posição(ões) com preço 20× ou mais acima da entrada ({', '.join(sorted({str(e.get('symbol')) for e in sus})[:5])}): "
+            "quase sempre é token da pump.fun cotado em outra moeda, não em SOL. O resultado e as saídas desses trades não são "
+            "confiáveis; a correção da leitura de preço está pronta e espera a decisão do dono.", len(sus), tipo="preco_suspeito")
     if misses:
         # 0.31.49 (pedido do dono: "sempre ir aprendendo com os erros e salvando relatório"): cada motivo de falha da real
         # vira uma sugestão com a dica; o aprendizado de vários dias mostra os que se repetem
