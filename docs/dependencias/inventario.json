@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "c3a941284f17b68880142896552bc641bcf4f62f",
-    "application_version": "0.31.51 · 2026-10-27 · Sino, real mais rápida e config 100%",
+    "repository_reference": "de080fcf3f42dce2a4d87b68e445789486d6072c",
+    "application_version": "0.31.52 · 2026-10-27 · Preço certo para tokens em outra moeda",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "db216fe419b71c2a2f1b4132ca684c615fb4d14659d0a38fb9b380c01c3e3af1",
+      "app/version.py": "b6131726fd740960578f88f273033aacd9326ae3c2f69527383331e9cd24a0a2",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "7a0e5049cf65a052b9268d57962d44da47dc46e9defd6e00a3eaf537080b24b4"
+  "pdf_sha256": "6fcc21ee1b18e66712f020795323c9d04e6e846ea36e8d64592154810915a686"
 }

@@ -2678,6 +2678,23 @@ class PumpFun:
         except Exception:
             return None
 
+    @staticmethod
+    def curve_quote(raw: bytes) -> str | None:
+        """Mint da moeda de cotação da curva (bytes 83..115 da conta, layout de 166 bytes conferido on-chain em
+        2026-10-27). None = SOL (zeros ou o mint do SOL)."""
+        if len(raw) < 115:
+            return None
+        b = raw[83:115]
+        if not any(b):
+            return None
+        alpha = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+        n, out = int.from_bytes(b, "big"), ""
+        while n:
+            n, r = divmod(n, 58)
+            out = alpha[r] + out
+        out = "1" * (len(b) - len(b.lstrip(b"\0"))) + out
+        return None if out == SOL_MINT else out
+
     async def _rpc_multi(self, keys: list[str], enc: str, public_first: bool = False):
         urls = []
         own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
@@ -2781,6 +2798,17 @@ class PumpFun:
             vs = int.from_bytes(raw[16:24], "little")
             complete = raw[48] == 1
             tk = self.tokens.setdefault(m, {"created_t": now})
+            # 0.31.52 (SEALLIS +133.475%, R1R2L1R2 e Jewlon: a real vendeu no "alvo" falso com −13%; aplicado com OK do dono em 2026-10-27): a pump.fun agora tem curvas cotadas em OUTRA
+            # moeda (ex.: SPCX, ZEC). O mint da cotação fica nos bytes 83..115 (zeros = SOL) e as reservas "vs" vêm na
+            # unidade dessa moeda (6–8 casas), então (vs/1e9)/(vt/1e6) dava um preço ~1.000× menor na entrada e a saída
+            # (DexScreener/Jupiter, em SOL de verdade) virava um "ganho" de 1.000×. Esses tokens não usam a conta da
+            # curva: o preço vem da DexScreener (convertido de USD) ou da cotação da Jupiter.
+            quote = self.curve_quote(raw)
+            if quote is not None or vs < 29_000_000_000:
+                tk["quote_mint"] = quote or "desconhecida"
+                tk["price_src"] = "cotação em outra moeda: preço pela DexScreener/Jupiter"
+                rest.append(m)
+                continue
             if complete or not vt:
                 tk["pool"] = "pumpswap" if complete else tk.get("pool")
                 rest.append(m)

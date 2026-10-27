@@ -844,3 +844,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   na posição/trade real e em `mirror_pairs`; `copyHtml`/`renderAllCfgCopy` (100% idêntica por tela em `#allCfgCard`);
   `_note_suspect_price` (20× a entrada → feed "preço suspeito", sem mudar decisão) e sugestão `preco_suspeito` no dia.
   Caso Jewlon: curva cotada em outra moeda (patch de preço continua fora, aguarda o dono).
+
+- 0.31.52: aplicada com OK do dono a correção das curvas cotadas em outra moeda (`PumpFun.curve_quote`, bytes 83..115;
+  em `_curve_prices` curva não-SOL ou `vs` < 29 SOL vai para DexScreener/Jupiter). Jewlon conferido on-chain (NTRNDM, 56,7×).
+  `tests/test_curva_outra_moeda.py`. Relatório `app/relatorios_ia/2026-10-27-0.31.52.md` (antes × depois do Bruxo).

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.52",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Preços (Explorar, posições, fictícia e real)",
+      "titulo": "Preço certo para tokens cotados em outra moeda (fim dos ganhos falsos)",
+      "oque": "Alguns tokens da pump.fun são cotados em outro token, não em SOL (ex.: Jewlon em NTRNDM). O sistema lia o preço deles muitas vezes acima do real (Jewlon: 56,7×), o que gerava ganhos falsos enormes no simulado (SEALLIS, R1R2L1R2) e fez a carteira real vender no 'alvo' com prejuízo. Agora o preço desses tokens vem da DexScreener ou da Jupiter, em SOL de verdade. As regras do Explorar não mudaram; o histórico já gravado também não."
+    },
+    {
       "versao": "0.31.51",
       "data": "2026-10-27",
       "tipo": "melhoria",
