@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.23",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Configurações e Explorar → Compartilhar; Execução real → Registro",
+      "titulo": "Quem compartilhou é avisado da resposta",
+      "oque": "Quando a pessoa aceita ou recusa a configuração que você compartilhou, você recebe um aviso no painel (e no Telegram, se estiver ligado) dizendo quem aceitou ou recusou, qual parte e quantas opções foram aplicadas. A resposta fica gravada no registro de ações das duas contas e aparece também em Administração → registro de todas as contas."
+    },
+    {
       "versao": "0.31.22",
       "data": "2026-10-27",
       "tipo": "melhoria",

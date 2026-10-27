@@ -533,7 +533,8 @@ class PumpHub:
 
     # ------------------------------------------------------------------ avisos no Telegram (0.20.0)
     TG_KEYS = ("hot callout", "stop de perda", "dev vendeu", "pausado", "[pump real]", "graduou", "perdas seguidas",
-               "compra automática", "boost on", "aprendi com os erros", "estudo automático", "ajuste automático")
+               "compra automática", "boost on", "aprendi com os erros", "estudo automático", "ajuste automático",
+               "seu convite de configuração")
 
     def tg_wanted(self, pf, msg: str) -> bool:
         if not getattr(pf.cfg, "pump_tg_on", False):
@@ -1057,11 +1058,26 @@ class PumpHub:
             pf._emit(f"Configuração de {r.get('de_nome')} aplicada: {r.get('parte')} ({len(applied)} opções)")
         await self.db.update("config_offers", {"id": offer_id}, {"status": "aceita" if accept else "recusada",
                                                                  "respondido_em": datetime.now(timezone.utc).isoformat()})
+        # 0.31.23 (pedido do dono em 2026-10-27): quem compartilhou também é avisado (painel e Telegram, se ligado) e a
+        # resposta fica no registro (audit_log) dos dois lados, com nomes; antes só avisava se o painel dele estivesse carregado.
+        quem = "a pessoa"
+        try:
+            pr = await self.db.select("profiles", {"user_id": pf.user_id}, columns="nome,email")
+            if pr:
+                quem = (pr[0].get("nome") or (pr[0].get("email") or "").split("@")[0] or quem)[:60]
+        except Exception:
+            pass
+        verbo = "aceitou e aplicou" if accept else "recusou"
+        n = f" ({len(applied)} opções aplicadas)" if accept else ""
         await audit(self.db, pf.user_id, "aceitou configuração" if accept else "recusou configuração",
-                    f"{r.get('parte')} de {r.get('de_user')}")
-        sender = self.engines.get(r.get("de_user"))
-        if sender is not None:
-            sender._emit(f"Configuração: seu convite ({r.get('parte')}) foi {'aceito' if accept else 'recusado'}.")
+                    f"{r.get('parte')} de {r.get('de_nome') or r.get('de_user')}{n}")
+        await audit(self.db, r.get("de_user"), "convite de configuração aceito" if accept else "convite de configuração recusado",
+                    f"{quem} {verbo}: {r.get('parte')}{n}")
+        try:
+            sender = await self.engine(r.get("de_user"))
+            sender._emit(f"Configuração: {quem} {verbo} seu convite de configuração — {r.get('parte')}{n}.")
+        except Exception as e:
+            log.warning("aviso do convite não foi entregue: %s", str(e)[:120])
         return {"ok": True, "opcoes": len(applied)}
 
     async def study_profile(self, wallet: str, prm: dict | None = None) -> dict:

@@ -44,6 +44,9 @@ def test_share_config_section_and_all_without_real_or_telegram(env):
     assert other.cfg.pump_copy_sol == 0.3 and other.cfg.pump_stop_pct == 25 and other.cfg.pump_real_max_sol != 0.9
     assert not other.cfg.pump_tg_on
     assert any("quer compartilhar" in e["msg"] for e in other.events)
+    me = hub.engines[UA]                                                   # quem enviou é avisado e fica no registro
+    assert any("aceitou e aplicou seu convite" in e["msg"] for e in me.events)
+    assert any(a["user_id"] == UA and a["acao"] == "convite de configuração aceito" for a in env["db"].tables["audit_log"])
 
 
 def test_share_is_admin_only(env):

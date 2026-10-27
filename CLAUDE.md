@@ -713,3 +713,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 ## Convite de configuração legível (2026-10-27, versão 0.31.22)
 - Pedido do dono ("está muito sujo"). `config_offers` devolve `valores`; `offerList`/`cfgLabel`/`cfgUnit` em `web/app.js`
   pegam o nome da opção no próprio HTML (label, aria-label ou título) e mostram "seu valor → valor enviado", só o que muda.
+
+## Resposta do convite avisa quem enviou (2026-10-27, versão 0.31.23)
+- Pedido do dono. `hub.config_answer` carrega o motor de quem enviou (`self.engine`) e emite o aviso (entra no Telegram
+  por `TG_KEYS` "seu convite de configuração"); `audit_log` nos dois lados com nomes ("convite de configuração aceito/recusado").
