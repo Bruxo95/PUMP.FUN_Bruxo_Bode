@@ -28,3 +28,13 @@ def test_novidades_only_for_admin_and_not_public(env):
     r = c.get("/api/admin/novidades", headers=tok(UA))
     assert r.status_code == 200 and r.json()["itens"][0]["versao"] == VERSION.split(" ")[0]
     assert c.get("/static/novidades.json").status_code == 404                                 # fora da pasta pública
+
+
+
+def test_changelog_has_time_of_each_version():
+    """0.31.57: cada versão do Changelog traz a hora em que entrou (app/versoes.json)."""
+    import json
+    from app.versions_report import load
+    when = {v["versao"]: v.get("inicio") for v in load()}
+    first = json.load(open(os.path.join(ROOT, "app", "novidades.json"), encoding="utf-8"))["itens"][0]
+    assert when.get(first["versao"]) and "T" in when[first["versao"]]

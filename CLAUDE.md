@@ -864,3 +864,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.56: `OWN_TRADE` (/^\[PUMP (SIM|REAL)\]/) em `onEvent`: sino, som e toast só dos trades da própria conta (pedido do
   dono). `modules_report._auto("explorar")` acrescenta a foto do aprender com os erros (bloqueadas/aprendendo/ok) ao
   relatório do dia. Ajuda do Explorar: 6 operações (`autolearn.MIN_N`).
+
+- 0.31.57: `/api/admin/novidades` acrescenta `inicio` (de `app/versoes.json`) e o Changelog mostra dia e hora com segundos. Pedido do dono.

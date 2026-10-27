@@ -1442,11 +1442,11 @@
     }
     const hoje = Date.now(), TAG = { novo: "win", melhoria: "buy", "segurança": "pause", "correção": "trail" };
     const rows = NOV.filter((x) => !NOV_TIPO || x.tipo === NOV_TIPO);
-    $("tNov").innerHTML = "<thead><tr><th>Versão</th><th>Data</th><th>Tipo</th><th>Onde fica</th><th>O que é e o que faz</th></tr></thead><tbody>" +
+    $("tNov").innerHTML = "<thead><tr><th>Versão</th><th>Data e hora</th><th>Tipo</th><th>Onde fica</th><th>O que é e o que faz</th></tr></thead><tbody>" +
       rows.map((x) => {
         const recente = hoje - new Date(x.data + "T00:00:00").getTime() < 14 * 86400000;
         return '<tr class="' + (recente ? "nov-recente" : "") + '"><td class="mono">' + esc(x.versao) +
-          '</td><td class="mono">' + esc(x.data.split("-").reverse().join("/")) + '</td><td><span class="tag ' + (TAG[x.tipo] || "neutral") + '">' + esc(x.tipo) +
+          '</td><td class="mono">' + (x.inicio ? esc(new Date(x.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })) : esc(x.data.split("-").reverse().join("/"))) + '</td><td><span class="tag ' + (TAG[x.tipo] || "neutral") + '">' + esc(x.tipo) +
           "</span></td><td>" + esc(x.onde) + "</td><td><b>" + esc(x.titulo) + '</b><br><span class="muted">' + esc(x.oque) + "</span></td></tr>";
       }).join("") + "</tbody>";
   }

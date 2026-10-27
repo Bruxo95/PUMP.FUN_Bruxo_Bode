@@ -986,7 +986,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """Histórico do que foi implementado (versão, onde fica, o que faz). Só admin, pedido do dono em 2026-10-25."""
         import json as _json
         with open(NOVIDADES, encoding="utf-8") as f:
-            return {"itens": _json.load(f)["itens"]}
+            itens = _json.load(f)["itens"]
+        # 0.31.57 (pedido do dono): hora, minuto e segundo em que cada versão entrou, de app/versoes.json (commit; o deploy
+        # entra uns minutos depois)
+        from .versions_report import load as vload
+        when = {v["versao"]: v.get("inicio") for v in vload()}
+        for x in itens:
+            x["inicio"] = when.get(x.get("versao"))
+        return {"itens": itens}
 
     @app.get("/api/admin/logs")
     async def admin_logs(after: int = 0, level: str = "INFO", q: str = "", limit: int = 400,
