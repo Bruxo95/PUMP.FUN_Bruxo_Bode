@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "11648b0b5a9e1fb76383b51417672bacbdedba12",
-    "application_version": "0.31.46 · 2026-10-27 · Real sai junto com a fictícia",
+    "repository_reference": "ae013050c89d39390c3dea4649a0af6162352fac",
+    "application_version": "0.31.47 · 2026-10-27 · Real tem prioridade, fictícia acompanha",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "276039ceb28d4bd401065df4b345d1182ac047dcb45a689767fd8f49b0ed6352",
+      "app/version.py": "a019d1bf1a81cd2e689615eb3aeabe5cbf63675318bb170b560a294984541cb0",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "71416266f98e2a27fe498346875e5c34adcd45ad31b49e8b3530b363ab5ba74d"
+  "pdf_sha256": "907c694f6f5980d4d451fbee7d8525d8c8828232f449857ca79a86abc87c4988"
 }

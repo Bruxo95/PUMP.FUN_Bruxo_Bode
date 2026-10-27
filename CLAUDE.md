@@ -812,3 +812,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.46: `real_loop` despacha cada ordem em tarefa própria (`_real_run`, `REAL_PARALLEL`=6, `asyncio.Lock` por token);
   `_send_confirm` confere a cada 0,25 s; `PumpReal._sol_change` lê o SOL da transação (meta pré/pós) com volta para a
   diferença de saldo. Relatório `app/relatorios_ia/2026-10-27-0.31.46.md`. Pedido do dono ("sem delay entre fictícia e real").
+
+- 0.31.47: prioridade da real (pedido do dono). `PumpFun._waits_real` (fictícia com compra real do espelho saindo não
+  sai: guarda `exit_wait`), `_release_sim_exit` (no `finally` de `_real_buy`), `_align_to_real` (fictícia par recebe
+  `open_t`/`opened_at` e preço efetivo da real; original em `sim_entry`; só sem venda parcial e com razão 0,2–5).
+  Em `_sell` a venda real do par sai antes do fechamento da fictícia. Relatório `app/relatorios_ia/2026-10-27-0.31.47.md`.

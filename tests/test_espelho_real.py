@@ -77,10 +77,12 @@ def test_real_closes_at_once_when_sim_closed_while_queued(tmp_path):
     pf.manual_buy(A, auto="automático: Boost ON")
     sim = [p for p in pf.positions() if not p.get("real")][0]
     _k, it = pf._rq.get_nowait()
-    pf._sell(sim, 1.0, 1e-6, "stop", 0.0)                                 # fechou antes de a compra real sair
+    msg = pf._sell(sim, 1.0, 1e-6, "stop", 0.0)                           # a saída veio antes de a compra real sair
+    assert "prioridade" in msg and sim in pf.positions() and sim["exit_wait"]["why"] == "stop"   # 0.31.47: espera a real
     asyncio.run(pf._real_buy(it))
     kind, it2 = pf._rq.get_nowait()
-    assert kind == "sell" and it2["frac"] == 1.0 and "já fechou" in it2["why"]
+    assert kind == "sell" and it2["frac"] == 1.0 and "espelho" in it2["why"] and "stop" in it2["why"]
+    assert not [p for p in pf.positions() if not p.get("real")]           # a fictícia saiu junto com a real
 
 
 def test_mirror_off_keeps_old_rule(tmp_path):
@@ -161,3 +163,23 @@ def test_real_orders_run_in_parallel_but_same_token_waits(tmp_path):
         assert order.index(("buy-ok", "A")) < order.index(("sell", "A"))
         loop.cancel()
     asyncio.run(run())
+
+
+
+def test_sim_takes_the_real_entry(tmp_path):
+    """0.31.47: com a real ativa, a fictícia passa a ter a mesma hora e o mesmo preço efetivo de entrada da real."""
+    pf = _pf(tmp_path)
+    pf.real.buy = lambda mint, amt, other=False: _ok(amt)
+    pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
+    pf.manual_buy(A, auto="automático: x")
+    sim = [p for p in pf.positions() if not p.get("real")][0]
+    _k, it = pf._rq.get_nowait()
+    asyncio.run(pf._real_buy(it))
+    real = [p for p in pf.positions() if p.get("real")][0]
+    assert sim["open_t"] == real["open_t"] and sim["entrou_com_a_real"]
+    assert abs(sim["sol_in"] / sim["tokens"] - real["sol_in"] / real["tokens"]) < 1e-15
+
+
+async def _ok(amt):
+    sim_eff = 1.1e-6                                   # a real entrou um pouco mais caro (10%)
+    return {"ok": True, "signature": "B", "sol_spent": amt, "tokens": amt / sim_eff}

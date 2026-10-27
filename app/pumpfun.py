@@ -1086,6 +1086,20 @@ class PumpFun:
             return f"[PUMP REAL] {p['symbol']}: vendendo {frac * 100:.0f}% ({why})"
         if not px:
             return None
+        if self._waits_real(p):
+            # 0.31.47 (pedido do dono: "com a real ativada a prioridade de entrada e saída é da real"): a compra real
+            # desta posição ainda está saindo; a fictícia não sai antes dela. A saída fica guardada e acontece assim
+            # que a real confirmar (ou desistir), junto com a venda real.
+            if p.get("exit_wait"):
+                return None
+            p["exit_wait"] = {"frac": frac, "why": why}
+            self._save_pos(p)
+            return f"[PUMP SIM] {p['symbol']}: saída ({why}) espera a compra REAL confirmar — a real tem prioridade"
+        if frac >= 1.0 or p["tokens_left"] * (1 - frac) <= p["tokens"] * 0.005:
+            if getattr(self.cfg, "pump_real_mirror", True):          # 0.31.47: a venda real sai primeiro
+                for rp in self.positions():
+                    if rp.get("real") and rp.get("sim_id") == p["id"] and not rp.get("selling"):
+                        self._real_sell(rp, 1.0, f"espelho do fictício: {why}")
         fr = self._fee_rates(p["mint"])
         slip, prio = fr["slip"], fr["prio"]
         fee = fr["venue"] + fr["portal"]
@@ -1124,14 +1138,49 @@ class PumpFun:
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
-            if getattr(self.cfg, "pump_real_mirror", True):          # 0.31.37: espelho — a real sai junto
-                for rp in self.positions():
-                    if rp.get("real") and rp.get("sim_id") == p["id"] and not rp.get("selling"):
-                        self._real_sell(rp, 1.0, f"espelho do fictício: {why}")
             return (f"[PUMP SIM] fechou {p['symbol']} copiado de {short(p['wallet'])} ({why}) → "
                     f"{pnl:+.4f} SOL ({tr['pnl_pct']:+.1f}%)")
         self._save_pos(p)
         return f"[PUMP SIM] {p['symbol']}: vendeu {frac * 100:.0f}% ({why}) → {got:.4f} SOL"
+
+    def _waits_real(self, p: dict) -> bool:
+        """Fictícia com a compra REAL do espelho ainda saindo (real ligada): a real tem prioridade (0.31.47)."""
+        if p.get("real") or not getattr(self.cfg, "pump_real_mirror", True) or not getattr(self.cfg, "pump_real_enabled", False):
+            return False
+        if p["mint"] not in self._real_buying:
+            return False
+        return not any(x.get("real") and x.get("sim_id") == p["id"] for x in self.positions())
+
+    def _align_to_real(self, real: dict) -> None:
+        """0.31.47: a fictícia par passa a ter a MESMA entrada da real (hora e preço efetivo, já com taxas), para as duas
+        andarem juntas e saírem pelas mesmas regras no mesmo momento. Só antes de qualquer venda parcial."""
+        sim = next((x for x in self.positions() if x["id"] == real.get("sim_id") and not x.get("real")), None)
+        if not sim or sim.get("sells") or not sim.get("tokens") or not real.get("tokens"):
+            return
+        sim_eff, real_eff = sim["sol_in"] / sim["tokens"], real["sol_in"] / real["tokens"]
+        k = real_eff / sim_eff if sim_eff else 0
+        if not 0.2 <= k <= 5:                     # leitura estranha da real: não mexe na fictícia
+            return
+        sim.setdefault("sim_entry", {"open_t": sim.get("open_t"), "opened_at": sim.get("opened_at"), "price_in": sim.get("price_in")})
+        sim["tokens"] = sim["tokens"] / k
+        sim["tokens_left"] = sim["tokens_left"] / k
+        sim["price_in"] = (sim.get("price_in") or 0) * k
+        sim["open_t"], sim["opened_at"] = real["open_t"], real["opened_at"]
+        sim["entrou_com_a_real"] = True
+        self._save_pos(sim)
+        if sim.get("auto") is True and sim.get("origem") in AUTO_ORIGINS:
+            self._auto_record(sim, False)
+
+    def _release_sim_exit(self, sim_id) -> None:
+        """Executa a saída da fictícia que esperava a compra real (confirmou ou desistiu)."""
+        sim = next((x for x in self.positions() if x["id"] == sim_id and not x.get("real")), None)
+        if not sim or not sim.get("exit_wait"):
+            return
+        ew = sim.pop("exit_wait")
+        px = (self.tokens.get(sim["mint"]) or {}).get("price") or sim.get("price_now")
+        msg = self._sell(sim, float(ew.get("frac") or 1.0), px, ew.get("why") or "saída", time.time())
+        if msg:
+            self._emit(msg)
 
     def _check_stops(self, mint: str, t: float) -> list[str]:
         out = []
@@ -3032,6 +3081,8 @@ class PumpFun:
             if it.get("sim_id") is not None:
                 p["sim_id"] = it["sim_id"]                 # 0.31.37: par na carteira fictícia (espelho)
             self._save_pos(p)
+            if it.get("sim_id") is not None:
+                self._align_to_real(p)
             if it.get("sim_id") is not None and not any(x["id"] == it["sim_id"] for x in self.positions()):
                 self._real_sell(p, 1.0, "espelho: o fictício já fechou enquanto a compra real saía")
             self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
@@ -3041,6 +3092,8 @@ class PumpFun:
         finally:
             self._real_buying.discard(mint)
             self._auto_pending.pop(mint, None)
+            if it.get("sim_id") is not None:
+                self._release_sim_exit(it["sim_id"])
 
     async def _real_do_sell(self, it: dict) -> None:
         p = next((x for x in self.positions() if x["id"] == it["id"]), None)
