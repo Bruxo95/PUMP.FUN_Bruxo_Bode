@@ -46,6 +46,7 @@ def test_auto_respects_hourly_limit_and_chance_rule(tmp_path):
 def test_auto_never_buys_real_unless_allowed(tmp_path):
     pf = _pump(tmp_path, paid=True)
     pf.cfg.pump_real_enabled = True
+    pf.cfg.pump_real_mirror = False                      # 0.31.37: com o espelho ligado a real copia (test_espelho_real)
     pf.tokens[A] = {"price": 1e-6, "symbol": "AUT", "mcap_sol": 40.0}
     r = pf.manual_buy(A, auto="automático: Boost ON")
     assert r["real"] is None and not pf._real_buying

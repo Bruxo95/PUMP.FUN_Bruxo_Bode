@@ -769,3 +769,13 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.36: "Visualizar tela" (Admin → Usuários). Cabeçalho `X-View-As` (`BB.viewAs`, `sessionStorage` `pf_viewas`); a dependência
   `user()` em `app/api.py` troca a conta pela do usuário só para admin e só em GET; bloqueia `/api/secrets`, `/api/audit`,
   `/api/admin`; não grava `audit_log` (pedido do dono). Faixa `#viewBar`, `body.viewas`. Teste: `tests/test_visualizar.py`.
+
+## Real espelha a fictícia — sugestão do Bruxo (2026-10-27, versão 0.31.37)
+- Pedido do Bruxo (registrado na memória "sugestoes-do-bruxo"; commits com "Sugestões sugeridas pelo Bruxo").
+  `pump_real_mirror` (ON): `PumpFun._mirror_real` depois que a posição fictícia abre (`_copy`, `manual_buy`); valor e
+  limites só da real (`_real_buy`: `pump_real_max_sol`, `pump_real_max_open`, perda do dia, chase); a real guarda
+  `sim_id` e vende 100% quando a fictícia fecha (`_sell`) ou se ela já fechou enquanto a compra estava na fila.
+  Automáticas vão para a real sem `pump_auto_real` quando o espelho está ligado. Testes: `tests/test_espelho_real.py`
+  (os antigos de "nunca real sem pump_auto_real" agora desligam o espelho). Relatório: `app/relatorios_ia/2026-10-27-0.31.37.md`.
+- `hub.config_users` + `GET /api/pump/config/users`: quadro "Você tem N usuários usando a sua configuração" no topo do
+  Explorar e de Configurações.

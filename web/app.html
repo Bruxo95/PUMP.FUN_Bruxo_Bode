@@ -419,6 +419,8 @@
 
       <!-- ========================================================= EXPLORAR (app/explore.py, 0.28.0) -->
       <section class="view" data-view="explorar" hidden>
+        <div class="card cfgusers" data-cfgusers hidden data-novo-ate="2026-11-10"><header><div><h2 data-cfgu-t>Usuários usando a sua configuração</h2><div class="sub" data-cfgu-s></div></div><div class="sp"></div><button class="btn sm" data-cfgu-ver>Ver usuários</button></header>
+          <div data-cfgu-list hidden></div></div>
         <div class="card" id="exShare" hidden><header><div><h2 id="exShT">Compartilhar configuração do Explorar</h2><div class="sub">a pessoa recebe um convite no topo do painel e decide se aceita e aplica (só admin; nunca chaves nem a execução real)</div></div><div class="sp"></div><button class="btn sm" id="exShX">Fechar</button></header>
           <div class="form"><div class="field full"><div class="row">
             <select class="in" id="exShU" style="flex:1;min-width:240px"></select>
@@ -534,6 +536,9 @@
               <div class="row"><input class="in w100" type="number" min="0" step="0.05" data-cfg="pump_real_daily_loss_sol"><span class="muted">SOL</span><span class="muted" id="rLossU"></span></div></div>
             <div class="field"><label>Posições reais ao mesmo tempo</label>
               <div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_real_max_open"></div></div>
+            <div class="field" data-novo-ate="2026-11-10"><label>Espelhar 100% a carteira fictícia</label>
+              <div class="row"><button class="btn sm tgl" data-toggle="pump_real_mirror" data-confirm="Copiar NO REAL todos os trades da carteira fictícia (cópias, Explorar, Base, Maiores traders e botão Comprar), com o valor e os limites da carteira real?">…</button></div>
+              <div class="hint">Com a Execução real ligada, tudo que a fictícia compra também é comprado aqui, e quando a fictícia vende a real vende junto. O valor de cada compra é o "SOL por compra" acima (nunca o da fictícia) e valem os limites desta tela.</div></div>
             <div class="field"><label>Copiar no real também fora da pump.fun (Jupiter)</label>
               <div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other_real" data-confirm="Copiar também NO REAL os trades fora da pump.fun (compra/venda pela Jupiter)?">…</button></div></div>
           </div>
@@ -620,6 +625,8 @@
       </section>
 
       <section class="view" data-view="config" hidden>
+        <div class="card cfgusers" data-cfgusers hidden data-novo-ate="2026-11-10"><header><div><h2 data-cfgu-t>Usuários usando a sua configuração</h2><div class="sub" data-cfgu-s></div></div><div class="sp"></div><button class="btn sm" data-cfgu-ver>Ver usuários</button></header>
+          <div data-cfgu-list hidden></div></div>
         <div class="card shtop" id="cfShareTop" hidden data-novo-ate="2026-11-10"><header><div><h2>Compartilhar todas as configurações</h2><div class="sub">escolha a pessoa e envie tudo de uma vez · ela recebe um convite no topo do painel e escolhe aceitar ou não · nunca vai nada da carteira real, chaves ou Telegram</div></div></header>
           <div class="row"><select class="in" id="cfAllU" style="flex:1;min-width:220px" aria-label="Para quem enviar"><option value="">carregando usuários…</option></select>
             <button class="btn sm primary" id="cfAllGo">Compartilhar todas</button><button class="btn sm" data-cfsh="all">Escolher seções…</button></div></div>

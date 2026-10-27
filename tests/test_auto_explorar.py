@@ -183,6 +183,7 @@ class AutoExplorarTests(unittest.TestCase):
     def test_explore_auto_never_enqueues_real_when_auto_real_is_off(self):
         pf = _pf(pump_ex_auto_on=True)
         pf.cfg.pump_real_enabled = True
+        pf.cfg.pump_real_mirror = False   # 0.31.37: com o espelho ligado a real copia (tests/test_espelho_real.py)
         pf.real = object()   # qualquer chamada de execução real seria erro; nem a fila deve ser criada
         assert _run(pf) == [A]
         assert pf._rq is None and not pf._real_buying and not pf._auto_pending

@@ -60,6 +60,20 @@
   // 0.31.31 (pedido do dono em 2026-10-27): cada quadro de opções diz se está usando a configuração de outro usuário,
   // conferindo AGORA cada valor (idêntica ou mudou depois), com "Ver o que mudou" (antes de aceitar → enviado → agora).
   let APPLIED = [];
+  // 0.31.37 (pedido do dono em 2026-10-27): "você tem N usuários usando a sua configuração · ver usuários"
+  async function loadConfigUsers() {
+    let r; try { r = await BB.api("/api/pump/config/users"); } catch (e) { return; }
+    const L = (r && r.users) || [], idn = L.filter((u) => u.identica).length;
+    document.querySelectorAll("[data-cfgusers]").forEach((box) => {
+      box.hidden = !L.length; if (!L.length) return;
+      box.querySelector("[data-cfgu-t]").textContent = "Você tem " + L.length + (L.length === 1 ? " usuário usando" : " usuários usando") + " a sua configuração";
+      box.querySelector("[data-cfgu-s]").textContent = idn + " com a configuração idêntica à sua agora · " + (L.length - idn) + " mudaram alguma opção depois";
+      box.querySelector("[data-cfgu-list]").innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Usuário</th><th>O que copiou</th><th>Desde</th><th>Situação agora</th></tr></thead><tbody>' +
+        L.map((u) => "<tr><td>" + esc(u.nome) + "</td><td>" + esc(u.parte || "") + " · " + u.opcoes + " opções</td><td>" + esc(dt(u.em)) + "</td><td>" +
+          (u.mudou == null ? '<span class="tag neutral">sem dados agora</span>' : u.identica ? '<span class="tag win">Idêntica à sua</span>' : '<span class="tag pause">Mudou ' + u.mudou + (u.mudou === 1 ? " opção" : " opções") + "</span>") + "</td></tr>").join("") +
+        "</tbody></table></div>";
+    });
+  }
   async function loadApplied() {
     try { const r = await BB.api("/api/pump/config/applied"); APPLIED = (r && r.applied) || []; } catch (e) { return; }
     renderApplied();
@@ -1128,6 +1142,10 @@
     if (t.dataset.cmptxt) { const s = CMP.saved.find((x) => String(x.id) === t.dataset.cmptxt); if (s) copyText(s.texto || ""); return; }
     if (t.dataset.utf) { UTR.f = t.dataset.utf; renderUserTrades(); return; }
     if (t.id === "uTrX" || t.id === "uTrades") { $("uTrades").hidden = true; return; }
+    if (t.hasAttribute && t.hasAttribute("data-cfgu-ver")) {
+      const box = t.closest("[data-cfgusers]"), l = box.querySelector("[data-cfgu-list]");
+      l.hidden = !l.hidden; t.textContent = l.hidden ? "Ver usuários" : "Esconder"; return;
+    }
     if (t.dataset.cfgsync) {
       // 0.31.35: deixa as opções desta cópia iguais às de quem enviou AGORA (valores atuais dele)
       const o = APPLIED.find((x) => String(x.id) === t.dataset.cfgsync) || {}, quem = o.de || "outro usuário";
@@ -1215,7 +1233,7 @@
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
     if (VIEW === "visao") loadDaily();
-    if (VIEW === "config") { loadSecrets(); loadAudit(); loadApplied(); }
+    if (VIEW === "config") { loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
     if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") walletLoad(true);
     if (VIEW === "novidades") loadNovidades();
@@ -1223,7 +1241,7 @@
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
-    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); }
+    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); }
     if (VIEW === "comparar") loadCompare();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();

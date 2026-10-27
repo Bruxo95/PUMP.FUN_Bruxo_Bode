@@ -1,0 +1,90 @@
+"""Carteira real espelha 100% a fictícia, com o valor e os limites da real (0.31.37, sugestão do Bruxo).
+Tudo com carteira falsa: nenhuma transação de verdade."""
+import asyncio
+
+from tests.test_pump import _W, _ev, _pump
+
+A = "Espe".ljust(40, "1") + "pump"
+
+
+class FakeReal:
+    def __init__(self):
+        self.calls = []
+
+    def api_key(self):
+        return ""
+
+    def today_loss(self, trades):
+        return 0.0
+
+    async def buy(self, mint, amt, other=False):
+        self.calls.append(("buy", mint, amt))
+        return {"ok": True, "signature": "B", "sol_spent": amt, "tokens": 1_000_000.0}
+
+    async def sell(self, mint, frac, other=False):
+        self.calls.append(("sell", mint, frac))
+        return {"ok": True, "signature": "S", "sol_received": 0.01, "tokens_left": 0.0}
+
+
+def _pf(tmp_path, **kw):
+    pf = _pump(tmp_path, paid=False, pump_real_max_sol=0.02, pump_manual_sol=0.3, **kw)
+    pf.cfg.pump_real_enabled = True
+    pf.real = FakeReal()
+    return pf
+
+
+def test_automatic_buy_is_mirrored_with_real_size(tmp_path):
+    pf = _pf(tmp_path)
+    pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
+    r = pf.manual_buy(A, auto="automático: Boost ON")                  # antes: só com "Também na carteira real"
+    assert r["sim"] and r["real"].startswith("enviando")
+    sim = [p for p in pf.positions() if not p.get("real")][0]
+    kind, it = pf._rq.get_nowait()
+    assert kind == "buy" and it["sim_id"] == sim["id"]
+    asyncio.run(pf._real_buy(it))
+    real = [p for p in pf.positions() if p.get("real")][0]
+    assert pf.real.calls == [("buy", A, 0.02)]                            # valor da REAL, não os 0,3 do fictício
+    assert real["sim_id"] == sim["id"]
+    pf._sell(sim, 1.0, 1e-6, "teste", 0.0)                                # o fictício fechou → a real sai junto
+    kind, it = pf._rq.get_nowait()
+    assert kind == "sell" and it["id"] == real["id"] and it["frac"] == 1.0 and "espelho" in it["why"]
+
+
+def test_trader_copy_is_mirrored_only_after_sim_opens(tmp_path):
+    pf = _pf(tmp_path)
+    pf.add_manual(_W)
+    pf.cfg.pump_max_open = 1
+    m1, m2 = "Mir1".ljust(40, "1") + "pump", "Mir2".ljust(40, "1") + "pump"
+    pf.on_message(_ev("buy", _W, m1, 1.0, 1e6, 30, 3e7))
+    assert pf._rq.qsize() == 1 and m1 in pf._real_buying
+    pf.on_message(_ev("buy", _W, m2, 1.0, 1e6, 30, 3e7))                 # fictício bateu o limite: a real também não entra
+    assert pf._rq.qsize() == 1 and m2 not in pf._real_buying
+
+
+def test_real_limits_still_apply(tmp_path):
+    pf = _pf(tmp_path, pump_real_max_open=1)
+    pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
+    b = "Lim2".ljust(40, "1") + "pump"
+    pf.tokens[b] = {"price": 1e-6, "symbol": "LIM", "mcap_sol": 40.0}
+    pf.manual_buy(A, auto="automático: x")
+    r = pf.manual_buy(b, auto="automático: y")
+    assert r["sim"] and "limite de 1 posições reais" in r["real"]
+
+
+def test_real_closes_at_once_when_sim_closed_while_queued(tmp_path):
+    pf = _pf(tmp_path)
+    pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
+    pf.manual_buy(A, auto="automático: Boost ON")
+    sim = [p for p in pf.positions() if not p.get("real")][0]
+    _k, it = pf._rq.get_nowait()
+    pf._sell(sim, 1.0, 1e-6, "stop", 0.0)                                 # fechou antes de a compra real sair
+    asyncio.run(pf._real_buy(it))
+    kind, it2 = pf._rq.get_nowait()
+    assert kind == "sell" and it2["frac"] == 1.0 and "já fechou" in it2["why"]
+
+
+def test_mirror_off_keeps_old_rule(tmp_path):
+    pf = _pf(tmp_path)
+    pf.cfg.pump_real_mirror = False
+    pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
+    assert pf.manual_buy(A, auto="automático: Boost ON")["real"] is None

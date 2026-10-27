@@ -598,6 +598,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
         except Exception:
             return {"offers": []}
 
+    @app.get("/api/pump/config/users")
+    async def config_users(u: dict = Depends(user)):
+        return {"users": await hub.config_users(u["id"])}
+
     @app.get("/api/pump/config/applied")
     async def config_applied(u: dict = Depends(user)):
         return {"applied": await hub.config_applied(u["id"])}

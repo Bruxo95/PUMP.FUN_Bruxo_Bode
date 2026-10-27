@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.37",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Execução real; Explorar e Configurações (topo)",
+      "titulo": "Carteira real espelha 100% a fictícia (sugestão do Bruxo) e quem usa a sua configuração",
+      "oque": "(1) Sugestão do Bruxo: com a Execução real ligada, a carteira real copia TODOS os trades da fictícia — cópias de trader, Explorar, Base, Maiores traders e botão Comprar. O valor de cada compra real é sempre o \"SOL por compra\" da tela Execução real (nunca o valor da fictícia) e valem os limites da real (posições reais ao mesmo tempo, parar no dia se perder, preço que fugiu). Quando a fictícia vende tudo, a real vende junto. Opção \"Espelhar 100% a carteira fictícia\" (ligada) na tela Execução real; desligando, volta a regra antiga. (2) No topo do Explorar e de Configurações: \"Você tem N usuários usando a sua configuração\", com Ver usuários (quem, o que copiou, desde quando e se continua idêntica ou mudou)."
+    },
+    {
       "versao": "0.31.36",
       "data": "2026-10-27",
       "tipo": "novo",

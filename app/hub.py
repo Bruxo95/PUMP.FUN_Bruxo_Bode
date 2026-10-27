@@ -1155,6 +1155,24 @@ class PumpHub:
             pass
         return "usuário"
 
+    async def config_users(self, uid: str) -> list[dict]:
+        """0.31.37 (pedido do dono em 2026-10-27): quem está usando a SUA configuração — a cópia mais recente de cada
+        pessoa, conferindo agora se ela continua idêntica (e quantas opções ela mudou depois)."""
+        from .compare import _eq
+        rows = await self.db.select("config_offers", {"de_user": uid, "status": "aceita"}, order="respondido_em.desc", limit=200)
+        seen, out = set(), []
+        for r in rows:
+            to = r.get("para_user")
+            if to in seen or to == uid:
+                continue
+            seen.add(to)
+            vals = r.get("valores") or {}
+            other = self.engines.get(to)
+            diff = None if other is None else sum(1 for k, v in vals.items() if not _eq(getattr(other.cfg, k, None), v))
+            out.append({"nome": await self._nome(to), "parte": r.get("parte"), "em": r.get("respondido_em"), "opcoes": len(vals),
+                        "mudou": diff, "identica": diff == 0, "offer_id": r["id"]})
+        return out
+
     async def compare_list(self, uid: str) -> list[dict]:
         """Cópias de configuração em que esta conta participa (recebeu ou enviou), para a tela Comparar (0.31.34)."""
         rows = []

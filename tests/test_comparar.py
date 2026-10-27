@@ -93,3 +93,16 @@ def test_sync_makes_config_identical_to_origin_now(env):
     ap = c.get("/api/pump/config/applied", headers=A).json()["applied"]
     assert "idêntica" in ap[0]["parte"] and ap[0]["antes"]["pump_stop_pct"] == 44
     assert c.post(f"/api/pump/config/applied/{oid}/sync", json={}, headers=B).json()["error"]   # só quem recebeu
+
+
+def test_config_users_lists_who_uses_my_config(env):
+    c = env["c"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=B)
+    c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A)                   # A usa a config de B
+    us = c.get("/api/pump/config/users", headers=B).json()["users"]
+    assert len(us) == 1 and us[0]["identica"] is True
+    c.post("/api/pump/settings", json={"pump_stop_pct": 44}, headers=A)
+    us = c.get("/api/pump/config/users", headers=B).json()["users"]
+    assert us[0]["identica"] is False and us[0]["mudou"] == 1
+    assert c.get("/api/pump/config/users", headers=A).json()["users"] == []

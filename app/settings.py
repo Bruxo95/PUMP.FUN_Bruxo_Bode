@@ -181,6 +181,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_real_max_open": (int, 5, 1, 50),
     "pump_real_daily_loss_sol": (float, 0.5, 0.0, 1000.0),
     "pump_real_slippage_pct": (float, 15.0, 1.0, 50.0),
+    # 0.31.37 (sugestão do Bruxo, 2026-10-27): com a Execução real ligada, a carteira real copia 100% dos trades da
+    # fictícia (cópias, Explorar, Base, Maiores traders, botão Comprar), mas o valor e os limites vêm só das regras reais
+    "pump_real_mirror": (bool, True, 0, 1),
 }
 LB_DAYS = (1, 7, 30, 90)
 

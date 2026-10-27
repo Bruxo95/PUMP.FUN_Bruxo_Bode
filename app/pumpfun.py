@@ -927,8 +927,9 @@ class PumpFun:
                 self._feed(**base, action="não copiou", reason=why)
                 return []
             msgs = []
-            # REAL (se ligado): compra de verdade, com o valor de "SOL por compra"
-            if self.real is not None and getattr(c, "pump_real_enabled", False):
+            # REAL (se ligado): compra de verdade, com o valor de "SOL por compra". Com o espelho (0.31.37) o real só
+            # entra DEPOIS que o fictício abriu a posição (ver _mirror_real, no fim deste bloco)
+            if self.real is not None and getattr(c, "pump_real_enabled", False) and not getattr(c, "pump_real_mirror", True):
                 rwhy = None
                 if not self.is_pump(mint) and not getattr(c, "pump_copy_other_real", False):
                     rwhy = "fora da pump.fun: real desligado para outras DEXs (só fictício)"
@@ -989,6 +990,7 @@ class PumpFun:
             self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}"
                        + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
+            self._mirror_real(p, trader_sol=sol, block_t=ev.get("blockTime"))
             return msgs
         # venda do trader enquanto a cópia ainda estava esperando: se ele saiu, não copia
         pend = self._pending.get((who, mint))
@@ -1120,6 +1122,10 @@ class PumpFun:
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
+            if getattr(self.cfg, "pump_real_mirror", True):          # 0.31.37: espelho — a real sai junto
+                for rp in self.positions():
+                    if rp.get("real") and rp.get("sim_id") == p["id"] and not rp.get("selling"):
+                        self._real_sell(rp, 1.0, f"espelho do fictício: {why}")
             return (f"[PUMP SIM] fechou {p['symbol']} copiado de {short(p['wallet'])} ({why}) → "
                     f"{pnl:+.4f} SOL ({tr['pnl_pct']:+.1f}%)")
         self._save_pos(p)
@@ -1925,6 +1931,7 @@ class PumpFun:
         amt = float(self._c("pump_ar_sol", 0.05) if own_auto else self._c("pump_manual_sol", 0.1))
         rules = self.auto_rules() if own_auto else self.manual_rules()
         fr = self._fee_rates(mint)
+        sim_pos = None
         if any(p["mint"] == mint and not p.get("real") for p in allpos):
             out["sim"] = "já tem posição fictícia neste token"
         elif len([p for p in allpos if not p.get("real")]) >= int(self._c("pump_max_open", 10)):
@@ -1949,6 +1956,7 @@ class PumpFun:
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
                          slippage=net_in - net_in / (1 + slip))
             self._save_pos(p)
+            sim_pos = p
             if own_auto:
                 out["auto_id"] = str(p["id"])
                 if origem == "explorar":
@@ -1959,7 +1967,8 @@ class PumpFun:
             out["sim"] = f"comprou {amt:.3f} SOL na carteira fictícia"
         if own_auto and not out.get("auto_id"):
             return out                              # uma falha fictícia não dispara compra real automática
-        if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or getattr(self.cfg, "pump_auto_real", False)):
+        mirror = getattr(self.cfg, "pump_real_mirror", True)
+        if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or getattr(self.cfg, "pump_auto_real", False)):
             if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
                 out["real"] = "já tem posição REAL neste token"
             elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
@@ -1973,6 +1982,7 @@ class PumpFun:
                     self._auto_pending[mint] = t
                 self._rq_put(("buy", {"wallet": "manual", "mint": mint, "symbol": sym, "trader_sol": 0.0,
                                       "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t,
+                                      "sim_id": (sim_pos or {}).get("id") if mirror else None,
                                       "pos_cfg": {**rules, "manual": True,
                                                   **({"auto": True, "origem": origem, "auto_info": copy.deepcopy(p["auto_info"])} if own_auto else {})}}))
                 self._feed(**base, action="REAL: comprando", reason="compra manual enviada para a fila real")
@@ -2739,6 +2749,33 @@ class PumpFun:
         return [e for e in self.events if e["id"] > after]
 
     # ------------------------------------------------------------------ real (preparado, desligado)
+    def _mirror_real(self, p: dict, trader_sol: float = 0.0, block_t=None, pos_cfg: dict | None = None) -> str | None:
+        """0.31.37 — sugestão do Bruxo (2026-10-27): com a Execução real ligada, TODO trade que abriu na carteira
+        fictícia também é comprado na real. O valor NUNCA é o da fictícia: `_real_buy` usa "SOL por compra" da real
+        (`pump_real_max_sol`, reduzido pela confiança no trader), e valem os limites da real (posições reais ao mesmo
+        tempo, perda do dia, preço que fugiu). Devolve o motivo quando a real não entra (fica no feed)."""
+        c = self.cfg
+        if self.real is None or not getattr(c, "pump_real_enabled", False) or not getattr(c, "pump_real_mirror", True):
+            return None
+        mint, allpos = p["mint"], self.positions()
+        base = {"wallet": p["wallet"], "short": short(p["wallet"]), "mint": mint, "symbol": p.get("symbol"), "kind": "buy"}
+        why = None
+        if any(x["mint"] == mint and x.get("real") for x in allpos) or mint in self._real_buying:
+            why = "já tem posição REAL neste token"
+        elif len([x for x in allpos if x.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
+            why = f"limite de {int(self._c('pump_real_max_open', 5))} posições reais (regra da carteira real)"
+        if why:
+            self._feed(**base, action="REAL não copiou", reason=why)
+            return why
+        self._real_buying.add(mint)
+        self._rq_put(("buy", {"wallet": p["wallet"], "mint": mint, "symbol": p.get("symbol"), "trader_sol": trader_sol,
+                              "trader_price": p.get("trader_price") or p.get("price_now"), "mcap_in": p.get("mcap_in"),
+                              "t": p.get("open_t") or time.time(), "block_t": block_t or p.get("open_t"), "sim_id": p["id"],
+                              **({"pos_cfg": pos_cfg} if pos_cfg else {})}))
+        self._feed(**base, action="REAL: comprando",
+                   reason=f"espelho do fictício · até {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL (regra da carteira real)")
+        return None
+
     def _rq_put(self, item) -> None:
         if self._rq is None:
             self._rq = asyncio.Queue()
@@ -2786,7 +2823,7 @@ class PumpFun:
             if not getattr(self.cfg, "pump_real_enabled", False):
                 return
             own_auto = (it.get("pos_cfg") or {}).get("auto") is True
-            if own_auto and (not getattr(self.cfg, "pump_auto_real", False) or not self.auto_ready):
+            if own_auto and (not (getattr(self.cfg, "pump_real_mirror", True) or getattr(self.cfg, "pump_auto_real", False)) or not self.auto_ready):
                 return
             if own_auto and (getattr(self, "role", None) != "admin"
                              or ((it.get("pos_cfg") or {}).get("origem") == "explorar"
@@ -2832,7 +2869,11 @@ class PumpFun:
             p.update(it.get("pos_cfg") or {})              # compra do botão: stop/alvo próprios (0.26.0)
             if own_auto:
                 p["opened_at"] = datetime.fromtimestamp(p["open_t"], timezone.utc).isoformat()
+            if it.get("sim_id") is not None:
+                p["sim_id"] = it["sim_id"]                 # 0.31.37: par na carteira fictícia (espelho)
             self._save_pos(p)
+            if it.get("sim_id") is not None and not any(x["id"] == it["sim_id"] for x in self.positions()):
+                self._real_sell(p, 1.0, "espelho: o fictício já fechou enquanto a compra real saía")
             self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
                        action="REAL comprou", reason=f"gastou {spent:.4f} SOL · recebeu {toks:,.0f} tokens",
                        signature=res.get("signature"))
