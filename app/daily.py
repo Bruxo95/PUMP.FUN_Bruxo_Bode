@@ -351,6 +351,10 @@ def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
             dur = f" ({int(x['duracao_s'] // 60)}m{int(x['duracao_s'] % 60):02d}s)" if x.get("duracao_s") is not None else ""
             B.append(("mono", f"{x['entrada']}  {x['saida']}  {str(x['token'])[:12]:<12} {(x.get('pnl_sol') or 0):+.4f} {pct:<8} "
                               f"{str(x.get('motivo') or '')[:44]}{dur}"))
+    if rep.get("versoes"):
+        B.append(("h", "Resultado por versão do sistema (ajudou ou piorou)"))
+        B += [("mono", f"{v['versao']:<9} {v['trades']:>4} trades  {v['pnl_sol']:+.4f} SOL  média {(v['media'] or 0):+.5f}  "
+                       f"{v['veredito']:<15} {str(v['titulo'])[:40]}") for v in rep["versoes"]]
     if rep.get("top_skips"):
         B.append(("h", "Por que o robô não copiou (mais frequentes)"))
         B += [("mono", f"{x['n']:>5}x  {x['motivo']}") for x in rep["top_skips"]]

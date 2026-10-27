@@ -84,10 +84,11 @@ def _iso(t):
 
 
 def compare(offer: dict, src_trades: list[dict], my_trades: list[dict], src_cfg: dict, my_cfg: dict,
-            src_nome: str, my_nome: str, origem: str | None = None) -> dict:
-    """origem="explorar" (0.31.40): só as compras automáticas do Explorar, para a tela do Explorar."""
+            src_nome: str, my_nome: str, origem: str | None = None, real: bool = False) -> dict:
+    """origem="explorar" (0.31.40): só as compras automáticas do Explorar, para a tela do Explorar.
+    real=True (0.31.50, pedido do dono): compara os trades da carteira REAL das duas contas."""
     since = _ts(offer.get("em")) or 0
-    pick = lambda L: [t for t in L if not t.get("real") and (_ts(t.get("closed_at")) or 0) >= since   # noqa: E731
+    pick = lambda L: [t for t in L if bool(t.get("real")) == real and (_ts(t.get("closed_at")) or 0) >= since   # noqa: E731
                       and (origem is None or t.get("origem") == origem)]
     S, M = pick(src_trades), pick(my_trades)
     a, b = summary(S), summary(M)
@@ -147,7 +148,7 @@ def compare(offer: dict, src_trades: list[dict], my_trades: list[dict], src_cfg:
               "de_y_que_x_fez": round(len(common) / len(mm) * 100, 1) if mm else None,
               "em_comum": len(common), "tokens_x": len(ms), "tokens_y": len(mm),
               "geral": round(len(common) / len(set(ms) | set(mm)) * 100, 1) if (ms or mm) else None}
-    return {"desde": offer.get("em"), "chance": chance, "x": {"nome": src_nome, **a}, "y": {"nome": my_nome, **b},
+    return {"desde": offer.get("em"), "real": real, "chance": chance, "x": {"nome": src_nome, **a}, "y": {"nome": my_nome, **b},
             "comum": common[:50], "so_x": only_x[:30], "so_y": only_y[:30],
             "drift_x": dx, "drift_y": dy, "opcoes": len(vals), "conclusoes": conc}
 

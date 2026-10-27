@@ -828,3 +828,13 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   NEWMOON 15:45); `_sim_guard` exige o log de invoke da pump.fun/PumpSwap. `daily.build(real)` cria sugestões
   `falha_real_*` a partir de `real_misses` + `PumpFun.MISS_TIPS`; `hub.save_daily` guarda `data.real_report` (e no
   fechamento do dia); `daily_data(real)` usa os dias guardados. Pedido do dono: aprender com os erros e salvar tudo.
+
+## Tudo num lugar e resultado por versão (2026-10-27, versão 0.31.50)
+- Pedidos do dono. Botões `data-toggle` mostram "ON · Ligado"/"OFF · Desligado". `cfgItems()` lê do DOM todas as opções
+  (`data-toggle`/`data-cfg`) das telas que a conta vê; `buildAllCfg` monta `#allCfgCard` em Configurações com cópias
+  `data-clone` (mesmas chaves: os handlers globais salvam e o `render` atualiza); `renderSummary` monta `#sumCard` na Visão
+  geral (cópia de configuração de `APPLIED`, real/espelho, chips ON/OFF). `cfgLabel`/`cfgUnit` ignoram `[data-clone]`.
+- `compare(..., real=)` + `?real=1` em `/api/pump/compare/{id}`; `loadExCopy` segue `realMode()`.
+- `app/versions_report.py` + `app/versoes.json` (gerado do Git; o script de versão acrescenta cada entrega no fim):
+  `/api/pump/versions` e `/versions/ai` (admin), aba Relatórios → Por versão, `rep["versoes"]` no PDF/texto do dia.
+  Métrica: média por trade fechado; veredito contra a última versão com 5+ trades. `tests/test_versoes.py`.

@@ -138,3 +138,15 @@ def test_compare_tells_why_the_copy_did_not_enter(env):
     r = c.get(f"/api/pump/compare/{oid}", headers=A).json()
     assert r["so_x"][0]["por_que_nao"].startswith("aprendi com os erros")
     assert y.funnel_dump()["R" * 40]["why"].startswith("aprendi")
+
+
+
+def test_compare_real_mode_uses_only_real_trades():
+    """0.31.50: no modo Real a comparação usa só os trades da carteira real das duas contas."""
+    from app.compare import compare
+    em = "2026-10-27T10:00:00+00:00"
+    sim = {"mint": "M" * 40, "symbol": "SIM", "pnl_sol": 1.0, "closed_at": "2026-10-27T11:00:00+00:00", "opened_at": em}
+    real = dict(sim, mint="R" * 40, symbol="REAL", pnl_sol=0.02, real=True)
+    r = compare({"em": em, "valores": {}}, [sim, real], [], {}, {}, "X", "Y", real=True)
+    assert r["real"] is True and r["x"]["trades"] == 1 and r["x"]["pnl_sol"] == 0.02
+    assert compare({"em": em, "valores": {}}, [sim, real], [], {}, {}, "X", "Y")["x"]["pnl_sol"] == 1.0

@@ -362,6 +362,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 reps[dia] = build(pf, dia, None, real=True, all_trades=allt)
             if dia == today:
                 reps[today]["modules"] = menus(hub, pf, dia, True)
+                try:
+                    from .versions_report import build as vbuild, compact, load as vload
+                    reps[today]["versoes"] = compact(vbuild(allt, vload(), real=True))
+                except Exception:
+                    pass
             hist = [{"dia": d, "pnl_sol": x.get("pnl_sol"), "trades": x.get("trades"), "acerto": x.get("acerto"),
                      "sugestoes": len(x.get("suggestions") or []), "closed": d != today} for d, x in reps.items()]
             return {"report": reps[dia], "days": hist, "today": today, "real": True,
@@ -392,6 +397,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 pass
         from .daily import study
         past = [x for d, x in saved.items() if d != today]
+        try:
+            from .versions_report import build as vbuild, compact, load as vload
+            rep["versoes"] = compact(vbuild(pf.trades(100000), vload()))
+        except Exception:
+            pass
         return {"report": rep, "days": hist, "today": today, "study": study(past + [rep])}
 
     @app.get("/api/pump/elite/steps")
@@ -905,8 +915,21 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return {"copias": await hub.compare_list(u["id"]), "salvas": saved}
 
     @app.get("/api/pump/compare/{offer_id}")
-    async def compare_one(offer_id: int, origem: str = "", u: dict = Depends(admin_only)):
-        return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None)
+    async def compare_one(offer_id: int, origem: str = "", real: int = 0, u: dict = Depends(admin_only)):
+        return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
+                                     real=bool(real))
+
+    @app.get("/api/pump/versions")
+    async def pump_versions(real: int = 0, pf=Depends(admin_engine)):
+        """Resultado por versão (0.31.50): quanto ganhou/perdeu em cada versão e se ajudou ou piorou."""
+        from .versions_report import build, load
+        return build(pf.trades(100000), load(), real=bool(real))
+
+    @app.get("/api/pump/versions/ai")
+    async def pump_versions_ai(real: int = 0, pf=Depends(admin_engine)):
+        from .versions_report import ai_text, build, load
+        return PlainTextResponse(ai_text(build(pf.trades(100000), load(), real=bool(real)), VERSION),
+                                 headers={"Content-Disposition": 'attachment; filename="resultado-por-versao-para-ia.md"'})
 
     @app.get("/api/pump/compare/{offer_id}/ai")
     async def compare_ai(offer_id: int, u: dict = Depends(admin_only)):

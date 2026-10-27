@@ -137,6 +137,10 @@
             <div class="ops" id="ops"></div>
           </div>
         </div>
+        <div class="card" id="sumCard" data-novo-ate="2026-11-10"><header><div><h2>Você está copiando alguém? E o que está ligado</h2><div class="sub">cópia de configuração, carteira real e todas as opções liga/desliga de todas as telas, num lugar só</div></div><div class="sp"></div><a class="btn sm" href="#config">Mudar em Configurações</a></header>
+          <div id="sumCopy"></div>
+          <div id="sumCfg"></div>
+        </div>
         <div class="card">
           <header><div><h2>Status das configurações</h2><div class="sub">verde = ligado · vermelho = desligado · valores atuais</div></div><div class="sp"></div><a class="btn sm" href="#config">Ajustar</a></header>
           <div class="cfgs" id="cfgS"></div>
@@ -264,7 +268,7 @@
 
       <!-- ========================================================= RELATÓRIOS (app/reports.py) -->
       <section class="view" data-view="relatorios" hidden>
-        <div class="seg" id="repTabs" style="margin-bottom:12px" data-novo-ate="2026-11-09"><button data-rt="num" class="on">Números</button><button data-rt="pdf">Relatórios do dia (PDF)</button><button data-rt="ia">Mudanças feitas pela IA</button></div>
+        <div class="seg" id="repTabs" style="margin-bottom:12px" data-novo-ate="2026-11-09"><button data-rt="num" class="on">Números</button><button data-rt="pdf">Relatórios do dia (PDF)</button><button data-rt="ia">Mudanças feitas pela IA</button><button data-rt="ver" data-novo-ate="2026-11-10">Por versão</button></div>
         <div id="repNum">
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Ajuste automático: a IA corrige sozinha</h2><div class="sub" id="tuSub">lê os relatórios e as Estratégias fantasma, aplica o que rende mais e desfaz o que piora</div></div><div class="sp"></div>
             <span class="muted" style="margin-right:6px">Automático</span><button class="btn sm tgl" data-toggle="pump_tune_on">…</button> <button class="btn sm" id="tuRun">Rodar agora</button></header>
@@ -304,6 +308,13 @@
           <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Relatórios do dia</h2><div class="sub">um por dia, guardados no banco · abra o PDF para ver ou baixe o texto para mandar para uma IA revisar e corrigir</div></div></header>
             <div class="help"><p><b>Como usar:</b> 1) Baixe "Texto para IA" (ou o PDF) do dia. 2) Mande para a IA (Claude, Codex…) revisar: o texto já traz as instruções. 3) A IA corrige o código e cria o relatório da mudança com a projeção de ganho, que aparece na aba "Mudanças feitas pela IA" com o realizado depois.</p></div>
             <div class="tbl-wrap"><table id="pdfTbl"></table></div></div>
+        </div>
+        <div id="repVer" hidden>
+          <div class="card" data-novo-ate="2026-11-10"><header><div><h2>Resultado por versão do sistema</h2><div class="sub" id="verSub">quanto foi ganho e perdido em cada versão, e se ela ajudou ou piorou em relação à anterior</div></div><div class="sp"></div><button class="btn sm primary" id="verAi">Texto para IA</button></header>
+            <div class="help"><p><b>Como ler:</b> cada linha é uma versão, do momento em que entrou no ar até a próxima. "Média por trade" é o resultado médio de cada trade fechado nesse período (o total sozinho engana, porque umas versões ficam minutos e outras horas). <b>Ajudou</b> / <b>piorou</b> compara com a última versão que teve 5 trades ou mais; menos que isso é "pouca base". Mudanças só de tela também aparecem: nelas a diferença vem do mercado, não da versão. O relatório segue o botão Fictícia/Real do topo e vai junto no PDF e no texto para IA do Relatório do dia.</p></div>
+            <div class="kpis" id="verK"></div>
+            <div class="help" id="verSug"></div>
+            <div class="tbl-wrap tall"><table id="verTbl" class="daytbl"></table></div></div>
         </div>
         <div id="repIa" hidden>
           <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Mudanças feitas pela IA</h2><div class="sub">cada correção vem com o que mudou, por quê e a projeção de ganho · ao lado, o resultado real 7 dias antes × 7 dias depois</div></div></header>
@@ -651,6 +662,9 @@
       <section class="view" data-view="config" hidden>
         <div class="card cfgusers" data-cfgusers hidden data-novo-ate="2026-11-10"><header><div><h2 data-cfgu-t>Usuários usando a sua configuração</h2><div class="sub" data-cfgu-s></div></div><div class="sp"></div><button class="btn sm" data-cfgu-ver>Ver usuários</button></header>
           <div data-cfgu-list hidden></div></div>
+        <div class="card" id="allCfgCard" data-novo-ate="2026-11-10" data-sanf><header><div><h2>Configurações de todas as outras telas</h2><div class="sub">as mesmas opções do Explorar, Execução real, Opções novas, Maiores traders, Base… mudou aqui, mudou lá (é a mesma configuração)</div></div></header>
+          <div id="allCfg"></div>
+        </div>
         <div class="card shtop" id="cfShareTop" hidden data-novo-ate="2026-11-10"><header><div><h2>Compartilhar todas as configurações</h2><div class="sub">escolha a pessoa e envie tudo de uma vez · ela recebe um convite no topo do painel e escolhe aceitar ou não · nunca vai nada da carteira real, chaves ou Telegram</div></div></header>
           <div class="row"><select class="in" id="cfAllU" style="flex:1;min-width:220px" aria-label="Para quem enviar"><option value="">carregando usuários…</option></select>
             <button class="btn sm primary" id="cfAllGo">Compartilhar todas</button><button class="btn sm" data-cfsh="all">Escolher seções…</button></div></div>

@@ -67,8 +67,9 @@
   async function loadExCopy() {
     const o = APPLIED.find((a) => Object.keys(a.valores || {}).some((k) => k.startsWith("pump_ex_auto_") || k.startsWith("pump_ar_")));
     if (!o || !$("exCopyCard")) { if ($("exCopyCard")) $("exCopyCard").hidden = true; return; }
-    const r = await BB.api("/api/pump/compare/" + encodeURIComponent(o.id) + "?origem=explorar");
-    if (r.error) { $("exCopyCard").hidden = true; return; }
+    const mode = realMode(); XC.mode = mode;
+    const r = await BB.api("/api/pump/compare/" + encodeURIComponent(o.id) + "?origem=explorar&real=" + (mode ? 1 : 0));
+    if (r.error || mode !== realMode()) { if (r.error) $("exCopyCard").hidden = true; return; }
     XC.r = r; $("exCopyCard").hidden = false; renderExCopy();
   }
   const difT = (s) => s == null ? "–" : (s === 0 ? "mesmo segundo" : (s > 0 ? "você " : "você ") + hms(Math.abs(s)) + (s > 0 ? " depois" : " antes"));
@@ -76,7 +77,7 @@
   function renderExCopy() {
     const r = XC.r; if (!r) return;
     const x = r.x, y = r.y, c = r.chance || {}, pct = (v) => v == null ? "–" : f(v, 0) + "%";
-    $("exCopyT").textContent = "Configuração copiada de " + x.nome + ": você × " + x.nome;
+    $("exCopyT").textContent = "Configuração copiada de " + x.nome + ": você × " + x.nome + (r.real ? " · carteira REAL" : " · carteira fictícia");
     $("exCopyS").textContent = "desde " + dt(r.desde) + " · só compras automáticas do Explorar · " + (r.drift_y.length ? "a sua mudou em " + r.drift_y.length + " opção(ões) depois" : "a sua continua idêntica");
     const at = (r.comum || []).filter((m) => m.atraso_s != null).map((m) => m.atraso_s).sort((a, b) => a - b), med = at.length ? at[Math.floor(at.length / 2)] : null;
     kpis("exCopyK", [["Chance de fazer os mesmos trades", pct(c.de_x_que_y_fez), (c.em_comum || 0) + " de " + (c.tokens_x || 0) + " tokens de " + esc(x.nome) + " você também fez", "hit"],
@@ -123,7 +124,7 @@
   }
   function renderApplied() {
     document.querySelectorAll('[data-view="config"] .card, [data-view="explorar"] .card').forEach((card, i) => {
-      const h = card.querySelector(":scope > header > div"); if (!h) return;
+      const h = card.querySelector(":scope > header > div"); if (!h || card.id === "allCfgCard") return;
       let el = h.querySelector(".cfgfrom");
       const [o, ks] = APPLIED.length ? appliedFor(cardKeys(card)) : [null, []];
       if (!o) { if (el) el.remove(); return; }
@@ -231,7 +232,7 @@
   // 0.31.22: o convite mostrava os códigos (pump_ar_stop_pct...). Pedido do dono em 2026-10-27 ("está muito sujo"):
   // agora mostra o nome que a opção tem na tela e "seu valor → valor enviado"; as iguais às suas só são contadas.
   function cfgLabel(k) {
-    const el = document.querySelector('[data-cfg="' + k + '"]') || document.querySelector('[data-toggle="' + k + '"]');
+    const el = document.querySelector('[data-cfg="' + k + '"]:not([data-clone])') || document.querySelector('[data-toggle="' + k + '"]:not([data-clone])');
     const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
     if (!el) return clean(k.replace(/^pump_/, "").replace(/_/g, " "));
     const f = el.closest(".field"), lb = (el.id && document.querySelector('label[for="' + el.id + '"]')) || (f && f.querySelector("label"));
@@ -241,7 +242,7 @@
     return t || k;
   }
   function cfgUnit(k) {
-    const el = document.querySelector('[data-cfg="' + k + '"]'), sp = el && el.nextElementSibling;
+    const el = document.querySelector('[data-cfg="' + k + '"]:not([data-clone])'), sp = el && el.nextElementSibling;
     const u = sp && sp.tagName === "SPAN" ? sp.textContent.split("·")[0].trim() : "";
     return u.length <= 14 ? u : "";
   }
@@ -282,6 +283,63 @@
       });
     });
   }
+  // 0.31.50 (pedido do dono: "são muitas telas de ON/OFF, quero tudo num lugar"): lê do próprio painel todas as opções de
+  // todas as telas. Em Configurações vira um quadro editável (os botões e campos são os mesmos data-toggle/data-cfg, então
+  // salvar aqui é salvar lá); na Visão geral vira um resumo só de leitura, junto com "está copiando alguém?".
+  let ALLCFG = null;
+  const ADMIN_VIEWS = ["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar"];
+  function cfgItems() {
+    if (ALLCFG) return ALLCFG;
+    const out = [], seen = new Set(), adm = !!(ME && ME.role === "admin");
+    document.querySelectorAll("section.view").forEach((sec) => {
+      const v = sec.dataset.view; if (!TITLES[v] || (ADMIN_VIEWS.includes(v) && !adm)) return;
+      sec.querySelectorAll(".card").forEach((card) => {
+        if (card.id === "allCfgCard" || card.id === "sumCard") return;
+        const ct = ((card.querySelector("h2") || {}).textContent || "").trim();
+        card.querySelectorAll("[data-toggle],[data-cfg]").forEach((el) => {
+          const k = el.dataset.toggle || el.dataset.cfg; if (!k || seen.has(k) || el.dataset.clone) return; seen.add(k);
+          out.push({ v, vt: TITLES[v][0], ct, k, tog: !!el.dataset.toggle, label: cfgLabel(k), unit: el.dataset.cfg ? cfgUnit(k) : "",
+            min: el.getAttribute("min"), max: el.getAttribute("max"), step: el.getAttribute("step"), confirm: el.dataset.confirm || "" });
+        });
+      });
+    });
+    return ME ? (ALLCFG = out) : out;            // sem saber se é admin ainda, não guarda
+  }
+  function buildAllCfg() {
+    if (!ME || !$("allCfg") || $("allCfg").dataset.ok) return;
+    const items = cfgItems().filter((x) => x.v !== "config"), by = {};
+    items.forEach((x) => { (by[x.v] = by[x.v] || []).push(x); });
+    const ctl = (x) => x.tog ? '<button class="btn sm tgl" data-clone="1" data-toggle="' + esc(x.k) + '"' + (x.confirm ? ' data-confirm="' + esc(x.confirm) + '"' : "") + ">…</button>"
+      : '<input class="in w100" type="number" data-clone="1" data-cfg="' + esc(x.k) + '"' + (x.min != null ? ' min="' + esc(x.min) + '"' : "") + (x.max != null ? ' max="' + esc(x.max) + '"' : "") + (x.step != null ? ' step="' + esc(x.step) + '"' : "") + ' aria-label="' + esc(x.label) + '">' + (x.unit ? ' <span class="muted">' + esc(x.unit) + "</span>" : "");
+    $("allCfg").innerHTML = Object.keys(by).map((v) => {
+      let last = "";
+      return '<details class="allcfg"><summary><b>' + esc(by[v][0].vt) + "</b> <span class=\"muted\">" + by[v].length + " opções</span> <a class=\"btn sm\" href=\"#" + v + "\">abrir a tela</a></summary>" +
+        by[v].map((x) => (x.ct !== last ? '<div class="allcfg-h">' + esc((last = x.ct)) + "</div>" : "") + '<div class="allcfg-r"><span>' + esc(x.label) + "</span><span>" + ctl(x) + "</span></div>").join("") + "</details>";
+    }).join("") || '<p class="muted">Nenhuma opção de outra tela disponível para esta conta.</p>';
+    $("allCfg").dataset.ok = "1";
+    if (D) render();
+  }
+  function renderSummary() {
+    if (!$("sumCard") || !D) return;
+    const c = cfg(), R = D.real || {}, quem = (o) => esc(o.de || "outro usuário");
+    const copy = APPLIED.length ? APPLIED.map((o) => {
+      const ks = Object.keys(o.valores || {}), diff = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).length;
+      return "<p>" + (diff ? '<span class="cfgdot diff"></span>' : '<span class="cfgdot ok"></span>') + "Configuração de <b>" + quem(o) + "</b> (" + ks.length + " opções, desde " + esc(dt(o.em)) + "): " +
+        (diff ? "<b>" + diff + " diferente(s) agora</b>" : "<b>idêntica agora (100%)</b>") + "</p>";
+    }).join("") : "<p>Você <b>não</b> está usando a configuração de ninguém.</p>";
+    const html = copy +
+      '<p class="hint">Copiar a configuração copia as <b>regras</b>, não os <b>trades</b>: a sua conta decide sozinha, com o seu próprio histórico (aprender com os erros, pausas, limites por hora). Mesmo com a configuração idêntica, os trades podem ser diferentes; veja a comparação no Explorar.</p>' +
+      "<p>Execução real: <b class=\"" + (R.enabled ? "up\">LIGADA" : "down\">DESLIGADA") + "</b> · Espelhar a fictícia na real: <b class=\"" + (c.pump_real_mirror !== false ? "up\">ON · Ligado" : "down\">OFF · Desligado") + "</b></p>";
+    if ($("sumCopy").dataset.h !== html) { $("sumCopy").dataset.h = html; $("sumCopy").innerHTML = html; }
+    const items = cfgItems().filter((x) => x.tog), by = {};
+    items.forEach((x) => { (by[x.vt] = by[x.vt] || []).push(x); });
+    const h2 = Object.keys(by).map((vt) => {
+      const L = by[vt], on = L.filter((x) => !!cfgNow(x.k)).length;
+      return '<details class="allcfg"><summary><b>' + esc(vt) + '</b> <span class="muted">' + on + " ligado(s) de " + L.length + "</span></summary>" +
+        L.map((x) => '<span class="chip ' + (cfgNow(x.k) ? "on" : "off") + '">' + (cfgNow(x.k) ? "ON" : "OFF") + " · " + esc(x.label) + "</span>").join("") + "</details>";
+    }).join("");
+    if ($("sumCfg").dataset.h !== h2) { $("sumCfg").dataset.h = h2; $("sumCfg").innerHTML = h2; }
+  }
   function cfgShareButtons() {
     if (!(ME && ME.role === "admin")) return;
     $("cfShareTop").hidden = false;
@@ -293,7 +351,7 @@
     }).catch(() => {});
     document.querySelectorAll('[data-view="config"] .card').forEach((card) => {
       const h = card.querySelector("header");
-      if (!h || card.id === "secretsCard" || card.id === "cfShare" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
+      if (!h || card.id === "secretsCard" || card.id === "cfShare" || card.id === "allCfgCard" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
       if (!h.querySelector(".sp")) { const sp = document.createElement("div"); sp.className = "sp"; h.appendChild(sp); }
       const b = document.createElement("button"); b.className = "btn sm"; b.dataset.cfsh = "card"; b.textContent = "Compartilhar"; h.appendChild(b);
     });
@@ -821,7 +879,21 @@
   // ---- abas de Relatórios (0.31.7): números, PDFs do dia e mudanças da IA
   let REP_TAB = "num";
   async function loadRepTab() {
-    $("repNum").hidden = REP_TAB !== "num"; $("repPdf").hidden = REP_TAB !== "pdf"; $("repIa").hidden = REP_TAB !== "ia";
+    $("repNum").hidden = REP_TAB !== "num"; $("repPdf").hidden = REP_TAB !== "pdf"; $("repIa").hidden = REP_TAB !== "ia"; $("repVer").hidden = REP_TAB !== "ver";
+    if (REP_TAB === "ver") {
+      const rm = realMode(), r = await BB.api("/api/pump/versions?real=" + (rm ? 1 : 0));
+      if (r.error) { $("verTbl").innerHTML = '<tr><td class="empty">' + esc(r.error) + "</td></tr>"; return; }
+      const k = rm ? "real" : "sim", VC = { ajudou: "win", piorou: "loss", igual: "neutral", "pouca base": "neutral", "primeira medida": "sim" };
+      $("verSub").textContent = "carteira " + (rm ? "REAL" : "fictícia") + " · " + r.versoes.length + " versões · ajudou " + r.ajudou + " · piorou " + r.piorou + " · precisa de " + r.min_trades + " trades por versão para comparar";
+      kpis("verK", [["Total fictícia", sg(r.total_sim), "todas as versões", "pnl"], ["Total real", sg(r.total_real), "todas as versões", "pnl"],
+        ["Melhor versão", esc(r.melhor || "–"), "maior média por trade", "hit"], ["Pior versão", esc(r.pior || "–"), "menor média por trade", "mon"]]);
+      $("verSug").innerHTML = "<p><b>O que ajudou e o que melhorar</b></p>" + (r.sugestoes || []).map((s) => "<p>" + esc(s) + "</p>").join("");
+      table("verTbl", ["Versão", "Entrou", "O que mudou", "No ar", "Trades", "Resultado", "Média por trade", "Acerto", "Ajudou?", "Acumulado"],
+        r.versoes.slice().reverse().filter((v) => v[k].trades || v === r.versoes[r.versoes.length - 1]).map((v) => [esc(v.versao), esc(dt(v.inicio)), esc(v.titulo), hms(v.horas * 3600), String(v[k].trades),
+          sg(v[k].pnl_sol), v[k].media == null ? "–" : sg(v[k].media) + (v.dif_media == null ? "" : "<small>" + (v.dif_media > 0 ? "+" : "") + s4(v.dif_media) + " vs " + esc(v.comparada_com) + "</small>"),
+          v[k].acerto == null ? "–" : f(v[k].acerto * 100, 0) + "%", '<span class="tag ' + (VC[v.veredito] || "neutral") + '">' + esc(v.veredito) + "</span>", sg(rm ? v.acumulado_real : v.acumulado_sim)]),
+        "Nenhum trade fechado ainda.");
+    }
     if (REP_TAB === "pdf") {
       const r = await BB.api("/api/pump/daily");
       if (r.error) { $("pdfTbl").innerHTML = '<tr><td class="empty">' + esc(r.error) + "</td></tr>"; return; }
@@ -847,6 +919,7 @@
   document.addEventListener("click", async (e) => {
     const tb = e.target.closest("#repTabs button");
     if (tb) { REP_TAB = tb.dataset.rt; document.querySelectorAll("#repTabs button").forEach((x) => x.classList.toggle("on", x === tb)); return loadRepTab(); }
+    if (e.target.closest("#verAi")) return await BB.download("/api/pump/versions/ai?real=" + (realMode() ? 1 : 0), "resultado-por-versao-para-ia.md");
     const t = e.target, d = t.dataset || {};
     try {
       if (d.pdfopen) return await BB.download("/api/pump/daily/pdf" + dayQ(d.pdfopen), "", true);
@@ -1325,8 +1398,8 @@
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
-    if (VIEW === "visao") loadDaily();
-    if (VIEW === "config") { loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
+    if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); }
+    if (VIEW === "config") { buildAllCfg(); loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
     if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") { walletLoad(true); loadMirror(); }
     if (VIEW === "novidades") loadNovidades();
@@ -1518,12 +1591,13 @@
     $("sysS").textContent = RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades lidos" : (RP.error || "aguardando o monitor compartilhado");
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
-    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "ON" : "OFF"; b.classList.add("tgl"); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
+    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "ON · Ligado" : "OFF · Desligado"; b.classList.add("tgl"); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
-    if (VIEW === "visao") { renderOverview(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); }
+    if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); }
+    if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
     else if (VIEW === "historico") renderHistory();
