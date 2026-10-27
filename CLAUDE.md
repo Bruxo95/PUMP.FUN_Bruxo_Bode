@@ -909,3 +909,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.69: sugestão do Bruxo. `snapshot` devolve `hold_s`/`hold_src` por posição; `PumpFun.extend_hold(pid, add_min|None)`
   (também no par do espelho; `NO_LIMIT_S`) + `POST /api/pump/positions/hold` (audit "posição: tempo estendido"). Posições:
   coluna "Tempo de saída" com +30 min / +1 h / Sem limite. Teste `tests/test_tempo_saida.py`.
+
+- 0.31.70: campo `data-hcfg` (horas na tela, minutos guardados) para `pump_ar_max_hold_min` no Explorar; render divide por 60 e
+  o `change` grava ×60; `cfgLabel`/`cfgItems` reconhecem `data-hcfg` (no quadro de todas as opções aparece em min). Pedido do dono.
+  Explorar segue a cada 5 min (`explore.EVERY_S`): plano grátis da Solana Tracker = 10 mil consultas/mês; 2 min daria ~21,6 mil.

@@ -605,6 +605,11 @@
    "versao": "0.31.69",
    "inicio": "2026-10-27T20:13:20+00:00",
    "titulo": "Tempo de saída nas Posições"
+  },
+  {
+   "versao": "0.31.70",
+   "inicio": "2026-10-27T20:26:55+00:00",
+   "titulo": "Tempo máximo em horas"
   }
  ]
 }

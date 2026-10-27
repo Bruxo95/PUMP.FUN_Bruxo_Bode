@@ -256,7 +256,7 @@
   // 0.31.22: o convite mostrava os códigos (pump_ar_stop_pct...). Pedido do dono em 2026-10-27 ("está muito sujo"):
   // agora mostra o nome que a opção tem na tela e "seu valor → valor enviado"; as iguais às suas só são contadas.
   function cfgLabel(k) {
-    const el = document.querySelector('[data-cfg="' + k + '"]:not([data-clone])') || document.querySelector('[data-toggle="' + k + '"]:not([data-clone])');
+    const el = document.querySelector('[data-cfg="' + k + '"]:not([data-clone])') || document.querySelector('[data-hcfg="' + k + '"]') || document.querySelector('[data-toggle="' + k + '"]:not([data-clone])');
     const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
     if (!el) return clean(k.replace(/^pump_/, "").replace(/_/g, " "));
     const f = el.closest(".field"), lb = (el.id && document.querySelector('label[for="' + el.id + '"]')) || (f && f.querySelector("label"));
@@ -320,10 +320,10 @@
       sec.querySelectorAll(".card").forEach((card) => {
         if (card.id === "allCfgCard" || card.id === "sumCard") return;
         const ct = ((card.querySelector("h2") || {}).textContent || "").trim();
-        card.querySelectorAll("[data-toggle],[data-cfg]").forEach((el) => {
-          const k = el.dataset.toggle || el.dataset.cfg; if (!k || seen.has(k) || el.dataset.clone) return; seen.add(k);
-          out.push({ v, vt: TITLES[v][0], ct, k, tog: !!el.dataset.toggle, label: cfgLabel(k), unit: el.dataset.cfg ? cfgUnit(k) : "",
-            min: el.getAttribute("min"), max: el.getAttribute("max"), step: el.getAttribute("step"), confirm: el.dataset.confirm || "" });
+        card.querySelectorAll("[data-toggle],[data-cfg],[data-hcfg]").forEach((el) => {
+          const k = el.dataset.toggle || el.dataset.cfg || el.dataset.hcfg; if (!k || seen.has(k) || el.dataset.clone) return; seen.add(k);
+          out.push({ v, vt: TITLES[v][0], ct, k, tog: !!el.dataset.toggle, label: cfgLabel(k), unit: el.dataset.hcfg ? "min" : el.dataset.cfg ? cfgUnit(k) : "",
+            min: el.dataset.hcfg ? "1" : el.getAttribute("min"), max: el.dataset.hcfg ? "1440" : el.getAttribute("max"), step: el.dataset.hcfg ? "1" : el.getAttribute("step"), confirm: el.dataset.confirm || "" });
         });
       });
     });
@@ -1722,6 +1722,10 @@
     $("sysS").textContent = RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades lidos" : (RP.error || "aguardando o monitor compartilhado");
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
+    // 0.31.70 (pedido do dono): campo em HORAS para uma opção guardada em minutos (ex.: tempo máximo das automáticas)
+    document.querySelectorAll("[data-hcfg]").forEach((el) => { const v = isAutoCfg(el.dataset.hcfg) ? autoValue(el.dataset.hcfg, c) : c[el.dataset.hcfg];
+      if (document.activeElement !== el && v != null) el.value = +(v / 60).toFixed(2);
+      if (el.id === "exAutoHold" && v != null) $("exAutoHoldN").textContent = "= " + f(v, 0) + " min · máximo 24 h"; });
     document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "ON · Ligado" : "OFF · Desligado"; b.classList.add("tgl"); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
@@ -2259,6 +2263,11 @@
     if (el.dataset.cfg) {
       if (isAutoCfg(el.dataset.cfg) && (!el.value.trim() || !el.checkValidity())) { el.reportValidity(); toast("Confira o limite desse campo antes de salvar."); return; }
       setCfg({ [el.dataset.cfg]: +el.value });
+    }
+    if (el.dataset.hcfg) {
+      const h = +el.value;
+      if (!(h > 0) || h > 24) { toast("Use de 0,02 a 24 horas."); return; }
+      setCfg({ [el.dataset.hcfg]: Math.max(1, Math.round(h * 60)) });
     }
     if (el.dataset.urole) { const u = USERS.find((x) => x.user_id === el.dataset.urole) || {}, role = el.value;
       if (!confirm("Mudar " + (u.email || "este usuário") + " para " + (role === "admin" ? "ADMIN (vê o status geral, logs e gerencia usuários)" : "USUÁRIO comum") + "?")) { el.value = u.role; return; }
