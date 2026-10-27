@@ -320,13 +320,32 @@
     if (D) render();
   }
   // 0.31.51 (pedido do dono): confirmação "100% igual" conferindo agora cada opção que veio de outro usuário
+  // 0.31.53 (pedido do dono: "o que é essa coisa diferente?"): cópia antiga cujas opções vieram de novo numa cópia mais
+  // nova não conta mais (era ela que aparecia como "1 diferente"); cada cópia com diferença ganha o botão que abre o modal
+  function liveCopies() {
+    const L = APPLIED.slice().sort((a, b) => new Date(b.em) - new Date(a.em)), seen = new Set(), out = [];
+    L.forEach((o) => { const ks = Object.keys(o.valores || {}).filter((k) => !seen.has(k)); ks.forEach((k) => seen.add(k)); if (ks.length) out.push([o, ks]); });
+    return out;
+  }
   function copyHtml() {
-    const quem = (o) => esc(o.de || "outro usuário");
-    return APPLIED.length ? APPLIED.map((o) => {
-      const ks = Object.keys(o.valores || {}), dk = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])), pct = ks.length ? Math.round((ks.length - dk.length) / ks.length * 100) : 0;
+    const quem = (o) => esc(o.de || "outro usuário"), L = liveCopies();
+    return L.length ? L.map(([o, ks]) => {
+      const dk = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])), pct = ks.length ? Math.round((ks.length - dk.length) / ks.length * 100) : 0;
       return "<p>" + (dk.length ? '<span class="cfgdot diff"></span>' : '<span class="cfgdot ok"></span>') + "Configuração de <b>" + quem(o) + "</b> (" + ks.length + " opções, desde " + esc(dt(o.em)) + "): " +
-        (dk.length ? "<b>" + pct + "% igual · " + dk.length + " diferente(s) agora</b> <span class=\"muted\">(" + esc(dk.slice(0, 6).map(cfgLabel).join(", ")) + (dk.length > 6 ? "…" : "") + ")</span>" : "<b class=\"up\">100% idêntica agora</b> (" + ks.length + " de " + ks.length + " opções conferidas)") + "</p>";
+        (dk.length ? "<b>" + pct + "% igual · " + dk.length + " diferente(s) agora</b> <span class=\"muted\">(" + esc(dk.slice(0, 6).map(cfgLabel).join(", ")) + (dk.length > 6 ? "…" : "") + ')</span> <button class="btn sm primary" data-copydiff="' + esc(String(o.id)) + '">Ver o que está diferente</button>'
+          : "<b class=\"up\">100% idêntica agora</b> (" + ks.length + " de " + ks.length + " opções conferidas)") + "</p>";
     }).join("") : "<p>Você <b>não</b> está usando a configuração de ninguém.</p>";
+  }
+  function openCopyDiff(id) {
+    const hit = liveCopies().find(([o]) => String(o.id) === String(id)); if (!hit) return;
+    const [o, ks] = hit, quem = o.de || "outro usuário", dk = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k]));
+    $("cfgDiffT").textContent = "O que está diferente da configuração de " + quem;
+    $("cfgDiffS").textContent = (o.parte || "") + " · copiada em " + dt(o.em) + " · " + dk.length + " de " + ks.length + " opções diferentes";
+    $("cfgDiffB").innerHTML = '<div class="tbl-wrap"><table id="cfgDiffTbl"></table></div>' +
+      (dk.length ? '<p style="margin-top:12px">Quer aplicar o valor de <b>' + esc(quem) + "</b> no seu, nessas " + dk.length + ' opção(ões)? O resto da sua configuração não muda.</p><p><button class="btn primary" data-copyapply="' + esc(String(o.id)) + '">Aplicar o dele no meu</button> <button class="btn" id="cfgDiffNo">Não, deixar o meu</button></p>'
+        : '<p class="up" style="margin-top:12px">Tudo igual: nada para aplicar.</p>');
+    table("cfgDiffTbl", ["Opção", "O seu (agora)", "O de " + esc(quem)], dk.map((k) => [esc(cfgLabel(k)), "<b>" + esc(cfgVal(k, cfgNow(k))) + "</b>", '<b class="up">' + esc(cfgVal(k, o.valores[k])) + "</b>"]), "Nenhuma diferença.");
+    $("cfgDiff").hidden = false; $("cfgDiffX").focus();
   }
   function renderAllCfgCopy() {
     if (!$("allCfgCopy")) return;
@@ -335,9 +354,11 @@
     const by = {};
     cfgItems().forEach((x) => { (by[x.v] = by[x.v] || []).push(x.k); });
     document.querySelectorAll("[data-allid]").forEach((el) => {
-      const ks = by[el.dataset.allid] || [], o = APPLIED.find((a) => ks.some((k) => Object.prototype.hasOwnProperty.call(a.valores || {}, k)));
+      const ks = by[el.dataset.allid] || [], live = liveCopies(), src = {};
+      live.forEach(([o2, ks2]) => ks2.forEach((k) => { src[k] = o2; }));
+      const cp = ks.filter((k) => src[k]), o = cp.length ? src[cp[0]] : null;
       if (!o) { el.innerHTML = '<span class="muted">· sua própria configuração</span>'; return; }
-      const cp = ks.filter((k) => Object.prototype.hasOwnProperty.call(o.valores, k)), d = cp.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).length;
+      const d = cp.filter((k) => !cfgEq(cfgNow(k), src[k].valores[k])).length;
       el.innerHTML = d ? '<span class="cfgdot diff"></span>' + (cp.length - d) + " de " + cp.length + " iguais às de " + esc(o.de || "outro usuário")
         : '<span class="cfgdot ok"></span><b class="up">100% idêntica</b> à de ' + esc(o.de || "outro usuário") + " (" + cp.length + " opções)";
     });
@@ -1342,6 +1363,18 @@
       return;
     }
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
+    if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
+    if (t.id === "cfgDiffNo") { $("cfgDiff").hidden = true; return; }
+    if (t.dataset.copyapply) {
+      const hit = liveCopies().find(([o]) => String(o.id) === String(t.dataset.copyapply)); if (!hit) return;
+      const [o, ks] = hit, body = {};
+      ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).forEach((k) => { body[k] = o.valores[k]; });
+      if (!Object.keys(body).length) { $("cfgDiff").hidden = true; return; }
+      t.disabled = true;
+      await setCfg(body);
+      $("cfgDiff").hidden = true; toast("Aplicado: " + Object.keys(body).length + " opção(ões) iguais às de " + (o.de || "outro usuário") + ".");
+      return;
+    }
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }

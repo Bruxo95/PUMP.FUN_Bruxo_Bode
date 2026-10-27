@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.53",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Visão geral e Configurações (cópia de configuração); menu Changelog",
+      "titulo": "Ver e aplicar o que está diferente da configuração copiada; Changelog no menu principal",
+      "oque": "Quando a sua configuração não está 100% igual à que você copiou, aparece o botão 'Ver o que está diferente': abre uma janela com o seu valor e o do outro usuário, opção por opção, e pergunta se quer aplicar o dele no seu. Cópias antigas cujas opções vieram de novo numa cópia mais nova não aparecem mais como 'diferente'. O Changelog saiu do grupo 'Usar ou descartar' e fica no menu principal, só para admin."
+    },
+    {
       "versao": "0.31.52",
       "data": "2026-10-27",
       "tipo": "correção",
