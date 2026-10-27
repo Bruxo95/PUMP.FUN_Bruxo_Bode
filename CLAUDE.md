@@ -895,3 +895,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.64: `PumpHub.ghosts_merged(pf, kind)` soma `stats` de `ghosts`/`ghosts_auto` de todas as contas (n_sua/n_conhecimento,
   `avg_sol`, melhor por trade); usado em `/api/pump/ghosts`, `ghosts_auto` do `/api/pump/explore` e no `auto_tune`
   (`pick_exit` compara por trade com as suas regras). Teste `tests/test_fantasma_geral.py`. Pedido do dono: tudo geral.
+
+- 0.31.65: `Ghosts._drop_suspect` (no `load`) tira das somas os fechamentos ≥ `SUSPECT_PCT` que estão em `recent`; `_close` não soma
+  fechamento com esse ganho. Evita o Ajuste automático escolher regra por ganho falso. Teste em `tests/test_fantasma_geral.py`.

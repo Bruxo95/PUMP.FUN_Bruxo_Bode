@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "3aa7f510438a14f09b5d0f4887f1ba190bcb5218",
-    "application_version": "0.31.64 · 2026-10-27 · Fantasmas e ajuste com base geral",
+    "repository_reference": "83106c05879dc6acf51afd8d7530b9513ecb361e",
+    "application_version": "0.31.65 · 2026-10-27 · Fantasmas sem ganhos falsos",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "cbe7536028a70bdf41c2754a10c8b8978bc64b9e6a9ef9113ce7a8d823929f2c",
+      "app/version.py": "2776b6e4daae5efd3f66ed9ecdecfd2c0f5d9dc50c0ef5637f3037e8f5a06c5d",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e6d7b627678c8bc244941b47bb74aceb0beccae885278b613fa518454cd8216c"
+  "pdf_sha256": "9525f6435debf7e159a9106e463997191907b7af862384956d7eb11299ab45d7"
 }

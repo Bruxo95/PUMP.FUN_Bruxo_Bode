@@ -580,6 +580,11 @@
    "versao": "0.31.64",
    "inicio": "2026-10-27T18:36:29+00:00",
    "titulo": "Fantasmas e ajuste com base geral"
+  },
+  {
+   "versao": "0.31.65",
+   "inicio": "2026-10-27T18:47:19+00:00",
+   "titulo": "Fantasmas sem ganhos falsos"
   }
  ]
 }

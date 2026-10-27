@@ -93,6 +93,27 @@ class Ghosts:
         d = d or {}
         self.since = d.get("since")
         self.stats = {k: v for k, v in (d.get("stats") or {}).items() if k in self.names}
+        self._drop_suspect()
+
+    def _drop_suspect(self) -> None:
+        """0.31.65 (pedido do dono, "sem os ganhos falsos"): tira das somas guardadas os fechamentos com ganho de +1.900% ou
+        mais (preço de token cotado em outra moeda, antes da 0.31.52: SEALLIS, R1R2L1R2…). Eles faziam todas as regras
+        parecerem +325 SOL e o Ajuste automático poderia escolher uma regra por números que não aconteceram."""
+        from .auto_trades import SUSPECT_PCT
+        for s in self.stats.values():
+            bad = [r for r in s.get("recent") or [] if (r.get("pnl_pct") or 0) >= SUSPECT_PCT]
+            if not bad:
+                continue
+            for r in bad:
+                pnl = r.get("pnl_sol") or 0
+                s["trades"] = max(0, (s.get("trades") or 0) - 1)
+                s["wins"] = max(0, (s.get("wins") or 0) - (1 if pnl > 0 else 0))
+                s["pnl_sol"] = round((s.get("pnl_sol") or 0) - pnl, 6)
+                if r.get("pnl_pct"):
+                    s["invested_sol"] = round(max(0.0, (s.get("invested_sol") or 0) - pnl / (r["pnl_pct"] / 100)), 6)
+                s["best_sum"] = round((s.get("best_sum") or 0) - (r.get("best") or 0), 2)
+            s["recent"] = [r for r in s.get("recent") or [] if r not in bad]
+            self.dirty = True
 
     # ------------------------------------------------------------------ eventos do motor
     def on_open(self, p: dict, t: float) -> None:
@@ -188,6 +209,9 @@ class Ghosts:
         if g in self.open:
             self.open.remove(g)
         pnl = g["proceeds"] - g["sol_in"]
+        from .auto_trades import SUSPECT_PCT
+        if g["sol_in"] and pnl / g["sol_in"] * 100 >= SUSPECT_PCT:
+            return                                   # 0.31.65: ganho de preço lido errado não entra nas somas
         s = self.stats.setdefault(g["v"], {"trades": 0, "wins": 0, "pnl_sol": 0.0, "invested_sol": 0.0,
                                            "best_sum": 0.0, "recent": []})
         s["trades"] += 1
