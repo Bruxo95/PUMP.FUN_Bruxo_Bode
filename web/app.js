@@ -769,7 +769,7 @@
     const PV = { lixo: "loss", fraco: "neutral", "possível": "sim", "chance alta": "win", suspeito: "pause" };
     table(id, ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], rows.map((row) => {
       const mint = String(row.mint || ""), partials = Array.isArray(row.partial_exits) ? row.partial_exits.length : 0;
-      return [pfM(mint, String(row.symbol || "")) + '<small><span class="tag ' + (row.real ? 'real">REAL' : 'sim">SIMULADO') + "</span> · Explorar</small>",
+      return [pfM(mint, String(row.symbol || "")) + '<small><span class="tag ' + (row.real ? 'real">REAL' : 'sim">FICTÍCIA') + "</span> · Explorar</small>",
         autoDate(row.entrada_em) + "<small>" + s4(autoNum(row.sol_in)) + " SOL</small>" + '<span class="tag ' + (PV[row.veredito] || "neutral") + '">' + esc(String(row.veredito || "n/d")) + "</span><small>chance: " + (autoNum(row.chance) == null ? "n/d" : f(row.chance, 0) + "%") + "</small>",
         '<span class="tag ' + (row.open ? 'sim">aberta' : 'neutral">fechada') + "</span>" + (partials ? "<small>" + partials + " venda(s) em partes</small>" : ""),
         sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>",
@@ -870,7 +870,7 @@
     const bst = (b) => !b || b.t == null && !b.active ? '<span class="muted">…</span>' : b.active ? '<span class="tag win" title="o time do token está pagando boost na DexScreener">Boost ON' + (b.amount_24h ? " · " + b.amount_24h + "x" : "") + "</span>" + (b.paid && b.paid.length ? '<small>pagou: ' + esc(b.paid.join(", ")) + "</small>" : "")
       : '<span class="tag neutral">Boost OFF</span>' + (b.paid && b.paid.length ? '<small>pagou: ' + esc(b.paid.join(", ")) + "</small>" : "");
     const buy = (m, s) => '<button class="btn sm primary" data-buy="' + esc(m) + '" data-sym="' + esc(s || "") + '">Comprar</button>';
-    table("bsMine", ["Token", "Situação", "Investiu", "Resultado", "Boost pago", "Quando", ""], (r.mine || []).map((x) => [pfM(x.mint, x.symbol) + (x.real ? ' <span class="tag real">REAL</span>' : ""),
+    table("bsMine", ["Token", "Situação", "Investiu", "Resultado", "Boost pago", "Quando", ""], (r.mine || []).map((x) => [pfM(x.mint, x.symbol) + (x.real ? ' <span class="tag real">REAL</span>' : ' <span class="tag sim">FICTÍCIA</span>'),
       x.open ? '<span class="tag sim">aberta</span>' : '<span class="tag neutral">fechada</span><small>' + esc(x.reason || "") + "</small>", s4(x.sol_in) + " SOL",
       x.open ? (x.chg_pct == null ? "–" : '<span class="' + (x.chg_pct >= 0 ? "up" : "down") + '">' + (x.chg_pct > 0 ? "+" : "") + f(x.chg_pct, 1) + "%</span>") : sg(x.pnl_sol) + "<small>" + f(x.pnl_pct || 0, 1) + "%</small>",
       bst(x.boost), dt(x.open ? x.opened_at : x.closed_at), x.open ? '<a class="btn sm" href="#posicoes">Ver posição</a>' : ""]), "Você ainda não comprou nada por esta tela.");
@@ -1247,7 +1247,7 @@
       ["Real: seu resultado", sg(tr.pnl_sol), (tr.trades || 0) + " trades" + (tr.trades ? " · retorno " + (tr.roi_pct == null ? "–" : f(tr.roi_pct, 1) + "%") : ""), "wallet"]]);
     const dg = (d) => !d ? "–" : d.buys_seen + " compras vistas · " + d.copied + " copiadas" + (d.top_skips && d.top_skips.length ? "<small>não copiou: " + d.top_skips.map((s) => esc(s.reason) + " (" + s.n + ")").join(" · ") + "</small>" : "");
     table("stMine", ["Carteira", "Carteira usada", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último", "O que aconteceu"], (mi.rows || []).map((x) => [pfW(x.wallet) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
-      x.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">fictícia</span>', dt(x.since), String(x.trades), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%",
+      x.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>', dt(x.since), String(x.trades), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%",
       "<b>" + sg(x.pnl_sol) + "</b><small>investiu " + s4(x.invested_sol) + " SOL</small>", roi(x.roi_pct),
       x.open ? x.open + " · " + s4(x.open_sol) + " SOL" + (x.open_chg == null ? "" : " · " + (x.open_chg > 0 ? "+" : "") + f(x.open_chg, 1) + "%") : "–", dt(x.last), dg(x.diag)]),
       "Você ainda não copiou nenhuma destas carteiras. Clique em Copiar numa delas e o resultado aparece aqui.");
@@ -1687,7 +1687,7 @@
     const c = cfg(), R = D.real || {}, RP = D.rpc || {};
     const rm = realMode();
     document.querySelectorAll("#modeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.mode === (rm ? "real" : "sim")));
-    document.querySelectorAll("[data-mtag]").forEach((e) => { e.textContent = rm ? "Real" : "Simulado"; e.className = "tag " + (rm ? "real" : "sim"); });
+    document.querySelectorAll("[data-mtag]").forEach((e) => { e.textContent = rm ? "REAL" : "FICTÍCIA"; e.className = "tag " + (rm ? "real" : "sim"); });
     $("nbTr").textContent = (D.followed || []).length || "";
     $("nbPos").textContent = (D.positions || []).filter((p) => !!p.real === rm).length || "";
     $("nbReal").textContent = R.enabled ? "ON" : "";
@@ -1775,7 +1775,7 @@
     (D.paused || []).forEach((p) => out.push({ at: p.at, k: "pause", real: false, t: shortW(p.wallet) + " · " + (p.reason || "pausado"), m: p.until ? "volta em " + hms(p.until - Date.now() / 1000) : "até você retomar", amt: "" }));
     out.sort((a, b) => new Date(b.at) - new Date(a.at));
     const L = out.slice(0, 9);
-    $("ops").innerHTML = L.length ? L.map((o) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(o.t) + '</div><div class="m">há ' + agoIso(o.at) + " · " + esc(o.m) + '</div></div><div><div class="tags">' + opTag(o.k) + (o.real ? '<span class="tag real">Real</span>' : '<span class="tag sim">Simulado</span>') + '</div><div class="amt">' + o.amt + "</div></div></div>").join("")
+    $("ops").innerHTML = L.length ? L.map((o) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(o.t) + '</div><div class="m">há ' + agoIso(o.at) + " · " + esc(o.m) + '</div></div><div><div class="tags">' + opTag(o.k) + (o.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + '</div><div class="amt">' + o.amt + "</div></div></div>").join("")
       : '<div class="empty">Ainda não houve operação. Quando um trader copiado comprar, aparece aqui.</div>';
   }
 
@@ -1873,7 +1873,7 @@
     $("trSub").textContent = T.length + " trades · líquido = depois de TODAS as taxas (pump.fun/PumpSwap, PumpPortal, rede) e do slippage";
     const fee = (t) => { const fp = t.fee_parts || {}; if (t.fees_sol == null) return "–"; const tip = "pump.fun/PumpSwap: " + s4(fp.platform) + " · PumpPortal: " + s4(fp.portal) + " · rede: " + s4(fp.network) + (fp.slippage ? " · slippage: " + s4(fp.slippage) : ""); return '<span title="' + esc(tip) + '">' + s4(t.fees_sol) + " SOL</span><small>" + (t.sol_in ? f((t.fees_sol / t.sol_in) * 100, 1) + "% do investido" : "") + "</small>"; };
     table("tTr", ["Fechou", "Token", "Trader", "Investido", "Recebido", "Taxas", "Bruto", "Líquido", "%", "Segurou", "Motivo", "Tipo"], T.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.venue ? "<small>" + esc(t.venue) + "</small>" : ""), pfW(t.wallet), s4(t.sol_in), s4(t.sol_out), fee(t), sg(t.gross_sol), "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
-      '<span style="white-space:normal;display:block;max-width:280px">' + esc(t.reason) + "</span>", t.real ? '<span class="tag real">Real</span>' : '<span class="tag sim">Sim</span>']), "Nenhum trade fechado ainda.");
+      '<span style="white-space:normal;display:block;max-width:280px">' + esc(t.reason) + "</span>", t.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>']), "Nenhum trade fechado ainda.");
     const by = {}; T.forEach((t) => { const b = (by[t.wallet] = by[t.wallet] || { n: 0, w: 0, p: 0, pp: 0, po: 0, np: 0, no: 0 }); const isP = String(t.venue || "pump").toLowerCase().indexOf("pump") >= 0; b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol; if (isP) { b.pp += t.pnl_sol; b.np++; } else { b.po += t.pnl_sol; b.no++; } });
     table("tBy", ["Trader", "Trades", "Acerto", "Resultado", "pump.fun", "Fora da pump.fun"], Object.entries(by).sort((a, b) => b[1].p - a[1].p).map(([w, b]) => [pfW(w), String(b.n), f((b.w / b.n) * 100, 0) + "%", sg(b.p), b.np ? sg(b.pp) + "<small>" + b.np + " trades</small>" : "–", b.no ? sg(b.po) + "<small>" + b.no + " trades</small>" : "–"]), "Sem trades fechados ainda.");
   }
@@ -1883,7 +1883,7 @@
     const L = (D.feed || []).filter((e) => ERR_ACT.test(String(e.action || "")));
     $("hErrSub").textContent = L.length + " nos registros recentes · o motivo e a dica ficam também no Relatório do dia (modo Real)";
     table("hErr", ["Quando", "Token", "O que houve", "Motivo"], L.map((e) => [dt(e.at), pfM(e.mint || "", e.symbol),
-      '<span class="tag ' + (e.action === "preço suspeito" ? "pause" : "loss") + '">' + esc(e.action) + "</span>" + (/^REAL/.test(e.action) || e.real ? ' <span class="tag real">REAL</span>' : ""),
+      '<span class="tag ' + (e.action === "preço suspeito" ? "pause" : "loss") + '">' + esc(e.action) + "</span>" + (/^REAL/.test(e.action) || e.real ? ' <span class="tag real">REAL</span>' : ' <span class="tag sim">FICTÍCIA</span>'),
       '<span class="wrapcell">' + esc(e.reason || "") + "</span>"]), "Nenhum erro ou falha nos registros recentes.");
   }
   function renderFeed() {

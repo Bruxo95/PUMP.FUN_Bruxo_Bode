@@ -869,3 +869,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.58: `_sim_guard` simula em lotes de 21 contas + a carteira (`asyncio.gather`; RPC aceita no máx. 22 contas — AI,
   27/10 18:00) e confere cada lote em `_sim_check`. Sino: tag REAL/FICTÍCIA em cada notificação.
+
+- 0.31.59: etiquetas REAL/FICTÍCIA em todo o painel (antes "Sim", "Simulado", "SIMULADO", "Real"); `data-mtag` também. Pedido do dono.

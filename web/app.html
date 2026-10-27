@@ -179,7 +179,7 @@
 
       <!-- ========================================================= POSIÇÕES -->
       <section class="view" data-view="posicoes" hidden>
-        <div class="card"><header><div><h2>Posições copiadas <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub" id="posSub"></div></div></header>
+        <div class="card"><header><div><h2>Posições copiadas <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub" id="posSub"></div></div></header>
           <div class="tbl-wrap"><table id="tPos"></table></div></div>
       </section>
 
@@ -248,7 +248,7 @@
 
       <!-- ========================================================= APRENDIZADO DIÁRIO (app/learning.py) -->
       <section class="view" data-view="aprendizado" hidden>
-        <div class="card"><header><div><h2>Resumo do dia <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub" id="apSub">o que os top traders fizeram e o que as suas cópias fizeram</div></div></header>
+        <div class="card"><header><div><h2>Resumo do dia <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub" id="apSub">o que os top traders fizeram e o que as suas cópias fizeram</div></div></header>
           <div class="prose" id="apSum"></div></div>
         <div class="card"><header><div><h2>O que podemos fazer</h2><div class="sub">sugestões com base nos números — nada muda sem você confirmar</div></div></header>
           <div id="apSug"></div></div>
@@ -275,7 +275,7 @@
             <span class="muted" style="margin-right:6px">Automático</span><button class="btn sm tgl" data-toggle="pump_tune_on">…</button> <button class="btn sm" id="tuRun">Rodar agora</button></header>
           <div class="help"><p>A cada 6 h: <b>(1) saída</b> — se uma regra das Estratégias fantasma rende mais por trade que as suas regras (com 30+ trades e 2+ dias de teste), ela vira a sua regra; fica <b>48 h em teste</b> e, se o resultado por trade piorar, <b>volta sozinha</b> ao que era e a regra fica de fora por 7 dias. <b>(2) traders</b> — quem deu prejuízo com 5+ cópias e acerto abaixo de 30% em 7 dias é pausado por 48 h. <b>(3)</b> O Explorar e as Carteiras em estudo já aprendem sozinhos. Só age com a execução real <b>desligada</b>. Nenhum sistema garante lucro sempre: o objetivo é cortar o que perde e manter o que ganha.</p></div>
           <div class="tbl-wrap"><table id="tuLog"></table></div></div>
-        <div class="card"><header><div><h2>Período <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub">tudo líquido: depois de todas as taxas e do slippage · troque Fictícia/Real no topo</div></div><div class="sp"></div>
+        <div class="card"><header><div><h2>Período <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub">tudo líquido: depois de todas as taxas e do slippage · troque Fictícia/Real no topo</div></div><div class="sp"></div>
           <div class="seg" id="repDays"><button data-d="1">24 h</button><button data-d="7" class="on">7 dias</button><button data-d="30">30 dias</button><button data-d="0">Tudo</button></div></header>
           <div class="kpis" id="repKpis"></div></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Por que está no vermelho</h2><div class="sub" id="autSub">cada trade no prejuízo ganha uma causa principal e a correção · as causas do dia ficam guardadas no banco para o aprendizado</div></div></header>
@@ -535,9 +535,9 @@
 
       <!-- ========================================================= HISTÓRICO -->
       <section class="view" data-view="historico" hidden>
-        <div class="card"><header><div><h2>Resultado por trader copiado <span class="tag sim" data-mtag>Simulado</span></h2></div></header>
+        <div class="card"><header><div><h2>Resultado por trader copiado <span class="tag sim" data-mtag>FICTÍCIA</span></h2></div></header>
           <div class="tbl-wrap"><table id="tBy"></table></div></div>
-        <div class="card"><header><div><h2>Trades fechados <span class="tag sim" data-mtag>Simulado</span></h2><div class="sub" id="trSub"></div></div></header>
+        <div class="card"><header><div><h2>Trades fechados <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub" id="trSub"></div></div></header>
           <div class="tbl-wrap tall"><table id="tTr"></table></div></div>
         <div class="card" data-novo-ate="2026-11-10"><header><div><h2>Erros e falhas (compras e vendas que não aconteceram)</h2><div class="sub" id="hErrSub"></div></div></header>
           <div class="tbl-wrap"><table id="hErr" class="daytbl"></table></div></div>
@@ -555,7 +555,7 @@
           A execução real começa DESLIGADA. Depois de ligada, continua ligada (mesmo se o servidor reiniciar ou você trocar de navegador) até você desligar.</div>
         <div class="kpis" id="wKpis"></div>
         <div class="card">
-          <header><div><h2>Execução real <span class="tag real">Real</span></h2><div class="sub" id="realSub"></div></div></header>
+          <header><div><h2>Execução real <span class="tag real">REAL</span></h2><div class="sub" id="realSub"></div></div></header>
           <div class="realbox">
             <button class="btn tgl off big" id="realB">REAL: OFF</button>
             <div style="flex:1;min-width:220px" id="realInfo"></div>
