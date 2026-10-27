@@ -1482,6 +1482,7 @@
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
+    if (t.dataset.feedf) { FEEDF = t.dataset.feedf; renderFeed(); return; }
     if (t.id === "trShGo") {
       const to = $("trShU").value; if (!to) { toast("Escolha a pessoa."); return; }
       t.disabled = true; const r = await BB.api("/api/pump/traders/share", { body: { to } }); t.disabled = false;
@@ -2022,8 +2023,14 @@
       '<span class="tag ' + (e.action === "preço suspeito" ? "pause" : "loss") + '">' + esc(e.action) + "</span>" + (/^REAL/.test(e.action) || e.real ? ' <span class="tag real">REAL</span>' : ' <span class="tag sim">FICTÍCIA</span>'),
       '<span class="wrapcell">' + esc(e.reason || "") + "</span>"]), "Nenhum erro ou falha nos registros recentes.");
   }
+  // 0.31.79 (pedido do dono): o Feed mostra por padrão só o que os TRADERS fizeram; as compras automáticas (Explorar, Base,
+  // botão Comprar) ficam no botão "Tudo"
+  let FEEDF = "traders";
   function renderFeed() {
-    table("tFeed", ["Hora", "Trader", "Token", "Trader fez", "SOL", "Mcap", "O bot"], (D.feed || []).map((e) => [dt(e.at), pfW(e.wallet, e), pfM(e.mint, e.symbol), e.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', s4(e.sol), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
+    const all = D.feed || [], L = FEEDF === "all" ? all : all.filter((e) => e.wallet && e.wallet !== "manual");
+    if ($("feedSub")) $("feedSub").textContent = FEEDF === "all" ? "tudo o que o bot registrou, inclusive compras automáticas" : L.length + " registros de traders · " + (all.length - L.length) + " das compras automáticas ficam em \"Tudo\"";
+    document.querySelectorAll("[data-feedf]").forEach((b) => b.classList.toggle("on", b.dataset.feedf === FEEDF));
+    table("tFeed", ["Hora", "Trader", "Token", "Trader fez", "SOL", "Mcap", "O bot"], L.map((e) => [dt(e.at), pfW(e.wallet, e), pfM(e.mint, e.symbol), e.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', s4(e.sol), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
       '<span style="white-space:normal;display:block;max-width:420px" class="' + (e.action === "não copiou" ? "dim" : "") + '"><b>' + esc(e.action) + "</b>: " + esc(e.reason) + "</span>"]), "O feed enche quando os traders copiados fizerem algo.");
   }
 

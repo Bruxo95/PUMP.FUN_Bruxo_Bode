@@ -1959,12 +1959,18 @@ class PumpFun:
         return None
 
     def _auto_blocked(self, reason: str, mint: str, origem: str, t: float) -> None:
+        # 0.31.79 (pedido do dono: o Feed ao vivo ficava lotado de "compra automática pausada" do mesmo token a cada minuto,
+        # escondendo o que os traders fizeram e empurrando os registros antigos para fora): "já teve entrada nas últimas
+        # 24 h" é o comportamento normal e não vai mais para o Feed (fica só no funil do Explorar); os outros motivos
+        # aparecem no máximo uma vez a cada 6 h por token
+        if reason.startswith("token já teve entrada automática"):
+            return
         notices = self.__dict__.setdefault("_auto_notices", {})
-        key = (origem, reason)
-        if t - notices.get(key, -1e30) < 60:
+        key = (origem, reason, mint)
+        if t - notices.get(key, -1e30) < 6 * 3600:
             return
         notices[key] = t
-        self._auto_notices = {k: at for k, at in notices.items() if t - at < 3600}
+        self._auto_notices = {k: at for k, at in notices.items() if t - at < 6 * 3600}
         msg = "compra automática pausada: " + reason
         self._feed(wallet="manual", short="automático", mint=mint, symbol=(self.tokens.get(mint) or {}).get("symbol"),
                    kind="buy", action="compra automática pausada", reason=reason, origem=origem)
