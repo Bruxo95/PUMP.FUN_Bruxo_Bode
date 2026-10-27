@@ -737,3 +737,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `hub.save_settings` grava `_real_on` quando o real está ligado; `/api/pump/real`, admin `real_off` e remover a carteira
   gravam. `hub._load` religa só com `real_allowed`, carteira e conta liberada (evento + `audit_log` "execução real
   religada após reinício"). Teste: `tests/test_api.py::test_real_stays_on_after_server_restart_until_user_turns_off`.
+
+- 0.31.29: passo a passo da Jupiter (`KEY_HOW.jupiter_api_key`): Server key, nome 5–32 letras. Pedido do dono com print do portal.
