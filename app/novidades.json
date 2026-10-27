@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.22",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Topo do painel (convite de configuração)",
+      "titulo": "Convite de configuração mais limpo",
+      "oque": "O convite \"Fulano quer compartilhar a configuração dele\" não mostra mais os códigos (pump_ar_stop_pct...). Agora aparece uma tabela só com o que muda: o nome da opção como está na tela, o seu valor e o valor enviado (ex.: Stop de perda 40% → 25%). As opções iguais às suas só são contadas."
+    },
+    {
       "versao": "0.31.21",
       "data": "2026-10-26",
       "tipo": "novo",

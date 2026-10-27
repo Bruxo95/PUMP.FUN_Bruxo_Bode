@@ -13,6 +13,7 @@ def test_share_explore_config_by_part_needs_accept(env):
     assert r["ok"] and other.cfg.pump_ex_auto_min_pressure == 60       # nada muda antes de aceitar
     of = c.get("/api/pump/config/offers", headers=B).json()["offers"]
     assert len(of) == 1 and "filtros" in of[0]["parte"] and "pump_ex_auto_min_pressure" in of[0]["nomes"]
+    assert of[0]["valores"]["pump_ex_auto_min_pressure"] == 75                        # a tela mostra seu valor → enviado
     assert c.get("/api/pump/config/offers", headers=A).json()["offers"] == []          # só quem recebe vê
     assert c.post(f"/api/pump/config/offers/{of[0]['id']}", json={"accept": True}, headers=A).json()["error"]
     r = c.post(f"/api/pump/config/offers/{of[0]['id']}", json={"accept": True}, headers=B).json()

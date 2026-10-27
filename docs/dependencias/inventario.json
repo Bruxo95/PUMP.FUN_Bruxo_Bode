@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-10-26",
+    "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "5e2fef8a6a348d27db9d8f7f2c964d5b3a98056d",
-    "application_version": "0.31.21 · 2026-10-26 · Explorar aprende com as perdas",
+    "repository_reference": "0271c85bd848c0cd037fc83f72667313341b22d2",
+    "application_version": "0.31.22 · 2026-10-27 · Convite de configuração legível",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "5ccec9aef96153ec228f62820e8ebf00f215be3d49243a4356d5e361dd270a90",
+      "app/version.py": "1d76ed7b1f3ae2363c5cd7fcfb1f561c0693bd94433a7629239ecf615859557f",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "63dd24c6d7617659698e8378d2b5d65420839a1bb054e9e7641be9b7fc9face3"
+  "pdf_sha256": "5ca610f36de00e7fcdfdbba64634ab10e40f49445454b4cf21e13c680e98edea"
 }

@@ -709,3 +709,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   Opções `pump_ar_press_min` (1; 0 = não usa) e `pump_ar_exit_grad` (ON) em `auto_rules`/`smart_exit`.
   `autolearn.MIN_N` 10 → 6; `autolearn.compare` → `compare_auto` em `/api/pump/explore`. Testes:
   `tests/test_explorar_melhorias.py`. Relatório: `app/relatorios_ia/2026-10-26-0.31.21.md`.
+
+## Convite de configuração legível (2026-10-27, versão 0.31.22)
+- Pedido do dono ("está muito sujo"). `config_offers` devolve `valores`; `offerList`/`cfgLabel`/`cfgUnit` em `web/app.js`
+  pegam o nome da opção no próprio HTML (label, aria-label ou título) e mostram "seu valor → valor enviado", só o que muda.

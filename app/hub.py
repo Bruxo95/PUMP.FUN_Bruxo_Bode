@@ -1040,7 +1040,7 @@ class PumpHub:
         rows = await self.db.select("config_offers", {"para_user": uid, "status": "pendente"}, order="criado_em.desc", limit=20)
         now = time.time()
         return [{"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "opcoes": len(r.get("valores") or {}),
-                 "nomes": sorted(r.get("valores") or {}), "em": r.get("criado_em")}
+                 "nomes": sorted(r.get("valores") or {}), "valores": r.get("valores") or {}, "em": r.get("criado_em")}
                 for r in rows if now - (ts(r.get("criado_em")) or now) < 7 * 86400]
 
     async def config_answer(self, pf, offer_id: int, accept: bool) -> dict:

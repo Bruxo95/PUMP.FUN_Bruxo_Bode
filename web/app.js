@@ -64,7 +64,41 @@
     bar.innerHTML = of.map((o) => '<div class="card" style="border-color:var(--accent,#22c55e);margin-bottom:12px"><header><div><h2>' + esc(o.de || "Outro usuário") + " quer compartilhar a configuração dele</h2>" +
       '<div class="sub">' + esc(o.parte || "") + " · " + o.opcoes + " opções · " + dt(o.em) + '</div></div><div class="sp"></div>' +
       '<button class="btn sm primary" data-ofa="' + esc(String(o.id)) + '">Aceitar e aplicar</button> <button class="btn sm" data-ofr="' + esc(String(o.id)) + '">Não aceitar</button></header>' +
-      '<div class="hint muted">Opções: ' + esc((o.nomes || []).join(", ")) + "</div></div>").join("");
+      offerList(o) + "</div>").join("");
+  }
+  // 0.31.22: o convite mostrava os códigos (pump_ar_stop_pct...). Pedido do dono em 2026-10-27 ("está muito sujo"):
+  // agora mostra o nome que a opção tem na tela e "seu valor → valor enviado"; as iguais às suas só são contadas.
+  function cfgLabel(k) {
+    const el = document.querySelector('[data-cfg="' + k + '"]') || document.querySelector('[data-toggle="' + k + '"]');
+    const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
+    if (!el) return clean(k.replace(/^pump_/, "").replace(/_/g, " "));
+    const f = el.closest(".field"), lb = (el.id && document.querySelector('label[for="' + el.id + '"]')) || (f && f.querySelector("label"));
+    let t = clean(lb && lb.textContent) || clean(el.getAttribute("aria-label"));
+    if (!t) { const h = el.closest("header"), sp = el.previousElementSibling; t = clean(sp && sp.tagName === "SPAN" ? sp.textContent : h && (h.querySelector("h3,h2") || {}).textContent); }
+    if (el.dataset.cfg && f && f.querySelector("[data-toggle]")) t += " (limite)";
+    return t || k;
+  }
+  function cfgUnit(k) {
+    const el = document.querySelector('[data-cfg="' + k + '"]'), sp = el && el.nextElementSibling;
+    const u = sp && sp.tagName === "SPAN" ? sp.textContent.split("·")[0].trim() : "";
+    return u.length <= 14 ? u : "";
+  }
+  function cfgVal(k, v) {
+    if (v === true) return "ON";
+    if (v === false) return "OFF";
+    if (v === null || v === undefined || v === "") return "—";
+    const u = cfgUnit(k);
+    return String(v).replace(".", ",") + (u ? (u === "%" ? "%" : " " + u) : "");
+  }
+  function offerList(o) {
+    const vals = o.valores || {}, c = cfg(), ks = Object.keys(vals);
+    const mine = (k) => (isAutoCfg(k) ? autoValue(k, c) : c[k]);
+    const muda = ks.filter((k) => String(mine(k)) !== String(vals[k])), iguais = ks.length - muda.length;
+    if (!ks.length) return '<div class="hint muted">' + esc((o.nomes || []).map(cfgLabel).join(" · ")) + "</div>";
+    const rows = muda.map((k) => "<tr><td>" + esc(cfgLabel(k)) + '</td><td class="muted">' + esc(cfgVal(k, mine(k))) + "</td><td>→</td><td><b>" + esc(cfgVal(k, vals[k])) + "</b></td></tr>").join("");
+    return (muda.length ? '<div class="tbl-wrap" style="margin-top:6px"><table><thead><tr><th>O que muda</th><th>Seu valor</th><th></th><th>Valor enviado</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
+      : '<div class="hint">Nenhuma opção muda: os valores enviados são iguais aos seus.</div>') +
+      (iguais && muda.length ? '<div class="hint muted">Mais ' + iguais + " " + (iguais === 1 ? "opção igual à sua" : "opções iguais às suas") + " (não muda nada).</div>" : "");
   }
   const cfgShareCards = () => [...document.querySelectorAll('[data-view="config"] .card')].filter((c) => c.querySelector("[data-cfsh]"));
   // sanfona (0.31.20): quadro com 3+ opções (ou as chaves pessoais) começa fechado; clique no título abre/fecha e a
