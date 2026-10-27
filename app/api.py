@@ -211,6 +211,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """Estratégias fantasma (0.18.0): mesmas entradas da cópia fictícia, saídas diferentes, lado a lado."""
         return hub.ghosts_merged(pf, "ghosts")                   # 0.31.64: todas as contas (base geral)
 
+    @app.get("/api/pump/copy-diag")
+    async def copy_diag(pf=Depends(engine)):
+        """0.31.78: compras dos traders seguidos vistas nas últimas 24 h, quantas foram copiadas e por que não."""
+        r = pf.copy_diag()
+        r["filtros"] = {k: getattr(pf.cfg, k, None) for k in ("pump_min_trader_sol", "pump_min_mcap_sol", "pump_max_mcap_sol",
+                                                                   "pump_max_open", "pump_copy_sol", "pump_copy_delay_s", "pump_copy_enabled")}
+        return r
+
     @app.get("/api/pump/explore")
     async def pump_explore(pf=Depends(admin_engine)):
         """Explorar (0.28.0): novos, quase graduando, graduados e os que mais sobem, com veredito e o que aprendeu."""

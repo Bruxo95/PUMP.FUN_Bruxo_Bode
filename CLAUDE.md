@@ -944,3 +944,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.77: `_fetch_prices` guarda `tokens[m]["pools"]` (cada par da DexScreener: dex, cotação, vol24, compras/vendas 24 h, liquidez);
   `explore_loop` pede os pares dos tokens de Quase graduando/Graduados (até 90, ~3 consultas/5 min); rota do Explorar devolve
   `pools`; `poolsCell` na coluna Volume 24 h com a média por negócio (vermelho < $5 com 20+ negócios). Pedido do dono (LILY).
+
+- 0.31.78: `PumpFun._copy_note`/`copy_diag` (memória, 24 h, 50 mil) em cada saída de `_copy` (pausado, espera, filtros, limites,
+  copiou); `GET /api/pump/copy-diag` (com os filtros da conta); quadro `#cdK/#cdM/#cdT` em Top traders. Pedido do dono (sem cópias
+  dos top traders em 24 h; suspeita: traders de alta frequência com compras abaixo de `pump_min_trader_sol`). Teste `tests/test_copy_diag.py`.

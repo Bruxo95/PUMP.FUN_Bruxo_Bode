@@ -848,6 +848,16 @@
       return '<small title="' + esc((p.quote ? "par com " + p.quote + " · " : "") + "liquidez $" + f(p.liq || 0, 0)) + '">' + esc(DEX[p.dex] || p.dex || "?") + ": $" + f(p.vol24 || 0, p.vol24 >= 100 ? 0 : 2) + " · " + (p.buys24 || 0) + "×" + (p.sells24 || 0) +
         (avg != null ? ' · <span class="' + (avg < 5 && n >= 20 ? "down" : "muted") + '">média $' + f(avg, avg < 10 ? 2 : 0) + "</span>" : "") + "</small>"; }).join("");
   }
+  async function loadCopyDiag() {
+    const r = await BB.api("/api/pump/copy-diag"); if (r.error || !$("cdK")) return;
+    const fl = r.filtros || {};
+    $("cdSub").textContent = "desde o último reinício do servidor (" + f(r.desde_reinicio || 0, 1) + " h de dados) · " + (r.seguidos || 0) + " traders copiados · compra mínima do trader: " + f(fl.pump_min_trader_sol || 0, 2) + " SOL · máx. " + (fl.pump_max_open || "–") + " posições";
+    kpis("cdK", [["Compras vistas", String(r.vistas || 0), "dos traders copiados", "tr"], ["Copiadas", String(r.copiadas || 0), r.vistas ? f(r.copiadas / r.vistas * 100, 0) + "% das vistas" : "–", "hit"],
+      ["Não copiadas", String((r.vistas || 0) - (r.copiadas || 0)), (r.motivos || [])[0] ? "mais comum: " + esc(r.motivos[0].motivo.slice(0, 60)) : "–", "mon"]]);
+    table("cdM", ["Por que não copiou", "Vezes"], (r.motivos || []).filter((m) => m.motivo !== "copiou").map((m) => ['<span class="wrapcell">' + esc(m.motivo) + "</span>", String(m.n)]),
+      r.vistas ? "Copiou todas as compras vistas." : "Nenhuma compra dos traders copiados chegou ao robô neste período: eles não compraram, ou o monitor não recebeu as transações (confira Monitor ON na Visão geral).");
+    table("cdT", ["Trader", "Vistas", "Copiadas", "Motivo principal"], (r.traders || []).map((x) => [pfW(x.wallet), String(x.vistas), String(x.copiadas), '<span class="wrapcell">' + esc(x.principal || "–") + "</span>"]), "–");
+  }
   async function loadApiUsage() {
     const r = await BB.api("/api/admin/api-usage"); if (r.error || !$("apiU")) return;
     const bar = (p) => p == null ? '<span class="muted">sem limite publicado</span>' : '<b class="' + (p >= 80 ? "down" : p >= 50 ? "" : "up") + '">' + f(p, 0) + "%</b>";
@@ -1471,6 +1481,7 @@
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
     if (t.id === "apiURef") { loadApiUsage(); return; }
+    if (t.id === "cdRef") { loadCopyDiag(); return; }
     if (t.id === "trShGo") {
       const to = $("trShU").value; if (!to) { toast("Escolha a pessoa."); return; }
       t.disabled = true; const r = await BB.api("/api/pump/traders/share", { body: { to } }); t.disabled = false;
@@ -1591,6 +1602,7 @@
     if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); }
     if (VIEW === "comparar") loadCompare();
     if (VIEW === "basegeral") loadBaseGeral();
+    if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();

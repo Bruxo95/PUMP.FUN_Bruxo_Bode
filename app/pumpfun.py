@@ -891,6 +891,34 @@ class PumpFun:
         kw.setdefault("at", now_iso())
         self.store.feed_add(kw)
 
+    def _copy_note(self, who: str, outcome: str, t: float | None = None) -> None:
+        """0.31.78 (pedido do dono: "não há cópia dos top traders nas últimas 24 h"): cada compra de trader seguido que o
+        robô viu e o que fez com ela (copiou / motivo de não copiar). Só memória, 24 h (o Feed guarda só os últimos 500)."""
+        d = self.__dict__.setdefault("_copy_diag", deque(maxlen=50000))
+        d.append((time.time() if t is None else t, who, str(outcome)[:160]))
+
+    def copy_diag(self, hours: float = 24, now: float | None = None) -> dict:
+        now = time.time() if now is None else now
+        rows = [x for x in self.__dict__.get("_copy_diag") or [] if now - x[0] <= hours * 3600]
+        motivos, ex, por = {}, {}, {}
+        for _t, who, out in rows:
+            key = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", out)[:90]
+            motivos[key] = motivos.get(key, 0) + 1
+            ex.setdefault(key, out)
+            p = por.setdefault(who, {"wallet": who, "vistas": 0, "copiadas": 0, "motivo": {}})
+            p["vistas"] += 1
+            if out == "copiou":
+                p["copiadas"] += 1
+            else:
+                p["motivo"][ex[key]] = p["motivo"].get(ex[key], 0) + 1
+        for p in por.values():
+            p["principal"] = max(p["motivo"].items(), key=lambda kv: kv[1])[0] if p["motivo"] else None
+            p.pop("motivo")
+        return {"desde_reinicio": round((now - (rows[0][0] if rows else now)) / 3600, 1), "vistas": len(rows),
+                "copiadas": sum(1 for r in rows if r[2] == "copiou"), "seguidos": len(self.followed),
+                "motivos": sorted(({"motivo": ex[k], "n": n} for k, n in motivos.items()), key=lambda m: -m["n"])[:12],
+                "traders": sorted(por.values(), key=lambda p: -p["vistas"])[:30]}
+
     def _copy(self, who: str, mint: str, kind: str, sol: float, tok: float, ev: dict, before: float, t: float) -> list[str]:
         c = self.cfg
         tk = self.tokens.get(mint) or {}
@@ -904,6 +932,7 @@ class PumpFun:
         if kind == "buy" and self.is_paused(who):
             pz = self.paused().get(who) or {}
             self._feed(**base, action="não copiou", reason="trader pausado" + (f" ({pz.get('reason')})" if pz.get("reason") else ""))
+            self._copy_note(who, "trader pausado", t)
             return []
         if kind == "buy" and delay > 0 and not ev.get("_delayed"):
             key = (who, mint)
@@ -911,6 +940,7 @@ class PumpFun:
                 self._pending[key] = {"due": t + delay, "t": t, "who": who, "mint": mint, "sol": sol, "tok": tok,
                                       "ev": dict(ev), "before": before}
                 self._feed(**base, action="aguardando", reason=f"copia em {delay:.0f} s se o trader continuar no token")
+                self._copy_note(who, "aguardando a espera configurada antes de copiar", t)
             return []
         if kind == "buy":
             why = None
@@ -944,6 +974,7 @@ class PumpFun:
                     why = f"nota da entrada {score:.0f} abaixo do mínimo {mn:.0f}"
             if why:
                 self._feed(**base, action="não copiou", reason=why)
+                self._copy_note(who, why, t)
                 return []
             msgs = []
             # REAL (se ligado): compra de verdade, com o valor de "SOL por compra". Com o espelho (0.31.37) o real só
@@ -988,6 +1019,7 @@ class PumpFun:
             elif self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
                 swhy = "saldo fictício insuficiente"
             if swhy:
+                self._copy_note(who, swhy, t)
                 self._feed(**base, action="não copiou", reason=swhy)
                 return msgs
             fr = self._fee_rates(mint)
@@ -1008,6 +1040,7 @@ class PumpFun:
             self.ghosts.on_open(p, t)
             self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}"
                        + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
+            self._copy_note(who, "copiou", t)
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
             self._mirror_real(p, trader_sol=sol, block_t=ev.get("blockTime"))
             self._lead("open", p)
