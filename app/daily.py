@@ -186,6 +186,19 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
                "acao": e.get("action"), "motivo": str(e.get("reason") or "")[:200]}
               for e in list(pf.feed) if real and str(e.get("action") or "") in ("REAL falhou", "REAL não copiou")
               and day_of(_ts(e.get("at")) or 0) == day][:60]
+    if misses:
+        # 0.31.49 (pedido do dono: "sempre ir aprendendo com os erros e salvando relatório"): cada motivo de falha da real
+        # vira uma sugestão com a dica; o aprendizado de vários dias mostra os que se repetem
+        from .pumpfun import PumpFun
+        groups: dict[str, list] = {}
+        for m in misses:
+            key = next((k for k, _ in PumpFun.MISS_TIPS if k in m["motivo"].lower()), "outro")
+            groups.setdefault(key, []).append(m)
+        for key, ms in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+            tip = next((tp for k, tp in PumpFun.MISS_TIPS if k == key), "Veja o motivo de cada falha na lista abaixo.")
+            add("real", f"{len(ms)} compra(s)/venda(s) real(is) não aconteceram por \"{ms[0]['motivo'][:90]}\" "
+                f"({', '.join(sorted({m['token'] for m in ms})[:4])}). {tip}", len(ms), tipo="falha_real_" + key.replace(" ", "_"))
+        sug[:] = [s for s in sug if s["tipo"] != "info"]
     return {"dia": day, "real": real, "real_misses": misses, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
             "worst_trades": worst_trades, "best_trades": best_trades, "loss_causes": aut["causes"], "loss_traders": aut["traders"][:8], "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,

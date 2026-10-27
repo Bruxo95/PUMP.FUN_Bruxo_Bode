@@ -2894,6 +2894,9 @@ class PumpFun:
                  ("subiu", "O preço fugiu antes de a real comprar (corrigido na 0.31.43 para o espelho)."),
                  ("erro", "Falha ao enviar: confira o RPC e o saldo; veja Administração → Logs."),
                  ("falh", "A rede recusou ou não confirmou; confira saldo e slippage da real."),
+                 ("verificação", "A trava de segurança recusou a transação montada pela PumpPortal (formato novo). Mande o print para corrigir; a trava nunca é desligada."),
+                 ("simulação", "A simulação antes de assinar recusou a transação (SOL demais ou outro token mexido). Mande o print."),
+                 ("slippage", "O preço andou mais que a slippage da real na hora da compra: aumente a slippage da real com cuidado."),
                  ("recusad", "A rede recusou ou não confirmou; confira saldo e slippage da real."))
 
     def mirror_misses(self, hours: float = 48, now: float | None = None) -> dict:
@@ -3345,6 +3348,9 @@ class PumpReal:
         v = (sim or {}).get("value") or {}
         if v.get("err"):
             return f"a simulação falhou: {str(v['err'])[:100]}"
+        logs = v.get("logs") or []
+        if not any((txguard.PUMP in str(line) or txguard.PUMP_AMM in str(line)) and "invoke" in str(line) for line in logs):
+            return "a simulação não mostra a pump.fun sendo chamada"
         accs = v.get("accounts") or []
         if not accs or not accs[0]:
             return "a simulação não devolveu o saldo da carteira"

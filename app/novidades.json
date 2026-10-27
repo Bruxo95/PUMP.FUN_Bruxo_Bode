@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.49",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Execução real e Visão geral → Relatório do dia (Real)",
+      "titulo": "Compra real pela PumpPortal corrigida de novo, e a real aprende com cada falha",
+      "oque": "A compra da NEWMOON às 15:45 ainda foi recusada porque, na compra, a PumpPortal manda o endereço da pump.fun de outro jeito. Agora a confirmação de que a pump.fun é chamada vem da simulação feita antes de assinar (que também confere o SOL e os outros tokens). Cada falha da real vira uma sugestão com dica no Relatório do dia, fica salva no banco e aparece no Aprendizado dos dias quando se repete."
+    },
+    {
       "versao": "0.31.48",
       "data": "2026-10-27",
       "tipo": "correção",

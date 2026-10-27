@@ -603,6 +603,7 @@ class PumpHub:
                 from .modules_report import build as menus
                 rep_today = build(pf, dia, pts)
                 rep_today["modules"] = menus(self, pf, dia, True)      # relatório de cada menu (0.31.9)
+                rep_today["real_report"] = build(pf, dia, None, real=True)   # 0.31.49: a real também fica guardada
                 await self.db.insert("daily_report", {"user_id": uid, "dia": dia, "data": rep_today,
                                                       "atualizado_em": datetime.now(timezone.utc).isoformat()},
                                      upsert=True, on_conflict="user_id,dia")
@@ -611,6 +612,12 @@ class PumpHub:
                     if old and not (old[0].get("data") or {}).get("closed"):
                         rep = build(pf, prev, (old[0].get("data") or {}).get("points"))
                         rep["modules"] = (old[0].get("data") or {}).get("modules") or []   # a última foto ao vivo do dia
+                        rr = build(pf, prev, None, real=True)
+                        saved_rr = (old[0].get("data") or {}).get("real_report") or {}
+                        if len(saved_rr.get("real_misses") or []) > len(rr.get("real_misses") or []):
+                            rr["real_misses"] = saved_rr["real_misses"]        # o feed em memória pode já ter rodado
+                        rr["closed"] = True
+                        rep["real_report"] = rr
                         rep["closed"] = True
                         await self.db.insert("daily_report", {"user_id": uid, "dia": prev, "data": rep,
                                                               "atualizado_em": datetime.now(timezone.utc).isoformat()},

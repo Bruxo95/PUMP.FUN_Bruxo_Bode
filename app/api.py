@@ -350,8 +350,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
             from .daily import days_with_trades, study
             from .modules_report import build as menus
             allt = pf.trades(100000)
-            days = [today] + days_with_trades(pf, today, 30, real=True, all_trades=allt)
-            reps = {d: build(pf, d, None, real=True, all_trades=allt) for d in days}
+            try:
+                srows = await hub.db.select("daily_report", {"user_id": pf.user_id}, order="dia.desc", limit=30)
+            except Exception:
+                srows = []
+            kept = {str(r.get("dia")): (r.get("data") or {}).get("real_report") for r in srows}
+            kept = {d: x for d, x in kept.items() if x and d != today}     # 0.31.49: dias fechados guardados da real
+            days = [today] + sorted(set(days_with_trades(pf, today, 30, real=True, all_trades=allt)) | set(kept), reverse=True)
+            reps = {d: kept.get(d) or build(pf, d, None, real=True, all_trades=allt) for d in days}
             if dia not in reps:
                 reps[dia] = build(pf, dia, None, real=True, all_trades=allt)
             if dia == today:

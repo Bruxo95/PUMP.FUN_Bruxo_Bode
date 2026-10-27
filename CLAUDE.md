@@ -823,3 +823,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`simulateTransaction` com saldo da carteira e das outras contas de token) e recusa SOL acima do teto ou outro token
   mexido; sem simulação não envia. Jupiter de reserva para token pump usa `pump_real_slippage_pct`. `daily.build(real)`
   → `real_misses` (tabela `#dayMiss`). Relatório `app/relatorios_ia/2026-10-27-0.31.48.md`.
+
+- 0.31.49: `txguard` não exige mais a pump.fun nas contas da rota da PumpPortal (na compra ela vem por lookup table —
+  NEWMOON 15:45); `_sim_guard` exige o log de invoke da pump.fun/PumpSwap. `daily.build(real)` cria sugestões
+  `falha_real_*` a partir de `real_misses` + `PumpFun.MISS_TIPS`; `hub.save_daily` guarda `data.real_report` (e no
+  fechamento do dia); `daily_data(real)` usa os dias guardados. Pedido do dono: aprender com os erros e salvar tudo.

@@ -133,8 +133,8 @@ def check(message, owner: str, *, max_spend_lamports: int, max_fee_lamports: int
         elif prog == PUMPPORTAL_ROUTER:
             if mint and mint not in accs:
                 raise TxRejected("a instrução da PumpPortal não é do token pedido")
-            if PUMP not in accs and PUMP_AMM not in accs:
-                raise TxRejected("a instrução da PumpPortal não chama a pump.fun")
+            # 0.31.49: na compra (NEWMOON, 27/10 15:45) o programa da pump.fun vem por tabela de endereços e não aparece
+            # aqui; quem confere que a pump.fun é chamada é a simulação (logs), em PumpReal._sim_guard
             routed += 1
         elif prog == JUPITER:
             if jupiter is None or data[:8] not in JUP_ROUTES or len(data) < 27:

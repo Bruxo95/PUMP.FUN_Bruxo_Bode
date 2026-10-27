@@ -341,7 +341,7 @@ def test_txguard_pumpportal_router_needs_simulation_and_sim_guard_blocks_drain()
             return {"value": 1_000_000_000}
         data = bytearray(165)
         data[64:72] = int(state["other_after"]).to_bytes(8, "little")
-        return {"value": {"err": None, "accounts": [{"lamports": state["post"]}, {"data": [b64.b64encode(bytes(data)).decode(), "base64"]}]}}
+        return {"value": {"err": None, "logs": [f"Program {txguard.PUMP} invoke [2]"], "accounts": [{"lamports": state["post"]}, {"data": [b64.b64encode(bytes(data)).decode(), "base64"]}]}}
     pr = PumpReal.__new__(PumpReal)
     pr.wallet, pr._rpc = W(), rpc
     caps = {"max_spend_lamports": 60_000_000, "max_fee_lamports": 2_000_000, "max_priority_lamports": 2_000_000}
@@ -350,3 +350,15 @@ def test_txguard_pumpportal_router_needs_simulation_and_sim_guard_blocks_drain()
     assert "tiraria" in asyncio.run(pr._sim_guard("x", mint, caps))
     state["post"], state["other_after"] = 1_000_000_000 - 50_000_000, 0  # outro token esvaziado
     assert "outro token" in asyncio.run(pr._sim_guard("x", mint, caps))
+    # 0.31.49 (NEWMOON): a pump.fun pode vir por tabela de endereços; a conferência passa e a simulação exige o log dela
+    _, alt = _kp_msg([Instruction(Pubkey.from_string(txguard.PUMPPORTAL_ROUTER), b"\x01", acc[:1])], kp)
+    assert txguard.check(alt, str(me), **lim)["needs_simulation"] is True
+    state["other_after"] = 500
+
+    async def rpc_no_pump(method, params):
+        r = await rpc(method, params)
+        if method == "simulateTransaction":
+            r["value"]["logs"] = ["Program 11111111111111111111111111111111 invoke [1]"]
+        return r
+    pr._rpc = rpc_no_pump
+    assert "pump.fun" in asyncio.run(pr._sim_guard("x", mint, caps))

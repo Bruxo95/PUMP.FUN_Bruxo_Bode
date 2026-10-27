@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "7235cef77b543fd6691d557604f01724b35c35f7",
-    "application_version": "0.31.48 · 2026-10-27 · Compras reais pela PumpPortal voltam",
+    "repository_reference": "5ba49a80b4d3065fa3afdb24b1aff090b88aa2d6",
+    "application_version": "0.31.49 · 2026-10-27 · Real aprende com cada falha",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "81b9cf428d201fb5b3d8ee02ce4eb5b20afdd6b9113ae4e21bab894b92d42788",
+      "app/version.py": "ef3ada117253b67793bcad284ce93ca21c45b2cf2201c44a64fa2367eeb45019",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5aedfacb19bfba30e388afa90b42654f3a5a769e9cd0b754a6e5ed07f7260bde"
+  "pdf_sha256": "2ae318a5bb25c292ad7aff70c65327e95ddb330a5db96a76fd0787eaea25572a"
 }

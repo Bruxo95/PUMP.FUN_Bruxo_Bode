@@ -127,3 +127,28 @@ def test_daily_report_follows_the_real_wallet():
     assert rep["best_trades"][0]["token"] == "RL" and rep["points"][-1]["resultado"] == 0.02 and rep["equity_end"] is None
     sim = build(P(), day_of(_t.time()), None)
     assert sim["trades"] == 1 and sim["pnl_sol"] == 300.0
+
+
+
+def test_real_report_learns_from_failures():
+    """0.31.49: falhas da real do dia viram sugestão com a dica (o aprendizado de vários dias junta as repetidas)."""
+    from datetime import datetime, timezone
+    from app.daily import build, day_of, study
+    import time as _t
+    now = datetime.now(timezone.utc).isoformat()
+
+    class P:
+        feed = [{"at": now, "action": "REAL falhou", "symbol": "NEWMOON", "mint": "N" * 40,
+                 "reason": "PumpPortal auto: transação recusada pela verificação: x"},
+                {"at": now, "action": "REAL falhou", "symbol": "SPAWN", "mint": "S" * 40, "reason": "jupiter: slippage excedido (0x1771)"}]
+
+        def trades(self, n):
+            return []
+
+        def _c(self, k, d):
+            return d
+    rep = build(P(), day_of(_t.time()), None, real=True)
+    assert len(rep["real_misses"]) == 2
+    tipos = {s["tipo"] for s in rep["suggestions"]}
+    assert "falha_real_verificação" in tipos and "falha_real_slippage" in tipos
+    assert study([rep])["recurring"][0]["tipo"].startswith("falha_real_")
