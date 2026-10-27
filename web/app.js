@@ -1543,11 +1543,15 @@
     if (/PAUSADO|robô/i.test(m)) return "alert";
     return null;
   }
+  // 0.31.56 (pedido do dono): notificação (sino, som, aviso) só dos trades da PRÓPRIA conta ([PUMP SIM] / [PUMP REAL]);
+  // ranking de traders, Radar, aprendizado e outros avisos não entram
+  const OWN_TRADE = /^\[PUMP (SIM|REAL)\]/;
   function onEvent(e) {
     const k = classify(e.msg); const real = /REAL/.test(e.msg);
-    ntfPush(e, true);
     mascReact(e.msg);
-    if (real || k === "error" || /^Radar\b/i.test(e.msg)) toast(e.msg.slice(0, 180));
+    if (!OWN_TRADE.test(e.msg || "")) return;
+    ntfPush(e, true);
+    if (real || k === "error") toast(e.msg.slice(0, 180));
     if (!NTF || !k || k === "trader") return;
     const now = Date.now(); if (now - NTF_AT < 1200 && k !== "error") return; NTF_AT = now;
     play(k, real ? 0.55 : 0.28);
@@ -1644,7 +1648,7 @@
       if (r.error) { $("sysS").textContent = r.error; if (VIEW === "radar") invalidateRadar(r.error); return; }
       D = r;
       const evs = r.events || [];
-      if (EV < 0) { EV = evs.length ? evs[evs.length - 1].id : 0; evs.slice(-30).forEach((e) => ntfPush(e, false)); }
+      if (EV < 0) { EV = evs.length ? evs[evs.length - 1].id : 0; evs.filter((e) => OWN_TRADE.test(e.msg || "")).slice(-30).forEach((e) => ntfPush(e, false)); }
       else evs.forEach((e) => { if (e.id > EV) { EV = e.id; onEvent(e); } });
       render();
     } catch (e) { if (VIEW === "radar") invalidateRadar(e.message || "falha de conexão"); } finally { BUSY = false; }

@@ -860,3 +860,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.55: `PumpReal._rpc_retry` (3 tentativas, a última no `SOL_HTTP` se a carteira usa outro RPC) nas consultas e na
   simulação de `_sim_guard`; motivo com o texto do erro; dica em `MISS_TIPS`. Histórico → `#hErr` (`renderErrs`, ações
   "REAL falhou"/"REAL não copiou"/"preço suspeito" do feed). Explorar: classe `.wrapcell` no motivo do Automático.
+
+- 0.31.56: `OWN_TRADE` (/^\[PUMP (SIM|REAL)\]/) em `onEvent`: sino, som e toast só dos trades da própria conta (pedido do
+  dono). `modules_report._auto("explorar")` acrescenta a foto do aprender com os erros (bloqueadas/aprendendo/ok) ao
+  relatório do dia. Ajuda do Explorar: 6 operações (`autolearn.MIN_N`).

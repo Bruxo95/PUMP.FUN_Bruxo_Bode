@@ -83,8 +83,17 @@ def _auto(origem, menu):
         sec = {"menu": menu, "linhas": [f"{n} operações · {pnl:+.4f} SOL · acerto " + (f"{wr * 100:.0f}%" if wr is not None else "-")
                                         + f" · {stops} stops de perda"], "sugestoes": []}
         if origem == "explorar":                      # o que o aprendizado automático já bloqueou (0.31.12)
-            for x in pf.learned("explorar")["bloqueios"]:
+            L = pf.learned("explorar")
+            for x in L["bloqueios"]:
                 sec["linhas"].append(f"aprendeu: não entra mais com {x['nome']} {x['faixa']} ({x['n']} operações, média {x['media_pct']:+.0f}%)")
+            # 0.31.56 (pedido do dono: "o aprendizado também vai no relatório?"): a foto do aprendizado entra no relatório do
+            # dia (guardado no banco a cada 30 min) — quantas faixas estão bloqueadas, aprendendo e ok
+            fx = L.get("faixas") or []
+            from .autolearn import MIN_N
+            if fx:
+                learning = [x for x in fx if (x.get("n") or 0) < MIN_N]
+                sec["linhas"].append(f"aprender com os erros: {len(L['bloqueios'])} faixa(s) bloqueada(s), {len(learning)} ainda aprendendo "
+                                     f"(precisam de {MIN_N} operações), {len(fx) - len(learning) - len(L['bloqueios'])} ok")
         if n >= 5 and pnl < 0:
             sec["sugestoes"].append(_sug(menu, "lógica", "automatica_no_prejuizo", f"{menu}: {pnl:+.4f} SOL em {n} operações hoje. Aperte a regra "
                                          "de entrada desse menu (mais traders/filtros) ou deixe só observando até o estudo mostrar lucro.", n))

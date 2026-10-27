@@ -535,6 +535,11 @@
    "versao": "0.31.55",
    "inicio": "2026-10-27T16:33:49+00:00",
    "titulo": "Real tenta de novo; erros no Histórico"
+  },
+  {
+   "versao": "0.31.56",
+   "inicio": "2026-10-27T16:36:58+00:00",
+   "titulo": "Notificações só dos seus trades"
   }
  ]
 }
