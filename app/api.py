@@ -832,6 +832,28 @@ def create_app(hub, auth, cfg) -> FastAPI:
             return {"error": "nada para alterar"}
         return await hub.admin_update_user(u["id"], uid, allowed)
 
+    @app.post("/api/admin/users/{uid}/copy-config")
+    async def admin_copy_config(uid: str, u: dict = Depends(admin_only)):
+        if not UUID.match(uid):
+            return {"error": "usuário inválido"}
+        pf = await hub.engine(u["id"])
+        return await hub.admin_copy_config(pf, uid)
+
+    @app.get("/api/admin/users/{uid}/trades")
+    async def admin_user_trades(uid: str, u: dict = Depends(admin_only)):
+        """0.31.33: trades fechados da carteira fictícia de um usuário (ganhos, perdas ou todos), para o Admin."""
+        if not UUID.match(uid):
+            return {"error": "usuário inválido"}
+        rows = await hub.db.select("profiles", {"user_id": uid}, columns="user_id")
+        if not rows:
+            return {"error": "usuário não encontrado"}
+        pf = await hub.engine(uid)
+        out = [{"aberto": t.get("opened_at"), "fechado": t.get("closed_at"), "token": t.get("symbol"), "mint": t.get("mint"),
+                "origem": t.get("origem") or ("manual" if t.get("wallet") == "manual" else "cópia"), "wallet": t.get("wallet"),
+                "sol_in": t.get("sol_in"), "pnl_sol": t.get("pnl_sol"), "pnl_pct": t.get("pnl_pct"), "melhor_pct": t.get("best_pct"),
+                "hold_s": t.get("hold_s"), "motivo": t.get("reason")} for t in pf.trades(2000) if not t.get("real")]
+        return {"trades": out}
+
     @app.get("/api/admin/audit")
     async def admin_audit(user_id: str = "", limit: int = 200, u: dict = Depends(admin_only)):
         """Registro de segurança de todas as contas (o detalhe nunca contém chaves)."""

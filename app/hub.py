@@ -1066,7 +1066,29 @@ class PumpHub:
                  "valores": r.get("valores") or {}, "antes": r.get("antes") or {}}
                 for r in rows if now - (ts(r.get("respondido_em")) or now) < 60 * 86400]
 
-    async def config_answer(self, pf, offer_id: int, accept: bool) -> dict:
+    async def admin_copy_config(self, pf, uid: str) -> dict:
+        """0.31.33 (pedido do dono em 2026-10-27): o admin copia TODA a configuração de um usuário para a própria conta,
+        pelo Admin → Usuários. Passa pelo mesmo caminho do convite aceito (guarda o antes, mostra o selo "idêntica à de
+        X" e o "ver o que mudou"). Nunca leva real, chaves ou Telegram (`share_filter`). Quem foi copiado não é alterado."""
+        from .settings import USER_KEYS
+        if uid == pf.user_id:
+            return {"error": "essa já é a sua configuração"}
+        rows = await self.db.select("profiles", {"user_id": uid}, columns="user_id,nome,email")
+        if not rows:
+            return {"error": "usuário não encontrado"}
+        src = await self.engine(uid)
+        de = (rows[0].get("nome") or (rows[0].get("email") or "").split("@")[0] or "usuário")[:60]
+        keys = self.share_filter(list(USER_KEYS), True)
+        await self.db.insert("config_offers", {"de_user": uid, "para_user": pf.user_id, "de_nome": de, "parte": "toda a configuração (copiada no Admin)",
+                                               "valores": {k: getattr(src.cfg, k) for k in keys}, "status": "pendente"})
+        got = await self.db.select("config_offers", {"de_user": uid, "para_user": pf.user_id, "status": "pendente"}, order="criado_em.desc", limit=1)
+        if not got:
+            return {"error": "não consegui registrar a cópia"}
+        r = await self.config_answer(pf, got[0]["id"], True, notify_sender=False)
+        await audit(self.db, pf.user_id, "admin copiou configuração", f"toda a configuração de {de}")
+        return r
+
+    async def config_answer(self, pf, offer_id: int, accept: bool, notify_sender: bool = True) -> dict:
         rows = await self.db.select("config_offers", {"id": offer_id, "para_user": pf.user_id, "status": "pendente"})
         if not rows:
             return {"error": "convite não encontrado"}
@@ -1096,6 +1118,8 @@ class PumpHub:
         n = f" ({len(applied)} opções aplicadas)" if accept else ""
         await audit(self.db, pf.user_id, "aceitou configuração" if accept else "recusou configuração",
                     f"{r.get('parte')} de {r.get('de_nome') or r.get('de_user')}{n}")
+        if not notify_sender:                          # cópia feita pelo admin: quem foi copiado não enviou convite
+            return {"ok": True, "opcoes": len(applied)}
         await audit(self.db, r.get("de_user"), "convite de configuração aceito" if accept else "convite de configuração recusado",
                     f"{quem} {verbo}: {r.get('parte')}{n}")
         try:

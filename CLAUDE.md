@@ -750,3 +750,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   pelo nome (`_names`, `UUID_ANY`). Teste em `tests/test_explore_share.py`.
 
 - 0.31.32: quadro `#cfShareTop` com `#cfAllU` + `#cfAllGo` (envia `all`); `cfgShareCards` ignora esse quadro. Pedido do dono.
+
+- 0.31.33: Admin → Usuários: `POST /api/admin/users/{uid}/copy-config` (`hub.admin_copy_config`: cria um convite do usuário
+  para o admin e aceita na hora com `config_answer(..., notify_sender=False)`) e `GET /api/admin/users/{uid}/trades`
+  (fictícios). Modal `#uTrades` (`openUserTrades`/`renderUserTrades`). Pedido do dono. Teste em `tests/test_explore_share.py`.

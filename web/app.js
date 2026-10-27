@@ -1058,6 +1058,8 @@
       loadApplied();
       return loadOffers();
     }
+    if (t.dataset.utf) { UTR.f = t.dataset.utf; renderUserTrades(); return; }
+    if (t.id === "uTrX" || t.id === "uTrades") { $("uTrades").hidden = true; return; }
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
@@ -1655,6 +1657,29 @@
       ["Erros de banco", String((A.db_errors || []).length), (A.db_errors || []).length ? "veja o status geral" : "nenhum", "pos"]]);
     $("nbAdm").textContent = USERS.filter((u) => u.bloqueado).length || "";
   }
+  // 0.31.33: trades da carteira fictícia de um usuário (Admin → Usuários → Ver trades ganhos)
+  let UTR = { uid: "", list: [], f: "win" };
+  async function openUserTrades(uid, filt) {
+    const u = USERS.find((x) => x.user_id === uid) || {};
+    UTR = { uid, list: [], f: filt || "win" };
+    $("uTrT").textContent = "Trades de " + (u.nome || u.email || "usuário"); $("uTrS").textContent = "carteira fictícia · carregando…";
+    $("uTrTbl").innerHTML = ""; $("uTrK").innerHTML = ""; $("uTrades").hidden = false;
+    const r = await BB.api("/api/admin/users/" + encodeURIComponent(uid) + "/trades");
+    if (r.error) { $("uTrS").textContent = r.error; return; }
+    UTR.list = r.trades || []; renderUserTrades();
+  }
+  function renderUserTrades() {
+    const L = UTR.list, W = L.filter((x) => (x.pnl_sol || 0) > 0), P = L.filter((x) => (x.pnl_sol || 0) <= 0);
+    const sum = (a) => a.reduce((s, x) => s + (x.pnl_sol || 0), 0);
+    document.querySelectorAll("#uTrF button").forEach((b) => b.classList.toggle("on", b.dataset.utf === UTR.f));
+    $("uTrS").textContent = "carteira fictícia · " + L.length + " trades fechados · acerto " + (L.length ? f(W.length / L.length * 100, 0) + "%" : "–");
+    kpis("uTrK", [["Ganhos", W.length, sg(sum(W))], ["Perdas", P.length, sg(sum(P))], ["Resultado", sg(sum(L)), L.length + " trades"]]);
+    const rows = (UTR.f === "win" ? W : UTR.f === "loss" ? P : L).slice().sort((a, b) => UTR.f === "loss" ? (a.pnl_sol || 0) - (b.pnl_sol || 0) : UTR.f === "win" ? (b.pnl_sol || 0) - (a.pnl_sol || 0) : String(b.fechado).localeCompare(String(a.fechado)));
+    table("uTrTbl", ["Fechou", "Token", "Origem", "Entrou", "Resultado", "Melhor momento", "Duração", "Motivo"], rows.map((x) => [esc(dt(x.fechado)), pfM(x.mint || "", x.token), esc(x.origem || ""),
+      x.sol_in == null ? "–" : f(x.sol_in, 3) + " SOL", sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"),
+      x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", x.hold_s == null ? "–" : hms(x.hold_s), esc(x.motivo || "")]),
+      UTR.f === "win" ? "Nenhum trade ganho ainda." : UTR.f === "loss" ? "Nenhuma perda." : "Nenhum trade fechado.");
+  }
   function renderUsers() {
     const q = ($("aFind").value || "").toLowerCase().trim(), me = USERS.me;
     const L = USERS.filter((u) => !q || (String(u.email || "") + " " + String(u.nome || "")).toLowerCase().indexOf(q) >= 0);
@@ -1668,11 +1693,12 @@
         u.ultimo_acesso ? "há " + agoIso(u.ultimo_acesso) + "<small>" + dt(u.ultimo_acesso) + "</small>" : '<span class="dim">nunca</span>',
         u.criado_em ? new Date(u.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "–",
         u.stats ? st(S.copy_enabled) + "<small>" + S.followed + " traders</small>" : '<span class="dim">–</span>',
-        u.stats ? sg(S.pnl_sol) + "<small>" + S.trades + " trades · " + S.open + " abertas" + (S.win_rate != null ? " · " + f(S.win_rate * 100, 0) + "%" : "") + "</small>" : "–",
+        u.stats ? sg(S.pnl_sol) + "<small>" + S.trades + " trades · " + S.open + " abertas" + (S.win_rate != null ? " · " + f(S.win_rate * 100, 0) + "%" : "") + "</small>" +
+          (S.trades ? btn("Ver trades ganhos", "u-trades", { uid: u.user_id }) : "") : "–",
         u.stats ? st(S.real_enabled, 1) + (S.real_trades ? " " + sg(S.real_pnl_sol) : "") + "<small>" + (S.wallet ? "carteira configurada" : "sem carteira") + "</small>" : "–",
         u.stats ? '<div class="keys">' + key(k.solanatracker_api_key, "Tracker") + key(k.wallet_private_key, "Carteira") + key(k.rpc_url, "RPC") + "</div>" + (S.db_error ? '<small class="down">banco: ' + esc(S.db_error) + "</small>" : "") : '<span class="dim">–</span>',
         '<div style="display:flex;flex-direction:column;gap:4px;align-items:stretch">' + (mine ? "" : u.bloqueado ? btn("Desbloquear", "u-block", { uid: u.user_id, v: "0" }, "tgl on") : btn("Bloquear", "u-block", { uid: u.user_id, v: "1" }, "tgl off")) +
-          (S.real_enabled ? btn("Desligar real", "u-realoff", { uid: u.user_id }, "tgl off") : "") + btn("Registro", "u-audit", { uid: u.user_id }) + "</div>"];
+          (S.real_enabled ? btn("Desligar real", "u-realoff", { uid: u.user_id }, "tgl off") : "") + (mine ? "" : btn("Copiar config", "u-copycfg", { uid: u.user_id })) + btn("Registro", "u-audit", { uid: u.user_id }) + "</div>"];
     }), "Nenhum usuário encontrado.");
   }
   async function adminUser(uid, body, msg) {
@@ -1752,6 +1778,16 @@
       if (!confirm((blk ? "Bloquear " : "Desbloquear ") + (u.email || "este usuário") + "?" + (blk ? "\n\nA conta para de copiar na hora, a execução real dele desliga e ele não consegue mais entrar no painel." : ""))) return;
       return adminUser(t.dataset.uid, { bloqueado: blk }); }
     if (a === "u-realoff") { if (!confirm("Desligar a execução REAL deste usuário agora?")) return; return adminUser(t.dataset.uid, { real_off: true }, "Execução real do usuário desligada."); }
+    if (a === "u-copycfg") {
+      // 0.31.33 (pedido do dono em 2026-10-27): copiar toda a configuração do usuário para a sua conta
+      const u = USERS.find((x) => x.user_id === t.dataset.uid) || {}, nome = u.nome || u.email || "este usuário";
+      if (!confirm("Copiar TODA a configuração de " + nome + " para a SUA conta?\n\nOs seus valores atuais dessas opções serão trocados. Não vai nada da carteira real, chaves ou Telegram, e a conta de " + nome + " não muda.\nDepois, em Configurações e Explorar, o botão \"Ver o que mudou\" mostra antes × agora.")) return;
+      t.disabled = true; const r = await BB.api("/api/admin/users/" + encodeURIComponent(t.dataset.uid) + "/copy-config", { body: {} }); t.disabled = false;
+      toast(r.error ? "Não copiou: " + r.error : "Configuração de " + nome + " copiada para a sua conta (" + r.opcoes + " opções).");
+      if (!r.error) { poll(true); loadApplied(); }
+      return;
+    }
+    if (a === "u-trades") return openUserTrades(t.dataset.uid, "win");
     if (a === "u-audit") { $("aAudUser").value = t.dataset.uid; loadAAudit(); $("tAAudit").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (a === "addw") return wallet("add", $("addW").value);
     if (a === "close") { if (!confirm(t.dataset.real === "1" ? "VENDER de verdade esta posição REAL agora (100%)?" : "Fechar esta posição fictícia agora no preço atual?")) return; const r = await BB.api("/api/pump/close", { body: { id: t.dataset.id } }); toast(r.error || r.msg || "Fechada."); return poll(true); }

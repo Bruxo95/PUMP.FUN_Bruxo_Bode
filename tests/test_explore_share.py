@@ -53,6 +53,25 @@ def test_share_config_section_and_all_without_real_or_telegram(env):
     assert any(a["user_id"] == UA and a["acao"] == "convite de configuração aceito" for a in env["db"].tables["audit_log"])
 
 
+def test_admin_copies_user_config_and_sees_trades(env):
+    c, hub, db = env["c"], env["hub"], env["db"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.post("/api/pump/settings", json={"pump_copy_sol": 0.3, "pump_stop_pct": 22}, headers=B)
+    c.get("/api/pump", headers=A)
+    r = c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A).json()
+    assert r["ok"] and hub.engines[UA].cfg.pump_copy_sol == 0.3 and hub.engines[UA].cfg.pump_stop_pct == 22
+    ap = c.get("/api/pump/config/applied", headers=A).json()["applied"]
+    assert ap and ap[0]["antes"]["pump_copy_sol"] != 0.3                                  # "ver o que mudou" funciona
+    assert not any("aceitou" in e["msg"] for e in hub.engines[UB].events)                  # B não enviou convite
+    assert c.post(f"/api/admin/users/{UA}/copy-config", json={}, headers=A).json()["error"]
+    assert c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=B).status_code == 403
+    hub.engines[UB]._save_trade({"wallet": "W", "symbol": "WIN", "mint": "M" * 40, "sol_in": 0.1, "pnl_sol": 0.05, "pnl_pct": 50.0,
+                                 "reason": "alvo", "real": False})
+    t = c.get(f"/api/admin/users/{UB}/trades", headers=A).json()["trades"]
+    assert t[0]["token"] == "WIN" and t[0]["pnl_sol"] == 0.05
+    assert c.get(f"/api/admin/users/{UA}/trades", headers=B).status_code == 403
+
+
 def test_share_is_admin_only(env):
     c = env["c"]
     B = tok(UB, "b@x.com")
