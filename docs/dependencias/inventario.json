@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "a3aa03875e70580febd2212186247429b1964897",
-    "application_version": "0.31.59 · 2026-10-27 · Etiqueta REAL ou FICTÍCIA",
+    "repository_reference": "4679b27c1310a81fad046a05cece34b9ba89b3a7",
+    "application_version": "0.31.60 · 2026-10-27 · Stop que escorregou no aprendizado",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "84714fe5a4a15efa36ee50a16d3b6293a7c91ebb260b77cdc03f2d4bb18d0c5f",
+      "app/version.py": "6d6f0e0e57e92ac58439da9f45439133d782d7e508e10cdbbc5fcea981accac7",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "cede9ed225cb9d118ab71bcc51bed1f55b64177b6356c7bcd40d908974255b75"
+  "pdf_sha256": "3f470670830981df7f7047202a165e7bf5d688c4b8b3393d74b2543ea0fa41b5"
 }

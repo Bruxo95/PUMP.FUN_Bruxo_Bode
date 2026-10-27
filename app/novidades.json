@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.60",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Visão geral → Relatório do dia e Aprendizado dos dias",
+      "titulo": "Stop que escorregou entra no relatório e no aprendizado",
+      "oque": "Quando o stop de perda sai bem abaixo do configurado (ex.: SHERKHAN, stop −40% que saiu em −62,5% por queda muito rápida), o Relatório do dia mostra quantos foram, quais tokens e quanto custou a mais, com a sugestão do que fazer. Fica guardado no banco e, se repetir em outros dias, aparece como problema repetido no Aprendizado dos dias. Nenhuma regra de compra ou venda mudou."
+    },
+    {
       "versao": "0.31.59",
       "data": "2026-10-27",
       "tipo": "melhoria",

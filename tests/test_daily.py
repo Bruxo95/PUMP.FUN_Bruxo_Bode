@@ -152,3 +152,27 @@ def test_real_report_learns_from_failures():
     tipos = {s["tipo"] for s in rep["suggestions"]}
     assert "falha_real_verificação" in tipos and "falha_real_slippage" in tipos
     assert study([rep])["recurring"][0]["tipo"].startswith("falha_real_")
+
+
+
+def test_daily_learns_when_stop_slips():
+    """0.31.60 (SHERKHAN): stop −40% que saiu em −62,5% vira registro e sugestão (tipo stop_escorregou)."""
+    from datetime import datetime, timezone
+    from app.daily import build, day_of
+    import time as _t
+    now = datetime.now(timezone.utc).isoformat()
+
+    class P:
+        feed = []
+
+        def trades(self, n):
+            return [{"symbol": "SHERKHAN", "mint": "S" * 40, "pnl_pct": -62.5, "pnl_sol": -0.0628, "sol_in": 0.1005,
+                     "reason": "stop de perda (−40%)", "closed_at": now, "opened_at": now},
+                    {"symbol": "OK", "mint": "O" * 40, "pnl_pct": -41.0, "pnl_sol": -0.04, "sol_in": 0.1,
+                     "reason": "stop de perda (−40%)", "closed_at": now, "opened_at": now}]
+
+        def _c(self, k, d):
+            return d
+    rep = build(P(), day_of(_t.time()), None)
+    assert [x["token"] for x in rep["stops_slipped"]] == ["SHERKHAN"]
+    assert any(s["tipo"] == "stop_escorregou" for s in rep["suggestions"])

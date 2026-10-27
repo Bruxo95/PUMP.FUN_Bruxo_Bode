@@ -871,3 +871,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   27/10 18:00) e confere cada lote em `_sim_check`. Sino: tag REAL/FICTÍCIA em cada notificação.
 
 - 0.31.59: etiquetas REAL/FICTÍCIA em todo o painel (antes "Sim", "Simulado", "SIMULADO", "Real"); `data-mtag` também. Pedido do dono.
+
+- 0.31.60: `daily.build` → `stops_slipped` (stop que fechou 10+ pontos abaixo do configurado) e sugestão `stop_escorregou`
+  (guardada no `daily_report`, conta em `study.recurring`). Só registro e aprendizado; regras não mudaram. Pedido do dono (SHERKHAN).

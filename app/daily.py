@@ -92,6 +92,14 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
     by_origin = group(_origin)
     gave_back = [t for t in T if (t.get("best_pct") or 0) >= 30 and (t.get("pnl_pct") or 0) <= 0]
     stops = [t for t in T if _exit(t.get("reason")) == "stop de perda"]
+    # 0.31.60 (SHERKHAN, 27/10: stop −40% saiu em −62,5%): stop que "escorregou" = fechou 10 pontos ou mais abaixo do
+    # stop configurado (queda rápida entre duas leituras de preço). Fica no relatório guardado e no aprendizado.
+    slipped = []
+    for t in stops:
+        m = re.search(r"stop de perda \(\s*[−-]\s*(\d+(?:[.,]\d+)?)\s*%", str(t.get("reason") or ""))
+        if m and t.get("pnl_pct") is not None and t["pnl_pct"] < -(float(m.group(1).replace(",", ".")) + 10):
+            slipped.append({"token": t.get("symbol") or str(t.get("mint") or "")[:6], "stop_pct": float(m.group(1).replace(",", ".")),
+                            "pnl_pct": t["pnl_pct"], "pnl_sol": t.get("pnl_sol"), "extra_sol": round((t.get("sol_in") or 0) * (-(float(m.group(1).replace(",", ".")) + t["pnl_pct"]) / 100), 6)})
     lags = [t["lag_s"] for t in T if t.get("lag_s") is not None]
     skips: dict[str, int] = {}
     for e in pf.feed:
@@ -186,6 +194,12 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
                "acao": e.get("action"), "motivo": str(e.get("reason") or "")[:200]}
               for e in list(pf.feed) if real and str(e.get("action") or "") in ("REAL falhou", "REAL não copiou")
               and day_of(_ts(e.get("at")) or 0) == day][:60]
+    if slipped:
+        extra = sum(x["extra_sol"] for x in slipped)
+        add("lógica", f"{len(slipped)} stop(s) de perda escorregaram: saíram em média {sum(x['pnl_pct'] for x in slipped) / len(slipped):.0f}% "
+            f"com o stop em −{slipped[0]['stop_pct']:.0f}% ({', '.join(x['token'] for x in slipped[:4])}); custaram {extra:.4f} SOL a mais que o "
+            "stop. Acontece em queda muito rápida entre duas leituras de preço. Para diminuir: RPC próprio (preço mais rápido) e "
+            "comparar nas Estratégias fantasma um stop mais curto antes de mudar.", len(slipped), tipo="stop_escorregou")
     sus = [e for e in list(pf.feed) if e.get("action") == "preço suspeito" and bool(e.get("real")) == real
            and day_of(_ts(e.get("at")) or 0) == day]
     if sus:
@@ -209,7 +223,7 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
     return {"dia": day, "real": real, "real_misses": misses, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
             "worst_trades": worst_trades, "best_trades": best_trades, "loss_causes": aut["causes"], "loss_traders": aut["traders"][:8], "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
-            "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
+            "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops), "stops_slipped": slipped,
             "avg_lag_s": round(sum(lags) / len(lags), 1) if lags else None, "top_skips": [{"motivo": k, "n": v} for k, v in top_skips],
             "suggestions": sug, "points": pts[-MAX_POINTS:], "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
@@ -234,7 +248,8 @@ TITLES = {"causa_parado": "Prejuízo: ficou parado", "causa_devolveu": "Prejuíz
           "causa_so_caiu": "Prejuízo: entrou e só caiu", "causa_taxas": "Prejuízo: taxas", "causa_entrada_cara": "Prejuízo: entrada cara",
           "causa_trader_perdeu": "Prejuízo: o trader errou", "causa_rug": "Prejuízo: rug/dev", "tempo_maximo": "Perdas por tempo máximo", "horario_ruim": "Horário ruim", "acerto_baixo": "Acerto baixo", "muitos_stops": "Muitos stops de perda", "devolveu_lucro": "Lucro devolvido",
           "trader_ruim": "Trader que dá prejuízo", "origem_ruim": "Origem no prejuízo", "taxas": "Taxas altas",
-          "atraso": "Atraso alto", "filtro": "Filtro barrando demais", "queda_saldo": "Saldo caindo no dia"}
+          "atraso": "Atraso alto", "filtro": "Filtro barrando demais", "queda_saldo": "Saldo caindo no dia",
+          "stop_escorregou": "Stop de perda escorregou (saiu bem abaixo do stop)"}
 
 
 def study(reports: list[dict]) -> dict:
