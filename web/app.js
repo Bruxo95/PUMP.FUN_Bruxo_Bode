@@ -1776,7 +1776,7 @@
         u.stats ? st(S.real_enabled, 1) + (S.real_trades ? " " + sg(S.real_pnl_sol) : "") + "<small>" + (S.wallet ? "carteira configurada" : "sem carteira") + "</small>" : "–",
         u.stats ? '<div class="keys">' + key(k.solanatracker_api_key, "Tracker") + key(k.wallet_private_key, "Carteira") + key(k.rpc_url, "RPC") + "</div>" + (S.db_error ? '<small class="down">banco: ' + esc(S.db_error) + "</small>" : "") : '<span class="dim">–</span>',
         '<div style="display:flex;flex-direction:column;gap:4px;align-items:stretch">' + (mine ? "" : u.bloqueado ? btn("Desbloquear", "u-block", { uid: u.user_id, v: "0" }, "tgl on") : btn("Bloquear", "u-block", { uid: u.user_id, v: "1" }, "tgl off")) +
-          (S.real_enabled ? btn("Desligar real", "u-realoff", { uid: u.user_id }, "tgl off") : "") + (mine ? "" : btn("Copiar config", "u-copycfg", { uid: u.user_id })) + btn("Registro", "u-audit", { uid: u.user_id }) + "</div>"];
+          (S.real_enabled ? btn("Desligar real", "u-realoff", { uid: u.user_id }, "tgl off") : "") + (mine ? "" : btn("Visualizar tela", "u-view", { uid: u.user_id }) + btn("Copiar config", "u-copycfg", { uid: u.user_id })) + btn("Registro", "u-audit", { uid: u.user_id }) + "</div>"];
     }), "Nenhum usuário encontrado.");
   }
   async function adminUser(uid, body, msg) {
@@ -1856,6 +1856,11 @@
       if (!confirm((blk ? "Bloquear " : "Desbloquear ") + (u.email || "este usuário") + "?" + (blk ? "\n\nA conta para de copiar na hora, a execução real dele desliga e ele não consegue mais entrar no painel." : ""))) return;
       return adminUser(t.dataset.uid, { bloqueado: blk }); }
     if (a === "u-realoff") { if (!confirm("Desligar a execução REAL deste usuário agora?")) return; return adminUser(t.dataset.uid, { real_off: true }, "Execução real do usuário desligada."); }
+    if (a === "u-view") {
+      // 0.31.36 (pedido do dono em 2026-10-27): ver a tela do usuário como ele vê, só leitura e sem registrar
+      try { sessionStorage.setItem("pf_viewas", t.dataset.uid); } catch (e) { toast("O navegador bloqueou a visualização."); return; }
+      location.hash = "#visao"; location.reload(); return;
+    }
     if (a === "u-copycfg") {
       // 0.31.33 (pedido do dono em 2026-10-27): copiar toda a configuração do usuário para a sua conta
       const u = USERS.find((x) => x.user_id === t.dataset.uid) || {}, nome = u.nome || u.email || "este usuário";
@@ -1911,6 +1916,14 @@
     ME = await BB.api("/api/me");
     if (ME.error) { $("boot").textContent = ME.error; return; }
     $("boot").hidden = true; $("shell").hidden = false;
+    if (ME.view_by) {
+      // 0.31.36: faixa "você está vendo a tela de X" + painel só leitura (o servidor recusa qualquer alteração)
+      document.body.classList.add("viewas");
+      $("viewBar").hidden = false;
+      $("viewBar").innerHTML = '<div class="viewbar"><span>👁 Você está vendo a tela de <b>' + esc(ME.nome || ME.email || "usuário") + "</b>" + (ME.email ? " · " + esc(ME.email) : "") +
+        ' — somente visualização: nada pode ser alterado e as chaves não aparecem.</span><button class="btn sm primary" id="viewExit">Sair da visualização</button></div>';
+      $("viewExit").onclick = () => { try { sessionStorage.removeItem("pf_viewas"); } catch (e) { /* */ } location.hash = "#admin"; location.reload(); };
+    }
     $("ver").textContent = "versão " + ME.version;
     $("mName").textContent = ME.nome || "Sua conta"; $("mMail").textContent = ME.email || ""; $("mRole").textContent = ME.role === "admin" ? "administrador" : "usuário";
     const av = $("avatarB"); av.innerHTML = ME.avatar ? '<img alt="" referrerpolicy="no-referrer" src="' + esc(ME.avatar) + '">' : esc((ME.nome || ME.email || "?").slice(0, 1).toUpperCase());

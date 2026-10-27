@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.36",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Administração → Usuários → Visualizar tela",
+      "titulo": "Ver a tela de um usuário (só leitura)",
+      "oque": "Botão \"Visualizar tela\" em cada usuário: abre o painel exatamente como aquela pessoa vê (Visão geral, posições, histórico, configurações…), com uma faixa laranja no topo \"Você está vendo a tela de Fulano — somente visualização\" e o botão Sair da visualização. Nada pode ser alterado (o servidor recusa qualquer mudança), as chaves, o registro de segurança e a Administração não abrem, e a visualização não é registrada no log. Vale só na aba em que você abriu."
+    },
+    {
       "versao": "0.31.35",
       "data": "2026-10-27",
       "tipo": "melhoria",

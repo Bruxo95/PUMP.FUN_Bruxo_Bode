@@ -765,3 +765,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   banner `offerUpdate` no painel. Testes: `tests/test_comparar.py`.
 
 - 0.31.35: `hub.config_sync` + `POST /api/pump/config/applied/{id}/sync` (valores ATUAIS da origem nas opções da cópia, como nova cópia aceita); botão "Aplicar idêntica" no selo `.cfgfrom`. Pedido do dono.
+
+- 0.31.36: "Visualizar tela" (Admin → Usuários). Cabeçalho `X-View-As` (`BB.viewAs`, `sessionStorage` `pf_viewas`); a dependência
+  `user()` em `app/api.py` troca a conta pela do usuário só para admin e só em GET; bloqueia `/api/secrets`, `/api/audit`,
+  `/api/admin`; não grava `audit_log` (pedido do dono). Faixa `#viewBar`, `body.viewas`. Teste: `tests/test_visualizar.py`.

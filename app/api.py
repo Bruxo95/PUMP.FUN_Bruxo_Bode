@@ -82,10 +82,30 @@ def create_app(hub, auth, cfg) -> FastAPI:
         if prof.get("bloqueado"):
             raise HTTPException(403, "conta bloqueada pelo administrador")
         meta = claims.get("user_metadata") or {}
-        return {"id": claims["sub"], "email": prof.get("email") or claims.get("email"),
-                "nome": prof.get("nome") or meta.get("full_name") or meta.get("name"),
-                "avatar": prof.get("avatar_url") or meta.get("avatar_url") or meta.get("picture"),
-                "role": prof.get("role") or "user"}
+        me = {"id": claims["sub"], "email": prof.get("email") or claims.get("email"),
+              "nome": prof.get("nome") or meta.get("full_name") or meta.get("name"),
+              "avatar": prof.get("avatar_url") or meta.get("avatar_url") or meta.get("picture"),
+              "role": prof.get("role") or "user"}
+        va = (request.headers.get("x-view-as") or "").strip().lower()
+        if not va:
+            return me
+        # 0.31.36 (pedido do dono em 2026-10-27): o admin vê a tela de um usuário como ele vê, SÓ LEITURA. Qualquer
+        # escrita é recusada aqui, antes de qualquer rota; chaves, registro e Administração não abrem; não vai para o
+        # audit_log (pedido do dono: visualizar não é registrado).
+        if me["role"] != "admin":
+            raise HTTPException(403, "só o admin")
+        if request.method != "GET":
+            raise HTTPException(403, "modo visualização: só leitura")
+        if request.url.path.startswith(("/api/secrets", "/api/audit", "/api/admin")):
+            raise HTTPException(403, "não disponível na visualização")
+        if not UUID_ANY.fullmatch(va):
+            raise HTTPException(400, "usuário inválido")
+        rows = await hub.db.select("profiles", {"user_id": va}, columns="user_id,email,nome,avatar_url,role")
+        if not rows:
+            raise HTTPException(404, "usuário não encontrado")
+        t = rows[0]
+        return {"id": va, "email": t.get("email"), "nome": t.get("nome"), "avatar": t.get("avatar_url"),
+                "role": t.get("role") or "user", "view_by": me["id"], "view_by_nome": me["nome"] or me["email"]}
 
     async def engine(u: dict = Depends(user)):
         return await hub.engine(u["id"])

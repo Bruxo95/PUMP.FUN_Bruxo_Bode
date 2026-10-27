@@ -35,12 +35,18 @@
     location.href = "/";
   };
 
+  /* 0.31.36: admin vendo a tela de um usuário (só leitura). Fica só nesta aba (sessionStorage). */
+  BB.viewAs = function () {
+    let v = ""; try { v = sessionStorage.getItem("pf_viewas") || ""; } catch (e) { /* */ }
+    return v ? { "X-View-As": v } : {};
+  };
+
   /* Chamada à API com o token do usuário. 401 → volta para a página inicial. */
   BB.api = async function (path, opts) {
     opts = opts || {};
     const s = await BB.session();
     if (!s) { location.href = "/"; throw new Error("sem sessão"); }
-    const h = Object.assign({ Authorization: "Bearer " + s.access_token }, opts.headers || {});
+    const h = Object.assign({ Authorization: "Bearer " + s.access_token }, BB.viewAs(), opts.headers || {});
     let body = opts.body;
     if (body !== undefined && typeof body !== "string") { body = JSON.stringify(body); h["Content-Type"] = "application/json"; }
     const r = await fetch(path, { method: opts.method || (body !== undefined ? "POST" : "GET"), headers: h, body: body, cache: "no-store" });
@@ -55,7 +61,7 @@
   BB.download = async function (path, filename, open) {
     const s = await BB.session();
     if (!s) { location.href = "/"; return; }
-    const r = await fetch(path, { headers: { Authorization: "Bearer " + s.access_token }, cache: "no-store" });
+    const r = await fetch(path, { headers: Object.assign({ Authorization: "Bearer " + s.access_token }, BB.viewAs()), cache: "no-store" });
     if (!r.ok) throw new Error("erro " + r.status);
     const url = URL.createObjectURL(await r.blob());
     if (open) { window.open(url, "_blank", "noopener"); } else {

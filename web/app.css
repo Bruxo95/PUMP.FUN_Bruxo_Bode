@@ -549,3 +549,9 @@ table.daytbl td:nth-last-child(4){white-space:normal}
 #cfgDiffTbl td{white-space:normal}
 .cfgfrom .cfgask{flex-basis:100%;color:var(--warn);margin-top:4px}
 .cfgfrom .cfgask + .btn{margin-left:0}
+/* admin vendo a tela de um usuário (0.31.36): faixa no topo e controles que alteram algo desligados */
+.viewbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;margin-bottom:14px;padding:12px 16px;
+  border:1px solid var(--warn);border-radius:8px;background:var(--warn-bg);color:var(--text,#fff);font-size:13.5px}
+body.viewas [data-cfg],body.viewas [data-toggle],body.viewas [data-set],body.viewas [data-act],body.viewas [data-ofa],body.viewas [data-ofr],
+body.viewas [data-cfsh],body.viewas [data-exsh],body.viewas [data-cfgsync],body.viewas #realB,body.viewas [data-auto-preset]{pointer-events:none;opacity:.5}
+body.viewas #secretsCard,body.viewas #navAdmin,body.viewas #tAudit{display:none!important}
