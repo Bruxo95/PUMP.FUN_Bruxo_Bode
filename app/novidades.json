@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.75",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Sino de notificações e mascote",
+      "titulo": "Som das notificações voltou e o sino usa os nomes das ações",
+      "oque": "O som não saía por dois motivos: o navegador bloqueia som até um clique na página (e o 'Som e aviso' já vinha ligado) e as compras automáticas não eram reconhecidas como compra. Agora o som é liberado no primeiro clique ou tecla em qualquer lugar do painel, e compra automática toca o som de compra e faz o mascote reagir. No sino, cada notificação mostra o nome da ação, como 'Compra automática', 'Venda com lucro +34,6%', 'Stop de perda −40%' e 'Deu erro', junto com REAL ou FICTÍCIA."
+    },
+    {
       "versao": "0.31.74",
       "data": "2026-10-27",
       "tipo": "novo",

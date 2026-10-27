@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "65c139c4d440b413ada1bfeae1147d408c07538a",
-    "application_version": "0.31.74 · 2026-10-27 · Compartilhar lista de traders",
+    "repository_reference": "baab606c2cc0e29ff2a72af3075cac58d23b04ad",
+    "application_version": "0.31.75 · 2026-10-27 · Som das notificações de volta",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "a1604337ccd27c9aa92e9a19640ab637b8ce3dabb0810686b7cf5fb969801367",
+      "app/version.py": "fcfb36edfd7fb379548e20a5444dae90e8340e6c946eb226bc81d86719df1921",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "479480218330c452c370a6081ae8365b6886abf29f4765e409982e39e2cffa70"
+  "pdf_sha256": "d28d572e2892d28ca181f9342e4205622ec1f78ef4be991e9777433b14c03a7c"
 }

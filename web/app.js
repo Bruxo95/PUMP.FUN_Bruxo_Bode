@@ -1603,11 +1603,17 @@
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
     // 0.31.58 (pedido do dono): toda notificação diz se é da carteira REAL ou da FICTÍCIA
     $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !/NÃO feita|não copiou/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
-      const isReal = /^\[PUMP REAL\]/.test(n.msg || "");
-      return '<div class="ntfi"><span class="tag ' + kk[1] + '">' + kk[0] + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
+      const isReal = /^\[PUMP REAL\]/.test(n.msg || ""), mk = mascKind(n.msg);
+      const nome = mk ? String(mk[2]).replace(/ \(REAL\)$/, "") : kk[0];
+      return '<div class="ntfi"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
       : '<p class="muted">Nenhuma notificação ainda.</p>';
   }
   function tone(C, t0, fr, dur, type, vol) { const o = C.createOscillator(), g = C.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(C.destination); o.start(t0); o.stop(t0 + dur + 0.02); }
+  // 0.31.75: sem isso o som ficava mudo quando "Som e aviso" já vinha ligado (o navegador exige um clique na página)
+  function unlockAudio() {
+    try { const C = window.__ac || (window.__ac = new (window.AudioContext || window.webkitAudioContext)()); if (C.state === "suspended") C.resume(); } catch (e) { /* sem áudio */ }
+  }
+  ["pointerdown", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, unlockAudio, { passive: true }));
   function play(kind, vol) {
     try {
       const C = window.__ac || (window.__ac = new (window.AudioContext || window.webkitAudioContext)()); if (C.state === "suspended") C.resume();
@@ -1626,7 +1632,7 @@
     if (/segurando/i.test(m)) return null;
     if (/falhou|N[ÃA]O feita|N[ÃA]O feito|n[ãa]o comprou|n[ãa]o vendeu|(^|[^a-z])erro([^a-z]|$)|ATEN[ÇC][ÃA]O/i.test(m)) return "error";
     if (/fechou|vendeu|saiu|stop|alvo/i.test(m)) { const tail = m.split("→").pop(); const mm = tail.match(/([+−-]) ?[$]?[0-9]/); if (mm) return mm[1] === "+" ? "win" : "loss"; return "sell"; }
-    if (/comprou|copiou [^:]*: compra|copiou compra|entrou/i.test(m)) return "buy";
+    if (/comprou|copiou [^:]*: compra|copiou compra|entrou|\] compra (automática|manual)/i.test(m)) return "buy";   // 0.31.75: automáticas
     if (/PAUSADO|robô/i.test(m)) return "alert";
     return null;
   }
@@ -1698,6 +1704,7 @@
     if (/N[ÃA]O feit|falhou|(^|[^a-z])erro([^a-z]|$)|ATEN[ÇC][ÃA]O/i.test(m)) return ["bravo", "m-treme", "Deu erro" + real];
     if (/adiada|pendente/i.test(m)) return ["pensativo", "m-pensa", "Venda aguardando" + real];
     if (/segurando/i.test(m)) return ["pensativo", "m-pensa", "Segurando a posição"];
+    if (/\] compra (automática|manual)/i.test(m)) return ["pensativo", "m-pula", (/automática/i.test(m) ? "Compra automática" : "Compra manual") + real];
     if (/: compra |\] comprou /i.test(m)) return ["pensativo", "m-pula", "Compra copiada" + real];
     if (/fechou/i.test(m)) {
       if (pos) return ["rindo", "m-pula-forte", (/stop móvel/i.test(m) ? "Stop móvel no lucro" : /gradua/i.test(m) ? "Saiu antes da graduação" : "Venda com lucro") + pct + real];

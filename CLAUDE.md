@@ -932,3 +932,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `valores._traders`; `config_answer` soma em `pf.manual`); `_no_traders` tira esse tipo de comparar/selo/atualização/
   "usuários usando a sua configuração". Botão `#trShBtn` em Top traders; `offerList` mostra as carteiras. Legenda `.origleg`
   e `ORIG_DESC` (dica do mouse) em Histórico e Posições. Pedido do dono. Teste `tests/test_compartilhar_traders.py`.
+
+- 0.31.75: `unlockAudio` no primeiro pointerdown/keydown/touchstart (autoplay do navegador); `classify` e `mascKind` reconhecem
+  "] compra automática/manual"; sino usa `mascKind(msg)[2]` como nome da ação. Pedido do dono (sem som).
