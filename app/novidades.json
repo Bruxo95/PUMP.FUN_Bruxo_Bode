@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.61",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Configurações → Copiar os trades de outro usuário; Visão geral",
+      "titulo": "Copiar os TRADES de outro usuário (não só a configuração)",
+      "oque": "Com a mesma configuração, cada conta decide sozinha e pode fazer trades diferentes (aprendizado, pausas e limites de cada uma). Agora dá para escolher uma conta e copiar os trades dela: quando ela abre uma posição, a sua abre a mesma na hora (mesmo token, valor e regras de saída) e fecha junto. Se a sua Execução real estiver ligada com o espelho, a sua real compra também, com o valor e os limites da sua carteira. Começa desligado; a Visão geral mostra de quem você está copiando. O sino não mostra mais 'compra automática pausada'."
+    },
+    {
       "versao": "0.31.60",
       "data": "2026-10-27",
       "tipo": "melhoria",

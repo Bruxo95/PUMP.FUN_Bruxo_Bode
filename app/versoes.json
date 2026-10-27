@@ -560,6 +560,11 @@
    "versao": "0.31.60",
    "inicio": "2026-10-27T17:46:25+00:00",
    "titulo": "Stop que escorregou no aprendizado"
+  },
+  {
+   "versao": "0.31.61",
+   "inicio": "2026-10-27T17:54:20+00:00",
+   "titulo": "Copiar os trades de outro usuário"
   }
  ]
 }

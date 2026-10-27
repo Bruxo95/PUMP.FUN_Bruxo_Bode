@@ -129,6 +129,10 @@ class PumpFun:
         self.on_event = None
         self._real_q: list = []
         self._rq: asyncio.Queue | None = None        # fila de execução REAL (compras/vendas na blockchain)
+        # 0.31.61 (pedido do dono): "copiar os trades de outro usuário" — quem esta conta segue (user_id) e o aviso para
+        # o hub quando ESTA conta abre/fecha uma posição fictícia (o hub repassa para quem segue esta conta)
+        self.follow_user: str = ""
+        self.leader_hook = None
         self._real_buying: set = set()
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
         self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
@@ -992,6 +996,7 @@ class PumpFun:
                        + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
             self._mirror_real(p, trader_sol=sol, block_t=ev.get("blockTime"))
+            self._lead("open", p)
             return msgs
         # venda do trader enquanto a cópia ainda estava esperando: se ele saiu, não copia
         pend = self._pending.get((who, mint))
@@ -1138,6 +1143,7 @@ class PumpFun:
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
+            self._lead("close", p, why)
             return (f"[PUMP SIM] fechou {p['symbol']} copiado de {short(p['wallet'])} ({why}) → "
                     f"{pnl:+.4f} SOL ({tr['pnl_pct']:+.1f}%)")
         self._save_pos(p)
@@ -2032,7 +2038,21 @@ class PumpFun:
                 "barrados_com_preco": len(barr), "subiram_50": len(alta), "cairam_30": sum(1 for b in barr if b["chg_pct"] <= -30),
                 "top_subiram": alta[:8]}
 
-    def manual_buy(self, mint: str, t: float | None = None, auto: str = "", origem: str = "", info: dict | None = None) -> dict:
+    FOLLOW_RULES = ("stop_pct", "tp_pct", "trail_on", "trail_start", "trail_dist", "boost_tp", "tp1_pct", "tp1_frac",
+                    "max_hold_s", "smart", "press_min", "exit_grad", "manual")
+
+    def _lead(self, ev: str, p: dict, why: str = "") -> None:
+        """Avisa o hub (0.31.61) que esta conta abriu/fechou uma posição FICTÍCIA, para as contas que copiam os trades
+        dela fazerem o mesmo. Posição que já veio de outra conta não é repassada (sem cópia em cadeia)."""
+        if self.leader_hook is None or p.get("real") or p.get("follow_of"):
+            return
+        try:
+            self.leader_hook(ev, copy.deepcopy(p), why)
+        except Exception as e:
+            log.warning("cópia de trades para outra conta: %s", str(e)[:160])
+
+    def manual_buy(self, mint: str, t: float | None = None, auto: str = "", origem: str = "", info: dict | None = None,
+                   follow: dict | None = None) -> dict:
         """Compra manual (0.23.0, botão Comprar da Base da pump.fun): sem os filtros de cópia, porque foi você que
         decidiu. Sempre compra na carteira fictícia (valor de "SOL por cópia"); na real só se a execução real estiver
         ligada, pela mesma fila, limites e verificações da compra real. Depois segue stops e saídas normais."""
@@ -2062,6 +2082,9 @@ class PumpFun:
         out: dict = {"ok": True, "sim": None, "real": None}
         amt = float(self._c("pump_ar_sol", 0.05) if own_auto else self._c("pump_manual_sol", 0.1))
         rules = self.auto_rules() if own_auto else self.manual_rules()
+        if follow:                                  # 0.31.61: mesmo valor e mesmas regras de saída da conta copiada
+            amt = float(follow.get("sol") or amt)
+            rules = dict(follow.get("rules") or rules)
         fr = self._fee_rates(mint)
         sim_pos = None
         if any(p["mint"] == mint and not p.get("real") for p in allpos):
@@ -2081,6 +2104,8 @@ class PumpFun:
                  "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": None,
                  "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True, **rules,
                  "auto": auto or None}
+            if follow:
+                p["follow_of"] = {"user": follow.get("leader"), "pos": follow.get("pos"), "nome": follow.get("nome")}
             if own_auto:
                 p.update(auto=True, origem=origem, auto_info=copy.deepcopy(info or {}),
                          opened_at=datetime.fromtimestamp(t, timezone.utc).isoformat())
@@ -2097,6 +2122,7 @@ class PumpFun:
                        reason=(f"{auto} · " if auto else "você ") + f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}")
             self._emit(f"[PUMP SIM] compra {'automática' if auto else 'manual'}: {sym} {amt:.3f} SOL" + (f" ({auto})" if auto else ""))
             out["sim"] = f"comprou {amt:.3f} SOL na carteira fictícia"
+            self._lead("open", p)
         if own_auto and not out.get("auto_id"):
             return out                              # uma falha fictícia não dispara compra real automática
         mirror = getattr(self.cfg, "pump_real_mirror", True)

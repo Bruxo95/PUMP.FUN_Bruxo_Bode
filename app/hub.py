@@ -142,6 +142,8 @@ class PumpHub:
             pass
         self._wire_wallet(pf)
         pf.tg = lambda msg, _pf=pf: self.tg_queue(_pf, msg)
+        pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
+        pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
         # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
         # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta
         # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
@@ -179,10 +181,57 @@ class PumpHub:
         if not w.keypair:                            # sem carteira: real desliga
             pf.cfg.pump_real_enabled = False
 
+    def _on_leader(self, leader: PumpFun, ev: str, p: dict, why: str = "") -> None:
+        """0.31.61 (pedido do dono: "o que o Bruxo faz tem que acontecer no Pedro"): quando a conta seguida abre uma posição
+        fictícia, cada conta que copia os trades dela abre a MESMA (mesmo token, mesmo valor, mesmas regras de saída); quando
+        fecha, fecha junto. A real de quem copia segue o espelho dela (com o valor e os limites da carteira real dela)."""
+        for pf2 in list(self.engines.values()):
+            if pf2 is leader or getattr(pf2, "follow_user", "") != leader.user_id or pf2.user_id in self._blocked:
+                continue
+            nome = getattr(leader, "_nome_cache", None) or leader.user_id[:8]
+            try:
+                if ev == "open":
+                    tk = pf2.tokens.setdefault(p["mint"], {})
+                    if not tk.get("price") and p.get("price_now"):
+                        tk.update(price=p["price_now"], last_t=time.time(), symbol=p.get("symbol"))
+                    rules = {k: p[k] for k in PumpFun.FOLLOW_RULES if k in p}
+                    r = pf2.manual_buy(p["mint"], auto=f"copiou a conta {nome}",
+                                       follow={"sol": p.get("sol_in"), "rules": rules, "leader": leader.user_id, "pos": p["id"], "nome": nome})
+                    if r.get("error") or (r.get("sim") and not str(r["sim"]).startswith("comprou")):
+                        pf2._emit(f"[PUMP SIM] não copiou {p.get('symbol')} da conta {nome}: {r.get('error') or r.get('sim')}")
+                elif ev == "close":
+                    for q in pf2.positions():
+                        if not q.get("real") and (q.get("follow_of") or {}).get("pos") == p["id"] and (q.get("follow_of") or {}).get("user") == leader.user_id:
+                            px = (pf2.tokens.get(q["mint"]) or {}).get("price") or p.get("price_now")
+                            msg = pf2._sell(q, 1.0, px, f"a conta {nome} fechou: {why}", time.time())
+                            if msg:
+                                pf2._emit(msg)
+            except Exception as e:
+                log.warning("copiar trades %s → %s: %s", leader.user_id[:8], pf2.user_id[:8], str(e)[:160])
+
+    async def follow_set(self, pf: PumpFun, target: str) -> dict:
+        target = (target or "").strip()
+        if target:
+            if target == pf.user_id:
+                return {"error": "não dá para copiar a própria conta"}
+            if target not in self.engines or target in self._blocked:
+                return {"error": "usuário não encontrado ou bloqueado"}
+            other = self.engines[target]
+            if getattr(other, "follow_user", "") == pf.user_id:
+                return {"error": "essa pessoa já copia os seus trades (cópia em círculo não é permitida)"}
+            other._nome_cache = await self._nome(target)
+        pf.follow_user = target
+        await self.save_settings(pf)
+        await audit(self.db, pf.user_id, "copiar trades de outro usuário", (await self._nome(target)) if target else "desligado")
+        pf._emit(f"[PUMP SIM] copiar os trades de {(await self._nome(target)) if target else '—'}: {'LIGADO' if target else 'DESLIGADO'}")
+        return {"ok": True, "follow_user": target, "nome": (await self._nome(target)) if target else ""}
+
     async def save_settings(self, pf: PumpFun) -> None:
         s = pf.cfg.user_dict()
         if getattr(pf.cfg, "pump_real_enabled", False):
             s["_real_on"] = True                       # 0.31.28: o real ligado sobrevive ao reinício (ver _load)
+        if getattr(pf, "follow_user", ""):
+            s["_follow_user"] = pf.follow_user         # 0.31.61: de quem esta conta copia os trades
         await self.db.update("user_settings", {"user_id": pf.user_id},
                              {"settings": s, "atualizado_em": datetime.now(timezone.utc).isoformat()})
 

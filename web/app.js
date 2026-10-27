@@ -371,6 +371,18 @@
     table("cfgDiffTbl", ["Opção", "O seu (agora)", "O de " + esc(quem)], dk.map((k) => [esc(cfgLabel(k)), "<b>" + esc(cfgVal(k, cfgNow(k))) + "</b>", '<b class="up">' + esc(cfgVal(k, o.valores[k])) + "</b>"]), "Nenhuma diferença.");
     $("cfgDiff").hidden = false; $("cfgDiffX").focus();
   }
+  // 0.31.61: copiar os TRADES de outro usuário (não só a configuração)
+  let FOLLOW = null;
+  async function loadFollow() {
+    if (!(ME && ME.role === "admin")) return;
+    const [r, t] = await Promise.all([BB.api("/api/pump/follow-user"), BB.api("/api/pump/config/share-targets")]);
+    if (r.error) return;
+    FOLLOW = r; $("followCard").hidden = false;
+    const us = (t && t.users) || [];
+    $("flSel").innerHTML = '<option value="">Escolha a conta…</option>' + us.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === r.follow_user ? " selected" : "") + ">" + esc(u.nome || u.email || u.user_id) + "</option>").join("");
+    $("flState").innerHTML = (r.follow_user ? '<span class="tag win">ON · Ligado</span> Copiando os trades de <b>' + esc(r.nome) + "</b>." : '<span class="tag loss">OFF · Desligado</span> Não está copiando os trades de ninguém.') +
+      (r.seguidores && r.seguidores.length ? ' <span class="muted">· Copiam os SEUS trades: ' + esc(r.seguidores.join(", ")) + "</span>" : "");
+  }
   function renderAllCfgCopy() {
     if (!$("allCfgCopy")) return;
     const h = copyHtml();
@@ -390,7 +402,7 @@
   function renderSummary() {
     if (!$("sumCard") || !D) return;
     const c = cfg(), R = D.real || {};
-    const copy = copyHtml();
+    const copy = copyHtml() + (FOLLOW ? "<p>Trades: " + (FOLLOW.follow_user ? '<b class="up">copiando os trades de ' + esc(FOLLOW.nome) + "</b> (abre e fecha junto)" : "<b>não</b> está copiando os trades de ninguém") + ' <a href="#config">mudar</a></p>' : "");
     const html = copy +
       '<p class="hint">Copiar a configuração copia as <b>regras</b>, não os <b>trades</b>: a sua conta decide sozinha, com o seu próprio histórico (aprender com os erros, pausas, limites por hora). Mesmo com a configuração idêntica, os trades podem ser diferentes; veja a comparação no Explorar.</p>' +
       "<p>Execução real: <b class=\"" + (R.enabled ? "up\">LIGADA" : "down\">DESLIGADA") + "</b> · Espelhar a fictícia na real: <b class=\"" + (c.pump_real_mirror !== false ? "up\">ON · Ligado" : "down\">OFF · Desligado") + "</b></p>";
@@ -1389,6 +1401,14 @@
     }
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
+    if (t.id === "flOn" || t.id === "flOff") {
+      const uid = t.id === "flOn" ? $("flSel").value : "";
+      if (t.id === "flOn" && !uid) { toast("Escolha a conta primeiro."); return; }
+      if (t.id === "flOn" && !confirm("A sua conta vai abrir e fechar os mesmos trades dessa conta, na fictícia e — se a sua Execução real estiver ligada — na real, com o valor e os limites da SUA carteira real. Confirmar?")) return;
+      const r = await BB.api("/api/pump/follow-user", { body: { user_id: uid } });
+      toast(r.error || (uid ? "Copiando os trades de " + r.nome + "." : "Parou de copiar os trades."));
+      loadFollow(); return;
+    }
     if (t.id === "cfgDiffNo") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.copyapply) {
       const hit = liveCopies().find(([o]) => String(o.id) === String(t.dataset.copyapply)); if (!hit) return;
@@ -1477,8 +1497,8 @@
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
-    if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); }
-    if (VIEW === "config") { buildAllCfg(); loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
+    if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); }
+    if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
     if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") { walletLoad(true); loadMirror(); }
     if (VIEW === "novidades") loadNovidades();
@@ -1517,7 +1537,7 @@
   function ntfList() {
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
     // 0.31.58 (pedido do dono): toda notificação diz se é da carteira REAL ou da FICTÍCIA
-    $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
+    $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !/NÃO feita|não copiou/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
       const isReal = /^\[PUMP REAL\]/.test(n.msg || "");
       return '<div class="ntfi"><span class="tag ' + kk[1] + '">' + kk[0] + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
       : '<p class="muted">Nenhuma notificação ainda.</p>';
@@ -1551,7 +1571,7 @@
   function onEvent(e) {
     const k = classify(e.msg); const real = /REAL/.test(e.msg);
     mascReact(e.msg);
-    if (!OWN_TRADE.test(e.msg || "")) return;
+    if (!OWN_TRADE.test(e.msg || "") || /pausad/i.test(e.msg || "")) return;      // "compra automática pausada" não é trade
     ntfPush(e, true);
     if (real || k === "error") toast(e.msg.slice(0, 180));
     if (!NTF || !k || k === "trader") return;
@@ -1650,7 +1670,7 @@
       if (r.error) { $("sysS").textContent = r.error; if (VIEW === "radar") invalidateRadar(r.error); return; }
       D = r;
       const evs = r.events || [];
-      if (EV < 0) { EV = evs.length ? evs[evs.length - 1].id : 0; evs.filter((e) => OWN_TRADE.test(e.msg || "")).slice(-30).forEach((e) => ntfPush(e, false)); }
+      if (EV < 0) { EV = evs.length ? evs[evs.length - 1].id : 0; evs.filter((e) => OWN_TRADE.test(e.msg || "") && !/pausad/i.test(e.msg || "")).slice(-30).forEach((e) => ntfPush(e, false)); }
       else evs.forEach((e) => { if (e.id > EV) { EV = e.id; onEvent(e); } });
       render();
     } catch (e) { if (VIEW === "radar") invalidateRadar(e.message || "falha de conexão"); } finally { BUSY = false; }

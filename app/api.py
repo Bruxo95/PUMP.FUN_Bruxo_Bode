@@ -919,6 +919,17 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
                                      real=bool(real))
 
+    @app.get("/api/pump/follow-user")
+    async def follow_get(pf=Depends(admin_engine)):
+        """0.31.61: de quem esta conta copia os trades (e quem copia os dela)."""
+        tgt = getattr(pf, "follow_user", "")
+        followers = [await hub._nome(u) for u, e in hub.engines.items() if getattr(e, "follow_user", "") == pf.user_id]
+        return {"follow_user": tgt, "nome": (await hub._nome(tgt)) if tgt else "", "seguidores": followers}
+
+    @app.post("/api/pump/follow-user")
+    async def follow_post(body: dict, pf=Depends(admin_engine)):
+        return await hub.follow_set(pf, str((body or {}).get("user_id") or ""))
+
     @app.get("/api/pump/versions")
     async def pump_versions(real: int = 0, pf=Depends(admin_engine)):
         """Resultado por versão (0.31.50): quanto ganhou/perdeu em cada versão e se ajudou ou piorou."""

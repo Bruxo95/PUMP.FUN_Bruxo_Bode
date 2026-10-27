@@ -874,3 +874,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.60: `daily.build` → `stops_slipped` (stop que fechou 10+ pontos abaixo do configurado) e sugestão `stop_escorregou`
   (guardada no `daily_report`, conta em `study.recurring`). Só registro e aprendizado; regras não mudaram. Pedido do dono (SHERKHAN).
+
+## Copiar os trades de outro usuário (2026-10-27, versão 0.31.61)
+- Pedido do dono (Pedro com config idêntica ao Bruxo fazia trades diferentes). `PumpFun.follow_user` (salvo como
+  `_follow_user` em `user_settings.settings`, começa vazio) e `leader_hook` → `PumpHub._on_leader`: na abertura de posição
+  fictícia da conta seguida (`manual_buy`, `_copy`) chama `manual_buy(..., follow={sol, rules, leader, pos})` em quem segue
+  (mesmo valor e `FOLLOW_RULES`); no fechamento (`_sell`) fecha a posição com `follow_of.pos`. Real pelo espelho de quem segue.
+  Sem cadeia (`follow_of` não repassa) nem círculo (`follow_set`). Rotas `/api/pump/follow-user` (admin). `#followCard`.
+  Teste: `tests/test_copiar_trades.py`.

@@ -665,6 +665,11 @@
       <section class="view" data-view="config" hidden>
         <div class="card cfgusers" data-cfgusers hidden data-novo-ate="2026-11-10"><header><div><h2 data-cfgu-t>Usuários usando a sua configuração</h2><div class="sub" data-cfgu-s></div></div><div class="sp"></div><button class="btn sm" data-cfgu-ver>Ver usuários</button></header>
           <div data-cfgu-list hidden></div></div>
+        <div class="card" id="followCard" data-novo-ate="2026-11-11" hidden><header><div><h2>Copiar os trades de outro usuário</h2><div class="sub" id="flSub">a sua conta abre e fecha os mesmos trades da conta escolhida, na hora</div></div></header>
+          <div class="help"><p><b>Como funciona:</b> quando a conta escolhida abre uma posição (Explorar, Base, Maiores traders, botão Comprar ou cópia de trader), a sua abre a <b>mesma</b> na fictícia: mesmo token, mesmo valor e mesmas regras de saída; quando ela fecha, a sua fecha junto. Se a sua Execução real estiver ligada com o espelho, a sua real compra também, com o valor e os limites da <b>sua</b> carteira real. É diferente de copiar a configuração: aqui são os trades.</p></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="flSel" aria-label="Conta para copiar os trades"></select><button class="btn sm primary" id="flOn">Copiar os trades dessa conta</button><button class="btn sm" id="flOff">Parar de copiar</button></div>
+          <p id="flState" style="margin-top:8px"></p>
+        </div>
         <div class="card" id="allCfgCard" data-novo-ate="2026-11-10" data-sanf><header><div><h2>Configurações de todas as outras telas</h2><div class="sub">as mesmas opções do Explorar, Execução real, Opções novas, Maiores traders, Base… mudou aqui, mudou lá (é a mesma configuração)</div></div></header>
           <div id="allCfgCopy"></div>
           <div id="allCfg"></div>
