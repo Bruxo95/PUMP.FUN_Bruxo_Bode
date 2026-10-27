@@ -791,7 +791,8 @@
     }), empty);
   }
   // 0.31.66 (pedido do dono): primeiro o que é igual para todas as contas (BASE GERAL), depois quanto disso é da sua conta
-  const baseTag = (n, sua) => '<span class="tag pause">BASE GERAL ' + (n || 0) + '</span> <span class="muted">sua conta ' + (sua || 0) + "</span>";
+  // 0.31.68: só a BASE GERAL (igual em todas as contas); quanto veio desta conta fica na dica do mouse (o dono achou confuso)
+  const baseTag = (n, sua) => '<span class="tag pause" title="' + (sua || 0) + ' destas operações aconteceram nesta conta">BASE GERAL ' + (n || 0) + "</span>";
   function renderFunnel() {
     const F = (EX && EX.funnel) || null; if (!F || !$("exFunK")) return;
     kpis("exFunK", [["Tokens olhados", String(F.vistos), (F.chance_alta || 0) + " com chance alta", "tr"], ["Entraram", String(F.entrou), F.vistos ? f(F.entrou / F.vistos * 100, 0) + "% dos olhados" : "–", "hit"],
