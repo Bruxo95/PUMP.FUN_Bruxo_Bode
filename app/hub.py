@@ -268,7 +268,7 @@ class PumpHub:
         out = []
         for e in list(self.engines.values()):
             mine = e is me
-            out += [(mine, t) for t in e.trades(100000) if t.get("origem") in AUTO_ORIGINS and not t.get("real")]
+            out += [(mine, dict(t, _conta=e.user_id)) for t in e.trades(100000) if t.get("origem") in AUTO_ORIGINS and not t.get("real")]
         out += [(False, t) for t in self.shadow_trades()]                    # 0.31.72: o que teria acontecido
         return out
 

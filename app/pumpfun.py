@@ -1951,10 +1951,11 @@ class PumpFun:
             if t.get("real") or t.get("follow_of") or (t.get("pnl_pct") or 0) >= SUSPECT_PCT:
                 continue
             if not t.get("sombra"):
-                at = _ts(t.get("opened_at")) or _ts(t.get("closed_at")) or 0
-                if any(abs(at - x) <= 600 for x in kept.get(t.get("mint"), [])):
+                # só entre contas DIFERENTES: a mesma conta comprando o mesmo token de novo conta normalmente
+                at, conta = _ts(t.get("opened_at")) or _ts(t.get("closed_at")) or 0, t.get("_conta")
+                if conta is not None and any(c != conta and abs(at - x) <= 600 for x, c in kept.get(t.get("mint"), [])):
                     continue
-                kept.setdefault(t.get("mint"), []).append(at)
+                kept.setdefault(t.get("mint"), []).append((at, conta))
             out.append(dict(t, _mine=mine))
         return out
 
