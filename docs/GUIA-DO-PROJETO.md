@@ -47,8 +47,8 @@ operações deles** numa carteira do usuário.
 
 O modo real tem **três travas independentes**:
 1. **Trava do servidor:** `PUMP_REAL_ALLOWED=false` no stack — ninguém consegue ligar.
-2. **Botão por usuário:** começa desligado, exige digitar `LIGAR` e volta a desligar **toda vez que o
-   servidor reinicia**.
+2. **Botão por usuário:** começa desligado e exige digitar `LIGAR`. Desde a 0.31.28 fica ligado (inclusive depois de
+   reiniciar o servidor) até o usuário desligar; o admin e a remoção da carteira também desligam.
 3. **Limites por usuário:** valor máximo por compra, posições reais simultâneas e perda máxima no dia.
 
 ### Multiusuário

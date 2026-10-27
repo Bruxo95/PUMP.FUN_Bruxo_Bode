@@ -141,6 +141,14 @@ class PumpHub:
             pass
         self._wire_wallet(pf)
         pf.tg = lambda msg, _pf=pf: self.tg_queue(_pf, msg)
+        # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
+        # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta
+        # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
+        # carteira) grava OFF.
+        if saved.get("_real_on") and self.real_allowed and pf.sol_wallet and pf.sol_wallet.keypair and uid not in self._blocked:
+            pf.cfg.pump_real_enabled = True
+            pf._emit("[PUMP REAL] execução real continua LIGADA depois do reinício do servidor (ligada por você)")
+            await audit(self.db, uid, "execução real religada após reinício", f"máx. {pf.cfg.pump_real_max_sol} SOL por compra")
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
             if p.get("selling"):
                 p["selling"] = False
@@ -171,8 +179,11 @@ class PumpHub:
             pf.cfg.pump_real_enabled = False
 
     async def save_settings(self, pf: PumpFun) -> None:
+        s = pf.cfg.user_dict()
+        if getattr(pf.cfg, "pump_real_enabled", False):
+            s["_real_on"] = True                       # 0.31.28: o real ligado sobrevive ao reinício (ver _load)
         await self.db.update("user_settings", {"user_id": pf.user_id},
-                             {"settings": pf.cfg.user_dict(), "atualizado_em": datetime.now(timezone.utc).isoformat()})
+                             {"settings": s, "atualizado_em": datetime.now(timezone.utc).isoformat()})
 
     async def set_secret(self, pf: PumpFun, name: str, value: str) -> None:
         await self.vault.save(pf.user_id, name, value)
@@ -183,8 +194,9 @@ class PumpHub:
     async def remove_secret(self, pf: PumpFun, name: str) -> None:
         await self.vault.delete(pf.user_id, name)
         pf.keys.set(name, "")
-        if name == "wallet_private_key":
+        if name == "wallet_private_key" and pf.cfg.pump_real_enabled:
             pf.cfg.pump_real_enabled = False
+            await self.save_settings(pf)
         self._wire_wallet(pf)
         await audit(self.db, pf.user_id, "remover chave", name)
 
@@ -1216,6 +1228,7 @@ class PumpHub:
             if pf is not None and pf.cfg.pump_real_enabled:
                 pf.cfg.pump_real_enabled = False
                 pf._emit("[PUMP REAL] execução real DESLIGADA pelo administrador")
+                await self.save_settings(pf)
             done.append("execução real desligada")
         if not done:
             return {"ok": True, "changed": []}

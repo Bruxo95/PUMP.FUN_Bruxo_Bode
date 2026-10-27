@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.28",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Execução real",
+      "titulo": "Execução real fica ligada até você desligar",
+      "oque": "A execução real desligava sozinha toda vez que o servidor reiniciava (e ele reinicia a cada versão nova publicada), por isso parecia desligar ao trocar de navegador. Agora, depois de ligada (com a confirmação LIGAR), ela continua ligada até você desligar, mesmo depois de reiniciar o servidor. Só não volta se a trava geral do servidor estiver fechada, se a carteira do bot tiver sido removida ou se a conta estiver bloqueada. O retorno aparece no painel e no registro de segurança."
+    },
+    {
       "versao": "0.31.27",
       "data": "2026-10-27",
       "tipo": "melhoria",

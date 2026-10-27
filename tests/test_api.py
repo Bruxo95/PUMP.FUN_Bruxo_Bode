@@ -258,7 +258,7 @@ def test_real_needs_server_lock_wallet_and_confirmation_and_is_audited(env, capl
     assert db.tables["audit_log"][-1]["acao"] == "remover chave"
 
 
-def test_real_is_off_after_server_restart(env):
+def test_real_stays_on_after_server_restart_until_user_turns_off(env):
     from app.api import create_app
     from app.auth import Auth
     from app.crypto import SecretBox
@@ -274,7 +274,17 @@ def test_real_is_off_after_server_restart(env):
     hub2.real_allowed = True
     c2 = TestClient(create_app(hub2, Auth(SB, "anon", http, SECRET), cfg))
     d = c2.get("/api/pump", headers=tok(UA)).json()
-    assert d["real"]["enabled"] is False and d["real"]["wallet_configured"] is True
+    assert d["real"]["enabled"] is True and d["real"]["wallet_configured"] is True              # 0.31.28: continua ligado
+    assert any(a["acao"] == "execução real religada após reinício" for a in db.tables["audit_log"])
+    c2.post("/api/pump/real", json={"enabled": False}, headers=tok(UA))                          # o usuário desliga
+    hub3 = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    hub3.real_allowed = True
+    c3 = TestClient(create_app(hub3, Auth(SB, "anon", http, SECRET), cfg))
+    assert c3.get("/api/pump", headers=tok(UA)).json()["real"]["enabled"] is False
+    hub4 = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))                                 # trava geral fechada
+    c2.post("/api/pump/real", json={"enabled": True, "confirm": "LIGAR"}, headers=tok(UA))
+    c4 = TestClient(create_app(hub4, Auth(SB, "anon", http, SECRET), cfg))
+    assert c4.get("/api/pump", headers=tok(UA)).json()["real"]["enabled"] is False
 
 
 def test_swap_and_manual_sell_are_audited(env):
@@ -301,7 +311,7 @@ def test_settings_validated_and_saved(env):
                headers=tok(UA)).json()
     assert r["applied"] == {"pump_stop_pct": 25.0} and set(r["errors"]) == {"pump_max_open", "pump_rpc_http"}
     saved = [x for x in db.tables["user_settings"] if x["user_id"] == UA][0]["settings"]
-    assert saved["pump_stop_pct"] == 25.0 and "pump_real_enabled" not in saved
+    assert saved["pump_stop_pct"] == 25.0 and "pump_real_enabled" not in saved and "_real_on" not in saved
     assert [x for x in db.tables["user_settings"] if x["user_id"] == UB][0]["settings"] == {}
 
 

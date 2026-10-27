@@ -58,7 +58,9 @@ cada API): `docs/GUIA-DO-PROJETO.md`.
 ## Segurança (nunca quebrar)
 - Nunca mostrar, logar ou devolver chaves pela API; a tela só mostra "configurada: sim/não".
 - **Nunca pedir chaves ou senhas no chat** — o usuário cola no painel (ou no Portainer, no caso do servidor).
-- Execução REAL começa **desligada** para todo usuário e **volta a desligar quando o servidor reinicia**.
+- Execução REAL começa **desligada** para todo usuário. Desde a 0.31.28 (pedido do dono em 2026-10-27), depois que o
+  usuário liga com a confirmação, **continua ligada até ele desligar**, inclusive após reinício (`_real_on` em
+  `user_settings.settings`; só volta com trava geral liberada, carteira configurada e conta liberada).
   Além disso existe a trava geral `PUMP_REAL_ALLOWED` (padrão `false`).
 - **Durante o desenvolvimento não fazer nenhuma transação real e não ligar a execução real.**
 - `audit_log` registra: ligar/desligar real, salvar/remover chave, vender manual, trocar USDC→SOL e toda ação
@@ -729,3 +731,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.27: Chaves pessoais redesenhadas (`loadSecrets`: `#secretsSum`, `KEY_SHORT`, `KEY_NEED`, `KEY_EDIT`, `KEY_SAVED`,
   ação `secret-edit`; CSS `.keysum`, `.key-ok/sys/none`). Pedido do dono ("tudo junto, não sei se foi configurado").
+
+## Execução real continua ligada após reinício (2026-10-27, versão 0.31.28)
+- Pedido do dono: o real "desligava ao trocar de navegador"; a causa era o reinício do servidor a cada deploy.
+  `hub.save_settings` grava `_real_on` quando o real está ligado; `/api/pump/real`, admin `real_off` e remover a carteira
+  gravam. `hub._load` religa só com `real_allowed`, carteira e conta liberada (evento + `audit_log` "execução real
+  religada após reinício"). Teste: `tests/test_api.py::test_real_stays_on_after_server_restart_until_user_turns_off`.

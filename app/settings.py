@@ -5,8 +5,9 @@
 - `PumpSettings`: as opções PUMP_* de UM usuário (mesmos padrões do projeto original). Ficam no banco
   (`user_settings.settings`) e só o próprio usuário muda pelo painel.
 
-A execução REAL (`pump_real_enabled`) nunca é gravada: começa DESLIGADA e volta a desligar quando o servidor
-reinicia.
+A execução REAL (`pump_real_enabled`) nunca vem do `apply` (só pelo botão com confirmação) e começa DESLIGADA. Desde a
+0.31.28 o "ligado" fica gravado à parte (`_real_on` em `user_settings.settings`) e o hub religa no reinício se a trava
+geral, a carteira e a conta permitirem.
 """
 from __future__ import annotations
 

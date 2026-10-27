@@ -154,6 +154,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 return {"error": "configure a carteira Solana do bot antes"}
         hub.check_active(u["id"], pf)
         pf.cfg.pump_real_enabled = on
+        await hub.save_settings(pf)                   # 0.31.28: fica ligado até o usuário desligar (sobrevive ao reinício)
         await audit(hub.db, u["id"], "ligar execução real" if on else "desligar execução real",
                     f"máx. {pf.cfg.pump_real_max_sol} SOL por compra" if on else "")
         pf._emit(f"[PUMP REAL] execução real {'LIGADA' if on else 'DESLIGADA'} por você")

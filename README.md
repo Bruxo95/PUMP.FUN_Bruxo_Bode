@@ -9,7 +9,7 @@ Guia completo (uso, chaves, transações e APIs): **`docs/GUIA-DO-PROJETO.md`**.
 - Conferir a versão no ar: **https://pump.rachar.app.br/health** (a mesma aparece no rodapé do painel)
 - Supabase: projeto `vnvfluimpqvxbvdbmwqa`
 
-> Execução real começa DESLIGADA para todo mundo, volta a desligar sempre que o servidor reinicia e, além disso,
+> Execução real começa DESLIGADA para todo mundo, depois de ligada fica ligada até o usuário desligar e, além disso,
 > fica travada no servidor enquanto `PUMP_REAL_ALLOWED=false`.
 
 ---
