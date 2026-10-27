@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "5c71f5fa524223d9f001a09981c4373d0440a3bb",
-    "application_version": "0.31.68 · 2026-10-27 · Só BASE GERAL na coluna De onde",
+    "repository_reference": "f0cb6c7b5f82e49daf6b067df76f38800a472583",
+    "application_version": "0.31.69 · 2026-10-27 · Tempo de saída nas Posições",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "bac7c9fb2dfa24b3acf7709084ae82e179508cdab598698fff1f487e4f3b2176",
+      "app/version.py": "da2eaebe8c17806a69ba2e982aa2b717c6d4cba7e236926c292a7327c04eb27f",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "15cc72e2afeff3e576883f42ac209393d2575eba0461d156ceb45e9067eff432"
+  "pdf_sha256": "34233ee531787e6d05dddb3c9990fc15047881dcc11d0e9e94d74665f1df8f5e"
 }

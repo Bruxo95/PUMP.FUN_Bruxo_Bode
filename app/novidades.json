@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.69",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Posições → coluna Tempo de saída",
+      "titulo": "Tempo de saída de cada posição, e estender quando quiser (sugestão do Bruxo)",
+      "oque": "Na tela Posições, a coluna 'Tempo de saída' mostra quanto falta para a posição sair pelo tempo máximo, qual é o limite e onde ele é configurado (Explorar → Proteções ou Configurações). Os botões +30 min, +1 h e Sem limite estendem só aquela posição; se ela tiver par no espelho (fictícia e real), os dois são estendidos juntos."
+    },
+    {
       "versao": "0.31.68",
       "data": "2026-10-27",
       "tipo": "melhoria",

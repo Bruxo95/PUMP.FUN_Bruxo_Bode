@@ -753,6 +753,21 @@ def create_app(hub, auth, cfg) -> FastAPI:
             pf._emit(r["msg"])
         return r
 
+    @app.post("/api/pump/positions/hold")
+    async def pump_hold(body: dict, u: dict = Depends(user)):
+        """0.31.69 (sugestão do Bruxo): estender o tempo máximo de uma posição aberta, ou tirar o limite."""
+        pf = await hub.engine(u["id"])
+        hub.check_active(u["id"], pf)
+        add = body.get("add_min")
+        try:
+            add = None if add in (None, "", "none") else float(add)
+        except (TypeError, ValueError):
+            return {"error": "valor inválido"}
+        r = pf.extend_hold(body.get("id"), add)
+        if r.get("ok"):
+            await audit(hub.db, u["id"], "posição: tempo estendido", f"{body.get('id')} · " + ("sem limite" if add is None else f"+{add:g} min"))
+        return r
+
     @app.post("/api/pump/leaderboard")
     async def pump_lb(body: dict, pf=Depends(engine)):
         """Troca o período do leaderboard (1/7/30/90 dias) e atualiza agora."""

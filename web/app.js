@@ -1888,8 +1888,18 @@
     const c = cfg(), rm = realMode(), P = (D.positions || []).filter((p) => !!p.real === rm);
     $("posSub").textContent = (rm ? "REAL · " : "FICTÍCIO · ") + P.length + " de " + (rm ? c.pump_real_max_open : c.pump_max_open) + " · " + s4(rm ? c.pump_real_max_sol : c.pump_copy_sol) + " SOL cada" + (rm ? " (valores medidos na carteira)" : " · slippage extra " + c.pump_extra_slip_pct + "%") + " · variação já líquida de taxas";
     const vol = (p) => { const v = p.vol; if (!v) return '<span class="dim">aguardando</span>'; return "<b>" + uk(v.h1) + '</b> <span class="dim">1 h</span><small>5 min ' + uk(v.m5) + " · 24 h " + uk(v.h24) + "</small><small>" + (v.buys_h1 || 0) + " compras · " + (v.sells_h1 || 0) + " vendas</small>"; };
-    table("tPos", ["Token", "Trader", "Entrada", "Investido", "Agora", "Variação", "Volume do token", "Vendido", "Aberta há", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : "") + (p.venue_in ? "<small>" + esc(p.venue_in) + "</small>" : ""), pfW(p.wallet), ex(p.price_in), s4(p.sol_in) + " SOL",
-      ex(p.price_now || p.price_in) + (p.price_at ? "<small>há " + agoT(p.price_at) + "</small>" : ""), pc(p.chg_pct), vol(p), (p.sells || []).length ? s4(p.proceeds) + " SOL" : "–", agoIso(p.opened_at),
+    // 0.31.69 (sugestão do Bruxo): quanto falta para a saída por tempo máximo e botões para estender esta posição
+    const left = (p) => {
+      const h = p.hold_s, open = p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : null);
+      if (h == null || !open) return "–";
+      if (h >= 3e8) return '<span class="tag win">sem limite</span>' + holdBtns(p);
+      const rest = h - (Date.now() / 1000 - open);
+      const src = p.hold_src === "posição" ? (p.auto ? ' <a href="#explorar">Explorar → Proteções</a>' : " desta posição") : ' <a href="#config">Configurações</a>';
+      return (rest > 0 ? "<b>faltam " + hms(rest) + "</b>" : '<b class="down">vencido · saindo</b>') + "<small>limite " + hms(h) + " ·" + src + "</small>" + holdBtns(p);
+    };
+    const holdBtns = (p) => p.selling ? "" : '<span class="row" style="gap:4px;margin-top:4px">' + btn("+30 min", "hold", { id: p.id, add: 30 }) + btn("+1 h", "hold", { id: p.id, add: 60 }) + btn("Sem limite", "hold", { id: p.id, add: "none" }) + "</span>";
+    table("tPos", ["Token", "Trader", "Entrada", "Investido", "Agora", "Variação", "Volume do token", "Vendido", "Aberta há", "Tempo de saída", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : "") + (p.venue_in ? "<small>" + esc(p.venue_in) + "</small>" : ""), pfW(p.wallet), ex(p.price_in), s4(p.sol_in) + " SOL",
+      ex(p.price_now || p.price_in) + (p.price_at ? "<small>há " + agoT(p.price_at) + "</small>" : ""), pc(p.chg_pct), vol(p), (p.sells || []).length ? s4(p.proceeds) + " SOL" : "–", agoIso(p.opened_at), left(p),
       (p.trail_peak != null ? '<span class="tag trail">Stop móvel</span><small>pico ' + pc(p.trail_peak) + " · sai em +" + f(p.trail_exit, 1) + "%</small>" : "") + (p.hold_profit ? '<span class="tag pause">Segurando até lucro</span><small>desde ' + dt(p.hold_since) + "</small>" : "") +
       (p.selling ? '<span class="tag pause">Vendendo…</span>' : btn(p.real ? "Vender" : "Fechar", "close", { id: p.id, real: p.real ? 1 : 0 }, p.real ? "tgl off" : "")) + (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "")]),
       rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.");
@@ -2194,6 +2204,14 @@
     if (t.dataset.goto) { $("menu").hidden = true; location.hash = t.dataset.goto; return; }
     const a = t.dataset.act; if (!a) return;
     if (a === "w") return wallet(t.dataset.a, t.dataset.w);
+    if (a === "hold") {
+      const none = t.dataset.add === "none";
+      if (none && !confirm("Tirar o limite de tempo desta posição? Ela só sai pelas outras regras (stop, alvo, stop móvel) ou se você fechar.")) return;
+      t.disabled = true;
+      const r = await BB.api("/api/pump/positions/hold", { body: { id: t.dataset.id, add_min: none ? "none" : +t.dataset.add } });
+      toast(r.error || (none ? "Posição sem limite de tempo." : "Tempo estendido: +" + t.dataset.add + " min."));
+      poll(true); return;
+    }
     if (a === "u-block") { const blk = t.dataset.v === "1", u = USERS.find((x) => x.user_id === t.dataset.uid) || {};
       if (!confirm((blk ? "Bloquear " : "Desbloquear ") + (u.email || "este usuário") + "?" + (blk ? "\n\nA conta para de copiar na hora, a execução real dele desliga e ele não consegue mais entrar no painel." : ""))) return;
       return adminUser(t.dataset.uid, { bloqueado: blk }); }

@@ -1300,6 +1300,32 @@ class PumpFun:
                                       f"tempo máximo ({hold / 60:g} min)" if p.get("max_hold_s") is not None else f"tempo máximo ({hold / 3600:.0f} h)", t))
         return [m for m in out if m]
 
+    NO_LIMIT_S = 10 * 365 * 86400.0
+
+    def extend_hold(self, pid, add_min: float | None) -> dict:
+        """0.31.69 (sugestão do Bruxo): estende o tempo máximo de UMA posição aberta (add_min minutos) ou tira o limite
+        (add_min None). Vale também para o par do espelho (fictícia × real), para um não fechar o outro antes."""
+        pos = self.positions()
+        p = next((x for x in pos if str(x["id"]) == str(pid)), None)
+        if p is None:
+            return {"error": "posição não encontrada"}
+        twins = [p] + [x for x in pos if x is not p and ((p.get("real") and str(x["id"]) == str(p.get("sim_id")))
+                                                          or (not p.get("real") and str(x.get("sim_id")) == str(p["id"])))]
+        cur = self._auto_num(p.get("max_hold_s"))
+        cur = cur if cur is not None else float(self._c("pump_max_hold_h", 6)) * 3600
+        if add_min is None:
+            new = self.NO_LIMIT_S
+        else:
+            add = max(1.0, min(float(add_min), 7 * 24 * 60)) * 60
+            base = max(cur, time.time() - float(p.get("open_t") or time.time()))     # se já passou do limite, conta de agora
+            new = base + add
+        for x in twins:
+            x["max_hold_s"] = new
+            self._save_pos(x)
+        txt = "sem limite de tempo" if add_min is None else f"tempo máximo agora {new / 60:,.0f} min".replace(",", ".")
+        self._emit(f"[PUMP {'REAL' if p.get('real') else 'SIM'}] {p.get('symbol')}: {txt} (estendido por você)")
+        return {"ok": True, "max_hold_s": new, "pares": len(twins)}
+
     def close_position(self, pid) -> dict:
         for p in self.positions():
             if str(p["id"]) == str(pid):
@@ -3297,6 +3323,10 @@ class PumpFun:
                 p["value_sol"] = round(val, 6)
                 p["price_at"] = (self.tokens.get(p["mint"]) or {}).get("last_t")
             tkp = self.tokens.get(p["mint"]) or {}
+            # 0.31.69 (sugestão do Bruxo): tempo máximo desta posição e de onde ele vem, para a coluna "Tempo de saída"
+            own = self._auto_num(p.get("max_hold_s"))
+            p["hold_s"] = own if own is not None else float(self._c("pump_max_hold_h", 6)) * 3600
+            p["hold_src"] = "posição" if own is not None else "geral"
             p["vol"] = tkp.get("vol")
             p["mcap_now"] = tkp.get("mcap_sol")
             p["liq_usd"] = tkp.get("liq_usd")

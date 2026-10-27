@@ -600,6 +600,11 @@
    "versao": "0.31.68",
    "inicio": "2026-10-27T19:06:53+00:00",
    "titulo": "Só BASE GERAL na coluna De onde"
+  },
+  {
+   "versao": "0.31.69",
+   "inicio": "2026-10-27T20:13:20+00:00",
+   "titulo": "Tempo de saída nas Posições"
   }
  ]
 }

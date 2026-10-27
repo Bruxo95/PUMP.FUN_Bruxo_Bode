@@ -905,3 +905,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.67: `explore_funnel` mostra o texto real do motivo (um exemplo por grupo) em vez do texto com "#". Pedido do dono.
 
 - 0.31.68: `baseTag` mostra só "BASE GERAL n" (o número desta conta vai no `title`). Pedido do dono ("sua conta" confundia).
+
+- 0.31.69: sugestão do Bruxo. `snapshot` devolve `hold_s`/`hold_src` por posição; `PumpFun.extend_hold(pid, add_min|None)`
+  (também no par do espelho; `NO_LIMIT_S`) + `POST /api/pump/positions/hold` (audit "posição: tempo estendido"). Posições:
+  coluna "Tempo de saída" com +30 min / +1 h / Sem limite. Teste `tests/test_tempo_saida.py`.
