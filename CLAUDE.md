@@ -885,3 +885,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.62: migração `20261027000003_pedro_copia_trades_bruxo.sql` (pedido do dono no chat): acrescenta `_follow_user` = Bruxo 9519
   em `user_settings` do Pedro Rodrigues (por e-mail; só essa chave). `hub.start` guarda o nome da conta seguida para os avisos.
+
+## Aprendizado geral (2026-10-27, versão 0.31.63)
+- Pedido do dono. `PumpFun.learn_trades()` (via `learn_pool` = `PumpHub._learn_pool`): trades automáticos fechados de todas as
+  contas, `_mine` para os da própria; fora `real`, `follow_of` (cópia; `_sell` grava `follow_of` no trade) e `pnl_pct` ≥
+  `SUSPECT_PCT`. `autolearn.study` devolve `n_sua`/`n_conhecimento` e `fechadas_suas`; tabela `alTbl` com coluna "De onde".
+  Migração `20261027000004`: Pedro sem `_follow_user` (Explorar dele continua ligado). Teste `tests/test_aprendizado_geral.py`.

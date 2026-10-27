@@ -133,6 +133,8 @@ class PumpFun:
         # o hub quando ESTA conta abre/fecha uma posição fictícia (o hub repassa para quem segue esta conta)
         self.follow_user: str = ""
         self.leader_hook = None
+        # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
+        self.learn_pool = None
         self._real_buying: set = set()
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
         self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
@@ -1140,6 +1142,8 @@ class PumpFun:
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
                           closed_t=t, closed_at=datetime.fromtimestamp(t, timezone.utc).isoformat(), exit_price=px)
             tr["pos_id"] = p["id"]                         # 0.31.38: par real × fictícia (espelho)
+            if p.get("follow_of"):
+                tr["follow_of"] = p["follow_of"]           # 0.31.63: cópia de outra conta não entra no aprendizado geral
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1895,6 +1899,20 @@ class PumpFun:
                    kind="buy", action="compra automática pausada", reason=reason, origem=origem)
         self._emit("[PUMP SIM] " + msg)
 
+    def learn_trades(self) -> list[dict]:
+        """Trades para o aprender com os erros (0.31.63, pedido do dono: "não faz sentido só uma conta aprender"): os desta
+        conta (marcados _mine) + os de todas as outras contas como CONHECIMENTO. Ficam de fora: a cópia de trades de outra
+        conta (contaria o mesmo trade duas vezes) e os ganhos de preço lido errado (+1.900% ou mais, SEALLIS/R1R2L1R2,
+        antes da correção 0.31.52). Nada disso entra no histórico ou na carteira de ninguém."""
+        from .auto_trades import SUSPECT_PCT
+        pool = self.learn_pool() if self.learn_pool is not None else [(True, t) for t in self.trades(100000)]
+        out = []
+        for mine, t in pool:
+            if t.get("real") or t.get("follow_of") or (t.get("pnl_pct") or 0) >= SUSPECT_PCT:
+                continue
+            out.append(dict(t, _mine=mine))
+        return out
+
     def learned(self, origem: str, t: float | None = None) -> dict:
         """Aprender com os erros (0.31.12, app/autolearn.py): faixas das compras automáticas fechadas; avisa quando uma
         faixa nova passa a ser bloqueada. Recalculado do histórico a cada 60 s."""
@@ -1904,7 +1922,7 @@ class PumpFun:
         hit = cache.get(origem)
         if hit and t - hit[0] < 60:
             return hit[1]
-        st = study(self.trades(100000), origem)
+        st = study(self.learn_trades(), origem)
         before = {(x["feature"], x["faixa"]) for x in (hit[1]["bloqueios"] if hit else [])}
         for x in st["bloqueios"]:
             if hit and (x["feature"], x["faixa"]) not in before:

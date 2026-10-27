@@ -144,6 +144,7 @@ class PumpHub:
         pf.tg = lambda msg, _pf=pf: self.tg_queue(_pf, msg)
         pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
         pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
+        pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
         # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
         # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta
         # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
@@ -180,6 +181,14 @@ class PumpHub:
         pf.real = PumpReal(pf.cfg, self.http, w, k, jup=jw)
         if not w.keypair:                            # sem carteira: real desliga
             pf.cfg.pump_real_enabled = False
+
+    def _learn_pool(self, me: PumpFun) -> list:
+        """0.31.63: trades automáticos fechados de TODAS as contas (os da própria conta marcados como seus)."""
+        out = []
+        for e in list(self.engines.values()):
+            mine = e is me
+            out += [(mine, t) for t in e.trades(100000) if t.get("origem") in AUTO_ORIGINS and not t.get("real")]
+        return out
 
     def _on_leader(self, leader: PumpFun, ev: str, p: dict, why: str = "") -> None:
         """0.31.61 (pedido do dono: "o que o Bruxo faz tem que acontecer no Pedro"): quando a conta seguida abre uma posição

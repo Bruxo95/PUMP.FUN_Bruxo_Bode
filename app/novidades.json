@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.63",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Explorar → O que a IA aprendeu com os erros; conta do Pedro",
+      "titulo": "Aprendizado geral: todas as contas aprendem juntas",
+      "oque": "O robô agora aprende com as compras automáticas de todas as contas, inclusive as antigas. Na tabela, cada faixa mostra quantas operações são da SUA CONTA e quantas vieram de CONHECIMENTO (outras contas); o conhecimento não entra no seu histórico nem na sua carteira. Não conta duas vezes a cópia de trades e deixa de fora os ganhos de preço lido errado. As regras configuradas do Explorar não mudaram. A conta do Pedro parou de copiar os trades do Bruxo e decide sozinha, com o Explorar ligado e o mesmo conhecimento."
+    },
+    {
       "versao": "0.31.62",
       "data": "2026-10-27",
       "tipo": "novo",

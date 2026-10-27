@@ -61,15 +61,16 @@ def study(trades: list[dict], origem: str) -> dict:
                 g.setdefault(b, []).append(t)
         for b, r in g.items():
             n = len(r)
+            mine = sum(1 for t in r if t.get("_mine", True))       # 0.31.63: da própria conta × CONHECIMENTO (outras contas)
             wr = sum(1 for t in r if (t.get("pnl_sol") or 0) > 0) / n
             avg = sum((t.get("pnl_pct") or 0) for t in r) / n
             pnl = sum(t.get("pnl_sol") or 0 for t in r)
             blocked = n >= MIN_N and wr < MAX_WR and avg < MAX_AVG_PCT
             out.append({"feature": f, "nome": label(f), "faixa": b, "n": n, "acerto": round(wr, 3), "media_pct": round(avg, 1),
-                        "pnl_sol": round(pnl, 6), "bloqueada": blocked})
+                        "pnl_sol": round(pnl, 6), "bloqueada": blocked, "n_sua": mine, "n_conhecimento": n - mine})
     out.sort(key=lambda x: (not x["bloqueada"], x["pnl_sol"]))
     quick = [t for t in rows if (t.get("pnl_sol") or 0) < 0 and (t.get("hold_s") or 1e9) <= 60]
-    return {"origem": origem, "fechadas": len(rows), "faixas": out, "bloqueios": [x for x in out if x["bloqueada"]],
+    return {"origem": origem, "fechadas": len(rows), "fechadas_suas": sum(1 for t in rows if t.get("_mine", True)), "faixas": out, "bloqueios": [x for x in out if x["bloqueada"]],
             "morte_rapida": len(quick), "min_n": MIN_N}
 
 
