@@ -25,10 +25,15 @@
   // 0.31.73 (pedido do dono): "manual" não é carteira — é o marcador das compras que não vieram de um trader (automáticas
   // do Explorar/Base/Maiores traders, botão Comprar, cópia de outra conta). Mostra de onde veio, sem link quebrado.
   const ORIG_NOME = { explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)" };
+  // legenda ao passar o mouse (pedido do dono: "explicar o que é Explorar")
+  const ORIG_DESC = { "Explorar (automática)": "o robô comprou sozinho um token da lista Quase graduando do Explorar: veredito chance alta e passou em todos os seus filtros e proteções",
+    "Base (automática)": "compra automática da tela Base da pump.fun (ex.: token com Boost ON)",
+    "Maiores traders (automática)": "compra feita quando vários dos maiores traders entraram no mesmo token",
+    "botão Comprar (você)": "você clicou em Comprar", "compra automática": "compra feita pelo robô, sem copiar um trader" };
   const whoLabel = (x) => { x = x || {}; const fo = x.follow_of; if (fo) return "copiou a conta " + (fo.nome || "outra conta");
     if (ORIG_NOME[x.origem]) return ORIG_NOME[x.origem]; if ((x.auto && x.auto !== true) || x.short === "automático") return "compra automática"; return x.manual || x.wallet === "manual" ? "botão Comprar (você)" : "compra automática"; };
   const shortW = (w, x) => (w === "manual" ? whoLabel(x || { wallet: w }) : w ? w.slice(0, 4) + "…" + w.slice(-4) : "");
-  const pfW = (w, x) => w === "manual" ? '<span class="tag neutral" title="não veio de um trader: ' + esc(whoLabel(x || { wallet: w })) + '">' + esc(whoLabel(x || { wallet: w })) + "</span>"
+  const pfW = (w, x) => w === "manual" ? '<span class="tag neutral" title="' + esc(ORIG_DESC[whoLabel(x || { wallet: w })] || "veio da cópia de trades de outra conta") + '">' + esc(whoLabel(x || { wallet: w })) + "</span>"
     : '<a href="https://pump.fun/profile/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + '">' + esc(shortW(w)) + "</a>";
   const pfM = (m, s) => '<a href="https://pump.fun/coin/' + encodeURIComponent(m) + '" target="_blank" rel="noopener" title="' + esc(m) + '">' + esc(s || m.slice(0, 6)) + "</a>" +
     '<button class="tkinfo" data-tk="' + esc(m) + '" title="Ficha do token">i</button>';
