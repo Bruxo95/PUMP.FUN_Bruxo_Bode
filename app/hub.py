@@ -182,6 +182,36 @@ class PumpHub:
         if not w.keypair:                            # sem carteira: real desliga
             pf.cfg.pump_real_enabled = False
 
+    def ghosts_merged(self, pf: PumpFun, kind: str = "ghosts", trades: list | None = None) -> dict:
+        """0.31.64 (pedido do dono: "tudo geral, uma base para todos"): Estratégias fantasma com os resultados de TODAS as
+        contas somados por regra de saída (n_sua × n_conhecimento). "Suas regras atuais" continua sendo só a sua conta,
+        para comparar por trade. É o que a tela e o Ajuste automático usam."""
+        from .ghosts import _ts
+        me = getattr(pf, kind)
+        snap = me.snapshot(pf.trades(100000) if trades is None else trades)
+        others = [getattr(e, kind) for e in list(self.engines.values()) if e is not pf and getattr(e, kind, None) is not None]
+        sinces = [x for x in [me.since] + [g.since for g in others] if x]
+        if sinces:
+            snap["since"] = min(sinces, key=lambda s: _ts(s) or 0)
+        rows = []
+        for r in snap["variants"]:
+            tot = {"trades": 0, "wins": 0, "pnl_sol": 0.0, "invested_sol": 0.0, "best_sum": 0.0}
+            for g in [me] + others:
+                s = g.stats.get(r["id"]) or {}
+                for k in tot:
+                    tot[k] += s.get(k, 0) or 0
+            n = tot["trades"]
+            rows.append(dict(r, trades=n, win_rate=(tot["wins"] / n) if n else None, pnl_sol=round(tot["pnl_sol"], 6),
+                             roi_pct=round(tot["pnl_sol"] / tot["invested_sol"] * 100, 2) if tot["invested_sol"] else None,
+                             avg_best_pct=round(tot["best_sum"] / n, 1) if n else None,
+                             n_sua=(me.stats.get(r["id"]) or {}).get("trades", 0), n_conhecimento=n - (me.stats.get(r["id"]) or {}).get("trades", 0),
+                             avg_sol=round(tot["pnl_sol"] / n, 6) if n else None))
+        snap["variants"] = rows
+        ranked = sorted([r for r in rows if r["trades"]], key=lambda r: -(r["avg_sol"] or 0))
+        snap["best"] = ranked[0]["id"] if ranked else None
+        snap["geral"] = True
+        return snap
+
     def _learn_pool(self, me: PumpFun) -> list:
         """0.31.63: trades automáticos fechados de TODAS as contas (os da própria conta marcados como seus)."""
         out = []
@@ -826,7 +856,7 @@ class PumpHub:
                         if r.get("tipo") == tipo and r.get("acao") == "desfez" and now - (ts(r.get("em")) or 0) < REJECT_S}
             if undone:
                 rejected.add(undone)
-            snap = ghosts.snapshot(trades)
+            snap = self.ghosts_merged(pf, "ghosts_auto" if tipo == "saida_auto" else "ghosts", trades)   # 0.31.64: base geral
             days = (now - (ts(snap.get("since")) or now)) / 86400
             pick = pick_exit(snap, days, rejected, mapper, min_n)
             new = mapper(pick["id"]) if pick else None

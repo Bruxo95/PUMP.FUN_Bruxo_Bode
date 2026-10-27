@@ -845,7 +845,8 @@
     table("cmpStops", ["Token", "Stop", "Saiu em", "Escorregou"], (cp.stops || []).map((x) => [pfM(x.mint || "", x.symbol), "−" + f(x.stop, 0) + "%", pc(x.saiu), f(x.escorregou, 1) + " pts"]), "Nenhuma saída por stop ainda.");
     const ga = r.ghosts_auto || {}, gy = ga.yours || {};
     $("gaSub").textContent = "desde " + (ga.since ? dt(ga.since) : "a próxima compra automática") + " · suas regras: " + (gy.trades || 0) + " trades, " + s4(gy.pnl_sol || 0) + " SOL · o Ajuste automático troca a regra com 20+ trades e 2+ dias";
-    table("gaTbl", ["Regra de saída", "Trades", "Acerto", "Resultado", "Por trade", "Abertas"], [gy].concat(ga.variants || []).filter((x) => x && x.nome).map((x) => [(x.id === ga.best ? '<span class="tag win">melhor</span> ' : "") + esc(x.nome), String(x.trades || 0),
+    table("gaTbl", ["Regra de saída", "Trades", "De onde", "Acerto", "Resultado", "Por trade", "Abertas"], [gy].concat(ga.variants || []).filter((x) => x && x.nome).map((x) => [(x.id === ga.best ? '<span class="tag win">melhor</span> ' : "") + esc(x.nome), String(x.trades || 0),
+      x.id === "suas" ? '<span class="tag sim">SUA CONTA</span>' : (x.n_sua ? '<span class="tag sim">SUA CONTA ' + x.n_sua + "</span> " : "") + (x.n_conhecimento ? '<span class="tag pause">CONHECIMENTO ' + x.n_conhecimento + "</span>" : ""),
       x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%", sg(x.pnl_sol || 0), x.trades ? s4(x.pnl_sol / x.trades) : "–", String(x.open || 0)]), "Sem dados ainda.");
     const al = r.learned_auto || {};
     $("alSub").textContent = (al.fechadas || 0) + " compras automáticas fechadas (" + (al.fechadas_suas == null ? al.fechadas || 0 : al.fechadas_suas) + " suas + " + ((al.fechadas || 0) - (al.fechadas_suas == null ? al.fechadas || 0 : al.fechadas_suas)) + " de CONHECIMENTO das outras contas) · " + (al.bloqueios || []).length + " faixas bloqueadas · " + (al.morte_rapida || 0) + " perdas em até 60 s depois da compra (entrou no topo)" + (r.learn_on ? "" : " · aprender sozinho DESLIGADO");
@@ -938,14 +939,15 @@
     GH = r;
     const pctW = (x) => (x == null ? "–" : f(x * 100, 0) + "%"), roi = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + f(v, 1) + "%");
     const best = (r.variants || []).find((v) => v.id === r.best), y = r.yours || {};
-    $("ghSub").textContent = r.since ? "comparando desde " + dt(r.since) + " · cada cópia fictícia também é \"copiada\" por " + (r.variants || []).length + " regras de saída" : "começa a contar na próxima cópia fictícia";
+    $("ghSub").textContent = r.since ? "base geral: todas as contas desde " + dt(r.since) + " · cada cópia fictícia também é \"copiada\" por " + (r.variants || []).length + " regras de saída · compare pelo resultado POR TRADE" : "começa a contar na próxima cópia fictícia";
     kpis("ghKpis", [["Suas regras atuais", sg(y.pnl_sol), y.trades + " trades · retorno " + roi(y.roi_pct), "pnl"],
       ["Melhor variante", best ? sg(best.pnl_sol) : "–", best ? esc(best.nome) : "ainda sem trades fechados", "hit"],
-      ["Diferença", best && y.trades ? sg(best.pnl_sol - y.pnl_sol) : "–", "melhor variante − suas regras", "tr"]]);
+      ["Diferença por trade", best && y.trades && best.trades ? sg(best.pnl_sol / best.trades - y.pnl_sol / y.trades) : "–", "melhor variante − suas regras (por trade; a variante soma todas as contas)", "tr"]]);
     const rows = [y].concat(r.variants || []);
-    table("ghTbl", ["Regra de saída", "Trades", "Abertas", "Acerto", "Resultado", "Retorno", "Melhor momento (média)"], rows.map((v) => [
-      (v.id === "suas" ? "<b>" + esc(v.nome) + "</b>" : esc(v.nome)) + (v.id === r.best ? ' <span class="tag win">melhor</span>' : ""), String(v.trades), String(v.open), pctW(v.win_rate),
-      "<b>" + sg(v.pnl_sol) + "</b>", roi(v.roi_pct), v.avg_best_pct == null ? "–" : "+" + f(v.avg_best_pct, 1) + "%"]), "");
+    const src = (v) => v.id === "suas" ? '<span class="tag sim">SUA CONTA</span>' : (v.n_sua ? '<span class="tag sim">SUA CONTA ' + v.n_sua + "</span> " : "") + (v.n_conhecimento ? '<span class="tag pause">CONHECIMENTO ' + v.n_conhecimento + "</span>" : "");
+    table("ghTbl", ["Regra de saída", "Trades", "De onde", "Abertas", "Acerto", "Resultado", "Por trade", "Retorno", "Melhor momento (média)"], rows.map((v) => [
+      (v.id === "suas" ? "<b>" + esc(v.nome) + "</b>" : esc(v.nome)) + (v.id === r.best ? ' <span class="tag win">melhor</span>' : ""), String(v.trades), src(v), String(v.open), pctW(v.win_rate),
+      "<b>" + sg(v.pnl_sol) + "</b>", v.trades ? s4(v.pnl_sol / v.trades) : "–", roi(v.roi_pct), v.avg_best_pct == null ? "–" : "+" + f(v.avg_best_pct, 1) + "%"]), "");
     const sel = $("ghSel"), cur = sel.value;
     sel.innerHTML = (r.variants || []).map((v) => '<option value="' + esc(v.id) + '">' + esc(v.nome) + "</option>").join("");
     if (cur) sel.value = cur;

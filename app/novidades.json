@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.64",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Estratégias fantasma; Explorar → fantasmas das automáticas; Ajuste automático",
+      "titulo": "Estratégias fantasma e Ajuste automático com base geral",
+      "oque": "As Estratégias fantasma agora somam os resultados de todas as contas em cada regra de saída, com SUA CONTA × CONHECIMENTO e a coluna 'Por trade' para comparar com as suas regras. O Ajuste automático escolhe a melhor regra olhando essa base geral (com as mesmas travas de antes, e parado quando a Execução real está ligada). Com isso, todo o aprendizado do sistema é uma base só para todos; resultados e dinheiro continuam de cada conta."
+    },
+    {
       "versao": "0.31.63",
       "data": "2026-10-27",
       "tipo": "novo",

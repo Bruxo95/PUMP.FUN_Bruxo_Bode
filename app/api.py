@@ -209,7 +209,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/ghosts")
     async def pump_ghosts(pf=Depends(admin_engine)):
         """Estratégias fantasma (0.18.0): mesmas entradas da cópia fictícia, saídas diferentes, lado a lado."""
-        return pf.ghosts.snapshot(pf.trades(100000))
+        return hub.ghosts_merged(pf, "ghosts")                   # 0.31.64: todas as contas (base geral)
 
     @app.get("/api/pump/explore")
     async def pump_explore(pf=Depends(admin_engine)):
@@ -229,7 +229,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         from .autolearn import compare
         trades = pf.trades(100000)
         out["compare_auto"] = compare(trades, "explorar")
-        out["ghosts_auto"] = pf.ghosts_auto.snapshot(trades)
+        out["ghosts_auto"] = hub.ghosts_merged(pf, "ghosts_auto", trades)   # 0.31.64: base geral
         out["learn_on"] = bool(getattr(pf.cfg, "pump_ar_learn", True))
         out["funnel"] = pf.explore_funnel()
         return out

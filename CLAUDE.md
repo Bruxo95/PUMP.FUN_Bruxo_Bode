@@ -891,3 +891,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   contas, `_mine` para os da própria; fora `real`, `follow_of` (cópia; `_sell` grava `follow_of` no trade) e `pnl_pct` ≥
   `SUSPECT_PCT`. `autolearn.study` devolve `n_sua`/`n_conhecimento` e `fechadas_suas`; tabela `alTbl` com coluna "De onde".
   Migração `20261027000004`: Pedro sem `_follow_user` (Explorar dele continua ligado). Teste `tests/test_aprendizado_geral.py`.
+
+- 0.31.64: `PumpHub.ghosts_merged(pf, kind)` soma `stats` de `ghosts`/`ghosts_auto` de todas as contas (n_sua/n_conhecimento,
+  `avg_sol`, melhor por trade); usado em `/api/pump/ghosts`, `ghosts_auto` do `/api/pump/explore` e no `auto_tune`
+  (`pick_exit` compara por trade com as suas regras). Teste `tests/test_fantasma_geral.py`. Pedido do dono: tudo geral.
