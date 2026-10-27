@@ -32,6 +32,7 @@ import json
 import logging
 import math
 import statistics
+import re
 import time
 from collections import deque
 from datetime import datetime, timezone
@@ -2836,6 +2837,48 @@ class PumpFun:
         out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)
         return out[:limit]
 
+    MISS_TIPS = (("limite de", "Aumente \"Posições reais ao mesmo tempo\" na Execução real, ou confira se há posição real antiga presa aberta."),
+                 ("perda do dia", "A real parou no limite \"Parar no dia se perder\"; volta sozinha no dia seguinte (UTC)."),
+                 ("já tem posição real", "A real já estava nesse token (de outra cópia); normal."),
+                 ("desligad", "A execução real ou a entrada automática estava desligada nessa hora."),
+                 ("saldo", "Falta SOL na carteira do bot para o \"SOL por compra\" + taxas."),
+                 ("subiu", "O preço fugiu antes de a real comprar (corrigido na 0.31.43 para o espelho)."),
+                 ("erro", "Falha ao enviar: confira o RPC e o saldo; veja Administração → Logs."),
+                 ("falh", "A rede recusou ou não confirmou; confira saldo e slippage da real."),
+                 ("recusad", "A rede recusou ou não confirmou; confira saldo e slippage da real."))
+
+    def mirror_misses(self, hours: float = 48, now: float | None = None) -> dict:
+        """0.31.43 — trades da fictícia que NÃO tiveram par na real (com o espelho ligado), com o motivo anotado no feed
+        e a dica do que ajustar. É o que alimenta o aprendizado: motivos que se repetem."""
+        now = time.time() if now is None else now
+        T = self.trades(5000)
+        paired = {str(r["sim_id"]) for r in T if r.get("real") and r.get("sim_id") is not None}
+        paired |= {str(p["sim_id"]) for p in self.positions() if p.get("real") and p.get("sim_id") is not None}
+        feed = [f for f in list(self.feed or [])                       # mais novo primeiro
+                if str(f.get("action") or "").startswith(("REAL não copiou", "REAL falhou"))]
+        out, por = [], {}
+        for t in T:
+            if t.get("real"):
+                continue
+            pid = t.get("pos_id") if t.get("pos_id") is not None else t.get("id")
+            closed = self._ts(t.get("closed_at")) or 0
+            if pid is None or str(pid) in paired or now - closed > hours * 3600:
+                continue
+            f = next((x for x in feed if str(x.get("sim_id")) == str(pid)), None) or \
+                next((x for x in feed if x.get("mint") == t.get("mint")), None)
+            why = (f or {}).get("reason") or "sem registro: a real estava desligada, ou foi antes da 0.31.43"
+            tip = next((tp for key, tp in self.MISS_TIPS if key in why.lower()), "")
+            out.append({"token": t.get("symbol"), "mint": t.get("mint"), "fechou": t.get("closed_at"), "sim_sol": t.get("pnl_sol"),
+                        "sim_pct": t.get("pnl_pct"), "origem": t.get("origem") or ("manual" if t.get("wallet") == "manual" else "cópia"),
+                        "motivo": why, "dica": tip})
+            k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", why)[:80]
+            g = por.setdefault(k, {"motivo": k, "n": 0, "sim_sol": 0.0, "dica": tip})
+            g["n"] += 1
+            g["sim_sol"] = round(g["sim_sol"] + (t.get("pnl_sol") or 0), 6)
+        out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)
+        return {"lista": out[:100], "por_motivo": sorted(por.values(), key=lambda g: -g["n"]), "total": len(out),
+                "perdido_sol": round(sum(x["sim_sol"] or 0 for x in out if (x["sim_sol"] or 0) > 0), 6)}
+
     def _mirror_real(self, p: dict, trader_sol: float = 0.0, block_t=None, pos_cfg: dict | None = None) -> str | None:
         """0.31.37 — sugestão do Bruxo (2026-10-27): com a Execução real ligada, TODO trade que abriu na carteira
         fictícia também é comprado na real. O valor NUNCA é o da fictícia: `_real_buy` usa "SOL por compra" da real
@@ -2852,7 +2895,7 @@ class PumpFun:
         elif len([x for x in allpos if x.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
             why = f"limite de {int(self._c('pump_real_max_open', 5))} posições reais (regra da carteira real)"
         if why:
-            self._feed(**base, action="REAL não copiou", reason=why)
+            self._feed(**base, action="REAL não copiou", reason=why, sim_id=p["id"])
             return why
         self._real_buying.add(mint)
         self._rq_put(("buy", {"wallet": p["wallet"], "mint": mint, "symbol": p.get("symbol"), "trader_sol": trader_sol,
@@ -2905,16 +2948,25 @@ class PumpFun:
 
     async def _real_buy(self, it: dict) -> None:
         mint, sym = it["mint"], it["symbol"]
+        # 0.31.43 (sugestão do Bruxo + aprendizagem do bot: "a real não replica a fictícia"): toda desistência da compra
+        # real fica no feed com o motivo e o par fictício (sim_id). A tela Real × fictícia junta isso e diz o que ajustar.
+        mirrored = getattr(self.cfg, "pump_real_mirror", True) and it.get("sim_id") is not None
+
+        def miss(why: str, action: str = "REAL não copiou") -> None:
+            self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
+                       action=action, reason=why, sim_id=it.get("sim_id"))
         try:
             lim = float(self._c("pump_real_daily_loss_sol", 0.5))
             if not getattr(self.cfg, "pump_real_enabled", False):
+                miss("execução real desligada quando a compra ia sair")
                 return
             own_auto = (it.get("pos_cfg") or {}).get("auto") is True
-            if own_auto and (not (getattr(self.cfg, "pump_real_mirror", True) or getattr(self.cfg, "pump_auto_real", False)) or not self.auto_ready):
+            if own_auto and not mirrored and (not getattr(self.cfg, "pump_auto_real", False) or not self.auto_ready):
                 return
             if own_auto and (getattr(self, "role", None) != "admin"
                              or ((it.get("pos_cfg") or {}).get("origem") == "explorar"
                                  and not getattr(self.cfg, "pump_ex_auto_on", False))):
+                miss("entrada automática do Explorar desligada (ou conta sem admin) quando a compra ia sair")
                 return
             if own_auto and not (getattr(self.cfg, "pump_real_mirror", True) and it.get("sim_id") is not None):
                 reserved = self._auto_pending.pop(mint, None)
@@ -2925,21 +2977,24 @@ class PumpFun:
                     self._auto_blocked(guard, mint, (it.get("pos_cfg") or {}).get("origem", "explorar"), time.time())
                     return
             if lim and self.real.today_loss(self.trades(2000)) >= lim:
-                self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
-                           action="REAL não copiou", reason=f"perda do dia chegou a {lim} SOL")
+                miss(f"perda do dia chegou a {lim} SOL")
                 return
             mult, mwhy = self.trust_mult(it["wallet"])
             amt = float(self._c("pump_real_max_sol", 0.05)) * min(1.0, mult)
-            # a compra real sai da fila depois: confere de novo se o preço já não fugiu da entrada do trader
-            chase = self.chase_block(it.get("trader_price"), (self.tokens.get(mint) or {}).get("price"))
+            # a compra real sai da fila depois: confere de novo se o preço já não fugiu da entrada do trader.
+            # 0.31.43: no ESPELHO não — a fictícia já passou pelos filtros e os tokens que mais sobem (ex.: R1R2L1R2,
+            # +150% em 12 s) eram justamente os barrados aqui; a proteção da real é a slippage da carteira real.
+            chase = None if mirrored else self.chase_block(it.get("trader_price"), (self.tokens.get(mint) or {}).get("price"))
             if chase:
-                self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
-                           action="REAL não copiou", reason=chase)
+                miss(chase)
                 return
-            res = await self.real.buy(mint, amt, other=not self.is_pump(mint))
+            try:
+                res = await self.real.buy(mint, amt, other=not self.is_pump(mint))
+            except Exception as e:
+                miss(f"erro ao enviar a compra: {type(e).__name__}: {str(e)[:120]}", "REAL falhou")
+                raise
             if not res.get("ok"):
-                self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
-                           action="REAL falhou", reason=res.get("reason") or res.get("status"))
+                miss(res.get("reason") or res.get("status") or "a compra não confirmou", "REAL falhou")
                 self._emit(f"[PUMP REAL] compra {sym} NÃO feita: {res.get('reason') or res.get('status')}")
                 return
             fr = self._fee_rates(mint)

@@ -1451,6 +1451,12 @@
       x.sim_pct == null ? '<span class="muted">sem par</span>' : sg(x.sim_sol) + "<small>" + pc(x.sim_pct) + "</small>", sg(x.real_sol) + "<small>" + pc(x.real_pct) + "</small>",
       x.dif_pct == null ? "–" : (x.dif_pct > 0 ? '<span class="up">+' : '<span class="down">') + f(x.dif_pct, 1) + " pts</span>", x.atraso_s == null ? "–" : hms(x.atraso_s), esc((x.motivo_real || "") + (x.motivo_sim ? " / " + x.motivo_sim : ""))]),
       "Nenhum trade real do espelho fechado ainda.");
+    const M = r.misses || { lista: [], por_motivo: [] };
+    $("rmMissS").hidden = !M.total && r.real_on && r.mirror_on;
+    $("rmMissS").textContent = !r.real_on ? "A Execução real está DESLIGADA: nada da fictícia vai para a real." : !r.mirror_on ? "\"Espelhar 100% a carteira fictícia\" está DESLIGADO." :
+      M.total + (M.total === 1 ? " trade da fictícia ficou" : " trades da fictícia ficaram") + " sem par na real nas últimas 48 h" + (M.perdido_sol ? " (os que ganharam somaram " + s4(M.perdido_sol) + " SOL na fictícia)" : "") + ". Veja o motivo e a dica abaixo.";
+    table("rmMissR", ["Motivo (o que mais aconteceu)", "Vezes", "Resultado na fictícia", "O que fazer"], (M.por_motivo || []).map((g) => [esc(g.motivo), String(g.n), sg(g.sim_sol), esc(g.dica || "")]), "Nenhum: tudo o que a fictícia fez foi para a real.");
+    table("rmMiss", ["Fechou", "Token", "Origem", "Fictícia", "Por que não foi para a real"], (M.lista || []).map((x) => [esc(dt(x.fechou)), pfM(x.mint || "", x.token), esc(x.origem), sg(x.sim_sol) + "<small>" + pc(x.sim_pct) + "</small>", '<b style="color:var(--warn)">' + esc(x.motivo) + "</b>" + (x.dica ? "<small>" + esc(x.dica) + "</small>" : "")]), "Nada para mostrar.");
   }
   async function walletLoad(force) { try { W = await BB.api("/api/pump/wallet" + (force ? "?force=1" : "")); if (VIEW === "real") renderReal(); } catch (e) { /* */ } }
 

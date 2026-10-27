@@ -105,3 +105,25 @@ def test_explore_last_slot_of_the_hour_still_goes_real():
     _complete(pf._real_buy(it))
     assert pf.real.calls and pf.real.calls[0][0] == "buy"
     assert pf.auto_guard(EB, t) == "limite de 1 posições automáticas abertas"  # só a fictícia ocupa a vaga
+
+
+def test_mirror_buys_even_if_price_ran_and_misses_are_explained(tmp_path):
+    """0.31.43: no espelho a real não desiste porque o preço subiu (chase); e o que não foi para a real tem motivo."""
+    pf = _pf(tmp_path, pump_max_chase_pct=30.0, pump_chase_on=True)
+    pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
+    pf.manual_buy(A, auto="automático: x")
+    _k, it = pf._rq.get_nowait()
+    pf.tokens[A]["price"] = 3e-6                                          # subiu 200% antes de a real sair
+    asyncio.run(pf._real_buy(it))
+    assert pf.real.calls and pf.real.calls[0][0] == "buy"
+    b = "Miss".ljust(40, "1") + "pump"
+    pf.tokens[b] = {"price": 1e-6, "symbol": "MIS", "mcap_sol": 40.0}
+    pf.cfg.pump_real_daily_loss_sol = 0.01
+    pf.real.today_loss = lambda trades: 1.0
+    pf.manual_buy(b, auto="automático: y")
+    sim_b = [p for p in pf.positions() if p["mint"] == b and not p.get("real")][0]
+    _k, it2 = pf._rq.get_nowait()
+    asyncio.run(pf._real_buy(it2))
+    pf._sell(sim_b, 1.0, 1.1e-6, "alvo", 0.0)
+    m = pf.mirror_misses()
+    assert m["total"] == 1 and "perda do dia" in m["lista"][0]["motivo"] and m["lista"][0]["dica"]
