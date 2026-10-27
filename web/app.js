@@ -1510,16 +1510,35 @@
     return '<details class="keyhow"><summary>Como fazer (passo a passo)</summary><div class="hint"><b>Custo:</b> ' + esc(h.custo) + "<br><b>O que melhora:</b> " + esc(h.ganha) + "</div>" +
       "<ol>" + h.passos.map((p) => "<li>" + esc(p) + "</li>").join("") + "</ol></details>";
   }
+  const KEY_SHORT = { solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", wallet_private_key: "Carteira do bot", rpc_url: "RPC",
+    jupiter_api_key: "Jupiter", telegram_bot_token: "Bot Telegram", telegram_chat_id: "Id Telegram" };
+  const KEY_NEED = { solanatracker_api_key: "Recomendada", wallet_private_key: "Só modo real", pumpportal_api_key: "Opcional", rpc_url: "Opcional",
+    jupiter_api_key: "Opcional", telegram_bot_token: "Para avisos", telegram_chat_id: "Para avisos" };
+  const KEY_EDIT = {}; let KEY_SAVED = "";
   async function loadSecrets() {
     const r = await BB.api("/api/secrets"); if (r.error) return;
     const w = r.wallet || {};
-    const using = (v) => v.configured ? '<span class="tag win">Usando: sua chave</span>' : v.system ? '<span class="tag sim">Usando: chave do sistema (só visualização)</span>' : '<span class="tag loss">Não configurada</span>';
-    $("secrets").innerHTML = Object.entries(r.keys).map(([k, v]) => '<div class="secret"><div><div class="name">' + esc(v.label) + '</div><div class="muted" style="font-size:12.5px">' + esc(KEY_HINT[k] || "") +
-      (v.link ? ' <a href="' + esc(v.link) + '" target="_blank" rel="noopener">' + (k === "wallet_private_key" ? "Criar uma carteira nova →" : k === "rpc_url" ? "Criar um RPC →" : "Criar minha chave →") + "</a>" : "") +
-      (k === "wallet_private_key" && w.address ? '<br>Endereço público: <span class="mono">' + esc(w.address) + "</span>" : "") + (k === "rpc_url" && w.rpc_set ? '<br>Servidor: <span class="mono">' + esc(w.rpc_host || "") + "</span>" : "") + "</div>" + keyHow(k) + "</div>" +
-      "<div>" + using(v) + "</div>" +
-      '<div class="row"><input class="in" type="password" autocomplete="new-password" spellcheck="false" data-secret="' + k + '" placeholder="' + (v.configured ? "colar nova para trocar" : "colar a sua chave aqui") + '">' +
-      btn("Salvar", "secret-save", { k: k }, "primary") + (v.configured ? btn("Remover", "secret-del", { k: k }, "tgl off") : "") + "</div></div>").join("");
+    // 0.31.27 (pedido do dono em 2026-10-27: "tudo junto, não dá para saber se foi configurado"): cada chave vira um
+    // bloco com faixa colorida e estado em uma frase; configurada esconde o campo (botão Trocar), e o resumo fica no topo.
+    const ks = Object.entries(r.keys), nOk = ks.filter(([, v]) => v.configured).length;
+    const st = (v) => v.configured ? ["ok", "✓ Configurada", "A sua chave está salva e em uso."]
+      : v.system ? ["sys", "Usando a chave do sistema", "Funciona só para ver os dados. Cole a sua para ter a sua própria cota."]
+      : ["none", "Não configurada", "Nada salvo ainda."];
+    $("secretsSum").innerHTML = '<div class="keysum"><b>' + nOk + " de " + ks.length + "</b> chaves configuradas" +
+      ks.map(([k, v]) => '<span class="keychip ' + st(v)[0] + '">' + (v.configured ? "✓ " : "") + esc(KEY_SHORT[k] || v.label) + "</span>").join("") + "</div>";
+    $("secrets").innerHTML = ks.map(([k, v]) => {
+      const [cls, title, sub] = st(v), open = !v.configured || KEY_EDIT[k];
+      const extra = (k === "wallet_private_key" && w.address ? '<div class="keyinfo">Endereço público: <span class="mono">' + esc(w.address) + "</span></div>" : "") +
+        (k === "rpc_url" && w.rpc_set ? '<div class="keyinfo">Servidor: <span class="mono">' + esc(w.rpc_host || "") + "</span></div>" : "");
+      return '<div class="secret key-' + cls + (KEY_SAVED === k ? " just" : "") + '" id="key-' + k + '">' +
+        '<div class="keyhead"><div><div class="name">' + esc(v.label) + (KEY_NEED[k] ? ' <span class="keyneed">' + esc(KEY_NEED[k]) + "</span>" : "") + "</div>" +
+        '<div class="muted keydesc">' + esc(KEY_HINT[k] || "") + (v.link ? ' <a href="' + esc(v.link) + '" target="_blank" rel="noopener">' + (k === "wallet_private_key" ? "Criar uma carteira nova →" : k === "rpc_url" ? "Criar um RPC →" : "Criar minha chave →") + "</a>" : "") + "</div></div>" +
+        '<div class="keystate"><div class="kst">' + title + '</div><div class="muted">' + (KEY_SAVED === k ? "Salva agora há pouco." : sub) + "</div></div></div>" + extra +
+        (open ? '<div class="row keyrow"><input class="in" type="password" autocomplete="new-password" spellcheck="false" data-secret="' + k + '" placeholder="' + (v.configured ? "cole a chave nova para trocar" : "cole a sua chave aqui") + '">' +
+          btn("Salvar", "secret-save", { k: k }, "primary") + (v.configured ? btn("Cancelar", "secret-edit", { k: k, off: "1" }) : "") + "</div>"
+          : '<div class="row keyrow">' + btn("Trocar chave", "secret-edit", { k: k }) + btn("Remover", "secret-del", { k: k }, "tgl off") + "</div>") +
+        keyHow(k) + "</div>";
+    }).join("");
   }
   async function loadSysKeys() {
     const r = await BB.api("/api/admin/keys"); if (r.error) return;
@@ -1667,6 +1686,7 @@
       const k = t.dataset.k, inp = document.querySelector('[data-secret="' + k + '"]'), v = (inp.value || "").trim(); if (!v) { toast("Cole a chave no campo primeiro."); return; }
       t.disabled = true; const r = await BB.api("/api/secrets", { body: { name: k, value: v } }); inp.value = ""; t.disabled = false;
       toast(r.error ? "Não salvou: " + r.error : "Chave salva (criptografada)." + (r.count != null ? " " + r.count + " top traders carregados." : "") + (r.address ? " Carteira " + shortW(r.address) : ""));
+      if (!r.error) { KEY_EDIT[k] = false; KEY_SAVED = k; setTimeout(() => { if (KEY_SAVED === k) { KEY_SAVED = ""; loadSecrets(); } }, 8000); }
       loadSecrets(); loadAudit(); poll(true); walletLoad(true); return;
     }
     if (a === "syskey-save") {
@@ -1676,6 +1696,7 @@
       loadSysKeys(); loadAdmin(); loadAAudit(); poll(true); return;
     }
     if (a === "syskey-del") { if (!confirm("Remover esta chave do sistema? Quem não tem chave própria deixa de ver o que depende dela.")) return; const r = await BB.api("/api/admin/keys/remove", { body: { name: t.dataset.k } }); toast(r.error || "Chave do sistema removida."); loadSysKeys(); loadAdmin(); loadAAudit(); poll(true); return; }
+    if (a === "secret-edit") { KEY_EDIT[t.dataset.k] = !t.dataset.off; await loadSecrets(); const i = document.querySelector('[data-secret="' + t.dataset.k + '"]'); if (i) i.focus(); return; }
     if (a === "secret-del") { if (!confirm("Remover esta chave? Ela será apagada do banco.")) return; const r = await BB.api("/api/secrets/remove", { body: { name: t.dataset.k } }); toast(r.error || "Chave removida."); loadSecrets(); loadAudit(); poll(true); return; }
   });
   document.addEventListener("change", (ev) => {

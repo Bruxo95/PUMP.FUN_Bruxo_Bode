@@ -726,3 +726,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.26: `daily.build` → `best_trades` (5 maiores ganhos; PDF/texto para IA); tabela `#dayBest`; classe `daytbl` (fonte 12px,
   Origem/Motivo quebram linha) nas tabelas do Relatório do dia. Pedido do dono.
+
+- 0.31.27: Chaves pessoais redesenhadas (`loadSecrets`: `#secretsSum`, `KEY_SHORT`, `KEY_NEED`, `KEY_EDIT`, `KEY_SAVED`,
+  ação `secret-edit`; CSS `.keysum`, `.key-ok/sys/none`). Pedido do dono ("tudo junto, não sei se foi configurado").

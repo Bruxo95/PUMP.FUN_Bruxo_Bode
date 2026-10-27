@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.27",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Configurações → Chaves pessoais",
+      "titulo": "Chaves pessoais mais claras",
+      "oque": "No topo aparece quantas chaves estão configuradas (ex.: 2 de 7), com uma etiqueta por chave. Cada chave virou um bloco separado com faixa colorida: verde = ✓ Configurada (a sua chave em uso), azul = usando a chave do sistema, laranja = não configurada. Chave já configurada esconde o campo e mostra Trocar chave e Remover; ao salvar, o bloco fica destacado com \"Salva agora há pouco\". Cada uma também diz se é Recomendada, Opcional, Para avisos ou Só modo real."
+    },
+    {
       "versao": "0.31.26",
       "data": "2026-10-27",
       "tipo": "melhoria",

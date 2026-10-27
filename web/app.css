@@ -508,3 +508,30 @@ table.daytbl th{padding-left:6px;padding-right:6px}
 table.daytbl td:last-child,table.daytbl th:last-child{white-space:normal;min-width:180px}
 table.daytbl td:nth-last-child(4){white-space:normal}
 @media (max-width:700px){table.daytbl{font-size:11.5px}}
+/* chaves pessoais (0.31.27): um bloco por chave com faixa e estado claros */
+.keysum{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 14px;font-size:13px}
+.keysum b{color:var(--text,#fff)}
+.keysum > b{margin-right:4px}
+.keychip{font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.keychip.ok{color:var(--up);background:var(--up-bg);border-color:rgba(34,197,94,.35)}
+.keychip.sys{color:var(--sim);background:var(--sim-bg);border-color:rgba(154,164,255,.3)}
+#secrets{display:grid;gap:12px}
+#secrets .secret{display:block;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;padding:14px 16px;background:rgba(255,255,255,.015)}
+#secrets .secret:last-child{border-bottom:1px solid var(--line)}
+#secrets .secret.key-ok{border-left-color:var(--up);background:rgba(34,197,94,.04)}
+#secrets .secret.key-sys{border-left-color:var(--sim)}
+#secrets .secret.key-none{border-left-color:var(--warn)}
+#secrets .secret.just{box-shadow:0 0 0 2px rgba(34,197,94,.45)}
+.keyhead{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.keyhead > div:first-child{min-width:0;flex:1}
+.keydesc{font-size:12.5px;margin-top:3px}
+.keyneed{font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);margin-left:6px;vertical-align:2px}
+.keystate{text-align:right;max-width:260px;font-size:12px}
+.keystate .kst{font-size:14px;font-weight:700}
+.key-ok .kst{color:var(--up)}
+.key-sys .kst{color:var(--sim)}
+.key-none .kst{color:var(--warn)}
+.keyinfo{font-size:12.5px;margin-top:8px;color:var(--muted)}
+.keyrow{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
+.keyrow input{flex:1;min-width:200px}
+@media (max-width:640px){.keyhead{flex-direction:column;gap:6px}.keystate{text-align:left;max-width:none}}
