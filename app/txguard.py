@@ -26,6 +26,11 @@ PUMP = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 PUMP_AMM = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"     # conferido na doc da Solana Tracker em 2026-10-25
 JUPITER = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"
 WSOL = "So11111111111111111111111111111111111111112"
+# 0.31.48: programa intermediário que a PumpPortal passou a pôr na transação do trade-local (visto em 27/10/2026: recusou
+# as compras reais de R1R2L1R2 e Windle). Na blockchain ele chama Buy/Sell do programa oficial 6EF8… e o de taxas pfee….
+# Os dados dele não dizem quanto gasta, então a transação com ele só é assinada depois de SIMULADA (PumpReal._sim_guard):
+# a simulação mostra quanto SOL sai da carteira e se algum outro token seria mexido.
+PUMPPORTAL_ROUTER = "FAdo9NCw1ssek6Z6yeWzWjhLVsr8uiCwcWNUnKgzTnHe"
 
 MAX_PRIORITY_LAMPORTS = 10_000_000          # 0,01 SOL de taxa de prioridade por transação
 MAX_RENT_LAMPORTS = 10_000_000              # contas novas (aluguel) por transação
@@ -78,7 +83,7 @@ def check(message, owner: str, *, max_spend_lamports: int, max_fee_lamports: int
         return keys[i] if i < len(keys) else None            # índice além das chaves fixas = conta de lookup table
 
     spend = external = wrapped = rent = 0
-    cu_limit, cu_price, ata_creates, jup_routes = 1_400_000, 0, 0, 0
+    cu_limit, cu_price, ata_creates, jup_routes, routed = 1_400_000, 0, 0, 0, 0
     for ix in message.instructions:
         prog = key(ix.program_id_index)
         accs = [key(i) for i in bytes(ix.accounts)]
@@ -125,6 +130,12 @@ def check(message, owner: str, *, max_spend_lamports: int, max_fee_lamports: int
                 spend += _u64(data, 8)                        # spendable_sol_in
             elif disc != PUMP_SELL:
                 raise TxRejected("instrução da pump.fun desconhecida")
+        elif prog == PUMPPORTAL_ROUTER:
+            if mint and mint not in accs:
+                raise TxRejected("a instrução da PumpPortal não é do token pedido")
+            if PUMP not in accs and PUMP_AMM not in accs:
+                raise TxRejected("a instrução da PumpPortal não chama a pump.fun")
+            routed += 1
         elif prog == JUPITER:
             if jupiter is None or data[:8] not in JUP_ROUTES or len(data) < 27:
                 raise TxRejected("instrução da Jupiter desconhecida")
@@ -146,7 +157,10 @@ def check(message, owner: str, *, max_spend_lamports: int, max_fee_lamports: int
         raise TxRejected(f"envia {external / 1e9:.4f} SOL para terceiros (teto {max_fee_lamports / 1e9:.4f} SOL)")
     if priority > max_priority_lamports or rent > MAX_RENT_LAMPORTS or ata_creates > MAX_ATA_CREATES:
         raise TxRejected("taxa de prioridade, aluguel ou contas novas acima do teto")
-    return {"spend": spend, "external": external, "wrapped": wrapped, "rent": rent, "priority": priority}
+    if routed and jupiter is not None:
+        raise TxRejected("rota da PumpPortal misturada com a Jupiter")
+    return {"spend": spend, "external": external, "wrapped": wrapped, "rent": rent, "priority": priority,
+            "needs_simulation": routed > 0}
 
 
 # ---------------------------------------------------------------------------- SEC-04: transação sem confirmação

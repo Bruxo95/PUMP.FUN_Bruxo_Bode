@@ -304,3 +304,49 @@ def test_token_risk_from_solana_tracker_blocks_dangerous_tokens(env):
     tk["risk"] = {"score": 10, "rugged": True, "danger": ["x"], "warn": []}
     assert pf.risk_block(tk) is None                                            # desligado: não bloqueia
     assert pf.risk_block({}) is None                                            # sem dados: não bloqueia
+
+
+
+def test_txguard_pumpportal_router_needs_simulation_and_sim_guard_blocks_drain():
+    """0.31.48: a rota intermediária da PumpPortal passa na conferência só com o token pedido e a pump.fun, e só é
+    enviada depois da simulação; a simulação recusa SOL demais saindo e outro token mexido."""
+    import base64 as b64
+    from solders.instruction import AccountMeta, Instruction
+    from solders.pubkey import Pubkey
+    from app import txguard
+    from app.pumpfun import PumpReal
+    kp, _ = _kp_msg([])
+    me = kp.pubkey()
+    mint = str(Pubkey.new_unique())
+    lim = dict(max_spend_lamports=60_000_000, max_fee_lamports=2_000_000, mint=mint)
+    acc = [AccountMeta(Pubkey.from_string(mint), False, False), AccountMeta(Pubkey.from_string(txguard.PUMP), False, False)]
+    _, ok = _kp_msg([Instruction(Pubkey.from_string(txguard.PUMPPORTAL_ROUTER), b"\x01", acc)], kp)
+    assert txguard.check(ok, str(me), **lim)["needs_simulation"] is True
+    _, bad = _kp_msg([Instruction(Pubkey.from_string(txguard.PUMPPORTAL_ROUTER), b"\x01", acc[1:])], kp)
+    with pytest.raises(txguard.TxRejected, match="token pedido"):
+        txguard.check(bad, str(me), **lim)
+
+    class W:
+        address = str(me)
+    other_acc = str(Pubkey.new_unique())
+    state = {"post": 1_000_000_000 - 50_000_000, "other_after": 500}
+
+    async def rpc(method, params):
+        if method == "getTokenAccountsByOwner":
+            if params[1]["programId"] != txguard.TOKEN:
+                return {"value": []}
+            return {"value": [{"pubkey": other_acc, "account": {"data": {"parsed": {"info": {
+                "mint": "Outro", "tokenAmount": {"amount": "500"}}}}}}]}
+        if method == "getBalance":
+            return {"value": 1_000_000_000}
+        data = bytearray(165)
+        data[64:72] = int(state["other_after"]).to_bytes(8, "little")
+        return {"value": {"err": None, "accounts": [{"lamports": state["post"]}, {"data": [b64.b64encode(bytes(data)).decode(), "base64"]}]}}
+    pr = PumpReal.__new__(PumpReal)
+    pr.wallet, pr._rpc = W(), rpc
+    caps = {"max_spend_lamports": 60_000_000, "max_fee_lamports": 2_000_000, "max_priority_lamports": 2_000_000}
+    assert asyncio.run(pr._sim_guard("x", mint, caps)) is None
+    state["post"] = 1_000_000_000 - 900_000_000                         # 0,9 SOL saindo numa compra de 0,05
+    assert "tiraria" in asyncio.run(pr._sim_guard("x", mint, caps))
+    state["post"], state["other_after"] = 1_000_000_000 - 50_000_000, 0  # outro token esvaziado
+    assert "outro token" in asyncio.run(pr._sim_guard("x", mint, caps))

@@ -432,6 +432,8 @@
       sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"), x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]);
     table("dayBest", ["Entrada → saída", "Token", "Origem", "Ganhou", "Melhor momento", "Motivo"], topRows(rep.best_trades), "Nenhum ganho neste dia.");
     table("dayWorst", ["Entrada → saída", "Token", "Origem", "Perdeu", "Melhor momento", "Motivo"], topRows(rep.worst_trades), "Nenhuma perda neste dia.");
+    $("dayMissBox").hidden = !RL;
+    if (RL) table("dayMiss", ["Hora", "Token", "O que houve", "Motivo"], (rep.real_misses || []).map((x) => [esc(x.hora), pfM(x.mint || "", x.token), '<span class="tag loss">' + esc(x.acao) + "</span>", esc(x.motivo)]), "Nenhuma falha da real neste dia.");
     table("dayTr", ["Entrada", "Saída", "Duração", "Token", "Origem", "Resultado", "Melhor momento", "Motivo"], (rep.trades_list || []).slice().reverse().map((x) => [esc(x.entrada), esc(x.saida), hms(x.duracao_s),
       pfM(x.mint || "", x.token), esc(x.origem), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"),
       x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]), "Nenhum trade fechado neste dia.");

@@ -817,3 +817,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   sai: guarda `exit_wait`), `_release_sim_exit` (no `finally` de `_real_buy`), `_align_to_real` (fictícia par recebe
   `open_t`/`opened_at` e preço efetivo da real; original em `sim_entry`; só sem venda parcial e com razão 0,2–5).
   Em `_sell` a venda real do par sai antes do fechamento da fictícia. Relatório `app/relatorios_ia/2026-10-27-0.31.47.md`.
+
+- 0.31.48: `txguard.PUMPPORTAL_ROUTER` (FAdo9NCw…, intermediário da PumpPortal visto em 27/10; CPI para Buy/Sell da pump.fun):
+  `check` aceita com token pedido + pump.fun nas contas e devolve `needs_simulation`; `PumpReal._sim_guard` simula
+  (`simulateTransaction` com saldo da carteira e das outras contas de token) e recusa SOL acima do teto ou outro token
+  mexido; sem simulação não envia. Jupiter de reserva para token pump usa `pump_real_slippage_pct`. `daily.build(real)`
+  → `real_misses` (tabela `#dayMiss`). Relatório `app/relatorios_ia/2026-10-27-0.31.48.md`.

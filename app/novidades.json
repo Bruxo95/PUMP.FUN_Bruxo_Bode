@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.48",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Execução real e Visão geral → Relatório do dia (Real)",
+      "titulo": "Compras reais pela PumpPortal voltam a funcionar",
+      "oque": "A PumpPortal passou a usar um programa intermediário que a nossa trava de segurança não conhecia, e todas as compras reais por ela eram recusadas (erro 'programa não permitido'). Agora ele é aceito, mas cada transação é simulada antes de assinar: se tirar mais SOL que o pedido ou mexer em outro token da carteira, é recusada. A compra de reserva pela Jupiter usa a slippage da carteira real (não mais 3%). No Relatório do dia em modo Real aparece a lista do que não aconteceu na real, com o motivo."
+    },
+    {
       "versao": "0.31.47",
       "data": "2026-10-27",
       "tipo": "correção",

@@ -3305,15 +3305,61 @@ class PumpReal:
         try:
             tx = VersionedTransaction.from_bytes(r.content)
             # SEC-01 (auditoria 2026-10-25): só assina se a transação fizer o que foi pedido
-            txguard.check(tx.message, self.wallet.address, mint=body.get("mint"), **self._limits(body))
+            summary = txguard.check(tx.message, self.wallet.address, mint=body.get("mint"), **self._limits(body))
         except Exception as e:
             log.warning("PumpPortal: transação recusada antes de assinar (%s)", str(e)[:160])
             return {"status": "recusada", "reason": f"transação recusada pela verificação: {str(e)[:120]}"}
         signed = VersionedTransaction(tx.message, [self.wallet.keypair])
-        sig, st, err = await self._send_confirm(base64.b64encode(bytes(signed)).decode())
+        raw = base64.b64encode(bytes(signed)).decode()
+        if summary.get("needs_simulation"):
+            why = await self._sim_guard(raw, body.get("mint"), self._limits(body))
+            if why:
+                log.warning("PumpPortal: transação recusada na simulação (%s)", why[:160])
+                return {"status": "recusada", "reason": f"transação recusada pela simulação: {why}"}
+        sig, st, err = await self._send_confirm(raw)
         if st == "pendente":                     # SEC-04: espera confirmar ou vencer antes de qualquer nova tentativa
             st, err = await txguard.reconcile(self._rpc, sig, str(tx.message.recent_blockhash))
         return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada"}
+
+    async def _sim_guard(self, raw_b64: str, mint: str | None, lim: dict) -> str | None:
+        """0.31.48: para a rota intermediária da PumpPortal (txguard.PUMPPORTAL_ROUTER), simula ANTES de enviar e devolve
+        o motivo para não enviar: SOL saindo da carteira acima do pedido + tetos de taxa, ou outro token da carteira mexido.
+        Falha fechada: se não der para simular, não envia."""
+        owner = self.wallet.address
+        try:
+            others = []
+            for prog in (txguard.TOKEN, txguard.TOKEN_2022):
+                res = await self._rpc("getTokenAccountsByOwner", [owner, {"programId": prog},
+                                                                  {"encoding": "jsonParsed", "commitment": "processed"}])
+                for a in (res or {}).get("value") or []:
+                    info = a["account"]["data"]["parsed"]["info"]
+                    if info.get("mint") != mint:
+                        others.append((a["pubkey"], int(info["tokenAmount"]["amount"])))
+            others = others[:60]
+            pre = (await self._rpc("getBalance", [owner, {"commitment": "processed"}]))["value"]
+            sim = await self._rpc("simulateTransaction", [raw_b64, {
+                "encoding": "base64", "sigVerify": False, "commitment": "processed",
+                "accounts": {"encoding": "base64", "addresses": [owner] + [k for k, _ in others]}}])
+        except Exception as e:
+            return f"não deu para simular ({type(e).__name__})"
+        v = (sim or {}).get("value") or {}
+        if v.get("err"):
+            return f"a simulação falhou: {str(v['err'])[:100]}"
+        accs = v.get("accounts") or []
+        if not accs or not accs[0]:
+            return "a simulação não devolveu o saldo da carteira"
+        spent = int(pre) - int(accs[0]["lamports"])
+        cap = (int(lim["max_spend_lamports"]) + int(lim["max_fee_lamports"]) + int(lim["max_priority_lamports"])
+               + txguard.MAX_RENT_LAMPORTS + 100_000)
+        if spent > cap:
+            return f"tiraria {spent / 1e9:.4f} SOL da carteira (teto {cap / 1e9:.4f} SOL)"
+        for (key, amount), acc in zip(others, accs[1:]):
+            if not acc:
+                return "fecharia outra conta de token da carteira"
+            data = base64.b64decode((acc.get("data") or [""])[0])
+            if len(data) < 72 or int.from_bytes(data[64:72], "little") != amount:
+                return "mexeria em outro token da carteira"
+        return None
 
     def _limits(self, body: dict) -> dict:
         """Tetos da verificação: compra gasta no máximo o valor + slippage (+5%); taxa de terceiros até 2% + 0,001 SOL;
@@ -3404,7 +3450,10 @@ class PumpReal:
         r, sol1, tok1 = {}, sol0, tok0
         for via, pool in routes:
             if via == "jupiter":
-                r = await self._jup(SOL_MINT, mint, int(amt * 1e9), max(jslip, 300 if not other else jslip))
+                # 0.31.48: token da pump.fun na Jupiter (reserva) usa a slippage da carteira real; com 3% fixo a compra do
+                # SPAWN falhou com "slippage excedido (0x1771)" em 27/10/2026
+                pslip = int(float(getattr(self.cfg, "pump_real_slippage_pct", 15)) * 100)
+                r = await self._jup(SOL_MINT, mint, int(amt * 1e9), jslip if other else max(jslip, pslip))
             else:
                 r = await self._tx({"action": "buy", "mint": mint, "amount": amt, "denominatedInSol": "true", "pool": pool})
             if r.get("status") == "pendente":

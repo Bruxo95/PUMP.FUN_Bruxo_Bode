@@ -181,7 +181,12 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
         if worst["pnl_sol"] < 0:
             add("trades", f"O pior horário foi {worst['hora']} ({TZ_NAME}): {worst['pnl_sol']:+.4f} SOL em {worst['trades']} trades. "
                 "Se repetir em outros dias, evite operar nesse horário.", worst["trades"], tipo="horario_ruim")
-    return {"dia": day, "real": real, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
+    # 0.31.48: na real, as compras/vendas que NÃO aconteceram no dia (erro ou desistência), com o motivo
+    misses = [{"hora": hhmm(_ts(e.get("at"))), "token": e.get("symbol") or str(e.get("mint") or "")[:6], "mint": e.get("mint"),
+               "acao": e.get("action"), "motivo": str(e.get("reason") or "")[:200]}
+              for e in list(pf.feed) if real and str(e.get("action") or "") in ("REAL falhou", "REAL não copiou")
+              and day_of(_ts(e.get("at")) or 0) == day][:60]
+    return {"dia": day, "real": real, "real_misses": misses, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
             "worst_trades": worst_trades, "best_trades": best_trades, "loss_causes": aut["causes"], "loss_traders": aut["traders"][:8], "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
