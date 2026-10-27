@@ -790,3 +790,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.39: a pedido do dono os ganhos ≥1.900% voltam aos totais (`auto_trades.summary` inclui todos; `suspects` só informa); marca "acima de 20×". A correção da curva cotada em outra moeda (SPCX/ZEC — causa provável do SEALLIS) está pronta em patch fora do repositório e NÃO foi aplicada: aguarda decisão do dono.
 
 - 0.31.40: quadro `#exCopyCard` no Explorar (`loadExCopy`/`renderExCopy`; `compare(..., origem="explorar")` com `chance` e horários `abriu_x/abriu_y/fechou_x/fechou_y`). Pedido do dono. Áudios do Bruxo: não marcar ganho grande e não alterar o Explorar — marca removida da tela; lógica de entrada/saída do Explorar não mudou nesta sessão (só o registro do funil e o espelho da real).
+
+- 0.31.41: funil do Explorar salvo em `ghost_stats.data.funil` (`funnel_dump`, 24 h, até 800 tokens; carregado no início); `hub.compare_one` acrescenta `por_que_nao` em `so_x`/`so_y` a partir do funil da outra conta. Pedido do dono (a conta dele não repetiu R1R2L1R2/OCAINE do Bruxo).

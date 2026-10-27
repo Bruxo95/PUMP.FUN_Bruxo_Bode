@@ -124,3 +124,17 @@ def test_compare_explorar_only_with_times_and_chance(env):
     assert r["chance"]["de_x_que_y_fez"] == 50.0 and r["chance"]["de_y_que_x_fez"] == 100.0
     m = r["comum"][0]
     assert m["token"] == "AAA" and m["atraso_s"] == 15 and m["abriu_x"] and m["abriu_y"] and m["fechou_y"]
+
+
+def test_compare_tells_why_the_copy_did_not_enter(env):
+    c, hub = env["c"], env["hub"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=B)
+    c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A)
+    x, y = hub.engines[UB], hub.engines[UA]
+    _t(x, "R1R", "R" * 40, 0.9)
+    y._funnel_note({"mint": "R" * 40, "symbol": "R1R", "pred": {"verdict": "chance alta"}}, "aprendi com os erros: faixa bloqueada", time.time())
+    oid = c.get("/api/pump/compare", headers=A).json()["copias"][0]["id"]
+    r = c.get(f"/api/pump/compare/{oid}", headers=A).json()
+    assert r["so_x"][0]["por_que_nao"].startswith("aprendi com os erros")
+    assert y.funnel_dump()["R" * 40]["why"].startswith("aprendi")

@@ -91,7 +91,8 @@
           sg(m.pnl_x) + (m.pct_x == null ? "" : "<small>" + pc(m.pct_x) + "</small>"), sg(m.pnl_y) + (m.pct_y == null ? "" : "<small>" + pc(m.pct_y) + "</small>")]), "Nenhum token que os dois fizeram depois da cópia ainda.");
     } else {
       const L = XC.f === "x" ? r.so_x : r.so_y, who = XC.f === "x" ? x.nome : "você";
-      table("exCopyTbl", ["Token", "Entrada (" + esc(who) + ")", "Saída", "Resultado", "Motivo da saída"], (L || []).map((g) => [pfM(g.mint, g.token), esc(hora(g.abriu_iso)), esc(hora(g.fechou_iso)), sg(g.pnl_sol), esc((g.motivos || []).join("; "))]),
+      table("exCopyTbl", ["Token", "Entrada (" + esc(who) + ")", "Saída", "Resultado", "Motivo da saída", XC.f === "x" ? "Por que você não entrou" : "Por que " + esc(x.nome) + " não entrou"],
+        (L || []).map((g) => [pfM(g.mint, g.token), esc(hora(g.abriu_iso)), esc(hora(g.fechou_iso)), sg(g.pnl_sol), esc((g.motivos || []).join("; ")), '<b style="color:var(--warn)">' + esc(g.por_que_nao || "–") + "</b>"]),
         XC.f === "x" ? "Você fez todos os trades que " + esc(x.nome) + " fez." : "Nenhum trade só seu.");
     }
   }

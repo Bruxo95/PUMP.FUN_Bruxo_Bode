@@ -137,6 +137,7 @@ class PumpHub:
             data = (rows[0].get("data") if rows else None) or {}
             pf.ghosts.load(data)
             pf.ghosts_auto.load(data.get("auto"))
+            pf._ex_funnel = dict(data.get("funil") or {})             # 0.31.41: funil do Explorar sobrevive ao reinício
         except Exception:
             pass
         self._wire_wallet(pf)
@@ -432,13 +433,15 @@ class PumpHub:
         """Grava o resultado das estratégias fantasma de quem teve novidade (uma linha por usuário)."""
         n = 0
         for uid, pf in list(self.engines.items()):
-            if not pf.ghosts.dirty and not pf.ghosts_auto.dirty:
+            if not pf.ghosts.dirty and not pf.ghosts_auto.dirty and not getattr(pf, "_funnel_dirty", False):
                 continue
             try:
-                await self.db.insert("ghost_stats", {"user_id": uid, "data": {**pf.ghosts.dump(), "auto": pf.ghosts_auto.dump()},
+                await self.db.insert("ghost_stats", {"user_id": uid, "data": {**pf.ghosts.dump(), "auto": pf.ghosts_auto.dump(),
+                                                                              "funil": pf.funnel_dump()},
                                                      "atualizado_em": datetime.now(timezone.utc).isoformat()},
                                      upsert=True, on_conflict="user_id")
                 pf.ghosts.dirty = pf.ghosts_auto.dirty = False
+                pf._funnel_dirty = False
                 n += 1
             except Exception as e:
                 log.warning("Estratégias fantasma não gravaram (%s…): %s", uid[:8], str(e)[:160])
@@ -1199,6 +1202,15 @@ class PumpHub:
                     x.cfg.user_dict(), y.cfg.user_dict(), o.get("de_nome") or await self._nome(o["de_user"]), await self._nome(o["para_user"]),
                     origem=origem)
         r.update({"id": o["id"], "parte": o.get("parte")})
+        # 0.31.41 (pedido do dono: "por que não rodou nos meus trades o que o Bruxo rodou?"): para cada token que só um
+        # fez, o motivo que o funil da OUTRA conta anotou (aprender com os erros, pausa por perdas, limite por hora…)
+        for lst, other in ((r["so_x"], y), (r["so_y"], x)):
+            fn = getattr(other, "_ex_funnel", None) or {}
+            for g in lst:
+                e = fn.get(g["mint"])
+                g["por_que_nao"] = (e.get("why") or "entrou, mas não fechou/abriu no mesmo período") if e and not e.get("entrou") \
+                    else ("entrou depois (ainda aberta ou fora do período)" if e else
+                          "não estava na lista dela quando a outra entrou (Explorar desligado, sem preço na hora, ou antes de o funil existir)")
         return r
 
     async def compare_save(self, uid: str, offer_id: int) -> dict:

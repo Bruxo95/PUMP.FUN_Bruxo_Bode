@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.41",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Explorar → Configuração copiada (aba Só a origem)",
+      "titulo": "Por que a sua conta não fez o trade que a outra fez",
+      "oque": "Na aba \"Só a origem\" de cada token que a conta copiada comprou e você não, aparece \"Por que você não entrou\": o motivo que o filtro da SUA conta anotou na hora (aprender com os erros, pausa por perdas seguidas, perda do dia, limite por hora ou de posições abertas, filtro de entrada…). O funil do Explorar passou a ser guardado no banco, então não se perde mais quando o servidor reinicia. Nenhuma regra do Explorar foi alterada."
+    },
+    {
       "versao": "0.31.40",
       "data": "2026-10-27",
       "tipo": "melhoria",

@@ -1925,9 +1925,17 @@ class PumpFun:
             g["why"], g["entrou"] = why, (why is None) or g.get("entrou", False)
         g["t"] = t
         fn[mint] = g
+        self._funnel_dirty = True
         if len(fn) > 3000:
             for k in sorted(fn, key=lambda k: fn[k]["t"])[:500]:
                 fn.pop(k, None)
+
+    def funnel_dump(self, now: float | None = None) -> dict:
+        """0.31.41: o funil vai junto com os fantasmas para o banco (ghost_stats) e sobrevive ao reinício; só 24 h."""
+        now = time.time() if now is None else now
+        fn = {k: v for k, v in (getattr(self, "_ex_funnel", None) or {}).items() if now - v.get("t", 0) < 86400}
+        keep = sorted(fn, key=lambda k: fn[k].get("t", 0), reverse=True)[:800]
+        return {k: fn[k] for k in keep}
 
     def explore_funnel(self, now: float | None = None) -> dict:
         import re
