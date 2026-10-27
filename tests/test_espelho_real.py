@@ -176,6 +176,7 @@ def test_sim_takes_the_real_entry(tmp_path):
     _k, it = pf._rq.get_nowait()
     asyncio.run(pf._real_buy(it))
     real = [p for p in pf.positions() if p.get("real")][0]
+    sim = [p for p in pf.positions() if not p.get("real")][0]           # positions() devolve cópias: ler de novo
     assert sim["open_t"] == real["open_t"] and sim["entrou_com_a_real"]
     assert abs(sim["sol_in"] / sim["tokens"] - real["sol_in"] / real["tokens"]) < 1e-15
 
