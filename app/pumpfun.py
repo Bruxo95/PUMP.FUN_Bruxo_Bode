@@ -3414,13 +3414,25 @@ class PumpReal:
                     info = a["account"]["data"]["parsed"]["info"]
                     if info.get("mint") != mint:
                         others.append((a["pubkey"], int(info["tokenAmount"]["amount"])))
-            others = others[:60]
             pre = bal["value"]
-            sim = await self._rpc_retry("simulateTransaction", [raw_b64, {
+            # 0.31.58 (AI, 27/10 18:00: "Too many accounts provided; max 22"): o RPC aceita no máximo 22 contas por
+            # simulação. A carteira do bot tem mais contas de token que isso, então a conferência vai em lotes de 21
+            # (+ a carteira), todos ao mesmo tempo. Nenhuma conta deixa de ser conferida.
+            others = others[:210]
+            chunks = [others[i:i + 21] for i in range(0, len(others), 21)] or [[]]
+            sims = await asyncio.gather(*[self._rpc_retry("simulateTransaction", [raw_b64, {
                 "encoding": "base64", "sigVerify": False, "commitment": "processed",
-                "accounts": {"encoding": "base64", "addresses": [owner] + [k for k, _ in others]}}])
+                "accounts": {"encoding": "base64", "addresses": [owner] + [k for k, _ in ch]}}]) for ch in chunks])
         except Exception as e:
             return f"não deu para simular ({type(e).__name__}: {str(e)[:120]})"
+        for sim, ch in zip(sims, chunks):
+            why = self._sim_check(sim, int(pre), ch, lim)
+            if why:
+                return why
+        return None
+
+    @staticmethod
+    def _sim_check(sim, pre: int, others: list, lim: dict) -> str | None:
         v = (sim or {}).get("value") or {}
         if v.get("err"):
             return f"a simulação falhou: {str(v['err'])[:100]}"

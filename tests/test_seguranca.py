@@ -404,3 +404,40 @@ def test_sim_guard_retries_when_rpc_refuses_once():
     finally:
         asyncio.sleep = orig
     assert "não deu para simular" in why and "429" in why
+
+
+
+def test_sim_guard_checks_many_token_accounts_in_batches_of_21():
+    """0.31.58 (AI): o RPC aceita no máximo 22 contas por simulação; com 50 contas de token, conferir em lotes."""
+    import base64 as b64
+    from app import txguard
+    from app.pumpfun import PumpReal
+    seen = []
+
+    class W:
+        address = "Me".ljust(44, "1")
+
+        async def safe_rpc_url(self):
+            return "https://meu-rpc.exemplo.test"
+    accs = [f"Acc{i}".ljust(44, "1") for i in range(50)]
+
+    async def rpc(method, params, url=None):
+        if method == "getTokenAccountsByOwner":
+            if params[1]["programId"] != txguard.TOKEN:
+                return {"value": []}
+            return {"value": [{"pubkey": a, "account": {"data": {"parsed": {"info": {"mint": "Outro", "tokenAmount": {"amount": "7"}}}}}} for a in accs]}
+        if method == "getBalance":
+            return {"value": 1_000_000_000}
+        addrs = params[1]["accounts"]["addresses"]
+        if len(addrs) > 22:
+            raise RuntimeError("{'code': -32602, 'message': 'Too many accounts provided; max 22'}")
+        seen.append(len(addrs))
+        data = bytearray(165)
+        data[64:72] = (7).to_bytes(8, "little")
+        return {"value": {"err": None, "logs": [f"Program {txguard.PUMP} invoke [2]"],
+                          "accounts": [{"lamports": 950_000_000}] + [{"data": [b64.b64encode(bytes(data)).decode(), "base64"]}] * (len(addrs) - 1)}}
+    pr = PumpReal.__new__(PumpReal)
+    pr.wallet, pr._rpc = W(), rpc
+    caps = {"max_spend_lamports": 60_000_000, "max_fee_lamports": 2_000_000, "max_priority_lamports": 2_000_000}
+    assert asyncio.run(pr._sim_guard("x", "M", caps)) is None
+    assert sorted(seen) == [9, 22, 22]                                   # 50 contas = 21 + 21 + 8, cada lote + a carteira

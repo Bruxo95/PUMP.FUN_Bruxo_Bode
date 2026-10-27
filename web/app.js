@@ -1516,8 +1516,10 @@
   }
   function ntfList() {
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
-    $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = KN[n.k] || ["Aviso", "neutral"];
-      return '<div class="ntfi"><span class="tag ' + kk[1] + '">' + kk[0] + "</span>" + (n.real ? ' <span class="tag real">REAL</span>' : "") + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
+    // 0.31.58 (pedido do dono): toda notificação diz se é da carteira REAL ou da FICTÍCIA
+    $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
+      const isReal = /^\[PUMP REAL\]/.test(n.msg || "");
+      return '<div class="ntfi"><span class="tag ' + kk[1] + '">' + kk[0] + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
       : '<p class="muted">Nenhuma notificação ainda.</p>';
   }
   function tone(C, t0, fr, dur, type, vol) { const o = C.createOscillator(), g = C.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(C.destination); o.start(t0); o.stop(t0 + dur + 0.02); }

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.58",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Execução real; sino de notificações",
+      "titulo": "Compra real não falha mais por 'Too many accounts'; notificações dizem REAL ou FICTÍCIA",
+      "oque": "A compra real do AI (18:00) falhou porque o servidor da rede aceita no máximo 22 contas por teste, e a carteira do bot já tem mais contas de token do que isso (cada token comprado deixa uma). Agora o teste antes de assinar é feito em partes, todas ao mesmo tempo, conferindo todas as contas. No sino, cada notificação mostra se é da carteira REAL ou da FICTÍCIA."
+    },
+    {
       "versao": "0.31.57",
       "data": "2026-10-27",
       "tipo": "melhoria",
