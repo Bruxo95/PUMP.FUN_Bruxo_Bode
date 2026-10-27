@@ -167,6 +167,7 @@ class AutoProtecoesTests(unittest.TestCase):
 
     def test_auto_max_open_includes_persisted_orphan_real_and_pending_positions(self):
         pf = _pf(pump_ar_max_open=3)
+        pf.cfg.pump_real_mirror = False   # regra antiga: real e reserva contam; com o espelho só a fictícia conta
         t = time.time()
         _history(pf, "orphan", A, t)
         pf.store.save_pos({"id": "real", "mint": B, "auto": True, "origem": "explorar", "real": True})
