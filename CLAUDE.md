@@ -739,3 +739,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   religada após reinício"). Teste: `tests/test_api.py::test_real_stays_on_after_server_restart_until_user_turns_off`.
 
 - 0.31.29: passo a passo da Jupiter (`KEY_HOW.jupiter_api_key`): Server key, nome 5–32 letras. Pedido do dono com print do portal.
+
+- 0.31.30: menu "Novidades" renomeado para "Changelog" (só o texto; rota, arquivo `app/novidades.json` e regras iguais). Pedido do dono.
