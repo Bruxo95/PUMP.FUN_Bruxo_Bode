@@ -839,6 +839,15 @@
     table("bgG", ["Regra de saída", "Trades", "Acerto", "Resultado", "Por trade", "Rumo aos 20 trades"], (G.variants || []).map((v) => [(v.id === G.best ? '<span class="tag win">melhor</span> ' : "") + esc(v.nome), String(v.trades || 0),
       v.win_rate == null ? "–" : f(v.win_rate * 100, 0) + "%", sg(v.pnl_sol || 0), v.trades ? s4(v.pnl_sol / v.trades) : "–", f(Math.min(100, (v.trades || 0) / 20 * 100), 0) + "%"]), "Sem trades nos fantasmas ainda.");
   }
+  // 0.31.77 (pedido do dono): os pools do token (PumpSwap, Meteora…) com volume e compras × vendas de 24 h, e a média por
+  // negócio — média de centavos com quase só compras é sinal de robô fazendo compras falsas (caso LILY)
+  const DEX = { pumpswap: "PumpSwap", pumpfun: "pump.fun", meteora: "Meteora", meteoradbc: "Meteora DBC", raydium: "Raydium", orca: "Orca" };
+  function poolsCell(P) {
+    if (!P || !P.length) return "";
+    return P.map((p) => { const n = (p.buys24 || 0) + (p.sells24 || 0), avg = n ? p.vol24 / n : null;
+      return '<small title="' + esc((p.quote ? "par com " + p.quote + " · " : "") + "liquidez $" + f(p.liq || 0, 0)) + '">' + esc(DEX[p.dex] || p.dex || "?") + ": $" + f(p.vol24 || 0, p.vol24 >= 100 ? 0 : 2) + " · " + (p.buys24 || 0) + "×" + (p.sells24 || 0) +
+        (avg != null ? ' · <span class="' + (avg < 5 && n >= 20 ? "down" : "muted") + '">média $' + f(avg, avg < 10 ? 2 : 0) + "</span>" : "") + "</small>"; }).join("");
+  }
   async function loadApiUsage() {
     const r = await BB.api("/api/admin/api-usage"); if (r.error || !$("apiU")) return;
     const bar = (p) => p == null ? '<span class="muted">sem limite publicado</span>' : '<b class="' + (p >= 80 ? "down" : p >= 50 ? "" : "up") + '">' + f(p, 0) + "%</b>";
@@ -888,7 +897,7 @@
     const aut = (x) => !x.auto ? "–" : (x.auto.ok ? '<span class="tag win">compra</span>' : '<span class="tag neutral">não</span>') + '<small class="wrapcell">' + esc(x.auto.motivo) + "</small>";
     table("exTbl", ["Token", "Veredito", "Automático", "Market cap", "Volume 24 h", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
       '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>", aut(x),
-      usd(x.mcap_usd), usd(x.vol24_usd), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
+      usd(x.mcap_usd), usd(x.vol24_usd) + poolsCell(x.pools), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
       x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
       x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
       '<button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");

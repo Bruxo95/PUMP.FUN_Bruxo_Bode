@@ -940,3 +940,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   limites grátis conferidos: ST 10 mil/mês, DexScreener 300/min, RPC público 600/min); `hub.usage_loop` grava `api_usage`
   (migração `20261027000007`) a cada 5 min; `GET /api/admin/api-usage`; quadro em Administração. Explorar: `vol24_usd`
   (txns do pool ou DexScreener h24) e coluna "Volume 24 h". Rodízio de várias contas grátis NÃO feito (termos de uso).
+
+- 0.31.77: `_fetch_prices` guarda `tokens[m]["pools"]` (cada par da DexScreener: dex, cotação, vol24, compras/vendas 24 h, liquidez);
+  `explore_loop` pede os pares dos tokens de Quase graduando/Graduados (até 90, ~3 consultas/5 min); rota do Explorar devolve
+  `pools`; `poolsCell` na coluna Volume 24 h com a média por negócio (vermelho < $5 com 20+ negócios). Pedido do dono (LILY).

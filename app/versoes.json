@@ -640,6 +640,11 @@
    "versao": "0.31.76",
    "inicio": "2026-10-27T22:20:59+00:00",
    "titulo": "Volume 24 h e uso das APIs"
+  },
+  {
+   "versao": "0.31.77",
+   "inicio": "2026-10-27T22:27:51+00:00",
+   "titulo": "Pools de cada token no Explorar"
   }
  ]
 }

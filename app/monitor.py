@@ -427,6 +427,15 @@ class SharedMonitor:
                 await self.explore_once()
             except Exception as e:
                 log.warning("explorar: %s", str(e)[:160])
+            try:
+                # 0.31.77: pools de cada token das listas (DexScreener grátis, 30 por consulta; ~3 consultas a cada 5 min)
+                ex = getattr(self.hub, "explore", None)
+                if ex is not None and not ex.error:
+                    mints = list(dict.fromkeys(x["mint"] for c in ("graduating", "graduated") for x in (ex.lists.get(c) or [])[:45]))
+                    if mints:
+                        await self.svc._fetch_prices(mints, set_price=False)
+            except Exception as e:
+                log.warning("explorar (pools): %s", str(e)[:160])
             await asyncio.sleep(EVERY_S)
 
     async def explore_auto_once(self, now: float | None = None) -> int:

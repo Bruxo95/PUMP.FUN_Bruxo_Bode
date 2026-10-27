@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.77",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Explorar → coluna Volume 24 h",
+      "titulo": "Volume de cada pool do token no Explorar",
+      "oque": "Embaixo do Volume 24 h aparece cada pool do token (PumpSwap, Meteora, Meteora DBC…) com o volume de 24 h, compras × vendas e a média por negócio. É por isso que a pump.fun pode mostrar um volume (de um pool) e o nosso outro (de outro pool). Média de centavos por negócio, com quase só compras, aparece em vermelho: é sinal de robô fazendo compras falsas para parecer '100% compras' (caso LILY: 548 compras × 3 vendas, menos de $0,50 cada)."
+    },
+    {
       "versao": "0.31.76",
       "data": "2026-10-27",
       "tipo": "novo",

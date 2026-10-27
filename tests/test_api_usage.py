@@ -20,3 +20,28 @@ def test_usage_counts_month_and_minute():
 def test_explore_item_has_24h_volume():
     x = item({"token": {"mint": "M", "symbol": "S"}, "pools": [{"liquidity": {"usd": 1}, "txns": {"buys": 3, "sells": 1, "volume24h": 1234.5}}]}, "graduated")
     assert x["vol24_usd"] == 1234.5
+
+
+def test_dexscreener_pools_per_token(tmp_path):
+    """0.31.77 (caso LILY): cada pool do token com volume e compras × vendas de 24 h."""
+    import asyncio
+    from tests.test_pump import _pump
+    pf = _pump(tmp_path, paid=False)
+    m = "Lily".ljust(40, "1") + "pump"
+
+    class R:
+        status_code = 200
+
+        def json(self):
+            return [{"baseToken": {"address": m, "symbol": "LILY"}, "quoteToken": {"symbol": "SOL"}, "dexId": "pumpswap",
+                     "volume": {"h24": 267.69}, "txns": {"h24": {"buys": 548, "sells": 3}}, "liquidity": {"usd": 9000}},
+                    {"baseToken": {"address": m, "symbol": "LILY"}, "quoteToken": {"symbol": "SOL"}, "dexId": "meteora",
+                     "volume": {"h24": 0.1}, "txns": {"h24": {"buys": 12, "sells": 8}}, "liquidity": {"usd": 50}}]
+
+    class H:
+        async def get(self, *a, **k):
+            return R()
+    pf.http = H()
+    asyncio.run(pf._fetch_prices([m], set_price=False))
+    P = pf.tokens[m]["pools"]
+    assert [p["dex"] for p in P] == ["pumpswap", "meteora"] and P[0]["buys24"] == 548 and P[1]["vol24"] == 0.1

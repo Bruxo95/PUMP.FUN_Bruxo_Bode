@@ -2718,10 +2718,18 @@ class PumpFun:
                 continue
             best: dict = {}
             vols: dict = {}
+            pools: dict = {}
             for p in js if isinstance(js, list) else []:
                 base = (p.get("baseToken") or {}).get("address")
                 if base not in chunk:
                     continue
+                # 0.31.77 (pedido do dono, caso LILY: pump.fun mostra $0,10 e o nosso $147): cada pool do token, com volume e
+                # compras × vendas de 24 h — o mesmo token pode ter PumpSwap, Meteora etc. com números bem diferentes
+                t24 = (p.get("txns") or {}).get("h24") or {}
+                pools.setdefault(base, []).append({"dex": p.get("dexId"), "quote": (p.get("quoteToken") or {}).get("symbol"),
+                                                   "vol24": float((p.get("volume") or {}).get("h24") or 0),
+                                                   "buys24": int(t24.get("buys") or 0), "sells24": int(t24.get("sells") or 0),
+                                                   "liq": float((p.get("liquidity") or {}).get("usd") or 0)})
                 v = vols.setdefault(base, {"m5": 0.0, "h1": 0.0, "h6": 0.0, "h24": 0.0, "buys_h1": 0, "sells_h1": 0,
                                            "buys_m5": 0, "sells_m5": 0, "buys_h24": 0, "sells_h24": 0})
                 for k_ in ("m5", "h1", "h6", "h24"):
@@ -2743,6 +2751,10 @@ class PumpFun:
                     continue
                 best[base] = (liq, p)
             now = time.time()
+            for m, L in pools.items():
+                tkp = self.tokens.setdefault(m, {"created_t": now})
+                tkp["pools"] = sorted(L, key=lambda x: -x["vol24"])[:6]
+                tkp["pools_t"] = now
             for m, (liq, p) in best.items():
                 q = (p.get("quoteToken") or {}).get("address")
                 pn, pu = float(p.get("priceNative") or 0), float(p.get("priceUsd") or 0)

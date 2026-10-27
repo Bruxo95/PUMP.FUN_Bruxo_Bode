@@ -220,6 +220,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 safety_marks(pf, x)
                 if x.get("vol24_usd") is None:                # 0.31.76: volume 24 h da DexScreener quando a fonte não traz
                     x["vol24_usd"] = ((pf.tokens.get(x["mint"]) or {}).get("vol") or {}).get("h24")
+                x["pools"] = (pf.tokens.get(x["mint"]) or {}).get("pools")      # 0.31.77: cada pool do token
                 # 0.31.11: por que o automático compra ou não este token (só faz sentido na lista Quase graduando)
                 if not getattr(pf.cfg, "pump_ex_auto_on", True):
                     x["auto"] = {"ok": False, "motivo": "entrada automática do Explorar desligada"}
