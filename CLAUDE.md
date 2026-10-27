@@ -898,3 +898,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.65: `Ghosts._drop_suspect` (no `load`) tira das somas os fechamentos ≥ `SUSPECT_PCT` que estão em `recent`; `_close` não soma
   fechamento com esse ganho. Evita o Ajuste automático escolher regra por ganho falso. Teste em `tests/test_fantasma_geral.py`.
+
+- 0.31.66: `baseTag(total, sua)` nas colunas "De onde" (alTbl, gaTbl, ghTbl): "BASE GERAL n · sua conta m". Funil do filtro com
+  `<header><h2>` próprio. Pedido do dono.

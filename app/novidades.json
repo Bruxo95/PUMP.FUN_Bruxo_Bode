@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.66",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Explorar (O que a IA aprendeu, fantasmas, Funil do filtro); Estratégias fantasma",
+      "titulo": "BASE GERAL primeiro e Funil do filtro com título",
+      "oque": "Nas tabelas de aprendizado e nas Estratégias fantasma, a coluna 'De onde' mostra primeiro a BASE GERAL (o total, igual em todas as contas, que é o que o robô usa) e depois quanto disso é da sua conta. O 'Funil do filtro (últimas 24 h)' do Explorar ganhou título próprio, para achar fácil o motivo de o robô ter entrado ou não em cada token."
+    },
+    {
       "versao": "0.31.65",
       "data": "2026-10-27",
       "tipo": "correção",

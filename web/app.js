@@ -790,6 +790,8 @@
         '<div class="auto-after">' + autoAfter(row, "15m") + "<small>" + autoAfter(row, "60m") + "</small></div>"];
     }), empty);
   }
+  // 0.31.66 (pedido do dono): primeiro o que é igual para todas as contas (BASE GERAL), depois quanto disso é da sua conta
+  const baseTag = (n, sua) => '<span class="tag pause">BASE GERAL ' + (n || 0) + '</span> <span class="muted">sua conta ' + (sua || 0) + "</span>";
   function renderFunnel() {
     const F = (EX && EX.funnel) || null; if (!F || !$("exFunK")) return;
     kpis("exFunK", [["Tokens olhados", String(F.vistos), (F.chance_alta || 0) + " com chance alta", "tr"], ["Entraram", String(F.entrou), F.vistos ? f(F.entrou / F.vistos * 100, 0) + "% dos olhados" : "–", "hit"],
@@ -846,12 +848,12 @@
     const ga = r.ghosts_auto || {}, gy = ga.yours || {};
     $("gaSub").textContent = "desde " + (ga.since ? dt(ga.since) : "a próxima compra automática") + " · suas regras: " + (gy.trades || 0) + " trades, " + s4(gy.pnl_sol || 0) + " SOL · o Ajuste automático troca a regra com 20+ trades e 2+ dias";
     table("gaTbl", ["Regra de saída", "Trades", "De onde", "Acerto", "Resultado", "Por trade", "Abertas"], [gy].concat(ga.variants || []).filter((x) => x && x.nome).map((x) => [(x.id === ga.best ? '<span class="tag win">melhor</span> ' : "") + esc(x.nome), String(x.trades || 0),
-      x.id === "suas" ? '<span class="tag sim">SUA CONTA</span>' : (x.n_sua ? '<span class="tag sim">SUA CONTA ' + x.n_sua + "</span> " : "") + (x.n_conhecimento ? '<span class="tag pause">CONHECIMENTO ' + x.n_conhecimento + "</span>" : ""),
+      x.id === "suas" ? '<span class="tag sim">SUA CONTA</span>' : baseTag(x.trades, x.n_sua),
       x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%", sg(x.pnl_sol || 0), x.trades ? s4(x.pnl_sol / x.trades) : "–", String(x.open || 0)]), "Sem dados ainda.");
     const al = r.learned_auto || {};
     $("alSub").textContent = (al.fechadas || 0) + " compras automáticas fechadas (" + (al.fechadas_suas == null ? al.fechadas || 0 : al.fechadas_suas) + " suas + " + ((al.fechadas || 0) - (al.fechadas_suas == null ? al.fechadas || 0 : al.fechadas_suas)) + " de CONHECIMENTO das outras contas) · " + (al.bloqueios || []).length + " faixas bloqueadas · " + (al.morte_rapida || 0) + " perdas em até 60 s depois da compra (entrou no topo)" + (r.learn_on ? "" : " · aprender sozinho DESLIGADO");
     table("alTbl", ["Número da entrada", "Faixa", "Operações", "De onde", "Acerto", "Média", "Resultado", "Situação"], (al.faixas || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n),
-      (x.n_sua ? '<span class="tag sim">SUA CONTA ' + x.n_sua + "</span> " : "") + (x.n_conhecimento ? '<span class="tag pause">CONHECIMENTO ' + x.n_conhecimento + "</span>" : ""), f(x.acerto * 100, 0) + "%",
+      baseTag(x.n, x.n_sua), f(x.acerto * 100, 0) + "%",
       (x.media_pct > 0 ? "+" : "") + f(x.media_pct, 1) + "%", sg(x.pnl_sol), x.bloqueada ? '<span class="tag loss">bloqueada</span>' : x.n < al.min_n ? '<span class="tag neutral">aprendendo (' + x.n + "/" + al.min_n + ")</span>" : '<span class="tag win">ok</span>']),
       "Ainda sem compras automáticas fechadas para aprender.");
     table("exLs", ["Curva quando apareceu", "Tokens", "Graduaram"], (r.learned || []).map((x) => [esc(x.faixa), String(x.n), f(x.grad_pct, 0) + "%"]), "Ainda aprendendo: cada token espera até 6 h para contar.");
@@ -944,7 +946,7 @@
       ["Melhor variante", best ? sg(best.pnl_sol) : "–", best ? esc(best.nome) : "ainda sem trades fechados", "hit"],
       ["Diferença por trade", best && y.trades && best.trades ? sg(best.pnl_sol / best.trades - y.pnl_sol / y.trades) : "–", "melhor variante − suas regras (por trade; a variante soma todas as contas)", "tr"]]);
     const rows = [y].concat(r.variants || []);
-    const src = (v) => v.id === "suas" ? '<span class="tag sim">SUA CONTA</span>' : (v.n_sua ? '<span class="tag sim">SUA CONTA ' + v.n_sua + "</span> " : "") + (v.n_conhecimento ? '<span class="tag pause">CONHECIMENTO ' + v.n_conhecimento + "</span>" : "");
+    const src = (v) => v.id === "suas" ? '<span class="tag sim">SUA CONTA</span>' : baseTag(v.trades, v.n_sua);
     table("ghTbl", ["Regra de saída", "Trades", "De onde", "Abertas", "Acerto", "Resultado", "Por trade", "Retorno", "Melhor momento (média)"], rows.map((v) => [
       (v.id === "suas" ? "<b>" + esc(v.nome) + "</b>" : esc(v.nome)) + (v.id === r.best ? ' <span class="tag win">melhor</span>' : ""), String(v.trades), src(v), String(v.open), pctW(v.win_rate),
       "<b>" + sg(v.pnl_sol) + "</b>", v.trades ? s4(v.pnl_sol / v.trades) : "–", roi(v.roi_pct), v.avg_best_pct == null ? "–" : "+" + f(v.avg_best_pct, 1) + "%"]), "");
