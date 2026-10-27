@@ -582,6 +582,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def config_applied(u: dict = Depends(user)):
         return {"applied": await hub.config_applied(u["id"])}
 
+    @app.post("/api/pump/config/applied/{offer_id}/sync")
+    async def config_sync(offer_id: int, u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        hub.check_active(u["id"], pf)
+        return await hub.config_sync(pf, offer_id)
+
     @app.post("/api/pump/config/offers/{offer_id}")
     async def config_answer(offer_id: int, body: dict, u: dict = Depends(user)):
         pf = await hub.engine(u["id"])

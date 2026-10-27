@@ -77,3 +77,19 @@ def test_no_update_when_receiver_changed_own_config(env):
     c.post("/api/pump/settings", json={"pump_copy_sol": 0.77}, headers=A)                    # A se afastou por conta própria
     c.post("/api/pump/settings", json={"pump_stop_pct": 33}, headers=B)
     assert asyncio.run(hub.config_watch()) == 0
+
+
+def test_sync_makes_config_identical_to_origin_now(env):
+    c, hub = env["c"], env["hub"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=B)
+    c.post(f"/api/admin/users/{UB}/copy-config", json={}, headers=A)
+    c.post("/api/pump/settings", json={"pump_stop_pct": 44}, headers=A)                      # A ficou diferente
+    c.post("/api/pump/settings", json={"pump_copy_sol": 0.5}, headers=B)                     # e B também mudou
+    oid = c.get("/api/pump/config/applied", headers=A).json()["applied"][0]["id"]
+    r = c.post(f"/api/pump/config/applied/{oid}/sync", json={}, headers=A).json()
+    assert r["ok"] and hub.engines[UA].cfg.pump_stop_pct == hub.engines[UB].cfg.pump_stop_pct
+    assert hub.engines[UA].cfg.pump_copy_sol == 0.5
+    ap = c.get("/api/pump/config/applied", headers=A).json()["applied"]
+    assert "idêntica" in ap[0]["parte"] and ap[0]["antes"]["pump_stop_pct"] == 44
+    assert c.post(f"/api/pump/config/applied/{oid}/sync", json={}, headers=B).json()["error"]   # só quem recebeu

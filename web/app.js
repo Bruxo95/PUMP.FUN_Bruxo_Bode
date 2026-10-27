@@ -80,7 +80,8 @@
       const diff = ks.filter((k) => !cfgEq(cfgNow(k), o.valores[k])).length, quem = o.de || "outro usuário";
       const html = (diff ? '<span class="cfgdot diff"></span>Baseada na configuração de <b>' + esc(quem) + "</b> · " + diff + " de " + ks.length + (diff === 1 ? " opção mudou" : " opções mudaram") + " depois"
         : '<span class="cfgdot ok"></span>Você está usando a configuração <b>idêntica</b> à de <b>' + esc(quem) + "</b> (" + ks.length + " opções conferidas agora)") +
-        ' · aceita em ' + esc(dt(o.em)) + ' <button class="btn sm" data-cfgdiff="' + o.id + '" data-card="' + i + '">Ver o que mudou</button>';
+        ' · aceita em ' + esc(dt(o.em)) + ' <button class="btn sm" data-cfgdiff="' + o.id + '" data-card="' + i + '">Ver o que mudou</button>' +
+        (diff ? '<span class="cfgask">Sua configuração ainda está diferente da de <b>' + esc(quem) + '</b>. Quer deixar idêntica?</span><button class="btn sm primary" data-cfgsync="' + o.id + '">Aplicar idêntica</button>' : "");
       if (!el) { el = document.createElement("div"); el.className = "cfgfrom"; h.appendChild(el); }
       if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; el.classList.toggle("diff", !!diff); }
     });
@@ -1127,6 +1128,15 @@
     if (t.dataset.cmptxt) { const s = CMP.saved.find((x) => String(x.id) === t.dataset.cmptxt); if (s) copyText(s.texto || ""); return; }
     if (t.dataset.utf) { UTR.f = t.dataset.utf; renderUserTrades(); return; }
     if (t.id === "uTrX" || t.id === "uTrades") { $("uTrades").hidden = true; return; }
+    if (t.dataset.cfgsync) {
+      // 0.31.35: deixa as opções desta cópia iguais às de quem enviou AGORA (valores atuais dele)
+      const o = APPLIED.find((x) => String(x.id) === t.dataset.cfgsync) || {}, quem = o.de || "outro usuário";
+      if (!confirm("Deixar a sua configuração idêntica à de " + quem + "?\n\nAs opções que vieram dele passam a ter os valores que ele usa AGORA. Nada da carteira real, chaves ou Telegram.")) return;
+      t.disabled = true; const r = await BB.api("/api/pump/config/applied/" + encodeURIComponent(t.dataset.cfgsync) + "/sync", { body: {} }); t.disabled = false;
+      toast(r.error ? "Não aplicou: " + r.error : "Pronto: configuração idêntica à de " + quem + " (" + r.opcoes + " opções).");
+      if (!r.error) { await poll(true); loadApplied(); }
+      return;
+    }
     if (t.dataset.cfgdiff) { openCfgDiff(t.dataset.cfgdiff, t.dataset.card); return; }
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }

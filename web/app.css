@@ -547,3 +547,5 @@ table.daytbl td:nth-last-child(4){white-space:normal}
 .modal-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;width:min(900px,100%)}
 .modal-box > header{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
 #cfgDiffTbl td{white-space:normal}
+.cfgfrom .cfgask{flex-basis:100%;color:var(--warn);margin-top:4px}
+.cfgfrom .cfgask + .btn{margin-left:0}

@@ -1197,6 +1197,32 @@ class PumpHub:
         return [{"id": r["id"], "offer_id": r.get("offer_id"), "em": r.get("criado_em"), "texto": r.get("texto"),
                  "x": ((r.get("data") or {}).get("x") or {}), "y": ((r.get("data") or {}).get("y") or {})} for r in rows]
 
+    async def config_sync(self, pf, offer_id: int) -> dict:
+        """0.31.35 (pedido do dono em 2026-10-27): "sua configuração ainda está diferente, quer deixar idêntica?" —
+        aplica os valores ATUAIS de quem enviou, só nas opções daquela cópia, como uma nova cópia aceita (guarda o antes,
+        o selo volta a "idêntica"). Nunca leva real, chaves ou Telegram."""
+        rows = await self.db.select("config_offers", {"id": offer_id, "para_user": pf.user_id, "status": "aceita"})
+        if not rows:
+            return {"error": "cópia não encontrada"}
+        o = rows[0]
+        if o["de_user"] == pf.user_id:
+            return {"error": "essa já é a sua configuração"}
+        x = await self.engine(o["de_user"])
+        keys = self.share_filter(list(o.get("valores") or {}), getattr(pf, "role", "user") == "admin")
+        if not keys:
+            return {"error": "nada para aplicar"}
+        de = o.get("de_nome") or await self._nome(o["de_user"])
+        parte = str(o.get("parte") or "configuração").split(" (deixada idêntica")[0][:150] + " (deixada idêntica)"
+        await self.db.insert("config_offers", {"de_user": o["de_user"], "para_user": pf.user_id, "de_nome": de, "parte": parte,
+                                               "valores": {k: getattr(x.cfg, k) for k in keys}, "status": "pendente"})
+        got = await self.db.select("config_offers", {"de_user": o["de_user"], "para_user": pf.user_id, "status": "pendente", "parte": parte},
+                                   order="criado_em.desc", limit=1)
+        if not got:
+            return {"error": "não consegui registrar"}
+        r = await self.config_answer(pf, got[0]["id"], True, notify_sender=False)
+        await audit(self.db, pf.user_id, "deixou a configuração idêntica", f"{parte} de {de}")
+        return r
+
     async def admin_copy_config(self, pf, uid: str) -> dict:
         """0.31.33 (pedido do dono em 2026-10-27): o admin copia TODA a configuração de um usuário para a própria conta,
         pelo Admin → Usuários. Passa pelo mesmo caminho do convite aceito (guarda o antes, mostra o selo "idêntica à de

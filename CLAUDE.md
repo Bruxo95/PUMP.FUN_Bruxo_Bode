@@ -763,3 +763,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   ainda está idêntico e a origem mudou, cria convite `tipo=atualizacao` (não repete a mesma alteração recusada);
   `config_offers` devolve `mudou` e `efeito` (origem antes × depois da mudança e quem recebeu no mesmo período);
   banner `offerUpdate` no painel. Testes: `tests/test_comparar.py`.
+
+- 0.31.35: `hub.config_sync` + `POST /api/pump/config/applied/{id}/sync` (valores ATUAIS da origem nas opções da cópia, como nova cópia aceita); botão "Aplicar idêntica" no selo `.cfgfrom`. Pedido do dono.
