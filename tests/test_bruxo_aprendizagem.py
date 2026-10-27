@@ -27,7 +27,7 @@ def test_funnel_counts_blocked_and_entered(tmp_path):
     pf.tokens[b]["price"] = 2e-6                                          # o barrado dobrou depois
     f = pf.explore_funnel(now=200.0)
     assert f["vistos"] == 2 and f["entrou"] == 1 and f["barrados"] == 1 and f["chance_alta"] == 2
-    assert f["motivos"][0]["motivo"] == "pressão #% abaixo de #%" and f["subiram_50"] == 1
+    assert f["motivos"][0]["motivo"] == "pressão 40% abaixo de 60%" and f["subiram_50"] == 1
 
 
 def test_mirror_pairs_real_next_to_sim(tmp_path):
