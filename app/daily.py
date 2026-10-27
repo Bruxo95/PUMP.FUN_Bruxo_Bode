@@ -69,9 +69,10 @@ def _exit(reason: str) -> str:
     return "outro"
 
 
-def build(pf, day: str, points: list[dict] | None = None) -> dict:
-    """Relatório de um dia (UTC) da carteira fictícia, com diagnósticos e sugestões."""
-    trades = [t for t in pf.trades(100000) if not t.get("real")]
+def build(pf, day: str, points: list[dict] | None = None, real: bool = False, all_trades: list[dict] | None = None) -> dict:
+    """Relatório de um dia (UTC) da carteira fictícia ou, com real=True (0.31.45, pedido do dono: "o relatório do dia
+    tem que acompanhar o real"), da carteira REAL, com diagnósticos e sugestões."""
+    trades = [t for t in (pf.trades(100000) if all_trades is None else all_trades) if bool(t.get("real")) == real]
     T = [t for t in trades if day_of(_ts(t.get("closed_at")) or 0) == day]
     n = len(T)
     wins = [t for t in T if (t.get("pnl_sol") or 0) > 0]
@@ -94,7 +95,8 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
     lags = [t["lag_s"] for t in T if t.get("lag_s") is not None]
     skips: dict[str, int] = {}
     for e in pf.feed:
-        if str(e.get("action") or "").endswith("não copiou") and day_of(_ts(e.get("at")) or 0) == day:
+        act = str(e.get("action") or "")
+        if act.endswith("não copiou") and act.startswith("REAL") == real and day_of(_ts(e.get("at")) or 0) == day:
             k = re.sub(r"[\d.,%$+−-]+", "#", str(e.get("reason") or "?"))[:60]
             skips[k] = skips.get(k, 0) + 1
     top_skips = sorted(skips.items(), key=lambda kv: -kv[1])[:5]
@@ -130,6 +132,12 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
         add("lógica", f"O filtro \"{top_skips[0][0]}\" barrou {top_skips[0][1]} cópias hoje: confira se ele está protegendo ou só tirando "
             "boas entradas (Relatórios → Por que o bot não copiou).", top_skips[0][1], tipo="filtro")
     pts = points or []
+    if real and not pts:
+        # a real não tem fotos de 30 min: a curva do dia é o resultado acumulado a cada trade fechado
+        cum, pts = 0.0, [{"t": datetime.fromisoformat(day + "T00:00:00+00:00").timestamp(), "resultado": 0.0}]
+        for t in sorted(T, key=lambda x: _ts(x.get("closed_at")) or 0):
+            cum += t.get("pnl_sol") or 0
+            pts.append({"t": _ts(t.get("closed_at")), "resultado": round(cum, 6)})
     if len(pts) >= 2 and pts[0].get("saldo") and pts[-1].get("saldo") is not None:
         ch = (pts[-1]["saldo"] / pts[0]["saldo"] - 1) * 100
         if ch <= -5:
@@ -139,7 +147,7 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
         add("info", "Sem problema claro hoje (ou poucos trades para concluir). As sugestões aparecem com base mínima.", n, tipo="info")
     start = float(pf._c("pump_sim_balance_sol", 5.0))
     end_t = datetime.fromisoformat(day + "T23:59:59+00:00").timestamp()
-    equity_end = round(start + sum(t.get("pnl_sol") or 0 for t in trades if (_ts(t.get("closed_at")) or 0) <= end_t), 6)
+    equity_end = None if real else round(start + sum(t.get("pnl_sol") or 0 for t in trades if (_ts(t.get("closed_at")) or 0) <= end_t), 6)
     # 0.31.8: cada trade com horário de entrada e saída, e o resultado por hora do dia (pedido do dono)
     tl = []
     for t in sorted(T, key=lambda x: _ts(x.get("closed_at")) or 0):
@@ -173,7 +181,7 @@ def build(pf, day: str, points: list[dict] | None = None) -> dict:
         if worst["pnl_sol"] < 0:
             add("trades", f"O pior horário foi {worst['hora']} ({TZ_NAME}): {worst['pnl_sol']:+.4f} SOL em {worst['trades']} trades. "
                 "Se repetir em outros dias, evite operar nesse horário.", worst["trades"], tipo="horario_ruim")
-    return {"dia": day, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
+    return {"dia": day, "real": real, "equity_end": equity_end, "trades": n, "trades_list": tl[-MAX_TRADES:], "by_hour": by_hour, "tz": TZ_NAME,
             "worst_trades": worst_trades, "best_trades": best_trades, "loss_causes": aut["causes"], "loss_traders": aut["traders"][:8], "wins": len(wins), "acerto": round(len(wins) / n, 3) if n else None, "pnl_sol": pnl,
             "fees_sol": fees, "invested_sol": round(inv, 6), "by_trader": by_trader[:8], "by_exit": by_exit,
             "by_origin": by_origin, "gave_back": len(gave_back), "stops": len(stops),
@@ -190,9 +198,10 @@ def telegram_text(rep: dict) -> str:
     return "\n".join(lines)[:3500]
 
 
-def days_with_trades(pf, before_day: str, limit: int = 60) -> list[str]:
-    """Dias (UTC) com trades fictícios fechados antes de `before_day`, os mais recentes primeiro."""
-    ds = sorted({day_of(t) for x in pf.trades(100000) if not x.get("real") and (t := _ts(x.get("closed_at")))}, reverse=True)
+def days_with_trades(pf, before_day: str, limit: int = 60, real: bool = False, all_trades: list[dict] | None = None) -> list[str]:
+    """Dias (UTC) com trades fechados (fictícios, ou reais com real=True) antes de `before_day`, os mais recentes primeiro."""
+    ds = sorted({day_of(t) for x in (pf.trades(100000) if all_trades is None else all_trades)
+                 if bool(x.get("real")) == real and (t := _ts(x.get("closed_at")))}, reverse=True)
     return [d for d in ds if d < before_day][:limit]
 
 
@@ -271,7 +280,7 @@ def _br(d: str) -> str:
 def blocks(rep: dict, st: dict | None, version: str) -> list[tuple[str, str]]:
     """Conteúdo do PDF do relatório (0.31.7): o dia, as sugestões e o aprendizado de vários dias."""
     B = [("title", f"PUMP FUN COPY - relatório de {_br(rep['dia'])}"),
-         ("small", f"Versão do sistema: {version} · gerado em {rep.get('generated_at')} · carteira fictícia"
+         ("small", f"Versão do sistema: {version} · gerado em {rep.get('generated_at')} · carteira {'REAL' if rep.get('real') else 'fictícia'}"
                    + (" · dia fechado" if rep.get("closed") else " · dia em andamento")
                    + (" · refeito a partir dos trades" if rep.get("backfilled") else "")),
          ("h", "Resumo do dia"),

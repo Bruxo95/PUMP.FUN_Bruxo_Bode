@@ -105,3 +105,25 @@ def test_report_lists_each_trade_with_time_and_by_hour(tmp_path):
         assert len(rep["by_hour"]) == 3 and any(s["tipo"] == "horario_ruim" for s in rep["suggestions"])
     txt = " ".join(t for _, t in blocks(rep, None, "x"))
     assert "Trades do dia com horário" in txt and tl[0]["entrada"] in txt and "T0" in txt
+
+
+
+def test_daily_report_follows_the_real_wallet():
+    """0.31.45: com real=True o relatório usa só os trades reais (o fictício fica de fora) e monta a curva do dia."""
+    from app.daily import build, day_of
+    import time as _t
+
+    class P:
+        feed = []
+        def trades(self, n):
+            from datetime import datetime, timezone
+            now, ago = datetime.now(timezone.utc).isoformat(), datetime.fromtimestamp(_t.time() - 60, timezone.utc).isoformat()
+            return [{"real": True, "pnl_sol": 0.02, "sol_in": 0.05, "closed_at": now, "opened_at": ago, "symbol": "RL", "mint": "R" * 40},
+                    {"pnl_sol": 300.0, "sol_in": 0.05, "closed_at": now, "opened_at": ago, "symbol": "SIM", "mint": "S" * 40}]
+        def _c(self, k, d):
+            return d
+    rep = build(P(), day_of(_t.time()), None, real=True)
+    assert rep["real"] is True and rep["trades"] == 1 and rep["pnl_sol"] == 0.02
+    assert rep["best_trades"][0]["token"] == "RL" and rep["points"][-1]["resultado"] == 0.02 and rep["equity_end"] is None
+    sim = build(P(), day_of(_t.time()), None)
+    assert sim["trades"] == 1 and sim["pnl_sol"] == 300.0

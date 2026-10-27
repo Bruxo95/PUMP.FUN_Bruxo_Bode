@@ -397,23 +397,29 @@
     }).join("") + "</svg>";
   }
   // ------------------------------------------------------------------ relatório do dia (/api/pump/daily, 0.31.5, só admin)
-  let DAY = "", DAY_T = null;
+  let DAY = "", DAY_T = null, DAY_MODE = null;
+  // 0.31.45 (pedido do dono): o relatório segue o botão Fictícia/Real do topo
+  const dayQ = (dia) => "?real=" + (realMode() ? 1 : 0) + (dia ? "&dia=" + encodeURIComponent(dia) : "");
   async function loadDaily() {
     if (!(ME && ME.role === "admin")) return;
     clearTimeout(DAY_T); DAY_T = setTimeout(() => { if (VIEW === "visao") loadDaily(); }, 60000);
-    const r = await BB.api("/api/pump/daily" + (DAY ? "?dia=" + encodeURIComponent(DAY) : ""));
-    if (r.error || !r.report) return;
+    const mode = realMode(); DAY_MODE = mode;
+    const r = await BB.api("/api/pump/daily" + dayQ(DAY));
+    if (r.error || !r.report || mode !== realMode()) return;
+    const RL = !!r.report.real;
     $("dayCard").hidden = false;
     const rep = r.report, pts = rep.points || [], first = pts[0] || {}, last = pts[pts.length - 1] || {};
     const sel = $("daySel"), cur = DAY || r.today;
     sel.innerHTML = [r.today].concat((r.days || []).map((d) => d.dia).filter((d) => d !== r.today)).map((d) => '<option value="' + esc(d) + '"' + (d === cur ? " selected" : "") + ">" + esc(d.split("-").reverse().join("/")) + (d === r.today ? " (hoje)" : "") + "</option>").join("");
-    $("daySub").textContent = (rep.closed ? "dia fechado" : "ao vivo") + " · " + pts.length + " fotos guardadas · atualizado " + dt(rep.generated_at) + " · carteira fictícia";
+    $("daySub").textContent = (rep.closed ? "dia fechado" : "ao vivo") + " · " + pts.length + (RL ? " trades reais" : " fotos guardadas") + " · atualizado " + dt(rep.generated_at) + (RL ? " · carteira REAL" : " · carteira fictícia");
     const ch = first.saldo && last.saldo != null ? (last.saldo / first.saldo - 1) * 100 : null;
     kpis("dayK", [["Resultado do dia", sg(rep.pnl_sol), rep.trades + " trades fechados · taxas " + s4(rep.fees_sol) + " SOL", "pnl"],
       ["Acerto do dia", rep.acerto == null ? "–" : f(rep.acerto * 100, 0) + "%", rep.wins + " ganhos", "hit"],
+      RL ? ["Investido no dia", s4(rep.invested_sol) + " SOL", rep.invested_sol ? "retorno " + pc(rep.pnl_sol / rep.invested_sol * 100) : "nenhuma compra fechada", "wallet"] :
       ["Saldo no dia", ch == null ? "–" : '<span class="' + (ch >= 0 ? "up" : "down") + '">' + (ch > 0 ? "+" : "") + f(ch, 1) + "%</span>", first.saldo ? s4(first.saldo) + " → " + s4(last.saldo) + " SOL" : "", "wallet"],
       ["Devolveu lucro", String(rep.gave_back || 0), "chegaram a +30% e fecharam no zero ou pior", "mon"]]);
-    $("dayChart").innerHTML = lineChart(pts.filter((p) => p.saldo != null).map((p) => ({ t: p.t * 1000, v: p.saldo - (first.saldo || 0), label: "saldo " + s4(p.saldo) + " SOL" })));
+    $("dayChart").innerHTML = RL ? lineChart(pts.filter((p) => p.resultado != null).map((p) => ({ t: p.t * 1000, v: p.resultado, label: "resultado real " + s4(p.resultado) + " SOL" })))
+      : lineChart(pts.filter((p) => p.saldo != null).map((p) => ({ t: p.t * 1000, v: p.saldo - (first.saldo || 0), label: "saldo " + s4(p.saldo) + " SOL" })));
     $("daySug").innerHTML = "<p><b>O que melhorar</b></p>" + (rep.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
     const g = (rows) => (rows || []).map((x) => [esc(x.nome), String(x.trades), x.acerto == null ? "–" : f(x.acerto * 100, 0) + "%", sg(x.pnl_sol)]);
     table("dayOri", ["Origem", "Trades", "Acerto", "Resultado"], g(rep.by_origin), "Nenhum trade fechado neste dia.");
@@ -431,7 +437,7 @@
       x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]), "Nenhum trade fechado neste dia.");
     const L = r.study || {};
     $("learnCard").hidden = false;
-    $("lrnSub").textContent = (L.days || 0) + " dias guardados · " + (L.positive_days || 0) + " no lucro · todos juntos para estudar o que se repete";
+    $("lrnSub").textContent = (RL ? "carteira REAL · " : "") + (L.days || 0) + " dias guardados · " + (L.positive_days || 0) + " no lucro · todos juntos para estudar o que se repete";
     kpis("lrnK", [["Resultado somado", sg(L.pnl_sol), (L.days || 0) + " dias", "pnl"], ["Dias no lucro", (L.positive_days || 0) + " de " + (L.days || 0), "", "hit"],
       ["Melhor dia", L.best ? esc(L.best.split("-").reverse().join("/")) : "–", "", "tr"], ["Pior dia", L.worst ? esc(L.worst.split("-").reverse().join("/")) : "–", "", "pos"]]);
     let accD = 0;
@@ -841,9 +847,9 @@
     if (tb) { REP_TAB = tb.dataset.rt; document.querySelectorAll("#repTabs button").forEach((x) => x.classList.toggle("on", x === tb)); return loadRepTab(); }
     const t = e.target, d = t.dataset || {};
     try {
-      if (d.pdfopen) return await BB.download("/api/pump/daily/pdf?dia=" + encodeURIComponent(d.pdfopen), "", true);
-      if (d.pdfdl) return await BB.download("/api/pump/daily/pdf?dia=" + encodeURIComponent(d.pdfdl), "relatorio-" + d.pdfdl + ".pdf");
-      if (d.aitxt) return await BB.download("/api/pump/daily/ai?dia=" + encodeURIComponent(d.aitxt), "relatorio-" + d.aitxt + "-para-ia.md");
+      if (d.pdfopen) return await BB.download("/api/pump/daily/pdf" + dayQ(d.pdfopen), "", true);
+      if (d.pdfdl) return await BB.download("/api/pump/daily/pdf" + dayQ(d.pdfdl), "relatorio-" + d.pdfdl + (realMode() ? "-real" : "") + ".pdf");
+      if (d.aitxt) return await BB.download("/api/pump/daily/ai" + dayQ(d.aitxt), "relatorio-" + d.aitxt + (realMode() ? "-real" : "") + "-para-ia.md");
       if (d.chpdf) return await BB.download("/api/pump/changes/" + encodeURIComponent(d.chpdf) + "?pdf=1", "mudanca-" + d.chpdf + ".pdf");
       if (d.chview) { const c = await BB.api("/api/pump/changes/" + encodeURIComponent(d.chview)); $("iaTxt").innerHTML = "<p><b>" + esc(c.versao + " · " + c.data) + "</b></p>" + esc(c.texto || c.error || "").split("\n").map((l) => "<p>" + l + "</p>").join(""); }
     } catch (err) { toast("Não abriu: " + err.message); }
@@ -1515,7 +1521,7 @@
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
-    if (VIEW === "visao") renderOverview();
+    if (VIEW === "visao") { renderOverview(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); }
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
     else if (VIEW === "historico") renderHistory();

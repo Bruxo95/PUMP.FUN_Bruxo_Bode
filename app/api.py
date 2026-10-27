@@ -280,26 +280,27 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return out
 
     @app.get("/api/pump/daily")
-    async def pump_daily(dia: str = "", pf=Depends(admin_engine)):
-        """Relatório do dia (0.31.5): números da Visão geral ao longo do dia, diagnóstico e sugestões; e os dias anteriores."""
-        return await daily_data(pf, dia)
+    async def pump_daily(dia: str = "", real: int = 0, pf=Depends(admin_engine)):
+        """Relatório do dia (0.31.5): números da Visão geral ao longo do dia, diagnóstico e sugestões; e os dias anteriores.
+        real=1 (0.31.45): o mesmo relatório só com os trades da carteira REAL."""
+        return await daily_data(pf, dia, bool(real))
 
     @app.get("/api/pump/daily/pdf")
-    async def pump_daily_pdf(dia: str = "", pf=Depends(admin_engine)):
+    async def pump_daily_pdf(dia: str = "", real: int = 0, pf=Depends(admin_engine)):
         """PDF do relatório do dia (0.31.7) para ver e mandar para uma IA revisar."""
         from .daily import blocks
         from .pdf import make
-        d = await daily_data(pf, dia)
+        d = await daily_data(pf, dia, bool(real))
         rep = d["report"]
         pdf = make(blocks(rep, d["study"], VERSION), f"Relatório {rep['dia']}")
         return Response(pdf, media_type="application/pdf",
                         headers={"Content-Disposition": f'attachment; filename="relatorio-{rep["dia"]}.pdf"'})
 
     @app.get("/api/pump/daily/ai")
-    async def pump_daily_ai(dia: str = "", pf=Depends(admin_engine)):
+    async def pump_daily_ai(dia: str = "", real: int = 0, pf=Depends(admin_engine)):
         """O relatório do dia em texto, já com as instruções para a IA revisar e corrigir (0.31.7)."""
         from .daily import ai_text
-        d = await daily_data(pf, dia)
+        d = await daily_data(pf, dia, bool(real))
         return PlainTextResponse(ai_text(d["report"], d["study"], VERSION),
                                  headers={"Content-Disposition": f'attachment; filename="relatorio-{d["report"]["dia"]}-para-ia.md"'})
 
@@ -340,10 +341,25 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return Response(make(head + body, f"Mudança {ch['versao']}"), media_type="application/pdf",
                         headers={"Content-Disposition": f'attachment; filename="mudanca-{nome}.pdf"'})
 
-    async def daily_data(pf, dia: str = "") -> dict:
+    async def daily_data(pf, dia: str = "", real: bool = False) -> dict:
         from .daily import build, day_of, kpis
         today = day_of(__import__("time").time())
         dia = dia if __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", dia or "") else today
+        if real:
+            # 0.31.45: a carteira real não tem relatórios guardados; cada dia é calculado na hora dos trades reais
+            from .daily import days_with_trades, study
+            from .modules_report import build as menus
+            allt = pf.trades(100000)
+            days = [today] + days_with_trades(pf, today, 30, real=True, all_trades=allt)
+            reps = {d: build(pf, d, None, real=True, all_trades=allt) for d in days}
+            if dia not in reps:
+                reps[dia] = build(pf, dia, None, real=True, all_trades=allt)
+            if dia == today:
+                reps[today]["modules"] = menus(hub, pf, dia, True)
+            hist = [{"dia": d, "pnl_sol": x.get("pnl_sol"), "trades": x.get("trades"), "acerto": x.get("acerto"),
+                     "sugestoes": len(x.get("suggestions") or []), "closed": d != today} for d, x in reps.items()]
+            return {"report": reps[dia], "days": hist, "today": today, "real": True,
+                    "study": study([x for x in reps.values() if x.get("trades")] or [reps[today]])}
         try:
             rows = await hub.db.select("daily_report", {"user_id": pf.user_id}, order="dia.desc", limit=30)
         except Exception:

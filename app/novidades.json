@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.45",
+      "data": "2026-10-27",
+      "tipo": "correção",
+      "onde": "Visão geral → Relatório do dia (botão Fictícia/Real no topo)",
+      "titulo": "O Relatório do dia acompanha a carteira real",
+      "oque": "Com o botão Real ligado no topo, o Relatório do dia mostra só os trades da carteira real: resultado e acerto do dia, investido e retorno, curva do resultado, maiores ganhos e perdas, trades com horário, origens, saídas, sugestões e o Aprendizado dos dias. O PDF e o texto para IA também saem da real. Em Fictícia, tudo continua como antes."
+    },
+    {
       "versao": "0.31.44",
       "data": "2026-10-27",
       "tipo": "melhoria",

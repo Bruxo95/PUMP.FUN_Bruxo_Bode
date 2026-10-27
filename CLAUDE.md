@@ -802,3 +802,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `real` de `/api/pump/auto-trades`): `renderRealAuto`, `autoBlocks` (ganhou × perdeu + conta do bot) e `autoTable`
   reaproveitados pelos dois quadros. `sanfona()` aceita o atributo `data-sanf` (cartão sem opções); os dois quadros
   começam fechados. O funil do filtro foi para um cartão próprio logo abaixo.
+
+## Relatório do dia da carteira real (2026-10-27, versão 0.31.45)
+- Pedido do dono: o Relatório do dia seguia fictício com o botão Real. `daily.build(..., real=True)` usa só os trades
+  reais (curva = resultado acumulado; sem `equity_end`; "não copiou" só do feed REAL). `/api/pump/daily`, `/pdf` e `/ai`
+  aceitam `real=1`; a real não é guardada no `daily_report`: cada dia (até 30) é calculado na hora. `loadDaily` manda
+  `realMode()` e recarrega quando o botão muda. Teste em `tests/test_daily.py`.
