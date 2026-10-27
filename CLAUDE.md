@@ -717,3 +717,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 ## Resposta do convite avisa quem enviou (2026-10-27, versão 0.31.23)
 - Pedido do dono. `hub.config_answer` carrega o motor de quem enviou (`self.engine`) e emite o aviso (entra no Telegram
   por `TG_KEYS` "seu convite de configuração"); `audit_log` nos dois lados com nomes ("convite de configuração aceito/recusado").
+
+- 0.31.24: a seta da sanfona em `app.css` tinha um byte de controle no lugar do `\25BE` (aparecia "BE"); corrigido.
+  Escapes com barra invertida gravados por heredoc viram bytes: gravar CSS/JS com escape por script Python.
