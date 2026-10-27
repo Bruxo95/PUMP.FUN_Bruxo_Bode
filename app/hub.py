@@ -212,6 +212,56 @@ class PumpHub:
         snap["geral"] = True
         return snap
 
+    def base_state(self, pf: PumpFun | None = None) -> dict:
+        """0.31.71: o "cérebro" do robô — aprender com os erros + fantasmas das automáticas, de todas as contas."""
+        from .autolearn import MAX_AVG_PCT, MAX_WR, MIN_N
+        from .basegeral import history_days, maturity, state_summary, upcoming
+        from .ghosts import _ts as gts
+        pf = pf or next(iter(self.engines.values()), None)
+        if pf is None:
+            return {"error": "nenhuma conta carregada"}
+        learned = pf.learned("explorar")
+        ghosts = self.ghosts_merged(pf, "ghosts_auto")
+        gdays = (time.time() - (gts(ghosts.get("since")) or time.time())) / 86400
+        pool = [t for t in pf.learn_trades() if t.get("origem") == "explorar"]
+        n = len(pool)
+        wins = sum(1 for t in pool if (t.get("pnl_sol") or 0) > 0)
+        pnl = sum(t.get("pnl_sol") or 0 for t in pool)
+        return {"learned": learned, "ghosts": ghosts, "ghost_days": round(gdays, 2),
+                "maturidade": maturity(learned, ghosts, history_days(pool), gdays),
+                "por_vir": upcoming(learned, ghosts, gdays, MIN_N, MAX_WR, MAX_AVG_PCT),
+                "resumo": dict(state_summary(learned, ghosts), acerto=round(wins / n, 3) if n else None,
+                               media_trade=round(pnl / n, 6) if n else None, resultado=round(pnl, 6),
+                               contas=len(self.engines), dias=history_days(pool))}
+
+    async def base_tick(self) -> None:
+        """Foto da base (gráfico) + log do que mudou desde a foto anterior. A cada 30 min (base_loop)."""
+        from .basegeral import diff
+        st = self.base_state()
+        if st.get("error"):
+            return
+        cur = dict(st["resumo"], maturidade=st["maturidade"]["total"])
+        prev = getattr(self, "_base_prev", None)
+        if prev is None:
+            try:
+                rows = await self.db.select("base_snapshots", None, order="em.desc", limit=1)
+                prev = (rows[0].get("data") if rows else None) or None
+            except Exception:
+                prev = None
+        for tipo, texto in diff(prev, cur):
+            await self.db.insert("base_log", {"tipo": tipo, "texto": texto, "data": {"maturidade": cur["maturidade"]}})
+        await self.db.insert("base_snapshots", {"data": cur})
+        self._base_prev = cur
+
+    async def base_loop(self) -> None:
+        await asyncio.sleep(180)
+        while True:
+            try:
+                await self.base_tick()
+            except Exception as e:
+                log.warning("base geral: %s", str(e)[:160])
+            await asyncio.sleep(1800)
+
     def _learn_pool(self, me: PumpFun) -> list:
         """0.31.63: trades automáticos fechados de TODAS as contas (os da própria conta marcados como seus)."""
         out = []
@@ -1451,6 +1501,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.daily_loop()))
         self._tasks.append(asyncio.create_task(self.study_auto_loop()))
         self._tasks.append(asyncio.create_task(self.tune_loop()))
+        self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)

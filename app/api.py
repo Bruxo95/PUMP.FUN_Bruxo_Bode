@@ -934,6 +934,23 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
                                      real=bool(real))
 
+    @app.get("/api/pump/base-geral")
+    async def base_geral(pf=Depends(admin_engine)):
+        """0.31.71: o cérebro do robô — maturidade, o que aprendeu, o que está por vir, gráfico e log."""
+        st = hub.base_state(pf)
+        try:
+            st["fotos"] = list(reversed(await hub.db.select("base_snapshots", None, order="em.desc", limit=400)))
+            st["log"] = await hub.db.select("base_log", None, order="em.desc", limit=150)
+        except Exception:
+            st["fotos"], st["log"] = [], []
+        try:
+            st["ajustes"] = await hub.db.select("auto_tune_log", None, order="em.desc", limit=40)
+            for r in st["ajustes"]:
+                r["nome"] = await hub._nome(r.pop("user_id", "") or "")
+        except Exception:
+            st["ajustes"] = []
+        return st
+
     @app.get("/api/pump/follow-user")
     async def follow_get(pf=Depends(admin_engine)):
         """0.31.61: de quem esta conta copia os trades (e quem copia os dela)."""

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.71",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Menu Base geral (logo abaixo do Explorar)",
+      "titulo": "Base geral: o cérebro do robô",
+      "oque": "Menu novo, só para admin, com tudo o que o robô aprendeu com todas as contas: maturidade da base em % (quanto de dado já tem para decidir com confiança, com o que falta em cada parte), gráficos da evolução (uma foto a cada 30 min), o que está por vir (faixa perto de bloquear, regra perto de ter base, quando o Ajuste automático pode agir), o log do que foi aprendido (faixa bloqueada/liberada, melhor regra, ajustes) e as tabelas do aprender com os erros e das Estratégias fantasma. 100% de maturidade não quer dizer ganhar todos os trades. Nada aqui muda regra ou configuração."
+    },
+    {
       "versao": "0.31.70",
       "data": "2026-10-27",
       "tipo": "melhoria",

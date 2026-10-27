@@ -913,3 +913,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.70: campo `data-hcfg` (horas na tela, minutos guardados) para `pump_ar_max_hold_min` no Explorar; render divide por 60 e
   o `change` grava ×60; `cfgLabel`/`cfgItems` reconhecem `data-hcfg` (no quadro de todas as opções aparece em min). Pedido do dono.
   Explorar segue a cada 5 min (`explore.EVERY_S`): plano grátis da Solana Tracker = 10 mil consultas/mês; 2 min daria ~21,6 mil.
+
+## Base geral — o cérebro do robô (2026-10-27, versão 0.31.71)
+- Pedido do dono. `app/basegeral.py` (`maturity` 40% faixas rumo a 30 operações + 30% regras rumo a 20 trades × 2 dias +
+  30% dias rumo a 7; `upcoming`; `state_summary`; `diff`). `PumpHub.base_state`, `base_tick`/`base_loop` (30 min: foto em
+  `base_snapshots` + mudanças em `base_log`; migração `20261027000005_base_geral.sql`, só backend). Rota `GET /api/pump/base-geral`
+  (admin; inclui `auto_tune_log` com nome). Menu `#basegeral` (`#navBaseG`, abaixo do Explorar). Teste `tests/test_base_geral.py`.

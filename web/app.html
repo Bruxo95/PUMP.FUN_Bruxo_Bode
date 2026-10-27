@@ -38,6 +38,7 @@
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
       <a href="#explorar" id="navExp" hidden data-v="explorar" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Explorar</a>
+      <a href="#basegeral" id="navBaseG" hidden data-v="basegeral" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3z"/><path d="M15 4a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a3 3 0 0 1-3-3"/></svg>Base geral</a>
       <div class="navgrp" id="navGrp" hidden>
         <button type="button" class="navgrp-h" id="navGrpH" aria-expanded="true" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg><span>Usar ou descartar</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="navsub" id="navSub">
@@ -782,6 +783,24 @@
       </section>
 
       <!-- ========================================================= NOVIDADES (web/novidades.json) -->
+      <!-- ========================================================= BASE GERAL (0.31.71, app/basegeral.py) -->
+      <section class="view" data-view="basegeral" hidden>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>O cérebro do robô</h2><div class="sub" id="bgSub">o que o sistema aprendeu com todas as contas</div></div></header>
+          <div class="kpis" id="bgK"></div>
+          <div class="help"><p><b>Maturidade</b> é quanto de dado a base já tem para decidir com confiança: faixas com 30+ operações, regras de saída com 20+ trades e 2 dias, e 7 dias de histórico. <b>100% não quer dizer ganhar todos os trades</b>: quer dizer que o que a base mostra é confiável. Nada aqui muda regra ou configuração de ninguém.</p></div>
+          <div id="bgParts"></div></div>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Evolução</h2><div class="sub">uma foto da base a cada 30 minutos</div></div></header>
+          <div class="grid2"><div><h3 class="h3s">Maturidade (%)</h3><div id="bgChM"></div></div><div><h3 class="h3s">Resultado médio por trade (SOL)</h3><div id="bgChR"></div></div></div></div>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>O que está por vir</h2><div class="sub">o que a base está perto de aprender ou decidir</div></div></header>
+          <div class="help" id="bgNext"></div></div>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log do que foi aprendido</h2><div class="sub">faixa bloqueada ou liberada, melhor regra de saída e o que o Ajuste automático fez</div></div></header>
+          <div class="tbl-wrap tall"><table id="bgLog" class="daytbl"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>O que a IA aprendeu com os erros (base geral)</h2><div class="sub" id="bgLSub"></div></div></header>
+          <div class="tbl-wrap"><table id="bgL"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Estratégias fantasma das automáticas (base geral)</h2><div class="sub" id="bgGSub"></div></div></header>
+          <div class="tbl-wrap"><table id="bgG"></table></div></div>
+      </section>
+
       <section class="view" data-view="comparar" hidden>
         <div class="card">
           <header><div><h2>Configuração copiada: X × Y</h2><div class="sub">depois que uma conta copia a configuração de outra, as duas deveriam fazer as mesmas coisas · aqui você vê se fizeram e quanto cada uma ganhou ou perdeu</div></div><div class="sp"></div>

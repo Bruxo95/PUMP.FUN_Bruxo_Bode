@@ -793,6 +793,35 @@
   // 0.31.66 (pedido do dono): primeiro o que é igual para todas as contas (BASE GERAL), depois quanto disso é da sua conta
   // 0.31.68: só a BASE GERAL (igual em todas as contas); quanto veio desta conta fica na dica do mouse (o dono achou confuso)
   const baseTag = (n, sua) => '<span class="tag pause" title="' + (sua || 0) + ' destas operações aconteceram nesta conta">BASE GERAL ' + (n || 0) + "</span>";
+  // 0.31.71 (pedido do dono): Base geral — o cérebro do robô
+  async function loadBaseGeral() {
+    const r = await BB.api("/api/pump/base-geral");
+    if (r.error) { $("bgSub").textContent = r.error; return; }
+    const m = r.maturidade || {}, s = r.resumo || {}, L = r.learned || {}, G = r.ghosts || {};
+    $("bgSub").textContent = (s.contas || 0) + " conta(s) ensinando · " + (s.operacoes || 0) + " compras automáticas fechadas · " + (s.dias || 0) + " dia(s) de histórico";
+    kpis("bgK", [["Maturidade da base", f(m.total || 0, 0) + "%", "quanto de dado já tem para decidir", "hit"],
+      ["Operações na base", String(s.operacoes || 0), "acerto " + (s.acerto == null ? "–" : f(s.acerto * 100, 0) + "%") + " · " + sg(s.resultado || 0), "tr"],
+      ["Resultado médio por trade", s.media_trade == null ? "–" : sg(s.media_trade), "todas as contas, já com taxas", "pnl"],
+      ["Faixas", (s.bloqueadas || []).length + " bloqueadas", (s.aprendendo || 0) + " aprendendo · " + Math.max(0, (s.faixas || 0) - (s.bloqueadas || []).length - (s.aprendendo || 0)) + " ok", "mon"],
+      ["Melhor regra de saída", esc(s.melhor_regra || "–"), s.melhor_por_trade == null ? "" : sg(s.melhor_por_trade) + " por trade", "pos"]]);
+    $("bgParts").innerHTML = (m.partes || []).map((p) => '<div style="margin:10px 0"><div class="row" style="justify-content:space-between"><b>' + esc(p.nome) + "</b><span>" + f(p.pct, 0) + "% <span class=\"muted\">(peso " + f(p.peso * 100, 0) + "%)</span></span></div>" +
+      '<div style="height:8px;border-radius:99px;background:var(--line,rgba(255,255,255,.08));margin:6px 0"><div style="height:8px;border-radius:99px;background:var(--up);width:' + Math.min(100, p.pct) + '%"></div></div><small class="muted">' + esc(p.falta) + "</small></div>").join("");
+    const F = (r.fotos || []).map((x) => ({ t: new Date(x.em).getTime(), d: x.data || {} }));
+    $("bgChM").innerHTML = F.length >= 2 ? lineChart(F.map((x) => ({ t: x.t, v: x.d.maturidade || 0, label: f(x.d.maturidade || 0, 0) + "% de maturidade" }))) : '<p class="muted">O gráfico aparece a partir da 2ª foto (uma a cada 30 min).</p>';
+    $("bgChR").innerHTML = F.length >= 2 ? lineChart(F.map((x) => ({ t: x.t, v: x.d.media_trade || 0, label: s4(x.d.media_trade || 0) + " SOL por trade" }))) : '<p class="muted">O gráfico aparece a partir da 2ª foto (uma a cada 30 min).</p>';
+    $("bgNext").innerHTML = (r.por_vir || []).length ? (r.por_vir || []).map((x) => "<p>• " + esc(x) + "</p>").join("") : '<p class="muted">Nada perto de mudar agora.</p>';
+    const TT = { bloqueou: "loss", liberou: "win", melhor_regra: "sim", inicio: "neutral" };
+    const rows = (r.log || []).map((x) => [esc(dt(x.em)), '<span class="tag ' + (TT[x.tipo] || "neutral") + '">' + esc(x.tipo.replace("_", " ")) + "</span>", '<span class="wrapcell" style="max-width:640px">' + esc(x.texto) + "</span>"])
+      .concat((r.ajustes || []).map((x) => [esc(dt(x.em)), '<span class="tag pause">ajuste: ' + esc(x.acao) + "</span>", '<span class="wrapcell" style="max-width:640px">' + esc((x.nome ? x.nome + " · " : "") + (x.motivo || "")) + "</span>"]));
+    table("bgLog", ["Quando", "O quê", "Detalhe"], rows, "O log começa na primeira foto da base (até 3 min depois de o servidor subir).");
+    $("bgLSub").textContent = (L.fechadas || 0) + " compras automáticas · " + (L.bloqueios || []).length + " faixas bloqueadas · bloqueia com " + (L.min_n || 6) + "+ operações, acerto < 35% e média < −5%";
+    table("bgL", ["Número da entrada", "Faixa", "Operações", "Acerto", "Média", "Resultado", "Rumo à confiança (30)", "Situação"], (L.faixas || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n), f(x.acerto * 100, 0) + "%",
+      (x.media_pct > 0 ? "+" : "") + f(x.media_pct, 1) + "%", sg(x.pnl_sol), f(Math.min(100, x.n / 30 * 100), 0) + "%",
+      x.bloqueada ? '<span class="tag loss">bloqueada</span>' : x.n < (L.min_n || 6) ? '<span class="tag neutral">aprendendo (' + x.n + "/" + (L.min_n || 6) + ")</span>" : '<span class="tag win">ok</span>']), "Ainda sem compras automáticas fechadas.");
+    $("bgGSub").textContent = "desde " + (G.since ? dt(G.since) : "–") + " · " + f(r.ghost_days || 0, 1) + " dia(s) · o Ajuste automático precisa de 20+ trades e 2 dias";
+    table("bgG", ["Regra de saída", "Trades", "Acerto", "Resultado", "Por trade", "Rumo aos 20 trades"], (G.variants || []).map((v) => [(v.id === G.best ? '<span class="tag win">melhor</span> ' : "") + esc(v.nome), String(v.trades || 0),
+      v.win_rate == null ? "–" : f(v.win_rate * 100, 0) + "%", sg(v.pnl_sol || 0), v.trades ? s4(v.pnl_sol / v.trades) : "–", f(Math.min(100, (v.trades || 0) / 20 * 100), 0) + "%"]), "Sem trades nos fantasmas ainda.");
+  }
   function renderFunnel() {
     const F = (EX && EX.funnel) || null; if (!F || !$("exFunK")) return;
     kpis("exFunK", [["Tokens olhados", String(F.vistos), (F.chance_alta || 0) + " com chance alta", "tr"], ["Entraram", String(F.entrou), F.vistos ? f(F.entrou / F.vistos * 100, 0) + "% dos olhados" : "–", "hit"],
@@ -1489,7 +1518,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -1497,7 +1526,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "basegeral"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -1514,6 +1543,7 @@
     if (VIEW === "base") loadBase();
     if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); }
     if (VIEW === "comparar") loadCompare();
+    if (VIEW === "basegeral") loadBaseGeral();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
@@ -2323,6 +2353,7 @@
     $("navNov").hidden = ME.role !== "admin";
     $("navGrp").hidden = ME.role !== "admin";
     $("navExp").hidden = ME.role !== "admin";
+    $("navBaseG").hidden = ME.role !== "admin";
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };
