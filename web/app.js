@@ -152,7 +152,7 @@
       : '<div class="hint">Nenhuma opção muda: os valores enviados são iguais aos seus.</div>') +
       (iguais && muda.length ? '<div class="hint muted">Mais ' + iguais + " " + (iguais === 1 ? "opção igual à sua" : "opções iguais às suas") + " (não muda nada).</div>" : "");
   }
-  const cfgShareCards = () => [...document.querySelectorAll('[data-view="config"] .card')].filter((c) => c.querySelector("[data-cfsh]"));
+  const cfgShareCards = () => [...document.querySelectorAll('[data-view="config"] .card')].filter((c) => c.id !== "cfShareTop" && c.querySelector("[data-cfsh]"));
   // sanfona (0.31.20): quadro com 3+ opções (ou as chaves pessoais) começa fechado; clique no título abre/fecha e a
   // escolha fica lembrada neste navegador. Execução real e relatórios ficam sempre abertos.
   function sanfona() {
@@ -175,6 +175,12 @@
   function cfgShareButtons() {
     if (!(ME && ME.role === "admin")) return;
     $("cfShareTop").hidden = false;
+    BB.api("/api/pump/config/share-targets").then((r) => {
+      const us = (r && r.users) || [];
+      $("cfAllU").innerHTML = us.length ? '<option value="">Escolha a pessoa…</option>' + us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "") + (u.admin ? " · admin" : "")) + "</option>").join("")
+        : '<option value="">Nenhum outro usuário cadastrado</option>';
+      $("cfAllGo").disabled = !us.length;
+    }).catch(() => {});
     document.querySelectorAll('[data-view="config"] .card').forEach((card) => {
       const h = card.querySelector("header");
       if (!h || card.id === "secretsCard" || card.id === "cfShare" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
@@ -1021,6 +1027,15 @@
     if (t.id === "cfShX") { $("cfShare").hidden = true; return; }
     if (t.id === "cfShAll") { document.querySelectorAll("[data-cfsec]").forEach((x) => { x.checked = t.checked; }); return; }
     if (t.dataset.cfsec) { const xs = [...document.querySelectorAll("[data-cfsec]")]; $("cfShAll").checked = xs.every((x) => x.checked); return; }
+    if (t.id === "cfAllGo") {
+      // 0.31.32 (pedido do dono em 2026-10-27): enviar toda a configuração direto do topo, sem abrir o painel de seções
+      const to = $("cfAllU").value; if (!to) { toast("Escolha para quem enviar."); return; }
+      t.disabled = true;
+      const r = await BB.api("/api/pump/config/share", { body: { to, parte: "toda a configuração", all: true, keys: [] } });
+      t.disabled = false;
+      toast(r.error ? "Não enviou: " + r.error : "Convite enviado com toda a configuração (" + r.opcoes + " opções). A pessoa decide se aceita.");
+      return;
+    }
     if (t.id === "cfShGo") {
       const to = $("cfShU").value, sh = $("cfShare"); if (!to) return;
       const cards = cfgShareCards(), sel = [...document.querySelectorAll("[data-cfsec]")].filter((x) => x.checked).map((x) => cards[+x.dataset.cfsec]).filter(Boolean);

@@ -748,3 +748,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `web/app.js`: `loadApplied`/`renderApplied` (selo `.cfgfrom` no cabeçalho de cada quadro de Configurações/Explorar,
   conferindo os valores atuais) e `openCfgDiff` (modal `#cfgDiff`). `/api/audit` e `/api/admin/audit` trocam uuid
   pelo nome (`_names`, `UUID_ANY`). Teste em `tests/test_explore_share.py`.
+
+- 0.31.32: quadro `#cfShareTop` com `#cfAllU` + `#cfAllGo` (envia `all`); `cfgShareCards` ignora esse quadro. Pedido do dono.
