@@ -124,3 +124,53 @@ def blocked_reason(learned: dict, info: dict) -> str | None:
             return (f"aprendi com os erros: {x['nome']} {x['faixa']} perdeu em {x['n']} operações "
                     f"(acerto {x['acerto'] * 100:.0f}%, média {x['media_pct']:+.0f}%)")
     return None
+
+
+# 0.31.81 (item A, pedido do dono): sinais novos, SÓ para estudar na Base geral. Não entram em FEATURES, então nunca
+# bloqueiam nada — o dono decide depois se algum vira filtro.
+EXTRA = {
+    "mayhem": ("Modo Mayhem", None),
+    "quote": ("Moeda da curva", None),
+    "top10": ("Top 10 (%)", [(0, 20, "até 20%"), (20, 30, "20 a 30%"), (30, 40, "30 a 40%"), (40, 60, "40 a 60%"), (60, 1e9, "60% ou mais")]),
+    "dev_pct": ("Dev (%)", [(0, 0.0001, "0%"), (0.0001, 5, "até 5%"), (5, 10, "5 a 10%"), (10, 1e9, "10% ou mais")]),
+    "snipers_pct": ("Snipers (%)", [(0, 0.0001, "0%"), (0.0001, 5, "até 5%"), (5, 15, "5 a 15%"), (15, 1e9, "15% ou mais")]),
+    "insiders_pct": ("Insiders (%)", [(0, 0.0001, "0%"), (0.0001, 5, "até 5%"), (5, 15, "5 a 15%"), (15, 1e9, "15% ou mais")]),
+    "bundlers_pct": ("Bundlers (%)", [(0, 0.0001, "0%"), (0.0001, 5, "até 5%"), (5, 15, "5 a 15%"), (15, 1e9, "15% ou mais")]),
+    "avg_trade_usd": ("Média por negócio (US$)", [(0, 1, "menos de $1"), (1, 5, "$1 a $5"), (5, 20, "$5 a $20"), (20, 1e12, "$20 ou mais")]),
+    "age_min": ("Idade do token na compra", [(0, 10, "até 10 min"), (10, 30, "10 a 30 min"), (30, 60, "30 a 60 min"), (60, 180, "1 a 3 h"), (180, 1e12, "mais de 3 h")]),
+}
+
+
+def extra_bucket(feature: str, value) -> str | None:
+    if value is None:
+        return None
+    if feature == "mayhem":
+        return "Mayhem" if value else "normal"
+    if feature == "quote":
+        return str(value)
+    v = _num(value)
+    if v is None:
+        return None
+    for lo, hi, name in EXTRA[feature][1]:
+        if lo <= v < hi:
+            return name
+    return None
+
+
+def study_extra(trades: list[dict], origem: str = "explorar") -> list[dict]:
+    """Mesma conta das faixas (operações, acerto, média, resultado, sombras), sem decidir nada."""
+    rows = [t for t in trades if t.get("origem") == origem and not t.get("real") and isinstance(t.get("auto_info"), dict)]
+    out = []
+    for f, (nome, _b) in EXTRA.items():
+        g: dict[str, list] = {}
+        for t in rows:
+            b = extra_bucket(f, t["auto_info"].get(f))
+            if b:
+                g.setdefault(b, []).append(t)
+        for b, r in g.items():
+            n = len(r)
+            out.append({"feature": f, "nome": nome, "faixa": b, "n": n, "n_sombra": sum(1 for t in r if t.get("sombra")),
+                        "acerto": round(sum(1 for t in r if (t.get("pnl_sol") or 0) > 0) / n, 3),
+                        "media_pct": round(sum((t.get("pnl_pct") or 0) for t in r) / n, 1),
+                        "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in r), 6)})
+    return sorted(out, key=lambda x: (list(EXTRA).index(x["feature"]), -x["n"]))

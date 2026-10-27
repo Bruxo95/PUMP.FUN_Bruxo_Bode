@@ -41,6 +41,10 @@ def item(raw: dict, cat: str) -> dict | None:
     rk = raw.get("risk") if isinstance(raw.get("risk"), dict) else {}
     # 0.31.76 (pedido do dono): volume de 24 h em US$ (txns do pool da Solana Tracker; sem ele, a rota usa a DexScreener)
     vol24 = _num(tx.get("volume24h")) if tx.get("volume24h") is not None else _num(tx.get("volume"))
+
+    def _pct(k):                                   # 0.31.81 (item A): rótulos do risco, quando a fonte manda
+        v = rk.get(k)
+        return _num(v.get("totalPercentage") if k != "dev" else v.get("percentage")) if isinstance(v, dict) else None
     return {"mint": mint, "cat": cat, "symbol": str(tk.get("symbol") or "")[:20], "name": str(tk.get("name") or "")[:40],
             "creator": tk.get("creator") or tk.get("deployer"),
             "mcap_usd": _num((pool.get("marketCap") or {}).get("usd")),
@@ -51,7 +55,23 @@ def item(raw: dict, cat: str) -> dict | None:
             "chg_5m": _num((ev.get("5m") or {}).get("priceChangePercentage")),
             "chg_1h": _num((ev.get("1h") or {}).get("priceChangePercentage")),
             "risk": _num(rk.get("score")), "rugged": bool(rk.get("rugged")),
-            "created": _num(tk.get("createdAt") or pool.get("createdAt")), "vol24_usd": vol24}
+            "created": _num(tk.get("createdAt") or pool.get("createdAt")), "vol24_usd": vol24,
+            "top10": _num(rk.get("top10")), "dev_pct": _pct("dev"), "snipers_pct": _pct("snipers"),
+            "insiders_pct": _pct("insiders"), "bundlers_pct": _pct("bundlers")}
+
+
+def extra_info(row: dict, tk: dict, t: float) -> dict:
+    """0.31.81 (item A, pedido do dono): sinais extras do momento da entrada, SÓ para anotar e estudar na Base geral —
+    não entram no bloqueio automático. Mayhem e moeda vêm da conta da curva já lida; concentração e rótulos, do risco
+    da Solana Tracker que já chega na lista; média por negócio e idade, do que a lista já traz."""
+    tk = tk or {}
+    n = (row.get("buys") or 0) + (row.get("sells") or 0)
+    created = row.get("created")
+    created = created / 1000 if created and created > 1e12 else created
+    return {"mayhem": tk.get("mayhem"), "quote": tk.get("quote"), "top10": row.get("top10"), "dev_pct": row.get("dev_pct"),
+            "snipers_pct": row.get("snipers_pct"), "insiders_pct": row.get("insiders_pct"), "bundlers_pct": row.get("bundlers_pct"),
+            "avg_trade_usd": round(row["vol24_usd"] / n, 4) if row.get("vol24_usd") and n else None,
+            "age_min": round((t - created) / 60, 1) if created and t >= created else None}
 
 
 def parse(js) -> dict:

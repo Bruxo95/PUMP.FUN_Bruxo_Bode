@@ -260,7 +260,8 @@ class PumpHub:
         n = len(pool)
         wins = sum(1 for t in pool if (t.get("pnl_sol") or 0) > 0)
         pnl = sum(t.get("pnl_sol") or 0 for t in pool)
-        return {"learned": learned, "ghosts": ghosts, "ghost_days": round(gdays, 2),
+        from .autolearn import study_extra
+        return {"learned": learned, "ghosts": ghosts, "ghost_days": round(gdays, 2), "sinais": study_extra(pool),
                 "maturidade": maturity(learned, ghosts, history_days(pool), gdays),
                 "por_vir": upcoming(learned, ghosts, gdays, MIN_N, MAX_WR, MAX_AVG_PCT),
                 "resumo": dict(state_summary(learned, ghosts), acerto=round(wins / n, 3) if n else None,
@@ -316,6 +317,8 @@ class PumpHub:
         if not mint or (mint in sh and t - sh[mint].get("t0", 0) < 86400):
             return
         info = {k: copy.deepcopy(row.get(k)) for k in ("pressure", "holders", "curve_pct", "risk", "chg_5m", "boost")}
+        from .explore import extra_info
+        info.update(extra_info(row, self.market.tokens.get(mint) if hasattr(self.market, "tokens") else {}, t))   # 0.31.81
         sh[mint] = {"t0": t, "symbol": row.get("symbol"), "why": str(why)[:160], "info": info,
                     "px0": (self.market.tokens.get(mint) or {}).get("price") if hasattr(self.market, "tokens") else None}
 

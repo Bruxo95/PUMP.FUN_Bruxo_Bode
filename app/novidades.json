@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.81",
+      "data": "2026-10-27",
+      "tipo": "novo",
+      "onde": "Base geral → Sinais novos (só anotando)",
+      "titulo": "O robô anota 9 sinais novos de cada compra automática",
+      "oque": "Cada compra automática do Explorar e cada entrada sombra agora guardam também: modo Mayhem, moeda da curva (SOL ou outra, como nos casos SEALLIS e R1R2L1R2), Top 10, % do dev, snipers, insiders, bundlers, média por negócio e idade do token na hora da compra. Na Base geral aparece a tabela com acerto e média de cada faixa. Esses sinais NÃO bloqueiam nada e o Explorar continua comprando igual; quando uma faixa juntar muitas operações com resultado ruim, você decide se vira filtro."
+    },
+    {
       "versao": "0.31.80",
       "data": "2026-10-27",
       "tipo": "melhoria",

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "a28a583fa14927eb2f66d3915cb10cfe36bc3d3e",
-    "application_version": "0.31.80 · 2026-10-27 · Lucro para sair depois do trader",
+    "repository_reference": "acfa7f0091b101b99a467c4e29ec6c3988265b89",
+    "application_version": "0.31.81 · 2026-10-27 · sinais novos anotados na Base geral (só aprendizado)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "83eb32fff0ade3d1de917daf03af309b62afe2825a391cb378c7eadc6b23e01e",
+      "app/version.py": "f047b1d49c8fa5de0c6fc0a115414a65933d98dfe9b21ce108bffd3c937be7fc",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "419c833d3c8ef56ea8cc3de6a78c06a93e78a88994c0de8101a4a3cb8dbe44b0",
+      "web/app.html": "5c0922cc9464221a5d87a0b94353d3e478323babdba91e4f14a754bde11320b7",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e73aceede2ce2c361cc2de9deead1551800a7850d11c7d9e783672c592615ee7"
+  "pdf_sha256": "aa3a3e7b7d35b9e0f2fc823bf82007ba7a890aa3cbca5ff33a6c807c55ffbdea"
 }

@@ -2081,6 +2081,8 @@ class PumpFun:
                     **{k: copy.deepcopy(row.get(k)) for k in ("pressure", "holders", "curve_pct", "risk", "chg_5m", "boost")},
                     "creator": row.get("creator") or (self.tokens.get(mint) or {}).get("creator"),
                     "score": self._auto_num(row.get("score")), "why": copy.deepcopy(pred.get("why") or []), "source": "explorar"}
+            from .explore import extra_info
+            info.update(extra_info(row, self.tokens.get(mint), t))            # 0.31.81: item A (só anotação)
             result = self.manual_buy(mint, t, auto="automático: chance alta", origem="explorar", info=info)
             self._funnel_note(row, None if result.get("auto_id") else (result.get("error") or result.get("sim") or "não entrou"), t)
             if result.get("auto_id"):
@@ -2951,6 +2953,10 @@ class PumpFun:
             # (DexScreener/Jupiter, em SOL de verdade) virava um "ganho" de 1.000×. Esses tokens não usam a conta da
             # curva: o preço vem da DexScreener (convertido de USD) ou da cotação da Jupiter.
             quote = self.curve_quote(raw)
+            # 0.31.81 (item A, só anotação para a Base geral): modo Mayhem (byte 81) e a moeda da curva
+            if len(raw) >= 82:
+                tk["mayhem"] = raw[81] == 1
+            tk["quote"] = "SOL" if quote is None else ("USDC" if quote.startswith("EPjFWdd5") else "outra moeda")
             if quote is not None or vs < 29_000_000_000:
                 tk["quote_mint"] = quote or "desconhecida"
                 tk["price_src"] = "cotação em outra moeda: preço pela DexScreener/Jupiter"

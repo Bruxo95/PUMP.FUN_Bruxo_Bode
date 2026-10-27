@@ -956,3 +956,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.80: campo na tela para `pump_hold_min_profit_pct` (já existia no motor, sem campo) ao lado de "Trader saiu e estou no
   prejuízo", com atalhos 0/5/10/20%. Lógica igual: segura se o líquido < X% quando o trader vende; vende quando passa de X%;
   stop de perda segue valendo. Pedido do dono.
+
+- 0.31.81 (item A, pedido do dono): `explore.extra_info` grava em `auto_info` (Explorar) e no `info` das sombras: `mayhem`/`quote`
+  (lidos da curva em `_curve_prices`, byte 81 e 83..115), `top10`/`dev_pct`/`snipers_pct`/`insiders_pct`/`bundlers_pct` (risco da
+  Solana Tracker em `explore.item`), `avg_trade_usd` e `age_min`. `autolearn.study_extra` (fora de `FEATURES`: nunca bloqueia) →
+  `base_state["sinais"]` → tabela `#bgS` na Base geral. Lógica de entrada/saída do Explorar não mudou. `tests/test_sinais_novos.py`.

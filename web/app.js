@@ -835,6 +835,9 @@
     table("bgL", ["Número da entrada", "Faixa", "Operações", "Delas, sombra", "Acerto", "Média", "Resultado", "Rumo à confiança (30)", "Situação"], (L.faixas || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n), x.n_sombra ? '<span class="tag neutral">SOMBRA ' + x.n_sombra + "</span>" : "–", f(x.acerto * 100, 0) + "%",
       (x.media_pct > 0 ? "+" : "") + f(x.media_pct, 1) + "%", sg(x.pnl_sol), f(Math.min(100, x.n / 30 * 100), 0) + "%",
       x.bloqueada ? '<span class="tag loss">bloqueada</span>' : x.n < (L.min_n || 6) ? '<span class="tag neutral">aprendendo (' + x.n + "/" + (L.min_n || 6) + ")</span>" : '<span class="tag win">ok</span>']), "Ainda sem compras automáticas fechadas.");
+    table("bgS", ["Sinal", "Faixa", "Operações", "Delas, sombra", "Acerto", "Média", "Resultado"], (r.sinais || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n),
+      x.n_sombra ? '<span class="tag neutral">SOMBRA ' + x.n_sombra + "</span>" : "–", f(x.acerto * 100, 0) + "%", (x.media_pct > 0 ? "+" : "") + f(x.media_pct, 1) + "%", sg(x.pnl_sol)]),
+      "Ainda sem compras ou sombras com estes sinais (começam a ser anotados a partir desta versão).");
     $("bgGSub").textContent = "desde " + (G.since ? dt(G.since) : "–") + " · " + f(r.ghost_days || 0, 1) + " dia(s) · o Ajuste automático precisa de 20+ trades e 2 dias";
     table("bgG", ["Regra de saída", "Trades", "Acerto", "Resultado", "Por trade", "Rumo aos 20 trades"], (G.variants || []).map((v) => [(v.id === G.best ? '<span class="tag win">melhor</span> ' : "") + esc(v.nome), String(v.trades || 0),
       v.win_rate == null ? "–" : f(v.win_rate * 100, 0) + "%", sg(v.pnl_sol || 0), v.trades ? s4(v.pnl_sol / v.trades) : "–", f(Math.min(100, (v.trades || 0) / 20 * 100), 0) + "%"]), "Sem trades nos fantasmas ainda.");

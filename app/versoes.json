@@ -660,6 +660,11 @@
    "versao": "0.31.80",
    "inicio": "2026-10-27T22:57:30+00:00",
    "titulo": "Lucro para sair depois do trader"
+  },
+  {
+   "versao": "0.31.81",
+   "inicio": "2026-10-27T23:07:59+00:00",
+   "titulo": "sinais novos anotados na Base geral (só aprendizado)"
   }
  ]
 }
