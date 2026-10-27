@@ -882,3 +882,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (mesmo valor e `FOLLOW_RULES`); no fechamento (`_sell`) fecha a posição com `follow_of.pos`. Real pelo espelho de quem segue.
   Sem cadeia (`follow_of` não repassa) nem círculo (`follow_set`). Rotas `/api/pump/follow-user` (admin). `#followCard`.
   Teste: `tests/test_copiar_trades.py`.
+
+- 0.31.62: migração `20261027000003_pedro_copia_trades_bruxo.sql` (pedido do dono no chat): acrescenta `_follow_user` = Bruxo 9519
+  em `user_settings` do Pedro Rodrigues (por e-mail; só essa chave). `hub.start` guarda o nome da conta seguida para os avisos.

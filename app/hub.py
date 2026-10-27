@@ -1396,6 +1396,13 @@ class PumpHub:
         await self.load_blacklist()
         await self.load_lab()
         await self.load_elite()
+        for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
+            lead = self.engines.get(getattr(pf, "follow_user", ""))
+            if lead is not None:
+                try:
+                    lead._nome_cache = await self._nome(lead.user_id)
+                except Exception:
+                    pass
         self.running = True
         for pf in list(self.engines.values()):
             self._start_engine(pf)
