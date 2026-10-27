@@ -779,3 +779,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (os antigos de "nunca real sem pump_auto_real" agora desligam o espelho). Relatório: `app/relatorios_ia/2026-10-27-0.31.37.md`.
 - `hub.config_users` + `GET /api/pump/config/users`: quadro "Você tem N usuários usando a sua configuração" no topo do
   Explorar e de Configurações.
+
+## Sugestões do Bruxo + aprendizagem do bot (2026-10-27, versão 0.31.38)
+- Áudio do Bruxo (15×18 no Explorar). `auto_trades.SUSPECT_PCT` (1.900%): `summary` tira suspeitos dos totais/acerto/fator
+  (`suspects`, `suspects_sol`), `api_item` marca `suspeito`. Quadro "A conta do bot" (`#exAutoEx`), funil
+  (`PumpFun._funnel_note`/`explore_funnel`, campo `funnel` de `/api/pump/explore`), Real × fictícia (`mirror_pairs`,
+  `GET /api/pump/real/mirror`, trades com `pos_id`/`sim_id`), CSS `autotbl`. Corrigido id duplicado `cmpK` → `cxK`
+  na tela Comparar. Teste: `tests/test_bruxo_aprendizagem.py`. Causa do preço do SEALLIS não investigada (sem acesso ao banco).

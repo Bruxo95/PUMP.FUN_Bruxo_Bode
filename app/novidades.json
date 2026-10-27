@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.38",
+      "data": "2026-10-27",
+      "tipo": "melhoria",
+      "onde": "Explorar → Minhas operações automáticas; Execução real",
+      "titulo": "Sugestões do Bruxo: suspeitos fora da conta, a conta do bot, funil do filtro e real × fictícia",
+      "oque": "(1) Trade com ganho acima de 20× (ex.: SEALLIS +133.475%) é marcado como SUSPEITO (provável preço lido errado) e fica fora dos totais, do acerto e do fator de lucro; um aviso mostra quanto ficou de fora e há o filtro Suspeitos. (2 e 3) Quadro \"A conta do bot: perde pouco, ganha muito?\": ganho médio por acerto, perda média por erro, perda real no stop × stop configurado (mostra se escorregou) e ganho esperado por trade. (4) Funil do filtro (24 h): tokens olhados, quantos entraram, por que os outros foram barrados e quais barrados subiram 50%+ depois. (5) Execução real → Real × fictícia: cada trade real do espelho ao lado do fictício par, com a diferença e o atraso. (6) No celular: sem \"SOL SOL\" repetido, textos dos cartões sem corte e tabela sem rolar para o lado. Nenhuma configuração foi alterada."
+    },
+    {
       "versao": "0.31.37",
       "data": "2026-10-27",
       "tipo": "novo",

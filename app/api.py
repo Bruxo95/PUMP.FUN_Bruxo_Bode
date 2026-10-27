@@ -231,7 +231,16 @@ def create_app(hub, auth, cfg) -> FastAPI:
         out["compare_auto"] = compare(trades, "explorar")
         out["ghosts_auto"] = pf.ghosts_auto.snapshot(trades)
         out["learn_on"] = bool(getattr(pf.cfg, "pump_ar_learn", True))
+        out["funnel"] = pf.explore_funnel()
         return out
+
+    @app.get("/api/pump/real/mirror")
+    async def real_mirror(pf=Depends(engine)):
+        """0.31.38: trades reais do espelho × o trade fictício par."""
+        L = pf.mirror_pairs()
+        dif = [x["dif_pct"] for x in L if x["dif_pct"] is not None]
+        return {"pairs": L, "media_dif_pct": round(sum(dif) / len(dif), 2) if dif else None,
+                "real_sol": round(sum(x["real_sol"] or 0 for x in L), 6), "sim_pct_medio": None}
 
     def safety_marks(pf, x: dict) -> None:
         """0.31.0: carteiras novas e traders bons em cada token da tela; muita carteira nova vira "lixo" na hora."""

@@ -80,8 +80,23 @@ def operation_row(p: dict, previous: dict | None = None, closed: bool = False) -
     return row
 
 
+# 0.31.38 — sugestão do Bruxo + aprendizagem do bot (2026-10-27): um ganho acima de 20× (+1.900%) num token da
+# pump.fun é quase sempre preço lido errado (ex.: SEALLIS +133.475%, que sozinho fez +134 SOL e o "fator 265"). Esses
+# trades ficam marcados como suspeitos e FORA dos totais, do acerto e do fator; a tela mostra quanto ficou de fora.
+SUSPECT_PCT = 1900.0
+
+
+def suspect(row: dict) -> str | None:
+    pct = number(row.get("pnl_pct"))
+    if pct is not None and pct >= SUSPECT_PCT:
+        return f"ganho de {pct:,.0f}% (mais de 20×): provável erro de preço; fora dos totais até ser conferido".replace(",", ".")
+    return None
+
+
 def summary(rows: list[dict]) -> dict:
-    closed = [row for row in rows if row.get("saida_em") and number(row.get("pnl_sol")) is not None]
+    allc = [row for row in rows if row.get("saida_em") and number(row.get("pnl_sol")) is not None]
+    sus = [row for row in allc if suspect(row)]
+    closed = [row for row in allc if not suspect(row)]
     values = [number(row["pnl_sol"]) for row in closed]
     gains = sum(max(0.0, value) for value in values)
     losses = -sum(min(0.0, value) for value in values)
@@ -89,7 +104,8 @@ def summary(rows: list[dict]) -> dict:
             "win_rate": sum(value > 0 for value in values) / len(closed) if closed else None,
             "profit_factor": round(gains / losses, 4) if losses else None,
             "gains_sol": round(gains, 8), "losses_sol": round(losses, 8),
-            "profit_factor_unbounded": bool(gains > 0 and losses == 0)}
+            "profit_factor_unbounded": bool(gains > 0 and losses == 0),
+            "suspects": len(sus), "suspects_sol": round(sum(number(r["pnl_sol"]) for r in sus), 8)}
 
 
 def readiness(rows: list[dict]) -> dict:
@@ -148,6 +164,7 @@ def api_item(row: dict, now: float) -> dict:
     out.pop("user_id", None)
     start, end = ts(out.get("entrada_em")), ts(out.get("saida_em"))
     out["open"] = end is None
+    out["suspeito"] = suspect(out) if end is not None else None
     out["duration_s"] = max(0.0, (end if end is not None else now) - start) if start else None
     if end is None:
         info = out.get("info") or {}

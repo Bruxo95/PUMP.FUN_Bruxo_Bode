@@ -146,7 +146,7 @@
     if (r.error) { $("cmpHelp").textContent = r.error; return; }
     CMP.cur = r; const x = r.x, y = r.y, pc = (v) => v == null ? "–" : f(v * 100, 0) + "%";
     $("cmpHelp").textContent = "Desde " + dt(r.desde) + " · " + (r.parte || "") + " · " + r.opcoes + " opções copiadas";
-    kpis("cmpK", [[esc(x.nome) + " (origem)", sg(x.pnl_sol), x.trades + " trades · acerto " + pc(x.acerto)], [esc(y.nome) + " (copiou)", sg(y.pnl_sol), y.trades + " trades · acerto " + pc(y.acerto)],
+    kpis("cxK", [[esc(x.nome) + " (origem)", sg(x.pnl_sol), x.trades + " trades · acerto " + pc(x.acerto)], [esc(y.nome) + " (copiou)", sg(y.pnl_sol), y.trades + " trades · acerto " + pc(y.acerto)],
       ["Diferença", sg((y.pnl_sol || 0) - (x.pnl_sol || 0)), "copiou − origem"], ["Tokens em comum", String(r.comum.length), r.so_x.length + " só na origem · " + r.so_y.length + " só na cópia"]]);
     $("cmpConc").innerHTML = (r.conclusoes || []).map((c) => "<p>" + esc(c) + "</p>").join("") || '<p class="muted">Sem conclusões ainda.</p>';
     const ori = (o) => (o.por_origem || []).map((g) => [esc(g.nome), String(g.trades), g.acerto == null ? "–" : f(g.acerto * 100, 0) + "%", sg(g.pnl_sol)]);
@@ -546,18 +546,31 @@
     notice.textContent = (stale || r.error ? "Ainda não recomendado para dinheiro real: histórico incompleto ou desatualizado. " : "") + readyText + " · " + f(autoNum(ready.closed_sim) || 0, 0) + " fechadas em " + f(autoNum(ready.days_sim) || 0, 0) + " dias de simulado · acerto " + autoRate(ready.win_rate) + " · fator " + autoFactor(ready) + (ready.recommended && !stale && !r.error ? ". A execução real continua dependendo dos controles existentes." : "");
     notice.className = "auto-readiness " + (ready.recommended && !stale && !r.error ? "up" : "warn");
     // 0.31.19: ganhou × perdeu, pedido do dono ("mostrar trades que ganhou, que perdeu e a porcentagem")
-    const closed = r.items.filter((x) => !x.open && !x.real && autoNum(x.pnl_sol) != null), opn = r.items.filter((x) => x.open);
+    // 0.31.38 — sugestão do Bruxo + aprendizagem do bot: suspeitos (mais de 20×) ficam fora da conta
+    const allClosed = r.items.filter((x) => !x.open && !x.real && autoNum(x.pnl_sol) != null), SUS = allClosed.filter((x) => x.suspeito);
+    const closed = allClosed.filter((x) => !x.suspeito), opn = r.items.filter((x) => x.open);
+    $("exAutoSus").hidden = !SUS.length;
+    $("exAutoSus").textContent = SUS.length ? SUS.length + (SUS.length === 1 ? " trade suspeito ficou" : " trades suspeitos ficaram") + " FORA da conta (" + SUS.map((x) => String(x.symbol || "") + " " + pc(autoNum(x.pnl_pct))).join(", ") + ", somando " + s4(SUS.reduce((a, x) => a + (autoNum(x.pnl_sol) || 0), 0)) + " SOL). Ganho acima de 20× num token da pump.fun quase sempre é preço lido errado; use o filtro Suspeitos para conferir." : "";
     const W = closed.filter((x) => x.pnl_sol > 0), L = closed.filter((x) => x.pnl_sol <= 0);
     const sum = (a, k) => a.reduce((s, x) => s + (autoNum(x[k]) || 0), 0), avg = (a, k) => (a.length ? sum(a, k) / a.length : null);
     const share = (a) => (closed.length ? f(a.length / closed.length * 100, 0) + "% das fechadas" : "sem fechadas");
     const big = (a, best) => a.reduce((m, x) => (m == null || (best ? x.pnl_sol > m.pnl_sol : x.pnl_sol < m.pnl_sol) ? x : m), null);
     const bw = big(W, true), bl = big(L, false);
-    kpis("exAutoWL", [["Ganhou", '<span class="up">' + W.length + "</span>", share(W) + " · " + sg(sum(W, "pnl_sol")) + " SOL · média " + pc(avg(W, "pnl_pct")), "hit"],
-      ["Perdeu", '<span class="down">' + L.length + "</span>", share(L) + " · " + sg(sum(L, "pnl_sol")) + " SOL · média " + pc(avg(L, "pnl_pct")), "mon"],
-      ["Maior ganho", bw ? pc(autoNum(bw.pnl_pct)) : "–", bw ? esc(String(bw.symbol || "")) + " · " + sg(bw.pnl_sol) + " SOL" : "nenhum ainda", "pnl"],
-      ["Maior perda", bl ? pc(autoNum(bl.pnl_pct)) : "–", bl ? esc(String(bl.symbol || "")) + " · " + sg(bl.pnl_sol) + " SOL" : "nenhuma ainda", "pnl"],
-      ["Abertas agora", String(opn.length), opn.length ? "estimativa " + sg(sum(opn, "pnl_sol")) + " SOL" : "nenhuma", "pos"]]);
-    const FL = EX_AUTO.filt || "all", rows = r.items.filter((x) => FL === "all" || (FL === "open" ? x.open : !x.open && (FL === "win" ? x.pnl_sol > 0 : x.pnl_sol <= 0)));
+    kpis("exAutoWL", [["Ganhou", '<span class="up">' + W.length + "</span>", share(W) + " · " + sg(sum(W, "pnl_sol")) + " · média " + pc(avg(W, "pnl_pct")), "hit"],
+      ["Perdeu", '<span class="down">' + L.length + "</span>", share(L) + " · " + sg(sum(L, "pnl_sol")) + " · média " + pc(avg(L, "pnl_pct")), "mon"],
+      ["Maior ganho", bw ? pc(autoNum(bw.pnl_pct)) : "–", bw ? esc(String(bw.symbol || "")) + " · " + sg(bw.pnl_sol) : "nenhum ainda", "pnl"],
+      ["Maior perda", bl ? pc(autoNum(bl.pnl_pct)) : "–", bl ? esc(String(bl.symbol || "")) + " · " + sg(bl.pnl_sol) : "nenhuma ainda", "pnl"],
+      ["Abertas agora", String(opn.length), opn.length ? "estimativa " + sg(sum(opn, "pnl_sol")) : "nenhuma", "pos"]]);
+    // a conta que o Bruxo faz de cabeça: perda média por erro (e no stop × stop configurado), ganho médio por acerto e
+    // ganho esperado por trade (acerto × ganho médio − erro × perda média), sem os suspeitos
+    const stopCfg = autoNum(autoValue("pump_ar_stop_pct", cfg())), ST = L.filter((x) => /^stop de perda/i.test(String(x.motivo_saida || "")));
+    const wr = closed.length ? W.length / closed.length : null, aw = avg(W, "pnl_sol"), al = avg(L, "pnl_sol");
+    const exp = closed.length ? sum(closed, "pnl_sol") / closed.length : null;
+    kpis("exAutoEx", [["Ganho médio por acerto", aw == null ? "–" : sg(aw), W.length ? "média " + pc(avg(W, "pnl_pct")) + " · " + W.length + " acertos" : "sem acertos", "hit"],
+      ["Perda média por erro", al == null ? "–" : sg(al), L.length ? "média " + pc(avg(L, "pnl_pct")) + " · " + L.length + " erros" : "sem erros", "mon"],
+      ["Perda real no stop", ST.length ? pc(avg(ST, "pnl_pct")) : "–", (stopCfg ? "stop configurado −" + f(stopCfg, 0) + "%" : "stop configurado n/d") + (ST.length ? " · " + ST.length + " saídas no stop" + (avg(ST, "pnl_pct") < -(stopCfg || 0) - 5 ? " · escorregou" : "") : ""), "mon"],
+      ["Ganho esperado por trade", exp == null ? "–" : sg(exp), wr == null ? "sem fechadas" : (exp > 0 ? "positivo: perde pouco e ganha mais" : "negativo: as perdas pesam mais") + " · " + closed.length + " trades", "pnl"]]);
+    const FL = EX_AUTO.filt || "all", rows = r.items.filter((x) => FL === "all" || (FL === "sus" ? !!x.suspeito : FL === "open" ? x.open : !x.open && (FL === "win" ? x.pnl_sol > 0 : x.pnl_sol <= 0)));
     document.querySelectorAll("[data-auto-filt]").forEach((b) => b.classList.toggle("on", b.dataset.autoFilt === FL));
     const PV = { lixo: "loss", fraco: "neutral", "possível": "sim", "chance alta": "win", suspeito: "pause" };
     table("exAutoTrades", ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], rows.map((row) => {
@@ -565,11 +578,19 @@
       return [pfM(mint, String(row.symbol || "")) + '<small><span class="tag ' + (row.real ? 'real">REAL' : 'sim">SIMULADO') + "</span> · Explorar</small>",
         autoDate(row.entrada_em) + "<small>" + s4(autoNum(row.sol_in)) + " SOL</small>" + '<span class="tag ' + (PV[row.veredito] || "neutral") + '">' + esc(String(row.veredito || "n/d")) + "</span><small>chance: " + (autoNum(row.chance) == null ? "n/d" : f(row.chance, 0) + "%") + "</small>",
         '<span class="tag ' + (row.open ? 'sim">aberta' : 'neutral">fechada') + "</span>" + (partials ? "<small>" + partials + " venda(s) em partes</small>" : ""),
-        sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>",
+        sg(autoNum(row.pnl_sol)) + "<small>" + pc(autoNum(row.pnl_pct)) + (row.open ? " · estimativa em aberto" : "") + "</small>" + (row.suspeito ? '<span class="tag pause" title="' + esc(row.suspeito) + '">suspeito</span>' : ""),
         row.open ? "–" : autoDate(row.saida_em), esc(String(row.motivo_saida || (row.open ? partials ? "venda em partes; restante protegido" : "aguardando saída" : "n/d"))),
         hms(autoNum(row.duration_s)), pc(autoNum(row.best_pct)) + "<small>pior: " + pc(autoNum(row.worst_pct)) + "</small>",
         '<div class="auto-after">' + autoAfter(row, "15m") + "<small>" + autoAfter(row, "60m") + "</small></div>"];
     }), "Nenhuma operação automática do Explorar neste período. Começa desligada; ao ligar, só entra quando todos os filtros passam.");
+  }
+  function renderFunnel() {
+    const F = (EX && EX.funnel) || null; if (!F || !$("exFunK")) return;
+    kpis("exFunK", [["Tokens olhados", String(F.vistos), (F.chance_alta || 0) + " com chance alta", "tr"], ["Entraram", String(F.entrou), F.vistos ? f(F.entrou / F.vistos * 100, 0) + "% dos olhados" : "–", "hit"],
+      ["Barrados", String(F.barrados), F.barrados_com_preco + " com preço para comparar", "mon"],
+      ["Barrados que subiram 50%+", String(F.subiram_50), (F.cairam_30 || 0) + " caíram 30%+ · " + (F.subiram_50 > F.cairam_30 ? "o filtro pode estar barrando coisa boa" : "o filtro está barrando mais coisa ruim"), "pnl"]]);
+    table("exFunM", ["Por que foi barrado", "Tokens"], (F.motivos || []).map((m) => [esc(m.motivo), String(m.n)]), "Nada barrado nas últimas 24 h (ou entrada automática desligada).");
+    table("exFunUp", ["Barrado que subiu", "Desde que foi visto", "Motivo"], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", esc(b.motivo || "")]), "Nenhum barrado subiu 50% ou mais.");
   }
   async function saveAutoCfg(body) {
     if (EX_AUTO.saving) return;
@@ -590,7 +611,7 @@
     clearTimeout(EX_T); EX_T = setTimeout(() => { if (VIEW === "explorar") loadExplore(); }, 60000);
     const r = await BB.api("/api/pump/explore");
     if (r.error && !r.lists) { toast(r.error); return; }
-    EX = r; renderExplore();
+    EX = r; renderExplore(); renderFunnel();
   }
   function renderExplore() {
     const r = EX || {};
@@ -1235,7 +1256,7 @@
     if (VIEW === "visao") loadDaily();
     if (VIEW === "config") { loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
     if (VIEW === "admin") { loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
-    if (VIEW === "real") walletLoad(true);
+    if (VIEW === "real") { walletLoad(true); loadMirror(); }
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "fantasma") loadGhosts();
@@ -1383,6 +1404,16 @@
       else evs.forEach((e) => { if (e.id > EV) { EV = e.id; onEvent(e); } });
       render();
     } catch (e) { if (VIEW === "radar") invalidateRadar(e.message || "falha de conexão"); } finally { BUSY = false; }
+  }
+  async function loadMirror() {
+    const r = await BB.api("/api/pump/real/mirror"); if (r.error || !$("rmT")) return;
+    const L = r.pairs || [];
+    kpis("rmK", [["Trades reais do espelho", String(L.length), "com par na fictícia: " + L.filter((x) => x.sim_pct != null).length, "tr"], ["Resultado real", sg(r.real_sol), "soma dos trades reais acima", "pnl"],
+      ["Diferença média", r.media_dif_pct == null ? "–" : (r.media_dif_pct > 0 ? "+" : "") + f(r.media_dif_pct, 1) + " pts", "real − fictícia, em % por trade", "mon"]]);
+    table("rmT", ["Fechou", "Token", "Fictícia", "Real", "Diferença", "Atraso", "Saída real / fictícia"], L.map((x) => [esc(dt(x.fechou)), pfM(x.mint || "", x.token),
+      x.sim_pct == null ? '<span class="muted">sem par</span>' : sg(x.sim_sol) + "<small>" + pc(x.sim_pct) + "</small>", sg(x.real_sol) + "<small>" + pc(x.real_pct) + "</small>",
+      x.dif_pct == null ? "–" : (x.dif_pct > 0 ? '<span class="up">+' : '<span class="down">') + f(x.dif_pct, 1) + " pts</span>", x.atraso_s == null ? "–" : hms(x.atraso_s), esc((x.motivo_real || "") + (x.motivo_sim ? " / " + x.motivo_sim : ""))]),
+      "Nenhum trade real do espelho fechado ainda.");
   }
   async function walletLoad(force) { try { W = await BB.api("/api/pump/wallet" + (force ? "?force=1" : "")); if (VIEW === "real") renderReal(); } catch (e) { /* */ } }
 

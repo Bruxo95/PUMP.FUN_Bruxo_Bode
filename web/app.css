@@ -555,3 +555,8 @@ table.daytbl td:nth-last-child(4){white-space:normal}
 body.viewas [data-cfg],body.viewas [data-toggle],body.viewas [data-set],body.viewas [data-act],body.viewas [data-ofa],body.viewas [data-ofr],
 body.viewas [data-cfsh],body.viewas [data-exsh],body.viewas [data-cfgsync],body.viewas #realB,body.viewas [data-auto-preset]{pointer-events:none;opacity:.5}
 body.viewas #secretsCard,body.viewas #navAdmin,body.viewas #tAudit{display:none!important}
+/* 0.31.38: operações automáticas no celular sem cortar a hora nem rolar para o lado; textos dos cartões quebram linha */
+table.autotbl td{white-space:normal}
+table.autotbl td:first-child{min-width:110px}
+.auto-kpis .kpi .d{white-space:normal;overflow:visible;text-overflow:clip}
+@media (max-width:700px){table.autotbl{font-size:11.5px}table.autotbl th:nth-child(7),table.autotbl td:nth-child(7),table.autotbl th:nth-child(9),table.autotbl td:nth-child(9){display:none}}

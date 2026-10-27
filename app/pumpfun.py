@@ -1119,6 +1119,7 @@ class PumpFun:
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
                           closed_t=t, closed_at=datetime.fromtimestamp(t, timezone.utc).isoformat(), exit_price=px)
+            tr["pos_id"] = p["id"]                         # 0.31.38: par real × fictícia (espelho)
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1883,11 +1884,14 @@ class PumpFun:
         t = time.time() if t is None else t
         out = []
         for row in (lists.get("graduating") or [])[:40]:
-            if self.explore_entry_reason(row):
+            why = self.explore_entry_reason(row)
+            if why:
+                self._funnel_note(row, why, t)
                 continue
             mint = row["mint"]
             guard = self.auto_guard(mint, t)
             if guard:
+                self._funnel_note(row, guard, t)
                 self._auto_blocked(guard, mint, "explorar", t)
                 continue
             pred = row["pred"]
@@ -1896,9 +1900,56 @@ class PumpFun:
                     "creator": row.get("creator") or (self.tokens.get(mint) or {}).get("creator"),
                     "score": self._auto_num(row.get("score")), "why": copy.deepcopy(pred.get("why") or []), "source": "explorar"}
             result = self.manual_buy(mint, t, auto="automático: chance alta", origem="explorar", info=info)
+            self._funnel_note(row, None if result.get("auto_id") else (result.get("error") or result.get("sim") or "não entrou"), t)
             if result.get("auto_id"):
                 out.append(mint)
         return out
+
+    def _funnel_note(self, row: dict, why: str | None, t: float) -> None:
+        """0.31.38 — sugestão do Bruxo + aprendizagem do bot: funil do filtro do Explorar (só memória, 24 h). Guarda a
+        última decisão de cada token e o preço da primeira vez que foi visto, para mostrar quantos foram barrados por
+        cada motivo e se os barrados subiram ou caíram depois (o filtro está barrando os bons?)."""
+        fn = getattr(self, "_ex_funnel", None)
+        if fn is None:
+            fn = self._ex_funnel = {}
+        mint = row.get("mint")
+        if not mint:
+            return
+        g = fn.get(mint) or {"first_t": t, "symbol": row.get("symbol") or short(mint), "px0": (self.tokens.get(mint) or {}).get("price"),
+                             "chance": (row.get("pred") or {}).get("verdict")}
+        if g.get("px0") is None:
+            g["px0"] = (self.tokens.get(mint) or {}).get("price")
+        if g.get("why") is None and g.get("t") and why is not None and g.get("entrou"):
+            pass                                           # já entrou: não volta a contar como barrado
+        else:
+            g["why"], g["entrou"] = why, (why is None) or g.get("entrou", False)
+        g["t"] = t
+        fn[mint] = g
+        if len(fn) > 3000:
+            for k in sorted(fn, key=lambda k: fn[k]["t"])[:500]:
+                fn.pop(k, None)
+
+    def explore_funnel(self, now: float | None = None) -> dict:
+        import re
+        now = time.time() if now is None else now
+        fn = {k: v for k, v in (getattr(self, "_ex_funnel", None) or {}).items() if now - v["t"] < 86400}
+        self._ex_funnel = fn
+        motivos, barr = {}, []
+        for mint, g in fn.items():
+            if g.get("entrou"):
+                continue
+            key = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", str(g.get("why") or "outro"))[:90]
+            motivos[key] = motivos.get(key, 0) + 1
+            px, px0 = (self.tokens.get(mint) or {}).get("price"), g.get("px0")
+            if px and px0:
+                barr.append({"mint": mint, "symbol": g.get("symbol"), "chg_pct": round((px / px0 - 1) * 100, 1), "motivo": g.get("why")})
+        barr.sort(key=lambda b: -b["chg_pct"])
+        alta = [b for b in barr if b["chg_pct"] >= 50]
+        return {"vistos": len(fn), "chance_alta": sum(1 for g in fn.values() if g.get("chance") == "chance alta"),
+                "entrou": sum(1 for g in fn.values() if g.get("entrou")), "barrados": len(fn) - sum(1 for g in fn.values() if g.get("entrou")),
+                "motivos": sorted(({"motivo": k, "n": v} for k, v in motivos.items()), key=lambda m: -m["n"])[:12],
+                "barrados_com_preco": len(barr), "subiram_50": len(alta), "cairam_30": sum(1 for b in barr if b["chg_pct"] <= -30),
+                "top_subiram": alta[:8]}
 
     def manual_buy(self, mint: str, t: float | None = None, auto: str = "", origem: str = "", info: dict | None = None) -> dict:
         """Compra manual (0.23.0, botão Comprar da Base da pump.fun): sem os filtros de cópia, porque foi você que
@@ -2749,6 +2800,29 @@ class PumpFun:
         return [e for e in self.events if e["id"] > after]
 
     # ------------------------------------------------------------------ real (preparado, desligado)
+    def mirror_pairs(self, limit: int = 100) -> list[dict]:
+        """0.31.38 — sugestão do Bruxo + aprendizagem do bot: cada trade real do espelho ao lado do trade fictício par,
+        para ver quanto do resultado simulado sobra no dinheiro de verdade (atraso, slippage e taxas)."""
+        T = self.trades(5000)
+        sim = {}
+        for t in T:
+            if not t.get("real"):
+                for k in ("pos_id", "id"):
+                    if t.get(k) is not None:
+                        sim.setdefault(str(t[k]), t)
+        out = []
+        for r in T:
+            if not r.get("real") or r.get("sim_id") is None:
+                continue
+            s = sim.get(str(r["sim_id"]))
+            out.append({"token": r.get("symbol"), "mint": r.get("mint"), "fechou": r.get("closed_at"),
+                        "real_sol": r.get("pnl_sol"), "real_pct": r.get("pnl_pct"), "real_in": r.get("sol_in"),
+                        "sim_sol": s.get("pnl_sol") if s else None, "sim_pct": s.get("pnl_pct") if s else None,
+                        "dif_pct": round((r.get("pnl_pct") or 0) - (s.get("pnl_pct") or 0), 2) if s else None,
+                        "atraso_s": r.get("lag_s"), "motivo_real": r.get("reason"), "motivo_sim": s.get("reason") if s else None})
+        out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)
+        return out[:limit]
+
     def _mirror_real(self, p: dict, trader_sol: float = 0.0, block_t=None, pos_cfg: dict | None = None) -> str | None:
         """0.31.37 — sugestão do Bruxo (2026-10-27): com a Execução real ligada, TODO trade que abriu na carteira
         fictícia também é comprado na real. O valor NUNCA é o da fictícia: `_real_buy` usa "SOL por compra" da real
@@ -2940,6 +3014,7 @@ class PumpFun:
             tr["score"] = p.get("score")
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
+            tr["sim_id"] = p.get("sim_id")                 # 0.31.38: par na fictícia (espelho)
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),

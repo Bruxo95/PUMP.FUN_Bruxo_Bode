@@ -458,9 +458,12 @@
         <div class="card auto-operations" data-novo-ate="2026-11-09"><header><div><h2>Minhas operações automáticas</h2><div class="sub" id="exAutoTradesSub">Explorar · resultados simulados já com taxas · últimas operações primeiro</div></div><div class="sp"></div><div class="seg" id="exAutoDays"><button data-auto-days="7">7 dias</button><button data-auto-days="30" class="on">30 dias</button><button data-auto-days="90">90 dias</button></div></header>
           <div class="auto-readiness muted" id="exAutoReadiness" role="status">Ainda não recomendado para dinheiro real: aguardando o histórico das automáticas.</div>
           <div class="kpis auto-kpis" id="exAutoKpis"></div>
-          <div data-novo-ate="2026-11-09"><h3 class="h3s">Ganhou × perdeu (fechadas, já com taxas)</h3><div class="kpis auto-kpis" id="exAutoWL"></div>
-          <div class="seg" id="exAutoFilt" style="margin:8px 0"><button data-auto-filt="all" class="on">Todas</button><button data-auto-filt="win">Ganhou</button><button data-auto-filt="loss">Perdeu</button><button data-auto-filt="open">Abertas</button></div></div>
-          <div class="tbl-wrap tall"><table id="exAutoTrades"></table></div>
+          <div data-novo-ate="2026-11-09"><h3 class="h3s">Ganhou × perdeu (fechadas, já com taxas)</h3><div class="auto-readiness warn" id="exAutoSus" hidden></div><div class="kpis auto-kpis" id="exAutoWL"></div>
+          <h3 class="h3s" data-novo-ate="2026-11-10">A conta do bot: perde pouco, ganha muito?</h3><div class="kpis auto-kpis" id="exAutoEx"></div>
+          <div class="seg" id="exAutoFilt" style="margin:8px 0"><button data-auto-filt="all" class="on">Todas</button><button data-auto-filt="win">Ganhou</button><button data-auto-filt="sus">Suspeitos</button><button data-auto-filt="loss">Perdeu</button><button data-auto-filt="open">Abertas</button></div></div>
+          <div class="tbl-wrap tall"><table id="exAutoTrades" class="autotbl"></table></div>
+          <div data-novo-ate="2026-11-10" style="margin-top:16px"><h3 class="h3s">Funil do filtro (últimas 24 h)</h3><div class="hint">Quantos tokens o Explorar olhou, quantos entraram e por que os outros foram barrados. "Barrados que subiram" mostra se o filtro está deixando passar coisa boa (compara o preço de quando foi visto com o de agora, quando há preço).</div>
+            <div class="kpis auto-kpis" id="exFunK"></div><div class="grid2"><div><div class="tbl-wrap"><table id="exFunM" class="daytbl"></table></div></div><div><div class="tbl-wrap"><table id="exFunUp" class="daytbl"></table></div></div></div></div>
           <div class="hint muted auto-notes">Critério para avaliar dinheiro real: pelo menos 100 operações simuladas, em 7 dias distintos ou mais, acerto de 45% e fator de lucro de 1,3, já com taxas. Atingir esses números não liga a execução real. As fotos de 15 e 60 minutos dependem de uma cotação disponível no prazo; dado ausente não é 0%.</div>
         </div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Explorar</h2><div class="sub" id="exSub">as mesmas listas do pump.fun/explore: novos, quase graduando, graduados e os que mais sobem</div></div></header>
@@ -552,6 +555,8 @@
           <div class="hint muted" id="cvN" style="margin-top:8px;font-size:12.5px"></div>
           <div class="hint" id="swN" style="margin-top:4px;font-size:12.5px"></div>
         </div>
+        <div class="card" data-novo-ate="2026-11-10"><header><div><h2>Real × fictícia (espelho)</h2><div class="sub">cada trade real ao lado do trade fictício que ele copiou · mostra quanto do resultado simulado sobra no dinheiro de verdade (atraso, slippage e taxas)</div></div></header>
+          <div class="kpis" id="rmK"></div><div class="tbl-wrap"><table id="rmT" class="daytbl"></table></div></div>
       </section>
 
       <!-- ========================================================= CONFIGURAÇÕES -->
@@ -741,7 +746,7 @@
             <button class="btn sm primary" id="cmpGo">Analisar</button></header>
           <div class="help" id="cmpHelp">Escolha uma cópia e clique em Analisar. Só entram os trades fictícios fechados depois da cópia.</div>
           <div id="cmpOut" hidden>
-            <div class="kpis" id="cmpK"></div>
+            <div class="kpis" id="cxK"></div>
             <h3 style="margin:12px 0 6px">Conclusões</h3><div id="cmpConc" class="help"></div>
             <div class="grid2"><div><h3 style="margin:10px 0 6px" id="cmpXo">Por origem</h3><div class="tbl-wrap"><table id="cmpXOri" class="daytbl"></table></div></div>
               <div><h3 style="margin:10px 0 6px" id="cmpYo">Por origem</h3><div class="tbl-wrap"><table id="cmpYOri" class="daytbl"></table></div></div></div>
