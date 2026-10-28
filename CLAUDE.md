@@ -1185,3 +1185,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.34: liga/desliga = classe `.tgl.sw` (chave estilo iPhone; `data-toggle`, regras da posição e "Som e aviso"; texto "Ligado"/"Desligado",
   `role=switch`). Notificação clicável (`data-ntfi` → `openNtf`: posição aberta ou `openTradeDet`). Quadro próprio dos barrados no Explorar.
   `_apply_overrides` com log e nova tentativa a cada 5 min no `ghosts_loop` (o ajuste dos barrados não pegou ao subir a 0.32.33). Pedido do dono.
+
+- 0.32.35: `pump_ar_stop_pct` aceita 0 (= sem stop de perda); `_check_stops` usa `stop_pct` da posição mesmo quando é 0 (`no_stop`). Pedido do dono.

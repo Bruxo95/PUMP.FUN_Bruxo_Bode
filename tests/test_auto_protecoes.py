@@ -377,3 +377,14 @@ class AutoProtecoesTests(unittest.TestCase):
         pf.store.save_trade(copy_loss)
         pf._after_close(copy_loss)
         assert pf._halt_until == 0 and pf.cold_market() == ""
+
+
+def test_auto_stop_zero_means_no_stop_loss():
+    """0.32.35 (pedido do dono): stop de perda 0 nas automáticas = sem stop de perda (antes o mínimo era 1%)."""
+    pf = _zero_fees(pump_ar_stop_pct=0, pump_ar_trail_start=10000, pump_ar_tp1_pct=0, pump_ar_tp_pct=0,
+                    pump_ar_press_min=0, pump_ar_exit_grad=False)
+    t = time.time()
+    p = _buy(pf, t)
+    assert p["stop_pct"] == 0
+    _price(pf, p["price_in"] * 0.2, t + 5)                  # −80%: com stop normal sairia
+    assert pf.positions()                                    # sem stop: continua aberta

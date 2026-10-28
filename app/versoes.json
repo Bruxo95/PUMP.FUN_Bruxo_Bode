@@ -930,6 +930,11 @@
    "versao": "0.32.34",
    "inicio": "2026-10-29T01:20:00+00:00",
    "titulo": "liga/desliga estilo iPhone; notificações clicáveis"
+  },
+  {
+   "versao": "0.32.35",
+   "inicio": "2026-10-29T01:30:00+00:00",
+   "titulo": "automáticas: stop de perda 0 = sem stop"
   }
  ]
 }

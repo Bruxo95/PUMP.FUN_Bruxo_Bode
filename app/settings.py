@@ -81,7 +81,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_ar_daily_loss": (float, 0.25, 0.0, 1000.0),
     "pump_ar_streak_n": (int, 3, 0, 50),
     "pump_ar_streak_h": (float, 1.0, 0.1, 72.0),
-    "pump_ar_stop_pct": (float, 25.0, 1.0, 100.0),
+    "pump_ar_stop_pct": (float, 25.0, 0.0, 100.0),       # 0.32.35 (pedido do dono): 0 = sem stop de perda nas automáticas
     "pump_ar_tp1_pct": (float, 40.0, 0.0, 10000.0),
     "pump_ar_tp1_frac": (float, 50.0, 1.0, 99.0),
     "pump_ar_trail_start": (float, 40.0, 1.0, 10000.0),

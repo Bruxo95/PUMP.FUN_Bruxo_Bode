@@ -1501,7 +1501,9 @@ class PumpFun:
             trail_on = trail_on and not p.get("off_trail")          # 0.31.87 (Bruxo): desligado nesta posição
             t_start = float(p.get("trail_start") or self._c("pump_trail_start_pct", 20))
             t_dist = float(p.get("trail_dist") or self._c("pump_trail_dist_pct", 10))
-            stop = float(p.get("stop_pct") or self._c("pump_stop_pct", 40))      # 0.26.0: compra do botão tem as suas
+            sp = p.get("stop_pct")                         # 0.26.0: compra do botão / automáticas têm o seu
+            stop = float(sp) if sp is not None else float(self._c("pump_stop_pct", 40))
+            no_stop = sp is not None and float(sp) == 0     # 0.32.35 (pedido do dono): stop 0 = sem stop de perda
             tp = float(p["tp_pct"]) if p.get("tp_pct") is not None else float(self._c("pump_tp_pct", 0))
             if trail_on and (p.get("trail_peak") is not None or chg >= t_start):
                 if p.get("trail_peak") is None:
@@ -1546,7 +1548,7 @@ class PumpFun:
                 out.append(self._sell(p, 1.0, px, f"stop móvel (pico {p['trail_peak']:+.1f}% → saiu em {chg:+.1f}% líquido)", t))
             elif p.get("hold_profit") and chg > float(self._c("pump_hold_min_profit_pct", 0.0)):
                 out.append(self._sell(p, 1.0, px, f"segurou até ficar positivo ({chg:+.1f}% líquido)", t))
-            elif chg <= -stop and not p.get("off_stop"):
+            elif chg <= -stop and not p.get("off_stop") and not no_stop:
                 out.append(self._sell(p, 1.0, px, f"stop de perda (−{stop:.0f}%)", t))
             elif p.get("boost_tp") and chg >= float(p["boost_tp"]) and self.boost_info(mint).get("active"):
                 out.append(self._sell(p, 1.0, px, f"boost ON: alvo +{float(p['boost_tp']):.0f}% ({chg:+.1f}% líquido)", t))
