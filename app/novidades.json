@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.93",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Explorar → lista de tokens",
+      "titulo": "Lista do Explorar sem rolagem lateral",
+      "oque": "Pedido do dono: o botão Comprar ficava escondido à direita. Agora ele fica logo abaixo do nome do token, o texto da tabela é menor, '5 min' e '1 h' viraram uma coluna só e a linha dos pools mostra só a corretora e a média por negócio (volume, compras × vendas e liquidez aparecem ao passar o mouse)."
+    },
+    {
       "versao": "0.31.92",
       "data": "2026-10-28",
       "tipo": "melhoria",

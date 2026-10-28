@@ -579,3 +579,11 @@ table.autotbl td{white-space:normal}
 table.autotbl td:first-child{min-width:110px}
 .auto-kpis .kpi .d{white-space:normal;overflow:visible;text-overflow:clip}
 @media (max-width:700px){table.autotbl{font-size:11.5px}table.autotbl th:nth-child(7),table.autotbl td:nth-child(7),table.autotbl th:nth-child(9),table.autotbl td:nth-child(9){display:none}}
+
+/* 0.31.93 (pedido do dono): lista do Explorar sem rolagem lateral — texto menor, menos espaço */
+table.extbl{font-size:11.5px}
+table.extbl td{padding:6px 5px;vertical-align:top}
+table.extbl th{padding-left:5px;padding-right:5px;white-space:nowrap}
+table.extbl small{font-size:10.5px}
+table.extbl .btn.sm{padding:3px 8px;font-size:11px}
+table.extbl td:nth-child(3){max-width:120px;white-space:normal}

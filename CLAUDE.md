@@ -1015,3 +1015,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`loadRobotDays`); períodos até 90 dias. `tests/test_robot_daily.py`.
 
 - 0.31.92: botão `data-buy` (o do Comprar da Base, `pump_manual_*`) em cada linha de `#exFunUp`. Pedido do dono.
+
+- 0.31.93: `#exTbl` com classe `extbl` (fonte menor), Comprar dentro da coluna Token, 5 min/1 h juntos, `poolsCell` curto (detalhe
+  no `title`). Pedido do dono (sem rolagem lateral).

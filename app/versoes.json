@@ -720,6 +720,11 @@
    "versao": "0.31.92",
    "inicio": "2026-10-28T10:56:47+00:00",
    "titulo": "botão Comprar nos barrados que subiram"
+  },
+  {
+   "versao": "0.31.93",
+   "inicio": "2026-10-28T10:57:51+00:00",
+   "titulo": "lista do Explorar sem rolagem lateral"
   }
  ]
 }

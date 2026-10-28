@@ -904,8 +904,9 @@
   function poolsCell(P) {
     if (!P || !P.length) return "";
     return P.map((p) => { const n = (p.buys24 || 0) + (p.sells24 || 0), avg = n ? p.vol24 / n : null;
-      return '<small title="' + esc((p.quote ? "par com " + p.quote + " · " : "") + "liquidez $" + f(p.liq || 0, 0)) + '">' + esc(DEX[p.dex] || p.dex || "?") + ": $" + f(p.vol24 || 0, p.vol24 >= 100 ? 0 : 2) + " · " + (p.buys24 || 0) + "×" + (p.sells24 || 0) +
-        (avg != null ? ' · <span class="' + (avg < 5 && n >= 20 ? "down" : "muted") + '">média $' + f(avg, avg < 10 ? 2 : 0) + "</span>" : "") + "</small>"; }).join("");
+      // 0.31.93 (pedido do dono: tabela sem rolagem lateral): curto na tela; volume, par e liquidez na dica do mouse
+      return '<small title="' + esc(DEX[p.dex] || p.dex || "?") + ": volume $" + f(p.vol24 || 0, 0) + " · " + (p.buys24 || 0) + " compras × " + (p.sells24 || 0) + " vendas" + esc(p.quote ? " · par com " + p.quote : "") + " · liquidez $" + f(p.liq || 0, 0) + '">' + esc(DEX[p.dex] || p.dex || "?") +
+        (avg != null ? ' · <span class="' + (avg < 5 && n >= 20 ? "down" : "muted") + '">$' + f(avg, avg < 10 ? 2 : 0) + "/neg.</span>" : "") + "</small>"; }).join("");
   }
   async function loadCopyDiag() {
     const r = await BB.api("/api/pump/copy-diag"); if (r.error || !$("cdK")) return;
@@ -1027,12 +1028,12 @@
     const frs = (x) => !x.fresh ? '<span class="muted">…</span>' : '<span class="' + (x.fresh.pct >= (cfg().pump_ar_fresh_max_pct || 30) ? "down" : "") + '">' + x.fresh.n + " de " + x.fresh.of + "</span>";
     // 0.31.55: o motivo quebra linha (o texto longo do "aprendi com os erros" criava rolagem lateral)
     const aut = (x) => !x.auto ? "–" : (x.auto.ok ? '<span class="tag win">compra</span>' : '<span class="tag neutral">não</span>') + '<small class="wrapcell">' + esc(x.auto.motivo) + "</small>";
-    table("exTbl", ["Token", "Veredito", "Automático", "Market cap", "Volume 24 h", "Curva", "Holders", "Compras × vendas", "5 min", "1 h", "Risco", "Carteiras novas", "Traders bons", "Boost", ""], rows.map((x) => [pfM(x.mint, x.symbol),
+    table("exTbl", ["Token", "Veredito", "Automático", "Mcap", "Vol. 24 h", "Curva", "Holders", "Compras × vendas", "5 min / 1 h", "Risco", "Cart. novas", "Traders", "Boost"], rows.map((x) => [pfM(x.mint, x.symbol) +
+      '<div style="margin-top:4px"><button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button></div>',
       '<span class="tag ' + (PV[x.pred.verdict] || "neutral") + '" title="' + esc((x.pred.why || []).join(" · ")) + '">' + esc(x.pred.verdict) + '</span><small class="muted">' + esc((x.pred.why || [])[0] || "") + "</small>", aut(x),
       usd(x.mcap_usd), usd(x.vol24_usd) + poolsCell(x.pools), x.curve_pct == null ? "–" : f(x.curve_pct, 0) + "%", x.holders == null ? "–" : f(x.holders, 0),
-      x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m), pc(x.chg_1h),
-      x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>',
-      '<button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");
+      x.pressure == null ? "–" : f(x.buys || 0, 0) + " × " + f(x.sells || 0, 0) + "<small>" + f(x.pressure, 0) + "% compras</small>", pc(x.chg_5m) + "<small>1 h " + pc(x.chg_1h) + "</small>",
+      x.risk == null ? "–" : f(x.risk, 0) + "/10", frs(x), x.smart ? '<span class="up">' + x.smart + "</span>" : "0", x.boost && x.boost.active ? '<span class="tag win">ON</span>' : '<span class="tag neutral">OFF</span>']), r.error ? "Sem dados: " + esc(r.error) : "Nada nesta lista agora.");
     const cp = r.compare_auto || {};
     $("cmpSub").textContent = (cp.ganhou || 0) + " ganharam × " + (cp.perdeu || 0) + " perderam · mediana dos números do momento da compra";
     kpis("cmpK", [["Entrou no topo", String(cp.entrou_no_topo || 0), "perdas que nunca passaram de +1%", "mon"],
