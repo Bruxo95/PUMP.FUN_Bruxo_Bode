@@ -151,6 +151,9 @@
 
       <!-- ========================================================= TOP TRADERS -->
       <section class="view" data-view="traders" hidden>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Cópia de traders)</h2><div class="sub" data-rlsub="copia">a cada 5 min: o que o robô analisou, o que fez e por que não · salvo por 14 dias</div></div><div class="sp"></div>
+          <div class="seg"><button data-rlh="copia:6">6 h</button><button data-rlh="copia:24" class="on">24 h</button><button data-rlh="copia:168">7 dias</button></div></header>
+          <div data-rlog="copia"></div></div>
         <div class="card">
           <header><div><h2>Top traders da pump.fun</h2><div class="sub" id="lbSub"></div><div id="trShBox" hidden style="margin-top:8px"><div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="trShU" aria-label="Para quem enviar"></select><button class="btn sm primary" id="trShGo">Enviar convite</button></div><div class="hint" id="trShN"></div></div></div><div class="sp"></div>
             <button class="btn sm" id="trShBtn" style="margin-right:8px" data-novo-ate="2026-11-11">Compartilhar minha lista</button>
@@ -333,6 +336,9 @@
 
       <!-- ========================================================= BASE DA PUMP.FUN (app/tokenlab.py, 0.21.0) -->
       <section class="view" data-view="base" hidden>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Base da pump.fun)</h2><div class="sub" data-rlsub="base">a cada 5 min: o que o robô analisou, o que fez e por que não · salvo por 14 dias</div></div><div class="sp"></div>
+          <div class="seg"><button data-rlh="base:6">6 h</button><button data-rlh="base:24" class="on">24 h</button><button data-rlh="base:168">7 dias</button></div></header>
+          <div data-rlog="base"></div></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Base da pump.fun</h2><div class="sub" id="bsSub">cada token novo ganha 4 fotos do market cap (1, 5, 15 e 60 min) e um rótulo no fim</div></div></header>
           <div class="kpis" id="bsKpis"></div></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Como ler esta tela</h2></div></header>
@@ -393,6 +399,9 @@
 
       <!-- ========================================================= MAIORES TRADERS (app/elite.py, 0.31.2) -->
       <section class="view" data-view="elite" hidden>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Maiores traders)</h2><div class="sub" data-rlsub="elite">a cada 5 min: o que o robô analisou, o que fez e por que não · salvo por 14 dias</div></div><div class="sp"></div>
+          <div class="seg"><button data-rlh="elite:6">6 h</button><button data-rlh="elite:24" class="on">24 h</button><button data-rlh="elite:168">7 dias</button></div></header>
+          <div data-rlog="elite"></div></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Maiores traders</h2><div class="sub" id="elSub">os maiores ganhadores da pump.fun, o que fazem minuto a minuto, sinais, estudo e compra automática</div></div></header>
           <div class="kpis" id="elKpis"></div>
           <div class="help"><p><b>Como funciona:</b> segue os 15 maiores por lucro no ranking da Solana Tracker (o ranking do site da pump.fun bloqueia leitura automática). Cada compra e venda deles chega em segundos. Quando <b>2 ou mais</b> compram o mesmo token em 10 min (ou um compra 5+ SOL), vira um <b>sinal</b>. Cada sinal é acompanhado por 60 min: isso vira o estudo, o ranking de quem dá sinal bom e as sugestões de melhoria. A compra automática usa as proteções das automáticas (valor, stop, venda em partes, stop móvel, limites do dia), configuradas em Explorar.</p></div></div>

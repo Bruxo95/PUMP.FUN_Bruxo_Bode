@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.89",
+      "data": "2026-10-28",
+      "tipo": "novo",
+      "onde": "Top traders, Base da pump.fun e Maiores traders",
+      "titulo": "Log de análise dos outros robôs",
+      "oque": "O mesmo log do Explorar agora existe para a cópia de traders (Top traders), a compra automática da Base da pump.fun e a dos Maiores traders: a cada 5 min fica salvo (14 dias) o que o robô analisou, o que copiou ou comprou e por que não, com um diagnóstico no topo (ex.: 'este robô está DESLIGADO' ou 'o que mais barrou foi compra pequena do trader, 70%'). Carteiras em estudo, Estratégias fantasma e Lista negra já tinham registro próprio; Relatórios, Aprendizado diário, Comparar config e Radar não tomam decisão sozinhos."
+    },
+    {
       "versao": "0.31.88",
       "data": "2026-10-28",
       "tipo": "novo",

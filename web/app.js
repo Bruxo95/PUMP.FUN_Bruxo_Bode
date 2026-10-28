@@ -917,6 +917,23 @@
       r.vistas ? "Copiou todas as compras vistas." : "Nenhuma compra dos traders copiados chegou ao robô neste período: eles não compraram, ou o monitor não recebeu as transações (confira Monitor ON na Visão geral).");
     table("cdT", ["Trader", "Vistas", "Copiadas", "Motivo principal"], (r.traders || []).map((x) => [pfW(x.wallet), String(x.vistas), String(x.copiadas), '<span class="wrapcell">' + esc(x.principal || "–") + "</span>"]), "–");
   }
+  // 0.31.89 (pedido do dono): o mesmo log de análise para os outros robôs (cópia de traders, Base, Maiores traders)
+  const RLH = { copia: 24, base: 24, elite: 24 };
+  async function loadRobotLog(mod) {
+    const box = document.querySelector('[data-rlog="' + mod + '"]'); if (!box) return;
+    const r = await BB.api("/api/pump/robot-log?modulo=" + mod + "&horas=" + RLH[mod]); if (r.error) { box.innerHTML = '<p class="muted">' + esc(r.error) + "</p>"; return; }
+    const R = r.resumo || {}, B = r.blocos || [], M = R.motivos || [], top = M[0], h = RLH[mod];
+    document.querySelectorAll('[data-rlh^="' + mod + ':"]').forEach((b) => b.classList.toggle("on", +b.dataset.rlh.split(":")[1] === h));
+    const item = mod === "copia" ? "compras de traders" : mod === "elite" ? "sinais" : "tokens";
+    box.innerHTML = '<div class="help"><p><b>Diagnóstico:</b> ' + (R.ligado === false ? "este robô está <b>DESLIGADO</b> nesta conta. " : "") +
+      (B.length ? "em " + h + " h o robô analisou " + (R.analisados || 0) + " " + item + " e " + (mod === "copia" ? "copiou " : "comprou ") + (R.entradas || 0) + ((R.nomes || []).length ? " (" + R.nomes.slice(0, 8).map(esc).join(", ") + ")" : "") + ". " +
+        (top ? "O que mais barrou: <b>" + esc(top.motivo) + "</b> (" + f(top.pct, 0) + "% das recusas)." : "") : "ainda sem registros (o log começa nesta versão).") + "</p></div>" +
+      '<div class="grid2"><div><h4>Por que não ' + (mod === "copia" ? "copiou" : "comprou") + '</h4><div class="tbl-wrap"><table id="rlM_' + mod + '" class="daytbl"></table></div></div>' +
+      '<div><h4>A cada 5 min</h4><div class="tbl-wrap tall"><table id="rlB_' + mod + '" class="daytbl"></table></div></div></div>';
+    table("rlM_" + mod, ["Motivo", "Vezes", "% das recusas"], M.map((m) => ['<span class="wrapcell">' + esc(m.motivo) + "</span>", String(m.n), f(m.pct, 0) + "%"]), "Nenhuma recusa no período.");
+    table("rlB_" + mod, ["Quando", "Analisou", "Entrou", "Principal motivo", "Exemplos"], B.map((b) => [dt(b.em), String(b.analisados || 0), (b.entrou || []).length ? '<b class="up">' + b.entrou.map(esc).join(", ") + "</b>" : "–",
+      '<span class="wrapcell">' + esc(b.gargalo || "–") + "</span>", '<span class="wrapcell">' + (b.itens || []).slice(0, 4).map((x) => esc(x.s) + ": " + esc(x.motivo)).join("<br>") + "</span>"]), "Ainda sem registros.");
+  }
   // 0.31.88 (pedido do dono): log de análise do Explorar — o que o robô fez em cada lista e por que não comprou
   let EXLOGH = 24;
   async function loadExLog() {
@@ -1589,6 +1606,7 @@
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
+    if (t.dataset.rlh) { const [md, hh] = t.dataset.rlh.split(":"); RLH[md] = +hh; loadRobotLog(md); return; }
     if (t.dataset.exlogh) { EXLOGH = +t.dataset.exlogh; loadExLog(); return; }
     if (t.dataset.evorep) { showEvo(t.dataset.evorep); return; }
     if (t.id === "evoCmp") { compareEvo(); return; }
@@ -1719,12 +1737,12 @@
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
-    if (VIEW === "base") loadBase();
+    if (VIEW === "base") { loadBase(); loadRobotLog("base"); }
     if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); loadExLog(); }
     if (VIEW === "comparar") loadCompare();
     if (VIEW === "basegeral") loadBaseGeral();
-    if (VIEW === "traders") loadCopyDiag();
-    if (VIEW === "elite") { loadElite(); loadSteps(); }
+    if (VIEW === "traders") { loadCopyDiag(); loadRobotLog("copia"); }
+    if (VIEW === "elite") { loadElite(); loadSteps(); loadRobotLog("elite"); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);

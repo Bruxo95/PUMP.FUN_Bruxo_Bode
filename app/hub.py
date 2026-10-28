@@ -467,6 +467,49 @@ class PumpHub:
                 log.warning("entradas sombra: %s", str(e)[:160])
             await asyncio.sleep(60)
 
+    # ------------------------------------------------------------------ log de análise dos robôs (0.31.89)
+    RLOG_NAMES = {"copia": "Cópia de traders", "base": "Base da pump.fun (compra automática)", "elite": "Maiores traders (compra automática)"}
+
+    async def rlog_flush(self) -> int:
+        n = 0
+        for pf in list(self.engines.values()):
+            for rec in pf.rlog_pending():
+                try:
+                    await self.db.insert("robot_log", {"id": f"{pf.user_id}:{rec['mod']}:{int(rec['ini'])}", "user_id": pf.user_id,
+                                                       "modulo": rec["mod"], "em": datetime.fromtimestamp(rec["ini"], timezone.utc).isoformat(),
+                                                       "data": rec}, upsert=True, on_conflict="id")
+                    n += 1
+                except Exception as e:
+                    log.warning("log dos robôs não gravou: %s", str(e)[:120])
+        return n
+
+    async def rlog_loop(self) -> None:
+        while True:
+            await asyncio.sleep(60)
+            try:
+                await self.rlog_flush()
+            except Exception as e:
+                log.warning("log dos robôs: %s", str(e)[:160])
+
+    async def robot_log(self, pf: PumpFun, mod: str, hours: float = 24) -> dict:
+        import re
+        since = datetime.fromtimestamp(time.time() - hours * 3600, timezone.utc).isoformat()
+        rows = await self.db.select("robot_log", {"user_id": pf.user_id, "modulo": mod}, order="em.desc", limit=600, gte={"em": since})
+        blocos = [dict(r.get("data") or {}, em=r.get("em")) for r in rows]
+        mot: dict[str, list] = {}
+        for b in blocos:
+            for m in b.get("motivos") or []:
+                k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", m["motivo"])[:90]
+                mot.setdefault(k, [0, m["motivo"]])[0] += m["n"]
+        tot = sum(v[0] for v in mot.values()) or 1
+        resumo = {"blocos": len(blocos), "analisados": sum(b.get("analisados") or 0 for b in blocos),
+                  "entradas": sum(len(b.get("entrou") or []) for b in blocos),
+                  "nomes": sorted({s for b in blocos for s in b.get("entrou") or []})[:20],
+                  "motivos": sorted(({"motivo": v[1], "n": v[0], "pct": round(v[0] / tot * 100, 1)} for v in mot.values()), key=lambda m: -m["n"])[:10],
+                  "ligado": {"copia": bool(getattr(pf.cfg, "pump_copy_enabled", True)), "base": bool(getattr(pf.cfg, "pump_auto_on", False)),
+                             "elite": bool(getattr(pf.cfg, "pump_el_auto_on", False))}.get(mod)}
+        return {"modulo": mod, "nome": self.RLOG_NAMES.get(mod, mod), "blocos": blocos[:288], "resumo": resumo}
+
     # ------------------------------------------------------------------ log de análise do Explorar (0.31.88)
     async def explore_cycle_save(self, pf: PumpFun, rec: dict) -> None:
         try:
@@ -1877,6 +1920,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
         self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
+        self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor

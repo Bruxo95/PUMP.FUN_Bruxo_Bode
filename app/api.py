@@ -955,6 +955,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
                                      real=bool(real))
 
+    @app.get("/api/pump/robot-log")
+    async def robot_log(modulo: str, horas: float = 24, pf=Depends(admin_engine)):
+        """0.31.89: log de análise de um robô (copia, base, elite) desta conta, em blocos de 5 min."""
+        if modulo not in hub.RLOG_NAMES:
+            return {"error": "robô inválido"}
+        return await hub.robot_log(pf, modulo, max(1.0, min(float(horas), 24 * 14)))
+
     @app.get("/api/pump/explore/log")
     async def explore_log(horas: float = 24, pf=Depends(admin_engine)):
         """0.31.88: log de análise do Explorar (cada lista de 5 min: o que analisou, o que entrou e por que não)."""

@@ -892,11 +892,52 @@ class PumpFun:
         kw.setdefault("at", now_iso())
         self.store.feed_add(kw)
 
+    RLOG_S = 300                   # 0.31.89: um registro do log de análise a cada 5 min por robô
+
+    def rlog(self, mod: str, key: str, label: str, why: str | None, t: float | None = None) -> None:
+        """0.31.89 (pedido do dono: "log de análise para os outros robôs também"): decisão de um robô (copia, base, elite)
+        sobre um item (key). Agrupa em blocos de 5 min; a mesma key no mesmo bloco guarda só a última decisão (robôs que
+        reavaliam a lista a cada 20 s não contam o mesmo token 15 vezes). why=None = entrou/copiou."""
+        t = time.time() if t is None else t
+        b = int(t // self.RLOG_S) * self.RLOG_S
+        logs = self.__dict__.setdefault("_rlog", {})
+        rec = logs.setdefault((mod, b), {"mod": mod, "ini": b, "tok": {}, "dirty": True})
+        cur = {"s": str(label)[:40], "w": None if why is None else str(why)[:160]}
+        if rec["tok"].get(key) != cur:
+            rec["tok"][key] = cur
+            rec["dirty"] = True
+        for k in sorted(k for k in logs if k[0] == mod)[:-3]:
+            logs.pop(k, None)
+
+    @staticmethod
+    def rlog_summary(rec: dict) -> dict:
+        import re
+        toks = list(rec["tok"].values())
+        mot: dict[str, list] = {}
+        for x in toks:
+            if x["w"]:
+                k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", x["w"])[:90]
+                mot.setdefault(k, [0, x["w"]])[0] += 1
+        motivos = sorted(({"motivo": v[1], "n": v[0]} for v in mot.values()), key=lambda m: -m["n"])[:12]
+        return {"mod": rec["mod"], "ini": rec["ini"], "analisados": len(toks), "entrou": sorted({x["s"] for x in toks if not x["w"]})[:30],
+                "motivos": motivos, "gargalo": motivos[0]["motivo"] if motivos else None,
+                "itens": [{"s": x["s"], "motivo": x["w"]} for x in toks if x["w"]][:40]}
+
+    def rlog_pending(self) -> list[dict]:
+        out = []
+        for rec in (self.__dict__.get("_rlog") or {}).values():
+            if rec.get("dirty"):
+                rec["dirty"] = False
+                out.append(self.rlog_summary(rec))
+        return out
+
     def _copy_note(self, who: str, outcome: str, t: float | None = None) -> None:
         """0.31.78 (pedido do dono: "não há cópia dos top traders nas últimas 24 h"): cada compra de trader seguido que o
         robô viu e o que fez com ela (copiou / motivo de não copiar). Só memória, 24 h (o Feed guarda só os últimos 500)."""
         d = self.__dict__.setdefault("_copy_diag", deque(maxlen=50000))
         d.append((time.time() if t is None else t, who, str(outcome)[:160]))
+        n = self.__dict__["_rlog_n"] = self.__dict__.get("_rlog_n", 0) + 1         # cada compra vista é um item
+        self.rlog("copia", f"{who}:{n}", short(who), None if outcome == "copiou" else outcome, t)
 
     def copy_diag(self, hours: float = 24, now: float | None = None) -> dict:
         now = time.time() if now is None else now
@@ -2405,12 +2446,22 @@ class PumpFun:
         recent = [x for x in done.values() if t - x < 3600]
         out = []
         for x in rising:
-            if len(recent) >= int(self._c("pump_auto_max_h", 5)):
-                break
             mint, pred = x["mint"], x.get("pred") or {}
-            if mint in done or pred.get("verdict") in ("lixo", "suspeito") or x.get("age_min", 99) > float(self._c("pump_auto_max_age", 45)):
+            lab = x.get("symbol") or short(mint)
+            if len(recent) >= int(self._c("pump_auto_max_h", 5)):
+                self.rlog("base", mint, lab, f"limite de {int(self._c('pump_auto_max_h', 5))} compras por hora", t)   # 0.31.89
+                break
+            if mint in done:
                 continue
-            if self.auto_safety(mint, x.get("age_min")):
+            if pred.get("verdict") in ("lixo", "suspeito"):
+                self.rlog("base", mint, lab, f"veredito {pred.get('verdict')}", t)
+                continue
+            if x.get("age_min", 99) > float(self._c("pump_auto_max_age", 45)):
+                self.rlog("base", mint, lab, f"token velho demais (mais de {float(self._c('pump_auto_max_age', 45)):g} min)", t)
+                continue
+            safe = self.auto_safety(mint, x.get("age_min"))
+            if safe:
+                self.rlog("base", mint, lab, safe, t)
                 continue                                    # 0.31.0: idade mínima, carteiras novas, trader bom
             why = []
             if getattr(self.cfg, "pump_auto_boost", True) and (x.get("boost") or {}).get("active"):
@@ -2418,20 +2469,35 @@ class PumpFun:
             if getattr(self.cfg, "pump_auto_chance", False) and pred.get("verdict") == "chance alta":
                 why.append(f"chance alta ({pred.get('chance') or 0:.0f}%)")
             if not why:
+                self.rlog("base", mint, lab, "sem gatilho (nem Boost ON nem chance alta ligada)", t)
                 continue
             done[mint] = t
             r = self.manual_buy(mint, t, auto="automático: " + " + ".join(why))
             if r.get("error") or (r.get("sim") or "").startswith(("já tem", "limite", "saldo")):
+                self.rlog("base", mint, lab, r.get("error") or r.get("sim"), t)
                 if r.get("error"):
                     done.pop(mint, None)                    # sem preço ainda: tenta de novo na próxima volta
                 continue
+            self.rlog("base", mint, lab, None, t)
             recent.append(t)
             out.append(mint)
         return out
 
     def elite_auto(self, s: dict, t: float | None = None) -> dict | None:
         """Maiores traders (0.31.2): compra sozinho no sinal, com as proteções das automáticas (pump_ar_*)."""
-        if not getattr(self.cfg, "pump_el_auto_on", False) or getattr(self, "role", "admin") != "admin":
+        if getattr(self, "role", "admin") != "admin":
+            return None
+        r = self._elite_auto(s, t)
+        # 0.31.89: log de análise de cada sinal (entrou ou por que não)
+        lab = s.get("symbol") or short(s["mint"])
+        why = ("compra automática desligada" if r is None and not getattr(self.cfg, "pump_el_auto_on", False)
+               else "sinal fora das regras (compra grande desligada ou poucas carteiras)" if r is None
+               else None if r.get("auto_id") else (r.get("error") or r.get("sim") or "não entrou"))
+        self.rlog("elite", str(s.get("id") or s["mint"]), lab, why, t)
+        return r
+
+    def _elite_auto(self, s: dict, t: float | None = None) -> dict | None:
+        if not getattr(self.cfg, "pump_el_auto_on", False):
             return None
         big = s.get("reason", "").startswith("compra grande")
         if big and not getattr(self.cfg, "pump_el_auto_big", False):

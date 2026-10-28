@@ -700,6 +700,11 @@
    "versao": "0.31.88",
    "inicio": "2026-10-28T10:38:52+00:00",
    "titulo": "log de análise do Explorar"
+  },
+  {
+   "versao": "0.31.89",
+   "inicio": "2026-10-28T10:47:11+00:00",
+   "titulo": "log de análise da cópia, Base e Maiores traders"
   }
  ]
 }

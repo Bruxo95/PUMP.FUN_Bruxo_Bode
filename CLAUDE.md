@@ -1000,3 +1000,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `explore_cycles` (migração `20261028000003`); `GET /api/pump/explore/log?horas=` (admin); `basegeral.filters_study` (sombras por
   motivo; também em `base_state["filtros"]`). Card `#exLogCard` no Explorar. Achado: só token com preço de até 30 s é analisado
   (`sem_preco` no log). `tests/test_explore_log.py`.
+
+- 0.31.89 (pedido do dono: log para os outros robôs): `PumpFun.rlog/rlog_summary/rlog_pending` (blocos de 5 min, última decisão
+  por item) em `_copy_note` (copia), `auto_check` (base) e `elite_auto` → `_elite_auto` (elite); `hub.rlog_flush/rlog_loop` (60 s) →
+  tabela `robot_log` (migração `20261028000004`); `GET /api/pump/robot-log?modulo=&horas=` (admin); quadro `[data-rlog]` em Top
+  traders, Base e Maiores traders (`loadRobotLog`). Lógica de decisão igual. `tests/test_robot_log.py`.
