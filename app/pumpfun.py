@@ -2478,17 +2478,90 @@ class PumpFun:
             exemplo.setdefault(key, str(g.get("why") or "outro")[:120])     # 0.31.67: mostra o texto real, sem "#"
             px, px0 = (self.tokens.get(mint) or {}).get("price"), g.get("px0")
             if px and px0:
-                barr.append({"mint": mint, "symbol": g.get("symbol"), "chg_pct": round((px / px0 - 1) * 100, 1), "motivo": g.get("why")})
+                barr.append({"mint": mint, "symbol": g.get("symbol"), "chg_pct": round((px / px0 - 1) * 100, 1), "motivo": g.get("why"),
+                             "hi": g.get("hi"), "lo": g.get("lo")})
         barr.sort(key=lambda b: -b["chg_pct"])
         alta = [b for b in barr if b["chg_pct"] >= 50]
         return {"vistos": len(fn), "chance_alta": sum(1 for g in fn.values() if g.get("chance") == "chance alta"),
                 "entrou": sum(1 for g in fn.values() if g.get("entrou")), "barrados": len(fn) - sum(1 for g in fn.values() if g.get("entrou")),
                 "motivos": sorted(({"motivo": exemplo.get(k, k), "n": v} for k, v in motivos.items()), key=lambda m: -m["n"])[:12],
                 "barrados_com_preco": len(barr), "subiram_50": len(alta), "cairam_30": sum(1 for b in barr if b["chg_pct"] <= -30),
-                "top_subiram": alta[:8]}
+                "top_subiram": alta[:8], "cedo": self.barred_sim()}
 
     # 0.32.21: motivos de barragem que são SEGURANÇA — esses nunca entram, mesmo subindo
     BAR_HARD = ("lista negra", "rug", "criador", "risco", "bundle", "carteiras novas", "lixo", "suspeito", "mayhem", "dev ")
+
+    BAR_TRIGGERS = (10, 20, 30, 50)                # 0.32.22: gatilhos testados em "entrar cedo"
+    BAR_FEES_PCT = 4.0                              # ida e volta estimada (curva 1,25% + PumpPortal 0,5% + slippage), por lado ×2
+
+    def _bar_soft(self, g: dict) -> bool:
+        why = str(g.get("why") or "")
+        return bool(why) and not any(h in why.lower() for h in self.BAR_HARD)
+
+    def barred_watch(self, now: float | None = None) -> list[str]:
+        """0.32.22: tokens barrados (não por segurança) da última hora que precisam de preço ao vivo; antes o preço deles
+        só mudava com a lista do Explorar (5 min), e "entrar cedo" ficava impossível."""
+        now = time.time() if now is None else now
+        fn = getattr(self, "_ex_funnel", None) or {}
+        live = [(g.get("first_t") or 0, m) for m, g in fn.items()
+                if not g.get("entrou") and self._bar_soft(g) and now - float(g.get("first_t") or 0) < 5400]
+        return [m for _, m in sorted(live, reverse=True)[:40]]
+
+    def barred_track(self, now: float | None = None) -> None:
+        """0.32.22 (pedido do dono: "entrar bem cedo, a maioria subiu mas também teve queda"): para cada barrado (não por
+        segurança), guarda o pico e a pior queda desde que foi visto e simula entrar quando ele sobe +10/+20/+30/+50%,
+        saindo pelas regras do botão Comprar (stop, alvo, stop móvel) ou em 30 min, já descontando ~4% de taxas.
+        Só mede: nada é comprado aqui. O resultado mostra qual gatilho teria dado lucro."""
+        now = time.time() if now is None else now
+        r = self.manual_rules()
+        stop, tp = float(r["stop_pct"]), float(r["tp_pct"] or 0)
+        ton, tst, tdi = bool(r["trail_on"]), float(r["trail_start"]), float(r["trail_dist"])
+        for mint, g in list((getattr(self, "_ex_funnel", None) or {}).items()):
+            if g.get("entrou") or not self._bar_soft(g):
+                continue
+            tk = self.tokens.get(mint) or {}
+            px, px0 = tk.get("price"), g.get("px0")
+            if not px or not px0 or now - float(tk.get("last_t") or 0) > 120:
+                continue
+            chg = (px / px0 - 1) * 100
+            g["hi"] = round(max(chg, g.get("hi", chg)), 1)
+            g["lo"] = round(min(chg, g.get("lo", chg)), 1)
+            v = g.setdefault("v", {})
+            for T in self.BAR_TRIGGERS:
+                k = str(T)
+                tr = v.get(k)
+                if tr is None:
+                    if chg >= T and now - float(g.get("first_t") or now) < 5400:
+                        v[k] = {"in": px, "t": now, "peak": 0.0}
+                    continue
+                if "out" in tr:
+                    continue
+                ret = (px / tr["in"] - 1) * 100
+                tr["peak"] = max(tr["peak"], ret)
+                why = None
+                if ret <= -stop:
+                    why = "stop"
+                elif tp and ret >= tp:
+                    why = "alvo"
+                elif ton and tr["peak"] >= tst and ret <= tr["peak"] - tdi:
+                    why = "stop móvel"
+                elif now - tr["t"] >= 1800:
+                    why = "30 min"
+                if why:
+                    tr.update(out=round(ret - self.BAR_FEES_PCT, 1), why=why, t_out=now)
+
+    def barred_sim(self) -> list[dict]:
+        rows = []
+        for T in self.BAR_TRIGGERS:
+            tr = [(g.get("v") or {}).get(str(T)) for g in (getattr(self, "_ex_funnel", None) or {}).values()]
+            done = [x for x in tr if x and "out" in x]
+            opn = [x for x in tr if x and "out" not in x]
+            wins = sum(1 for x in done if x["out"] > 0)
+            rows.append({"gatilho": T, "entradas": len(done), "abertas": len(opn), "ganhos": wins,
+                         "acerto": round(wins / len(done) * 100) if done else None,
+                         "media_pct": round(sum(x["out"] for x in done) / len(done), 1) if done else None,
+                         "soma_005": round(sum(x["out"] for x in done) / 100 * 0.05, 4) if done else None})
+        return rows
 
     def barred_auto(self, now: float | None = None) -> list[dict]:
         """0.32.21 (pedido do dono: "essas moedas que foram barradas e subiram já entrar automático, no fictício, nunca no

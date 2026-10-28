@@ -865,6 +865,11 @@
    "versao": "0.32.21",
    "inicio": "2026-10-28T22:30:00+00:00",
    "titulo": "Comprar escolhe a carteira; barrados que sobem entram na fictícia"
+  },
+  {
+   "versao": "0.32.22",
+   "inicio": "2026-10-28T22:45:00+00:00",
+   "titulo": "barrados: preço ao vivo e simulação de entrar cedo"
   }
  ]
 }

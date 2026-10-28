@@ -1110,7 +1110,12 @@
       ["Barrados que subiram 50%+", String(F.subiram_50), (F.cairam_30 || 0) + " caíram 30%+ · " + (F.subiram_50 > F.cairam_30 ? "o filtro pode estar barrando coisa boa" : "o filtro está barrando mais coisa ruim"), "pnl"]]);
     table("exFunM", ["Por que foi barrado", "Tokens"], (F.motivos || []).map((m) => ['<span class="wrapcell">' + esc(m.motivo) + "</span>", String(m.n)]), "Nada barrado nas últimas 24 h (ou entrada automática desligada).");
     // 0.31.92 (pedido do dono): botão Comprar ao lado do token barrado (mesmo botão e regras do Comprar da Base)
-    table("exFunUp", ["Barrado que subiu", "Desde que foi visto", "Motivo", ""], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", '<span class="wrapcell">' + esc(b.motivo || "") + "</span>",
+    // 0.32.22 (pedido do dono: "entrar bem cedo; a maioria subiu mas também teve queda"): pico e pior queda desde que foi visto,
+    // e quanto teria dado entrar quando ele subia +10/+20/+30/+50%
+    table("exFunCedo", ["Entrar quando subir", "Entradas simuladas", "Acerto", "Média por entrada (já com ~4% de taxas)", "Com 0,05 SOL cada", "Ainda abertas"],
+      (F.cedo || []).map((x) => ["+" + x.gatilho + "%", String(x.entradas), x.acerto == null ? "–" : x.acerto + "%", x.media_pct == null ? "–" : pc(x.media_pct), x.soma_005 == null ? "–" : sg(x.soma_005), String(x.abertas)]),
+      "Ainda sem barrados medidos (o preço ao vivo deles começou agora).");
+    table("exFunUp", ["Barrado que subiu", "Agora (desde que foi visto)", "Pico", "Pior queda", "Motivo", ""], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", b.hi == null ? "–" : pc(b.hi, 0), b.lo == null ? "–" : pc(b.lo, 0), '<span class="wrapcell">' + esc(b.motivo || "") + "</span>",
       '<button class="btn sm primary" data-buy="' + esc(b.mint) + '" data-sym="' + esc(b.symbol || "") + '">Comprar</button>']), "Nenhum barrado subiu 50% ou mais.");
   }
   async function saveAutoCfg(body) {

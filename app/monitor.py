@@ -490,6 +490,9 @@ class SharedMonitor:
         el = getattr(self.hub, "elite", None)
         if el is not None:
             trader += list(el.open_mints())               # sinais dos maiores traders: 60 min de preço (0.31.2)
+        for e in self.engines():                          # 0.32.22: barrados do Explorar (entrar cedo) com preço ao vivo
+            if getattr(e, "role", None) == "admin" and getattr(e.cfg, "pump_ex_auto_on", False):
+                trader += e.barred_watch()
         return {"qty": qty, "trader": trader}
 
     def auto_after_once(self, now: float | None = None) -> int:
@@ -808,6 +811,7 @@ class SharedMonitor:
                 await self.explore_auto_once()
                 for e in self.engines():                    # 0.32.21: barrados que subiram, só na fictícia
                     try:
+                        e.barred_track()                    # 0.32.22: mede "entrar cedo" (+10/20/30/50%)
                         e.barred_auto()                     # o aviso sai do próprio manual_buy (compra automática)
                     except Exception as ex:
                         log.warning("barrados que subiram: %s", str(ex)[:160])

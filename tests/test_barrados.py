@@ -50,3 +50,19 @@ def test_barred_by_safety_or_low_volume_never_enters(tmp_path):
     assert pf.barred_auto(now) == []
     now = _row(pf, "veredito não é chance alta", vol=100, chg=3.0)
     assert pf.barred_auto(now) == []
+
+
+def test_early_entry_simulation_per_trigger(tmp_path):
+    """0.32.22: mede o que teria dado entrar quando o barrado subia +10/20/30/50% (só mede, não compra)."""
+    pf = _pf(tmp_path)
+    now = _row(pf, "veredito não é chance alta", chg=1.15)
+    pf.barred_track(now)                                   # +15%: abre os gatilhos de +10%
+    v = pf._ex_funnel[M]["v"]
+    assert "10" in v and "20" not in v
+    pf.tokens[M].update(price=1e-6 * 1.15 * 0.5, last_t=now + 30)    # caiu 50% desde a entrada: stop
+    pf.barred_track(now + 30)
+    assert v["10"]["why"] == "stop" and v["10"]["out"] < 0
+    rows = {r["gatilho"]: r for r in pf.barred_sim()}
+    assert rows[10]["entradas"] == 1 and rows[10]["acerto"] == 0 and rows[20]["entradas"] == 0
+    assert pf._ex_funnel[M]["hi"] >= 15 and pf._ex_funnel[M]["lo"] <= -40
+    assert not pf.positions()                              # nada foi comprado

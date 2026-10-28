@@ -1140,3 +1140,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.21: `manual_buy(..., target=sim|real|both, amt_sol=)` + `target` na rota; modal `#buyM` no clique de `data-buy`. `PumpFun.barred_auto`
   (`pump_bar_*`, OFF; ligado só no dono pela migração `20261028000012`), chamado no `lab_loop` depois do `explore_auto_once`: funil do Explorar
   (`_ex_funnel` guarda `vol`), `BAR_HARD` = motivos de segurança que nunca entram, origem "barrado", sempre só fictícia. Explorar igual.
+
+- 0.32.22: `barred_watch` (até 40 barrados não-segurança da última 1,5 h entram no `held()` do monitor = preço ao vivo), `barred_track`
+  (no `lab_loop`: `hi`/`lo` e entradas virtuais por gatilho `BAR_TRIGGERS` 10/20/30/50% em `g["v"]`, saída pelas regras do botão Comprar
+  ou 30 min, −4% de taxas) e `barred_sim` → `cedo` no funil; tabela `#exFunCedo`. Só mede. Pedido do dono.
