@@ -618,3 +618,6 @@ a.tag{text-decoration:none;cursor:pointer}
 .kpi.clickable{cursor:pointer}.kpi.clickable:hover{border-color:var(--muted)}
 /* 0.32.24: nome de linha com explicação no mouse */
 .hovhelp{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+/* 0.32.26: aviso ao lado do Comprar e destaque da linha em Posições */
+.bought{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}.bought a.tag{text-decoration:none;cursor:pointer;font-size:10px}
+tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}

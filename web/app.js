@@ -47,6 +47,22 @@
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
   let SA_LOG = [], BUY_MINT = "";
+  // 0.32.26 (pedido do dono): ao lado de cada botão Comprar, diz se já tem a moeda na fictícia/real e leva até ela em Posições
+  function markBought() {
+    const pos = (D && D.positions) || [];
+    document.querySelectorAll("[data-buy]").forEach((b) => {
+      const m = b.dataset.buy, sim = pos.some((p) => p.mint === m && !p.real), real = pos.some((p) => p.mint === m && p.real);
+      const key = (sim ? "s" : "") + (real ? "r" : "");
+      let tag = b.nextElementSibling && b.nextElementSibling.classList.contains("bought") ? b.nextElementSibling : null;
+      if (!key) { if (tag) tag.remove(); return; }
+      if (tag && tag.dataset.k === key) return;
+      if (!tag) { tag = document.createElement("span"); tag.className = "bought"; b.after(tag); }
+      tag.dataset.k = key;
+      tag.innerHTML = (sim ? '<a href="#posicoes" class="tag sim" data-gopos="' + esc(m) + '" data-gomode="sim" title="Ver esta moeda em Posições (fictícia)">✓ na FICTÍCIA ›</a>' : "") +
+        (real ? ' <a href="#posicoes" class="tag real" data-gopos="' + esc(m) + '" data-gomode="real" title="Ver esta moeda em Posições (real)">✓ na REAL ›</a>' : "");
+    });
+  }
+  setInterval(() => { try { markBought(); } catch (e) { /* nunca derruba o painel */ } }, 1500);
   const scoreTag = (d) => { if (!d || d.score == null) return "–";
     const c = d.score >= 70 ? "win" : d.score >= 45 ? "neutral" : "loss";
     return '<span class="tag ' + c + '" title="70% acerto (ajustado para poucos tokens) + 30% quanto do dinheiro foi ganho · base ' + d.score_base + ' tokens fechados">' + d.score + "</span>"; };
@@ -1261,6 +1277,16 @@
       $("buyM").hidden = false; return;
     }
     if (t.id === "buyMX") { $("buyM").hidden = true; return; }
+    const gp = t.closest && t.closest("[data-gopos]");
+    if (gp) {
+      e.preventDefault();
+      const m = gp.dataset.gopos;
+      if ((gp.dataset.gomode === "real") !== realMode()) { MODE = gp.dataset.gomode; try { localStorage.setItem("pf:mode", MODE); } catch (x) { /* */ } }
+      location.hash = "#posicoes";
+      setTimeout(() => { const a = document.querySelector('section[data-view="posicoes"] [title="' + m + '"]'); const tr = a && a.closest("tr");
+        if (tr) { tr.scrollIntoView({ behavior: "smooth", block: "center" }); tr.classList.add("flash"); setTimeout(() => tr.classList.remove("flash"), 2500); } else toast("A posição ainda não apareceu; atualiza em alguns segundos."); }, 700);
+      return;
+    }
     if (t.dataset.buygo) {
       const tg = t.dataset.buygo;
       if (tg !== "sim" && !confirm("Confirmar compra na carteira REAL (dinheiro de verdade)?")) return;
@@ -1268,7 +1294,7 @@
       const r = await BB.api("/api/pump/manual-buy", { body: { mint: BUY_MINT, target: tg } });
       t.disabled = false; $("buyM").hidden = true;
       toast(r.error ? "Não comprou: " + r.error : "Fictícia: " + r.sim + (r.real ? " · Real: " + r.real : ""));
-      poll(true); return;
+      await poll(true); markBought(); return;
     }
     if (t.id === "tgTest") { const r = await BB.api("/api/pump/telegram/test", { body: {} }); toast(r.error ? "Não enviou: " + r.error : "Enviado. Confira o Telegram."); }
   });

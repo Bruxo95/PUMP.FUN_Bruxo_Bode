@@ -1152,3 +1152,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.25: `PUMP_ERRORS["0x1771"]` explica os dois sentidos (Jupiter = slippage; pump.fun = AlreadyInitialized, IDL 13/10/2026). Lote 6 do
   ChatGPT conferido em `PUMP-FUN-LEARNING/conferencia-claude-lote6-2026-10-28.md`.
+
+- 0.32.26: `markBought()` (a cada 1,5 s) põe `.bought` ao lado de todo `[data-buy]` com a posição aberta (fictícia/real); `data-gopos`
+  troca o modo, abre `#posicoes` e pisca a linha (`tr.flash`). Pedido do dono.
