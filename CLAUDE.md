@@ -990,3 +990,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   operações do Explorar 24 h e sombras com pico 50%+) + tabela `token_xray` (migração `20261028000002`) + `GET /api/pump/raiox/{mint}`
   (admin) + botão na ficha do token. C: `raiox.study` × `hub.xray_outcomes` → `#bgX`. Nada bloqueia. `tests/test_raiox.py`.
 - Conferido em 28/10: Jupiter cota SOL → Grokbot (curva SPCX) via Whirlpool SOL→SPCX + Pump.fun AMM (consulta pública).
+
+- 0.31.87 (Bruxo, áudios de 28/10): `PumpFun.position_rule` (`off_stop`/`off_trail`/`off_tp1`, também no par do espelho) +
+  `POST /api/pump/positions/rule` (audit); `_check_stops` respeita. Posições: botões `prule` e `soldCell`; Histórico: `#tPart`
+  (vendas parciais de posições abertas). Relatório `app/relatorios_ia/2026-10-28-0.31.87.md`. `tests/test_regras_posicao.py`.

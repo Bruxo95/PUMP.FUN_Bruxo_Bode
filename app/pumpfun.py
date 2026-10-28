@@ -1305,6 +1305,7 @@ class PumpFun:
                 continue
             # STOP MÓVEL: liga quando o líquido (após taxas) passa de X%; depois sai se cair Y pontos do pico
             trail_on = p["trail_on"] if "trail_on" in p else getattr(self.cfg, "pump_trail_enabled", True)
+            trail_on = trail_on and not p.get("off_trail")          # 0.31.87 (Bruxo): desligado nesta posição
             t_start = float(p.get("trail_start") or self._c("pump_trail_start_pct", 20))
             t_dist = float(p.get("trail_dist") or self._c("pump_trail_dist_pct", 10))
             stop = float(p.get("stop_pct") or self._c("pump_stop_pct", 40))      # 0.26.0: compra do botão tem as suas
@@ -1333,7 +1334,7 @@ class PumpFun:
             if own_auto and tp and chg >= tp:
                 out.append(self._sell(p, 1.0, px, f"alvo (+{tp:.0f}%)", t))
                 continue
-            if tp1 and not p.get("tp1_done") and chg >= tp1 and p["tokens_left"] > p["tokens"] * 0.05:
+            if tp1 and not p.get("off_tp1") and not p.get("tp1_done") and chg >= tp1 and p["tokens_left"] > p["tokens"] * 0.05:
                 p["tp1_done"] = True
                 frac = float(p["tp1_frac"]) if p.get("tp1_frac") is not None else float(self._c("pump_tp1_frac_pct", 50))
                 frac /= 100
@@ -1343,7 +1344,7 @@ class PumpFun:
                 out.append(self._sell(p, 1.0, px, f"stop móvel (pico {p['trail_peak']:+.1f}% → saiu em {chg:+.1f}% líquido)", t))
             elif p.get("hold_profit") and chg > float(self._c("pump_hold_min_profit_pct", 0.0)):
                 out.append(self._sell(p, 1.0, px, f"segurou até ficar positivo ({chg:+.1f}% líquido)", t))
-            elif chg <= -stop:
+            elif chg <= -stop and not p.get("off_stop"):
                 out.append(self._sell(p, 1.0, px, f"stop de perda (−{stop:.0f}%)", t))
             elif p.get("boost_tp") and chg >= float(p["boost_tp"]) and self.boost_info(mint).get("active"):
                 out.append(self._sell(p, 1.0, px, f"boost ON: alvo +{float(p['boost_tp']):.0f}% ({chg:+.1f}% líquido)", t))
@@ -1394,6 +1395,26 @@ class PumpFun:
         txt = "sem limite de tempo" if add_min is None else f"tempo máximo agora {new / 60:,.0f} min".replace(",", ".")
         self._emit(f"[PUMP {'REAL' if p.get('real') else 'SIM'}] {p.get('symbol')}: {txt} (estendido por você)")
         return {"ok": True, "max_hold_s": new, "pares": len(twins)}
+
+    POS_RULES = {"stop": ("off_stop", "stop de perda"), "trail": ("off_trail", "stop móvel"), "tp1": ("off_tp1", "venda em partes")}
+
+    def position_rule(self, pid, regra: str, on: bool) -> dict:
+        """0.31.87 (Bruxo, áudio de 28/10): liga/desliga stop de perda, stop móvel ou venda em partes de UMA posição aberta
+        (token que vai demorar dias para subir). Vale também para o par do espelho (fictícia × real)."""
+        if regra not in self.POS_RULES:
+            return {"error": "regra inválida"}
+        key, nome = self.POS_RULES[regra]
+        pos = self.positions()
+        p = next((x for x in pos if str(x["id"]) == str(pid)), None)
+        if p is None:
+            return {"error": "posição não encontrada"}
+        twins = [p] + [x for x in pos if x is not p and ((p.get("real") and str(x["id"]) == str(p.get("sim_id")))
+                                                          or (not p.get("real") and str(x.get("sim_id")) == str(p["id"])))]
+        for x in twins:
+            x[key] = not on
+            self._save_pos(x)
+        self._emit(f"[PUMP {'REAL' if p.get('real') else 'SIM'}] {p.get('symbol')}: {nome} {'ligado' if on else 'DESLIGADO'} nesta posição (por você)")
+        return {"ok": True, "regra": regra, "on": on, "pares": len(twins)}
 
     def close_position(self, pid) -> dict:
         for p in self.positions():

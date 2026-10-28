@@ -2096,9 +2096,14 @@
       const src = p.hold_src === "posição" ? (p.auto ? ' <a href="#explorar">Explorar → Proteções</a>' : " desta posição") : ' <a href="#config">Configurações</a>';
       return (rest > 0 ? "<b>faltam " + hms(rest) + "</b>" : '<b class="down">vencido · saindo</b>') + "<small>limite " + hms(h) + " ·" + src + "</small>" + holdBtns(p);
     };
-    const holdBtns = (p) => p.selling ? "" : '<span class="row" style="gap:4px;margin-top:4px">' + btn("+30 min", "hold", { id: p.id, add: 30 }) + btn("+1 h", "hold", { id: p.id, add: 60 }) + btn("Sem limite", "hold", { id: p.id, add: "none" }) + "</span>";
+    // 0.31.87 (Bruxo, áudio de 28/10): desligar stop de perda, stop móvel e venda em partes só desta posição
+    const ruleBtn = (p, regra, nome, off) => btn(nome + (off ? ": OFF" : ": ON"), "prule", { id: p.id, regra: regra, on: off ? 1 : 0 }, off ? "tgl off" : "tgl on");
+    const holdBtns = (p) => p.selling ? "" : '<span class="row" style="gap:4px;margin-top:4px">' + btn("+30 min", "hold", { id: p.id, add: 30 }) + btn("+1 h", "hold", { id: p.id, add: 60 }) + btn("Sem limite", "hold", { id: p.id, add: "none" }) + "</span>" +
+      '<span class="row" style="gap:4px;margin-top:4px;flex-wrap:wrap">' + ruleBtn(p, "stop", "Stop de perda", p.off_stop) + ruleBtn(p, "trail", "Stop móvel", p.off_trail) + ruleBtn(p, "tp1", "Venda em partes", p.off_tp1 || p.tp1_done) + "</span>";
+    // 0.31.87 (Bruxo): venda parcial aparece na posição (quanto, quando, em quanto de lucro)
+    const soldCell = (p) => !(p.sells || []).length ? "–" : s4(p.proceeds) + " SOL" + p.sells.map((s) => "<small>" + dt(s.at) + " · " + f((s.frac || 0) * 100, 0) + "% · " + s4(s.sol) + " SOL" + (s.why ? '<span class="wrapcell"> · ' + esc(s.why) + "</span>" : "") + "</small>").join("");
     table("tPos", ["Token", "Trader", "Entrada", "Investido", "Agora", "Variação", "Volume do token", "Vendido", "Aberta há", "Tempo de saída", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : "") + (p.venue_in ? "<small>" + esc(p.venue_in) + "</small>" : ""), pfW(p.wallet, p), ex(p.price_in), s4(p.sol_in) + " SOL",
-      ex(p.price_now || p.price_in) + (p.price_at ? "<small>há " + agoT(p.price_at) + "</small>" : ""), pc(p.chg_pct), vol(p), (p.sells || []).length ? s4(p.proceeds) + " SOL" : "–", agoIso(p.opened_at), left(p),
+      ex(p.price_now || p.price_in) + (p.price_at ? "<small>há " + agoT(p.price_at) + "</small>" : ""), pc(p.chg_pct), vol(p), soldCell(p), agoIso(p.opened_at), left(p),
       (p.trail_peak != null ? '<span class="tag trail">Stop móvel</span><small>pico ' + pc(p.trail_peak) + " · sai em +" + f(p.trail_exit, 1) + "%</small>" : "") + (p.hold_profit ? '<span class="tag pause">Segurando até lucro</span><small>desde ' + dt(p.hold_since) + "</small>" : "") +
       (p.selling ? '<span class="tag pause">Vendendo…</span>' : btn(p.real ? "Vender" : "Fechar", "close", { id: p.id, real: p.real ? 1 : 0 }, p.real ? "tgl off" : "")) + (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "")]),
       rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.");
@@ -2109,6 +2114,10 @@
     const fee = (t) => { const fp = t.fee_parts || {}; if (t.fees_sol == null) return "–"; const tip = "pump.fun/PumpSwap: " + s4(fp.platform) + " · PumpPortal: " + s4(fp.portal) + " · rede: " + s4(fp.network) + (fp.slippage ? " · slippage: " + s4(fp.slippage) : ""); return '<span title="' + esc(tip) + '">' + s4(t.fees_sol) + " SOL</span><small>" + (t.sol_in ? f((t.fees_sol / t.sol_in) * 100, 1) + "% do investido" : "") + "</small>"; };
     table("tTr", ["Fechou", "Token", "Trader", "Investido", "Recebido", "Taxas", "Bruto", "Líquido", "%", "Segurou", "Motivo", "Tipo"], T.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.venue ? "<small>" + esc(t.venue) + "</small>" : ""), pfW(t.wallet, t), s4(t.sol_in), s4(t.sol_out), fee(t), sg(t.gross_sol), "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
       '<span style="white-space:normal;display:block;max-width:280px">' + esc(t.reason) + "</span>", t.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>']), "Nenhum trade fechado ainda.");
+    // 0.31.87 (Bruxo): vendas parciais de posições que ainda estão abertas (antes só apareciam na carteira)
+    const PS = []; (D.positions || []).filter((p) => !!p.real === rm).forEach((p) => (p.sells || []).forEach((s) => PS.push([dt(s.at), pfM(p.mint, p.symbol), pfW(p.wallet, p), f((s.frac || 0) * 100, 0) + "%", s4(s.sol) + " SOL",
+      '<span class="wrapcell">' + esc(s.why || "") + "</span>", s.signature ? '<a href="https://solscan.io/tx/' + encodeURIComponent(s.signature) + '" target="_blank" rel="noopener">ver ↗</a>' : "–"])));
+    if ($("tPart")) table("tPart", ["Quando", "Token", "Trader", "Vendeu", "Recebeu", "Motivo", "Transação"], PS, "Nenhuma venda parcial em posição aberta.");
     const by = {}, byX = {}; T.forEach((t) => { const key = t.wallet === "manual" ? "manual:" + whoLabel(t) : t.wallet; byX[key] = byX[key] || t; const b = (by[key] = by[key] || { n: 0, w: 0, p: 0, pp: 0, po: 0, np: 0, no: 0 }); const isP = String(t.venue || "pump").toLowerCase().indexOf("pump") >= 0; b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol; if (isP) { b.pp += t.pnl_sol; b.np++; } else { b.po += t.pnl_sol; b.no++; } });
     table("tBy", ["Trader", "Trades", "Acerto", "Resultado", "pump.fun", "Fora da pump.fun"], Object.entries(by).sort((a, b) => b[1].p - a[1].p).map(([w, b]) => [pfW(byX[w].wallet, byX[w]), String(b.n), f((b.w / b.n) * 100, 0) + "%", sg(b.p), b.np ? sg(b.pp) + "<small>" + b.np + " trades</small>" : "–", b.no ? sg(b.po) + "<small>" + b.no + " trades</small>" : "–"]), "Sem trades fechados ainda.");
   }
@@ -2409,6 +2418,14 @@
     if (t.dataset.goto) { $("menu").hidden = true; location.hash = t.dataset.goto; return; }
     const a = t.dataset.act; if (!a) return;
     if (a === "w") return wallet(t.dataset.a, t.dataset.w);
+    if (a === "prule") {
+      const on = t.dataset.on === "1", nome = { stop: "o stop de perda", trail: "o stop móvel", tp1: "a venda em partes" }[t.dataset.regra];
+      if (!on && !confirm("Desligar " + nome + " só desta posição (e do par REAL/FICTÍCIA)?" + (t.dataset.regra === "stop" ? "\n\nSem stop de perda a posição pode cair até zero; ela só sai pelo tempo máximo, alvo ou se você fechar." : ""))) return;
+      t.disabled = true;
+      const r = await BB.api("/api/pump/positions/rule", { body: { id: t.dataset.id, regra: t.dataset.regra, on: on } });
+      toast(r.error || (nome.charAt(2).toUpperCase() + nome.slice(3) + (on ? " ligado" : " desligado") + " nesta posição."));
+      poll(true); return;
+    }
     if (a === "hold") {
       const none = t.dataset.add === "none";
       if (none && !confirm("Tirar o limite de tempo desta posição? Ela só sai pelas outras regras (stop, alvo, stop móvel) ou se você fechar.")) return;

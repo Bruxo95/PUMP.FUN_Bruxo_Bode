@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.87",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Posições e Histórico",
+      "titulo": "Desligar stop por posição e ver as vendas parciais",
+      "oque": "Pedido do Bruxo. Cada posição aberta tem 3 botões: Stop de perda, Stop móvel e Venda em partes (ON/OFF), para segurar um token que vai demorar para subir sem mudar a configuração geral. Vale também para o par REAL/FICTÍCIA. As vendas parciais agora aparecem na coluna Vendido de Posições (quando, quanto e por quê) e numa tabela nova no Histórico, com o link da transação."
+    },
+    {
       "versao": "0.31.86",
       "data": "2026-10-28",
       "tipo": "novo",

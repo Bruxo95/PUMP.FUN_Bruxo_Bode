@@ -690,6 +690,11 @@
    "versao": "0.31.86",
    "inicio": "2026-10-28T10:21:42+00:00",
    "titulo": "veredito medido, Raio-X do token e sinais do começo"
+  },
+  {
+   "versao": "0.31.87",
+   "inicio": "2026-10-28T10:28:30+00:00",
+   "titulo": "desligar stop por posição e vendas parciais visíveis"
   }
  ]
 }

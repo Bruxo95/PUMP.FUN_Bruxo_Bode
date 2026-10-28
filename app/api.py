@@ -779,6 +779,16 @@ def create_app(hub, auth, cfg) -> FastAPI:
             await audit(hub.db, u["id"], "posição: tempo estendido", f"{body.get('id')} · " + ("sem limite" if add is None else f"+{add:g} min"))
         return r
 
+    @app.post("/api/pump/positions/rule")
+    async def pump_pos_rule(body: dict, u: dict = Depends(user)):
+        """0.31.87 (Bruxo): desligar/ligar stop de perda, stop móvel ou venda em partes de uma posição aberta."""
+        pf = await hub.engine(u["id"])
+        hub.check_active(u["id"], pf)
+        r = pf.position_rule(body.get("id"), str(body.get("regra") or ""), bool(body.get("on")))
+        if r.get("ok"):
+            await audit(hub.db, u["id"], "posição: regra de saída", f"{body.get('id')} · {r['regra']} {'ligado' if r['on'] else 'desligado'}")
+        return r
+
     @app.post("/api/pump/leaderboard")
     async def pump_lb(body: dict, pf=Depends(engine)):
         """Troca o período do leaderboard (1/7/30/90 dias) e atualiza agora."""
