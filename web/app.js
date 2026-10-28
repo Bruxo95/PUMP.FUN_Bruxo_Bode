@@ -2172,6 +2172,10 @@
     return '<div class="tbl-wrap"><table class="systbl"><thead><tr><th>Serviço</th><th>Situação</th><th>Detalhe</th></tr></thead><tbody>' +
       row("Solana RPC", okb(RP.ws, RP.error), RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado")) +
       row("PumpPortal", okb(PPs.ws, PPs.error), PPs.ws ? "tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado")) +
+      // 0.32.18 (pedido do dono): trades das copiadas pela PumpPortal paga (0,01 SOL a cada 10 mil trades, na carteira da chave do sistema)
+      row("Trades das copiadas pela PumpPortal", '<button class="btn sm tgl" data-toggle="pump_pp_copy" data-confirm="Ligar? A PumpPortal cobra 0,01 SOL a cada 10 mil trades recebidos, da carteira ligada à chave PumpPortal do sistema (precisa ter saldo).">…</button>',
+        (PPs.acct_subs ? PPs.acct_subs + " carteiras assinadas · " + f(PPs.acct_trades || 0, 0) + " trades recebidos (≈ " + ((PPs.acct_trades || 0) / 1e6).toFixed(4) + " SOL)" + (PPs.acct_last ? " · último " + ago(PPs.acct_last) : "") + (RP.pp_skip ? " · " + f(RP.pp_skip, 0) + " leituras do RPC economizadas" : "")
+          : "desligado · ligado, as compras e vendas das carteiras copiadas chegam prontas, sem gastar o RPC (só pump.fun/PumpSwap; cobra 0,01 SOL a cada 10 mil trades da carteira da chave PumpPortal do sistema)")) +
       row("Preços", okb(!RP.price_error, RP.price_error), esc(RP.price_error || "–")) +
       row("Jupiter", okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error), esc((A.jupiter || {}).error || "–")) +
       row("Solana Tracker", okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave"), esc((A.solana_tracker || {}).error || "–")) +

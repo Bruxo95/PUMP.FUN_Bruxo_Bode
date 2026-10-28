@@ -1124,3 +1124,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.17: `sim_only` também vale para `pf.sim_only_list` (`_sim_only`; botão Copiar do estudo → `POST /api/pump/study/copy`) e para toda
   aprovada (mesmo já manual); `ia_added` (`_ia_added`) = só essas a IA tira da lista manual. `study_my_results` mostra a linha real de quem é
   copiado, com `real_state`; tabelas `#stMine` (fictícia) e `#stMineR` (real). Pedido do dono (por enquanto, só fictícia).
+
+- 0.32.18: `pump_pp_copy` (OFF). `SharedMonitor.pp_wanted` (chave PumpPortal do sistema + admin com a opção) → `_pp_sync` (subscribe/
+  unsubscribeAccountTrade de `union_followed`, a cada 10 s na conexão da PumpPortal) → `_pp_trade` → `handle_ev` (parte de `handle_tx`
+  depois de decodificar). Dedupe `_seen_sig(carteira:assinatura)`; `on_notification` pula transação pump de carteira assinada (`pp_skip`).
+  Status: `acct_subs`/`acct_trades`/`acct_dup`. Custo na carteira da chave do sistema. Relatório `app/relatorios_ia/2026-10-28-0.32.18.md`.

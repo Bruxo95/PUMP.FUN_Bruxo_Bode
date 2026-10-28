@@ -55,6 +55,9 @@ class SharedMonitor:
         self.rpc_log: dict[str, deque] = {k: deque(maxlen=300) for k in ("falha", "atrasado", "nao_trade", "trade")}
         self.rpc_why: dict[str, int] = {}
         self._low_lim: dict[str, deque] = {}            # 0.32.8: leituras por minuto de quem não é copiado
+        self._pp_subs: set[str] = set()                 # 0.32.18: carteiras assinadas na PumpPortal (subscribeAccountTrade)
+        self._done_sigs: deque = deque(maxlen=20000)    # 0.32.18: assinatura já entregue (PumpPortal e RPC não repetem)
+        self._done_set: set = set()
         self._seen: deque = deque(maxlen=5000)
         self._subs: dict = {}
         self.lb_cache: dict = {}            # (dias, trades, acerto, plataforma) -> {"at", "rows", "status"}
@@ -91,6 +94,26 @@ class SharedMonitor:
         return out
 
     # ------------------------------------------------------------------ entrega de um evento a todos
+    def pp_wanted(self) -> set:
+        """0.32.18: carteiras copiadas por alguém, se algum admin ligou pump_pp_copy e existe a chave PumpPortal do sistema."""
+        if not self.hub.system_keys.get("pumpportal_api_key"):
+            return set()
+        if not any(getattr(e.cfg, "pump_pp_copy", False) and getattr(e, "role", None) == "admin" for e in self.engines()):
+            return set()
+        return set(self.union_followed())
+
+    def _seen_sig(self, sig) -> bool:
+        """True se esta transação já foi entregue aos motores (pela PumpPortal ou pelo RPC)."""
+        if not sig:
+            return False
+        if sig in self._done_set:
+            return True
+        if len(self._done_sigs) == self._done_sigs.maxlen:
+            self._done_set.discard(self._done_sigs[0])
+        self._done_sigs.append(sig)
+        self._done_set.add(sig)
+        return False
+
     def dispatch(self, ev: dict, t: float | None = None, only: list | None = None) -> None:
         """Parte pública do evento UMA vez; depois cada motor reage (cópia de quem segue + stops de quem tem
         posição no token)."""
@@ -231,6 +254,9 @@ class SharedMonitor:
             act["other"] += 1
         if not fol and not studied:
             return                                     # só observando (status online do top)
+        if is_pump and w in self._pp_subs:
+            st["pp_skip"] = st.get("pp_skip", 0) + 1   # 0.32.18: chega pronta pela PumpPortal; não gasta o RPC
+            return
         if not is_pump and not studied and not any(getattr(e.cfg, "pump_copy_other", True) for e in fol):
             return
         if not fol:
@@ -306,6 +332,14 @@ class SharedMonitor:
                            f"{time.time() - t1:.1f} s tentando, {len(why)} tentativas")
             return
         ev = svc.parse_trade(tx, w, self.market.sol_usd)
+        if ev and self._seen_sig(f"{w}:{sig}"):
+            st["dup"] = st.get("dup", 0) + 1            # 0.32.18: já veio pela PumpPortal
+            return
+        await self.handle_ev(w, sig, t0, ev, cop)
+
+    async def handle_ev(self, w: str, sig: str, t0: float, ev: dict | None, cop: bool, via: str = "RPC") -> None:
+        """Trade já decodificado (do RPC ou da PumpPortal, 0.32.18): estudo, maiores traders, calls e cópia."""
+        st, svc = self.market.rpc_status, self.svc
         if ev and any(w in (getattr(e, "study", []) or []) for e in self.engines()):
             self.hub.record_trade(w, ev)                        # carteiras em estudo: guarda no banco
         if ev and w in self.hub.elite.wallets():
@@ -314,8 +348,9 @@ class SharedMonitor:
             st["not_trade"] = st.get("not_trade", 0) + 1     # transação lida, mas não era compra/venda de token
             self._rpc_note("nao_trade", w, sig, t0, cop, "não mexeu em token contra SOL")
             return
-        self._rpc_note("trade", w, sig, t0, cop, f"{ev.get('txType')} {ev.get('solAmount', 0):.3f} SOL",
-                       f"lido {time.time() - t0:.1f} s depois do aviso", mint=ev.get("mint"))
+        self._rpc_note("trade", w, sig, t0, cop, f"{ev.get('txType')} {float(ev.get('solAmount') or 0):.3f} SOL",
+                       f"{'pela PumpPortal' if via == 'PumpPortal' else 'lido'} {time.time() - t0:.1f} s depois do aviso",
+                       mint=ev.get("mint"))
         st["parsed"] += 1
         st["last_event"] = time.time()
         try:
@@ -378,13 +413,26 @@ class SharedMonitor:
                     st.update(ws=True, connected_at=now_iso(), error=None)
                     backoff = 2.0
                     await ws.send(json.dumps({"method": "subscribeNewToken"}))
+                    self._pp_subs = set()                     # conexão nova: assina de novo
+                    sync_at = 0.0
                     while True:
-                        raw = await ws.recv()
+                        if time.time() - sync_at > 10:
+                            sync_at = time.time()
+                            await self._pp_sync(ws)
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=5)
+                        except asyncio.TimeoutError:
+                            continue
                         try:
                             ev = json.loads(raw)
                         except ValueError:
                             continue
-                        if isinstance(ev, dict) and ev.get("txType"):
+                        if not isinstance(ev, dict) or not ev.get("txType"):
+                            continue
+                        w = ev.get("traderPublicKey")
+                        if ev.get("txType") in ("buy", "sell") and w in self._pp_subs:
+                            self._pp_trade(w, ev)
+                        else:
                             self.dispatch(ev)
             except asyncio.CancelledError:
                 raise
@@ -393,6 +441,37 @@ class SharedMonitor:
                 st.update(ws=False, error=redact(f"{type(e).__name__}: {str(e)[:120]}"))
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
+
+    async def _pp_sync(self, ws) -> None:
+        """0.32.18: mantém a assinatura subscribeAccountTrade igual às carteiras copiadas (até 5.000 por mensagem, FAQ)."""
+        want = self.pp_wanted()
+        add, rem = sorted(want - self._pp_subs), sorted(self._pp_subs - want)
+        for i in range(0, len(rem), 500):
+            await ws.send(json.dumps({"method": "unsubscribeAccountTrade", "keys": rem[i:i + 500]}))
+        for i in range(0, len(add), 500):
+            await ws.send(json.dumps({"method": "subscribeAccountTrade", "keys": add[i:i + 500]}))
+        self._pp_subs = set(want)
+        self.market.status["acct_subs"] = len(want)
+
+    def _pp_trade(self, w: str, ev: dict) -> None:
+        """Trade de carteira copiada vindo pronto da PumpPortal: mesma rota do RPC, sem ler a transação."""
+        stt = self.market.status
+        stt["acct_trades"] = stt.get("acct_trades", 0) + 1
+        stt["acct_last"] = time.time()
+        sig = ev.get("signature")
+        if self._seen_sig(f"{w}:{sig}"):                  # por carteira: 2 copiadas na mesma transação contam as duas
+            stt["acct_dup"] = stt.get("acct_dup", 0) + 1
+            return
+        ev = dict(ev)
+        try:                                                # mesmo formato que o motor já lê (on_message original)
+            ev["solAmount"], ev["tokenAmount"] = float(ev.get("solAmount") or 0), float(ev.get("tokenAmount") or 0)
+        except (TypeError, ValueError):
+            return
+        now = time.time()
+        task = asyncio.get_event_loop().create_task(self.handle_ev(w, sig, now, ev, bool(self.followers(w)), via="PumpPortal"))
+        pend = self.__dict__.setdefault("_pp_tasks", set())    # referência forte até terminar
+        pend.add(task)
+        task.add_done_callback(pend.discard)
 
     # ------------------------------------------------------------------ preços
     def ghost_mints(self) -> set:

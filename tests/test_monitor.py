@@ -306,3 +306,33 @@ def test_rpc_429_sets_shared_cooldown_and_low_priority_tries_less(tmp_path):
     res, why = _run(go())
     assert res is None and len(calls) == 2 and why == ["HTTP 429 (limite do RPC)"] * 2
     assert pf.market.rpc_cool_until > time.time()
+
+
+def test_pumpportal_account_trades_copy_without_rpc_and_no_double(setup):
+    """0.32.18 (pedido do dono): com pump_pp_copy, o trade da carteira copiada chega pronto pela PumpPortal, é copiado
+    uma vez só (o mesmo trade lido depois pelo RPC não repete) e a carteira deixa de gastar leitura do RPC."""
+    a, mon, hub = setup["a"], setup["mon"], setup["hub"]
+    a.add_manual(WA)
+    a.role = "admin"
+    assert mon.pp_wanted() == set()                          # sem chave do sistema e opção desligada
+    hub.system_keys["pumpportal_api_key"] = "pp-teste"
+    a.cfg.pump_pp_copy = True
+    assert mon.pp_wanted() == {WA}
+    mon._pp_subs = {WA}
+    mint = "PPcopy".ljust(40, "1") + "pump"
+    ev = {"signature": "ppsig1", "mint": mint, "traderPublicKey": WA, "txType": "buy", "solAmount": 1.0,
+          "tokenAmount": 1e6, "vSolInBondingCurve": 30, "vTokensInBondingCurve": 3e7, "marketCapSol": 900}
+
+    async def go():
+        mon._pp_trade(WA, ev)
+        mon._pp_trade(WA, ev)                                 # repetido: ignora
+        await asyncio.gather(*list(mon.__dict__.get("_pp_tasks") or []))
+        await mon.handle_tx(WA, "ppsig1", time.time(), tx(WA, mint, 10, 8.999995, None, 1_000_000, "ppsig1"))
+    _run(go())
+    assert len([p for p in a.positions() if p["mint"] == mint]) == 1
+    assert mon.market.status["acct_dup"] == 1 and mon.market.rpc_status["dup"] == 1
+    mon._tx_q = asyncio.Queue()
+    mon._subs = {1: WA}
+    mon.on_notification({"method": "logsNotification", "params": {"subscription": 1, "result": {"value": {
+        "signature": "ppsig2", "err": None, "logs": ["Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke"]}}}})
+    assert mon._tx_q.qsize() == 0 and mon.market.rpc_status["pp_skip"] == 1

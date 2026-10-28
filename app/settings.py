@@ -41,6 +41,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_st_auto_on": (bool, True, 0, 1),
     # 0.32.11 (pedido do dono, 28/10): copiar sozinha as carteiras que o estudo automático aprovou — SÓ na fictícia
     "pump_st_auto_copy": (bool, False, 0, 1),
+    # 0.32.18 (pedido do dono, 28/10): trades das carteiras COPIADAS pela PumpPortal (subscribeAccountTrade), cobrado da carteira
+    # ligada à chave PumpPortal do sistema (0,01 SOL a cada 10 mil trades, pumpportal.fun/fees). Começa DESLIGADO.
+    "pump_pp_copy": (bool, False, 0, 1),
     "pump_tune_on": (bool, True, 0, 1),                # 0.31.14: ajuste automático (saída pelos fantasmas + pausar trader ruim)             # 0.31.13: estudo automático de carteiras (só estudo, não copia)
     "pump_st_auto_max": (int, 15, 1, 30),                # 0.31.12: aprender com os erros (bloqueia faixas que perdem; só aperta)     # exigir trader bom também no Explorar (na Base continua exigido)
     "pump_ex_auto_min_pressure": (float, 60.0, 0.0, 100.0),
