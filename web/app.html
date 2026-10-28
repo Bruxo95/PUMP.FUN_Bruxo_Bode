@@ -49,6 +49,7 @@
         <a href="#aprendizado" data-v="aprendizado" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>Aprendizado diário</a>
         <a href="#fantasma" data-v="fantasma" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10a6 6 0 0 1 12 0v10l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5z"/><circle cx="10" cy="10" r="1"/><circle cx="14" cy="10" r="1"/></svg>Estratégias fantasma</a>
         <a href="#elite" data-v="elite" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Maiores traders</a>
+        <a href="#igual" data-v="igual" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="10" height="10" rx="2"/><rect x="10" y="10" width="10" height="10" rx="2"/></svg>Copiar igual</a>
         <a href="#base" data-v="base" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Base da pump.fun</a>
         <a href="#listanegra" data-v="listanegra" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>Lista negra</a>
         <a href="#comparar" data-v="comparar" data-novo-ate="2026-11-10"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v18M16 3v18M3 8h5M16 8h5M3 16h5M16 16h5"/></svg>Comparar config copiada</a>
@@ -63,7 +64,7 @@
       <a href="#ajuda" data-v="ajuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg>Como funciona</a>
     </nav>
     <div class="sp"></div>
-    <div class="sysbox"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></div>
+    <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver o status completo do sistema"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
     <div class="ver" id="ver"></div>
   </aside>
   <div class="scrim" id="scrim"></div>
@@ -97,6 +98,9 @@
           <button class="btn sm" id="uTrX" style="margin-left:8px">Fechar</button></header>
         <div class="kpis" id="uTrK" style="margin:4px 0 12px"></div>
         <div class="tbl-wrap"><table id="uTrTbl" class="daytbl"></table></div></div></div>
+      <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
+        <header><div><h2 id="sysMT">Status do sistema</h2><div class="sub" id="sysMS"></div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
+        <div id="sysMB"></div></div></div>
       <div class="modal" id="cfgDiff" hidden role="dialog" aria-modal="true" aria-labelledby="cfgDiffT"><div class="modal-box">
         <header><div><h2 id="cfgDiffT">O que mudou</h2><div class="sub" id="cfgDiffS"></div></div><div class="sp"></div><button class="btn sm" id="cfgDiffX">Fechar</button></header>
         <div id="cfgDiffB"></div></div></div>
@@ -410,6 +414,27 @@
       </section>
 
       <!-- ========================================================= MAIORES TRADERS (app/elite.py, 0.31.2) -->
+      <!-- ========================================================= COPIAR IGUAL (0.32.4) -->
+      <section class="view" data-view="igual" hidden>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Copiar igual</h2><div class="sub" id="eqSub">copia toda compra e venda das carteiras desta lista, sem filtros e sem espera</div></div></header>
+          <div class="kpis" id="eqK"></div>
+          <div class="form">
+            <div class="field"><label>Copiar igual</label><div class="row"><button class="btn sm tgl" data-toggle="pump_eq_on">…</button></div></div>
+            <div class="field"><label for="eqSol">SOL por compra (fictícia)</label><div class="row"><input class="in w80" id="eqSol" type="number" min="0.001" max="10" step="0.01" data-cfg="pump_eq_sol"><button class="btn sm" data-set="pump_eq_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_eq_sol" data-val="0.1">0,1</button></div></div>
+            <div class="field"><label for="eqMax">Máximo de posições abertas</label><div class="row"><input class="in w80" id="eqMax" type="number" min="1" max="100" step="1" data-cfg="pump_eq_max_open"></div></div>
+            <div class="field"><label for="eqHold">Tempo máximo da posição (h)</label><div class="row"><input class="in w80" id="eqHold" type="number" min="0.5" max="168" step="0.5" data-cfg="pump_eq_max_hold_h"></div></div>
+            <div class="field"><label for="eqStop">Stop de segurança (%) · 0 = sem stop</label><div class="row"><input class="in w80" id="eqStop" type="number" min="0" max="100" step="1" data-cfg="pump_eq_stop_pct"><button class="btn sm" data-set="pump_eq_stop_pct" data-val="0">0</button><button class="btn sm" data-set="pump_eq_stop_pct" data-val="50">50</button></div></div>
+            <div class="field"><label>Também na carteira real (pelo espelho)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_eq_real">…</button></div></div>
+          </div>
+          <div class="help"><p><b>Como funciona:</b> quando uma carteira desta lista compra, a fictícia compra na hora o valor acima, sem nenhum filtro (nota, risco, preço que subiu, espera, pausa). Quando ela vende, a fictícia vende a mesma parte. Não usa stop, stop móvel nem alvo: só sai quando a carteira vende, pelo tempo máximo ou pelo stop de segurança, se você ligar. A real só entra com "Também na carteira real" ligado e a Execução real ligada, com o valor e os limites da carteira real.</p>
+          <p><b>Atraso:</b> a compra deles só aparece depois que entra na blockchain. A cópia sai alguns segundos depois, e o preço de quem copia é sempre um pouco pior que o deles.</p></div></div>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Carteiras da lista</h2><div class="sub">já vem com as 20 do leaderboard da pump.fun de 28/10 · cole outras abaixo</div></div></header>
+          <div class="tbl-wrap"><table id="eqTbl"></table></div>
+          <div class="field" style="margin-top:12px"><label for="eqList">Endereços (um por linha, ou separados por vírgula)</label>
+            <textarea class="in" id="eqList" rows="6" style="width:100%;font-family:monospace;font-size:12px" placeholder="cole aqui os endereços das carteiras (abra o perfil na pump.fun e copie o endereço)"></textarea></div>
+          <div class="row" style="margin-top:8px"><button class="btn" id="eqSave">Salvar lista</button><button class="btn sm" id="eqSeed">Voltar às 20 de 28/10</button></div>
+          <p class="muted" style="margin-top:8px">O site da pump.fun não deixa o sistema ler o leaderboard sozinho (proteção contra robôs), por isso a lista é colada à mão. Copiadas 24 h = compras que a fictícia copiou; "vistas" conta só o que o monitor leu.</p></div>
+      </section>
       <section class="view" data-view="elite" hidden>
         <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="elite"><b>Logs dos robôs → Maiores traders</b></a>.</p></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Maiores traders</h2><div class="sub" id="elSub">os maiores ganhadores da pump.fun, o que fazem minuto a minuto, sinais, estudo e compra automática</div></div></header>

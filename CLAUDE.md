@@ -1073,3 +1073,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (Jupiter, Solana Tracker, banco) no `/api/pump`; funil `queued`/`not_trade`/`reconnects` em `rpc_status` (monitor).
   Os contadores zeram a cada reinício. Relatório `app/relatorios_ia/2026-10-28-0.32.3.md`. Teste `tests/test_real_separada.py`.
 
+- 0.32.4: menu `#igual` "Copiar igual" (pedido do dono). `EQ_SEED` (20 carteiras do leaderboard da pump.fun de 28/10; a API do
+  site fica atrás da Cloudflare e NÃO é lida), `pf.copy_equal` (salvo como `_copy_equal` só se mudou), `pump_eq_*` (OFF),
+  `PumpFun._copy_eq` (sem filtros/espera/pausa; venda proporcional; posição `eq` sem stop/trail/alvo, só `max_hold_s` e
+  `pump_eq_stop_pct`; real só com `pump_eq_real`, pelo espelho), `hub.eq_set/eq_status`, rotas `/api/pump/copy-equal`.
+  Monitor: fila `_tx_hi` só das carteiras copiadas (4 leitores); status `queued_hi`/`stale_hi`. O status no menu virou uma
+  linha (`#sysBox`) e o completo abre no modal `#sysM`. Relatório `app/relatorios_ia/2026-10-28-0.32.4.md`. `tests/test_copiar_igual.py`.

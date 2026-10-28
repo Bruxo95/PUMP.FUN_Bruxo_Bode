@@ -400,6 +400,21 @@
     $("flState").innerHTML = (r.follow_user ? '<span class="tag win">ON · Ligado</span> Copiando os trades de <b>' + esc(r.nome) + "</b>." : '<span class="tag loss">OFF · Desligado</span> Não está copiando os trades de ninguém.') +
       (r.seguidores && r.seguidores.length ? ' <span class="muted">· Copiam os SEUS trades: ' + esc(r.seguidores.join(", ")) + "</span>" : "");
   }
+  // 0.32.4 (pedido do dono, 28/10): "Copiar igual" — carteiras do leaderboard da pump.fun coladas à mão
+  let EQ = null;
+  async function loadEq() {
+    let r; try { r = await BB.api("/api/pump/copy-equal"); } catch (e) { return; }
+    if (!r || r.error) return;
+    EQ = r;
+    $("eqK").innerHTML = [["Modo", r.on ? '<span class="up">ON</span>' : '<span class="down">OFF</span>'], ["Carteiras", r.wallets.length + (r.on ? " · " + r.seguidas + " seguidas" : "")],
+      ["Posições abertas", r.abertas], ["Fechadas", r.fechadas], ["Resultado (fictícia)", sg(r.pnl_sol)]]
+      .map(([l, v]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + "</div></div>").join("");
+    table("eqTbl", ["Carteira", "Online", "Vistas 24 h", "Copiadas 24 h", "Abertas", "Fechadas", "Acerto", "Resultado", "Real", "Último motivo de não copiar"],
+      r.wallets.map((w) => [pfW(w.wallet), w.online ? '<span class="up">sim</span>' : '<span class="muted">não</span>', w.vistas_24h, w.copiadas_24h, w.abertas, w.fechadas,
+        w.fechadas ? f(w.ganhos / w.fechadas * 100, 0) + "%" : "–", sg(w.pnl_sol), w.pnl_real_sol ? sg(w.pnl_real_sol) : "–", '<span class="wrapcell">' + esc(w.ultimo_motivo || "–") + "</span>"]),
+      "Nenhuma carteira na lista.");
+    if (document.activeElement !== $("eqList")) $("eqList").value = r.wallets.map((w) => w.wallet).join("\n");
+  }
   function renderAllCfgCopy() {
     if (!$("allCfgCopy")) return;
     const h = copyHtml();
@@ -1725,6 +1740,14 @@
       $("trShN").textContent = ((D && D.manual) || []).length + " carteira(s) adicionada(s) à mão serão enviadas como convite: a pessoa aceita ou não.";
       return;
     }
+    if (t.id === "eqSave" || t.id === "eqSeed") {
+      const ws = t.id === "eqSeed" ? ((EQ && EQ.padrao) || []) : $("eqList").value.split(/[\s,;]+/).filter(Boolean);
+      const r = await BB.api("/api/pump/copy-equal", { body: { wallets: ws } });
+      toast(r.error || ("Lista salva: " + r.wallets.length + " carteiras" + (r.invalidas && r.invalidas.length ? " · ignorados (não são endereço): " + r.invalidas.length : "")));
+      $("eqList").blur(); loadEq(); return;
+    }
+    if (t.closest && t.closest("#sysBox")) { openSys(); return; }
+    if (t.id === "sysMX") { $("sysM").hidden = true; return; }
     if (t.id === "flOn" || t.id === "flOff") {
       const uid = t.id === "flOn" ? $("flSel").value : "";
       if (t.id === "flOn" && !uid) { toast("Escolha a conta primeiro."); return; }
@@ -1807,7 +1830,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -1815,7 +1838,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "basegeral", "logs", "calls"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "logs", "calls"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -1837,6 +1860,7 @@
     if (VIEW === "calls") loadCalls();
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
+    if (VIEW === "igual") loadEq();
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);
@@ -2037,6 +2061,32 @@
   }
 
   // ------------------------------------------------------------------ render geral
+  let SYS_HTML = null;
+  function sysDetail(D, RP, PPs, A, RL, up, perH, okb, ago) {
+    const row = (k, st, v) => "<tr><td><b>" + k + "</b></td><td>" + st + "</td><td>" + v + "</td></tr>";
+    const late = RP.queued ? Math.round((RP.stale || 0) / RP.queued * 100) : 0;
+    return '<div class="tbl-wrap"><table class="systbl"><thead><tr><th>Serviço</th><th>Situação</th><th>Detalhe</th></tr></thead><tbody>' +
+      row("Solana RPC", okb(RP.ws, RP.error), RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado")) +
+      row("PumpPortal", okb(PPs.ws, PPs.error), PPs.ws ? "tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado")) +
+      row("Preços", okb(!RP.price_error, RP.price_error), esc(RP.price_error || "–")) +
+      row("Jupiter", okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error), esc((A.jupiter || {}).error || "–")) +
+      row("Solana Tracker", okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave"), esc((A.solana_tracker || {}).error || "–")) +
+      row("Banco", okb((A.banco || {}).ok !== false, (A.banco || {}).error), esc((A.banco || {}).error || "–")) +
+      row("Carteira real", RL.wallet_configured ? '<span class="up">configurada</span>' : '<span class="down">não configurada</span>', "execução " + (RL.enabled ? "ON" : "OFF")) +
+      "</tbody></table></div>" +
+      '<h3 style="margin:16px 0 6px;font-size:13px">Transações da Solana (funil)</h3><div class="tbl-wrap"><table class="systbl"><tbody>' +
+      row("Avisos recebidos", "", f(RP.notifs || 0, 0)) + row("Foram para leitura", "", f(RP.queued || 0, 0) + (RP.queued_hi ? " · das copiadas " + f(RP.queued_hi, 0) : "")) +
+      row("Viraram trade", "", f(RP.parsed || 0, 0)) + row("Não eram trade", "", f(RP.not_trade || 0, 0)) +
+      row("Atrasados (+2 min na fila)", late >= 20 ? '<span class="down">' + late + "%</span>" : late + "%", f(RP.stale || 0, 0) + (RP.stale_hi ? " · das copiadas " + f(RP.stale_hi, 0) : "")) +
+      row("Falhas de leitura", "", f(RP.tx_errors || 0, 0)) + (RP.dropped ? row("Fila cheia", "", f(RP.dropped, 0)) : "") + row("Reconexões", "", f(RP.reconnects || 0, 0)) +
+      "</tbody></table></div>";
+  }
+  function openSys() {
+    if (!SYS_HTML) return;
+    $("sysMS").textContent = "contando desde " + ((D && D.started_at) || "–") + " · os números zeram a cada atualização do sistema";
+    $("sysMB").innerHTML = SYS_HTML();
+    if ($("sysM").hidden) { $("sysM").hidden = false; $("sysMX").focus(); }
+  }
   function render() {
     if (!D) return;
     const c = cfg(), R = D.real || {}, RP = D.rpc || {};
@@ -2055,14 +2105,13 @@
     const up = D.uptime_s || 0, perH = (n) => (up > 300 ? " (" + f((n || 0) / up * 3600, 0) + "/h)" : "");
     const okb = (ok, why) => (ok ? '<span class="up">ok</span>' : '<span class="down" title="' + esc(why || "") + '">não ok</span>');
     const A = D.apis || {}, RL = D.real || {};
-    $("sysS").innerHTML = "<small>contando desde " + esc(D.started_at || "–") + " (há " + hms(up) + "): os números zeram a cada atualização do sistema</small>" +
-      "<br>Solana RPC: " + okb(RP.ws, RP.error) + (RP.ws ? " · " + (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : " · " + esc(RP.error || "aguardando o monitor compartilhado")) +
-      "<br><small>avisos " + (RP.notifs || 0) + " → lidos " + (RP.queued || 0) + " → trades " + (RP.parsed || 0) + " · não eram trade " + (RP.not_trade || 0) +
-      " · atrasados " + (RP.stale || 0) + " · falhas " + (RP.tx_errors || 0) + (RP.dropped ? " · fila cheia " + RP.dropped : "") + " · reconexões " + (RP.reconnects || 0) + "</small>" +
-      "<br>PumpPortal: " + okb(PPs.ws, PPs.error) + (PPs.ws ? " · tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : " · " + esc(PPs.error || "desconectado")) +
-      "<br>Preços: " + okb(!RP.price_error, RP.price_error) + " · Jupiter: " + okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error) +
-      " · Solana Tracker: " + okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave") + " · Banco: " + okb((A.banco || {}).ok !== false, (A.banco || {}).error) +
-      "<br>Carteira real: " + (RL.wallet_configured ? '<span class="up">configurada</span>' : '<span class="down">não configurada</span>') + " · execução " + (RL.enabled ? "ON" : "OFF");
+    // 0.32.4 (pedido do dono: "está horrível ali"): no menu fica só uma linha; o status completo abre numa janela
+    const probs = [["Solana RPC", RP.ws], ["PumpPortal", PPs.ws], ["Preços", !RP.price_error], ["Jupiter", (A.jupiter || {}).ok !== false],
+      ["Solana Tracker", (A.solana_tracker || {}).ok], ["Banco", (A.banco || {}).ok !== false]].filter((x) => !x[1]).map((x) => x[0]);
+    $("sysS").innerHTML = (RP.ws ? (RP.subs || 0) + " carteiras · " : "") + (probs.length ? '<span class="down">' + probs.length + " com problema</span>" : '<span class="up">tudo ok</span>') + " · detalhes";
+    $("sysBox").title = probs.length ? "Com problema: " + probs.join(", ") : "Tudo ok · clique para ver o status completo";
+    SYS_HTML = () => sysDetail(D, RP, PPs, A, RL, up, perH, okb, ago);
+    if (!$("sysM").hidden) openSys();
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
     // 0.31.70 (pedido do dono): campo em HORAS para uma opção guardada em minutos (ex.: tempo máximo das automáticas)

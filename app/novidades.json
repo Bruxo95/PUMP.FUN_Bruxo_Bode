@@ -1,6 +1,7 @@
 {
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
+    {"versao": "0.32.4", "data": "2026-10-28", "tipo": "novo", "onde": "Menu Copiar igual · Monitor no menu (clique para ver o status)", "titulo": "Copiar igual as carteiras do leaderboard; cópias sem atraso na fila", "oque": "Novo menu Copiar igual (começa desligado): já vem com as 20 carteiras do leaderboard da pump.fun de 28/10 e aceita colar outras. Toda compra delas é copiada na hora na fictícia, sem filtros e sem espera, e toda venda vende a mesma parte. A real só entra se você ligar 'Também na carteira real'. O monitor ganhou uma fila só para as carteiras copiadas: antes 96% das leituras chegavam atrasadas porque esperavam atrás das carteiras em estudo. No menu, o status do monitor virou uma linha curta; clique nele para ver tudo numa janela."},
     {
       "versao": "0.32.3",
       "data": "2026-10-28",

@@ -146,7 +146,9 @@ input.in.w80{width:80px}input.in.w100{width:100px}input.in.w120{width:120px}
 .nav a .nb{margin-left:auto;font-size:11px;font-family:var(--mono);color:var(--muted);background:#1b1b1f;border-radius:5px;padding:0 6px;min-width:20px;text-align:center}
 .nav a .nb:empty{display:none}
 .side .sp{flex:1}
-.sysbox{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start;font-size:12.5px}
+.sysbox{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start;font-size:12.5px;width:100%;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.sysbox:hover{border-color:var(--muted)}
+.systbl td{vertical-align:top}.systbl td:first-child{white-space:nowrap}
 .sysbox b{display:block;font-weight:600;font-size:12.5px}.sysbox small{color:var(--muted)}
 .side .ver{color:var(--dim);font-size:11px;padding:10px 6px 0;font-family:var(--mono)}
 

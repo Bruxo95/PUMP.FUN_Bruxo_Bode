@@ -18,10 +18,13 @@ from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
 from .logsafe import add_secret
-from .pumpfun import AUTO_ORIGINS, PumpFun, PumpMarket, PumpReal
+from .pumpfun import AUTO_ORIGINS, EQ_SEED, PumpFun, PumpMarket, PumpReal
 from .radar import RadarBuffer, callout_policy
 from .settings import PumpSettings
 from .solana_wallet import UserWallet
+
+B58_ADDR = __import__("re").compile(r"[1-9A-HJ-NP-Za-km-z]{32,44}")   # endereço Solana (0.32.4)
+EQ_MAX = 100
 
 log = logging.getLogger("hub")
 
@@ -146,6 +149,8 @@ class PumpHub:
         self._wire_wallet(pf)
         pf.tg = lambda msg, _pf=pf: self.tg_queue(_pf, msg)
         pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
+        if isinstance(saved.get("_copy_equal"), list):                  # 0.32.4: Copiar igual (lista colada pelo dono)
+            pf.copy_equal = [str(w) for w in saved["_copy_equal"]][:EQ_MAX]
         pf.brain_freeze = saved.get("_brain_freeze") if isinstance(saved.get("_brain_freeze"), dict) else None   # 0.31.85
         pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
         pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
@@ -970,12 +975,55 @@ class PumpHub:
         pf._emit(f"[PUMP SIM] copiar os trades de {(await self._nome(target)) if target else '—'}: {'LIGADO' if target else 'DESLIGADO'}")
         return {"ok": True, "follow_user": target, "nome": (await self._nome(target)) if target else ""}
 
+    async def eq_set(self, pf: PumpFun, wallets: list) -> dict:
+        """0.32.4: lista do "Copiar igual" (endereços colados da página da pump.fun)."""
+        seen, out, bad = set(), [], []
+        for w in wallets or []:
+            w = str(w).strip()
+            if not w or w in seen:
+                continue
+            (out if B58_ADDR.fullmatch(w) else bad).append(w)
+            seen.add(w)
+        if len(out) > EQ_MAX:
+            return {"error": f"no máximo {EQ_MAX} carteiras"}
+        pf.copy_equal = out
+        await self.save_settings(pf)
+        pf.refresh_followed(force=True)
+        await audit(self.db, pf.user_id, "copiar igual: lista", f"{len(out)} carteiras")
+        return {"ok": True, "wallets": out, "invalidas": bad[:20]}
+
+    def eq_status(self, pf: PumpFun) -> dict:
+        diag = pf.__dict__.get("_copy_diag") or []
+        now = time.time()
+        pos = [p for p in pf.positions() if p.get("eq")]
+        trs = [t for t in pf.trades(5000) if t.get("eq")]
+        rows = []
+        for w in pf.copy_equal:
+            vis = [x for x in diag if x[1] == w and now - x[0] <= 86400]
+            cop = sum(1 for x in vis if x[2] == "copiou")
+            mt = [t for t in trs if t.get("wallet") == w and not t.get("real")]
+            rows.append({"wallet": w, "vistas_24h": len(vis), "copiadas_24h": cop,
+                         "ultimo_motivo": next((x[2] for x in reversed(vis) if x[2] != "copiou"), None),
+                         "abertas": sum(1 for p in pos if p["wallet"] == w and not p.get("real")),
+                         "fechadas": len(mt), "ganhos": sum(1 for t in mt if (t.get("pnl_sol") or 0) > 0),
+                         "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in mt), 6),
+                         "pnl_real_sol": round(sum(t.get("pnl_sol") or 0 for t in trs if t.get("wallet") == w and t.get("real")), 6),
+                         "online": (lambda ls: bool(ls and now - ls <= 600))(pf.last_seen(w))})
+        c = pf.cfg
+        return {"on": bool(getattr(c, "pump_eq_on", False)), "real": bool(getattr(c, "pump_eq_real", False)),
+                "seguidas": sum(1 for w in pf.copy_equal if w in pf.followed), "padrao": list(EQ_SEED),
+                "wallets": rows, "abertas": len([p for p in pos if not p.get("real")]),
+                "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in trs if not t.get("real")), 6),
+                "fechadas": len([t for t in trs if not t.get("real")])}
+
     async def save_settings(self, pf: PumpFun) -> None:
         s = pf.cfg.user_dict()
         if getattr(pf.cfg, "pump_real_enabled", False):
             s["_real_on"] = True                       # 0.31.28: o real ligado sobrevive ao reinício (ver _load)
         if getattr(pf, "follow_user", ""):
             s["_follow_user"] = pf.follow_user         # 0.31.61: de quem esta conta copia os trades
+        if list(getattr(pf, "copy_equal", None) or []) != list(EQ_SEED):
+            s["_copy_equal"] = list(pf.copy_equal)     # 0.32.4: Copiar igual (só grava se mudou a lista de 28/10)
         if getattr(pf, "brain_freeze", None):
             s["_brain_freeze"] = pf.brain_freeze       # 0.31.85: evolução para a qual o dono voltou
         await self.db.update("user_settings", {"user_id": pf.user_id},

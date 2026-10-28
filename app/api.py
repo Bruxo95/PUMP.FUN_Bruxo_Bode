@@ -1085,6 +1085,18 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def follow_post(body: dict, pf=Depends(admin_engine)):
         return await hub.follow_set(pf, str((body or {}).get("user_id") or ""))
 
+    @app.get("/api/pump/copy-equal")
+    async def copy_equal_get(pf=Depends(admin_engine)):
+        """0.32.4: "Copiar igual" — carteiras do leaderboard da pump.fun coladas à mão e o resultado de cada uma."""
+        return hub.eq_status(pf)
+
+    @app.post("/api/pump/copy-equal")
+    async def copy_equal_post(body: dict, pf=Depends(admin_engine)):
+        ws = (body or {}).get("wallets")
+        if isinstance(ws, str):
+            ws = __import__("re").split(r"[\s,;]+", ws)
+        return await hub.eq_set(pf, ws if isinstance(ws, list) else [])
+
     @app.get("/api/pump/versions")
     async def pump_versions(real: int = 0, pf=Depends(admin_engine)):
         """Resultado por versão (0.31.50): quanto ganhou/perdeu em cada versão e se ajudou ou piorou."""

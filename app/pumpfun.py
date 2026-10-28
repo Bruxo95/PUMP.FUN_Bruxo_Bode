@@ -54,6 +54,18 @@ SOL_HTTP = "https://api.mainnet-beta.solana.com"
 DS_TOKENS = "https://api.dexscreener.com/tokens/v1/solana/"
 USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+# 0.32.4 (pedido do dono, 28/10): as 20 carteiras do https://pump.fun/leaderboard (semana) vistas na tela nesse dia.
+# Só são copiadas com "Copiar igual" ligado; o dono cola outras na tela quando quiser.
+EQ_SEED = ("4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo", "4UrFSCrGxgoCtCUBAEZq7ZmPK3Pczkxx7PwYnkBMi1KR",
+           "Bmi9zf27MNN5pjCtyv2Y15TDQoYgcbcmPTxvEoQ6UwWs", "4XVFYAg8fHinxnNTjicpq2Xti5JGz5oJx3ZNbCvR9eTB",
+           "HDixbrzwwLXczhDBk1JVrurPQsuLE8FUKnW2pucSXN3o", "2p8oSST3XGoAs7YCgn3LkRPenVcq3vZNkepcLiTEK1D5",
+           "HsQnUgdVVUJNTTEe5mzpQFFi55oXq4UwcjByEFb3Rd52", "HJvA1AuetuTPYdeEqntxroXWjw8iTBwx1Ly5w6UsJxXp",
+           "BQ4KBzzXXk6ZMxVQb4mePuUbJfe85MerzYj53eatzUWd", "834ZWiqnaK9Byucxq2yWRK59qwjtUvP4pjYK2Zj1SZjS",
+           "8tU3fy9cUEsnpnFZ86nvPmD7hkppsVnQbjHyLV2YC7DW", "2M2vLX34LXMg24dMEnjWHvRXS1tshpEDRWzmXgV8ENNZ",
+           "HRQfqHxmj126YSJKrEtYZuWXJmkUwWFXJ4DACpDHyCGG", "FniZYxox48b6FPfJC9XZVAdVT3fQ6dUiXzQ5ZBjUCyz6",
+           "2xHVdUu6NZKi9hVeBmmrj9jwAYSPCaoHSE2njCGH6CeE", "3ypWuTN9c5gWir4uCYC5hWem4AkPuDNhTQacx43jS74y",
+           "AusMtCwzrPnPoJUSHYUH9iogVwpWh2ESHC6xWU75tBDo", "64w4qRu9VGio7U1Asc6B68QDpS8L1McmSn2yyExC6Fii",
+           "Hzvs4kQ3pSeVpPqFgiQLfgKS4tpTDyk3GmKT1k8BQPBm", "EFdEVbaVJ7HXguXvFsX4yW2FBL8bWy6fXn2GDwuK1i1D")
 QUOTES = {SOL_MINT, USDC, USDT}                    # moedas de pagamento: nunca são "o token" do trade
 NO_COPY = {                                          # staking de SOL (não é trade de token)
     "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
@@ -143,6 +155,7 @@ class PumpFun:
         # 0.31.61 (pedido do dono): "copiar os trades de outro usuário" — quem esta conta segue (user_id) e o aviso para
         # o hub quando ESTA conta abre/fecha uma posição fictícia (o hub repassa para quem segue esta conta)
         self.follow_user: str = ""
+        self.copy_equal: list[str] = list(EQ_SEED)      # 0.32.4: "Copiar igual" (salvo em _copy_equal; ver hub._load)
         self.brain_freeze: dict | None = None          # 0.31.85: cérebro congelado numa evolução (Base geral → Voltar)
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
@@ -552,6 +565,8 @@ class PumpFun:
         bots = {w for w, a in self.activity.items() if a.get("bot_until", 0) > now}
         bots |= set(self.paused())                       # pausados também ficam fora (entra o próximo do top)
         man = [w for w in man if w not in bots]
+        # 0.32.4: "Copiar igual" — entram sempre (sem filtro de robô/pausa) enquanto o modo estiver ligado
+        man += [w for w in self.eq_wallets() if w not in banned and w not in man]
         self.leaderboard = [self._lb_judge(r) for r in self.leaderboard]
         lb = [r["wallet"] for r in self.leaderboard if r["eligible"] and r["wallet"] not in man
               and r["wallet"] not in banned and r["wallet"] not in bots]
@@ -961,8 +976,92 @@ class PumpFun:
                 "motivos": sorted(({"motivo": ex[k], "n": n} for k, n in motivos.items()), key=lambda m: -m["n"])[:12],
                 "traders": sorted(por.values(), key=lambda p: -p["vistas"])[:30]}
 
+    def eq_wallets(self) -> list[str]:
+        """0.32.4: carteiras do "Copiar igual" (vazio com o modo desligado)."""
+        return list(getattr(self, "copy_equal", None) or []) if getattr(self.cfg, "pump_eq_on", False) else []
+
+    def is_eq(self, who: str) -> bool:
+        return bool(who) and who in self.eq_wallets()
+
+    def _copy_eq(self, who: str, mint: str, kind: str, sol: float, tok: float, ev: dict, before: float, t: float) -> list[str]:
+        """0.32.4 (pedido do dono, 28/10: "copiar exatamente o que eles fazem"): carteira do "Copiar igual". Compra na
+        hora (sem espera, sem filtros de token/nota/preço, sem pausa) com o valor próprio do modo; vende a mesma
+        proporção quando ela vende. Sem stop, stop móvel, alvo ou saídas inteligentes; só o tempo máximo do modo e o stop
+        opcional (0 = sem stop), porque uma venda que o monitor perder deixaria a posição aberta para sempre.
+        A real só entra pelo espelho e só com pump_eq_real."""
+        c = self.cfg
+        tk = self.tokens.get(mint) or {}
+        sym = tk.get("symbol") or ev.get("symbol") or short(mint)
+        px = self.price_of(ev) or tk.get("price")
+        allpos = self.positions()
+        base = {"wallet": who, "short": short(who), "mint": mint, "symbol": sym, "kind": kind, "sol": round(sol, 4),
+                "mcap_sol": tk.get("mcap_sol"), "signature": ev.get("signature")}
+        if kind != "buy":
+            frac = self._sell_frac(ev, tok, before)
+            mine = sorted((p for p in allpos if p["mint"] == mint and p["wallet"] == who and p.get("eq")),
+                          key=lambda x: not x.get("real"))          # a real vende primeiro
+            if not mine or frac < 0.01:
+                return []
+            out = []
+            for p in mine:
+                if p.get("real"):
+                    self._real_sell(p, frac, f"copiar igual: carteira vendeu {frac * 100:.0f}%")
+                    self._feed(**base, action="REAL: vendendo", reason=f"copiar igual: vendendo {frac * 100:.0f}%")
+                    continue
+                out.append(self._sell(p, frac, px or p.get("price_now"), f"copiar igual: carteira vendeu {frac * 100:.0f}%", t))
+                self._feed(**base, action="copiou venda", reason=f"copiar igual: vendeu {frac * 100:.0f}% da posição")
+            return [m for m in out if m]
+        why = None
+        amt = round(float(self._c("pump_eq_sol", 0.05)), 6)
+        eqpos = [p for p in allpos if p.get("eq") and not p.get("real")]
+        if not getattr(c, "pump_copy_enabled", True):
+            why = "cópia desligada"
+        elif not px:
+            why = "sem preço do token"
+        elif any(p["mint"] == mint and p["wallet"] == who and p.get("eq") and not p.get("real") for p in allpos):
+            why = "copiar igual: já tem a posição desta carteira neste token"
+        elif len(eqpos) >= int(self._c("pump_eq_max_open", 20)):
+            why = f"copiar igual: limite de {int(self._c('pump_eq_max_open', 20))} posições"
+        elif self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
+            why = "saldo fictício insuficiente"
+        if why:
+            self._feed(**base, action="não copiou", reason=why)
+            self._copy_note(who, why, t)
+            return []
+        fr = self._fee_rates(mint)
+        slip, prio = fr["slip"], fr["prio"]
+        fee = fr["venue"] + fr["portal"]
+        price_in = px * (1 + slip)
+        net_in = amt * (1 - fee)
+        tokens = net_in / price_in
+        bt = ev.get("blockTime")
+        lag = round(max(0.0, t - float(bt)), 1) if bt else None
+        rules = {"eq": True, "off_stop": True, "off_trail": True, "off_tp1": True,
+                 "max_hold_s": float(self._c("pump_eq_max_hold_h", 24)) * 3600}
+        p = {"opened_at": now_iso(), "open_t": t, "wallet": who, "mint": mint, "symbol": sym,
+             "sol_in": round(amt + prio, 9), "tokens": tokens, "tokens_left": tokens, "price_in": price_in,
+             "price_now": px, "trader_price": px, "trader_sol": sol, "proceeds": 0.0, "fees_sol": amt * fee + prio,
+             "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": lag,
+             "grad_in": self.graduated(mint), "trader_px": self.price_of(ev), **rules}
+        self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"], network=prio,
+                     slippage=net_in - net_in / (1 + slip))
+        self._save_pos(p)
+        self._feed(**base, action="copiou compra", reason=f"copiar igual: comprou {amt:.3f} SOL a {price_in:.3e}"
+                   + (f" · atraso {lag:.0f} s" if lag is not None else ""))
+        self._copy_note(who, "copiou", t)
+        msgs = [f"[PUMP SIM] copiar igual {short(who)}: compra {sym} {amt:.3f} SOL (carteira comprou {sol:.3f} SOL)"]
+        if getattr(c, "pump_eq_real", False):
+            self._mirror_real(p, trader_sol=sol, block_t=bt, pos_cfg=dict(rules))
+        elif self.real is not None and getattr(c, "pump_real_enabled", False):
+            self._feed(**base, action="REAL não copiou", reason="copiar igual: real desligada neste modo (só fictícia)",
+                       sim_id=p["id"])
+        self._lead("open", p)
+        return msgs
+
     def _copy(self, who: str, mint: str, kind: str, sol: float, tok: float, ev: dict, before: float, t: float) -> list[str]:
         c = self.cfg
+        if self.is_eq(who):
+            return self._copy_eq(who, mint, kind, sol, tok, ev, before, t)
         tk = self.tokens.get(mint) or {}
         sym = tk.get("symbol") or ev.get("symbol") or short(mint)
         px = (tk.get("price") if ev.get("_delayed") and tk.get("price") else None) or self.price_of(ev) or tk.get("price")
@@ -1062,7 +1161,7 @@ class PumpFun:
             swhy = None
             if smine:
                 swhy = "já tem posição copiada neste token (fictícia)"
-            elif len([p for p in allpos if not p.get("real")]) >= int(self._c("pump_max_open", 10)):
+            elif len([p for p in allpos if not p.get("real") and not p.get("eq")]) >= int(self._c("pump_max_open", 10)):
                 swhy = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
             elif self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
                 swhy = "saldo fictício insuficiente"
@@ -1261,6 +1360,8 @@ class PumpFun:
             tr["pos_id"] = p["id"]                         # 0.31.38: par real × fictícia (espelho)
             if p.get("follow_of"):
                 tr["follow_of"] = p["follow_of"]           # 0.31.63: cópia de outra conta não entra no aprendizado geral
+            if p.get("eq"):
+                tr["eq"] = True                            # 0.32.4: Copiar igual
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -1350,6 +1451,13 @@ class PumpFun:
             max_hold = self._auto_num(p.get("max_hold_s"))
             if max_hold is not None and t - p.get("open_t", t) >= max_hold:
                 out.append(self._sell(p, 1.0, px, f"tempo máximo ({max_hold / 60:g} min)", t))
+                continue
+            if p.get("eq"):                                # 0.32.4: Copiar igual sai só quando a carteira vende
+                eqs = float(self._c("pump_eq_stop_pct", 0) or 0)
+                if eqs and chg <= -eqs:
+                    out.append(self._sell(p, 1.0, px, f"copiar igual: stop do modo (-{eqs:.0f}%)", t))
+                else:
+                    self._save_pos(p)
                 continue
             # STOP MÓVEL: liga quando o líquido (após taxas) passa de X%; depois sai se cair Y pontos do pico
             trail_on = p["trail_on"] if "trail_on" in p else getattr(self.cfg, "pump_trail_enabled", True)

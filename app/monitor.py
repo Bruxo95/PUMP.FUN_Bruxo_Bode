@@ -47,6 +47,9 @@ class SharedMonitor:
         self.svc = PumpFun(cfg, None, hub.http, UserWallet("", "", hub.cfg.solana_rpc_public), market=self.market)
         self.svc.on_event = None
         self._tx_q: asyncio.Queue | None = None
+        # 0.32.4: fila só das carteiras COPIADAS. Em 28/10 o status mostrou 139.115 lidas e 133.834 "atrasadas" (+2 min
+        # na fila): as cópias esperavam atrás das carteiras de estudo/Maiores traders e quase tudo chegava velho demais.
+        self._tx_hi: asyncio.Queue | None = None
         self._seen: deque = deque(maxlen=5000)
         self._subs: dict = {}
         self.lb_cache: dict = {}            # (dias, trades, acerto, plataforma) -> {"at", "rows", "status"}
@@ -106,6 +109,8 @@ class SharedMonitor:
         backoff = 2.0
         if self._tx_q is None:
             self._tx_q = asyncio.Queue(maxsize=4000)
+        if self._tx_hi is None:
+            self._tx_hi = asyncio.Queue(maxsize=2000)
         st = self.market.rpc_status
         while True:
             if not self.hub.cfg.defaults.get("pump_enabled", True):
@@ -220,17 +225,20 @@ class SharedMonitor:
             return                                     # só observando (status online do top)
         if not is_pump and not studied and not any(getattr(e.cfg, "pump_copy_other", True) for e in fol):
             return
+        q = self._tx_hi if (fol and self._tx_hi is not None) else self._tx_q
         try:
-            self._tx_q.put_nowait((w, sig, now))
+            q.put_nowait((w, sig, now))
             st["queued"] = st.get("queued", 0) + 1     # 0.32.3: avisos que foram para leitura (funil do status)
+            if q is self._tx_hi:
+                st["queued_hi"] = st.get("queued_hi", 0) + 1
         except asyncio.QueueFull:
             st["dropped"] = st.get("dropped", 0) + 1
 
-    async def tx_worker(self) -> None:
-        while self._tx_q is None:
+    async def tx_worker(self, hi: bool = False) -> None:
+        while (self._tx_hi if hi else self._tx_q) is None:
             await asyncio.sleep(0.5)
         while True:
-            w, sig, t0 = await self._tx_q.get()
+            w, sig, t0 = await (self._tx_hi if hi else self._tx_q).get()
             try:
                 await self.handle_tx(w, sig, t0)
             except Exception as e:
@@ -241,6 +249,8 @@ class SharedMonitor:
         st, svc = self.market.rpc_status, self.svc
         if time.time() - t0 > 120:                      # atrasou demais: copiar agora não faz sentido
             st["stale"] = st.get("stale", 0) + 1
+            if self.followers(w):
+                st["stale_hi"] = st.get("stale_hi", 0) + 1
             return
         tx = tx or await svc._get_tx(sig)
         if not tx:
@@ -816,6 +826,7 @@ class SharedMonitor:
                                                      self.lab_loop(), self.boost_loop(), self.explore_loop(),
                                                      self.fresh_loop())]
         self._tasks += [loop.create_task(self.tx_worker()) for _ in range(4)]
+        self._tasks += [loop.create_task(self.tx_worker(hi=True)) for _ in range(4)]     # 0.32.4: só as copiadas
 
     def stop(self) -> None:
         for t in self._tasks:
