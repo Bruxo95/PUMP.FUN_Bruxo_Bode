@@ -825,6 +825,11 @@
    "versao": "0.32.13",
    "inicio": "2026-10-28T20:30:00+00:00",
    "titulo": "aprovadas vão para Top traders (só fictícia)"
+  },
+  {
+   "versao": "0.32.14",
+   "inicio": "2026-10-28T20:45:00+00:00",
+   "titulo": "Decisões da IA por nota e copiando real/fictícia"
   }
  ]
 }

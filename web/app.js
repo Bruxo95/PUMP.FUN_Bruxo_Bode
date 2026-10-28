@@ -50,6 +50,11 @@
   const scoreTag = (d) => { if (!d || d.score == null) return "–";
     const c = d.score >= 70 ? "win" : d.score >= 45 ? "neutral" : "loss";
     return '<span class="tag ' + c + '" title="70% acerto (ajustado para poucos tokens) + 30% quanto do dinheiro foi ganho · base ' + d.score_base + ' tokens fechados">' + d.score + "</span>"; };
+  // 0.32.14: "copiando" diz em qual carteira (só fictícia ou real + fictícia) e leva ao quadro "Seu resultado copiando"
+  const copyState = (w) => { const y = D && (D.followed || []).find((z) => z.wallet === w); if (!y) return null;
+    return y.ia_sim || !(D.real || {}).enabled || !((cfg() || {}).pump_real_mirror ?? true) ? "sim" : "both"; };
+  const copyTag = (st) => '<a href="#estudo" class="tag win" data-gomine="1" title="Ir para Seu resultado copiando">' +
+    (st === "both" ? "copiando · REAL e FICTÍCIA" : "copiando · só FICTÍCIA") + " ↓</a>";
   function openSaDet(i) {
     const x = SA_LOG[i]; if (!x) return;
     const d = x.digest || {}, fx = x.facts || {}, [ok] = digestCells(x.digest), fc = factsCells(fx), u = d.unit === "SOL" ? " SOL" : "";
@@ -63,7 +68,10 @@
        ["Última operação", d.ultima_op ? hms(Math.max(0, Date.now() / 1000 - d.ultima_op)) + " atrás" : "–", ""],
        ["Existe há", fc[0], ""], ["Saldo", fc[1], "SOL + USDC/USDT"], ["Transações", fc[2], ""], ["Tokens criados", fc[3], "os que a Base viu"]]
         .map(([l, v, s]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + "</div></div>").join("") + "</div>" +
-      "<p><b>Por quê:</b> " + esc(x.motivo || "–") + "</p>" + '<div class="help"><p>A nota junta o acerto (70%, ajustado para não dar nota alta com poucos tokens) e quanto do dinheiro movido foi ganho (30%). 70 ou mais = boa; abaixo de 45 = fraca.</p></div>' +
+      '<div class="decbox ' + (x.acao === "aprovou" ? "ok" : x.acao === "descartou" ? "bad" : "") + '"><b>Por que ' + esc(x.acao) + ":</b> " + esc(x.motivo || "–") + "</div>" +
+      '<div class="help"><p><b>Nota × decisão:</b> a nota mede a própria carteira (acertos, erros e quanto ganhou). A decisão da IA mede se <b>você copiando</b> teria ganho, já com o seu atraso, taxas e slippage. Por isso uma carteira com nota alta pode ser descartada: ela ganha, mas entra e sai rápido demais para quem copia chegar a tempo.</p>' +
+      "<p>A nota junta o acerto (70%, ajustado para não dar nota alta com poucos tokens) e quanto do dinheiro movido foi ganho (30%). 70 ou mais = boa; abaixo de 45 = fraca.</p></div>" +
+      (copyState(x.wallet) ? "<p>" + copyTag(copyState(x.wallet)) + "</p>" : "") +
       '<div class="tokcol">' + (ok || "") + "</div>" +
       (x.acao === "aprovou" && x.no_estudo ? '<p style="margin-top:12px"><button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar esta carteira</button></p>' : "");
     $("saM").hidden = false; $("saMX").focus();
@@ -1604,13 +1612,14 @@
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => [esc(x.valor), String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
     // 0.32.12 (pedido do dono: "está muito espremida"): uma linha por decisão; o resto abre em "Ver tudo"
-    SA_LOG = sa.log || [];
+    // 0.32.14 (pedido do dono): ordem pela nota (maior primeiro; sem nota no fim, depois a mais recente)
+    SA_LOG = (sa.log || []).slice().sort((a, b) => ((b.digest || {}).score ?? -1) - ((a.digest || {}).score ?? -1) || String(b.em).localeCompare(String(a.em)));
     table("saLog", ["Quando", "Carteira", "Decisão", "Nota", "Resumo", "Última operação", "Saldo (US$)", ""], SA_LOG.map((x, i) => { const d = x.digest || {}, fx = x.facts || {};
-      const copying = D && (D.followed || []).some((y) => y.wallet === x.wallet);
+      const copying = copyState(x.wallet);
       return [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", scoreTag(d),
         x.digest ? '<span class="nowrap">' + (d.n_acertos || 0) + " acertos · " + (d.n_erros || 0) + " erros" + (d.pump_pct == null ? "" : " · " + d.pump_pct + "% pump.fun") + "</span>" : '<span class="muted">sem histórico ainda</span>',
         d.ultima_op ? hms(Math.max(0, Date.now() / 1000 - d.ultima_op)) + " atrás" : "–", fx.usd == null ? "–" : "$" + f(fx.usd, 0),
-        '<span class="nowrap"><button class="btn sm" data-sadet="' + i + '">Ver tudo</button>' + (x.acao === "aprovou" && x.no_estudo ? (copying ? ' <span class="tag win" title="está em Top traders como manual">copiando</span>' : ' <button class="btn sm" data-stc="' + esc(x.wallet) + '" title="Aprovou = continua no estudo. Este botão passa a copiar.">Copiar</button>') : "") + "</span>"]; }),
+        '<span class="nowrap"><button class="btn sm" data-sadet="' + i + '">Ver tudo</button>' + (x.acao === "aprovou" && x.no_estudo ? (copying ? " " + copyTag(copying) : ' <button class="btn sm" data-stc="' + esc(x.wallet) + '" title="Aprovou = continua no estudo. Este botão passa a copiar.">Copiar</button>') : "") + "</span>"]; }),
       "Nenhuma decisão ainda. Clique em Rodar agora ou espere a próxima volta.");
     const mi = r.mine || {}, tt = mi.total || {}, ts = tt.sim || {}, tr = tt.real || {};
     const roi = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
@@ -1801,6 +1810,7 @@
     if (t.closest && t.closest("#sysBox")) { openSys(); return; }
     if (t.id === "sysMX") { $("sysM").hidden = true; SYS_SUB = null; return; }
     if (t.dataset.sadet) { openSaDet(+t.dataset.sadet); return; }
+    if (t.dataset.gomine) { e.preventDefault(); $("saM").hidden = true; const c = $("stMineCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (t.id === "saMX") { $("saM").hidden = true; return; }
     if (t.dataset.rpclog) { openRpcLog(t.dataset.rpclog); return; }
     if (t.dataset.rpcback) { openSys(); return; }

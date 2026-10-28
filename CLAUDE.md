@@ -1113,3 +1113,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.13: `study_copy_sync` põe a aprovada em `pf.manual` (`add_manual`) e tira na descartada (só as que a IA pôs, marcadas em
   `study_copy`); `sim_only` vale mesmo na lista manual; `followed[].ia_sim` → etiqueta "Manual · IA · só fictícia" em Top traders. Pedido do dono.
+
+- 0.32.14: `#saLog` ordenado pela nota; `copyState`/`copyTag` ("copiando · só FICTÍCIA" / "REAL e FICTÍCIA", `data-gomine` desce até
+  `#stMineCard`); `.decbox` com o motivo em Ver tudo. Pedido do dono.
