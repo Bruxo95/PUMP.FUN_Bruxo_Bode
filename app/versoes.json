@@ -780,6 +780,11 @@
    "versao": "0.32.4",
    "inicio": "2026-10-28T17:30:00+00:00",
    "titulo": "Copiar igual e fila própria das cópias"
+  },
+  {
+   "versao": "0.32.5",
+   "inicio": "2026-10-28T18:10:00+00:00",
+   "titulo": "Copiar igual ligado na conta do dono"
   }
  ]
 }

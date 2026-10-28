@@ -1079,3 +1079,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `pump_eq_stop_pct`; real só com `pump_eq_real`, pelo espelho), `hub.eq_set/eq_status`, rotas `/api/pump/copy-equal`.
   Monitor: fila `_tx_hi` só das carteiras copiadas (4 leitores); status `queued_hi`/`stale_hi`. O status no menu virou uma
   linha (`#sysBox`) e o completo abre no modal `#sysM`. Relatório `app/relatorios_ia/2026-10-28-0.32.4.md`. `tests/test_copiar_igual.py`.
+
+- 0.32.5: migração `20261028000010_copiar_igual_dono.sql` (pedido do dono no chat): `pump_eq_on`=true e `pump_eq_real`=false só na conta
+  dele (onlineguyat@gmail.com). Demais contas seguem com o Copiar igual desligado.
