@@ -152,7 +152,7 @@
 
       <!-- ========================================================= TOP TRADERS -->
       <section class="view" data-view="traders" hidden>
-        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, salvo por 14 dias) fica no menu <a href="#logs" data-logtab="copia"><b>Logs dos robôs → Cópia de traders</b></a>.</p></div>
+        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="copia"><b>Logs dos robôs → Cópia de traders</b></a>.</p></div>
         <div class="card">
           <header><div><h2>Top traders da pump.fun</h2><div class="sub" id="lbSub"></div><div id="trShBox" hidden style="margin-top:8px"><div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="trShU" aria-label="Para quem enviar"></select><button class="btn sm primary" id="trShGo">Enviar convite</button></div><div class="hint" id="trShN"></div></div></div><div class="sp"></div>
             <button class="btn sm" id="trShBtn" style="margin-right:8px" data-novo-ate="2026-11-11">Compartilhar minha lista</button>
@@ -335,7 +335,7 @@
 
       <!-- ========================================================= BASE DA PUMP.FUN (app/tokenlab.py, 0.21.0) -->
       <section class="view" data-view="base" hidden>
-        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, salvo por 14 dias) fica no menu <a href="#logs" data-logtab="base"><b>Logs dos robôs → Base da pump.fun</b></a>.</p></div>
+        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="base"><b>Logs dos robôs → Base da pump.fun</b></a>.</p></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Base da pump.fun</h2><div class="sub" id="bsSub">cada token novo ganha 4 fotos do market cap (1, 5, 15 e 60 min) e um rótulo no fim</div></div></header>
           <div class="kpis" id="bsKpis"></div></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Como ler esta tela</h2></div></header>
@@ -396,7 +396,7 @@
 
       <!-- ========================================================= MAIORES TRADERS (app/elite.py, 0.31.2) -->
       <section class="view" data-view="elite" hidden>
-        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, salvo por 14 dias) fica no menu <a href="#logs" data-logtab="elite"><b>Logs dos robôs → Maiores traders</b></a>.</p></div>
+        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="elite"><b>Logs dos robôs → Maiores traders</b></a>.</p></div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Maiores traders</h2><div class="sub" id="elSub">os maiores ganhadores da pump.fun, o que fazem minuto a minuto, sinais, estudo e compra automática</div></div></header>
           <div class="kpis" id="elKpis"></div>
           <div class="help"><p><b>Como funciona:</b> segue os 15 maiores por lucro no ranking da Solana Tracker (o ranking do site da pump.fun bloqueia leitura automática). Cada compra e venda deles chega em segundos. Quando <b>2 ou mais</b> compram o mesmo token em 10 min (ou um compra 5+ SOL), vira um <b>sinal</b>. Cada sinal é acompanhado por 60 min: isso vira o estudo, o ranking de quem dá sinal bom e as sugestões de melhoria. A compra automática usa as proteções das automáticas (valor, stop, venda em partes, stop móvel, limites do dia), configuradas em Explorar.</p></div></div>
@@ -499,7 +499,7 @@
           <div class="seg" id="exRealFilt" style="margin:8px 0"><button data-real-filt="all" class="on">Todas</button><button data-real-filt="win">Ganhou</button><button data-real-filt="loss">Perdeu</button><button data-real-filt="open">Abertas</button></div>
           <div class="tbl-wrap tall"><table id="exRealTrades" class="autotbl"></table></div>
         </div>
-        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, salvo por 14 dias) fica no menu <a href="#logs" data-logtab="explorar"><b>Logs dos robôs → Explorar</b></a>.</p></div>
+        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="explorar"><b>Logs dos robôs → Explorar</b></a>.</p></div>
         <div class="card" data-novo-ate="2026-11-10">
           <header><div><h2>Funil do filtro (últimas 24 h)</h2><div class="sub">por que o Explorar desta conta entrou ou não entrou em cada token</div></div></header>
           <div style="margin-top:4px"><div class="hint">Quantos tokens o Explorar olhou, quantos entraram e por que os outros foram barrados. "Barrados que subiram" mostra se o filtro está deixando passar coisa boa (compara o preço de quando foi visto com o de agora, quando há preço).</div>
@@ -809,33 +809,41 @@
       <!-- ========================================================= NOVIDADES (web/novidades.json) -->
       <!-- ========================================================= BASE GERAL (0.31.71, app/basegeral.py) -->
       <section class="view" data-view="logs" hidden>
-        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Logs dos robôs</h2><div class="sub">o que cada robô analisou, o que fez e por que não fez · salvo no banco por 14 dias</div></div></header>
-          <div class="help"><p><b>Como funciona:</b> cada robô que decide sozinho grava aqui, a cada 5 minutos, um registro com tudo o que analisou e a decisão de cada item: comprou/copiou ou o motivo de não ter feito. Os registros ficam guardados no banco por 14 dias e podem ser vistos a qualquer hora (6 h, 24 h ou 7 dias). No topo de cada robô vem um <b>diagnóstico</b> em uma frase (está ligado? quanto analisou? o que mais barrou?). O <b>Explorar</b> mostra também quanto os tokens barrados por cada filtro teriam dado 15 min depois (sombras): é assim que os logs viram conhecimento — a Base geral usa esse mesmo estudo. Os logs só registram: nenhuma compra muda por causa deles.</p>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Logs dos robôs</h2><div class="sub">o que cada robô analisou, o que fez e por que não fez · guardado no banco sem prazo (nada é apagado)</div></div></header>
+          <div class="help"><p><b>Como funciona:</b> cada robô que decide sozinho grava aqui, a cada 5 minutos, um registro com tudo o que analisou e a decisão de cada item: comprou/copiou ou o motivo de não ter feito. Os registros ficam guardados no banco <b>sem prazo</b> (nada é apagado) e podem ser vistos a qualquer hora (6 h, 24 h, 7 ou 30 dias). Todo dia, cada robô ganha um <b>resumo do dia</b> (o aprendizado dos logs): quanto analisou, quanto entrou e o que mais barrou, para comparar dias, semanas e meses. No topo de cada robô vem um <b>diagnóstico</b> em uma frase (está ligado? quanto analisou? o que mais barrou?). O <b>Explorar</b> mostra também quanto os tokens barrados por cada filtro teriam dado 15 min depois (sombras): é assim que os logs viram conhecimento — a Base geral usa esse mesmo estudo. Os logs só registram: nenhuma compra muda por causa deles.</p>
           <p><b>Outros registros que já existiam:</b> decisões do estudo automático de carteiras (Carteiras em estudo), trocas de regra do Ajuste automático (Base geral → Log do que foi aprendido) e entradas da Lista negra. Relatórios, Aprendizado diário, Comparar config e Radar não tomam decisão sozinhos, por isso não têm log.</p></div>
           <div class="seg" id="logTabs" style="margin-top:8px"><button data-logtab="explorar" class="on">Explorar</button><button data-logtab="copia">Cópia de traders</button><button data-logtab="base">Base da pump.fun</button><button data-logtab="elite">Maiores traders</button></div></div>
         <div data-logpane="explorar">
-        <div class="card" data-novo-ate="2026-11-11" id="exLogCard"><header><div><h2>Log de análise do robô (Explorar)</h2><div class="sub" id="exLogSub">cada lista de 5 min: o que o robô olhou, o que analisou, o que comprou e por que não comprou · salvo por 14 dias</div></div><div class="sp"></div>
-          <div class="seg" id="exLogSeg"><button data-exlogh="6">6 h</button><button data-exlogh="24" class="on">24 h</button><button data-exlogh="168">7 dias</button></div><button class="btn sm" id="exLogRef">Atualizar</button></header>
+        <div class="card" data-novo-ate="2026-11-11" id="exLogCard"><header><div><h2>Log de análise do robô (Explorar)</h2><div class="sub" id="exLogSub">cada lista de 5 min: o que o robô olhou, o que analisou, o que comprou e por que não comprou · guardado sem prazo</div></div><div class="sp"></div>
+          <div class="seg" id="exLogSeg"><button data-exlogh="6">6 h</button><button data-exlogh="24" class="on">24 h</button><button data-exlogh="168">7 dias</button><button data-exlogh="720">30 dias</button></div><button class="btn sm" id="exLogRef">Atualizar</button></header>
           <div class="help" id="exLogDiag"></div>
           <div class="kpis" id="exLogK"></div>
           <div class="grid2"><div><h4>Por que não comprou (no período)</h4><div class="tbl-wrap"><table id="exLogM" class="daytbl"></table></div></div>
             <div><h4>O que cada filtro barrou × quanto teria dado (sombras, 15 min depois)</h4><div class="tbl-wrap"><table id="exLogF" class="daytbl"></table></div></div></div>
           <h4>Cada lista analisada</h4><div class="tbl-wrap tall"><table id="exLogC" class="daytbl"></table></div></div>
+          <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Aprendizado dos logs (um resumo por dia)</h2><div class="sub" data-rdsub="explorar">todos os dias guardados; atualizado de hora em hora com os dias já fechados</div></div></header>
+          <div class="help" data-rdtr="explorar"></div><div class="tbl-wrap tall"><table id="rd_explorar" class="daytbl"></table></div></div>
         </div>
         <div data-logpane="copia" hidden>
-        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Cópia de traders)</h2><div class="sub" data-rlsub="copia">a cada 5 min: o que o robô analisou, o que fez e por que não · salvo por 14 dias</div></div><div class="sp"></div>
-          <div class="seg"><button data-rlh="copia:6">6 h</button><button data-rlh="copia:24" class="on">24 h</button><button data-rlh="copia:168">7 dias</button></div></header>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Cópia de traders)</h2><div class="sub" data-rlsub="copia">a cada 5 min: o que o robô analisou, o que fez e por que não · guardado sem prazo</div></div><div class="sp"></div>
+          <div class="seg"><button data-rlh="copia:6">6 h</button><button data-rlh="copia:24" class="on">24 h</button><button data-rlh="copia:168">7 dias</button><button data-rlh="copia:720">30 dias</button></div></header>
           <div data-rlog="copia"></div></div>
+          <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Aprendizado dos logs (um resumo por dia)</h2><div class="sub" data-rdsub="copia">todos os dias guardados; atualizado de hora em hora com os dias já fechados</div></div></header>
+          <div class="help" data-rdtr="copia"></div><div class="tbl-wrap tall"><table id="rd_copia" class="daytbl"></table></div></div>
         </div>
         <div data-logpane="base" hidden>
-        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Base da pump.fun)</h2><div class="sub" data-rlsub="base">a cada 5 min: o que o robô analisou, o que fez e por que não · salvo por 14 dias</div></div><div class="sp"></div>
-          <div class="seg"><button data-rlh="base:6">6 h</button><button data-rlh="base:24" class="on">24 h</button><button data-rlh="base:168">7 dias</button></div></header>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Base da pump.fun)</h2><div class="sub" data-rlsub="base">a cada 5 min: o que o robô analisou, o que fez e por que não · guardado sem prazo</div></div><div class="sp"></div>
+          <div class="seg"><button data-rlh="base:6">6 h</button><button data-rlh="base:24" class="on">24 h</button><button data-rlh="base:168">7 dias</button><button data-rlh="base:720">30 dias</button></div></header>
           <div data-rlog="base"></div></div>
+          <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Aprendizado dos logs (um resumo por dia)</h2><div class="sub" data-rdsub="base">todos os dias guardados; atualizado de hora em hora com os dias já fechados</div></div></header>
+          <div class="help" data-rdtr="base"></div><div class="tbl-wrap tall"><table id="rd_base" class="daytbl"></table></div></div>
         </div>
         <div data-logpane="elite" hidden>
-        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Maiores traders)</h2><div class="sub" data-rlsub="elite">a cada 5 min: o que o robô analisou, o que fez e por que não · salvo por 14 dias</div></div><div class="sp"></div>
-          <div class="seg"><button data-rlh="elite:6">6 h</button><button data-rlh="elite:24" class="on">24 h</button><button data-rlh="elite:168">7 dias</button></div></header>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log de análise do robô (Maiores traders)</h2><div class="sub" data-rlsub="elite">a cada 5 min: o que o robô analisou, o que fez e por que não · guardado sem prazo</div></div><div class="sp"></div>
+          <div class="seg"><button data-rlh="elite:6">6 h</button><button data-rlh="elite:24" class="on">24 h</button><button data-rlh="elite:168">7 dias</button><button data-rlh="elite:720">30 dias</button></div></header>
           <div data-rlog="elite"></div></div>
+          <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Aprendizado dos logs (um resumo por dia)</h2><div class="sub" data-rdsub="elite">todos os dias guardados; atualizado de hora em hora com os dias já fechados</div></div></header>
+          <div class="help" data-rdtr="elite"></div><div class="tbl-wrap tall"><table id="rd_elite" class="daytbl"></table></div></div>
         </div>
       </section>
       <section class="view" data-view="basegeral" hidden>

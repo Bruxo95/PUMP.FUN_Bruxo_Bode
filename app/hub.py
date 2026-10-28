@@ -484,12 +484,53 @@ class PumpHub:
         return n
 
     async def rlog_loop(self) -> None:
+        n = 0
         while True:
             await asyncio.sleep(60)
             try:
                 await self.rlog_flush()
             except Exception as e:
                 log.warning("log dos robôs: %s", str(e)[:160])
+            n += 1
+            if n % 60 == 5:                                 # 0.31.91: resumo do dia, de hora em hora (só dias fechados)
+                try:
+                    await self.rlog_daily()
+                except Exception as e:
+                    log.warning("aprendizado dos logs: %s", str(e)[:160])
+
+    async def rlog_daily(self, now: float | None = None, max_days: int = 60) -> int:
+        """0.31.91 (pedido do dono: "depois de 14 dias criar um aprendizado e não deletar"): para cada conta e robô,
+        resume cada dia fechado (UTC) que ainda não tem resumo em robot_daily. Os registros de 5 min nunca são apagados."""
+        from datetime import timedelta
+        from .robotlog import rollup
+        now = time.time() if now is None else now
+        today = datetime.fromtimestamp(now, timezone.utc).date()
+        done = 0
+        for pf in list(self.engines.values()):
+            have = {r.get("id") for r in await self.db.select("robot_daily", {"user_id": pf.user_id}, columns="id", limit=5000)}
+            for mod in ("explorar", *self.RLOG_NAMES):
+                for back in range(1, max_days + 1):
+                    dia = today - timedelta(days=back)
+                    rid = f"{pf.user_id}:{mod}:{dia.isoformat()}"
+                    if rid in have:
+                        continue
+                    ini = datetime(dia.year, dia.month, dia.day, tzinfo=timezone.utc)
+                    rng = {"gte": {"em": ini.isoformat()}, "lte": {"em": (ini + timedelta(days=1) - timedelta(seconds=1)).isoformat()}}
+                    if mod == "explorar":
+                        rows = await self.db.select("explore_cycles", {"user_id": pf.user_id}, limit=2000, **rng)
+                    else:
+                        rows = await self.db.select("robot_log", {"user_id": pf.user_id, "modulo": mod}, limit=2000, **rng)
+                    if not rows:
+                        continue
+                    await self.db.insert("robot_daily", {"id": rid, "user_id": pf.user_id, "modulo": mod, "dia": dia.isoformat(),
+                                                         "data": rollup([r.get("data") or {} for r in rows])}, upsert=True, on_conflict="id")
+                    done += 1
+        return done
+
+    async def robot_days(self, pf: PumpFun, mod: str) -> dict:
+        from .robotlog import trend
+        rows = await self.db.select("robot_daily", {"user_id": pf.user_id, "modulo": mod}, order="dia.desc", limit=400)
+        return {"modulo": mod, "dias": rows, "tendencia": trend(rows)}
 
     async def robot_log(self, pf: PumpFun, mod: str, hours: float = 24) -> dict:
         import re

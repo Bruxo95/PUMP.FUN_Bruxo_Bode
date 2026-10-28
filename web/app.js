@@ -924,6 +924,19 @@
     document.querySelectorAll("#logTabs [data-logtab]").forEach((b) => b.classList.toggle("on", b.dataset.logtab === tab));
     document.querySelectorAll("[data-logpane]").forEach((p) => { p.hidden = p.dataset.logpane !== tab; });
     if (tab === "explorar") loadExLog(); else loadRobotLog(tab);
+    loadRobotDays(tab);
+  }
+  // 0.31.91 (pedido do dono): aprendizado dos logs — resumo de cada dia, sem prazo
+  async function loadRobotDays(mod) {
+    if (!$("rd_" + mod)) return;
+    const r = await BB.api("/api/pump/robot-log/dias?modulo=" + mod); if (r.error) return;
+    const T = r.tendencia || {}, tr = document.querySelector('[data-rdtr="' + mod + '"]');
+    if (tr) tr.innerHTML = T.dias ? "<p>Em <b>" + T.dias + " dia(s)</b> registrados: " + T.entradas_total + " entrada(s), média de " + f(T.entradas_media_dia, 1) + " por dia, " + T.dias_sem_entrada + " dia(s) sem nenhuma entrada." + (T.motivo_principal ? " O que mais barrou no período todo: <b>" + esc(T.motivo_principal) + "</b>." : "") + "</p>" : "<p>O primeiro resumo aparece no dia seguinte ao primeiro registro (dias fechados, em UTC).</p>";
+    table("rd_" + mod, ["Dia", "Registros", "Analisados", mod === "copia" ? "Copiou" : "Entrou", "O que mais barrou", "Outros motivos"], (r.dias || []).map((d) => { const x = d.data || {}, M = x.motivos || [];
+      return [esc(String(d.dia || "").split("-").reverse().join("/")), String(x.registros || 0), String(x.analisados || 0) + (x.sem_preco ? "<small>" + x.sem_preco + " sem preço</small>" : ""),
+        (x.entradas ? '<b class="up">' + x.entradas + "</b><small>" + (x.nomes || []).slice(0, 5).map(esc).join(", ") + "</small>" : "0"),
+        M[0] ? '<span class="wrapcell">' + esc(M[0].motivo) + " (" + f(M[0].pct, 0) + "%)</span>" : "–",
+        '<span class="wrapcell">' + M.slice(1, 4).map((m) => esc(m.motivo) + " (" + f(m.pct, 0) + "%)").join("<br>") + "</span>"]; }), "Ainda sem dias fechados.");
   }
   // 0.31.89 (pedido do dono): o mesmo log de análise para os outros robôs (cópia de traders, Base, Maiores traders)
   const RLH = { copia: 24, base: 24, elite: 24 };

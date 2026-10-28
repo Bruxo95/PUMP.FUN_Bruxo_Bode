@@ -955,17 +955,24 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
                                      real=bool(real))
 
+    @app.get("/api/pump/robot-log/dias")
+    async def robot_days(modulo: str, pf=Depends(admin_engine)):
+        """0.31.91: aprendizado dos logs — um resumo por dia de cada robô, sem prazo (nada é apagado)."""
+        if modulo != "explorar" and modulo not in hub.RLOG_NAMES:
+            return {"error": "robô inválido"}
+        return await hub.robot_days(pf, modulo)
+
     @app.get("/api/pump/robot-log")
     async def robot_log(modulo: str, horas: float = 24, pf=Depends(admin_engine)):
         """0.31.89: log de análise de um robô (copia, base, elite) desta conta, em blocos de 5 min."""
         if modulo not in hub.RLOG_NAMES:
             return {"error": "robô inválido"}
-        return await hub.robot_log(pf, modulo, max(1.0, min(float(horas), 24 * 14)))
+        return await hub.robot_log(pf, modulo, max(1.0, min(float(horas), 24 * 90)))
 
     @app.get("/api/pump/explore/log")
     async def explore_log(horas: float = 24, pf=Depends(admin_engine)):
         """0.31.88: log de análise do Explorar (cada lista de 5 min: o que analisou, o que entrou e por que não)."""
-        return await hub.explore_log(pf, max(1.0, min(float(horas), 24 * 14)))
+        return await hub.explore_log(pf, max(1.0, min(float(horas), 24 * 90)))
 
     @app.get("/api/pump/raiox/{mint}")
     async def raiox(mint: str, novo: int = 0, pf=Depends(admin_engine)):

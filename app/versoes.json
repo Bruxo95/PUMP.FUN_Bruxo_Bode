@@ -710,6 +710,11 @@
    "versao": "0.31.90",
    "inicio": "2026-10-28T10:48:44+00:00",
    "titulo": "menu Logs dos robôs"
+  },
+  {
+   "versao": "0.31.91",
+   "inicio": "2026-10-28T10:56:13+00:00",
+   "titulo": "logs sem prazo e aprendizado por dia"
   }
  ]
 }

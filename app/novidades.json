@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.91",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Logs dos robôs → Aprendizado dos logs",
+      "titulo": "Logs guardados sem prazo e aprendizado por dia",
+      "oque": "Nada dos logs é apagado: os registros de 5 min ficam guardados para sempre e dá para ver 6 h, 24 h, 7 ou 30 dias. Cada robô ganha também um resumo por dia (quanto analisou, quanto entrou e o que mais barrou) e uma frase com a tendência de todos os dias guardados (entradas por dia, dias sem entrada, motivo que mais barrou). Assim dá para comparar dias, semanas e meses."
+    },
+    {
       "versao": "0.31.90",
       "data": "2026-10-28",
       "tipo": "melhoria",

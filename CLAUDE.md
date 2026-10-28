@@ -1008,3 +1008,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.90: menu `#logs` (`#navLogs`, admin) com abas `data-logtab`/`data-logpane` (explorar, copia, base, elite; `showLogTab`);
   os quadros de log saíram das telas e ficaram atalhos `data-logtab`. Pedido do dono ("um menu para guardar e ver depois").
+
+- 0.31.91 (pedido do dono: "depois de 14 dias criar um aprendizado e não deletar"): nenhum log é apagado; `app/robotlog.py`
+  (`rollup`, `trend`) + `hub.rlog_daily` (de hora em hora no `rlog_loop`, dias fechados UTC, até 60 para trás) → tabela `robot_daily`
+  (migração `20261028000005`); `GET /api/pump/robot-log/dias?modulo=` (admin); quadro "Aprendizado dos logs" em cada aba
+  (`loadRobotDays`); períodos até 90 dias. `tests/test_robot_daily.py`.
