@@ -26,11 +26,11 @@ def test_second_target_sells_share_of_original(tmp_path):
     pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
     p = [p for p in pf.positions() if p["mint"] == M][0]
     base = pf.tokens[M]["price"]
-    pf.tokens[M]["price"] = base * 2.2
+    pf.tokens[M]["price"] = base * 2.8               # +100% líquido depois das taxas
     pf._check_stops(M, 1001.0)
     p = [p for p in pf.positions() if p["mint"] == M][0]
     assert p.get("tp1_done") and abs(p["tokens_left"] / p["tokens"] - 0.5) < 0.01
-    pf.tokens[M]["price"] = base * 4.5
+    pf.tokens[M]["price"] = base * 6.0
     pf._check_stops(M, 1002.0)
     p = [p for p in pf.positions() if p["mint"] == M][0]
     assert p.get("tp2_done") and abs(p["tokens_left"] / p["tokens"] - 0.25) < 0.01     # moonbag 25%
