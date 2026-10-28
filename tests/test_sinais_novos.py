@@ -15,5 +15,6 @@ def test_extra_info_and_study_never_block():
     trades = [{"origem": "explorar", "pnl_sol": -0.03, "pnl_pct": -60.0, "auto_info": dict(info)} for _ in range(10)]
     ex = {(x["feature"], x["faixa"]) for x in study_extra(trades)}
     assert ("mayhem", "Mayhem") in ex and ("top10", "40 a 60%") in ex and ("avg_trade_usd", "menos de $1") in ex
-    assert not any(f in FEATURES for f in ("mayhem", "top10", "avg_trade_usd", "age_min"))      # nunca bloqueiam
-    assert study(trades, "explorar")["bloqueios"] == []
+    assert not any(f in FEATURES for f in ("mayhem", "top10", "avg_trade_usd"))      # nunca bloqueiam
+    # 0.32.36 (sugestão do Bruxo): a idade do token passou a ser faixa do aprender com os erros; só ela pode bloquear aqui
+    assert all(b["feature"] == "age_min" for b in study(trades, "explorar")["bloqueios"])

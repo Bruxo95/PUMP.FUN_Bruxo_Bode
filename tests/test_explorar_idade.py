@@ -6,7 +6,7 @@ from tests.test_pump import _pump
 
 
 def _row(age_min):
-    return {"mint": "Idad".ljust(40, "1") + "pump", "cat": "graduating", "pred": {"verdict": "chance alta"},
+    return {"mint": "Aged".ljust(40, "1") + "pump", "cat": "graduating", "pred": {"verdict": "chance alta"},
             "pressure": 70, "holders": 150, "curve_pct": 70, "chg_5m": 10, "risk": 3, "buys": 70, "sells": 30,
             "created": (time.time() - age_min * 60) * 1000}
 
@@ -22,7 +22,7 @@ def test_max_age_off_by_default_and_blocks_when_on(tmp_path):
 
 def test_explore_min_age_own_setting(tmp_path):
     pf = _pump(tmp_path)
-    m = "Idad".ljust(40, "1") + "pump"
+    m = "Aged".ljust(40, "1") + "pump"
     assert "mínimo 20" in str(pf.auto_safety(m, 5, "explorar"))
     pf.cfg.pump_ex_min_age_min = 0
     assert "mínimo" not in str(pf.auto_safety(m, 5, "explorar"))
