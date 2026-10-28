@@ -42,23 +42,26 @@ def test_position_lifecycle_feeds_learning(tmp_path):
     assert agg["n"] == 1 and agg["por_saida"][0]["saiu_cedo_pct"] == 100
 
 
-def test_pending_override_is_applied_once_on_load():
-    from tests.test_api import UA
+def test_pending_override_is_applied_once_on_load(monkeypatch):
+    import base64
+    import os
+
+    import httpx
+
     from app.crypto import SecretBox
     from app.hub import PumpHub
     from app.settings import ServerConfig
     from tests.fakes import FakeREST
-    import base64
-    import os
-    import httpx
-    os.environ.setdefault("SUPABASE_URL", "https://x.supabase.co")
-    os.environ["APP_ENCRYPTION_KEY"] = base64.b64encode(os.urandom(32)).decode()
+    from tests.test_api import UA
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("APP_ENCRYPTION_KEY", base64.b64encode(os.urandom(32)).decode())
     cfg = ServerConfig()
     db = FakeREST()
     db.add_user(UA, "a@x.com")
     db.tables["settings_overrides"].append({"id": 1, "user_id": UA, "settings": {"pump_bar_max_h": 20}, "motivo": "teste",
                                             "aplicado_em": None})
-    hub = PumpHub(cfg, httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404))), db, SecretBox(cfg.encryption_key))
+    http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
+    hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
     pf = asyncio.run(hub.engine(UA))
     assert pf.cfg.pump_bar_max_h == 20 and db.tables["settings_overrides"][0]["aplicado_em"]
     assert db.tables["user_settings"][0]["settings"]["pump_bar_max_h"] == 20
