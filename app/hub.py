@@ -262,7 +262,12 @@ class PumpHub:
         wins = sum(1 for t in pool if (t.get("pnl_sol") or 0) > 0)
         pnl = sum(t.get("pnl_sol") or 0 for t in pool)
         from .autolearn import study_extra
+        from .basegeral import verdict_study
+        from .raiox import study as xray_study
         return {"learned": learned, "ghosts": ghosts, "ghost_days": round(gdays, 2), "sinais": study_extra(pool),
+                "veredito": verdict_study(self.__dict__.get("shadows") or {}, self.SHADOW_COST_PCT),
+                "raiox": xray_study(self.__dict__.get("_xray") or {}, self.xray_outcomes()),
+                "raiox_n": len(self.__dict__.get("_xray") or {}),
                 "maturidade": maturity(learned, ghosts, history_days(pool), gdays),
                 "por_vir": upcoming(learned, ghosts, gdays, MIN_N, MAX_WR, MAX_AVG_PCT),
                 "resumo": dict(state_summary(learned, ghosts), acerto=round(wins / n, 3) if n else None,
@@ -393,13 +398,14 @@ class PumpHub:
         from .explore import extra_info
         info.update(extra_info(row, self.market.tokens.get(mint) if hasattr(self.market, "tokens") else {}, t))   # 0.31.81
         sh[mint] = {"t0": t, "symbol": row.get("symbol"), "why": str(why)[:160], "info": info,
+                    "veredito": (row.get("pred") or {}).get("verdict"),               # 0.31.86: estudo do veredito
                     "px0": (self.market.tokens.get(mint) or {}).get("price") if hasattr(self.market, "tokens") else None}
 
     def shadow_trades(self) -> list[dict]:
         from datetime import datetime as _dt
         out = []
         for mint, s in list((self.__dict__.get("shadows") or {}).items()):
-            if s.get("ret") is None:
+            if s.get("ret") is None or s.get("veredito") not in (None, "chance alta"):
                 continue
             pct = round(s["ret"] - self.SHADOW_COST_PCT, 2)
             out.append({"mint": mint, "symbol": s.get("symbol"), "origem": "explorar", "auto": True, "sombra": True,
@@ -415,7 +421,7 @@ class PumpHub:
         sh = self.__dict__.setdefault("shadows", {})
         svc = getattr(self.monitor, "svc", None) if self.monitor else None
         need = [m for m, s in sh.items() if s.get("ret") is None and ((s.get("px0") is None and now - s["t0"] <= 120)
-                                                                      or (s.get("px0") and now - s["t0"] >= self.SHADOW_S))]
+                                                                      or (s.get("px0") and now - s["t0"] <= self.SHADOW_S + 1800))]
         if need and svc is not None:
             pump = [m for m in need if svc.is_pump(m)]
             rest = await svc._curve_prices(pump, public_first=True) if pump else []
@@ -433,6 +439,8 @@ class PumpHub:
                 elif now - s["t0"] > 120:
                     sh.pop(m, None)
                 continue
+            if px and s.get("px0"):
+                s["pico"] = round(max(s.get("pico") or -100.0, (px / s["px0"] - 1) * 100), 2)    # 0.31.86: pico em 15 min
             if now - s["t0"] >= self.SHADOW_S:
                 if px:
                     r = (px / s["px0"] - 1) * 100
@@ -458,11 +466,103 @@ class PumpHub:
                 log.warning("entradas sombra: %s", str(e)[:160])
             await asyncio.sleep(60)
 
+    # ------------------------------------------------------------------ Raio-X do token (0.31.86)
+    XRAY_TTL = 6 * 3600            # refaz no máximo a cada 6 h por token
+    XRAY_AUTO_DAY = 10             # automáticos por dia (1 crédito da Solana Tracker cada)
+
+    def _xray_key(self, pf: PumpFun | None = None) -> str:
+        if pf is not None and pf.lb_key_own():
+            return pf.lb_key()
+        return next((e.lb_key() for e in self.engines.values() if e.lb_key_own()), "") or getattr(self, "shared_st_key", "")
+
+    async def xray(self, pf: PumpFun | None, mint: str, force: bool = False) -> dict:
+        from .raiox import PAGE, TRADES_URL, analyze, parse
+        cache = self.__dict__.setdefault("_xray", {})
+        hit = cache.get(mint)
+        if hit and not force and time.time() - (hit.get("feito") or 0) < self.XRAY_TTL:
+            return hit
+        key = self._xray_key(pf)
+        if not key:
+            return {"error": "precisa da chave da Solana Tracker (pessoal ou do sistema)"}
+        try:
+            r = await self.http.get(TRADES_URL + mint, params={"limit": PAGE, "sortDirection": "ASC"},
+                                    headers={"x-api-key": key, "Accept": "application/json"}, timeout=20)
+            if r.status_code != 200:
+                return {"error": f"Solana Tracker respondeu HTTP {r.status_code}"}
+            rep = analyze(parse(r.json()))
+        except Exception as e:
+            return {"error": "Raio-X falhou: " + str(e)[:120]}
+        tk = self.market.tokens.get(mint) or {}
+        rep.update(mint=mint, symbol=tk.get("symbol"), feito=time.time())
+        cache[mint] = rep
+        try:
+            await self.db.insert("token_xray", {"mint": mint, "em": datetime.now(timezone.utc).isoformat(), "data": rep},
+                                 upsert=True, on_conflict="mint")
+        except Exception as e:
+            log.warning("raio-x não gravou: %s", str(e)[:120])
+        return rep
+
+    async def load_xrays(self) -> None:
+        try:
+            rows = await self.db.select("token_xray", None, order="em.desc", limit=3000)
+            cache = self.__dict__.setdefault("_xray", {})
+            for r in rows:
+                if isinstance(r.get("data"), dict):
+                    cache.setdefault(r["mint"], r["data"])
+        except Exception as e:
+            log.warning("raio-x não carregou: %s", str(e)[:120])
+
+    def xray_outcomes(self) -> dict:
+        """Resultado de cada token para cruzar com o Raio-X: operação do Explorar (base geral) ou sombra medida."""
+        out = {}
+        for s_mint, s in (self.__dict__.get("shadows") or {}).items():
+            if s.get("ret") is not None:
+                out[s_mint] = {"pnl_pct": s["ret"] - self.SHADOW_COST_PCT, "sombra": True}
+        for e in list(self.engines.values()):
+            for t in e.trades(100000):
+                if t.get("origem") == "explorar" and not t.get("real") and t.get("mint"):
+                    out[t["mint"]] = {"pnl_pct": t.get("pnl_pct"), "sombra": False}
+        return out
+
+    async def xray_auto_once(self, now: float | None = None) -> int:
+        """Raio-X automático (até XRAY_AUTO_DAY por dia): operações do Explorar fechadas nas últimas 24 h e barrados que
+        subiram 50%+ (pico das sombras)."""
+        from .auto_trades import ts
+        now = time.time() if now is None else now
+        day = int(now // 86400)
+        cnt = self.__dict__.setdefault("_xray_day", {})
+        cache = self.__dict__.setdefault("_xray", {})
+        if cnt.get(day, 0) >= self.XRAY_AUTO_DAY or not self._xray_key():
+            return 0
+        cand = []
+        for e in list(self.engines.values()):
+            cand += [t["mint"] for t in e.trades(500) if t.get("origem") == "explorar" and not t.get("real") and t.get("mint")
+                     and now - (ts(t.get("closed_at")) or 0) < 86400]
+        cand += [m for m, s in (self.__dict__.get("shadows") or {}).items() if (s.get("pico") or 0) >= 50 and now - s.get("t0", 0) < 86400]
+        done = 0
+        for m in dict.fromkeys(cand):
+            if m in cache or cnt.get(day, 0) >= self.XRAY_AUTO_DAY:
+                continue
+            r = await self.xray(None, m)
+            cnt[day] = cnt.get(day, 0) + 1
+            done += 0 if r.get("error") else 1
+        return done
+
+    async def xray_loop(self) -> None:
+        await asyncio.sleep(600)
+        await self.load_xrays()
+        while True:
+            try:
+                await self.xray_auto_once()
+            except Exception as e:
+                log.warning("raio-x automático: %s", str(e)[:160])
+            await asyncio.sleep(1800)
+
     async def load_shadows(self) -> None:
         try:
             from datetime import datetime as _dt
             since = _dt.fromtimestamp(time.time() - 30 * 86400, timezone.utc).isoformat()
-            rows = await self.db.select("base_shadows", None, order="em.desc", limit=5000, gte={"em": since})
+            rows = await self.db.select("base_shadows", None, order="em.desc", limit=40000, gte={"em": since})
             sh = self.__dict__.setdefault("shadows", {})
             for r in rows:
                 if isinstance(r.get("data"), dict):
@@ -1743,6 +1843,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.tune_loop()))
         self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
         self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
+        self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor

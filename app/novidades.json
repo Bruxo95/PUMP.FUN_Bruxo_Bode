@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.86",
+      "data": "2026-10-28",
+      "tipo": "novo",
+      "onde": "Base geral e ficha do token (botão i → Raio-X)",
+      "titulo": "Veredito medido, Raio-X do token e sinais do começo do token",
+      "oque": "(A) Todo token que o Explorar barrou vira sombra, inclusive os barrados pelo veredito: a Base geral mostra se o veredito está acertando (quantos ganhariam, média em 15 min e o pico). (B) Raio-X do token: gráfico de compras × vendas por minuto, primeiros compradores (quanto seguraram, quem vendeu tudo) e o maior despejo, na ficha de qualquer token; o robô faz sozinho até 10 por dia. (C) Os sinais do Raio-X são cruzados com o resultado na Base geral. Nada disso muda as compras do Explorar."
+    },
+    {
       "versao": "0.31.85",
       "data": "2026-10-28",
       "tipo": "novo",

@@ -76,6 +76,26 @@ def state_summary(learned: dict, ghosts: dict) -> dict:
             "melhor_regra": best["nome"] if best else None, "melhor_por_trade": best.get("avg_sol") if best else None}
 
 
+def verdict_study(shadows: dict, cost_pct: float = 4.0) -> list[dict]:
+    """0.31.86: o veredito do Explorar está acertando? Sombras medidas (preço 15 min depois, menos o custo) e o pico
+    que o token fez nesses 15 min, por veredito. Só estudo: não muda compra nem bloqueio."""
+    g: dict[str, list] = {}
+    for s in (shadows or {}).values():
+        if s.get("ret") is None:
+            continue
+        g.setdefault(s.get("veredito") or "chance alta", []).append(s)
+    out = []
+    for v, r in g.items():
+        n = len(r)
+        res = [(s["ret"] - cost_pct) for s in r]
+        pk = [s.get("pico") for s in r if s.get("pico") is not None]
+        out.append({"veredito": v, "n": n, "ganharia": sum(1 for x in res if x > 0), "acerto": round(sum(1 for x in res if x > 0) / n, 3),
+                    "media_pct": round(sum(res) / n, 1), "pico_medio_pct": round(sum(pk) / len(pk), 1) if pk else None,
+                    "pico_50": sum(1 for x in pk if x >= 50)})
+    order = {"chance alta": 0, "possível": 1, "fraco": 2, "lixo": 3}
+    return sorted(out, key=lambda x: order.get(x["veredito"], 9))
+
+
 def diff(prev: dict | None, cur: dict) -> list[tuple[str, str]]:
     """(tipo, texto) do que mudou desde a foto anterior — vira o log do que foi aprendido."""
     if not prev:

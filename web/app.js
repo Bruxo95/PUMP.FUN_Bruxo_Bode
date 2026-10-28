@@ -889,6 +889,11 @@
     table("bgS", ["Sinal", "Faixa", "Operações", "Delas, sombra", "Acerto", "Média", "Resultado"], (r.sinais || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n),
       x.n_sombra ? '<span class="tag neutral">SOMBRA ' + x.n_sombra + "</span>" : "–", f(x.acerto * 100, 0) + "%", (x.media_pct > 0 ? "+" : "") + f(x.media_pct, 1) + "%", sg(x.pnl_sol)]),
       "Ainda sem compras ou sombras com estes sinais (começam a ser anotados a partir desta versão).");
+    table("bgV", ["Veredito", "Tokens medidos", "Ganhariam", "Acerto", "Média em 15 min", "Pico médio", "Picos de 50%+"], (r.veredito || []).map((x) => [esc(x.veredito), String(x.n), String(x.ganharia),
+      f(x.acerto * 100, 0) + "%", pc(x.media_pct), x.pico_medio_pct == null ? "–" : pc(x.pico_medio_pct), String(x.pico_50)]), "As sombras de todos os vereditos começam a ser medidas nesta versão (15 min depois de cada token barrado).");
+    if ($("bgXSub")) $("bgXSub").textContent = (r.raiox_n || 0) + " tokens com Raio-X · primeiros compradores, compras em bloco e despejo, cruzados com o que aconteceu";
+    table("bgX", ["Sinal do começo do token", "Faixa", "Tokens", "Delas, sombra", "Acerto", "Média"], (r.raiox || []).map((x) => [esc(x.nome), esc(x.faixa), String(x.n),
+      x.n_sombra ? '<span class="tag neutral">SOMBRA ' + x.n_sombra + "</span>" : "–", f(x.acerto * 100, 0) + "%", pc(x.media_pct)]), "Ainda sem Raio-X cruzado com resultado.");
     $("bgGSub").textContent = "desde " + (G.since ? dt(G.since) : "–") + " · " + f(r.ghost_days || 0, 1) + " dia(s) · o Ajuste automático precisa de 20+ trades e 2 dias";
     table("bgG", ["Regra de saída", "Trades", "Acerto", "Resultado", "Por trade", "Rumo aos 20 trades"], (G.variants || []).map((v) => [(v.id === G.best ? '<span class="tag win">melhor</span> ' : "") + esc(v.nome), String(v.trades || 0),
       v.win_rate == null ? "–" : f(v.win_rate * 100, 0) + "%", sg(v.pnl_sol || 0), v.trades ? s4(v.pnl_sol / v.trades) : "–", f(Math.min(100, (v.trades || 0) / 20 * 100), 0) + "%"]), "Sem trades nos fantasmas ainda.");
@@ -1214,9 +1219,33 @@
       (!r.flow ? '<p class="muted small">Compradores/vendedores únicos e volume de compra × venda aparecem quando a Solana Tracker responder para este token.</p>' : "") +
       "<h3>Maiores carteiras</h3>" + (hold || '<p class="muted">Ainda não consultado.</p>') +
       ((r.traders_in || []).length ? "<h3>Seus traders neste token</h3>" + r.traders_in.map((x) => "<div>" + pfW(x.wallet, x) + " · investiu " + s4(x.invested_sol) + " SOL · " + (x.chg_pct == null ? "–" : f(x.chg_pct, 1) + "%") + "</div>").join("") : "") +
-      ((r.my_trades || []).length ? "<h3>Suas operações neste token</h3>" + r.my_trades.map((t) => "<div>" + dt(t.closed_at) + " · " + sg(t.pnl_sol) + " · " + esc(t.reason || "") + "</div>").join("") : "");
+      ((r.my_trades || []).length ? "<h3>Suas operações neste token</h3>" + r.my_trades.map((t) => "<div>" + dt(t.closed_at) + " · " + sg(t.pnl_sol) + " · " + esc(t.reason || "") + "</div>").join("") : "") +
+      (ME && ME.role === "admin" ? '<h3>Raio-X das negociações</h3><p class="muted small">Primeiras 500 negociações: compras × vendas por minuto, quem comprou primeiro e quanto segurou, e o despejo. Gasta 1 consulta da Solana Tracker (guardado por 6 h).</p><button class="btn sm" data-xray="' + esc(m) + '">Fazer Raio-X</button><div id="xrOut"></div>' : "");
+  }
+  // 0.31.86 (pedido do dono): Raio-X do token — gráfico de compras × vendas por minuto, primeiros compradores e despejo
+  async function showXray(m, btn) {
+    if (btn) btn.disabled = true;
+    const r = await BB.api("/api/pump/raiox/" + encodeURIComponent(m)); if (btn) btn.disabled = false;
+    const out = $("xrOut"); if (!out) return;
+    if (r.error) { out.innerHTML = '<p class="muted">' + esc(r.error) + "</p>"; return; }
+    if (!r.n) { out.innerHTML = '<p class="muted">Nenhuma negociação encontrada.</p>'; return; }
+    const M = (r.minutos || []).slice(0, 90), mx = Math.max(0.0001, ...M.map((b) => Math.max(b.sol_compra, b.sol_venda)));
+    const W = 600, H = 160, bw = W / Math.max(M.length, 1);
+    const bars = M.map((b, i) => '<rect x="' + (i * bw + 1).toFixed(1) + '" y="' + (80 - b.sol_compra / mx * 76).toFixed(1) + '" width="' + Math.max(1, bw - 2).toFixed(1) + '" height="' + (b.sol_compra / mx * 76).toFixed(1) + '" rx="2" fill="var(--up,#22c55e)"><title>min ' + b.min + ": " + b.compras + " compras, " + f(b.sol_compra, 2) + " SOL</title></rect>" +
+      '<rect x="' + (i * bw + 1).toFixed(1) + '" y="82" width="' + Math.max(1, bw - 2).toFixed(1) + '" height="' + (b.sol_venda / mx * 76).toFixed(1) + '" rx="2" fill="var(--down,#ef4444)"><title>min ' + b.min + ": " + b.vendas + " vendas, " + f(b.sol_venda, 2) + " SOL</title></rect>").join("");
+    const s = r.sinais || {}, d = r.despejo || {};
+    out.innerHTML = '<p class="small"><span class="up">▮ compras (SOL)</span> · <span class="down">▮ vendas (SOL)</span> · cada barra = 1 minuto desde a 1ª negociação · ' + r.n + " negociações" + (r.completo ? "" : " (as primeiras 500)") + "</p>" +
+      '<svg viewBox="0 0 ' + W + " " + H + '" style="width:100%;height:auto;display:block" role="img" aria-label="compras e vendas por minuto"><line x1="0" y1="81" x2="' + W + '" y2="81" stroke="var(--line2,#333)"/>' + bars + "</svg>" +
+      '<div class="cfgs">' + [["Primeiros que venderam em até 5 min", s.vendas_cedo_pct == null ? "–" : f(s.vendas_cedo_pct, 0) + "%"], ["Compras em bloco no 1º segundo", String(s.bloco_n ?? "–")],
+        ["Vendas nos 5 maiores vendedores", s.top5_venda_pct == null ? "–" : f(s.top5_venda_pct, 0) + "%"], ["Primeiros seguraram (mediana)", s.segurou_mediana_min == null ? "–" : f(s.segurou_mediana_min, 1) + " min"],
+        ["Maior despejo", "minuto " + d.minuto + ": " + f(d.sol_venda || 0, 2) + " SOL vendidos × " + f(d.sol_compra || 0, 2) + " comprados · " + (d.carteiras || 0) + " carteiras (" + (d.primeiros_no_despejo || 0) + " dos primeiros)"]]
+        .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + esc(x[1]) + "</span></div>").join("") + "</div>" +
+      '<h4>Primeiros compradores</h4><div class="tbl-wrap"><table id="xrF" class="daytbl"></table></div>';
+    table("xrF", ["Carteira", "Entrou", "SOL", "Vendeu", "Segurou", "Resultado", "Perfil"], (r.primeiros || []).map((x) => [pfW(x.wallet), "+" + hms(x.entrou_s), f(x.sol, 3), f(x.vendeu_pct, 0) + "%",
+      hms(x.segurou_s), sg(x.lucro_sol), esc(x.perfil)]), "–");
   }
   document.addEventListener("click", (e) => {
+    const xb = e.target.closest("[data-xray]"); if (xb) { e.preventDefault(); showXray(xb.dataset.xray, xb); return; }
     const b = e.target.closest(".tkinfo"); if (b) { e.preventDefault(); openToken(b.dataset.tk); return; }
     if (e.target.id === "tkX" || e.target.id === "tkCard") $("tkCard").hidden = true;
   });

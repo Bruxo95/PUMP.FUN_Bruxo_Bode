@@ -981,3 +981,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `/api/pump/base/automatico` (admin). Congelar: `pf.brain_freeze` (salvo como `_brain_freeze`) → `PumpFun.learned_for_entry`
   (só a decisão de entrada do Explorar; o estudo mostra o atual) e `auto_tune` parado. Card `#evoTbl` na Base geral.
   Relatório `app/relatorios_ia/2026-10-28-0.31.85.md`. `tests/test_evolucoes.py`.
+
+## Veredito medido e Raio-X do token (2026-10-28, versão 0.31.86)
+- Pedido do dono (A, B, C). A: `_funnel_note` manda TODO barrado para `shadow_note` (guarda `veredito`); `shadow_tick` mede o `pico`
+  em 15 min; `shadow_trades` só leva "chance alta" (ou sem veredito, antigas) ao aprender com os erros; `basegeral.verdict_study`
+  → `base_state["veredito"]` → `#bgV`. `load_shadows` lê até 40 mil. B: `app/raiox.py` (Solana Tracker `/trades/{mint}` ASC 500,
+  1 crédito; `analyze`: minutos, primeiros 20 compradores, despejo, sinais) + `hub.xray/xray_auto_once/xray_loop` (até 10/dia:
+  operações do Explorar 24 h e sombras com pico 50%+) + tabela `token_xray` (migração `20261028000002`) + `GET /api/pump/raiox/{mint}`
+  (admin) + botão na ficha do token. C: `raiox.study` × `hub.xray_outcomes` → `#bgX`. Nada bloqueia. `tests/test_raiox.py`.
+- Conferido em 28/10: Jupiter cota SOL → Grokbot (curva SPCX) via Whirlpool SOL→SPCX + Pump.fun AMM (consulta pública).

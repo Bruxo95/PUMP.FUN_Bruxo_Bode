@@ -2141,7 +2141,9 @@ class PumpFun:
             g["why"], g["entrou"] = why, (why is None) or g.get("entrou", False)
         g["t"] = t
         fn[mint] = g
-        if why and self.shadow_hook is not None and (row.get("pred") or {}).get("verdict") == "chance alta":
+        # 0.31.86 (pedido do dono, item A): TODO token barrado vira sombra, também os barrados pelo veredito. Só as de
+        # "chance alta" entram no aprender com os erros (o resto mede se o veredito acerta, em estudo separado).
+        if why and self.shadow_hook is not None:
             try:
                 self.shadow_hook(row, why, t)
             except Exception as e:

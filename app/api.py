@@ -945,6 +945,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
                                      real=bool(real))
 
+    @app.get("/api/pump/raiox/{mint}")
+    async def raiox(mint: str, novo: int = 0, pf=Depends(admin_engine)):
+        """0.31.86: Raio-X das primeiras 500 negociações do token (1 crédito da Solana Tracker; guardado por 6 h)."""
+        if not pf.valid_addr(mint):
+            return {"error": "endereço inválido"}
+        return await hub.xray(pf, mint, force=bool(novo))
+
     @app.get("/api/pump/base/evolucoes")
     async def evo_list(pf=Depends(admin_engine)):
         """0.31.85: evoluções do cérebro (E1, E2…) com o resultado de cada uma e se a conta está congelada numa delas."""
