@@ -55,6 +55,18 @@
     return y.ia_sim || !(D.real || {}).enabled || !((cfg() || {}).pump_real_mirror ?? true) ? "sim" : "both"; };
   const copyTag = (st) => '<a href="#estudo" class="tag win" data-gomine="1" title="Ir para Seu resultado copiando">' +
     (st === "both" ? "copiando · REAL e FICTÍCIA" : "copiando · só FICTÍCIA") + " ↓</a>";
+  function openSaList(acao) {
+    const NOME = { adicionou: "Adicionadas", aprovou: "Aprovadas", descartou: "Descartadas" }, seen = new Set();
+    const rows = SA_LOG.map((x, i) => [x, i]).filter(([x]) => x.acao === acao && !seen.has(x.wallet) && seen.add(x.wallet));
+    $("saMT").textContent = (NOME[acao] || acao) + " pela IA";
+    $("saMS").textContent = rows.length + " carteiras · em ordem da nota · últimas 60 decisões";
+    $("saMB").innerHTML = '<div class="tbl-wrap"><table id="saLT"></table></div>';
+    table("saLT", ["Nota", "Carteira", "Resumo", "Quando", "Por quê", ""], rows.map(([x, i]) => { const d = x.digest || {}, st = copyState(x.wallet);
+      return [scoreTag(d), pfW(x.wallet, x), x.digest ? (d.n_acertos || 0) + " acertos · " + (d.n_erros || 0) + " erros" + (d.pump_pct == null ? "" : " · " + d.pump_pct + "% pump.fun") : '<span class="muted">sem histórico</span>',
+        dt(x.em), '<span class="wrapcell">' + esc(x.motivo || "") + "</span>", '<span class="nowrap"><button class="btn sm" data-sadet="' + i + '">Ver tudo</button>' + (st ? " " + copyTag(st) : "") + "</span>"]; }),
+      "Nenhuma carteira nesta lista.");
+    $("saM").hidden = false; $("saMX").focus();
+  }
   function openSaDet(i) {
     const x = SA_LOG[i]; if (!x) return;
     const d = x.digest || {}, fx = x.facts || {}, [ok] = digestCells(x.digest), fc = factsCells(fx), u = d.unit === "SOL" ? " SOL" : "";
@@ -1608,6 +1620,8 @@
     const sa = r.auto || {}, sc = sa.counts || {}, nAuto = (r.wallets || []).filter((x) => String(x.apelido || "").startsWith(sa.tag || "auto · ")).length;
     $("saSub").textContent = (sa.on ? "LIGADO" : "DESLIGADO") + " · " + nAuto + " de " + (sa.max || 0) + " carteiras automáticas no estudo · última volta " + (sa.last_run ? dt(sa.last_run) : "ainda não rodou (roda a cada 30 min)");
     kpis("saK", [["Adicionadas", String(sc.adicionou || 0), "pela IA, desde o início", "pos"], ["Aprovadas", String(sc.aprovou || 0), "compensa copiar", "hit"], ["Descartadas", String(sc.descartou || 0), "não compensa ou paradas", "mon"]]);
+    // 0.32.15 (pedido do dono): clicar no cartão abre a lista das carteiras com a nota
+    ["adicionou", "aprovou", "descartou"].forEach((a, i) => { const k = $("saK").children[i]; if (k) { k.dataset.saact = a; k.classList.add("clickable"); k.title = "Clique para ver as carteiras"; } });
     const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss" };
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => [esc(x.valor), String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
@@ -1809,6 +1823,7 @@
     }
     if (t.closest && t.closest("#sysBox")) { openSys(); return; }
     if (t.id === "sysMX") { $("sysM").hidden = true; SYS_SUB = null; return; }
+    const sk = t.closest && t.closest("[data-saact]"); if (sk) { openSaList(sk.dataset.saact); return; }
     if (t.dataset.sadet) { openSaDet(+t.dataset.sadet); return; }
     if (t.dataset.gomine) { e.preventDefault(); $("saM").hidden = true; const c = $("stMineCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (t.id === "saMX") { $("saM").hidden = true; return; }

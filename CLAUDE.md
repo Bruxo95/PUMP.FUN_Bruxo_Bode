@@ -1116,3 +1116,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.14: `#saLog` ordenado pela nota; `copyState`/`copyTag` ("copiando · só FICTÍCIA" / "REAL e FICTÍCIA", `data-gomine` desce até
   `#stMineCard`); `.decbox` com o motivo em Ver tudo. Pedido do dono.
+
+- 0.32.15: cartões `#saK` com `data-saact` → `openSaList` (modal `#saM`, carteiras do grupo por nota). Pedido do dono.
