@@ -3284,6 +3284,11 @@ class PumpFun:
                 if ba:
                     self.tokens[base]["boost_active"] = max(ba, int(self.tokens[base].get("boost_active") or 0))
                 liq = float((p.get("liquidity") or {}).get("usd") or 0)
+                # 0.32.28 (print do dono, 28/10: BRAVEGOY e Mike parados em 4.108e-7, o preço FINAL da curva): depois que a
+                # curva completa, a DexScreener ainda devolve o par antigo da curva ("pumpfun") com liquidez, e ele ganhava
+                # do par da PumpSwap. Token já graduado não usa mais esse par para o preço.
+                if p.get("dexId") == "pumpfun" and (self.tokens.get(base) or {}).get("pool") in ("pumpswap", "pump-amm"):
+                    continue
                 if base in best and best[base][0] >= liq:
                     continue
                 best[base] = (liq, p)
@@ -3901,6 +3906,9 @@ class PumpFun:
                 p["chg_pct"] = round((val / left_cost - 1) * 100, 2) if left_cost else None
                 p["value_sol"] = round(val, 6)
                 p["price_at"] = (self.tokens.get(p["mint"]) or {}).get("last_t")
+                # 0.32.28 (pedido do dono: "o ganho real do momento"): o que já vendeu + o que vale agora − o que investiu
+                p["pnl_now_sol"] = round(float(p.get("proceeds") or 0) + val - p["sol_in"], 6)
+                p["pnl_now_pct"] = round(p["pnl_now_sol"] / p["sol_in"] * 100, 2) if p["sol_in"] else None
             tkp = self.tokens.get(p["mint"]) or {}
             # 0.31.69 (sugestão do Bruxo): tempo máximo desta posição e de onde ele vem, para a coluna "Tempo de saída"
             own = self._auto_num(p.get("max_hold_s"))

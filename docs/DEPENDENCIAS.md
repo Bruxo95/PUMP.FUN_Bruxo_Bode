@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-28**; revisão documental **2.0**.
-Aplicação: **0.32.27 · 2026-10-28 · explicação certa do erro 6063**.
-Referência Git na emissão: `eb5382c5fcb80b0d0a2d7d3c21cedcbb486294b7`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.28 · 2026-10-28 · Posições mais curtas; preço certo depois de graduar**.
+Referência Git na emissão: `191ae17d38a78a3528fa34d4aba862251fcc4bb1`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

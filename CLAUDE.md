@@ -1158,3 +1158,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.27: `PUMP_ERRORS` 6063 explica curva (UnsupportedQuoteMint) × PumpSwap (InsufficientRealQuoteReserves). Lote 3 conferido em
   `PUMP-FUN-LEARNING/conferencia-claude-lote3-2026-10-28.md` (bytes 83–114 do `quote_mint` conferem com o IDL).
+
+- 0.32.28: `_fetch_prices` ignora o par "pumpfun" da DexScreener quando `pool` é pumpswap (preço parado no final da curva). `snapshot`
+  manda `pnl_now_sol/_pct`; `#tPos` curta + modal `#posM` (`openPosDet`, `data-posdet`). Relatório `app/relatorios_ia/2026-10-28-0.32.28.md`.

@@ -46,7 +46,34 @@
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
-  let SA_LOG = [], BUY_MINT = "";
+  let SA_LOG = [], BUY_MINT = "", POS_DET = null, POS_ID = null;
+  function openPosDet(id, refresh) {
+    const P = POS_DET && POS_DET.list.find((p) => String(p.id) === String(id));
+    if (!P) { if (!refresh) toast("Essa posição já fechou."); $("posM").hidden = true; POS_ID = null; return; }
+    POS_ID = id;
+    const p = P, row = (k, v) => "<tr><td><b>" + k + "</b></td><td>" + v + "</td></tr>";
+    $("posMT").innerHTML = (p.real ? '<span class="tag real">REAL</span> ' : '<span class="tag sim">FICTÍCIA</span> ') + esc(p.symbol || "") ;
+    $("posMS").textContent = "aberta " + dt(p.opened_at) + " · origem: " + whoLabel(p);
+    $("posMB").innerHTML = '<div class="kpis" style="margin:4px 0 12px">' +
+      [["Ganho agora", p.pnl_now_sol == null ? "–" : sg(p.pnl_now_sol), p.pnl_now_pct == null ? "" : f(p.pnl_now_pct, 1) + "% do investido (já vendido + valor de agora, com taxas)"],
+       ["Investido", s4(p.sol_in) + " SOL", ""], ["Vale agora", p.value_sol == null ? "–" : s4(p.value_sol) + " SOL", "o que ainda segura, se vendesse agora"],
+       ["Já vendido", s4(p.proceeds || 0) + " SOL", (p.sells || []).length + " venda(s) parcial(is)"]]
+        .map(([l, v, s]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + "</div></div>").join("") + "</div>" +
+      '<div class="tbl-wrap"><table class="systbl"><tbody>' +
+      row("Token", pfM(p.mint, p.symbol) + (p.venue_in ? " · " + esc(p.venue_in) : "") + (p.mcap_in ? " · mcap na entrada " + f(p.mcap_in, 0) + " SOL" : "") + (p.mcap_now ? " · agora " + f(p.mcap_now, 0) + " SOL" : "")) +
+      row("Origem", pfW(p.wallet, p) + (p.auto && p.auto !== true ? '<div class="muted small">' + esc(p.auto) + "</div>" : "")) +
+      row("Preço de entrada", ex(p.price_in) + (p.trader_price ? " · trader " + ex(p.trader_price) : "") + (p.lag_s != null ? " · atraso " + f(p.lag_s, 1) + " s" : "")) +
+      row("Preço agora", ex(p.price_now || p.price_in) + (p.price_at ? " · há " + agoT(p.price_at) : "")) +
+      row("Variação (o que segura)", pc(p.chg_pct) + (p.best_pct != null ? " · melhor " + pc(p.best_pct) : "") + (p.worst_pct != null ? " · pior " + pc(p.worst_pct) : "")) +
+      row("Taxas pagas", p.fees_sol == null ? "–" : s4(p.fees_sol) + " SOL") +
+      row("Nota da entrada", p.score == null ? "–" : f(p.score, 0) + " / 100") +
+      row("Volume do token", POS_DET.vol(p)) +
+      row("Vendas", POS_DET.soldCell(p)) +
+      row("Stop móvel", p.trail_peak != null ? "ligado · pico " + pc(p.trail_peak) + " · sai em +" + f(p.trail_exit, 1) + "%" : "ainda não ligou") +
+      row("Tempo de saída e regras desta posição", POS_DET.left(p)) +
+      "</tbody></table></div>";
+    if ($("posM").hidden) { $("posM").hidden = false; $("posMX").focus(); }
+  }
   // 0.32.26 (pedido do dono): ao lado de cada botão Comprar, diz se já tem a moeda na fictícia/real e leva até ela em Posições
   function markBought() {
     const pos = (D && D.positions) || [];
@@ -1277,6 +1304,8 @@
       $("buyM").hidden = false; return;
     }
     if (t.id === "buyMX") { $("buyM").hidden = true; return; }
+    if (t.dataset.posdet) { openPosDet(t.dataset.posdet); return; }
+    if (t.id === "posMX") { $("posM").hidden = true; POS_ID = null; return; }
     const gp = t.closest && t.closest("[data-gopos]");
     if (gp) {
       e.preventDefault();
@@ -2501,11 +2530,16 @@
       '<span class="row" style="gap:4px;margin-top:4px;flex-wrap:wrap">' + ruleBtn(p, "stop", "Stop de perda", p.off_stop) + ruleBtn(p, "trail", "Stop móvel", p.off_trail) + ruleBtn(p, "tp1", "Venda em partes", p.off_tp1 || p.tp1_done) + "</span>";
     // 0.31.87 (Bruxo): venda parcial aparece na posição (quanto, quando, em quanto de lucro)
     const soldCell = (p) => !(p.sells || []).length ? "–" : s4(p.proceeds) + " SOL" + p.sells.map((s) => "<small>" + dt(s.at) + " · " + f((s.frac || 0) * 100, 0) + "% · " + s4(s.sol) + " SOL" + (s.why ? '<span class="wrapcell"> · ' + esc(s.why) + "</span>" : "") + "</small>").join("");
-    table("tPos", ["Token", "Trader", "Entrada", "Investido", "Agora", "Variação", "Volume do token", "Vendido", "Aberta há", "Tempo de saída", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : "") + (p.venue_in ? "<small>" + esc(p.venue_in) + "</small>" : ""), pfW(p.wallet, p), ex(p.price_in), s4(p.sol_in) + " SOL",
-      ex(p.price_now || p.price_in) + (p.price_at ? "<small>há " + agoT(p.price_at) + "</small>" : ""), pc(p.chg_pct), vol(p), soldCell(p), agoIso(p.opened_at), left(p),
-      (p.trail_peak != null ? '<span class="tag trail">Stop móvel</span><small>pico ' + pc(p.trail_peak) + " · sai em +" + f(p.trail_exit, 1) + "%</small>" : "") + (p.hold_profit ? '<span class="tag pause">Segurando até lucro</span><small>desde ' + dt(p.hold_since) + "</small>" : "") +
-      (p.selling ? '<span class="tag pause">Vendendo…</span>' : btn(p.real ? "Vender" : "Fechar", "close", { id: p.id, real: p.real ? 1 : 0 }, p.real ? "tgl off" : "")) + (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "")]),
+    // 0.32.28 (pedido do dono: "diminuir a rolagem, deixar só o principal e um botão para abrir o resto"): linha curta com o
+    // ganho do momento; o resto (preços, volume, vendas, tempo de saída e regras desta posição) fica na janela Detalhes
+    const tags = (p) => (p.trail_peak != null ? '<span class="tag trail" title="pico ' + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + '%">Stop móvel</span>' : "") + (p.hold_profit ? '<span class="tag pause" title="desde ' + esc(dt(p.hold_since)) + '">Segurando até lucro</span>' : "") + (p.selling ? '<span class="tag pause">Vendendo…</span>' : "");
+    const leftShort = (p) => { const h = p.hold_s, open = p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : null); if (h == null || !open) return "–"; if (h >= 3e8) return "sem limite"; const rest = h - (Date.now() / 1000 - open); return rest > 0 ? "em " + hms(rest) : '<b class="down">saindo</b>'; };
+    POS_DET = { list: P, left, soldCell, vol, holdBtns };
+    table("tPos", ["Token", "Origem", "Investido", "Ganho agora", "Variação", "Aberta há", "Sai por tempo", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : ""), pfW(p.wallet, p), s4(p.sol_in) + " SOL",
+      p.pnl_now_sol == null ? "–" : "<b>" + sg(p.pnl_now_sol) + "</b>" + (p.pnl_now_pct == null ? "" : "<small>" + pc(p.pnl_now_pct) + " do investido</small>"), pc(p.chg_pct) + tags(p), agoIso(p.opened_at), leftShort(p),
+      '<span class="nowrap"><button class="btn sm" data-posdet="' + esc(String(p.id)) + '">Detalhes</button> ' + (p.selling ? "" : btn(p.real ? "Vender" : "Fechar", "close", { id: p.id, real: p.real ? 1 : 0 }, p.real ? "tgl off" : "")) + "</span>" + (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "")]),
       rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.");
+    if (!$("posM").hidden && POS_ID != null) openPosDet(POS_ID, true);
   }
   function renderHistory() {
     const rm = realMode(), T = (D.trades || []).filter((t) => !!t.real === rm);

@@ -895,6 +895,11 @@
    "versao": "0.32.27",
    "inicio": "2026-10-28T23:35:00+00:00",
    "titulo": "explicação certa do erro 6063"
+  },
+  {
+   "versao": "0.32.28",
+   "inicio": "2026-10-28T23:45:00+00:00",
+   "titulo": "Posições mais curtas; preço certo depois de graduar"
   }
  ]
 }
