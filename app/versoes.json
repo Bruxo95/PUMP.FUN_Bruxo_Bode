@@ -735,6 +735,11 @@
    "versao": "0.31.95",
    "inicio": "2026-10-28T11:20:38+00:00",
    "titulo": "compras dos Maiores traders lidas (calls e sinais)"
+  },
+  {
+   "versao": "0.31.96",
+   "inicio": "2026-10-28T11:33:25+00:00",
+   "titulo": "Radar dentro das Calls, compras e ondas guardadas"
   }
  ]
 }

@@ -587,3 +587,7 @@ table.extbl th{padding-left:5px;padding-right:5px;white-space:nowrap}
 table.extbl small{font-size:10.5px}
 table.extbl .btn.sm{padding:3px 8px;font-size:11px}
 table.extbl td:nth-child(3){max-width:120px;white-space:normal}
+
+/* 0.31.96: abas em link (Calls quentes | Radar) */
+.seg a{display:inline-block;padding:6px 12px;border-radius:7px;color:var(--muted);text-decoration:none}
+.seg a.on{background:var(--panel2,#1d1f24);color:var(--text,#fff)}

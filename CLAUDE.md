@@ -1030,3 +1030,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.95: `SharedMonitor` (aviso de log da carteira) trata as carteiras de `hub.elite.wallets()` como observadas (`studied`):
   a transação é lida (sinais dos Maiores traders e Calls quentes). Antes só eram lidas se alguém copiava ou estudava. Cópia igual.
+
+- 0.31.96: Radar virou aba do menu "Calls e Radar" (`#navCalls`; abas em link no topo de `#calls` e `#radar`; link solto do Radar
+  saiu do grupo). `Calls.for_wallets/waves` + `hub.radar_calls` (compras das Carteiras em estudo e ondas de 24 h das calls guardadas)
+  no `GET /api/pump/radar`; `#rdBuys`/`#rdWaves` (`renderRadarCalls`). O Radar ao vivo (memória) continua igual. `tests/test_radar_calls.py`.

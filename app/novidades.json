@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.96",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "menu Calls e Radar",
+      "titulo": "Radar dentro das Calls quentes, com compras e ondas guardadas",
+      "oque": "O Radar de KOLs saiu do menu solto e virou uma aba do menu 'Calls e Radar' (abas Calls quentes | Radar de KOLs). No Radar aparecem sempre as últimas compras das suas Carteiras em estudo (carteira, token, quanto pagou, resultado de quem seguiu, se despejou) e as ondas das últimas 24 h (2+ carteiras suas no mesmo token na janela), calculadas das compras guardadas no banco — não somem mais quando o servidor reinicia."
+    },
+    {
       "versao": "0.31.95",
       "data": "2026-10-28",
       "tipo": "correção",

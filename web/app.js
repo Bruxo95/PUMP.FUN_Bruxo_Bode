@@ -1375,8 +1375,24 @@
     if (r && !RADAR.dirty && !RADAR.saving) { $("radarMin").value = r.min_wallets; $("radarWindow").value = r.window_min; }
     $("radarDraft").hidden = !RADAR.dirty;
   }
+  // 0.31.96 (pedido do dono): compras das carteiras em estudo e ondas guardadas (das calls no banco)
+  function renderRadarCalls(r) {
+    if (!$("rdBuys") || !r) return;
+    const B = r.compras || [], W = r.ondas_guardadas || [];
+    $("rdBuysSub").textContent = B.length + " compras de " + (r.carteiras_n || 0) + " carteiras nas últimas 24 h · guardadas no banco";
+    table("rdBuys", ["Quando", "Carteira", "Token", "Pagou", "MC na call", "Desde a entrada", "Pico", "Vendeu"], B.map((x) => [dt(new Date(x.t * 1000).toISOString()),
+      pfW(x.wallet) + "<small>" + esc(x.nome || "") + "</small>", pfM(x.mint, x.symbol) + '<div style="margin-top:4px"><button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button></div>',
+      s4(x.sol) + " SOL", x.mcap_sol != null ? f(x.mcap_sol, 0) + " SOL" : "–", x.resultado != null ? pc(x.resultado) + "<small>15 min, com custo</small>" : '<span class="dim">medindo</span>',
+      x.pico == null ? "–" : pc(x.pico), x.despejo_s != null ? '<span class="down">despejou em ' + hms(x.despejo_s) + "</span>" : x.venda_s != null ? "vendeu parte" : "–"]),
+      (r.carteiras_n ? "Nenhuma das suas carteiras comprou nas últimas 24 h (desde que as calls começaram a ser guardadas, na 0.31.94)." : "Sua lista está vazia: adicione carteiras em Carteiras em estudo."));
+    table("rdWaves", ["Token", "Carteiras", "Em quanto tempo", "SOL somado", "Quem"], W.map((w) => [pfM(w.mint, w.symbol), String(w.carteiras.length),
+      hms(w.fim - w.inicio) + "<small>" + dt(new Date(w.inicio * 1000).toISOString()) + "</small>", s4(w.sol),
+      '<span class="wrapcell">' + w.carteiras.map((c) => esc(c.label || c.wallet.slice(0, 4)) + (c.despejou ? ' <span class="down">(despejou)</span>' : "")).join(", ") + "</span>"]),
+      "Nenhuma onda nas últimas 24 h (2+ carteiras suas no mesmo token dentro da janela).");
+  }
   function renderRadar() {
     const r = RADAR.data; radarControls(); if (!r) return;
+    renderRadarCalls(r);
     const waves = r.enabled ? r.waves || [] : [], mon = r.monitor || {}, connected = !!(mon.running && mon.connected);
     const outdated = radarOutdated(), callouts = waves.map((w) => radarCallout(w, r)), policy = r.callout_policy || {};
     const status = $("radarStatus");

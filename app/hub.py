@@ -556,6 +556,19 @@ class PumpHub:
         except Exception as e:
             log.warning("calls não carregaram: %s", str(e)[:120])
 
+    def radar_calls(self, pf: PumpFun) -> dict:
+        """0.31.96 (pedido do dono): no Radar, as últimas compras das Carteiras em estudo e as ondas calculadas a partir das
+        calls guardadas no banco (não somem quando o servidor reinicia)."""
+        wallets = set(getattr(pf, "study", []) or [])
+        buys = self.calls.for_wallets(wallets, 24)
+        names = getattr(pf, "study_names", None) if isinstance(getattr(pf, "study_names", None), dict) else {}
+        for c in buys:
+            c["symbol"] = c.get("symbol") or (self.market.tokens.get(c["mint"]) or {}).get("symbol")
+        window = int(getattr(pf.cfg, "pump_radar_window_min", 5)) * 60
+        minimum = int(getattr(pf.cfg, "pump_radar_min_wallets", 2))
+        return {"compras": [dict(c, nome=names.get(c["wallet"]) or c.get("label"), resultado=self.calls.result(c)) for c in buys[:150]],
+                "ondas_guardadas": self.calls.waves(buys, minimum, window)[:50], "carteiras_n": len(wallets)}
+
     def calls_view(self) -> dict:
         s = self.calls.summary(risk_of=self._risk_of, blacklisted=self._bl)
         for r in s["agora"]:

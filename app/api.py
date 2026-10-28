@@ -495,7 +495,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     @app.get("/api/pump/radar")
     async def radar(pf=Depends(admin_engine)):
-        return hub.radar_snapshot(pf)
+        r = hub.radar_snapshot(pf)
+        r.update(hub.radar_calls(pf))                 # 0.31.96: compras e ondas guardadas
+        return r
 
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
     @app.get("/api/pump/study")

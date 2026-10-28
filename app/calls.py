@@ -164,6 +164,38 @@ class Calls:
         v = "chance alta" if score >= 65 else "possível" if score >= 45 else "fraco" if score >= 25 else "lixo"
         return {"verdict": v, "chance": round(score), "why": why}
 
+    def for_wallets(self, wallets: set, hours: float = 24, now: float | None = None) -> list[dict]:
+        """0.31.96: compras (calls) de um grupo de carteiras — as Carteiras em estudo do Radar —, mais novas primeiro."""
+        now = time.time() if now is None else now
+        return sorted((c for c in self.calls.values() if c["wallet"] in wallets and now - c["t"] <= hours * 3600), key=lambda c: -c["t"])
+
+    @staticmethod
+    def waves(buys: list[dict], minimum: int, window_s: float) -> list[dict]:
+        """0.31.96: ondas a partir das calls GUARDADAS (sobrevivem ao reinício): N carteiras distintas comprando o mesmo
+        token dentro da janela. Uma onda por token (a de mais carteiras)."""
+        by: dict[str, list] = {}
+        for c in buys:
+            by.setdefault(c["mint"], []).append(c)
+        out = []
+        for mint, L in by.items():
+            L = sorted(L, key=lambda c: c["t"])
+            best = []
+            for i, c in enumerate(L):
+                grp = {}
+                for x in L[i:]:
+                    if x["t"] - c["t"] > window_s:
+                        break
+                    grp.setdefault(x["wallet"], x)
+                if len(grp) > len(best):
+                    best = list(grp.values())
+            if len(best) >= minimum:
+                out.append({"mint": mint, "symbol": best[0].get("symbol"), "inicio": best[0]["t"], "fim": best[-1]["t"],
+                            "carteiras": [{"wallet": x["wallet"], "label": x.get("label"), "t": x["t"], "sol": x.get("sol"),
+                                           "despejou": x.get("despejo_s") is not None} for x in best],
+                            "sol": round(sum(x.get("sol") or 0 for x in best), 4),
+                            "resultado": [Calls.result(x) for x in best if Calls.result(x) is not None][:1] or [None]})
+        return sorted(out, key=lambda w: -w["inicio"])
+
     def summary(self, now: float | None = None, risk_of=None, blacklisted=None) -> dict:
         now = time.time() if now is None else now
         cl = self.callers()
