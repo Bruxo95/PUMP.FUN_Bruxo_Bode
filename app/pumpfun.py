@@ -2589,10 +2589,11 @@ class PumpFun:
                 continue
             chg = (px / px0 - 1) * 100
             vol = g.get("vol")
-            if chg < gain or vol is None or float(vol) < vol_min:
-                continue
-            motivo = (f"barrado que subiu: estava fora por \"{why[:70]}\", mas subiu {chg:+.0f}% desde que foi visto e tem "
-                      f"${float(vol):,.0f} de volume em 24 h — entrou só na fictícia para teste")
+            if chg < gain or (vol_min > 0 and (vol is None or float(vol) < vol_min)):
+                continue                                   # volume mínimo 0 = não exige o dado de volume
+            motivo = (f"barrado que subiu: estava fora por \"{why[:70]}\", mas subiu {chg:+.0f}% desde que foi visto"
+                      + (f" e tem ${float(vol):,.0f} de volume em 24 h" if vol is not None else "")
+                      + " — entrou só na fictícia para teste")
             r = self.manual_buy(mint, t=now, auto=motivo, origem="barrado", target="sim",
                                 amt_sol=float(self._c("pump_bar_sol", 0.05)))
             done[mint] = now
