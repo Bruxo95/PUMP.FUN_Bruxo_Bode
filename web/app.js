@@ -24,9 +24,9 @@
   const dt = (x) => { if (!x) return "–"; const d = new Date(x); return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
   // 0.31.73 (pedido do dono): "manual" não é carteira — é o marcador das compras que não vieram de um trader (automáticas
   // do Explorar/Base/Maiores traders, botão Comprar, cópia de outra conta). Mostra de onde veio, sem link quebrado.
-  const ORIG_NOME = { explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)" };
+  const ORIG_NOME = { explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)", barrado: "Explorar: barrado que subiu (só fictícia)" };
   // legenda ao passar o mouse (pedido do dono: "explicar o que é Explorar")
-  const ORIG_DESC = { "Explorar (automática)": "o robô comprou sozinho um token da lista Quase graduando do Explorar: veredito chance alta e passou em todos os seus filtros e proteções",
+  const ORIG_DESC = { "Explorar: barrado que subiu (só fictícia)": "o robô comprou sozinho, só na fictícia, um token que o filtro do Explorar barrou mas que subiu forte com volume", "Explorar (automática)": "o robô comprou sozinho um token da lista Quase graduando do Explorar: veredito chance alta e passou em todos os seus filtros e proteções",
     "Base (automática)": "compra automática da tela Base da pump.fun (ex.: token com Boost ON)",
     "Maiores traders (automática)": "compra feita quando vários dos maiores traders entraram no mesmo token",
     "botão Comprar (você)": "você clicou em Comprar", "compra automática": "compra feita pelo robô, sem copiar um trader" };
@@ -46,7 +46,7 @@
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
-  let SA_LOG = [];
+  let SA_LOG = [], BUY_MINT = "";
   const scoreTag = (d) => { if (!d || d.score == null) return "–";
     const c = d.score >= 70 ? "win" : d.score >= 45 ? "neutral" : "loss";
     return '<span class="tag ' + c + '" title="70% acerto (ajustado para poucos tokens) + 30% quanto do dinheiro foi ganho · base ' + d.score_base + ' tokens fechados">' + d.score + "</span>"; };
@@ -1234,13 +1234,24 @@
       return loadBlacklist();
     }
     if (t.dataset.blr) { if (!confirm("Tirar da lista negra?")) return; const r = await BB.api("/api/pump/blacklist", { body: { endereco: t.dataset.blr, action: "remove" } }); toast(r.error || "Removido."); return loadBlacklist(); }
+    // 0.32.21 (pedido do dono): o Comprar pergunta em qual carteira — só fictícia, só real ou nas duas
     if (t.dataset.buy) {
-      const c0 = cfg(), amt = c0.pump_manual_sol, real = !!(D && D.real && D.real.enabled);
+      const c0 = cfg(), real = !!(D && D.real && D.real.enabled);
       const regras = "Stop −" + c0.pump_manual_stop_pct + "% · alvo " + (c0.pump_manual_tp_pct > 0 ? "+" + c0.pump_manual_tp_pct + "%" : "sem alvo") + (c0.pump_manual_trail_on ? " · stop móvel em +" + c0.pump_manual_trail_start + "% (−" + c0.pump_manual_trail_dist + " pts)" : "") + (c0.pump_manual_boost_on ? " · com Boost ON vende em +" + c0.pump_manual_boost_tp + "%" : "");
-      if (!confirm("Comprar " + (t.dataset.sym || "este token") + " agora?\n\n" + regras + "\nCarteira fictícia: " + amt + " SOL" + (real ? "\nCarteira REAL: até " + cfg().pump_real_max_sol + " SOL (execução real ligada)" : "\nCarteira real: não (execução real desligada)"))) return;
+      BUY_MINT = t.dataset.buy;
+      $("buyMT").textContent = "Comprar " + (t.dataset.sym || "este token");
+      $("buyMS").textContent = regras;
+      $("buyMB").innerHTML = "<p>Carteira fictícia: <b>" + c0.pump_manual_sol + " SOL</b></p><p>Carteira REAL: " + (real ? "<b>até " + c0.pump_real_max_sol + " SOL</b> (execução real ligada)" : '<span class="down">execução real desligada</span>') + "</p>";
+      $("buyReal").disabled = $("buyBoth").disabled = !real;
+      $("buyM").hidden = false; return;
+    }
+    if (t.id === "buyMX") { $("buyM").hidden = true; return; }
+    if (t.dataset.buygo) {
+      const tg = t.dataset.buygo;
+      if (tg !== "sim" && !confirm("Confirmar compra na carteira REAL (dinheiro de verdade)?")) return;
       t.disabled = true;
-      const r = await BB.api("/api/pump/manual-buy", { body: { mint: t.dataset.buy } });
-      t.disabled = false;
+      const r = await BB.api("/api/pump/manual-buy", { body: { mint: BUY_MINT, target: tg } });
+      t.disabled = false; $("buyM").hidden = true;
       toast(r.error ? "Não comprou: " + r.error : "Fictícia: " + r.sim + (r.real ? " · Real: " + r.real : ""));
       poll(true); return;
     }

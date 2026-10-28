@@ -99,6 +99,10 @@
           <button class="btn sm" id="uTrX" style="margin-left:8px">Fechar</button></header>
         <div class="kpis" id="uTrK" style="margin:4px 0 12px"></div>
         <div class="tbl-wrap"><table id="uTrTbl" class="daytbl"></table></div></div></div>
+      <div class="modal" id="buyM" hidden role="dialog" aria-modal="true" aria-labelledby="buyMT"><div class="modal-box" style="max-width:520px">
+        <header><div><h2 id="buyMT">Comprar</h2><div class="sub" id="buyMS"></div></div><div class="sp"></div><button class="btn sm" id="buyMX">Fechar</button></header>
+        <div id="buyMB"></div>
+        <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn primary" data-buygo="sim">Só na FICTÍCIA</button><button class="btn" data-buygo="real" id="buyReal">Só na REAL</button><button class="btn" data-buygo="both" id="buyBoth">Nas duas</button></div></div></div>
       <div class="modal" id="saM" hidden role="dialog" aria-modal="true" aria-labelledby="saMT"><div class="modal-box">
         <header><div><h2 id="saMT">Carteira</h2><div class="sub" id="saMS"></div></div><div class="sp"></div><button class="btn sm" id="saMX">Fechar</button></header>
         <div id="saMB"></div></div></div>
@@ -550,7 +554,13 @@
         <div class="card" data-novo-ate="2026-11-10">
           <header><div><h2>Funil do filtro (últimas 24 h)</h2><div class="sub">por que o Explorar desta conta entrou ou não entrou em cada token</div></div></header>
           <div style="margin-top:4px"><div class="hint">Quantos tokens o Explorar olhou, quantos entraram e por que os outros foram barrados. "Barrados que subiram" mostra se o filtro está deixando passar coisa boa (compara o preço de quando foi visto com o de agora, quando há preço).</div>
-            <div class="kpis auto-kpis" id="exFunK"></div><div class="funstack"><div class="tbl-wrap"><table id="exFunM" class="daytbl"></table></div><div class="tbl-wrap"><table id="exFunUp" class="daytbl"></table></div></div></div>
+            <div class="kpis auto-kpis" id="exFunK"></div>
+            <div class="form" data-novo-ate="2026-11-12" style="margin:8px 0">
+              <div class="field"><label>Barrados que subiram entram sozinhos (só FICTÍCIA)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_bar_auto_on" aria-label="Barrados que subiram entram sozinhos">…</button>
+                <span class="muted">se subiu +</span><input class="in w80" type="number" min="5" step="10" data-cfg="pump_bar_min_gain"><span class="muted">% e volume 24 h ≥ $</span><input class="in w100" type="number" min="0" step="5000" data-cfg="pump_bar_min_vol_usd">
+                <span class="muted">· até</span><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_bar_max_h"><span class="muted">por hora ·</span><input class="in w80" type="number" min="0.001" step="0.01" data-cfg="pump_bar_sol"><span class="muted">SOL</span></div>
+                <div class="hint">Nunca na real. Só entram os barrados por filtros que não são de segurança (veredito, curva, pressão, holders, graduou…); os barrados por lista negra, rug, criador, risco, bundle ou carteiras novas nunca entram. Sai pelas regras do botão Comprar (stop, alvo e stop móvel). O motivo da entrada aparece no Feed e no Histórico.</div></div></div>
+            <div class="funstack"><div class="tbl-wrap"><table id="exFunM" class="daytbl"></table></div><div class="tbl-wrap"><table id="exFunUp" class="daytbl"></table></div></div></div>
           <div class="hint muted auto-notes">Critério para avaliar dinheiro real: pelo menos 100 operações simuladas, em 7 dias distintos ou mais, acerto de 45% e fator de lucro de 1,3, já com taxas. Atingir esses números não liga a execução real. As fotos de 15 e 60 minutos dependem de uma cotação disponível no prazo; dado ausente não é 0%.</div>
         </div>
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Explorar</h2><div class="sub" id="exSub">as mesmas listas do pump.fun/explore: novos, quase graduando, graduados e os que mais sobem</div></div></header>

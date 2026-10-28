@@ -469,7 +469,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
                     await hub.monitor.svc._fetch_prices([mint])
             except Exception:
                 pass
-        r = pf.manual_buy(mint)
+        target = str(body.get("target") or "both")
+        if target not in ("sim", "real", "both"):
+            return {"error": "carteira inválida"}
+        r = pf.manual_buy(mint, target=target)              # 0.32.21: Comprar na fictícia, na real ou nas duas
         if not r.get("error"):
             await audit(hub.db, pf.user_id, "compra manual", f"{mint[:6]}… · fictícia: {r.get('sim')} · real: {r.get('real') or 'desligada'}")
         return r

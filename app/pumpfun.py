@@ -1385,6 +1385,8 @@ class PumpFun:
             tr["pos_id"] = p["id"]                         # 0.31.38: par real × fictícia (espelho)
             if p.get("follow_of"):
                 tr["follow_of"] = p["follow_of"]           # 0.31.63: cópia de outra conta não entra no aprendizado geral
+            if p.get("origem") and "origem" not in tr:
+                tr["origem"] = p["origem"]                 # 0.32.21: ex.: "barrado"
             if p.get("eq"):
                 tr["eq"] = True                            # 0.32.4: Copiar igual
             self._save_trade(tr)
@@ -2433,6 +2435,8 @@ class PumpFun:
             return
         g = fn.get(mint) or {"first_t": t, "symbol": row.get("symbol") or short(mint), "px0": (self.tokens.get(mint) or {}).get("price"),
                              "chance": (row.get("pred") or {}).get("verdict")}
+        if row.get("vol24_usd") is not None:
+            g["vol"] = row.get("vol24_usd")            # 0.32.21: volume 24 h (US$) para a entrada dos barrados que sobem
         if g.get("px0") is None:
             g["px0"] = (self.tokens.get(mint) or {}).get("price")
         if g.get("why") is None and g.get("t") and why is not None and g.get("entrou"):
@@ -2483,6 +2487,47 @@ class PumpFun:
                 "barrados_com_preco": len(barr), "subiram_50": len(alta), "cairam_30": sum(1 for b in barr if b["chg_pct"] <= -30),
                 "top_subiram": alta[:8]}
 
+    # 0.32.21: motivos de barragem que são SEGURANÇA — esses nunca entram, mesmo subindo
+    BAR_HARD = ("lista negra", "rug", "criador", "risco", "bundle", "carteiras novas", "lixo", "suspeito", "mayhem", "dev ")
+
+    def barred_auto(self, now: float | None = None) -> list[dict]:
+        """0.32.21 (pedido do dono: "essas moedas que foram barradas e subiram já entrar automático, no fictício, nunca no
+        real, explicando o motivo"): token do Explorar barrado por um filtro que NÃO é de segurança, que já subiu +X% desde
+        que foi visto e tem volume de 24 h ≥ $Y, entra na FICTÍCIA com as regras do botão Comprar. Um por token."""
+        c = self.cfg
+        if not getattr(c, "pump_bar_auto_on", False) or getattr(self, "role", None) != "admin":
+            return []
+        now = time.time() if now is None else now
+        done = self.__dict__.setdefault("_bar_done", {})
+        hour = [x for x in done.values() if now - x < 3600]
+        if len(hour) >= int(self._c("pump_bar_max_h", 4)):
+            return []
+        gain, vol_min = float(self._c("pump_bar_min_gain", 50)), float(self._c("pump_bar_min_vol_usd", 20000))
+        held = {p["mint"] for p in self.positions() if not p.get("real")}
+        out = []
+        for mint, g in list((getattr(self, "_ex_funnel", None) or {}).items()):
+            if g.get("entrou") or mint in done or mint in held or now - float(g.get("t") or 0) > 3600:
+                continue
+            why = str(g.get("why") or "")
+            if not why or any(h in why.lower() for h in self.BAR_HARD):
+                continue
+            px, px0 = (self.tokens.get(mint) or {}).get("price"), g.get("px0")
+            if not px or not px0 or now - float((self.tokens.get(mint) or {}).get("last_t") or 0) > 180:
+                continue
+            chg = (px / px0 - 1) * 100
+            vol = g.get("vol")
+            if chg < gain or vol is None or float(vol) < vol_min:
+                continue
+            motivo = (f"barrado que subiu: estava fora por \"{why[:70]}\", mas subiu {chg:+.0f}% desde que foi visto e tem "
+                      f"${float(vol):,.0f} de volume em 24 h — entrou só na fictícia para teste")
+            r = self.manual_buy(mint, t=now, auto=motivo, origem="barrado", target="sim",
+                                amt_sol=float(self._c("pump_bar_sol", 0.05)))
+            done[mint] = now
+            out.append({"mint": mint, "symbol": g.get("symbol"), "chg": round(chg, 1), "r": r})
+            if len(hour) + len(out) >= int(self._c("pump_bar_max_h", 4)):
+                break
+        return out
+
     FOLLOW_RULES = ("stop_pct", "tp_pct", "trail_on", "trail_start", "trail_dist", "boost_tp", "tp1_pct", "tp1_frac",
                     "max_hold_s", "smart", "press_min", "exit_grad", "manual")
 
@@ -2497,7 +2542,7 @@ class PumpFun:
             log.warning("cópia de trades para outra conta: %s", str(e)[:160])
 
     def manual_buy(self, mint: str, t: float | None = None, auto: str = "", origem: str = "", info: dict | None = None,
-                   follow: dict | None = None) -> dict:
+                   follow: dict | None = None, target: str = "both", amt_sol: float | None = None) -> dict:
         """Compra manual (0.23.0, botão Comprar da Base da pump.fun): sem os filtros de cópia, porque foi você que
         decidiu. Sempre compra na carteira fictícia (valor de "SOL por cópia"); na real só se a execução real estiver
         ligada, pela mesma fila, limites e verificações da compra real. Depois segue stops e saídas normais."""
@@ -2526,6 +2571,8 @@ class PumpFun:
                 "mcap_sol": tk.get("mcap_sol")}
         out: dict = {"ok": True, "sim": None, "real": None}
         amt = float(self._c("pump_ar_sol", 0.05) if own_auto else self._c("pump_manual_sol", 0.1))
+        if amt_sol:
+            amt = float(amt_sol)                    # 0.32.21: valor próprio (entrada automática dos barrados que subiram)
         if own_auto and origem == "explorar" and (info or {}).get("veredito") == "possível":
             amt *= float(self._c("pump_ex_possivel_pct", 50)) / 100      # 0.31.99, item 2: "possível" entra com menos
         rules = self.auto_rules() if own_auto else self.manual_rules()
@@ -2534,7 +2581,10 @@ class PumpFun:
             rules = dict(follow.get("rules") or rules)
         fr = self._fee_rates(mint)
         sim_pos = None
-        if any(p["mint"] == mint and not p.get("real") for p in allpos):
+        # 0.32.21 (pedido do dono): o botão Comprar escolhe a carteira — "sim" (só fictícia), "real" (só real) ou "both"
+        if target == "real":
+            out["sim"] = "não pedida (só real)"
+        elif any(p["mint"] == mint and not p.get("real") for p in allpos):
             out["sim"] = "já tem posição fictícia neste token"
         elif len([p for p in allpos if not p.get("real")]) >= int(self._c("pump_max_open", 10)):
             out["sim"] = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
@@ -2551,6 +2601,8 @@ class PumpFun:
                  "mcap_in": tk.get("mcap_sol"), "real": False, "venue_in": fr["venue_name"], "lag_s": None,
                  "score": score, "score_parts": sparts, "grad_in": self.graduated(mint), "manual": True, **rules,
                  "auto": auto or None}
+            if origem and not own_auto:
+                p["origem"] = origem                # 0.32.21: ex.: "barrado" (entrada automática só fictícia)
             if follow:
                 p["follow_of"] = {"user": follow.get("leader"), "pos": follow.get("pos"), "nome": follow.get("nome")}
             if own_auto:
@@ -2575,8 +2627,11 @@ class PumpFun:
         sim_has = out["sim"] == "já tem posição fictícia neste token"
         if own_auto and not out.get("auto_id") and not sim_has:
             return out                              # uma falha fictícia não dispara compra real automática
-        if origem == "calls":
-            return out                              # 0.31.99, item 4: compra automática das Calls é SÓ na fictícia
+        if origem in ("calls", "barrado") or target == "sim":
+            return out                              # só fictícia (Calls 0.31.99; barrados e botão "só fictícia" 0.32.21)
+        if target == "real" and not (self.real is not None and getattr(self.cfg, "pump_real_enabled", False)):
+            out["real"] = "execução real desligada"
+            return out
         mirror = getattr(self.cfg, "pump_real_mirror", True)
         if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or getattr(self.cfg, "pump_auto_real", False)):
             if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
@@ -2592,7 +2647,7 @@ class PumpFun:
                     self._auto_pending[mint] = t
                 self._rq_put(("buy", {"wallet": "manual", "mint": mint, "symbol": sym, "trader_sol": 0.0,
                                       "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t,
-                                      "sim_id": (sim_pos or {}).get("id") if mirror else None,
+                                      "sim_id": (sim_pos or {}).get("id") if mirror and sim_pos else None,
                                       "pos_cfg": {**rules, "manual": True,
                                                   **({"auto": True, "origem": origem,
                                                       "auto_info": copy.deepcopy((sim_pos or {}).get("auto_info") or info or {})} if own_auto else {})}}))

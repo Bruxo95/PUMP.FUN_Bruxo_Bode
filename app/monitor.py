@@ -806,6 +806,11 @@ class SharedMonitor:
                 self.hub.elite.tick()
                 self.elite_follow_sync()
                 await self.explore_auto_once()
+                for e in self.engines():                    # 0.32.21: barrados que subiram, só na fictícia
+                    try:
+                        e.barred_auto()                     # o aviso sai do próprio manual_buy (compra automática)
+                    except Exception as ex:
+                        log.warning("barrados que subiram: %s", str(ex)[:160])
             except Exception as e:
                 log.warning("base da pump.fun: %s", str(e)[:160])
             await asyncio.sleep(20)

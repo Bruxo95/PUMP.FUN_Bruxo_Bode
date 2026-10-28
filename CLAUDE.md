@@ -1136,3 +1136,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (só guardado; Jito não implementado). `#tcReset` grava os padrões pump.fun do dono só na conta de quem clica. Explorar/Base/botão Comprar iguais.
 
 - 0.32.20: `sim_only` = também toda carteira em `pf.study` (salvo `pump_st_real`, OFF). Pedido do dono.
+
+- 0.32.21: `manual_buy(..., target=sim|real|both, amt_sol=)` + `target` na rota; modal `#buyM` no clique de `data-buy`. `PumpFun.barred_auto`
+  (`pump_bar_*`, OFF; ligado só no dono pela migração `20261028000012`), chamado no `lab_loop` depois do `explore_auto_once`: funil do Explorar
+  (`_ex_funnel` guarda `vol`), `BAR_HARD` = motivos de segurança que nunca entram, origem "barrado", sempre só fictícia. Explorar igual.
