@@ -603,3 +603,6 @@ table.extbl td:nth-child(3){max-width:120px;white-space:normal}
 .linkbtn:hover{color:var(--accent,#4ade80)}
 /* 0.32.9: link secundário do perfil na pump.fun ao lado da carteira */
 .pflink{font-size:10px;opacity:.6;text-decoration:none;margin-left:2px}.pflink:hover{opacity:1}
+/* 0.32.10: etiqueta pequena (pump.fun / outra DEX) nos tokens das Decisões da IA */
+.tag.mini{font-size:9px;padding:0 4px;vertical-align:1px}
+#saLog td{vertical-align:top}

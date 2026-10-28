@@ -557,9 +557,26 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return {"wallets": out, "ranking": [{"wallet": x["wallet"], "apelido": x["apelido"], "followed": x["followed"],
                                              **x["summary"]["copy"]} for x in ranked],
                 "limit": MAX_WALLETS, "key": bool(hub._study_key()), "params": prm,
-                "mine": study_my_results(pf, out), "auto": await study_auto_info(pf)}
+                "mine": study_my_results(pf, out), "auto": await study_auto_info(pf, {x["wallet"]: x for x in out}, prm)}
 
-    async def study_auto_info(pf) -> dict:
+    async def _log_rows(rows: list, known: dict, prm: dict | None) -> list:
+        """0.32.10: cada decisão da IA leva o resumo da carteira (tokens que acertou/errou, pump.fun, última operação)."""
+        from .study import summary
+        extra, out = {}, []
+        for r in rows:
+            w = r.get("wallet")
+            if w and w not in known and w not in extra and len(extra) < 15:
+                p = await hub.study_profile(w, prm)
+                extra[w] = {"summary": summary(p) if not p.get("error") else {}}
+        for r in rows:
+            w = r.get("wallet") or ""
+            k = known.get(w) or extra.get(w) or {}
+            out.append({**{x: r.get(x) for x in ("wallet", "acao", "motivo", "em")},
+                        "facts": hub.wallet_facts(w) if w else {}, "digest": (k.get("summary") or {}).get("digest"),
+                        "no_estudo": w in known})
+        return out
+
+    async def study_auto_info(pf, known: dict | None = None, prm: dict | None = None) -> dict:
         from datetime import datetime, timezone
         from .autostudy import AUTO_TAG, rates
         try:
@@ -569,8 +586,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         last = hub._study_auto_at.get(pf.user_id)
         return {"on": bool(getattr(pf.cfg, "pump_st_auto_on", True)), "max": int(getattr(pf.cfg, "pump_st_auto_max", 15)),
                 "tag": AUTO_TAG, "last_run": datetime.fromtimestamp(last, timezone.utc).isoformat() if last else None,
-                "log": [{**{k: r.get(k) for k in ("wallet", "acao", "motivo", "em")},
-                         "facts": hub.wallet_facts(r.get("wallet") or "") if r.get("wallet") else {}} for r in log_rows[:60]],
+                "log": await _log_rows(log_rows[:60], known or {}, prm),
                 "counts": {a: sum(1 for r in log_rows if r.get("acao") == a) for a in ("adicionou", "aprovou", "descartou")},
                 "rates": rates(log_rows)}
 

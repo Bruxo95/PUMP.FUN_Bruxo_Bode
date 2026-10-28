@@ -1099,3 +1099,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `SharedMonitor.wallet_facts_once` (2 por minuto no `boost_loop`; estudo + `hub._facts_want`). `facts` em `/api/pump/study` (lista e log);
   `autostudy.facts_features` entra no `info` das decisões aprovou/descartou (aprende por idade/saldo/transações/criador).
   `pfW` abre o Solscan; `pflink` "pf" = perfil da pump.fun (só existe para quem usou o site). Pedido do dono.
+
+- 0.32.10: `study.digest` (acertos/erros por token com `pump`, `sig` da última transação, `pump_pct`, `ultima_op`) no `profile` e no
+  `summary`; `/api/pump/study` → `auto.log` via `_log_rows` (resumo de cada carteira; até 15 perfis extras fora do estudo); `#saLog` com
+  `digestCells`/`tkLink` e botão Copiar nas aprovadas (aprovar só mantém no estudo). Pedido do dono.

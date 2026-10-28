@@ -805,6 +805,11 @@
    "versao": "0.32.9",
    "inicio": "2026-10-28T19:25:00+00:00",
    "titulo": "idade, saldo e transações das carteiras em estudo"
+  },
+  {
+   "versao": "0.32.10",
+   "inicio": "2026-10-28T19:45:00+00:00",
+   "titulo": "tokens que cada carteira acertou nas Decisões da IA"
   }
  ]
 }

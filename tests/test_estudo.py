@@ -143,3 +143,15 @@ def test_copied_wallet_without_trades_shows_why(env):
     row = mine["rows"][0]
     assert row["trades"] == 0 and row["diag"]["buys_seen"] == 3 and row["diag"]["copied"] == 0
     assert row["diag"]["top_skips"][0]["n"] == 3 and "compra pequena" in row["diag"]["top_skips"][0]["reason"]
+
+
+def test_study_digest_lists_winning_tokens_and_pump_share():
+    """0.32.10 (pedido do dono): Decisões da IA mostram os tokens que a carteira acertou/errou e quanto opera na pump.fun."""
+    from app.study import digest
+    trades = [{"mint": "AAA111pump", "signature": "s1", "at": "2026-10-28T10:00:00+00:00"},
+              {"mint": "BBB222", "signature": "s2", "at": "2026-10-28T11:00:00+00:00"}]
+    main = {"closed_list": [{"token": "AAA111pump", "symbol": "AAA", "realized": 50.0, "market": "pumpfun"},
+                            {"token": "BBB222", "symbol": "BBB", "realized": -10.0, "market": "raydium"}], "markets": {}}
+    d = digest(main, None, trades, 1.9e9)
+    assert d["acertos"][0]["symbol"] == "AAA" and d["acertos"][0]["pump"] is True and d["acertos"][0]["sig"] == "s1"
+    assert d["erros"][0]["pump"] is False and d["pump_pct"] == 50 and d["n_acertos"] == 1 and d["unit"] == "US$"

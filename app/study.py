@@ -183,11 +183,43 @@ def _count(xs) -> dict:
     return dict(sorted(out.items(), key=lambda kv: -kv[1])[:5])
 
 
+def is_pump_mint(m: str | None, market: str | None = None) -> bool:
+    """Token da pump.fun: endereço termina em "pump" (padrão do site) ou o mercado principal é a pump.fun/PumpSwap."""
+    return bool(m and m.endswith("pump")) or "pump" in str(market or "").lower()
+
+
+def digest(main: dict | None, live: dict | None, trades: list[dict], now: float) -> dict:
+    """0.32.10 (pedido do dono): resumo para as Decisões da IA — tokens que acertou e errou (nome, resultado, se é da
+    pump.fun, última transação dela no token), quanto das operações é na pump.fun e quando operou por último."""
+    sig_of: dict[str, str] = {}
+    for t in sorted(trades, key=lambda x: _ts(x.get("at")) or 0):
+        if t.get("mint") and t.get("signature"):
+            sig_of[t["mint"]] = t["signature"]
+    unit = "US$" if main else "SOL"
+    src = (main or {}).get("closed_list") or (live or {}).get("closed_list") or []
+
+    def item(p):
+        m = p.get("token")
+        return {"mint": m, "symbol": p.get("symbol"), "realized": round(float(p.get("realized") or 0), 4),
+                "roi": p.get("roi"), "pump": is_pump_mint(m, p.get("market")), "sig": sig_of.get(m), "unit": unit}
+    wins = sorted((p for p in src if (p.get("realized") or 0) > 0), key=lambda p: -p["realized"])
+    loss = sorted((p for p in src if (p.get("realized") or 0) < 0), key=lambda p: p["realized"])
+    mints = [t.get("mint") for t in trades if t.get("mint")]
+    np_ = sum(1 for m in mints if is_pump_mint(m))
+    mk = (main or {}).get("markets") or {}
+    last = max((_ts(t.get("at")) or 0 for t in trades), default=0) or None
+    return {"acertos": [item(p) for p in wins[:5]], "erros": [item(p) for p in loss[:3]],
+            "n_acertos": len(wins), "n_erros": len(loss), "unit": unit,
+            "pump_ops": np_, "ops": len(mints), "pump_pct": round(np_ / len(mints) * 100) if mints else None,
+            "mercados": mk, "ultima_op": last}
+
+
 def profile(wallet: str, positions: list[dict], trades: list[dict], now: float | None = None,
             prm: dict | None = None) -> dict:
     now = now or time.time()
     main = from_positions([r.get("data") if "data" in r else r for r in positions], now)
     live = from_trades(trades, now)
+    dg = digest(main, live, trades, now)
     copy = None
     if prm:
         src = (main or {}).get("closed_list") or (live or {}).get("closed_list") or []
@@ -196,7 +228,7 @@ def profile(wallet: str, positions: list[dict], trades: list[dict], now: float |
         if m:
             m.pop("closed_list", None)
     recent = sorted(trades, key=lambda t: _ts(t.get("at")) or 0, reverse=True)[:40]
-    return {"wallet": wallet, "main": main, "live": live, "recent": recent, "copy": copy,
+    return {"wallet": wallet, "main": main, "live": live, "recent": recent, "copy": copy, "digest": dg,
             "trades_seen": len(trades), "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "notes": ["Ganho por minuto/hora = lucro realizado nas últimas 24 h dividido pelo tempo; por dia = média dos últimos 7 dias.",
                       "Lucro do trader não é o lucro de quem copia: quem copia entra depois e paga taxas (etapa 2 calcula isso).",
@@ -208,5 +240,6 @@ def summary(p: dict) -> dict:
     return {"source": m.get("source"), "unit": m.get("unit"), "per_hour": m.get("per_hour"), "per_day_7d": m.get("per_day_7d"),
             "pnl_24h": m.get("pnl_24h"), "pnl_7d": m.get("pnl_7d"), "win_rate": m.get("win_rate"),
             "hold_med_s": m.get("hold_med_s"), "closed": m.get("closed"), "trades_seen": p.get("trades_seen"),
+            "digest": p.get("digest"),
             "copy": {k: (p.get("copy") or {}).get(k) for k in ("pnl_7d", "pnl_30d", "per_day_7d", "win_rate", "n_30d",
                                                                  "verdict", "fast_pct", "amt")} if p.get("copy") else None}

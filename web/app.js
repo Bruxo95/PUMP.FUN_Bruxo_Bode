@@ -40,10 +40,23 @@
       ' <a class="pflink" href="https://pump.fun/profile/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="Perfil na pump.fun (só existe se a carteira já usou o site)">pf</a>';
   // 0.32.9 (pedido do dono): idade, saldo, transações e tokens criados de uma carteira
   const factsCells = (fx) => { fx = fx || {};
-    const age = fx.age_days == null ? "–" : (fx.age_more ? "+" : "") + (fx.age_days < 1 ? "< 1 dia" : f(fx.age_days, 0) + " dias");
+    // carteira com mais de 4.000 transações: só deu para ver as mais novas, então a idade é "pelo menos"
+    const age = fx.age_days == null ? "–" : fx.age_more ? '<span title="mais de 4.000 transações: a idade real é maior que isto">muito ativa · ≥ ' + (fx.age_days < 1 ? "horas" : f(fx.age_days, 0) + " dias") + "</span>"
+      : fx.age_days < 1 ? "< 1 dia" : f(fx.age_days, 0) + " dias";
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   const FACTS_H = ["Existe há", "Saldo (US$)", "Transações", "Tokens criados"];
+  // 0.32.10 (pedido do dono): tokens que a carteira acertou/errou, com link, e quanto ela opera na pump.fun
+  const tkLink = (x) => { const name = esc(x.symbol || (x.mint || "").slice(0, 6)), val = (x.realized > 0 ? "+" : "") + (x.unit === "US$" ? "$" + f(x.realized, 0) : s4(x.realized) + " SOL");
+    const url = x.pump ? "https://pump.fun/coin/" + encodeURIComponent(x.mint) : "https://dexscreener.com/solana/" + encodeURIComponent(x.mint);
+    return '<a href="' + url + '" target="_blank" rel="noopener" title="' + esc(x.mint) + (x.pump ? " · token da pump.fun" : " · fora da pump.fun") + '">' + name + "</a>" +
+      (x.pump ? ' <span class="tag win mini">pump.fun</span>' : ' <span class="tag neutral mini">outra DEX</span>') + ' <span class="' + (x.realized >= 0 ? "up" : "down") + '">' + val + "</span>" +
+      (x.sig ? ' <a href="https://solscan.io/tx/' + encodeURIComponent(x.sig) + '" target="_blank" rel="noopener" title="última transação dela neste token">tx</a>' : ""); };
+  const digestCells = (d) => { if (!d) return ['<span class="muted">sem histórico ainda</span>', "–", "–"];
+    const ok = (d.acertos || []).map(tkLink).join("<br>"), bad = (d.erros || []).map(tkLink).join("<br>");
+    return ['<span class="wrapcell">' + (ok ? "<b>Acertou " + d.n_acertos + "</b><br>" + ok : "nenhum acerto visto") + (bad ? "<br><b>Errou " + d.n_erros + "</b><br>" + bad : "") + "</span>",
+      d.pump_pct == null ? "–" : '<span title="' + d.pump_ops + " de " + d.ops + ' operações vistas em tokens da pump.fun">' + d.pump_pct + "% na pump.fun</span>" + (d.pump_pct < 50 ? '<br><small class="muted">opera mais fora</small>' : ""),
+      d.ultima_op ? hms(Math.max(0, Date.now() / 1000 - d.ultima_op)) + " atrás" : "–"]; };
   const pfM = (m, s) => '<a href="https://pump.fun/coin/' + encodeURIComponent(m) + '" target="_blank" rel="noopener" title="' + esc(m) + '">' + esc(s || m.slice(0, 6)) + "</a>" +
     '<button class="tkinfo" data-tk="' + esc(m) + '" title="Ficha do token">i</button>';
   const tx = (sig) => (sig ? '<a href="https://solscan.io/tx/' + encodeURIComponent(sig) + '" target="_blank" rel="noopener">tx</a>' : "");
@@ -1567,7 +1580,8 @@
     const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss" };
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => [esc(x.valor), String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
-    table("saLog", ["Quando", "Carteira", "Decisão", "Por quê", ...FACTS_H], (sa.log || []).map((x) => [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", '<span class="wrapcell">' + esc(x.motivo || "") + "</span>", ...factsCells(x.facts)]),
+    table("saLog", ["Quando", "Carteira", "Decisão", "Por quê", "Tokens (acertou / errou)", "Na pump.fun", "Última operação", ...FACTS_H, ""], (sa.log || []).map((x) => [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", '<span class="wrapcell">' + esc(x.motivo || "") + "</span>", ...digestCells(x.digest), ...factsCells(x.facts),
+      x.acao === "aprovou" && x.no_estudo ? ((D && (D.followed || []).some((y) => y.wallet === x.wallet)) ? '<span class="tag win">copiando</span>' : '<button class="btn sm" data-stc="' + esc(x.wallet) + '" title="Aprovou = continua no estudo, não copia sozinha. Este botão passa a copiar.">Copiar</button>') : ""]),
       "Nenhuma decisão ainda. Clique em Rodar agora ou espere a próxima volta.");
     const mi = r.mine || {}, tt = mi.total || {}, ts = tt.sim || {}, tr = tt.real || {};
     const roi = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
