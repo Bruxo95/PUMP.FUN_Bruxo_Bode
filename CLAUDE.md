@@ -1155,3 +1155,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.26: `markBought()` (a cada 1,5 s) põe `.bought` ao lado de todo `[data-buy]` com a posição aberta (fictícia/real); `data-gopos`
   troca o modo, abre `#posicoes` e pisca a linha (`tr.flash`). Pedido do dono.
+
+- 0.32.27: `PUMP_ERRORS` 6063 explica curva (UnsupportedQuoteMint) × PumpSwap (InsufficientRealQuoteReserves). Lote 3 conferido em
+  `PUMP-FUN-LEARNING/conferencia-claude-lote3-2026-10-28.md` (bytes 83–114 do `quote_mint` conferem com o IDL).

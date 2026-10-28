@@ -890,6 +890,11 @@
    "versao": "0.32.26",
    "inicio": "2026-10-28T23:25:00+00:00",
    "titulo": "Comprar mostra onde ficou a moeda"
+  },
+  {
+   "versao": "0.32.27",
+   "inicio": "2026-10-28T23:35:00+00:00",
+   "titulo": "explicação certa do erro 6063"
   }
  ]
 }

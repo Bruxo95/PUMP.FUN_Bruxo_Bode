@@ -4134,8 +4134,10 @@ class PumpReal:
                    "0x1771": "erro 6001: na Jupiter = slippage excedido; na pump.fun = programa já inicializado",
                    # 0.31.83 (Grokbot 28/10 07:55, sugestão do Bruxo): erro 6063 do programa da pump.fun = UnsupportedQuoteMint
                    # (IDL oficial pump.json). A curva é cotada em outra moeda (Grokbot: SPCX) e a PumpPortal manda SOL.
-                   "'Custom': 6063": "curva cotada em outra moeda (não SOL): a PumpPortal não compra com SOL",
-                   "0x17af": "curva cotada em outra moeda (não SOL): a PumpPortal não compra com SOL"}
+                   # 0.32.27: na PumpSwap (IDL pump_amm.json de 07/10/2026, conferido em 28/10) o mesmo 6063 é
+                   # InsufficientRealQuoteReserves — o pool não tem a moeda de cotação suficiente para a venda/compra.
+                   "'Custom': 6063": "erro 6063: na curva da pump.fun = cotada em outra moeda (não SOL); na PumpSwap = pool sem reserva suficiente",
+                   "0x17af": "erro 6063: na curva da pump.fun = cotada em outra moeda (não SOL); na PumpSwap = pool sem reserva suficiente"}
 
     @classmethod
     def explain(cls, reason) -> str | None:
