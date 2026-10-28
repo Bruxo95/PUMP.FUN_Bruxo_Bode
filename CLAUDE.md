@@ -1129,3 +1129,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   unsubscribeAccountTrade de `union_followed`, a cada 10 s na conexão da PumpPortal) → `_pp_trade` → `handle_ev` (parte de `handle_tx`
   depois de decodificar). Dedupe `_seen_sig(carteira:assinatura)`; `on_notification` pula transação pump de carteira assinada (`pp_skip`).
   Status: `acct_subs`/`acct_trades`/`acct_dup`. Custo na carteira da chave do sistema. Relatório `app/relatorios_ia/2026-10-28-0.32.18.md`.
+
+- 0.32.19: menu `#tradercfg` "Configuração do Trader" (pedido do dono; escopo = só cópias). Os campos de compra/slippage/priority/stop/
+  trail/tempo/parada/tp1/alvo/dev/graduação saíram de Configurações, Opções novas e Execução real (lá ficou um link) — mesmas chaves.
+  Novas OFF: `pump_tp2_*`, `pump_timestop_*`, `pump_entry_curve_*` (em `_check_stops`/`curve_block`, só sem `own_rules`), `pump_real_jito_tip_sol`
+  (só guardado; Jito não implementado). `#tcReset` grava os padrões pump.fun do dono só na conta de quem clica. Explorar/Base/botão Comprar iguais.

@@ -850,6 +850,11 @@
    "versao": "0.32.18",
    "inicio": "2026-10-28T21:30:00+00:00",
    "titulo": "trades das copiadas pela PumpPortal (opção)"
+  },
+  {
+   "versao": "0.32.19",
+   "inicio": "2026-10-28T22:00:00+00:00",
+   "titulo": "Configuração do Trader num lugar só"
   }
  ]
 }

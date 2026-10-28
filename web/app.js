@@ -390,7 +390,7 @@
     let saved = {}; try { saved = JSON.parse(localStorage.getItem("pf_sanf") || "{}"); } catch (e) { /* */ }
     document.querySelectorAll("section.view .card").forEach((card, i) => {
       const view = card.closest("section.view").dataset.view, h = card.querySelector(":scope > header");
-      if (!h || card.classList.contains("sanf") || ["real", "estudo"].includes(view) || /Share$/.test(card.id || "")) return;
+      if (!h || card.classList.contains("sanf") || ["real", "estudo", "tradercfg"].includes(view) || /Share$/.test(card.id || "")) return;
       if (card.id !== "secretsCard" && !card.hasAttribute("data-sanf") && card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").length < 3) return;
       const key = view + ":" + ((card.querySelector("h2") || {}).textContent || i).toString().trim().slice(0, 40);
       card.classList.add("sanf"); card.classList.toggle("fechado", saved[key] !== 1);
@@ -1843,6 +1843,16 @@
     }
     if (t.closest && t.closest("#sysBox")) { openSys(); return; }
     if (t.id === "sysMX") { $("sysM").hidden = true; SYS_SUB = null; return; }
+    // 0.32.19: Configuração do Trader
+    if (t.id === "tcSave") { await poll(true); toast("Configurações gravadas (cada campo já grava ao mudar)."); return; }
+    if (t.id === "tcReset") {
+      if (!confirm("Restaurar os Padrões Pump.fun na SUA conta?\n\nCompra 0,1 SOL (fictícia e REAL), slippage real 15%, priority 0,005 SOL, stop −25%, stop móvel em +30% saindo 15 pontos abaixo do pico, stop por tempo 180 s, 1º alvo +100% vende 50%, 2º alvo +300% vende 25% (moonbag 25%), sair quando o dev vende, market cap máximo 100 SOL e curva de 0% a 85%.\n\nA compra REAL passa a ser 0,1 SOL.")) return;
+      setCfg({ pump_copy_sol: 0.1, pump_real_max_sol: 0.1, pump_real_slippage_pct: 15, pump_priority_sol: 0.005, pump_real_jito_tip_sol: 0.001,
+        pump_stop_pct: 25, pump_trail_enabled: true, pump_trail_start_pct: 30, pump_trail_dist_pct: 15, pump_timestop_on: true, pump_timestop_s: 180, pump_timestop_gain_pct: 0,
+        pump_tp1_on: true, pump_tp1_pct: 100, pump_tp1_frac_pct: 50, pump_tp2_pct: 300, pump_tp2_frac_pct: 25, pump_tp_pct: 0,
+        pump_exit_dev_sell: true, pump_max_mcap_sol: 100, pump_entry_curve_on: true, pump_entry_curve_min: 0, pump_entry_curve_max: 85 });
+      toast("Padrões Pump.fun gravados na sua conta."); return;
+    }
     const sk = t.closest && t.closest("[data-saact]"); if (sk) { openSaList(sk.dataset.saact); return; }
     if (t.dataset.sarate) { openSaRate(t.dataset.sarate); return; }
     if (t.dataset.sadet) { openSaDet(+t.dataset.sadet); return; }
@@ -1933,7 +1943,7 @@
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
     igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
-    config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
+    tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
   function route() {
@@ -2260,6 +2270,8 @@
     if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
+    if ($("tcMoon")) { const a = c.pump_tp1_on ? +c.pump_tp1_frac_pct || 0 : 0, b = c.pump_tp1_on && +c.pump_tp2_pct ? +c.pump_tp2_frac_pct || 0 : 0;
+      $("tcMoon").textContent = Math.max(0, 100 - a - b) + "%" + (c.pump_tp_pct > 0 ? " até o alvo fixo de +" + c.pump_tp_pct + "%" : " · segue no stop móvel"); }
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
     if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); }
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();

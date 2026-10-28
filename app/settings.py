@@ -44,6 +44,16 @@ USER_KEYS: dict[str, tuple] = {
     # 0.32.18 (pedido do dono, 28/10): trades das carteiras COPIADAS pela PumpPortal (subscribeAccountTrade), cobrado da carteira
     # ligada à chave PumpPortal do sistema (0,01 SOL a cada 10 mil trades, pumpportal.fun/fees). Começa DESLIGADO.
     "pump_pp_copy": (bool, False, 0, 1),
+    # 0.32.19 (pedido do dono: Configuração do Trader). Tudo desligado; só o botão "Restaurar Padrões Pump.fun" liga.
+    "pump_tp2_pct": (float, 0.0, 0.0, 10000.0),          # 2º alvo: ao chegar em +X% (0 = desligado)…
+    "pump_tp2_frac_pct": (float, 25.0, 1.0, 99.0),       # …vende Y% da posição ORIGINAL; o resto (moonbag) segue no stop móvel
+    "pump_timestop_on": (bool, False, 0, 1),             # stop por tempo: depois de X s…
+    "pump_timestop_s": (float, 180.0, 10.0, 86400.0),
+    "pump_timestop_gain_pct": (float, 0.0, -100.0, 1000.0),  # …se o melhor momento não passou de +Y% líquido, vende tudo
+    "pump_entry_curve_on": (bool, False, 0, 1),          # só copia com a curva da pump.fun entre min% e max%
+    "pump_entry_curve_min": (float, 0.0, 0.0, 100.0),
+    "pump_entry_curve_max": (float, 85.0, 0.0, 100.0),
+    "pump_real_jito_tip_sol": (float, 0.001, 0.0, 0.1),  # gorjeta Jito (guardada; o envio por Jito ainda não existe)
     "pump_tune_on": (bool, True, 0, 1),                # 0.31.14: ajuste automático (saída pelos fantasmas + pausar trader ruim)             # 0.31.13: estudo automático de carteiras (só estudo, não copia)
     "pump_st_auto_max": (int, 15, 1, 30),                # 0.31.12: aprender com os erros (bloqueia faixas que perdem; só aperta)     # exigir trader bom também no Explorar (na Base continua exigido)
     "pump_ex_auto_min_pressure": (float, 60.0, 0.0, 100.0),

@@ -1471,6 +1471,14 @@ class PumpFun:
             if max_hold is not None and t - p.get("open_t", t) >= max_hold:
                 out.append(self._sell(p, 1.0, px, f"tempo máximo ({max_hold / 60:g} min)", t))
                 continue
+            # 0.32.19: posições com regras próprias (botão Comprar, automáticas, Copiar igual) não usam as regras novas das cópias
+            own_rules = own_auto or bool(p.get("manual")) or p.get("stop_pct") is not None or bool(p.get("eq"))
+            ts_on = getattr(self.cfg, "pump_timestop_on", False) and not own_rules
+            if ts_on and t - p.get("open_t", t) >= float(self._c("pump_timestop_s", 180)):
+                gain = float(self._c("pump_timestop_gain_pct", 0))
+                if float(p.get("best_pct", chg)) < gain:
+                    out.append(self._sell(p, 1.0, px, f"stop por tempo: {float(self._c('pump_timestop_s', 180)):.0f} s sem passar de {gain:+.0f}% ({chg:+.1f}% líquido)", t))
+                    continue
             if p.get("eq"):                                # 0.32.4: Copiar igual sai só quando a carteira vende
                 eqs = float(self._c("pump_eq_stop_pct", 0) or 0)
                 if eqs and chg <= -eqs:
@@ -1514,6 +1522,15 @@ class PumpFun:
                 frac = float(p["tp1_frac"]) if p.get("tp1_frac") is not None else float(self._c("pump_tp1_frac_pct", 50))
                 frac /= 100
                 out.append(self._sell(p, frac, px, f"venda em partes: realizou {frac * 100:.0f}% em {chg:+.1f}% líquido", t))
+                continue
+            # 0.32.19 (Configuração do Trader): 2º alvo, só nas cópias (posições com regras próprias não têm)
+            tp2 = 0.0 if own_rules else float(self._c("pump_tp2_pct", 0) or 0)
+            if (tp2 and tp1 and p.get("tp1_done") and not p.get("off_tp1") and not p.get("tp2_done") and chg >= tp2
+                    and p["tokens_left"] > p["tokens"] * 0.05):
+                p["tp2_done"] = True
+                want = float(self._c("pump_tp2_frac_pct", 25)) / 100 * p["tokens"]        # % da posição original
+                frac = min(1.0, want / p["tokens_left"]) if p["tokens_left"] else 1.0
+                out.append(self._sell(p, frac, px, f"2º alvo: realizou {float(self._c('pump_tp2_frac_pct', 25)):.0f}% da posição em {chg:+.1f}% líquido", t))
                 continue
             if trail_on and p.get("trail_peak") is not None and chg <= p["trail_exit"]:
                 out.append(self._sell(p, 1.0, px, f"stop móvel (pico {p['trail_peak']:+.1f}% → saiu em {chg:+.1f}% líquido)", t))
@@ -2005,8 +2022,13 @@ class PumpFun:
             return None
         if getattr(self.cfg, "pump_skip_graduated", False) and self.graduated(mint):
             return "token já graduou (PumpSwap) — depois da graduação o risco de derrubada é maior"
-        mn = self._onv("pump_curve_speed_on", "pump_min_curve_speed")
         tk = self.tokens.get(mint) or {}
+        if getattr(self.cfg, "pump_entry_curve_on", False) and not self.graduated(mint):      # 0.32.19: faixa da curva
+            prog = self.curve_progress(tk.get("mcap_sol"))
+            lo, hi = float(self._c("pump_entry_curve_min", 0)), float(self._c("pump_entry_curve_max", 85))
+            if prog is not None and not (lo <= prog <= hi):
+                return f"curva em {prog:.0f}% (faixa de entrada {lo:.0f}% a {hi:.0f}%)"
+        mn = self._onv("pump_curve_speed_on", "pump_min_curve_speed")
         if mn and not self.graduated(mint) and tk.get("creator"):      # só com a hora de criação vista de verdade
             prog = self.curve_progress(tk.get("mcap_sol"))
             mins = max(0.1, (time.time() - float(tk.get("created_t") or time.time())) / 60)

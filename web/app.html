@@ -58,6 +58,7 @@
       </div>
       <a href="#feed" data-v="feed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg>Feed ao vivo</a>
       <a href="#real" data-v="real"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Execução real<b class="nb" id="nbReal"></b></a>
+      <a href="#tradercfg" data-v="tradercfg" data-novo-ate="2026-11-12"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Configuração do Trader</a>
       <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configurações</a>
       <a href="#admin" data-v="admin" id="navAdmin" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 16a3.5 3.5 0 0 1 7 0"/></svg>Administração<b class="nb" id="nbAdm"></b></a>
       <a href="#novidades" data-v="novidades" id="navNov" hidden data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Changelog</a>
@@ -622,11 +623,7 @@
             <button class="btn tgl off big" id="realB">REAL: OFF</button>
             <div style="flex:1;min-width:220px" id="realInfo"></div>
           </div>
-          <div class="form" style="margin-top:18px">
-            <div class="field"><label>SOL por compra (máximo de cada trade real)</label>
-              <div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_real_max_sol"><span class="muted">SOL</span>
-                <button class="btn sm" data-set="pump_real_max_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.1">0,1</button></div>
-              <div class="hint" id="rMaxN"></div></div>
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form" style="margin-top:18px">
             <div class="field"><label>Parar no dia se perder</label>
               <div class="row"><input class="in w100" type="number" min="0" step="0.05" data-cfg="pump_real_daily_loss_sol"><span class="muted">SOL</span><span class="muted" id="rLossU"></span></div></div>
             <div class="field"><label>Posições reais ao mesmo tempo</label>
@@ -654,17 +651,66 @@
           <div class="tbl-wrap" style="margin-top:8px"><table id="rmMiss" class="daytbl"></table></div></div>
       </section>
 
+      <!-- ========================================================= CONFIGURAÇÃO DO TRADER (0.32.19, pedido do dono) -->
+      <section class="view" data-view="tradercfg" hidden>
+        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Configuração do Trader</h2><div class="sub">todas as regras de compra e venda das CÓPIAS (Top traders, Carteiras em estudo, Copiar igual) num lugar só · cada mudança vale na hora e fica salva só para você</div></div>
+          <div class="sp"></div><button class="btn sm primary" id="tcSave">Salvar Configurações</button> <button class="btn sm" id="tcReset">Restaurar Padrões Pump.fun</button></header>
+          <div class="help"><p><b>Onde vale:</b> nas cópias de traders, na carteira FICTÍCIA e na REAL (quando a execução real está ligada). O Explorar, a Base e o botão Comprar têm regras próprias, nas telas deles. Salvar não é obrigatório: cada campo já grava ao mudar; o botão só confirma que está tudo gravado.</p></div></div>
+        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>A. Entrada e execução</h2><div class="sub">FICTÍCIA e REAL</div></div></header>
+          <div class="form">
+            <div class="field"><label>Valor de cada cópia (SOL fictícios)</label><div class="row"><input class="in w100" type="number" min="0.01" step="0.01" data-cfg="pump_copy_sol">
+              <button class="btn sm" data-set="pump_copy_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.5">0,5</button></div></div>
+            <div class="field"><label>SOL por compra (máximo de cada trade real)</label>
+              <div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_real_max_sol"><span class="muted">SOL</span>
+                <button class="btn sm" data-set="pump_real_max_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.1">0,1</button></div>
+              <div class="hint" id="rMaxN"></div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Slippage máximo da compra REAL</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_real_slippage_pct"><span class="muted">%</span>
+              <button class="btn sm" data-set="pump_real_slippage_pct" data-val="5">5%</button><button class="btn sm" data-set="pump_real_slippage_pct" data-val="15">15%</button></div>
+              <div class="hint">Tolerância de preço da carteira real. Mais alto = mais compras passam, mas mais risco de sanduíche (Bitquery, 10/2026: 87 ataques a cada 10 mil swaps com 10–20%, 8 com 1–3%).</div></div>
+            <div class="field"><label>Slippage extra (você entra depois do trader)</label><div class="row"><input class="in w80" type="number" min="0" step="0.5" data-cfg="pump_extra_slip_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>PumpPortal / taxa de prioridade</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_portal_fee_pct"><span class="muted">% /</span><input class="in w100" type="number" min="0" step="0.0001" data-cfg="pump_priority_sol"><span class="muted">SOL</span></div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Gorjeta Jito / envio anti-MEV (REAL)</label><div class="row"><input class="in w80" type="number" min="0" max="0.1" step="0.0005" data-cfg="pump_real_jito_tip_sol"><span class="muted">SOL</span><span class="tag neutral">envio Jito desligado</span></div>
+              <div class="hint">O valor fica guardado, mas a real ainda não manda por Jito: será ligado só depois de testar com carteira nova e pouco saldo (decisão do dono, 28/10).</div></div>
+          </div></div>
+        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>B. Risco e stops</h2></div></header>
+          <div class="form">
+            <div class="field"><label>Stop de perda</label><div class="row"><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_stop_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>Stop móvel (quando estiver ganhando)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_trail_enabled">…</button>
+              <span class="muted">liga em +</span><input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_start_pct"><span class="muted">% · sai se cair</span>
+              <input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_dist_pct"><span class="muted">pontos</span></div><div class="hint" id="trailN"></div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Stop por tempo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_timestop_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="10" step="10" data-cfg="pump_timestop_s"><span class="muted">s, se não passou de +</span><input class="in w80" type="number" min="-100" step="1" data-cfg="pump_timestop_gain_pct"><span class="muted">% líquido, vende</span></div>
+              <div class="hint">Ex.: 180 s e 0% = se em 3 minutos a posição nunca ficou positiva (depois das taxas), vende tudo.</div></div>
+            <div class="field"><label>Tempo máximo na posição</label><div class="row"><input class="in w80" type="number" min="0.1" step="0.5" data-cfg="pump_max_hold_h"><span class="muted">h</span></div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a posição fica parada</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_stale_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="5" max="1440" step="5" data-cfg="pump_exit_stale_min"><span class="muted">min, se estiver entre −</span><input class="in w80" type="number" min="0.5" max="50" step="0.5" data-cfg="pump_exit_stale_band"><span class="muted">% e +esse %</span></div>
+              <div class="hint">As perdas de 26/10 vieram de posições paradas até o tempo máximo de 6 h. Antes de ligar, veja em Estratégias fantasma a variante "Sai se ficar parado 45 min".</div></div>
+          </div></div>
+        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>C. Lucro em partes</h2></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-08"><label>Venda em partes</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tp1_on">…</button><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp1_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp1_frac_pct"><span class="muted">%</span></div>
+              <div class="hint">Realiza parte do lucro cedo e deixa o resto no stop móvel. Já vem com a sugestão para testar (+30% vende 50%); ligue no ON.</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>2º alvo</label><div class="row"><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="10" data-cfg="pump_tp2_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp2_frac_pct"><span class="muted">% da posição original</span></div>
+              <div class="hint">0 = desligado. Só depois do 1º alvo. O que sobra (moonbag) segue no stop móvel até sair.</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Moonbag (fica no token)</label><div class="row"><b id="tcMoon">–</b></div><div class="hint">100% − o que o 1º e o 2º alvo vendem.</div></div>
+            <div class="field"><label>Alvo fixo de lucro (0 = sem alvo)</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp_pct"><span class="muted">%</span></div></div>
+          </div></div>
+        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>D. Segurança da pump.fun</h2></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o dev vende</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_dev_sell">…</button></div>
+              <div class="hint">Se o criador do token vender depois da sua entrada, vende a posição na hora. Só funciona quando o monitor viu a criação do token.</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Market cap máximo para entrar</label><div class="row"><input class="in w100" type="number" min="0" step="10" data-cfg="pump_max_mcap_sol"><span class="muted">SOL (0 = sem limite)</span></div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Faixa da curva para entrar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_entry_curve_on">…</button><span class="muted">de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_min"><span class="muted">% a</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_max"><span class="muted">%</span></div>
+              <div class="hint">Só copia tokens ainda na curva da pump.fun dentro dessa faixa de preenchimento.</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Sair antes da graduação</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_exit_on">…</button><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_curve_exit_pct"><span class="muted">%</span></div>
+              <div class="hint">Na pesquisa, 92% dos tokens tiveram derrubada forte e vender antes de graduar rendeu mais. Já vem com a sugestão (85%); ligue no ON.</div></div>
+          </div></div>
+      </section>
       <!-- ========================================================= CONFIGURAÇÕES -->
       <!-- ========================================================= OPÇÕES NOVAS DE CÓPIA (0.17.2: saíram de Configurações para o menu "Usar ou descartar") -->
       <section class="view" data-view="novas" hidden>
         <div class="card"><header><div><h2>Opções novas de cópia</h2><div class="sub">em teste: ligue (verde = ON) para usar ou deixe vermelho (OFF) para descartar · cada mudança vale na hora e fica salva só para você</div></div></header></div>
         <div class="card">
           <header><div><h2>Proteções novas</h2></div></header>
-          <div class="form">
-            <div class="field" data-novo-ate="2026-11-08"><label>Venda em partes</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tp1_on">…</button><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp1_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp1_frac_pct"><span class="muted">%</span></div>
-              <div class="hint">Realiza parte do lucro cedo e deixa o resto no stop móvel. Já vem com a sugestão para testar (+30% vende 50%); ligue no ON.</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Sair antes da graduação</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_exit_on">…</button><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_curve_exit_pct"><span class="muted">%</span></div>
-              <div class="hint">Na pesquisa, 92% dos tokens tiveram derrubada forte e vender antes de graduar rendeu mais. Já vem com a sugestão (85%); ligue no ON.</div></div>
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
           </div>
         </div>
         <div class="card">
@@ -687,15 +733,11 @@
         </div>
         <div class="card" data-novo-ate="2026-11-09">
           <header><div><h2>Saídas inteligentes</h2><div class="sub">vendem tudo sem esperar o preço · teste antes em Estratégias fantasma (variantes "dev" e "gradua")</div></div></header>
-          <div class="form">
-            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o dev vende</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_dev_sell">…</button></div>
-              <div class="hint">Se o criador do token vender depois da sua entrada, vende a posição na hora. Só funciona quando o monitor viu a criação do token.</div></div>
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
             <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o token gradua</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_migrate">…</button></div>
               <div class="hint">Comprou ainda na curva e o token foi para a PumpSwap: vende. Depois da graduação a derrubada é comum.</div></div>
             <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a pressão de compra vira</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_pressure_on">…</button><span class="muted">compras abaixo de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_exit_pressure_pct"><span class="muted">%</span></div>
               <div class="hint">Depois de 1 minuto na posição, se as compras caírem abaixo dessa parte das negociações, vende tudo.</div></div>
-            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a posição fica parada</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_stale_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="5" max="1440" step="5" data-cfg="pump_exit_stale_min"><span class="muted">min, se estiver entre −</span><input class="in w80" type="number" min="0.5" max="50" step="0.5" data-cfg="pump_exit_stale_band"><span class="muted">% e +esse %</span></div>
-              <div class="hint">As perdas de 26/10 vieram de posições paradas até o tempo máximo de 6 h. Antes de ligar, veja em Estratégias fantasma a variante "Sai se ficar parado 45 min".</div></div>
             <div class="field" data-novo-ate="2026-11-09"><label>Sair quando outras carteiras vendem</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_kol_on">…</button><input class="in w80" type="number" min="1" max="30" step="1" data-cfg="pump_exit_kol_n"><span class="muted">carteiras seguidas ou em estudo vendendo o mesmo token</span></div>
               <div class="hint">Quando os outros da onda começam a sair, você sai junto, sem esperar o trader que você copiou.</div></div>
           </div>
@@ -746,10 +788,8 @@
             <button class="btn sm primary" id="cfShGo">Enviar convite</button></div></div></div></div>
         <div class="card">
           <header><div><h2>Cópia</h2><div class="sub">cada mudança vale na hora e fica salva só para você</div></div></header>
-          <div class="form">
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
             <div class="field"><label>Cópia automática</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_enabled">…</button><button class="btn sm" data-act="reset">Zerar carteira fictícia</button></div></div>
-            <div class="field"><label>Valor de cada cópia (SOL fictícios)</label><div class="row"><input class="in w100" type="number" min="0.01" step="0.01" data-cfg="pump_copy_sol">
-              <button class="btn sm" data-set="pump_copy_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.5">0,5</button></div></div>
             <div class="field"><label>Saldo inicial da carteira fictícia</label><div class="row"><input class="in w100" type="number" min="0.1" step="0.5" data-cfg="pump_sim_balance_sol"><span class="muted">SOL</span></div></div>
             <div class="field"><label>Esperar antes de copiar</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_copy_delay_s"><span class="muted">s</span>
               <button class="btn sm" data-set="pump_copy_delay_s" data-val="0">0</button><button class="btn sm" data-set="pump_copy_delay_s" data-val="30">30 s</button><button class="btn sm" data-set="pump_copy_delay_s" data-val="60">60 s</button></div>
@@ -766,13 +806,7 @@
         </div>
         <div class="card">
           <header><div><h2>Proteções</h2></div></header>
-          <div class="form">
-            <div class="field"><label>Stop móvel (quando estiver ganhando)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_trail_enabled">…</button>
-              <span class="muted">liga em +</span><input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_start_pct"><span class="muted">% · sai se cair</span>
-              <input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_dist_pct"><span class="muted">pontos</span></div><div class="hint" id="trailN"></div></div>
-            <div class="field"><label>Stop de perda</label><div class="row"><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_stop_pct"><span class="muted">%</span></div></div>
-            <div class="field"><label>Tempo máximo na posição</label><div class="row"><input class="in w80" type="number" min="0.1" step="0.5" data-cfg="pump_max_hold_h"><span class="muted">h</span></div></div>
-            <div class="field"><label>Alvo fixo de lucro (0 = sem alvo)</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp_pct"><span class="muted">%</span></div></div>
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
             <div class="field"><label>Pausa automática do trader</label><div class="row"><input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_stops"><span class="muted">stops em 24 h → pausa</span>
               <input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_hours"><span class="muted">h</span></div></div>
           </div>
@@ -798,12 +832,10 @@
         </div>
         <div class="card">
           <header><div><h2>Taxas usadas na simulação</h2><div class="sub">as mesmas que o modo real paga</div></div></header>
-          <div class="form">
-            <div class="field"><label>Slippage extra (você entra depois do trader)</label><div class="row"><input class="in w80" type="number" min="0" step="0.5" data-cfg="pump_extra_slip_pct"><span class="muted">%</span></div></div>
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
             <div class="field"><label>pump.fun na curva / PumpSwap</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_fee_pct"><span class="muted">% /</span><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_swap_fee_pct"><span class="muted">%</span></div></div>
             <div class="field" data-novo-ate="2026-11-11"><label>PumpSwap: usar a tabela oficial da pump.fun</label><div class="row"><button class="btn sm tgl" data-toggle="pump_swap_fee_official">…</button></div>
               <div class="muted small">Ligado: depois que o token gradua, a taxa segue a tabela oficial pelo valor de mercado (1,25% até 420 SOL, 1,20% até 1.470, 1,15% até 2.460… e 0,30% só acima de 98 mil SOL). Desligado: usa o valor fixo do campo acima. Muda o resultado mostrado e a hora em que stop e alvo disparam (eles olham o valor já sem taxas). Só tokens cotados em SOL e <b>só na carteira fictícia</b> (desde a 0.32.0; a real paga a taxa de verdade).</div></div>
-            <div class="field"><label>PumpPortal / taxa de prioridade</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_portal_fee_pct"><span class="muted">% /</span><input class="in w100" type="number" min="0" step="0.0001" data-cfg="pump_priority_sol"><span class="muted">SOL</span></div></div>
           </div>
         </div>
         <div class="card" id="secretsCard">
