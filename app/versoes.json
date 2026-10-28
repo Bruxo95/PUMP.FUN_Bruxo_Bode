@@ -835,6 +835,11 @@
    "versao": "0.32.15",
    "inicio": "2026-10-28T20:55:00+00:00",
    "titulo": "cartões do estudo automático abrem a lista"
+  },
+  {
+   "versao": "0.32.16",
+   "inicio": "2026-10-28T21:05:00+00:00",
+   "titulo": "O que ela aprendeu abre as carteiras"
   }
  ]
 }

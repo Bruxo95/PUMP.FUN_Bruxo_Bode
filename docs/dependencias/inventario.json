@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "a679750d0b686eeb019447bbe8663077e27723b6",
-    "application_version": "0.32.15 · 2026-10-28 · cartões do estudo automático abrem a lista",
+    "repository_reference": "522f359e33f8199f7fa89865037b5d1679d8f958",
+    "application_version": "0.32.16 · 2026-10-28 · O que ela aprendeu abre as carteiras",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "f5b88c6e4af243351a667ba59cb50f7298afc37d5278c479d0a8cb80d4355f93",
+      "app/version.py": "d9df5412ff1cb718f5020f067fcc832f20eebf9c1b399174f49b1a10df46aa73",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b7997d25423245b382c97e54aebb545c10cc572e3922793c31c76f5c4624f5af"
+  "pdf_sha256": "16e3ab8892ff83f252e4a679bddaa4e82bd91b56c6a303e01eea20d09ef2e4ff"
 }

@@ -1118,3 +1118,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `#stMineCard`); `.decbox` com o motivo em Ver tudo. Pedido do dono.
 
 - 0.32.15: cartões `#saK` com `data-saact` → `openSaList` (modal `#saM`, carteiras do grupo por nota). Pedido do dono.
+
+- 0.32.16: `auto.log[].features` (valores de `info.features`); `#saRates` com `data-sarate` → `openSaRate` (modal `#saM`). Pedido do dono.

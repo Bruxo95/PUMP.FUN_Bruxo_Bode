@@ -573,6 +573,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             k = known.get(w) or extra.get(w) or {}
             out.append({**{x: r.get(x) for x in ("wallet", "acao", "motivo", "em")},
                         "facts": hub.wallet_facts(w) if w else {}, "digest": (k.get("summary") or {}).get("digest"),
+                        "features": [v for v in ((r.get("info") or {}).get("features") or {}).values() if v],
                         "no_estudo": w in known})
         return out
 
