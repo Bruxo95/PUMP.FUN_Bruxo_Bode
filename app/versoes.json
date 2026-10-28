@@ -785,6 +785,11 @@
    "versao": "0.32.5",
    "inicio": "2026-10-28T18:10:00+00:00",
    "titulo": "Copiar igual ligado na conta do dono"
+  },
+  {
+   "versao": "0.32.6",
+   "inicio": "2026-10-28T18:30:00+00:00",
+   "titulo": "funil do Explorar sem aperto"
   }
  ]
 }

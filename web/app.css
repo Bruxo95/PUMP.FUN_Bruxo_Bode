@@ -593,3 +593,9 @@ table.extbl td:nth-child(3){max-width:120px;white-space:normal}
 /* 0.31.96: abas em link (Calls quentes | Radar) */
 .seg a{display:inline-block;padding:6px 12px;border-radius:7px;color:var(--muted);text-decoration:none}
 .seg a.on{background:var(--panel2,#1d1f24);color:var(--text,#fff)}
+/* 0.32.6 (pedido do dono): funil do Explorar — "Barrado que subiu" embaixo, não espremido ao lado */
+.funstack{display:flex;flex-direction:column;gap:14px}
+.funstack table{width:100%}
+.funstack .wrapcell{white-space:normal;word-break:normal;overflow-wrap:break-word;max-width:none;min-width:160px}
+.funstack #exFunM td:last-child,.funstack #exFunUp td:nth-child(2){white-space:nowrap;width:1%}
+

@@ -1082,3 +1082,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.5: migração `20261028000010_copiar_igual_dono.sql` (pedido do dono no chat): `pump_eq_on`=true e `pump_eq_real`=false só na conta
   dele (onlineguyat@gmail.com). Demais contas seguem com o Copiar igual desligado.
+
+- 0.32.6: funil do Explorar (`#exFunM` e `#exFunUp`) empilhado em `.funstack` (antes `grid2` lado a lado, texto espremido). Pedido do dono.
