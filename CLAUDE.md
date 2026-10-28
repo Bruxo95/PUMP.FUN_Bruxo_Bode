@@ -961,3 +961,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (lidos da curva em `_curve_prices`, byte 81 e 83..115), `top10`/`dev_pct`/`snipers_pct`/`insiders_pct`/`bundlers_pct` (risco da
   Solana Tracker em `explore.item`), `avg_trade_usd` e `age_min`. `autolearn.study_extra` (fora de `FEATURES`: nunca bloqueia) →
   `base_state["sinais"]` → tabela `#bgS` na Base geral. Lógica de entrada/saída do Explorar não mudou. `tests/test_sinais_novos.py`.
+
+- 0.31.82 (opção A do dono): `pump_swap_fee_official` (OFF) + `PumpFun.SWAP_FEE_TABLE`/`swap_fee_official` (pump.fun/docs/fees de
+  17/10/2026): em `_fee_rates`, token graduado cotado em SOL usa a taxa da tabela por valor de mercado (preço × 1e9). Botão em
+  Configurações → Taxas. Relatório `app/relatorios_ia/2026-10-28-0.31.82.md`. `tests/test_taxa_oficial.py`.

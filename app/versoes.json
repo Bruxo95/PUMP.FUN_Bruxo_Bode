@@ -665,6 +665,11 @@
    "versao": "0.31.81",
    "inicio": "2026-10-27T23:07:59+00:00",
    "titulo": "sinais novos anotados na Base geral (só aprendizado)"
+  },
+  {
+   "versao": "0.31.82",
+   "inicio": "2026-10-28T08:19:43+00:00",
+   "titulo": "opção de taxa oficial da PumpSwap"
   }
  ]
 }

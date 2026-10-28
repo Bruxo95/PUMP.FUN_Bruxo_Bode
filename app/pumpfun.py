@@ -1104,6 +1104,23 @@ class PumpFun:
             frac = 1.0
         return 1.0 if frac >= 0.97 else frac
 
+    # 0.31.82: taxa total por lado do pool canônico da PumpSwap para tokens cotados em SOL, por valor de mercado em SOL
+    # (preço × 1 bilhão). Fonte: pump.fun/docs/fees, "Last Updated: 17 October 2026", lida em 2026-10-28. Até 420 SOL
+    # é 1,25% — o valor fixo antigo de 0,30% só vale acima de 98.240 SOL.
+    SWAP_FEE_TABLE = ((420, 1.25), (1470, 1.20), (2460, 1.15), (3440, 1.10), (4420, 1.05), (9820, 1.00), (14740, 0.95),
+                      (19650, 0.90), (24560, 0.85), (29470, 0.80), (34380, 0.75), (39300, 0.70), (44210, 0.65),
+                      (49120, 0.60), (54030, 0.55), (58940, 0.525), (63860, 0.50), (68770, 0.475), (73681, 0.45),
+                      (78590, 0.425), (83500, 0.40), (88400, 0.375), (93330, 0.35), (98240, 0.325))
+
+    @classmethod
+    def swap_fee_official(cls, mcap_sol: float | None) -> float | None:
+        if not mcap_sol or mcap_sol <= 0:
+            return None
+        for hi, fee in cls.SWAP_FEE_TABLE:
+            if mcap_sol < hi:
+                return fee
+        return 0.30
+
     def _fee_rates(self, mint: str) -> dict:
         """Taxas REAIS por lado: pump.fun na curva 1,25% (0,95% pump.fun + 0,30% criador) ou PumpSwap ~0,30% depois
         de graduar; PumpPortal 0,5% (API que o modo real usa); priority fee fixa por transação."""
@@ -1116,6 +1133,12 @@ class PumpFun:
         dexes = set(tk.get("dexes") or [])
         graduated = tk.get("pool") in ("pump-amm", "pumpswap") or ("pumpswap" in dexes)
         venue = float(self._c("pump_swap_fee_pct", 0.30) if graduated else self._c("pump_fee_pct", 1.25)) / 100
+        if graduated and self._c("pump_swap_fee_official", False) and tk.get("quote") in (None, "SOL"):
+            # cotado em USDC/outra moeda segue o valor do campo (a tabela abaixo é só a de SOL)
+            px = tk.get("price")
+            off = self.swap_fee_official(px * 1e9 if px else tk.get("mcap_sol"))
+            if off is not None:
+                venue = off / 100
         return {"venue": venue, "venue_name": "PumpSwap" if graduated else "pump.fun (curva)",
                 "portal": float(self._c("pump_portal_fee_pct", 0.5)) / 100,
                 "prio": float(self._c("pump_priority_sol", 0.0005)),

@@ -128,6 +128,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_extra_slip_pct": (float, 3.0, 0.0, 50.0),
     "pump_fee_pct": (float, 1.25, 0.0, 10.0),
     "pump_swap_fee_pct": (float, 0.30, 0.0, 5.0),
+    # 0.31.82 (opção A escolhida pelo dono): usar a tabela oficial da PumpSwap por valor de mercado no lugar do valor fixo
+    # acima. Começa DESLIGADA para não mudar a configuração de ninguém; cada um liga se quiser.
+    "pump_swap_fee_official": (bool, False, 0, 1),
     "pump_portal_fee_pct": (float, 0.5, 0.0, 5.0),
     "pump_priority_sol": (float, 0.0005, 0.0, 0.1),
     "pump_stop_pct": (float, 40.0, 1.0, 100.0),

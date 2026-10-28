@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.82",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Configurações → Taxas usadas na simulação",
+      "titulo": "Opção de usar a tabela oficial de taxas da PumpSwap",
+      "oque": "A pump.fun cobra mais na PumpSwap quando o token acabou de graduar (1,25% até 420 SOL de valor de mercado, 1,20% até 1.470… e 0,30% só nos tokens enormes). A carteira fictícia usava 0,30% fixo e mostrava resultado um pouco melhor que o real. Agora existe o botão 'PumpSwap: usar a tabela oficial da pump.fun'. Começa DESLIGADO para ninguém ter a configuração mudada; ligando, o resultado fica mais próximo do real e o stop e o alvo passam a considerar a taxa certa."
+    },
+    {
       "versao": "0.31.81",
       "data": "2026-10-27",
       "tipo": "novo",
