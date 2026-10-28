@@ -42,6 +42,10 @@ cada API): `docs/GUIA-DO-PROJETO.md`.
   título e o que faz, em linguagem de usuário); aparece no menu Novidades, SÓ PARA ADMIN (rota
   `/api/admin/novidades`; o arquivo fica fora de `web/` para não ser público — pedido do dono em 2026-10-25). `tests/test_novidades.py` falha se a
   primeira entrada não for a versão de `app/version.py`. Pedido do dono em 2026-10-25.
+- **Área de cada entrega no Changelog (pedido do dono em 2026-10-29):** a entrada do topo leva `area` (Back-end (Python),
+  Front-end (JavaScript), UI/UX (telas), Visual (CSS), Menu, Banco de dados, Motor de trades, Aprendizado…) e `arquivos`
+  (código mexido). Gerar com `py scripts/changelog_area.py --current <versão>` ANTES do commit (lê os arquivos mudados);
+  `tests/test_novidades.py` falha sem `area`. Aparece como etiquetas abaixo do tipo no Changelog.
 - Novidade visível no painel ganha marca verde "NOVO": atributo `data-novo-ate="AAAA-MM-DD"` (cerca de 14 dias
   depois da entrega) no elemento; `marcarNovos()` em `web/app.js` aplica a classe `novo` e ela some sozinha depois
   da data. Pedido do dono em 2026-10-25 ("está tudo preto, quero distinguir o que é novo").
@@ -1192,3 +1196,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `pump_ex_min_age_min` (−1 = usa `pump_ar_min_age_min`) em `auto_safety` só para origem explorar; `age_min` em `autolearn.FEATURES`
   (a linha do Explorar ganha `age_min` antes do `blocked_reason`). Override só do dono e do Bruxo (migração `20261029000002`):
   máx. 10, mín. 0. Campo novo nos filtros do Explorar. Relatório `app/relatorios_ia/2026-10-29-0.32.36.md`. `tests/test_explorar_idade.py`.
+
+- 0.32.37: `scripts/changelog_area.py` (`classify` arquivos → `area`/`arquivos`; `--backfill` preencheu 185 versões pelo Git;
+  `--current` na versão nova). Changelog: `.novarea` abaixo do tipo e `.novfiles` (código mexido). Pedido do dono.

@@ -639,3 +639,9 @@ tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}
 /* 0.32.34: notificação clicável */
 .ntfi[data-ntfi]{cursor:pointer}.ntfi[data-ntfi]:hover{background:rgba(255,255,255,.04)}
 
+
+/* 0.32.37 (pedido do dono): o que foi mexido em cada versão, abaixo do tipo, e o código mudado */
+.novarea{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;max-width:180px}
+.novarea .tag{font-size:10px;padding:1px 6px}
+.novfiles{margin-top:6px;font-size:11px;color:var(--muted)}
+.novfiles code{font-size:10.5px;margin-right:4px}

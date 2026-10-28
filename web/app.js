@@ -2022,7 +2022,9 @@
         const recente = hoje - new Date(x.data + "T00:00:00").getTime() < 14 * 86400000;
         return '<tr class="' + (recente ? "nov-recente" : "") + '"><td class="mono">' + esc(x.versao) +
           '</td><td class="mono">' + (x.inicio ? esc(new Date(x.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })) : esc(x.data.split("-").reverse().join("/"))) + '</td><td><span class="tag ' + (TAG[x.tipo] || "neutral") + '">' + esc(x.tipo) +
-          "</span></td><td>" + esc(x.onde) + "</td><td><b>" + esc(x.titulo) + '</b><br><span class="muted">' + esc(x.oque) + "</span></td></tr>";
+          "</span>" + (x.area && x.area.length ? '<div class="novarea">' + x.area.map((a) => '<span class="tag neutral">' + esc(a) + "</span>").join("") + "</div>" : "") +
+          "</td><td>" + esc(x.onde) + "</td><td><b>" + esc(x.titulo) + '</b><br><span class="muted">' + esc(x.oque) + "</span>" +
+          (x.arquivos && x.arquivos.length ? '<div class="novfiles">Código mexido: ' + x.arquivos.map((f) => "<code>" + esc(f) + "</code>").join(" ") + "</div>" : "") + "</td></tr>";
       }).join("") + "</tbody>";
   }
   document.addEventListener("click", (e) => {
