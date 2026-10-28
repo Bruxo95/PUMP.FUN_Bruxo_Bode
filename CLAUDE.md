@@ -1180,3 +1180,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `app/poslearn.py`, `market.px_hist` (monitor `_px_hist`), `pos_snapshots`/`_post_open`/`post_tick`/`post_watch_mints` no motor,
   `hub.flush_pos_learn` → `position_learn`, `pos_learn_state` → `posicoes` na rota da Base geral. `recent_closed` → `#tClosedNow`.
   Janela dos barrados 3 h. Só fictícia (a real fecha por outro caminho).
+  `pump_bar_real` (OFF): barrados também na real pelo espelho (`manual_buy` com target both).

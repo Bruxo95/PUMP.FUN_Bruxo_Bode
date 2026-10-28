@@ -4,7 +4,7 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "c263908389405ce923351040074644cd78014347",
+    "repository_reference": "541fa305a4e1f03b4c173e6b5db539fbe03a5069",
     "application_version": "0.32.33 · 2026-10-29 · aprendizado das posições; ajuste dos barrados que se perdeu",
     "reviewer": {
       "agent": "OpenAI Codex",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "b1746f9b31b121de62027413e81b7ed19ad169eb1b842e74529c224378676b21",
+      "web/app.html": "2c001c2c3b623c663ed76325c0121cafa9ef709e48cbd71fef62948f4d5b6676",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f2fef3115801c5962a5fe2a6ff46a6ec4d70dbe328439a535baf556aabb2bf5b"
+  "pdf_sha256": "1cc80cdffa7adcaa1bd831e4d0457fccd4c8fd5bf20d906dbc2b5c6e479808ba"
 }

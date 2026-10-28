@@ -2,7 +2,7 @@
 
 Emissão: **2026-10-29**; revisão documental **2.0**.
 Aplicação: **0.32.33 · 2026-10-29 · aprendizado das posições; ajuste dos barrados que se perdeu**.
-Referência Git na emissão: `c263908389405ce923351040074644cd78014347`; fontes locais identificadas por SHA-256 no JSON.
+Referência Git na emissão: `541fa305a4e1f03b4c173e6b5db539fbe03a5069`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

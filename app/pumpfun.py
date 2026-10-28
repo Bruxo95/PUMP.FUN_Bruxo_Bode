@@ -2690,7 +2690,8 @@ class PumpFun:
             motivo = (f"barrado que subiu: estava fora por \"{why[:70]}\", mas subiu {chg:+.0f}% desde que foi visto"
                       + (f" e tem ${float(vol):,.0f} de volume em 24 h" if vol is not None else "")
                       + " — entrou só na fictícia para teste")
-            r = self.manual_buy(mint, t=now, auto=motivo, origem="barrado", target="sim",
+            r = self.manual_buy(mint, t=now, auto=motivo, origem="barrado",
+                                target="both" if getattr(c, "pump_bar_real", False) else "sim",
                                 amt_sol=float(self._c("pump_bar_sol", 0.05)))
             if str(r.get("sim") or "").startswith("comprou"):
                 done[mint] = now
@@ -2801,8 +2802,9 @@ class PumpFun:
         sim_has = out["sim"] == "já tem posição fictícia neste token"
         if own_auto and not out.get("auto_id") and not sim_has:
             return out                              # uma falha fictícia não dispara compra real automática
-        if origem in ("calls", "barrado") or target == "sim":
-            return out                              # só fictícia (Calls 0.31.99; barrados e botão "só fictícia" 0.32.21)
+        bar_real = origem == "barrado" and getattr(self.cfg, "pump_bar_real", False)    # 0.32.33: botão "Também na REAL"
+        if origem == "calls" or (origem == "barrado" and not bar_real) or (target == "sim" and not bar_real):
+            return out                              # só fictícia (Calls 0.31.99; barrados 0.32.21, a não ser que ligue a REAL)
         if target == "real" and not (self.real is not None and getattr(self.cfg, "pump_real_enabled", False)):
             out["real"] = "execução real desligada"
             return out

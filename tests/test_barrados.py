@@ -105,3 +105,15 @@ def test_barred_status_and_own_slots(tmp_path):
     pf.tokens["Cop".ljust(40, "1") + "pump"] = {"price": 1e-6, "symbol": "COP", "mcap_sol": 40.0}
     r = pf.manual_buy("Cop".ljust(40, "1") + "pump", target="sim")
     assert r["sim"].startswith("comprou")                  # a vaga da cópia/botão não foi ocupada pelo barrado
+
+
+def test_barred_real_toggle(tmp_path):
+    """0.32.33 (pedido do dono): botão 'Também na carteira REAL' nos barrados; desligado = só fictícia."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    pf.cfg.pump_bar_auto_on, pf.cfg.pump_bar_real = True, True
+    now = _row(pf, "veredito não é chance alta", chg=2.0)
+    out = pf.barred_auto(now)
+    assert out and out[0]["r"]["real"].startswith("enviando")
+    kind, it = pf._rq.get_nowait()
+    assert kind == "buy" and it["sim_id"] is not None

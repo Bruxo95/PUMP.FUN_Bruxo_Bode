@@ -52,6 +52,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bar_max_h": (int, 4, 1, 50),                    # no máximo N entradas por hora
     "pump_bar_sol": (float, 0.05, 0.001, 10.0),           # SOL fictícios por entrada
     "pump_bar_max_open": (int, 20, 1, 100),               # 0.32.31: posições abertas dos barrados (vagas próprias)
+    "pump_bar_real": (bool, False, 0, 1),                 # 0.32.33: barrados também na REAL (pelo espelho); padrão só fictícia
     # 0.32.32 (pedido do dono: "nas Proteções das automáticas tem que ter a opção do real"): entradas automáticas do Explorar
     # também na REAL (padrão ON = como já era pelo espelho) e o valor delas na real (0 = "SOL por compra" da Execução real)
     "pump_ex_real_on": (bool, True, 0, 1),
