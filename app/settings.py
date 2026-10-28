@@ -127,6 +127,10 @@ USER_KEYS: dict[str, tuple] = {
     # 0.31.0: segurança das entradas automáticas (Base e Explorar), pedidos do dono em áudio (2026-10-26):
     # "esperar uns 20 minutos", "muita carteira nova = robô, não entrar", "só entrar quando um bom trader entrou"
     "pump_ar_min_age_min": (float, 20.0, 0.0, 1440.0),  # idade mínima do token para entrar sozinho
+    # 0.32.36 (sugestão do Bruxo, 28/10 22:11): no Explorar, só token novo. 0 = sem limite (padrão: ninguém muda sozinho)
+    "pump_ex_max_age_min": (float, 0.0, 0.0, 1440.0),
+    # idade mínima SÓ do Explorar; -1 = usa a das automáticas (pump_ar_min_age_min, 20 min) como antes
+    "pump_ex_min_age_min": (float, -1.0, -1.0, 1440.0),
     "pump_ar_fresh_on": (bool, True, 0, 1),             # barra token com muita carteira nova entre os maiores detentores
     "pump_ar_fresh_max_pct": (float, 30.0, 1.0, 100.0), # % máx. de carteiras novas entre os 20 maiores detentores
     "pump_ar_smart_on": (bool, True, 0, 1),             # só entra se um trader bom (seguido/ranking/estudo) já está no token

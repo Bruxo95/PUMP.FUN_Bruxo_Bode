@@ -21,6 +21,9 @@ FEATURES = {
     "curve_pct": ("Curva", [(0, 60, "abaixo de 60%"), (60, 80, "60 a 80%"), (80, 90, "80 a 90%"), (90, 101, "90% ou mais")]),
     "chg_5m": ("Variação em 5 min", [(-1e9, 0, "caindo"), (0, 30, "0 a 30%"), (30, 80, "30 a 80%"), (80, 1e9, "mais de 80%")]),
     "risk": ("Risco", [(0, 4, "0 a 3"), (4, 7, "4 a 6"), (7, 11, "7 ou mais")]),
+    # 0.32.36 (sugestão do Bruxo, 28/10): idade do token na compra também entra no aprender com os erros
+    "age_min": ("Idade do token", [(0, 10, "até 10 min"), (10, 30, "10 a 30 min"), (30, 60, "30 a 60 min"), (60, 180, "1 a 3 h"),
+                                   (180, 1e12, "mais de 3 h")]),
 }
 
 

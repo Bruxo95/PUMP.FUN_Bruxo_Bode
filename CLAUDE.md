@@ -1187,3 +1187,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `_apply_overrides` com log e nova tentativa a cada 5 min no `ghosts_loop` (o ajuste dos barrados não pegou ao subir a 0.32.33). Pedido do dono.
 
 - 0.32.35: `pump_ar_stop_pct` aceita 0 (= sem stop de perda); `_check_stops` usa `stop_pct` da posição mesmo quando é 0 (`no_stop`). Pedido do dono.
+
+- 0.32.36 (sugestão do Bruxo, 28/10 22:11): `pump_ex_max_age_min` (0 = sem limite) em `explore_entry_reason` (sem idade não entra) e
+  `pump_ex_min_age_min` (−1 = usa `pump_ar_min_age_min`) em `auto_safety` só para origem explorar; `age_min` em `autolearn.FEATURES`
+  (a linha do Explorar ganha `age_min` antes do `blocked_reason`). Override só do dono e do Bruxo (migração `20261029000002`):
+  máx. 10, mín. 0. Campo novo nos filtros do Explorar. Relatório `app/relatorios_ia/2026-10-29-0.32.36.md`. `tests/test_explorar_idade.py`.

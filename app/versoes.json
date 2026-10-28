@@ -935,6 +935,11 @@
    "versao": "0.32.35",
    "inicio": "2026-10-29T01:30:00+00:00",
    "titulo": "automáticas: stop de perda 0 = sem stop"
+  },
+  {
+   "versao": "0.32.36",
+   "inicio": "2026-10-28T22:44:05+00:00",
+   "titulo": "Explorar só com token de até 10 min (Bruxo)"
   }
  ]
 }

@@ -2355,6 +2355,14 @@ class PumpFun:
         age = None
         if created:
             age = (time.time() - (created / 1000 if created > 1e12 else created)) / 60
+        # 0.32.36 (sugestão do Bruxo): idade máxima do token no Explorar; sem a idade, não entra (dado obrigatório)
+        mx = float(self._c("pump_ex_max_age_min", 0) or 0)
+        if mx:
+            if age is None:
+                return "idade do token ausente (limite de idade ligado)"
+            if age > mx:
+                return f"token com {age:.0f} min de vida (máximo {mx:.0f} no Explorar)"
+        row = dict(row, age_min=age)                       # a idade também entra no aprender com os erros
         if getattr(self.cfg, "pump_ar_learn", True):
             from .autolearn import blocked_reason
             why = blocked_reason(self.learned_for_entry("explorar"), row)
@@ -3261,6 +3269,8 @@ class PumpFun:
         muita chance alta e nada foi feito") o trader bom só é exigido com pump_ex_auto_need_smart, e carteira nova ainda
         não checada não trava (muita carteira nova já checada continua travando)."""
         mn = float(self._c("pump_ar_min_age_min", 20) or 0)
+        if origem == "explorar" and float(self._c("pump_ex_min_age_min", -1)) >= 0:
+            mn = float(self._c("pump_ex_min_age_min", -1))     # 0.32.36: idade mínima própria do Explorar
         if mn and age_min is not None and age_min < mn:
             return f"token com {age_min:.0f} min de vida (mínimo {mn:.0f})"
         if getattr(self.cfg, "pump_ar_fresh_on", True):
