@@ -1089,3 +1089,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `SharedMonitor.rpc_log` (300 por tipo: falha/atrasado/nao_trade/trade, só memória) + `rpc_why` + `rpc_report`; rota
   `GET /api/pump/monitor/leituras?tipo=` (admin); no modal `#sysM` as linhas do funil abrem `openRpcLog` (`SYS_SUB`). Pedido do dono.
   Visto em 28/10 depois da 0.32.6: 16.287 lidas, 2 trades, 580 falhas, 14.161 atrasadas — o RPC público quase não responde.
+
+- 0.32.8: `SharedMonitor.LOW_PER_MIN`=6 (`_low_lim`; contador `limited`) para carteiras sem seguidor; robô sem seguidor não é lido
+  (`skipped_bot`); `_tx_q` maxsize 600 e descarte em 60 s para não copiadas. `PumpFun._get_tx(..., low=)`: pausa conjunta no 429
+  (`market.rpc_cool_until`/`rpc_429_streak`), 2 tentativas para baixa prioridade; erro `maxSupportedTransactionVersion` → tenta com 1.
+  Relatório `app/relatorios_ia/2026-10-28-0.32.8.md`. Solução completa: RPC próprio (Portainer: `SOLANA_RPC_PUBLIC`, `PUMP_RPC_WS`), pelo dono.

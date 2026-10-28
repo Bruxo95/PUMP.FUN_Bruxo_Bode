@@ -1801,22 +1801,35 @@ class PumpFun:
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
 
-    async def _get_tx(self, sig: str, why: list | None = None) -> dict | None:
-        """`why` (0.32.7): recebe o motivo de cada tentativa que falhou, para a tela de falhas de leitura do monitor."""
+    async def _get_tx(self, sig: str, why: list | None = None, low: bool = False) -> dict | None:
+        """`why` (0.32.7): recebe o motivo de cada tentativa que falhou, para a tela de falhas de leitura do monitor.
+        `low` (0.32.8): leitura de carteira que NÃO é copiada (estudo / Maiores traders): espera a pausa conjunta do 429
+        e tenta só 2 vezes. As copiadas não esperam a pausa e tentam 4 vezes, com intervalo curto."""
+        mk = getattr(self, "market", None) or self
         urls = []
         own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
         if own and "api.mainnet-beta.solana.com" not in own:
             urls.append(own)                       # RPC da carteira (ex.: Helius) primeiro: o público dá 429 rápido
         urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
-        body = {"jsonrpc": "2.0", "id": 1, "method": "getTransaction",
-                "params": [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0, "commitment": "confirmed"}]}
-        for attempt in range(4):
+        opts = {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0, "commitment": "confirmed"}
+        body = {"jsonrpc": "2.0", "id": 1, "method": "getTransaction", "params": [sig, opts]}
+        tries = 2 if low else 4
+        for attempt in range(tries):
             for u in urls:
+                if low:
+                    # 0.32.8: em 28/10 100% das falhas eram HTTP 429 do RPC público; cada leitor insistindo sozinho piorava.
+                    # Com 429 recente, todos os leitores de baixa prioridade esperam juntos (até 8 s).
+                    wait = getattr(mk, "rpc_cool_until", 0.0) - time.time()
+                    if wait > 0:
+                        await asyncio.sleep(min(wait, 8.0))
                 try:
                     r = await self.http.post(u, json=body, timeout=10)
                     if r.status_code == 429:
                         if why is not None:
                             why.append("HTTP 429 (limite do RPC)")
+                        n = getattr(mk, "rpc_429_streak", 0) + 1
+                        mk.rpc_429_streak = n
+                        mk.rpc_cool_until = max(getattr(mk, "rpc_cool_until", 0.0), time.time() + min(8.0, 0.5 * 2 ** min(n, 4)))
                         continue
                     if r.status_code >= 400:
                         if why is not None:
@@ -1825,16 +1838,24 @@ class PumpFun:
                     js = r.json() or {}
                     res = js.get("result")
                     if res:
+                        mk.rpc_429_streak = 0
                         return res
+                    err = js.get("error") or {}
+                    if err and "maxSupportedTransactionVersion" in str(err.get("message") or "") and opts["maxSupportedTransactionVersion"] == 0:
+                        opts["maxSupportedTransactionVersion"] = 1        # 0.32.8: transação no formato novo (versão 1)
+                        r = await self.http.post(u, json=body, timeout=10)
+                        res = ((r.json() or {}).get("result")) if r.status_code == 200 else None
+                        if res:
+                            return res
                     if why is not None:
-                        err = js.get("error") or {}
                         why.append(f"erro do RPC: {str(err.get('message') or err)[:80]}" if err
                                    else "transação ainda não disponível (result vazio)")
                 except Exception as e:
                     if why is not None:
                         why.append(type(e).__name__)
                     continue
-            await asyncio.sleep(1.0 + attempt)
+            if attempt < tries - 1:
+                await asyncio.sleep(0.5 + 0.5 * attempt if not low else 1.0 + attempt)
         return None
 
     @staticmethod

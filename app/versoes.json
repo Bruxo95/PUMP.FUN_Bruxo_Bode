@@ -795,6 +795,11 @@
    "versao": "0.32.7",
    "inicio": "2026-10-28T19:00:00+00:00",
    "titulo": "abrir falhas e atrasos da leitura"
+  },
+  {
+   "versao": "0.32.8",
+   "inicio": "2026-10-28T18:55:00+00:00",
+   "titulo": "menos 429 do RPC e cópias primeiro"
   }
  ]
 }

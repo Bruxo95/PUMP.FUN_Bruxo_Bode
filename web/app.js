@@ -2082,7 +2082,7 @@
       row("Avisos recebidos", "", f(RP.notifs || 0, 0)) + row("Foram para leitura", "", f(RP.queued || 0, 0) + (RP.queued_hi ? " · das copiadas " + f(RP.queued_hi, 0) : "")) +
       row(open("Viraram trade", "trade"), "", f(RP.parsed || 0, 0)) + row(open("Não eram trade", "nao_trade"), "", f(RP.not_trade || 0, 0)) +
       row(open("Atrasados (+2 min na fila)", "atrasado"), late >= 20 ? '<span class="down">' + late + "%</span>" : late + "%", f(RP.stale || 0, 0) + (RP.stale_hi ? " · das copiadas " + f(RP.stale_hi, 0) : "")) +
-      row(open("Falhas de leitura", "falha"), (RP.tx_errors || 0) > (RP.parsed || 0) ? '<span class="down">mais falhas que trades</span>' : "", f(RP.tx_errors || 0, 0)) + (RP.dropped ? row("Fila cheia", "", f(RP.dropped, 0)) : "") + row("Reconexões", "", f(RP.reconnects || 0, 0)) +
+      row(open("Falhas de leitura", "falha"), (RP.tx_errors || 0) > (RP.parsed || 0) ? '<span class="down">mais falhas que trades</span>' : "", f(RP.tx_errors || 0, 0)) + (RP.dropped ? row("Fila cheia", "", f(RP.dropped, 0)) : "") + (RP.limited || RP.skipped_bot ? row("Pulados de propósito", "", f(RP.limited || 0, 0) + " acima de 6/min de carteira não copiada" + (RP.skipped_bot ? " · " + f(RP.skipped_bot, 0) + " de robôs não copiados" : "")) : "") + row("Reconexões", "", f(RP.reconnects || 0, 0)) +
       "</tbody></table></div><p class=\"muted\" style=\"margin-top:8px\">Clique numa linha com › para ver as últimas 300 de cada tipo (motivo, carteira, transação).</p>";
   }
   const RPC_T = { falha: "Falhas de leitura", atrasado: "Atrasados (+2 min na fila)", nao_trade: "Não eram trade", trade: "Viraram trade" };

@@ -38,6 +38,7 @@ def _gm(e) -> set:
     return out
 
 class SharedMonitor:
+    LOW_PER_MIN = 6                                 # 0.32.8: leituras/min por carteira não copiada
     def __init__(self, hub):
         self.hub = hub
         self.market = hub.market
@@ -53,6 +54,7 @@ class SharedMonitor:
         # 0.32.7 (pedido do dono): amostra das últimas leituras de cada tipo, para abrir e analisar no status do sistema
         self.rpc_log: dict[str, deque] = {k: deque(maxlen=300) for k in ("falha", "atrasado", "nao_trade", "trade")}
         self.rpc_why: dict[str, int] = {}
+        self._low_lim: dict[str, deque] = {}            # 0.32.8: leituras por minuto de quem não é copiado
         self._seen: deque = deque(maxlen=5000)
         self._subs: dict = {}
         self.lb_cache: dict = {}            # (dias, trades, acerto, plataforma) -> {"at", "rows", "status"}
@@ -111,7 +113,7 @@ class SharedMonitor:
         import websockets
         backoff = 2.0
         if self._tx_q is None:
-            self._tx_q = asyncio.Queue(maxsize=4000)
+            self._tx_q = asyncio.Queue(maxsize=600)     # 0.32.8: fila curta (com 4000 tudo ficava velho antes de ser lido)
         if self._tx_hi is None:
             self._tx_hi = asyncio.Queue(maxsize=2000)
         st = self.market.rpc_status
@@ -210,7 +212,10 @@ class SharedMonitor:
                     e._rank_at = 0
                     if e in fol:
                         e._emit(f"Pump.fun: {w[:4]}…{w[-4:]} parece robô ({act.get('bot_reason')}) — fora da cópia por 1 h")
-            if not studied:
+            if not studied or not fol:
+                # 0.32.8: robô que ninguém copia não é lido (só gastava a cota do RPC). Copiado continua sendo lido.
+                if studied:
+                    st["skipped_bot"] = st.get("skipped_bot", 0) + 1
                 return
         else:
             self._fill_slot(w)
@@ -228,6 +233,14 @@ class SharedMonitor:
             return                                     # só observando (status online do top)
         if not is_pump and not studied and not any(getattr(e.cfg, "pump_copy_other", True) for e in fol):
             return
+        if not fol:
+            # 0.32.8: carteira que ninguém copia (estudo / Maiores traders) lê no máximo LOW_PER_MIN transações por minuto.
+            # Em 28/10 uma só carteira de estudo (8ekC…CDiF) ocupava quase todas as leituras e o RPC público devolvia 429.
+            lim = self._low_lim.setdefault(w, deque(maxlen=self.LOW_PER_MIN))
+            if len(lim) >= self.LOW_PER_MIN and now - lim[0] < 60:
+                st["limited"] = st.get("limited", 0) + 1
+                return
+            lim.append(now)
         q = self._tx_hi if (fol and self._tx_hi is not None) else self._tx_q
         try:
             q.put_nowait((w, sig, now))
@@ -277,14 +290,14 @@ class SharedMonitor:
     async def handle_tx(self, w: str, sig: str, t0: float, tx: dict | None = None) -> None:
         st, svc = self.market.rpc_status, self.svc
         cop = bool(self.followers(w))
-        if time.time() - t0 > 120:                      # atrasou demais: copiar agora não faz sentido
+        if time.time() - t0 > (120 if cop else 60):     # atrasou demais (0.32.8: 60 s para quem não é copiado)
             st["stale"] = st.get("stale", 0) + 1
             if cop:
                 st["stale_hi"] = st.get("stale_hi", 0) + 1
             self._rpc_note("atrasado", w, sig, t0, cop, f"{time.time() - t0:.0f} s na fila")
             return
         t1, why = time.time(), []
-        tx = tx or await svc._get_tx(sig, why)
+        tx = tx or await svc._get_tx(sig, why, low=not cop)
         if not tx:
             st["tx_errors"] += 1
             for x in set(why) or {"sem motivo"}:

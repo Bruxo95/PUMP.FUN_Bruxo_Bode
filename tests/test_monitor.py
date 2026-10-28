@@ -258,3 +258,51 @@ def test_read_failures_are_logged_with_reason_for_the_status_screen(setup):
     assert r["linhas"][0]["sig"] == "sigfail" and r["linhas"][0]["copiada"] is True
     assert r["motivos"][0]["motivo"] == "HTTP 429 (limite do RPC)"
     assert mon.rpc_report("atrasado")["linhas"][0]["sig"] == "sigold"
+
+
+def test_wallet_nobody_copies_is_rate_limited_but_copied_is_not(setup):
+    """0.32.8: em 28/10 uma carteira de estudo ocupava quase toda a leitura; quem não é copiado lê até 6 por minuto."""
+    a, mon = setup["a"], setup["mon"]
+    a.study = [WB]
+    a.add_manual(WA)
+    mon._tx_q = asyncio.Queue()
+    mon._subs = {1: WA, 2: WB}
+
+    def note(sub, sig):
+        mon.on_notification({"method": "logsNotification", "params": {"subscription": sub, "result": {"value": {
+            "signature": sig, "err": None, "logs": ["Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke"]}}}})
+    for i in range(10):
+        note(2, f"s{i}")
+    assert mon._tx_q.qsize() == mon.LOW_PER_MIN and mon.market.rpc_status["limited"] == 10 - mon.LOW_PER_MIN
+    for i in range(5):
+        note(1, f"c{i}")
+    assert mon._tx_q.qsize() == mon.LOW_PER_MIN + 5
+
+
+def test_rpc_429_sets_shared_cooldown_and_low_priority_tries_less(tmp_path):
+    from tests.test_pump import _pump
+    pf = _pump(tmp_path)
+    calls = []
+
+    def handler(req):
+        calls.append(1)
+        return httpx.Response(429)
+    pf.http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    pf.market.rpc_cool_until = 0.0
+
+    async def go():
+        why = []
+        import app.pumpfun as m
+        real_sleep = m.asyncio.sleep
+
+        async def fast(_s):
+            await real_sleep(0)
+        m.asyncio.sleep = fast
+        try:
+            res = await pf._get_tx("sig", why, low=True)
+        finally:
+            m.asyncio.sleep = real_sleep
+        return res, why
+    res, why = _run(go())
+    assert res is None and len(calls) == 2 and why == ["HTTP 429 (limite do RPC)"] * 2
+    assert pf.market.rpc_cool_until > time.time()
