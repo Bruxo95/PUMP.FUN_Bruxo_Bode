@@ -559,16 +559,31 @@
           <div class="tbl-wrap tall"><table id="exRealTrades" class="autotbl"></table></div>
         </div>
         <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="explorar"><b>Logs dos robôs → Explorar</b></a>.</p></div>
+        <div class="card" data-novo-ate="2026-11-12" data-nosanf>
+          <header><div><h2>Barrados que subiram: entrada automática</h2><div class="sub">tokens que o filtro do Explorar barrou, mas que subiram depois · cada campo grava na hora</div></div></header>
+          <div class="form">
+            <div class="field"><label>Entrar sozinho</label><div class="row"><button class="btn sm tgl" data-toggle="pump_bar_auto_on" aria-label="Barrados que subiram entram sozinhos">…</button></div>
+              <div class="hint">Desligado = o robô não compra os barrados (eles continuam na lista abaixo).</div></div>
+            <div class="field"><label>Também na carteira REAL</label><div class="row"><button class="btn sm tgl" data-toggle="pump_bar_real" aria-label="Barrados que subiram também na carteira REAL" data-confirm="Ligar? Os barrados que subirem também compram na carteira REAL (dinheiro de verdade), pelo espelho, com o valor e os limites da Execução real.">…</button></div>
+              <div class="hint">Desligado = só na fictícia.</div></div>
+          </div>
+          <div class="form">
+            <div class="field"><label>Gatilho: entra quando subir</label><div class="row"><span class="muted">+</span><input class="in w80" type="number" min="5" step="5" data-cfg="pump_bar_min_gain" aria-label="Gatilho em %"><span class="muted">% desde que foi visto</span></div>
+              <div class="hint">Veja a tabela "E se tivesse entrado cedo?" no funil abaixo para escolher.</div></div>
+            <div class="field"><label>Volume mínimo em 24 h</label><div class="row"><span class="muted">$</span><input class="in w100" type="number" min="0" step="5000" data-cfg="pump_bar_min_vol_usd" aria-label="Volume mínimo"></div>
+              <div class="hint">0 = não exige volume.</div></div>
+          </div>
+          <div class="form">
+            <div class="field"><label>Valor por entrada (fictícia)</label><div class="row"><input class="in w80" type="number" min="0.001" step="0.01" data-cfg="pump_bar_sol" aria-label="SOL por entrada"><span class="muted">SOL</span></div></div>
+            <div class="field"><label>Limites</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_bar_max_h" aria-label="Entradas por hora"><span class="muted">por hora ·</span><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_bar_max_open" aria-label="Posições abertas"><span class="muted">abertas</span></div>
+              <div class="hint">Vagas próprias: não tiram vaga das cópias.</div></div>
+          </div>
+          <div class="hint">Só entram os barrados por filtros que não são de segurança (veredito, curva, pressão, holders, graduou…); os barrados por lista negra, rug, criador, risco, bundle ou carteiras novas nunca entram. Sai pelas regras do botão Comprar (stop, alvo e stop móvel). <b>Para acompanhar:</b> o que entrou fica em <a href="#posicoes">Posições</a> (etiqueta laranja "Barrado que subiu") e, depois de vendido, no <a href="#historico">Histórico</a>; a coluna Automático no funil abaixo diz o que o robô fez com cada barrado.</div>
+        </div>
         <div class="card" data-novo-ate="2026-11-10" data-nosanf>
           <header><div><h2>Funil do filtro (últimas 24 h)</h2><div class="sub">por que o Explorar desta conta entrou ou não entrou em cada token</div></div></header>
           <div style="margin-top:4px"><div class="hint">Quantos tokens o Explorar olhou, quantos entraram e por que os outros foram barrados. "Barrados que subiram" mostra se o filtro está deixando passar coisa boa (compara o preço de quando foi visto com o de agora, quando há preço).</div>
             <div class="kpis auto-kpis" id="exFunK"></div>
-            <div class="form" data-novo-ate="2026-11-12" style="margin:8px 0">
-              <div class="field"><label>Barrados que subiram entram sozinhos (só FICTÍCIA)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_bar_auto_on" aria-label="Barrados que subiram entram sozinhos">…</button>
-                <span class="muted">se subiu +</span><input class="in w80" type="number" min="5" step="10" data-cfg="pump_bar_min_gain"><span class="muted">% e volume 24 h ≥ $</span><input class="in w100" type="number" min="0" step="5000" data-cfg="pump_bar_min_vol_usd">
-                <span class="muted">· até</span><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_bar_max_h"><span class="muted">por hora ·</span><input class="in w80" type="number" min="0.001" step="0.01" data-cfg="pump_bar_sol"><span class="muted">SOL · até</span><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_bar_max_open"><span class="muted">abertas</span></div>
-                <div class="row" style="margin-top:6px"><span class="muted">Também na carteira REAL</span><button class="btn sm tgl" data-toggle="pump_bar_real" aria-label="Barrados que subiram também na carteira REAL" data-confirm="Ligar? Os barrados que subirem também compram na carteira REAL (dinheiro de verdade), pelo espelho, com o valor e os limites da Execução real.">…</button><span class="muted small">desligado = só fictícia</span></div>
-                <div class="hint">Só na fictícia, a não ser que você ligue "Também na carteira REAL". Só entram os barrados por filtros que não são de segurança (veredito, curva, pressão, holders, graduou…); os barrados por lista negra, rug, criador, risco, bundle ou carteiras novas nunca entram. Sai pelas regras do botão Comprar (stop, alvo e stop móvel). O motivo da entrada aparece no Feed e no Histórico. <b>Para acompanhar:</b> o que entrou fica em <a href="#posicoes">Posições</a> (etiqueta laranja "Barrado que subiu") e, depois de vendido, no <a href="#historico">Histórico</a>; a coluna Automático abaixo diz o que o robô fez com cada barrado.</div></div></div>
             <div class="funstack"><div class="tbl-wrap"><table id="exFunM" class="daytbl"></table></div><div class="tbl-wrap"><table id="exFunUp" class="daytbl"></table></div>
               <div data-novo-ate="2026-11-12"><h3 class="h3s">E se tivesse entrado cedo? (simulação, nada é comprado)</h3><div class="tbl-wrap"><table id="exFunCedo" class="daytbl"></table></div>
               <p class="muted small">Para cada barrado (fora os de segurança), o sistema finge entrar quando ele sobe +10%, +20%, +30% ou +50% desde que foi visto e sai pelas regras do botão Comprar (stop, alvo, stop móvel) ou em 30 min. O gatilho com melhor média é o candidato para a entrada automática acima (campo "se subiu +"). Começa a contar nesta versão; só memória das últimas 24 h.</p></div></div></div>

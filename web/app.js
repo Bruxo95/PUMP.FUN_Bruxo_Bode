@@ -2087,12 +2087,47 @@
     const b = $("ntfB");
     b.innerHTML = "🔔 Notificações: " + (NTF ? "ON" : "OFF") + (NTFU ? ' <span class="ntfc">' + (NTFU > 99 ? "99+" : NTFU) + "</span>" : "");
     b.className = "btn tgl ntf " + (NTF ? "on" : "off");
-    if ($("ntfS")) { $("ntfS").textContent = "Som e aviso: " + (NTF ? "ON · Ligado" : "OFF · Desligado"); $("ntfS").className = "btn sm tgl " + (NTF ? "on" : "off"); }
+    if ($("ntfS")) { $("ntfS").textContent = "Som e aviso"; $("ntfS").className = "btn sm tgl sw " + (NTF ? "on" : "off"); $("ntfS").setAttribute("role", "switch"); $("ntfS").setAttribute("aria-checked", String(NTF)); }
   }
   function ntfPush(e, unread) {
     NTFL.unshift({ at: e.at, msg: e.msg, k: classify(e.msg), real: /REAL/.test(e.msg) }); NTFL = NTFL.slice(0, 100);
     if (unread) NTFU++;
     ntfBtn(); if (!$("ntfP").hidden) ntfList();
+  }
+  // 0.32.34 (pedido do dono): clicar numa notificação abre o que aconteceu — a posição aberta, ou o trade fechado com o motivo
+  function ntfSymbol(msg) {
+    const m = /fechou (\S+) copiado|compra (?:automática|manual)[^:]*: (\S+)|copiou [^:]+: compra (\S+)|\] (\S+): (?:vendendo|trader saiu|saída)|compra (\S+) NÃO feita/i.exec(msg || "");
+    return m ? (m[1] || m[2] || m[3] || m[4] || m[5]) : null;
+  }
+  function openTradeDet(t) {
+    const row = (k, v) => "<tr><td><b>" + k + "</b></td><td>" + v + "</td></tr>";
+    $("posMT").innerHTML = (t.real ? '<span class="tag real">REAL</span> ' : '<span class="tag sim">FICTÍCIA</span> ') + esc(t.symbol || "") + " · fechada";
+    $("posMS").textContent = "abriu " + dt(t.opened_at) + " · fechou " + dt(t.closed_at) + " · origem: " + whoLabel(t);
+    $("posMB").innerHTML = '<div class="kpis" style="margin:4px 0 12px">' +
+      [["Resultado", sg(t.pnl_sol), (t.pnl_pct == null ? "" : f(t.pnl_pct, 1) + "% do investido, já com taxas")], ["Investido", s4(t.sol_in) + " SOL", ""], ["Recebido", s4(t.sol_out) + " SOL", ""], ["Segurou", hms(t.hold_s), ""]]
+        .map(([l, v, s]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + "</div></div>").join("") + "</div>" +
+      '<div class="decbox ' + ((t.pnl_sol || 0) > 0 ? "ok" : "bad") + '"><b>Por que saiu:</b> ' + esc(t.reason || "–") + "</div>" +
+      '<div class="tbl-wrap"><table class="systbl"><tbody>' +
+      row("Token", pfM(t.mint, t.symbol) + (t.venue ? " · " + esc(t.venue) : "")) +
+      row("Origem", pfW(t.wallet, t)) +
+      row("Preço de entrada → saída", ex(t.price_in) + " → " + ex(t.price_out)) +
+      row("Melhor e pior momento", (t.best_pct == null ? "–" : pc(t.best_pct)) + " · " + (t.worst_pct == null ? "–" : pc(t.worst_pct))) +
+      row("Taxas", t.fees_sol == null ? "–" : s4(t.fees_sol) + " SOL") +
+      row("Atraso da entrada", t.lag_s == null ? "–" : f(t.lag_s, 1) + " s") +
+      row("Vendas", (t.sells || []).length ? (t.sells || []).map((s) => dt(s.at) + " · " + f((s.frac || 0) * 100, 0) + "% · " + s4(s.sol) + " SOL" + (s.why ? " · " + esc(s.why) : "")).join("<br>") : "–") +
+      "</tbody></table></div>" + '<p class="muted small" style="margin-top:8px">No Histórico ficam todas as fechadas; em Base geral → Aprendizado das posições, se saiu cedo ou na hora certa (1 h depois de fechar).</p>';
+    POS_ID = null; $("posM").hidden = false; $("posMX").focus();
+  }
+  function openNtf(i) {
+    const n = NTFL[i]; if (!n) return;
+    const sym = ntfSymbol(n.msg), real = /^\[PUMP REAL\]/.test(n.msg || "");
+    if (!sym) { toast(n.msg); return; }
+    const same = (x) => String(x.symbol || "").toLowerCase() === sym.toLowerCase() && !!x.real === real;
+    const p = (D && D.positions || []).find(same);
+    if (p) { POS_DET = POS_DET || { list: D.positions, left: () => "–", soldCell: () => "–", vol: () => "–" }; if (!POS_DET.list.includes(p)) POS_DET.list = D.positions; openPosDet(p.id); return; }
+    const t = (D && D.trades || []).find(same) || (D && D.recent_closed || []).find(same);
+    if (t) { openTradeDet(t); return; }
+    toast("Não achei a operação de " + sym + " (talvez já tenha saído da lista); veja no Histórico.");
   }
   function ntfList() {
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
@@ -2100,7 +2135,7 @@
     $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !/NÃO feita|não copiou/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
       const isReal = /^\[PUMP REAL\]/.test(n.msg || ""), mk = mascKind(n.msg);
       const nome = mk ? String(mk[2]).replace(/ \(REAL\)$/, "") : kk[0];
-      return '<div class="ntfi"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
+      return '<div class="ntfi" data-ntfi="' + NTFL.indexOf(n) + '" title="Clique para ver o que aconteceu"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
       : '<p class="muted">Nenhuma notificação ainda.</p>';
   }
   function tone(C, t0, fr, dur, type, vol) { const o = C.createOscillator(), g = C.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(C.destination); o.start(t0); o.stop(t0 + dur + 0.02); }
@@ -2362,7 +2397,7 @@
     document.querySelectorAll("[data-hcfg]").forEach((el) => { const v = isAutoCfg(el.dataset.hcfg) ? autoValue(el.dataset.hcfg, c) : c[el.dataset.hcfg];
       if (document.activeElement !== el && v != null) el.value = +(v / 60).toFixed(2);
       if (el.id === "exAutoHold" && v != null) $("exAutoHoldN").textContent = "= " + f(v, 0) + " min · máximo 24 h"; });
-    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "ON · Ligado" : "OFF · Desligado"; b.classList.add("tgl"); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
+    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "Ligado" : "Desligado"; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
@@ -2552,7 +2587,7 @@
       return (rest > 0 ? "<b>faltam " + hms(rest) + "</b>" : '<b class="down">vencido · saindo</b>') + "<small>limite " + hms(h) + " ·" + src + "</small>" + holdBtns(p);
     };
     // 0.31.87 (Bruxo, áudio de 28/10): desligar stop de perda, stop móvel e venda em partes só desta posição
-    const ruleBtn = (p, regra, nome, off) => btn(nome + (off ? ": OFF" : ": ON"), "prule", { id: p.id, regra: regra, on: off ? 1 : 0 }, off ? "tgl off" : "tgl on");
+    const ruleBtn = (p, regra, nome, off) => btn(nome, "prule", { id: p.id, regra: regra, on: off ? 1 : 0 }, off ? "tgl sw off" : "tgl sw on");
     const holdBtns = (p) => p.selling ? "" : '<span class="row" style="gap:4px;margin-top:4px">' + btn("+30 min", "hold", { id: p.id, add: 30 }) + btn("+1 h", "hold", { id: p.id, add: 60 }) + btn("Sem limite", "hold", { id: p.id, add: "none" }) + "</span>" +
       '<span class="row" style="gap:4px;margin-top:4px;flex-wrap:wrap">' + ruleBtn(p, "stop", "Stop de perda", p.off_stop) + ruleBtn(p, "trail", "Stop móvel", p.off_trail) + ruleBtn(p, "tp1", "Venda em partes", p.off_tp1 || p.tp1_done) + "</span>";
     // 0.31.87 (Bruxo): venda parcial aparece na posição (quanto, quando, em quanto de lucro)
@@ -2997,6 +3032,7 @@
     $("ntfB").onclick = () => { const p = $("ntfP"); p.hidden = !p.hidden; if (!p.hidden) { NTFU = 0; ntfList(); } ntfBtn(); };
     $("ntfX").onclick = () => { $("ntfP").hidden = true; };
     $("ntfC").onclick = () => { NTFL = []; NTFU = 0; ntfList(); ntfBtn(); };
+    $("ntfL").addEventListener("click", (ev) => { const it = ev.target.closest("[data-ntfi]"); if (it && !ev.target.closest("a")) openNtf(+it.dataset.ntfi); });
     $("ntfS").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();
     $("realB").onclick = realToggle;

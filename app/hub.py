@@ -1005,13 +1005,18 @@ class PumpHub:
         servidor antigo não consegue sobrescrever como acontecia gravando direto em user_settings)."""
         try:
             rows = await self.db.select("settings_overrides", {"user_id": pf.user_id}, order="id.asc", is_null=("aplicado_em",))
-        except Exception:
+        except Exception as e:
+            log.warning("ajustes pendentes: não li settings_overrides: %s", str(e)[:160])
             return
         for r in rows:
-            applied, _err = pf.cfg.apply(dict(r.get("settings") or {}))
-            await self.save_settings(pf)
-            await self.db.update("settings_overrides", {"id": r["id"]}, {"aplicado_em": datetime.now(timezone.utc).isoformat()})
-            await audit(self.db, pf.user_id, "ajuste de configuração aplicado", f"{r.get('motivo') or ''}: {', '.join(applied)}")
+            try:
+                applied, _err = pf.cfg.apply(dict(r.get("settings") or {}))
+                await self.save_settings(pf)
+                await self.db.update("settings_overrides", {"id": r["id"]}, {"aplicado_em": datetime.now(timezone.utc).isoformat()})
+                pf._emit(f"Configuração ajustada a pedido do dono: {', '.join(applied)}")
+                await audit(self.db, pf.user_id, "ajuste de configuração aplicado", f"{r.get('motivo') or ''}: {', '.join(applied)}")
+            except Exception as e:
+                log.warning("ajustes pendentes: não apliquei %s: %s", r.get("id"), str(e)[:160])
 
     async def flush_pos_learn(self) -> None:
         """0.32.33: grava as posições fechadas já com o "depois da saída" medido (aprendizado das posições)."""
@@ -1380,6 +1385,10 @@ class PumpHub:
                 await self.flush_pos_learn()                # 0.32.33: aprendizado das posições
             except Exception:
                 pass
+            if n % 5 == 0:                                  # 0.32.34: ajuste pendente que falhou ao subir tenta de novo
+                for pf in list(self.engines.values()):
+                    if getattr(pf, "role", None) == "admin":
+                        await self._apply_overrides(pf)
             if n % 2 == 0:
                 try:
                     await self.save_elite()

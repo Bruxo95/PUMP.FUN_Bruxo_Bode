@@ -925,6 +925,11 @@
    "versao": "0.32.33",
    "inicio": "2026-10-29T01:00:00+00:00",
    "titulo": "aprendizado das posições; ajuste dos barrados que se perdeu"
+  },
+  {
+   "versao": "0.32.34",
+   "inicio": "2026-10-29T01:20:00+00:00",
+   "titulo": "liga/desliga estilo iPhone; notificações clicáveis"
   }
  ]
 }

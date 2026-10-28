@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "541fa305a4e1f03b4c173e6b5db539fbe03a5069",
-    "application_version": "0.32.33 · 2026-10-29 · aprendizado das posições; ajuste dos barrados que se perdeu",
+    "repository_reference": "97b12668f16d3e98f572f6a2abc5e7fcc28d5310",
+    "application_version": "0.32.34 · 2026-10-29 · liga/desliga estilo iPhone; notificações clicáveis",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "d99eb930d3ed153ffb5beb7af4ab9e96c4998511784ad6fdb7538f9b2c76cba6",
+      "app/version.py": "5e66e89b88c951fe0323796e6d093378b02fb571c6433f989569d31cb1befa32",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "2c001c2c3b623c663ed76325c0121cafa9ef709e48cbd71fef62948f4d5b6676",
+      "web/app.html": "89c63e81f30458d85f10dee66cf04519475c35fa8858a73f8470fd9764c78461",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "1cc80cdffa7adcaa1bd831e4d0457fccd4c8fd5bf20d906dbc2b5c6e479808ba"
+  "pdf_sha256": "8140e593ee1c519dddba7e47b3ab8afcd52b9d3058415e73e7ebb3cac9f64649"
 }

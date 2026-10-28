@@ -623,3 +623,19 @@ a.tag{text-decoration:none;cursor:pointer}
 tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}
 /* 0.32.29: compras dos barrados que subiram (Explorar) */
 .tag.barr{background:rgba(245,158,11,.15);color:#f59e0b;border-color:rgba(245,158,11,.45)}
+/* 0.32.34 (pedido do dono): liga/desliga no estilo iPhone em todo o sistema — verde = ligado, vermelho = desligado */
+.btn.tgl.sw{position:relative;display:inline-flex;align-items:center;min-height:28px;padding:0 4px 0 56px;border:0;background:none;
+  box-shadow:none;font-size:12px;font-weight:600;color:#ef4444;cursor:pointer}
+.btn.tgl.sw.on{color:#22c55e}
+.btn.tgl.sw::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);width:48px;height:28px;border-radius:14px;
+  background:#dc2626;transition:background .2s}
+.btn.tgl.sw.on::before{background:#16a34a}
+.btn.tgl.sw::after{content:"";position:absolute;left:3px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.45);transition:left .2s}
+.btn.tgl.sw.on::after{left:23px}
+.btn.tgl.sw:hover{filter:brightness(1.08);background:none}
+.btn.tgl.sw:focus-visible{outline:2px solid #60a5fa;outline-offset:3px;border-radius:14px}
+@media (prefers-reduced-motion:reduce){.btn.tgl.sw::before,.btn.tgl.sw::after{transition:none}}
+/* 0.32.34: notificação clicável */
+.ntfi[data-ntfi]{cursor:pointer}.ntfi[data-ntfi]:hover{background:rgba(255,255,255,.04)}
+
