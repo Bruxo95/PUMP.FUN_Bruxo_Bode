@@ -1134,3 +1134,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   trail/tempo/parada/tp1/alvo/dev/graduação saíram de Configurações, Opções novas e Execução real (lá ficou um link) — mesmas chaves.
   Novas OFF: `pump_tp2_*`, `pump_timestop_*`, `pump_entry_curve_*` (em `_check_stops`/`curve_block`, só sem `own_rules`), `pump_real_jito_tip_sol`
   (só guardado; Jito não implementado). `#tcReset` grava os padrões pump.fun do dono só na conta de quem clica. Explorar/Base/botão Comprar iguais.
+
+- 0.32.20: `sim_only` = também toda carteira em `pf.study` (salvo `pump_st_real`, OFF). Pedido do dono.

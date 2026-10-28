@@ -44,6 +44,7 @@ USER_KEYS: dict[str, tuple] = {
     # 0.32.18 (pedido do dono, 28/10): trades das carteiras COPIADAS pela PumpPortal (subscribeAccountTrade), cobrado da carteira
     # ligada à chave PumpPortal do sistema (0,01 SOL a cada 10 mil trades, pumpportal.fun/fees). Começa DESLIGADO.
     "pump_pp_copy": (bool, False, 0, 1),
+    "pump_st_real": (bool, False, 0, 1),                 # 0.32.20: carteira em estudo também copia na REAL (padrão: só fictícia)
     # 0.32.19 (pedido do dono: Configuração do Trader). Tudo desligado; só o botão "Restaurar Padrões Pump.fun" liga.
     "pump_tp2_pct": (float, 0.0, 0.0, 10000.0),          # 2º alvo: ao chegar em +X% (0 = desligado)…
     "pump_tp2_frac_pct": (float, 25.0, 1.0, 99.0),       # …vende Y% da posição ORIGINAL; o resto (moonbag) segue no stop móvel

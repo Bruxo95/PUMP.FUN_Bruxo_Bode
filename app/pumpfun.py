@@ -990,7 +990,13 @@ class PumpFun:
     def sim_only(self, who: str) -> bool:
         """0.32.11: cópia que nunca vai para a carteira real (aprovadas do estudo automático, sem ser manual)."""
         # 0.32.17 (pedido do dono: "por enquanto copiar do estudo somente fictícia, desabilita a real pra testes")
-        return bool(who) and (who in self.study_copy_wallets() or who in (getattr(self, "sim_only_list", None) or []))
+        # 0.32.20 (pedido do dono: "quero padrão só na fictícia, por que está na real?"): toda carteira que está em Carteiras em
+        # estudo copia só na fictícia, a menos que o dono ligue pump_st_real. Carteiras fora do estudo seguem a regra normal.
+        if not who:
+            return False
+        if who in self.study_copy_wallets() or who in (getattr(self, "sim_only_list", None) or []):
+            return True
+        return who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False)
 
     def eq_wallets(self) -> list[str]:
         """0.32.4: carteiras do "Copiar igual" (vazio com o modo desligado)."""

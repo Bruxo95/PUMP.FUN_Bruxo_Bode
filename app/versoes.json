@@ -855,6 +855,11 @@
    "versao": "0.32.19",
    "inicio": "2026-10-28T22:00:00+00:00",
    "titulo": "Configuração do Trader num lugar só"
+  },
+  {
+   "versao": "0.32.20",
+   "inicio": "2026-10-28T22:10:00+00:00",
+   "titulo": "carteiras do estudo só na fictícia por padrão"
   }
  ]
 }

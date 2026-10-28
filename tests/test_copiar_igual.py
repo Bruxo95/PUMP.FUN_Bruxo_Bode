@@ -106,3 +106,16 @@ def test_study_copy_button_is_sim_only(tmp_path):
     pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
     assert [p["real"] for p in pf.positions() if p["mint"] == M] == [False]
     assert pf._rq is None or pf._rq.qsize() == 0
+
+
+def test_wallet_in_study_copies_only_sim_by_default(tmp_path):
+    """0.32.20 (pedido do dono): carteira em estudo copia só na fictícia, a menos que pump_st_real esteja ligado."""
+    pf = _pf(tmp_path)
+    pf.study = [_W]
+    pf.add_manual(_W)
+    assert pf.sim_only(_W)
+    pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
+    assert [p["real"] for p in pf.positions() if p["mint"] == M] == [False]
+    assert pf._rq is None or pf._rq.qsize() == 0
+    pf.cfg.pump_st_real = True
+    assert not pf.sim_only(_W)
