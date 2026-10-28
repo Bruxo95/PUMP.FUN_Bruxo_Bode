@@ -1120,3 +1120,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.15: cartões `#saK` com `data-saact` → `openSaList` (modal `#saM`, carteiras do grupo por nota). Pedido do dono.
 
 - 0.32.16: `auto.log[].features` (valores de `info.features`); `#saRates` com `data-sarate` → `openSaRate` (modal `#saM`). Pedido do dono.
+
+- 0.32.17: `sim_only` também vale para `pf.sim_only_list` (`_sim_only`; botão Copiar do estudo → `POST /api/pump/study/copy`) e para toda
+  aprovada (mesmo já manual); `ia_added` (`_ia_added`) = só essas a IA tira da lista manual. `study_my_results` mostra a linha real de quem é
+  copiado, com `real_state`; tabelas `#stMine` (fictícia) e `#stMineR` (real). Pedido do dono (por enquanto, só fictícia).

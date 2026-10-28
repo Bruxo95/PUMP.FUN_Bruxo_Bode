@@ -151,6 +151,9 @@ class PumpHub:
         pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
         if isinstance(saved.get("_study_copy"), list):                  # 0.32.11: aprovadas copiadas (só fictícia)
             pf.study_copy = [str(w) for w in saved["_study_copy"]][:50]
+        for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added")):   # 0.32.17
+            if isinstance(saved.get(k), list):
+                setattr(pf, attr, [str(w) for w in saved[k]][:100])
         if isinstance(saved.get("_copy_equal"), list):                  # 0.32.4: Copiar igual (lista colada pelo dono)
             pf.copy_equal = [str(w) for w in saved["_copy_equal"]][:EQ_MAX]
         pf.brain_freeze = saved.get("_brain_freeze") if isinstance(saved.get("_brain_freeze"), dict) else None   # 0.31.85
@@ -1043,6 +1046,9 @@ class PumpHub:
             s["_follow_user"] = pf.follow_user         # 0.31.61: de quem esta conta copia os trades
         if getattr(pf, "study_copy", None):
             s["_study_copy"] = list(pf.study_copy)     # 0.32.11: aprovadas pelo estudo automático
+        for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added")):   # 0.32.17
+            if getattr(pf, attr, None):
+                s[k] = list(getattr(pf, attr))
         if list(getattr(pf, "copy_equal", None) or []) != list(EQ_SEED):
             s["_copy_equal"] = list(pf.copy_equal)     # 0.32.4: Copiar igual (só grava se mudou a lista de 28/10)
         if getattr(pf, "brain_freeze", None):
@@ -1608,17 +1614,21 @@ class PumpHub:
         # 0.32.13 (pedido do dono: "aprovou vai direto para o Top traders, cópia manual, só fictício"): a aprovada entra na
         # lista manual de Top traders, marcada como da IA (study_copy) para nunca ir para a real. Carteira que o dono já
         # tinha posto à mão fica como estava (sem marca, segue a regra dele).
+        # 0.32.17: a aprovada fica SÓ na fictícia mesmo que o dono já a tivesse posto à mão (pedido do dono: "por enquanto
+        # só fictícia, pra testes"); a IA só tira da lista manual as que ela mesma pôs (ia_added).
         old = list(getattr(pf, "study_copy", None) or [])
-        new = [w for w in new if w in old or w not in (pf.manual or [])]
         if new != old:
             add = [w for w in new if w not in old]
             rem = [w for w in old if w not in new]
             pf.study_copy = new
             for w in add:
-                pf.add_manual(w)
+                if w not in (pf.manual or []):
+                    pf.add_manual(w)
+                    pf.ia_added = list(dict.fromkeys(list(pf.ia_added or []) + [w]))
             for w in rem:
-                if w in (pf.manual or []):
+                if w in (pf.ia_added or []) and w in (pf.manual or []) and w not in (pf.sim_only_list or []):
                     pf.remove_manual(w)
+                pf.ia_added = [x for x in (pf.ia_added or []) if x != w]
             await self.save_settings(pf)
             pf.refresh_followed(force=True)
             if add:

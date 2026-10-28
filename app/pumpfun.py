@@ -158,6 +158,8 @@ class PumpFun:
         self.follow_user: str = ""
         self.copy_equal: list[str] = list(EQ_SEED)      # 0.32.4: "Copiar igual" (salvo em _copy_equal; ver hub._load)
         self.study_copy: list[str] = []                  # 0.32.11: aprovadas pelo estudo automático, copiadas só na fictícia
+        self.sim_only_list: list[str] = []               # 0.32.17: copiadas pelo botão Copiar do estudo (só fictícia, teste)
+        self.ia_added: list[str] = []                    # 0.32.17: as que a IA pôs na lista manual (só essas ela tira)
         self.brain_freeze: dict | None = None          # 0.31.85: cérebro congelado numa evolução (Base geral → Voltar)
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
@@ -987,7 +989,8 @@ class PumpFun:
 
     def sim_only(self, who: str) -> bool:
         """0.32.11: cópia que nunca vai para a carteira real (aprovadas do estudo automático, sem ser manual)."""
-        return bool(who) and who in self.study_copy_wallets()
+        # 0.32.17 (pedido do dono: "por enquanto copiar do estudo somente fictícia, desabilita a real pra testes")
+        return bool(who) and (who in self.study_copy_wallets() or who in (getattr(self, "sim_only_list", None) or []))
 
     def eq_wallets(self) -> list[str]:
         """0.32.4: carteiras do "Copiar igual" (vazio com o modo desligado)."""

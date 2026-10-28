@@ -95,3 +95,14 @@ def test_study_approved_in_manual_list_still_never_real(tmp_path):
     pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
     assert [p["real"] for p in pf.positions() if p["mint"] == M] == [False]
     assert pf._rq is None or pf._rq.qsize() == 0
+
+
+def test_study_copy_button_is_sim_only(tmp_path):
+    """0.32.17 (pedido do dono): o Copiar do estudo vai só para a fictícia, mesmo com a real ligada."""
+    pf = _pf(tmp_path)
+    pf.sim_only_list = [_W]
+    pf.add_manual(_W)
+    assert pf.sim_only(_W)
+    pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
+    assert [p["real"] for p in pf.positions() if p["mint"] == M] == [False]
+    assert pf._rq is None or pf._rq.qsize() == 0

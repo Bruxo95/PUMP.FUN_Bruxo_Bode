@@ -644,7 +644,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
             for real in (False, True):
                 T = [t for t in trades if t.get("wallet") == w and bool(t.get("real")) == real]
                 P = [p for p in poss if p.get("wallet") == w and bool(p.get("real")) == real]
-                if not T and not P and not (x.get("followed") and not real):
+                # 0.32.17 (pedido do dono): a real também aparece para quem está sendo copiado, dizendo se ela copia
+                if not T and not P and not x.get("followed"):
                     continue
                 n, wins = len(T), sum(1 for t in T if (t.get("pnl_sol") or 0) > 0)
                 pnl, inv = sum(t.get("pnl_sol") or 0 for t in T), sum(t.get("sol_in") or 0 for t in T)
@@ -658,11 +659,33 @@ def create_app(hub, auth, cfg) -> FastAPI:
                              "open": len(P), "open_sol": round(sum(p.get("sol_in") or 0 for p in P), 6),
                              "open_chg": round(sum(p.get("chg_pct") or 0 for p in P) / len(P), 2) if P else None,
                              "last": max([str(t.get("closed_at") or "") for t in T] or [""]) or None,
-                             "diag": diag if not real else None})
+                             "diag": diag if not real else None,
+                             "real_state": None if not real else ("só fictícia (teste)" if pf.sim_only(w) else
+                                                                 "copia na real" if getattr(pf.cfg, "pump_real_enabled", False)
+                                                                 else "execução real desligada")})
         rows.sort(key=lambda r: -r["pnl_sol"])
         return {"rows": rows, "total": {k: {"trades": v[0], "win_rate": v[1] / v[0] if v[0] else None,
                                             "pnl_sol": round(v[2], 6), "roi_pct": round(v[2] / v[3] * 100, 2) if v[3] else None}
                                         for k, v in tot.items()}}
+
+    @app.post("/api/pump/study/copy")
+    async def study_copy(body: dict, pf=Depends(admin_engine)):
+        """0.32.17 (pedido do dono): o botão Copiar das Carteiras em estudo copia SÓ na fictícia (teste); a real fica de fora."""
+        w, on = str((body or {}).get("wallet") or "").strip(), (body or {}).get("on", True)
+        if not pf.valid_addr(w):
+            return {"error": "endereço de carteira inválido"}
+        if on:
+            pf.sim_only_list = list(dict.fromkeys(list(pf.sim_only_list or []) + [w]))
+            if w not in (pf.manual or []):
+                pf.add_manual(w)
+        else:
+            pf.sim_only_list = [x for x in (pf.sim_only_list or []) if x != w]
+            if w in (pf.manual or []):
+                pf.remove_manual(w)
+        await hub.save_settings(pf)
+        pf.refresh_followed(force=True)
+        await audit(hub.db, pf.user_id, "estudo: copiar só na fictícia" if on else "estudo: parou de copiar", w)
+        return {"ok": True, "sim_only": pf.sim_only(w)}
 
     @app.post("/api/pump/study")
     async def study_change(body: dict, pf=Depends(admin_engine)):

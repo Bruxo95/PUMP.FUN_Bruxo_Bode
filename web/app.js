@@ -1655,11 +1655,17 @@
       ["Fictícia: retorno", roi(ts.roi_pct), "sobre o valor investido", "tr"],
       ["Real: seu resultado", sg(tr.pnl_sol), (tr.trades || 0) + " trades" + (tr.trades ? " · retorno " + (tr.roi_pct == null ? "–" : f(tr.roi_pct, 1) + "%") : ""), "wallet"]]);
     const dg = (d) => !d ? "–" : d.buys_seen + " compras vistas · " + d.copied + " copiadas" + (d.top_skips && d.top_skips.length ? "<small>não copiou: " + d.top_skips.map((s) => esc(s.reason) + " (" + s.n + ")").join(" · ") + "</small>" : "");
-    table("stMine", ["Carteira", "Carteira usada", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último", "O que aconteceu"], (mi.rows || []).map((x) => [pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
-      x.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>', dt(x.since), String(x.trades), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%",
+    // 0.32.17 (pedido do dono): fictícia e real em tabelas separadas; a real diz se copia ou se está "só fictícia (teste)"
+    const mrow = (x) => [pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""),
+      dt(x.since), String(x.trades), x.win_rate == null ? "–" : f(x.win_rate * 100, 0) + "%",
       "<b>" + sg(x.pnl_sol) + "</b><small>investiu " + s4(x.invested_sol) + " SOL</small>", roi(x.roi_pct),
-      x.open ? x.open + " · " + s4(x.open_sol) + " SOL" + (x.open_chg == null ? "" : " · " + (x.open_chg > 0 ? "+" : "") + f(x.open_chg, 1) + "%") : "–", dt(x.last), dg(x.diag)]),
+      x.open ? x.open + " · " + s4(x.open_sol) + " SOL" + (x.open_chg == null ? "" : " · " + (x.open_chg > 0 ? "+" : "") + f(x.open_chg, 1) + "%") : "–", dt(x.last)];
+    const MH = ["Carteira", "Desde", "Trades", "Acerto", "Seu resultado", "Retorno", "Abertas agora", "Último"];
+    table("stMine", [...MH, "O que aconteceu"], (mi.rows || []).filter((x) => !x.real).map((x) => [...mrow(x), dg(x.diag)]),
       "Você ainda não copiou nenhuma destas carteiras. Clique em Copiar numa delas e o resultado aparece aqui.");
+    table("stMineR", [...MH, "Situação na real"], (mi.rows || []).filter((x) => x.real).map((x) => [...mrow(x),
+      x.real_state === "copia na real" ? '<span class="tag real">copia na real</span>' : '<span class="tag sim">' + esc(x.real_state || "–") + "</span>"]),
+      "Nenhuma carteira do estudo copiada na real.");
   }
   // compartilhar uma carteira em estudo com outro usuário (0.17.1): ela entra na lista de estudo da pessoa
   async function openShare(w) {
@@ -1891,7 +1897,7 @@
       if (!r.error) $("stShare").hidden = true;
       return;
     }
-    if (t.dataset.stc) { if (!confirm("Passar a COPIAR esta carteira (entra como carteira manual)?")) return; const r = await BB.api("/api/pump/wallets", { body: { wallet: t.dataset.stc, action: "add" } }); toast(r.error || "Agora copiando."); poll(true); return loadStudy(); }
+    if (t.dataset.stc) { if (!confirm("Copiar esta carteira SÓ na carteira FICTÍCIA (teste)? A real não copia.")) return; const r = await BB.api("/api/pump/study/copy", { body: { wallet: t.dataset.stc } }); toast(r.error || "Copiando só na fictícia."); poll(true); return loadStudy(); }
     if (t.dataset.str) { if (!confirm("Remover do estudo?")) return; await BB.api("/api/pump/study", { body: { wallet: t.dataset.str, action: "remove" } }); $("stProf").hidden = true; return loadStudy(); }
   });
 

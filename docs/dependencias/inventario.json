@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "522f359e33f8199f7fa89865037b5d1679d8f958",
-    "application_version": "0.32.16 · 2026-10-28 · O que ela aprendeu abre as carteiras",
+    "repository_reference": "6cb9f022f00cb3b3f190e19ab7ab5ec46bde8e6a",
+    "application_version": "0.32.17 · 2026-10-28 · cópias do estudo só na fictícia",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "d9df5412ff1cb718f5020f067fcc832f20eebf9c1b399174f49b1a10df46aa73",
+      "app/version.py": "a1060da8a2fcfb0f729cea78f6d62d48e1327bee736b9c260b0dda3ada5dc873",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "96523c7bc34768d4d26f53cbd0c69c729fb52ae7d0489a0d6fa7baba0d67eae8",
+      "web/app.html": "a437313f60b9d980a2ea4218c5e73b83dfe5a6d72f6161e42366414c8198f91a",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "16e3ab8892ff83f252e4a679bddaa4e82bd91b56c6a303e01eea20d09ef2e4ff"
+  "pdf_sha256": "af23437b6d653fd186f3930f7d46c83f30189534c5dbdb2ca2ec52ade5e4f6b1"
 }
