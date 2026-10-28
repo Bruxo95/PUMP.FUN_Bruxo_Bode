@@ -927,6 +927,27 @@
     if (tab === "explorar") loadExLog(); else loadRobotLog(tab);
     loadRobotDays(tab);
   }
+  // 0.31.94 (pedido do dono): calls quentes pela blockchain
+  let CL_T = null;
+  async function loadCalls() {
+    const r = await BB.api("/api/pump/calls"); if (r.error || !$("clT")) return;
+    const A = r.agora || [], C = r.callers || [], V = r.por_veredito || [];
+    const PVc = { "chance alta": "win", "possível": "neutral", "fraco": "pause", "lixo": "loss" };
+    kpis("clK", [["Calls na última hora", String(A.length), (r.total || 0) + " guardadas", "mon"], ["Chance alta agora", String(A.filter((x) => x.veredito.verdict === "chance alta").length), "veredito da call", "hit"],
+      ["Calls medidas", String(r.medidas || 0), "resultado de quem seguiu em 15 min", "tr"], ["Callers com nota", String(C.filter((x) => x.nota != null).length), "5+ calls medidas", "usr"]]);
+    table("clT", ["Token", "Caller", "Veredito", "Há", "Caller pagou", "MC na call", "Desde a entrada", "Pico", "Caller vendeu"], A.map((x) => [pfM(x.mint, x.symbol) +
+      '<div style="margin-top:4px"><button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button></div>',
+      pfW(x.wallet) + "<small>" + esc(x.label || "") + " · " + esc(x.fonte || "") + (x.caller != null ? " · nota " + f(x.caller, 0) : "") + "</small>",
+      '<span class="tag ' + (PVc[x.veredito.verdict] || "neutral") + '">' + esc(x.veredito.verdict) + " " + x.veredito.chance + '%</span><small class="wrapcell">' + (x.veredito.why || []).map(esc).join(" · ") + "</small>",
+      hms(Date.now() / 1000 - x.t), s4(x.sol) + " SOL", x.mcap_sol != null ? f(x.mcap_sol, 0) + " SOL" : "–", x.agora_pct == null ? '<span class="dim">aguardando 1 min</span>' : pc(x.agora_pct),
+      x.pico == null ? "–" : pc(x.pico), x.despejo_s != null ? '<span class="down">despejou em ' + hms(x.despejo_s) + "</span>" : x.venda_s != null ? "vendeu parte em " + hms(x.venda_s) : "–"]),
+      "Nenhuma call na última hora (as carteiras acompanhadas não compraram).");
+    table("clC", ["Caller", "Calls", "Medidas", "Acerto de quem segue", "Média 15 min", "Picos 50%+", "Despeja", "Nota"], C.map((x) => [pfW(x.wallet) + "<small>" + esc(x.label || "") + " · " + esc(x.fonte || "") + "</small>",
+      String(x.calls), String(x.medidas), x.acerto == null ? "–" : f(x.acerto * 100, 0) + "%", x.media_pct == null ? "–" : pc(x.media_pct), String(x.picos50 || 0),
+      f(x.despejo_pct || 0, 0) + "%", x.nota == null ? '<span class="dim">aprendendo</span>' : "<b>" + f(x.nota, 0) + "</b>"]), "Ainda sem calls.");
+    table("clV", ["Veredito na hora da call", "Calls medidas", "Acerto", "Média 15 min"], V.map((x) => [esc(x.veredito), String(x.n), f(x.acerto * 100, 0) + "%", pc(x.media_pct)]), "Ainda sem calls medidas (15 min depois da primeira).");
+    clearTimeout(CL_T); CL_T = setTimeout(() => { if (VIEW === "calls") loadCalls(); }, 20000);
+  }
   // 0.31.91 (pedido do dono): aprendizado dos logs — resumo de cada dia, sem prazo
   async function loadRobotDays(mod) {
     if (!$("rd_" + mod)) return;
@@ -940,7 +961,7 @@
         '<span class="wrapcell">' + M.slice(1, 4).map((m) => esc(m.motivo) + " (" + f(m.pct, 0) + "%)").join("<br>") + "</span>"]; }), "Ainda sem dias fechados.");
   }
   // 0.31.89 (pedido do dono): o mesmo log de análise para os outros robôs (cópia de traders, Base, Maiores traders)
-  const RLH = { copia: 24, base: 24, elite: 24 };
+  const RLH = { copia: 24, base: 24, elite: 24, calls: 24 };
   async function loadRobotLog(mod) {
     const box = document.querySelector('[data-rlog="' + mod + '"]'); if (!box) return;
     const r = await BB.api("/api/pump/robot-log?modulo=" + mod + "&horas=" + RLH[mod]); if (r.error) { box.innerHTML = '<p class="muted">' + esc(r.error) + "</p>"; return; }
@@ -1740,7 +1761,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · salvo por 14 dias"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -1748,7 +1769,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "basegeral", "logs"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "basegeral", "logs", "calls"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -1767,6 +1788,7 @@
     if (VIEW === "comparar") loadCompare();
     if (VIEW === "basegeral") loadBaseGeral();
     if (VIEW === "logs") showLogTab(LOGTAB);
+    if (VIEW === "calls") loadCalls();
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();
@@ -2612,6 +2634,7 @@
     $("navExp").hidden = ME.role !== "admin";
     $("navBaseG").hidden = ME.role !== "admin";
     if ($("navLogs")) $("navLogs").hidden = ME.role !== "admin";
+    if ($("navCalls")) $("navCalls").hidden = ME.role !== "admin";
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };

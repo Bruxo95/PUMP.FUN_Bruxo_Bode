@@ -1018,3 +1018,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.93: `#exTbl` com classe `extbl` (fonte menor), Comprar dentro da coluna Token, 5 min/1 h juntos, `poolsCell` curto (detalhe
   no `title`). Pedido do dono (sem rolagem lateral).
+
+## Calls quentes pela blockchain (2026-10-28, versão 0.31.94)
+- Pedido do dono (Hot callouts da pump.fun). A API do site (callouts e conversas) responde 403 com o desafio da Cloudflare
+  (conferido em 28/10): não é lida. `app/calls.py` (`Calls`: `on_trade`, `tick`, `callers`, `verdict`, `summary`): toda compra
+  de carteira acompanhada (handle_tx → `hub.calls_on_trade`) vira call; seguidor entra 1 min depois; marcas 5/15/60 min; pico;
+  despejo = vendeu ≥50% em 10 min; nota do caller = Wilson 90% do acerto (15 min − 4%) − 0,3 × % de despejo (5+ calls);
+  veredito 0–100 (nota, outros callers em 10 min, risco ≥7, MC < 30 SOL, lista negra). `hub.calls_tick/calls_loop` (30 s),
+  tabela `calls` (migração `20261028000006`), `load_calls` (7 dias), `GET /api/pump/calls` (admin), menu `#calls` e aba
+  `calls` em Logs dos robôs (`rlog("calls")`). Não compra sozinho. `tests/test_calls.py`.

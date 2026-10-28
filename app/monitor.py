@@ -248,6 +248,11 @@ class SharedMonitor:
             return
         st["parsed"] += 1
         st["last_event"] = time.time()
+        try:
+            if hasattr(self.hub, "calls_on_trade"):
+                self.hub.calls_on_trade(w, ev)                  # 0.31.94: toda compra acompanhada vira uma call
+        except Exception as e:
+            log.warning("calls quentes: %s", str(e)[:120])
         # Observar não autoriza copiar. Robôs seguem bloqueados mesmo que estejam no estudo.
         if not self.followers(w) or (self.market.activity.get(w) or {}).get("bot_until", 0) > time.time():
             return

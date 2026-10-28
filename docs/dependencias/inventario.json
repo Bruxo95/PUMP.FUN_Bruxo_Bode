@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "28fc868540dc57930724d686c7a5dbd909c1c803",
-    "application_version": "0.31.93 · 2026-10-28 · lista do Explorar sem rolagem lateral",
+    "repository_reference": "702c0a3b545022d37d14364a16d81289117b15c3",
+    "application_version": "0.31.94 · 2026-10-28 · calls quentes pela blockchain",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "e0c7f24a955097e9c86173d7b3cae7da482581f029b1241b9b461a7bccca4819",
+      "app/version.py": "6ff67e6d63d282e6a350d787ac8c1943931beb498bf3b41db2f10519df5acf74",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "6a373956f3dd42eb6b4b3fc7c1bb707371355524a30558ebeb468ed7b143f850",
+      "web/app.html": "76d67b5039638e403d2244ebb4ea9b8b7748065020bb7e042b0087e73a6d8f43",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f9d8ae0b6404a85627d1b77328fae03896f70ce28c5d9d69e16cfa7d96fb13a8"
+  "pdf_sha256": "09c15d77deb089ed9855b021667ad6809556c3677a5b4e854726a1bfc7f6a9e4"
 }

@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.94",
+      "data": "2026-10-28",
+      "tipo": "novo",
+      "onde": "menu Calls quentes (abaixo de Logs dos robôs)",
+      "titulo": "Calls quentes pela blockchain",
+      "oque": "Os 'Hot callouts' da pump.fun não podem ser lidos (proteção anti-robô do site), então a call vem da blockchain: toda compra dos Maiores traders, das Carteiras em estudo e dos traders copiados vira uma call, muitas vezes antes do post. Cada call ganha um veredito com % (lixo, fraco, possível, chance alta), o robô mede quanto ganharia quem entrasse 1 min depois (5, 15 e 60 min, com custo), o pico e se o caller despejou. Cada caller ganha uma nota de 0 a 100. Tem botão Comprar, ranking dos callers, 'o veredito acerta?' e log em Logs dos robôs. Nada é comprado sozinho."
+    },
+    {
       "versao": "0.31.93",
       "data": "2026-10-28",
       "tipo": "melhoria",

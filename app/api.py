@@ -955,6 +955,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
                                      real=bool(real))
 
+    @app.get("/api/pump/calls")
+    async def calls_view(pf=Depends(admin_engine)):
+        """0.31.94: calls quentes pela blockchain (compras das carteiras acompanhadas), veredito e nota de cada caller."""
+        return hub.calls_view()
+
     @app.get("/api/pump/robot-log/dias")
     async def robot_days(modulo: str, pf=Depends(admin_engine)):
         """0.31.91: aprendizado dos logs — um resumo por dia de cada robô, sem prazo (nada é apagado)."""

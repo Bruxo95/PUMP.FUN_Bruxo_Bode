@@ -725,6 +725,11 @@
    "versao": "0.31.93",
    "inicio": "2026-10-28T10:57:51+00:00",
    "titulo": "lista do Explorar sem rolagem lateral"
+  },
+  {
+   "versao": "0.31.94",
+   "inicio": "2026-10-28T11:14:25+00:00",
+   "titulo": "calls quentes pela blockchain"
   }
  ]
 }

@@ -46,7 +46,9 @@ class PumpHub:
         from .explore import Explore
         self.explore = Explore()
         from .elite import Elite
-        self.elite = Elite(self.market)           # maiores traders (0.31.2)                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
+        self.elite = Elite(self.market)           # maiores traders (0.31.2)
+        from .calls import Calls
+        self.calls = Calls()                      # 0.31.94: calls quentes pela blockchain                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._study_auto_at: dict[str, float] = {}  # usuário -> última volta do estudo automático (0.31.13)
         self._tune_at: dict[str, float] = {}        # usuário -> última volta do ajuste automático (0.31.14)
@@ -468,7 +470,100 @@ class PumpHub:
             await asyncio.sleep(60)
 
     # ------------------------------------------------------------------ log de análise dos robôs (0.31.89)
-    RLOG_NAMES = {"copia": "Cópia de traders", "base": "Base da pump.fun (compra automática)", "elite": "Maiores traders (compra automática)"}
+    RLOG_NAMES = {"copia": "Cópia de traders", "base": "Base da pump.fun (compra automática)", "elite": "Maiores traders (compra automática)",
+                  "calls": "Calls quentes"}
+
+    # ------------------------------------------------------------------ calls quentes (0.31.94)
+    def _call_label(self, w: str) -> tuple[str, str]:
+        if w in self.elite.wallets():
+            return self.elite.label(w), "maiores traders"
+        for e in list(self.engines.values()):
+            if w in (getattr(e, "study", None) or []):
+                nick = (getattr(e, "study_names", None) or {}).get(w) if isinstance(getattr(e, "study_names", None), dict) else None
+                return nick or f"{w[:4]}…{w[-4:]}", "carteira em estudo"
+        return f"{w[:4]}…{w[-4:]}", "trader copiado"
+
+    def _risk_of(self, mint: str):
+        rk = (self.market.tokens.get(mint) or {}).get("risk")
+        try:
+            return float(rk.get("score")) if isinstance(rk, dict) and rk.get("score") is not None else (float(rk) if rk is not None else None)
+        except (TypeError, ValueError):
+            return None
+
+    def _bl(self, mint: str) -> bool:
+        tk = self.market.tokens.get(mint) or {}
+        return mint in self.market.blacklist or (tk.get("creator") in self.market.blacklist if tk.get("creator") else False)
+
+    def calls_on_trade(self, w: str, ev: dict, t: float | None = None) -> dict | None:
+        t = time.time() if t is None else t
+        label, fonte = self._call_label(w)
+        tk = self.market.tokens.get(ev.get("mint")) or {}
+        ev = dict(ev, symbol=ev.get("symbol") or tk.get("symbol"))
+        c = self.calls.on_trade(w, ev, t, label, fonte, PumpFun.price_of(ev))
+        if c is None:
+            return None
+        v = self.calls.verdict(c, self.calls.callers(), self._risk_of, self._bl)
+        c["veredito_na_call"] = v
+        for e in list(self.engines.values()):
+            if getattr(e, "role", "user") == "admin":
+                e.rlog("calls", c["id"], (c.get("symbol") or c["mint"][:6]) + " · " + label,
+                       None if v["verdict"] == "chance alta" else f"veredito {v['verdict']} ({v['chance']}%): " + "; ".join(v["why"][:2]), t)
+        return c
+
+    async def calls_tick(self, now: float | None = None) -> int:
+        now = time.time() if now is None else now
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        mints = self.calls.open_mints(now)
+        if mints and svc is not None:
+            for i in range(0, len(mints), 100):
+                chunk = mints[i:i + 100]
+                pump = [m for m in chunk if svc.is_pump(m)]
+                rest = await svc._curve_prices(pump, public_first=True) if pump else []
+                rest += [m for m in chunk if m not in pump]
+                if rest:
+                    await svc._fetch_prices(list(dict.fromkeys(rest))[:90])
+        n = self.calls.tick(lambda m: (self.market.tokens.get(m) or {}).get("price"), now)
+        for cid in list(self.calls.dirty)[:300]:
+            self.calls.dirty.discard(cid)
+            c = self.calls.calls.get(cid)
+            if c is None:
+                continue
+            if not c.get("symbol"):
+                c["symbol"] = (self.market.tokens.get(c["mint"]) or {}).get("symbol")
+            try:
+                await self.db.insert("calls", {"id": cid, "em": datetime.fromtimestamp(c["t"], timezone.utc).isoformat(), "data": c},
+                                     upsert=True, on_conflict="id")
+            except Exception as e:
+                log.warning("call não gravou: %s", str(e)[:120])
+                break
+        return n
+
+    async def calls_loop(self) -> None:
+        await asyncio.sleep(60)
+        while True:
+            try:
+                await self.calls_tick()
+            except Exception as e:
+                log.warning("calls quentes: %s", str(e)[:160])
+            await asyncio.sleep(30)
+
+    async def load_calls(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - 7 * 86400, timezone.utc).isoformat()
+            for r in await self.db.select("calls", None, order="em.desc", limit=20000, gte={"em": since}):
+                if isinstance(r.get("data"), dict):
+                    self.calls.calls.setdefault(r["id"], r["data"])
+        except Exception as e:
+            log.warning("calls não carregaram: %s", str(e)[:120])
+
+    def calls_view(self) -> dict:
+        s = self.calls.summary(risk_of=self._risk_of, blacklisted=self._bl)
+        for r in s["agora"]:
+            tk = self.market.tokens.get(r["mint"]) or {}
+            r["symbol"] = r.get("symbol") or tk.get("symbol")
+            px = tk.get("price")
+            r["agora_pct"] = round((px / r["px1"] - 1) * 100, 1) if px and r.get("px1") else None
+        return s
 
     async def rlog_flush(self) -> int:
         n = 0
@@ -1942,6 +2037,7 @@ class PumpHub:
         await self.load_lab()
         await self.load_elite()
         await self.load_shadows()
+        await self.load_calls()
         for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
             lead = self.engines.get(getattr(pf, "follow_user", ""))
             if lead is not None:
@@ -1962,6 +2058,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
+        self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor
