@@ -69,3 +69,17 @@ def test_normal_copy_unchanged_for_other_wallets(tmp_path):
     pf.add_manual(other)
     pf.on_message(_ev("buy", other, M, 0.1, 1e5, 30, 3e7), 1000.0)   # 0,1 SOL < mínimo 5: a cópia normal barra
     assert not [p for p in pf.positions() if p["wallet"] == other]
+
+
+def test_study_approved_wallets_copy_only_in_sim(tmp_path):
+    """0.32.11 (pedido do dono): aprovadas pelo estudo automático são copiadas sozinhas, só na fictícia."""
+    pf = _pf(tmp_path)                                  # real ligada, espelho ligado (carteira falsa)
+    pf.study_copy = [_W]
+    pf.refresh_followed(force=True)
+    assert _W not in pf.followed                        # opção desligada: não copia
+    pf.cfg.pump_st_auto_copy = True
+    pf.refresh_followed(force=True)
+    assert _W in pf.followed
+    pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
+    assert [p["real"] for p in pf.positions() if p["mint"] == M] == [False]
+    assert pf._rq is None or pf._rq.qsize() == 0        # nada foi para a real

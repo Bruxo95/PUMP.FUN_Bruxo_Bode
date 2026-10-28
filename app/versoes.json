@@ -810,6 +810,11 @@
    "versao": "0.32.10",
    "inicio": "2026-10-28T19:45:00+00:00",
    "titulo": "tokens que cada carteira acertou nas Decisões da IA"
+  },
+  {
+   "versao": "0.32.11",
+   "inicio": "2026-10-28T20:00:00+00:00",
+   "titulo": "copiar as aprovadas do estudo (só fictícia)"
   }
  ]
 }

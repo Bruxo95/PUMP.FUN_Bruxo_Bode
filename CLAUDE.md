@@ -1103,3 +1103,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.10: `study.digest` (acertos/erros por token com `pump`, `sig` da última transação, `pump_pct`, `ultima_op`) no `profile` e no
   `summary`; `/api/pump/study` → `auto.log` via `_log_rows` (resumo de cada carteira; até 15 perfis extras fora do estudo); `#saLog` com
   `digestCells`/`tkLink` e botão Copiar nas aprovadas (aprovar só mantém no estudo). Pedido do dono.
+
+- 0.32.11: `pump_st_auto_copy` (OFF; ligado só na conta do dono pela migração `20261028000011`). `pf.study_copy` (salvo `_study_copy`),
+  `hub.study_copy_sync` no fim de `study_auto` (última decisão "aprovou" + ainda no estudo); `refresh_followed` inclui `study_copy_wallets()`
+  (filtros normais). `PumpFun.sim_only(who)`: sem real direto e sem `_mirror_real`. Relatório `app/relatorios_ia/2026-10-28-0.32.11.md`.

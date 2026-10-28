@@ -157,6 +157,7 @@ class PumpFun:
         # o hub quando ESTA conta abre/fecha uma posição fictícia (o hub repassa para quem segue esta conta)
         self.follow_user: str = ""
         self.copy_equal: list[str] = list(EQ_SEED)      # 0.32.4: "Copiar igual" (salvo em _copy_equal; ver hub._load)
+        self.study_copy: list[str] = []                  # 0.32.11: aprovadas pelo estudo automático, copiadas só na fictícia
         self.brain_freeze: dict | None = None          # 0.31.85: cérebro congelado numa evolução (Base geral → Voltar)
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
@@ -568,6 +569,8 @@ class PumpFun:
         man = [w for w in man if w not in bots]
         # 0.32.4: "Copiar igual" — entram sempre (sem filtro de robô/pausa) enquanto o modo estiver ligado
         man += [w for w in self.eq_wallets() if w not in banned and w not in man]
+        # 0.32.11: aprovadas pelo estudo automático (só fictícia; passam pelos filtros normais de cópia)
+        man += [w for w in self.study_copy_wallets() if w not in banned and w not in man and w not in bots]
         self.leaderboard = [self._lb_judge(r) for r in self.leaderboard]
         lb = [r["wallet"] for r in self.leaderboard if r["eligible"] and r["wallet"] not in man
               and r["wallet"] not in banned and r["wallet"] not in bots]
@@ -978,6 +981,14 @@ class PumpFun:
                 "motivos": sorted(({"motivo": ex[k], "n": n} for k, n in motivos.items()), key=lambda m: -m["n"])[:12],
                 "traders": sorted(por.values(), key=lambda p: -p["vistas"])[:30]}
 
+    def study_copy_wallets(self) -> list[str]:
+        """0.32.11: carteiras aprovadas pelo estudo automático que esta conta copia (só fictícia)."""
+        return list(getattr(self, "study_copy", None) or []) if getattr(self.cfg, "pump_st_auto_copy", False) else []
+
+    def sim_only(self, who: str) -> bool:
+        """0.32.11: cópia que nunca vai para a carteira real (aprovadas do estudo automático, sem ser manual)."""
+        return bool(who) and who in self.study_copy_wallets() and who not in (self.manual or [])
+
     def eq_wallets(self) -> list[str]:
         """0.32.4: carteiras do "Copiar igual" (vazio com o modo desligado)."""
         return list(getattr(self, "copy_equal", None) or []) if getattr(self.cfg, "pump_eq_on", False) else []
@@ -1127,7 +1138,9 @@ class PumpFun:
             # separadas: a fictícia já ter o token não impede a real de comprar (ela segue as vendas do trader e os stops).
             alone = (self.real is not None and getattr(c, "pump_real_enabled", False) and getattr(c, "pump_real_mirror", True)
                      and any(not p.get("real") for p in mine))
-            if self.real is not None and getattr(c, "pump_real_enabled", False) and (alone or not getattr(c, "pump_real_mirror", True)):
+            if self.sim_only(who) and self.real is not None and getattr(c, "pump_real_enabled", False):
+                self._feed(**base, action="REAL não copiou", reason="carteira aprovada pelo estudo automático: cópia só na fictícia")
+            elif self.real is not None and getattr(c, "pump_real_enabled", False) and (alone or not getattr(c, "pump_real_mirror", True)):
                 rwhy = None
                 if not self.is_pump(mint) and not getattr(c, "pump_copy_other_real", False):
                     rwhy = "fora da pump.fun: real desligado para outras DEXs (só fictício)"
@@ -1191,7 +1204,8 @@ class PumpFun:
                        + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
             self._copy_note(who, "copiou", t)
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
-            self._mirror_real(p, trader_sol=sol, block_t=ev.get("blockTime"))
+            if not self.sim_only(who):
+                self._mirror_real(p, trader_sol=sol, block_t=ev.get("blockTime"))
             self._lead("open", p)
             return msgs
         # venda do trader enquanto a cópia ainda estava esperando: se ele saiu, não copia

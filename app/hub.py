@@ -149,6 +149,8 @@ class PumpHub:
         self._wire_wallet(pf)
         pf.tg = lambda msg, _pf=pf: self.tg_queue(_pf, msg)
         pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
+        if isinstance(saved.get("_study_copy"), list):                  # 0.32.11: aprovadas copiadas (só fictícia)
+            pf.study_copy = [str(w) for w in saved["_study_copy"]][:50]
         if isinstance(saved.get("_copy_equal"), list):                  # 0.32.4: Copiar igual (lista colada pelo dono)
             pf.copy_equal = [str(w) for w in saved["_copy_equal"]][:EQ_MAX]
         pf.brain_freeze = saved.get("_brain_freeze") if isinstance(saved.get("_brain_freeze"), dict) else None   # 0.31.85
@@ -1039,6 +1041,8 @@ class PumpHub:
             s["_real_on"] = True                       # 0.31.28: o real ligado sobrevive ao reinício (ver _load)
         if getattr(pf, "follow_user", ""):
             s["_follow_user"] = pf.follow_user         # 0.31.61: de quem esta conta copia os trades
+        if getattr(pf, "study_copy", None):
+            s["_study_copy"] = list(pf.study_copy)     # 0.32.11: aprovadas pelo estudo automático
         if list(getattr(pf, "copy_equal", None) or []) != list(EQ_SEED):
             s["_copy_equal"] = list(pf.copy_equal)     # 0.32.4: Copiar igual (só grava se mudou a lista de 28/10)
         if getattr(pf, "brain_freeze", None):
@@ -1545,10 +1549,14 @@ class PumpHub:
         done = {"descartou": 0, "aprovou": 0, "adicionou": 0}
         out_now: set[str] = set()                   # descartadas nesta volta não podem voltar na mesma volta
 
+        done_now: dict[str, str] = {}
+
         async def note(w, acao, motivo, info):
             await self.db.insert("study_auto_log", {"user_id": pf.user_id, "wallet": w, "acao": acao, "motivo": motivo,
                                                     "info": info, "em": datetime.fromtimestamp(now, timezone.utc).isoformat()})
             done[acao] += 1
+            if acao in ("aprovou", "descartou"):
+                done_now[w] = acao
             pf._emit(f"Estudo automático: {acao} {w[:4]}…{w[-4:]} — {motivo}")
 
         auto = [r for r in rows if str(r.get("apelido") or "").startswith(AUTO_TAG)]
@@ -1582,8 +1590,31 @@ class PumpHub:
                 await note(c["wallet"], "adicionou", f"{c['fonte']}, nota {c['nota']:.2f}, acerto no ranking "
                            + ("–" if c.get("winrate") is None else f"{c['winrate']:.0f}%"),
                            {"features": features(c), "nota": c["nota"], "fonte": c["fonte"]})
+        await self.study_copy_sync(pf, log_rows, done_now)
         self._study_auto_at[pf.user_id] = now
         return {"ok": True, **done}
+
+    async def study_copy_sync(self, pf, log_rows: list, done_now: dict | None = None) -> None:
+        """0.32.11 (pedido do dono): com pump_st_auto_copy, as carteiras aprovadas que continuam no estudo são copiadas
+        (só fictícia). Descartada ou tirada do estudo sai da cópia. Com a opção desligada, a lista fica vazia."""
+        done_now = done_now or {}
+        last: dict[str, str] = {}
+        for r in reversed(log_rows):                          # do mais antigo para o mais novo: fica a última decisão
+            if r.get("acao") in ("aprovou", "descartou"):
+                last[r["wallet"]] = r["acao"]
+        last.update(done_now)
+        cur = set(getattr(pf, "study", []) or [])
+        new = sorted(w for w, a in last.items() if a == "aprovou" and w in cur) if getattr(pf.cfg, "pump_st_auto_copy", False) else []
+        if new != list(getattr(pf, "study_copy", None) or []):
+            add = [w for w in new if w not in (pf.study_copy or [])]
+            rem = [w for w in (pf.study_copy or []) if w not in new]
+            pf.study_copy = new
+            await self.save_settings(pf)
+            pf.refresh_followed(force=True)
+            if add:
+                pf._emit("Estudo automático: copiando (só fictícia) " + ", ".join(f"{w[:4]}…{w[-4:]}" for w in add))
+            if rem:
+                pf._emit("Estudo automático: parou de copiar " + ", ".join(f"{w[:4]}…{w[-4:]}" for w in rem))
 
     async def auto_tune(self, pf, now: float | None = None) -> dict:
         """Ajuste automático (0.31.14, app/autotune.py): aplica a regra de saída que os fantasmas mostram render mais,
