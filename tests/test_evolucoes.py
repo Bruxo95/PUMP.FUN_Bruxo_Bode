@@ -2,6 +2,7 @@
 import asyncio
 
 from app.evolucoes import comparar, relatorio, reverter_ajustes
+from tests.test_api import UA, env, tok  # noqa: F401  (fixture env)
 
 
 def _t(day, pnl, sombra=False, reason="stop de perda (-25%)"):
@@ -29,7 +30,6 @@ def test_revert_takes_settings_before_first_change():
 
 
 def test_rollback_freezes_entry_and_back_to_auto(env):
-    from tests.test_api import UA, tok
     c, hub = env["c"], env["hub"]
     env["db"].set_role(UA, "admin")
     c.get("/api/pump", headers=tok(UA))
