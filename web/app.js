@@ -992,7 +992,9 @@
       ["Barrados", String(F.barrados), F.barrados_com_preco + " com preço para comparar", "mon"],
       ["Barrados que subiram 50%+", String(F.subiram_50), (F.cairam_30 || 0) + " caíram 30%+ · " + (F.subiram_50 > F.cairam_30 ? "o filtro pode estar barrando coisa boa" : "o filtro está barrando mais coisa ruim"), "pnl"]]);
     table("exFunM", ["Por que foi barrado", "Tokens"], (F.motivos || []).map((m) => [esc(m.motivo), String(m.n)]), "Nada barrado nas últimas 24 h (ou entrada automática desligada).");
-    table("exFunUp", ["Barrado que subiu", "Desde que foi visto", "Motivo"], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", esc(b.motivo || "")]), "Nenhum barrado subiu 50% ou mais.");
+    // 0.31.92 (pedido do dono): botão Comprar ao lado do token barrado (mesmo botão e regras do Comprar da Base)
+    table("exFunUp", ["Barrado que subiu", "Desde que foi visto", "Motivo", ""], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", '<span class="wrapcell">' + esc(b.motivo || "") + "</span>",
+      '<button class="btn sm primary" data-buy="' + esc(b.mint) + '" data-sym="' + esc(b.symbol || "") + '">Comprar</button>']), "Nenhum barrado subiu 50% ou mais.");
   }
   async function saveAutoCfg(body) {
     if (EX_AUTO.saving) return;

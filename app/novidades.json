@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.92",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Explorar → Funil do filtro → Barrado que subiu",
+      "titulo": "Botão Comprar nos tokens barrados que subiram",
+      "oque": "Cada token da lista 'Barrado que subiu' tem um botão Comprar ao lado. É o mesmo botão da Base da pump.fun: pede confirmação e compra com os valores prontos do botão Comprar (fictícia sempre; real só com a execução real ligada)."
+    },
+    {
       "versao": "0.31.91",
       "data": "2026-10-28",
       "tipo": "melhoria",

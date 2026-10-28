@@ -1013,3 +1013,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`rollup`, `trend`) + `hub.rlog_daily` (de hora em hora no `rlog_loop`, dias fechados UTC, até 60 para trás) → tabela `robot_daily`
   (migração `20261028000005`); `GET /api/pump/robot-log/dias?modulo=` (admin); quadro "Aprendizado dos logs" em cada aba
   (`loadRobotDays`); períodos até 90 dias. `tests/test_robot_daily.py`.
+
+- 0.31.92: botão `data-buy` (o do Comprar da Base, `pump_manual_*`) em cada linha de `#exFunUp`. Pedido do dono.
