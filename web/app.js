@@ -390,7 +390,8 @@
     let saved = {}; try { saved = JSON.parse(localStorage.getItem("pf_sanf") || "{}"); } catch (e) { /* */ }
     document.querySelectorAll("section.view .card").forEach((card, i) => {
       const view = card.closest("section.view").dataset.view, h = card.querySelector(":scope > header");
-      if (!h || card.classList.contains("sanf") || ["real", "estudo", "tradercfg"].includes(view) || /Share$/.test(card.id || "")) return;
+      // 0.32.23: data-nosanf = quadro que nunca recolhe (o funil do Explorar "sumiu" ao ganhar as opções dos barrados, 28/10)
+      if (!h || card.hasAttribute("data-nosanf") || card.classList.contains("sanf") || ["real", "estudo", "tradercfg"].includes(view) || /Share$/.test(card.id || "")) return;
       if (card.id !== "secretsCard" && !card.hasAttribute("data-sanf") && card.querySelectorAll("[data-cfg],[data-toggle],[data-set]").length < 3) return;
       const key = view + ":" + ((card.querySelector("h2") || {}).textContent || i).toString().trim().slice(0, 40);
       card.classList.add("sanf"); card.classList.toggle("fechado", saved[key] !== 1);

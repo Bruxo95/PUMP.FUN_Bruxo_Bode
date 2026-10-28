@@ -870,6 +870,11 @@
    "versao": "0.32.22",
    "inicio": "2026-10-28T22:45:00+00:00",
    "titulo": "barrados: preço ao vivo e simulação de entrar cedo"
+  },
+  {
+   "versao": "0.32.23",
+   "inicio": "2026-10-28T22:55:00+00:00",
+   "titulo": "funil do Explorar volta a aparecer aberto"
   }
  ]
 }

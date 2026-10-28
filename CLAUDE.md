@@ -1144,3 +1144,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.22: `barred_watch` (até 40 barrados não-segurança da última 1,5 h entram no `held()` do monitor = preço ao vivo), `barred_track`
   (no `lab_loop`: `hi`/`lo` e entradas virtuais por gatilho `BAR_TRIGGERS` 10/20/30/50% em `g["v"]`, saída pelas regras do botão Comprar
   ou 30 min, −4% de taxas) e `barred_sim` → `cedo` no funil; tabela `#exFunCedo`. Só mede. Pedido do dono.
+
+- 0.32.23: `data-nosanf` = cartão que a `sanfona()` nunca recolhe (funil do Explorar). Cuidado: cartão que ganha 3+ campos vira sanfona fechada.
