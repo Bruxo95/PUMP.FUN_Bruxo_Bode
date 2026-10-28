@@ -745,6 +745,11 @@
    "versao": "0.31.97",
    "inicio": "2026-10-28T11:41:51+00:00",
    "titulo": "lista das carteiras no Radar"
+  },
+  {
+   "versao": "0.31.98",
+   "inicio": "2026-10-28T11:57:27+00:00",
+   "titulo": "compras das carteiras em 24 h, 48 h, 3 e 7 dias"
   }
  ]
 }

@@ -1037,3 +1037,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.97: `GET /api/pump/radar` devolve `lista` (study_wallets da conta + compras 24 h + última compra das calls + online);
   quadro `#rdList` no Radar. Pedido do dono ("ver a lista, não só números").
+
+- 0.31.98: `lista` do `GET /api/pump/radar` conta compras em 24 h/48 h/3 d/7 d e a última pela tabela `wallet_trades` (histórico das
+  Carteiras em estudo, desde a 0.14.0), não só pelas calls. Pedido do dono.

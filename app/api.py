@@ -503,13 +503,27 @@ def create_app(hub, auth, cfg) -> FastAPI:
             rows = await hub.db.select("study_wallets", {"user_id": pf.user_id}, order="criado_em.asc")
         except Exception:
             rows = []
-        buys = r.get("compras") or []
+        # 0.31.98 (pedido do dono): 24 h, 48 h, 3 e 7 dias, do histórico que as Carteiras em estudo já guardam desde a
+        # 0.14.0 (tabela wallet_trades), não só das calls (que começaram na 0.31.94)
+        import time
+        from datetime import datetime, timezone
+        from .auto_trades import ts as _ts
+        now = time.time()
+        since = datetime.fromtimestamp(now - 7 * 86400, timezone.utc).isoformat()
         lst = []
         for x in rows:
-            mine = [b for b in buys if b["wallet"] == x["wallet"]]
-            lst.append({"wallet": x["wallet"], "apelido": x.get("apelido"), "desde": x.get("criado_em"), "compras_24h": len(mine),
-                        "ultima": mine[0] if mine else None, "online": pf.is_online(x["wallet"]) if hasattr(pf, "is_online") else None})
-        r["lista"] = sorted(lst, key=lambda y: -(y["ultima"]["t"] if y["ultima"] else 0))
+            try:
+                tr = await hub.db.select("wallet_trades", {"wallet": x["wallet"], "side": "buy"}, order="at.desc", limit=500, gte={"at": since})
+            except Exception:
+                tr = []
+            ages = [now - (_ts(t.get("at")) or 0) for t in tr]
+            last = tr[0] if tr else None
+            lst.append({"wallet": x["wallet"], "apelido": x.get("apelido"), "desde": x.get("criado_em"),
+                        "compras": {k: sum(1 for a in ages if a <= h * 3600) for k, h in (("24h", 24), ("48h", 48), ("3d", 72), ("7d", 168))},
+                        "ultima": {"mint": last["mint"], "symbol": (hub.market.tokens.get(last["mint"]) or {}).get("symbol"), "t": _ts(last.get("at")),
+                                   "sol": last.get("sol")} if last else None,
+                        "online": pf.is_online(x["wallet"]) if hasattr(pf, "is_online") else None})
+        r["lista"] = sorted(lst, key=lambda y: -((y["ultima"] or {}).get("t") or 0))
         return r
 
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)

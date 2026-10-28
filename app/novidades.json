@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.98",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Calls e Radar → Radar de KOLs → Suas carteiras na lista",
+      "titulo": "Compras das carteiras em 24 h, 48 h, 3 e 7 dias",
+      "oque": "A lista das suas carteiras no Radar mostra quantas compras cada uma fez em 24 h, 48 h, 3 dias e 7 dias e a última compra. Usa o histórico que as Carteiras em estudo já guardam há dias, então os números aparecem na hora (não só desde hoje)."
+    },
+    {
       "versao": "0.31.97",
       "data": "2026-10-28",
       "tipo": "melhoria",

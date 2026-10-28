@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "998d37306d01006bb80bd6f5fe4141c59fa4e033",
-    "application_version": "0.31.97 · 2026-10-28 · lista das carteiras no Radar",
+    "repository_reference": "627fbd8bb0b4e62db0bd819934897e4daba4cc94",
+    "application_version": "0.31.98 · 2026-10-28 · compras das carteiras em 24 h, 48 h, 3 e 7 dias",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "6f49ebf11d650e15882506080e9ad6415e20ad318c3a793d02904c0630355f7e",
+      "app/version.py": "fc245705932b566663cfc20bced809753753569717b43f4abd01b1b99d4e8742",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "cd5f93b71fe7f6b6d5a597e71cf52ee00df562657111194979167e00a93f3a27"
+  "pdf_sha256": "dd23c1cdf6a1e1fc6fa77a678f14f999deea888083741d2d0ad8d1604bcd7d9a"
 }

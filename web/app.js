@@ -1380,9 +1380,10 @@
     if (!$("rdBuys") || !r) return;
     const B = r.compras || [], W = r.ondas_guardadas || [], L = r.lista || [];
     // 0.31.97 (pedido do dono): a lista das carteiras, não só o número
-    if ($("rdList")) table("rdList", ["Carteira", "Apelido", "Na lista desde", "Online", "Compras 24 h", "Última compra"], L.map((x) => [pfW(x.wallet), esc(x.apelido || "–"),
-      x.desde ? dt(x.desde) : "–", x.online == null ? "–" : x.online ? '<span class="tag win">online</span>' : '<span class="tag neutral">offline</span>', String(x.compras_24h),
-      x.ultima ? pfM(x.ultima.mint, x.ultima.symbol) + "<small>há " + hms(Date.now() / 1000 - x.ultima.t) + " · " + s4(x.ultima.sol) + " SOL</small>" : '<span class="dim">nenhuma em 24 h</span>']),
+    const cp = (x, k) => String(((x.compras || {})[k]) || 0);
+    if ($("rdList")) table("rdList", ["Carteira", "Apelido", "Na lista desde", "Online", "Compras 24 h", "48 h", "3 dias", "7 dias", "Última compra"], L.map((x) => [pfW(x.wallet), esc(x.apelido || "–"),
+      x.desde ? dt(x.desde) : "–", x.online == null ? "–" : x.online ? '<span class="tag win">online</span>' : '<span class="tag neutral">offline</span>', cp(x, "24h"), cp(x, "48h"), cp(x, "3d"), cp(x, "7d"),
+      x.ultima ? pfM(x.ultima.mint, x.ultima.symbol) + "<small>há " + hms(Date.now() / 1000 - x.ultima.t) + (x.ultima.sol != null ? " · " + s4(x.ultima.sol) + " SOL" : "") + "</small>" : '<span class="dim">nenhuma em 7 dias</span>']),
       "Sua lista está vazia: adicione carteiras em Carteiras em estudo.");
     $("rdBuysSub").textContent = B.length + " compras de " + (r.carteiras_n || 0) + " carteiras nas últimas 24 h · guardadas no banco";
     table("rdBuys", ["Quando", "Carteira", "Token", "Pagou", "MC na call", "Desde a entrada", "Pico", "Vendeu"], B.map((x) => [dt(new Date(x.t * 1000).toISOString()),
