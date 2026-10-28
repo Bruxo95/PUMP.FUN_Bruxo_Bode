@@ -1059,3 +1059,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   memória). Rotas `/api/pump/false-gains[?check=0]` e `/false-gains/ai` (admin). Relatórios → aba Ganhos falsos. Só leitura e marca:
   nenhum total, trade ou configuração muda. Pesquisa do ChatGPT de 28/10 (graduação, sinais, priority fee, mercado 30 dias, iscas)
   conferida em `PUMP-FUN-LEARNING/conferencia-claude-graduacao-riscos-mercado-2026-10-28.md`; nada aplicado no robô.
+
+- 0.32.2: acesso SÓ LEITURA ao banco para a IA (pedido do dono, caminho 1). Migração `20261028000009_leitor_ia_somente_leitura.sql`:
+  role `leitor_ia` (NOLOGIN até o dono pôr a senha no SQL Editor; `default_transaction_read_only`, 30 s por consulta; SELECT +
+  política `leitor_ia: ler` nas tabelas de dados; fora `user_secrets`, `app_secrets`, `audit_log`; `profiles` sem e-mail).
+  `scripts/ler_banco.py` (só biblioteca padrão: TLS + SCRAM-SHA-256; lê `~/.secrets/pump.env` → `PUMP_DB_URL` do Session pooler
+  com usuário `leitor_ia.vnvfluimpqvxbvdbmwqa`; recusa o que não for consulta). Passo a passo: `docs/LEITOR-BANCO.md`.
+  Teste `tests/test_ler_banco.py` (vetor do RFC 7677). Conexão real ainda não testada (falta a senha do dono).
+

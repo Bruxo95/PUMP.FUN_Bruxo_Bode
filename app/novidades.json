@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.32.2",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Bastidores (banco de dados)",
+      "titulo": "A IA pode ler o banco sem conseguir mudar nada",
+      "oque": "Foi criado um usuário de banco só de leitura (leitor_ia). Ele lê trades, sombras, calls e logs para as revisões, mas não escreve, não vê chaves e não vê e-mails. Ele só começa a funcionar quando o dono criar a senha (passo a passo em docs/LEITOR-BANCO.md). Nada muda no painel nem nos trades."
+    },
+    {
       "versao": "0.32.1",
       "data": "2026-10-28",
       "tipo": "novo",
