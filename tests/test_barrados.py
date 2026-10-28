@@ -74,3 +74,14 @@ def test_buy_from_barred_list_keeps_origin_label(tmp_path):
     pf.tokens[M] = {"price": 1e-6, "symbol": "BAR", "mcap_sol": 40.0}
     pf.manual_buy(M, target="sim", origem="barrado_btn")
     assert [p["origem"] for p in pf.positions() if p["mint"] == M] == ["barrado_btn"]
+
+
+def test_absurd_rise_is_ignored(tmp_path):
+    """0.32.30 (HOUSECOIN +5.505%): alta de 20× ou mais sai da simulação e da entrada automática."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    pf.cfg.pump_bar_auto_on = True
+    now = _row(pf, "veredito não é chance alta", chg=56.0)
+    pf.barred_track(now)
+    assert pf._ex_funnel[M].get("suspeito") and not pf._ex_funnel[M].get("v")
+    assert pf.barred_auto(now) == []

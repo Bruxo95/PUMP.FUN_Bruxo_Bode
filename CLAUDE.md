@@ -1164,3 +1164,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.29: migração `20261028000013` (só o dono): `pump_bar_min_gain` 20 e `pump_bar_min_vol_usd` 0. Origem `barrado_btn` (Comprar da lista de
   barrados; `data-orig`, aceito na rota) e etiqueta `.tag.barr` no `pfW`. Relatório `app/relatorios_ia/2026-10-28-0.32.29.md`.
+
+- 0.32.30: `barred_track`/`barred_auto`/`barred_sim` ignoram barrado com alta ≥ `SUSPECT_PCT` (marca `g["suspeito"]`). Caso HOUSECOIN.

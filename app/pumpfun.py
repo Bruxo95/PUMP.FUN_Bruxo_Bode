@@ -2512,6 +2512,7 @@ class PumpFun:
         segurança), guarda o pico e a pior queda desde que foi visto e simula entrar quando ele sobe +10/+20/+30/+50%,
         saindo pelas regras do botão Comprar (stop, alvo, stop móvel) ou em 30 min, já descontando ~4% de taxas.
         Só mede: nada é comprado aqui. O resultado mostra qual gatilho teria dado lucro."""
+        from .auto_trades import SUSPECT_PCT
         now = time.time() if now is None else now
         r = self.manual_rules()
         stop, tp = float(r["stop_pct"]), float(r["tp_pct"] or 0)
@@ -2524,6 +2525,11 @@ class PumpFun:
             if not px or not px0 or now - float(tk.get("last_t") or 0) > 120:
                 continue
             chg = (px / px0 - 1) * 100
+            # 0.32.30 (HOUSECOIN +5.505% com "pior queda" +4.182%, 28/10): alta de 20× ou mais é quase sempre preço errado
+            # (curva cotada em outra moeda). O token sai da simulação e da entrada automática.
+            if chg >= SUSPECT_PCT or g.get("suspeito"):
+                g["suspeito"] = True
+                continue
             g["hi"] = round(max(chg, g.get("hi", chg)), 1)
             g["lo"] = round(min(chg, g.get("lo", chg)), 1)
             v = g.setdefault("v", {})
@@ -2553,7 +2559,7 @@ class PumpFun:
     def barred_sim(self) -> list[dict]:
         rows = []
         for T in self.BAR_TRIGGERS:
-            tr = [(g.get("v") or {}).get(str(T)) for g in (getattr(self, "_ex_funnel", None) or {}).values()]
+            tr = [(g.get("v") or {}).get(str(T)) for g in (getattr(self, "_ex_funnel", None) or {}).values() if not g.get("suspeito")]
             done = [x for x in tr if x and "out" in x]
             opn = [x for x in tr if x and "out" not in x]
             wins = sum(1 for x in done if x["out"] > 0)
@@ -2575,6 +2581,7 @@ class PumpFun:
         hour = [x for x in done.values() if now - x < 3600]
         if len(hour) >= int(self._c("pump_bar_max_h", 4)):
             return []
+        from .auto_trades import SUSPECT_PCT
         gain, vol_min = float(self._c("pump_bar_min_gain", 50)), float(self._c("pump_bar_min_vol_usd", 20000))
         held = {p["mint"] for p in self.positions() if not p.get("real")}
         out = []
@@ -2588,6 +2595,8 @@ class PumpFun:
             if not px or not px0 or now - float((self.tokens.get(mint) or {}).get("last_t") or 0) > 180:
                 continue
             chg = (px / px0 - 1) * 100
+            if chg >= SUSPECT_PCT or g.get("suspeito"):
+                continue                                   # 0.32.30: preço provavelmente errado (20× ou mais)
             vol = g.get("vol")
             if chg < gain or (vol_min > 0 and (vol is None or float(vol) < vol_min)):
                 continue                                   # volume mínimo 0 = não exige o dado de volume
