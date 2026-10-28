@@ -770,6 +770,11 @@
    "versao": "0.32.2",
    "inicio": "2026-10-28T16:10:00+00:00",
    "titulo": "leitor só leitura do banco para a IA"
+  },
+  {
+   "versao": "0.32.3",
+   "inicio": "2026-10-28T16:40:00+00:00",
+   "titulo": "real separada da fictícia; status das APIs"
   }
  ]
 }

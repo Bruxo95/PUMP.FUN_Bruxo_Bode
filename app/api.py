@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 import hashlib
@@ -147,6 +148,16 @@ def create_app(hub, auth, cfg) -> FastAPI:
         snap["real"]["allowed"] = hub.real_allowed
         snap["version"] = VERSION
         snap["started_at"] = STARTED_AT
+        # 0.32.3 (sugestão do Bruxo): os contadores do monitor recomeçam a cada reinício; o painel mostra desde quando
+        # e o estado de cada API (ok / com erro) embaixo do menu
+        snap["uptime_s"] = round(time.time() - hub.started_at)
+        jst = (hub.market.jup.status if getattr(hub.market, "jup", None) else None) or {}
+        snap["apis"] = {"jupiter": {"ok": jst.get("on"), "error": jst.get("error")},
+                        "solana_tracker": {"ok": bool(pf.lb_key()) and not (pf.lb_status or {}).get("error"),
+                                           "error": (pf.lb_status or {}).get("error"), "at": (pf.lb_status or {}).get("at")},
+                        "banco": {"ok": not getattr(pf.store, "last_error", None),
+                                  "error": (str(getattr(pf.store, "last_error", "") or "")[:120]) or None,
+                                  "fila": len(getattr(pf.store, "_q", []) or [])}}
         return snap
 
     @app.post("/api/pump/settings")

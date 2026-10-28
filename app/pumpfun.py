@@ -1021,7 +1021,12 @@ class PumpFun:
             msgs = []
             # REAL (se ligado): compra de verdade, com o valor de "SOL por compra". Com o espelho (0.31.37) o real só
             # entra DEPOIS que o fictício abriu a posição (ver _mirror_real, no fim deste bloco)
-            if self.real is not None and getattr(c, "pump_real_enabled", False) and not getattr(c, "pump_real_mirror", True):
+            # 0.32.3 — sugestão do Bruxo (áudio de 28/10, SPCX): com o espelho, a real só entrava quando a FICTÍCIA abria; se a
+            # fictícia já tinha o token, a real ficava de fora ("já tem posição copiada"). Agora as duas carteiras têm posições
+            # separadas: a fictícia já ter o token não impede a real de comprar (ela segue as vendas do trader e os stops).
+            alone = (self.real is not None and getattr(c, "pump_real_enabled", False) and getattr(c, "pump_real_mirror", True)
+                     and any(not p.get("real") for p in mine))
+            if self.real is not None and getattr(c, "pump_real_enabled", False) and (alone or not getattr(c, "pump_real_mirror", True)):
                 rwhy = None
                 if not self.is_pump(mint) and not getattr(c, "pump_copy_other_real", False):
                     rwhy = "fora da pump.fun: real desligado para outras DEXs (só fictício)"
@@ -1039,7 +1044,8 @@ class PumpFun:
                     self._rq_put(("buy", {"wallet": who, "mint": mint, "symbol": sym, "trader_sol": sol,
                                           "trader_price": self.price_of(ev) or px, "mcap_in": tk.get("mcap_sol"), "t": t,
                                           "block_t": ev.get("blockTime")}))
-                    self._feed(**base, action="REAL: comprando", reason=f"enviando compra de {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL")
+                    self._feed(**base, action="REAL: comprando", reason=f"enviando compra de {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL"
+                               + (" · a fictícia já tinha este token; a real entra separada" if alone else ""))
             # FICTÍCIO (sempre roda, para comparar)
             smine = [p for p in mine if not p.get("real")]
             mult, mwhy = self.trust_mult(who)
@@ -1055,7 +1061,7 @@ class PumpFun:
             lag = round(max(0.0, t - float(bt)), 1) if bt else None     # do trade do trader até a nossa cópia
             swhy = None
             if smine:
-                swhy = "já tem posição copiada neste token"
+                swhy = "já tem posição copiada neste token (fictícia)"
             elif len([p for p in allpos if not p.get("real")]) >= int(self._c("pump_max_open", 10)):
                 swhy = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
             elif self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
@@ -2374,7 +2380,10 @@ class PumpFun:
             self._emit(f"[PUMP SIM] compra {'automática' if auto else 'manual'}: {sym} {amt:.3f} SOL" + (f" ({auto})" if auto else ""))
             out["sim"] = f"comprou {amt:.3f} SOL na carteira fictícia"
             self._lead("open", p)
-        if own_auto and not out.get("auto_id"):
+        # 0.32.3 — sugestão do Bruxo (28/10, SPCX): a fictícia JÁ TER o token não é falha; a real tem posições separadas e
+        # pode entrar mesmo assim. Qualquer outro motivo da fictícia (limite, saldo) continua barrando a real automática.
+        sim_has = out["sim"] == "já tem posição fictícia neste token"
+        if own_auto and not out.get("auto_id") and not sim_has:
             return out                              # uma falha fictícia não dispara compra real automática
         if origem == "calls":
             return out                              # 0.31.99, item 4: compra automática das Calls é SÓ na fictícia
@@ -2395,8 +2404,10 @@ class PumpFun:
                                       "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t,
                                       "sim_id": (sim_pos or {}).get("id") if mirror else None,
                                       "pos_cfg": {**rules, "manual": True,
-                                                  **({"auto": True, "origem": origem, "auto_info": copy.deepcopy(p["auto_info"])} if own_auto else {})}}))
-                self._feed(**base, action="REAL: comprando", reason="compra manual enviada para a fila real")
+                                                  **({"auto": True, "origem": origem,
+                                                      "auto_info": copy.deepcopy((sim_pos or {}).get("auto_info") or info or {})} if own_auto else {})}}))
+                self._feed(**base, action="REAL: comprando", reason="compra manual enviada para a fila real"
+                           + (" · a fictícia já tinha este token; a real entra separada" if sim_has else ""))
                 out["real"] = f"enviando compra real de até {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL"
         return out
 

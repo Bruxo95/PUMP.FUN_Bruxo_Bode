@@ -120,6 +120,8 @@ class SharedMonitor:
                     url = str(self.hub.cfg.defaults.get("pump_rpc_ws") or "wss://api.mainnet-beta.solana.com")
                 async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
                     connected_time = time.time()
+                    if st.get("connected_at"):          # 0.32.3 (Bruxo): quantas vezes a conexão caiu e voltou
+                        st["reconnects"] = st.get("reconnects", 0) + 1
                     st.update(ws=True, connected_at=now_iso(), error=None)
                     log.info("Monitor compartilhado conectado à Solana")
                     self._subs, pending, nid = {}, {}, 100
@@ -220,6 +222,7 @@ class SharedMonitor:
             return
         try:
             self._tx_q.put_nowait((w, sig, now))
+            st["queued"] = st.get("queued", 0) + 1     # 0.32.3: avisos que foram para leitura (funil do status)
         except asyncio.QueueFull:
             st["dropped"] = st.get("dropped", 0) + 1
 
@@ -249,6 +252,7 @@ class SharedMonitor:
         if ev and w in self.hub.elite.wallets():
             self.elite_event(w, ev)                             # maiores traders (0.31.2)
         if not ev:
+            st["not_trade"] = st.get("not_trade", 0) + 1     # transação lida, mas não era compra/venda de token
             return
         st["parsed"] += 1
         st["last_event"] = time.time()

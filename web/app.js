@@ -2050,8 +2050,19 @@
     $("sysT").textContent = "Monitor " + (RP.ws ? "ON" : "OFF");
     // 0.31.83 (sugestão do Bruxo): status completo do monitor embaixo do menu
     const PPs = D.status || {}, ago = (t) => t ? "há " + hms(Math.max(0, Date.now() / 1000 - t)) : "–";
-    $("sysS").innerHTML = (RP.ws ? "Solana RPC: conectado · " + (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades · último " + ago(RP.last_event) : "Solana RPC: " + esc(RP.error || "aguardando o monitor compartilhado")) +
-      "<br>PumpPortal: " + (PPs.ws ? "conectado · tokens novos " + (PPs.new_tokens || 0) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado"));
+    // 0.32.3 (sugestão do Bruxo, comparação com a plataforma antiga): os contadores recomeçam a cada atualização do sistema,
+    // então mostra desde quando e por hora; o funil dos avisos da Solana e o estado de cada API (ok / não ok)
+    const up = D.uptime_s || 0, perH = (n) => (up > 300 ? " (" + f((n || 0) / up * 3600, 0) + "/h)" : "");
+    const okb = (ok, why) => (ok ? '<span class="up">ok</span>' : '<span class="down" title="' + esc(why || "") + '">não ok</span>');
+    const A = D.apis || {}, RL = D.real || {};
+    $("sysS").innerHTML = "<small>contando desde " + esc(D.started_at || "–") + " (há " + hms(up) + "): os números zeram a cada atualização do sistema</small>" +
+      "<br>Solana RPC: " + okb(RP.ws, RP.error) + (RP.ws ? " · " + (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : " · " + esc(RP.error || "aguardando o monitor compartilhado")) +
+      "<br><small>avisos " + (RP.notifs || 0) + " → lidos " + (RP.queued || 0) + " → trades " + (RP.parsed || 0) + " · não eram trade " + (RP.not_trade || 0) +
+      " · atrasados " + (RP.stale || 0) + " · falhas " + (RP.tx_errors || 0) + (RP.dropped ? " · fila cheia " + RP.dropped : "") + " · reconexões " + (RP.reconnects || 0) + "</small>" +
+      "<br>PumpPortal: " + okb(PPs.ws, PPs.error) + (PPs.ws ? " · tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : " · " + esc(PPs.error || "desconectado")) +
+      "<br>Preços: " + okb(!RP.price_error, RP.price_error) + " · Jupiter: " + okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error) +
+      " · Solana Tracker: " + okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave") + " · Banco: " + okb((A.banco || {}).ok !== false, (A.banco || {}).error) +
+      "<br>Carteira real: " + (RL.wallet_configured ? '<span class="up">configurada</span>' : '<span class="down">não configurada</span>') + " · execução " + (RL.enabled ? "ON" : "OFF");
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
     // 0.31.70 (pedido do dono): campo em HORAS para uma opção guardada em minutos (ex.: tempo máximo das automáticas)

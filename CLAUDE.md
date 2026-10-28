@@ -1067,3 +1067,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   com usuário `leitor_ia.vnvfluimpqvxbvdbmwqa`; recusa o que não for consulta). Passo a passo: `docs/LEITOR-BANCO.md`.
   Teste `tests/test_ler_banco.py` (vetor do RFC 7677). Conexão real ainda não testada (falta a senha do dono).
 
+- 0.32.3 (sugestões do Bruxo, áudios de 28/10): real separada da fictícia. Em `_copy`, com o espelho, se só a FICTÍCIA tem o token
+  (`alone`), a compra do trader vai para a real pelo caminho direto (sem `sim_id`); em `manual_buy`, `sim_has` deixa a automática
+  ir para a real quando o único motivo da fictícia é já ter o token. A fictícia não mudou. Status `#sysS`: `uptime_s` e `apis`
+  (Jupiter, Solana Tracker, banco) no `/api/pump`; funil `queued`/`not_trade`/`reconnects` em `rpc_status` (monitor).
+  Os contadores zeram a cada reinício. Relatório `app/relatorios_ia/2026-10-28-0.32.3.md`. Teste `tests/test_real_separada.py`.
+

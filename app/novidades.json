@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.32.3",
+      "data": "2026-10-28",
+      "tipo": "correção",
+      "onde": "Execução real · status do monitor embaixo do menu",
+      "titulo": "A real compra mesmo quando a fictícia já tem o token; status de cada API",
+      "oque": "Sugestão do Bruxo. Antes, se a carteira fictícia já tinha um token (ex.: SPCX), a real não comprava ('já tem posição copiada'). Agora as duas carteiras têm posições separadas: entram e saem juntas, mas cada uma com os seus tokens. O status embaixo do menu mostra desde quando está contando (os números zeram a cada atualização), trades e tokens novos por hora, o caminho dos avisos da Solana e ok / não ok de cada API e da carteira real."
+    },
+    {
       "versao": "0.32.2",
       "data": "2026-10-28",
       "tipo": "melhoria",
