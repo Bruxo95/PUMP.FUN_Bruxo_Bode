@@ -1801,7 +1801,8 @@ class PumpFun:
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
 
-    async def _get_tx(self, sig: str) -> dict | None:
+    async def _get_tx(self, sig: str, why: list | None = None) -> dict | None:
+        """`why` (0.32.7): recebe o motivo de cada tentativa que falhou, para a tela de falhas de leitura do monitor."""
         urls = []
         own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
         if own and "api.mainnet-beta.solana.com" not in own:
@@ -1814,11 +1815,24 @@ class PumpFun:
                 try:
                     r = await self.http.post(u, json=body, timeout=10)
                     if r.status_code == 429:
+                        if why is not None:
+                            why.append("HTTP 429 (limite do RPC)")
                         continue
-                    res = (r.json() or {}).get("result")
+                    if r.status_code >= 400:
+                        if why is not None:
+                            why.append(f"HTTP {r.status_code}")
+                        continue
+                    js = r.json() or {}
+                    res = js.get("result")
                     if res:
                         return res
-                except Exception:
+                    if why is not None:
+                        err = js.get("error") or {}
+                        why.append(f"erro do RPC: {str(err.get('message') or err)[:80]}" if err
+                                   else "transação ainda não disponível (result vazio)")
+                except Exception as e:
+                    if why is not None:
+                        why.append(type(e).__name__)
                     continue
             await asyncio.sleep(1.0 + attempt)
         return None

@@ -240,3 +240,21 @@ def test_top_trader_going_online_fills_free_slot_right_away(setup):
     assert a._rank_at == 0 and b._rank_at != 0                         # só quem tem o trader no top e vaga
     a.refresh_followed()
     assert a.followed == [WA]
+
+
+def test_read_failures_are_logged_with_reason_for_the_status_screen(setup):
+    """0.32.7 (pedido do dono): cada leitura que falha ou atrasa fica registrada com o motivo."""
+    import time as _t
+    a, mon = setup["a"], setup["mon"]
+    a.add_manual(WA)
+
+    async def fail(sig, why=None):
+        why.append("HTTP 429 (limite do RPC)")
+        return None
+    mon.svc._get_tx = fail
+    _run(mon.handle_tx(WA, "sigfail", _t.time()))
+    _run(mon.handle_tx(WA, "sigold", _t.time() - 500))
+    r = mon.rpc_report("falha")
+    assert r["linhas"][0]["sig"] == "sigfail" and r["linhas"][0]["copiada"] is True
+    assert r["motivos"][0]["motivo"] == "HTTP 429 (limite do RPC)"
+    assert mon.rpc_report("atrasado")["linhas"][0]["sig"] == "sigold"

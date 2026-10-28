@@ -1747,7 +1747,9 @@
       $("eqList").blur(); loadEq(); return;
     }
     if (t.closest && t.closest("#sysBox")) { openSys(); return; }
-    if (t.id === "sysMX") { $("sysM").hidden = true; return; }
+    if (t.id === "sysMX") { $("sysM").hidden = true; SYS_SUB = null; return; }
+    if (t.dataset.rpclog) { openRpcLog(t.dataset.rpclog); return; }
+    if (t.dataset.rpcback) { openSys(); return; }
     if (t.id === "flOn" || t.id === "flOff") {
       const uid = t.id === "flOn" ? $("flSel").value : "";
       if (t.id === "flOn" && !uid) { toast("Escolha a conta primeiro."); return; }
@@ -2064,6 +2066,8 @@
   let SYS_HTML = null;
   function sysDetail(D, RP, PPs, A, RL, up, perH, okb, ago) {
     const row = (k, st, v) => "<tr><td><b>" + k + "</b></td><td>" + st + "</td><td>" + v + "</td></tr>";
+    // 0.32.7 (pedido do dono): cada linha do funil abre a lista do que aconteceu
+    const open = (k, tipo) => '<button class="linkbtn" data-rpclog="' + tipo + '">' + k + " ›</button>";
     const late = RP.queued ? Math.round((RP.stale || 0) / RP.queued * 100) : 0;
     return '<div class="tbl-wrap"><table class="systbl"><thead><tr><th>Serviço</th><th>Situação</th><th>Detalhe</th></tr></thead><tbody>' +
       row("Solana RPC", okb(RP.ws, RP.error), RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado")) +
@@ -2076,13 +2080,43 @@
       "</tbody></table></div>" +
       '<h3 style="margin:16px 0 6px;font-size:13px">Transações da Solana (funil)</h3><div class="tbl-wrap"><table class="systbl"><tbody>' +
       row("Avisos recebidos", "", f(RP.notifs || 0, 0)) + row("Foram para leitura", "", f(RP.queued || 0, 0) + (RP.queued_hi ? " · das copiadas " + f(RP.queued_hi, 0) : "")) +
-      row("Viraram trade", "", f(RP.parsed || 0, 0)) + row("Não eram trade", "", f(RP.not_trade || 0, 0)) +
-      row("Atrasados (+2 min na fila)", late >= 20 ? '<span class="down">' + late + "%</span>" : late + "%", f(RP.stale || 0, 0) + (RP.stale_hi ? " · das copiadas " + f(RP.stale_hi, 0) : "")) +
-      row("Falhas de leitura", "", f(RP.tx_errors || 0, 0)) + (RP.dropped ? row("Fila cheia", "", f(RP.dropped, 0)) : "") + row("Reconexões", "", f(RP.reconnects || 0, 0)) +
-      "</tbody></table></div>";
+      row(open("Viraram trade", "trade"), "", f(RP.parsed || 0, 0)) + row(open("Não eram trade", "nao_trade"), "", f(RP.not_trade || 0, 0)) +
+      row(open("Atrasados (+2 min na fila)", "atrasado"), late >= 20 ? '<span class="down">' + late + "%</span>" : late + "%", f(RP.stale || 0, 0) + (RP.stale_hi ? " · das copiadas " + f(RP.stale_hi, 0) : "")) +
+      row(open("Falhas de leitura", "falha"), (RP.tx_errors || 0) > (RP.parsed || 0) ? '<span class="down">mais falhas que trades</span>' : "", f(RP.tx_errors || 0, 0)) + (RP.dropped ? row("Fila cheia", "", f(RP.dropped, 0)) : "") + row("Reconexões", "", f(RP.reconnects || 0, 0)) +
+      "</tbody></table></div><p class=\"muted\" style=\"margin-top:8px\">Clique numa linha com › para ver as últimas 300 de cada tipo (motivo, carteira, transação).</p>";
+  }
+  const RPC_T = { falha: "Falhas de leitura", atrasado: "Atrasados (+2 min na fila)", nao_trade: "Não eram trade", trade: "Viraram trade" };
+  const RPC_HELP = {
+    falha: "O monitor pediu a transação ao RPC da Solana e não recebeu. HTTP 429 = o RPC público recusou por excesso de pedidos (limite grátis). 'result vazio' = a transação ainda não estava disponível. Cada falha tenta 4 vezes antes de desistir.",
+    atrasado: "O aviso esperou mais de 2 minutos na fila antes de ser lido e foi descartado (copiar tão tarde não faz sentido). Se a maioria for de 'estudo / maiores traders', as cópias não são afetadas: elas têm fila própria.",
+    nao_trade: "A transação foi lida, mas não era compra ou venda de token (transferência, criação de conta, etc.).",
+    trade: "A transação virou compra ou venda. 'lido X s depois do aviso' mostra o atraso até o sistema saber do trade." };
+  let SYS_SUB = null;
+  async function openRpcLog(tipo) {
+    SYS_SUB = tipo;
+    $("sysMT").textContent = RPC_T[tipo] || tipo;
+    $("sysMB").innerHTML = '<p class="muted">carregando…</p>';
+    let r; try { r = await BB.api("/api/pump/monitor/leituras?tipo=" + encodeURIComponent(tipo)); } catch (e) { r = { error: String(e) }; }
+    if (SYS_SUB !== tipo) return;
+    if (!r || r.error) { $("sysMB").innerHTML = '<p class="down">' + esc((r && r.error) || "erro") + '</p><button class="btn sm" data-rpcback="1">‹ Voltar</button>'; return; }
+    const tm = (t) => t ? new Date(t * 1000).toLocaleTimeString("pt-BR") : "–";
+    const sol = (s) => s ? '<a href="https://solscan.io/tx/' + encodeURIComponent(s) + '" target="_blank" rel="noopener noreferrer">' + esc(s.slice(0, 8)) + "…</a>" : "–";
+    $("sysMB").innerHTML = '<div class="row" style="margin-bottom:10px"><button class="btn sm" data-rpcback="1">‹ Voltar ao status</button><button class="btn sm" data-rpclog="' + tipo + '">Atualizar</button></div>' +
+      '<div class="help"><p>' + esc(RPC_HELP[tipo] || "") + "</p></div>" +
+      '<p class="muted">Na fila agora: ' + r.fila.copiadas + " das copiadas · " + r.fila.outras + " das outras (estudo / maiores traders) · só memória, zera a cada atualização do sistema</p>" +
+      '<h3 style="margin:12px 0 6px;font-size:13px">Por motivo (últimas ' + r.linhas.length + ")</h3><div class=\"tbl-wrap\"><table id=\"rlM\" class=\"systbl\"></table></div>" +
+      (tipo === "falha" && r.motivos_falha_total.length ? '<h3 style="margin:12px 0 6px;font-size:13px">Cada tentativa que falhou (desde a atualização)</h3><div class="tbl-wrap"><table id="rlW" class="systbl"></table></div>' : "") +
+      '<h3 style="margin:12px 0 6px;font-size:13px">Por carteira</h3><div class="tbl-wrap"><table id="rlC" class="systbl"></table></div>' +
+      '<h3 style="margin:12px 0 6px;font-size:13px">Últimas leituras</h3><div class="tbl-wrap"><table id="rlL" class="systbl"></table></div>';
+    table("rlM", ["Motivo", "Quantas"], r.motivos.map((m) => ['<span class="wrapcell">' + esc(m.motivo) + "</span>", String(m.n)]), "Nada registrado ainda.");
+    if ($("rlW")) table("rlW", ["Motivo da tentativa", "Quantas"], r.motivos_falha_total.map((m) => [esc(m.motivo), String(m.n)]), "–");
+    table("rlC", ["Carteira", "Tipo", "Quantas"], r.por_carteira.map((c) => [pfW(c.wallet), c.copiada ? '<span class="tag win">copiada</span>' : '<span class="tag neutral">estudo / maiores</span>', String(c.n)]), "–");
+    table("rlL", ["Hora", "Carteira", "Copiada", "Motivo", "Detalhe", "Transação"], r.linhas.map((x) => [tm(x.t), pfW(x.wallet), x.copiada ? "sim" : "não",
+      '<span class="wrapcell">' + esc(x.motivo) + "</span>", '<span class="wrapcell">' + esc(x.extra || "") + "</span>", sol(x.sig)]), "Nada registrado ainda.");
   }
   function openSys() {
     if (!SYS_HTML) return;
+    SYS_SUB = null; $("sysMT").textContent = "Status do sistema";
     $("sysMS").textContent = "contando desde " + ((D && D.started_at) || "–") + " · os números zeram a cada atualização do sistema";
     $("sysMB").innerHTML = SYS_HTML();
     if ($("sysM").hidden) { $("sysM").hidden = false; $("sysMX").focus(); }
@@ -2111,7 +2145,7 @@
     $("sysS").innerHTML = (RP.ws ? (RP.subs || 0) + " carteiras · " : "") + (probs.length ? '<span class="down">' + probs.length + " com problema</span>" : '<span class="up">tudo ok</span>') + " · detalhes";
     $("sysBox").title = probs.length ? "Com problema: " + probs.join(", ") : "Tudo ok · clique para ver o status completo";
     SYS_HTML = () => sysDetail(D, RP, PPs, A, RL, up, perH, okb, ago);
-    if (!$("sysM").hidden) openSys();
+    if (!$("sysM").hidden && !SYS_SUB) openSys();
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
     // 0.31.70 (pedido do dono): campo em HORAS para uma opção guardada em minutos (ex.: tempo máximo das automáticas)

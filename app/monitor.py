@@ -50,6 +50,9 @@ class SharedMonitor:
         # 0.32.4: fila só das carteiras COPIADAS. Em 28/10 o status mostrou 139.115 lidas e 133.834 "atrasadas" (+2 min
         # na fila): as cópias esperavam atrás das carteiras de estudo/Maiores traders e quase tudo chegava velho demais.
         self._tx_hi: asyncio.Queue | None = None
+        # 0.32.7 (pedido do dono): amostra das últimas leituras de cada tipo, para abrir e analisar no status do sistema
+        self.rpc_log: dict[str, deque] = {k: deque(maxlen=300) for k in ("falha", "atrasado", "nao_trade", "trade")}
+        self.rpc_why: dict[str, int] = {}
         self._seen: deque = deque(maxlen=5000)
         self._subs: dict = {}
         self.lb_cache: dict = {}            # (dias, trades, acerto, plataforma) -> {"at", "rows", "status"}
@@ -234,6 +237,32 @@ class SharedMonitor:
         except asyncio.QueueFull:
             st["dropped"] = st.get("dropped", 0) + 1
 
+    def _rpc_note(self, kind: str, w: str, sig: str, t0: float, cop: bool, why: str, extra: str = "", mint=None) -> None:
+        self.rpc_log[kind].append({"t": time.time(), "aviso_t": t0, "wallet": w, "sig": sig, "copiada": cop,
+                                   "motivo": why, "extra": extra, "mint": mint})
+
+    def rpc_report(self, kind: str) -> dict:
+        """0.32.7: o que abrir ao clicar numa linha do funil do status (últimas 300 de cada tipo, só memória)."""
+        rows = list(self.rpc_log.get(kind) or [])[::-1]
+        def key(r):
+            if kind == "falha":
+                return r["motivo"]
+            if kind == "trade":
+                return r["motivo"].split(" ")[0]
+            return "carteira copiada" if r["copiada"] else "estudo / maiores traders"
+        mot: dict[str, int] = {}
+        for r in rows:
+            mot[key(r)] = mot.get(key(r), 0) + 1
+        por: dict[str, dict] = {}
+        for r in rows:
+            p = por.setdefault(r["wallet"], {"wallet": r["wallet"], "n": 0, "copiada": r["copiada"]})
+            p["n"] += 1
+        return {"tipo": kind, "linhas": rows[:300], "motivos": sorted(({"motivo": k, "n": n} for k, n in mot.items()),
+                                                                     key=lambda x: -x["n"]),
+                "por_carteira": sorted(por.values(), key=lambda x: -x["n"])[:30],
+                "motivos_falha_total": sorted(({"motivo": k, "n": n} for k, n in self.rpc_why.items()), key=lambda x: -x["n"]),
+                "fila": {"copiadas": self._tx_hi.qsize() if self._tx_hi else 0, "outras": self._tx_q.qsize() if self._tx_q else 0}}
+
     async def tx_worker(self, hi: bool = False) -> None:
         while (self._tx_hi if hi else self._tx_q) is None:
             await asyncio.sleep(0.5)
@@ -247,14 +276,21 @@ class SharedMonitor:
 
     async def handle_tx(self, w: str, sig: str, t0: float, tx: dict | None = None) -> None:
         st, svc = self.market.rpc_status, self.svc
+        cop = bool(self.followers(w))
         if time.time() - t0 > 120:                      # atrasou demais: copiar agora não faz sentido
             st["stale"] = st.get("stale", 0) + 1
-            if self.followers(w):
+            if cop:
                 st["stale_hi"] = st.get("stale_hi", 0) + 1
+            self._rpc_note("atrasado", w, sig, t0, cop, f"{time.time() - t0:.0f} s na fila")
             return
-        tx = tx or await svc._get_tx(sig)
+        t1, why = time.time(), []
+        tx = tx or await svc._get_tx(sig, why)
         if not tx:
             st["tx_errors"] += 1
+            for x in set(why) or {"sem motivo"}:
+                self.rpc_why[x] = self.rpc_why.get(x, 0) + 1
+            self._rpc_note("falha", w, sig, t0, cop, " · ".join(dict.fromkeys(why)) or "sem motivo",
+                           f"{time.time() - t1:.1f} s tentando, {len(why)} tentativas")
             return
         ev = svc.parse_trade(tx, w, self.market.sol_usd)
         if ev and any(w in (getattr(e, "study", []) or []) for e in self.engines()):
@@ -263,7 +299,10 @@ class SharedMonitor:
             self.elite_event(w, ev)                             # maiores traders (0.31.2)
         if not ev:
             st["not_trade"] = st.get("not_trade", 0) + 1     # transação lida, mas não era compra/venda de token
+            self._rpc_note("nao_trade", w, sig, t0, cop, "não mexeu em token contra SOL")
             return
+        self._rpc_note("trade", w, sig, t0, cop, f"{ev.get('txType')} {ev.get('solAmount', 0):.3f} SOL",
+                       f"lido {time.time() - t0:.1f} s depois do aviso", mint=ev.get("mint"))
         st["parsed"] += 1
         st["last_event"] = time.time()
         try:

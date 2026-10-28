@@ -1085,6 +1085,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def follow_post(body: dict, pf=Depends(admin_engine)):
         return await hub.follow_set(pf, str((body or {}).get("user_id") or ""))
 
+    @app.get("/api/pump/monitor/leituras")
+    async def monitor_reads(tipo: str = "falha", pf=Depends(admin_engine)):
+        """0.32.7 (pedido do dono): abrir cada linha do funil do status (falhas, atrasados, não eram trade, trades)."""
+        if tipo not in ("falha", "atrasado", "nao_trade", "trade") or hub.monitor is None:
+            return {"error": "tipo inválido ou monitor parado"}
+        return hub.monitor.rpc_report(tipo)
+
     @app.get("/api/pump/copy-equal")
     async def copy_equal_get(pf=Depends(admin_engine)):
         """0.32.4: "Copiar igual" — carteiras do leaderboard da pump.fun coladas à mão e o resultado de cada uma."""

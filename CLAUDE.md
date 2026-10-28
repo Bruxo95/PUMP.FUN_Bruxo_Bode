@@ -1084,3 +1084,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   dele (onlineguyat@gmail.com). Demais contas seguem com o Copiar igual desligado.
 
 - 0.32.6: funil do Explorar (`#exFunM` e `#exFunUp`) empilhado em `.funstack` (antes `grid2` lado a lado, texto espremido). Pedido do dono.
+
+- 0.32.7: `PumpFun._get_tx(sig, why)` guarda o motivo de cada tentativa (HTTP 429, result vazio, erro do RPC, exceção);
+  `SharedMonitor.rpc_log` (300 por tipo: falha/atrasado/nao_trade/trade, só memória) + `rpc_why` + `rpc_report`; rota
+  `GET /api/pump/monitor/leituras?tipo=` (admin); no modal `#sysM` as linhas do funil abrem `openRpcLog` (`SYS_SUB`). Pedido do dono.
+  Visto em 28/10 depois da 0.32.6: 16.287 lidas, 2 trades, 580 falhas, 14.161 atrasadas — o RPC público quase não responde.
