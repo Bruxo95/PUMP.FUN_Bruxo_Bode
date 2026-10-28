@@ -118,3 +118,13 @@ def test_blocked_users_are_not_loaded_at_start(env):
         return loaded
     loaded = asyncio.run(go())
     assert UC not in loaded and {UA, UB} <= loaded
+
+
+def test_false_gains_review_is_admin_only_and_read_only(env):
+    """0.32.1: revisão dos ganhos de +1.900% — só admin, sem rede com check=0, e não muda nenhum trade."""
+    c = env["c"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    assert c.get("/api/pump/false-gains?check=0", headers=B).status_code == 403
+    r = c.get("/api/pump/false-gains?check=0", headers=A)
+    assert r.status_code == 200 and r.json()["limite_pct"] == 1900.0 and "items" in r.json()
+    assert c.get("/api/pump/false-gains/ai", headers=A).status_code == 200

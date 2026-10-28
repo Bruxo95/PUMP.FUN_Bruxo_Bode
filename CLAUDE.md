@@ -1052,3 +1052,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.0: `_fee_rates(mint, real=False)` — a tabela oficial (`pump_swap_fee_official`) só vale com real=False; `_exit_value` passa
   `p["real"]` e a compra/venda real passam True. Migração `20261028000008`: liga a opção só na conta do dono (onlineguyat@gmail.com),
   pedido dele no chat. Plano para outra sessão: `docs/PLANO-MOEDAS-QUE-ACORDAM.md` (moedas dormentes que voltam a subir).
+
+- 0.32.1: revisão dos ganhos falsos (pedido do dono). `app/ganhos_falsos.py` (`collect`, `pair_real`, `judge`, `impact`, `report`, `ai_text`)
+  + `hub.false_gains` (trades de todas as contas com `pnl_pct` ou `best_pct` ≥ `SUSPECT_PCT`; moeda da curva lida on-chain pelo
+  `curve_quote`; preço em dólar na entrada/saída pela Solana Tracker `GET /price/history/timestamp`, até 30 tokens por revisão, cache em
+  memória). Rotas `/api/pump/false-gains[?check=0]` e `/false-gains/ai` (admin). Relatórios → aba Ganhos falsos. Só leitura e marca:
+  nenhum total, trade ou configuração muda. Pesquisa do ChatGPT de 28/10 (graduação, sinais, priority fee, mercado 30 dias, iscas)
+  conferida em `PUMP-FUN-LEARNING/conferencia-claude-graduacao-riscos-mercado-2026-10-28.md`; nada aplicado no robô.

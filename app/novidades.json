@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.32.1",
+      "data": "2026-10-28",
+      "tipo": "novo",
+      "onde": "Relatórios → Ganhos falsos",
+      "titulo": "Revisão dos ganhos de mil e tantos por cento",
+      "oque": "Procura em todas as contas os trades que mostraram ganho (ou melhor momento) de 20× ou mais, confere na blockchain se a curva do token é cotada em outra moeda (SPCX, TTWO, NTRNDM…) e busca o preço de mercado na entrada e na saída para dizer o resultado verdadeiro. Mostra se apareceu caso novo depois da correção da 0.31.52 e quanto esses ganhos pesam no total de cada conta. Nada é apagado nem escondido: os totais das outras telas continuam iguais."
+    },
+    {
       "versao": "0.32.0",
       "data": "2026-10-28",
       "tipo": "melhoria",

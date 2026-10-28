@@ -6,6 +6,7 @@ memória) e carteira/execução real próprias (desligada ao iniciar).
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
 import logging
 import math
@@ -813,6 +814,70 @@ class PumpHub:
                 if t.get("origem") == "explorar" and not t.get("real") and t.get("mint"):
                     out[t["mint"]] = {"pnl_pct": t.get("pnl_pct"), "sombra": False}
         return out
+
+    # ------------------------------------------------------------------ revisão dos ganhos falsos (0.32.1)
+    ST_PRICE_TS = "https://data.solanatracker.io/price/history/timestamp"
+    FALSE_MAX_PRICED = 30            # tokens consultados na Solana Tracker por revisão (2 créditos cada)
+
+    async def false_gains(self, pf: PumpFun | None = None, check: bool = True) -> dict:
+        """Todos os trades de +1.900% ou mais de TODAS as contas, com a moeda da curva lida on-chain e o preço de mercado
+        (Solana Tracker) na entrada e na saída. Só leitura e marca; nada é alterado. Pedido do dono em 2026-10-28."""
+        from . import ganhos_falsos as gf
+        accounts = []
+        for uid, e in list(self.engines.items()):
+            try:
+                accounts.append((uid, await self._nome(uid), e.trades(100000)))
+            except Exception:
+                continue
+        items = gf.collect(accounts)
+        gf.pair_real(items, {uid: T for uid, _, T in accounts})
+        chain: dict[str, dict] = {}
+        prices: dict[str, dict] = {}
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        mints = list(dict.fromkeys(i["mint"] for i in items if i.get("mint")))
+        if check and svc is not None and mints:
+            for k in range(0, len(mints), 100):
+                part = mints[k:k + 100]
+                pdas = {m: svc.curve_pda(m) for m in part}
+                keys = [v for v in pdas.values() if v]
+                vals = await svc._rpc_multi(keys, "base64", True) if keys else None
+                by = dict(zip(keys, vals)) if vals is not None else {}
+                for m, pda in pdas.items():
+                    if vals is None or not pda:
+                        chain[m] = {"quote": "não lida"}
+                        continue
+                    acc = by.get(pda)
+                    try:
+                        raw = base64.b64decode(acc["data"][0]) if acc else b""
+                    except Exception:
+                        raw = b""
+                    chain[m] = {"quote": "sem curva"} if len(raw) < 49 else {"quote": svc.curve_quote(raw) or "SOL"}
+        key = self._xray_key(pf) if check else ""
+        cache = self.__dict__.setdefault("_false_px", {})
+        if key:
+            todo = [i for i in items if (i.get("pnl_pct") or 0) >= gf.SUSPECT_PCT and i.get("mint")][: self.FALSE_MAX_PRICED]
+            for i in todo:
+                got = {}
+                for side, ts in (("in_usd", i.get("opened_at")), ("out_usd", i.get("closed_at"))):
+                    t = gf._ts(ts)
+                    if not t:
+                        continue
+                    ck = (i["mint"], int(t))
+                    if ck not in cache:
+                        try:
+                            r = await self.http.get(self.ST_PRICE_TS, params={"token": i["mint"], "timestamp": int(t)},
+                                                    headers={"x-api-key": key, "Accept": "application/json"}, timeout=15)
+                            p = float((r.json() or {}).get("price") or 0) if r.status_code == 200 else 0.0
+                        except Exception:
+                            p = 0.0
+                        cache[ck] = p or None
+                    got[side] = cache[ck]
+                prices[i["id"]] = got
+        items = [gf.judge(i, chain.get(i.get("mint")), prices.get(i.get("id"))) for i in items]
+        rep = gf.report(items, accounts)
+        rep["consultou_precos"] = bool(key)
+        self._false_last = rep
+        return rep
 
     async def xray_auto_once(self, now: float | None = None) -> int:
         """Raio-X automático (até XRAY_AUTO_DAY por dia): operações do Explorar fechadas nas últimas 24 h e barrados que

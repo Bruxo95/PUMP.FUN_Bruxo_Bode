@@ -284,7 +284,7 @@
 
       <!-- ========================================================= RELATÓRIOS (app/reports.py) -->
       <section class="view" data-view="relatorios" hidden>
-        <div class="seg" id="repTabs" style="margin-bottom:12px" data-novo-ate="2026-11-09"><button data-rt="num" class="on">Números</button><button data-rt="pdf">Relatórios do dia (PDF)</button><button data-rt="ia">Mudanças feitas pela IA</button><button data-rt="ver" data-novo-ate="2026-11-10">Por versão</button></div>
+        <div class="seg" id="repTabs" style="margin-bottom:12px" data-novo-ate="2026-11-09"><button data-rt="num" class="on">Números</button><button data-rt="pdf">Relatórios do dia (PDF)</button><button data-rt="ia">Mudanças feitas pela IA</button><button data-rt="ver" data-novo-ate="2026-11-10">Por versão</button><button data-rt="fg" data-novo-ate="2026-11-11">Ganhos falsos</button></div>
         <div id="repNum">
         <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Ajuste automático: a IA corrige sozinha</h2><div class="sub" id="tuSub">lê os relatórios e as Estratégias fantasma, aplica o que rende mais e desfaz o que piora</div></div><div class="sp"></div>
             <span class="muted" style="margin-right:6px">Automático</span><button class="btn sm tgl" data-toggle="pump_tune_on">…</button> <button class="btn sm" id="tuRun">Rodar agora</button></header>
@@ -331,6 +331,14 @@
             <div class="kpis" id="verK"></div>
             <div class="help" id="verSug"></div>
             <div class="tbl-wrap tall"><table id="verTbl" class="daytbl"></table></div></div>
+        </div>
+        <div id="repFg" hidden>
+          <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Revisão dos ganhos de +1.900% ou mais</h2><div class="sub" id="fgSub">todas as contas · confere a moeda da curva na blockchain e o preço de mercado na entrada e na saída</div></div><div class="sp"></div><button class="btn sm" id="fgRun">Conferir de novo</button> <button class="btn sm primary" id="fgAi">Texto para IA</button></header>
+            <div class="help"><p><b>Como ler:</b> cada linha é um trade que mostrou ganho (ou melhor momento) de 20× ou mais. <b>FALSO provável</b> = a curva do token é cotada em outra moeda (SPCX, TTWO, NTRNDM…) e o sistema leu o preço como se fosse SOL; isso foi corrigido na 0.31.52. "Verdadeiro" vem da carteira real quando houve par no espelho; senão, do preço em dólar da Solana Tracker na entrada e na saída (sem taxas). <b>Nada é apagado nem escondido:</b> os totais das outras telas continuam com esses ganhos; a tabela de impacto mostra quanto eles pesam.</p></div>
+            <div class="kpis" id="fgK"></div>
+            <div class="tbl-wrap tall"><table id="fgTbl" class="daytbl"></table></div>
+            <div class="tbl-wrap"><table id="fgImp" class="daytbl"></table></div>
+            <div class="help" id="fgOnde"></div></div>
         </div>
         <div id="repIa" hidden>
           <div class="card" data-novo-ate="2026-11-09"><header><div><h2>Mudanças feitas pela IA</h2><div class="sub">cada correção vem com o que mudou, por quê e a projeção de ganho · ao lado, o resultado real 7 dias antes × 7 dias depois</div></div></header>

@@ -760,6 +760,11 @@
    "versao": "0.32.0",
    "inicio": "2026-10-28T12:16:37+00:00",
    "titulo": "taxa oficial só na fictícia; plano moedas que acordam"
+  },
+  {
+   "versao": "0.32.1",
+   "inicio": "2026-10-28T15:30:00+00:00",
+   "titulo": "revisão dos ganhos falsos de 20×+"
   }
  ]
 }

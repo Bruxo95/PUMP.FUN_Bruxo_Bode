@@ -1086,6 +1086,17 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return PlainTextResponse(ai_text(build(pf.trades(100000), load(), real=bool(real)), VERSION),
                                  headers={"Content-Disposition": 'attachment; filename="resultado-por-versao-para-ia.md"'})
 
+    @app.get("/api/pump/false-gains")
+    async def false_gains(check: int = 1, pf=Depends(admin_engine)):
+        """0.32.1: revisão dos ganhos de +1.900% ou mais de todas as contas (só leitura; nada é alterado)."""
+        return await hub.false_gains(pf, check=bool(check))
+
+    @app.get("/api/pump/false-gains/ai")
+    async def false_gains_ai(pf=Depends(admin_engine)):
+        from .ganhos_falsos import ai_text
+        rep = getattr(hub, "_false_last", None) or await hub.false_gains(pf, check=False)
+        return PlainTextResponse(ai_text(rep), headers={"Content-Disposition": 'attachment; filename="revisao-ganhos-falsos.md"'})
+
     @app.get("/api/pump/compare/{offer_id}/ai")
     async def compare_ai(offer_id: int, u: dict = Depends(admin_only)):
         from .compare import ai_text

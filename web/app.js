@@ -1179,10 +1179,33 @@
     table("ghRec", ["Quando", "Token", "Saída", "Resultado", "Melhor momento"], rec.map((x) => [dt(x.at), pfM(x.mint, x.symbol), esc(x.why), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small> " + f(x.pnl_pct, 1) + "%</small>"), "+" + f(x.best, 1) + "%"]), "Nenhum fechamento ainda nesta variante.");
   }
   document.addEventListener("change", (e) => { if (e.target.id === "ghSel") ghRecent(); });
+  // ---- revisão dos ganhos falsos (0.32.1, pedido do dono): só leitura e marca, nada some dos totais
+  async function loadFalseGains(again) {
+    $("fgTbl").innerHTML = '<tr><td class="empty">Conferindo na blockchain…</td></tr>';
+    const r = await BB.api("/api/pump/false-gains" + (again ? "?check=1&n=" + Date.now() : ""));
+    if (r.error) { $("fgTbl").innerHTML = '<tr><td class="empty">' + esc(r.error) + "</td></tr>"; return; }
+    $("fgSub").textContent = "todas as contas · conferido " + dt(r.feito) + (r.consultou_precos ? "" : " · sem chave da Solana Tracker: preço de mercado não consultado");
+    kpis("fgK", [["Trades de 20×+", String(r.total), "ganho ou melhor momento", "tr"], ["Falsos prováveis", String(r.falsos), "curva em outra moeda ou mercado não subiu", "mon"],
+      ["Não confirmados", String(r.nao_confirmados), "sem base para dizer", "hit"], ["Falsos depois da " + esc(r.correcao), String(r.depois_da_correcao), r.depois_da_correcao ? "caso novo: avisar" : "nenhum caso novo", r.depois_da_correcao ? "mon" : "hit"]]);
+    const pc = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + f(v, 1) + "%");
+    table("fgTbl", ["Fechou", "Conta", "Carteira", "Token", "Registrado", "Melhor", "Veredito", "Verdadeiro", "Versão"], (r.items || []).map((x) => [esc(dt(x.closed_at)), esc(x.conta),
+      x.real ? '<span class="tag loss">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>', pfM(x.mint, x.symbol), pc(x.pnl_pct) + "<small>" + sg(x.pnl_sol) + "</small>", pc(x.best_pct),
+      '<span class="tag ' + (x.falso === true ? "loss" : x.falso === false ? "win" : "neutral") + '">' + esc(x.veredito) + "</span>",
+      pc(x.resultado_verdadeiro_pct) + (x.fonte_verdadeiro ? "<small>" + esc(x.fonte_verdadeiro) + "</small>" : ""), esc(x.versao || "–") + (x.depois_da_correcao ? " <small>depois da correção</small>" : "")]),
+      "Nenhum trade de +1.900% ou mais em nenhuma conta.");
+    table("fgImp", ["Conta", "Falsos", "Total fictícia", "Só os falsos", "Sem os falsos", "Versões afetadas"], (r.impacto || []).map((m) => [esc(m.conta), String(m.trades), sg(m.total_sol), sg(m.falsos_sol), "<b>" + sg(m.sem_falsos_sol) + "</b>", esc(m.versoes.join(", "))]),
+      "Nenhum ganho falso pesando nos totais.");
+    $("fgOnde").innerHTML = "<p><b>Onde esses ganhos ainda pesam</b></p>" + (r.onde_pesa || []).map((s) => "<p>" + esc(s) + "</p>").join("");
+  }
+  document.addEventListener("click", async (e) => {
+    if (e.target.closest("#fgRun")) return loadFalseGains(true);
+    if (e.target.closest("#fgAi")) return await BB.download("/api/pump/false-gains/ai", "revisao-ganhos-falsos.md");
+  });
   // ---- abas de Relatórios (0.31.7): números, PDFs do dia e mudanças da IA
   let REP_TAB = "num";
   async function loadRepTab() {
-    $("repNum").hidden = REP_TAB !== "num"; $("repPdf").hidden = REP_TAB !== "pdf"; $("repIa").hidden = REP_TAB !== "ia"; $("repVer").hidden = REP_TAB !== "ver";
+    $("repNum").hidden = REP_TAB !== "num"; $("repPdf").hidden = REP_TAB !== "pdf"; $("repIa").hidden = REP_TAB !== "ia"; $("repVer").hidden = REP_TAB !== "ver"; $("repFg").hidden = REP_TAB !== "fg";
+    if (REP_TAB === "fg") return loadFalseGains(false);
     if (REP_TAB === "ver") {
       const rm = realMode(), r = await BB.api("/api/pump/versions?real=" + (rm ? 1 : 0));
       if (r.error) { $("verTbl").innerHTML = '<tr><td class="empty">' + esc(r.error) + "</td></tr>"; return; }
