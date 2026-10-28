@@ -1170,3 +1170,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.31: `barred_auto` grava `g["auto_st"]` (entrou / esperando / não entrou) e só marca feito quando comprou; `pump_bar_max_open` (20)
   = vagas próprias dos barrados (fora do `pump_max_open` das cópias e do botão). Migração `20261028000014` (só o dono): 20/h e 30 abertas.
   Lista até 30 a partir do gatilho; coluna "Automático"; `markBought` mostra "✓ AUTO na FICTÍCIA". Pedido do dono.
+
+- 0.32.32: `pump_ex_real_on` (ON) e `pump_ar_real_sol` (0 = `pump_real_max_sol`; nunca acima dele) em `manual_buy`/`_real_buy` para origem
+  explorar; `#exRealDiag` no quadro Proteções das automáticas. Pedido do dono. Regras de entrada/saída do Explorar iguais.

@@ -197,3 +197,22 @@ def test_suspect_price_is_only_noted(tmp_path):
     pf._note_suspect_price(A, p["price_in"] * 80)
     notes = [e for e in pf.feed if e.get("action") == "preço suspeito"]
     assert len(notes) == 1 and "76×" in notes[0]["reason"] and [x for x in pf.positions() if x["mint"] == A]
+
+
+def test_explore_real_toggle_and_own_amount():
+    """0.32.32 (pedido do dono): 'Também na carteira REAL' nas Proteções das automáticas e valor próprio na real."""
+    from tests.test_auto_explorar import A as EA, _run
+    from tests.test_auto_protecoes import _complete, _zero_fees
+    import time
+    pf = _zero_fees(pump_ar_max_h=5, pump_ar_max_open=5, pump_real_max_sol=0.05, pump_ar_real_sol=0.02)
+    pf.cfg.pump_real_enabled = True
+    pf.real = FakeReal()
+    assert _run(pf, t=time.time()) == [EA]
+    kind, it = pf._rq.get_nowait()
+    _complete(pf._real_buy(it))
+    assert pf.real.calls[0] == ("buy", EA, 0.02)                     # valor da real das automáticas
+    pf2 = _zero_fees(pump_ex_real_on=False)
+    pf2.cfg.pump_real_enabled = True
+    pf2.real = FakeReal()
+    assert _run(pf2, t=time.time()) == [EA]
+    assert pf2._rq is None or pf2._rq.qsize() == 0                    # desligado: só a fictícia

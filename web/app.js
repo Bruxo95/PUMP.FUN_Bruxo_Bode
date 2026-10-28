@@ -2356,6 +2356,18 @@
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
     if ($("tcMoon")) { const a = c.pump_tp1_on ? +c.pump_tp1_frac_pct || 0 : 0, b = c.pump_tp1_on && +c.pump_tp2_pct ? +c.pump_tp2_frac_pct || 0 : 0;
       $("tcMoon").textContent = Math.max(0, 100 - a - b) + "%" + (c.pump_tp_pct > 0 ? " até o alvo fixo de +" + c.pump_tp_pct + "%" : " · segue no stop móvel"); }
+    // 0.32.32 (pedido do dono): por que as automáticas do Explorar entram ou não na REAL
+    if ($("exRealDiag") && VIEW === "explorar") {
+      const R = D.real || {}, why = [];
+      if (!R.wallet_configured) why.push('<span class="down">carteira real não configurada</span>');
+      if (!R.enabled) why.push('<span class="down">Execução real desligada</span> (<a href="#real">Execução real</a>)');
+      if (!c.pump_ex_real_on) why.push('<span class="down">"Também na carteira REAL" desligado</span>');
+      if (c.pump_real_mirror === false && !c.pump_auto_real) why.push('<span class="down">espelho da real desligado</span>');
+      const amtR = +c.pump_ar_real_sol > 0 ? Math.min(+c.pump_ar_real_sol, +c.pump_real_max_sol) : +c.pump_real_max_sol;
+      const last = (D.feed || []).filter((e) => e.wallet === "manual" && /^REAL/.test(e.action || "")).slice(0, 3);
+      $("exRealDiag").innerHTML = (why.length ? "A real NÃO entra agora: " + why.join(" · ") : '<span class="up">A real entra</span> junto com cada entrada automática, com ' + s4(amtR) + " SOL (máx. " + s4(c.pump_real_max_sol) + " por compra, " + (c.pump_real_max_open || 5) + " posições reais).") +
+        (last.length ? "<br>Últimas na real: " + last.map((e) => esc((e.symbol || "?") + ": " + e.action + (e.reason ? " — " + e.reason : ""))).join(" · ") : "");
+    }
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
     if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); }
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();

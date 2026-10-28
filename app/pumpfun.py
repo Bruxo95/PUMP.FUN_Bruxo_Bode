@@ -2740,6 +2740,12 @@ class PumpFun:
             out["real"] = "execução real desligada"
             return out
         mirror = getattr(self.cfg, "pump_real_mirror", True)
+        if own_auto and origem == "explorar" and not getattr(self.cfg, "pump_ex_real_on", True):
+            if self.real is not None and getattr(self.cfg, "pump_real_enabled", False):
+                out["real"] = "desligada nas Proteções das automáticas (só fictícia)"
+                self._feed(**base, action="REAL não copiou", reason="Explorar: 'Também na carteira REAL' desligado (só fictícia)",
+                           sim_id=(sim_pos or {}).get("id"))
+            return out
         if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or getattr(self.cfg, "pump_auto_real", False)):
             if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
                 out["real"] = "já tem posição REAL neste token"
@@ -3787,6 +3793,10 @@ class PumpFun:
                 return
             mult, mwhy = self.trust_mult(it["wallet"])
             amt = float(self._c("pump_real_max_sol", 0.05)) * min(1.0, mult)
+            ar_real = float(self._c("pump_ar_real_sol", 0) or 0)
+            if own_auto and (it.get("pos_cfg") or {}).get("origem") == "explorar" and ar_real > 0:
+                # 0.32.32: valor próprio das automáticas do Explorar na real, sem passar do máximo da Execução real
+                amt = min(ar_real, float(self._c("pump_real_max_sol", 0.05)))
             # a compra real sai da fila depois: confere de novo se o preço já não fugiu da entrada do trader.
             # 0.31.43: no ESPELHO não — a fictícia já passou pelos filtros e os tokens que mais sobem (ex.: R1R2L1R2,
             # +150% em 12 s) eram justamente os barrados aqui; a proteção da real é a slippage da carteira real.
