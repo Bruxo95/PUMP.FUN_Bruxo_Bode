@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.24 · 2026-10-28 · comparar evoluções diz se melhorou"
+VERSION = "0.32.25 · 2026-10-28 · explicação certa do erro 6001"

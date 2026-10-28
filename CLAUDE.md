@@ -1149,3 +1149,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.24: `evolucoes.comparar` com `pct`, `melhor` (SENTIDO de cada linha), `explica` e linhas EXTRA (dias, sombras_ganhariam, bloqueios);
   `evolucoes.veredito` (MIN_BASE 5 operações, senão barrados, senão "poucos dados") na rota do comparar; tela com `.hovhelp`. Pedido do dono.
+
+- 0.32.25: `PUMP_ERRORS["0x1771"]` explica os dois sentidos (Jupiter = slippage; pump.fun = AlreadyInitialized, IDL 13/10/2026). Lote 6 do
+  ChatGPT conferido em `PUMP-FUN-LEARNING/conferencia-claude-lote6-2026-10-28.md`.

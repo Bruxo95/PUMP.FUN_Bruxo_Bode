@@ -880,6 +880,11 @@
    "versao": "0.32.24",
    "inicio": "2026-10-28T23:05:00+00:00",
    "titulo": "comparar evoluções diz se melhorou"
+  },
+  {
+   "versao": "0.32.25",
+   "inicio": "2026-10-28T23:15:00+00:00",
+   "titulo": "explicação certa do erro 6001"
   }
  ]
 }

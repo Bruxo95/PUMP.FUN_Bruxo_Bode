@@ -4127,8 +4127,11 @@ class PumpReal:
     PUMP_ERRORS = {"0x1770": "não autorizado", "0x1772": "preço subiu além do slippage (SOL insuficiente)",
                    "0x1773": "preço caiu além do slippage (SOL recebido baixo)", "0x1774": "token não bate com a curva",
                    "0x1775": "curva já completou — token graduou para a PumpSwap",
-                   "0x1776": "curva ainda não completou", "0x1777": "curva não inicializada",
-                   "0x1771": "slippage excedido",
+                   "0x1776": "curva ainda não completou", "0x1777": "programa da pump.fun não inicializado",
+                   # 0.32.25: o mesmo código muda de sentido conforme o programa. IDL oficial pump.json (13/10/2026, conferido em
+                   # 28/10): na pump.fun 6001 = AlreadyInitialized; slippage é 6002 (compra) e 6003 (venda). Na Jupiter, 6001 =
+                   # slippage excedido. Por isso continua contando como "tentar de novo" (retryable).
+                   "0x1771": "erro 6001: na Jupiter = slippage excedido; na pump.fun = programa já inicializado",
                    # 0.31.83 (Grokbot 28/10 07:55, sugestão do Bruxo): erro 6063 do programa da pump.fun = UnsupportedQuoteMint
                    # (IDL oficial pump.json). A curva é cotada em outra moeda (Grokbot: SPCX) e a PumpPortal manda SOL.
                    "'Custom': 6063": "curva cotada em outra moeda (não SOL): a PumpPortal não compra com SOL",
