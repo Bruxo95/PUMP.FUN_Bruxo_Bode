@@ -969,3 +969,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.83 (sugestões do Bruxo): erro 6063 da pump.fun = UnsupportedQuoteMint (curva em outra moeda, ex.: Grokbot/SPCX).
   `PumpReal.other_quote` → `buy` vai direto para a Jupiter; `PUMP_ERRORS` e `MISS_TIPS` explicam. `#sysS` mostra Solana RPC
   (carteiras, trades, último) e PumpPortal (tokens novos, último). Relatório `app/relatorios_ia/2026-10-28-0.31.83.md`. `tests/test_moeda_6063.py`.
+
+- 0.31.84 ("sombra primeiro", pedido do dono): `autolearn.wilson` (90%, NIST) + por faixa `acerto_min/max`, `bloq_wilson`,
+  `wilson` (igual/liberaria/bloquearia) e resumo `wilson`; NÃO entra em `bloqueios`. Base geral: `#bgWil` e 2 colunas em `#bgL`.
+  Pesquisa conferida: `PUMP-FUN-LEARNING/pesquisa-pumpfun-conferencias-tecnicas-2026-10-28.md`. `tests/test_wilson_sombra.py`.

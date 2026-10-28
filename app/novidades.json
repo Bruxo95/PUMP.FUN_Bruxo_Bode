@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.84",
+      "data": "2026-10-28",
+      "tipo": "novo",
+      "onde": "Base geral → O que a IA aprendeu com os erros",
+      "titulo": "Regra nova de bloqueio em teste (só sombra)",
+      "oque": "Hoje uma faixa é bloqueada com só 6 operações, e com tão pouco o acerto real pode estar muito longe do medido (2 ganhos em 6 = entre 12% e 65%). A tabela ganhou as colunas 'Acerto provável' e 'Regra nova (sombra)': mostra o que mudaria se o bloqueio usasse uma regra estatística mais segura (bloquear só quando o acerto máximo provável fica abaixo de 50% e a média é ruim). Nada muda no Explorar: é só para você comparar e decidir."
+    },
+    {
       "versao": "0.31.83",
       "data": "2026-10-28",
       "tipo": "correção",

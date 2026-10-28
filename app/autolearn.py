@@ -49,6 +49,23 @@ def label(feature: str) -> str:
     return "Boost" if feature == "boost" else FEATURES[feature][0]
 
 
+# 0.31.84 (pedido do dono, "sombra primeiro"): regra nova SÓ CALCULADA, nunca usada para bloquear. Com 6 operações o
+# acerto verdadeiro pode estar entre 12% e 65% (2 em 6), então a regra atual pode bloquear faixa boa por azar. A regra
+# nova bloquearia só quando o MÁXIMO provável do acerto (Wilson, 90% de confiança) fica abaixo de 50% e a média é ruim.
+# Fórmula: NIST/SEMATECH e-Handbook 7.2.4.1; conferida em 2026-10-28 (6 em 20 → 16,4% a 48,4%).
+WILSON_Z = 1.6449
+WILSON_MAX = 0.50
+
+
+def wilson(k: int, n: int, z: float = WILSON_Z) -> tuple[float, float] | None:
+    if n <= 0:
+        return None
+    p = k / n
+    c = (p + z * z / (2 * n)) / (1 + z * z / n)
+    h = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / (1 + z * z / n)
+    return max(0.0, c - h), min(1.0, c + h)
+
+
 def study(trades: list[dict], origem: str) -> dict:
     """Faixas das compras automáticas FECHADAS de uma origem (fictícia): n, acerto, média e se está bloqueada."""
     rows = [t for t in trades if t.get("origem") == origem and not t.get("real") and isinstance(t.get("auto_info"), dict)]
@@ -67,12 +84,18 @@ def study(trades: list[dict], origem: str) -> dict:
             avg = sum((t.get("pnl_pct") or 0) for t in r) / n
             pnl = sum(t.get("pnl_sol") or 0 for t in r)
             blocked = n >= MIN_N and wr < MAX_WR and avg < MAX_AVG_PCT
+            lo, hi = wilson(sum(1 for t in r if (t.get("pnl_sol") or 0) > 0), n)
+            w_block = hi < WILSON_MAX and avg < MAX_AVG_PCT
             out.append({"feature": f, "nome": label(f), "faixa": b, "n": n, "acerto": round(wr, 3), "media_pct": round(avg, 1),
-                        "pnl_sol": round(pnl, 6), "bloqueada": blocked, "n_sua": mine, "n_conhecimento": n - mine - sombra, "n_sombra": sombra})
+                        "pnl_sol": round(pnl, 6), "bloqueada": blocked, "n_sua": mine, "n_conhecimento": n - mine - sombra, "n_sombra": sombra,
+                        "acerto_min": round(lo, 3), "acerto_max": round(hi, 3), "bloq_wilson": w_block,
+                        "wilson": "igual" if w_block == blocked else ("liberaria" if blocked else "bloquearia")})
     out.sort(key=lambda x: (not x["bloqueada"], x["pnl_sol"]))
     quick = [t for t in rows if (t.get("pnl_sol") or 0) < 0 and (t.get("hold_s") or 1e9) <= 60]
     return {"origem": origem, "fechadas": len(rows), "fechadas_suas": sum(1 for t in rows if t.get("_mine", True)), "faixas": out, "bloqueios": [x for x in out if x["bloqueada"]],
-            "morte_rapida": len(quick), "min_n": MIN_N}
+            "morte_rapida": len(quick), "min_n": MIN_N,
+            "wilson": {"liberaria": sum(1 for x in out if x["wilson"] == "liberaria"),
+                       "bloquearia": sum(1 for x in out if x["wilson"] == "bloquearia"), "max": WILSON_MAX}}
 
 
 def _median(xs):
