@@ -34,7 +34,16 @@
     if (ORIG_NOME[x.origem]) return ORIG_NOME[x.origem]; if ((x.auto && x.auto !== true) || x.short === "automático") return "compra automática"; return x.manual || x.wallet === "manual" ? "botão Comprar (você)" : "compra automática"; };
   const shortW = (w, x) => (w === "manual" ? whoLabel(x || { wallet: w }) : w ? w.slice(0, 4) + "…" + w.slice(-4) : "");
   const pfW = (w, x) => w === "manual" ? '<span class="tag neutral" title="' + esc(ORIG_DESC[whoLabel(x || { wallet: w })] || "veio da cópia de trades de outra conta") + '">' + esc(whoLabel(x || { wallet: w })) + "</span>"
-    : '<a href="https://pump.fun/profile/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + '">' + esc(shortW(w)) + "</a>";
+    // 0.32.9: o perfil da pump.fun só existe para quem já usou o site ("page not found" para as outras); o link principal
+    // vai para o Solscan, que abre qualquer carteira, e o "pf" abre o perfil da pump.fun quando existir
+    : '<a href="https://solscan.io/account/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + ' · abrir no Solscan">' + esc(shortW(w)) + "</a>" +
+      ' <a class="pflink" href="https://pump.fun/profile/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="Perfil na pump.fun (só existe se a carteira já usou o site)">pf</a>';
+  // 0.32.9 (pedido do dono): idade, saldo, transações e tokens criados de uma carteira
+  const factsCells = (fx) => { fx = fx || {};
+    const age = fx.age_days == null ? "–" : (fx.age_more ? "+" : "") + (fx.age_days < 1 ? "< 1 dia" : f(fx.age_days, 0) + " dias");
+    return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
+      fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
+  const FACTS_H = ["Existe há", "Saldo (US$)", "Transações", "Tokens criados"];
   const pfM = (m, s) => '<a href="https://pump.fun/coin/' + encodeURIComponent(m) + '" target="_blank" rel="noopener" title="' + esc(m) + '">' + esc(s || m.slice(0, 6)) + "</a>" +
     '<button class="tkinfo" data-tk="' + esc(m) + '" title="Ficha do token">i</button>';
   const tx = (sig) => (sig ? '<a href="https://solscan.io/tx/' + encodeURIComponent(sig) + '" target="_blank" rel="noopener">tx</a>' : "");
@@ -1547,9 +1556,9 @@
     $("stSub").textContent = "o sistema acompanha e aprende com a carteira, sem copiar · " + (r.wallets || []).length + " de " + r.limit +
       (r.key ? " · histórico pela Solana Tracker" : " · sem chave da Solana Tracker: só o que o monitor ver daqui em diante");
     const mm = hms;
-    table("stList", ["Carteira", "Ganho/hora (24 h)", "Ganho/dia (média 7 d)", "Acerto", "Segura (mediana)", "Tokens fechados", ""], (r.wallets || []).map((x) => { const s = x.summary || {};
+    table("stList", ["Carteira", "Ganho/hora (24 h)", "Ganho/dia (média 7 d)", "Acerto", "Segura (mediana)", "Tokens fechados", ...FACTS_H, ""], (r.wallets || []).map((x) => { const s = x.summary || {};
       return [pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""), mny(s.per_hour, s.unit), mny(s.per_day_7d, s.unit),
-        s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed),
+        s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed), ...factsCells(x.facts),
         '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> <button class="btn sm" data-sts="' + esc(x.wallet) + '">Compartilhar</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
       "Nenhuma carteira em estudo. Cole um endereço acima.");
     const sa = r.auto || {}, sc = sa.counts || {}, nAuto = (r.wallets || []).filter((x) => String(x.apelido || "").startsWith(sa.tag || "auto · ")).length;
@@ -1558,7 +1567,7 @@
     const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss" };
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => [esc(x.valor), String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
-    table("saLog", ["Quando", "Carteira", "Decisão", "Por quê"], (sa.log || []).map((x) => [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", esc(x.motivo || "")]),
+    table("saLog", ["Quando", "Carteira", "Decisão", "Por quê", ...FACTS_H], (sa.log || []).map((x) => [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", '<span class="wrapcell">' + esc(x.motivo || "") + "</span>", ...factsCells(x.facts)]),
       "Nenhuma decisão ainda. Clique em Rodar agora ou espere a próxima volta.");
     const mi = r.mine || {}, tt = mi.total || {}, ts = tt.sim || {}, tr = tt.real || {};
     const roi = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");

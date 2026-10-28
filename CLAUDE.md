@@ -1094,3 +1094,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`skipped_bot`); `_tx_q` maxsize 600 e descarte em 60 s para não copiadas. `PumpFun._get_tx(..., low=)`: pausa conjunta no 429
   (`market.rpc_cool_until`/`rpc_429_streak`), 2 tentativas para baixa prioridade; erro `maxSupportedTransactionVersion` → tenta com 1.
   Relatório `app/relatorios_ia/2026-10-28-0.32.8.md`. Solução completa: RPC próprio (Portainer: `SOLANA_RPC_PUBLIC`, `PUMP_RPC_WS`), pelo dono.
+
+- 0.32.9: `hub.wallet_facts(w)` (idade/`txs` de `market.wallet_facts` via `wallet_age`, saldo de `wallet_usd`, criados de `lab.creators`);
+  `SharedMonitor.wallet_facts_once` (2 por minuto no `boost_loop`; estudo + `hub._facts_want`). `facts` em `/api/pump/study` (lista e log);
+  `autostudy.facts_features` entra no `info` das decisões aprovou/descartou (aprende por idade/saldo/transações/criador).
+  `pfW` abre o Solscan; `pflink` "pf" = perfil da pump.fun (só existe para quem usou o site). Pedido do dono.

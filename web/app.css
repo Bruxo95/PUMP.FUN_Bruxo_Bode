@@ -601,3 +601,5 @@ table.extbl td:nth-child(3){max-width:120px;white-space:normal}
 /* 0.32.7: linhas clicáveis do funil do status */
 .linkbtn{background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:600;cursor:pointer;text-align:left;text-decoration:underline dotted;text-underline-offset:3px}
 .linkbtn:hover{color:var(--accent,#4ade80)}
+/* 0.32.9: link secundário do perfil na pump.fun ao lado da carteira */
+.pflink{font-size:10px;opacity:.6;text-decoration:none;margin-left:2px}.pflink:hover{opacity:1}

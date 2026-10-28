@@ -550,7 +550,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         for r in rows:
             p = await hub.study_profile(r["wallet"], prm)
             out.append({"wallet": r["wallet"], "apelido": r.get("apelido"), "followed": r["wallet"] in pf.followed,
-                        "summary": summary(p) if not p.get("error") else {}})
+                        "summary": summary(p) if not p.get("error") else {}, "facts": hub.wallet_facts(r["wallet"])})
         # ranking de copiabilidade: quem renderia mais para VOCÊ copiando nos últimos 30 dias (0.15.0)
         ranked = sorted([x for x in out if (x["summary"].get("copy") or {}).get("n_30d")],
                         key=lambda x: -(x["summary"]["copy"]["pnl_30d"] or 0))
@@ -569,7 +569,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         last = hub._study_auto_at.get(pf.user_id)
         return {"on": bool(getattr(pf.cfg, "pump_st_auto_on", True)), "max": int(getattr(pf.cfg, "pump_st_auto_max", 15)),
                 "tag": AUTO_TAG, "last_run": datetime.fromtimestamp(last, timezone.utc).isoformat() if last else None,
-                "log": [{k: r.get(k) for k in ("wallet", "acao", "motivo", "em")} for r in log_rows[:60]],
+                "log": [{**{k: r.get(k) for k in ("wallet", "acao", "motivo", "em")},
+                         "facts": hub.wallet_facts(r.get("wallet") or "") if r.get("wallet") else {}} for r in log_rows[:60]],
                 "counts": {a: sum(1 for r in log_rows if r.get("acao") == a) for a in ("adicionou", "aprovou", "descartou")},
                 "rates": rates(log_rows)}
 

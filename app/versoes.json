@@ -800,6 +800,11 @@
    "versao": "0.32.8",
    "inicio": "2026-10-28T18:55:00+00:00",
    "titulo": "menos 429 do RPC e cópias primeiro"
+  },
+  {
+   "versao": "0.32.9",
+   "inicio": "2026-10-28T19:25:00+00:00",
+   "titulo": "idade, saldo e transações das carteiras em estudo"
   }
  ]
 }

@@ -248,7 +248,7 @@ def test_read_failures_are_logged_with_reason_for_the_status_screen(setup):
     a, mon = setup["a"], setup["mon"]
     a.add_manual(WA)
 
-    async def fail(sig, why=None):
+    async def fail(sig, why=None, low=False):
         why.append("HTTP 429 (limite do RPC)")
         return None
     mon.svc._get_tx = fail

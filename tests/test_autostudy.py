@@ -71,3 +71,13 @@ def test_study_auto_off_and_admin_only(env):
     c.post("/api/pump/settings", json={"pump_st_auto_on": False}, headers=A)
     assert c.post("/api/pump/study/auto/run", json={}, headers=A).json()["ok"] is False
     assert c.post("/api/pump/study/auto/run", json={}, headers=tok(UB, "b@x.com")).status_code == 403
+
+
+def test_wallet_facts_become_learned_features():
+    """0.32.9 (pedido do dono): idade, saldo, transações e tokens criados entram no estudo."""
+    from app.autostudy import facts_features
+    f = facts_features({"age_days": 12, "age_more": False, "usd": 25000, "txs": 400, "criados": 2})
+    assert f == {"idade": "carteira com menos de 30 dias", "saldo": "saldo US$ 10 mil ou mais",
+                 "transacoes": "menos de 1.000 transações", "criador": "já criou token"}
+    g = facts_features({"age_days": 3, "age_more": True, "usd": None, "txs": 4000, "criados": 0})
+    assert g["idade"].startswith("carteira com 180") and g["saldo"] is None and g["criador"] is None

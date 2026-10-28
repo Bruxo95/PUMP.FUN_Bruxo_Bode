@@ -639,7 +639,33 @@ class SharedMonitor:
                 await self.elite_info_once()
             except Exception as e:
                 log.warning("saldo/idade dos maiores traders: %s", str(e)[:160])
+            try:
+                await self.wallet_facts_once()
+            except Exception as e:
+                log.warning("idade/saldo das carteiras em estudo: %s", str(e)[:160])
             await asyncio.sleep(60)
+
+    async def wallet_facts_once(self, limit: int = 2) -> int:
+        """0.32.9 (pedido do dono): idade, transações e saldo das carteiras em estudo e das que aparecem nas Decisões da IA.
+        Poucas por volta (RPC grátis); idade/transações valem 12 h e o saldo 30 min."""
+        now, n = time.time(), 0
+        want = {w for e in self.engines() for w in (getattr(e, "study", None) or [])}
+        want |= {w for w, t in (getattr(self.hub, "_facts_want", None) or {}).items() if now - t < 86400}
+        for w in sorted(want, key=lambda x: (self.market.wallet_facts.get(x) or {}).get("t", 0)):
+            if n >= limit:
+                break
+            fa = self.market.wallet_facts.get(w)
+            if not fa or now - float(fa.get("t") or 0) > 12 * 3600:
+                v = await self.svc.wallet_age(w)
+                if v:
+                    self.market.wallet_facts[w] = v
+                n += 1
+            bal = self.market.wallet_usd.get(w)
+            if (not bal or now - float(bal.get("t") or 0) > 1800) and self.market.sol_usd:
+                v = await self.svc.wallet_value(w)
+                if v:
+                    self.market.wallet_usd[w] = v
+        return n
 
     def auto_once(self) -> int:
         """Compra automática da Base (0.27.0) de cada usuário que ligou: mesma lista "Subindo agora" da tela."""

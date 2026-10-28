@@ -114,6 +114,7 @@ class PumpMarket:
         self.creators: dict[str, float] = {}       # carteira que criou token -> quando
         self.activity: dict = {}                   # carteira -> atividade na rede (online/offline)
         self.wallet_usd: dict = {}                 # carteira do trader -> {"usd", "sol", "stable", "t"}
+        self.wallet_facts: dict = {}               # 0.32.9: carteira -> idade/transações (wallet_age), lido aos poucos
         self.blacklist: dict[str, dict] = {}       # 0.20.0: lista negra compartilhada (endereço -> tipo, motivo)
         self.bl_new: list[str] = []                # endereços novos ainda não gravados no banco
         self.creator_stats: dict[str, dict] = {}   # 0.21.0: criador -> tokens, x2, rugs (base da pump.fun)
@@ -798,7 +799,7 @@ class PumpFun:
         """Idade da carteira (0.31.3): hora da transação mais antiga, lendo até `pages` páginas de 1.000 assinaturas no
         RPC grátis. Carteira muito ativa passa disso: aí a idade é "pelo menos" (more=True)."""
         url = str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP)
-        before, oldest = None, None
+        before, oldest, n = None, None, 0               # n (0.32.9): transações contadas (até pages × 1.000)
         for _ in range(pages):
             opts = {"limit": 1000, **({"before": before} if before else {})}
             try:
@@ -811,15 +812,16 @@ class PumpFun:
                 return None
             if not res:
                 break
+            n += len(res)
             bt = [float(x["blockTime"]) for x in res if x.get("blockTime")]
             if bt:
                 oldest = min(bt + ([oldest] if oldest else []))
             before = res[-1].get("signature")
             if len(res) < 1000:
                 return {"first_t": oldest, "age_days": round((time.time() - oldest) / 86400, 1) if oldest else None,
-                        "more": False, "t": time.time()}
+                        "more": False, "txs": n, "t": time.time()}
         return {"first_t": oldest, "age_days": round((time.time() - oldest) / 86400, 1) if oldest else None,
-                "more": True, "t": time.time()}
+                "more": True, "txs": n, "t": time.time()}
 
     async def refresh_wallet_values(self) -> None:
         if not float(self._c("pump_min_wallet_usd", 5000)) or not self.sol_usd:

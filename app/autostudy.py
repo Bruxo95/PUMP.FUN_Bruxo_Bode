@@ -30,6 +30,16 @@ def features(c: dict) -> dict:
             "trades": None if n is None else "menos de 100 trades" if n < 100 else "100 a 500 trades" if n < 500 else "500 trades ou mais"}
 
 
+def facts_features(fx: dict) -> dict:
+    """0.32.9 (pedido do dono): idade, saldo, transações e tokens criados também viram características aprendidas."""
+    a, u, n, c = fx.get("age_days"), fx.get("usd"), fx.get("txs"), fx.get("criados")
+    return {"idade": None if a is None else "carteira com menos de 30 dias" if a < 30 and not fx.get("age_more")
+            else "carteira de 30 a 180 dias" if a < 180 and not fx.get("age_more") else "carteira com 180 dias ou mais (ou muito ativa)",
+            "saldo": None if u is None else "saldo abaixo de US$ 1 mil" if u < 1000 else "saldo US$ 1 mil a 10 mil" if u < 10000 else "saldo US$ 10 mil ou mais",
+            "transacoes": None if n is None else "menos de 1.000 transações" if n < 1000 else "1.000 transações ou mais",
+            "criador": None if c is None else "já criou token" if c else None}
+
+
 def rates(log: list[dict]) -> list[dict]:
     """Taxa de aprovação por característica, das carteiras já julgadas (aprovou × descartou por não compensar)."""
     g: dict[tuple, list] = {}

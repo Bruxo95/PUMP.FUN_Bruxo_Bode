@@ -975,6 +975,23 @@ class PumpHub:
         pf._emit(f"[PUMP SIM] copiar os trades de {(await self._nome(target)) if target else '—'}: {'LIGADO' if target else 'DESLIGADO'}")
         return {"ok": True, "follow_user": target, "nome": (await self._nome(target)) if target else ""}
 
+    def wallet_facts(self, w: str, want: bool = True) -> dict:
+        """0.32.9 (pedido do dono): idade, saldo em US$, transações e tokens criados de uma carteira (o que já foi lido).
+        Tokens criados = os que a Base da pump.fun viu essa carteira criar (não é o total da vida dela)."""
+        if want:
+            self._facts_want = getattr(self, "_facts_want", {})
+            self._facts_want[w] = time.time()
+            if len(self._facts_want) > 300:
+                for k in sorted(self._facts_want, key=self._facts_want.get)[:100]:
+                    self._facts_want.pop(k, None)
+        fa = self.market.wallet_facts.get(w) or (getattr(self.elite, "ages", {}) or {}).get(w) or {}
+        bal = self.market.wallet_usd.get(w) or {}
+        lab = getattr(self, "lab", None)
+        cs = (getattr(lab, "creators", None) or {}).get(w) or self.market.creator_stats.get(w) or {}
+        return {"age_days": fa.get("age_days"), "age_more": bool(fa.get("more")), "txs": fa.get("txs"),
+                "usd": bal.get("usd"), "sol": bal.get("sol"), "criados": cs.get("tokens"), "rugs": cs.get("rugs"),
+                "lido": bool(fa or bal)}
+
     async def eq_set(self, pf: PumpFun, wallets: list) -> dict:
         """0.32.4: lista do "Copiar igual" (endereços colados da página da pump.fun)."""
         seen, out, bad = set(), [], []
@@ -1515,7 +1532,7 @@ class PumpHub:
         """Estudo automático (0.31.13, app/autostudy.py): julga as carteiras que o robô pôs no estudo, tira as que não
         compensam, põe candidatas novas nas vagas e aprende que tipo de carteira costuma compensar."""
         from .auto_trades import ts
-        from .autostudy import AUTO_TAG, BAN_S, PER_CYCLE, candidates, features, judge, rates
+        from .autostudy import AUTO_TAG, BAN_S, PER_CYCLE, candidates, facts_features, features, judge, rates
         from .study import MAX_WALLETS, copy_params, summary
         now = time.time() if now is None else now
         if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_st_auto_on", True):
@@ -1545,7 +1562,12 @@ class PumpHub:
             if j[0] == "descartou":
                 await self.study_set(pf, r["wallet"], "remove")
                 out_now.add(r["wallet"])
-            await note(r["wallet"], j[0], j[1], info_of.get(r["wallet"], {}))
+            inf = dict(info_of.get(r["wallet"], {}))
+            fx = self.wallet_facts(r["wallet"], want=False)
+            if fx.get("lido"):                          # 0.32.9: idade/saldo/transações/criados entram no estudo
+                inf["facts"] = fx
+                inf["features"] = {**(inf.get("features") or {}), **facts_features(fx)}
+            await note(r["wallet"], j[0], j[1], inf)
         cur = list(getattr(pf, "study", []) or [])
         n_auto = len(auto) - done["descartou"]
         free = min(int(getattr(pf.cfg, "pump_st_auto_max", 15)) - n_auto, MAX_WALLETS - len(cur), PER_CYCLE)
