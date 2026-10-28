@@ -973,3 +973,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.84 ("sombra primeiro", pedido do dono): `autolearn.wilson` (90%, NIST) + por faixa `acerto_min/max`, `bloq_wilson`,
   `wilson` (igual/liberaria/bloquearia) e resumo `wilson`; NÃO entra em `bloqueios`. Base geral: `#bgWil` e 2 colunas em `#bgL`.
   Pesquisa conferida: `PUMP-FUN-LEARNING/pesquisa-pumpfun-conferencias-tecnicas-2026-10-28.md`. `tests/test_wilson_sombra.py`.
+
+## Evoluções do cérebro (2026-10-28, versão 0.31.85)
+- Pedido do dono (opção A + etapas 1, 2 e 3). `app/evolucoes.py` (`estado`, `relatorio`, `comparar`, `reverter_ajustes`);
+  `hub.base_tick` grava `base_evolutions` (migração `20261028000001`, só backend) quando muda bloqueio/melhor regra (ou a 1ª);
+  `hub.evo_list/evo_report/evo_rollback/evo_auto`; rotas `/api/pump/base/evolucoes[/comparar|/{n}|/{n}/voltar]` e
+  `/api/pump/base/automatico` (admin). Congelar: `pf.brain_freeze` (salvo como `_brain_freeze`) → `PumpFun.learned_for_entry`
+  (só a decisão de entrada do Explorar; o estudo mostra o atual) e `auto_tune` parado. Card `#evoTbl` na Base geral.
+  Relatório `app/relatorios_ia/2026-10-28-0.31.85.md`. `tests/test_evolucoes.py`.

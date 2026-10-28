@@ -18,7 +18,7 @@ PKS = {"profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": 
        "creator_stats": ("creator",), "lab_state": ("id",), "auto_trades": ("id",),
        "elite_signals": ("id",), "daily_report": ("user_id", "dia"), "study_auto_log": ("id",),
        "auto_tune_log": ("id",), "config_offers": ("id",), "config_compare_reports": ("id",),
-       "base_snapshots": ("id",), "base_log": ("id",), "base_shadows": ("mint",), "api_usage": ("mes", "api", "chave")}
+       "base_snapshots": ("id",), "base_log": ("id",), "base_shadows": ("mint",), "api_usage": ("mes", "api", "chave"), "base_evolutions": ("numero",)}
 AUTO_ID = {"pump_feed", "audit_log", "study_auto_log", "auto_tune_log", "config_offers", "config_compare_reports",
            "base_snapshots", "base_log"}
 DEFAULT_TS = {"config_compare_reports": "criado_em", "config_offers": "criado_em", "study_wallets": "criado_em", "pump_trades": "fechada_em", "pump_positions": "aberta_em", "audit_log": "at", "pump_feed": "at",

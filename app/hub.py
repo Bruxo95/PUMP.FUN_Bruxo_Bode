@@ -143,6 +143,7 @@ class PumpHub:
         self._wire_wallet(pf)
         pf.tg = lambda msg, _pf=pf: self.tg_queue(_pf, msg)
         pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
+        pf.brain_freeze = saved.get("_brain_freeze") if isinstance(saved.get("_brain_freeze"), dict) else None   # 0.31.85
         pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
         pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
         pf.shadow_hook = self.shadow_note                                     # 0.31.72: entradas sombra
@@ -282,10 +283,82 @@ class PumpHub:
                 prev = (rows[0].get("data") if rows else None) or None
             except Exception:
                 prev = None
-        for tipo, texto in diff(prev, cur):
+        diffs = diff(prev, cur)
+        for tipo, texto in diffs:
             await self.db.insert("base_log", {"tipo": tipo, "texto": texto, "data": {"maturidade": cur["maturidade"]}})
         await self.db.insert("base_snapshots", {"data": cur})
         self._base_prev = cur
+        # 0.31.85: cada mudança do cérebro vira uma evolução numerada (E1, E2…) com a foto das faixas bloqueadas
+        from .evolucoes import estado
+        last = await self.db.select("base_evolutions", None, order="numero.desc", limit=1)
+        mud = [texto for tipo, texto in diffs if tipo in ("bloqueou", "liberou", "melhor_regra")]
+        if not last or mud:
+            await self.db.insert("base_evolutions", {
+                "numero": (last[0]["numero"] + 1) if last else 1, "em": datetime.now(timezone.utc).isoformat(),
+                "estado": estado(st["learned"], cur.get("melhor_regra")),
+                "mudancas": mud or [f"Começo do registro das evoluções: {len(cur.get('bloqueadas') or [])} faixa(s) bloqueada(s), "
+                                    f"melhor regra de saída: {cur.get('melhor_regra') or '—'}."]})
+
+    # ------------------------------------------------------------------ evoluções do cérebro (0.31.85)
+    async def evo_list(self, pf: PumpFun) -> dict:
+        from .auto_trades import ts
+        from .evolucoes import relatorio
+        rows = await self.db.select("base_evolutions", None, order="numero.asc", limit=1000)
+        trades, real = pf.learn_trades(), [t for t in pf.trades(100000) if t.get("real")]
+        out = []
+        for i, r in enumerate(rows):
+            ini = ts(r.get("em")) or 0
+            fim = ts(rows[i + 1].get("em")) if i + 1 < len(rows) else None
+            rep = relatorio(trades, ini, fim, real=real)
+            out.append({"numero": r["numero"], "em": r.get("em"), "ate": rows[i + 1].get("em") if i + 1 < len(rows) else None,
+                        "mudancas": r.get("mudancas") or [], "bloqueios": len((r.get("estado") or {}).get("bloqueios") or []),
+                        "melhor_regra": (r.get("estado") or {}).get("melhor_regra"),
+                        **{k: rep[k] for k in ("operacoes", "acerto", "lucro_sol", "por_trade", "sombras", "real_operacoes", "real_lucro_sol")}})
+        return {"evolucoes": list(reversed(out)), "congelado": pf.brain_freeze}
+
+    async def evo_report(self, pf: PumpFun, numero: int) -> dict:
+        from .auto_trades import ts
+        from .evolucoes import relatorio
+        rows = await self.db.select("base_evolutions", None, order="numero.asc", limit=1000)
+        idx = next((i for i, r in enumerate(rows) if r.get("numero") == numero), None)
+        if idx is None:
+            return {"error": "evolução não encontrada"}
+        r = rows[idx]
+        ini = ts(r.get("em")) or 0
+        fim = ts(rows[idx + 1].get("em")) if idx + 1 < len(rows) else None
+        ajustes = await self.db.select("auto_tune_log", {"user_id": pf.user_id}, order="em.desc", limit=500)
+        rep = relatorio(pf.learn_trades(), ini, fim, r.get("mudancas"), ajustes, [t for t in pf.trades(100000) if t.get("real")])
+        return dict(rep, numero=numero, em=r.get("em"), ate=rows[idx + 1].get("em") if idx + 1 < len(rows) else None,
+                    estado=r.get("estado") or {})
+
+    async def evo_rollback(self, pf: PumpFun, numero: int) -> dict:
+        """Volta o cérebro desta conta para a evolução: faixas bloqueadas daquela foto e regras de saída de antes dos
+        ajustes automáticos feitos depois dela. O Ajuste automático fica parado até "Voltar ao automático"."""
+        from .auto_trades import ts
+        from .evolucoes import reverter_ajustes
+        rows = await self.db.select("base_evolutions", {"numero": numero}, limit=1)
+        if not rows:
+            return {"error": "evolução não encontrada"}
+        r = rows[0]
+        log_rows = await self.db.select("auto_tune_log", {"user_id": pf.user_id}, order="em.desc", limit=500)
+        back = reverter_ajustes([x for x in log_rows if x.get("tipo") in ("saida", "saida_auto")], ts(r.get("em")) or 0)
+        if back:
+            pf.cfg.apply(back)
+        pf.brain_freeze = {"numero": numero, "em": r.get("em"), "desde": datetime.now(timezone.utc).isoformat(),
+                           "bloqueios": list((r.get("estado") or {}).get("bloqueios") or [])}
+        await self.save_settings(pf)
+        await audit(self.db, pf.user_id, "base geral: voltou para evolução",
+                    f"E{numero} · {len(pf.brain_freeze['bloqueios'])} faixa(s) bloqueada(s)" + (f" · saída restaurada: {', '.join(sorted(back))}" if back else ""))
+        pf._emit(f"Base geral: cérebro voltou para a evolução E{numero} (Ajuste automático parado até voltar ao automático)")
+        return {"ok": True, "numero": numero, "saida_restaurada": sorted(back)}
+
+    async def evo_auto(self, pf: PumpFun) -> dict:
+        was = (pf.brain_freeze or {}).get("numero")
+        pf.brain_freeze = None
+        await self.save_settings(pf)
+        await audit(self.db, pf.user_id, "base geral: voltou ao automático", f"saiu da E{was}" if was else "já estava no automático")
+        pf._emit("Base geral: cérebro de volta ao automático (aprende e aplica sozinho)")
+        return {"ok": True}
 
     async def base_loop(self) -> None:
         await asyncio.sleep(180)
@@ -448,6 +521,8 @@ class PumpHub:
             s["_real_on"] = True                       # 0.31.28: o real ligado sobrevive ao reinício (ver _load)
         if getattr(pf, "follow_user", ""):
             s["_follow_user"] = pf.follow_user         # 0.31.61: de quem esta conta copia os trades
+        if getattr(pf, "brain_freeze", None):
+            s["_brain_freeze"] = pf.brain_freeze       # 0.31.85: evolução para a qual o dono voltou
         await self.db.update("user_settings", {"user_id": pf.user_id},
                              {"settings": s, "atualizado_em": datetime.now(timezone.utc).isoformat()})
 
@@ -997,6 +1072,8 @@ class PumpHub:
             return {"ok": False, "motivo": "desligado"}
         if getattr(pf.cfg, "pump_real_enabled", False):
             return {"ok": False, "motivo": "execução real ligada: o ajuste automático só mexe com o real desligado"}
+        if getattr(pf, "brain_freeze", None):
+            return {"ok": False, "motivo": f"cérebro congelado na evolução E{pf.brain_freeze.get('numero')} (Base geral)"}
         log_rows = await self.db.select("auto_tune_log", {"user_id": pf.user_id}, order="em.desc", limit=500)
         done: list[str] = []
 

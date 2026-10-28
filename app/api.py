@@ -945,6 +945,31 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return await hub.compare_one(u["id"], offer_id, origem=origem if origem in ("explorar", "base", "elite") else None,
                                      real=bool(real))
 
+    @app.get("/api/pump/base/evolucoes")
+    async def evo_list(pf=Depends(admin_engine)):
+        """0.31.85: evoluções do cérebro (E1, E2…) com o resultado de cada uma e se a conta está congelada numa delas."""
+        return await hub.evo_list(pf)
+
+    @app.get("/api/pump/base/evolucoes/comparar")
+    async def evo_compare(a: int, b: int, pf=Depends(admin_engine)):
+        from .evolucoes import comparar
+        ra, rb = await hub.evo_report(pf, a), await hub.evo_report(pf, b)
+        if ra.get("error") or rb.get("error"):
+            return {"error": ra.get("error") or rb.get("error")}
+        return {"a": ra, "b": rb, "linhas": comparar(ra, rb)}
+
+    @app.get("/api/pump/base/evolucoes/{numero}")
+    async def evo_report(numero: int, pf=Depends(admin_engine)):
+        return await hub.evo_report(pf, numero)
+
+    @app.post("/api/pump/base/evolucoes/{numero}/voltar")
+    async def evo_rollback(numero: int, pf=Depends(admin_engine)):
+        return await hub.evo_rollback(pf, numero)
+
+    @app.post("/api/pump/base/automatico")
+    async def evo_auto(pf=Depends(admin_engine)):
+        return await hub.evo_auto(pf)
+
     @app.get("/api/pump/base-geral")
     async def base_geral(pf=Depends(admin_engine)):
         """0.31.71: o cérebro do robô — maturidade, o que aprendeu, o que está por vir, gráfico e log."""

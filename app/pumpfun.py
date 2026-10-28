@@ -143,6 +143,7 @@ class PumpFun:
         # 0.31.61 (pedido do dono): "copiar os trades de outro usuário" — quem esta conta segue (user_id) e o aviso para
         # o hub quando ESTA conta abre/fecha uma posição fictícia (o hub repassa para quem segue esta conta)
         self.follow_user: str = ""
+        self.brain_freeze: dict | None = None          # 0.31.85: cérebro congelado numa evolução (Base geral → Voltar)
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
         self.learn_pool = None
@@ -2039,6 +2040,14 @@ class PumpFun:
         cache[origem] = (t, st)
         return st
 
+    def learned_for_entry(self, origem: str) -> dict:
+        """0.31.85: faixas que barram a entrada. Com o cérebro congelado numa evolução (o dono voltou para ela), valem as
+        faixas guardadas na foto daquela evolução; o estudo e a Base geral continuam mostrando o aprendizado atual."""
+        fz = self.brain_freeze
+        if fz and origem == "explorar":
+            return {"bloqueios": list(fz.get("bloqueios") or []), "congelado": fz.get("numero")}
+        return self.learned(origem)
+
     def explore_entry_reason(self, row: dict) -> str | None:
         """Filtros da lista Quase graduando; dado obrigatório ausente não libera entrada."""
         if not isinstance(row, dict) or not isinstance(row.get("mint"), str) or not self.valid_addr(row["mint"]):
@@ -2078,7 +2087,7 @@ class PumpFun:
             age = (time.time() - (created / 1000 if created > 1e12 else created)) / 60
         if getattr(self.cfg, "pump_ar_learn", True):
             from .autolearn import blocked_reason
-            why = blocked_reason(self.learned("explorar"), row)
+            why = blocked_reason(self.learned_for_entry("explorar"), row)
             if why:
                 return why
         return self.auto_safety(row["mint"], age, "explorar")

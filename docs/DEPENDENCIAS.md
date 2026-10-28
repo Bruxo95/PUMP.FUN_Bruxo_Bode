@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-28**; revisão documental **2.0**.
-Aplicação: **0.31.84 · 2026-10-28 · regra de bloqueio Wilson em sombra na Base geral**.
-Referência Git na emissão: `46bcd33be9e86fdbc623f79f944a7d7a9d7bdfe5`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.31.85 · 2026-10-28 · evoluções do cérebro com relatório, comparação e voltar**.
+Referência Git na emissão: `1a824e0755e6c71d1b7ee58791bf8c8e6be5dc85`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -811,7 +811,53 @@
   // 0.31.68: só a BASE GERAL (igual em todas as contas); quanto veio desta conta fica na dica do mouse (o dono achou confuso)
   const baseTag = (n, sua) => '<span class="tag pause" title="' + (sua || 0) + ' destas operações aconteceram nesta conta">BASE GERAL ' + (n || 0) + "</span>";
   // 0.31.71 (pedido do dono): Base geral — o cérebro do robô
+  // 0.31.85 (pedido do dono): evoluções do cérebro — relatório de cada uma, comparação e voltar para uma anterior
+  let EVO = null;
+  const pctN = (v) => v == null ? "–" : f(v * 100, 0) + "%";
+  async function loadEvo() {
+    const r = await BB.api("/api/pump/base/evolucoes"); if (r.error || !$("evoTbl")) return;
+    EVO = r; const L = r.evolucoes || [], fz = r.congelado;
+    $("evoSub").textContent = L.length + " evoluções · " + (fz ? "sua conta está CONGELADA na E" + fz.numero : "sua conta está no automático (aprende e aplica sozinho)");
+    $("evoAuto").hidden = !fz;
+    $("evoFreeze").innerHTML = fz ? '<div class="help" style="border-color:var(--warn,#f5a623)"><p><b>Cérebro congelado na E' + fz.numero + "</b> desde " + dt(fz.desde) + ": o Explorar usa as " + (fz.bloqueios || []).length + " faixa(s) bloqueada(s) daquela evolução e o Ajuste automático está parado.</p></div>" : "";
+    table("evoTbl", ["Evolução", "Desde", "O que mudou", "Faixas bloqueadas", "Operações", "Acerto", "Lucro", "Por operação", "Barrados", "Real", ""], L.map((x, i) => [
+      "<b>E" + x.numero + "</b>" + (i === 0 ? ' <span class="tag win">atual</span>' : "") + (fz && fz.numero === x.numero ? ' <span class="tag neutral">congelado</span>' : ""),
+      dt(x.em), '<span class="wrapcell">' + (x.mudancas || []).map(esc).join("<br>") + "</span>", String(x.bloqueios), String(x.operacoes), pctN(x.acerto), sg(x.lucro_sol),
+      x.por_trade == null ? "–" : sg(x.por_trade), String(x.sombras), x.real_operacoes ? x.real_operacoes + " · " + sg(x.real_lucro_sol) : "–",
+      '<button class="btn sm" data-evorep="' + x.numero + '">Relatório</button> ' + (fz && fz.numero === x.numero ? "" : '<button class="btn sm" data-evoback="' + x.numero + '">Voltar para esta</button>')]),
+      "As evoluções começam na próxima foto da Base geral (até 30 min depois de o servidor subir).");
+    const opts = L.map((x) => '<option value="' + x.numero + '">E' + x.numero + " · " + dt(x.em) + "</option>").join("");
+    const a = $("evoA").value, b = $("evoB").value;
+    $("evoA").innerHTML = opts; $("evoB").innerHTML = opts;
+    if (a) $("evoA").value = a; else if (L[1]) $("evoA").value = L[1].numero;
+    if (b) $("evoB").value = b; else if (L[0]) $("evoB").value = L[0].numero;
+  }
+  async function showEvo(n) {
+    const r = await BB.api("/api/pump/base/evolucoes/" + n); if (r.error) { toast(r.error); return; }
+    $("evoOut").innerHTML = "<h3>Relatório da E" + n + "</h3><p class=\"muted\">de " + dt(r.em) + " até " + (r.ate ? dt(r.ate) : "agora") + " · " + f(r.dias || 0, 1) + " dia(s)</p>" +
+      '<div class="kpis" id="evoK"></div><div class="grid2"><div><h4>O que aprendeu</h4><div class="tbl-wrap"><table id="evoL" class="daytbl"></table></div></div><div><h4>Por que perdeu</h4><div class="tbl-wrap"><table id="evoM" class="daytbl"></table></div></div></div>' +
+      '<h4>Piores operações</h4><div class="tbl-wrap"><table id="evoP" class="daytbl"></table></div><h4>Ajustes automáticos da sua conta no período</h4><div class="tbl-wrap"><table id="evoJ" class="daytbl"></table></div>';
+    kpis("evoK", [["Operações", String(r.operacoes), r.ganhos + " ganhos · " + r.perdas + " perdas", "tr"], ["Acerto", pctN(r.acerto), "média " + (r.media_pct == null ? "–" : pc(r.media_pct)), "hit"],
+      ["Lucro", sg(r.lucro_sol), r.por_trade == null ? "–" : sg(r.por_trade) + " por operação", "pnl"],
+      ["Barrados (sombras)", String(r.sombras), r.sombras ? "média se tivesse entrado " + pc(r.sombras_media_pct) + " · " + r.sombras_ganhariam + " ganhariam" : "–", "mon"],
+      ["Real", String(r.real_operacoes), r.real_operacoes ? sg(r.real_lucro_sol) : "sem operações reais", "wallet"]]);
+    table("evoL", ["O que mudou"], (r.aprendeu || []).map((x) => ['<span class="wrapcell">' + esc(x) + "</span>"]), "–");
+    table("evoM", ["Motivo", "Vezes"], (r.motivos_perda || []).map((x) => ['<span class="wrapcell">' + esc(x.motivo) + "</span>", String(x.n)]), "Nenhuma perda no período.");
+    table("evoP", ["Fechou", "Token", "Resultado", "%", "Motivo"], (r.piores || []).map((x) => [dt(x.closed_at), esc(x.symbol || "?"), sg(x.pnl_sol), pc(x.pnl_pct), '<span class="wrapcell">' + esc(x.reason || "") + "</span>"]), "Nenhuma perda no período.");
+    table("evoJ", ["Quando", "Ação", "Motivo"], (r.ajustes || []).map((x) => [dt(x.em), esc(x.acao), '<span class="wrapcell">' + esc(x.motivo || "") + "</span>"]), "Nenhum ajuste automático no período.");
+    $("evoOut").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  async function compareEvo() {
+    const a = $("evoA").value, b = $("evoB").value; if (!a || !b) return;
+    const r = await BB.api("/api/pump/base/evolucoes/comparar?a=" + a + "&b=" + b); if (r.error) { toast(r.error); return; }
+    const money = { lucro_sol: 1, por_trade: 1, real_lucro_sol: 1 }, pcts = { acerto: 1 }, pp = { media_pct: 1, sombras_media_pct: 1 };
+    const fmt = (k, v) => v == null ? "–" : money[k] ? sg(v) : pcts[k] ? pctN(v) : pp[k] ? pc(v) : f(v, 0);
+    const dif = (k, v) => v == null ? "–" : money[k] ? sg(v) : pcts[k] ? (v > 0 ? "+" : "") + f(v * 100, 0) + " pts" : pp[k] ? (v > 0 ? "+" : "") + f(v, 1) + " pts" : (v > 0 ? "+" : "") + f(v, 0);
+    $("evoOut").innerHTML = "<h3>E" + a + " × E" + b + "</h3><p class=\"muted\">cada coluna é o período em que a evolução valeu; a diferença é E" + b + " − E" + a + "</p>" + '<div class="tbl-wrap"><table id="evoC" class="daytbl"></table></div>';
+    table("evoC", ["", "E" + a, "E" + b, "Diferença"], (r.linhas || []).map((x) => [esc(x.nome), fmt(x.chave, x.a), fmt(x.chave, x.b), dif(x.chave, x.diferenca)]), "–");
+  }
   async function loadBaseGeral() {
+    loadEvo();
     const r = await BB.api("/api/pump/base-geral");
     if (r.error) { $("bgSub").textContent = r.error; return; }
     const m = r.maturidade || {}, s = r.resumo || {}, L = r.learned || {}, G = r.ghosts || {};
@@ -1490,6 +1536,18 @@
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
+    if (t.dataset.evorep) { showEvo(t.dataset.evorep); return; }
+    if (t.id === "evoCmp") { compareEvo(); return; }
+    if (t.dataset.evoback) {
+      if (!confirm("Voltar o cérebro da SUA conta para a evolução E" + t.dataset.evoback + "?\n\nO Explorar passa a usar as faixas bloqueadas daquela evolução, as regras de saída voltam a ser as de antes dos ajustes automáticos feitos depois dela e o Ajuste automático fica parado até você clicar em Voltar ao automático.")) return;
+      const r = await BB.api("/api/pump/base/evolucoes/" + t.dataset.evoback + "/voltar", { body: {} });
+      toast(r.error || "Cérebro voltou para a E" + t.dataset.evoback + (r.saida_restaurada && r.saida_restaurada.length ? " (regras de saída restauradas)" : "") + ".");
+      loadEvo(); poll(true); return;
+    }
+    if (t.id === "evoAuto") {
+      if (!confirm("Voltar ao automático? O cérebro volta a usar o que aprendeu agora e o Ajuste automático volta a funcionar.")) return;
+      const r = await BB.api("/api/pump/base/automatico", { body: {} }); toast(r.error || "Cérebro de volta ao automático."); loadEvo(); return;
+    }
     if (t.dataset.feedf) { FEEDF = t.dataset.feedf; renderFeed(); return; }
     if (t.id === "trShGo") {
       const to = $("trShU").value; if (!to) { toast("Escolha a pessoa."); return; }

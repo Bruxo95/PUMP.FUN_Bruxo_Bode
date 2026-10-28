@@ -680,6 +680,11 @@
    "versao": "0.31.84",
    "inicio": "2026-10-28T09:42:56+00:00",
    "titulo": "regra de bloqueio Wilson em sombra na Base geral"
+  },
+  {
+   "versao": "0.31.85",
+   "inicio": "2026-10-28T10:05:44+00:00",
+   "titulo": "evoluções do cérebro com relatório, comparação e voltar"
   }
  ]
 }

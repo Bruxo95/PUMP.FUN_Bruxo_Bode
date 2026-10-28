@@ -809,6 +809,12 @@
           <div class="grid2"><div><h3 class="h3s">Maturidade (%)</h3><div id="bgChM"></div></div><div><h3 class="h3s">Resultado médio por trade (SOL)</h3><div id="bgChR"></div></div></div></div>
         <div class="card" data-novo-ate="2026-11-11"><header><div><h2>O que está por vir</h2><div class="sub">o que a base está perto de aprender ou decidir</div></div></header>
           <div class="help" id="bgNext"></div></div>
+        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Evoluções do cérebro</h2><div class="sub" id="evoSub">cada vez que o cérebro muda vira E1, E2… com relatório, comparação e opção de voltar</div></div><div class="sp"></div><button class="btn sm" id="evoAuto" hidden>Voltar ao automático</button></header>
+          <div class="help"><p>Uma <b>evolução</b> é cada mudança do cérebro: faixa bloqueada ou liberada pelo aprender com os erros, ou nova melhor regra de saída. Os números de cada linha são do período em que ela valeu (operações do Explorar fechadas, base geral). <b>Relatório</b> mostra compras, vendas, o que aprendeu e o que deu errado. <b>Voltar para esta</b> faz a sua conta usar as faixas bloqueadas daquela evolução e devolve as regras de saída de antes dos ajustes automáticos feitos depois dela; o Ajuste automático fica parado até você clicar em <b>Voltar ao automático</b>. O robô continua aprendendo e registrando evoluções enquanto isso.</p></div>
+          <div id="evoFreeze"></div>
+          <div class="tbl-wrap tall"><table id="evoTbl" class="daytbl"></table></div>
+          <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><span class="muted">Comparar</span><select class="in" id="evoA"></select><span class="muted">×</span><select class="in" id="evoB"></select><button class="btn sm" id="evoCmp">Comparar</button></div>
+          <div id="evoOut" style="margin-top:12px"></div></div>
         <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Log do que foi aprendido</h2><div class="sub">faixa bloqueada ou liberada, melhor regra de saída e o que o Ajuste automático fez</div></div></header>
           <div class="tbl-wrap tall"><table id="bgLog" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-11"><header><div><h2>O que a IA aprendeu com os erros (base geral)</h2><div class="sub" id="bgLSub"></div></div></header>
