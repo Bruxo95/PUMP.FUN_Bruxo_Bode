@@ -71,7 +71,7 @@ TOKEN_URL = "https://data.solanatracker.io/tokens/"
 STATS_URL = "https://data.solanatracker.io/stats/"   # por janela: compradores/vendedores únicos e volume (0.13.0)
 
 
-AUTO_ORIGINS = ("explorar", "base", "elite")   # origens das compras automáticas com proteções e registro (0.31.2: elite)
+AUTO_ORIGINS = ("explorar", "base", "elite", "calls")   # origens das compras automáticas com proteções e registro (0.31.2: elite)
 
 
 def now_iso() -> str:
@@ -2108,7 +2108,11 @@ class PumpFun:
         fz = self.brain_freeze
         if fz and origem == "explorar":
             return {"bloqueios": list(fz.get("bloqueios") or []), "congelado": fz.get("numero")}
-        return self.learned(origem)
+        st = self.learned(origem)
+        if getattr(self.cfg, "pump_ar_learn_wilson", False):
+            # 0.31.99, item 3: bloqueia só quando o acerto máximo provável (Wilson 90%) fica abaixo de 50% e a média é ruim
+            return dict(st, bloqueios=[x for x in st.get("faixas") or [] if x.get("bloq_wilson")])
+        return st
 
     def explore_entry_reason(self, row: dict) -> str | None:
         """Filtros da lista Quase graduando; dado obrigatório ausente não libera entrada."""
@@ -2119,7 +2123,8 @@ class PumpFun:
         if self.graduated(row["mint"]):
             return "token já graduou desde a lista do Explorar"
         pred = row.get("pred") if isinstance(row.get("pred"), dict) else {}
-        if pred.get("verdict") != "chance alta":
+        possivel = pred.get("verdict") == "possível" and getattr(self.cfg, "pump_ex_possivel_on", False)   # 0.31.99, item 2
+        if pred.get("verdict") != "chance alta" and not possivel:
             return "veredito não é chance alta"
         if row.get("rugged"):
             return "token marcado como rug"
@@ -2324,6 +2329,8 @@ class PumpFun:
                 "mcap_sol": tk.get("mcap_sol")}
         out: dict = {"ok": True, "sim": None, "real": None}
         amt = float(self._c("pump_ar_sol", 0.05) if own_auto else self._c("pump_manual_sol", 0.1))
+        if own_auto and origem == "explorar" and (info or {}).get("veredito") == "possível":
+            amt *= float(self._c("pump_ex_possivel_pct", 50)) / 100      # 0.31.99, item 2: "possível" entra com menos
         rules = self.auto_rules() if own_auto else self.manual_rules()
         if follow:                                  # 0.31.61: mesmo valor e mesmas regras de saída da conta copiada
             amt = float(follow.get("sol") or amt)
@@ -2368,6 +2375,8 @@ class PumpFun:
             self._lead("open", p)
         if own_auto and not out.get("auto_id"):
             return out                              # uma falha fictícia não dispara compra real automática
+        if origem == "calls":
+            return out                              # 0.31.99, item 4: compra automática das Calls é SÓ na fictícia
         mirror = getattr(self.cfg, "pump_real_mirror", True)
         if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or getattr(self.cfg, "pump_auto_real", False)):
             if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:

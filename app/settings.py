@@ -31,6 +31,13 @@ USER_KEYS: dict[str, tuple] = {
     "pump_ex_auto_on": (bool, True, 0, 1),             # 0.31.11: LIGADO por padrão a pedido do dono (só fictício)
     "pump_ex_auto_need_smart": (bool, False, 0, 1),
     "pump_ar_learn": (bool, True, 0, 1),
+    # 0.31.99 (pedido do dono, itens 2, 3 e 4): tudo DESLIGADO; cada um liga quando os números mostrarem que vale
+    "pump_ex_possivel_on": (bool, False, 0, 1),        # Explorar entra também no veredito "possível"…
+    "pump_ex_possivel_pct": (float, 50.0, 10.0, 100.0),  # …com esta % do valor normal
+    "pump_ar_learn_wilson": (bool, False, 0, 1),       # bloqueio do aprender com os erros pela regra estatística (Wilson)
+    "pump_calls_auto_on": (bool, False, 0, 1),         # compra automática das Calls quentes, só na fictícia
+    "pump_calls_auto_min": (int, 65, 40, 100),         # veredito mínimo da call (%)
+    "pump_calls_auto_max_h": (int, 3, 1, 20),          # no máximo N compras de calls por hora
     "pump_st_auto_on": (bool, True, 0, 1),
     "pump_tune_on": (bool, True, 0, 1),                # 0.31.14: ajuste automático (saída pelos fantasmas + pausar trader ruim)             # 0.31.13: estudo automático de carteiras (só estudo, não copia)
     "pump_st_auto_max": (int, 15, 1, 30),                # 0.31.12: aprender com os erros (bloqueia faixas que perdem; só aperta)     # exigir trader bom também no Explorar (na Base continua exigido)

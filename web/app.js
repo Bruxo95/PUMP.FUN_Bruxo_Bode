@@ -970,7 +970,8 @@
     const item = mod === "copia" ? "compras de traders" : mod === "elite" ? "sinais" : "tokens";
     box.innerHTML = '<div class="help"><p><b>Diagnóstico:</b> ' + (R.ligado === false ? "este robô está <b>DESLIGADO</b> nesta conta. " : "") +
       (B.length ? "em " + h + " h o robô analisou " + (R.analisados || 0) + " " + item + " e " + (mod === "copia" ? "copiou " : "comprou ") + (R.entradas || 0) + ((R.nomes || []).length ? " (" + R.nomes.slice(0, 8).map(esc).join(", ") + ")" : "") + ". " +
-        (top ? "O que mais barrou: <b>" + esc(top.motivo) + "</b> (" + f(top.pct, 0) + "% das recusas)." : "") : "ainda sem registros (o log começa nesta versão).") + "</p></div>" +
+        (top ? "O que mais barrou: <b>" + esc(top.motivo) + "</b> (" + f(top.pct, 0) + "% das recusas)." : "") : "ainda sem registros (o log começa nesta versão).") + "</p>" +
+      ((R.dicas || []).length ? "<p><b>O que dá para ajustar:</b></p><ul>" + R.dicas.map((d) => "<li>" + esc(d) + "</li>").join("") + "</ul>" : "") + "</div>" +
       '<div class="grid2"><div><h4>Por que não ' + (mod === "copia" ? "copiou" : "comprou") + '</h4><div class="tbl-wrap"><table id="rlM_' + mod + '" class="daytbl"></table></div></div>' +
       '<div><h4>A cada 5 min</h4><div class="tbl-wrap tall"><table id="rlB_' + mod + '" class="daytbl"></table></div></div></div>';
     table("rlM_" + mod, ["Motivo", "Vezes", "% das recusas"], M.map((m) => ['<span class="wrapcell">' + esc(m.motivo) + "</span>", String(m.n), f(m.pct, 0) + "%"]), "Nenhuma recusa no período.");

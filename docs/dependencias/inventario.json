@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "627fbd8bb0b4e62db0bd819934897e4daba4cc94",
-    "application_version": "0.31.98 · 2026-10-28 · compras das carteiras em 24 h, 48 h, 3 e 7 dias",
+    "repository_reference": "ba792daed9b0001e22023c3125bb5da9c304f1c7",
+    "application_version": "0.31.99 · 2026-10-28 · itens 1, 2, 3, 4 e 7 das melhorias",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "fc245705932b566663cfc20bced809753753569717b43f4abd01b1b99d4e8742",
+      "app/version.py": "84cf48269c8f10fcc5fecd0c41d7ddf6a2f5de70fd04dede5ff1ef51185305f2",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "72e61e459f4dc8c053b6870979e0a07df8afb2c69c86805ae305336bb62c9339",
+      "web/app.html": "3c8bcb4544fd0a7843dd254e03bc91bb593d9b31dfe6153b327a4dc7cdddae58",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "dd23c1cdf6a1e1fc6fa77a678f14f999deea888083741d2d0ad8d1604bcd7d9a"
+  "pdf_sha256": "3362611ea377bcc2072567a599a3cb4c36b7e212674a14832bff688eb423d89c"
 }

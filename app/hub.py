@@ -404,6 +404,21 @@ class PumpHub:
                     "veredito": (row.get("pred") or {}).get("verdict"),               # 0.31.86: estudo do veredito
                     "px0": (self.market.tokens.get(mint) or {}).get("price") if hasattr(self.market, "tokens") else None}
 
+    async def shadow_save_open(self) -> int:
+        """0.31.99 (item 1): grava as sombras ainda abertas, para continuarem medindo depois de um reinício."""
+        n = 0
+        for m, s in list((self.__dict__.get("shadows") or {}).items()):
+            if s.get("ret") is None and not s.get("_saved"):
+                try:
+                    await self.db.insert("base_shadows", {"mint": m, "data": {k: v for k, v in s.items() if k != "_saved"}},
+                                         upsert=True, on_conflict="mint")
+                    s["_saved"] = True
+                    n += 1
+                except Exception as e:
+                    log.warning("sombra aberta não gravou: %s", str(e)[:120])
+                    break
+        return n
+
     def shadow_trades(self) -> list[dict]:
         from datetime import datetime as _dt
         out = []
@@ -445,6 +460,10 @@ class PumpHub:
             if px and s.get("px0"):
                 s["pico"] = round(max(s.get("pico") or -100.0, (px / s["px0"] - 1) * 100), 2)    # 0.31.86: pico em 15 min
             if now - s["t0"] >= self.SHADOW_S:
+                if now - s["t0"] > self.SHADOW_S + 180:
+                    # 0.31.99: passou da hora da foto de 15 min (ex.: servidor reiniciou) — medir agora mentiria; descarta
+                    sh.pop(m, None)
+                    continue
                 if px:
                     r = (px / s["px0"] - 1) * 100
                     if r >= SUSPECT_PCT:
@@ -464,6 +483,7 @@ class PumpHub:
         await asyncio.sleep(60)
         while True:
             try:
+                await self.shadow_save_open()                      # 0.31.99: sobrevive ao reinício
                 await self.shadow_tick()
             except Exception as e:
                 log.warning("entradas sombra: %s", str(e)[:160])
@@ -504,11 +524,32 @@ class PumpHub:
             return None
         v = self.calls.verdict(c, self.calls.callers(), self._risk_of, self._bl)
         c["veredito_na_call"] = v
+        self._calls_auto(c, v, t)
         for e in list(self.engines.values()):
             if getattr(e, "role", "user") == "admin":
                 e.rlog("calls", c["id"], (c.get("symbol") or c["mint"][:6]) + " · " + label,
                        None if v["verdict"] == "chance alta" else f"veredito {v['verdict']} ({v['chance']}%): " + "; ".join(v["why"][:2]), t)
         return c
+
+    def _calls_auto(self, c: dict, v: dict, t: float) -> None:
+        """0.31.99 (item 4): compra automática das Calls quentes — só na fictícia, só admin com a opção ligada, veredito
+        acima do mínimo, no máx. N por hora, com as proteções das automáticas (valor, stop, limites do dia)."""
+        for e in list(self.engines.values()):
+            cfg = e.cfg
+            if getattr(e, "role", "user") != "admin" or not getattr(cfg, "pump_calls_auto_on", False):
+                continue
+            if v["chance"] < int(getattr(cfg, "pump_calls_auto_min", 65)) or v["verdict"] in ("lixo", "fraco"):
+                continue
+            done = e.__dict__.setdefault("_calls_done", [])
+            done[:] = [x for x in done if t - x < 3600]
+            if len(done) >= int(getattr(cfg, "pump_calls_auto_max_h", 3)):
+                e.rlog("calls", c["id"] + ":auto", c.get("symbol") or c["mint"][:6], f"compra automática: limite de {len(done)} por hora", t)
+                continue
+            r = e.manual_buy(c["mint"], t, auto=f"call de {c.get('label')} ({v['chance']}%)", origem="calls",
+                             info={"veredito": v["verdict"], "chance": v["chance"], "why": v["why"], "caller": c["wallet"], "call": c["id"]})
+            if r.get("auto_id"):
+                done.append(t)
+                e._emit(f"Calls quentes: compra automática (fictícia) em {c.get('symbol') or c['mint'][:6]} — call de {c.get('label')} ({v['chance']}%)")
 
     async def calls_tick(self, now: float | None = None) -> int:
         now = time.time() if now is None else now
@@ -657,7 +698,31 @@ class PumpHub:
                   "motivos": sorted(({"motivo": v[1], "n": v[0], "pct": round(v[0] / tot * 100, 1)} for v in mot.values()), key=lambda m: -m["n"])[:10],
                   "ligado": {"copia": bool(getattr(pf.cfg, "pump_copy_enabled", True)), "base": bool(getattr(pf.cfg, "pump_auto_on", False)),
                              "elite": bool(getattr(pf.cfg, "pump_el_auto_on", False))}.get(mod)}
+        resumo["dicas"] = self.rlog_tips(pf, mod, resumo["motivos"])
         return {"modulo": mod, "nome": self.RLOG_NAMES.get(mod, mod), "blocos": blocos[:288], "resumo": resumo}
+
+    TIPS = (("compra pequena", "pump_min_trader_sol", "Configurações → compra mínima do trader: hoje {v} SOL. Se estes traders compram pouco, baixar copia mais (e também mais compras de teste deles)."),
+            ("market cap", "pump_max_mcap_sol", "Configurações → faixa de market cap (máximo hoje {v} SOL): o token estava fora da faixa."),
+            ("limite de", "pump_max_open", "Configurações → posições abertas ao mesmo tempo: hoje {v}. Estava cheio quando o trader comprou."),
+            ("pausado", None, "Traders pausados (por prejuízo ou pelo Ajuste automático): veja em Top traders → pausados."),
+            ("aguardando", "pump_copy_delay_s", "Configurações → espera antes de copiar: hoje {v} s. A cópia só acontece se o trader continuar no token."),
+            ("robô", None, "Carteira com cara de robô (muitas compras por minuto): fica fora da cópia por 1 h, de propósito."),
+            ("risco", None, "Checagem de risco do token (Solana Tracker) barrou: é proteção."),
+            ("subiu", "pump_chase_block", "Configurações → não copiar se o preço já subiu X% desde o trader: hoje {v}%."))
+
+    def rlog_tips(self, pf: PumpFun, mod: str, motivos: list) -> list[str]:
+        """0.31.99 (item 7): o que ajustar, a partir dos motivos que mais barraram (só sugestão; nada muda sozinho)."""
+        out = []
+        for m in motivos[:5]:
+            low = str(m["motivo"]).lower()
+            for key, cfg, txt in self.TIPS:
+                if key in low:
+                    v = getattr(pf.cfg, cfg, None) if cfg else None
+                    t = f"{m['pct']:.0f}% das recusas — " + txt.format(v=v if v is not None else "?")
+                    if t not in out:
+                        out.append(t)
+                    break
+        return out[:4]
 
     # ------------------------------------------------------------------ log de análise do Explorar (0.31.88)
     async def explore_cycle_save(self, pf: PumpFun, rec: dict) -> None:

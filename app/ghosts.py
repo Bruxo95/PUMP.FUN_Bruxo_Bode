@@ -87,12 +87,17 @@ class Ghosts:
         self.open, self.stats, self.since, self.dirty = [], {}, None, True
 
     def dump(self) -> dict:
-        return {"since": self.since, "stats": self.stats}
+        # 0.31.99 (item 1, pedido do dono: muitos deploys por dia): as posições fantasma abertas também vão para o banco,
+        # senão cada reinício jogava fora os testes de regra de saída em andamento
+        return {"since": self.since, "stats": self.stats, "open": self.open[-600:]}
 
     def load(self, d: dict | None) -> None:
+        import time as _t
         d = d or {}
         self.since = d.get("since")
         self.stats = {k: v for k, v in (d.get("stats") or {}).items() if k in self.names}
+        self.open = [g for g in d.get("open") or [] if isinstance(g, dict) and g.get("v") in self.names
+                     and _t.time() - float(g.get("open_t") or 0) < 24 * 3600]
         self._drop_suspect()
 
     def _drop_suspect(self) -> None:
@@ -126,7 +131,7 @@ class Ghosts:
                               "open_t": t, "opened_at": p.get("opened_at") or now_iso(), "peak": None,
                               "tp1_done": False, "best": 0.0, "worst": 0.0,
                               "grad_in": self.pf.graduated(p["mint"])})
-        self.dirty = True
+        self.dirty = True                                  # 0.31.99: grava também as abertas
 
     def on_price(self, mint: str, px: float | None, t: float) -> None:
         if not px:

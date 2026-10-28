@@ -750,6 +750,11 @@
    "versao": "0.31.98",
    "inicio": "2026-10-28T11:57:27+00:00",
    "titulo": "compras das carteiras em 24 h, 48 h, 3 e 7 dias"
+  },
+  {
+   "versao": "0.31.99",
+   "inicio": "2026-10-28T12:08:24+00:00",
+   "titulo": "itens 1, 2, 3, 4 e 7 das melhorias"
   }
  ]
 }

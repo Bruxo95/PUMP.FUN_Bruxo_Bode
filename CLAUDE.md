@@ -1040,3 +1040,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.31.98: `lista` do `GET /api/pump/radar` conta compras em 24 h/48 h/3 d/7 d e a última pela tabela `wallet_trades` (histórico das
   Carteiras em estudo, desde a 0.14.0), não só pelas calls. Pedido do dono.
+
+## Itens 1–7 das melhorias (2026-10-28, versão 0.31.99)
+- Pedido do dono ("faz 1 a 7"; 5 é botão da conta dele e 6 depende do print da Solana Tracker). (1) `Ghosts.dump/load` guardam
+  `open` (24 h); `hub.shadow_save_open` grava sombras abertas a cada volta do `shadow_loop`; sombra que passou da foto de 15 min
+  (+180 s) é descartada. (2) `pump_ex_possivel_on/_pct` em `explore_entry_reason` e no valor do `manual_buy`. (3)
+  `pump_ar_learn_wilson` em `learned_for_entry` (usa `bloq_wilson`). (4) `pump_calls_auto_on/_min/_max_h` → `hub._calls_auto`
+  → `manual_buy(origem="calls")`, que nunca vai para a real; `AUTO_ORIGINS` + migração `20261028000007`. (7) `hub.rlog_tips`
+  (`resumo.dicas`) no log. Tudo OFF por padrão. Relatório `app/relatorios_ia/2026-10-28-0.31.99.md`. `tests/test_itens_2_3_4.py`.
