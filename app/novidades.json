@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.90",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "menu Logs dos robôs (abaixo de Base geral)",
+      "titulo": "Menu Logs dos robôs",
+      "oque": "Os logs de análise do Explorar, da cópia de traders, da Base da pump.fun e dos Maiores traders ficam juntos num menu próprio, com abas, explicação de como funcionam e períodos de 6 h, 24 h e 7 dias. Tudo fica salvo no banco por 14 dias para ver depois. Nas telas de cada robô ficou um atalho para o log dele."
+    },
+    {
       "versao": "0.31.89",
       "data": "2026-10-28",
       "tipo": "novo",

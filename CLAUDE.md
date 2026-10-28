@@ -1005,3 +1005,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   por item) em `_copy_note` (copia), `auto_check` (base) e `elite_auto` → `_elite_auto` (elite); `hub.rlog_flush/rlog_loop` (60 s) →
   tabela `robot_log` (migração `20261028000004`); `GET /api/pump/robot-log?modulo=&horas=` (admin); quadro `[data-rlog]` em Top
   traders, Base e Maiores traders (`loadRobotLog`). Lógica de decisão igual. `tests/test_robot_log.py`.
+
+- 0.31.90: menu `#logs` (`#navLogs`, admin) com abas `data-logtab`/`data-logpane` (explorar, copia, base, elite; `showLogTab`);
+  os quadros de log saíram das telas e ficaram atalhos `data-logtab`. Pedido do dono ("um menu para guardar e ver depois").

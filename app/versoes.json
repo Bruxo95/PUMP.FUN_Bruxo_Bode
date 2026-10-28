@@ -705,6 +705,11 @@
    "versao": "0.31.89",
    "inicio": "2026-10-28T10:47:11+00:00",
    "titulo": "log de análise da cópia, Base e Maiores traders"
+  },
+  {
+   "versao": "0.31.90",
+   "inicio": "2026-10-28T10:48:44+00:00",
+   "titulo": "menu Logs dos robôs"
   }
  ]
 }

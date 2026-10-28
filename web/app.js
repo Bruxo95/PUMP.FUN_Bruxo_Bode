@@ -917,6 +917,14 @@
       r.vistas ? "Copiou todas as compras vistas." : "Nenhuma compra dos traders copiados chegou ao robô neste período: eles não compraram, ou o monitor não recebeu as transações (confira Monitor ON na Visão geral).");
     table("cdT", ["Trader", "Vistas", "Copiadas", "Motivo principal"], (r.traders || []).map((x) => [pfW(x.wallet), String(x.vistas), String(x.copiadas), '<span class="wrapcell">' + esc(x.principal || "–") + "</span>"]), "–");
   }
+  // 0.31.90 (pedido do dono): menu "Logs dos robôs" — os 4 logs num lugar só, guardados para ver depois
+  let LOGTAB = "explorar";
+  function showLogTab(tab) {
+    LOGTAB = tab;
+    document.querySelectorAll("#logTabs [data-logtab]").forEach((b) => b.classList.toggle("on", b.dataset.logtab === tab));
+    document.querySelectorAll("[data-logpane]").forEach((p) => { p.hidden = p.dataset.logpane !== tab; });
+    if (tab === "explorar") loadExLog(); else loadRobotLog(tab);
+  }
   // 0.31.89 (pedido do dono): o mesmo log de análise para os outros robôs (cópia de traders, Base, Maiores traders)
   const RLH = { copia: 24, base: 24, elite: 24 };
   async function loadRobotLog(mod) {
@@ -1606,6 +1614,7 @@
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
+    const ltb = t.closest && t.closest("[data-logtab]"); if (ltb) { LOGTAB = ltb.dataset.logtab; if (VIEW === "logs") { e.preventDefault(); showLogTab(LOGTAB); } return; }
     if (t.dataset.rlh) { const [md, hh] = t.dataset.rlh.split(":"); RLH[md] = +hh; loadRobotLog(md); return; }
     if (t.dataset.exlogh) { EXLOGH = +t.dataset.exlogh; loadExLog(); return; }
     if (t.dataset.evorep) { showEvo(t.dataset.evorep); return; }
@@ -1715,7 +1724,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · salvo por 14 dias"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -1723,7 +1732,7 @@
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "basegeral"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "basegeral", "logs"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
@@ -1737,12 +1746,13 @@
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
-    if (VIEW === "base") { loadBase(); loadRobotLog("base"); }
-    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); loadExLog(); }
+    if (VIEW === "base") loadBase();
+    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); }
     if (VIEW === "comparar") loadCompare();
     if (VIEW === "basegeral") loadBaseGeral();
-    if (VIEW === "traders") { loadCopyDiag(); loadRobotLog("copia"); }
-    if (VIEW === "elite") { loadElite(); loadSteps(); loadRobotLog("elite"); }
+    if (VIEW === "logs") showLogTab(LOGTAB);
+    if (VIEW === "traders") loadCopyDiag();
+    if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") loadStudy();
     if (VIEW === "radar") loadRadar(true);
@@ -2585,6 +2595,7 @@
     $("navGrp").hidden = ME.role !== "admin";
     $("navExp").hidden = ME.role !== "admin";
     $("navBaseG").hidden = ME.role !== "admin";
+    if ($("navLogs")) $("navLogs").hidden = ME.role !== "admin";
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };
