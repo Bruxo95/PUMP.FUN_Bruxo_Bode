@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "702c0a3b545022d37d14364a16d81289117b15c3",
-    "application_version": "0.31.94 · 2026-10-28 · calls quentes pela blockchain",
+    "repository_reference": "5f0fadc1990c9308b9376ee1dd87590232ad1641",
+    "application_version": "0.31.95 · 2026-10-28 · compras dos Maiores traders lidas (calls e sinais)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "6ff67e6d63d282e6a350d787ac8c1943931beb498bf3b41db2f10519df5acf74",
+      "app/version.py": "526d0358c96680a3b63416f1b498a5dc354c59f170ba800617cd338735dc5183",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "09c15d77deb089ed9855b021667ad6809556c3677a5b4e854726a1bfc7f6a9e4"
+  "pdf_sha256": "1113c04307cd5a7ea314cbd32885c6fa53e6321f1d58344b14a4595598ed195d"
 }

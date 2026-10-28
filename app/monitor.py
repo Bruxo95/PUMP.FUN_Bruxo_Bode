@@ -188,6 +188,10 @@ class SharedMonitor:
         act["n"].append(now)
         fol = self.followers(w)
         studied = any(w in (getattr(e, "study", []) or []) for e in self.engines())
+        # 0.31.95: os Maiores traders também são lidos (antes só eram "vistos" se ninguém os copiava, e por isso não
+        # viravam sinal nem call). Ler não autoriza copiar: a cópia continua só para quem é seguido.
+        el = getattr(getattr(self.hub, "elite", None), "wallets", None)
+        studied = studied or bool(el and w in el())
         was_bot = act.get("bot_until", 0) > now
         is_bot = self.svc._is_bot(w, now)
         if is_bot:

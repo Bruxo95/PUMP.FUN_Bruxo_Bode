@@ -1027,3 +1027,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   veredito 0–100 (nota, outros callers em 10 min, risco ≥7, MC < 30 SOL, lista negra). `hub.calls_tick/calls_loop` (30 s),
   tabela `calls` (migração `20261028000006`), `load_calls` (7 dias), `GET /api/pump/calls` (admin), menu `#calls` e aba
   `calls` em Logs dos robôs (`rlog("calls")`). Não compra sozinho. `tests/test_calls.py`.
+
+- 0.31.95: `SharedMonitor` (aviso de log da carteira) trata as carteiras de `hub.elite.wallets()` como observadas (`studied`):
+  a transação é lida (sinais dos Maiores traders e Calls quentes). Antes só eram lidas se alguém copiava ou estudava. Cópia igual.

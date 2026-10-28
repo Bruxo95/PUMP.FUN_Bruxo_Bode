@@ -730,6 +730,11 @@
    "versao": "0.31.94",
    "inicio": "2026-10-28T11:14:25+00:00",
    "titulo": "calls quentes pela blockchain"
+  },
+  {
+   "versao": "0.31.95",
+   "inicio": "2026-10-28T11:20:38+00:00",
+   "titulo": "compras dos Maiores traders lidas (calls e sinais)"
   }
  ]
 }

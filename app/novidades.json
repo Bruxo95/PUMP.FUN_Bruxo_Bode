@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.95",
+      "data": "2026-10-28",
+      "tipo": "correção",
+      "onde": "Calls quentes e Maiores traders",
+      "titulo": "Compras dos Maiores traders agora são lidas",
+      "oque": "O monitor só lia as transações das carteiras copiadas ou em estudo; as dos Maiores traders que ninguém copiava eram só vistas e nunca lidas, então não viravam sinal nos Maiores traders nem call nas Calls quentes. Agora são lidas. Ler não é copiar: a cópia continua só para quem você segue."
+    },
+    {
       "versao": "0.31.94",
       "data": "2026-10-28",
       "tipo": "novo",
