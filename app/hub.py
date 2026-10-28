@@ -1605,10 +1605,20 @@ class PumpHub:
         last.update(done_now)
         cur = set(getattr(pf, "study", []) or [])
         new = sorted(w for w, a in last.items() if a == "aprovou" and w in cur) if getattr(pf.cfg, "pump_st_auto_copy", False) else []
-        if new != list(getattr(pf, "study_copy", None) or []):
-            add = [w for w in new if w not in (pf.study_copy or [])]
-            rem = [w for w in (pf.study_copy or []) if w not in new]
+        # 0.32.13 (pedido do dono: "aprovou vai direto para o Top traders, cópia manual, só fictício"): a aprovada entra na
+        # lista manual de Top traders, marcada como da IA (study_copy) para nunca ir para a real. Carteira que o dono já
+        # tinha posto à mão fica como estava (sem marca, segue a regra dele).
+        old = list(getattr(pf, "study_copy", None) or [])
+        new = [w for w in new if w in old or w not in (pf.manual or [])]
+        if new != old:
+            add = [w for w in new if w not in old]
+            rem = [w for w in old if w not in new]
             pf.study_copy = new
+            for w in add:
+                pf.add_manual(w)
+            for w in rem:
+                if w in (pf.manual or []):
+                    pf.remove_manual(w)
             await self.save_settings(pf)
             pf.refresh_followed(force=True)
             if add:

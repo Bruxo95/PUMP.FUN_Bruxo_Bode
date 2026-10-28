@@ -820,6 +820,11 @@
    "versao": "0.32.12",
    "inicio": "2026-10-28T20:15:00+00:00",
    "titulo": "Decisões da IA em uma linha, nota geral e Ver tudo"
+  },
+  {
+   "versao": "0.32.13",
+   "inicio": "2026-10-28T20:30:00+00:00",
+   "titulo": "aprovadas vão para Top traders (só fictícia)"
   }
  ]
 }

@@ -1110,3 +1110,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.12: `study.score` (70% Wilson 90% do acerto + 30% ganho ÷ (ganho+perda)) em `digest` (`score`, `score_base`, `ganho`, `perda`).
   `#saLog` em uma linha (`scoreTag`, `SA_LOG`) e modal `#saM` (`openSaDet`, botão `data-sadet`). Pedido do dono.
+
+- 0.32.13: `study_copy_sync` põe a aprovada em `pf.manual` (`add_manual`) e tira na descartada (só as que a IA pôs, marcadas em
+  `study_copy`); `sim_only` vale mesmo na lista manual; `followed[].ia_sim` → etiqueta "Manual · IA · só fictícia" em Top traders. Pedido do dono.

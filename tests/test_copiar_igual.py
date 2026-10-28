@@ -83,3 +83,15 @@ def test_study_approved_wallets_copy_only_in_sim(tmp_path):
     pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
     assert [p["real"] for p in pf.positions() if p["mint"] == M] == [False]
     assert pf._rq is None or pf._rq.qsize() == 0        # nada foi para a real
+
+
+def test_study_approved_in_manual_list_still_never_real(tmp_path):
+    """0.32.13 (pedido do dono): a aprovada vai para Top traders como manual, mas segue só na fictícia."""
+    pf = _pf(tmp_path)
+    pf.cfg.pump_st_auto_copy = True
+    pf.study_copy = [_W]
+    pf.add_manual(_W)
+    assert _W in pf.manual and pf.sim_only(_W)
+    pf.on_message(_ev("buy", _W, M, 1.0, 1e6, 30, 3e7), 1000.0)
+    assert [p["real"] for p in pf.positions() if p["mint"] == M] == [False]
+    assert pf._rq is None or pf._rq.qsize() == 0

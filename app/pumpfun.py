@@ -987,7 +987,7 @@ class PumpFun:
 
     def sim_only(self, who: str) -> bool:
         """0.32.11: cópia que nunca vai para a carteira real (aprovadas do estudo automático, sem ser manual)."""
-        return bool(who) and who in self.study_copy_wallets() and who not in (self.manual or [])
+        return bool(who) and who in self.study_copy_wallets()
 
     def eq_wallets(self) -> list[str]:
         """0.32.4: carteiras do "Copiar igual" (vazio com o modo desligado)."""
@@ -3728,7 +3728,7 @@ class PumpFun:
         for w in self.followed:
             r = stats_by_w.get(w) or {"wallet": w, "short": short(w)}
             lbr = lbmap.get(w)
-            followed.append({**r, "manual": w in man, "copied": copied.get(w), "lb": lbr,
+            followed.append({**r, "manual": w in man, "ia_sim": self.sim_only(w), "copied": copied.get(w), "lb": lbr,
                              "ignored": (self.rpc_status.get("ignored_by") or {}).get(w, 0),
                              "other_copied": (self.rpc_status.get("other_by") or {}).get(w, 0),
                              "act": self.activity_view(w),
