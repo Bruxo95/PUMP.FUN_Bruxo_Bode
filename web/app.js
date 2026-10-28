@@ -71,6 +71,8 @@
       row("Vendas", POS_DET.soldCell(p)) +
       row("Stop móvel", p.trail_peak != null ? "ligado · pico " + pc(p.trail_peak) + " · sai em +" + f(p.trail_exit, 1) + "%" : "ainda não ligou") +
       row("Tempo de saída e regras desta posição", POS_DET.left(p)) +
+      row("Antes da entrada (15 min)", p.antes ? "entrou a " + f(p.antes.pos_pct, 0) + "% da faixa (0% = fundo, 100% = topo) · tinha subido " + (p.antes.subiu_antes_pct == null ? "–" : pc(p.antes.subiu_antes_pct)) + " desde o mínimo" : "sem dado (o token não era acompanhado antes da compra)") +
+      row("Fotos a cada 15 min", (p.snaps || []).length ? (p.snaps || []).map((x) => x.min + " min: " + (x.chg == null ? "–" : (x.chg > 0 ? "+" : "") + f(x.chg, 1) + "%") + (x.best != null ? " (pico " + f(x.best, 0) + "%)" : "")).join(" · ") : "a primeira foto sai com 15 min de posição") +
       "</tbody></table></div>";
     if ($("posM").hidden) { $("posM").hidden = false; $("posMX").focus(); }
   }
@@ -1008,6 +1010,16 @@
     loadEvo();
     const r = await BB.api("/api/pump/base-geral");
     if (r.error) { $("bgSub").textContent = r.error; return; }
+    // 0.32.33 (pedido do dono): aprendizado das posições — entrou/saiu na hora certa
+    const PL = r.posicoes || {}, pcv = (v) => v == null ? "–" : v + "%";
+    $("plSub").textContent = (PL.n || 0) + " posições fechadas analisadas · últimos 14 dias · todas as contas";
+    $("plDicas").innerHTML = (PL.dicas || []).map((d) => '<div class="decbox">' + esc(d) + "</div>").join("");
+    const LH = ["", "Posições", "Acerto", "Média", "Saiu cedo", "Saída certa", "Deixou na mesa (média)", "Entrou no topo"];
+    const lrow = (x) => [esc(x.nome), String(x.n), pcv(x.acerto), x.media_pct == null ? "–" : pc(x.media_pct), pcv(x.saiu_cedo_pct), pcv(x.saida_certa_pct), x.na_mesa_pct == null ? "–" : "+" + f(x.na_mesa_pct, 0) + "%", x.com_antes ? pcv(x.entrou_no_topo_pct) + "<small>" + x.com_antes + " com dado</small>" : "–"];
+    table("plO", LH, (PL.por_origem || []).map(lrow), "Nenhuma posição analisada ainda (começa a contar nesta versão; cada uma leva 1 h depois de fechar).");
+    table("plS", LH, (PL.por_saida || []).map(lrow), "–");
+    table("plR", ["Fechou", "Token", "Origem", "Saída", "Resultado", "Entrada", "Depois da saída (15/30/60 min)", "Veredito"], (PL.recentes || []).map((d) => [dt(d.closed_at), esc(d.symbol || "?"), esc(d.origem_nome || ""), esc(d.saida_tipo || ""), pc(d.pnl_pct),
+      '<span class="wrapcell">' + esc(d.entrada || "") + "</span>", ["15", "30", "60"].map((k) => (d.depois || {})[k] == null ? "–" : pc((d.depois || {})[k], 0)).join(" · "), '<span class="wrapcell">' + esc(d.saida || "") + "</span>"]), "–");
     const m = r.maturidade || {}, s = r.resumo || {}, L = r.learned || {}, G = r.ghosts || {};
     $("bgSub").textContent = (s.contas || 0) + " conta(s) ensinando · " + (s.operacoes || 0) + " compras automáticas fechadas · " + (s.dias || 0) + " dia(s) de histórico";
     kpis("bgK", [["Maturidade da base", f(m.total || 0, 0) + "%", "quanto de dado já tem para decidir", "hit"],
@@ -2555,6 +2567,9 @@
       '<span class="nowrap"><button class="btn sm" data-posdet="' + esc(String(p.id)) + '">Detalhes</button> ' + (p.selling ? "" : btn(p.real ? "Vender" : "Fechar", "close", { id: p.id, real: p.real ? 1 : 0 }, p.real ? "tgl off" : "")) + "</span>" + (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "")]),
       rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.");
     if (!$("posM").hidden && POS_ID != null) openPosDet(POS_ID, true);
+    // 0.32.33 (pedido do dono): as que acabaram de fechar, com o motivo (stop, alvo, tempo…)
+    if ($("tClosedNow")) table("tClosedNow", ["Fechou", "Token", "Origem", "Investido", "Resultado", "%", "Segurou", "Motivo"], (D.recent_closed || []).filter((t) => !!t.real === rm).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), pfW(t.wallet, t), s4(t.sol_in) + " SOL", "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
+      '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]), "Nenhuma posição fechou nas últimas 3 h.");
   }
   function renderHistory() {
     const rm = realMode(), T = (D.trades || []).filter((t) => !!t.real === rm);

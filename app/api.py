@@ -1106,6 +1106,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             st["log"] = await hub.db.select("base_log", None, order="em.desc", limit=150)
         except Exception:
             st["fotos"], st["log"] = [], []
+        st["posicoes"] = await hub.pos_learn_state()        # 0.32.33: aprendizado das posições
         try:
             st["ajustes"] = await hub.db.select("auto_tune_log", None, order="em.desc", limit=40)
             for r in st["ajustes"]:

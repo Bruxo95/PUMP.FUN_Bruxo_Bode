@@ -204,7 +204,9 @@
       <section class="view" data-view="posicoes" hidden>
         <div class="card"><header><div><h2>Posições copiadas <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub" id="posSub"></div></div></header>
           <div class="tbl-wrap"><table id="tPos"></table></div><details class="origleg"><summary>O que quer dizer a coluna Trader quando não é uma carteira?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
-      </section>
+              <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Fechadas agora (últimas 3 h)</h2><div class="sub">stops, alvos, tempo, trader vendeu… para ver que o trade terminou e por quê</div></div><div class="sp"></div><a class="btn sm" href="#historico">Histórico completo</a></header>
+          <div class="tbl-wrap"><table id="tClosedNow"></table></div></div>
+</section>
 
       <!-- ========================================================= CARTEIRAS EM ESTUDO (app/study.py) -->
       <section class="view" data-view="estudo" hidden>
@@ -968,6 +970,12 @@
         </div>
       </section>
       <section class="view" data-view="basegeral" hidden>
+        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Aprendizado das posições</h2><div class="sub" id="plSub">entrou e saiu na hora certa? (últimos 14 dias, todas as contas)</div></div></header>
+          <div class="help"><p><b>Como lê:</b> para cada posição fechada o robô guarda onde comprou em relação aos 15 min anteriores (perto do topo, do fundo ou no meio, quando o token já era acompanhado), uma foto a cada 15 min e o que o preço fez 15, 30 e 60 min depois da venda. <b>Saiu cedo</b> = subiu 30%+ depois; <b>saída certa</b> = caiu 15%+ depois. Só mede e sugere: nada muda sozinho.</p></div>
+          <div id="plDicas"></div>
+          <h3 class="h3s">Por origem</h3><div class="tbl-wrap"><table id="plO" class="daytbl"></table></div>
+          <h3 class="h3s">Por tipo de saída</h3><div class="tbl-wrap"><table id="plS" class="daytbl"></table></div>
+          <h3 class="h3s">Últimas analisadas</h3><div class="tbl-wrap"><table id="plR" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-11"><header><div><h2>O cérebro do robô</h2><div class="sub" id="bgSub">o que o sistema aprendeu com todas as contas</div></div></header>
           <div class="kpis" id="bgK"></div>
           <div class="help"><p><b>Maturidade</b> é quanto de dado a base já tem para decidir com confiança: faixas com 30+ operações, regras de saída com 20+ trades e 2 dias, e 7 dias de histórico. <b>100% não quer dizer ganhar todos os trades</b>: quer dizer que o que a base mostra é confiável. Nada aqui muda regra ou configuração de ninguém.</p></div>

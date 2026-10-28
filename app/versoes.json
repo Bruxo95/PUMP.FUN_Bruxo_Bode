@@ -920,6 +920,11 @@
    "versao": "0.32.32",
    "inicio": "2026-10-29T00:30:00+00:00",
    "titulo": "automáticas do Explorar: opção e valor da REAL"
+  },
+  {
+   "versao": "0.32.33",
+   "inicio": "2026-10-29T01:00:00+00:00",
+   "titulo": "aprendizado das posições; ajuste dos barrados que se perdeu"
   }
  ]
 }

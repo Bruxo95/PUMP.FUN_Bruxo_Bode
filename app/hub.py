@@ -168,6 +168,9 @@ class PumpHub:
             pf.cfg.pump_real_enabled = True
             pf._emit("[PUMP REAL] execução real continua LIGADA depois do reinício do servidor (ligada por você)")
             await audit(self.db, uid, "execução real religada após reinício", f"máx. {pf.cfg.pump_real_max_sol} SOL por compra")
+        # 0.32.33: ajustes pendentes do dono (settings_overrides) — no fim, com tudo da conta já carregado, para o salvar não
+        # perder nada (study_copy, copy_equal, _real_on…)
+        await self._apply_overrides(pf)
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
             if p.get("selling"):
                 p["selling"] = False
@@ -997,6 +1000,45 @@ class PumpHub:
                 "usd": bal.get("usd"), "sol": bal.get("sol"), "criados": cs.get("tokens"), "rugs": cs.get("rugs"),
                 "lido": bool(fa or bal)}
 
+    async def _apply_overrides(self, pf: PumpFun) -> None:
+        """0.32.33: aplica os ajustes de `settings_overrides` ainda não aplicados (só o servidor novo lê essa tabela, então o
+        servidor antigo não consegue sobrescrever como acontecia gravando direto em user_settings)."""
+        try:
+            rows = await self.db.select("settings_overrides", {"user_id": pf.user_id}, order="id.asc", is_null=("aplicado_em",))
+        except Exception:
+            return
+        for r in rows:
+            applied, _err = pf.cfg.apply(dict(r.get("settings") or {}))
+            await self.save_settings(pf)
+            await self.db.update("settings_overrides", {"id": r["id"]}, {"aplicado_em": datetime.now(timezone.utc).isoformat()})
+            await audit(self.db, pf.user_id, "ajuste de configuração aplicado", f"{r.get('motivo') or ''}: {', '.join(applied)}")
+
+    async def flush_pos_learn(self) -> None:
+        """0.32.33: grava as posições fechadas já com o "depois da saída" medido (aprendizado das posições)."""
+        for pf in list(self.engines.values()):
+            rows = pf.__dict__.get("_learn_out") or []
+            if not rows:
+                continue
+            pf._learn_out = []
+            try:
+                for d in rows:
+                    await self.db.insert("position_learn", {"user_id": pf.user_id, "pos_id": str(d.get("pos_id")), "mint": d.get("mint"),
+                                                            "real": bool(d.get("real")), "fechou_em": d.get("closed_at"), "data": d})
+            except Exception as e:
+                pf._learn_out = rows + pf.__dict__.get("_learn_out", [])
+                log.warning("aprendizado das posições não gravou: %s", str(e)[:120])
+
+    async def pos_learn_state(self, days: int = 14) -> dict:
+        from .poslearn import aggregate
+        since = datetime.fromtimestamp(time.time() - days * 86400, timezone.utc).isoformat()
+        try:
+            rows = await self.db.select("position_learn", None, order="em.desc", limit=3000, gte={"em": since})
+        except Exception:
+            rows = []
+        out = aggregate(rows)
+        out["recentes"] = [r.get("data") for r in rows[:30]]
+        return out
+
     async def eq_set(self, pf: PumpFun, wallets: list) -> dict:
         """0.32.4: lista do "Copiar igual" (endereços colados da página da pump.fun)."""
         seen, out, bad = set(), [], []
@@ -1334,6 +1376,10 @@ class PumpHub:
                     log.warning("Base da pump.fun não gravou: %s", str(e)[:120])
             if n % 5 == 0:
                 await self.save_ghosts()
+            try:
+                await self.flush_pos_learn()                # 0.32.33: aprendizado das posições
+            except Exception:
+                pass
             if n % 2 == 0:
                 try:
                     await self.save_elite()

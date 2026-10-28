@@ -115,6 +115,7 @@ class PumpMarket:
         self.activity: dict = {}                   # carteira -> atividade na rede (online/offline)
         self.wallet_usd: dict = {}                 # carteira do trader -> {"usd", "sol", "stable", "t"}
         self.wallet_facts: dict = {}               # 0.32.9: carteira -> idade/transações (wallet_age), lido aos poucos
+        self.px_hist: dict = {}                    # 0.32.33: token -> [(t, preço)] a cada ~20 s, 40 min (aprendizado das posições)
         self.blacklist: dict[str, dict] = {}       # 0.20.0: lista negra compartilhada (endereço -> tipo, motivo)
         self.bl_new: list[str] = []                # endereços novos ainda não gravados no banco
         self.creator_stats: dict[str, dict] = {}   # 0.21.0: criador -> tokens, x2, rugs (base da pump.fun)
@@ -1389,6 +1390,7 @@ class PumpFun:
                 tr["origem"] = p["origem"]                 # 0.32.21: ex.: "barrado"
             if p.get("eq"):
                 tr["eq"] = True                            # 0.32.4: Copiar igual
+            self._post_open(p, tr, px, t)                  # 0.32.33: segue o preço 15/30/60 min depois da saída
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -2493,6 +2495,67 @@ class PumpFun:
     # 0.32.21: motivos de barragem que são SEGURANÇA — esses nunca entram, mesmo subindo
     BAR_HARD = ("lista negra", "rug", "criador", "risco", "bundle", "carteiras novas", "lixo", "suspeito", "mayhem", "dev ")
 
+    # ------------------------------------------------------------------ 0.32.33: aprendizado das posições (app/poslearn.py)
+    def pos_snapshots(self, now: float | None = None) -> None:
+        """Foto de cada posição aberta a cada 15 min e, na primeira vez, onde a entrada ficou nos 15 min anteriores."""
+        from .poslearn import SNAP_S, entry_context
+        now = time.time() if now is None else now
+        for p in self.positions():
+            ch = False
+            if "antes" not in p:
+                p["antes"] = entry_context(list(self.market.px_hist.get(p["mint"]) or []), float(p.get("open_t") or now),
+                                           p.get("trader_px") or p.get("trader_price") or p.get("price_in"))
+                ch = True
+            last = float(p.get("snap_t") or p.get("open_t") or now)
+            if now - last >= SNAP_S:
+                snaps = p.setdefault("snaps", [])
+                snaps.append({"t": round(now), "min": round((now - float(p.get("open_t") or now)) / 60), "chg": p.get("chg_pct"),
+                              "best": p.get("best_pct"), "worst": p.get("worst_pct"), "px": p.get("price_now"),
+                              "mcap": (self.tokens.get(p["mint"]) or {}).get("mcap_sol")})
+                del snaps[:-100]
+                p["snap_t"] = now
+                ch = True
+            if ch:
+                self._save_pos(p)
+
+    def _post_open(self, p: dict, tr: dict, px, t: float) -> None:
+        from .poslearn import entry_label, exit_kind, origin_of
+        w = self.__dict__.setdefault("_post_watch", {})
+        if len(w) > 300:
+            return
+        w[str(p.get("id"))] = {"pos_id": p.get("id"), "mint": p["mint"], "symbol": p.get("symbol"), "real": bool(p.get("real")),
+                               "origem_nome": origin_of({**p, **tr}), "saida_tipo": exit_kind(tr.get("reason")), "motivo": tr.get("reason"),
+                               "opened_at": tr.get("opened_at"), "closed_at": tr.get("closed_at"), "hold_s": tr.get("hold_s"),
+                               "pnl_pct": tr.get("pnl_pct"), "pnl_sol": tr.get("pnl_sol"), "best_pct": p.get("best_pct"),
+                               "worst_pct": p.get("worst_pct"), "antes": p.get("antes"), "entrada": entry_label(p.get("antes")),
+                               "fotos": list(p.get("snaps") or [])[-20:], "px_out": px, "t_out": t, "depois": {}}
+
+    def post_watch_mints(self) -> list[str]:
+        return list({x["mint"] for x in (self.__dict__.get("_post_watch") or {}).values()})[:40]
+
+    def post_tick(self, now: float | None = None) -> None:
+        """Preço 15/30/60 min depois da saída; quando completa (ou passa de 75 min), vira linha do aprendizado."""
+        from .poslearn import AFTER_MIN, exit_label
+        now = time.time() if now is None else now
+        w = self.__dict__.get("_post_watch") or {}
+        for k, x in list(w.items()):
+            tk = self.tokens.get(x["mint"]) or {}
+            px, fresh = tk.get("price"), now - float(tk.get("last_t") or 0) <= 120
+            for m in AFTER_MIN:
+                if str(m) not in x["depois"] and now >= x["t_out"] + m * 60 and px and x.get("px_out") and fresh:
+                    x["depois"][str(m)] = round((px / x["px_out"] - 1) * 100, 1)
+            if len(x["depois"]) == len(AFTER_MIN) or now > x["t_out"] + 75 * 60:
+                x["saida"] = exit_label(x["depois"], x.get("pnl_pct"))
+                x.pop("t_out", None)
+                self.__dict__.setdefault("_learn_out", []).append(x)
+                del w[k]
+
+    def recent_closed(self, hours: float = 3) -> list[dict]:
+        """0.32.33 (pedido do dono): em Posições, as que acabaram de fechar (stop, alvo, tempo…) para ver que terminou."""
+        from .auto_trades import ts
+        cut = time.time() - hours * 3600
+        return [t for t in self.trades(200) if (ts(t.get("closed_at")) or 0) >= cut][:30]
+
     BAR_TRIGGERS = (10, 20, 30, 50)                # 0.32.22: gatilhos testados em "entrar cedo"
     BAR_FEES_PCT = 4.0                              # ida e volta estimada (curva 1,25% + PumpPortal 0,5% + slippage), por lado ×2
 
@@ -2506,7 +2569,7 @@ class PumpFun:
         now = time.time() if now is None else now
         fn = getattr(self, "_ex_funnel", None) or {}
         live = [(g.get("first_t") or 0, m) for m, g in fn.items()
-                if not g.get("entrou") and self._bar_soft(g) and now - float(g.get("first_t") or 0) < 5400]
+                if not g.get("entrou") and self._bar_soft(g) and now - float(g.get("first_t") or 0) < 4 * 3600]
         return [m for _, m in sorted(live, reverse=True)[:40]]
 
     def barred_track(self, now: float | None = None) -> None:
@@ -2590,7 +2653,11 @@ class PumpFun:
         sim_pos = {p["mint"]: p for p in self.positions() if not p.get("real")}
         out = []
         for mint, g in list((getattr(self, "_ex_funnel", None) or {}).items()):
-            if g.get("entrou") or now - float(g.get("t") or 0) > 3600:
+            if g.get("entrou"):
+                continue
+            if now - float(g.get("t") or 0) > 3 * 3600:     # 0.32.33: 1 h → 3 h depois que saiu da lista do Explorar
+                if mint not in done and self._bar_soft(g):
+                    g["auto_st"] = "fora: saiu da lista do Explorar há mais de 3 h"
                 continue
             if mint in done:
                 g["auto_st"] = "entrou"
@@ -3976,7 +4043,7 @@ class PumpFun:
                               "source": "leaderboard" if self.leaderboard else "ranking próprio"},
                 "followed": followed, "ranking": [r | {"followed": r["wallet"] in fol} for r in rk[:50]],
                 "manual": self.manual, "banned": self.banned,
-                "positions": pos, "trades": self.trades(300), "feed": list(self.feed)[:150],
+                "positions": pos, "trades": self.trades(300), "feed": list(self.feed)[:150], "recent_closed": self.recent_closed(),
                 "live": [e for e in list(self.live) if e["wallet"] in fol][:200], "trader_pos": self.trader_positions(),
                 "wallet": self.wallet(), "real_wallet": self.wallet(real=True), "curve": self.curve(),
                 "real_curve": self.curve(real=True), "pending": [{"wallet": k[0], "mint": k[1], "in_s": round(v["due"] - time.time())}

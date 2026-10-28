@@ -1173,3 +1173,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.32: `pump_ex_real_on` (ON) e `pump_ar_real_sol` (0 = `pump_real_max_sol`; nunca acima dele) em `manual_buy`/`_real_buy` para origem
   explorar; `#exRealDiag` no quadro Proteções das automáticas. Pedido do dono. Regras de entrada/saída do Explorar iguais.
+
+- 0.32.33: **Ajuste de configuração pedido no chat = linha em `settings_overrides`** (migração `20261029000001`), aplicada por
+  `hub._apply_overrides` no fim do `_load` (uma vez; audit_log). Não gravar direto em `user_settings` por migração: o servidor
+  antigo salva a memória por cima antes de reiniciar (perdeu o ajuste dos barrados das migrações 13/14). Aprendizado das posições:
+  `app/poslearn.py`, `market.px_hist` (monitor `_px_hist`), `pos_snapshots`/`_post_open`/`post_tick`/`post_watch_mints` no motor,
+  `hub.flush_pos_learn` → `position_learn`, `pos_learn_state` → `posicoes` na rota da Base geral. `recent_closed` → `#tClosedNow`.
+  Janela dos barrados 3 h. Só fictícia (a real fecha por outro caminho).

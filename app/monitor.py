@@ -490,6 +490,8 @@ class SharedMonitor:
         el = getattr(self.hub, "elite", None)
         if el is not None:
             trader += list(el.open_mints())               # sinais dos maiores traders: 60 min de preço (0.31.2)
+        for e in self.engines():                          # 0.32.33: tokens das posições que acabaram de fechar (depois da saída)
+            trader += e.post_watch_mints()
         for e in self.engines():                          # 0.32.22: barrados do Explorar (entrar cedo) com preço ao vivo
             if getattr(e, "role", None) == "admin" and getattr(e.cfg, "pump_ex_auto_on", False):
                 trader += e.barred_watch()
@@ -523,6 +525,22 @@ class SharedMonitor:
         self.check_stops(set(h["qty"]) | self.ghost_mints())
         self.auto_after_once()
         self.market.rpc_status["price_at"] = now_iso()
+        self._px_hist(held)                               # 0.32.33: antes da entrada (aprendizado das posições)
+
+    def _px_hist(self, mints: list) -> None:
+        now = time.time()
+        H = self.market.px_hist
+        for m in mints:
+            px = (self.market.tokens.get(m) or {}).get("price")
+            if not px:
+                continue
+            L = H.setdefault(m, [])
+            if not L or now - L[-1][0] >= 20:
+                L.append((now, px))
+                del L[:-120]
+        if len(H) > 600:
+            for m in sorted(H, key=lambda k: H[k][-1][0] if H[k] else 0)[:200]:
+                H.pop(m, None)
 
     def check_stops(self, mints) -> None:
         for e in self.engines():
@@ -882,6 +900,8 @@ class SharedMonitor:
                 e.refresh_followed()
                 for msg in e.check_timeouts():
                     e._emit(msg)
+                e.pos_snapshots()                       # 0.32.33: foto de 15 em 15 min
+                e.post_tick()                           # 0.32.33: preço depois da saída
             except Exception as ex:
                 log.warning("tick (%s…): %s", getattr(e, "user_id", "?")[:8], str(ex)[:160])
         if int(time.time()) % 60 < 2:
