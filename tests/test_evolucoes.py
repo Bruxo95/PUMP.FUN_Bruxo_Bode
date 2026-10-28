@@ -47,3 +47,15 @@ def test_rollback_freezes_entry_and_back_to_auto(env):
     assert rep["numero"] == 1 and "piores" in rep
     assert c.post("/api/pump/base/automatico", headers=tok(UA), json={}).json()["ok"]
     assert pf.brain_freeze is None
+
+
+def test_compare_says_if_improved_with_enough_base():
+    """0.32.24 (pedido do dono): o comparar diz se melhorou, com %, e só com base suficiente."""
+    from app.evolucoes import comparar, veredito
+    a = {"operacoes": 6, "por_trade": 0.002, "sombras": 0, "estado": {"bloqueios": [1]}}
+    b = {"operacoes": 8, "por_trade": 0.003, "sombras": 0, "estado": {"bloqueios": [1, 2]}}
+    v = veredito(a, b)
+    assert v["resultado"] == "melhorou" and v["pct"] == 50.0
+    linhas = {x["chave"]: x for x in comparar(a, b)}
+    assert linhas["por_trade"]["melhor"] == "melhorou" and linhas["bloqueios"]["b"] == 2 and linhas["por_trade"]["explica"]
+    assert veredito({"operacoes": 0, "sombras": 4}, {"operacoes": 0, "sombras": 2})["resultado"] == "poucos dados"

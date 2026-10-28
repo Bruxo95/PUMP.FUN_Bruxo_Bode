@@ -616,3 +616,5 @@ table.extbl td:nth-child(3){max-width:120px;white-space:normal}
 a.tag{text-decoration:none;cursor:pointer}
 /* 0.32.15: cartões clicáveis */
 .kpi.clickable{cursor:pointer}.kpi.clickable:hover{border-color:var(--muted)}
+/* 0.32.24: nome de linha com explicação no mouse */
+.hovhelp{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}

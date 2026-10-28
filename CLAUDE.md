@@ -1146,3 +1146,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   ou 30 min, −4% de taxas) e `barred_sim` → `cedo` no funil; tabela `#exFunCedo`. Só mede. Pedido do dono.
 
 - 0.32.23: `data-nosanf` = cartão que a `sanfona()` nunca recolhe (funil do Explorar). Cuidado: cartão que ganha 3+ campos vira sanfona fechada.
+
+- 0.32.24: `evolucoes.comparar` com `pct`, `melhor` (SENTIDO de cada linha), `explica` e linhas EXTRA (dias, sombras_ganhariam, bloqueios);
+  `evolucoes.veredito` (MIN_BASE 5 operações, senão barrados, senão "poucos dados") na rota do comparar; tela com `.hovhelp`. Pedido do dono.

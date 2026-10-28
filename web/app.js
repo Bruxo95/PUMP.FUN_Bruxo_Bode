@@ -948,8 +948,17 @@
     const money = { lucro_sol: 1, por_trade: 1, real_lucro_sol: 1 }, pcts = { acerto: 1 }, pp = { media_pct: 1, sombras_media_pct: 1 };
     const fmt = (k, v) => v == null ? "–" : money[k] ? sg(v) : pcts[k] ? pctN(v) : pp[k] ? pc(v) : f(v, 0);
     const dif = (k, v) => v == null ? "–" : money[k] ? sg(v) : pcts[k] ? (v > 0 ? "+" : "") + f(v * 100, 0) + " pts" : pp[k] ? (v > 0 ? "+" : "") + f(v, 1) + " pts" : (v > 0 ? "+" : "") + f(v, 0);
-    $("evoOut").innerHTML = "<h3>E" + a + " × E" + b + "</h3><p class=\"muted\">cada coluna é o período em que a evolução valeu; a diferença é E" + b + " − E" + a + "</p>" + '<div class="tbl-wrap"><table id="evoC" class="daytbl"></table></div>';
-    table("evoC", ["", "E" + a, "E" + b, "Diferença"], (r.linhas || []).map((x) => [esc(x.nome), fmt(x.chave, x.a), fmt(x.chave, x.b), dif(x.chave, x.diferenca)]), "–");
+    // 0.32.24 (pedido do dono): veredito de melhora com %, variação de cada linha e explicação no mouse
+    const V = r.veredito || {}, vc = V.resultado === "melhorou" ? "ok" : V.resultado === "piorou" ? "bad" : "";
+    const per = (d) => (r[d] || {}).em ? dt(r[d].em) + " até " + ((r[d] || {}).ate ? dt(r[d].ate) : "agora") : "";
+    $("evoOut").innerHTML = "<h3>E" + a + " × E" + b + "</h3>" +
+      '<div class="decbox ' + vc + '"><b>' + (V.resultado === "melhorou" ? "Melhorou" : V.resultado === "piorou" ? "Piorou" : V.resultado === "igual" ? "Igual" : "Ainda não dá para dizer") +
+      (V.pct != null ? " (" + (V.pct > 0 ? "+" : "") + f(V.pct, 1) + "%)" : "") + "</b> — " + esc(V.texto || "") + "</div>" +
+      '<p class="muted">E' + a + ": " + esc(per("a")) + " · E" + b + ": " + esc(per("b")) + " · a diferença é E" + b + " − E" + a + ". Passe o mouse no nome de cada linha para ver o que ela significa.</p>" +
+      '<div class="tbl-wrap"><table id="evoC" class="daytbl"></table></div>';
+    const vd = (x) => x.melhor === "melhorou" ? '<span class="up" title="nesta linha, a E' + b + ' foi melhor">melhorou</span>' : x.melhor === "piorou" ? '<span class="down" title="nesta linha, a E' + b + ' foi pior">piorou</span>' : '<span class="muted" title="esta linha é só informação, ou não mudou">–</span>';
+    table("evoC", ["", "E" + a, "E" + b, "Diferença", "Variação", "Melhorou?"], (r.linhas || []).map((x) => ['<span class="hovhelp" title="' + esc(x.explica || "") + '">' + esc(x.nome) + "</span>",
+      fmt(x.chave, x.a), fmt(x.chave, x.b), dif(x.chave, x.diferenca), x.pct == null ? "–" : (x.pct > 0 ? "+" : "") + f(x.pct, 1) + "%", vd(x)]), "–");
   }
   async function loadBaseGeral() {
     loadEvo();

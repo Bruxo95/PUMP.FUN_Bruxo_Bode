@@ -65,14 +65,71 @@ def relatorio(trades: list[dict], ini: float, fim: float | None, mudancas: list 
     }
 
 
+# 0.32.24 (pedido do dono: "houve melhora? colocar porcentagem; mais informação; explicar cada linha no mouse"):
+# direção boa de cada linha (+1 = maior é melhor, −1 = menor é melhor, 0 = só informação) e o que ela significa
+EXTRA = (("dias", "Dias que a evolução valeu"), ("sombras_ganhariam", "Barrados que teriam ganho"),
+         ("bloqueios", "Faixas bloqueadas (aprender com os erros)"))
+SENTIDO = {"operacoes": 0, "ganhos": 1, "perdas": -1, "acerto": 1, "lucro_sol": 1, "por_trade": 1, "media_pct": 1,
+           "sombras": 0, "sombras_media_pct": -1, "sombras_ganhariam": -1, "real_operacoes": 0, "real_lucro_sol": 1,
+           "dias": 0, "bloqueios": 0}
+EXPLICA = {
+    "operacoes": "Compras automáticas do Explorar que fecharam (fictícia) enquanto esta evolução valia.",
+    "ganhos": "Dessas operações, quantas fecharam no lucro, já com taxas.",
+    "perdas": "Quantas fecharam no prejuízo ou zeradas, já com taxas.",
+    "acerto": "Ganhos ÷ operações. Pts = diferença em pontos percentuais.",
+    "lucro_sol": "Soma do resultado das operações em SOL (fictícia, já com taxas).",
+    "por_trade": "Lucro ÷ operações: quanto cada operação rendeu em média. É a melhor medida para comparar evoluções de tamanhos diferentes.",
+    "media_pct": "Média do resultado em % de cada operação.",
+    "sombras": "Tokens 'chance alta' que o filtro barrou nesse período (entradas sombra: o sistema finge que entrou).",
+    "sombras_media_pct": "Quanto os barrados teriam dado em média se tivessem entrado. MENOR é melhor: o filtro acertou ao barrar.",
+    "sombras_ganhariam": "Quantos barrados teriam dado lucro. MENOR é melhor: o filtro barrou menos coisa boa.",
+    "real_operacoes": "Operações do Explorar na carteira REAL no período.",
+    "real_lucro_sol": "Resultado da carteira REAL no período, em SOL.",
+    "dias": "Por quanto tempo esta evolução ficou valendo (até a próxima).",
+    "bloqueios": "Faixas que o 'aprender com os erros' bloqueava nessa evolução (ex.: risco 4 a 6).",
+}
+MIN_BASE = 5                     # menos que isto nos dois lados = "poucos dados" (não dá para dizer se melhorou)
+
+
+def _val(r: dict, k: str):
+    if k == "bloqueios":
+        return len((r.get("estado") or {}).get("bloqueios") or [])
+    return r.get(k)
+
+
 def comparar(a: dict, b: dict) -> list[dict]:
-    """Linha a linha: valor da evolução A, da B e a diferença (B − A)."""
+    """Linha a linha: valor da evolução A, da B, a diferença (B − A), a variação % e se melhorou."""
     out = []
-    for k, nome in METRICS:
-        va, vb = a.get(k), b.get(k)
-        out.append({"chave": k, "nome": nome, "a": va, "b": vb,
-                    "diferenca": None if va is None or vb is None else round(vb - va, 6)})
+    for k, nome in METRICS + EXTRA:
+        va, vb = _val(a, k), _val(b, k)
+        dif = None if va is None or vb is None else round(vb - va, 6)
+        # linhas que já são % (acerto, médias) mostram a diferença em pontos; variação % só nas contagens e no SOL
+        pct = (round((vb - va) / abs(va) * 100, 1) if dif is not None and va not in (0, 0.0)
+               and k not in ("acerto", "media_pct", "sombras_media_pct") else None)
+        s = SENTIDO.get(k, 0)
+        melhor = None if dif is None or s == 0 or dif == 0 else ("melhorou" if dif * s > 0 else "piorou")
+        out.append({"chave": k, "nome": nome, "a": va, "b": vb, "diferenca": dif, "pct": pct, "melhor": melhor,
+                    "explica": EXPLICA.get(k, "")})
     return out
+
+
+def veredito(a: dict, b: dict) -> dict:
+    """Resumo: melhorou ou piorou, por quê e com que base. Operações fechadas mandam; sem base, usa os barrados."""
+    na, nb = a.get("operacoes") or 0, b.get("operacoes") or 0
+    if na >= MIN_BASE and nb >= MIN_BASE and a.get("por_trade") is not None and b.get("por_trade") is not None:
+        d = b["por_trade"] - a["por_trade"]
+        pct = round(d / abs(a["por_trade"]) * 100, 1) if a["por_trade"] else None
+        return {"resultado": "melhorou" if d > 0 else "piorou" if d < 0 else "igual", "pct": pct, "base": "operações",
+                "texto": f"Lucro por operação {a['por_trade']:+.4f} → {b['por_trade']:+.4f} SOL ({na} × {nb} operações)."}
+    sa, sb = a.get("sombras") or 0, b.get("sombras") or 0
+    if sa >= MIN_BASE and sb >= MIN_BASE and a.get("sombras_media_pct") is not None and b.get("sombras_media_pct") is not None:
+        d = b["sombras_media_pct"] - a["sombras_media_pct"]
+        return {"resultado": "melhorou" if d < 0 else "piorou" if d > 0 else "igual", "pct": None, "base": "barrados",
+                "texto": f"Sem operações suficientes; pelos barrados, o filtro {'acertou mais' if d < 0 else 'errou mais'} "
+                         f"({a['sombras_media_pct']:+.1f}% → {b['sombras_media_pct']:+.1f}% se tivesse entrado; {sa} × {sb} barrados)."}
+    return {"resultado": "poucos dados", "pct": None, "base": None,
+            "texto": f"Precisa de pelo menos {MIN_BASE} operações (ou {MIN_BASE} barrados) em cada evolução para dizer se melhorou. "
+                     f"Agora: {na} × {nb} operações, {sa} × {sb} barrados."}
 
 
 def reverter_ajustes(log_rows: list[dict], desde: float) -> dict:

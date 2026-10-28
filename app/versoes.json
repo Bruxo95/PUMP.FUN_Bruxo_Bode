@@ -875,6 +875,11 @@
    "versao": "0.32.23",
    "inicio": "2026-10-28T22:55:00+00:00",
    "titulo": "funil do Explorar volta a aparecer aberto"
+  },
+  {
+   "versao": "0.32.24",
+   "inicio": "2026-10-28T23:05:00+00:00",
+   "titulo": "comparar evoluções diz se melhorou"
   }
  ]
 }

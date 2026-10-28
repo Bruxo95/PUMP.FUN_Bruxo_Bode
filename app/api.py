@@ -1077,11 +1077,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     @app.get("/api/pump/base/evolucoes/comparar")
     async def evo_compare(a: int, b: int, pf=Depends(admin_engine)):
-        from .evolucoes import comparar
+        from .evolucoes import comparar, veredito
         ra, rb = await hub.evo_report(pf, a), await hub.evo_report(pf, b)
         if ra.get("error") or rb.get("error"):
             return {"error": ra.get("error") or rb.get("error")}
-        return {"a": ra, "b": rb, "linhas": comparar(ra, rb)}
+        return {"a": ra, "b": rb, "linhas": comparar(ra, rb), "veredito": veredito(ra, rb)}
 
     @app.get("/api/pump/base/evolucoes/{numero}")
     async def evo_report(numero: int, pf=Depends(admin_engine)):
