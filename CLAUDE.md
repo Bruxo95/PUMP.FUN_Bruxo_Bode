@@ -1048,3 +1048,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `pump_ar_learn_wilson` em `learned_for_entry` (usa `bloq_wilson`). (4) `pump_calls_auto_on/_min/_max_h` → `hub._calls_auto`
   → `manual_buy(origem="calls")`, que nunca vai para a real; `AUTO_ORIGINS` + migração `20261028000007`. (7) `hub.rlog_tips`
   (`resumo.dicas`) no log. Tudo OFF por padrão. Relatório `app/relatorios_ia/2026-10-28-0.31.99.md`. `tests/test_itens_2_3_4.py`.
+
+- 0.32.0: `_fee_rates(mint, real=False)` — a tabela oficial (`pump_swap_fee_official`) só vale com real=False; `_exit_value` passa
+  `p["real"]` e a compra/venda real passam True. Migração `20261028000008`: liga a opção só na conta do dono (onlineguyat@gmail.com),
+  pedido dele no chat. Plano para outra sessão: `docs/PLANO-MOEDAS-QUE-ACORDAM.md` (moedas dormentes que voltam a subir).

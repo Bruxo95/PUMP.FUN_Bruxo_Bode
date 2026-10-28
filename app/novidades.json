@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.32.0",
+      "data": "2026-10-28",
+      "tipo": "melhoria",
+      "onde": "Configurações → Taxas usadas na simulação",
+      "titulo": "Taxa oficial da PumpSwap só na fictícia (ligada na conta do dono)",
+      "oque": "A opção 'PumpSwap: usar a tabela oficial da pump.fun' agora vale só para a carteira fictícia; a real continua pagando a taxa de verdade. A pedido do dono, ela foi ligada na conta dele para testes. Também ficou pronto o plano 'moedas que acordam' (docs/PLANO-MOEDAS-QUE-ACORDAM.md) para ser feito em outra sessão."
+    },
+    {
       "versao": "0.31.99",
       "data": "2026-10-28",
       "tipo": "melhoria",

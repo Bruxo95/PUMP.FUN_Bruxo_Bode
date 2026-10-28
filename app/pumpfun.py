@@ -1163,7 +1163,7 @@ class PumpFun:
                 return fee
         return 0.30
 
-    def _fee_rates(self, mint: str) -> dict:
+    def _fee_rates(self, mint: str, real: bool = False) -> dict:
         """Taxas REAIS por lado: pump.fun na curva 1,25% (0,95% pump.fun + 0,30% criador) ou PumpSwap ~0,30% depois
         de graduar; PumpPortal 0,5% (API que o modo real usa); priority fee fixa por transação."""
         tk = self.tokens.get(mint) or {}
@@ -1175,7 +1175,8 @@ class PumpFun:
         dexes = set(tk.get("dexes") or [])
         graduated = tk.get("pool") in ("pump-amm", "pumpswap") or ("pumpswap" in dexes)
         venue = float(self._c("pump_swap_fee_pct", 0.30) if graduated else self._c("pump_fee_pct", 1.25)) / 100
-        if graduated and self._c("pump_swap_fee_official", False) and tk.get("quote") in (None, "SOL"):
+        # 0.32.0 (pedido do dono): a tabela oficial vale só para a FICTÍCIA (testes); a real usa o valor do campo
+        if graduated and not real and self._c("pump_swap_fee_official", False) and tk.get("quote") in (None, "SOL"):
             # cotado em USDC/outra moeda segue o valor do campo (a tabela abaixo é só a de SOL)
             px = tk.get("price")
             off = self.swap_fee_official(px * 1e9 if px else tk.get("mcap_sol"))
@@ -1188,7 +1189,7 @@ class PumpFun:
 
     def _exit_value(self, p: dict, px: float) -> float:
         """Quanto entraria vendendo agora, já com TODAS as taxas de saída (plataforma, PumpPortal, rede, slippage)."""
-        fr = self._fee_rates(p["mint"])
+        fr = self._fee_rates(p["mint"], bool(p.get("real")))
         return max(0.0, p["tokens_left"] * px * (1 - fr["slip"]) * (1 - fr["venue"] - fr["portal"]) - fr["prio"])
 
     @staticmethod
@@ -3434,7 +3435,7 @@ class PumpFun:
                 miss(res.get("reason") or res.get("status") or "a compra não confirmou", "REAL falhou")
                 self._emit(f"[PUMP REAL] compra {sym} NÃO feita: {res.get('reason') or res.get('status')}")
                 return
-            fr = self._fee_rates(mint)
+            fr = self._fee_rates(mint, True)
             spent, toks = res["sol_spent"], res["tokens"]
             p = {"opened_at": now_iso(), "open_t": time.time(), "wallet": it["wallet"], "mint": mint, "symbol": sym,
                  "sol_in": round(spent, 9), "tokens": toks, "tokens_left": toks, "price_in": spent / toks,
@@ -3497,7 +3498,7 @@ class PumpFun:
             self._emit(f"[PUMP REAL] venda {p['symbol']} NÃO feita ({why}): {p['sell_error']} — tenta de novo no próximo sinal")
             return
         got, left = res["sol_received"], res["tokens_left"]
-        fr = self._fee_rates(p["mint"])
+        fr = self._fee_rates(p["mint"], True)
         sold = max(0.0, p["tokens_left"] - left)
         p["proceeds"] = p.get("proceeds", 0.0) + got
         p["tokens_left"] = left
