@@ -497,6 +497,19 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def radar(pf=Depends(admin_engine)):
         r = hub.radar_snapshot(pf)
         r.update(hub.radar_calls(pf))                 # 0.31.96: compras e ondas guardadas
+        # 0.31.97 (pedido do dono: "ver a lista dessas carteiras, não só números"): as carteiras da lista com apelido,
+        # compras nas últimas 24 h e a última compra (das calls guardadas)
+        try:
+            rows = await hub.db.select("study_wallets", {"user_id": pf.user_id}, order="criado_em.asc")
+        except Exception:
+            rows = []
+        buys = r.get("compras") or []
+        lst = []
+        for x in rows:
+            mine = [b for b in buys if b["wallet"] == x["wallet"]]
+            lst.append({"wallet": x["wallet"], "apelido": x.get("apelido"), "desde": x.get("criado_em"), "compras_24h": len(mine),
+                        "ultima": mine[0] if mine else None, "online": pf.is_online(x["wallet"]) if hasattr(pf, "is_online") else None})
+        r["lista"] = sorted(lst, key=lambda y: -(y["ultima"]["t"] if y["ultima"] else 0))
         return r
 
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)

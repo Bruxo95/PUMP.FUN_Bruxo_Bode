@@ -1034,3 +1034,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.96: Radar virou aba do menu "Calls e Radar" (`#navCalls`; abas em link no topo de `#calls` e `#radar`; link solto do Radar
   saiu do grupo). `Calls.for_wallets/waves` + `hub.radar_calls` (compras das Carteiras em estudo e ondas de 24 h das calls guardadas)
   no `GET /api/pump/radar`; `#rdBuys`/`#rdWaves` (`renderRadarCalls`). O Radar ao vivo (memória) continua igual. `tests/test_radar_calls.py`.
+
+- 0.31.97: `GET /api/pump/radar` devolve `lista` (study_wallets da conta + compras 24 h + última compra das calls + online);
+  quadro `#rdList` no Radar. Pedido do dono ("ver a lista, não só números").

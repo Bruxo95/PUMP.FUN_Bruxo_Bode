@@ -740,6 +740,11 @@
    "versao": "0.31.96",
    "inicio": "2026-10-28T11:33:25+00:00",
    "titulo": "Radar dentro das Calls, compras e ondas guardadas"
+  },
+  {
+   "versao": "0.31.97",
+   "inicio": "2026-10-28T11:41:51+00:00",
+   "titulo": "lista das carteiras no Radar"
   }
  ]
 }

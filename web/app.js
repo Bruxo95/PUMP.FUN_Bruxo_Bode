@@ -1378,7 +1378,12 @@
   // 0.31.96 (pedido do dono): compras das carteiras em estudo e ondas guardadas (das calls no banco)
   function renderRadarCalls(r) {
     if (!$("rdBuys") || !r) return;
-    const B = r.compras || [], W = r.ondas_guardadas || [];
+    const B = r.compras || [], W = r.ondas_guardadas || [], L = r.lista || [];
+    // 0.31.97 (pedido do dono): a lista das carteiras, não só o número
+    if ($("rdList")) table("rdList", ["Carteira", "Apelido", "Na lista desde", "Online", "Compras 24 h", "Última compra"], L.map((x) => [pfW(x.wallet), esc(x.apelido || "–"),
+      x.desde ? dt(x.desde) : "–", x.online == null ? "–" : x.online ? '<span class="tag win">online</span>' : '<span class="tag neutral">offline</span>', String(x.compras_24h),
+      x.ultima ? pfM(x.ultima.mint, x.ultima.symbol) + "<small>há " + hms(Date.now() / 1000 - x.ultima.t) + " · " + s4(x.ultima.sol) + " SOL</small>" : '<span class="dim">nenhuma em 24 h</span>']),
+      "Sua lista está vazia: adicione carteiras em Carteiras em estudo.");
     $("rdBuysSub").textContent = B.length + " compras de " + (r.carteiras_n || 0) + " carteiras nas últimas 24 h · guardadas no banco";
     table("rdBuys", ["Quando", "Carteira", "Token", "Pagou", "MC na call", "Desde a entrada", "Pico", "Vendeu"], B.map((x) => [dt(new Date(x.t * 1000).toISOString()),
       pfW(x.wallet) + "<small>" + esc(x.nome || "") + "</small>", pfM(x.mint, x.symbol) + '<div style="margin-top:4px"><button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button></div>',
