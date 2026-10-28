@@ -1185,7 +1185,7 @@ class PumpFun:
             swhy = None
             if smine:
                 swhy = "já tem posição copiada neste token (fictícia)"
-            elif len([p for p in allpos if not p.get("real") and not p.get("eq")]) >= int(self._c("pump_max_open", 10)):
+            elif len([p for p in allpos if not p.get("real") and not p.get("eq") and p.get("origem") != "barrado"]) >= int(self._c("pump_max_open", 10)):
                 swhy = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
             elif self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
                 swhy = "saldo fictício insuficiente"
@@ -2479,14 +2479,16 @@ class PumpFun:
             px, px0 = (self.tokens.get(mint) or {}).get("price"), g.get("px0")
             if px and px0:
                 barr.append({"mint": mint, "symbol": g.get("symbol"), "chg_pct": round((px / px0 - 1) * 100, 1), "motivo": g.get("why"),
-                             "hi": g.get("hi"), "lo": g.get("lo")})
+                             "hi": g.get("hi"), "lo": g.get("lo"), "auto_st": g.get("auto_st"),
+                             "seguranca": not self._bar_soft(g), "suspeito": bool(g.get("suspeito"))})
         barr.sort(key=lambda b: -b["chg_pct"])
-        alta = [b for b in barr if b["chg_pct"] >= 50]
+        # 0.32.31: a lista vai até o gatilho da entrada automática (antes só +50%) e mostra até 30
+        alta = [b for b in barr if b["chg_pct"] >= min(50.0, float(self._c("pump_bar_min_gain", 50)))]
         return {"vistos": len(fn), "chance_alta": sum(1 for g in fn.values() if g.get("chance") == "chance alta"),
                 "entrou": sum(1 for g in fn.values() if g.get("entrou")), "barrados": len(fn) - sum(1 for g in fn.values() if g.get("entrou")),
                 "motivos": sorted(({"motivo": exemplo.get(k, k), "n": v} for k, v in motivos.items()), key=lambda m: -m["n"])[:12],
                 "barrados_com_preco": len(barr), "subiram_50": len(alta), "cairam_30": sum(1 for b in barr if b["chg_pct"] <= -30),
-                "top_subiram": alta[:8], "cedo": self.barred_sim()}
+                "top_subiram": alta[:30], "cedo": self.barred_sim()}
 
     # 0.32.21: motivos de barragem que são SEGURANÇA — esses nunca entram, mesmo subindo
     BAR_HARD = ("lista negra", "rug", "criador", "risco", "bundle", "carteiras novas", "lixo", "suspeito", "mayhem", "dev ")
@@ -2572,43 +2574,63 @@ class PumpFun:
     def barred_auto(self, now: float | None = None) -> list[dict]:
         """0.32.21 (pedido do dono: "essas moedas que foram barradas e subiram já entrar automático, no fictício, nunca no
         real, explicando o motivo"): token do Explorar barrado por um filtro que NÃO é de segurança, que já subiu +X% desde
-        que foi visto e tem volume de 24 h ≥ $Y, entra na FICTÍCIA com as regras do botão Comprar. Um por token."""
+        que foi visto (e volume ≥ $Y, se configurado), entra na FICTÍCIA com as regras do botão Comprar. Um por token.
+        0.32.31 (pedido do dono: "tem alguns que não foram, eles sempre devem ir na fictícia"): cada barrado guarda o que o
+        automático fez com ele (`auto_st`: entrou / por que não), só marca como feito quando a compra saiu de verdade e tem
+        limite de posições próprio (não disputa as vagas das cópias)."""
         c = self.cfg
         if not getattr(c, "pump_bar_auto_on", False) or getattr(self, "role", None) != "admin":
             return []
+        from .auto_trades import SUSPECT_PCT
         now = time.time() if now is None else now
         done = self.__dict__.setdefault("_bar_done", {})
+        per_h = int(self._c("pump_bar_max_h", 4))
         hour = [x for x in done.values() if now - x < 3600]
-        if len(hour) >= int(self._c("pump_bar_max_h", 4)):
-            return []
-        from .auto_trades import SUSPECT_PCT
         gain, vol_min = float(self._c("pump_bar_min_gain", 50)), float(self._c("pump_bar_min_vol_usd", 20000))
-        held = {p["mint"] for p in self.positions() if not p.get("real")}
+        sim_pos = {p["mint"]: p for p in self.positions() if not p.get("real")}
         out = []
         for mint, g in list((getattr(self, "_ex_funnel", None) or {}).items()):
-            if g.get("entrou") or mint in done or mint in held or now - float(g.get("t") or 0) > 3600:
+            if g.get("entrou") or now - float(g.get("t") or 0) > 3600:
+                continue
+            if mint in done:
+                g["auto_st"] = "entrou"
                 continue
             why = str(g.get("why") or "")
             if not why or any(h in why.lower() for h in self.BAR_HARD):
                 continue
             px, px0 = (self.tokens.get(mint) or {}).get("price"), g.get("px0")
-            if not px or not px0 or now - float((self.tokens.get(mint) or {}).get("last_t") or 0) > 180:
+            if not px or not px0:
                 continue
             chg = (px / px0 - 1) * 100
             if chg >= SUSPECT_PCT or g.get("suspeito"):
-                continue                                   # 0.32.30: preço provavelmente errado (20× ou mais)
+                g["auto_st"] = "fora: alta de 20× ou mais (preço provavelmente errado)"
+                continue
             vol = g.get("vol")
-            if chg < gain or (vol_min > 0 and (vol is None or float(vol) < vol_min)):
-                continue                                   # volume mínimo 0 = não exige o dado de volume
+            if chg < gain:
+                continue
+            if vol_min > 0 and (vol is None or float(vol) < vol_min):
+                g["auto_st"] = f"esperando: volume 24 h abaixo de ${vol_min:,.0f}"
+                continue
+            if mint in sim_pos:
+                g["auto_st"] = "já tem na fictícia (comprado antes)"
+                continue
+            if now - float((self.tokens.get(mint) or {}).get("last_t") or 0) > 180:
+                g["auto_st"] = "esperando preço atualizado"
+                continue
+            if len(hour) + len(out) >= per_h:
+                g["auto_st"] = f"esperando: limite de {per_h} entradas por hora"
+                continue
             motivo = (f"barrado que subiu: estava fora por \"{why[:70]}\", mas subiu {chg:+.0f}% desde que foi visto"
                       + (f" e tem ${float(vol):,.0f} de volume em 24 h" if vol is not None else "")
                       + " — entrou só na fictícia para teste")
             r = self.manual_buy(mint, t=now, auto=motivo, origem="barrado", target="sim",
                                 amt_sol=float(self._c("pump_bar_sol", 0.05)))
-            done[mint] = now
-            out.append({"mint": mint, "symbol": g.get("symbol"), "chg": round(chg, 1), "r": r})
-            if len(hour) + len(out) >= int(self._c("pump_bar_max_h", 4)):
-                break
+            if str(r.get("sim") or "").startswith("comprou"):
+                done[mint] = now
+                g["auto_st"] = "entrou"
+                out.append({"mint": mint, "symbol": g.get("symbol"), "chg": round(chg, 1), "r": r})
+            else:
+                g["auto_st"] = "não entrou: " + str(r.get("error") or r.get("sim") or "?")[:80]
         return out
 
     FOLLOW_RULES = ("stop_pct", "tp_pct", "trail_on", "trail_start", "trail_dist", "boost_tp", "tp1_pct", "tp1_frac",
@@ -2669,8 +2691,10 @@ class PumpFun:
             out["sim"] = "não pedida (só real)"
         elif any(p["mint"] == mint and not p.get("real") for p in allpos):
             out["sim"] = "já tem posição fictícia neste token"
-        elif len([p for p in allpos if not p.get("real")]) >= int(self._c("pump_max_open", 10)):
-            out["sim"] = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
+        elif len([p for p in allpos if not p.get("real") and (p.get("origem") == "barrado") == (origem == "barrado")]) >= (
+                int(self._c("pump_bar_max_open", 20)) if origem == "barrado" else int(self._c("pump_max_open", 10))):
+            # 0.32.31: os barrados têm vagas próprias (pump_bar_max_open) e não tiram vaga das cópias
+            out["sim"] = "limite de posições abertas" + (" dos barrados" if origem == "barrado" else f" ({int(self._c('pump_max_open', 10))})")
         elif self.wallet()["cash_sol"] < amt + fr["prio"]:
             out["sim"] = "saldo fictício insuficiente"
         else:

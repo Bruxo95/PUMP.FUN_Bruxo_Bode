@@ -50,7 +50,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bar_min_gain": (float, 50.0, 5.0, 10000.0),     # subiu pelo menos X% desde que foi visto
     "pump_bar_min_vol_usd": (float, 20000.0, 0.0, 1e10),  # volume 24 h mínimo (US$)
     "pump_bar_max_h": (int, 4, 1, 50),                    # no máximo N entradas por hora
-    "pump_bar_sol": (float, 0.05, 0.001, 10.0),           # SOL fictícios por entrada                 # 0.32.20: carteira em estudo também copia na REAL (padrão: só fictícia)
+    "pump_bar_sol": (float, 0.05, 0.001, 10.0),           # SOL fictícios por entrada
+    "pump_bar_max_open": (int, 20, 1, 100),               # 0.32.31: posições abertas dos barrados (vagas próprias)                 # 0.32.20: carteira em estudo também copia na REAL (padrão: só fictícia)
     # 0.32.19 (pedido do dono: Configuração do Trader). Tudo desligado; só o botão "Restaurar Padrões Pump.fun" liga.
     "pump_tp2_pct": (float, 0.0, 0.0, 10000.0),          # 2º alvo: ao chegar em +X% (0 = desligado)…
     "pump_tp2_frac_pct": (float, 25.0, 1.0, 99.0),       # …vende Y% da posição ORIGINAL; o resto (moonbag) segue no stop móvel

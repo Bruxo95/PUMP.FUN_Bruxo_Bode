@@ -910,6 +910,11 @@
    "versao": "0.32.30",
    "inicio": "2026-10-29T00:05:00+00:00",
    "titulo": "barrados: altas absurdas fora da conta"
+  },
+  {
+   "versao": "0.32.31",
+   "inicio": "2026-10-29T00:20:00+00:00",
+   "titulo": "barrados: coluna Automático, vagas próprias, 20 por hora"
   }
  ]
 }

@@ -79,13 +79,14 @@
     const pos = (D && D.positions) || [];
     document.querySelectorAll("[data-buy]").forEach((b) => {
       const m = b.dataset.buy, sim = pos.some((p) => p.mint === m && !p.real), real = pos.some((p) => p.mint === m && p.real);
-      const key = (sim ? "s" : "") + (real ? "r" : "");
+      const key = (sim ? "s" : "") + (real ? "r" : "") + (pos.some((p) => p.mint === m && p.origem === "barrado") ? "a" : "");
       let tag = b.nextElementSibling && b.nextElementSibling.classList.contains("bought") ? b.nextElementSibling : null;
       if (!key) { if (tag) tag.remove(); return; }
       if (tag && tag.dataset.k === key) return;
       if (!tag) { tag = document.createElement("span"); tag.className = "bought"; b.after(tag); }
       tag.dataset.k = key;
-      tag.innerHTML = (sim ? '<a href="#posicoes" class="tag sim" data-gopos="' + esc(m) + '" data-gomode="sim" title="Ver esta moeda em Posições (fictícia)">✓ na FICTÍCIA ›</a>' : "") +
+      const auto = pos.some((p) => p.mint === m && !p.real && p.origem === "barrado");
+      tag.innerHTML = (sim ? '<a href="#posicoes" class="tag ' + (auto ? "barr" : "sim") + '" data-gopos="' + esc(m) + '" data-gomode="sim" title="Ver esta moeda em Posições (fictícia)">' + (auto ? "✓ AUTO na FICTÍCIA ›" : "✓ na FICTÍCIA ›") + "</a>" : "") +
         (real ? ' <a href="#posicoes" class="tag real" data-gopos="' + esc(m) + '" data-gomode="real" title="Ver esta moeda em Posições (real)">✓ na REAL ›</a>' : "");
     });
   }
@@ -1168,7 +1169,9 @@
     table("exFunCedo", ["Entrar quando subir", "Entradas simuladas", "Acerto", "Média por entrada (já com ~4% de taxas)", "Com 0,05 SOL cada", "Ainda abertas"],
       (F.cedo || []).map((x) => ["+" + x.gatilho + "%", String(x.entradas), x.acerto == null ? "–" : x.acerto + "%", x.media_pct == null ? "–" : pc(x.media_pct), x.soma_005 == null ? "–" : sg(x.soma_005), String(x.abertas)]),
       "Ainda sem barrados medidos (o preço ao vivo deles começou agora).");
-    table("exFunUp", ["Barrado que subiu", "Agora (desde que foi visto)", "Pico", "Pior queda", "Motivo", ""], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", b.hi == null ? "–" : pc(b.hi, 0), b.lo == null ? "–" : pc(b.lo, 0), '<span class="wrapcell">' + esc(b.motivo || "") + "</span>",
+    const ast = (b) => b.seguranca ? '<span class="tag loss" title="barrado por segurança: o automático nunca entra">nunca (segurança)</span>' : b.auto_st === "entrou" ? '<span class="tag barr">✓ AUTO entrou</span>'
+      : b.auto_st ? '<span class="muted small wrapcell">' + esc(b.auto_st) + "</span>" : '<span class="muted small">abaixo do gatilho</span>';
+    table("exFunUp", ["Barrado que subiu", "Agora (desde que foi visto)", "Pico", "Pior queda", "Motivo", "Automático", ""], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", b.hi == null ? "–" : pc(b.hi, 0), b.lo == null ? "–" : pc(b.lo, 0), '<span class="wrapcell">' + esc(b.motivo || "") + "</span>", ast(b),
       '<button class="btn sm primary" data-buy="' + esc(b.mint) + '" data-sym="' + esc(b.symbol || "") + '" data-orig="barrado_btn">Comprar</button>']), "Nenhum barrado subiu 50% ou mais.");
   }
   async function saveAutoCfg(body) {

@@ -85,3 +85,23 @@ def test_absurd_rise_is_ignored(tmp_path):
     pf.barred_track(now)
     assert pf._ex_funnel[M].get("suspeito") and not pf._ex_funnel[M].get("v")
     assert pf.barred_auto(now) == []
+
+
+def test_barred_status_and_own_slots(tmp_path):
+    """0.32.31: cada barrado diz o que o automático fez; limite por hora vira 'esperando'; vagas próprias dos barrados."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    pf.cfg.pump_bar_auto_on, pf.cfg.pump_bar_min_gain, pf.cfg.pump_bar_min_vol_usd = True, 20, 0
+    pf.cfg.pump_bar_max_h = 1
+    pf.cfg.pump_max_open = 1                               # as cópias têm 1 vaga; os barrados não usam essa
+    now = _row(pf, "veredito não é chance alta", chg=1.5)
+    m2 = "Bary".ljust(40, "1") + "pump"
+    pf.tokens[m2] = {"price": 1.5e-6, "symbol": "BAY", "mcap_sol": 40.0, "last_t": now}
+    pf._ex_funnel[m2] = {"first_t": now - 600, "symbol": "BAY", "px0": 1e-6, "why": "veredito não é chance alta", "entrou": False, "t": now}
+    out = pf.barred_auto(now)
+    assert len(out) == 1
+    sts = sorted(g.get("auto_st") or "" for g in pf._ex_funnel.values())
+    assert sts[0] == "entrou" and "limite de 1 entradas por hora" in sts[1]
+    pf.tokens["Cop".ljust(40, "1") + "pump"] = {"price": 1e-6, "symbol": "COP", "mcap_sol": 40.0}
+    r = pf.manual_buy("Cop".ljust(40, "1") + "pump", target="sim")
+    assert r["sim"].startswith("comprou")                  # a vaga da cópia/botão não foi ocupada pelo barrado

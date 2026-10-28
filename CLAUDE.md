@@ -1166,3 +1166,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   barrados; `data-orig`, aceito na rota) e etiqueta `.tag.barr` no `pfW`. Relatório `app/relatorios_ia/2026-10-28-0.32.29.md`.
 
 - 0.32.30: `barred_track`/`barred_auto`/`barred_sim` ignoram barrado com alta ≥ `SUSPECT_PCT` (marca `g["suspeito"]`). Caso HOUSECOIN.
+
+- 0.32.31: `barred_auto` grava `g["auto_st"]` (entrou / esperando / não entrou) e só marca feito quando comprou; `pump_bar_max_open` (20)
+  = vagas próprias dos barrados (fora do `pump_max_open` das cópias e do botão). Migração `20261028000014` (só o dono): 20/h e 30 abertas.
+  Lista até 30 a partir do gatilho; coluna "Automático"; `markBought` mostra "✓ AUTO na FICTÍCIA". Pedido do dono.
