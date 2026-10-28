@@ -188,6 +188,19 @@ def is_pump_mint(m: str | None, market: str | None = None) -> bool:
     return bool(m and m.endswith("pump")) or "pump" in str(market or "").lower()
 
 
+def score(wins: int, losses: int, gain: float, lost: float) -> dict:
+    """0.32.11 (pedido do dono: "score geral juntando acertos e erros"), nota 0–100:
+    70% = acerto pelo limite inferior de Wilson a 90% (com poucos tokens a nota fica baixa, não 100%);
+    30% = quanto do dinheiro movido foi ganho (ganho ÷ (ganho + perda)). Sem tokens fechados: sem nota."""
+    n = wins + losses
+    if not n:
+        return {"score": None, "score_base": 0}
+    z, ph = 1.645, wins / n
+    wil = (ph + z * z / (2 * n) - z * ((ph * (1 - ph) + z * z / (4 * n)) / n) ** 0.5) / (1 + z * z / n)
+    money = gain / (gain + lost) if gain + lost > 0 else ph
+    return {"score": round(100 * (0.7 * wil + 0.3 * money)), "score_base": n}
+
+
 def digest(main: dict | None, live: dict | None, trades: list[dict], now: float) -> dict:
     """0.32.10 (pedido do dono): resumo para as Decisões da IA — tokens que acertou e errou (nome, resultado, se é da
     pump.fun, última transação dela no token), quanto das operações é na pump.fun e quando operou por último."""
@@ -208,8 +221,11 @@ def digest(main: dict | None, live: dict | None, trades: list[dict], now: float)
     np_ = sum(1 for m in mints if is_pump_mint(m))
     mk = (main or {}).get("markets") or {}
     last = max((_ts(t.get("at")) or 0 for t in trades), default=0) or None
+    gain = sum(float(p["realized"]) for p in wins)
+    lost = -sum(float(p["realized"]) for p in loss)
     return {"acertos": [item(p) for p in wins[:5]], "erros": [item(p) for p in loss[:3]],
             "n_acertos": len(wins), "n_erros": len(loss), "unit": unit,
+            "ganho": round(gain, 4), "perda": round(lost, 4), **score(len(wins), len(loss), gain, lost),
             "pump_ops": np_, "ops": len(mints), "pump_pct": round(np_ / len(mints) * 100) if mints else None,
             "mercados": mk, "ultima_op": last}
 

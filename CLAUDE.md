@@ -1107,3 +1107,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.11: `pump_st_auto_copy` (OFF; ligado só na conta do dono pela migração `20261028000011`). `pf.study_copy` (salvo `_study_copy`),
   `hub.study_copy_sync` no fim de `study_auto` (última decisão "aprovou" + ainda no estudo); `refresh_followed` inclui `study_copy_wallets()`
   (filtros normais). `PumpFun.sim_only(who)`: sem real direto e sem `_mirror_real`. Relatório `app/relatorios_ia/2026-10-28-0.32.11.md`.
+
+- 0.32.12: `study.score` (70% Wilson 90% do acerto + 30% ganho ÷ (ganho+perda)) em `digest` (`score`, `score_base`, `ganho`, `perda`).
+  `#saLog` em uma linha (`scoreTag`, `SA_LOG`) e modal `#saM` (`openSaDet`, botão `data-sadet`). Pedido do dono.

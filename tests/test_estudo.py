@@ -155,3 +155,11 @@ def test_study_digest_lists_winning_tokens_and_pump_share():
     d = digest(main, None, trades, 1.9e9)
     assert d["acertos"][0]["symbol"] == "AAA" and d["acertos"][0]["pump"] is True and d["acertos"][0]["sig"] == "s1"
     assert d["erros"][0]["pump"] is False and d["pump_pct"] == 50 and d["n_acertos"] == 1 and d["unit"] == "US$"
+
+
+def test_study_score_penalizes_few_tokens():
+    """0.32.12: nota geral não dá 100 para carteira com 1 acerto e 0 erro."""
+    from app.study import score
+    assert score(0, 0, 0, 0)["score"] is None
+    assert score(1, 0, 10, 0)["score"] < 60 < score(175, 21, 50000, 3000)["score"]
+    assert score(10, 30, 100, 500)["score"] < 30

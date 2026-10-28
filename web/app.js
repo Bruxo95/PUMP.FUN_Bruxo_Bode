@@ -45,6 +45,29 @@
       : fx.age_days < 1 ? "< 1 dia" : f(fx.age_days, 0) + " dias";
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
+  // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
+  let SA_LOG = [];
+  const scoreTag = (d) => { if (!d || d.score == null) return "–";
+    const c = d.score >= 70 ? "win" : d.score >= 45 ? "neutral" : "loss";
+    return '<span class="tag ' + c + '" title="70% acerto (ajustado para poucos tokens) + 30% quanto do dinheiro foi ganho · base ' + d.score_base + ' tokens fechados">' + d.score + "</span>"; };
+  function openSaDet(i) {
+    const x = SA_LOG[i]; if (!x) return;
+    const d = x.digest || {}, fx = x.facts || {}, [ok] = digestCells(x.digest), fc = factsCells(fx), u = d.unit === "SOL" ? " SOL" : "";
+    const money = (v) => d.unit === "US$" ? "$" + f(v, 0) : s4(v) + " SOL";
+    $("saMT").innerHTML = "Carteira " + pfW(x.wallet, x);
+    $("saMS").textContent = x.acao + " em " + dt(x.em);
+    $("saMB").innerHTML = '<div class="kpis" style="margin:4px 0 12px">' +
+      [["Nota geral", d.score == null ? "–" : d.score + " / 100", d.score_base ? "base " + d.score_base + " tokens fechados" : "sem tokens fechados"],
+       ["Acertos × erros", (d.n_acertos || 0) + " × " + (d.n_erros || 0), d.ganho != null ? "ganhou " + money(d.ganho) + " · perdeu " + money(d.perda) : ""],
+       ["Na pump.fun", d.pump_pct == null ? "–" : d.pump_pct + "%", d.ops ? d.pump_ops + " de " + d.ops + " operações vistas" : ""],
+       ["Última operação", d.ultima_op ? hms(Math.max(0, Date.now() / 1000 - d.ultima_op)) + " atrás" : "–", ""],
+       ["Existe há", fc[0], ""], ["Saldo", fc[1], "SOL + USDC/USDT"], ["Transações", fc[2], ""], ["Tokens criados", fc[3], "os que a Base viu"]]
+        .map(([l, v, s]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + "</div></div>").join("") + "</div>" +
+      "<p><b>Por quê:</b> " + esc(x.motivo || "–") + "</p>" + '<div class="help"><p>A nota junta o acerto (70%, ajustado para não dar nota alta com poucos tokens) e quanto do dinheiro movido foi ganho (30%). 70 ou mais = boa; abaixo de 45 = fraca.</p></div>' +
+      '<div class="tokcol">' + (ok || "") + "</div>" +
+      (x.acao === "aprovou" && x.no_estudo ? '<p style="margin-top:12px"><button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar esta carteira</button></p>' : "");
+    $("saM").hidden = false; $("saMX").focus();
+  }
   const FACTS_H = ["Existe há", "Saldo (US$)", "Transações", "Tokens criados"];
   // 0.32.10 (pedido do dono): tokens que a carteira acertou/errou, com link, e quanto ela opera na pump.fun
   const tkLink = (x) => { const name = esc(x.symbol || (x.mint || "").slice(0, 6)), val = (x.realized > 0 ? "+" : "") + (x.unit === "US$" ? "$" + f(x.realized, 0) : s4(x.realized) + " SOL");
@@ -1580,8 +1603,14 @@
     const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss" };
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => [esc(x.valor), String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
-    table("saLog", ["Quando", "Carteira", "Decisão", "Por quê", "Tokens (acertou / errou)", "Na pump.fun", "Última operação", ...FACTS_H, ""], (sa.log || []).map((x) => [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", '<span class="wrapcell">' + esc(x.motivo || "") + "</span>", ...digestCells(x.digest), ...factsCells(x.facts),
-      x.acao === "aprovou" && x.no_estudo ? ((D && (D.followed || []).some((y) => y.wallet === x.wallet)) ? '<span class="tag win">copiando</span>' : '<button class="btn sm" data-stc="' + esc(x.wallet) + '" title="Aprovou = continua no estudo, não copia sozinha. Este botão passa a copiar.">Copiar</button>') : ""]),
+    // 0.32.12 (pedido do dono: "está muito espremida"): uma linha por decisão; o resto abre em "Ver tudo"
+    SA_LOG = sa.log || [];
+    table("saLog", ["Quando", "Carteira", "Decisão", "Nota", "Resumo", "Última operação", "Saldo (US$)", ""], SA_LOG.map((x, i) => { const d = x.digest || {}, fx = x.facts || {};
+      const copying = D && (D.followed || []).some((y) => y.wallet === x.wallet);
+      return [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", scoreTag(d),
+        x.digest ? '<span class="nowrap">' + (d.n_acertos || 0) + " acertos · " + (d.n_erros || 0) + " erros" + (d.pump_pct == null ? "" : " · " + d.pump_pct + "% pump.fun") + "</span>" : '<span class="muted">sem histórico ainda</span>',
+        d.ultima_op ? hms(Math.max(0, Date.now() / 1000 - d.ultima_op)) + " atrás" : "–", fx.usd == null ? "–" : "$" + f(fx.usd, 0),
+        '<span class="nowrap"><button class="btn sm" data-sadet="' + i + '">Ver tudo</button>' + (x.acao === "aprovou" && x.no_estudo ? (copying ? ' <span class="tag win">copiando</span>' : ' <button class="btn sm" data-stc="' + esc(x.wallet) + '" title="Aprovou = continua no estudo. Este botão passa a copiar.">Copiar</button>') : "") + "</span>"]; }),
       "Nenhuma decisão ainda. Clique em Rodar agora ou espere a próxima volta.");
     const mi = r.mine || {}, tt = mi.total || {}, ts = tt.sim || {}, tr = tt.real || {};
     const roi = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
@@ -1771,6 +1800,8 @@
     }
     if (t.closest && t.closest("#sysBox")) { openSys(); return; }
     if (t.id === "sysMX") { $("sysM").hidden = true; SYS_SUB = null; return; }
+    if (t.dataset.sadet) { openSaDet(+t.dataset.sadet); return; }
+    if (t.id === "saMX") { $("saM").hidden = true; return; }
     if (t.dataset.rpclog) { openRpcLog(t.dataset.rpclog); return; }
     if (t.dataset.rpcback) { openSys(); return; }
     if (t.id === "flOn" || t.id === "flOff") {
