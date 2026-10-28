@@ -24,16 +24,16 @@
   const dt = (x) => { if (!x) return "–"; const d = new Date(x); return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
   // 0.31.73 (pedido do dono): "manual" não é carteira — é o marcador das compras que não vieram de um trader (automáticas
   // do Explorar/Base/Maiores traders, botão Comprar, cópia de outra conta). Mostra de onde veio, sem link quebrado.
-  const ORIG_NOME = { explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)", barrado: "Explorar: barrado que subiu (só fictícia)" };
+  const ORIG_NOME = { explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)", barrado: "Barrado que subiu (automática, só fictícia)", barrado_btn: "Barrado que subiu (você comprou)" };
   // legenda ao passar o mouse (pedido do dono: "explicar o que é Explorar")
-  const ORIG_DESC = { "Explorar: barrado que subiu (só fictícia)": "o robô comprou sozinho, só na fictícia, um token que o filtro do Explorar barrou mas que subiu forte com volume", "Explorar (automática)": "o robô comprou sozinho um token da lista Quase graduando do Explorar: veredito chance alta e passou em todos os seus filtros e proteções",
+  const ORIG_DESC = { "Barrado que subiu (automática, só fictícia)": "o robô comprou sozinho, só na fictícia, um token que o filtro do Explorar barrou mas que subiu depois", "Barrado que subiu (você comprou)": "você clicou em Comprar num token da lista Barrado que subiu, no Explorar", "Explorar (automática)": "o robô comprou sozinho um token da lista Quase graduando do Explorar: veredito chance alta e passou em todos os seus filtros e proteções",
     "Base (automática)": "compra automática da tela Base da pump.fun (ex.: token com Boost ON)",
     "Maiores traders (automática)": "compra feita quando vários dos maiores traders entraram no mesmo token",
     "botão Comprar (você)": "você clicou em Comprar", "compra automática": "compra feita pelo robô, sem copiar um trader" };
   const whoLabel = (x) => { x = x || {}; const fo = x.follow_of; if (fo) return "copiou a conta " + (fo.nome || "outra conta");
     if (ORIG_NOME[x.origem]) return ORIG_NOME[x.origem]; if ((x.auto && x.auto !== true) || x.short === "automático") return "compra automática"; return x.manual || x.wallet === "manual" ? "botão Comprar (você)" : "compra automática"; };
   const shortW = (w, x) => (w === "manual" ? whoLabel(x || { wallet: w }) : w ? w.slice(0, 4) + "…" + w.slice(-4) : "");
-  const pfW = (w, x) => w === "manual" ? '<span class="tag neutral" title="' + esc(ORIG_DESC[whoLabel(x || { wallet: w })] || "veio da cópia de trades de outra conta") + '">' + esc(whoLabel(x || { wallet: w })) + "</span>"
+  const pfW = (w, x) => w === "manual" ? '<span class="tag ' + (String((x || {}).origem || "").startsWith("barrado") ? "barr" : "neutral") + '" title="' + esc(ORIG_DESC[whoLabel(x || { wallet: w })] || "veio da cópia de trades de outra conta") + '">' + esc(whoLabel(x || { wallet: w })) + "</span>"
     // 0.32.9: o perfil da pump.fun só existe para quem já usou o site ("page not found" para as outras); o link principal
     // vai para o Solscan, que abre qualquer carteira, e o "pf" abre o perfil da pump.fun quando existir
     : '<a href="https://solscan.io/account/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + ' · abrir no Solscan">' + esc(shortW(w)) + "</a>" +
@@ -46,7 +46,7 @@
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
-  let SA_LOG = [], BUY_MINT = "", POS_DET = null, POS_ID = null;
+  let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", POS_DET = null, POS_ID = null;
   function openPosDet(id, refresh) {
     const P = POS_DET && POS_DET.list.find((p) => String(p.id) === String(id));
     if (!P) { if (!refresh) toast("Essa posição já fechou."); $("posM").hidden = true; POS_ID = null; return; }
@@ -1169,7 +1169,7 @@
       (F.cedo || []).map((x) => ["+" + x.gatilho + "%", String(x.entradas), x.acerto == null ? "–" : x.acerto + "%", x.media_pct == null ? "–" : pc(x.media_pct), x.soma_005 == null ? "–" : sg(x.soma_005), String(x.abertas)]),
       "Ainda sem barrados medidos (o preço ao vivo deles começou agora).");
     table("exFunUp", ["Barrado que subiu", "Agora (desde que foi visto)", "Pico", "Pior queda", "Motivo", ""], (F.top_subiram || []).map((b) => [pfM(b.mint, b.symbol), '<span class="up">+' + f(b.chg_pct, 0) + "%</span>", b.hi == null ? "–" : pc(b.hi, 0), b.lo == null ? "–" : pc(b.lo, 0), '<span class="wrapcell">' + esc(b.motivo || "") + "</span>",
-      '<button class="btn sm primary" data-buy="' + esc(b.mint) + '" data-sym="' + esc(b.symbol || "") + '">Comprar</button>']), "Nenhum barrado subiu 50% ou mais.");
+      '<button class="btn sm primary" data-buy="' + esc(b.mint) + '" data-sym="' + esc(b.symbol || "") + '" data-orig="barrado_btn">Comprar</button>']), "Nenhum barrado subiu 50% ou mais.");
   }
   async function saveAutoCfg(body) {
     if (EX_AUTO.saving) return;
@@ -1296,7 +1296,7 @@
     if (t.dataset.buy) {
       const c0 = cfg(), real = !!(D && D.real && D.real.enabled);
       const regras = "Stop −" + c0.pump_manual_stop_pct + "% · alvo " + (c0.pump_manual_tp_pct > 0 ? "+" + c0.pump_manual_tp_pct + "%" : "sem alvo") + (c0.pump_manual_trail_on ? " · stop móvel em +" + c0.pump_manual_trail_start + "% (−" + c0.pump_manual_trail_dist + " pts)" : "") + (c0.pump_manual_boost_on ? " · com Boost ON vende em +" + c0.pump_manual_boost_tp + "%" : "");
-      BUY_MINT = t.dataset.buy;
+      BUY_MINT = t.dataset.buy; BUY_ORIG = t.dataset.orig || "";
       $("buyMT").textContent = "Comprar " + (t.dataset.sym || "este token");
       $("buyMS").textContent = regras;
       $("buyMB").innerHTML = "<p>Carteira fictícia: <b>" + c0.pump_manual_sol + " SOL</b></p><p>Carteira REAL: " + (real ? "<b>até " + c0.pump_real_max_sol + " SOL</b> (execução real ligada)" : '<span class="down">execução real desligada</span>') + "</p>";
@@ -1320,7 +1320,7 @@
       const tg = t.dataset.buygo;
       if (tg !== "sim" && !confirm("Confirmar compra na carteira REAL (dinheiro de verdade)?")) return;
       t.disabled = true;
-      const r = await BB.api("/api/pump/manual-buy", { body: { mint: BUY_MINT, target: tg } });
+      const r = await BB.api("/api/pump/manual-buy", { body: { mint: BUY_MINT, target: tg, origem: BUY_ORIG } });
       t.disabled = false; $("buyM").hidden = true;
       toast(r.error ? "Não comprou: " + r.error : "Fictícia: " + r.sim + (r.real ? " · Real: " + r.real : ""));
       await poll(true); markBought(); return;

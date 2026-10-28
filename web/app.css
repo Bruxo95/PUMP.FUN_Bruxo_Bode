@@ -621,3 +621,5 @@ a.tag{text-decoration:none;cursor:pointer}
 /* 0.32.26: aviso ao lado do Comprar e destaque da linha em Posições */
 .bought{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}.bought a.tag{text-decoration:none;cursor:pointer;font-size:10px}
 tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}
+/* 0.32.29: compras dos barrados que subiram (Explorar) */
+.tag.barr{background:rgba(245,158,11,.15);color:#f59e0b;border-color:rgba(245,158,11,.45)}

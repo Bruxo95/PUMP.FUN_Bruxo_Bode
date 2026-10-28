@@ -66,3 +66,11 @@ def test_early_entry_simulation_per_trigger(tmp_path):
     assert rows[10]["entradas"] == 1 and rows[10]["acerto"] == 0 and rows[20]["entradas"] == 0
     assert pf._ex_funnel[M]["hi"] >= 15 and pf._ex_funnel[M]["lo"] <= -40
     assert not pf.positions()                              # nada foi comprado
+
+
+def test_buy_from_barred_list_keeps_origin_label(tmp_path):
+    """0.32.29: Comprar na lista de barrados guarda a origem (rótulo 'Barrado que subiu (você comprou)' em Posições)."""
+    pf = _pf(tmp_path)
+    pf.tokens[M] = {"price": 1e-6, "symbol": "BAR", "mcap_sol": 40.0}
+    pf.manual_buy(M, target="sim", origem="barrado_btn")
+    assert [p["origem"] for p in pf.positions() if p["mint"] == M] == ["barrado_btn"]
