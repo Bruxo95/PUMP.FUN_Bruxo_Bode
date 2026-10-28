@@ -3108,7 +3108,8 @@ class PumpFun:
         out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)
         return out[:limit]
 
-    MISS_TIPS = (("não deu para simular", "O RPC não respondeu à simulação nem depois de 3 tentativas. Um RPC próprio (Configurações → Chaves, ex.: Helius) evita o limite do RPC público."),
+    MISS_TIPS = (("outra moeda", "Token de 'par personalizado' (a curva é cotada em SPCX, ZEC, USDC…, não em SOL). A PumpPortal só compra com SOL; desde a 0.31.83 a real tenta pela Jupiter. Se a Jupiter também não tiver rota, a fictícia compra e a real não."),
+                 ("não deu para simular", "O RPC não respondeu à simulação nem depois de 3 tentativas. Um RPC próprio (Configurações → Chaves, ex.: Helius) evita o limite do RPC público."),
                  ("limite de", "Aumente \"Posições reais ao mesmo tempo\" na Execução real, ou confira se há posição real antiga presa aberta."),
                  ("perda do dia", "A real parou no limite \"Parar no dia se perder\"; volta sozinha no dia seguinte (UTC)."),
                  ("já tem posição real", "A real já estava nesse token (de outra cópia); normal."),
@@ -3654,7 +3655,11 @@ class PumpReal:
                    "0x1773": "preço caiu além do slippage (SOL recebido baixo)", "0x1774": "token não bate com a curva",
                    "0x1775": "curva já completou — token graduou para a PumpSwap",
                    "0x1776": "curva ainda não completou", "0x1777": "curva não inicializada",
-                   "0x1771": "slippage excedido"}
+                   "0x1771": "slippage excedido",
+                   # 0.31.83 (Grokbot 28/10 07:55, sugestão do Bruxo): erro 6063 do programa da pump.fun = UnsupportedQuoteMint
+                   # (IDL oficial pump.json). A curva é cotada em outra moeda (Grokbot: SPCX) e a PumpPortal manda SOL.
+                   "'Custom': 6063": "curva cotada em outra moeda (não SOL): a PumpPortal não compra com SOL",
+                   "0x17af": "curva cotada em outra moeda (não SOL): a PumpPortal não compra com SOL"}
 
     @classmethod
     def explain(cls, reason) -> str | None:
@@ -3673,6 +3678,12 @@ class PumpReal:
         """Vale tentar outro caminho? (curva completa, rota errada, slippage)"""
         r = str(reason or "")
         return any(c in r for c in ("0x1775", "0x1774", "0x1772", "0x1773", "0x1771", "HTTP 400", "HTTP 500"))
+
+    @staticmethod
+    def other_quote(reason) -> bool:
+        """0.31.83: a PumpPortal recusou porque a curva não é cotada em SOL — só a Jupiter pode tentar (SOL → moeda → token)."""
+        r = str(reason or "")
+        return "'Custom': 6063" in r or "0x17af" in r or "UnsupportedQuoteMint" in r
 
     async def _jup(self, inp: str, out: str, amount: int, slip_bps: int) -> dict:
         """Troca pela Jupiter (melhor rota entre as DEXs) — para tokens fora da pump.fun."""
@@ -3737,6 +3748,15 @@ class PumpReal:
             if tok1 - tok0 > 0:
                 break
             if r.get("status") == "pendente":     # SEC-04: ainda pode entrar — outra rota compraria duas vezes
+                break
+            if via != "jupiter" and self.other_quote(r.get("reason")):
+                # 0.31.83: PumpSwap também não serve (a curva nem graduou); vai direto para a Jupiter, que roteia pela moeda
+                r2 = await self._jup(SOL_MINT, mint, int(amt * 1e9), max(jslip, int(float(getattr(self.cfg, "pump_real_slippage_pct", 15)) * 100)))
+                if r2.get("status") == "pendente":
+                    await asyncio.sleep(3)
+                (sol1, tok1), dsol = await asyncio.gather(self.balances(mint), self._sol_change(r2.get("signature") if r2.get("ok") else None))
+                tried.append("jupiter: " + str(self.explain(r2.get("reason")) or r2.get("status") or "sem rota para essa moeda"))
+                r = r2
                 break
             if not self.retryable(r.get("reason")):
                 break

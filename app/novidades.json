@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.83",
+      "data": "2026-10-28",
+      "tipo": "correção",
+      "onde": "Execução real e menu lateral (Monitor)",
+      "titulo": "Compra real de token cotado em outra moeda e status completo do monitor",
+      "oque": "Alguns tokens novos da pump.fun têm a curva cotada em outra moeda (SPCX, ZEC, USDC…), não em SOL. A PumpPortal só compra com SOL e recusava (erro 6063, caso Grokbot). Agora a real tenta comprar pela Jupiter, e o erro aparece explicado em português. Embaixo do menu, o Monitor passa a mostrar tudo: Solana RPC (carteiras, trades, último trade há quanto tempo) e PumpPortal (tokens novos e último aviso). Sugestão do Bruxo."
+    },
+    {
       "versao": "0.31.82",
       "data": "2026-10-28",
       "tipo": "melhoria",

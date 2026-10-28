@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "a88c984a8a0a8d6914c19d8704fc0461fd4d1a75",
-    "application_version": "0.31.82 · 2026-10-28 · opção de taxa oficial da PumpSwap",
+    "repository_reference": "97573af0ed9beb8a94b1ad4ad9d7702041a466fb",
+    "application_version": "0.31.83 · 2026-10-28 · real compra token cotado em outra moeda pela Jupiter; status do monitor",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "b2111ebf6f9bc418fedb3c5360447f239b593596a946e4c63850660c5f267dad",
+      "app/version.py": "c7d1e665a3445c0790d87e20bb2cc03b4cba586bcdafacfaaffbb663ba96f774",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "d9b92f1e815d9373f7f5f65a913673f78514736a909c55713792102cafe42954"
+  "pdf_sha256": "81def9c289f5b998fa17ba55556a391ca7331111279ee501420d5909eb6ef649"
 }

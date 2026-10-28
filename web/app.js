@@ -1819,7 +1819,10 @@
     $("nbReal").textContent = R.enabled ? "ON" : "";
     $("sysDot").className = "dot " + (RP.ws ? "on" : "off");
     $("sysT").textContent = "Monitor " + (RP.ws ? "ON" : "OFF");
-    $("sysS").textContent = RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades lidos" : (RP.error || "aguardando o monitor compartilhado");
+    // 0.31.83 (sugestão do Bruxo): status completo do monitor embaixo do menu
+    const PPs = D.status || {}, ago = (t) => t ? "há " + hms(Math.max(0, Date.now() / 1000 - t)) : "–";
+    $("sysS").innerHTML = (RP.ws ? "Solana RPC: conectado · " + (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades · último " + ago(RP.last_event) : "Solana RPC: " + esc(RP.error || "aguardando o monitor compartilhado")) +
+      "<br>PumpPortal: " + (PPs.ws ? "conectado · tokens novos " + (PPs.new_tokens || 0) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado"));
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
     // 0.31.70 (pedido do dono): campo em HORAS para uma opção guardada em minutos (ex.: tempo máximo das automáticas)

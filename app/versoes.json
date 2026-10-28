@@ -670,6 +670,11 @@
    "versao": "0.31.82",
    "inicio": "2026-10-28T08:19:43+00:00",
    "titulo": "opção de taxa oficial da PumpSwap"
+  },
+  {
+   "versao": "0.31.83",
+   "inicio": "2026-10-28T08:37:32+00:00",
+   "titulo": "real compra token cotado em outra moeda pela Jupiter; status do monitor"
   }
  ]
 }

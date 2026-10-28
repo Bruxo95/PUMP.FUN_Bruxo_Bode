@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-28**; revisão documental **2.0**.
-Aplicação: **0.31.82 · 2026-10-28 · opção de taxa oficial da PumpSwap**.
-Referência Git na emissão: `a88c984a8a0a8d6914c19d8704fc0461fd4d1a75`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.31.83 · 2026-10-28 · real compra token cotado em outra moeda pela Jupiter; status do monitor**.
+Referência Git na emissão: `97573af0ed9beb8a94b1ad4ad9d7702041a466fb`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -965,3 +965,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.82 (opção A do dono): `pump_swap_fee_official` (OFF) + `PumpFun.SWAP_FEE_TABLE`/`swap_fee_official` (pump.fun/docs/fees de
   17/10/2026): em `_fee_rates`, token graduado cotado em SOL usa a taxa da tabela por valor de mercado (preço × 1e9). Botão em
   Configurações → Taxas. Relatório `app/relatorios_ia/2026-10-28-0.31.82.md`. `tests/test_taxa_oficial.py`.
+
+- 0.31.83 (sugestões do Bruxo): erro 6063 da pump.fun = UnsupportedQuoteMint (curva em outra moeda, ex.: Grokbot/SPCX).
+  `PumpReal.other_quote` → `buy` vai direto para a Jupiter; `PUMP_ERRORS` e `MISS_TIPS` explicam. `#sysS` mostra Solana RPC
+  (carteiras, trades, último) e PumpPortal (tokens novos, último). Relatório `app/relatorios_ia/2026-10-28-0.31.83.md`. `tests/test_moeda_6063.py`.
