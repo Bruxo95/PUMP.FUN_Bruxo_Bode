@@ -917,6 +917,29 @@
       r.vistas ? "Copiou todas as compras vistas." : "Nenhuma compra dos traders copiados chegou ao robô neste período: eles não compraram, ou o monitor não recebeu as transações (confira Monitor ON na Visão geral).");
     table("cdT", ["Trader", "Vistas", "Copiadas", "Motivo principal"], (r.traders || []).map((x) => [pfW(x.wallet), String(x.vistas), String(x.copiadas), '<span class="wrapcell">' + esc(x.principal || "–") + "</span>"]), "–");
   }
+  // 0.31.88 (pedido do dono): log de análise do Explorar — o que o robô fez em cada lista e por que não comprou
+  let EXLOGH = 24;
+  async function loadExLog() {
+    if (!$("exLogC")) return;
+    const r = await BB.api("/api/pump/explore/log?horas=" + EXLOGH); if (r.error) { $("exLogSub").textContent = r.error; return; }
+    const R = r.resumo || {}, C = r.ciclos || [], M = R.motivos || [];
+    document.querySelectorAll("[data-exlogh]").forEach((b) => b.classList.toggle("on", +b.dataset.exlogh === EXLOGH));
+    const top = M[0];
+    $("exLogDiag").innerHTML = "<p><b>Diagnóstico:</b> " + (!R.ligado ? "a entrada automática do Explorar está <b>DESLIGADA</b> nesta conta. " : "") +
+      (R.lista_erro ? "a lista do Explorar está com erro: " + esc(R.lista_erro) + ". " : "") +
+      (C.length ? "em " + EXLOGH + " h o robô analisou " + C.length + " listas, " + R.analisados + " tokens (" + R.chance_alta + " com chance alta) e comprou " + (R.entradas || []).length + " token(s)" + ((R.entradas || []).length ? " (" + R.entradas.slice(0, 8).map(esc).join(", ") + ")" : "") + ". " +
+        (R.sem_preco ? R.sem_preco + " ficaram sem análise por não ter preço recente (o robô só analisa token com preço lido há até 30 s). " : "") +
+        (top ? "O que mais barrou: <b>" + esc(top.motivo) + "</b> (" + f(top.pct, 0) + "% das recusas)." : "")
+        : "ainda sem listas registradas (o log começa nesta versão; a 1ª aparece em até 5 min).") + "</p>";
+    kpis("exLogK", [["Listas analisadas", String(C.length), "a cada 5 min", "mon"], ["Tokens analisados", String(R.analisados || 0), (R.sem_preco || 0) + " sem preço recente", "tr"],
+      ["Chance alta", String(R.chance_alta || 0), "o veredito liberou", "hit"], ["Compras", String((R.entradas || []).length), (R.entradas || []).slice(0, 3).map(esc).join(", ") || "nenhuma", "pnl"]]);
+    table("exLogM", ["Motivo", "Vezes", "% das recusas"], M.map((m) => ['<span class="wrapcell">' + esc(m.motivo) + "</span>", String(m.n), f(m.pct, 0) + "%"]), "Nenhuma recusa no período.");
+    table("exLogF", ["Filtro que barrou", "Tokens medidos", "Ganhariam", "Média em 15 min", "Picos 50%+"], (r.filtros || []).slice(0, 15).map((x) => ['<span class="wrapcell">' + esc(x.motivo) + "</span>", String(x.n) + (x.chance_alta ? "<small>" + x.chance_alta + " chance alta</small>" : ""),
+      x.ganhariam + " (" + f(x.acerto * 100, 0) + "%)", pc(x.media_pct), String(x.pico_50)]), "As sombras ainda estão sendo medidas (15 min depois de cada token barrado).");
+    table("exLogC", ["Lista de", "Na lista", "Analisados", "Sem preço", "Chance alta", "Comprou", "Principal motivo", "Chance alta barrados"], C.map((c) => [dt(c.em), String(c.na_lista || 0), String(c.analisados || 0), String(c.sem_preco || 0), String(c.chance_alta || 0),
+      (c.entrou || []).length ? '<b class="up">' + c.entrou.map(esc).join(", ") + "</b>" : "–", '<span class="wrapcell">' + esc(c.gargalo || "–") + "</span>",
+      '<span class="wrapcell">' + (c.chance_alta_barrados || []).slice(0, 6).map((x) => esc(x.symbol || "?") + ": " + esc(x.motivo)).join("<br>") + "</span>"]), "Ainda sem listas registradas.");
+  }
   async function loadApiUsage() {
     const r = await BB.api("/api/admin/api-usage"); if (r.error || !$("apiU")) return;
     const bar = (p) => p == null ? '<span class="muted">sem limite publicado</span>' : '<b class="' + (p >= 80 ? "down" : p >= 50 ? "" : "up") + '">' + f(p, 0) + "%</b>";
@@ -1565,6 +1588,8 @@
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
+    if (t.id === "exLogRef") { loadExLog(); return; }
+    if (t.dataset.exlogh) { EXLOGH = +t.dataset.exlogh; loadExLog(); return; }
     if (t.dataset.evorep) { showEvo(t.dataset.evorep); return; }
     if (t.id === "evoCmp") { compareEvo(); return; }
     if (t.dataset.evoback) {
@@ -1695,7 +1720,7 @@
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
     if (VIEW === "base") loadBase();
-    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); }
+    if (VIEW === "explorar") { loadExplore(); renderAutoTrades(); loadAutoTrades(true); loadApplied(); loadConfigUsers(); loadExLog(); }
     if (VIEW === "comparar") loadCompare();
     if (VIEW === "basegeral") loadBaseGeral();
     if (VIEW === "traders") loadCopyDiag();

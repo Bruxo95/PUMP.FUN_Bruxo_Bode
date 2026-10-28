@@ -2,6 +2,14 @@
   "_regra": "Toda entrega que muda o que o usuario ve ou o comportamento do bot ganha uma entrada NO TOPO (a mais nova primeiro). So o admin ve (menu Novidades, rota /api/admin/novidades). O teste tests/test_novidades.py exige que a primeira versao seja a de app/version.py.",
   "itens": [
     {
+      "versao": "0.31.88",
+      "data": "2026-10-28",
+      "tipo": "novo",
+      "onde": "Explorar → Log de análise do robô",
+      "titulo": "Log de análise do Explorar",
+      "oque": "Cada lista do Explorar (a cada 5 min) fica registrada por 14 dias: quantos tokens vieram, quantos o robô analisou, quantos ficaram sem análise por falta de preço recente, quantos tinham chance alta, o que comprou e por que não comprou os outros. No topo, um diagnóstico em linguagem simples (ex.: 'o que mais barrou foi X, 84% das recusas'). Ao lado, quanto os tokens barrados por cada filtro teriam dado 15 min depois, para saber se um filtro está jogando fora coisa boa. Só registra e estuda: as compras não mudam."
+    },
+    {
       "versao": "0.31.87",
       "data": "2026-10-28",
       "tipo": "melhoria",

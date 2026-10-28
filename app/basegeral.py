@@ -96,6 +96,29 @@ def verdict_study(shadows: dict, cost_pct: float = 4.0) -> list[dict]:
     return sorted(out, key=lambda x: order.get(x["veredito"], 9))
 
 
+def filters_study(shadows: dict, cost_pct: float = 4.0) -> list[dict]:
+    """0.31.88: o que cada filtro do Explorar barrou e quanto esses tokens teriam dado (sombras medidas 15 min depois,
+    menos o custo). Só estudo: mostra se um filtro está barrando coisa boa; não muda filtro nenhum."""
+    import re
+    g: dict[str, dict] = {}
+    for s in (shadows or {}).values():
+        if s.get("ret") is None or not s.get("why"):
+            continue
+        k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", str(s["why"]))[:90]
+        d = g.setdefault(k, {"motivo": str(s["why"])[:140], "res": [], "pk": [], "alta": 0})
+        d["res"].append(s["ret"] - cost_pct)
+        if s.get("pico") is not None:
+            d["pk"].append(s["pico"])
+        d["alta"] += (s.get("veredito") or "chance alta") == "chance alta"
+    out = []
+    for d in g.values():
+        n = len(d["res"])
+        out.append({"motivo": d["motivo"], "n": n, "chance_alta": d["alta"], "ganhariam": sum(1 for x in d["res"] if x > 0),
+                    "acerto": round(sum(1 for x in d["res"] if x > 0) / n, 3), "media_pct": round(sum(d["res"]) / n, 1),
+                    "pico_50": sum(1 for x in d["pk"] if x >= 50)})
+    return sorted(out, key=lambda x: -x["n"])
+
+
 def diff(prev: dict | None, cur: dict) -> list[tuple[str, str]]:
     """(tipo, texto) do que mudou desde a foto anterior — vira o log do que foi aprendido."""
     if not prev:

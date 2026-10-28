@@ -2142,6 +2142,42 @@ class PumpFun:
                 out.append(mint)
         return out
 
+    def explore_cycle_note(self, source_at: float, n_list: int, n_fresh: int, stamp: float) -> dict | None:
+        """0.31.88 (pedido do dono: "log de análise do que foi feito ou não, salvo"): um registro por lista do Explorar
+        (a cada 5 min): quantos tokens vieram, quantos tinham preço recente (só esses são analisados), o que cada um
+        decidiu e o motivo mais comum. Atualizado a cada volta (~20 s) enquanto a lista vale; devolve o registro só
+        quando mudou, para gravar no banco."""
+        import json
+        import re
+        cyc = self.__dict__.setdefault("_ex_cycles", {})
+        rec = cyc.get(source_at) or {"lista_em": source_at, "voltas": 0, "na_lista": 0, "com_preco": 0, "tok": {}}
+        rec["voltas"] += 1
+        rec["na_lista"], rec["com_preco"] = max(rec["na_lista"], n_list), max(rec["com_preco"], n_fresh)
+        for mint, g in (getattr(self, "_ex_funnel", None) or {}).items():
+            if g.get("t") == stamp:
+                rec["tok"][mint] = {"s": g.get("symbol"), "v": g.get("chance"), "w": g.get("why"), "e": bool(g.get("entrou"))}
+        toks = rec["tok"].values()
+        motivos: dict[str, list] = {}
+        for x in toks:
+            if x["w"]:
+                k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", str(x["w"]))[:90]
+                motivos.setdefault(k, [0, str(x["w"])[:140]])[0] += 1
+        out = {"lista_em": source_at, "analisados": len(rec["tok"]), "na_lista": rec["na_lista"], "com_preco": rec["com_preco"],
+               "sem_preco": max(0, rec["na_lista"] - rec["com_preco"]),
+               "chance_alta": sum(1 for x in toks if x["v"] == "chance alta"),
+               "entrou": sorted({x["s"] or "?" for x in toks if x["e"]}),
+               "motivos": sorted(({"motivo": v[1], "n": v[0]} for v in motivos.values()), key=lambda m: -m["n"])[:12],
+               "chance_alta_barrados": [{"symbol": x["s"], "mint": m, "motivo": str(x["w"])[:140]}
+                                        for m, x in rec["tok"].items() if x["v"] == "chance alta" and x["w"]][:40]}
+        out["gargalo"] = out["motivos"][0]["motivo"] if out["motivos"] else None
+        sig = json.dumps(out, sort_keys=True, default=str)
+        changed = sig != rec.get("_sig")
+        rec["_sig"] = sig
+        cyc[source_at] = rec
+        for k in sorted(cyc)[:-3]:
+            cyc.pop(k, None)
+        return out if changed else None
+
     def _funnel_note(self, row: dict, why: str | None, t: float) -> None:
         """0.31.38 — sugestão do Bruxo + aprendizagem do bot: funil do filtro do Explorar (só memória, 24 h). Guarda a
         última decisão de cada token e o preço da primeira vez que foi visto, para mostrar quantos foram barrados por

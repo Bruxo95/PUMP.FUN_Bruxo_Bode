@@ -495,6 +495,13 @@
           <div class="seg" id="exRealFilt" style="margin:8px 0"><button data-real-filt="all" class="on">Todas</button><button data-real-filt="win">Ganhou</button><button data-real-filt="loss">Perdeu</button><button data-real-filt="open">Abertas</button></div>
           <div class="tbl-wrap tall"><table id="exRealTrades" class="autotbl"></table></div>
         </div>
+        <div class="card" data-novo-ate="2026-11-11" id="exLogCard"><header><div><h2>Log de análise do robô (Explorar)</h2><div class="sub" id="exLogSub">cada lista de 5 min: o que o robô olhou, o que analisou, o que comprou e por que não comprou · salvo por 14 dias</div></div><div class="sp"></div>
+          <div class="seg" id="exLogSeg"><button data-exlogh="6">6 h</button><button data-exlogh="24" class="on">24 h</button><button data-exlogh="168">7 dias</button></div><button class="btn sm" id="exLogRef">Atualizar</button></header>
+          <div class="help" id="exLogDiag"></div>
+          <div class="kpis" id="exLogK"></div>
+          <div class="grid2"><div><h4>Por que não comprou (no período)</h4><div class="tbl-wrap"><table id="exLogM" class="daytbl"></table></div></div>
+            <div><h4>O que cada filtro barrou × quanto teria dado (sombras, 15 min depois)</h4><div class="tbl-wrap"><table id="exLogF" class="daytbl"></table></div></div></div>
+          <h4>Cada lista analisada</h4><div class="tbl-wrap tall"><table id="exLogC" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-10">
           <header><div><h2>Funil do filtro (últimas 24 h)</h2><div class="sub">por que o Explorar desta conta entrou ou não entrou em cada token</div></div></header>
           <div style="margin-top:4px"><div class="hint">Quantos tokens o Explorar olhou, quantos entraram e por que os outros foram barrados. "Barrados que subiram" mostra se o filtro está deixando passar coisa boa (compara o preço de quando foi visto com o de agora, quando há preço).</div>

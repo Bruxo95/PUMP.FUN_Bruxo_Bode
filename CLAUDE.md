@@ -994,3 +994,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.31.87 (Bruxo, áudios de 28/10): `PumpFun.position_rule` (`off_stop`/`off_trail`/`off_tp1`, também no par do espelho) +
   `POST /api/pump/positions/rule` (audit); `_check_stops` respeita. Posições: botões `prule` e `soldCell`; Histórico: `#tPart`
   (vendas parciais de posições abertas). Relatório `app/relatorios_ia/2026-10-28-0.31.87.md`. `tests/test_regras_posicao.py`.
+
+- 0.31.88 (pedido do dono: log de análise do Explorar): `PumpFun.explore_cycle_note` (1 registro por lista de 5 min; atualizado
+  a cada volta, grava só quando muda) chamado em `SharedMonitor.explore_auto_once`; `hub.explore_cycle_save/explore_log`; tabela
+  `explore_cycles` (migração `20261028000003`); `GET /api/pump/explore/log?horas=` (admin); `basegeral.filters_study` (sombras por
+  motivo; também em `base_state["filtros"]`). Card `#exLogCard` no Explorar. Achado: só token com preço de até 30 s é analisado
+  (`sem_preco` no log). `tests/test_explore_log.py`.

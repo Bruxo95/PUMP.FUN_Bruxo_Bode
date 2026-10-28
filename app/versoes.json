@@ -695,6 +695,11 @@
    "versao": "0.31.87",
    "inicio": "2026-10-28T10:28:30+00:00",
    "titulo": "desligar stop por posição e vendas parciais visíveis"
+  },
+  {
+   "versao": "0.31.88",
+   "inicio": "2026-10-28T10:38:52+00:00",
+   "titulo": "log de análise do Explorar"
   }
  ]
 }

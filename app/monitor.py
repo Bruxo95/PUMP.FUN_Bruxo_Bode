@@ -494,6 +494,10 @@ class SharedMonitor:
                          if (tk := self.market.tokens.get(row["mint"]) or {}).get("price")
                          and 0 <= stamp - float(tk.get("last_t") or 0) <= 30]
                 count += len(engine.explore_auto_check({"graduating": fresh}, stamp))
+                # 0.31.88: log de análise do ciclo (salvo no banco quando muda)
+                rec = engine.explore_cycle_note(source_at, len(lists[engine.user_id].get("graduating", [])), len(fresh), stamp)
+                if rec is not None and hasattr(self.hub, "explore_cycle_save"):
+                    await self.hub.explore_cycle_save(engine, rec)
             except Exception as exc:
                 log.warning("Automática do Explorar não executada (%s…): %s", engine.user_id[:8], type(exc).__name__)
         return count

@@ -262,12 +262,13 @@ class PumpHub:
         wins = sum(1 for t in pool if (t.get("pnl_sol") or 0) > 0)
         pnl = sum(t.get("pnl_sol") or 0 for t in pool)
         from .autolearn import study_extra
-        from .basegeral import verdict_study
+        from .basegeral import filters_study, verdict_study
         from .raiox import study as xray_study
         return {"learned": learned, "ghosts": ghosts, "ghost_days": round(gdays, 2), "sinais": study_extra(pool),
                 "veredito": verdict_study(self.__dict__.get("shadows") or {}, self.SHADOW_COST_PCT),
                 "raiox": xray_study(self.__dict__.get("_xray") or {}, self.xray_outcomes()),
                 "raiox_n": len(self.__dict__.get("_xray") or {}),
+                "filtros": filters_study(self.__dict__.get("shadows") or {}, self.SHADOW_COST_PCT),
                 "maturidade": maturity(learned, ghosts, history_days(pool), gdays),
                 "por_vir": upcoming(learned, ghosts, gdays, MIN_N, MAX_WR, MAX_AVG_PCT),
                 "resumo": dict(state_summary(learned, ghosts), acerto=round(wins / n, 3) if n else None,
@@ -465,6 +466,38 @@ class PumpHub:
             except Exception as e:
                 log.warning("entradas sombra: %s", str(e)[:160])
             await asyncio.sleep(60)
+
+    # ------------------------------------------------------------------ log de análise do Explorar (0.31.88)
+    async def explore_cycle_save(self, pf: PumpFun, rec: dict) -> None:
+        try:
+            em = datetime.fromtimestamp(float(rec["lista_em"]), timezone.utc).isoformat()
+            await self.db.insert("explore_cycles", {"id": f"{pf.user_id}:{int(float(rec['lista_em']))}", "user_id": pf.user_id,
+                                                    "em": em, "data": rec}, upsert=True, on_conflict="id")
+        except Exception as e:
+            log.warning("log do Explorar não gravou: %s", str(e)[:120])
+
+    async def explore_log(self, pf: PumpFun, hours: float = 24) -> dict:
+        """Ciclos salvos desta conta + resumo das últimas `hours` + o que cada filtro barrou (sombras)."""
+        from .basegeral import filters_study
+        since = datetime.fromtimestamp(time.time() - hours * 3600, timezone.utc).isoformat()
+        rows = await self.db.select("explore_cycles", {"user_id": pf.user_id}, order="em.desc", limit=400, gte={"em": since})
+        cyc = [dict(r.get("data") or {}, em=r.get("em")) for r in rows]
+        mot: dict[str, int] = {}
+        ex: dict[str, str] = {}
+        for c in cyc:
+            for m in c.get("motivos") or []:
+                import re
+                k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", m["motivo"])[:90]
+                mot[k] = mot.get(k, 0) + m["n"]
+                ex.setdefault(k, m["motivo"])
+        tot = sum(mot.values()) or 1
+        resumo = {"ciclos": len(cyc), "analisados": sum(c.get("analisados") or 0 for c in cyc),
+                  "sem_preco": sum(c.get("sem_preco") or 0 for c in cyc), "chance_alta": sum(c.get("chance_alta") or 0 for c in cyc),
+                  "entradas": sorted({s for c in cyc for s in c.get("entrou") or []}),
+                  "motivos": sorted(({"motivo": ex[k], "n": n, "pct": round(n / tot * 100, 1)} for k, n in mot.items()), key=lambda m: -m["n"])[:10],
+                  "ligado": bool(getattr(pf.cfg, "pump_ex_auto_on", False)),
+                  "lista_erro": getattr(getattr(self, "explore", None), "error", None)}
+        return {"ciclos": cyc[:200], "resumo": resumo, "filtros": filters_study(self.__dict__.get("shadows") or {}, self.SHADOW_COST_PCT)}
 
     # ------------------------------------------------------------------ Raio-X do token (0.31.86)
     XRAY_TTL = 6 * 3600            # refaz no máximo a cada 6 h por token
