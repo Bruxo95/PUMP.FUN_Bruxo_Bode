@@ -49,7 +49,7 @@ def test_auto_never_buys_real_unless_allowed(tmp_path):
     pf.cfg.pump_real_mirror = False                      # 0.31.37: com o espelho ligado a real copia (test_espelho_real)
     pf.tokens[A] = {"price": 1e-6, "symbol": "AUT", "mcap_sol": 40.0}
     r = pf.manual_buy(A, auto="automático: Boost ON")
-    assert r["real"] is None and not pf._real_buying
+    assert r["real"] in (None, "REAL desligada nesta aba (só fictícia)") and not pf._real_buying   # 0.32.61
 
 
 def test_monitor_runs_auto_buy_for_who_turned_it_on(env):

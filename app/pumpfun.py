@@ -1592,10 +1592,8 @@ class PumpFun:
         """0.32.61 (pedido do dono: "prejuízo de 32, 60 e 100% com stop, analisar o que aconteceu"): o stop vende no preço que
         o robô VÊ; se passou mais de 5 pontos do limite, diz no motivo de onde o preço pulou e em quanto tempo — para separar
         queda numa transação só (despejo/rug, nenhum stop segura) de preço parado (leitura atrasada)."""
-        if chg > -stop - 5:
+        if chg > -stop - 5 or not prev:                # sem leitura anterior não há o que comparar
             return ""
-        if not prev:
-            return f" · 1ª leitura já em {chg:+.0f}% (o preço caiu antes de o robô ver)"
         gap_s = max(0.0, t - float(prev[0]))
         age_s = max(0.0, t - float(prev[2])) if len(prev) > 2 else gap_s
         kind = "preço parado (leitura atrasada)" if age_s >= 15 else "queda de uma vez (despejo/rug: nenhum stop segura)"

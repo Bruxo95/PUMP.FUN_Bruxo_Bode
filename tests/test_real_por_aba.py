@@ -30,4 +30,4 @@ def test_stop_gap_explains_jump(tmp_path):
     assert "pulou de -12% para -65% em 1 s" in s and "despejo" in s
     s = pf._stop_gap((100.0, -12.0, 60.0), -65.0, 30, 101.0, A)
     assert "preço parado" in s
-    assert "1ª leitura" in pf._stop_gap(None, -90.0, 30, 101.0, A)
+    assert pf._stop_gap(None, -90.0, 30, 101.0, A) == ""
