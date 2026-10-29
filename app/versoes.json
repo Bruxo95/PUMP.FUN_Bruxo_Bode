@@ -965,6 +965,11 @@
    "versao": "0.32.41",
    "inicio": "2026-10-29T09:30:00+00:00",
    "titulo": "Aba do Bruxo, relatório de cada aba a cada 30 min e preço parado de token graduado"
+  },
+  {
+   "versao": "0.32.42",
+   "inicio": "2026-10-29T08:50:13+00:00",
+   "titulo": "Visão geral organizada"
   }
  ]
 }

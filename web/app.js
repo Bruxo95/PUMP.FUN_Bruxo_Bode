@@ -722,7 +722,7 @@
       ["Devolveu lucro", String(rep.gave_back || 0), "chegaram a +30% e fecharam no zero ou pior", "mon"]]);
     $("dayChart").innerHTML = RL ? lineChart(pts.filter((p) => p.resultado != null).map((p) => ({ t: p.t * 1000, v: p.resultado, label: "resultado real " + s4(p.resultado) + " SOL" })))
       : lineChart(pts.filter((p) => p.saldo != null).map((p) => ({ t: p.t * 1000, v: p.saldo - (first.saldo || 0), label: "saldo " + s4(p.saldo) + " SOL" })));
-    $("daySug").innerHTML = "<p><b>O que melhorar</b></p>" + (rep.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
+    $("daySug").innerHTML = (rep.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "código" ? "pause" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
     const g = (rows) => (rows || []).map((x) => [esc(x.nome), String(x.trades), x.acerto == null ? "–" : f(x.acerto * 100, 0) + "%", sg(x.pnl_sol)]);
     table("dayOri", ["Origem", "Trades", "Acerto", "Resultado"], g(rep.by_origin), "Nenhum trade fechado neste dia.");
     table("dayExit", ["Saída", "Trades", "Acerto", "Resultado"], g(rep.by_exit), "Nenhum trade fechado neste dia.");
@@ -748,7 +748,7 @@
       ["Melhor dia", L.best ? esc(L.best.split("-").reverse().join("/")) : "–", "", "tr"], ["Pior dia", L.worst ? esc(L.worst.split("-").reverse().join("/")) : "–", "", "pos"]]);
     let accD = 0;
     $("lrnChart").innerHTML = lineChart((L.series || []).map((d) => { accD += d.pnl_sol || 0; return { t: new Date(d.dia + "T23:59:59Z").getTime(), v: accD, label: d.dia.split("-").reverse().join("/") + " " + (d.pnl_sol > 0 ? "+" : "") + s4(d.pnl_sol) + " SOL no dia" }; }));
-    $("lrnSug").innerHTML = "<p><b>Sugestões de melhoria (todos os dias)</b></p>" + (L.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "repetido" ? "loss" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
+    $("lrnSug").innerHTML = (L.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "repetido" ? "loss" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
     table("lrnRec", ["Problema", "Dias", "Último"], (L.recurring || []).map((x) => [esc(x.titulo), String(x.dias), esc((x.ultimo || "").split("-").reverse().join("/"))]), "Nada se repetiu ainda.");
     table("lrnOri", ["Origem", "Dias", "Dias no lucro", "Trades", "Resultado"], (L.origins || []).map((x) => [esc(x.nome), String(x.dias), String(x.dias_positivos), String(x.trades), sg(x.pnl_sol)]), "Sem dias guardados.");
     table("lrnDays", ["Dia", "Resultado", "Trades", "Acerto", "Saldo no fim"], (L.series || []).slice().reverse().map((d) => [esc(d.dia.split("-").reverse().join("/")), sg(d.pnl_sol), String(d.trades || 0), d.acerto == null ? "–" : f(d.acerto * 100, 0) + "%", d.equity_end == null ? "–" : s4(d.equity_end) + " SOL"]), "Sem dias guardados.");

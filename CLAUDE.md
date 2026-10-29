@@ -1232,3 +1232,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `_fetch_prices`: par "pumpfun" ignorado quando o token tem outro par (preço parado). Migração `20261029000004` (+ override só do
   dono: `pump_bx_on`). Relatório `app/relatorios_ia/2026-10-29-0.32.41.md`. `tests/test_aba_bruxo.py`.
 
+
+## Visão geral organizada (2026-10-29, versão 0.32.42)
+- Pedido do dono: status primeiro, explicação por último, gráficos menores (2 por linha no PC). Ordem em `web/app.html`:
+  `.kpirow` → `.grid2e.vgtop` (Evolução da carteira | Operações recentes) → `.grid2e.vgstat` (Status das configurações |
+  `#sumCard`) → `#dayCard` → `#learnCard`. Nos relatórios: KPIs → `grid2e` (gráfico | tabelas) → tabelas → `details.vgexp`
+  com as explicações (`#daySug`/`#lrnSug` abertos, `#dayMenus` fechado). CSS `.grid2e`/`.vg*` no fim de `web/app.css`
+  (1 coluna até 1100 px). Os ids continuam os mesmos, então o JS de cada quadro não mudou.

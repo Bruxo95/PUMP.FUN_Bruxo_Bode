@@ -130,27 +130,7 @@
             <div class="masc-txt"><b id="mascT">Oi!</b><small id="mascS">carregando a carteira…</small></div>
           </div>
         </div>
-        <div class="card" id="dayCard" hidden data-novo-ate="2026-11-09"><header><div><h2>Relatório do dia</h2><div class="sub" id="daySub">os números de cima guardados a cada 30 min, o que deu certo e errado e o que melhorar · carteira fictícia</div></div><div class="sp"></div>
-          <select class="in" id="daySel" style="width:170px"></select></header>
-          <div class="kpis" id="dayK"></div>
-          <div id="dayChart" class="chartbox"></div>
-          <h3 style="margin:10px 0 6px" data-novo-ate="2026-11-10">Maiores ganhos do dia (onde o dinheiro foi ganho)</h3><div class="tbl-wrap"><table id="dayBest" class="daytbl"></table></div>
-          <h3 style="margin:10px 0 6px">Maiores perdas do dia (onde o dinheiro foi perdido)</h3><div class="tbl-wrap"><table id="dayWorst" class="daytbl"></table></div>
-          <div id="dayMissBox" hidden><h3 style="margin:10px 0 6px">Compras e vendas reais que NÃO aconteceram (erro ou desistência)</h3><div class="tbl-wrap"><table id="dayMiss" class="daytbl"></table></div></div>
-          <h3 style="margin:10px 0 6px" id="dayTrH">Trades do dia com horário</h3><div class="tbl-wrap"><table id="dayTr" class="daytbl"></table></div>
-          <div class="help" id="daySug"></div>
-          <div class="grid2"><div><h3 style="margin:6px 0">Por origem</h3><div class="tbl-wrap"><table id="dayOri"></table></div></div>
-            <div><h3 style="margin:6px 0">Por motivo de saída</h3><div class="tbl-wrap"><table id="dayExit"></table></div></div></div>
-          <h3 style="margin:10px 0 6px">Relatório de cada menu</h3><div class="help" id="dayMenus"></div>
-</div>
-        <div class="card" id="learnCard" hidden data-novo-ate="2026-11-09"><header><div><h2>Aprendizado dos dias</h2><div class="sub" id="lrnSub">todos os dias guardados juntos: o que se repete, o que dá lucro de forma consistente e o que não dá</div></div></header>
-          <div class="kpis" id="lrnK"></div>
-          <div id="lrnChart" class="chartbox"></div>
-          <div class="help" id="lrnSug"></div>
-          <div class="grid2"><div><h3 style="margin:6px 0">Problemas que se repetem</h3><div class="tbl-wrap"><table id="lrnRec"></table></div></div>
-            <div><h3 style="margin:6px 0">Origens somando os dias</h3><div class="tbl-wrap"><table id="lrnOri"></table></div></div></div>
-          <h3 style="margin:10px 0 6px">Dia a dia</h3><div class="tbl-wrap"><table id="lrnDays"></table></div></div>
-        <div class="grid2">
+        <div class="grid2e vgtop">
           <div class="card">
             <header><div><h2>Evolução da carteira</h2><div class="sub" id="curveSub">SOL</div></div><div class="sp"></div>
               <div class="seg" id="rangeSeg"><button data-r="1">24h</button><button data-r="7">7d</button><button data-r="30">30d</button></div></header>
@@ -161,13 +141,38 @@
             <div class="ops" id="ops"></div>
           </div>
         </div>
-        <div class="card" id="sumCard" data-novo-ate="2026-11-10"><header><div><h2>Você está copiando alguém? E o que está ligado</h2><div class="sub">cópia de configuração, carteira real e todas as opções liga/desliga de todas as telas, num lugar só</div></div><div class="sp"></div><a class="btn sm" href="#config">Mudar em Configurações</a></header>
+        <div class="grid2e vgstat">
+          <div class="card">
+          <header><div><h2>Status das configurações</h2><div class="sub">verde = ligado · vermelho = desligado · valores atuais</div></div><div class="sp"></div><a class="btn sm" href="#config">Ajustar</a></header>
+          <div class="cfgs" id="cfgS"></div>
+        </div>
+          <div class="card" id="sumCard" data-novo-ate="2026-11-10"><header><div><h2>Você está copiando alguém? E o que está ligado</h2><div class="sub">cópia de configuração, carteira real e todas as opções liga/desliga de todas as telas, num lugar só</div></div><div class="sp"></div><a class="btn sm" href="#config">Mudar em Configurações</a></header>
           <div id="sumCopy"></div>
           <div id="sumCfg"></div>
         </div>
-        <div class="card">
-          <header><div><h2>Status das configurações</h2><div class="sub">verde = ligado · vermelho = desligado · valores atuais</div></div><div class="sp"></div><a class="btn sm" href="#config">Ajustar</a></header>
-          <div class="cfgs" id="cfgS"></div>
+        </div>
+        <div class="card" id="dayCard" hidden data-novo-ate="2026-11-09"><header><div><h2>Relatório do dia</h2><div class="sub" id="daySub">os números de cima guardados a cada 30 min, o que deu certo e errado e o que melhorar · carteira fictícia</div></div><div class="sp"></div>
+          <select class="in" id="daySel" style="width:170px"></select></header>
+          <div class="kpis" id="dayK"></div>
+          <div class="grid2e">
+            <div><h3 class="h3s">Saldo ao longo do dia</h3><div id="dayChart" class="chartbox"></div></div>
+            <div><div><h3 class="h3s">Por origem</h3><div class="tbl-wrap"><table id="dayOri"></table></div></div><div><h3 class="h3s">Por motivo de saída</h3><div class="tbl-wrap"><table id="dayExit"></table></div></div></div>
+          </div>
+          <div class="grid2e"><div><h3 style="margin:10px 0 6px" data-novo-ate="2026-11-10">Maiores ganhos do dia (onde o dinheiro foi ganho)</h3><div class="tbl-wrap"><table id="dayBest" class="daytbl"></table></div></div><div><h3 style="margin:10px 0 6px">Maiores perdas do dia (onde o dinheiro foi perdido)</h3><div class="tbl-wrap"><table id="dayWorst" class="daytbl"></table></div></div></div>
+          <div id="dayMissBox" hidden><h3 style="margin:10px 0 6px">Compras e vendas reais que NÃO aconteceram (erro ou desistência)</h3><div class="tbl-wrap"><table id="dayMiss" class="daytbl"></table></div></div>
+          <h3 style="margin:10px 0 6px" id="dayTrH">Trades do dia com horário</h3><div class="tbl-wrap tall"><table id="dayTr" class="daytbl"></table></div>
+          <details class="vgexp" open><summary>O que melhorar (sugestões do dia)</summary><div class="help" id="daySug"></div></details>
+          <details class="vgexp"><summary>Relatório de cada menu (explicação detalhada)</summary><div class="help" id="dayMenus"></div></details>
+        </div>
+        <div class="card" id="learnCard" hidden data-novo-ate="2026-11-09"><header><div><h2>Aprendizado dos dias</h2><div class="sub" id="lrnSub">todos os dias guardados juntos: o que se repete, o que dá lucro de forma consistente e o que não dá</div></div></header>
+          <div class="kpis" id="lrnK"></div>
+          <div class="grid2e">
+            <div><h3 class="h3s">Lucro somado dia a dia</h3><div id="lrnChart" class="chartbox"></div></div>
+            <div><h3 class="h3s">Dia a dia</h3><div class="tbl-wrap tall"><table id="lrnDays"></table></div></div>
+          </div>
+          <div class="grid2e"><div><h3 class="h3s">Problemas que se repetem</h3><div class="tbl-wrap"><table id="lrnRec"></table></div></div>
+            <div><h3 class="h3s">Origens somando os dias</h3><div class="tbl-wrap"><table id="lrnOri"></table></div></div></div>
+          <details class="vgexp" open><summary>Sugestões de melhoria (todos os dias)</summary><div class="help" id="lrnSug"></div></details>
         </div>
       </section>
 
