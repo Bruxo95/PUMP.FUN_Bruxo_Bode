@@ -163,6 +163,8 @@ class PumpHub:
             pf._ov_user = {str(k): str(v) for k, v in saved["_ov_user"].items()}
         if isinstance(saved.get("_copy_equal"), list):                  # 0.32.4: Copiar igual (lista colada pelo dono)
             pf.copy_equal = [str(w) for w in saved["_copy_equal"]][:EQ_MAX]
+        if isinstance(saved.get("_eq_mode"), dict):                     # 0.32.65: botão Copiar de cada carteira
+            pf.eq_mode = {str(k): str(v) for k, v in saved["_eq_mode"].items() if v in ("sim", "both", "off")}
         pf.brain_freeze = saved.get("_brain_freeze") if isinstance(saved.get("_brain_freeze"), dict) else None   # 0.31.85
         pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
         pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
@@ -1447,6 +1449,31 @@ class PumpHub:
         await audit(self.db, pf.user_id, "copiar igual: lista", f"{len(out)} carteiras")
         return {"ok": True, "wallets": out, "invalidas": bad[:20]}
 
+    async def eq_mode_set(self, pf: PumpFun, wallet: str, mode: str) -> dict:
+        """0.32.65 (pedido do dono: "botão copiar aqui, pergunta se no fictício ou real, copiar tudo que a carteira faz"):
+        modo de UMA carteira do Copiar igual. Copiar liga o modo (pump_eq_on) se estava desligado; a REAL vale só para
+        esta carteira e só sai com a Execução real ligada."""
+        wallet = str(wallet or "").strip()
+        if mode not in ("sim", "both", "off"):
+            return {"error": "modo inválido"}
+        if not B58_ADDR.fullmatch(wallet):
+            return {"error": "endereço inválido"}
+        if wallet not in pf.copy_equal:
+            if len(pf.copy_equal) >= EQ_MAX:
+                return {"error": f"no máximo {EQ_MAX} carteiras"}
+            pf.copy_equal.append(wallet)
+        pf.eq_mode[wallet] = mode
+        ligou = False
+        if mode != "off" and not getattr(pf.cfg, "pump_eq_on", False):
+            pf.cfg.apply({"pump_eq_on": True})
+            ligou = True
+        await self.save_settings(pf)
+        pf.refresh_followed(force=True)
+        nome = {"sim": "só FICTÍCIA", "both": "FICTÍCIA e REAL", "off": "parou de copiar"}[mode]
+        await audit(self.db, pf.user_id, "copiar igual: carteira", f"{wallet[:6]}…{wallet[-4:]} → {nome}")
+        return {"ok": True, "wallet": wallet, "mode": mode, "ligou_modo": ligou,
+                "real_ligada": bool(getattr(pf.cfg, "pump_real_enabled", False))}
+
     def eq_status(self, pf: PumpFun) -> dict:
         diag = pf.__dict__.get("_copy_diag") or []
         now = time.time()
@@ -1457,7 +1484,7 @@ class PumpHub:
             vis = [x for x in diag if x[1] == w and now - x[0] <= 86400]
             cop = sum(1 for x in vis if x[2] == "copiou")
             mt = [t for t in trs if t.get("wallet") == w and not t.get("real")]
-            rows.append({"wallet": w, "vistas_24h": len(vis), "copiadas_24h": cop,
+            rows.append({"wallet": w, "vistas_24h": len(vis), "copiadas_24h": cop, "modo": (pf.eq_mode or {}).get(w, "sim"),
                          "ultimo_motivo": next((x[2] for x in reversed(vis) if x[2] != "copiou"), None),
                          "abertas": sum(1 for p in pos if p["wallet"] == w and not p.get("real")),
                          "fechadas": len(mt), "ganhos": sum(1 for t in mt if (t.get("pnl_sol") or 0) > 0),
@@ -1486,6 +1513,8 @@ class PumpHub:
             s["_ov_user"] = dict(pf._ov_user)          # 0.32.56: a pessoa mudou estas opções (o ajuste do chat não volta)
         if list(getattr(pf, "copy_equal", None) or []) != list(EQ_SEED):
             s["_copy_equal"] = list(pf.copy_equal)     # 0.32.4: Copiar igual (só grava se mudou a lista de 28/10)
+        if getattr(pf, "eq_mode", None):
+            s["_eq_mode"] = dict(pf.eq_mode)           # 0.32.65: Copiar igual por carteira (fictícia / fictícia e REAL / parado)
         if getattr(pf, "brain_freeze", None):
             s["_brain_freeze"] = pf.brain_freeze       # 0.31.85: evolução para a qual o dono voltou
         await self.db.update("user_settings", {"user_id": pf.user_id},

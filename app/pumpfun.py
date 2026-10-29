@@ -159,6 +159,7 @@ class PumpFun:
         # o hub quando ESTA conta abre/fecha uma posição fictícia (o hub repassa para quem segue esta conta)
         self.follow_user: str = ""
         self.copy_equal: list[str] = list(EQ_SEED)      # 0.32.4: "Copiar igual" (salvo em _copy_equal; ver hub._load)
+        self.eq_mode: dict[str, str] = {}                # 0.32.65: por carteira "sim" | "both" | "off" (salvo em _eq_mode)
         self.study_copy: list[str] = []                  # 0.32.11: aprovadas pelo estudo automático, copiadas só na fictícia
         self.sim_only_list: list[str] = []               # 0.32.17: copiadas pelo botão Copiar do estudo (só fictícia, teste)
         self.ia_added: list[str] = []                    # 0.32.17: as que a IA pôs na lista manual (só essas ela tira)
@@ -1019,7 +1020,10 @@ class PumpFun:
 
     def eq_wallets(self) -> list[str]:
         """0.32.4: carteiras do "Copiar igual" (vazio com o modo desligado)."""
-        return list(getattr(self, "copy_equal", None) or []) if getattr(self.cfg, "pump_eq_on", False) else []
+        if not getattr(self.cfg, "pump_eq_on", False):
+            return []
+        mode = getattr(self, "eq_mode", None) or {}               # 0.32.65: botão Copiar de cada carteira (Parar = fora)
+        return [w for w in (getattr(self, "copy_equal", None) or []) if mode.get(w, "sim") != "off"]
 
     def is_eq(self, who: str) -> bool:
         return bool(who) and who in self.eq_wallets()
@@ -1091,7 +1095,8 @@ class PumpFun:
                    + (f" · atraso {lag:.0f} s" if lag is not None else ""))
         self._copy_note(who, "copiou", t)
         msgs = [f"[PUMP SIM] copiar igual {short(who)}: compra {sym} {amt:.3f} SOL (carteira comprou {sol:.3f} SOL)"]
-        if getattr(c, "pump_eq_real", False):
+        # 0.32.65: "FICTÍCIA e REAL" no botão Copiar da carteira vale para ela (sem ligar a REAL das outras)
+        if getattr(c, "pump_eq_real", False) or (getattr(self, "eq_mode", None) or {}).get(who) == "both":
             self._mirror_real(p, trader_sol=sol, block_t=bt, pos_cfg=dict(rules))
         elif self.real is not None and getattr(c, "pump_real_enabled", False):
             self._feed(**base, action="REAL não copiou", reason="copiar igual: real desligada neste modo (só fictícia)",

@@ -119,3 +119,16 @@ def test_wallet_in_study_copies_only_sim_by_default(tmp_path):
     assert pf._rq is None or pf._rq.qsize() == 0
     pf.cfg.pump_st_real = True
     assert not pf.sim_only(_W)
+
+
+def test_per_wallet_button_stop_and_real(tmp_path):
+    """0.32.65: botão Copiar de cada carteira — Parar tira só ela; FICTÍCIA e REAL espelha só ela na real."""
+    pf = _eq(tmp_path)
+    pf.eq_mode = {_W: "off"}
+    assert pf.eq_wallets() == []
+    pf.on_message(_ev("buy", _W, M, 0.1, 1e5, 30, 3e7), 1000.0)
+    assert not [p for p in pf.positions() if p["mint"] == M and p.get("eq")]
+    pf.eq_mode = {_W: "both"}
+    pf.cfg.pump_real_enabled = True
+    pf.on_message(_ev("buy", _W, M, 0.1, 1e5, 30, 3e7, signature="S2"), 1001.0)
+    assert [p for p in pf.positions() if p["mint"] == M and p.get("eq")] and M in pf._real_buying

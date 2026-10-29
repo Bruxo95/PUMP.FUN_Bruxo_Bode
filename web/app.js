@@ -564,7 +564,7 @@
       (r.seguidores && r.seguidores.length ? ' <span class="muted">· Copiam os SEUS trades: ' + esc(r.seguidores.join(", ")) + "</span>" : "");
   }
   // 0.32.4 (pedido do dono, 28/10): "Copiar igual" — carteiras do leaderboard da pump.fun coladas à mão
-  let EQ = null;
+  let EQ = null, EQ_W = "";
   async function loadEq() {
     let r; try { r = await BB.api("/api/pump/copy-equal"); } catch (e) { return; }
     if (!r || r.error) return;
@@ -572,8 +572,10 @@
     $("eqK").innerHTML = [["Modo", r.on ? '<span class="up">ON</span>' : '<span class="down">OFF</span>'], ["Carteiras", r.wallets.length + (r.on ? " · " + r.seguidas + " seguidas" : "")],
       ["Posições abertas", r.abertas], ["Fechadas", r.fechadas], ["Resultado (fictícia)", sg(r.pnl_sol)]]
       .map(([l, v]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + "</div></div>").join("");
-    table("eqTbl", ["Carteira", "Online", "Vistas 24 h", "Copiadas 24 h", "Abertas", "Fechadas", "Acerto", "Resultado", "Real", "Último motivo de não copiar"],
-      r.wallets.map((w) => [pfW(w.wallet), w.online ? '<span class="up">sim</span>' : '<span class="muted">não</span>', w.vistas_24h, w.copiadas_24h, w.abertas, w.fechadas,
+    // 0.32.65 (pedido do dono): botão Copiar em cada carteira, pergunta fictícia ou REAL
+    const eqTag = (w) => !r.on || w.modo === "off" ? '<span class="tag loss">parado</span>' : w.modo === "both" || r.real ? '<span class="tag win">copiando · FICTÍCIA e REAL</span>' : '<span class="tag win">copiando · FICTÍCIA</span>';
+    table("eqTbl", ["Carteira", "Cópia", "Online", "Vistas 24 h", "Copiadas 24 h", "Abertas", "Fechadas", "Acerto", "Resultado", "Real", "Último motivo de não copiar"],
+      r.wallets.map((w) => [pfW(w.wallet), '<span class="nowrap">' + eqTag(w) + ' <button class="btn sm primary" data-eqc="' + esc(w.wallet) + '">' + (r.on && w.modo !== "off" ? "Mudar" : "Copiar") + "</button></span>", w.online ? '<span class="up">sim</span>' : '<span class="muted">não</span>', w.vistas_24h, w.copiadas_24h, w.abertas, w.fechadas,
         w.fechadas ? f(w.ganhos / w.fechadas * 100, 0) + "%" : "–", sg(w.pnl_sol), w.pnl_real_sol ? sg(w.pnl_real_sol) : "–", '<span class="wrapcell">' + esc(w.ultimo_motivo || "–") + "</span>"]),
       "Nenhuma carteira na lista.");
     if (document.activeElement !== $("eqList")) $("eqList").value = r.wallets.map((w) => w.wallet).join("\n");
@@ -2142,6 +2144,17 @@
       if (!r.error) $("stShare").hidden = true;
       return;
     }
+    // 0.32.65 (pedido do dono): Copiar igual por carteira — pergunta fictícia ou REAL
+    if (t.dataset.eqc) { EQ_W = t.dataset.eqc; const real = !!(D && D.real && D.real.enabled);
+      $("eqMS").textContent = EQ_W.slice(0, 4) + "…" + EQ_W.slice(-4) + " · copia TODA compra e venda dela, na hora e sem filtros";
+      $("eqMB").innerHTML = "<p>Carteira fictícia: <b>" + (cfg().pump_eq_sol || 0.05) + " SOL</b> por compra; vende a mesma parte quando ela vende.</p><p>Carteira REAL: " + (real ? "<b>até " + cfg().pump_real_max_sol + " SOL</b> por compra" : '<span class="down">execução real desligada</span> (o botão REAL fica guardado e só vale quando você ligar)') + "</p>" +
+        '<p class="muted small">Só copia o que o monitor VÊ: se o Status do sistema mostra o Solana RPC com erro (429), as compras dela não chegam e nada é copiado.</p>';
+      $("eqM").hidden = false; return; }
+    if (t.id === "eqMX") { $("eqM").hidden = true; return; }
+    if (t.dataset.eqgo) { const md = t.dataset.eqgo; if (md === "both" && !confirm("Copiar esta carteira também na carteira REAL (dinheiro de verdade)?")) return;
+      const r = await BB.api("/api/pump/copy-equal/mode", { body: { wallet: EQ_W, mode: md } }); $("eqM").hidden = true;
+      toast(r.error || (md === "off" ? "Parou de copiar esta carteira." : (md === "both" ? "Copiando na fictícia e na REAL" + (r.real_ligada ? "." : " (a REAL só sai quando a Execução real estiver ligada).") : "Copiando na fictícia.") + (r.ligou_modo ? " O Copiar igual foi ligado." : "")));
+      poll(true); return loadEq(); }
     // 0.32.38 (pedido do dono): o Copiar do estudo pergunta em qual carteira copiar
     if (t.dataset.stc) { STC_W = t.dataset.stc; const real = !!(D && D.real && D.real.enabled);
       $("stcMS").textContent = STC_W.slice(0, 4) + "…" + STC_W.slice(-4) + " · copia toda compra e venda dela com os filtros de Configurações";
