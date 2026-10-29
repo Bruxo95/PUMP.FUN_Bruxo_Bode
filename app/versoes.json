@@ -1165,6 +1165,11 @@
    "versao": "0.32.81",
    "inicio": "2026-10-29T22:37:07+00:00",
    "titulo": "Aba do Bruxo: atualização da tela liga/desliga e tempo"
+  },
+  {
+   "versao": "0.32.82",
+   "inicio": "2026-10-29T22:55:48+00:00",
+   "titulo": "Aba do Bruxo: idade de agora e detentores"
   }
  ]
 }

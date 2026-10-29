@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-10-29",
+    "generated_date": "2026-10-30",
     "timezone": "Europe/Dublin",
-    "repository_reference": "84952cdf5d4323849c8f16b00121ed66b8ea47d0",
-    "application_version": "0.32.81 · 2026-10-29 · Aba do Bruxo: atualização da tela liga/desliga e tempo",
+    "repository_reference": "6ba3d5cd1656e33440ed6931d1a49cf4544e3dae",
+    "application_version": "0.32.82 · 2026-10-30 · Aba do Bruxo: idade de agora e detentores",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "77ca8b162e196d98c14ee45b9f0ff0db62f947e4f59037670d0219d9522036bb",
+      "app/version.py": "337a33aa8a4fb1ebf58d001899a1902e10eebabbeeb0080fa3c10fa10acc1d7c",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "06da1f17bfa2a88e7f3fddcbfe9c102d76d915453c0e2a6a5dc6a43e76246357"
+  "pdf_sha256": "6fda02773bb1e1db642888c89c3b6f3c89ded9cb84dda08c580c3c488b2beaf8"
 }

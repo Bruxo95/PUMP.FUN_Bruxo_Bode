@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.81 · 2026-10-29 · Aba do Bruxo: atualização da tela liga/desliga e tempo"
+VERSION = "0.32.82 · 2026-10-30 · Aba do Bruxo: idade de agora e detentores"

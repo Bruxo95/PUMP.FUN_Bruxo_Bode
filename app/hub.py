@@ -716,6 +716,12 @@ class PumpHub:
                     await svc._fetch_prices(list(dict.fromkeys(rest))[:90])
         self.bruxo_launch_scan(now)
         n = self.bruxo.tick(lambda m: (self.market.tokens.get(m) or {}).get("price"), now)
+        for s, k in self.bruxo.holders_due(now):              # 0.32.82: detentores no sinal e aos 1/5/10/25 min
+            try:
+                s["holders"][k] = await self.holders_count(s["mint"])
+            except Exception:
+                s["holders"][k] = None
+            self.bruxo.dirty.add(s["id"])
         for sid in list(self.bruxo.dirty)[:300]:
             self.bruxo.dirty.discard(sid)
             s = self.bruxo.signals.get(sid)
@@ -728,6 +734,61 @@ class PumpHub:
                 self.bruxo.dirty.add(sid)
                 break
         self.bruxo.trim(now)
+        return n
+
+    TOKEN_PROGRAMS = ("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")
+
+    async def holders_count(self, mint: str) -> int | None:
+        """0.32.82 (pedido do dono): quantas carteiras têm o token agora. Usa o RPC do sistema (Helius: getTokenAccounts,
+        10 créditos por página de 1.000) e, se o RPC não tiver esse método, getProgramAccounts nos dois programas de token.
+        None = não deu para contar (RPC público não deixa). Guarda 45 s por token."""
+        import base64 as _b64
+        cache = self.__dict__.setdefault("_holders_cache", {})
+        hit = cache.get(mint)
+        if hit and time.time() - hit[0] < 45:
+            return hit[1]
+        urls = [u for u in dict.fromkeys([self.system_keys.get("rpc_url") or "", getattr(self.cfg, "solana_rpc_public", "") or ""]) if u]
+        n = None
+        for u in urls:
+            try:
+                owners: set[str] = set()
+                for page in range(1, 6):
+                    r = await self.http.post(u, timeout=10, json={"jsonrpc": "2.0", "id": "h", "method": "getTokenAccounts",
+                                                                  "params": {"mint": mint, "limit": 1000, "page": page}})
+                    js = r.json()
+                    if "error" in js:
+                        raise LookupError("sem getTokenAccounts")
+                    acc = (js.get("result") or {}).get("token_accounts") or []
+                    owners |= {a.get("owner") for a in acc if a.get("owner") and int(a.get("amount") or 0) > 0}
+                    if len(acc) < 1000:
+                        break
+                n = len(owners)
+                break
+            except LookupError:
+                pass
+            except Exception:
+                continue
+            try:
+                owners = set()
+                for prog in self.TOKEN_PROGRAMS:
+                    r = await self.http.post(u, timeout=15, json={"jsonrpc": "2.0", "id": "h", "method": "getProgramAccounts", "params": [
+                        prog, {"encoding": "base64", "dataSlice": {"offset": 32, "length": 40},
+                               "filters": [{"memcmp": {"offset": 0, "bytes": mint}}]}]})
+                    js = r.json()
+                    if "error" in js:
+                        raise RuntimeError(str(js["error"])[:80])
+                    for a in js.get("result") or []:
+                        raw = _b64.b64decode((a.get("account") or {}).get("data", [""])[0])
+                        if len(raw) >= 40 and int.from_bytes(raw[32:40], "little") > 0:
+                            owners.add(raw[:32])
+                n = len(owners)
+                break
+            except Exception:
+                continue
+        cache[mint] = (time.time(), n)
+        if len(cache) > 2000:
+            for k in sorted(cache, key=lambda k: cache[k][0])[:500]:
+                cache.pop(k, None)
         return n
 
     LANC_MAX_H = 12          # 0.32.59: no máximo 12 lançamentos estudados por hora (cada um lê o preço por 30 min)
@@ -789,7 +850,7 @@ class PumpHub:
         rows = []
         for s in sigs[:300]:
             d = (s.get("decisoes") or {}).get(uid)
-            rows.append({k: s.get(k) for k in ("id", "em", "mint", "symbol", "names", "sol_traders", "age_min", "filtros", "marks",
+            rows.append({k: s.get(k) for k in ("id", "em", "t", "created_t", "holders", "mint", "symbol", "names", "sol_traders", "age_min", "filtros", "marks",
                                                 "peak_pct", "peak_s", "low_pct", "hit100_s", "stop30_s", "done")}
                         | {"entrou": bool(d and d.get("entrou")), "motivo": (d or {}).get("motivo") or ("não era top trader seu" if d is None else None)})
         mine_t = [dict(t, aba=pf.aba_of(t)) for t in pf.trades(5000) if t.get("origem") == "bruxo"]
@@ -814,7 +875,7 @@ class PumpHub:
                                       float(getattr(cfg, "pump_bx_stop_pct", 30)), float(getattr(cfg, "pump_bx_tp1_pct", 100))),
                 "lancamento": {"on": bool(getattr(cfg, "pump_lanc_on", False)),
                                "estudo": Bruxo.study([s for s in self.bruxo.signals.values() if s.get("kind") == "lancamento"]),
-                               "sinais": [{k: s.get(k) for k in ("em", "mint", "symbol", "age_min", "filtros", "marks", "peak_pct", "peak_s", "hit100_s", "stop30_s", "done")}
+                               "sinais": [{k: s.get(k) for k in ("em", "t", "created_t", "holders", "mint", "symbol", "age_min", "filtros", "marks", "peak_pct", "peak_s", "hit100_s", "stop30_s", "done")}
                                           for s in self.bruxo.recent(hours, now) if s.get("kind") == "lancamento"][:100]},
                 "nao_entrou": sorted(({"motivo": k, "n": v} for k, v in why.items()), key=lambda x: -x["n"]),
                 "resultado": {"n": n, "ganhos": w, "acerto": round(w / n * 100) if n else None,

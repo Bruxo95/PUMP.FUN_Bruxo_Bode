@@ -57,7 +57,9 @@ class Bruxo:
         s = {"id": sid, "t": t, "em": _iso(t), "mint": mint, "symbol": sym, "wallets": [w], "names": [label], "kind": kind,
              "sol_traders": round(sol, 4), "px0": px, "mcap0": tk.get("mcap_sol"), "age_min": age_min,
              "flow": flow, "marks": {}, "peak_pct": None, "peak_s": None, "low_pct": None, "hit100_s": None,
-             "stop30_s": None, "decisoes": {}, "done": False}
+             "stop30_s": None, "decisoes": {}, "done": False,
+             # 0.32.82: hora em que o token nasceu (a idade da tela era a da compra; a pump.fun mostra a idade de agora)
+             "created_t": round(t - age_min * 60, 1) if age_min is not None else None, "holders": {}}
         self.signals[sid] = s
         self.by_mint[key] = sid
         self.dirty.add(sid)
@@ -72,6 +74,29 @@ class Bruxo:
 
     def open_mints(self, now: float) -> list[str]:
         return sorted({s["mint"] for s in self.signals.values() if not s["done"] and now - s["t"] <= WATCH_S + 120})
+
+    HOLD_MARKS = (0, 1, 5, 10, 25)          # 0.32.82: detentores no sinal e 1/5/10/25 min depois
+
+    def holders_due(self, now: float, limit: int = 8) -> list[tuple[dict, str]]:
+        """(sinal, marca) cujos detentores ainda não foram lidos. Marca perdida (passou 3 min) fica sem dado."""
+        out = []
+        for s in self.signals.values():
+            if s.get("done"):
+                continue
+            el = now - s["t"]
+            H = s.setdefault("holders", {})
+            for m in self.HOLD_MARKS:
+                k = str(m)
+                if k in H or el < m * 60:
+                    continue
+                if el > m * 60 + 180:
+                    H[k] = None
+                    self.dirty.add(s["id"])
+                    continue
+                out.append((s, k))
+                break
+        out.sort(key=lambda x: x[0]["t"])
+        return out[:limit]
 
     def tick(self, price_of, now: float) -> int:
         """Acompanha cada sinal por 30 min: preço nas marcas, pico, tempo até o pico e se teria batido +100% / −30%."""

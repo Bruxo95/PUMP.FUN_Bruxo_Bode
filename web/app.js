@@ -1122,6 +1122,20 @@
   }
 
   // 0.32.79 (pedido do dono): marcas de 1, 5, 10 e 25 min e quanto o token caiu (ou subiu) depois do pico
+  // 0.32.82 (pedido do dono): a idade era a da COMPRA; a pump.fun mostra a de agora. Mostra as duas e a hora em que nasceu.
+  function bxAge(s) {
+    if (s.age_min == null) return "–";
+    const born = s.created_t || (s.t ? s.t - s.age_min * 60 : null);
+    const now = born ? (Date.now() / 1000 - born) : null;
+    return f(s.age_min, 1) + " min<small>na compra</small>" + (born ? "<small>nasceu " + new Date(born * 1000).toLocaleTimeString("pt-BR") + " · agora " + hms(Math.max(0, now)) + "</small>" : "");
+  }
+  // 0.32.82: detentores no sinal e 1/5/10/25 min depois (RPC do sistema; "–" = não deu para contar)
+  function bxHold(s) {
+    const H = s.holders || {}, ks = ["0", "1", "5", "10", "25"], last = ks.filter((k) => H[k] != null).pop();
+    if (last == null) return Object.keys(H).length ? '<span class="dim">sem dado</span>' : '<span class="dim">medindo</span>';
+    const ev = ks.slice(1).map((k) => (H[k] == null ? "–" : H[k])).join(" / ");
+    return "<b>" + H[last] + "</b><small>no sinal " + (H["0"] == null ? "–" : H["0"]) + "</small><small>1/5/10/25 min: " + ev + "</small>";
+  }
   function bxMarks(s) { return ["1", "5", "10", "25"].map((m) => (s.marks || {})[m] == null ? "–" : pc(s.marks[m])).join(" / "); }
   function bxAfterPeak(s) {
     const M = s.marks || {}, ks = Object.keys(M).filter((k) => M[k] != null).sort((a, b) => +a - +b);
@@ -1198,9 +1212,9 @@
     table("bxMk", ["Minutos depois", "Sinais", "Mediana", "Subindo"], Object.entries(S.marcas || {}).map(([m, v]) => [m + " min", String(v.n), pc(v.mediana), v.subindo + "%"]), "Ainda sem sinais terminados.");
     table("bxAge", ["Idade na compra", "Sinais", "Dobraram", "−30% antes", "Pico mediano"], Object.entries(S.por_idade || {}).map(([k, v]) => [esc(k), String(v.n), v.dobrou_pct + "%", String(v.stop_antes), pc(v.pico_mediano)]), "Ainda sem sinais terminados.");
     const F = (s) => s.filtros || {};
-    table("bxSig", ["Quando", "Token", "Top trader", "Idade", "Ritmo", "Top 10", "Criador", "Entrou?", "Pico em 30 min", "1 / 5 / 10 / 25 min", "Depois do pico"], (r.sinais || []).map((s) => [dt(s.em), pfM(s.mint, s.symbol) +
+    table("bxSig", ["Quando", "Token", "Top trader", "Idade", "Detentores", "Ritmo", "Top 10", "Criador", "Entrou?", "Pico em 30 min", "Preço 1 / 5 / 10 / 25 min", "Depois do pico"], (r.sinais || []).map((s) => [dt(s.em), pfM(s.mint, s.symbol) +
       '<div style="margin-top:4px"><button class="btn sm primary" data-buy="' + esc(s.mint) + '" data-sym="' + esc(s.symbol || "") + '">Comprar</button></div>',
-      esc((s.names || []).join(", ")) + "<small>" + s4(s.sol_traders) + " SOL</small>", s.age_min == null ? "–" : f(s.age_min, 1) + " min",
+      esc((s.names || []).join(", ")) + "<small>" + s4(s.sol_traders) + " SOL</small>", bxAge(s), bxHold(s),
       F(s).flow == null ? "–" : f(F(s).flow, 1) + "<small>média " + (F(s).flow_base == null ? "–" : f(F(s).flow_base, 1)) + "</small>", F(s).top10 == null ? "–" : f(F(s).top10, 0) + "%",
       F(s).dev_pct == null ? "–" : f(F(s).dev_pct, 1) + "%", s.entrou ? '<span class="tag win">entrou</span>' : '<small class="wrapcell">' + esc(s.motivo || "–") + "</small>",
       s.peak_pct == null ? '<span class="dim">medindo</span>' : pc(s.peak_pct) + "<small>em " + hms(s.peak_s || 0) + "</small>",
@@ -1214,7 +1228,7 @@
       ["−30% antes de dobrar", LS.stop_antes_pct == null ? "–" : LS.stop_antes_pct + "%", "dos estudados", "usr"]]);
     LN_OPEN = (LN.sinais || []).filter((s) => !s.done).map((s) => ({ mint: s.mint, symbol: s.symbol }));
     if ($("lnBuyAll")) { $("lnBuyAll").textContent = "Comprar todas" + (LN_OPEN.length ? " (" + LN_OPEN.length + ")" : ""); $("lnBuyAll").disabled = !LN_OPEN.length; }
-    table("lnT", ["Quando", "Token", "Idade", "Compra do criador", "Pico em 30 min", "1 / 5 / 10 / 25 min", "Depois do pico"], (LN.sinais || []).map((s) => [dt(s.em), pfM(s.mint, s.symbol) + ' <button class="btn sm primary" data-buy="' + esc(s.mint) + '" data-sym="' + esc(s.symbol || "") + '" data-orig="lancamento">Comprar</button>', s.age_min == null ? "–" : f(s.age_min, 1) + " min",
+    table("lnT", ["Quando", "Token", "Idade", "Detentores", "Compra do criador", "Pico em 30 min", "Preço 1 / 5 / 10 / 25 min", "Depois do pico"], (LN.sinais || []).map((s) => [dt(s.em), pfM(s.mint, s.symbol) + ' <button class="btn sm primary" data-buy="' + esc(s.mint) + '" data-sym="' + esc(s.symbol || "") + '" data-orig="lancamento">Comprar</button>', bxAge(s), bxHold(s),
       (s.filtros || {}).dev_buy == null ? "–" : s4(s.filtros.dev_buy) + " SOL", s.peak_pct == null ? '<span class="dim">medindo</span>' : pc(s.peak_pct) + "<small>em " + hms(s.peak_s || 0) + "</small>",
       bxMarks(s), bxAfterPeak(s)]), "Nenhum lançamento estudado ainda.");
     const rows = (r.abertas || []).map((p) => ["aberta", pfM(p.mint, p.symbol), s4(p.sol_in) + " SOL", pc(p.chg_pct || 0), "–", esc((p.bruxo || {}).names ? p.bruxo.names.join(", ") : "")])

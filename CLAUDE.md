@@ -1344,3 +1344,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `20261030000001`; só admin com `pump_bx_on` ou `pump_lanc_on`) + `GET /api/pump/bruxo/reports[?em=]`; cartão `#brK` na Aba do Bruxo e `#bgBx` na Base geral.
 - 0.32.81: Aba do Bruxo — `#bxAuto`/`#bxEvery`/`#bxNow`/`#bxLast` (`BXR` em `localStorage` `pf_bx_ref`, 5–600 s, padrão 20; `bxSchedule` no fim de `loadBruxo`).
   Sinais da aba chegam ao vivo pelo monitor (`handle_ev` → `_bruxo`); `bruxo_loop` (lançamentos e acompanhamento) roda a cada 20 s. Pedido do dono.
+- 0.32.82: Aba do Bruxo — sinal guarda `created_t` (nascimento = t − age_min; a idade da tela é a da compra, conferida com a DexScreener)
+  e `holders` {0,1,5,10,25 min} via `Bruxo.holders_due` + `hub.holders_count` (RPC do sistema: Helius `getTokenAccounts` 1.000/página,
+  senão `getProgramAccounts` nos 2 programas de token; cache 45 s; RPC público não conta). Tela: `bxAge`/`bxHold`. `tests/test_bruxo_detentores.py`.
