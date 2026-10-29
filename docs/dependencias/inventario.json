@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "e1323cd2590dd8bd470a4c44210973b3e1d5a9be",
-    "application_version": "0.32.54 · 2026-10-29 · voz das notificações corrigida (ligada, destravada no 1º clique, botão Testar voz)",
+    "repository_reference": "81570ff9d293471574f2cbcfe1251e628f9bcc14",
+    "application_version": "0.32.55 · 2026-10-29 · análise do Claude das 26 carteiras em estudo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "a8552d7b0753734093bd74cf4c296ca6bf72a8e9e1265949b680a7054f3f9abb",
+      "app/version.py": "b76bc86f2817efc9c5ed09447e5374840a70420798faaaa84237c00e7a264a9c",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "d506ecf01c2c6d1cadd28ae65691dacec43066c8218f018d4e7da5ed2d5e9956"
+  "pdf_sha256": "a589e769632df36ad66fd9026c21c7582fd70fe31c62308186cd836b59ade513"
 }

@@ -1276,3 +1276,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `dump_block(force=True)`. A rota do botão lê preço e detentores antes. Relatórios ChatGPT: `#staiF` (arquivo), Salvar fecha a janela.
 - 0.32.54: voz: `VOZ` padrão ligada, `unlockVoice` no 1º clique, `ptVoice` (prefere pt-BR natural/online), utterance guardada em `window.__fala`, botão `#ntfVT`.
   O Windows deste PC só tem vozes em inglês; Chrome/Edge trazem pt-BR próprias, o Brave não.
+- 0.32.55: `app/analises_carteiras/20261029-0956-cfaf.md` (26 carteiras: 11 lançadoras, 7 alta frequência, 4 perdem na vida, 2 fora da pump.fun;
+  observar DScqtG e dmuXAm). Propostas no fim do arquivo (barrar lançador/HFT, simular a cópia depois do lançador) aguardam o dono.
