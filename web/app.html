@@ -2,9 +2,18 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Painel — PUMP FUN COPY</title>
 <meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FUN COPY">
+<meta name="application-name" content="FUN COPY">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=__V__">
+<link rel="manifest" href="/static/manifest.json?v=__V__">
+
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="PUMP FUN COPY">
 <meta property="og:title" content="PUMP FUN COPY — cópia de traders da pump.fun">
@@ -69,6 +78,14 @@
     <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver o status completo do sistema"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
     <div class="ver" id="ver"></div>
   </aside>
+  <!-- 0.32.75: barra de abas embaixo, só no celular (no PC fica escondida) -->
+  <nav class="tabbar" id="tabbar" aria-label="Atalhos">
+    <a href="#visao" data-tv="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Início</span></a>
+    <a href="#traders" data-tv="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Traders</span></a>
+    <a href="#posicoes" data-tv="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><span>Posições</span><b class="tb-nb" id="tbPos"></b></a>
+    <a href="#historico" data-tv="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg><span>Histórico</span></a>
+    <button type="button" id="tbMenu" aria-label="Abrir o menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+  </nav>
   <div class="scrim" id="scrim"></div>
 
   <div class="main">
@@ -77,7 +94,7 @@
         <button class="burger" id="burger" aria-label="Abrir menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
         <div style="min-width:0"><h1 id="pgTitle">Visão geral</h1><div class="sub" id="pgSub"></div></div>
       </div>
-      <div class="tb-center"><button class="btn tgl off ntf" id="ntfB" title="Ver as notificações">🔔 Notificações: OFF</button>
+      <div class="tb-center"><button class="btn tgl off ntf" id="ntfB" title="Ver as notificações">🔔<span class="ntfl"> Notificações: OFF</span></button>
         <div class="ntfp" id="ntfP" hidden><header><b>Notificações</b><div class="sp"></div><button class="btn sm tgl off" id="ntfS">Som e aviso: OFF</button> <button class="btn sm tgl sw off" id="ntfV" title="O navegador fala quando um trade seu fecha no lucro ou no prejuízo">Voz</button> <button class="btn sm" id="ntfC">Limpar</button> <button class="btn sm" id="ntfX" aria-label="Fechar">✕</button></header>
           <div class="seg" id="ntfTab" style="margin:6px 0"><button data-ntab="meus" class="on">Meus trades</button><button data-ntab="traders" id="ntfTabT">Traders copiados</button></div>
           <div id="ntfVF" class="ntfvoz" hidden><label>Lucro <input class="in" id="ntfVw" aria-label="Frase falada no lucro"></label><label>Prejuízo <input class="in" id="ntfVl" aria-label="Frase falada no prejuízo"></label><label>Compra <input class="in" id="ntfVb" aria-label="Frase falada na compra"></label><button class="btn sm" id="ntfVT">Testar voz</button><span class="muted small" id="ntfVI">{pct} = o % do trade · fica só neste navegador</span></div><div id="ntfL"></div></div></div>

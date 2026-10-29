@@ -2279,6 +2279,8 @@
     if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "logs", "calls", "bruxo"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
+    document.querySelectorAll("#tabbar [data-tv]").forEach((a) => a.classList.toggle("on", a.dataset.tv === VIEW));
+    if ($("tbMenu")) $("tbMenu").classList.toggle("on", !["visao", "traders", "posicoes", "historico"].includes(VIEW));
     if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
@@ -2370,7 +2372,7 @@
   }
   function ntfBtn() {
     const b = $("ntfB");
-    b.innerHTML = "🔔 Notificações: " + (NTF ? "ON" : "OFF") + (NTFU ? ' <span class="ntfc">' + (NTFU > 99 ? "99+" : NTFU) + "</span>" : "");
+    b.innerHTML = '🔔<span class="ntfl"> Notificações: ' + (NTF ? "ON" : "OFF") + "</span>" + (NTFU ? ' <span class="ntfc">' + (NTFU > 99 ? "99+" : NTFU) + "</span>" : "");
     b.className = "btn tgl ntf " + (NTF ? "on" : "off");
     if ($("ntfS")) { $("ntfS").textContent = "Som e aviso"; $("ntfS").className = "btn sm tgl sw " + (NTF ? "on" : "off"); $("ntfS").setAttribute("role", "switch"); $("ntfS").setAttribute("aria-checked", String(NTF)); }
   }
@@ -2689,6 +2691,7 @@
     document.querySelectorAll("[data-mtag]").forEach((e) => { e.textContent = rm ? "REAL" : "FICTÍCIA"; e.className = "tag " + (rm ? "real" : "sim"); });
     $("nbTr").textContent = (D.followed || []).length || "";
     $("nbPos").textContent = (D.positions || []).filter((p) => !!p.real === rm).length || "";
+    if ($("tbPos")) $("tbPos").textContent = $("nbPos").textContent;
     $("nbReal").textContent = R.enabled ? "ON" : "";
     $("sysDot").className = "dot " + (RP.ws ? "on" : "off");
     $("sysT").textContent = "Monitor " + (RP.ws ? "ON" : "OFF");
@@ -3431,6 +3434,9 @@
     document.addEventListener("click", (e) => { if (!e.target.closest("#menu")) $("menu").hidden = true; });
     $("logoutB").onclick = BB.logout;
     $("burger").onclick = () => { $("side").classList.add("open"); $("scrim").classList.add("open"); };
+    if ($("tbMenu")) $("tbMenu").onclick = () => { $("side").classList.add("open"); $("scrim").classList.add("open"); };
+    // 0.32.75: aberto pelo atalho da tela de início do iPhone/Android (modo app)
+    try { if (window.navigator.standalone || matchMedia("(display-mode: standalone)").matches) document.documentElement.classList.add("pwa"); } catch (e) { /* navegador antigo */ }
     // computador: botão no topo do menu recolhe para só ícones (fica lembrado neste navegador)
     document.querySelectorAll("#nav a").forEach((a) => { a.title = a.textContent.trim().replace(/NOVO$/, "").replace(/\d+$/, "").trim(); });
     const setMini = (on) => {

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "2e69b4650c8f3ac1ed178aefb10f578333b8c4cb",
-    "application_version": "0.32.74 · 2026-10-29 · movimentos dos traders no sino e no Histórico",
+    "repository_reference": "990367de4d19ea8f2ff4415ec8b5a1cad6f63d87",
+    "application_version": "0.32.75 · 2026-10-29 · celular em formato de app e atalho FUN COPY",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "501b1ca23221915cce225aabc0802ddbe6b3ad6a42e66ed8c7e122e5b73907be",
+      "app/version.py": "fc3f910dc9319cb8e9187e9f1904bf3aeca8ae12f04366161e57e5ee86c1b195",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,8 +34,8 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "7348cd9946efe2f533b165463c37bf2d8efbfb00af19a959666306f69ff31de5",
-      "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
+      "web/app.html": "3edf1757b549f2ff7aae71eaa16088ef78bae88e82af517c33e79f587c2afb27",
+      "web/index.html": "bed11a9cd7aea23d69f74bb4f42f5c701c1d051bf7d982dbdfc40053053c8930"
     },
     "python_runtime_direct": [
       {
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "799312485949d485a0d1d0fb061243b21432947f51837389a47ca980bf95ab75"
+  "pdf_sha256": "2968ab1434e7f1d0bf62ba4c9c70f9b2415c97f85852bf5d1ff630e2c78a7cb1"
 }

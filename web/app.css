@@ -766,3 +766,69 @@ tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}
 .ntfvoz{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 0 8px;border-bottom:1px solid var(--line);font-size:12px}
 .ntfvoz label{display:flex;gap:6px;align-items:center}.ntfvoz .in{width:220px;max-width:100%;padding:4px 6px;font-size:12px}
 
+
+/* ===== 0.32.75: celular em formato de app (pedido do dono). Tudo aqui vale só até 860 px de largura:
+   no PC nada muda. Barra de abas embaixo, topo compacto, cartões arredondados, janelas que sobem de baixo,
+   áreas seguras do iPhone (entalhe e barra de início) quando aberto pelo atalho da tela de início. ===== */
+.tabbar{display:none}
+@media (max-width:860px){
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;background:#000}
+  .main{background:#000}
+  /* topo: título grande à esquerda; sino, Fictícia/Real e conta à direita; sem o botão ≡ (fica na barra de baixo) */
+  .topbar{position:sticky;top:0;grid-template-columns:minmax(0,1fr) auto auto;grid-template-rows:auto;column-gap:8px;row-gap:0;
+    padding:calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+    min-height:0;height:auto;background:rgba(0,0,0,.86);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);border-bottom:1px solid #1b1b1f}
+  .topbar .tb-left{grid-column:1;min-width:0}
+  .topbar .tb-center{grid-column:2;grid-row:1;justify-self:end;padding-bottom:0}
+  .topbar .tb-right{grid-column:3;gap:6px}
+  .burger{display:none!important}
+  .tb-left h1{font-size:20px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ntf{width:auto;height:36px;min-width:36px;padding:0 10px!important;border-radius:18px;position:relative}
+  .ntf .ntfl{display:none}
+  .ntf .ntfc{position:absolute;top:-4px;right:-4px;margin:0}
+  .search{width:36px;height:36px;padding:0;justify-content:center;border-radius:18px}
+  .avatar{width:34px;height:34px}
+  .seg button{padding:0 9px;font-size:12px}
+  .netload{display:none!important}
+  .ntfp{position:fixed;left:8px;right:8px;top:calc(56px + env(safe-area-inset-top));transform:none;width:auto;max-height:70vh;border-radius:16px}
+  .menu{right:10px;top:calc(56px + env(safe-area-inset-top));border-radius:14px}
+  /* conteúdo: espaço para a barra de baixo */
+  .page{padding:12px max(12px, env(safe-area-inset-right)) calc(84px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));gap:12px}
+  .card{border-radius:16px;padding:14px;border-color:#1d1d22;background:#0f0f12}
+  .card > header h2{font-size:15px}
+  .kpi{border-radius:14px}
+  .btn{min-height:38px;border-radius:10px}
+  .btn.sm{min-height:32px}
+  input.in,select.in,textarea.in,.in{font-size:16px}           /* iPhone não dá zoom ao tocar no campo */
+  .tbl-wrap{margin:0 -14px;padding:0 14px;scrollbar-width:none}
+  .tbl-wrap::-webkit-scrollbar{display:none}
+  /* menu lateral vira gaveta com cantos arredondados e área segura */
+  .side{border-radius:0 18px 18px 0;padding:calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));background:#0b0b0d}
+  .side .nav a{height:42px;font-size:14.5px}
+  /* janelas sobem de baixo, como no app */
+  .modal{align-items:flex-end;padding:0;overflow:hidden}
+  .modal-box{width:100%;max-width:none!important;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:20px 20px 0 0;
+    padding:10px 14px calc(18px + env(safe-area-inset-bottom));border-bottom:0;animation:sheetUp .22s ease-out}
+  .modal-box::before{content:"";display:block;width:38px;height:5px;border-radius:3px;background:#3a3a40;margin:0 auto 10px}
+  .modal-box > header{position:sticky;top:-10px;background:var(--card);padding-top:4px;z-index:2;flex-wrap:wrap}
+  /* barra de abas */
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:45;
+    padding:6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    background:rgba(8,8,10,.9);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);border-top:1px solid #1d1d22}
+  .tabbar a,.tabbar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:50px;
+    border:0;background:none;color:#8a8a93;font:inherit;font-size:10.5px;font-weight:600;text-decoration:none;border-radius:12px;cursor:pointer}
+  .tabbar svg{width:23px;height:23px}
+  .tabbar .on{color:var(--text)}
+  .tabbar .on svg{color:var(--up)}
+  .tabbar a:active,.tabbar button:active{background:#16161a}
+  .tb-nb{position:absolute;top:3px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--up);color:#0a0a0a;font-size:10.5px;line-height:17px;font-weight:700}
+  .tb-nb:empty{display:none}
+  .side.open ~ .tabbar,.scrim.open ~ .tabbar{z-index:30}
+  .shell{min-height:100vh;min-height:100dvh}
+}
+@media (max-width:860px) and (prefers-reduced-motion:reduce){.modal-box{animation:none}}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+/* aberto pelo ícone da tela de início (modo app): sem seleção de texto acidental em botões */
+html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none}
+@media (max-width:860px){.modal-box > header .sp{flex:1}.modal-box > header h2{font-size:18px}}

@@ -1130,6 +1130,11 @@
    "versao": "0.32.74",
    "inicio": "2026-10-29T23:50:00+00:00",
    "titulo": "movimentos dos traders no sino e no Histórico"
+  },
+  {
+   "versao": "0.32.75",
+   "inicio": "2026-10-29T21:25:36+00:00",
+   "titulo": "celular em formato de app e atalho FUN COPY"
   }
  ]
 }
