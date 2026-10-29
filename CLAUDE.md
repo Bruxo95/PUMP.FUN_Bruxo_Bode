@@ -1239,3 +1239,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `#sumCard`) → `#dayCard` → `#learnCard`. Nos relatórios: KPIs → `grid2e` (gráfico | tabelas) → tabelas → `details.vgexp`
   com as explicações (`#daySug`/`#lrnSug` abertos, `#dayMenus` fechado). CSS `.grid2e`/`.vg*` no fim de `web/app.css`
   (1 coluna até 1100 px). Os ids continuam os mesmos, então o JS de cada quadro não mudou.
+
+## Top traders só ativos com vagas próprias (2026-10-29, versão 0.32.43)
+- Pedido do dono. `refresh_followed`: com `pump_only_online`, `new = man + top_active` (`top_active` = os `pump_top_n` melhores aptos
+  e online); sem a opção, cálculo original. `_fill_slot` usa `len(top_active)`. Snapshot `leaderboard[].top_active`.
+  Tela: `#tLb` só ativos (`online` e não robô), `#lbAct` (contadores), `#tFol` só ativos, card `#lbOffCard` (`LBOFF`: copiados
+  inativos | todos os inativos do ranking). Visão geral: `#dayChartCard` ao lado da Evolução e `#lrnChartCard` ao lado das Operações
+  (`.vgtop` em `auto-fit`: sem os cards de admin, a Evolução ocupa a linha). Relatório `app/relatorios_ia/2026-10-29-0.32.43.md`.
+  Teste `tests/test_online.py::test_active_top_traders_get_own_slots_even_with_many_manuals`.

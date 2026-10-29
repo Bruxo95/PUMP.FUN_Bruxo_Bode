@@ -136,6 +136,7 @@ class PumpFun:
         self.market = market if market is not None else PumpMarket()
         self.sub_tokens: deque = deque()           # mints com trades assinados (os mais novos)
         self.followed: list[str] = []              # carteiras copiadas agora
+        self.top_active: list[str] = []            # 0.32.43: os top traders ATIVOS copiados agora (vagas próprias)
         self._followed_sent: set[str] = set()
         self.live: deque = deque(maxlen=400)       # monitor: entradas/saídas dos traders copiados
         self.events: deque = deque(maxlen=300)     # mensagens para o painel (notificações/sons)
@@ -590,7 +591,14 @@ class PumpFun:
                 ls = self.last_seen(w)
                 (keep.append(w) if ls and now - ls <= win else off.__setitem__(w, ls))
             auto = keep
-        new = (man + auto)[:max(n, len(man))]
+        if self._c("pump_only_online", True):
+            # 0.32.43 (pedido do dono: "copiar os 10 top traders ATIVOS"): os N melhores do top que estão online têm vagas
+            # próprias; as carteiras manuais (botão Copiar, listas compartilhadas, estudo, sugeridos) não tiram essas vagas
+            self.top_active = auto[:n]
+            new = man + self.top_active
+        else:
+            new = (man + auto)[:max(n, len(man))]        # comportamento original (testes de referência)
+            self.top_active = [w for w in new if w not in man]
         # quem já tem posição copiada continua sendo seguido até a posição fechar (para copiar a venda)
         held = [p["wallet"] for p in self.positions() if p["wallet"] not in new]
         new = new + list(dict.fromkeys(held))
@@ -4191,7 +4199,8 @@ class PumpFun:
                 "leaderboard": [r | {"followed": r["wallet"] in fol, "manual": r["wallet"] in man,
                                      "paused": r["wallet"] in self.paused(),
                                      "act": self.activity_view(r["wallet"]),
-                                     "online": self.is_online(r["wallet"])} for r in self.leaderboard],
+                                     "online": self.is_online(r["wallet"]),
+                                     "top_active": r["wallet"] in self.top_active} for r in self.leaderboard],
                 "lb_status": {**self.lb_status, "key_set": bool(self.lb_key()),
                               "source": "leaderboard" if self.leaderboard else "ranking próprio"},
                 "followed": followed, "ranking": [r | {"followed": r["wallet"] in fol} for r in rk[:50]],

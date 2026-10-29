@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "5d9d85782f0308ce2f53ff584e28345c8a5572d1",
-    "application_version": "0.32.42 · 2026-10-29 · Visão geral organizada: status primeiro, gráficos 2 por linha, explicações no fim",
+    "repository_reference": "0d6394fdae3da5001c11aa499711057974db41ff",
+    "application_version": "0.32.43 · 2026-10-29 · Top traders só ativos (vagas próprias) e gráfico do dia ao lado da carteira",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "434e888801b6a2ec23e739b2c9cd7e419f9beae1c385cf98576bcf9fb9069790",
+      "app/version.py": "09e3c56474c92aa393537a7dfd306aff562e2561bd5feda5d910d6be9d6f9861",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "d4e1945e1309509303c5af1d73e3afb22400daf38052ced7d8872e47e091558b",
+      "web/app.html": "9db81fd16bafaf19e7c44bfc5d226bdb13900c35492b60b13e6840db2ef07252",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "ca2a44e00a0df2f7b4693458b0847259ffc982191906d919c25ce3be66455248"
+  "pdf_sha256": "a2e75fe7c307e75da19dd08667a81ad013f9fa399ff2b73da9a2e9733b0a5e8a"
 }

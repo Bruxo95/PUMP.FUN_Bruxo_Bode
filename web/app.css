@@ -745,6 +745,8 @@ tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}
 .card>.grid2e{margin:6px 0 4px}
 .vgtop>.card,.vgstat>.card{height:100%;margin:0}
 .vgtop,.vgstat{align-items:stretch}
+.vgtop{grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}
+.vgtop .chartbox{margin:4px 0 0}.vgtop .chartbox svg{max-height:220px}
 .vgtop .chart{height:220px;min-height:220px}
 .vgtop .ops{max-height:250px;overflow:auto;scrollbar-width:thin}
 .vgstat #sumCard,.vgstat #cfgS{max-height:460px;overflow:auto;scrollbar-width:thin}

@@ -709,12 +709,13 @@
     const r = await BB.api("/api/pump/daily" + dayQ(DAY));
     if (r.error || !r.report || mode !== realMode()) return;
     const RL = !!r.report.real;
-    $("dayCard").hidden = false;
+    $("dayCard").hidden = false; $("dayChartCard").hidden = false;
     const rep = r.report, pts = rep.points || [], first = pts[0] || {}, last = pts[pts.length - 1] || {};
     const sel = $("daySel"), cur = DAY || r.today;
     sel.innerHTML = [r.today].concat((r.days || []).map((d) => d.dia).filter((d) => d !== r.today)).map((d) => '<option value="' + esc(d) + '"' + (d === cur ? " selected" : "") + ">" + esc(d.split("-").reverse().join("/")) + (d === r.today ? " (hoje)" : "") + "</option>").join("");
     $("daySub").textContent = (rep.closed ? "dia fechado" : "ao vivo") + " · " + pts.length + (RL ? " trades reais" : " fotos guardadas") + " · atualizado " + dt(rep.generated_at) + (RL ? " · carteira REAL" : " · carteira fictícia");
     const ch = first.saldo && last.saldo != null ? (last.saldo / first.saldo - 1) * 100 : null;
+    $("dayChartSub").textContent = (RL ? "carteira REAL · resultado acumulado · " : "carteira fictícia · ") + (cur || "").split("-").reverse().join("/") + " · troque o dia no Relatório do dia abaixo";
     kpis("dayK", [["Resultado do dia", sg(rep.pnl_sol), rep.trades + " trades fechados · taxas " + s4(rep.fees_sol) + " SOL", "pnl"],
       ["Acerto do dia", rep.acerto == null ? "–" : f(rep.acerto * 100, 0) + "%", rep.wins + " ganhos", "hit"],
       RL ? ["Investido no dia", s4(rep.invested_sol) + " SOL", rep.invested_sol ? "retorno " + pc(rep.pnl_sol / rep.invested_sol * 100) : "nenhuma compra fechada", "wallet"] :
@@ -742,11 +743,12 @@
       pfM(x.mint || "", x.token), esc(x.origem), sg(x.pnl_sol) + (x.pnl_pct == null ? "" : "<small>" + (x.pnl_pct > 0 ? "+" : "") + f(x.pnl_pct, 1) + "%</small>"),
       x.melhor_pct == null ? "–" : (x.melhor_pct > 0 ? "+" : "") + f(x.melhor_pct, 1) + "%", esc(x.motivo || "")]), "Nenhum trade fechado neste dia.");
     const L = r.study || {};
-    $("learnCard").hidden = false;
+    $("learnCard").hidden = false; $("lrnChartCard").hidden = false;
     $("lrnSub").textContent = (RL ? "carteira REAL · " : "") + (L.days || 0) + " dias guardados · " + (L.positive_days || 0) + " no lucro · todos juntos para estudar o que se repete";
     kpis("lrnK", [["Resultado somado", sg(L.pnl_sol), (L.days || 0) + " dias", "pnl"], ["Dias no lucro", (L.positive_days || 0) + " de " + (L.days || 0), "", "hit"],
       ["Melhor dia", L.best ? esc(L.best.split("-").reverse().join("/")) : "–", "", "tr"], ["Pior dia", L.worst ? esc(L.worst.split("-").reverse().join("/")) : "–", "", "pos"]]);
     let accD = 0;
+    $("lrnChartSub").textContent = (RL ? "carteira REAL · " : "carteira fictícia · ") + (L.days || 0) + " dias guardados";
     $("lrnChart").innerHTML = lineChart((L.series || []).map((d) => { accD += d.pnl_sol || 0; return { t: new Date(d.dia + "T23:59:59Z").getTime(), v: accD, label: d.dia.split("-").reverse().join("/") + " " + (d.pnl_sol > 0 ? "+" : "") + s4(d.pnl_sol) + " SOL no dia" }; }));
     $("lrnSug").innerHTML = (L.suggestions || []).map((s) => '<p><span class="tag ' + (s.area === "info" ? "neutral" : s.area === "repetido" ? "loss" : "sim") + '">' + esc(s.area) + "</span> " + esc(s.texto) + (s.base ? ' <span class="muted">(base: ' + s.base + ")</span>" : "") + "</p>").join("");
     table("lrnRec", ["Problema", "Dias", "Último"], (L.recurring || []).map((x) => [esc(x.titulo), String(x.dias), esc((x.ultimo || "").split("-").reverse().join("/"))]), "Nada se repetiu ainda.");
@@ -2612,19 +2614,38 @@
     if (a.status === "sem atividade" && last) { const s = (Date.now() - last) / 1000; return (s < 600 ? ST.online : s < 86400 ? ST.inativo : ST["sem atividade"]) + "<small>último trade há " + hms(s) + "</small>"; }
     return (ST[a.status] || "–") + (a.bot_reason ? "<small>" + esc(a.bot_reason) + "</small>" : a.last ? "<small>tx há " + agoT(a.last) + (a.pump_last ? " · pump há " + agoT(a.pump_last) : "") + "</small>" : "");
   }
+  let LBOFF = "copiados";            // quadro "Traders inativos": copiados (padrão) ou todos do ranking
   function renderTraders() {
     const c = cfg(), L = D.leaderboard || [], ls = D.lb_status || {};
     document.querySelectorAll("#lbDays button").forEach((b) => b.classList.toggle("on", +b.dataset.d === +(c.pump_lb_days || 7)));
     $("lbKey").hidden = !!ls.key_set;
     $("lbSub").textContent = ls.key_set ? L.length + " traders · Solana Tracker (app pump.fun)" + (ls.own_key === false ? " · usando a chave do sistema (visualização)" : "") + (ls.at ? " · atualizado há " + agoIso(ls.at) : "") + " · copiando pelo " + (ls.source || "") : "precisa da chave grátis da Solana Tracker";
-    table("tLb", ["#", "Trader", "Status", "Saldo", "Lucro", "ROI", "Acerto", "Trades", "Tokens", "Dias", "Último trade", "Situação", ""], L.map((r) => [String(r.rank), pfW(r.wallet, r) + (r.name ? "<small>" + esc(r.name) + "</small>" : ""), stat(r.act, r.last_trade),
+    // 0.32.43 (pedido do dono): aqui só os traders ATIVOS (online); os inativos ficam no quadro "Traders inativos" mais abaixo
+    const lbRow = (r) => [String(r.rank), pfW(r.wallet, r) + (r.name ? "<small>" + esc(r.name) + "</small>" : ""), stat(r.act, r.last_trade),
       r.wallet_usd == null ? '<span class="dim">…</span>' : usd(r.wallet_usd), usdS(r.realized_usd), r.roi == null ? "–" : pc(r.roi, 0), r.winrate == null ? "–" : f(r.winrate, 0) + "%", r.trades == null ? "–" : String(r.trades), r.tokens == null ? "–" : String(r.tokens), r.days_active == null ? "–" : String(r.days_active), r.last_trade ? agoIso(r.last_trade) : "–",
       r.paused ? '<span class="tag pause">Pausado</span>' : r.followed ? '<span class="tag win">Copiando</span>' : r.eligible ? (c.pump_only_online && !r.online ? '<span class="tag pause">Apto · fora (inativo)</span>' : '<span class="tag neutral">Apto</span>') : '<span class="dim" style="white-space:normal;display:block;max-width:260px">' + esc((r.flags || []).join(" · ")) + "</span>",
-      r.paused ? btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on") : r.followed ? btn("Pausar", "w", { a: "pause", w: r.wallet }) : r.manual ? "" : btn("Copiar", "w", { a: "add", w: r.wallet })]),
-      ls.key_set ? (ls.error ? '<span class="down">Erro da Solana Tracker: ' + esc(ls.error) + "</span>" : BB.loader("Buscando o ranking")) : "A lista aparece assim que a chave da Solana Tracker for salva.");
-    $("lbNote").innerHTML = (ls.error && ls.key_set && L.length ? '<span class="down">Erro da Solana Tracker: ' + esc(ls.error) + "</span><br>" : "") + "Ranking por lucro realizado em US$ no período. Os " + (c.pump_top_n || 10) + " primeiros aptos são copiados (carteiras manuais vêm antes). Só copia quem tem acerto ACIMA de " + (c.pump_min_winrate || 50) + "% e pelo menos " + (c.pump_lb_min_trades || 0) + " trades no período. Robôs, devs de token e corretoras ficam de fora. " + (c.pump_only_online ? "Só copia quem está ONLINE (negociou nos últimos " + (c.pump_online_min || 10) + " min): a cada 10 min quem ficou inativo sai e entra o melhor do top que estiver online. " : "") + "O ranking é consultado a cada 10 min.";
-    const F = D.followed || [];
-    $("folSub").textContent = F.length + " carteiras" + ((D.paused || []).length ? " · " + D.paused.length + " pausadas" : "") + " · manuais primeiro";
+      r.paused ? btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on") : r.followed ? btn("Pausar", "w", { a: "pause", w: r.wallet }) : r.manual ? "" : btn("Copiar", "w", { a: "add", w: r.wallet })];
+    const LBCOLS = ["#", "Trader", "Status", "Saldo", "Lucro", "ROI", "Acerto", "Trades", "Tokens", "Dias", "Último trade", "Situação", ""];
+    const isOn = (r) => !!r.online && !((r.act || {}).status === "robô");
+    const LA = L.filter(isOn), LO = L.filter((r) => !isOn(r));
+    table("tLb", LBCOLS, LA.map(lbRow),
+      ls.key_set ? (ls.error ? '<span class="down">Erro da Solana Tracker: ' + esc(ls.error) + "</span>" : (L.length ? "Nenhum trader do ranking está ativo agora (negociou nos últimos " + (c.pump_online_min || 10) + " min). Os inativos estão no quadro abaixo; assim que algum voltar a negociar, ele aparece aqui." : BB.loader("Buscando o ranking"))) : "A lista aparece assim que a chave da Solana Tracker for salva.");
+    const Fall = D.followed || [], fOff = Fall.filter((r) => ((r.act || {}).status !== "online") && !(L.find((x) => x.wallet === r.wallet && x.online)));
+    const topA = LA.filter((r) => r.top_active).length, nTop = c.pump_top_n || 10;
+    $("lbAct").innerHTML = '<span class="tag win">● ' + LA.length + " ativos agora</span> " + '<span class="tag neutral">copiando ' + topA + " de " + nTop + " vagas dos top ativos</span> " +
+      (LO.length || fOff.length ? '<button class="btn sm chip" data-lboff="1">' + LO.length + " inativos no ranking · " + fOff.length + " copiados inativos ↓</button>" : "") + (c.pump_only_online ? "" : ' <span class="tag pause">"Só copiar traders online" está desligado</span>');
+    // quadro dos inativos: copiados que estão inativos (padrão) ou todos os inativos do ranking
+    document.querySelectorAll("#lbOffSeg button").forEach((b) => b.classList.toggle("on", b.dataset.off === LBOFF));
+    $("lbOffSub").textContent = LBOFF === "copiados" ? fOff.length + " carteiras copiadas sem negociar nos últimos " + (c.pump_online_min || 10) + " min · manuais, do estudo e quem ainda tem posição aberta continuam copiadas" : LO.length + " traders do ranking inativos agora · voltam para a lista de cima quando negociarem";
+    if (LBOFF === "copiados") table("tLbOff", ["Carteira", "Origem", "Última transação", "Lucro (top)", "Copiado", "Por que ainda copia", "Ações"], fOff.map((r) => { const a = r.act || {}, lb = r.lb || {}, cp = r.copied, held = (D.positions || []).some((p) => p.wallet === r.wallet);
+        return [pfW(r.wallet, r), r.manual ? (r.ia_sim ? '<span class="tag pause">Manual · IA · só fictícia</span>' : '<span class="tag pause">Manual</span>') : '<span class="tag neutral">' + esc(r.source || "") + "</span>",
+          a.last ? "há " + agoT(a.last) : '<span class="dim">nenhuma desde a conexão</span>', lb.realized_usd != null ? usdS(lb.realized_usd) : "–", cp ? sg(cp.pnl_sol) + "<small>" + cp.n + " trades</small>" : '<span class="dim">–</span>',
+          held ? "tem posição aberta (para copiar a venda)" : r.manual ? "carteira manual (você ou a IA adicionou)" : "–",
+          (r.manual ? btn("Tirar", "w", { a: "remove", w: r.wallet }) + " " : "") + btn("Pausar", "w", { a: "pause", w: r.wallet })]; }), "Nenhuma carteira copiada está inativa.");
+    else table("tLbOff", LBCOLS, LO.map(lbRow), "Nenhum trader do ranking está inativo.");
+    $("lbNote").innerHTML = (ls.error && ls.key_set && L.length ? '<span class="down">Erro da Solana Tracker: ' + esc(ls.error) + "</span><br>" : "") + "Ranking por lucro realizado em US$ no período. Os " + (c.pump_top_n || 10) + " melhores aptos e ATIVOS são copiados, em vagas próprias (as carteiras manuais não tiram essas vagas). Só copia quem tem acerto ACIMA de " + (c.pump_min_winrate || 50) + "% e pelo menos " + (c.pump_lb_min_trades || 0) + " trades no período. Robôs, devs de token e corretoras ficam de fora. " + (c.pump_only_online ? "Só copia quem está ONLINE (negociou nos últimos " + (c.pump_online_min || 10) + " min): a cada 10 min quem ficou inativo sai e entra o melhor do top que estiver online. " : "") + "O ranking é consultado a cada 10 min.";
+    const F = (D.followed || []).filter((r) => !fOff.includes(r));
+    $("folSub").textContent = F.length + " ativas agora" + (fOff.length ? " · " + fOff.length + " copiadas inativas no quadro Traders inativos" : "") + ((D.paused || []).length ? " · " + D.paused.length + " pausadas" : "") + " · manuais primeiro";
     table("tFol", ["#", "Carteira", "Origem", "Status", "Última transação", "Trades pump.fun", "Fora da pump.fun", "Lucro (top)", "Copiado", "Ações"],
       F.map((r, i) => { const cp = r.copied, a = r.act || {}, lb = r.lb || {}; return [String(i + 1), pfW(r.wallet, r), r.manual ? (r.ia_sim ? '<span class="tag pause" title="Aprovada pelo estudo automático: copiada só na carteira fictícia">Manual · IA · só fictícia</span>' : '<span class="tag pause">Manual</span>') : r.source === "leaderboard" ? '<span class="tag win">Top #' + lb.rank + "</span>" : '<span class="tag neutral">Ranking próprio</span>',
         (ST[a.status] || "–") + (a.bot_reason ? "<small>" + esc(a.bot_reason) + "</small>" : a.tx_min ? "<small>" + a.tx_min + " tx/min</small>" : ""), a.last ? "há " + agoT(a.last) + (a.pump_last ? "<small>pump.fun há " + agoT(a.pump_last) + "</small>" : "") : '<span class="dim">nenhuma desde a conexão</span>',
@@ -2632,15 +2653,15 @@
         cp ? sg(cp.pnl_sol) + "<small>" + cp.n + " trades</small>" : '<span class="dim">–</span>',
         (r.manual ? btn("Tirar", "w", { a: "remove", w: r.wallet }) + " " : "") + btn("Pausar", "w", { a: "pause", w: r.wallet }) + " " + btn("Banir", "w", { a: "ban", w: r.wallet }, "tgl off")]; })
         .concat((D.paused || []).map((r) => { const a = r.act || {}, lb = r.lb || {}, cp = r.copied; return ["–", pfW(r.wallet, r), '<span class="tag pause">⏸ Pausado</span>', ST[a.status] || "–", esc(r.reason || "") + "<small>" + (r.until ? "volta em " + hms(r.until - Date.now() / 1000) : "até você retomar") + "</small>", "–", "–", lb.realized_usd != null ? usdS(lb.realized_usd) : "–", cp ? sg(cp.pnl_sol) : "–", btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on")]; })),
-      "Nenhum trader copiado ainda — salve a chave da Solana Tracker ou adicione uma carteira manual.");
+      fOff.length ? "Nenhuma carteira copiada está ativa agora. As " + fOff.length + " copiadas inativas estão no quadro Traders inativos, logo abaixo." : "Nenhum trader copiado ainda — salve a chave da Solana Tracker ou adicione uma carteira manual.");
     // monitor
     document.querySelectorAll("#monSeg button").forEach((b) => b.classList.toggle("on", b.dataset.f === MONF));
     const RP = D.rpc || {}, Lv = (D.live || []).filter((e) => MONF === "all" || e.kind === MONF);
-    $("monSub").innerHTML = (RP.ws ? '<span class="up">● conectado</span>' : '<span class="down">● desconectado</span>') + " · " + F.length + " carteiras · " + (D.live || []).length + " eventos";
+    $("monSub").innerHTML = (RP.ws ? '<span class="up">● conectado</span>' : '<span class="down">● desconectado</span>') + " · " + Fall.length + " carteiras · " + (D.live || []).length + " eventos";
     const AC = { entrou: '<span class="tag win">Entrou</span>', aumentou: '<span class="tag win">Aumentou</span>', saiu: '<span class="tag loss">Saiu</span>', "vendeu parte": '<span class="tag pause">Vendeu parte</span>' };
     table("tMon", ["Hora", "Há", "Trader", "Ação", "Token", "SOL", "Preço", "Mcap", "Resultado dele", ""], Lv.map((e) => [dt(e.t * 1000), agoT(e.t), pfW(e.wallet, e), AC[e.action] || esc(e.action), pfM(e.mint, e.symbol), s4(e.sol), ex(e.price), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
       e.kind === "sell" ? (e.pnl_pct == null ? '<span class="dim">entrada não vista</span>' : pc(e.pnl_pct)) + (e.sold_pct != null ? "<small>" + e.sold_pct + "% da posição</small>" : "") : '<span class="dim">–</span>', tx(e.signature)]),
-      F.length ? "Aguardando a próxima compra ou venda dos traders copiados…" : "Nenhum trader copiado ainda.");
+      Fall.length ? "Aguardando a próxima compra ou venda dos traders copiados…" : "Nenhum trader copiado ainda.");
     table("tTP", ["Trader", "Token", "Investiu", "Preço médio", "Agora", "Variação", "Valor", "Mcap", "Segurando há"], (D.trader_pos || []).map((p) => [pfW(p.wallet, p), pfM(p.mint, p.symbol), s4(p.invested_sol) + " SOL", ex(p.avg_price), ex(p.price), pc(p.chg_pct), p.value_sol == null ? "–" : s4(p.value_sol) + " SOL", p.mcap_sol == null ? "–" : f(p.mcap_sol, 0) + " SOL", hms(p.held_s)]),
       "Nenhuma posição aberta vista ainda (aparece quando um trader copiado compra).");
     // ranking próprio
@@ -3063,6 +3084,8 @@
     if (t.dataset.mode) { MODE = t.dataset.mode; try { localStorage.setItem("pf:mode", MODE); } catch (e) { /* */ } render(); return; }
     if (t.dataset.r) { RANGE = +t.dataset.r; try { localStorage.setItem("pf:range", RANGE); } catch (e) { /* */ } render(); return; }
     if (t.dataset.f) { MONF = t.dataset.f; render(); return; }
+    if (t.dataset.off && t.closest("#lbOffSeg")) { LBOFF = t.dataset.off; render(); return; }
+    if (t.dataset.lboff) { const k = $("lbOffCard"); if (k) k.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (t.dataset.d && t.closest("#lbDays")) { toast("Buscando top traders (" + t.dataset.d + " dias)…"); const r = await BB.api("/api/pump/leaderboard", { body: { days: +t.dataset.d } }); toast(r.error ? "Leaderboard: " + r.error : "Leaderboard atualizado: " + (r.count || 0) + " traders"); poll(true); return; }
     if (t.dataset.goto) { $("menu").hidden = true; location.hash = t.dataset.goto; return; }
     const a = t.dataset.act; if (!a) return;

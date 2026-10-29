@@ -73,3 +73,20 @@ def test_turning_rule_off_restores_original_behavior(tmp_path):
     pf.leaderboard = _lb(4)
     pf.refresh_followed(force=True)
     assert pf.followed == [r["wallet"] for r in pf.leaderboard[:2]]
+
+
+def test_active_top_traders_get_own_slots_even_with_many_manuals(tmp_path):
+    """0.32.43: carteiras manuais não tiram as vagas dos N top traders ativos."""
+    pf = _pump(tmp_path, paid=False, pump_only_online=True, pump_online_min=10, pump_top_n=2)
+    mans = [f"Man{c}".ljust(44, "1") for c in "ABCDE"]
+    for w in mans:
+        pf.add_manual(w)
+    pf.leaderboard = _lb(4)
+    L = [r["wallet"] for r in pf.leaderboard]
+    _online(pf, L[1])
+    _online(pf, L[2])
+    _online(pf, L[3])
+    pf.refresh_followed(force=True)
+    assert pf.followed[:5] == mans and pf.followed[5:] == [L[1], L[2]] and pf.top_active == [L[1], L[2]]
+    snap = {r["wallet"]: r for r in pf.snapshot()["leaderboard"]}
+    assert snap[L[1]]["top_active"] and not snap[L[3]]["top_active"] and not snap[L[0]]["online"]

@@ -944,7 +944,8 @@ class SharedMonitor:
         for e in self.engines():
             if w in e.followed or not e._c("pump_only_online", True):
                 continue
-            if len(e.followed) < int(e._c("pump_top_n", 10)) and any(r.get("wallet") == w for r in e.leaderboard):
+            act = len(getattr(e, "top_active", None) or [])    # vagas dos top ativos (manuais têm vagas próprias)
+            if act < int(e._c("pump_top_n", 10)) and any(r.get("wallet") == w for r in e.leaderboard):
                 e._rank_at = 0
 
     # ------------------------------------------------------------------ leaderboard e saldo dos traders

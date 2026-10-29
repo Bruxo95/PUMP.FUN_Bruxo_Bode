@@ -136,10 +136,16 @@
               <div class="seg" id="rangeSeg"><button data-r="1">24h</button><button data-r="7">7d</button><button data-r="30">30d</button></div></header>
             <div class="chart" id="curve"></div>
           </div>
+          <div class="card" id="dayChartCard" hidden data-novo-ate="2026-11-12"><header><div><h2>Relatório do dia · saldo</h2><div class="sub" id="dayChartSub">ao longo do dia</div></div></header>
+            <div id="dayChart" class="chartbox"></div></div>
+        </div>
+        <div class="grid2e vgtop">
           <div class="card">
             <header><div><h2>Operações recentes</h2><div class="sub">compras, vendas, stops e erros</div></div><div class="sp"></div><a class="btn sm" href="#historico">Ver tudo</a></header>
             <div class="ops" id="ops"></div>
           </div>
+          <div class="card" id="lrnChartCard" hidden data-novo-ate="2026-11-12"><header><div><h2>Aprendizado dos dias · lucro somado</h2><div class="sub" id="lrnChartSub">dia a dia</div></div></header>
+            <div id="lrnChart" class="chartbox"></div></div>
         </div>
         <div class="grid2e vgstat">
           <div class="card">
@@ -155,8 +161,7 @@
           <select class="in" id="daySel" style="width:170px"></select></header>
           <div class="kpis" id="dayK"></div>
           <div class="grid2e">
-            <div><h3 class="h3s">Saldo ao longo do dia</h3><div id="dayChart" class="chartbox"></div></div>
-            <div><div><h3 class="h3s">Por origem</h3><div class="tbl-wrap"><table id="dayOri"></table></div></div><div><h3 class="h3s">Por motivo de saída</h3><div class="tbl-wrap"><table id="dayExit"></table></div></div></div>
+            <div><h3 class="h3s">Por origem</h3><div class="tbl-wrap"><table id="dayOri"></table></div></div><div><h3 class="h3s">Por motivo de saída</h3><div class="tbl-wrap"><table id="dayExit"></table></div></div>
           </div>
           <div class="grid2e"><div><h3 style="margin:10px 0 6px" data-novo-ate="2026-11-10">Maiores ganhos do dia (onde o dinheiro foi ganho)</h3><div class="tbl-wrap"><table id="dayBest" class="daytbl"></table></div></div><div><h3 style="margin:10px 0 6px">Maiores perdas do dia (onde o dinheiro foi perdido)</h3><div class="tbl-wrap"><table id="dayWorst" class="daytbl"></table></div></div></div>
           <div id="dayMissBox" hidden><h3 style="margin:10px 0 6px">Compras e vendas reais que NÃO aconteceram (erro ou desistência)</h3><div class="tbl-wrap"><table id="dayMiss" class="daytbl"></table></div></div>
@@ -167,8 +172,7 @@
         <div class="card" id="learnCard" hidden data-novo-ate="2026-11-09"><header><div><h2>Aprendizado dos dias</h2><div class="sub" id="lrnSub">todos os dias guardados juntos: o que se repete, o que dá lucro de forma consistente e o que não dá</div></div></header>
           <div class="kpis" id="lrnK"></div>
           <div class="grid2e">
-            <div><h3 class="h3s">Lucro somado dia a dia</h3><div id="lrnChart" class="chartbox"></div></div>
-            <div><h3 class="h3s">Dia a dia</h3><div class="tbl-wrap tall"><table id="lrnDays"></table></div></div>
+            <div style="grid-column:1/-1"><h3 class="h3s">Dia a dia</h3><div class="tbl-wrap tall"><table id="lrnDays"></table></div></div>
           </div>
           <div class="grid2e"><div><h3 class="h3s">Problemas que se repetem</h3><div class="tbl-wrap"><table id="lrnRec"></table></div></div>
             <div><h3 class="h3s">Origens somando os dias</h3><div class="tbl-wrap"><table id="lrnOri"></table></div></div></div>
@@ -185,6 +189,7 @@
             <div class="seg" id="lbDays"><button data-d="1">24 h</button><button data-d="7">7 dias</button><button data-d="30">30 dias</button><button data-d="90">90 dias</button></div></header>
           <div id="lbKey" class="alert" hidden style="margin-bottom:12px">Para puxar o ranking oficial do app da pump.fun, cole uma chave <b>grátis</b> da Solana Tracker
             (solanatracker.io → Data API → plano Free) em <a href="#config">Configurações → Chaves</a>. Sem chave, o bot usa o ranking próprio lá embaixo.</div>
+          <div class="row" id="lbAct" style="gap:6px;flex-wrap:wrap;margin-bottom:10px" data-novo-ate="2026-11-12"></div>
           <div class="tbl-wrap tall"><table id="tLb"></table></div>
           <div class="sub" id="lbNote" style="margin-top:10px;color:var(--muted);font-size:12.5px"></div>
         </div>
@@ -197,6 +202,9 @@
           <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><input class="in" id="addW" style="flex:1;min-width:220px" placeholder="Adicionar carteira manual (endereço Solana do trader)"><button class="btn sm primary" data-act="addw">Adicionar</button></div>
           <div class="tbl-wrap"><table id="tFol"></table></div>
         </div>
+        <div class="card" id="lbOffCard" data-novo-ate="2026-11-12"><header><div><h2>Traders inativos</h2><div class="sub" id="lbOffSub"></div></div><div class="sp"></div>
+            <div class="seg" id="lbOffSeg"><button data-off="copiados">Copiados inativos</button><button data-off="todos">Todos os inativos do ranking</button></div></header>
+          <div class="tbl-wrap tall"><table id="tLbOff"></table></div></div>
         <div class="card">
           <header><div><h2>Monitor ao vivo — traders copiados</h2><div class="sub" id="monSub"></div></div><div class="sp"></div>
             <div class="seg" id="monSeg"><button data-f="all">Tudo</button><button data-f="buy">Entradas</button><button data-f="sell">Saídas</button></div></header>
