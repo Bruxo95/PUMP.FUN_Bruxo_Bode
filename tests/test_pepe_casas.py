@@ -79,3 +79,17 @@ def test_wallet_rpc_without_json_explains_and_uses_public_rpc():
         raise AssertionError("devia falhar")
     except RuntimeError as e:
         assert "HTTP 429" in str(e) and "Expecting value" not in str(e)
+
+
+def test_old_sell_error_leaves_the_card_after_15_min(tmp_path):
+    """0.32.67: erro de uma venda que não é mais tentada some do card."""
+    import time
+    pf = _pump(tmp_path, paid=False)
+    p = {"id": "p2", "mint": PEPE, "symbol": "PEPE", "wallet": "W", "sol_in": 0.1, "tokens": 2e6, "tokens_left": 2e6,
+         "price_in": 5e-8, "open_t": time.time(), "sell_error": "Jupiter 3%: Expecting value", "sell_fails": 11,
+         "sell_retry_at": time.time() - 1000}
+    pf._save_pos(p)
+    pf.tokens.setdefault(PEPE, {}).update(price=4.9e-8, last_t=time.time())
+    pf._check_stops(PEPE, time.time())
+    q = [x for x in pf.positions() if x["id"] == "p2"][0]
+    assert "sell_error" not in q and "sell_fails" not in q

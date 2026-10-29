@@ -1503,13 +1503,20 @@ class PumpFun:
                 # 0.32.65: o preço desta posição vinha com as casas decimais erradas; pico e stop móvel eram falsos
                 p["dec_fix_t"] = dfix
                 had = p.get("trail_peak")
-                for k_ in ("trail_peak", "trail_exit", "trail_since", "best_pct", "worst_pct", "_chk", "sus_noted"):
+                for k_ in ("trail_peak", "trail_exit", "trail_since", "best_pct", "worst_pct", "_chk", "sus_noted",
+                           "sell_error", "sell_fails", "sell_retry_at"):
                     p.pop(k_, None)
                 self._save_pos(p)
                 self._feed(wallet=p.get("wallet") or "manual", short=short(p.get("wallet") or "manual"), mint=mint,
                            symbol=p.get("symbol"), kind="sell", action="preço corrigido", real=bool(p.get("real")),
                            reason="o preço era lido com as casas decimais erradas"
                                   + (f"; o pico falso de {had:+.0f}% do stop móvel foi apagado" if had is not None else ""))
+            if p.get("sell_error") and t - float(p.get("sell_retry_at") or 0) > 900:
+                # 0.32.67 (PEPE, 29/10 21:47): a venda que falhou não é mais tentada há 15 min (o motivo da saída sumiu,
+                # ex.: pico falso apagado) — o erro antigo saía do card
+                for k_ in ("sell_error", "sell_fails", "sell_retry_at"):
+                    p.pop(k_, None)
+                self._save_pos(p)
             p["price_now"] = px
             left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"])
             val = self._exit_value(p, px)
