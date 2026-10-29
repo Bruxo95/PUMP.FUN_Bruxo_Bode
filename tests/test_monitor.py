@@ -336,3 +336,33 @@ def test_pumpportal_account_trades_copy_without_rpc_and_no_double(setup):
     mon.on_notification({"method": "logsNotification", "params": {"subscription": 1, "result": {"value": {
         "signature": "ppsig2", "err": None, "logs": ["Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke"]}}}})
     assert mon._tx_q.qsize() == 0 and mon.market.rpc_status["pp_skip"] == 1
+
+
+def test_dead_personal_key_of_other_user_does_not_break_system_key(setup):
+    """0.32.71 (dono, 29/10 22:03): a chave do sistema tinha créditos, mas o ranking vinha "Insufficient credits"
+    porque a consulta compartilhada usava a chave pessoal (sem créditos) de outra conta."""
+    hub, a, b, mon = setup["hub"], setup["a"], setup["b"], setup["mon"]
+    DEAD, SYS = "st-sem-credito-" + "x" * 20, "st-do-sistema-" + "y" * 20
+    used = []
+
+    def h(req):
+        if "solanatracker" in req.url.host:
+            k = req.headers.get("x-api-key")
+            used.append(k)
+            if k == DEAD:
+                return httpx.Response(403, json={"error": "Insufficient credits"})
+            tr = [{"wallet": f"Top{i}".ljust(44, "1"), "period": {"realized": 9000 - i}, "winRate": 0.7,
+                   "counts": {"trades": 5000}} for i in range(3)]
+            return httpx.Response(200, json={"traders": tr})
+        return httpx.Response(404)
+    for e in (a, b):
+        e.http = httpx.AsyncClient(transport=httpx.MockTransport(h))
+    a.keys.set("solanatracker_api_key", DEAD)          # outra conta, sem créditos
+    hub.shared_st_key = SYS                             # B usa a do sistema
+    _run(mon.lb_once(force=True))
+    assert used == [DEAD, SYS]                          # tentou a sem crédito, depois a do sistema na mesma volta
+    assert len(b.leaderboard) == 3 and not b.lb_status.get("error")
+    assert a.lb_key() == SYS and a.lb_key_src().startswith("chave do sistema")   # A também usa a do sistema enquanto isso
+    used.clear()
+    _run(mon.lb_once(force=True))
+    assert used == [SYS]                                # a sem créditos fica de fora por 1 h

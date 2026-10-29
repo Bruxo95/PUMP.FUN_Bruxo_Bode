@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "beda0c4a026466dc7f75ebaa7b115091d5802f58",
-    "application_version": "0.32.70 · 2026-10-29 · acompanhar cada carteira do Copiar igual",
+    "repository_reference": "ec666cf6494421efb33131f0d58a218057c62840",
+    "application_version": "0.32.71 · 2026-10-29 · chave da Solana Tracker sem créditos não trava as outras",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "46a4ce06987f3db928c648a6db00a4550c76b9f1633c0841c4c8102e41a457fa",
+      "app/version.py": "fe1334941eb6e9cf9f0a654740145b868af3411e5c3192ca94c0374f832ce5e3",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "667839889e1b52ad887640915e5d2331f77eec71b58364dccb1914852d107342"
+  "pdf_sha256": "9e7a1a28d7367748f2c8eb8f235622ff482da2a9c247cc1006c5c235277214e2"
 }

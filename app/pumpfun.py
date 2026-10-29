@@ -37,7 +37,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 
-from . import txguard
+from . import stkeys, txguard
 from .settings import USER_KEYS
 
 log = logging.getLogger("pumpfun")
@@ -665,14 +665,33 @@ class PumpFun:
     # ------------------------------------------------------------------ leaderboard pump.fun (Solana Tracker)
     lb_key_fallback = None                      # chave emprestada pelo admin ("compartilhar com todos")
 
+    def _lb_fb(self) -> str:
+        if self.lb_key_fallback is None:
+            return ""
+        try:
+            return self.lb_key_fallback() or ""
+        except Exception:
+            return ""
+
     def lb_key(self) -> str:
         own = self.keys.get("solanatracker_api_key") if self.keys is not None else ""
-        if not own and self.lb_key_fallback is not None:
-            try:
-                return self.lb_key_fallback() or ""
-            except Exception:
-                return ""
+        if not own:
+            return self._lb_fb()
+        if stkeys.is_dead(own):                 # 0.32.71: sua chave sem créditos → usa a do sistema enquanto isso
+            fb = self._lb_fb()
+            if fb and fb != own and not stkeys.is_dead(fb):
+                return fb
         return own
+
+    def lb_key_src(self) -> str:
+        """0.32.71: de onde vem a chave usada agora (para o Status), nunca a chave."""
+        own = self.lb_key_own()
+        k = self.lb_key()
+        if not k:
+            return "nenhuma"
+        if own and k == (self.keys.get("solanatracker_api_key") or ""):
+            return "sua chave" + (" (sem créditos)" if stkeys.is_dead(k) else "")
+        return "chave do sistema" + (" (a sua está sem créditos)" if own else "") + (" (sem créditos)" if stkeys.is_dead(k) else "")
 
     def lb_key_own(self) -> bool:
         return bool(self.keys.get("solanatracker_api_key")) if self.keys is not None else False
@@ -784,10 +803,12 @@ class PumpFun:
             if r.status_code != 200:
                 msg = {401: "chave inválida", 403: "chave sem permissão para este endpoint",
                        429: "limite de requisições da Solana Tracker"}.get(r.status_code, f"HTTP {r.status_code}")
-                if "insufficient credits" in r.text.lower():   # 0.32.69: não é falta de permissão, é o plano do mês que acabou
+                if stkeys.no_credits(r.text):   # 0.32.69: não é falta de permissão, é o plano do mês que acabou
                     msg = "créditos do mês acabaram nesta chave (plano da Solana Tracker)"
+                    stkeys.mark_dead(key)        # 0.32.71: fica de fora 1 h; a próxima consulta usa outra chave
                 self.lb_status.update(error=msg + " · " + r.text[:120].replace(key, "***"))
                 return
+            stkeys.clear(key)
             lb = self._parse_lb(r.json())
             self.leaderboard = lb
             self.lb_status.update(at=now_iso(), error=None, count=len(lb), days=days)

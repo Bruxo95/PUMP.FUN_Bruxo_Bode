@@ -14,6 +14,7 @@ import os
 import time
 from datetime import datetime, timezone
 
+from . import stkeys
 from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
@@ -1132,7 +1133,7 @@ class PumpHub:
     def _xray_key(self, pf: PumpFun | None = None) -> str:
         if pf is not None and pf.lb_key_own():
             return pf.lb_key()
-        return next((e.lb_key() for e in self.engines.values() if e.lb_key_own()), "") or getattr(self, "shared_st_key", "")
+        return self.st_pick()
 
     async def xray(self, pf: PumpFun | None, mint: str, force: bool = False) -> dict:
         from .raiox import PAGE, TRADES_URL, analyze, parse
@@ -2450,8 +2451,13 @@ class PumpHub:
             log.warning("Carteiras em estudo: operações não gravadas (%s)", str(e)[:120])
 
     def _study_key(self) -> str:
-        own = next((pf.lb_key() for pf in self.engines.values() if pf.lb_key_own()), "")
-        return own or self.shared_st_key
+        return self.st_pick()
+
+    def st_pick(self, prefer=()) -> str:
+        """0.32.71: chave da Solana Tracker para consulta compartilhada: primeiro as de `prefer`, depois as pessoais de
+        todos, por fim a do sistema — pulando a que respondeu "Insufficient credits" na última hora."""
+        own = [e.keys.get("solanatracker_api_key") for e in self.engines.values() if e.lb_key_own()]
+        return stkeys.pick(list(prefer) + own + [getattr(self, "shared_st_key", "")])
 
     async def refresh_study_wallet(self, wallet: str, force: bool = False) -> str | None:
         """Histórico por token da Solana Tracker (até 200 posições dos últimos 30 dias) → study_positions."""

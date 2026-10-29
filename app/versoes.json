@@ -1110,6 +1110,11 @@
    "versao": "0.32.70",
    "inicio": "2026-10-29T22:40:00+00:00",
    "titulo": "acompanhar cada carteira do Copiar igual"
+  },
+  {
+   "versao": "0.32.71",
+   "inicio": "2026-10-29T21:06:17+00:00",
+   "titulo": "chave da Solana Tracker sem créditos não trava as outras"
   }
  ]
 }

@@ -1317,3 +1317,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.68: Copiar igual só copia carteira com `eq_mode` sim/both (sem clique = "off"); antes, com `pump_eq_on`, toda a lista copiava.
 - 0.32.70: `hub.eq_detail` + `GET /api/pump/copy-equal/wallet/{w}` (admin): monitor ouvindo, última atividade, Feed da carteira, decisões, abertas e
   fechadas do Copiar igual; botão `data-eqd` Acompanhar e modal `#eqD` (`openEqDetail`). `tests/test_eq_detalhe.py`.
+- 0.32.71: `app/stkeys.py` (saúde das chaves da Solana Tracker, só memória, por hash): "Insufficient credits" deixa a chave de fora 1 h
+  (`refresh_leaderboard` e gancho `response` do httpx em `apiusage.resp_hook`). `hub.st_pick(prefer)` (pessoais → sistema, pulando as sem créditos) no
+  risco, Explorar, estudo e Raio-X; `lb_once` tenta a próxima chave na mesma volta; `PumpFun.lb_key` usa a do sistema se a sua está sem créditos;
+  `lb_key_src` no Status. Caso do dono: a consulta compartilhada usava a chave pessoal sem créditos de outra conta. `tests/conftest.py` zera o estado.

@@ -20,6 +20,7 @@ import logging
 import time
 from collections import deque
 
+from . import stkeys
 from .pumpfun import PUMP_PROGRAMS, PumpFun, now_iso
 from .settings import PumpSettings
 from .solana_wallet import UserWallet
@@ -410,7 +411,7 @@ class SharedMonitor:
                 await svc.holders_check(mint)
                 if any(getattr(e.cfg, "pump_risk_check", True) for e in fol):
                     # chave de quem segue (própria) ou a do sistema; uma consulta por token serve para todos
-                    key = next((e.lb_key() for e in fol if e.lb_key_own()), "") or self.hub.shared_st_key
+                    key = self.hub.st_pick([e.lb_key() for e in fol if e.lb_key_own()])
                     await svc.risk_check(mint, key)
             except Exception:
                 pass
@@ -604,7 +605,7 @@ class SharedMonitor:
         ex = getattr(self.hub, "explore", None)
         if ex is None:
             return False
-        key = next((e.lb_key() for e in self.engines() if e.lb_key_own()), "") or self.hub.shared_st_key
+        key = self.hub.st_pick()
         if not key:
             ex.error = "sem chave da Solana Tracker (Configurações → Chaves, ou a chave do sistema em Administração)"
             return False
@@ -977,12 +978,25 @@ class SharedMonitor:
             hit = self.lb_cache.get(key)
             fresh = hit and time.time() - hit["at"] < every and not force
             if not fresh:
-                src = next((e for e in es if e.lb_key_own()), None) or next((e for e in es if e.lb_key()), None)
-                if src is None:
+                # 0.32.71: tenta as chaves do grupo em ordem (pessoais, depois a do sistema) pulando as sem créditos; se a
+                # consulta responde "Insufficient credits", a próxima chave tenta na mesma volta
+                cands = [e for e in es if e.lb_key_own()] + [e for e in es if e.lb_key() and not e.lb_key_own()]
+                if not cands:
                     for e in es:
                         e.lb_status.update(error="sem chave da Solana Tracker")
                     continue
-                await src.refresh_leaderboard(force=True)
+                src, tried = cands[0], set()
+                for e in cands:
+                    k = e.lb_key()
+                    if k in tried or (stkeys.is_dead(k) and len(cands) > 1):
+                        continue
+                    tried.add(k)
+                    src = e
+                    await e.refresh_leaderboard(force=True)
+                    if not stkeys.is_dead(k):
+                        break
+                if not tried:                          # todas sem créditos: tenta a primeira para o erro aparecer
+                    await src.refresh_leaderboard(force=True)
                 hit = {"at": time.time(), "rows": [dict(r) for r in src.leaderboard], "status": dict(src.lb_status)}
                 if src.lb_status.get("error") and not src.leaderboard:
                     hit["rows"] = (self.lb_cache.get(key) or {}).get("rows", [])

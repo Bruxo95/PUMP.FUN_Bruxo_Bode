@@ -71,6 +71,19 @@ class Usage:
         except Exception:
             pass
 
+    async def resp_hook(self, response) -> None:
+        """0.32.71: resposta "Insufficient credits" da Solana Tracker deixa aquela chave de fora por 1 h (todas as partes
+        do robô passam a usar a próxima). Nunca falha a chamada."""
+        try:
+            if "solanatracker" not in response.request.url.host or response.status_code < 400:
+                return
+            await response.aread()
+            from . import stkeys
+            if stkeys.no_credits(response.text):
+                stkeys.mark_dead(response.request.headers.get("x-api-key") or "")
+        except Exception:
+            pass
+
     def view(self, labels: dict | None = None, now: float | None = None) -> list[dict]:
         """Uma linha por API (e por chave na Solana Tracker), com % do limite grátis do mês e do minuto."""
         now = time.time() if now is None else now

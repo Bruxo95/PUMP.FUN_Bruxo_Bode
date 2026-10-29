@@ -31,7 +31,7 @@ def build_app():
     from .apiusage import Usage
     usage = Usage()                                   # 0.31.76: conta cada chamada às APIs externas
     http = httpx.AsyncClient(timeout=15, follow_redirects=False, headers={"User-Agent": "pump-fun-copy"},
-                             event_hooks={"request": [usage.hook]})
+                             event_hooks={"request": [usage.hook], "response": [usage.resp_hook]})
     db = SupaREST(cfg.supabase_url, cfg.supabase_service_key, http)
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
     hub.usage = usage

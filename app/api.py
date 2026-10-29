@@ -157,7 +157,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                         "solana_tracker": {"ok": bool(pf.lb_key()) and not (pf.lb_status or {}).get("error"),
                                            "error": (pf.lb_status or {}).get("error"), "at": (pf.lb_status or {}).get("at"),
                                            # 0.32.62 (dono: "tenho crédito ainda"): qual chave esta conta usa — nunca a chave em si
-                                           "fonte": "sua chave" if pf.lb_key_own() else ("chave do sistema" if pf.lb_key() else "nenhuma")},
+                                           "fonte": pf.lb_key_src()},
                         "banco": {"ok": not getattr(pf.store, "last_error", None),
                                   "error": (str(getattr(pf.store, "last_error", "") or "")[:120]) or None,
                                   "fila": len(getattr(pf.store, "_q", []) or [])}}
