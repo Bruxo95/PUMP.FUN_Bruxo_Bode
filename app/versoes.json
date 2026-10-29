@@ -1065,6 +1065,11 @@
    "versao": "0.32.61",
    "inicio": "2026-10-29T17:30:00+00:00",
    "titulo": "stop lido a cada segundo e botão REAL em cada aba"
+  },
+  {
+   "versao": "0.32.62",
+   "inicio": "2026-10-29T20:15:00+00:00",
+   "titulo": "venda real que falha espera antes de tentar de novo"
   }
  ]
 }

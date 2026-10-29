@@ -1293,3 +1293,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.61: `pump_stop_fast_on` (ON) põe toda posição com stop no `trail_once` (~1 s; Explorar fora); `PumpFun._stop_gap` explica stop que
   passou 5+ pontos do limite (`p["_chk"]` = leitura anterior). REAL por aba em `manual_buy`: `pump_auto_real` (Base, agora mesmo com espelho),
   `pump_el_real` e `pump_calls_real` (novos). Migração `20261029000012` (override do dono: fictícias ligadas, REAL desligado). `tests/test_real_por_aba.py`.
+- 0.32.62: venda REAL que falha espera 10 s → 5 min (`PumpFun._real_sell` devolve bool, `_sell_failed`, `sell_retry_at`/`sell_fails`; "por você" não
+  espera); `PumpReal._rpc` explica resposta sem JSON; `balances`/`_raw_tok` com `_rpc_retry`. Caso PEPE do Bruxo. `tests/test_venda_real_espera.py`.

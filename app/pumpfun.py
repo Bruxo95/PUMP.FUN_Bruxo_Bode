@@ -1353,7 +1353,8 @@ class PumpFun:
 
     def _sell(self, p: dict, frac: float, px: float | None, why: str, t: float) -> str | None:
         if p.get("real"):
-            self._real_sell(p, frac, why)
+            if not self._real_sell(p, frac, why):
+                return None                                # já vendendo ou esperando depois de uma falha (0.32.62)
             return f"[PUMP REAL] {p['symbol']}: vendendo {frac * 100:.0f}% ({why})"
         if not px:
             return None
@@ -4020,12 +4021,31 @@ class PumpFun:
             self._rq = asyncio.Queue()
         self._rq.put_nowait(item)
 
-    def _real_sell(self, p: dict, frac: float, why: str) -> None:
+    SELL_BACKOFF_S = (10, 30, 60, 120, 300)
+
+    def _real_sell(self, p: dict, frac: float, why: str) -> bool:
+        """Põe a venda REAL na fila. 0.32.62 (PEPE do Bruxo, 29/10 20:55: "vendendo 100%" + erro a cada 3 s, sem parar): depois
+        de uma venda que falhou, espera 10 s, 30 s, 1 min, 2 min e 5 min antes de tentar de novo; venda pedida por você
+        na tela não espera. Devolve False quando não pôs na fila."""
         if p.get("selling"):
-            return
+            return False
+        if time.time() < float(p.get("sell_retry_at") or 0) and "por você" not in why:
+            return False
         p["selling"] = True
         self._save_pos(p)
         self._rq_put(("sell", {"id": p["id"], "frac": frac, "why": why}))
+        return True
+
+    def _sell_failed(self, p: dict, reason: str) -> None:
+        """0.32.62: marca a falha da venda real e quando pode tentar de novo (espera crescente)."""
+        n = int(p.get("sell_fails") or 0)
+        wait = self.SELL_BACKOFF_S[min(n, len(self.SELL_BACKOFF_S) - 1)]
+        p["sell_fails"] = n + 1
+        p["sell_retry_at"] = time.time() + wait
+        p["sell_error"] = reason
+        p["selling"] = False
+        self._save_pos(p)
+        self._emit(f"[PUMP REAL] venda {p.get('symbol')} NÃO feita: {reason} — tenta de novo em {wait} s (tentativa {n + 1})")
 
     async def _real_process(self) -> None:          # compatibilidade (fila antiga)
         self._real_q = []
@@ -4060,12 +4080,17 @@ class PumpFun:
                 else:
                     await self._real_do_sell(it)
             except Exception as e:
-                self._emit(f"[PUMP REAL] {kind} {it.get('symbol') or it.get('id')}: erro {type(e).__name__}: {str(e)[:120]}")
+                if kind == "buy":
+                    self._emit(f"[PUMP REAL] {kind} {it.get('symbol') or it.get('id')}: erro {type(e).__name__}: {str(e)[:120]}")
                 if kind == "buy":
                     self._real_buying.discard(it.get("mint"))
                     self._auto_pending.pop(it.get("mint"), None)
                 else:
-                    self._unmark_selling(it.get("id"))
+                    p = next((x for x in self.positions() if x["id"] == it.get("id")), None)
+                    if p is not None:
+                        self._sell_failed(p, f"{type(e).__name__}: {str(e)[:120]}")
+                    else:
+                        self._unmark_selling(it.get("id"))
 
     def _unmark_selling(self, pid) -> None:
         for p in self.positions():
@@ -4175,6 +4200,7 @@ class PumpFun:
                 st = None
             if st is None and time.time() - float(pend.get("at") or 0) < SELL_PENDING_HOLD_S:
                 p["selling"] = False
+                p["sell_retry_at"] = time.time() + 10       # 0.32.62: não pergunta de novo a cada 3 s
                 self._save_pos(p)
                 self._emit(f"[PUMP REAL] venda {p['symbol']} adiada: a anterior ainda não confirmou ({why})")
                 return
@@ -4185,11 +4211,10 @@ class PumpFun:
         if res.get("status") == "pendente" and res.get("signature"):
             p["sell_pending"] = {"signature": res["signature"], "at": time.time()}
         if not res.get("ok"):
-            p["selling"] = False
-            p["sell_error"] = res.get("reason") or res.get("status")
-            self._save_pos(p)
-            self._emit(f"[PUMP REAL] venda {p['symbol']} NÃO feita ({why}): {p['sell_error']} — tenta de novo no próximo sinal")
+            self._sell_failed(p, f"{res.get('reason') or res.get('status')} ({why})")
             return
+        p.pop("sell_retry_at", None)
+        p.pop("sell_fails", None)
         got, left = res["sol_received"], res["tokens_left"]
         fr = self._fee_rates(p["mint"], True)
         sold = max(0.0, p["tokens_left"] - left)
@@ -4387,7 +4412,12 @@ class PumpReal:
     async def _rpc(self, method: str, params: list, url: str | None = None):
         r = await self.http.post(url or await self.wallet.safe_rpc_url(),
                                  json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=15)
-        js = r.json()
+        try:
+            js = r.json()
+        except ValueError:
+            # 0.32.62: o RPC respondeu sem JSON (limite de pedidos, página de erro): diz o que foi, não "JSONDecodeError"
+            raise RuntimeError(f"RPC respondeu HTTP {r.status_code} sem dados"
+                               + (" (limite de pedidos)" if r.status_code == 429 else "") + f" em {method}") from None
         if "error" in js:
             raise RuntimeError(str(js["error"])[:160])
         return js["result"]
@@ -4396,8 +4426,8 @@ class PumpReal:
         """(SOL, tokens do mint) da carteira do bot, direto da blockchain."""
         # 0.31.51: as duas consultas vão juntas (antes uma esperava a outra)
         b, res = await asyncio.gather(
-            self._rpc("getBalance", [self.wallet.address, {"commitment": "confirmed"}]),
-            self._rpc("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
+            self._rpc_retry("getBalance", [self.wallet.address, {"commitment": "confirmed"}]),
+            self._rpc_retry("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
                                                   {"encoding": "jsonParsed", "commitment": "confirmed"}]))
         sol = b["value"] / 1e9
         tok = 0.0
@@ -4602,7 +4632,7 @@ class PumpReal:
                 "reason": r.get("reason"), "ok": bool(r.get("ok"))}
 
     async def _raw_tok(self, mint: str) -> tuple[int, int]:
-        res = await self._rpc("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
+        res = await self._rpc_retry("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
                                                           {"encoding": "jsonParsed", "commitment": "confirmed"}])
         raw, dec = 0, 0
         for a in (res or {}).get("value") or []:

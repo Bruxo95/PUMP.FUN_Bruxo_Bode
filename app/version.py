@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.61 · 2026-10-29 · stop lido a cada segundo e botão REAL em cada aba"
+VERSION = "0.32.62 · 2026-10-29 · venda real que falha espera antes de tentar de novo"
