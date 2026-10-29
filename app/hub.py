@@ -55,6 +55,7 @@ class PumpHub:
         from .calls import Calls
         self.calls = Calls()                      # 0.31.94: calls quentes pela blockchain
         from .bruxo import Bruxo
+        self.bx_reports: dict[str, dict] = {}     # 0.32.80: relatórios da Aba do Bruxo por usuário {"30min": [...], "dia": [...]}
         self.bruxo = Bruxo()                      # 0.32.41: Aba do Bruxo (top trader em moeda nova)
         self._bx_base: tuple[float, dict] = (0.0, {})
         self._ov_recent: dict[str, list] = {}       # 0.32.52: ajustes aplicados há pouco (reafirmados por 20 min)
@@ -819,6 +820,74 @@ class PumpHub:
                 "resultado": {"n": n, "ganhos": w, "acerto": round(w / n * 100) if n else None,
                               "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in sim), 5)},
                 "trades": mine_t[:200], "abertas": mine_p}
+
+    def _bx_report(self, pf: PumpFun, start: float, end: float, tipo: str) -> dict:
+        from . import bruxoreport
+        c = pf.cfg
+        return bruxoreport.build(list(self.bruxo.signals.values()), pf.user_id, pf.trades(5000), pf.positions(), start, end, tipo,
+                                 float(getattr(c, "pump_bx_stop_pct", 30)), float(getattr(c, "pump_bx_tp1_pct", 100)))
+
+    async def bx_report_tick(self, now: float | None = None) -> int:
+        """0.32.80 (pedido do dono): a cada 30 min um relatório de tudo da Aba do Bruxo e, na virada do dia (UTC), o do dia
+        anterior. Só contas admin com a Aba do Bruxo ou o estudo de lançamentos ligado. Guardados em `bruxo_reports`."""
+        from . import bruxoreport
+        now = time.time() if now is None else now
+        n = 0
+        for e in list(self.engines.values()):
+            if getattr(e, "role", "user") != "admin" or not (getattr(e.cfg, "pump_bx_on", False) or getattr(e.cfg, "pump_lanc_on", False)):
+                continue
+            R = self.bx_reports.setdefault(e.user_id, {"30min": [], "dia": []})
+            todo = []
+            last = R["30min"][-1]["t"] if R["30min"] else 0
+            if now - last >= bruxoreport.EVERY_S - 60:
+                todo.append(self._bx_report(e, now - bruxoreport.EVERY_S, now, "30min"))
+            d0 = datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+            ontem = datetime.fromtimestamp(d0 - 86400, timezone.utc).date().isoformat()
+            if not any(r.get("dia") == ontem for r in R["dia"]):
+                todo.append(self._bx_report(e, d0 - 86400, d0, "dia"))
+            for r in todo:
+                R[r["tipo"]].append(r)
+                del R[r["tipo"]][:-(336 if r["tipo"] == "30min" else 90)]
+                try:
+                    await self.db.insert("bruxo_reports", {"user_id": e.user_id, "tipo": r["tipo"], "dia": r.get("dia"), "em": r["em"], "data": r})
+                except Exception as ex:
+                    log.warning("relatório da Aba do Bruxo não gravou: %s", str(ex)[:120])
+                n += 1
+        return n
+
+    async def bx_report_loop(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - 90 * 86400, timezone.utc).isoformat()
+            for r in reversed(await self.db.select("bruxo_reports", None, order="em.desc", limit=6000, gte={"em": since})):
+                if isinstance(r.get("data"), dict) and r.get("tipo") in ("30min", "dia"):
+                    self.bx_reports.setdefault(r["user_id"], {"30min": [], "dia": []})[r["tipo"]].append(r["data"])
+        except Exception as e:
+            log.warning("relatórios da Aba do Bruxo não carregaram: %s", str(e)[:120])
+        await asyncio.sleep(300)
+        while True:
+            try:
+                await self.bx_report_tick()
+            except Exception as e:
+                log.warning("relatório da Aba do Bruxo: %s", str(e)[:160])
+            await asyncio.sleep(300)                       # confere a cada 5 min; grava a cada 30 min e uma vez por dia
+
+    def bx_report_state(self, pf: PumpFun) -> dict:
+        from . import bruxoreport
+        now = time.time()
+        R = self.bx_reports.get(pf.user_id, {"30min": [], "dia": []})
+        d0 = datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        resumo = lambda r: {"em": r["em"], "tipo": r["tipo"], "dia": r.get("dia"), "veredito": r.get("veredito"), "sinais": (r.get("sinais") or {}).get("n"),
+                            "entrou": (r.get("sinais") or {}).get("entrou"), "lanc": (r.get("lancamento") or {}).get("n"),
+                            "operacoes": (r.get("operacoes") or {}).get("n"), "acerto": (r.get("operacoes") or {}).get("acerto"),
+                            "pnl_sol": (r.get("operacoes") or {}).get("pnl_sol"), "licoes": len(r.get("licoes") or [])}
+        return {"agora": self._bx_report(pf, now - bruxoreport.EVERY_S, now, "30min"), "hoje": self._bx_report(pf, d0, now, "dia"),
+                "ultimo": R["30min"][-1] if R["30min"] else None,
+                "historico": [resumo(r) for r in reversed(R["30min"][-48:])], "dias": [resumo(r) for r in reversed(R["dia"][-30:])],
+                "aprendizado": bruxoreport.learn(R["dia"][-30:])}
+
+    def bx_report_get(self, pf: PumpFun, em: str) -> dict | None:
+        R = self.bx_reports.get(pf.user_id, {"30min": [], "dia": []})
+        return next((r for k in ("dia", "30min") for r in R[k] if r.get("em") == em), None)
 
     # ------------------------------------------------------------------ relatório de cada aba (0.32.41)
     async def tab_report_tick(self, now: float | None = None) -> int:
@@ -3027,7 +3096,8 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
-        self._tasks.append(asyncio.create_task(self.bruxo_loop()))          # 0.32.41: Aba do Bruxo
+        self._tasks.append(asyncio.create_task(self.bruxo_loop()))
+        self._tasks.append(asyncio.create_task(self.bx_report_loop()))      # 0.32.80: relatórios da Aba do Bruxo (30 min e 1 dia)          # 0.32.41: Aba do Bruxo
         self._tasks.append(asyncio.create_task(self.tab_report_loop()))
         self._tasks.append(asyncio.create_task(self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs

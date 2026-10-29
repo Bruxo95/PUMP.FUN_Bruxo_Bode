@@ -1162,6 +1162,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.73: relatório do Copiar igual (6 h agora + guardados + aprendizado para a Base geral)."""
         return hub.eq_report_state(pf, bool(real))
 
+    @app.get("/api/pump/bruxo/reports")
+    async def bruxo_reports(em: str = "", pf=Depends(admin_engine)):
+        """0.32.80: relatórios da Aba do Bruxo (30 min ao vivo, hoje, guardados e o aprendizado de 1 dia); `em` abre um guardado."""
+        if em:
+            return hub.bx_report_get(pf, em) or {"error": "relatório não encontrado"}
+        return hub.bx_report_state(pf)
+
     @app.get("/api/pump/tab-reports")
     async def tab_reports(real: int = 0, pf=Depends(admin_engine)):
         """0.32.41: relatório de ganhos e perdas de cada aba (a cada 30 min), maiores ganhos/perdas com veredito e o aprendizado."""

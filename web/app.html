@@ -1048,6 +1048,14 @@
           <div class="form"><div class="field"><label>Estudar lançamentos</label><div class="row"><button class="btn sm tgl" data-toggle="pump_lanc_on" aria-label="Estudar lançamentos sem trader">…</button></div>
             <div class="hint">Só estuda: não compra nem na fictícia, por isso não tem botão REAL. Se os números mostrarem lucro, a compra ganha os dois botões (fictícia e REAL).</div></div></div>
           <div class="kpis" id="lnK"></div><div class="tbl-wrap"><table id="lnT" class="daytbl"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-14" data-nosanf><header><div><h2>Relatórios da aba (a cada 30 min e por dia)</h2><div class="sub" id="brSub">tudo da Aba do Bruxo: sinais, lançamentos, operações e lições · carteira FICTÍCIA</div></div><div class="sp"></div>
+            <div class="seg" id="brSeg"><button data-brp="agora" class="on">Últimos 30 min</button><button data-brp="hoje">Hoje</button></div></header>
+          <div class="help"><p>A cada 30 min o robô fecha um relatório de tudo desta aba e, na virada do dia (UTC), o do dia inteiro. Ficam guardados; os de 1 dia vão para a Base geral, que junta as lições que se repetem. Nada muda sozinho.</p></div>
+          <div class="decbox" id="brV"></div><div class="kpis" id="brK"></div>
+          <div id="brL"></div>
+          <h3>Operações por origem</h3><div class="tbl-wrap"><table id="brG" class="daytbl"></table></div>
+          <h3>Maiores ganhos e perdas</h3><div class="tbl-wrap"><table id="brB" class="daytbl"></table></div>
+          <h3>Relatórios guardados</h3><div class="tbl-wrap"><table id="brH" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-12" data-nosanf><header><div><h2>Sinais de top trader (24 h)</h2><div class="sub">entrou ou por que não, e o que o token fez em 30 min</div></div></header>
           <div class="tbl-wrap tall"><table id="bxSig" class="daytbl extbl"></table></div>
           <h3 style="margin-top:12px">Por que não entrou</h3><div class="tbl-wrap"><table id="bxWhy" class="daytbl"></table></div></div>
@@ -1124,6 +1132,8 @@
           <div class="kpis" id="bgK"></div>
           <div class="help"><p><b>Maturidade</b> é quanto de dado a base já tem para decidir com confiança: faixas com 30+ operações, regras de saída com 20+ trades e 2 dias, e 7 dias de histórico. <b>100% não quer dizer ganhar todos os trades</b>: quer dizer que o que a base mostra é confiável. Nada aqui muda regra ou configuração de ninguém.</p></div>
           <div id="bgParts"></div></div>
+        <div class="card" data-novo-ate="2026-11-14" data-nosanf><header><div><h2>Aba do Bruxo · o que os relatórios de 1 dia ensinam</h2><div class="sub" id="bgBxSub">dia a dia e as lições que se repetem</div></div></header>
+          <div id="bgBxL"></div><div class="tbl-wrap"><table id="bgBx" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-13" data-nosanf><header><div><h2>Copiar igual · o que os relatórios de 6 h ensinam</h2><div class="sub" id="bgEqSub">por carteira, somando todos os relatórios guardados</div></div></header>
           <div class="help"><p>Junta os relatórios de 6 h do Copiar igual: em quantos períodos cada carteira deu lucro, o acerto e o resultado somados. <b>Manter</b> = lucro em 60%+ dos períodos (2 ou mais); <b>parar</b> = prejuízo com menos de 40% de acerto. Nada muda sozinho.</p></div>
           <div class="tbl-wrap"><table id="bgEq" class="daytbl"></table></div></div>

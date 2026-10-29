@@ -1339,3 +1339,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.78: Lançamento sem trader: `data-buy` com `data-orig="lancamento"` em cada linha e `#lnBuyAll` (Comprar todas os sinais não `done`, `BUY_ALL` no
   modal `#buyM`); origem `lancamento` aceita em `/api/pump/manual-buy`, em `GUARD_ORIGINS`, `ABA_ORIGEM` e `OWN_SLOTS` (`pump_lanc_max_open` 30).
 - 0.32.79: Aba do Bruxo (`bxSig`, `lnT`): `bxMarks` (1/5/10/25 min) e `bxAfterPeak` (do pico até a última foto).
+- 0.32.80: `app/bruxoreport.py` (`build` do período: sinais, lançamentos, operações bruxo/lancamento, lições; `learn` dos relatórios de 1 dia) +
+  `hub.bx_report_tick/loop` (confere a cada 5 min; grava a cada 30 min e o dia anterior UTC uma vez; tabela `bruxo_reports`, migração
+  `20261030000001`; só admin com `pump_bx_on` ou `pump_lanc_on`) + `GET /api/pump/bruxo/reports[?em=]`; cartão `#brK` na Aba do Bruxo e `#bgBx` na Base geral.

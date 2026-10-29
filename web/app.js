@@ -1129,6 +1129,41 @@
     const k = ks[ks.length - 1], last = M[k], d = ((1 + last / 100) / (1 + s.peak_pct / 100) - 1) * 100;
     return (Math.abs(d) < 0.05 ? '<span class="dim">no pico</span>' : pc(d)) + "<small>aos " + k + " min: " + pc(last) + "</small>";
   }
+  // 0.32.80 (pedido do dono): relatórios da Aba do Bruxo (30 min e 1 dia) e o aprendizado na Base geral
+  let BR_P = "agora", BR = null;
+  const BR_VC = { ganhando: "win", perdendo: "loss", "poucos dados": "neutral", "sem dados": "neutral" };
+  const brTag = (v) => '<span class="tag ' + (BR_VC[v] || "neutral") + '">' + esc(v || "–") + "</span>";
+  function renderBrDays(L) {
+    $("bgBxSub").textContent = (L.dias || []).length + " dias guardados · " + s4(L.pnl_sol || 0) + " SOL somados";
+    $("bgBxL").innerHTML = (L.licoes_repetidas || []).length ? '<div class="decbox"><b>Lições que se repetem:</b><br>' + L.licoes_repetidas.map((x) => esc(x.licao) + ' <span class="muted small">(' + x.dias + " dias)</span>").join("<br>") + "</div>" : "";
+    table("bgBx", ["Dia", "Veredito", "Sinais / entrou", "Operações", "Acerto", "Resultado", "Dobraram (sinais)", "Pico mediano", "Dobraram (lançamentos)"], (L.dias || []).map((d) => [esc(String(d.dia || "").split("-").reverse().join("/")), brTag(d.veredito),
+      (d.sinais || 0) + " / " + (d.entrou || 0), String(d.operacoes || 0), d.acerto == null ? "–" : d.acerto + "%", sg(d.pnl_sol || 0), d.dobrou_pct == null ? "–" : d.dobrou_pct + "%", d.pico_mediano == null ? "–" : pc(d.pico_mediano), d.lanc_dobrou_pct == null ? "–" : d.lanc_dobrou_pct + "%"]),
+      "O 1º relatório de 1 dia é guardado na virada do dia (UTC).");
+  }
+  function renderBr() {
+    if (!BR || !$("brK")) return;
+    document.querySelectorAll("#brSeg button").forEach((b) => b.classList.toggle("on", b.dataset.brp === BR_P));
+    const A = BR[BR_P] || {}, S = A.sinais || {}, E = A.estudo || {}, LA = A.lancamento || {}, O = A.operacoes || {};
+    $("brSub").textContent = (BR_P === "hoje" ? "hoje desde 00:00 UTC" : "últimos 30 min") + " · último guardado: " + (BR.ultimo ? dt(BR.ultimo.em) : "ainda nenhum") + " · carteira FICTÍCIA";
+    $("brV").innerHTML = brTag(A.veredito) + " " + esc(A.por_que || "");
+    kpis("brK", [["Sinais de top trader", String(S.n || 0), (S.entrou || 0) + " entrou" + (S.pico_entrou != null ? " · pico " + pc(S.pico_entrou) : "") + (S.pico_nao_entrou != null ? " · não entrou " + pc(S.pico_nao_entrou) : ""), "mon"],
+      ["Dobraram (sinais)", E.dobrou_pct == null ? "–" : E.dobrou_pct + "%", "pico mediano " + (E.pico_mediano == null ? "–" : pc(E.pico_mediano)) + " · −30% antes " + (E.stop_antes_pct == null ? "–" : E.stop_antes_pct + "%"), "hit"],
+      ["Lançamentos", String(LA.n || 0), "dobraram " + (LA.dobrou_pct == null ? "–" : LA.dobrou_pct + "%") + " · pico " + (LA.pico_mediano == null ? "–" : pc(LA.pico_mediano)), "usr"],
+      ["Operações", sg(O.pnl_sol || 0), (O.n || 0) + " fechadas · " + (O.acerto == null ? "–" : O.acerto + "%") + " · " + (A.abertas || 0) + " abertas", "pnl"]]);
+    $("brL").innerHTML = (A.licoes || []).length ? '<div class="decbox ok"><b>Lições:</b><br>' + A.licoes.map(esc).join("<br>") + "</div>" : "";
+    table("brG", ["Origem", "Fechadas", "Acerto", "Resultado", "Maior causa das perdas"], (O.grupos || []).map((g) => [esc(g.nome), String(g.n), g.acerto == null ? "–" : g.acerto + "%", sg(g.pnl_sol),
+      (g.causas || []).slice(0, 2).map((c) => c.n + "× " + esc(c.texto) + '<br><span class="muted small">→ ' + esc(c.corrigir) + "</span>").join("<br>") || '<span class="dim">sem perdas</span>']), "Nenhuma operação fechada no período.");
+    table("brB", ["Origem", "Token", "Resultado", "Pico", "Tempo", "Saída", "Veredito"], (A.maiores_ganhos || []).concat(A.maiores_perdas || []).map((o) => [esc(o.origem), pfM(o.mint, o.symbol), sg(o.pnl_sol) + "<small>" + (o.pnl_pct == null ? "" : pc(o.pnl_pct)) + "</small>",
+      o.pico_pct == null ? "–" : pc(o.pico_pct), o.hold_s == null ? "–" : hms(o.hold_s), '<span class="wrapcell">' + esc(o.saida || "") + "</span>", '<span class="wrapcell">' + esc(o.veredito || "") + "</span>"]), "Nenhuma operação fechada no período.");
+    table("brH", ["Relatório", "Tipo", "Veredito", "Sinais / entrou", "Lançamentos", "Operações", "Acerto", "Resultado", "Lições"], (BR.dias || []).concat(BR.historico || []).map((h) => [dt(h.em), h.tipo === "dia" ? "<b>1 dia</b>" : "30 min", brTag(h.veredito),
+      (h.sinais || 0) + " / " + (h.entrou || 0), String(h.lanc || 0), String(h.operacoes || 0), h.acerto == null ? "–" : h.acerto + "%", sg(h.pnl_sol || 0), String(h.licoes || 0)]), "O 1º relatório é guardado 5 min depois de o sistema subir; depois a cada 30 min.");
+  }
+  async function loadBxReports() {
+    if (!$("brK") && !$("bgBx")) return;
+    const r = await BB.api("/api/pump/bruxo/reports"); if (r.error) return;
+    BR = r; if ($("bgBx")) renderBrDays(r.aprendizado || {}); renderBr();
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-brp]"); if (b) { BR_P = b.dataset.brp; renderBr(); } });
   let BX_T = null;
   async function loadBruxo() {
     const r = await BB.api("/api/pump/bruxo"); if (r.error || !$("bxSig")) return;
@@ -1174,6 +1209,7 @@
     loadEvo();
     loadTabReports();
     loadEqRep();
+    loadBxReports();
     const r = await BB.api("/api/pump/base-geral");
     if (r.error) { $("bgSub").textContent = r.error; return; }
     // 0.32.33 (pedido do dono): aprendizado das posições — entrou/saiu na hora certa
@@ -2327,7 +2363,7 @@
     if (VIEW === "basegeral") loadBaseGeral();
     if (VIEW === "logs") showLogTab(LOGTAB);
     if (VIEW === "calls") loadCalls();
-    if (VIEW === "bruxo") loadBruxo();
+    if (VIEW === "bruxo") { loadBruxo(); loadBxReports(); }
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") { loadEq(); loadEqRep(); }
