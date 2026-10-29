@@ -960,6 +960,11 @@
    "versao": "0.32.40",
    "inicio": "2026-10-29T06:54:15+00:00",
    "titulo": "Posições em cards com venda parcial"
+  },
+  {
+   "versao": "0.32.41",
+   "inicio": "2026-10-29T09:30:00+00:00",
+   "titulo": "Aba do Bruxo, relatório de cada aba a cada 30 min e preço parado de token graduado"
   }
  ]
 }

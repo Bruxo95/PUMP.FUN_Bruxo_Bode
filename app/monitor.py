@@ -337,6 +337,12 @@ class SharedMonitor:
             return
         await self.handle_ev(w, sig, t0, ev, cop)
 
+    async def _bruxo(self, w: str, ev: dict) -> None:
+        try:
+            await self.hub.bruxo_on_trade(w, ev)
+        except Exception as e:
+            log.warning("aba do bruxo: %s", str(e)[:120])
+
     async def handle_ev(self, w: str, sig: str, t0: float, ev: dict | None, cop: bool, via: str = "RPC") -> None:
         """Trade já decodificado (do RPC ou da PumpPortal, 0.32.18): estudo, maiores traders, calls e cópia."""
         st, svc = self.market.rpc_status, self.svc
@@ -358,6 +364,9 @@ class SharedMonitor:
                 self.hub.calls_on_trade(w, ev)                  # 0.31.94: toda compra acompanhada vira uma call
         except Exception as e:
             log.warning("calls quentes: %s", str(e)[:120])
+        if hasattr(self.hub, "bruxo_on_trade"):
+            # 0.32.41: Aba do Bruxo (top trader em moeda nova); em tarefa própria para a consulta dos detentores não atrasar a cópia
+            asyncio.create_task(self._bruxo(w, dict(ev)))
         # Observar não autoriza copiar. Robôs seguem bloqueados mesmo que estejam no estudo.
         if not self.followers(w) or (self.market.activity.get(w) or {}).get("bot_until", 0) > time.time():
             return

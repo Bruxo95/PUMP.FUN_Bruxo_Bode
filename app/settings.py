@@ -53,6 +53,25 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bar_sol": (float, 0.05, 0.001, 10.0),           # SOL fictícios por entrada
     "pump_bar_max_open": (int, 20, 1, 100),               # 0.32.31: posições abertas dos barrados (vagas próprias)
     "pump_bar_real": (bool, False, 0, 1),                 # 0.32.33: barrados também na REAL (pelo espelho); padrão só fictícia
+    # 0.32.41 — Aba do Bruxo (áudios e prompt do Bruxo, 29/10): entrar junto com os top traders em moedas NOVAS. Começa
+    # DESLIGADA; a REAL fica sempre desligada até a pessoa ligar ("trabalhamos ativo só fictícia" — dono).
+    "pump_bx_on": (bool, False, 0, 1),
+    "pump_bx_real": (bool, False, 0, 1),
+    "pump_bx_sol": (float, 0.05, 0.001, 10.0),            # SOL fictícios por entrada
+    "pump_bx_max_age_min": (float, 5.0, 0.5, 60.0),       # token com menos de X min de criação
+    "pump_bx_flow_mult": (float, 1.0, 0.0, 20.0),         # ritmo de compra >= X vezes a média inicial dos tokens novos (0 = não usa)
+    "pump_bx_top10_max": (float, 35.0, 5.0, 100.0),       # 10 maiores detentores (sem a curva) com no máximo X%
+    "pump_bx_min_mcap": (float, 32.0, 0.0, 500.0),        # liquidez: market cap da curva de pelo menos X SOL
+    "pump_bx_dev_max": (float, 10.0, 0.0, 100.0),         # criador com no máximo X% do token
+    "pump_bx_min_trader_sol": (float, 0.2, 0.0, 100.0),   # compra do top trader de pelo menos X SOL (tira robô de centavos)
+    "pump_bx_tp1_pct": (float, 100.0, 5.0, 10000.0),      # vende parte em +X%...
+    "pump_bx_tp1_frac": (float, 50.0, 5.0, 100.0),        # ...esta % da posição
+    "pump_bx_trail_dist": (float, 20.0, 2.0, 90.0),       # stop móvel no resto: sai se cair X pontos do pico
+    "pump_bx_stop_pct": (float, 30.0, 0.0, 95.0),         # stop de perda (0 = sem stop)
+    "pump_bx_max_hold_min": (float, 25.0, 1.0, 1440.0),   # tempo máximo (o Bruxo viu que dura uns 25 min)
+    "pump_bx_follow_sell": (bool, True, 0, 1),            # sai quando o top trader do sinal vende
+    "pump_bx_max_open": (int, 5, 1, 50),                  # posições abertas da aba (vagas próprias)
+    "pump_bx_max_h": (int, 6, 1, 60),                     # entradas por hora
     # 0.32.32 (pedido do dono: "nas Proteções das automáticas tem que ter a opção do real"): entradas automáticas do Explorar
     # também na REAL (padrão ON = como já era pelo espelho) e o valor delas na real (0 = "SOL por compra" da Execução real)
     "pump_ex_real_on": (bool, True, 0, 1),

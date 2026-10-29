@@ -34,7 +34,9 @@ def build(hub, pf, day: str, live: bool) -> list[dict]:
     out = []
     for fn in (_copies, _study, _auto("explorar", "Explorar (compra automática)"), _auto("base", "Base da pump.fun (compra automática)"),
                _auto("elite", "Maiores traders (compra automática)"), _manual, _ghosts, _whatif, _options, _learning,
-               _elite, _explore, _base, _radar, _blacklist):
+               _elite, _explore, _base, _radar, _blacklist,
+               _origin_sec(("barrado", "barrado_btn"), "Explorar · barrados que subiram"), _origin_sec(("bruxo",), "Aba do Bruxo"),
+               _origin_sec(("calls",), "Calls quentes (compra automática)")):
         try:
             sec = fn(hub, pf, day, T, live)
             if sec:
@@ -99,6 +101,24 @@ def _auto(origem, menu):
                                          "de entrada desse menu (mais traders/filtros) ou deixe só observando até o estudo mostrar lucro.", n))
         return sec
     fn.__name__ = f"_auto_{origem}"
+    return fn
+
+
+def _origin_sec(origens, menu):
+    """0.32.41: abas novas que fazem trade (barrados, Aba do Bruxo, Calls) também entram no relatório do dia."""
+    def fn(hub, pf, day, T, live):
+        rows = [t for t in T if t.get("origem") in origens]
+        if not rows:
+            return None
+        n, pnl, wr = _sum(rows)
+        sec = {"menu": menu, "linhas": [f"{n} operações fechadas · {pnl:+.4f} SOL · acerto " + (f"{wr * 100:.0f}%" if wr is not None else "-")],
+               "sugestoes": []}
+        top = [t for t in rows if (t.get("pnl_sol") or 0) < 0 and t.get("best_pct") is not None and t["best_pct"] < 3]
+        if n >= 6 and pnl < 0 and len(top) >= n / 2:
+            sec["sugestoes"].append(_sug(menu, "lógica", "entrou_no_topo", f"{len(top)} de {n} perdas nunca passaram de +3%: a entrada chega "
+                                         "tarde (gatilho alto); entrar mais cedo ou exigir confirmação diferente.", n))
+        return sec
+    fn.__name__ = "_" + menu.split(" ")[0].lower()
     return fn
 
 

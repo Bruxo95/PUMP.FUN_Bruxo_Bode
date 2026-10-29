@@ -52,7 +52,11 @@ class PumpHub:
         from .elite import Elite
         self.elite = Elite(self.market)           # maiores traders (0.31.2)
         from .calls import Calls
-        self.calls = Calls()                      # 0.31.94: calls quentes pela blockchain                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
+        self.calls = Calls()                      # 0.31.94: calls quentes pela blockchain
+        from .bruxo import Bruxo
+        self.bruxo = Bruxo()                      # 0.32.41: Aba do Bruxo (top trader em moeda nova)
+        self._bx_base: tuple[float, dict] = (0.0, {})
+        self.tab_reports: dict[str, list] = {}     # 0.32.41: relatórios de cada aba (a cada 30 min), por usuário                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._study_auto_at: dict[str, float] = {}  # usuário -> última volta do estudo automático (0.31.13)
         self._tune_at: dict[str, float] = {}        # usuário -> última volta do ajuste automático (0.31.14)
@@ -601,6 +605,227 @@ class PumpHub:
             except Exception as e:
                 log.warning("calls quentes: %s", str(e)[:160])
             await asyncio.sleep(30)
+
+    # ------------------------------------------------------------------ Aba do Bruxo (0.32.41)
+    def bruxo_flow_base(self, now: float | None = None) -> dict:
+        """Média inicial dos tokens novos (Base da pump.fun): quanto o market cap sobe por minuto no 1º e nos 5 primeiros
+        minutos. É a régua do "volume de compra acima da média inicial" do prompt do Bruxo."""
+        now = time.time() if now is None else now
+        if now - self._bx_base[0] < 300:
+            return self._bx_base[1]
+        f1, f5 = [], []
+        for r in list(self.lab.done)[-5000:]:
+            m0, sn = r.get("mcap0"), r.get("snaps") or {}
+            if not m0 or r.get("label") in ("bundle", "nasceu graduado", "sem dado"):
+                continue
+            if sn.get("1"):
+                f1.append(min(300.0, max(0.0, sn["1"] - m0)))
+            if sn.get("5"):
+                f5.append(min(300.0, max(0.0, (sn["5"] - m0) / 5)))
+        base = {"m1": round(sum(f1) / len(f1), 2) if len(f1) >= 30 else None, "n1": len(f1),
+                "m5": round(sum(f5) / len(f5), 2) if len(f5) >= 30 else None, "n5": len(f5)}
+        self._bx_base = (now, base)
+        return base
+
+    def bruxo_facts(self, mint: str, sol: float, now: float) -> dict:
+        tk = self.market.tokens.get(mint) or {}
+        age = (now - float(tk["created_t"])) / 60 if tk.get("creator") and tk.get("created_t") else None
+        live = self.lab.live.get(mint) or {}
+        m0 = live.get("mcap0") or 28.0
+        mc = tk.get("mcap_sol")
+        flow = round((mc - m0) / max(age, 0.25), 2) if mc and age is not None else None
+        base = self.bruxo_flow_base(now)
+        fb = (base.get("m1") if age is not None and age <= 2.5 else base.get("m5")) or base.get("m1")
+        dev = None
+        cr = tk.get("creator")
+        if cr:
+            dp = ((self.market.wallets.get(cr) or {}).get("pos") or {}).get(mint) or {}
+            dev = round(float(dp.get("tok") or 0) / 1e9 * 100, 2)
+        grad = tk.get("pool") in ("pumpswap", "pump-amm") or "pumpswap" in (tk.get("dexes") or [])
+        return {"age_min": None if age is None else round(age, 2), "flow": flow, "flow_base": fb, "mcap": mc,
+                "dev_pct": dev, "top10": tk.get("top10_pct") if now - float(tk.get("top10_t") or 0) < 120 else None,
+                "trader_sol": round(sol, 4), "creator": cr, "graduated": grad}
+
+    def _bx_tops(self, e) -> set:
+        return set(getattr(e, "followed", None) or []) | set(self.elite.wallets())
+
+    async def bruxo_on_trade(self, w: str, ev: dict, t: float | None = None) -> dict | None:
+        """Compra de top trader → sinal da Aba do Bruxo (acompanhado 30 min) e entrada de quem ligou a aba. Venda de top
+        trader → as posições da aba nesse token saem junto (se a opção estiver ligada)."""
+        t = time.time() if t is None else t
+        kind, mint = ev.get("txType"), ev.get("mint")
+        if not mint or kind not in ("buy", "sell"):
+            return None
+        admins = [e for e in list(self.engines.values()) if getattr(e, "role", "user") == "admin"]
+        tops = [e for e in admins if w in self._bx_tops(e)]
+        if not tops:
+            return None
+        label = self._call_label(w)[0]
+        if kind == "sell":
+            for e in tops:
+                try:
+                    e.bruxo_sell(w, mint, label, t)
+                except Exception as ex:
+                    log.warning("aba do bruxo (venda): %s", str(ex)[:120])
+            return None
+        sol = float(ev.get("solAmount") or 0)
+        f = self.bruxo_facts(mint, sol, t)
+        if f["age_min"] is None or f["age_min"] > 30:
+            return None                         # só moeda nova vira sinal (o estudo é sobre elas)
+        tk = self.market.tokens.get(mint) or {}
+        s, new = self.bruxo.on_buy(w, label, mint, tk.get("symbol") or ev.get("symbol"), sol, PumpFun.price_of(ev) or tk.get("price"),
+                                   tk, f["age_min"], {k: f.get(k) for k in ("flow", "flow_base", "mcap", "dev_pct")}, t)
+        if not new:
+            return s
+        want = [e for e in tops if getattr(e.cfg, "pump_bx_on", False)]
+        if want and f["top10"] is None and not f["graduated"] and f["age_min"] <= max(float(getattr(e.cfg, "pump_bx_max_age_min", 5)) for e in want):
+            try:
+                await want[0].holders_check(mint)       # concentração dos maiores detentores (RPC grátis, cache 60 s)
+            except Exception:
+                pass
+            f = self.bruxo_facts(mint, sol, time.time())
+        s["filtros"] = {k: f.get(k) for k in ("age_min", "flow", "flow_base", "mcap", "dev_pct", "top10", "trader_sol")}
+        for e in tops:
+            try:
+                why = e.bruxo_entry(s, f, t)
+            except Exception as ex:
+                why = f"erro: {str(ex)[:80]}"
+            self.bruxo.decide(s, e.user_id, why)
+        return s
+
+    async def bruxo_tick(self, now: float | None = None) -> int:
+        now = time.time() if now is None else now
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        mints = self.bruxo.open_mints(now)
+        if mints and svc is not None:
+            for i in range(0, len(mints), 100):
+                chunk = mints[i:i + 100]
+                pump = [m for m in chunk if svc.is_pump(m)]
+                rest = await svc._curve_prices(pump, public_first=True) if pump else []
+                rest += [m for m in chunk if m not in pump]
+                if rest:
+                    await svc._fetch_prices(list(dict.fromkeys(rest))[:90])
+        n = self.bruxo.tick(lambda m: (self.market.tokens.get(m) or {}).get("price"), now)
+        for sid in list(self.bruxo.dirty)[:300]:
+            self.bruxo.dirty.discard(sid)
+            s = self.bruxo.signals.get(sid)
+            if s is None:
+                continue
+            try:
+                await self.db.insert("bruxo_signals", {"id": sid, "em": s["em"], "data": s}, upsert=True, on_conflict="id")
+            except Exception as e:
+                log.warning("sinal da aba do bruxo não gravou: %s", str(e)[:120])
+                self.bruxo.dirty.add(sid)
+                break
+        self.bruxo.trim(now)
+        return n
+
+    async def bruxo_loop(self) -> None:
+        await asyncio.sleep(45)
+        while True:
+            try:
+                await self.bruxo_tick()
+            except Exception as e:
+                log.warning("aba do bruxo: %s", str(e)[:160])
+            await asyncio.sleep(20)
+
+    async def load_bruxo(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - 7 * 86400, timezone.utc).isoformat()
+            self.bruxo.load(await self.db.select("bruxo_signals", None, order="em.desc", limit=20000, gte={"em": since}))
+        except Exception as e:
+            log.warning("sinais da aba do bruxo não carregaram: %s", str(e)[:120])
+
+    def bruxo_state(self, pf: PumpFun, hours: float = 24) -> dict:
+        from .bruxo import Bruxo
+        now = time.time()
+        sigs = self.bruxo.recent(hours, now)
+        uid = pf.user_id
+        rows = []
+        for s in sigs[:300]:
+            d = (s.get("decisoes") or {}).get(uid)
+            rows.append({k: s.get(k) for k in ("id", "em", "mint", "symbol", "names", "sol_traders", "age_min", "filtros", "marks",
+                                                "peak_pct", "peak_s", "low_pct", "hit100_s", "stop30_s", "done")}
+                        | {"entrou": bool(d and d.get("entrou")), "motivo": (d or {}).get("motivo") or ("não era top trader seu" if d is None else None)})
+        mine_t = [dict(t, aba=pf.aba_of(t)) for t in pf.trades(5000) if t.get("origem") == "bruxo"]
+        mine_p = [p for p in pf.positions() if p.get("origem") == "bruxo"]
+        for t in mine_t:                                   # o que o token fez depois que a operação saiu
+            s = self.bruxo.signals.get((t.get("bruxo") or {}).get("sinal") or "")
+            if s:
+                t["sinal_pico"], t["sinal_pico_s"] = s.get("peak_pct"), s.get("peak_s")
+        sim = [t for t in mine_t if not t.get("real")]
+        n = len(sim)
+        w = sum(1 for t in sim if (t.get("pnl_sol") or 0) > 0)
+        why: dict[str, int] = {}
+        for r in rows:
+            if not r["entrou"] and r["motivo"]:
+                k = r["motivo"].split(" (")[0]
+                why[k] = why.get(k, 0) + 1
+        cfg = pf.cfg
+        return {"on": bool(getattr(cfg, "pump_bx_on", False)), "real": bool(getattr(cfg, "pump_bx_real", False)),
+                "real_enabled": bool(getattr(cfg, "pump_real_enabled", False)),
+                "media_inicial": self.bruxo_flow_base(now), "sinais": rows,
+                "estudo": Bruxo.study(list(self.bruxo.signals.values()), float(getattr(cfg, "pump_bx_stop_pct", 30)),
+                                      float(getattr(cfg, "pump_bx_tp1_pct", 100))),
+                "nao_entrou": sorted(({"motivo": k, "n": v} for k, v in why.items()), key=lambda x: -x["n"]),
+                "resultado": {"n": n, "ganhos": w, "acerto": round(w / n * 100) if n else None,
+                              "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in sim), 5)},
+                "trades": mine_t[:200], "abertas": mine_p}
+
+    # ------------------------------------------------------------------ relatório de cada aba (0.32.41)
+    async def tab_report_tick(self, now: float | None = None) -> int:
+        from . import tabreport
+        now = time.time() if now is None else now
+        n = 0
+        for e in list(self.engines.values()):
+            if getattr(e, "role", "user") != "admin":
+                continue
+            for real in (False, True):
+                if real and not any(t.get("real") for t in e.trades(5000)):
+                    continue
+                rep = tabreport.build(e.trades(5000), e.positions(), e.aba_of, now, real)
+                if not rep["abas"] and not rep["parados"]:
+                    continue
+                key = f"{e.user_id}:{int(real)}"
+                L = self.tab_reports.setdefault(key, [])
+                L.append(rep)
+                del L[:-336]                        # 7 dias de relatórios em memória
+                try:
+                    await self.db.insert("tab_reports", {"user_id": e.user_id, "real": real, "em": rep["em"], "data": rep})
+                except Exception as ex:
+                    log.warning("relatório da aba não gravou: %s", str(ex)[:120])
+                n += 1
+        return n
+
+    async def tab_report_loop(self) -> None:
+        await self.load_tab_reports()
+        await asyncio.sleep(120)
+        while True:
+            try:
+                await self.tab_report_tick()
+            except Exception as e:
+                log.warning("relatório das abas: %s", str(e)[:160])
+            await asyncio.sleep(1800)
+
+    async def load_tab_reports(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - 7 * 86400, timezone.utc).isoformat()
+            for r in reversed(await self.db.select("tab_reports", None, order="em.desc", limit=5000, gte={"em": since})):
+                if isinstance(r.get("data"), dict):
+                    self.tab_reports.setdefault(f"{r['user_id']}:{int(bool(r.get('real')))}", []).append(r["data"])
+        except Exception as e:
+            log.warning("relatórios das abas não carregaram: %s", str(e)[:120])
+
+    def tab_state(self, pf: PumpFun, real: bool = False) -> dict:
+        from . import tabreport
+        now = time.time()
+        hist = self.tab_reports.get(f"{pf.user_id}:{int(real)}", [])
+        live = tabreport.build(pf.trades(5000), pf.positions(), pf.aba_of, now, real)
+        return {"agora": live, "ultimo": hist[-1] if hist else None,
+                "historico": [{"em": r["em"], "total24": r["total24"],
+                               "abas": [{"aba": a["aba"], "veredito": a["veredito"], "pnl24": a["h24"]["pnl_sol"]} for a in r["abas"]]}
+                              for r in hist[-48:]],
+                "aprendizado": tabreport.learn(hist)}
 
     async def load_calls(self) -> None:
         try:
@@ -2405,6 +2630,7 @@ class PumpHub:
         await self.load_elite()
         await self.load_shadows()
         await self.load_calls()
+        await self.load_bruxo()
         for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
             lead = self.engines.get(getattr(pf, "follow_user", ""))
             if lead is not None:
@@ -2426,6 +2652,8 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
+        self._tasks.append(asyncio.create_task(self.bruxo_loop()))          # 0.32.41: Aba do Bruxo
+        self._tasks.append(asyncio.create_task(self.tab_report_loop()))     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor

@@ -53,6 +53,14 @@ def kpis(pf) -> dict:
 def _origin(t: dict) -> str:
     if t.get("origem") in ("explorar", "base", "elite"):
         return {"explorar": "Explorar (automática)", "base": "Base (automática)", "elite": "Maiores traders (automática)"}[t["origem"]]
+    # 0.32.41 (print do dono): os barrados, as calls e a Aba do Bruxo apareciam como "Botão Comprar / Base"
+    if t.get("origem") in ("barrado", "barrado_btn", "calls", "bruxo"):
+        return {"barrado": "Explorar · barrado que subiu (automática)", "barrado_btn": "Explorar · barrado que subiu (você comprou)",
+                "calls": "Calls quentes (automática)", "bruxo": "Aba do Bruxo (automática)"}[t["origem"]]
+    if t.get("follow_of"):
+        return "Copiar trades de usuário"
+    if t.get("eq"):
+        return "Copiar igual"
     if t.get("manual") or t.get("wallet") == "manual":
         return "Botão Comprar / Base (manual ou automática antiga)"
     return "Cópia de trader"

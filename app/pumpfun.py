@@ -2738,7 +2738,8 @@ class PumpFun:
             log.warning("cópia de trades para outra conta: %s", str(e)[:160])
 
     def manual_buy(self, mint: str, t: float | None = None, auto: str = "", origem: str = "", info: dict | None = None,
-                   follow: dict | None = None, target: str = "both", amt_sol: float | None = None) -> dict:
+                   follow: dict | None = None, target: str = "both", amt_sol: float | None = None,
+                   pos_rules: dict | None = None) -> dict:
         """Compra manual (0.23.0, botão Comprar da Base da pump.fun): sem os filtros de cópia, porque foi você que
         decidiu. Sempre compra na carteira fictícia (valor de "SOL por cópia"); na real só se a execução real estiver
         ligada, pela mesma fila, limites e verificações da compra real. Depois segue stops e saídas normais."""
@@ -2771,7 +2772,7 @@ class PumpFun:
             amt = float(amt_sol)                    # 0.32.21: valor próprio (entrada automática dos barrados que subiram)
         if own_auto and origem == "explorar" and (info or {}).get("veredito") == "possível":
             amt *= float(self._c("pump_ex_possivel_pct", 50)) / 100      # 0.31.99, item 2: "possível" entra com menos
-        rules = self.auto_rules() if own_auto else self.manual_rules()
+        rules = self.auto_rules() if own_auto else (pos_rules or self.manual_rules())   # 0.32.41: regras da Aba do Bruxo
         if follow:                                  # 0.31.61: mesmo valor e mesmas regras de saída da conta copiada
             amt = float(follow.get("sol") or amt)
             rules = dict(follow.get("rules") or rules)
@@ -2782,10 +2783,11 @@ class PumpFun:
             out["sim"] = "não pedida (só real)"
         elif any(p["mint"] == mint and not p.get("real") for p in allpos):
             out["sim"] = "já tem posição fictícia neste token"
-        elif len([p for p in allpos if not p.get("real") and (p.get("origem") == "barrado") == (origem == "barrado")]) >= (
-                int(self._c("pump_bar_max_open", 20)) if origem == "barrado" else int(self._c("pump_max_open", 10))):
-            # 0.32.31: os barrados têm vagas próprias (pump_bar_max_open) e não tiram vaga das cópias
-            out["sim"] = "limite de posições abertas" + (" dos barrados" if origem == "barrado" else f" ({int(self._c('pump_max_open', 10))})")
+        elif len([p for p in allpos if not p.get("real") and self._slot(p.get("origem")) == self._slot(origem)]) >= (
+                int(self._c(self.OWN_SLOTS[self._slot(origem)][0], self.OWN_SLOTS[self._slot(origem)][1]))
+                if self._slot(origem) else int(self._c("pump_max_open", 10))):
+            # 0.32.31: os barrados têm vagas próprias (pump_bar_max_open) e não tiram vaga das cópias; 0.32.41: a Aba do Bruxo também
+            out["sim"] = "limite de posições abertas" + (self.OWN_SLOTS[self._slot(origem)][2] if self._slot(origem) else f" ({int(self._c('pump_max_open', 10))})")
         elif self.wallet()["cash_sol"] < amt + fr["prio"]:
             out["sim"] = "saldo fictício insuficiente"
         else:
@@ -2826,7 +2828,10 @@ class PumpFun:
         if own_auto and not out.get("auto_id") and not sim_has:
             return out                              # uma falha fictícia não dispara compra real automática
         bar_real = origem == "barrado" and getattr(self.cfg, "pump_bar_real", False)    # 0.32.33: botão "Também na REAL"
-        if origem == "calls" or (origem == "barrado" and not bar_real) or (target == "sim" and not bar_real):
+        bx_real = origem == "bruxo" and getattr(self.cfg, "pump_bx_real", False)       # 0.32.41: Aba do Bruxo, REAL só se ligar
+        if origem == "bruxo" and not bx_real:
+            return out
+        if origem == "calls" or (origem == "barrado" and not bar_real) or (target == "sim" and not bar_real and not bx_real):
             return out                              # só fictícia (Calls 0.31.99; barrados 0.32.21, a não ser que ligue a REAL)
         if target == "real" and not (self.real is not None and getattr(self.cfg, "pump_real_enabled", False)):
             out["real"] = "execução real desligada"
@@ -2994,6 +2999,101 @@ class PumpFun:
             if p.get("origem") == "elite" and p["mint"] == mint and not p.get("selling") \
                     and w in ((p.get("auto_info") or {}).get("wallets") or []):
                 out.append(self._sell(p, 1.0, px or p.get("price_now"), f"trader da elite vendeu ({name})", t))
+        return [m for m in out if m]
+
+    # 0.32.41: origens com vagas próprias (opção do limite, padrão, texto do aviso)
+    OWN_SLOTS = {"barrado": ("pump_bar_max_open", 20, " dos barrados"), "bruxo": ("pump_bx_max_open", 5, " da Aba do Bruxo")}
+
+    def _slot(self, origem) -> str | None:
+        o = str(origem or "")
+        return o if o in self.OWN_SLOTS else None
+
+    # ------------------------------------------------------------------ Aba do Bruxo (0.32.41)
+    def bruxo_rules(self) -> dict:
+        """Saída do prompt do Bruxo: vende 50% em +100% e deixa o resto no stop móvel; + stop de perda e tempo máximo."""
+        tp1 = float(self._c("pump_bx_tp1_pct", 100))
+        return {"stop_pct": float(self._c("pump_bx_stop_pct", 30)), "tp_pct": 0.0, "trail_on": True,
+                "trail_start": tp1, "trail_dist": float(self._c("pump_bx_trail_dist", 20)), "boost_tp": None,
+                "tp1_pct": tp1, "tp1_frac": float(self._c("pump_bx_tp1_frac", 50)),
+                "max_hold_s": float(self._c("pump_bx_max_hold_min", 25)) * 60, "smart": False}
+
+    def bruxo_reason(self, s: dict, f: dict, t: float) -> str | None:
+        """Por que NÃO entrar neste sinal (None = entra). `f` = números do token lidos na hora do sinal."""
+        if getattr(self, "role", "admin") != "admin":
+            return "só para admin"
+        if not getattr(self.cfg, "pump_bx_on", False):
+            return "Aba do Bruxo desligada"
+        mint = s["mint"]
+        if f.get("graduated"):
+            return "token já graduou"
+        mx = float(self._c("pump_bx_max_age_min", 5))
+        if f.get("age_min") is None:
+            return "idade do token desconhecida (a criação não foi vista)"
+        if f["age_min"] > mx:
+            return f"token com {f['age_min']:.1f} min (máximo {mx:g})"
+        mn = float(self._c("pump_bx_min_trader_sol", 0.2))
+        if f.get("trader_sol", 0) < mn:
+            return f"compra do trader pequena ({f.get('trader_sol', 0):.3f} SOL; mínimo {mn:g})"
+        if mint in self.market.blacklist or (f.get("creator") and f["creator"] in self.market.blacklist):
+            return "token ou criador na lista negra"
+        cs = self.market.creator_stats.get(f.get("creator") or "") or {}
+        if cs.get("rugs", 0) >= 2 or cs.get("bundles", 0) >= 2:
+            return "criador com 2+ tokens que despencaram ou bundle"
+        mc = float(self._c("pump_bx_min_mcap", 32))
+        if mc and (f.get("mcap") or 0) < mc:
+            return f"pouca liquidez (market cap {f.get('mcap') or 0:.1f} SOL; mínimo {mc:g})"
+        dv = float(self._c("pump_bx_dev_max", 10))
+        if f.get("dev_pct") is not None and f["dev_pct"] > dv:
+            return f"criador com {f['dev_pct']:.1f}% do token (máximo {dv:g}%)"
+        mult = float(self._c("pump_bx_flow_mult", 1))
+        if mult and f.get("flow") is not None and f.get("flow_base"):
+            if f["flow"] < f["flow_base"] * mult:
+                return f"ritmo de compra {f['flow']:.1f} SOL/min abaixo da média inicial ({f['flow_base']:.1f} x {mult:g})"
+        top = float(self._c("pump_bx_top10_max", 35))
+        if f.get("top10") is None:
+            return "sem dados dos maiores detentores (RPC não respondeu)"
+        if f["top10"] > top:
+            return f"10 maiores detentores com {f['top10']:.0f}% (máximo {top:g}%)"
+        if any(p["mint"] == mint and not p.get("real") for p in self.positions()):
+            return "já tem posição fictícia neste token"
+        done = self.__dict__.setdefault("_bx_done", {})
+        for k in [k for k, v in done.items() if t - v > 86400]:
+            done.pop(k)
+        if mint in done:
+            return "já entrou neste token nas últimas 24 h"
+        hr = [v for v in done.values() if t - v < 3600]
+        if len(hr) >= int(self._c("pump_bx_max_h", 6)):
+            return f"limite de {int(self._c('pump_bx_max_h', 6))} entradas por hora"
+        return None
+
+    def bruxo_entry(self, s: dict, f: dict, t: float | None = None) -> str | None:
+        """Entra no sinal (fictícia; REAL só com pump_bx_real). Devolve None se entrou, senão o motivo."""
+        t = time.time() if t is None else t
+        why = self.bruxo_reason(s, f, t)
+        if why:
+            return why
+        r = self.manual_buy(s["mint"], t, auto="Aba do Bruxo: top trader " + ", ".join(s["names"][:2]), origem="bruxo",
+                            target="sim", amt_sol=float(self._c("pump_bx_sol", 0.05)), pos_rules=self.bruxo_rules())
+        p = next((p for p in self.positions() if p["mint"] == s["mint"] and p.get("origem") == "bruxo" and not p.get("real")), None)
+        if p is None:
+            return r.get("error") or r.get("sim") or "não entrou"
+        p["bruxo"] = {"sinal": s["id"], "wallets": list(s["wallets"]), "names": list(s["names"]),
+                      **{k: f.get(k) for k in ("age_min", "flow", "flow_base", "top10", "dev_pct", "mcap", "trader_sol")}}
+        self._save_pos(p)
+        self.__dict__.setdefault("_bx_done", {})[s["mint"]] = t
+        return None
+
+    def bruxo_sell(self, w: str, mint: str, name: str, t: float | None = None) -> list[str]:
+        """O top trader do sinal vendeu: a posição da Aba do Bruxo sai junto (pump_bx_follow_sell)."""
+        if not getattr(self.cfg, "pump_bx_follow_sell", True):
+            return []
+        t = time.time() if t is None else t
+        px = (self.tokens.get(mint) or {}).get("price")
+        out = []
+        for p in self.positions():
+            if p.get("origem") == "bruxo" and p["mint"] == mint and not p.get("selling") \
+                    and w in ((p.get("bruxo") or {}).get("wallets") or []):
+                out.append(self._sell(p, 1.0, px or p.get("price_now"), f"top trader do sinal vendeu ({name})", t))
         return [m for m in out if m]
 
     def manual_rules(self) -> dict:
@@ -3390,6 +3490,11 @@ class PumpFun:
             best: dict = {}
             vols: dict = {}
             pools: dict = {}
+            # 0.32.41 (print do dono, 29/10: MTS, WW3, Mike, BRAVEGOY, specs... parados em −11% por 8–12 h com market cap ~420 SOL
+            # = preço FINAL da curva): a trava da 0.32.28 só valia quando o motor já tinha marcado o token como graduado. Se o
+            # mesmo token tem outro par (PumpSwap, Meteora...), o par "pumpfun" é a curva já encerrada e não dá preço.
+            other_pair = {(p.get("baseToken") or {}).get("address") for p in (js if isinstance(js, list) else [])
+                          if p.get("dexId") and p.get("dexId") != "pumpfun"}
             for p in js if isinstance(js, list) else []:
                 base = (p.get("baseToken") or {}).get("address")
                 if base not in chunk:
@@ -3421,7 +3526,8 @@ class PumpFun:
                 # 0.32.28 (print do dono, 28/10: BRAVEGOY e Mike parados em 4.108e-7, o preço FINAL da curva): depois que a
                 # curva completa, a DexScreener ainda devolve o par antigo da curva ("pumpfun") com liquidez, e ele ganhava
                 # do par da PumpSwap. Token já graduado não usa mais esse par para o preço.
-                if p.get("dexId") == "pumpfun" and (self.tokens.get(base) or {}).get("pool") in ("pumpswap", "pump-amm"):
+                if p.get("dexId") == "pumpfun" and ((self.tokens.get(base) or {}).get("pool") in ("pumpswap", "pump-amm")
+                                                    or base in other_pair):
                     continue
                 if base in best and best[base][0] >= liq:
                     continue
@@ -4013,6 +4119,26 @@ class PumpFun:
             self._emit(f"[PUMP REAL] {p['symbol']}: vendeu {frac * 100:.0f}% ({why}) → {got:.4f} SOL")
 
     # ------------------------------------------------------------------ painel
+    ABA_ORIGEM = {"explorar": "Explorar", "barrado": "Explorar · barrados", "barrado_btn": "Explorar · barrados", "base": "Base da pump.fun",
+                  "elite": "Maiores traders", "calls": "Calls quentes", "bruxo": "Aba do Bruxo"}
+
+    def aba_of(self, x: dict) -> str:
+        """0.32.41 (pedido do dono: "no histórico, de qual aba está vindo cada trade"): a tela que originou a operação."""
+        if x.get("follow_of"):
+            return "Copiar trades de usuário"
+        if x.get("origem") in self.ABA_ORIGEM:
+            return self.ABA_ORIGEM[x["origem"]]
+        if x.get("eq"):
+            return "Copiar igual"
+        w = x.get("wallet")
+        if x.get("manual") or w == "manual":
+            return "Botão Comprar"
+        if w in (getattr(self, "study", None) or []) or w in (getattr(self, "study_copy", None) or []):
+            return "Carteiras em estudo"
+        if w in (getattr(self, "elite_follow", None) or []):
+            return "Maiores traders (80%+)"
+        return "Top traders"
+
     def snapshot(self) -> dict:
         c = self.cfg
         rk = self.ranking_cache or self.ranking(100)
@@ -4070,7 +4196,8 @@ class PumpFun:
                               "source": "leaderboard" if self.leaderboard else "ranking próprio"},
                 "followed": followed, "ranking": [r | {"followed": r["wallet"] in fol} for r in rk[:50]],
                 "manual": self.manual, "banned": self.banned,
-                "positions": pos, "trades": self.trades(300), "feed": list(self.feed)[:150], "recent_closed": self.recent_closed(),
+                "positions": [dict(p, aba=self.aba_of(p)) for p in pos], "trades": [dict(x, aba=self.aba_of(x)) for x in self.trades(300)],
+                "feed": list(self.feed)[:150], "recent_closed": [dict(x, aba=self.aba_of(x)) for x in self.recent_closed()],
                 "live": [e for e in list(self.live) if e["wallet"] in fol][:200], "trader_pos": self.trader_positions(),
                 "wallet": self.wallet(), "real_wallet": self.wallet(real=True), "curve": self.curve(),
                 "real_curve": self.curve(real=True), "pending": [{"wallet": k[0], "mint": k[1], "in_s": round(v["due"] - time.time())}

@@ -1222,3 +1222,13 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Venda parcial manual: `PumpFun.close_position(pid, frac)` (5%–100%; motivo "venda parcial por você (N%)") e `frac`
   em `POST /api/pump/close` (audit "vender manual" com a %). Real usa `_real_sell(p, frac)`. Fictícia com par real: o par
   só vende junto no 100% (regra existente do `_sell`). Teste `tests/test_api.py::test_manual_partial_sell_*`.
+- 0.32.41 (sugestões do Bruxo, áudios de 29/10 + prompt; dono: "não muda nada no Explorar"): `app/bruxo.py` (`Bruxo`: sinais de top
+  trader em token < 30 min, acompanhados 30 min; `study`) + `hub.bruxo_on_trade` (monitor `handle_ev` → `_bruxo` em tarefa própria;
+  tops = `pf.followed` ∪ `elite.wallets()`; `bruxo_facts`: idade, ritmo vs `bruxo_flow_base` do TokenLab, `top10_pct` via `holders_check`,
+  fatia do criador) → `PumpFun.bruxo_entry/bruxo_reason/bruxo_rules/bruxo_sell` (`pump_bx_*`, OFF; REAL só com `pump_bx_real`).
+  `manual_buy(pos_rules=)`; `OWN_SLOTS`/`_slot` = vagas próprias (barrado, bruxo). Tabela `bruxo_signals`; menu `#bruxo` (`loadBruxo`).
+  `app/tabreport.py` + `hub.tab_report_tick/loop` (30 min, admin, fictícia e real) → `tab_reports`; `GET /api/pump/tab-reports`; card na
+  Base geral (`loadTabReports`). `PumpFun.aba_of` → campo `aba` em posições/trades/recent_closed do snapshot; `abaTag` no `pfW`.
+  `_fetch_prices`: par "pumpfun" ignorado quando o token tem outro par (preço parado). Migração `20261029000004` (+ override só do
+  dono: `pump_bx_on`). Relatório `app/relatorios_ia/2026-10-29-0.32.41.md`. `tests/test_aba_bruxo.py`.
+
