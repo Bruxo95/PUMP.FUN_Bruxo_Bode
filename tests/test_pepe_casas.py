@@ -93,3 +93,15 @@ def test_old_sell_error_leaves_the_card_after_15_min(tmp_path):
     pf._check_stops(PEPE, time.time())
     q = [x for x in pf.positions() if x["id"] == "p2"][0]
     assert "sell_error" not in q and "sell_fails" not in q
+
+
+def test_solana_tracker_without_credits_says_so(tmp_path):
+    """0.32.69: "Insufficient credits" aparece como créditos acabados, não como "sem permissão"."""
+    from app.keystore import KeyRing
+    pf = _pump(tmp_path, paid=False)
+    pf.http = httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda req: httpx.Response(403, json={"error": "Insufficient credits"})))
+    pf.keys = KeyRing()
+    pf.keys.set("solanatracker_api_key", "st-" + "x" * 30)
+    asyncio.run(pf.refresh_leaderboard(force=True))
+    assert pf.lb_status["error"].startswith("créditos do mês acabaram")

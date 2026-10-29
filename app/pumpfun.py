@@ -784,6 +784,8 @@ class PumpFun:
             if r.status_code != 200:
                 msg = {401: "chave inválida", 403: "chave sem permissão para este endpoint",
                        429: "limite de requisições da Solana Tracker"}.get(r.status_code, f"HTTP {r.status_code}")
+                if "insufficient credits" in r.text.lower():   # 0.32.69: não é falta de permissão, é o plano do mês que acabou
+                    msg = "créditos do mês acabaram nesta chave (plano da Solana Tracker)"
                 self.lb_status.update(error=msg + " · " + r.text[:120].replace(key, "***"))
                 return
             lb = self._parse_lb(r.json())

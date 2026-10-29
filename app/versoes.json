@@ -1100,6 +1100,11 @@
    "versao": "0.32.68",
    "inicio": "2026-10-29T22:10:00+00:00",
    "titulo": "Copiar igual só copia a carteira clicada"
+  },
+  {
+   "versao": "0.32.69",
+   "inicio": "2026-10-29T20:55:52+00:00",
+   "titulo": "Solana Tracker sem créditos explicado"
   }
  ]
 }
