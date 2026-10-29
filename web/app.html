@@ -1000,9 +1000,15 @@
       <!-- ========================================================= NOVIDADES (web/novidades.json) -->
       <!-- ========================================================= BASE GERAL (0.31.71, app/basegeral.py) -->
       <section class="view" data-view="bruxo" hidden>
-        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Aba do Bruxo: entrar junto com os top traders em moeda nova</h2><div class="sub" id="bxSub">atualiza a cada 20 s</div></div></header>
+        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Aba do Bruxo: entrar junto com os top traders em moeda nova</h2><div class="sub" id="bxSub">sinais chegam na hora pelo monitor</div></div></header>
           <div class="help"><p><b>A ideia (áudios e prompt do Bruxo, 29/10):</b> o Explorar espera a moeda chegar perto de graduar, e na pump.fun a moeda costuma durar uns 25 min, então quando chega lá ela despeja. Esta aba faz o contrário: quando um <b>top trader</b> (os que você copia em Top traders e os Maiores traders) compra uma moeda com <b>menos de 5 min</b> de vida, confere o <b>ritmo de compra</b> (acima da média inicial dos tokens novos), os <b>10 maiores detentores</b>, a <b>liquidez</b> e a <b>fatia do criador</b>, e entra. A saída vende <b>50% em +100%</b> e deixa o resto num <b>stop móvel</b>, com stop de perda, tempo máximo e saída quando o top trader vender. O Explorar não muda nada.</p>
             <p><b>O estudo:</b> toda compra de top trader em moeda nova é acompanhada por 30 min, entrando ou não: quanto tempo leva até o pico, quantas dobram e quantas batem −30% antes de dobrar. É isso que vai dizer se a regra está certa.</p></div>
+          <div class="row bxref" data-novo-ate="2026-11-12" style="gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 12px">
+            <button type="button" class="btn sm tgl sw" id="bxAuto" role="switch" aria-label="Atualizar a tela sozinho">Ligado</button>
+            <span class="small">Atualizar a tela a cada</span>
+            <input class="in" id="bxEvery" type="number" min="5" max="600" step="5" style="width:80px" aria-label="Segundos entre as atualizações"> <span class="small">s</span>
+            <button type="button" class="btn sm" id="bxNow">Atualizar agora</button>
+            <span class="muted small" id="bxLast"></span></div>
           <div class="kpis" id="bxK"></div></div>
         <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Ligar e regras de entrada</h2><div class="sub">cada campo grava na hora · só admin</div></div></header>
           <div class="form">

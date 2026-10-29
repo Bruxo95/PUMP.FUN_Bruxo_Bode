@@ -1342,3 +1342,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.80: `app/bruxoreport.py` (`build` do período: sinais, lançamentos, operações bruxo/lancamento, lições; `learn` dos relatórios de 1 dia) +
   `hub.bx_report_tick/loop` (confere a cada 5 min; grava a cada 30 min e o dia anterior UTC uma vez; tabela `bruxo_reports`, migração
   `20261030000001`; só admin com `pump_bx_on` ou `pump_lanc_on`) + `GET /api/pump/bruxo/reports[?em=]`; cartão `#brK` na Aba do Bruxo e `#bgBx` na Base geral.
+- 0.32.81: Aba do Bruxo — `#bxAuto`/`#bxEvery`/`#bxNow`/`#bxLast` (`BXR` em `localStorage` `pf_bx_ref`, 5–600 s, padrão 20; `bxSchedule` no fim de `loadBruxo`).
+  Sinais da aba chegam ao vivo pelo monitor (`handle_ev` → `_bruxo`); `bruxo_loop` (lançamentos e acompanhamento) roda a cada 20 s. Pedido do dono.

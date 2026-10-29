@@ -1160,6 +1160,11 @@
    "versao": "0.32.80",
    "inicio": "2026-10-30T01:10:00+00:00",
    "titulo": "relatórios da Aba do Bruxo (30 min e 1 dia)"
+  },
+  {
+   "versao": "0.32.81",
+   "inicio": "2026-10-29T22:37:07+00:00",
+   "titulo": "Aba do Bruxo: atualização da tela liga/desliga e tempo"
   }
  ]
 }

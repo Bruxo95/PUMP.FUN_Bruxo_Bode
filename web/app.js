@@ -1165,10 +1165,29 @@
   }
   document.addEventListener("click", (e) => { const b = e.target.closest("[data-brp]"); if (b) { BR_P = b.dataset.brp; renderBr(); } });
   let BX_T = null;
+  // 0.32.81 (pedido do dono): atualizar a tela sozinho liga/desliga e o tempo é escolhido (fica neste navegador)
+  const BXR = { on: true, s: 20 };
+  try { const v = JSON.parse(localStorage.getItem("pf_bx_ref") || "null"); if (v) { BXR.on = v.on !== false; BXR.s = Math.min(600, Math.max(5, +v.s || 20)); } } catch (e) { /* sem armazenamento */ }
+  function bxRefUi() {
+    const b = $("bxAuto"); if (!b) return;
+    b.classList.toggle("on", BXR.on); b.classList.toggle("off", !BXR.on); b.setAttribute("aria-checked", BXR.on ? "true" : "false");
+    b.textContent = BXR.on ? "Ligado" : "Desligado";
+    if (document.activeElement !== $("bxEvery")) $("bxEvery").value = BXR.s;
+  }
+  function bxRefSave() { try { localStorage.setItem("pf_bx_ref", JSON.stringify(BXR)); } catch (e) { /* só não lembra */ } }
+  function bxSchedule() { clearTimeout(BX_T); if (BXR.on) BX_T = setTimeout(() => { if (VIEW === "bruxo") loadBruxo(); }, BXR.s * 1000); }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#bxAuto")) { BXR.on = !BXR.on; bxRefSave(); bxRefUi(); bxSchedule(); }
+    if (e.target.closest("#bxNow")) loadBruxo();
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target.id !== "bxEvery") return;
+    BXR.s = Math.min(600, Math.max(5, Math.round(+e.target.value || 20))); e.target.value = BXR.s; bxRefSave(); bxRefUi(); bxSchedule();
+  });
   async function loadBruxo() {
     const r = await BB.api("/api/pump/bruxo"); if (r.error || !$("bxSig")) return;
     const R = r.resultado || {}, S = r.estudo || {}, B = r.media_inicial || {};
-    $("bxSub").textContent = (r.on ? "LIGADA na fictícia" : "desligada (só estudando)") + (r.real ? " · também na REAL" : " · REAL desligada") + " · atualiza a cada 20 s";
+    $("bxSub").textContent = (r.on ? "LIGADA na fictícia" : "desligada (só estudando)") + (r.real ? " · também na REAL" : " · REAL desligada") + " · sinais chegam na hora pelo monitor";
     $("bxBase").textContent = "Média inicial dos tokens novos: " + (B.m1 == null ? "aprendendo (" + (B.n1 || 0) + " de 30 tokens)" : f(B.m1, 1) + " SOL/min no 1º min") + (B.m5 == null ? "" : " · " + f(B.m5, 1) + " SOL/min nos 5 primeiros");
     kpis("bxK", [["Sinais em 24 h", String((r.sinais || []).length), "compras de top trader em moeda nova", "mon"], ["Entrou", String((r.sinais || []).filter((s) => s.entrou).length), "nas últimas 24 h", "hit"],
       ["Resultado da aba", sg(R.pnl_sol || 0), (R.n || 0) + " fechadas · acerto " + (R.acerto == null ? "–" : R.acerto + "%"), "tr"], ["Abertas", String((r.abertas || []).length), "fictícia", "usr"]]);
@@ -1202,7 +1221,8 @@
       .concat((r.trades || []).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), s4(t.sol_in) + " SOL", sg(t.pnl_sol) + "<small>" + (t.pnl_pct == null ? "" : pc(t.pnl_pct)) + "</small>",
         t.sinal_pico == null ? "–" : pc(t.sinal_pico) + "<small>em " + hms(t.sinal_pico_s || 0) + "</small>", '<small class="wrapcell">' + esc(t.reason || "") + "</small>"]));
     table("bxTr", ["Fechou", "Token", "Investido", "Resultado", "Pico do token (30 min)", "Motivo / trader"], rows, "Nenhuma operação da aba ainda.");
-    clearTimeout(BX_T); BX_T = setTimeout(() => { if (VIEW === "bruxo") loadBruxo(); }, 20000);
+    if ($("bxLast")) $("bxLast").textContent = "atualizada às " + new Date().toLocaleTimeString("pt-BR") + (BXR.on ? " · próxima em " + BXR.s + " s" : " · atualização automática desligada");
+    bxRefUi(); bxSchedule();
   }
 
   async function loadBaseGeral() {
@@ -1552,7 +1572,7 @@
       $("buyReal").disabled = $("buyBoth").disabled = !real;
       $("buyM").hidden = false; return;
     }
-    // 0.32.78 (pedido do dono): "Comprar todas" os lançamentos ainda acompanhados (menos de 30 min), perguntando a carteira
+    // 0.32.81 (pedido do dono): "Comprar todas" os lançamentos ainda acompanhados (menos de 30 min), perguntando a carteira
     if (t.id === "lnBuyAll") {
       if (!LN_OPEN.length) return;
       const c0 = cfg(), real = !!(D && D.real && D.real.enabled);
