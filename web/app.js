@@ -1245,6 +1245,38 @@
     table("rlB_" + mod, ["Quando", "Analisou", "Entrou", "Principal motivo", "Exemplos"], B.map((b) => [dt(b.em), String(b.analisados || 0), (b.entrou || []).length ? '<b class="up">' + b.entrou.map(esc).join(", ") + "</b>" : "–",
       '<span class="wrapcell">' + esc(b.gargalo || "–") + "</span>", '<span class="wrapcell">' + (b.itens || []).slice(0, 4).map((x) => esc(x.s) + ": " + esc(x.motivo)).join("<br>") + "</span>"]), "Ainda sem registros.");
   }
+  // 0.32.64 (pedido do dono): clicar em "Chance alta" abre os tokens, um por linha, com o que aconteceu com cada um
+  async function openChance() {
+    $("chaMT").textContent = "Chance alta · últimas " + EXLOGH + " h";
+    $("chaMS").textContent = "carregando…"; $("chaMB").innerHTML = ""; $("chaM").hidden = false; $("chaMX").focus();
+    const r = await BB.api("/api/pump/explore/chance-alta?horas=" + EXLOGH);
+    if (r.error) { $("chaMS").textContent = r.error; return; }
+    const R = r.resumo || {}, L = r.tokens || [];
+    $("chaMS").textContent = R.tokens + " tokens diferentes (o cartão soma as vezes em cada lista de 5 min) · " + R.entrou + " comprados · " + R.barrados + " barrados";
+    const res = (x) => !x.op ? "–" : (x.op.aberta ? '<span class="tag">aberta</span> ' : "") + (x.op.pnl_pct == null ? "–" : pc(x.op.pnl_pct)) +
+      (x.op.pnl_sol != null ? "<small>" + sg(x.op.pnl_sol) + " SOL</small>" : "") + (x.op.saiu ? '<small class="wrapcell">' + esc(x.op.saiu) + "</small>" : "") + (x.op.hold_s != null ? "<small>" + hms(x.op.hold_s) + "</small>" : "");
+    $("chaMB").innerHTML = '<div class="kpis" id="chaK"></div>' +
+      (R.motivos && R.motivos.length ? '<p class="muted small" style="margin:8px 0">O que mais barrou: ' + R.motivos.map((m) => esc(m.motivo) + " (" + m.n + ")").join(" · ") + "</p>" : "") +
+      '<div class="tbl-wrap"><table id="chaT" class="daytbl"></table></div>' +
+      '<p class="muted small">Agora = variação desde que o robô viu o token (preço atual). Pico e 15 min = medição das sombras (token barrado acompanhado 15 min; "ganharia" = acima de +4%, as taxas). Tokens comprados mostram o resultado da operação fictícia.</p>';
+    kpis("chaK", [["Tokens", String(R.tokens || 0), (R.entrou || 0) + " comprados · " + (R.barrados || 0) + " barrados", "tr"],
+      ["Subiram desde que viu", R.com_preco ? R.subiram_agora + " de " + R.com_preco : "–", R.media_agora_pct == null ? "sem preço" : "média " + pc(R.media_agora_pct), "hit"],
+      ["Em 15 min (barrados)", R.medidos_15 ? R.ganhariam_15 + " de " + R.medidos_15 + " ganhariam" : "–", R.media_15_pct == null ? "medindo" : "média " + pc(R.media_15_pct), "mon"],
+      ["Pico de +50%", String(R.pico_50 || 0), "nos primeiros 15 min", "pnl"]]);
+    table("chaT", ["Visto", "Token", "Listas", "Decisão", "Agora", "Pico / 15 min", "Curva · holders · idade", "Resultado"], L.map((x) => [
+      dt(x.first_em) + (x.visto_s ? "<small>por " + hms(x.visto_s) + "</small>" : ""),
+      pfM(x.mint, x.symbol) + ' <button class="btn sm primary" data-buy="' + esc(x.mint) + '" data-sym="' + esc(x.symbol || "") + '">Comprar</button>' + (x.graduou ? "<small>graduado</small>" : ""),
+      String(x.listas || 0),
+      x.entrou ? '<b class="up">comprou</b>' : '<span class="wrapcell">' + esc(x.motivo || "barrado") + "</span>",
+      x.agora_pct == null ? "–" : pc(x.agora_pct),
+      (x.pico15_pct == null ? "–" : pc(x.pico15_pct)) + " / " + (x.ret15_pct == null ? '<span class="dim">medindo</span>' : pc(x.ret15_pct)),
+      [x.curva_pct == null ? null : f(x.curva_pct, 0) + "% curva", x.holders == null ? null : x.holders + " holders", x.idade_min == null ? null : hms(x.idade_min * 60)].filter(Boolean).join(" · ") || "–",
+      res(x)]), "Nenhum token com chance alta no período.");
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-chance]")) { e.preventDefault(); openChance(); }
+    if (e.target.closest("#chaMX")) $("chaM").hidden = true;
+  });
   // 0.31.88 (pedido do dono): log de análise do Explorar — o que o robô fez em cada lista e por que não comprou
   let EXLOGH = 24;
   async function loadExLog() {
@@ -1260,7 +1292,7 @@
         (top ? "O que mais barrou: <b>" + esc(top.motivo) + "</b> (" + f(top.pct, 0) + "% das recusas)." : "")
         : "ainda sem listas registradas (o log começa nesta versão; a 1ª aparece em até 5 min).") + "</p>";
     kpis("exLogK", [["Listas analisadas", String(C.length), "a cada 5 min", "mon"], ["Tokens analisados", String(R.analisados || 0), (R.sem_preco || 0) + " sem preço recente", "tr"],
-      ["Chance alta", String(R.chance_alta || 0), "o veredito liberou", "hit"], ["Compras", String((R.entradas || []).length), (R.entradas || []).slice(0, 3).map(esc).join(", ") || "nenhuma", "pnl"]]);
+      ["Chance alta", String(R.chance_alta || 0), '<a href="#" data-chance="1">o veredito liberou · ver os tokens</a>', "hit"], ["Compras", String((R.entradas || []).length), (R.entradas || []).slice(0, 3).map(esc).join(", ") || "nenhuma", "pnl"]]);
     table("exLogM", ["Motivo", "Vezes", "% das recusas"], M.map((m) => ['<span class="wrapcell">' + esc(m.motivo) + "</span>", String(m.n), f(m.pct, 0) + "%"]), "Nenhuma recusa no período.");
     table("exLogF", ["Filtro que barrou", "Tokens medidos", "Ganhariam", "Média em 15 min", "Picos 50%+"], (r.filtros || []).slice(0, 15).map((x) => ['<span class="wrapcell">' + esc(x.motivo) + "</span>", String(x.n) + (x.chance_alta ? "<small>" + x.chance_alta + " chance alta</small>" : ""),
       x.ganhariam + " (" + f(x.acerto * 100, 0) + "%)", pc(x.media_pct), String(x.pico_50)]), "As sombras ainda estão sendo medidas (15 min depois de cada token barrado).");

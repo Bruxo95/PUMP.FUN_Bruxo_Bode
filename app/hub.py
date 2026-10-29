@@ -1039,6 +1039,90 @@ class PumpHub:
                   "lista_erro": getattr(getattr(self, "explore", None), "error", None)}
         return {"ciclos": cyc[:200], "resumo": resumo, "filtros": filters_study(self.__dict__.get("shadows") or {}, self.SHADOW_COST_PCT)}
 
+    async def chance_alta(self, pf: PumpFun, hours: float = 24, now: float | None = None) -> dict:
+        """0.32.64 (pedido do dono: "clicar em Chance alta e ver os tokens, porcentagem, tempo"): cada token que o veredito
+        do Explorar deu "chance alta" no período, UMA linha por token (o cartão soma as vezes em todas as listas de 5 min):
+        quando apareceu, quantas listas, se comprou ou o que barrou, quanto variou desde que foi visto, o pico e o resultado
+        em 15 min (sombras) e, se comprou, o resultado da operação."""
+        import re
+        from .ghosts import _ts
+        now = time.time() if now is None else now
+        since = now - hours * 3600
+        out: dict[str, dict] = {}
+
+        def row(m: str, sym) -> dict:
+            return out.setdefault(m, {"mint": m, "symbol": sym, "first_t": None, "last_t": None, "listas": 0, "entrou": False, "motivo": None})
+
+        def seen(r: dict, t) -> None:
+            if t:
+                r["first_t"] = min(r["first_t"] or t, t)
+                r["last_t"] = max(r["last_t"] or t, t)
+        try:
+            rows = await self.db.select("explore_cycles", {"user_id": pf.user_id}, order="em.desc", limit=400,
+                                        gte={"em": datetime.fromtimestamp(since, timezone.utc).isoformat()})
+        except Exception:
+            rows = []
+        for c in rows:
+            t = _ts(c.get("em"))
+            for x in (c.get("data") or {}).get("chance_alta_barrados") or []:
+                if x.get("mint"):
+                    r = row(x["mint"], x.get("symbol"))
+                    r["listas"] += 1
+                    r["motivo"] = r["motivo"] or x.get("motivo")
+                    seen(r, t)
+        for m, g in (getattr(pf, "_ex_funnel", None) or {}).items():           # memória (24 h): também os que entraram
+            if g.get("chance") != "chance alta" or float(g.get("t") or 0) < since:
+                continue
+            r = row(m, g.get("symbol"))
+            seen(r, g.get("first_t"))
+            seen(r, g.get("t"))
+            r["listas"] = max(r["listas"], 1)
+            r["entrou"] = r["entrou"] or bool(g.get("entrou"))
+            r["motivo"] = None if r["entrou"] else (g.get("why") or r["motivo"])
+            r["px0"] = g.get("px0")
+        sh = self.__dict__.get("shadows") or {}
+        trades = [t for t in pf.trades(5000) if not t.get("real") and t.get("origem") == "explorar"]
+        pos = [p for p in pf.positions() if not p.get("real") and p.get("origem") == "explorar"]
+        for m, r in out.items():
+            tk = self.market.tokens.get(m) or {}
+            s = sh.get(m) or {}
+            px0 = r.get("px0") or s.get("px0")
+            px = tk.get("price")
+            r["agora_pct"] = round((px / px0 - 1) * 100, 1) if px and px0 else None
+            r["pico15_pct"], r["ret15_pct"] = s.get("pico"), s.get("ret")
+            info = s.get("info") or {}
+            r["curva_pct"] = info.get("curve_pct")
+            r["holders"] = info.get("holders")
+            r["idade_min"] = info.get("age_min")
+            r["mcap_sol"] = tk.get("mcap_sol")
+            r["graduou"] = tk.get("pool") in ("pumpswap", "pump-amm") or (tk.get("main_dex") not in (None, "pumpfun"))
+            tr = next((t for t in trades if t.get("mint") == m), None)
+            op = next((p for p in pos if p.get("mint") == m), None)
+            if tr or op:
+                r["entrou"] = True
+                r["motivo"] = None
+                r["op"] = ({"aberta": False, "pnl_pct": tr.get("pnl_pct"), "pnl_sol": tr.get("pnl_sol"), "saiu": tr.get("reason"),
+                            "hold_s": tr.get("hold_s")} if tr else
+                           {"aberta": True, "pnl_pct": op.get("chg_pct"), "hold_s": round(now - float(op.get("open_t") or now))})
+            r["first_em"] = datetime.fromtimestamp(r["first_t"], timezone.utc).isoformat() if r["first_t"] else None
+            r["visto_s"] = round((r["last_t"] or 0) - (r["first_t"] or 0)) if r["first_t"] else None
+        L = sorted(out.values(), key=lambda r: -(r["first_t"] or 0))
+        med = [r["agora_pct"] for r in L if r.get("agora_pct") is not None]
+        r15 = [r["ret15_pct"] for r in L if r.get("ret15_pct") is not None]
+        resumo = {"tokens": len(L), "entrou": sum(1 for r in L if r["entrou"]), "barrados": sum(1 for r in L if not r["entrou"]),
+                  "subiram_agora": sum(1 for x in med if x > 0), "com_preco": len(med),
+                  "media_agora_pct": round(sum(med) / len(med), 1) if med else None,
+                  "medidos_15": len(r15), "ganhariam_15": sum(1 for x in r15 if x > 4),
+                  "media_15_pct": round(sum(r15) / len(r15), 1) if r15 else None,
+                  "pico_50": sum(1 for r in L if (r.get("pico15_pct") or 0) >= 50)}
+        mot: dict[str, list] = {}
+        for r in L:
+            if not r["entrou"] and r.get("motivo"):
+                k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", str(r["motivo"]))[:90]
+                mot.setdefault(k, [0, str(r["motivo"])[:120]])[0] += 1
+        resumo["motivos"] = sorted(({"motivo": v[1], "n": v[0]} for v in mot.values()), key=lambda x: -x["n"])[:6]
+        return {"resumo": resumo, "tokens": [{k: v for k, v in r.items() if k not in ("first_t", "last_t", "px0")} for r in L[:300]]}
+
     # ------------------------------------------------------------------ Raio-X do token (0.31.86)
     XRAY_TTL = 6 * 3600            # refaz no máximo a cada 6 h por token
     XRAY_AUTO_DAY = 10             # automáticos por dia (1 crédito da Solana Tracker cada)

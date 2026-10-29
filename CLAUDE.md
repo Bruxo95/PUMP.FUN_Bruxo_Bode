@@ -1304,3 +1304,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   B (`app/stclient.py`: 2/s por chave, prioridade, pausa em "Insufficient credits", último resultado bom, `GET /credits`),
   C (plano pago, decisão do dono), D (RPC Helius no Portainer). Divisão sugerida entre Bruxo95 e Douglas no fim do documento.
   Aguardando o OK do dono antes de mexer no código.
+- 0.32.64: `hub.chance_alta` + `GET /api/pump/explore/chance-alta?horas=` (admin; um token por linha a partir de `explore_cycles.chance_alta_barrados`,
+  `_ex_funnel`, sombras e trades do Explorar); link `data-chance` no cartão Chance alta de Logs → modal `#chaM` (`openChance`). `tests/test_chance_alta.py`.

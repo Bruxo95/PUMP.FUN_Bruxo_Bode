@@ -1075,6 +1075,11 @@
    "versao": "0.32.63",
    "inicio": "2026-10-29T20:30:00+00:00",
    "titulo": "status mostra qual chave da Solana Tracker a conta usa"
+  },
+  {
+   "versao": "0.32.64",
+   "inicio": "2026-10-29T21:00:00+00:00",
+   "titulo": "tokens de chance alta num clique"
   }
  ]
 }

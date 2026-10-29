@@ -1181,6 +1181,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.31.88: log de análise do Explorar (cada lista de 5 min: o que analisou, o que entrou e por que não)."""
         return await hub.explore_log(pf, max(1.0, min(float(horas), 24 * 90)))
 
+    @app.get("/api/pump/explore/chance-alta")
+    async def explore_chance_alta(horas: float = 24, pf=Depends(admin_engine)):
+        """0.32.64: os tokens de "chance alta" do período, um por linha (modal do cartão Chance alta em Logs)."""
+        return await hub.chance_alta(pf, max(1.0, min(float(horas), 24 * 90)))
+
     @app.get("/api/pump/raiox/{mint}")
     async def raiox(mint: str, novo: int = 0, pf=Depends(admin_engine)):
         """0.31.86: Raio-X das primeiras 500 negociações do token (1 crédito da Solana Tracker; guardado por 6 h)."""
