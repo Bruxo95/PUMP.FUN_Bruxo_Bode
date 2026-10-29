@@ -985,6 +985,11 @@
    "versao": "0.32.45",
    "inicio": "2026-10-29T10:45:00+00:00",
    "titulo": "notificações fecham ao clicar fora"
+  },
+  {
+   "versao": "0.32.46",
+   "inicio": "2026-10-29T10:55:00+00:00",
+   "titulo": "O cérebro do robô sempre no topo da Base geral"
   }
  ]
 }

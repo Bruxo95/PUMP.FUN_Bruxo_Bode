@@ -1252,3 +1252,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (barrados entravam no topo: 11 stops de −30% em 15 fechadas em 3 h). Religar quando o Relatório de cada aba mostrar gatilho com lucro.
 
 - 0.32.45: `#ntfP` fecha com clique fora (menos `#ntfB` e `.modal`) ou Esc. Pedido do dono.
+- 0.32.46: na Base geral o cartão "O cérebro do robô" é sempre o primeiro (pedido do dono); cartão novo entra abaixo dele.
