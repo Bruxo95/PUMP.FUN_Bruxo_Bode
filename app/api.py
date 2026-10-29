@@ -155,7 +155,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
         jst = (hub.market.jup.status if getattr(hub.market, "jup", None) else None) or {}
         snap["apis"] = {"jupiter": {"ok": jst.get("on"), "error": jst.get("error")},
                         "solana_tracker": {"ok": bool(pf.lb_key()) and not (pf.lb_status or {}).get("error"),
-                                           "error": (pf.lb_status or {}).get("error"), "at": (pf.lb_status or {}).get("at")},
+                                           "error": (pf.lb_status or {}).get("error"), "at": (pf.lb_status or {}).get("at"),
+                                           # 0.32.62 (dono: "tenho crédito ainda"): qual chave esta conta usa — nunca a chave em si
+                                           "fonte": "sua chave" if pf.lb_key_own() else ("chave do sistema" if pf.lb_key() else "nenhuma")},
                         "banco": {"ok": not getattr(pf.store, "last_error", None),
                                   "error": (str(getattr(pf.store, "last_error", "") or "")[:120]) or None,
                                   "fila": len(getattr(pf.store, "_q", []) or [])}}

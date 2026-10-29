@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "395322a8907ca96e3c386ee1aed092289379e86f",
-    "application_version": "0.32.62 · 2026-10-29 · venda real que falha espera antes de tentar de novo",
+    "repository_reference": "7895bb02d61ba279397abff7a91d8da78f239932",
+    "application_version": "0.32.63 · 2026-10-29 · status mostra qual chave da Solana Tracker a conta usa",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "5a9447b98a142af11d73125c2ca8567d254c942e0cfa2ee03219adb684a4a7e0",
+      "app/version.py": "1e2384c5ef3e5678929828e595ef8c45ba6a30af5171f6dae25d02c8c0076d80",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "984085ed614a53ef13200acdd2beb8a552510be4c123afd93cc4aa11d7ea738c"
+  "pdf_sha256": "6575ff9ecb521d645342f27a710a48d97bc43a6ee151244e66a51d108e153132"
 }
