@@ -1095,6 +1095,15 @@
       s.peak_pct == null ? '<span class="dim">medindo</span>' : pc(s.peak_pct) + "<small>em " + hms(s.peak_s || 0) + "</small>",
       ["5", "10", "25"].map((m) => (s.marks || {})[m] == null ? "–" : pc(s.marks[m])).join(" / ")]), "Nenhum top trader comprou moeda nova nas últimas 24 h.");
     table("bxWhy", ["Motivo", "Sinais"], (r.nao_entrou || []).map((x) => [esc(x.motivo), String(x.n)]), "–");
+    // 0.32.59: lançamento sem trader (só estudo)
+    const LN = r.lancamento || {}, LS = LN.estudo || {};
+    $("lnSub").textContent = (LN.on ? "estudando" : "desligado") + " · tokens no 1º minuto de vida, sem esperar trader · nunca compra";
+    kpis("lnK", [["Lançamentos estudados", String(LS.n || 0), (LN.sinais || []).length + " nas últimas 24 h", "mon"], ["Pico típico", LS.pico_mediano == null ? "–" : pc(LS.pico_mediano), "mediana", "hit"],
+      ["Dobraram", LS.dobrou_pct == null ? "–" : LS.dobrou_pct + "%", (LS.dobrou || 0) + " · em " + (LS.tempo_ate_dobrar_mediano_s == null ? "–" : hms(LS.tempo_ate_dobrar_mediano_s)), "hit"],
+      ["−30% antes de dobrar", LS.stop_antes_pct == null ? "–" : LS.stop_antes_pct + "%", "dos estudados", "usr"]]);
+    table("lnT", ["Quando", "Token", "Idade", "Compra do criador", "Pico em 30 min", "5 / 10 / 25 min"], (LN.sinais || []).map((s) => [dt(s.em), pfM(s.mint, s.symbol), s.age_min == null ? "–" : f(s.age_min, 1) + " min",
+      (s.filtros || {}).dev_buy == null ? "–" : s4(s.filtros.dev_buy) + " SOL", s.peak_pct == null ? '<span class="dim">medindo</span>' : pc(s.peak_pct) + "<small>em " + hms(s.peak_s || 0) + "</small>",
+      ["5", "10", "25"].map((m) => (s.marks || {})[m] == null ? "–" : pc(s.marks[m])).join(" / ")]), "Nenhum lançamento estudado ainda.");
     const rows = (r.abertas || []).map((p) => ["aberta", pfM(p.mint, p.symbol), s4(p.sol_in) + " SOL", pc(p.chg_pct || 0), "–", esc((p.bruxo || {}).names ? p.bruxo.names.join(", ") : "")])
       .concat((r.trades || []).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), s4(t.sol_in) + " SOL", sg(t.pnl_sol) + "<small>" + (t.pnl_pct == null ? "" : pc(t.pnl_pct)) + "</small>",
         t.sinal_pico == null ? "–" : pc(t.sinal_pico) + "<small>em " + hms(t.sinal_pico_s || 0) + "</small>", '<small class="wrapcell">' + esc(t.reason || "") + "</small>"]));

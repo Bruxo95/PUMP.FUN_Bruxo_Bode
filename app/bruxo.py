@@ -40,9 +40,11 @@ class Bruxo:
 
     # ------------------------------------------------------------------ sinais
     def on_buy(self, w: str, label: str, mint: str, sym: str | None, sol: float, px: float | None, tk: dict,
-               age_min: float | None, flow: dict, t: float) -> tuple[dict, bool]:
-        """Compra de um top trader. Devolve (sinal, novo?). Outro top trader no mesmo token em 30 min entra no mesmo sinal."""
-        sid = self.by_mint.get(mint)
+               age_min: float | None, flow: dict, t: float, kind: str = "trader") -> tuple[dict, bool]:
+        """Compra de um top trader. Devolve (sinal, novo?). Outro top trader no mesmo token em 30 min entra no mesmo sinal.
+        0.32.59: kind="lancamento" = token no 1º minuto SEM trader (só estudo; nunca compra)."""
+        key = mint if kind == "trader" else f"{kind}:{mint}"
+        sid = self.by_mint.get(key)
         s = self.signals.get(sid) if sid else None
         if s and t - s["t"] < WATCH_S:
             if w not in s["wallets"]:
@@ -51,13 +53,13 @@ class Bruxo:
                 s["sol_traders"] = round(s["sol_traders"] + sol, 4)
                 self.dirty.add(s["id"])
             return s, False
-        sid = f"{mint}:{int(t)}"
-        s = {"id": sid, "t": t, "em": _iso(t), "mint": mint, "symbol": sym, "wallets": [w], "names": [label],
+        sid = f"{mint}:{int(t)}" + ("" if kind == "trader" else ":" + kind)
+        s = {"id": sid, "t": t, "em": _iso(t), "mint": mint, "symbol": sym, "wallets": [w], "names": [label], "kind": kind,
              "sol_traders": round(sol, 4), "px0": px, "mcap0": tk.get("mcap_sol"), "age_min": age_min,
              "flow": flow, "marks": {}, "peak_pct": None, "peak_s": None, "low_pct": None, "hit100_s": None,
              "stop30_s": None, "decisoes": {}, "done": False}
         self.signals[sid] = s
-        self.by_mint[mint] = sid
+        self.by_mint[key] = sid
         self.dirty.add(sid)
         return s, True
 
@@ -106,17 +108,19 @@ class Bruxo:
     def trim(self, now: float, keep_s: float = 7 * 86400) -> None:
         for sid in [k for k, s in self.signals.items() if now - s["t"] > keep_s]:
             s = self.signals.pop(sid)
-            if self.by_mint.get(s["mint"]) == sid:
-                self.by_mint.pop(s["mint"], None)
+            key = s["mint"] if s.get("kind", "trader") == "trader" else f"{s['kind']}:{s['mint']}"
+            if self.by_mint.get(key) == sid:
+                self.by_mint.pop(key, None)
 
     def load(self, rows: list[dict]) -> None:
         for r in rows:
             d = r.get("data") if isinstance(r, dict) else None
             if isinstance(d, dict) and d.get("id") and d.get("mint"):
                 self.signals.setdefault(d["id"], d)
-                cur = self.by_mint.get(d["mint"])
+                key = d["mint"] if d.get("kind", "trader") == "trader" else f"{d['kind']}:{d['mint']}"
+                cur = self.by_mint.get(key)
                 if cur is None or self.signals[cur]["t"] < d["t"]:
-                    self.by_mint[d["mint"]] = d["id"]
+                    self.by_mint[key] = d["id"]
 
     def recent(self, hours: float, now: float) -> list[dict]:
         return sorted((s for s in self.signals.values() if now - s["t"] <= hours * 3600), key=lambda s: -s["t"])

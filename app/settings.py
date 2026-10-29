@@ -69,6 +69,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bx_trail_dist": (float, 20.0, 2.0, 90.0),       # stop móvel no resto: sai se cair X pontos do pico
     "pump_bx_stop_pct": (float, 30.0, 0.0, 95.0),         # stop de perda (0 = sem stop)
     "pump_bx_max_hold_min": (float, 25.0, 1.0, 1440.0),   # tempo máximo (o Bruxo viu que dura uns 25 min)
+    "pump_bx_curve_max": (float, 100.0, 1.0, 100.0),      # 0.32.59: só entra com a curva até X% (100 = não usa)
+    "pump_bx_grad_exit": (float, 0.0, 0.0, 100.0),        # 0.32.59: vende tudo com a curva em X% (antes de graduar; 0 = não usa)
+    "pump_lanc_on": (bool, False, 0, 1),                  # 0.32.59: estuda o lançamento sem trader (só mede, nunca compra)
     "pump_bx_follow_sell": (bool, True, 0, 1),            # sai quando o top trader do sinal vende
     "pump_bx_max_open": (int, 5, 1, 50),                  # posições abertas da aba (vagas próprias)
     "pump_bx_max_h": (int, 6, 1, 60),                     # entradas por hora
@@ -226,6 +229,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_tp1_pct": (float, 30.0, 0.0, 10000.0),        # venda em partes: realiza parte ao chegar em +X% (0 desliga)
     "pump_tp1_frac_pct": (float, 50.0, 1.0, 99.0),     # quanto vender nessa primeira saída
     "pump_curve_exit_pct": (float, 85.0, 0.0, 100.0),   # vende tudo quando a curva passa de X% (antes de graduar)
+    # 0.32.59 (pedido do dono: "pegar do início e sair antes de graduar"): a saída antes da graduação vale só para as CÓPIAS de
+    # traders (Explorar, barrados, botão Comprar e automáticas seguem as regras delas). Desligado = como antes (vale para todas).
+    "pump_cx_copies_only": (bool, False, 0, 1),
     "pump_min_curve_speed": (float, 5.0, 0.0, 1000.0), # só copia se a curva enche ao menos X% por minuto
     "pump_skip_graduated": (bool, False, 0, 1),        # não copia compra de token que já graduou (PumpSwap)
     "pump_size_by_trader": (bool, False, 0, 1),

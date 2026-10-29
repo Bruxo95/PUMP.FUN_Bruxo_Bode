@@ -771,6 +771,8 @@
               <div class="hint">Não copia token com cara de despejo (as perdas de −54% a −101% com stop de −30%). Lê os maiores detentores na hora da compra do trader (atrasa a cópia em até 3 s).</div></div>
             <div class="field" data-novo-ate="2026-11-12"><label>Faixa da curva para entrar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_entry_curve_on">…</button><span class="muted">de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_min"><span class="muted">% a</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_max"><span class="muted">%</span></div>
               <div class="hint">Só copia tokens ainda na curva da pump.fun dentro dessa faixa de preenchimento.</div></div>
+            <div class="field" data-novo-ate="2026-11-13"><label>Saída antes da graduação só nas cópias</label><div class="row"><button class="btn sm tgl" data-toggle="pump_cx_copies_only" aria-label="Saída antes da graduação só nas cópias">…</button></div>
+              <div class="hint">Ligado = a saída abaixo vale só para as cópias de traders (o Explorar, os barrados e o botão Comprar seguem as regras deles).</div></div>
             <div class="field" data-novo-ate="2026-11-08"><label>Sair antes da graduação</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_exit_on">…</button><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_curve_exit_pct"><span class="muted">%</span></div>
               <div class="hint">Na pesquisa, 92% dos tokens tiveram derrubada forte e vender antes de graduar rendeu mais. Já vem com a sugestão (85%); ligue no ON.</div></div>
           </div></div>
@@ -974,6 +976,7 @@
           </div>
           <div class="form">
             <div class="field"><label>Idade máxima do token</label><div class="row"><input class="in w80" type="number" min="0.5" step="0.5" data-cfg="pump_bx_max_age_min" aria-label="Idade máxima do token (min)"><span class="muted">min de criação</span></div></div>
+            <div class="field" data-novo-ate="2026-11-13"><label>Só no começo da curva</label><div class="row"><span class="muted">até</span><input class="in w80" type="number" min="1" max="100" step="5" data-cfg="pump_bx_curve_max" aria-label="Curva máxima para entrar (%)"><span class="muted">% da curva (100 = não usa)</span></div></div>
             <div class="field"><label>Ritmo de compra</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_bx_flow_mult" aria-label="Ritmo mínimo (vezes a média inicial)"><span class="muted">× a média inicial (0 = não usa)</span></div>
               <div class="hint" id="bxBase"></div></div>
             <div class="field"><label>10 maiores detentores</label><div class="row"><input class="in w80" type="number" min="5" max="100" step="5" data-cfg="pump_bx_top10_max" aria-label="Máximo dos 10 maiores detentores (%)"><span class="muted">% no máximo (sem a curva)</span></div></div>
@@ -991,6 +994,7 @@
           </div>
           <div class="form">
             <div class="field"><label>Tempo máximo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_bx_max_hold_min" aria-label="Tempo máximo (min)"><span class="muted">min</span></div></div>
+            <div class="field" data-novo-ate="2026-11-13"><label>Sair antes de graduar</label><div class="row"><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_bx_grad_exit" aria-label="Curva para sair antes de graduar (%)"><span class="muted">% (0 = não usa)</span></div></div>
             <div class="field"><label>Sair quando o top trader vender</label><div class="row"><button class="btn sm tgl" data-toggle="pump_bx_follow_sell" aria-label="Sair quando o top trader vender">…</button></div></div>
             <div class="field"><label>Limites</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_bx_max_open" aria-label="Posições abertas da aba"><span class="muted">abertas ·</span><input class="in w80" type="number" min="1" max="60" step="1" data-cfg="pump_bx_max_h" aria-label="Entradas por hora da aba"><span class="muted">por hora</span></div>
               <div class="hint">Vagas próprias: não tiram vaga das cópias nem do Explorar.</div></div>
@@ -999,6 +1003,10 @@
           <div id="bxTips"></div>
           <div class="kpis" id="bxSt"></div>
           <div class="grid2"><div><div class="tbl-wrap"><table id="bxMk" class="daytbl"></table></div></div><div><div class="tbl-wrap"><table id="bxAge" class="daytbl"></table></div></div></div></div>
+        <div class="card" data-novo-ate="2026-11-13" data-nosanf><header><div><h2>Lançamento sem trader (só medindo)</h2><div class="sub" id="lnSub">tokens no 1º minuto de vida, sem esperar trader · nunca compra</div></div></header>
+          <div class="help"><p>Para saber se vale <b>entrar logo que o token abre</b>: o robô escolhe até 12 lançamentos por hora com criador sem histórico ruim (rug, bundle, lançador) e compra do criador moderada, e acompanha 30 min como os sinais acima — pico, quanto tempo leva, quantos dobram e quantos caem −30% antes de dobrar. <b>Não compra nada</b>; depois de 1–2 dias os números dizem se vale ligar a compra.</p></div>
+          <div class="form"><div class="field"><label>Estudar lançamentos</label><div class="row"><button class="btn sm tgl" data-toggle="pump_lanc_on" aria-label="Estudar lançamentos sem trader">…</button></div></div></div>
+          <div class="kpis" id="lnK"></div><div class="tbl-wrap"><table id="lnT" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-12" data-nosanf><header><div><h2>Sinais de top trader (24 h)</h2><div class="sub">entrou ou por que não, e o que o token fez em 30 min</div></div></header>
           <div class="tbl-wrap tall"><table id="bxSig" class="daytbl extbl"></table></div>
           <h3 style="margin-top:12px">Por que não entrou</h3><div class="tbl-wrap"><table id="bxWhy" class="daytbl"></table></div></div>

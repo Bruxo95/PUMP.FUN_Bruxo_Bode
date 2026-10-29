@@ -709,6 +709,7 @@ class PumpHub:
                 rest += [m for m in chunk if m not in pump]
                 if rest:
                     await svc._fetch_prices(list(dict.fromkeys(rest))[:90])
+        self.bruxo_launch_scan(now)
         n = self.bruxo.tick(lambda m: (self.market.tokens.get(m) or {}).get("price"), now)
         for sid in list(self.bruxo.dirty)[:300]:
             self.bruxo.dirty.discard(sid)
@@ -722,6 +723,41 @@ class PumpHub:
                 self.bruxo.dirty.add(sid)
                 break
         self.bruxo.trim(now)
+        return n
+
+    LANC_MAX_H = 12          # 0.32.59: no máximo 12 lançamentos estudados por hora (cada um lê o preço por 30 min)
+
+    def bruxo_launch_scan(self, now: float) -> int:
+        """0.32.59 (pedido do dono: "pegar do início, quando abre"): estuda — sem comprar — o token no 1º minuto de vida, sem
+        esperar trader: criador sem histórico ruim (rugs, bundle, lançador) e compra do criador moderada. Cada um vira um sinal
+        "lancamento" acompanhado 30 min como os da Aba do Bruxo; o estudo diz se entrar no lançamento compensa."""
+        if not any(getattr(e.cfg, "pump_lanc_on", False) for e in self.engines.values()):
+            return 0
+        recent = [s for s in self.bruxo.signals.values() if s.get("kind") == "lancamento" and now - s["t"] < 3600]
+        room = self.LANC_MAX_H - len(recent)
+        n = 0
+        for mint, r in list(self.lab.live.items()):
+            if room <= 0:
+                break
+            age = now - float(r.get("t0") or now)
+            if not (45 <= age <= 120) or f"lancamento:{mint}" in self.bruxo.by_mint:
+                continue
+            cs = self.market.creator_stats.get(r.get("creator") or "") or {}
+            if cs.get("rugs", 0) >= 2 or cs.get("bundles", 0) >= 1 or cs.get("tokens", 0) >= 20:
+                continue
+            if not (0.05 <= float(r.get("dev_buy") or 0) <= 3.0):
+                continue
+            tk = self.market.tokens.get(mint) or {}
+            if not tk.get("price"):
+                continue
+            f = self.bruxo_facts(mint, 0.0, now)
+            s, new = self.bruxo.on_buy("lancamento", "lançamento (sem trader)", mint, r.get("symbol") or tk.get("symbol"), 0.0,
+                                       tk.get("price"), tk, round(age / 60, 2), {k: f.get(k) for k in ("flow", "flow_base", "mcap", "dev_pct")},
+                                       now, kind="lancamento")
+            if new:
+                s["filtros"] = {k: f.get(k) for k in ("age_min", "flow", "flow_base", "mcap", "dev_pct")} | {"dev_buy": r.get("dev_buy")}
+                room -= 1
+                n += 1
         return n
 
     async def bruxo_loop(self) -> None:
@@ -743,7 +779,7 @@ class PumpHub:
     def bruxo_state(self, pf: PumpFun, hours: float = 24) -> dict:
         from .bruxo import Bruxo
         now = time.time()
-        sigs = self.bruxo.recent(hours, now)
+        sigs = [s for s in self.bruxo.recent(hours, now) if s.get("kind", "trader") == "trader"]
         uid = pf.user_id
         rows = []
         for s in sigs[:300]:
@@ -769,8 +805,12 @@ class PumpHub:
         return {"on": bool(getattr(cfg, "pump_bx_on", False)), "real": bool(getattr(cfg, "pump_bx_real", False)),
                 "real_enabled": bool(getattr(cfg, "pump_real_enabled", False)),
                 "media_inicial": self.bruxo_flow_base(now), "sinais": rows,
-                "estudo": Bruxo.study(list(self.bruxo.signals.values()), float(getattr(cfg, "pump_bx_stop_pct", 30)),
-                                      float(getattr(cfg, "pump_bx_tp1_pct", 100))),
+                "estudo": Bruxo.study([s for s in self.bruxo.signals.values() if s.get("kind", "trader") == "trader"],
+                                      float(getattr(cfg, "pump_bx_stop_pct", 30)), float(getattr(cfg, "pump_bx_tp1_pct", 100))),
+                "lancamento": {"on": bool(getattr(cfg, "pump_lanc_on", False)),
+                               "estudo": Bruxo.study([s for s in self.bruxo.signals.values() if s.get("kind") == "lancamento"]),
+                               "sinais": [{k: s.get(k) for k in ("em", "mint", "symbol", "age_min", "filtros", "marks", "peak_pct", "peak_s", "hit100_s", "stop30_s", "done")}
+                                          for s in self.bruxo.recent(hours, now) if s.get("kind") == "lancamento"][:100]},
                 "nao_entrou": sorted(({"motivo": k, "n": v} for k, v in why.items()), key=lambda x: -x["n"]),
                 "resultado": {"n": n, "ganhos": w, "acerto": round(w / n * 100) if n else None,
                               "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in sim), 5)},

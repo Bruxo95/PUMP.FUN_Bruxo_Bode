@@ -1286,3 +1286,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   Relatório `app/relatorios_ia/2026-10-29-0.32.57.md`.
 - 0.32.58: `bruxo_reason` não trava sem `top10`; `pp_wanted` inclui `elite.wallets()` com Aba do Bruxo ligada; `/api/pump/settings` grava
   audit "compra automática mudada na tela" (`AUTO_SWITCHES`, com user-agent). Barrados do dono religaram às 11:49 CET mesmo com o ajuste.
+- 0.32.59: `curve_block` barra token graduado com a faixa da curva ligada; `pump_cx_copies_only` (saída antes da graduação só nas cópias)
+  e `p["cx_pct"]` (regra da posição; Aba do Bruxo `pump_bx_grad_exit`); `pump_bx_curve_max`; `hub.bruxo_launch_scan` (`pump_lanc_on`,
+  sinais `kind="lancamento"`, até 12/h, só estudo) e `bruxo_state["lancamento"]`. Migração `20261029000011` (override só do dono).

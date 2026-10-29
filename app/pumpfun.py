@@ -1536,6 +1536,10 @@ class PumpFun:
             tp1 = float(p["tp1_pct"]) if p.get("tp1_pct") is not None else self._onv("pump_tp1_on", "pump_tp1_pct")
             prog = None
             cx = self._onv("pump_curve_exit_on", "pump_curve_exit_pct")
+            if cx and getattr(self.cfg, "pump_cx_copies_only", False) and (own_auto or p.get("manual") or p.get("origem")):
+                cx = 0                                     # 0.32.59: só nas cópias de traders
+            if p.get("cx_pct"):
+                cx = float(p["cx_pct"])                    # 0.32.59: regra da própria posição (Aba do Bruxo)
             if cx and self.is_pump(mint) and not self.graduated(mint):
                 prog = self.curve_progress((self.tokens.get(mint) or {}).get("mcap_sol"))
             if cx and prog is not None and prog >= cx:
@@ -2068,6 +2072,8 @@ class PumpFun:
         if getattr(self.cfg, "pump_skip_graduated", False) and self.graduated(mint):
             return "token já graduou (PumpSwap) — depois da graduação o risco de derrubada é maior"
         tk = self.tokens.get(mint) or {}
+        if getattr(self.cfg, "pump_entry_curve_on", False) and self.graduated(mint):
+            return "token já graduou (a faixa da curva só copia no começo)"     # 0.32.59: pedido do dono, "pegar do início"
         if getattr(self.cfg, "pump_entry_curve_on", False) and not self.graduated(mint):      # 0.32.19: faixa da curva
             prog = self.curve_progress(tk.get("mcap_sol"))
             lo, hi = float(self._c("pump_entry_curve_min", 0)), float(self._c("pump_entry_curve_max", 85))
@@ -3039,7 +3045,8 @@ class PumpFun:
         return {"stop_pct": float(self._c("pump_bx_stop_pct", 30)), "tp_pct": 0.0, "trail_on": True,
                 "trail_start": tp1, "trail_dist": float(self._c("pump_bx_trail_dist", 20)), "boost_tp": None,
                 "tp1_pct": tp1, "tp1_frac": float(self._c("pump_bx_tp1_frac", 50)),
-                "max_hold_s": float(self._c("pump_bx_max_hold_min", 25)) * 60, "smart": False}
+                "max_hold_s": float(self._c("pump_bx_max_hold_min", 25)) * 60, "smart": False,
+                "cx_pct": float(self._c("pump_bx_grad_exit", 0)) or None}
 
     def bruxo_reason(self, s: dict, f: dict, t: float) -> str | None:
         """Por que NÃO entrar neste sinal (None = entra). `f` = números do token lidos na hora do sinal."""
@@ -3063,6 +3070,10 @@ class PumpFun:
         cs = self.market.creator_stats.get(f.get("creator") or "") or {}
         if cs.get("rugs", 0) >= 2 or cs.get("bundles", 0) >= 2:
             return "criador com 2+ tokens que despencaram ou bundle"
+        cm = float(self._c("pump_bx_curve_max", 100))
+        prog = self.curve_progress(f.get("mcap")) if f.get("mcap") else None
+        if cm < 100 and prog is not None and prog > cm:
+            return f"curva em {prog:.0f}% (só entra no começo, até {cm:g}%)"
         mc = float(self._c("pump_bx_min_mcap", 32))
         if mc and (f.get("mcap") or 0) < mc:
             return f"pouca liquidez (market cap {f.get('mcap') or 0:.1f} SOL; mínimo {mc:g})"

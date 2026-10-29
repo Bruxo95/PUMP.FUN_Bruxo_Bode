@@ -1050,6 +1050,11 @@
    "versao": "0.32.58",
    "inicio": "2026-10-29T14:40:00+00:00",
    "titulo": "Aba do Bruxo destravada e registro de quem liga as compras automáticas"
+  },
+  {
+   "versao": "0.32.59",
+   "inicio": "2026-10-29T15:00:00+00:00",
+   "titulo": "entrar no começo da curva e sair antes de graduar; estudo do lançamento"
   }
  ]
 }

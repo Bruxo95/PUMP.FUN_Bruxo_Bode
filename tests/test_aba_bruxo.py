@@ -177,3 +177,35 @@ def test_uncopiable_launcher_hft_and_flipper(tmp_path):
     assert "alta frequência" in pf.uncopiable(H, now)
     assert "mediana" in pf.uncopiable(F, now)
     assert pf.uncopiable(OK, now) is None
+
+
+def test_start_of_curve_rules(tmp_path):
+    """0.32.59 (pedido do dono: "pegar do início e sair antes de graduar")."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    t = time.time()
+    G = "Grdx".ljust(40, "1") + "pump"
+    pf.tokens[G] = {"pool": "pumpswap", "price": 1e-6}
+    pf.cfg.pump_entry_curve_on = True
+    assert "já graduou" in pf.curve_block(G)                        # token graduado não é copiado com a faixa ligada
+    # Aba do Bruxo: só no começo da curva e regra de saída antes de graduar na própria posição
+    pf.cfg.pump_bx_on, pf.cfg.pump_bx_curve_max, pf.cfg.pump_bx_grad_exit = True, 25, 85
+    _, s = _sig(t)
+    assert "só entra no começo" in pf.bruxo_entry(s, _facts(mcap=300), t)
+    assert pf.bruxo_rules()["cx_pct"] == 85
+    # saída antes da graduação só nas cópias: posição do botão Comprar não sai
+    pf.cfg.pump_curve_exit_on, pf.cfg.pump_curve_exit_pct, pf.cfg.pump_cx_copies_only = True, 50, True
+    B = "Btnx".ljust(40, "1") + "pump"
+    pf.tokens[B] = {"price": 1e-6, "symbol": "BTN", "mcap_sol": 40.0}
+    assert pf.manual_buy(B, target="sim")["sim"].startswith("comprou")
+    pf.tokens[B]["mcap_sol"] = 350.0                                # curva bem cheia
+    pf._check_stops(B, t + 5)
+    assert [p for p in pf.positions() if p["mint"] == B]
+
+
+def test_launch_signals_are_separate_from_trader_signals():
+    b = Bruxo()
+    t = 1_793_000_000.0
+    s1, n1 = b.on_buy("lancamento", "lançamento", M, "X", 0.0, 1.0, {}, 1.0, {}, t, kind="lancamento")
+    s2, n2 = b.on_buy(W, "Top1", M, "X", 1.0, 1.0, {}, 1.5, {}, t + 30)
+    assert n1 and n2 and s1["id"] != s2["id"] and s1["kind"] == "lancamento" and s2["kind"] == "trader"
