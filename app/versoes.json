@@ -1020,6 +1020,11 @@
    "versao": "0.32.52",
    "inicio": "2026-10-29T12:40:00+00:00",
    "titulo": "voz nas notificações, dia nos trades do dia, ajuste do dono reafirmado"
+  },
+  {
+   "versao": "0.32.53",
+   "inicio": "2026-10-29T13:00:00+00:00",
+   "titulo": "trava de segurança nas entradas e resposta do ChatGPT por arquivo"
   }
  ]
 }

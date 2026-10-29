@@ -1271,3 +1271,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.52: `hub._reassert_overrides` (no `_load` e a cada 5 min): ajuste de `settings_overrides` aplicado há até 20 min é reposto se o
   servidor ANTIGO gravou por cima na troca de versão (barrados voltaram às 11:05). Migração `20261029000008` desliga de novo os barrados
   do dono. Voz: `say`/`sayTrade` (speechSynthesis pt-BR, `localStorage` `ntf_voz`/`ntf_voz_f`), botão `#ntfV`. `daily.dhm` nos trades do dia.
+- 0.32.53: `PumpFun.entry_guard` (`pump_guard_*`, OFF; migração `20261029000009` liga só no dono) em `manual_buy` para `GUARD_ORIGINS`
+  (botão, barrados, Aba do Bruxo; nunca Explorar/auto/follow): graduado só com `main_dex` ≠ pumpfun, preço ≤ 30 s, `liq_usd` mínima, e
+  `dump_block(force=True)`. A rota do botão lê preço e detentores antes. Relatórios ChatGPT: `#staiF` (arquivo), Salvar fecha a janela.

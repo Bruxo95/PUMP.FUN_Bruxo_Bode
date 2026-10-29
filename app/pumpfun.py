@@ -2768,6 +2768,10 @@ class PumpFun:
             if guard:
                 self._auto_blocked(guard, mint, origem, t)
                 return {"error": guard}
+        if not own_auto and not follow and origem in self.GUARD_ORIGINS:
+            g = self.entry_guard(mint, t)
+            if g:
+                return {"error": "trava de segurança: " + g}
         tk = self.tokens.get(mint) or {}
         px = tk.get("price")
         if own_auto:
@@ -3213,10 +3217,29 @@ class PumpFun:
                 return b / (b + s) * 100, ("negociações 5 min" if w == "m5" else "negociações 1 h")
         return None, ""
 
-    def dump_block(self, mint: str) -> str | None:
+    GUARD_ORIGINS = ("", "barrado", "barrado_btn", "bruxo")     # 0.32.53: botão Comprar, barrados e Aba do Bruxo
+
+    def entry_guard(self, mint: str, t: float | None = None) -> str | None:
+        """0.32.53: trava das entradas que não são cópia nem Explorar. Um stop não protege de queda de uma vez (o próximo preço
+        já vem −92%): o que protege é não entrar em token graduado com preço não confirmado, pouca liquidez ou cara de despejo."""
+        if not getattr(self.cfg, "pump_guard_on", False):
+            return None
+        t = time.time() if t is None else t
+        tk = self.tokens.get(mint) or {}
+        if self.graduated(mint) or tk.get("main_dex") not in (None, "pumpfun"):
+            if tk.get("main_dex") in (None, "pumpfun"):
+                return "token graduado sem preço confirmado da PumpSwap/DEX"
+            if t - float(tk.get("last_t") or 0) > 30:
+                return f"preço do token graduado velho ({t - float(tk.get('last_t') or 0):.0f} s; máximo 30 s)"
+            mn = float(self._c("pump_guard_min_liq_usd", 15000))
+            if mn and (tk.get("liq_usd") is None or float(tk["liq_usd"]) < mn):
+                return f"liquidez baixa (US$ {float(tk.get('liq_usd') or 0):,.0f}; mínimo US$ {mn:,.0f})"
+        return self.dump_block(mint, force=True)
+
+    def dump_block(self, mint: str, force: bool = False) -> str | None:
         """0.32.50: não copiar token com cara de despejo — concentração nos 10 maiores, fatia do criador e carteiras novas.
         Sem a leitura dos detentores (RPC não respondeu), não bloqueia: só os números lidos contam."""
-        if not getattr(self.cfg, "pump_dump_on", False) or not self.is_pump(mint):
+        if not (force or getattr(self.cfg, "pump_dump_on", False)) or not self.is_pump(mint):
             return None
         tk = self.tokens.get(mint) or {}
         top = float(self._c("pump_dump_top10_max", 35))

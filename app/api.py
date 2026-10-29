@@ -7,6 +7,7 @@ Regras de segurança:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -467,6 +468,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 await hub.monitor.svc._curve_prices([mint], public_first=True)
                 if not (pf.tokens.get(mint) or {}).get("price"):        # já graduado: preço pela DexScreener
                     await hub.monitor.svc._fetch_prices([mint])
+            except Exception:
+                pass
+        if getattr(pf.cfg, "pump_guard_on", False) and hub.monitor is not None:
+            try:                                                   # 0.32.53: a trava quer preço e detentores lidos agora
+                if pf.graduated(mint) or (pf.tokens.get(mint) or {}).get("main_dex") not in (None, "pumpfun"):
+                    await hub.monitor.svc._fetch_prices([mint])
+                await asyncio.wait_for(hub.monitor.svc.holders_check(mint), timeout=3)
             except Exception:
                 pass
         target = str(body.get("target") or "both")

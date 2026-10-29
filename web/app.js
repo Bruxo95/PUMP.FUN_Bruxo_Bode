@@ -55,7 +55,7 @@
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
   let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", POS_DET = null, POS_ID = null, STC_W = "", STAI_ID = "";
   // 0.32.48 (pedido do dono): histórico dos relatórios para o ChatGPT e o estado de cada um
-  const SAI_TAG = { gerado: "neutral", esperando: "pause", resposta: "sim", analisado: "win" };
+  const SAI_TAG = { gerado: "neutral", esperando: "pause", resposta: "pause", analisado: "win" };
   async function loadStudyAi() {
     if (!$("saiT")) return;
     const r = await BB.api("/api/pump/study/ai/reports"); if (r.error) { $("saiSub").textContent = r.error; return; }
@@ -66,6 +66,10 @@
       x.auto ? "automático" : "você gerou", '<span class="tag ' + (SAI_TAG[x.status] || "neutral") + '">' + esc(x.status_txt) + "</span>" + (x.resposta_em ? "<small>resposta em " + dt(x.resposta_em) + "</small>" : x.copiado_em ? "<small>copiado em " + dt(x.copiado_em) + "</small>" : ""),
       '<button class="btn sm" data-saio="' + esc(x.id) + '">Abrir</button>']), "Nenhum relatório ainda.");
   }
+  // 0.32.53: a resposta do ChatGPT também pode vir de um arquivo (.md/.txt), lido aqui no navegador
+  document.addEventListener("change", async (ev) => { if (ev.target.id !== "staiF") return; const fl = ev.target.files && ev.target.files[0]; if (!fl) return;
+    if (fl.size > 4 * 1024 * 1024) { toast("Arquivo grande demais (máx. 4 MB)."); return; }
+    $("staiR").value = await fl.text(); $("staiRM").textContent = "Arquivo " + fl.name + " carregado · clique em Salvar resposta"; ev.target.value = ""; });
   async function openStudyAi(id) {
     const r = await BB.api("/api/pump/study/ai/reports/" + encodeURIComponent(id)); if (r.error) { toast(r.error); return; }
     STAI_ID = r.id; $("staiT").value = r.texto || ""; $("staiR").value = r.resposta || ""; $("staiRM").textContent = "";
@@ -2116,7 +2120,9 @@
       if (STAI_ID) { await BB.api("/api/pump/study/ai/reports/" + encodeURIComponent(STAI_ID), { body: { acao: "copiado" } }); $("staiMS").textContent = "copiado · esperando a resposta do ChatGPT para processar"; loadStudyAi(); }
       toast("Copiado e guardado no histórico. Esperando a resposta do ChatGPT."); return; }
     if (t.id === "staiRS") { if (!STAI_ID) return; const r = await BB.api("/api/pump/study/ai/reports/" + encodeURIComponent(STAI_ID), { body: { acao: "resposta", texto: $("staiR").value } });
-      $("staiRM").textContent = r.error || "Resposta guardada. Agora traga para o Claude analisar (relatório " + STAI_ID + ")."; if (!r.error) loadStudyAi(); return; }
+      if (r.error) { $("staiRM").textContent = r.error; return; }
+      // 0.32.53 (pedido do dono): salvou → fecha a janela e o histórico mostra "esperando o Claude analisar"
+      $("staiM").hidden = true; toast("Resposta salva (relatório " + STAI_ID + "). Esperando o Claude analisar."); loadStudyAi(); return; }
     if (t.dataset.stcgo) { const tg = t.dataset.stcgo; if (tg === "both" && !confirm("Copiar também na carteira REAL (dinheiro de verdade)?")) return;
       const r = await BB.api("/api/pump/study/copy", { body: { wallet: STC_W, target: tg } }); $("stcM").hidden = true;
       toast(r.error || (tg === "both" ? "Copiando na fictícia e na REAL." : "Copiando só na fictícia.")); poll(true); return loadStudy(); }

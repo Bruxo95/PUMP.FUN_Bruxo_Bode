@@ -85,6 +85,11 @@ USER_KEYS: dict[str, tuple] = {
     # 0.32.50 (pedido do dono, 29/10: perdas de −54% a −101% com stop de −30% = moeda despejada de uma vez): filtro contra despejo
     # nas cópias, igual ao da Aba do Bruxo. Começa DESLIGADO.
     "pump_dump_on": (bool, False, 0, 1),
+    # 0.32.53 (pedido do dono, BabyNuts −92% com stop de −30%): trava de segurança nas entradas dos barrados, do botão Comprar
+    # e da Aba do Bruxo — token graduado só com preço da PumpSwap/DEX lido há até 30 s e liquidez mínima, e o filtro contra
+    # despejo sempre. Começa DESLIGADA (ligada só na conta do dono por settings_overrides). O Explorar não passa por ela.
+    "pump_guard_on": (bool, False, 0, 1),
+    "pump_guard_min_liq_usd": (float, 15000.0, 0.0, 1e9),
     "pump_dump_top10_max": (float, 35.0, 5.0, 100.0),    # 10 maiores detentores (sem a curva) com no máximo X%
     "pump_dump_dev_max": (float, 10.0, 0.0, 100.0),      # criador com no máximo X% do token
     "pump_dump_fresh_max": (float, 30.0, 0.0, 100.0),    # carteiras novas entre os maiores detentores (quando já checado)

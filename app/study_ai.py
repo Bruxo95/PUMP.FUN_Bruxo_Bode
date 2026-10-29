@@ -90,8 +90,8 @@ os dois números)."""
 # 0.32.48 (pedido do dono): cada relatório fica guardado com o estado da conversa com o ChatGPT
 STATUS = {"gerado": "gerado · ainda não copiado",
           "esperando": "esperando a resposta do ChatGPT para processar",
-          "resposta": "resposta do ChatGPT recebida · traga para o Claude analisar",
-          "analisado": "analisado pelo Claude · relatório atualizado"}
+          "resposta": "resposta salva · esperando o Claude analisar",
+          "analisado": "confirmado · analisado pelo Claude"}
 AUTO_MIN = 5            # o relatório automático sai quando 5 carteiras novas (sem relatório) entram no estudo…
 AUTO_WAIT_S = 24 * 3600  # …ou quando a mais antiga sem relatório já espera 24 h
 

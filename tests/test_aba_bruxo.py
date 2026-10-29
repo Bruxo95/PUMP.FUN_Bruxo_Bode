@@ -140,3 +140,24 @@ def test_copy_dump_filter(tmp_path):
     assert "carteiras novas" in pf.dump_block(D)
     pf.tokens[D]["fresh"] = {"pct": 10.0}
     assert pf.dump_block(D) is None
+
+
+def test_entry_guard_for_button_barrados_and_bruxo(tmp_path):
+    """0.32.53 (BabyNuts −92% com stop de −30%): token graduado só com preço da PumpSwap recente, liquidez e sem despejo."""
+    pf = _pf(tmp_path)
+    G = "Babn".ljust(40, "1") + "pump"
+    now = time.time()
+    pf.tokens[G] = {"price": 5.8e-7, "symbol": "BABY", "pool": "pumpswap", "main_dex": "pumpfun", "last_t": now, "liq_usd": 50000}
+    assert pf.manual_buy(G, target="sim").get("sim", "").startswith("comprou")          # trava desligada: igual antes
+    for p in list(pf.positions()):
+        pf._sell(p, 1.0, p["price_now"], "teste", now)
+    pf.cfg.pump_guard_on = True
+    assert "sem preço confirmado" in pf.manual_buy(G, target="sim")["error"]
+    pf.tokens[G].update(main_dex="pumpswap", last_t=now - 120)
+    assert "preço do token graduado velho" in pf.manual_buy(G, target="sim")["error"]
+    pf.tokens[G].update(last_t=now, liq_usd=4000)
+    assert "liquidez baixa" in pf.manual_buy(G, target="sim", origem="barrado")["error"]
+    pf.tokens[G].update(liq_usd=50000, top10_pct=70.0, top10_t=now)
+    assert "despejo" in pf.manual_buy(G, target="sim", origem="bruxo")["error"]
+    pf.tokens[G].update(top10_pct=20.0)
+    assert pf.manual_buy(G, target="sim").get("sim", "").startswith("comprou")
