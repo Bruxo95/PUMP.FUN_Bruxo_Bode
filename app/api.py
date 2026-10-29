@@ -850,9 +850,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         if not pos:
             return {"error": "posição não encontrada"}
         hub.check_active(u["id"], pf)
-        r = pf.close_position(pid)
+        frac = body.get("frac", 1.0)
+        r = pf.close_position(pid, frac)
+        if r.get("error"):
+            return r
         await audit(hub.db, u["id"], "vender manual",
-                    f"{'REAL' if pos.get('real') else 'fictícia'} · {pos.get('symbol')} · {pos.get('mint')}")
+                    f"{'REAL' if pos.get('real') else 'fictícia'} · {pos.get('symbol')} · {pos.get('mint')}"
+                    + ("" if r.get("frac", 1.0) >= 1.0 else f" · {r['frac'] * 100:.0f}%"))
         if r.get("msg"):
             pf._emit(r["msg"])
         return r

@@ -955,6 +955,11 @@
    "versao": "0.32.39",
    "inicio": "2026-10-29T06:39:05+00:00",
    "titulo": "Indicador Carregando animado"
+  },
+  {
+   "versao": "0.32.40",
+   "inicio": "2026-10-29T06:54:15+00:00",
+   "titulo": "Posições em cards com venda parcial"
   }
  ]
 }

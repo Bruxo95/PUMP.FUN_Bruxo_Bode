@@ -1623,12 +1623,22 @@ class PumpFun:
         self._emit(f"[PUMP {'REAL' if p.get('real') else 'SIM'}] {p.get('symbol')}: {nome} {'ligado' if on else 'DESLIGADO'} nesta posição (por você)")
         return {"ok": True, "regra": regra, "on": on, "pares": len(twins)}
 
-    def close_position(self, pid) -> dict:
+    def close_position(self, pid, frac: float = 1.0) -> dict:
+        """Fecha (100%) ou vende só uma parte (0.32.40, botões Vender 25%/50% dos cards de Posições)."""
+        try:
+            frac = float(frac)
+        except (TypeError, ValueError):
+            return {"error": "parte inválida"}
+        if not 0.05 <= frac <= 1.0:
+            return {"error": "parte inválida (de 5% a 100%)"}
         for p in self.positions():
             if str(p["id"]) == str(pid):
+                if p.get("selling"):
+                    return {"error": "esta posição já está vendendo"}
                 px = (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now")
-                msg = self._sell(p, 1.0, px, "fechada por você", time.time())
-                return {"ok": True, "msg": msg}
+                why = "fechada por você" if frac >= 1.0 else f"venda parcial por você ({frac * 100:.0f}%)"
+                msg = self._sell(p, frac, px, why, time.time())
+                return {"ok": True, "msg": msg, "frac": frac}
         return {"error": "posição não encontrada"}
 
     def reset_sim(self) -> dict:

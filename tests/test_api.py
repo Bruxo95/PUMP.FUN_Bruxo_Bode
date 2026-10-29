@@ -337,3 +337,24 @@ def test_token_card_route_validates_address(env):
     r = c.get("/api/pump/token/" + "Tok".ljust(40, "1") + "pump", headers=tok(UA)).json()
     assert r["seen"] is False
     assert c.get("/api/pump/token/" + "Tok".ljust(40, "1") + "pump").status_code == 401
+
+
+def test_manual_partial_sell_keeps_position_open_and_is_audited(env):
+    """0.32.40: botões Vender 25%/50% dos cards de Posições."""
+    c, db = env["c"], env["db"]
+    A = tok(UA)
+    c.post("/api/pump/wallets", json={"wallet": W, "action": "add"}, headers=A)
+    c.post("/api/pump/settings", json=NOFILTER, headers=A)
+    e = asyncio.run(env["hub"].engine(UA))
+    m = "Part".ljust(40, "1") + "pump"
+    e.on_message({"txType": "buy", "traderPublicKey": W, "mint": m, "solAmount": 1.0, "tokenAmount": 1e6,
+                  "vSolInBondingCurve": 30, "vTokensInBondingCurve": 3e7, "marketCapSol": 900})
+    pid = c.get("/api/pump", headers=A).json()["positions"][0]["id"]
+    assert "parte inválida" in c.post("/api/pump/close", json={"id": pid, "frac": 2}, headers=A).json()["error"]
+    assert c.post("/api/pump/close", json={"id": pid, "frac": 0.5}, headers=A).json()["ok"]
+    pos = c.get("/api/pump", headers=A).json()["positions"]
+    assert len(pos) == 1 and len(pos[0]["sells"]) == 1 and abs(pos[0]["sells"][0]["frac"] - 0.5) < 1e-9
+    assert "venda parcial por você (50%)" in pos[0]["sells"][0]["why"]
+    assert any(a["acao"] == "vender manual" and "50%" in (a.get("detalhe") or str(a)) for a in db.tables["audit_log"])
+    assert c.post("/api/pump/close", json={"id": pid}, headers=A).json()["ok"]
+    assert c.get("/api/pump", headers=A).json()["positions"] == []

@@ -1213,3 +1213,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Topo da tela (`#netLoad`): `BB.api` mostra "Carregando"/"Salvando" quando um pedido passa de 0,4 s; a atualização
   automática `/api/pump?ev=` e chamadas com `{quiet:true}` não contam. Em `app.js`, `busy(id, rótulo)` troca o texto
   de um quadro pelo indicador só se o rótulo mudou.
+
+## Posições em cards (2026-10-29, versão 0.32.40)
+- Pedido do dono (celular ruim de ver; estilo de referência "prediction market" escuro). `#posCards` no lugar da tabela
+  `#tPos`; `posCard(p, c)` e `posSpark(p)` em `web/app.js` (regras efetivas: as da posição, senão as da conta; faixa
+  stop ↔ alvo com agora/pico/saída do stop móvel); `POS_OPEN` guarda os "Mais detalhes" abertos entre atualizações.
+  CSS `.poscards`/`.pcard`/`.pc-*` no fim de `web/app.css` (grid `minmax(262px,1fr)`; 1 coluna até 860 px).
+- Venda parcial manual: `PumpFun.close_position(pid, frac)` (5%–100%; motivo "venda parcial por você (N%)") e `frac`
+  em `POST /api/pump/close` (audit "vender manual" com a %). Real usa `_real_sell(p, frac)`. Fictícia com par real: o par
+  só vende junto no 100% (regra existente do `_sell`). Teste `tests/test_api.py::test_manual_partial_sell_*`.

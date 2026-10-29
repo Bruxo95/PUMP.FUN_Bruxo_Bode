@@ -1336,7 +1336,7 @@
       const m = gp.dataset.gopos;
       if ((gp.dataset.gomode === "real") !== realMode()) { MODE = gp.dataset.gomode; try { localStorage.setItem("pf:mode", MODE); } catch (x) { /* */ } }
       location.hash = "#posicoes";
-      setTimeout(() => { const a = document.querySelector('section[data-view="posicoes"] [title="' + m + '"]'); const tr = a && a.closest("tr");
+      setTimeout(() => { const a = document.querySelector('section[data-view="posicoes"] [title="' + m + '"]'); const tr = a && a.closest(".pcard, tr");
         if (tr) { tr.scrollIntoView({ behavior: "smooth", block: "center" }); tr.classList.add("flash"); setTimeout(() => tr.classList.remove("flash"), 2500); } else toast("A posição ainda não apareceu; atualiza em alguns segundos."); }, 700);
       return;
     }
@@ -2593,6 +2593,77 @@
   }
 
   // ------------------------------------------------------------------ posições / histórico / feed
+  // ------------------------------------------------------------------ card de posição (0.32.40)
+  const POS_OPEN = new Set();          // "Mais detalhes" abertos continuam abertos quando a tela atualiza (a cada 2 s)
+  document.addEventListener("toggle", (e) => { const d = e.target; if (d && d.classList && d.classList.contains("pc-more")) { if (d.open) POS_OPEN.add(d.dataset.pid); else POS_OPEN.delete(d.dataset.pid); } }, true);
+  function posSpark(p) {
+    const pts = (p.snaps || []).filter((x) => x.chg != null).map((x) => [x.min, x.chg]);
+    const open = p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : null);
+    if (open && p.chg_pct != null) pts.push([(Date.now() / 1000 - open) / 60, p.chg_pct]);
+    if (pts.length < 2) return "";
+    pts.unshift([0, 0]);
+    const W = 96, H = 30, x0 = pts[0][0], x1 = pts[pts.length - 1][0] || 1, ys = pts.map((q) => q[1]);
+    let lo = Math.min(0, ...ys), hi = Math.max(0, ...ys); if (hi - lo < 1) hi = lo + 1;
+    const X = (v) => ((v - x0) / (x1 - x0 || 1)) * (W - 2) + 1, Y = (v) => H - 2 - ((v - lo) / (hi - lo)) * (H - 4);
+    const d = pts.map((q, k) => (k ? "L" : "M") + X(q[0]).toFixed(1) + " " + Y(q[1]).toFixed(1)).join(" ");
+    return '<svg class="pc-spark ' + ((p.chg_pct || 0) >= 0 ? "up" : "down") + '" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true"><line x1="0" x2="' + W + '" y1="' + Y(0).toFixed(1) + '" y2="' + Y(0).toFixed(1) + '"/><path d="' + d + '"/></svg>';
+  }
+  function posCard(p, c) {
+    const open = p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : null), now = Date.now() / 1000;
+    const chg = p.chg_pct, pnl = p.pnl_now_sol, up = (pnl != null ? pnl : chg || 0) >= 0;
+    // regras que valem nesta posição (as dela; senão as gerais da conta)
+    const stopV = p.stop_pct != null ? p.stop_pct : c.pump_stop_pct, stopOff = !!p.off_stop || !stopV;
+    const trOn = (p.trail_on != null ? p.trail_on : c.pump_trail_enabled) && !p.off_trail;
+    const trS = p.trail_start != null ? p.trail_start : c.pump_trail_start_pct, trD = p.trail_dist != null ? p.trail_dist : c.pump_trail_dist_pct;
+    const tp1 = p.tp1_pct != null ? p.tp1_pct : (c.pump_tp1_on ? c.pump_tp1_pct : null), tp1F = p.tp1_frac != null ? (p.tp1_frac <= 1 ? p.tp1_frac * 100 : p.tp1_frac) : c.pump_tp1_frac_pct;
+    const tpV = p.tp_pct != null ? p.tp_pct : c.pump_tp_pct;
+    // faixa: stop (esquerda) … 0 … alvo (direita), com o agora e o pico
+    const lo = stopOff ? Math.min(-50, (p.worst_pct || 0) * 1.1) : -stopV;
+    const hi = Math.max(tpV || 0, tp1 || 0, trS || 0, (p.best_pct || 0) * 1.1, (chg || 0) * 1.1, 30);
+    const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100)).toFixed(1);
+    const range = chg == null ? "" : '<div class="pc-range" title="faixa entre o stop de perda e o alvo; ● = agora, ▲ = pico">' +
+      '<div class="pc-bar"><span class="pc-zero" style="left:' + at(0) + '%"></span>' +
+      (p.trail_exit != null ? '<span class="pc-trx" style="left:' + at(p.trail_exit) + '%" title="stop móvel: sai em +' + f(p.trail_exit, 1) + '%"></span>' : "") +
+      (p.best_pct != null ? '<span class="pc-peak" style="left:' + at(p.best_pct) + '%" title="pico ' + f(p.best_pct, 1) + '%"></span>' : "") +
+      '<span class="pc-now ' + (chg >= 0 ? "up" : "down") + '" style="left:' + at(chg) + '%"></span></div>' +
+      '<div class="pc-rl"><span>' + (stopOff ? "sem stop" : "stop −" + f(stopV, 0) + "%") + "</span><span>" + (tpV ? "alvo +" + f(tpV, 0) + "%" : p.best_pct != null ? "pico " + pc(p.best_pct) : "") + "</span></div></div>";
+    // tempo de saída
+    const h = p.hold_s, rest = h != null && open ? h - (now - open) : null;
+    const leftTxt = h == null || !open ? "–" : h >= 3e8 ? '<b class="up">sem limite</b>' : rest > 0 ? "<b>" + hms(rest) + "</b>" : '<b class="down">vencido · saindo</b>';
+    const sw = (regra, off) => btn(off ? "OFF" : "ON", "prule", { id: p.id, regra: regra, on: off ? 1 : 0 }, "tgl sw " + (off ? "off" : "on"));
+    const rule = (nome, val, ctl) => '<div class="pc-rule"><div><b>' + nome + "</b><small>" + val + "</small></div>" + ctl + "</div>";
+    const tags = (p.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + (p.hold_profit ? ' <span class="tag pause" title="desde ' + esc(dt(p.hold_since)) + '">Segurando até lucro</span>' : "") + (p.selling ? ' <span class="tag pause">Vendendo…</span>' : "") + (p.trail_peak != null ? ' <span class="tag trail">Stop móvel armado</span>' : "");
+    const st = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
+    const v = p.vol || {};
+    const sells = (p.sells || []).map((x) => "<li>" + dt(x.at) + " · " + f((x.frac || 0) * 100, 0) + "% · " + s4(x.sol) + " SOL" + (x.why ? " · " + esc(x.why) : "") + "</li>").join("");
+    const id = String(p.id);
+    return '<article class="pcard ' + (up ? "is-up" : "is-down") + (p.real ? " is-real" : "") + '" data-pid="' + esc(id) + '">' +
+      '<header class="pc-h"><div class="pc-tk">' + pfM(p.mint, p.symbol) + " " + tags + '</div><button class="btn sm ghost" data-posdet="' + esc(id) + '">Detalhes</button>' +
+      '<div class="pc-sub">' + pfW(p.wallet, p) + ' · aberta há <b>' + agoIso(p.opened_at) + "</b></div></header>" +
+      '<div class="pc-box"><div><small>Ganho agora</small><b class="pc-big ' + (up ? "up" : "down") + '">' + (pnl == null ? "–" : (pnl > 0 ? "+" : "") + s4(pnl) + " SOL") + "</b><small>" + (p.pnl_now_pct == null ? "" : pc(p.pnl_now_pct) + " do investido") + "</small></div>" +
+      '<div class="pc-var"><small>Variação</small><b>' + pc(chg) + "</b>" + posSpark(p) + "</div></div>" + range +
+      '<dl class="pc-grid">' + st("Investido", s4(p.sol_in) + " SOL") + st("Vale agora", p.value_sol == null ? "–" : s4(p.value_sol) + " SOL") +
+      st("Já vendido", s4(p.proceeds || 0) + " SOL") + st("Melhor / pior", pc(p.best_pct) + " / " + pc(p.worst_pct)) +
+      st("Mcap", (p.mcap_in ? f(p.mcap_in, 0) : "–") + " → " + (p.mcap_now ? f(p.mcap_now, 0) : "–") + " SOL") + st("Volume 1 h", v.h1 == null ? "–" : uk(v.h1) + ' <span class="dim">' + (v.buys_h1 || 0) + "c/" + (v.sells_h1 || 0) + "v</span>") + "</dl>" +
+      '<div class="pc-sec"><div><small>Sai por tempo em</small>' + leftTxt + (h != null && h < 3e8 ? '<small class="dim">limite ' + hms(h) + "</small>" : "") + "</div>" +
+      (p.selling ? "" : '<div class="pc-chips">' + btn("+30 min", "hold", { id: p.id, add: 30 }, "chip") + btn("+1 h", "hold", { id: p.id, add: 60 }, "chip") + btn("Sem limite", "hold", { id: p.id, add: "none" }, "chip") + "</div>") + "</div>" +
+      (p.selling ? "" : '<div class="pc-rules">' +
+        rule("Stop de perda", stopOff ? "desligado nesta posição" : "sai em −" + f(stopV, 0) + "%", sw("stop", stopOff)) +
+        rule("Stop móvel", !trOn ? "desligado nesta posição" : p.trail_peak != null ? "armado · pico " + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + "%" : "liga em +" + f(trS, 0) + "% · sai " + f(trD, 0) + " pts abaixo do pico", sw("trail", !trOn)) +
+        rule("Venda em partes", p.tp1_done ? "já vendeu " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : tp1 ? "vende " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : "sem venda em partes", p.tp1_done ? '<span class="tag win">feita</span>' : sw("tp1", !!p.off_tp1 || !tp1)) + "</div>") +
+      (p.selling ? "" : '<div class="pc-act">' + btn("Vender 25%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 0.25 }, "pill") + btn("Vender 50%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 0.5 }, "pill") +
+        btn(p.real ? "Vender tudo" : "Fechar 100%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 1 }, "pill no") + "</div>") +
+      (p.sell_error ? '<div class="pc-err down">' + esc(p.sell_error) + "</div>" : "") +
+      '<details class="pc-more" data-pid="' + esc(id) + '"' + (POS_OPEN.has(id) ? " open" : "") + "><summary>Mais detalhes</summary>" +
+      '<dl class="pc-grid">' + st("Preço de entrada", ex(p.price_in)) + st("Preço agora", ex(p.price_now || p.price_in) + (p.price_at ? ' <span class="dim">há ' + agoT(p.price_at) + "</span>" : "")) +
+      st("Taxas pagas", p.fees_sol == null ? "–" : s4(p.fees_sol) + " SOL") + st("Nota da entrada", p.score == null ? "–" : f(p.score, 0) + " / 100") +
+      st("Atraso na cópia", p.lag_s == null ? "–" : f(p.lag_s, 1) + " s") + st("Volume 5 min / 24 h", uk(v.m5) + " / " + uk(v.h24)) +
+      st("Onde comprou", esc(p.venue_in || "–")) + st("Antes da entrada", p.antes ? f(p.antes.pos_pct, 0) + "% da faixa de 15 min" : "sem dado") + "</dl>" +
+      (p.auto && p.auto !== true ? '<p class="pc-why">' + esc(p.auto) + "</p>" : "") +
+      (sells ? '<p class="pc-lbl">Vendas parciais</p><ul class="pc-list">' + sells + "</ul>" : "") +
+      ((p.snaps || []).length ? '<p class="pc-lbl">Fotos a cada 15 min</p><p class="pc-why">' + p.snaps.map((x) => x.min + " min: " + (x.chg == null ? "–" : (x.chg > 0 ? "+" : "") + f(x.chg, 1) + "%")).join(" · ") + "</p>" : "") +
+      "</details></article>";
+  }
   function renderPositions() {
     const c = cfg(), rm = realMode(), P = (D.positions || []).filter((p) => !!p.real === rm);
     $("posSub").textContent = (rm ? "REAL · " : "FICTÍCIO · ") + P.length + " de " + (rm ? c.pump_real_max_open : c.pump_max_open) + " · " + s4(rm ? c.pump_real_max_sol : c.pump_copy_sol) + " SOL cada" + (rm ? " (valores medidos na carteira)" : " · slippage extra " + c.pump_extra_slip_pct + "%") + " · variação já líquida de taxas";
@@ -2617,10 +2688,9 @@
     const tags = (p) => (p.trail_peak != null ? '<span class="tag trail" title="pico ' + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + '%">Stop móvel</span>' : "") + (p.hold_profit ? '<span class="tag pause" title="desde ' + esc(dt(p.hold_since)) + '">Segurando até lucro</span>' : "") + (p.selling ? '<span class="tag pause">Vendendo…</span>' : "");
     const leftShort = (p) => { const h = p.hold_s, open = p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : null); if (h == null || !open) return "–"; if (h >= 3e8) return "sem limite"; const rest = h - (Date.now() / 1000 - open); return rest > 0 ? "em " + hms(rest) : '<b class="down">saindo</b>'; };
     POS_DET = { list: P, left, soldCell, vol, holdBtns };
-    table("tPos", ["Token", "Origem", "Investido", "Ganho agora", "Variação", "Aberta há", "Sai por tempo", ""], P.map((p) => [pfM(p.mint, p.symbol) + (p.mcap_now ? "<small>mcap " + f(p.mcap_now, 0) + " SOL</small>" : ""), pfW(p.wallet, p), s4(p.sol_in) + " SOL",
-      p.pnl_now_sol == null ? "–" : "<b>" + sg(p.pnl_now_sol) + "</b>" + (p.pnl_now_pct == null ? "" : "<small>" + pc(p.pnl_now_pct) + " do investido</small>"), pc(p.chg_pct) + tags(p), agoIso(p.opened_at), leftShort(p),
-      '<span class="nowrap"><button class="btn sm" data-posdet="' + esc(String(p.id)) + '">Detalhes</button> ' + (p.selling ? "" : btn(p.real ? "Vender" : "Fechar", "close", { id: p.id, real: p.real ? 1 : 0 }, p.real ? "tgl off" : "")) + "</span>" + (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "")]),
-      rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.");
+    // 0.32.40 (pedido do dono: "no celular fica ruim de ver"): cada posição vira um card com tudo à vista —
+    // ganho e variação ao vivo, faixa stop ↔ alvo, tempo de abertura e de saída e os botões de alteração.
+    $("posCards").innerHTML = P.length ? P.map((p) => posCard(p, c)).join("") : '<div class="empty">' + (rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.") + "</div>";
     if (!$("posM").hidden && POS_ID != null) openPosDet(POS_ID, true);
     // 0.32.33 (pedido do dono): as que acabaram de fechar, com o motivo (stop, alvo, tempo…)
     if ($("tClosedNow")) table("tClosedNow", ["Fechou", "Token", "Origem", "Investido", "Resultado", "%", "Segurou", "Motivo"], (D.recent_closed || []).filter((t) => !!t.real === rm).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), pfW(t.wallet, t), s4(t.sol_in) + " SOL", "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
@@ -2973,7 +3043,14 @@
     if (a === "u-trades") return openUserTrades(t.dataset.uid, "win");
     if (a === "u-audit") { $("aAudUser").value = t.dataset.uid; loadAAudit(); $("tAAudit").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (a === "addw") return wallet("add", $("addW").value);
-    if (a === "close") { if (!confirm(t.dataset.real === "1" ? "VENDER de verdade esta posição REAL agora (100%)?" : "Fechar esta posição fictícia agora no preço atual?")) return; const r = await BB.api("/api/pump/close", { body: { id: t.dataset.id } }); toast(r.error || r.msg || "Fechada."); return poll(true); }
+    if (a === "close") {
+      const fr = +(t.dataset.frac || 1), pct = Math.round(fr * 100), real = t.dataset.real === "1";
+      const q = fr >= 1 ? (real ? "VENDER de verdade esta posição REAL agora (100%)?" : "Fechar esta posição fictícia agora no preço atual?")
+        : (real ? "VENDER de verdade " + pct + "% desta posição REAL agora?" : "Vender " + pct + "% desta posição fictícia agora no preço atual?" + "\n\nSe ela tem par na carteira REAL, a real não vende junto (só vende junto ao fechar 100%).");
+      if (!confirm(q)) return;
+      t.disabled = true;
+      const r = await BB.api("/api/pump/close", { body: { id: t.dataset.id, frac: fr } }); toast(r.error || r.msg || (fr >= 1 ? "Fechada." : "Vendido " + pct + "%.")); return poll(true);
+    }
     if (a === "reset") { if (!confirm("Zerar a carteira fictícia? Apaga posições e histórico simulados.")) return; const r = await BB.api("/api/pump/reset", { body: {} }); toast(r.error || "Carteira fictícia zerada."); return poll(true); }
     if (a === "swap") return swap(t);
     if (a === "swapmax") { $("cvU").value = Math.floor(((W && W.usdc) || 0) * 100) / 100; return conv("u"); }
