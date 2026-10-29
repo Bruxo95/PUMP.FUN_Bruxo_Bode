@@ -169,6 +169,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         radar_before = {key: getattr(pf.cfg, key) for key in radar_keys}
         applied, errors = pf.cfg.apply(body or {})
         if applied:
+            # 0.32.56: a pessoa mudou na tela — um ajuste antigo pedido no chat não volta a mexer nessas opções
+            from datetime import datetime, timezone
+            ov = pf.__dict__.setdefault("_ov_user", {})
+            for key in applied:
+                ov[key] = datetime.now(timezone.utc).isoformat()
             await hub.save_settings(pf)
             if any(key in applied and applied[key] != radar_before[key] for key in radar_keys):
                 pf._radar_alerts = {}

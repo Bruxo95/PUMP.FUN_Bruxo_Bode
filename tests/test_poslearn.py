@@ -88,8 +88,38 @@ def test_override_reasserted_after_old_server_writes_over(monkeypatch):
     db.add_user(UA, "a@x.com")
     db.tables["settings_overrides"].append({"id": 1, "user_id": UA, "settings": {"pump_bar_auto_on": False}, "motivo": "teste",
                                             "aplicado_em": datetime.now(timezone.utc).isoformat()})   # já aplicado há pouco
-    db.tables["user_settings"].append({"user_id": UA, "settings": {"pump_bar_auto_on": True}})          # o antigo gravou por cima
+    db.tables["user_settings"][0]["settings"] = {"pump_bar_auto_on": True}                                 # o antigo gravou por cima
     http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
     pf = asyncio.run(hub.engine(UA))
     assert pf.cfg.pump_bar_auto_on is False
+
+
+def test_override_sticks_until_user_changes_it(monkeypatch):
+    """0.32.56: ajuste antigo (mais de 20 min) continua valendo; se a pessoa mudou a opção na tela depois, não volta."""
+    import asyncio
+    import base64
+    import os
+
+    import httpx
+
+    from app.crypto import SecretBox
+    from app.hub import PumpHub
+    from app.settings import ServerConfig
+    from tests.fakes import FakeREST
+    from tests.test_api import UA, UB
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("APP_ENCRYPTION_KEY", base64.b64encode(os.urandom(32)).decode())
+    cfg = ServerConfig()
+    db = FakeREST()
+    db.add_user(UA, "a@x.com")
+    db.add_user(UB, "b@x.com")
+    old = "2026-10-29T08:00:00+00:00"
+    for i, u in enumerate((UA, UB), 1):
+        db.tables["settings_overrides"].append({"id": i, "user_id": u, "settings": {"pump_bar_auto_on": False}, "aplicado_em": old})
+    db.tables["user_settings"][0]["settings"] = {"pump_bar_auto_on": True}
+    db.tables["user_settings"][1]["settings"] = {"pump_bar_auto_on": True, "_ov_user": {"pump_bar_auto_on": "2026-10-29T09:00:00+00:00"}}
+    http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
+    hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    assert asyncio.run(hub.engine(UA)).cfg.pump_bar_auto_on is False        # servidor antigo gravou por cima: volta
+    assert asyncio.run(hub.engine(UB)).cfg.pump_bar_auto_on is True         # a pessoa ligou na tela depois: respeita

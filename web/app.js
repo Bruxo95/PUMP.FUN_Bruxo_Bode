@@ -2207,7 +2207,7 @@
   try { NTF = localStorage.getItem("ntf") === "1"; } catch (e) { /* */ }
   // 0.32.52 (pedido do dono): voz em português nos trades que fecham — o próprio navegador fala (speechSynthesis), nada instalado.
   // {pct} vira o % do resultado. As frases ficam só neste navegador.
-  const VOZ_PAD = { win: "Deu lucro, porra! Mais {pct} por cento.", loss: "Porra, deu merda! Menos {pct} por cento." };
+  const VOZ_PAD = { win: "Deu lucro, porra! Mais {pct} por cento.", loss: "Porra, deu merda! Menos {pct} por cento.", buy: "Opa, comprei umas coisas aqui, vamo ver no que dá!" };
   let VOZ = false, VOZ_F = { ...VOZ_PAD };
   // 0.32.54 (dono: "só bip, a voz não funciona"): a Voz vem LIGADA (antes começava desligada); o navegador só deixa falar depois
   // de um clique na página (destravado no 1º clique); a fala fica guardada numa variável (o Chrome descartava antes de falar)
@@ -2230,6 +2230,7 @@
       if (S.paused) S.resume(); S.speak(u); return true; } catch (e) { return false; }
   }
   function sayTrade(k, msg) {
+    if (VOZ && /compra (automática|manual)|comprou/i.test(msg || "") && !/NÃO feita|não copiou|pausad/i.test(msg || "")) { say(VOZ_F.buy || VOZ_PAD.buy); return; }
     if (!VOZ || (k !== "win" && k !== "loss")) return;
     const m = /→\s*[+\-−]?[0-9.]+\s*SOL\s*\(([+\-−]?[0-9.]+)%\)/.exec(msg || "");
     const pct = m ? Math.round(Math.abs(Number(m[1].replace("−", "-")))) : "";
@@ -2296,13 +2297,20 @@
     if (b) return '<div class="ntfmoney"><b>Investiu ' + s4(num(b[1])) + " SOL</b></div>";
     return "";
   }
+  // 0.32.56 (pedido do dono): a notificação diz de qual aba veio o trade (Explorar, barrados, Aba do Bruxo, Top traders…)
+  function ntfAba(n) {
+    const sym = ntfSymbol(n.msg); if (!sym) return "";
+    const real = /^\[PUMP REAL\]/.test(n.msg || ""), same = (x) => String(x.symbol || "").toLowerCase() === sym.toLowerCase() && !!x.real === real;
+    const x = (D && D.positions || []).find(same) || (D && D.recent_closed || []).find(same) || (D && D.trades || []).find(same);
+    return x && x.aba ? ' <span class="tag aba">' + esc(x.aba) + "</span>" : "";
+  }
   function ntfList() {
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
     // 0.31.58 (pedido do dono): toda notificação diz se é da carteira REAL ou da FICTÍCIA
     $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !/NÃO feita|não copiou/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
       const isReal = /^\[PUMP REAL\]/.test(n.msg || ""), mk = mascKind(n.msg);
       const nome = mk ? String(mk[2]).replace(/ \(REAL\)$/, "") : kk[0];
-      return '<div class="ntfi" data-ntfi="' + NTFL.indexOf(n) + '" title="Clique para ver o que aconteceu"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span>" + ntfMoney(n.msg) + "<div>" + esc(String(n.msg || "").replace(/^\[PUMP (SIM|REAL)\]\s*/, "")) + "</div></div>"; }).join("")
+      return '<div class="ntfi" data-ntfi="' + NTFL.indexOf(n) + '" title="Clique para ver o que aconteceu"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span>" + ntfAba(n) + ntfMoney(n.msg) + "<div>" + esc(String(n.msg || "").replace(/^\[PUMP (SIM|REAL)\]\s*/, "")) + "</div></div>"; }).join("")
       : '<p class="muted">Nenhuma notificação ainda.</p>';
   }
   function tone(C, t0, fr, dur, type, vol) { const o = C.createOscillator(), g = C.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(C.destination); o.start(t0); o.stop(t0 + dur + 0.02); }
@@ -3312,13 +3320,13 @@
     $("ntfL").addEventListener("click", (ev) => { const it = ev.target.closest("[data-ntfi]"); if (it && !ev.target.closest("a")) openNtf(+it.dataset.ntfi); });
     // 0.32.52: botão e frases da voz
     const vozBtn = () => { const b = $("ntfV"); if (!b) return; b.className = "btn sm tgl sw " + (VOZ ? "on" : "off"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(VOZ)); $("ntfVF").hidden = !VOZ; };
-    if ($("ntfV")) { $("ntfVw").value = VOZ_F.win; $("ntfVl").value = VOZ_F.loss; vozBtn();
+    if ($("ntfV")) { $("ntfVw").value = VOZ_F.win; $("ntfVl").value = VOZ_F.loss; $("ntfVb").value = VOZ_F.buy || VOZ_PAD.buy; vozBtn();
       $("ntfV").onclick = () => { VOZ = !VOZ; try { localStorage.setItem("ntf_voz", VOZ ? "1" : "0"); } catch (e) { /* */ } vozBtn(); if (VOZ) say(VOZ_F.win.replace("{pct}", "28")); };
       $("ntfVT").onclick = () => { loadVoices(); const v = ptVoice(), ok = say(VOZ_F.win.replace("{pct}", "28"));
         $("ntfVI").textContent = !window.speechSynthesis || !ok ? "Este navegador não fala. Use o Chrome ou o Edge."
           : v ? "Voz: " + v.name : (VOZES.length ? "Sem voz em português neste navegador (fala com sotaque). No Chrome ou no Edge tem voz em português." : "O navegador ainda não carregou as vozes; clique de novo."); };
-      ["ntfVw", "ntfVl"].forEach((id) => $(id).addEventListener("change", () => { VOZ_F = { win: $("ntfVw").value || VOZ_PAD.win, loss: $("ntfVl").value || VOZ_PAD.loss };
-        try { localStorage.setItem("ntf_voz_f", JSON.stringify(VOZ_F)); } catch (e) { /* */ } say(VOZ_F[id === "ntfVw" ? "win" : "loss"].replace("{pct}", "30")); })); }
+      ["ntfVw", "ntfVl", "ntfVb"].forEach((id) => $(id).addEventListener("change", () => { VOZ_F = { win: $("ntfVw").value || VOZ_PAD.win, loss: $("ntfVl").value || VOZ_PAD.loss, buy: $("ntfVb").value || VOZ_PAD.buy };
+        try { localStorage.setItem("ntf_voz_f", JSON.stringify(VOZ_F)); } catch (e) { /* */ } say(VOZ_F[{ ntfVw: "win", ntfVl: "loss", ntfVb: "buy" }[id]].replace("{pct}", "30")); })); }
     $("ntfS").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();
     $("realB").onclick = realToggle;

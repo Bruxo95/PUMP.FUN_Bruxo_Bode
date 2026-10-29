@@ -1035,6 +1035,11 @@
    "versao": "0.32.55",
    "inicio": "2026-10-29T13:40:00+00:00",
    "titulo": "análise do Claude das 26 carteiras em estudo"
+  },
+  {
+   "versao": "0.32.56",
+   "inicio": "2026-10-29T14:00:00+00:00",
+   "titulo": "ajuste do chat até você mudar na tela; aba nas notificações; voz na compra"
   }
  ]
 }

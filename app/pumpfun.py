@@ -1412,7 +1412,8 @@ class PumpFun:
             self._del_pos(p)
             self._after_close(tr)
             self._lead("close", p, why)
-            return (f"[PUMP SIM] fechou {p['symbol']} copiado de {short(p['wallet'])} ({why}) → "
+            src = self.aba_of(p) if p.get("wallet") == "manual" or p.get("manual") else f"{self.aba_of(p)} · {short(p['wallet'])}"
+            return (f"[PUMP SIM] fechou {p['symbol']} copiado de {src} ({why}) → "
                     f"{pnl:+.4f} SOL ({tr['pnl_pct']:+.1f}%)")
         self._save_pos(p)
         return f"[PUMP SIM] {p['symbol']}: vendeu {frac * 100:.0f}% ({why}) → {got:.4f} SOL"

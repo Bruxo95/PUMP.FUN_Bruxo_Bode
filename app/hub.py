@@ -159,6 +159,8 @@ class PumpHub:
         for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added"), ("_real_ok", "real_ok_list")):   # 0.32.17/0.32.38
             if isinstance(saved.get(k), list):
                 setattr(pf, attr, [str(w) for w in saved[k]][:100])
+        if isinstance(saved.get("_ov_user"), dict):                     # 0.32.56: opções que a pessoa mudou na tela (quando)
+            pf._ov_user = {str(k): str(v) for k, v in saved["_ov_user"].items()}
         if isinstance(saved.get("_copy_equal"), list):                  # 0.32.4: Copiar igual (lista colada pelo dono)
             pf.copy_equal = [str(w) for w in saved["_copy_equal"]][:EQ_MAX]
         pf.brain_freeze = saved.get("_brain_freeze") if isinstance(saved.get("_brain_freeze"), dict) else None   # 0.31.85
@@ -1231,15 +1233,21 @@ class PumpHub:
         """0.32.52 (barrados do dono voltaram a entrar às 11:05 depois da 0.32.44): na troca de versão o servidor ANTIGO fica
         alguns instantes no ar e pode gravar a configuração da memória por cima do ajuste recém-aplicado. Por 20 min depois de
         aplicar, o ajuste é conferido de novo ao carregar a conta e a cada 5 min; só repõe o que estiver diferente."""
-        from datetime import timedelta
-        since = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+        # 0.32.56 (MAS comprado pelos barrados às 11:40 CET, depois de 20 min do ajuste): o ajuste vale até a PESSOA mudar
+        # aquela opção na tela (`pump_settings` grava a chave em `_ov_user`); os mais novos ganham dos mais antigos (id).
         try:
-            rows = await self.db.select("settings_overrides", {"user_id": pf.user_id}, order="id.asc", gte={"aplicado_em": since})
+            rows = await self.db.select("settings_overrides", {"user_id": pf.user_id}, order="id.asc")
         except Exception:
             rows = []
+        mine = dict(getattr(pf, "_ov_user", None) or {})
         want: dict = {}
         for r in rows:
-            want.update(dict(r.get("settings") or {}))
+            if not r.get("aplicado_em"):
+                continue
+            at = r.get("aplicado_em")
+            for k, v in dict(r.get("settings") or {}).items():
+                if str(mine.get(k) or "") < str(at):              # a pessoa não mexeu nessa opção depois do ajuste
+                    want[k] = v
         now = time.time()
         for t0, st in self._ov_recent.get(pf.user_id, []):
             if now - t0 < 1200:
@@ -1350,6 +1358,8 @@ class PumpHub:
         for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added"), ("_real_ok", "real_ok_list")):   # 0.32.17/0.32.38
             if getattr(pf, attr, None):
                 s[k] = list(getattr(pf, attr))
+        if getattr(pf, "_ov_user", None):
+            s["_ov_user"] = dict(pf._ov_user)          # 0.32.56: a pessoa mudou estas opções (o ajuste do chat não volta)
         if list(getattr(pf, "copy_equal", None) or []) != list(EQ_SEED):
             s["_copy_equal"] = list(pf.copy_equal)     # 0.32.4: Copiar igual (só grava se mudou a lista de 28/10)
         if getattr(pf, "brain_freeze", None):

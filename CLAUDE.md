@@ -1278,3 +1278,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   O Windows deste PC só tem vozes em inglês; Chrome/Edge trazem pt-BR próprias, o Brave não.
 - 0.32.55: `app/analises_carteiras/20261029-0956-cfaf.md` (26 carteiras: 11 lançadoras, 7 alta frequência, 4 perdem na vida, 2 fora da pump.fun;
   observar DScqtG e dmuXAm). Propostas no fim do arquivo (barrar lançador/HFT, simular a cópia depois do lançador) aguardam o dono.
+- 0.32.56: `_reassert_overrides` repõe TODOS os ajustes aplicados (mais novos ganham), exceto as opções que a pessoa mudou na tela
+  depois (`pf._ov_user` {opção: quando}, gravado em `/api/pump/settings` e salvo como `_ov_user`). Aviso do fechamento usa `aba_of`;
+  `ntfAba` no sino; voz na compra (`VOZ_F.buy`, `#ntfVb`).
