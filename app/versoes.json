@@ -1140,6 +1140,11 @@
    "versao": "0.32.76",
    "inicio": "2026-10-29T21:43:16+00:00",
    "titulo": "ícone novo do atalho FUN COPY"
+  },
+  {
+   "versao": "0.32.77",
+   "inicio": "2026-10-29T21:48:38+00:00",
+   "titulo": "ícone novo também na aba do navegador"
   }
  ]
 }

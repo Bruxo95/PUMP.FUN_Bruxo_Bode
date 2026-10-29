@@ -27,7 +27,7 @@ def test_iphone_shortcut_name_and_icon():
     for page in ("app.html", "index.html"):
         html = (WEB / page).read_text()
         assert '<meta name="apple-mobile-web-app-title" content="FUN COPY">' in html
-        assert 'rel="apple-touch-icon" href="/static/apple-touch-icon.png' in html
+        assert 'rel="apple-touch-icon" href="/static/fun-copy-180.png' in html
         assert 'rel="manifest" href="/static/manifest.json' in html and "viewport-fit=cover" in html
     man = json.loads((WEB / "manifest.json").read_text())
     assert man["name"] == man["short_name"] == "FUN COPY" and man["display"] == "standalone" and man["start_url"] == "/app"
