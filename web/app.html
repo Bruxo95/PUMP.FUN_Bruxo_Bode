@@ -102,8 +102,11 @@
         <div class="kpis" id="uTrK" style="margin:4px 0 12px"></div>
         <div class="tbl-wrap"><table id="uTrTbl" class="daytbl"></table></div></div></div>
       <div class="modal" id="staiM" hidden role="dialog" aria-modal="true" aria-labelledby="staiMT"><div class="modal-box" style="max-width:900px">
-        <header><div><h2 id="staiMT">Relatório + prompt para o ChatGPT</h2><div class="sub">copie tudo, cole no ChatGPT (com navegação) e traga a resposta para o Claude analisar</div></div><div class="sp"></div><button class="btn sm primary" id="staiCp">Copiar tudo</button> <button class="btn sm" id="staiX">Fechar</button></header>
-        <textarea id="staiT" class="in" readonly style="width:100%;min-height:60vh;font-family:var(--mono);font-size:12px;white-space:pre"></textarea></div></div>
+        <header><div><h2 id="staiMT">Relatório + prompt para o ChatGPT</h2><div class="sub" id="staiMS">copie tudo, cole no ChatGPT (com navegação) e traga a resposta para o Claude analisar</div></div><div class="sp"></div><button class="btn sm primary" id="staiCp">Copiar tudo</button> <button class="btn sm" id="staiX">Fechar</button></header>
+        <textarea id="staiT" class="in" readonly style="width:100%;min-height:45vh;font-family:var(--mono);font-size:12px;white-space:pre"></textarea>
+        <div id="staiResp" style="margin-top:12px"><h3>Resposta do ChatGPT</h3><textarea id="staiR" class="in" placeholder="Cole aqui a resposta inteira do ChatGPT" style="width:100%;min-height:18vh;font-family:var(--mono);font-size:12px"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn sm primary" id="staiRS">Salvar resposta</button><span class="muted small" id="staiRM"></span></div></div>
+        <div id="staiAn" hidden style="margin-top:12px"><h3>Análise do Claude</h3><pre id="staiAnT" style="white-space:pre-wrap;font-size:12.5px"></pre></div></div></div>
       <div class="modal" id="stcM" hidden role="dialog" aria-modal="true" aria-labelledby="stcMT"><div class="modal-box" style="max-width:520px">
         <header><div><h2 id="stcMT">Copiar esta carteira</h2><div class="sub" id="stcMS"></div></div><div class="sp"></div><button class="btn sm" id="stcMX">Fechar</button></header>
         <div id="stcMB"></div>
@@ -248,6 +251,10 @@
           <div class="tbl-wrap"><table id="stRank"></table></div></div>
         <div class="card" data-novo-ate="2026-11-08"><header><div><h2>Carteiras estudadas</h2><div class="sub">ganho = lucro realizado da carteira (não o seu copiando) · clique em Perfil para ver tudo · Compartilhar coloca a carteira no estudo de outro usuário</div></div><div class="sp"></div><button class="btn sm primary" data-stai="" data-novo-ate="2026-11-12" title="Relatório de todas as carteiras do estudo com o prompt para o ChatGPT">Relatório + prompt (todas)</button></header>
           <div class="tbl-wrap"><table id="stList"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-12" data-nosanf><header><div><h2>Relatórios para o ChatGPT (histórico)</h2><div class="sub" id="saiSub">cada relatório gerado fica guardado com o estado da conversa</div></div></header>
+          <div class="help"><p><b>Como funciona:</b> 1) <b>Relatório + prompt</b> gera e guarda o relatório. 2) <b>Copiar</b> → o estado vira <b>esperando a resposta do ChatGPT</b>. 3) Cole a resposta dele em <b>Colar resposta</b> → <b>resposta recebida</b>. 4) Traga para o Claude no chat: ele analisa e, na versão seguinte, o relatório aparece como <b>analisado pelo Claude</b>, com a análise. O sistema gera sozinho um relatório novo quando <b>5 carteiras novas</b> entram no estudo sem relatório (ou quando a mais antiga espera 24 h).</p></div>
+          <div id="saiNew"></div>
+          <div class="tbl-wrap"><table id="saiT" class="daytbl"></table></div></div>
         <div class="card" id="stMineCard" data-novo-ate="2026-11-09"><header><div><h2>Seu resultado copiando</h2><div class="sub">o que VOCÊ ganhou ou perdeu de verdade com cada carteira desde que começou a copiar (trades fechados, já com taxas) + o que ainda está aberto</div></div></header>
           <div class="kpis" id="stMineK"></div>
           <h3 class="h3s" data-novo-ate="2026-11-11">Carteira FICTÍCIA</h3><div class="tbl-wrap"><table id="stMine"></table></div>

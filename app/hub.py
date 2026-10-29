@@ -1878,8 +1878,79 @@ class PumpHub:
                            {"features": features(c), "nota": c["nota"], "fonte": c["fonte"]})
         await self.study_copy_sync(pf, log_rows, done_now)
         await self.study_copy_judge(pf, log_rows, info_of, now, note)
+        try:
+            await self.study_ai_auto(pf, now)          # 0.32.48: relatório automático das carteiras novas
+        except Exception as e:
+            log.warning("relatório automático das carteiras: %s", str(e)[:120])
         self._study_auto_at[pf.user_id] = now
         return {"ok": True, **done}
+
+    # ------------------------------------------------------------------ relatórios para o ChatGPT (0.32.47/0.32.48)
+    async def study_ai_build(self, pf, wallets: list[str]) -> str:
+        from .study import copy_params
+        from .study_ai import ai_text, wallet_block
+        names = getattr(pf, "study_names", None) if isinstance(getattr(pf, "study_names", None), dict) else {}
+        prm = copy_params(pf)
+        blocks = []
+        for w in wallets[:30]:
+            prof = await self.study_profile(w, prm)
+            if prof.get("error"):
+                blocks.append(f"## Carteira {w}\n- (o sistema não conseguiu ler os dados: {prof['error']})")
+                continue
+            T = [t for t in pf.trades(5000) if t.get("wallet") == w and not t.get("real")]
+            blocks.append(wallet_block(w, names.get(w), prof, self.wallet_facts(w, want=False),
+                                       {"trades": len(T), "pnl_sol": sum(t.get("pnl_sol") or 0 for t in T)} if T else None))
+        return ai_text(blocks)
+
+    async def study_ai_reports(self, pf) -> list[dict]:
+        try:
+            return await self.db.select("study_ai_reports", {"user_id": pf.user_id}, order="em.desc", limit=200)
+        except Exception as e:
+            log.warning("relatórios das carteiras: %s", str(e)[:120])
+            return []
+
+    async def study_ai_create(self, pf, wallets: list[str], auto: bool = False) -> dict:
+        import secrets as _s
+        mine = list(getattr(pf, "study", []) or [])
+        wallets = [w for w in dict.fromkeys(wallets) if w in mine][:30]
+        if not wallets:
+            return {"error": "nenhuma carteira do seu estudo para o relatório"}
+        now = datetime.now(timezone.utc)
+        rid = now.strftime("%Y%m%d-%H%M") + "-" + _s.token_hex(2)
+        texto = await self.study_ai_build(pf, wallets)
+        row = {"id": rid, "user_id": pf.user_id, "em": now.isoformat(timespec="seconds"), "carteiras": wallets,
+               "texto": texto, "status": "gerado", "auto": auto}
+        await self.db.insert("study_ai_reports", row)
+        if auto:
+            pf._emit(f"Carteiras em estudo: relatório automático {rid} pronto com {len(wallets)} carteira(s) nova(s) — copie e mande para o ChatGPT")
+        return row
+
+    async def study_ai_auto(self, pf, now: float) -> dict | None:
+        """Relatório automático (0.32.48, "você decide quantas"): sai quando 5 carteiras novas entram no estudo sem relatório,
+        ou quando a mais antiga sem relatório já espera 24 h. Uma por volta do estudo automático (30 min)."""
+        from .auto_trades import ts
+        from .study_ai import auto_due, pending_wallets
+        if getattr(pf, "role", "user") != "admin":
+            return None
+        reps = await self.study_ai_reports(pf)
+        pend = pending_wallets(list(getattr(pf, "study", []) or []), reps)
+        try:
+            rows = await self.db.select("study_wallets", {"user_id": pf.user_id}, columns="wallet,criado_em")
+        except Exception:
+            rows = []
+        added = {r["wallet"]: ts(r.get("criado_em")) or now for r in rows}
+        if not auto_due(pend, added, now):
+            return None
+        return await self.study_ai_create(pf, pend, auto=True)
+
+    def study_ai_analysis(self, rid: str) -> str | None:
+        """Análise do Claude: arquivo app/analises_carteiras/<id>.md (vem com a versão nova; o relatório vira "analisado")."""
+        import pathlib
+        f = pathlib.Path(__file__).parent / "analises_carteiras" / f"{rid}.md"
+        try:
+            return f.read_text(encoding="utf-8") if f.is_file() else None
+        except Exception:
+            return None
 
     async def study_copy_judge(self, pf, log_rows: list, info_of: dict, now: float, note) -> None:
         """0.32.38 (pedido do dono: "isso tem que ser estudado e aprendido pela IA"): o resultado DE VERDADE de copiar cada

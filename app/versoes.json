@@ -995,6 +995,11 @@
    "versao": "0.32.47",
    "inicio": "2026-10-29T11:10:00+00:00",
    "titulo": "relatório + prompt das Carteiras em estudo para o ChatGPT"
+  },
+  {
+   "versao": "0.32.48",
+   "inicio": "2026-10-29T11:30:00+00:00",
+   "titulo": "histórico dos relatórios para o ChatGPT e relatório automático das carteiras novas"
   }
  ]
 }

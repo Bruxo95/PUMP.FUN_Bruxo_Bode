@@ -184,3 +184,32 @@ def test_real_copy_result_teaches_the_study():
            {"acao": "adicionou", "info": {"features": {"fonte": "ranking"}}}]
     r = {x["valor"]: x for x in rates(log)}
     assert r["ranking"]["julgadas"] == 2 and r["ranking"]["aprovadas"] == 1
+
+
+def test_chatgpt_report_history_states_and_new_wallets(env):
+    """0.32.48 (pedido do dono): o relatório fica no histórico; copiar = esperando a resposta; colar = resposta recebida;
+    carteira nova sem relatório aparece como pendente."""
+    c, hub = env["c"], env["hub"]
+    A = tok(UA)
+    assert c.post("/api/pump/study", json={"wallet": W, "action": "add"}, headers=A).json()["ok"]
+    L = c.get("/api/pump/study/ai/reports", headers=A).json()
+    assert L["novas"] == [W] and L["items"] == []
+    r = c.get("/api/pump/study/ai", headers=A).json()
+    assert r["id"] and W in r["text"] and r["status"] == "gerado"
+    L = c.get("/api/pump/study/ai/reports", headers=A).json()
+    assert L["novas"] == [] and L["items"][0]["status"] == "gerado"
+    assert c.post(f"/api/pump/study/ai/reports/{r['id']}", json={"acao": "copiado"}, headers=A).json()["ok"]
+    assert c.get("/api/pump/study/ai/reports", headers=A).json()["items"][0]["status"] == "esperando"
+    assert c.post(f"/api/pump/study/ai/reports/{r['id']}", json={"acao": "resposta", "texto": "curto"}, headers=A).json()["error"]
+    assert c.post(f"/api/pump/study/ai/reports/{r['id']}", json={"acao": "resposta", "texto": "tabela completa " * 5}, headers=A).json()["ok"]
+    one = c.get(f"/api/pump/study/ai/reports/{r['id']}", headers=A).json()
+    assert one["status"] == "resposta" and "tabela completa" in one["resposta"] and one["analise"] is None
+    assert c.post("/api/pump/study/ai/reports/novas", json={}, headers=A).json()["error"]   # nada novo
+
+
+def test_chatgpt_report_auto_rule():
+    from app.study_ai import AUTO_MIN, auto_due, pending_wallets
+    ws = [f"W{i}" for i in range(AUTO_MIN)]
+    assert pending_wallets(ws, [{"carteiras": ["W0"]}]) == ws[1:]
+    assert auto_due(ws, {}, 1000.0) and not auto_due(ws[:2], {"W0": 900.0, "W1": 950.0}, 1000.0)
+    assert auto_due(ws[:1], {"W0": 0.0}, 90000.0)

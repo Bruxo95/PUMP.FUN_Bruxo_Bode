@@ -1255,3 +1255,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.46: na Base geral o cartão "O cérebro do robô" é sempre o primeiro (pedido do dono); cartão novo entra abaixo dele.
 - 0.32.47: `app/study_ai.py` (`wallet_block`, `PROMPT`, `ai_text`) + `GET /api/pump/study/ai[?wallet=]` (admin; antes da rota `{wallet}`);
   botões `data-stai` e modal `#staiM` em Carteiras estudadas. O ChatGPT só levanta os dados; a análise é do Claude. `tests/test_estudo_ai.py`.
+- 0.32.48: tabela `study_ai_reports` (migração `20261029000006`; estados gerado → esperando → resposta; "analisado" = existe
+  `app/analises_carteiras/<id>.md`). `hub.study_ai_create/reports/auto/analysis`; `study_ai_auto` no fim do `study_auto` (5 carteiras
+  novas sem relatório ou a mais antiga com 24 h: `study_ai.AUTO_MIN`/`AUTO_WAIT_S`). Rotas `/api/pump/study/ai/reports[/novas|/{id}]`.
+  **Quando o dono trouxer a resposta do ChatGPT:** analisar e gravar `app/analises_carteiras/<id do relatório>.md` na mesma entrega.

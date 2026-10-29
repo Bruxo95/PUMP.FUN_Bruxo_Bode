@@ -49,7 +49,25 @@
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
-  let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", POS_DET = null, POS_ID = null, STC_W = "";
+  let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", POS_DET = null, POS_ID = null, STC_W = "", STAI_ID = "";
+  // 0.32.48 (pedido do dono): histórico dos relatórios para o ChatGPT e o estado de cada um
+  const SAI_TAG = { gerado: "neutral", esperando: "pause", resposta: "sim", analisado: "win" };
+  async function loadStudyAi() {
+    if (!$("saiT")) return;
+    const r = await BB.api("/api/pump/study/ai/reports"); if (r.error) { $("saiSub").textContent = r.error; return; }
+    const nv = r.novas || [];
+    $("saiNew").innerHTML = nv.length ? '<div class="decbox"><b>' + nv.length + " carteira(s) nova(s) sem relatório.</b> O próximo sai sozinho com " + r.auto_min +
+      ' (ou depois de 24 h). <button class="btn sm primary" id="saiNewGo">Gerar agora com as novas</button></div>' : '<p class="muted small">Todas as carteiras do estudo já estão em algum relatório.</p>';
+    table("saiT", ["Gerado", "Carteiras", "Como", "Estado", ""], (r.items || []).map((x) => [dt(x.em), String(x.carteiras.length) + "<small>" + x.carteiras.slice(0, 3).map((w) => w.slice(0, 4) + "…" + w.slice(-4)).join(", ") + (x.carteiras.length > 3 ? "…" : "") + "</small>",
+      x.auto ? "automático" : "você gerou", '<span class="tag ' + (SAI_TAG[x.status] || "neutral") + '">' + esc(x.status_txt) + "</span>" + (x.resposta_em ? "<small>resposta em " + dt(x.resposta_em) + "</small>" : x.copiado_em ? "<small>copiado em " + dt(x.copiado_em) + "</small>" : ""),
+      '<button class="btn sm" data-saio="' + esc(x.id) + '">Abrir</button>']), "Nenhum relatório ainda.");
+  }
+  async function openStudyAi(id) {
+    const r = await BB.api("/api/pump/study/ai/reports/" + encodeURIComponent(id)); if (r.error) { toast(r.error); return; }
+    STAI_ID = r.id; $("staiT").value = r.texto || ""; $("staiR").value = r.resposta || ""; $("staiRM").textContent = "";
+    $("staiMT").textContent = "Relatório " + r.id + " · " + (r.carteiras || []).length + " carteira(s)"; $("staiMS").textContent = r.status_txt;
+    $("staiAn").hidden = !r.analise; $("staiAnT").textContent = r.analise || ""; $("staiM").hidden = false; loadStudyAi();
+  }
   function openPosDet(id, refresh) {
     const P = POS_DET && POS_DET.list.find((p) => String(p.id) === String(id));
     if (!P) { if (!refresh) toast("Essa posição já fechou."); $("posM").hidden = true; POS_ID = null; return; }
@@ -2082,11 +2100,19 @@
       $("stcBoth").disabled = !real; $("stcM").hidden = false; return; }
     if (t.id === "stcMX") { $("stcM").hidden = true; return; }
     // 0.32.47 (pedido do dono): relatório da carteira em estudo + prompt para o ChatGPT fazer a varredura das transações
-    if (t.dataset.stai !== undefined && t.closest("[data-stai]") === t) { $("staiT").value = "Gerando o relatório…"; $("staiM").hidden = false;
+    if (t.dataset.stai !== undefined && t.closest("[data-stai]") === t) { STAI_ID = ""; $("staiT").value = "Gerando o relatório…"; $("staiR").value = ""; $("staiRM").textContent = ""; $("staiAn").hidden = true; $("staiM").hidden = false;
       const r = await BB.api("/api/pump/study/ai" + (t.dataset.stai ? "?wallet=" + encodeURIComponent(t.dataset.stai) : ""));
-      $("staiT").value = r.error || r.text || "–"; $("staiMT").textContent = "Relatório + prompt · " + (r.carteiras || 0) + " carteira(s)"; return; }
+      $("staiT").value = r.error || r.text || "–"; STAI_ID = r.id || "";
+      $("staiMT").textContent = "Relatório " + (r.id || "") + " · " + (r.carteiras || 0) + " carteira(s)"; $("staiMS").textContent = "guardado no histórico · copie e mande para o ChatGPT"; loadStudyAi(); return; }
+    if (t.dataset.saio) { openStudyAi(t.dataset.saio); return; }
+    if (t.id === "saiNewGo") { const b = $("staiM"); STAI_ID = ""; $("staiT").value = "Gerando o relatório das carteiras novas…"; $("staiR").value = ""; $("staiAn").hidden = true; b.hidden = false;
+      const r = await BB.api("/api/pump/study/ai/reports/novas", { body: {} }); if (r.error) { $("staiT").value = r.error; return; } openStudyAi(r.id); return; }
     if (t.id === "staiX") { $("staiM").hidden = true; return; }
-    if (t.id === "staiCp") { const ta = $("staiT"); ta.select(); try { await navigator.clipboard.writeText(ta.value); toast("Copiado. Cole no ChatGPT."); } catch (e) { document.execCommand("copy"); toast("Copiado."); } return; }
+    if (t.id === "staiCp") { const ta = $("staiT"); ta.select(); try { await navigator.clipboard.writeText(ta.value); } catch (e) { document.execCommand("copy"); }
+      if (STAI_ID) { await BB.api("/api/pump/study/ai/reports/" + encodeURIComponent(STAI_ID), { body: { acao: "copiado" } }); $("staiMS").textContent = "copiado · esperando a resposta do ChatGPT para processar"; loadStudyAi(); }
+      toast("Copiado e guardado no histórico. Esperando a resposta do ChatGPT."); return; }
+    if (t.id === "staiRS") { if (!STAI_ID) return; const r = await BB.api("/api/pump/study/ai/reports/" + encodeURIComponent(STAI_ID), { body: { acao: "resposta", texto: $("staiR").value } });
+      $("staiRM").textContent = r.error || "Resposta guardada. Agora traga para o Claude analisar (relatório " + STAI_ID + ")."; if (!r.error) loadStudyAi(); return; }
     if (t.dataset.stcgo) { const tg = t.dataset.stcgo; if (tg === "both" && !confirm("Copiar também na carteira REAL (dinheiro de verdade)?")) return;
       const r = await BB.api("/api/pump/study/copy", { body: { wallet: STC_W, target: tg } }); $("stcM").hidden = true;
       toast(r.error || (tg === "both" ? "Copiando na fictícia e na REAL." : "Copiando só na fictícia.")); poll(true); return loadStudy(); }
@@ -2159,7 +2185,7 @@
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") loadEq();
     if (VIEW === "aprendizado") loadLearning();
-    if (VIEW === "estudo") loadStudy();
+    if (VIEW === "estudo") { loadStudy(); loadStudyAi(); }
     if (VIEW === "radar") loadRadar(true);
     render();
     window.scrollTo(0, 0);

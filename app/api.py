@@ -784,25 +784,72 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/study/ai")
     async def study_ai(wallet: str = "", pf=Depends(admin_engine)):
         """0.32.47 (pedido do dono): relatório da carteira (ou de todas as do estudo) + prompt para o ChatGPT fazer a varredura
-        das transações; a análise volta para o Claude."""
-        from .study import copy_params
-        from .study_ai import ai_text, wallet_block
+        das transações; a análise volta para o Claude. 0.32.48: cada relatório gerado fica no histórico."""
         mine = list(getattr(pf, "study", []) or [])
-        ws = [wallet] if wallet else mine
         if wallet and (not pf.valid_addr(wallet) or wallet not in mine):
             return {"error": "carteira não está no seu estudo"}
-        names = getattr(pf, "study_names", None) if isinstance(getattr(pf, "study_names", None), dict) else {}
-        prm = copy_params(pf)
-        blocks = []
-        for w in ws[:30]:
-            prof = await hub.study_profile(w, prm)
-            if prof.get("error"):
-                blocks.append(f"## Carteira {w}\n- (o sistema não conseguiu ler os dados: {prof['error']})")
-                continue
-            T = [t for t in pf.trades(5000) if t.get("wallet") == w and not t.get("real")]
-            blocks.append(wallet_block(w, names.get(w), prof, hub.wallet_facts(w, want=False),
-                                       {"trades": len(T), "pnl_sol": sum(t.get("pnl_sol") or 0 for t in T)} if T else None))
-        return {"text": ai_text(blocks), "carteiras": len(blocks)}
+        row = await hub.study_ai_create(pf, [wallet] if wallet else mine)
+        if row.get("error"):
+            return row
+        return {"id": row["id"], "text": row["texto"], "carteiras": len(row["carteiras"]), "status": row["status"]}
+
+    @app.get("/api/pump/study/ai/reports")
+    async def study_ai_list(pf=Depends(admin_engine)):
+        """0.32.48: histórico dos relatórios para o ChatGPT, com o estado de cada um e as carteiras novas que ainda não entraram."""
+        from .study_ai import AUTO_MIN, STATUS, pending_wallets
+        reps = await hub.study_ai_reports(pf)
+        out = []
+        for r in reps:
+            st = "analisado" if hub.study_ai_analysis(r["id"]) else r.get("status") or "gerado"
+            out.append({"id": r["id"], "em": r.get("em"), "carteiras": r.get("carteiras") or [], "auto": bool(r.get("auto")),
+                        "status": st, "status_txt": STATUS.get(st, st), "copiado_em": r.get("copiado_em"),
+                        "resposta_em": r.get("resposta_em"), "tem_resposta": bool(r.get("resposta"))})
+        pend = pending_wallets(list(getattr(pf, "study", []) or []), reps)
+        return {"items": out, "novas": pend, "auto_min": AUTO_MIN}
+
+    @app.post("/api/pump/study/ai/reports/novas")
+    async def study_ai_new(pf=Depends(admin_engine)):
+        """Gera agora o relatório só com as carteiras do estudo que ainda não entraram em nenhum."""
+        from .study_ai import pending_wallets
+        pend = pending_wallets(list(getattr(pf, "study", []) or []), await hub.study_ai_reports(pf))
+        if not pend:
+            return {"error": "nenhuma carteira nova sem relatório"}
+        row = await hub.study_ai_create(pf, pend)
+        return row if row.get("error") else {"id": row["id"]}
+
+    @app.get("/api/pump/study/ai/reports/{rid}")
+    async def study_ai_one(rid: str, pf=Depends(admin_engine)):
+        from .study_ai import STATUS
+        rows = [r for r in await hub.study_ai_reports(pf) if r["id"] == rid]
+        if not rows:
+            return {"error": "relatório não encontrado"}
+        r = rows[0]
+        an = hub.study_ai_analysis(rid)
+        st = "analisado" if an else r.get("status") or "gerado"
+        return {**{k: r.get(k) for k in ("id", "em", "carteiras", "texto", "resposta", "resposta_em", "copiado_em", "auto")},
+                "status": st, "status_txt": STATUS.get(st, st), "analise": an}
+
+    @app.post("/api/pump/study/ai/reports/{rid}")
+    async def study_ai_update(rid: str, body: dict, pf=Depends(admin_engine)):
+        """Copiou → "esperando a resposta do ChatGPT"; colou a resposta → "resposta recebida, traga para o Claude"."""
+        from datetime import datetime, timezone
+        rows = [r for r in await hub.study_ai_reports(pf) if r["id"] == rid]
+        if not rows:
+            return {"error": "relatório não encontrado"}
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        act = str((body or {}).get("acao") or "")
+        if act == "copiado":
+            if rows[0].get("status") in (None, "gerado"):
+                await hub.db.update("study_ai_reports", {"id": rid, "user_id": pf.user_id}, {"status": "esperando", "copiado_em": now})
+        elif act == "resposta":
+            txt = str((body or {}).get("texto") or "").strip()
+            if len(txt) < 20:
+                return {"error": "cole a resposta do ChatGPT (texto muito curto)"}
+            await hub.db.update("study_ai_reports", {"id": rid, "user_id": pf.user_id},
+                                {"status": "resposta", "resposta": txt[:400000], "resposta_em": now})
+        else:
+            return {"error": "ação inválida"}
+        return {"ok": True}
 
     @app.get("/api/pump/study/{wallet}")
     async def study_profile(wallet: str, pf=Depends(admin_engine)):

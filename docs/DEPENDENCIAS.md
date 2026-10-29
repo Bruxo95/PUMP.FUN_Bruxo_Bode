@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-29**; revisão documental **2.0**.
-Aplicação: **0.32.47 · 2026-10-29 · relatório + prompt das Carteiras em estudo para o ChatGPT**.
-Referência Git na emissão: `4a9a2647f159c6c6e371c13373366c8a748ee6b6`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.48 · 2026-10-29 · histórico dos relatórios para o ChatGPT e relatório automático das carteiras novas**.
+Referência Git na emissão: `9b45efe4239fd0a6b8c1cf65b3df320f085fd540`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -87,6 +87,27 @@ Abaixo está o que o nosso sistema já sabe de cada carteira (use para conferir 
 os dois números)."""
 
 
+# 0.32.48 (pedido do dono): cada relatório fica guardado com o estado da conversa com o ChatGPT
+STATUS = {"gerado": "gerado · ainda não copiado",
+          "esperando": "esperando a resposta do ChatGPT para processar",
+          "resposta": "resposta do ChatGPT recebida · traga para o Claude analisar",
+          "analisado": "analisado pelo Claude · relatório atualizado"}
+AUTO_MIN = 5            # o relatório automático sai quando 5 carteiras novas (sem relatório) entram no estudo…
+AUTO_WAIT_S = 24 * 3600  # …ou quando a mais antiga sem relatório já espera 24 h
+
+
+def pending_wallets(study: list[str], reports: list[dict]) -> list[str]:
+    """Carteiras do estudo que ainda não entraram em nenhum relatório."""
+    done = {w for r in reports for w in (r.get("carteiras") or [])}
+    return [w for w in study if w not in done]
+
+
+def auto_due(pending: list[str], added_at: dict, now: float) -> bool:
+    if len(pending) >= AUTO_MIN:
+        return True
+    return bool(pending) and min(float(now if added_at.get(w) is None else added_at[w]) for w in pending) <= now - AUTO_WAIT_S
+
+
 def ai_text(blocks: list[str], now: float | None = None) -> str:
     when = datetime.fromtimestamp(now, timezone.utc) if now else datetime.now(timezone.utc)
     head = (f"# Carteiras em estudo · relatório de {when.strftime('%d/%m/%Y %H:%M')} UTC (PUMP FUN COPY)\n\n"
