@@ -677,19 +677,26 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def study_copy(body: dict, pf=Depends(admin_engine)):
         """0.32.17 (pedido do dono): o botão Copiar das Carteiras em estudo copia SÓ na fictícia (teste); a real fica de fora."""
         w, on = str((body or {}).get("wallet") or "").strip(), (body or {}).get("on", True)
+        target = str((body or {}).get("target") or "sim")           # 0.32.38: "sim" = só fictícia; "both" = fictícia e REAL
         if not pf.valid_addr(w):
             return {"error": "endereço de carteira inválido"}
         if on:
-            pf.sim_only_list = list(dict.fromkeys(list(pf.sim_only_list or []) + [w]))
+            if target == "both":
+                pf.real_ok_list = list(dict.fromkeys(list(pf.real_ok_list or []) + [w]))
+                pf.sim_only_list = [x for x in (pf.sim_only_list or []) if x != w]
+            else:
+                pf.sim_only_list = list(dict.fromkeys(list(pf.sim_only_list or []) + [w]))
+                pf.real_ok_list = [x for x in (pf.real_ok_list or []) if x != w]
             if w not in (pf.manual or []):
                 pf.add_manual(w)
         else:
             pf.sim_only_list = [x for x in (pf.sim_only_list or []) if x != w]
+            pf.real_ok_list = [x for x in (pf.real_ok_list or []) if x != w]
             if w in (pf.manual or []):
                 pf.remove_manual(w)
         await hub.save_settings(pf)
         pf.refresh_followed(force=True)
-        await audit(hub.db, pf.user_id, "estudo: copiar só na fictícia" if on else "estudo: parou de copiar", w)
+        await audit(hub.db, pf.user_id, ("estudo: copiar na fictícia e REAL" if target == "both" else "estudo: copiar só na fictícia") if on else "estudo: parou de copiar", w)
         return {"ok": True, "sim_only": pf.sim_only(w)}
 
     @app.post("/api/pump/study")

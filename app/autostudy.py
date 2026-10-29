@@ -43,14 +43,16 @@ def facts_features(fx: dict) -> dict:
 def rates(log: list[dict]) -> list[dict]:
     """Taxa de aprovação por característica, das carteiras já julgadas (aprovou × descartou por não compensar)."""
     g: dict[tuple, list] = {}
+    # 0.32.38: o resultado DE VERDADE de copiar também ensina (copiou_lucro conta como aprovação; parou/sugere parar, como descarte)
+    good, bad = ("aprovou", "copiou_lucro"), ("descartou", "parou_de_copiar", "sugere_parar")
     for r in log:
-        if r.get("acao") not in ("aprovou", "descartou"):
+        if r.get("acao") not in good + bad:
             continue
         for k, v in ((r.get("info") or {}).get("features") or {}).items():
             if v:
                 g.setdefault((k, v), [0, 0])
                 g[(k, v)][1] += 1
-                g[(k, v)][0] += r["acao"] == "aprovou"
+                g[(k, v)][0] += r["acao"] in good
     out = [{"chave": k, "valor": v, "aprovadas": ok, "julgadas": n, "taxa": round((ok + 1) / (n + 2), 3)}
            for (k, v), (ok, n) in g.items()]
     return sorted(out, key=lambda x: (-x["julgadas"], -x["taxa"]))

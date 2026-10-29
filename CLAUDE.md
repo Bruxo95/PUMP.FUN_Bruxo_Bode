@@ -1199,3 +1199,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.37: `scripts/changelog_area.py` (`classify` arquivos → `area`/`arquivos`; `--backfill` preencheu 185 versões pelo Git;
   `--current` na versão nova). Changelog: `.novarea` abaixo do tipo e `.novfiles` (código mexido). Pedido do dono.
+
+- 0.32.38: Copiar do estudo → modal `#stcM` (`target` sim|both na rota `/api/pump/study/copy`; `pf.real_ok_list`/`_real_ok` tira o `sim_only`).
+  `hub.study_copy_judge` no fim do `study_auto`: resultado real das cópias (7 dias, 8+ trades) → `parou_de_copiar` (só as da IA) /
+  `sugere_parar` / `copiou_lucro` no `study_auto_log` (migração `20261029000003` amplia o check); `autostudy.rates` conta como aprovação/descarte.

@@ -163,3 +163,24 @@ def test_study_score_penalizes_few_tokens():
     assert score(0, 0, 0, 0)["score"] is None
     assert score(1, 0, 10, 0)["score"] < 60 < score(175, 21, 50000, 3000)["score"]
     assert score(10, 30, 100, 500)["score"] < 30
+
+
+def test_study_copy_asks_wallet_and_real_choice_is_kept(env):
+    """0.32.38 (pedido do dono): o Copiar do estudo escolhe só fictícia ou fictícia e REAL."""
+    c, hub = env["c"], env["hub"]
+    A = tok(UA)
+    assert c.post("/api/pump/study", json={"wallet": W, "action": "add"}, headers=A).json()["ok"]
+    r = c.post("/api/pump/study/copy", json={"wallet": W, "target": "sim"}, headers=A).json()
+    assert r["ok"] and r["sim_only"] is True
+    r = c.post("/api/pump/study/copy", json={"wallet": W, "target": "both"}, headers=A).json()
+    assert r["sim_only"] is False and W in hub.engines[UA].real_ok_list and W in hub.engines[UA].manual
+
+
+def test_real_copy_result_teaches_the_study():
+    """0.32.38: copiou_lucro conta como aprovação e parou_de_copiar como descarte no que a IA aprendeu."""
+    from app.autostudy import rates
+    log = [{"acao": "copiou_lucro", "info": {"features": {"fonte": "ranking"}}},
+           {"acao": "parou_de_copiar", "info": {"features": {"fonte": "ranking"}}},
+           {"acao": "adicionou", "info": {"features": {"fonte": "ranking"}}}]
+    r = {x["valor"]: x for x in rates(log)}
+    assert r["ranking"]["julgadas"] == 2 and r["ranking"]["aprovadas"] == 1

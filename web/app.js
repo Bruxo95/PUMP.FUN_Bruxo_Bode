@@ -46,7 +46,7 @@
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
-  let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", POS_DET = null, POS_ID = null;
+  let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", POS_DET = null, POS_ID = null, STC_W = "";
   function openPosDet(id, refresh) {
     const P = POS_DET && POS_DET.list.find((p) => String(p.id) === String(id));
     if (!P) { if (!refresh) toast("Essa posição já fechou."); $("posM").hidden = true; POS_ID = null; return; }
@@ -1732,7 +1732,7 @@
     kpis("saK", [["Adicionadas", String(sc.adicionou || 0), "pela IA, desde o início", "pos"], ["Aprovadas", String(sc.aprovou || 0), "compensa copiar", "hit"], ["Descartadas", String(sc.descartou || 0), "não compensa ou paradas", "mon"]]);
     // 0.32.15 (pedido do dono): clicar no cartão abre a lista das carteiras com a nota
     ["adicionou", "aprovou", "descartou"].forEach((a, i) => { const k = $("saK").children[i]; if (k) { k.dataset.saact = a; k.classList.add("clickable"); k.title = "Clique para ver as carteiras"; } });
-    const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss" };
+    const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss", parou_de_copiar: "loss", sugere_parar: "pause", copiou_lucro: "win" };
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => ['<button class="linkbtn" data-sarate="' + esc(x.valor) + '" title="Ver as carteiras com esta característica">' + esc(x.valor) + " ›</button>", String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
     // 0.32.12 (pedido do dono: "está muito espremida"): uma linha por decisão; o resto abre em "Ver tudo"
@@ -2003,7 +2003,16 @@
       if (!r.error) $("stShare").hidden = true;
       return;
     }
-    if (t.dataset.stc) { if (!confirm("Copiar esta carteira SÓ na carteira FICTÍCIA (teste)? A real não copia.")) return; const r = await BB.api("/api/pump/study/copy", { body: { wallet: t.dataset.stc } }); toast(r.error || "Copiando só na fictícia."); poll(true); return loadStudy(); }
+    // 0.32.38 (pedido do dono): o Copiar do estudo pergunta em qual carteira copiar
+    if (t.dataset.stc) { STC_W = t.dataset.stc; const real = !!(D && D.real && D.real.enabled);
+      $("stcMS").textContent = STC_W.slice(0, 4) + "…" + STC_W.slice(-4) + " · copia toda compra e venda dela com os filtros de Configurações";
+      $("stcMB").innerHTML = "<p>Carteira fictícia: <b>" + (cfg().pump_copy_sol || 0.1) + " SOL</b> por cópia.</p><p>Carteira REAL: " + (real ? "<b>até " + cfg().pump_real_max_sol + " SOL</b> por cópia" : '<span class="down">execução real desligada</span>') + "</p>" +
+        '<p class="muted small">A IA acompanha o resultado de verdade: com 8+ trades no prejuízo e acerto abaixo de 40% ela avisa (e para de copiar as que ela mesma aprovou).</p>';
+      $("stcBoth").disabled = !real; $("stcM").hidden = false; return; }
+    if (t.id === "stcMX") { $("stcM").hidden = true; return; }
+    if (t.dataset.stcgo) { const tg = t.dataset.stcgo; if (tg === "both" && !confirm("Copiar também na carteira REAL (dinheiro de verdade)?")) return;
+      const r = await BB.api("/api/pump/study/copy", { body: { wallet: STC_W, target: tg } }); $("stcM").hidden = true;
+      toast(r.error || (tg === "both" ? "Copiando na fictícia e na REAL." : "Copiando só na fictícia.")); poll(true); return loadStudy(); }
     if (t.dataset.str) { if (!confirm("Remover do estudo?")) return; await BB.api("/api/pump/study", { body: { wallet: t.dataset.str, action: "remove" } }); $("stProf").hidden = true; return loadStudy(); }
   });
 

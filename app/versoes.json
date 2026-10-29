@@ -945,6 +945,11 @@
    "versao": "0.32.37",
    "inicio": "2026-10-28T23:02:21+00:00",
    "titulo": "Changelog com área e código mexido"
+  },
+  {
+   "versao": "0.32.38",
+   "inicio": "2026-10-29T10:00:00+00:00",
+   "titulo": "Copiar do estudo escolhe a carteira; IA aprende com a cópia de verdade"
   }
  ]
 }

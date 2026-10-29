@@ -161,6 +161,7 @@ class PumpFun:
         self.study_copy: list[str] = []                  # 0.32.11: aprovadas pelo estudo automático, copiadas só na fictícia
         self.sim_only_list: list[str] = []               # 0.32.17: copiadas pelo botão Copiar do estudo (só fictícia, teste)
         self.ia_added: list[str] = []                    # 0.32.17: as que a IA pôs na lista manual (só essas ela tira)
+        self.real_ok_list: list[str] = []                # 0.32.38: copiadas do estudo que o dono liberou também na REAL
         self.brain_freeze: dict | None = None          # 0.31.85: cérebro congelado numa evolução (Base geral → Voltar)
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
@@ -995,6 +996,8 @@ class PumpFun:
         # estudo copia só na fictícia, a menos que o dono ligue pump_st_real. Carteiras fora do estudo seguem a regra normal.
         if not who:
             return False
+        if who in (getattr(self, "real_ok_list", None) or []):
+            return False                                  # 0.32.38: o dono escolheu "fictícia e REAL" no Copiar do estudo
         if who in self.study_copy_wallets() or who in (getattr(self, "sim_only_list", None) or []):
             return True
         return who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False)

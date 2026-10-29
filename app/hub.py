@@ -151,7 +151,7 @@ class PumpHub:
         pf.follow_user = str(saved.get("_follow_user") or "")        # 0.31.61: copiar os trades de outro usuário
         if isinstance(saved.get("_study_copy"), list):                  # 0.32.11: aprovadas copiadas (só fictícia)
             pf.study_copy = [str(w) for w in saved["_study_copy"]][:50]
-        for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added")):   # 0.32.17
+        for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added"), ("_real_ok", "real_ok_list")):   # 0.32.17/0.32.38
             if isinstance(saved.get(k), list):
                 setattr(pf, attr, [str(w) for w in saved[k]][:100])
         if isinstance(saved.get("_copy_equal"), list):                  # 0.32.4: Copiar igual (lista colada pelo dono)
@@ -1093,7 +1093,7 @@ class PumpHub:
             s["_follow_user"] = pf.follow_user         # 0.31.61: de quem esta conta copia os trades
         if getattr(pf, "study_copy", None):
             s["_study_copy"] = list(pf.study_copy)     # 0.32.11: aprovadas pelo estudo automático
-        for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added")):   # 0.32.17
+        for k, attr in (("_sim_only", "sim_only_list"), ("_ia_added", "ia_added"), ("_real_ok", "real_ok_list")):   # 0.32.17/0.32.38
             if getattr(pf, attr, None):
                 s[k] = list(getattr(pf, attr))
         if list(getattr(pf, "copy_equal", None) or []) != list(EQ_SEED):
@@ -1607,7 +1607,7 @@ class PumpHub:
         info_of = {r["wallet"]: r.get("info") or {} for r in reversed(log_rows) if r.get("acao") == "adicionou"}
         approved = {r["wallet"] for r in log_rows if r.get("acao") == "aprovou"}
         prm = copy_params(pf)
-        done = {"descartou": 0, "aprovou": 0, "adicionou": 0}
+        done = {"descartou": 0, "aprovou": 0, "adicionou": 0, "parou_de_copiar": 0, "sugere_parar": 0, "copiou_lucro": 0}
         out_now: set[str] = set()                   # descartadas nesta volta não podem voltar na mesma volta
 
         done_now: dict[str, str] = {}
@@ -1652,8 +1652,56 @@ class PumpHub:
                            + ("–" if c.get("winrate") is None else f"{c['winrate']:.0f}%"),
                            {"features": features(c), "nota": c["nota"], "fonte": c["fonte"]})
         await self.study_copy_sync(pf, log_rows, done_now)
+        await self.study_copy_judge(pf, log_rows, info_of, now, note)
         self._study_auto_at[pf.user_id] = now
         return {"ok": True, **done}
+
+    async def study_copy_judge(self, pf, log_rows: list, info_of: dict, now: float, note) -> None:
+        """0.32.38 (pedido do dono: "isso tem que ser estudado e aprendido pela IA"): o resultado DE VERDADE de copiar cada
+        carteira do estudo (trades fechados da conta nos últimos 7 dias) vira decisão e aprendizado:
+        - 8+ trades no prejuízo com acerto abaixo de 40%: a IA para de copiar as que ela mesma pôs ("parou_de_copiar"); nas
+          que o dono escolheu, só registra a sugestão ("sugere_parar") — a escolha dele não muda sozinha;
+        - 8+ trades no lucro: "copiou_lucro". Essas decisões contam como aprovação/descarte no "O que ela aprendeu".
+        Uma decisão do mesmo tipo por carteira a cada 24 h."""
+        from .auto_trades import ts
+        from .autostudy import facts_features
+        copied = set(getattr(pf, "study_copy", None) or []) | set(getattr(pf, "sim_only_list", None) or []) | set(getattr(pf, "real_ok_list", None) or [])
+        copied |= set(getattr(pf, "study", None) or []) & set(pf.manual or [])
+        if not copied:
+            return
+        last: dict = {}
+        for r in log_rows:
+            if r.get("acao") in ("parou_de_copiar", "sugere_parar", "copiou_lucro"):
+                last.setdefault((r.get("wallet"), r.get("acao")), ts(r.get("em")) or 0)
+        cut = now - 7 * 86400
+        trades = [t for t in pf.trades(5000) if not t.get("real") and (ts(t.get("closed_at")) or 0) >= cut]
+        for w in sorted(copied):
+            T = [t for t in trades if t.get("wallet") == w]
+            if len(T) < 8:
+                continue
+            wins = sum(1 for t in T if (t.get("pnl_sol") or 0) > 0)
+            pnl = sum(t.get("pnl_sol") or 0 for t in T)
+            acerto = wins / len(T) * 100
+            inf = dict(info_of.get(w, {}))
+            fx = self.wallet_facts(w, want=False)
+            inf["features"] = {**(inf.get("features") or {}), **(facts_features(fx) if fx.get("lido") else {})}
+            inf["copia"] = {"trades": len(T), "acerto": round(acerto), "pnl_sol": round(pnl, 6)}
+            txt = f"copiando de verdade (fictícia, 7 dias): {len(T)} trades, acerto {acerto:.0f}%, {pnl:+.4f} SOL"
+            if pnl < 0 and acerto < 40:
+                ia = w in (getattr(pf, "study_copy", None) or [])
+                acao = "parou_de_copiar" if ia else "sugere_parar"
+                if now - last.get((w, acao), 0) < 86400:
+                    continue
+                if ia:
+                    pf.study_copy = [x for x in pf.study_copy if x != w]
+                    if w in (getattr(pf, "ia_added", None) or []) and w in (pf.manual or []):
+                        pf.remove_manual(w)
+                    pf.ia_added = [x for x in (getattr(pf, "ia_added", None) or []) if x != w]
+                    await self.save_settings(pf)
+                    pf.refresh_followed(force=True)
+                await note(w, acao, txt + (" — a IA parou de copiar" if ia else " — sugestão: parar de copiar (foi você quem escolheu)"), inf)
+            elif pnl > 0 and now - last.get((w, "copiou_lucro"), 0) >= 86400:
+                await note(w, "copiou_lucro", txt, inf)
 
     async def study_copy_sync(self, pf, log_rows: list, done_now: dict | None = None) -> None:
         """0.32.11 (pedido do dono): com pump_st_auto_copy, as carteiras aprovadas que continuam no estudo são copiadas
