@@ -2345,6 +2345,29 @@
   // 0.31.51 (pedido do dono): o sino mostra quantas notificações chegaram desde a última vez que você olhou; clicar abre a
   // lista (o que foi, quando). O som e o aviso do navegador ligam e desligam dentro da lista.
   let NTFL = [], NTFU = 0;
+  // 0.32.74 (pedido do dono): o que os traders copiados fazem (Monitor ao vivo) também no sino e no Histórico
+  const MON_AC = { entrou: '<span class="tag win">Entrou</span>', aumentou: '<span class="tag win">Aumentou</span>', saiu: '<span class="tag loss">Saiu</span>', "vendeu parte": '<span class="tag pause">Vendeu parte</span>' };
+  const MON_H = ["Hora", "Há", "Trader", "Ação", "Token", "SOL", "Preço", "Mcap", "Resultado dele", ""];
+  function monRow(e) {
+    return [dt(e.t * 1000), agoT(e.t), pfW(e.wallet, e), MON_AC[e.action] || esc(e.action), pfM(e.mint, e.symbol), s4(e.sol), ex(e.price), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
+      e.kind === "sell" ? (e.pnl_pct == null ? '<span class="dim">entrada não vista</span>' : pc(e.pnl_pct)) + (e.sold_pct != null ? "<small>" + e.sold_pct + "% da posição</small>" : "") : '<span class="dim">–</span>', tx(e.signature)];
+  }
+  let HMONF = "all", NTAB = "meus", NTF_TSEEN = 0, NTF_TNEW = 0;
+  function renderHMon() {
+    if (!$("hMon") || !D) return;
+    document.querySelectorAll("#hMonSeg button").forEach((b) => b.classList.toggle("on", b.dataset.hf === HMONF));
+    const L = (D.live || []).filter((e) => HMONF === "all" || e.kind === HMONF);
+    $("hMonSub").textContent = (D.live || []).length + " movimentos · os últimos 200 vistos pelo monitor (recomeça quando o sistema atualiza)";
+    table("hMon", MON_H, L.map(monRow), "Nenhum movimento dos traders copiados visto ainda.");
+  }
+  function ntfTraders() {
+    if (!D) return;
+    const L = D.live || [], last = L.length ? L[0].t : 0;
+    if (!NTF_TSEEN) NTF_TSEEN = last || 1;                       // ao abrir o painel, o que já existia não conta como novo
+    else if (last > NTF_TSEEN) { NTF_TNEW += L.filter((e) => e.t > NTF_TSEEN).length; NTF_TSEEN = last; }
+    if ($("ntfTabT")) $("ntfTabT").textContent = "Traders copiados" + (NTF_TNEW ? " (" + (NTF_TNEW > 99 ? "99+" : NTF_TNEW) + " novos)" : "");
+    if (NTAB === "traders" && !$("ntfP").hidden) ntfList();
+  }
   function ntfBtn() {
     const b = $("ntfB");
     b.innerHTML = "🔔 Notificações: " + (NTF ? "ON" : "OFF") + (NTFU ? ' <span class="ntfc">' + (NTFU > 99 ? "99+" : NTFU) + "</span>" : "");
@@ -2412,6 +2435,15 @@
     return x && x.aba ? ' <span class="tag aba">' + esc(x.aba) + "</span>" : "";
   }
   function ntfList() {
+    document.querySelectorAll("#ntfTab button").forEach((b) => b.classList.toggle("on", b.dataset.ntab === NTAB));
+    if (NTAB === "traders") {
+      NTF_TNEW = 0; if ($("ntfTabT")) $("ntfTabT").textContent = "Traders copiados";
+      const L = (D && D.live) || [];
+      $("ntfL").innerHTML = L.length ? L.slice(0, 100).map((e) => '<div class="ntfi">' + (MON_AC[e.action] || '<span class="tag">' + esc(e.action) + "</span>") + ' <span class="tag aba">TRADER</span> <span class="muted">' + esc(dt(e.t * 1000)) + "</span>" +
+        "<div>" + pfW(e.wallet, e) + " · " + pfM(e.mint, e.symbol) + " · " + s4(e.sol) + " SOL" + (e.kind === "sell" && e.pnl_pct != null ? " · resultado dele " + pc(e.pnl_pct) : "") + "</div></div>").join("")
+        : '<p class="muted">Nenhum movimento dos traders copiados ainda (aparece quando um deles compra ou vende).</p>';
+      return;
+    }
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
     // 0.31.58 (pedido do dono): toda notificação diz se é da carteira REAL ou da FICTÍCIA
     $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !/NÃO feita|não copiou/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
@@ -2698,13 +2730,14 @@
       $("exRealDiag").innerHTML = (why.length ? "A real NÃO entra agora: " + why.join(" · ") : '<span class="up">A real entra</span> junto com cada entrada automática, com ' + s4(amtR) + " SOL (máx. " + s4(c.pump_real_max_sol) + " por compra, " + (c.pump_real_max_open || 5) + " posições reais).") +
         (last.length ? "<br>Últimas na real: " + last.map((e) => esc((e.symbol || "?") + ": " + e.action + (e.reason ? " — " + e.reason : ""))).join(" · ") : "");
     }
+    ntfTraders();                                   // 0.32.74: contador "novos" da aba Traders copiados do sino
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
     if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); }
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
     if (VIEW === "config") renderAllCfgCopy();
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
-    else if (VIEW === "historico") { renderHistory(); renderErrs(); }
+    else if (VIEW === "historico") { renderHistory(); renderErrs(); renderHMon(); }
     else if (VIEW === "relatorios" && (Date.now() - REP_AT > 30000 || REP_MODE !== realMode())) loadReports();
     else if (VIEW === "aprendizado" && (Date.now() - AP_AT > 60000 || AP_MODE !== realMode())) loadLearning();
     else if (VIEW === "radar") loadRadar(false);
@@ -2858,10 +2891,7 @@
     document.querySelectorAll("#monSeg button").forEach((b) => b.classList.toggle("on", b.dataset.f === MONF));
     const RP = D.rpc || {}, Lv = (D.live || []).filter((e) => MONF === "all" || e.kind === MONF);
     $("monSub").innerHTML = (RP.ws ? '<span class="up">● conectado</span>' : '<span class="down">● desconectado</span>') + " · " + Fall.length + " carteiras · " + (D.live || []).length + " eventos";
-    const AC = { entrou: '<span class="tag win">Entrou</span>', aumentou: '<span class="tag win">Aumentou</span>', saiu: '<span class="tag loss">Saiu</span>', "vendeu parte": '<span class="tag pause">Vendeu parte</span>' };
-    table("tMon", ["Hora", "Há", "Trader", "Ação", "Token", "SOL", "Preço", "Mcap", "Resultado dele", ""], Lv.map((e) => [dt(e.t * 1000), agoT(e.t), pfW(e.wallet, e), AC[e.action] || esc(e.action), pfM(e.mint, e.symbol), s4(e.sol), ex(e.price), e.mcap_sol == null ? "–" : f(e.mcap_sol, 0) + " SOL",
-      e.kind === "sell" ? (e.pnl_pct == null ? '<span class="dim">entrada não vista</span>' : pc(e.pnl_pct)) + (e.sold_pct != null ? "<small>" + e.sold_pct + "% da posição</small>" : "") : '<span class="dim">–</span>', tx(e.signature)]),
-      Fall.length ? "Aguardando a próxima compra ou venda dos traders copiados…" : "Nenhum trader copiado ainda.");
+    table("tMon", MON_H, Lv.map(monRow), Fall.length ? "Aguardando a próxima compra ou venda dos traders copiados…" : "Nenhum trader copiado ainda.");
     table("tTP", ["Trader", "Token", "Investiu", "Preço médio", "Agora", "Variação", "Valor", "Mcap", "Segurando há"], (D.trader_pos || []).map((p) => [pfW(p.wallet, p), pfM(p.mint, p.symbol) + (p.dev ? ' <span class="tag pause" title="Esta carteira CRIOU o token: o valor é a compra do criador no lançamento. O robô não copia lançamentos, só compras em tokens que já existem.">criou o token</span>' : ""), s4(p.invested_sol) + " SOL", ex(p.avg_price), ex(p.price), pc(p.chg_pct), p.value_sol == null ? "–" : s4(p.value_sol) + " SOL", p.mcap_sol == null ? "–" : f(p.mcap_sol, 0) + " SOL", hms(p.held_s)]),
       "Nenhuma posição aberta vista ainda (aparece quando um trader copiado compra).");
     // ranking próprio
@@ -3423,6 +3453,8 @@
     document.addEventListener("click", (ev) => { const p = $("ntfP"); if (!p || p.hidden) return;
       if (ev.target.closest("#ntfP, #ntfB, .modal") || !document.body.contains(ev.target)) return; p.hidden = true; });
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && $("ntfP") && !$("ntfP").hidden) $("ntfP").hidden = true; });
+    document.querySelectorAll("#ntfTab button").forEach((b) => { b.onclick = (ev) => { ev.stopPropagation(); NTAB = b.dataset.ntab; ntfList(); }; });
+    document.querySelectorAll("#hMonSeg button").forEach((b) => { b.onclick = () => { HMONF = b.dataset.hf; renderHMon(); }; });
     $("ntfC").onclick = () => { NTFL = []; NTFU = 0; ntfList(); ntfBtn(); };
     $("ntfL").addEventListener("click", (ev) => { const it = ev.target.closest("[data-ntfi]"); if (it && !ev.target.closest("a")) openNtf(+it.dataset.ntfi); });
     // 0.32.52: botão e frases da voz

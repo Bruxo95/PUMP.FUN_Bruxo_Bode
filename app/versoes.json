@@ -1125,6 +1125,11 @@
    "versao": "0.32.73",
    "inicio": "2026-10-29T23:30:00+00:00",
    "titulo": "relatório do Copiar igual a cada 6 h"
+  },
+  {
+   "versao": "0.32.74",
+   "inicio": "2026-10-29T23:50:00+00:00",
+   "titulo": "movimentos dos traders no sino e no Histórico"
   }
  ]
 }

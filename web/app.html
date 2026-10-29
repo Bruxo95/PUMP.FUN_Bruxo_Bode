@@ -79,6 +79,7 @@
       </div>
       <div class="tb-center"><button class="btn tgl off ntf" id="ntfB" title="Ver as notificações">🔔 Notificações: OFF</button>
         <div class="ntfp" id="ntfP" hidden><header><b>Notificações</b><div class="sp"></div><button class="btn sm tgl off" id="ntfS">Som e aviso: OFF</button> <button class="btn sm tgl sw off" id="ntfV" title="O navegador fala quando um trade seu fecha no lucro ou no prejuízo">Voz</button> <button class="btn sm" id="ntfC">Limpar</button> <button class="btn sm" id="ntfX" aria-label="Fechar">✕</button></header>
+          <div class="seg" id="ntfTab" style="margin:6px 0"><button data-ntab="meus" class="on">Meus trades</button><button data-ntab="traders" id="ntfTabT">Traders copiados</button></div>
           <div id="ntfVF" class="ntfvoz" hidden><label>Lucro <input class="in" id="ntfVw" aria-label="Frase falada no lucro"></label><label>Prejuízo <input class="in" id="ntfVl" aria-label="Frase falada no prejuízo"></label><label>Compra <input class="in" id="ntfVb" aria-label="Frase falada na compra"></label><button class="btn sm" id="ntfVT">Testar voz</button><span class="muted small" id="ntfVI">{pct} = o % do trade · fica só neste navegador</span></div><div id="ntfL"></div></div></div>
       <div class="tb-right">
         <span class="netload" id="netLoad" hidden aria-live="polite"></span>
@@ -689,6 +690,9 @@
           <h3 data-novo-ate="2026-11-11" style="margin-top:14px">Vendas parciais (posições ainda abertas)</h3>
           <p class="muted small">Quando a "venda em partes" vende um pedaço, o resto da posição continua aberto; a venda aparece aqui e na coluna Vendido de Posições até a posição fechar.</p>
           <div class="tbl-wrap"><table id="tPart" class="daytbl"></table></div><details class="origleg"><summary>O que quer dizer a coluna Trader quando não é uma carteira?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
+        <div class="card" data-novo-ate="2026-11-13"><header><div><h2>Movimentos dos traders copiados</h2><div class="sub" id="hMonSub">o que cada trader copiado comprou e vendeu · os últimos 200 vistos pelo monitor</div></div><div class="sp"></div>
+            <div class="seg" id="hMonSeg"><button data-hf="all" class="on">Tudo</button><button data-hf="buy">Entradas</button><button data-hf="sell">Saídas</button></div></header>
+          <div class="tbl-wrap tall"><table id="hMon" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-10"><header><div><h2>Erros e falhas (compras e vendas que não aconteceram)</h2><div class="sub" id="hErrSub"></div></div></header>
           <div class="tbl-wrap"><table id="hErr" class="daytbl"></table></div></div>
       </section>
