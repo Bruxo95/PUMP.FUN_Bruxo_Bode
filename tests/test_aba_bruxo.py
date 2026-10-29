@@ -65,6 +65,7 @@ def test_entry_filters_from_the_prompt(tmp_path):
     assert "pouca liquidez" in pf.bruxo_entry(s, _facts(mcap=29), t)
     assert "compra do trader pequena" in pf.bruxo_entry(s, _facts(trader_sol=0.01), t)
     assert pf.bruxo_entry(s, _facts(graduated=True), t) == "token já graduou"
+    pf.tokens[M] = {"price": 1e-6, "symbol": "BRX", "mcap_sol": 45.0}
     assert pf.bruxo_entry(s, _facts(top10=None), t) is None             # 0.32.58: sem leitura dos detentores não trava
 
 
