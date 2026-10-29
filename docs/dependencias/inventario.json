@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "24cbafd2bf2ca656b1897bc32f67e7be9efceff2",
-    "application_version": "0.32.64 · 2026-10-29 · tokens de chance alta num clique",
+    "repository_reference": "4770a9f6f518f4b024fbb1ec1a0fa037fe851453",
+    "application_version": "0.32.65 · 2026-10-29 · preço do PEPE corrigido (casas decimais)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "8e43179569400e9e58d65623bc81f2bd5c87509ff9c37685b0ce7bb76bf90777",
+      "app/version.py": "97784dd47ac23b5db9d1187540b7bd1abd510a5a0f1c8b57706742ea0b3fb783",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "726cda71adcecadd523ca3519a30baac04e58d6998d9469ff00a7176a5b1680e"
+  "pdf_sha256": "d9c089cd9231212c6fad6593dc7754690dde6e498b75defbfdf0343d3c0fad5d"
 }

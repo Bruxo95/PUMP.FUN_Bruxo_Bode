@@ -1080,6 +1080,11 @@
    "versao": "0.32.64",
    "inicio": "2026-10-29T21:00:00+00:00",
    "titulo": "tokens de chance alta num clique"
+  },
+  {
+   "versao": "0.32.65",
+   "inicio": "2026-10-29T20:41:20+00:00",
+   "titulo": "preço certo para token com outras casas decimais (caso PEPE) e venda real com RPC sem resposta"
   }
  ]
 }

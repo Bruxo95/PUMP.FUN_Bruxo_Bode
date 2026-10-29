@@ -1493,6 +1493,18 @@ class PumpFun:
         for p in [p for p in self.positions() if p["mint"] == mint]:
             if not px or p.get("selling"):
                 continue
+            dfix = (self.tokens.get(mint) or {}).get("dec_fix_t")
+            if dfix and float(p.get("dec_fix_t") or 0) < dfix:
+                # 0.32.65: o preço desta posição vinha com as casas decimais erradas; pico e stop móvel eram falsos
+                p["dec_fix_t"] = dfix
+                had = p.get("trail_peak")
+                for k_ in ("trail_peak", "trail_exit", "trail_since", "best_pct", "worst_pct", "_chk", "sus_noted"):
+                    p.pop(k_, None)
+                self._save_pos(p)
+                self._feed(wallet=p.get("wallet") or "manual", short=short(p.get("wallet") or "manual"), mint=mint,
+                           symbol=p.get("symbol"), kind="sell", action="preço corrigido", real=bool(p.get("real")),
+                           reason="o preço era lido com as casas decimais erradas"
+                                  + (f"; o pico falso de {had:+.0f}% do stop móvel foi apagado" if had is not None else ""))
             p["price_now"] = px
             left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"])
             val = self._exit_value(p, px)
@@ -3718,6 +3730,30 @@ class PumpFun:
                 continue
         return None
 
+    async def token_decimals(self, mint: str) -> int | None:
+        """0.32.65 (PEPE do Bruxo, 29/10: preço 100× acima, stop móvel em "+9547%" falso): a cotação da Jupiter usava 6 casas
+        decimais para todo token. Os da pump.fun têm 6; o PEPE (Raydium) tem 4, então a cotação vendia 100× mais tokens do
+        que a posição tem. Lê as casas na blockchain (getTokenSupply) uma vez e guarda. None = não deu para ler."""
+        tk = self.tokens.setdefault(mint, {"created_t": time.time()})
+        if tk.get("decimals") is not None:
+            return int(tk["decimals"])
+        if mint.endswith("pump"):
+            tk["decimals"] = 6
+            return 6
+        if time.time() - float(tk.get("dec_try_t") or 0) < 60:
+            return None
+        tk["dec_try_t"] = time.time()
+        try:
+            r = await self.http.post(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP), timeout=8,
+                                     json={"jsonrpc": "2.0", "id": 1, "method": "getTokenSupply", "params": [mint]})
+            dec = int(((r.json().get("result") or {}).get("value") or {})["decimals"])
+        except Exception:
+            return None
+        tk["decimals"] = dec
+        if dec != 6:
+            tk["dec_fix_t"] = time.time()        # o motor zera o pico/stop móvel calculado com o preço errado
+        return dec
+
     async def _pumpswap_prices(self, mints: list[str], public_first: bool = False, qty: dict | None = None) -> list[str]:
         """Preço AO VIVO de tokens já graduados (PumpSwap/outras DEXs): cotação da Jupiter para VENDER a quantidade
         que o bot segura (preço executável de verdade, com impacto). Obs.: o saldo dos cofres do pool NÃO dá o preço
@@ -3735,8 +3771,11 @@ class PumpFun:
                 qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)
         for m in mints:
             q_tok = qty.get(m) or 0.0
-            dec = (self.tokens.get(m) or {}).get("decimals") or 6
             if q_tok <= 0:
+                rest.append(m)
+                continue
+            dec = await self.token_decimals(m)
+            if dec is None:                      # 0.32.65: sem as casas decimais não dá para cotar certo
                 rest.append(m)
                 continue
             try:

@@ -22,6 +22,7 @@ log = logging.getLogger("jupiter")
 
 USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 SOL = "So11111111111111111111111111111111111111112"
+PUBLIC_RPC = "https://api.mainnet-beta.solana.com"   # 0.32.65: reserva quando o RPC da carteira responde sem JSON
 TOKEN_PROGRAMS = ("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")
 # Rótulos da Jupiter (program-id-to-label) agrupados por DEX
 DEXES = {
@@ -91,7 +92,11 @@ class JupiterQuoter:
         if r.status_code == 200:
             self.status = {"on": True, "latency_ms": ms, "error": None, "at": now_iso()}
             self._jup_backoff = 7.5
-            return r.json()
+            try:
+                return r.json()
+            except ValueError:                   # 0.32.65: 200 sem JSON = sem cotação, não derruba quem chamou
+                self.status = {"on": False, "latency_ms": ms, "error": "resposta sem dados", "at": now_iso()}
+                return None
         if r.status_code == 400:
             self.status = {"on": True, "latency_ms": ms, "error": None, "at": now_iso()}
             self.no_route += 1
@@ -141,9 +146,26 @@ class JupiterWallet:
         self._sol_bal_at = 0.0
 
     async def _rpc(self, method: str, params: list):
-        r = await self.http.post(await self.wallet.safe_rpc_url(),
-                                 json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=15)
-        js = r.json()
+        """0.32.65 (PEPE do Bruxo, 29/10 21:34: "Jupiter 3%: Expecting value: line 1 column 1"): o RPC da carteira respondeu
+        sem JSON (limite de pedidos, página de erro) e a venda morria com o erro cru do Python. Agora explica o que veio e,
+        se a carteira usa outro RPC, tenta uma vez no RPC público da Solana. Erro DO RPC (JSON com "error") não troca de RPC."""
+        own = await self.wallet.safe_rpc_url()
+        urls = [own] + ([PUBLIC_RPC] if own != PUBLIC_RPC else [])
+        js, why = None, ""
+        for u in urls:
+            try:
+                r = await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=15)
+            except Exception as e:
+                why = f"RPC sem resposta ({type(e).__name__}) em {method}"
+                continue
+            try:
+                js = r.json()
+                break
+            except ValueError:
+                why = (f"RPC respondeu HTTP {r.status_code} sem dados" + (" (limite de pedidos)" if r.status_code == 429 else "")
+                       + f" em {method}")
+        if js is None:
+            raise RuntimeError(why + (" — RPC público também falhou" if len(urls) > 1 else ""))
         if "error" in js:
             raise RuntimeError(str(js["error"].get("message") if isinstance(js["error"], dict) else js["error"])[:200])
         return js["result"]
@@ -186,7 +208,10 @@ class JupiterWallet:
         await self.dex._jup_wait()
         r = await self.http.post(f"{self.dex.jup_base}/swap/v1/swap", json=body, headers=self.dex.jup_headers,
                                  timeout=15)
-        js = r.json()
+        try:
+            js = r.json()
+        except ValueError:                       # 0.32.65: resposta sem JSON (limite, página de erro)
+            js = {"erro": f"resposta sem dados ({r.text[:60]!r})"}
         if r.status_code != 200 or "swapTransaction" not in js:
             raise RuntimeError(f"Jupiter swap HTTP {r.status_code}: {str(js)[:160]}")
         from solders.transaction import VersionedTransaction

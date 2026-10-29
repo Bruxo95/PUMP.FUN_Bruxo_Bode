@@ -1297,6 +1297,10 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   espera); `PumpReal._rpc` explica resposta sem JSON; `balances`/`_raw_tok` com `_rpc_retry`. Caso PEPE do Bruxo. `tests/test_venda_real_espera.py`.
 - 0.32.63: `apis.solana_tracker.fonte` (sua chave / chave do sistema / nenhuma) na linha da Solana Tracker do `#sysM`.
 
+- 0.32.65: `PumpFun.token_decimals` (getTokenSupply, cache em `tokens[m].decimals`; "…pump" = 6) em `_pumpswap_prices` — antes 6 casas para todo token
+  (PEPE tem 4 → preço 100×, stop móvel em +9.547% falso). Casas ≠ 6 marcam `dec_fix_t` e `_check_stops` apaga pico/stop móvel/melhor momento
+  da posição (feed "preço corrigido"). `JupiterWallet._rpc` explica resposta sem JSON e tenta uma vez em `PUBLIC_RPC`. `tests/test_pepe_casas.py`.
+
 ## Análise das APIs de consulta (2026-10-29, sobre a 0.32.63 — só documento, sem mudança no código)
 - Pedido do dono (Bruxo95). `docs/ANALISE-APIS-2026-10-29.md`: a Solana Tracker pede ≈ 2.500–3.000 consultas/dia contra 10 mil/mês do
   grátis ("Insufficient credits"). Maior gasto: Carteiras em estudo a cada 30 min (≈ 52 mil/mês), Explorar (≈ 8,6 mil), ranking
