@@ -23,7 +23,7 @@
 <link rel="stylesheet" href="/static/app.css?v=__V__">
 </head>
 <body>
-<div class="loading" id="boot">Carregando o painel…</div>
+<div class="loading" id="boot" data-ll="Carregando o painel">Carregando o painel…</div>
 
 <div class="shell" id="shell" hidden>
   <aside class="side" id="side">
@@ -79,6 +79,7 @@
       <div class="tb-center"><button class="btn tgl off ntf" id="ntfB" title="Ver as notificações">🔔 Notificações: OFF</button>
         <div class="ntfp" id="ntfP" hidden><header><b>Notificações</b><div class="sp"></div><button class="btn sm tgl off" id="ntfS">Som e aviso: OFF</button> <button class="btn sm" id="ntfC">Limpar</button> <button class="btn sm" id="ntfX" aria-label="Fechar">✕</button></header><div id="ntfL"></div></div></div>
       <div class="tb-right">
+        <span class="netload" id="netLoad" hidden aria-live="polite"></span>
         <div class="seg" id="modeSeg" title="Mostrar carteira"><button data-mode="sim">Fictícia</button><button data-mode="real">Real</button></div>
         <div class="search" id="searchBtn" role="button" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Buscar token, trader…</span><kbd id="kbdHint">Ctrl K</kbd></div>
         <button class="avatar" id="avatarB" aria-label="Conta"></button>
@@ -270,7 +271,7 @@
             <a class="btn" href="#estudo">Gerenciar carteiras</a>
           </form>
           <div class="hint muted small" id="radarDraft" hidden>Critérios editados; salve para aplicar. As ondas abaixo ainda usam os critérios salvos.</div>
-          <div class="radar-status" id="radarStatus" role="status" aria-live="polite">Carregando o radar…</div>
+          <div class="radar-status" id="radarStatus" role="status" aria-live="polite" data-ll="Carregando o radar"></div>
           <div class="small muted" id="radarSince"></div>
         </div>
         <div class="kpis radar-kpis" id="radarKpis"></div>
@@ -507,7 +508,7 @@
             <select class="in" id="exShU" style="flex:1;min-width:240px"></select>
             <button class="btn sm primary" id="exShGo">Enviar convite</button></div></div></div></div>
         <div class="card auto-entry" data-novo-ate="2026-11-09"><header><div><h2>Entrada automática (chance alta)</h2><div class="sub">somente a lista Quase graduando, com todos os filtros abaixo</div></div><div class="sp"></div><button class="btn sm" data-exsh="tudo" data-novo-ate="2026-11-09" style="margin-right:8px">Compartilhar tudo</button><button class="btn tgl off" data-toggle="pump_ex_auto_on" aria-label="Entrada automática do Explorar">OFF</button></header>
-          <div class="auto-state muted" id="exAutoState" role="status" aria-live="polite">Carregando o estado das entradas automáticas…</div>
+          <div class="auto-state muted" id="exAutoState" role="status" aria-live="polite" data-ll="Carregando as entradas automáticas"></div>
           <div class="help"><p><b>Como funciona:</b> começa desligada e usa a carteira fictícia. Quando o veredito for <b>chance alta</b> e todos os filtros passarem, entra com as proteções abaixo. Novos, Graduados e Mais sobem não geram entrada automática nesta etapa. A fonte renova a cada 5 minutos e pode chegar atrasada.</p><p id="exAutoMode">O dinheiro real depende das travas e dos controles existentes de execução real; esta tela não liga esses controles.</p></div>
           <div class="field" data-novo-ate="2026-11-11"><label>Entrar também no veredito "possível" (com menos dinheiro)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_ex_possivel_on">…</button><input class="in w80" type="number" min="10" max="100" step="5" data-cfg="pump_ex_possivel_pct"><span class="muted">% do valor normal</span></div>
             <div class="muted small">Desligado por padrão. Ligue só se o quadro "O veredito está acertando?" (Base geral) mostrar que os tokens "possível" teriam dado lucro.</div></div>
@@ -556,7 +557,7 @@
           <div class="tbl-wrap tall"><table id="exAutoTrades" class="autotbl"></table></div>
         </div>
         <div class="card auto-operations" id="exRealCard" data-novo-ate="2026-11-10" data-sanf><header><div><h2>Minhas operações automáticas · carteira REAL</h2><div class="sub" id="exRealSub">Explorar · só as compras reais (dinheiro de verdade), já com taxas</div></div></header>
-          <div class="auto-readiness muted" id="exRealNote" role="status">Carregando…</div>
+          <div class="auto-readiness muted" id="exRealNote" role="status" data-ll="Carregando"></div>
           <div class="kpis auto-kpis" id="exRealKpis"></div>
           <h3 class="h3s">Ganhou × perdeu (fechadas, já com taxas)</h3><div class="kpis auto-kpis" id="exRealWL"></div>
           <h3 class="h3s">A conta do bot: perde pouco, ganha muito?</h3><div class="kpis auto-kpis" id="exRealEx"></div>

@@ -645,3 +645,43 @@ tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}
 .novarea .tag{font-size:10px;padding:1px 6px}
 .novfiles{margin-top:6px;font-size:11px;color:var(--muted)}
 .novfiles code{font-size:10.5px;margin-right:4px}
+
+/* ---------------------------------------------------------------- indicador "Carregando" (0.32.39, adaptado do LatticeLoader) */
+.lattice-loader{--ll-n:3;--ll-cell:6px;--ll-gap:2px;--ll-font:13px;--ll-color:currentColor;--ll-mark:var(--up);--ll-idle:.15;--ll-glow:currentColor;--ll-peak:1;--ll-cycle:864ms;
+  --ll-eo:cubic-bezier(.23,1,.32,1);--ll-eio:cubic-bezier(.77,0,.175,1);
+  position:relative;display:inline-flex;align-items:center;gap:calc(var(--ll-font)*.625);font-size:var(--ll-font);line-height:1;color:var(--muted);vertical-align:middle}
+.lattice-loader[data-status="error"]{--ll-mark:var(--down)}
+.lattice-loader__grid{display:grid;flex:none}
+.lattice-loader__layer{grid-area:1/1;display:grid;grid-template-columns:repeat(var(--ll-n),var(--ll-cell));gap:var(--ll-gap)}
+.lattice-loader__cell{width:var(--ll-cell);height:var(--ll-cell);border-radius:50%;background:var(--ll-color);opacity:var(--ll-idle)}
+.lattice-loader[data-glow] .lattice-loader__run .lattice-loader__cell:not([data-hole]){box-shadow:0 0 calc(var(--ll-cell)*1.2) calc(var(--ll-cell)*.12) var(--ll-glow)}
+.lattice-loader[data-glow] .lattice-loader__mark .lattice-loader__cell[data-on]{box-shadow:0 0 calc(var(--ll-cell)*1.2) calc(var(--ll-cell)*.12) var(--ll-mark)}
+.lattice-loader__run{transition:opacity .2s ease}
+.lattice-loader__run .lattice-loader__cell{animation:ll-on var(--ll-cycle) var(--ll-eio) infinite}
+.lattice-loader__run .lattice-loader__cell[data-lit="45"]{animation-name:ll-on-45}
+.lattice-loader__run .lattice-loader__cell[data-lit="35"]{animation-name:ll-on-35}
+.lattice-loader__run .lattice-loader__cell[data-hole]{animation:none;opacity:calc(var(--ll-idle)*.47)}
+.lattice-loader__mark{opacity:0;transform:scale(.9);transition:opacity .16s var(--ll-eo),transform .16s var(--ll-eo)}
+.lattice-loader__mark .lattice-loader__cell{transition:opacity .2s ease,background-color .2s ease}
+.lattice-loader__mark .lattice-loader__cell[data-on]{background:var(--ll-mark);opacity:var(--ll-peak)}
+.lattice-loader:not([data-status="working"]) .lattice-loader__run{opacity:0}
+.lattice-loader:not([data-status="working"]) .lattice-loader__run .lattice-loader__cell{animation-play-state:paused}
+.lattice-loader:not([data-status="working"]) .lattice-loader__mark{opacity:1;transform:none;transition:opacity .2s ease,transform .2s var(--ll-eo)}
+.lattice-loader__label{font-weight:500;white-space:nowrap;animation:ll-txt .2s ease}
+.lattice-loader[data-status="working"] .lattice-loader__label{background:linear-gradient(90deg,var(--muted) 0%,var(--text) 45%,var(--muted) 90%);background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:ll-brilho 2.2s linear infinite}
+.lattice-loader__timer{font-family:var(--mono);font-size:calc(var(--ll-font)*.875);font-variant-numeric:tabular-nums;opacity:.6}
+.lattice-loader[data-status="done"] .lattice-loader__label{color:var(--up)}.lattice-loader[data-status="error"] .lattice-loader__label{color:var(--down)}
+@keyframes ll-on{0%,100%{opacity:var(--ll-idle)}18%,42%{opacity:var(--ll-peak)}62%{opacity:var(--ll-idle)}}
+@keyframes ll-on-45{0%,100%{opacity:var(--ll-idle)}13%,31%{opacity:var(--ll-peak)}45%{opacity:var(--ll-idle)}}
+@keyframes ll-on-35{0%,100%{opacity:var(--ll-idle)}10%,24%{opacity:var(--ll-peak)}35%{opacity:var(--ll-idle)}}
+@keyframes ll-txt{from{opacity:0;filter:blur(2px)}to{opacity:1;filter:none}}
+@keyframes ll-brilho{from{background-position:120% 0}to{background-position:-100% 0}}
+/* tela de abertura do painel e indicador do topo */
+.loading .lattice-loader{color:var(--text)}
+.netload{display:inline-flex;align-items:center;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--card);transition:opacity .25s ease}
+.netload[hidden]{display:none}
+.netload.saindo{opacity:0}
+@media (max-width:860px){.netload .lattice-loader__label{display:none}}
+@media (prefers-reduced-motion:reduce){.lattice-loader__run{--ll-peak:.7}.lattice-loader__run .lattice-loader__cell{animation-delay:0ms!important;animation-duration:1400ms!important}
+  .lattice-loader__mark{transform:none}.lattice-loader[data-status="working"] .lattice-loader__label{animation:none;color:var(--muted);background:none}}

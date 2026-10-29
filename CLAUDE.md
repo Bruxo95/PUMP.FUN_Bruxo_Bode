@@ -1203,3 +1203,13 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.38: Copiar do estudo → modal `#stcM` (`target` sim|both na rota `/api/pump/study/copy`; `pf.real_ok_list`/`_real_ok` tira o `sim_only`).
   `hub.study_copy_judge` no fim do `study_auto`: resultado real das cópias (7 dias, 8+ trades) → `parou_de_copiar` (só as da IA) /
   `sugere_parar` / `copiou_lucro` no `study_auto_log` (migração `20261029000003` amplia o check); `autostudy.rates` conta como aprovação/descarte.
+
+## Indicador "Carregando" (2026-10-29, versão 0.32.39)
+- Pedido do dono: usar o LatticeLoader (React Bits) quando o site estiver carregando. O painel é JS puro, então foi
+  reescrito sem React em `web/common.js`: `BB.loader(rótulo, {grid, pattern, font, cell, glow, key})` devolve o HTML;
+  `BB.loaderEnd(el, "done"|"error")` congela o cronômetro e mostra ✓ "Pronto em" / ✗ "Falhou após";
+  `<div data-ll="Carregando…">` no HTML vira indicador sozinho. Relógio guardado por rótulo (redesenhar a cada 2 s não
+  zera o cronômetro nem pula a onda). CSS no fim de `web/app.css` (classes `lattice-loader*`, `.netload`).
+- Topo da tela (`#netLoad`): `BB.api` mostra "Carregando"/"Salvando" quando um pedido passa de 0,4 s; a atualização
+  automática `/api/pump?ev=` e chamadas com `{quiet:true}` não contam. Em `app.js`, `busy(id, rótulo)` troca o texto
+  de um quadro pelo indicador só se o rótulo mudou.

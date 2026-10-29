@@ -189,6 +189,13 @@
     if (keys.filter((k) => k != null).length < Math.ceil(rows.length / 2)) return rows;
     return rows.map((r, i) => [r, keys[i], i]).sort((a, b) => (b[1] == null ? -Infinity : b[1]) - (a[1] == null ? -Infinity : a[1]) || a[2] - b[2]).map((x) => x[0]);
   }
+  // Indicador "Carregando" (grade animada + cronômetro). Só redesenha se o texto mudou, então a onda não reinicia.
+  function busy(id, label) {
+    const el = typeof id === "string" ? $(id) : id; if (!el) return;
+    const cur = el.querySelector('.lattice-loader[data-status="working"]');
+    if (cur && cur.dataset.lbl === label) return;
+    el.innerHTML = BB.loader(label);
+  }
   function table(id, head, rows, empty) {
     const el = $(id); if (!el) return;
     if (!rows.length) { el.innerHTML = '<tr><td class="empty" colspan="' + head.length + '">' + (empty || "Nada por aqui ainda.") + "</td></tr>"; return; }
@@ -840,14 +847,16 @@
     const stale = !EX_AUTO.updatedAt || Date.now() - EX_AUTO.updatedAt > 30000;
     let text, tone = "muted";
     if (EX_AUTO.saving) text = "Salvando as opções das automáticas…";
-    else if (!D) text = "Carregando as opções das entradas automáticas…";
+    else if (!D) text = "Carregando as entradas automáticas";
     else if (!enabled) text = "Desligada · nenhuma nova entrada automática do Explorar. Posições abertas continuam protegidas.";
     else if (EX_AUTO.error || stale) { text = "Estado aguardando atualização" + (EX_AUTO.error ? ": " + EX_AUTO.error : ".") + " As entradas dependem das travas do motor."; tone = "warn"; }
     else if (status.paused || status.ready === false) {
       text = "Pausada: " + (status.reason || "aguardando o histórico para operar com segurança"); tone = "warn";
       if (autoNum(status.until) != null && status.until * 1000 > Date.now()) text += " · até " + new Date(status.until * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
     } else { text = "Ativa · " + f(autoNum(status.open) || 0, 0) + " posições automáticas abertas · " + f(autoNum(status.entries_h) || 0, 0) + " entradas na última hora."; tone = "up"; }
-    $("exAutoState").textContent = text; $("exAutoState").className = "auto-state " + tone;
+    $("exAutoState").className = "auto-state " + tone;
+    if (EX_AUTO.saving || !D) busy("exAutoState", EX_AUTO.saving ? "Salvando as opções das automáticas" : "Carregando as entradas automáticas");
+    else $("exAutoState").textContent = text;
     const real = D && D.real || {};
     $("exAutoMode").textContent = c.pump_auto_real && real.enabled && real.allowed
       ? "A cópia REAL das automáticas já está ligada nos controles existentes. Cada operação REAL aparece identificada; os resumos abaixo usam só o simulado."
@@ -868,9 +877,9 @@
     document.querySelectorAll("[data-auto-days]").forEach((b) => { b.classList.toggle("on", +b.dataset.autoDays === EX_AUTO.days); b.setAttribute("aria-pressed", String(+b.dataset.autoDays === EX_AUTO.days)); });
     if (!r) {
       $("exAutoKpis").innerHTML = "";
-      $("exAutoTradesSub").textContent = EX_AUTO.error ? "Não foi possível carregar: " + EX_AUTO.error : "Explorar · carregando as operações automáticas…";
+      if (EX_AUTO.error) $("exAutoTradesSub").textContent = "Não foi possível carregar: " + EX_AUTO.error; else busy("exAutoTradesSub", "Carregando as operações automáticas");
       notice.textContent = "Ainda não recomendado para dinheiro real: aguardando o histórico das automáticas."; notice.className = "auto-readiness muted";
-      table("exAutoTrades", ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], [], EX_AUTO.error ? "Histórico indisponível. A tela tentará atualizar novamente." : "Carregando…");
+      table("exAutoTrades", ["Token", "Entrou", "Situação", "Resultado", "Saiu", "Por que saiu", "Duração", "Melhor momento", "Depois que saiu"], [], EX_AUTO.error ? "Histórico indisponível. A tela tentará atualizar novamente." : BB.loader("Carregando as operações"));
       return;
     }
     const sums = r.summary || {}, day = sums.day || {}, period = sums.period || {}, ready = r.readiness || {};
@@ -1492,7 +1501,7 @@
 
   // ------------------------------------------------------------------ ficha do token (/api/pump/token/{mint})
   async function openToken(m) {
-    $("tkCard").hidden = false; $("tkT").textContent = "Carregando…"; $("tkM").textContent = m; $("tkB").innerHTML = "";
+    $("tkCard").hidden = false; busy("tkT", "Carregando o token"); $("tkM").textContent = m; $("tkB").innerHTML = "";
     const r = await BB.api("/api/pump/token/" + encodeURIComponent(m));
     if (r.error) { $("tkB").innerHTML = '<p class="muted">' + esc(r.error) + "</p>"; return; }
     $("tkT").innerHTML = esc(r.symbol || "Token") + (r.name ? ' <span class="muted">' + esc(r.name) + "</span>" : "") +
@@ -2351,7 +2360,7 @@
   async function openRpcLog(tipo) {
     SYS_SUB = tipo;
     $("sysMT").textContent = RPC_T[tipo] || tipo;
-    $("sysMB").innerHTML = '<p class="muted">carregando…</p>';
+    $("sysMB").innerHTML = '<p class="muted">' + BB.loader("Carregando o status do sistema") + "</p>";
     let r; try { r = await BB.api("/api/pump/monitor/leituras?tipo=" + encodeURIComponent(tipo)); } catch (e) { r = { error: String(e) }; }
     if (SYS_SUB !== tipo) return;
     if (!r || r.error) { $("sysMB").innerHTML = '<p class="down">' + esc((r && r.error) || "erro") + '</p><button class="btn sm" data-rpcback="1">‹ Voltar</button>'; return; }
@@ -2551,7 +2560,7 @@
       r.wallet_usd == null ? '<span class="dim">…</span>' : usd(r.wallet_usd), usdS(r.realized_usd), r.roi == null ? "–" : pc(r.roi, 0), r.winrate == null ? "–" : f(r.winrate, 0) + "%", r.trades == null ? "–" : String(r.trades), r.tokens == null ? "–" : String(r.tokens), r.days_active == null ? "–" : String(r.days_active), r.last_trade ? agoIso(r.last_trade) : "–",
       r.paused ? '<span class="tag pause">Pausado</span>' : r.followed ? '<span class="tag win">Copiando</span>' : r.eligible ? (c.pump_only_online && !r.online ? '<span class="tag pause">Apto · fora (inativo)</span>' : '<span class="tag neutral">Apto</span>') : '<span class="dim" style="white-space:normal;display:block;max-width:260px">' + esc((r.flags || []).join(" · ")) + "</span>",
       r.paused ? btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on") : r.followed ? btn("Pausar", "w", { a: "pause", w: r.wallet }) : r.manual ? "" : btn("Copiar", "w", { a: "add", w: r.wallet })]),
-      ls.key_set ? (ls.error ? '<span class="down">Erro da Solana Tracker: ' + esc(ls.error) + "</span>" : "Buscando o ranking…") : "A lista aparece assim que a chave da Solana Tracker for salva.");
+      ls.key_set ? (ls.error ? '<span class="down">Erro da Solana Tracker: ' + esc(ls.error) + "</span>" : BB.loader("Buscando o ranking")) : "A lista aparece assim que a chave da Solana Tracker for salva.");
     $("lbNote").innerHTML = (ls.error && ls.key_set && L.length ? '<span class="down">Erro da Solana Tracker: ' + esc(ls.error) + "</span><br>" : "") + "Ranking por lucro realizado em US$ no período. Os " + (c.pump_top_n || 10) + " primeiros aptos são copiados (carteiras manuais vêm antes). Só copia quem tem acerto ACIMA de " + (c.pump_min_winrate || 50) + "% e pelo menos " + (c.pump_lb_min_trades || 0) + " trades no período. Robôs, devs de token e corretoras ficam de fora. " + (c.pump_only_online ? "Só copia quem está ONLINE (negociou nos últimos " + (c.pump_online_min || 10) + " min): a cada 10 min quem ficou inativo sai e entra o melhor do top que estiver online. " : "") + "O ranking é consultado a cada 10 min.";
     const F = D.followed || [];
     $("folSub").textContent = F.length + " carteiras" + ((D.paused || []).length ? " · " + D.paused.length + " pausadas" : "") + " · manuais primeiro";
@@ -2815,7 +2824,7 @@
   async function openUserTrades(uid, filt) {
     const u = USERS.find((x) => x.user_id === uid) || {};
     UTR = { uid, list: [], f: filt || "win" };
-    $("uTrT").textContent = "Trades de " + (u.nome || u.email || "usuário"); $("uTrS").textContent = "carteira fictícia · carregando…";
+    $("uTrT").textContent = "Trades de " + (u.nome || u.email || "usuário"); busy("uTrS", "Carregando os trades da carteira fictícia");
     $("uTrTbl").innerHTML = ""; $("uTrK").innerHTML = ""; $("uTrades").hidden = false;
     const r = await BB.api("/api/admin/users/" + encodeURIComponent(uid) + "/trades");
     if (r.error) { $("uTrS").textContent = r.error; return; }
@@ -3005,12 +3014,15 @@
   // ------------------------------------------------------------------ início
   async function boot() {
     document.querySelectorAll("[data-logo]").forEach((e) => (e.innerHTML = BB.logo));
+    $("boot").innerHTML = BB.loader("Carregando o painel", { grid: 4, pattern: "sweep", font: 15, cell: 7, glow: true });
+    const bootFail = (m) => { BB.loaderEnd($("boot"), "error"); $("boot").insertAdjacentHTML("beforeend", '<p class="muted" style="margin-top:14px;text-align:center">' + esc(m) + "</p>"); };
     let s;
-    try { s = await BB.session(); } catch (e) { $("boot").textContent = e.message || String(e); return; }
+    try { s = await BB.session(); } catch (e) { bootFail(e.message || String(e)); return; }
     if (!s) { location.href = "/"; return; }
     if (location.search) history.replaceState(null, "", location.pathname + location.hash);
     ME = await BB.api("/api/me");
-    if (ME.error) { $("boot").textContent = ME.error; return; }
+    if (ME.error) { bootFail(ME.error); return; }
+    BB.loaderEnd($("boot"), "done");
     $("boot").hidden = true; $("shell").hidden = false;
     if (ME.view_by) {
       // 0.31.36: faixa "você está vendo a tela de X" + painel só leitura (o servidor recusa qualquer alteração)

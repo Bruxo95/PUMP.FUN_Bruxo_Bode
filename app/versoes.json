@@ -948,8 +948,13 @@
   },
   {
    "versao": "0.32.38",
-   "inicio": "2026-10-29T10:00:00+00:00",
+   "inicio": "2026-10-29T00:45:52+00:00",
    "titulo": "Copiar do estudo escolhe a carteira; IA aprende com a cópia de verdade"
+  },
+  {
+   "versao": "0.32.39",
+   "inicio": "2026-10-29T06:39:05+00:00",
+   "titulo": "Indicador Carregando animado"
   }
  ]
 }
