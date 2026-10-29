@@ -1150,6 +1150,11 @@
    "versao": "0.32.78",
    "inicio": "2026-10-30T00:20:00+00:00",
    "titulo": "Comprar e Comprar todas no Lançamento sem trader"
+  },
+  {
+   "versao": "0.32.79",
+   "inicio": "2026-10-30T00:40:00+00:00",
+   "titulo": "1 min e depois do pico na Aba do Bruxo"
   }
  ]
 }
