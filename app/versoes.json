@@ -1025,6 +1025,11 @@
    "versao": "0.32.53",
    "inicio": "2026-10-29T13:00:00+00:00",
    "titulo": "trava de segurança nas entradas e resposta do ChatGPT por arquivo"
+  },
+  {
+   "versao": "0.32.54",
+   "inicio": "2026-10-29T13:20:00+00:00",
+   "titulo": "voz das notificações corrigida"
   }
  ]
 }

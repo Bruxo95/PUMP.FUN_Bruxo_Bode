@@ -2209,11 +2209,25 @@
   // {pct} vira o % do resultado. As frases ficam só neste navegador.
   const VOZ_PAD = { win: "Deu lucro, porra! Mais {pct} por cento.", loss: "Porra, deu merda! Menos {pct} por cento." };
   let VOZ = false, VOZ_F = { ...VOZ_PAD };
-  try { VOZ = localStorage.getItem("ntf_voz") === "1"; VOZ_F = { ...VOZ_PAD, ...JSON.parse(localStorage.getItem("ntf_voz_f") || "{}") }; } catch (e) { /* */ }
+  // 0.32.54 (dono: "só bip, a voz não funciona"): a Voz vem LIGADA (antes começava desligada); o navegador só deixa falar depois
+  // de um clique na página (destravado no 1º clique); a fala fica guardada numa variável (o Chrome descartava antes de falar)
+  try { const v = localStorage.getItem("ntf_voz"); VOZ = v === null ? true : v === "1"; VOZ_F = { ...VOZ_PAD, ...JSON.parse(localStorage.getItem("ntf_voz_f") || "{}") }; } catch (e) { VOZ = true; }
+  let VOZES = [], VOZ_OK = false;
+  function loadVoices() { try { VOZES = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; } catch (e) { VOZES = []; } }
+  try { if (window.speechSynthesis) { loadVoices(); window.speechSynthesis.addEventListener("voiceschanged", loadVoices); } } catch (e) { /* */ }
+  function ptVoice() { return VOZES.find((v) => /pt-BR/i.test(v.lang) && /natural|online|google/i.test(v.name)) || VOZES.find((v) => /pt-BR/i.test(v.lang)) || VOZES.find((v) => /^pt/i.test(v.lang)) || null; }
+  function unlockVoice() {
+    if (VOZ_OK || !window.speechSynthesis) return; VOZ_OK = true;
+    try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; window.speechSynthesis.speak(u); } catch (e) { /* */ }
+  }
+  ["pointerdown", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, unlockVoice, { passive: true }));
   function say(text) {
-    try { const S = window.speechSynthesis; if (!S || !text) return;
-      const u = new SpeechSynthesisUtterance(text), vs = S.getVoices();
-      u.voice = vs.find((v) => /pt-BR/i.test(v.lang)) || vs.find((v) => /^pt/i.test(v.lang)) || null; u.lang = "pt-BR"; u.rate = 1.05; S.speak(u); } catch (e) { /* sem voz */ }
+    try { const S = window.speechSynthesis; if (!S || !text) return false;
+      if (!VOZES.length) loadVoices();
+      const u = new SpeechSynthesisUtterance(text), v = ptVoice();
+      if (v) u.voice = v; u.lang = "pt-BR"; u.rate = 1.05; u.volume = 1;
+      (window.__fala = window.__fala || []).push(u); u.onend = u.onerror = () => { window.__fala = (window.__fala || []).filter((x) => x !== u); };
+      if (S.paused) S.resume(); S.speak(u); return true; } catch (e) { return false; }
   }
   function sayTrade(k, msg) {
     if (!VOZ || (k !== "win" && k !== "loss")) return;
@@ -3300,6 +3314,9 @@
     const vozBtn = () => { const b = $("ntfV"); if (!b) return; b.className = "btn sm tgl sw " + (VOZ ? "on" : "off"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(VOZ)); $("ntfVF").hidden = !VOZ; };
     if ($("ntfV")) { $("ntfVw").value = VOZ_F.win; $("ntfVl").value = VOZ_F.loss; vozBtn();
       $("ntfV").onclick = () => { VOZ = !VOZ; try { localStorage.setItem("ntf_voz", VOZ ? "1" : "0"); } catch (e) { /* */ } vozBtn(); if (VOZ) say(VOZ_F.win.replace("{pct}", "28")); };
+      $("ntfVT").onclick = () => { loadVoices(); const v = ptVoice(), ok = say(VOZ_F.win.replace("{pct}", "28"));
+        $("ntfVI").textContent = !window.speechSynthesis || !ok ? "Este navegador não fala. Use o Chrome ou o Edge."
+          : v ? "Voz: " + v.name : (VOZES.length ? "Sem voz em português neste navegador (fala com sotaque). No Chrome ou no Edge tem voz em português." : "O navegador ainda não carregou as vozes; clique de novo."); };
       ["ntfVw", "ntfVl"].forEach((id) => $(id).addEventListener("change", () => { VOZ_F = { win: $("ntfVw").value || VOZ_PAD.win, loss: $("ntfVl").value || VOZ_PAD.loss };
         try { localStorage.setItem("ntf_voz_f", JSON.stringify(VOZ_F)); } catch (e) { /* */ } say(VOZ_F[id === "ntfVw" ? "win" : "loss"].replace("{pct}", "30")); })); }
     $("ntfS").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };

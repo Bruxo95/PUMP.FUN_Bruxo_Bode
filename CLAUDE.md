@@ -1274,3 +1274,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.53: `PumpFun.entry_guard` (`pump_guard_*`, OFF; migração `20261029000009` liga só no dono) em `manual_buy` para `GUARD_ORIGINS`
   (botão, barrados, Aba do Bruxo; nunca Explorar/auto/follow): graduado só com `main_dex` ≠ pumpfun, preço ≤ 30 s, `liq_usd` mínima, e
   `dump_block(force=True)`. A rota do botão lê preço e detentores antes. Relatórios ChatGPT: `#staiF` (arquivo), Salvar fecha a janela.
+- 0.32.54: voz: `VOZ` padrão ligada, `unlockVoice` no 1º clique, `ptVoice` (prefere pt-BR natural/online), utterance guardada em `window.__fala`, botão `#ntfVT`.
+  O Windows deste PC só tem vozes em inglês; Chrome/Edge trazem pt-BR próprias, o Brave não.
