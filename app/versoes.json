@@ -1060,6 +1060,11 @@
    "versao": "0.32.60",
    "inicio": "2026-10-29T15:20:00+00:00",
    "titulo": "por que entrou guardado em cada operação"
+  },
+  {
+   "versao": "0.32.61",
+   "inicio": "2026-10-29T17:30:00+00:00",
+   "titulo": "stop lido a cada segundo e botão REAL em cada aba"
   }
  ]
 }

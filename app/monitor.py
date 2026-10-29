@@ -877,7 +877,8 @@ class SharedMonitor:
         ms, qty, dts = [], {}, []
         for e in self.engines():
             for p in e.positions():
-                if p.get("trail_peak") is not None and not p.get("selling"):
+                fast = p.get("trail_peak") is not None or (getattr(e.cfg, "pump_stop_fast_on", True) and p.get("origem") != "explorar")
+                if fast and not p.get("selling"):
                     ms.append(p["mint"])
                     qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)
                     dts.append(float(getattr(e.cfg, "pump_trail_fast_s", 1.0) or 0))

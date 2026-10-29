@@ -1496,6 +1496,8 @@ class PumpFun:
             left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"])
             val = self._exit_value(p, px)
             chg = (val / left_cost - 1) * 100 if left_cost else 0
+            prev = p.get("_chk")                           # 0.32.61: leitura anterior (para explicar stop que passou do limite)
+            p["_chk"] = (t, round(chg, 2), float((self.tokens.get(mint) or {}).get("last_t") or t))
             p["chg_pct"] = round(chg, 2)
             # pós-trade (0.18.0): melhor e pior momento da posição, para ver quanto ficou na mesa
             p["best_pct"] = round(max(chg, p.get("best_pct", chg)), 2)
@@ -1577,7 +1579,7 @@ class PumpFun:
             elif p.get("hold_profit") and chg > float(self._c("pump_hold_min_profit_pct", 0.0)):
                 out.append(self._sell(p, 1.0, px, f"segurou até ficar positivo ({chg:+.1f}% líquido)", t))
             elif chg <= -stop and not p.get("off_stop") and not no_stop:
-                out.append(self._sell(p, 1.0, px, f"stop de perda (−{stop:.0f}%)", t))
+                out.append(self._sell(p, 1.0, px, f"stop de perda (−{stop:.0f}%)" + self._stop_gap(prev, chg, stop, t, mint), t))
             elif p.get("boost_tp") and chg >= float(p["boost_tp"]) and self.boost_info(mint).get("active"):
                 out.append(self._sell(p, 1.0, px, f"boost ON: alvo +{float(p['boost_tp']):.0f}% ({chg:+.1f}% líquido)", t))
             elif tp and chg >= tp:
@@ -1585,6 +1587,19 @@ class PumpFun:
             else:
                 self._save_pos(p)
         return [m for m in out if m]
+
+    def _stop_gap(self, prev, chg: float, stop: float, t: float, mint: str) -> str:
+        """0.32.61 (pedido do dono: "prejuízo de 32, 60 e 100% com stop, analisar o que aconteceu"): o stop vende no preço que
+        o robô VÊ; se passou mais de 5 pontos do limite, diz no motivo de onde o preço pulou e em quanto tempo — para separar
+        queda numa transação só (despejo/rug, nenhum stop segura) de preço parado (leitura atrasada)."""
+        if chg > -stop - 5:
+            return ""
+        if not prev:
+            return f" · 1ª leitura já em {chg:+.0f}% (o preço caiu antes de o robô ver)"
+        gap_s = max(0.0, t - float(prev[0]))
+        age_s = max(0.0, t - float(prev[2])) if len(prev) > 2 else gap_s
+        kind = "preço parado (leitura atrasada)" if age_s >= 15 else "queda de uma vez (despejo/rug: nenhum stop segura)"
+        return f" · pulou de {float(prev[1]):+.0f}% para {chg:+.0f}% em {gap_s:.0f} s — {kind}"
 
     def check_timeouts(self, t: float | None = None) -> list[str]:
         t = t or time.time()
@@ -2862,7 +2877,13 @@ class PumpFun:
         bx_real = origem == "bruxo" and getattr(self.cfg, "pump_bx_real", False)       # 0.32.41: Aba do Bruxo, REAL só se ligar
         if origem == "bruxo" and not bx_real:
             return out
-        if origem == "calls" or (origem == "barrado" and not bar_real) or (target == "sim" and not bar_real and not bx_real):
+        # 0.32.61: cada compra automática só vai para a REAL com o botão REAL da própria aba (o espelho não basta)
+        gate = {"calls": "pump_calls_real", "elite": "pump_el_real", "base": "pump_auto_real", "": "pump_auto_real"}.get(origem)
+        if auto and not follow and gate and not getattr(self.cfg, gate, False):
+            if self.real is not None and getattr(self.cfg, "pump_real_enabled", False):
+                out["real"] = "REAL desligada nesta aba (só fictícia)"
+            return out
+        if (origem == "barrado" and not bar_real) or (target == "sim" and not bar_real and not bx_real):
             return out                              # só fictícia (Calls 0.31.99; barrados 0.32.21, a não ser que ligue a REAL)
         if target == "real" and not (self.real is not None and getattr(self.cfg, "pump_real_enabled", False)):
             out["real"] = "execução real desligada"

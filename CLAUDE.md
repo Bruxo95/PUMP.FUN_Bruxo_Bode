@@ -1290,3 +1290,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   e `p["cx_pct"]` (regra da posição; Aba do Bruxo `pump_bx_grad_exit`); `pump_bx_curve_max`; `hub.bruxo_launch_scan` (`pump_lanc_on`,
   sinais `kind="lancamento"`, até 12/h, só estudo) e `bruxo_state["lancamento"]`. Migração `20261029000011` (override só do dono).
 - 0.32.60: `PumpFun.entry_why(p)` → `tr["entrou_porque"]` (fictícia e real) e `entrou_porque` nas posições do snapshot; "Por que entrou" no detalhe.
+- 0.32.61: `pump_stop_fast_on` (ON) põe toda posição com stop no `trail_once` (~1 s; Explorar fora); `PumpFun._stop_gap` explica stop que
+  passou 5+ pontos do limite (`p["_chk"]` = leitura anterior). REAL por aba em `manual_buy`: `pump_auto_real` (Base, agora mesmo com espelho),
+  `pump_el_real` e `pump_calls_real` (novos). Migração `20261029000012` (override do dono: fictícias ligadas, REAL desligado). `tests/test_real_por_aba.py`.

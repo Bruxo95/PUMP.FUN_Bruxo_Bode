@@ -29,6 +29,7 @@ class FakeReal:
 def _pf(tmp_path, **kw):
     pf = _pump(tmp_path, paid=False, pump_real_max_sol=0.02, pump_manual_sol=0.3, **kw)
     pf.cfg.pump_real_enabled = True
+    pf.cfg.pump_auto_real = True                 # 0.32.61: a compra automática da Base só vai para a real com o botão REAL dela
     pf.real = FakeReal()
     return pf
 
@@ -88,8 +89,10 @@ def test_real_closes_at_once_when_sim_closed_while_queued(tmp_path):
 def test_mirror_off_keeps_old_rule(tmp_path):
     pf = _pf(tmp_path)
     pf.cfg.pump_real_mirror = False
+    pf.cfg.pump_auto_real = False
     pf.tokens[A] = {"price": 1e-6, "symbol": "ESP", "mcap_sol": 40.0}
-    assert pf.manual_buy(A, auto="automático: Boost ON")["real"] is None
+    assert pf.manual_buy(A, auto="automático: Boost ON")["real"] in (None, "REAL desligada nesta aba (só fictícia)")
+    assert not pf._real_buying
 
 
 def test_explore_last_slot_of_the_hour_still_goes_real():

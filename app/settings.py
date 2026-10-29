@@ -36,6 +36,10 @@ USER_KEYS: dict[str, tuple] = {
     "pump_ex_possivel_pct": (float, 50.0, 10.0, 100.0),  # …com esta % do valor normal
     "pump_ar_learn_wilson": (bool, False, 0, 1),       # bloqueio do aprender com os erros pela regra estatística (Wilson)
     "pump_calls_auto_on": (bool, False, 0, 1),         # compra automática das Calls quentes, só na fictícia
+    # 0.32.61 (pedido do dono: "o que não tiver real tem que ter o botão"): cada compra automática só vai para a carteira REAL
+    # com o botão REAL dela; antes Maiores traders e Base iam para a real pelo espelho sem botão próprio. Começam DESLIGADOS.
+    "pump_calls_real": (bool, False, 0, 1),
+    "pump_el_real": (bool, False, 0, 1),
     "pump_calls_auto_min": (int, 65, 40, 100),         # veredito mínimo da call (%)
     "pump_calls_auto_max_h": (int, 3, 1, 20),          # no máximo N compras de calls por hora
     "pump_st_auto_on": (bool, True, 0, 1),
@@ -244,6 +248,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_trail_dist_pct": (float, 10.0, 1.0, 1000.0),
     "pump_trail_min_lock_pct": (float, 2.0, 0.0, 1000.0),
     "pump_trail_fast_s": (float, 1.0, 0.0, 30.0),
+    # 0.32.61 (perdas de −65% e −100% com stop de −30%/−40%): o preço de TODA posição aberta com stop de perda é lido no
+    # mesmo laço rápido do stop móvel (~1 s), não só a cada 3–10 s. Explorar fica fora (lógica intocável sem OK do dono).
+    "pump_stop_fast_on": (bool, True, 0, 1),
     "pump_autopause_stops": (int, 2, 0, 100),
     "pump_autopause_hours": (float, 24.0, 0.0, 720.0),
     "pump_tp_pct": (float, 0.0, 0.0, 10000.0),

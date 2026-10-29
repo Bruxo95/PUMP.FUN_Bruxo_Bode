@@ -492,6 +492,8 @@
           <div class="form">
             <div class="field"><label>Comprar sozinho nos sinais</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_auto_on">…</button></div></div>
             <div class="field"><label>Mínimo de maiores traders no token</label><div class="row"><input class="in w80" type="number" min="1" max="15" step="1" data-cfg="pump_el_auto_min_wallets"><button class="btn sm" data-set="pump_el_auto_min_wallets" data-val="2">2</button><button class="btn sm" data-set="pump_el_auto_min_wallets" data-val="3">3</button></div></div>
+            <div class="field" data-novo-ate="2026-11-13"><label>Também na carteira REAL</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_real" aria-label="Maiores traders também na carteira REAL" data-confirm="Ligar? As compras automáticas dos Maiores traders também compram na carteira REAL (dinheiro de verdade), com o valor e os limites da Execução real.">…</button></div>
+              <div class="hint">Sempre começa desligado. Sem este botão, nada desta aba vai para a real (nem pelo espelho).</div></div>
             <div class="field"><label>Também comprar "compra grande" de um só</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_auto_big">…</button></div></div>
             <div class="field"><label>Sair quando um trader do sinal vender</label><div class="row"><button class="btn sm tgl" data-toggle="pump_el_follow_sell">…</button></div><div class="hint">O jeito mais simples de não virar "saída" de quem entrou antes: ele vendeu, você vende.</div></div>
           </div></div>
@@ -1005,7 +1007,8 @@
           <div class="grid2"><div><div class="tbl-wrap"><table id="bxMk" class="daytbl"></table></div></div><div><div class="tbl-wrap"><table id="bxAge" class="daytbl"></table></div></div></div></div>
         <div class="card" data-novo-ate="2026-11-13" data-nosanf><header><div><h2>Lançamento sem trader (só medindo)</h2><div class="sub" id="lnSub">tokens no 1º minuto de vida, sem esperar trader · nunca compra</div></div></header>
           <div class="help"><p>Para saber se vale <b>entrar logo que o token abre</b>: o robô escolhe até 12 lançamentos por hora com criador sem histórico ruim (rug, bundle, lançador) e compra do criador moderada, e acompanha 30 min como os sinais acima — pico, quanto tempo leva, quantos dobram e quantos caem −30% antes de dobrar. <b>Não compra nada</b>; depois de 1–2 dias os números dizem se vale ligar a compra.</p></div>
-          <div class="form"><div class="field"><label>Estudar lançamentos</label><div class="row"><button class="btn sm tgl" data-toggle="pump_lanc_on" aria-label="Estudar lançamentos sem trader">…</button></div></div></div>
+          <div class="form"><div class="field"><label>Estudar lançamentos</label><div class="row"><button class="btn sm tgl" data-toggle="pump_lanc_on" aria-label="Estudar lançamentos sem trader">…</button></div>
+            <div class="hint">Só estuda: não compra nem na fictícia, por isso não tem botão REAL. Se os números mostrarem lucro, a compra ganha os dois botões (fictícia e REAL).</div></div></div>
           <div class="kpis" id="lnK"></div><div class="tbl-wrap"><table id="lnT" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-12" data-nosanf><header><div><h2>Sinais de top trader (24 h)</h2><div class="sub">entrou ou por que não, e o que o token fez em 30 min</div></div></header>
           <div class="tbl-wrap tall"><table id="bxSig" class="daytbl extbl"></table></div>
@@ -1020,7 +1023,9 @@
           <div class="kpis" id="clK"></div>
           <div class="form" data-novo-ate="2026-11-11" style="margin-top:10px">
             <div class="field"><label>Compra automática das calls (só na carteira FICTÍCIA)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_calls_auto_on">…</button></div>
-              <div class="muted small">Desligada por padrão. Compra quando o veredito da call passar do mínimo, com o valor e as proteções das automáticas (Explorar → Proteções). Nunca compra na real.</div></div>
+              <div class="muted small">Compra quando o veredito da call passar do mínimo, com o valor e as proteções das automáticas (Explorar → Proteções).</div></div>
+            <div class="field" data-novo-ate="2026-11-13"><label>Também na carteira REAL</label><div class="row"><button class="btn sm tgl" data-toggle="pump_calls_real" aria-label="Calls quentes também na carteira REAL" data-confirm="Ligar? As compras automáticas das Calls quentes também compram na carteira REAL (dinheiro de verdade), com o valor e os limites da Execução real.">…</button></div>
+              <div class="hint">Sempre começa desligado: por enquanto só fictícia.</div></div>
             <div class="field"><label>Veredito mínimo / máximo por hora</label><div class="row"><input class="in w80" type="number" min="40" max="100" step="5" data-cfg="pump_calls_auto_min"><span class="muted">% /</span><input class="in w80" type="number" min="1" max="20" step="1" data-cfg="pump_calls_auto_max_h"><span class="muted">por hora</span></div></div>
           </div></div>
         <div class="card"><header><div><h2>Calls da última hora</h2><div class="sub">ordenadas pelo veredito</div></div></header>
