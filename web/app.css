@@ -762,4 +762,7 @@ tr.flash td{background:rgba(34,197,94,.18);transition:background .3s}
 /* 0.32.51: preço com os zeros contados e resultado nas notificações */
 .px sub{font-size:.72em;vertical-align:-.25em;margin:0 1px;opacity:.85}
 .ntfmoney{margin:4px 0 2px;font-size:13px}.ntfmoney.up b{color:var(--up)}.ntfmoney.down b{color:var(--down)}
+/* 0.32.52: frases da voz no quadro de notificações */
+.ntfvoz{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 0 8px;border-bottom:1px solid var(--line);font-size:12px}
+.ntfvoz label{display:flex;gap:6px;align-items:center}.ntfvoz .in{width:220px;max-width:100%;padding:4px 6px;font-size:12px}
 

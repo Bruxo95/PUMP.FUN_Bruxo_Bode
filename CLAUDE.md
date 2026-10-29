@@ -1268,3 +1268,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   tp1 35%/50%, trail 13 pontos, filtro ligado. Relatório `app/relatorios_ia/2026-10-29-0.32.50.md`.
 - 0.32.51: `ex()` em `web/app.js` devolve HTML (0,0<sub>6</sub>3831; só usar em HTML, não em textContent/title). `ntfMoney` na lista do sino;
   prefixo [PUMP SIM]/[PUMP REAL] escondido na tela (a mensagem continua igual para som/mascote). `.modal` fecha no fundo ou com Esc.
+- 0.32.52: `hub._reassert_overrides` (no `_load` e a cada 5 min): ajuste de `settings_overrides` aplicado há até 20 min é reposto se o
+  servidor ANTIGO gravou por cima na troca de versão (barrados voltaram às 11:05). Migração `20261029000008` desliga de novo os barrados
+  do dono. Voz: `say`/`sayTrade` (speechSynthesis pt-BR, `localStorage` `ntf_voz`/`ntf_voz_f`), botão `#ntfV`. `daily.dhm` nos trades do dia.

@@ -65,3 +65,31 @@ def test_pending_override_is_applied_once_on_load(monkeypatch):
     pf = asyncio.run(hub.engine(UA))
     assert pf.cfg.pump_bar_max_h == 20 and db.tables["settings_overrides"][0]["aplicado_em"]
     assert db.tables["user_settings"][0]["settings"]["pump_bar_max_h"] == 20
+
+
+def test_override_reasserted_after_old_server_writes_over(monkeypatch):
+    """0.32.52: o servidor antigo grava a configuração da memória por cima do ajuste recém-aplicado; por 20 min o ajuste volta."""
+    import asyncio
+    import base64
+    import os
+    from datetime import datetime, timezone
+
+    import httpx
+
+    from app.crypto import SecretBox
+    from app.hub import PumpHub
+    from app.settings import ServerConfig
+    from tests.fakes import FakeREST
+    from tests.test_api import UA
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("APP_ENCRYPTION_KEY", base64.b64encode(os.urandom(32)).decode())
+    cfg = ServerConfig()
+    db = FakeREST()
+    db.add_user(UA, "a@x.com")
+    db.tables["settings_overrides"].append({"id": 1, "user_id": UA, "settings": {"pump_bar_auto_on": False}, "motivo": "teste",
+                                            "aplicado_em": datetime.now(timezone.utc).isoformat()})   # já aplicado há pouco
+    db.tables["user_settings"].append({"user_id": UA, "settings": {"pump_bar_auto_on": True}})          # o antigo gravou por cima
+    http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
+    hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    pf = asyncio.run(hub.engine(UA))
+    assert pf.cfg.pump_bar_auto_on is False

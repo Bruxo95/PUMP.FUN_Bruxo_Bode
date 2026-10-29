@@ -2199,6 +2199,22 @@
   // ------------------------------------------------------------------ notificações (som + aviso)
   let NTF = false, NTF_AT = 0;
   try { NTF = localStorage.getItem("ntf") === "1"; } catch (e) { /* */ }
+  // 0.32.52 (pedido do dono): voz em português nos trades que fecham — o próprio navegador fala (speechSynthesis), nada instalado.
+  // {pct} vira o % do resultado. As frases ficam só neste navegador.
+  const VOZ_PAD = { win: "Deu lucro, porra! Mais {pct} por cento.", loss: "Porra, deu merda! Menos {pct} por cento." };
+  let VOZ = false, VOZ_F = { ...VOZ_PAD };
+  try { VOZ = localStorage.getItem("ntf_voz") === "1"; VOZ_F = { ...VOZ_PAD, ...JSON.parse(localStorage.getItem("ntf_voz_f") || "{}") }; } catch (e) { /* */ }
+  function say(text) {
+    try { const S = window.speechSynthesis; if (!S || !text) return;
+      const u = new SpeechSynthesisUtterance(text), vs = S.getVoices();
+      u.voice = vs.find((v) => /pt-BR/i.test(v.lang)) || vs.find((v) => /^pt/i.test(v.lang)) || null; u.lang = "pt-BR"; u.rate = 1.05; S.speak(u); } catch (e) { /* sem voz */ }
+  }
+  function sayTrade(k, msg) {
+    if (!VOZ || (k !== "win" && k !== "loss")) return;
+    const m = /→\s*[+\-−]?[0-9.]+\s*SOL\s*\(([+\-−]?[0-9.]+)%\)/.exec(msg || "");
+    const pct = m ? Math.round(Math.abs(Number(m[1].replace("−", "-")))) : "";
+    say(String(VOZ_F[k] || "").replace("{pct}", pct));
+  }
   // 0.31.51 (pedido do dono): o sino mostra quantas notificações chegaram desde a última vez que você olhou; clicar abre a
   // lista (o que foi, quando). O som e o aviso do navegador ligam e desligam dentro da lista.
   let NTFL = [], NTFU = 0;
@@ -2306,6 +2322,7 @@
     if (!OWN_TRADE.test(e.msg || "") || /pausad/i.test(e.msg || "")) return;      // "compra automática pausada" não é trade
     ntfPush(e, true);
     if (real || k === "error") toast(e.msg.slice(0, 180));
+    sayTrade(k, e.msg);
     if (!NTF || !k || k === "trader") return;
     const now = Date.now(); if (now - NTF_AT < 1200 && k !== "error") return; NTF_AT = now;
     play(k, real ? 0.55 : 0.28);
@@ -3273,6 +3290,12 @@
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && $("ntfP") && !$("ntfP").hidden) $("ntfP").hidden = true; });
     $("ntfC").onclick = () => { NTFL = []; NTFU = 0; ntfList(); ntfBtn(); };
     $("ntfL").addEventListener("click", (ev) => { const it = ev.target.closest("[data-ntfi]"); if (it && !ev.target.closest("a")) openNtf(+it.dataset.ntfi); });
+    // 0.32.52: botão e frases da voz
+    const vozBtn = () => { const b = $("ntfV"); if (!b) return; b.className = "btn sm tgl sw " + (VOZ ? "on" : "off"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(VOZ)); $("ntfVF").hidden = !VOZ; };
+    if ($("ntfV")) { $("ntfVw").value = VOZ_F.win; $("ntfVl").value = VOZ_F.loss; vozBtn();
+      $("ntfV").onclick = () => { VOZ = !VOZ; try { localStorage.setItem("ntf_voz", VOZ ? "1" : "0"); } catch (e) { /* */ } vozBtn(); if (VOZ) say(VOZ_F.win.replace("{pct}", "28")); };
+      ["ntfVw", "ntfVl"].forEach((id) => $(id).addEventListener("change", () => { VOZ_F = { win: $("ntfVw").value || VOZ_PAD.win, loss: $("ntfVl").value || VOZ_PAD.loss };
+        try { localStorage.setItem("ntf_voz_f", JSON.stringify(VOZ_F)); } catch (e) { /* */ } say(VOZ_F[id === "ntfVw" ? "win" : "loss"].replace("{pct}", "30")); })); }
     $("ntfS").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();
     $("realB").onclick = realToggle;

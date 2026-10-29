@@ -100,7 +100,8 @@ def test_report_lists_each_trade_with_time_and_by_hour(tmp_path):
     day = day_of(base + 10)
     rep = build(pf, day, [])
     tl = [x for x in rep["trades_list"]]
-    assert tl and tl[0]["entrada"] == hhmm(base - 125) and tl[0]["saida"] == hhmm(base) and tl[0]["duracao_s"] == 125
+    from app.daily import dhm
+    assert tl and tl[0]["entrada"] == dhm(base - 125) and tl[0]["saida"] == dhm(base) and tl[0]["duracao_s"] == 125
     if all(day_of(base + k * 3600) == day for k in range(3)):
         assert len(rep["by_hour"]) == 3 and any(s["tipo"] == "horario_ruim" for s in rep["suggestions"])
     txt = " ".join(t for _, t in blocks(rep, None, "x"))

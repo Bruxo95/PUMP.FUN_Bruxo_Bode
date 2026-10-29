@@ -56,6 +56,7 @@ class PumpHub:
         from .bruxo import Bruxo
         self.bruxo = Bruxo()                      # 0.32.41: Aba do Bruxo (top trader em moeda nova)
         self._bx_base: tuple[float, dict] = (0.0, {})
+        self._ov_recent: dict[str, list] = {}       # 0.32.52: ajustes aplicados há pouco (reafirmados por 20 min)
         self.tab_reports: dict[str, list] = {}     # 0.32.41: relatórios de cada aba (a cada 30 min), por usuário                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._study_auto_at: dict[str, float] = {}  # usuário -> última volta do estudo automático (0.31.13)
@@ -175,6 +176,7 @@ class PumpHub:
         # 0.32.33: ajustes pendentes do dono (settings_overrides) — no fim, com tudo da conta já carregado, para o salvar não
         # perder nada (study_copy, copy_equal, _real_on…)
         await self._apply_overrides(pf)
+        await self._reassert_overrides(pf)
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
             if p.get("selling"):
                 p["selling"] = False
@@ -1225,6 +1227,32 @@ class PumpHub:
                 "usd": bal.get("usd"), "sol": bal.get("sol"), "criados": cs.get("tokens"), "rugs": cs.get("rugs"),
                 "lido": bool(fa or bal)}
 
+    async def _reassert_overrides(self, pf: PumpFun) -> None:
+        """0.32.52 (barrados do dono voltaram a entrar às 11:05 depois da 0.32.44): na troca de versão o servidor ANTIGO fica
+        alguns instantes no ar e pode gravar a configuração da memória por cima do ajuste recém-aplicado. Por 20 min depois de
+        aplicar, o ajuste é conferido de novo ao carregar a conta e a cada 5 min; só repõe o que estiver diferente."""
+        from datetime import timedelta
+        since = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+        try:
+            rows = await self.db.select("settings_overrides", {"user_id": pf.user_id}, order="id.asc", gte={"aplicado_em": since})
+        except Exception:
+            rows = []
+        want: dict = {}
+        for r in rows:
+            want.update(dict(r.get("settings") or {}))
+        now = time.time()
+        for t0, st in self._ov_recent.get(pf.user_id, []):
+            if now - t0 < 1200:
+                want.update(st)
+        self._ov_recent[pf.user_id] = [x for x in self._ov_recent.get(pf.user_id, []) if now - x[0] < 1200]
+        diff = {k: v for k, v in want.items() if getattr(pf.cfg, k, None) != v}
+        if not diff:
+            return
+        applied, _err = pf.cfg.apply(diff)
+        if applied:
+            await self.save_settings(pf)
+            log.info("ajuste do dono reposto (o servidor antigo tinha gravado por cima): %s", ", ".join(applied))
+
     async def _apply_overrides(self, pf: PumpFun) -> None:
         """0.32.33: aplica os ajustes de `settings_overrides` ainda não aplicados (só o servidor novo lê essa tabela, então o
         servidor antigo não consegue sobrescrever como acontecia gravando direto em user_settings)."""
@@ -1236,6 +1264,7 @@ class PumpHub:
         for r in rows:
             try:
                 applied, _err = pf.cfg.apply(dict(r.get("settings") or {}))
+                self._ov_recent.setdefault(pf.user_id, []).append((time.time(), dict(r.get("settings") or {})))
                 await self.save_settings(pf)
                 await self.db.update("settings_overrides", {"id": r["id"]}, {"aplicado_em": datetime.now(timezone.utc).isoformat()})
                 pf._emit(f"Configuração ajustada a pedido do dono: {', '.join(applied)}")
@@ -1614,6 +1643,7 @@ class PumpHub:
                 for pf in list(self.engines.values()):
                     if getattr(pf, "role", None) == "admin":
                         await self._apply_overrides(pf)
+                        await self._reassert_overrides(pf)
             if n % 2 == 0:
                 try:
                     await self.save_elite()

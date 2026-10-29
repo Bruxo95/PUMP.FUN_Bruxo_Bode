@@ -29,6 +29,13 @@ def hhmm(t: float | None, seconds: bool = True) -> str:
     return datetime.fromtimestamp(t, TZ).strftime("%H:%M:%S" if seconds else "%H:%M")
 
 
+def dhm(t: float | None) -> str:
+    """0.32.52 (pedido do dono): "falta ver o dia" — dia/mês e hora com segundos nos trades do dia."""
+    if not t:
+        return "-"
+    return datetime.fromtimestamp(t, TZ).strftime("%d/%m %H:%M:%S")
+
+
 def _ts(x) -> float | None:
     try:
         d = datetime.fromisoformat(str(x).replace("Z", "+00:00"))
@@ -168,7 +175,7 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
     tl = []
     for t in sorted(T, key=lambda x: _ts(x.get("closed_at")) or 0):
         o, c = _ts(t.get("opened_at")), _ts(t.get("closed_at"))
-        tl.append({"entrada": hhmm(o), "saida": hhmm(c), "t_entrada": o, "t_saida": c, "token": t.get("symbol") or str(t.get("mint") or "")[:6],
+        tl.append({"entrada": dhm(o), "saida": dhm(c), "t_entrada": o, "t_saida": c, "token": t.get("symbol") or str(t.get("mint") or "")[:6],
                    "mint": t.get("mint"), "origem": _origin(t), "trader": t.get("wallet"), "sol_in": t.get("sol_in"),
                    "pnl_sol": t.get("pnl_sol"), "pnl_pct": t.get("pnl_pct"), "motivo": t.get("reason"), "duracao_s": t.get("hold_s"),
                    "melhor_pct": t.get("best_pct")})

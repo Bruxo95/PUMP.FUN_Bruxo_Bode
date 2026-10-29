@@ -1015,6 +1015,11 @@
    "versao": "0.32.51",
    "inicio": "2026-10-29T12:20:00+00:00",
    "titulo": "preço com zeros contados, lucro nas notificações, janelas fecham ao clicar fora"
+  },
+  {
+   "versao": "0.32.52",
+   "inicio": "2026-10-29T12:40:00+00:00",
+   "titulo": "voz nas notificações, dia nos trades do dia, ajuste do dono reafirmado"
   }
  ]
 }
