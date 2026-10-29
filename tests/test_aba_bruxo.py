@@ -209,3 +209,17 @@ def test_launch_signals_are_separate_from_trader_signals():
     s1, n1 = b.on_buy("lancamento", "lançamento", M, "X", 0.0, 1.0, {}, 1.0, {}, t, kind="lancamento")
     s2, n2 = b.on_buy(W, "Top1", M, "X", 1.0, 1.0, {}, 1.5, {}, t + 30)
     assert n1 and n2 and s1["id"] != s2["id"] and s1["kind"] == "lancamento" and s2["kind"] == "trader"
+
+
+def test_entry_reason_is_saved_with_the_trade(tmp_path):
+    """0.32.60 (pedido do dono): o motivo da entrada fica guardado no trade fechado, ao lado do motivo da saída."""
+    pf = _pf(tmp_path)
+    B = "Whyx".ljust(40, "1") + "pump"
+    pf.tokens[B] = {"price": 1e-6, "symbol": "WHY", "mcap_sol": 40.0}
+    pf.manual_buy(B, target="sim")
+    p = [p for p in pf.positions() if p["mint"] == B][0]
+    assert pf.entry_why(p) == "você clicou em Comprar"
+    pf._sell(p, 1.0, 1e-6, "teste", time.time())
+    tr = [t for t in pf.trades(10) if t["mint"] == B][0]
+    assert tr["entrou_porque"] == "você clicou em Comprar" and tr["reason"] == "teste"
+    assert "Aba do Bruxo: top trader Top1" in pf.entry_why({"origem": "bruxo", "bruxo": {"names": ["Top1"], "trader_sol": 1.0, "age_min": 1.5}})

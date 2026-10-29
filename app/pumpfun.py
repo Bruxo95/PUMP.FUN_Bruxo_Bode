@@ -1406,6 +1406,7 @@ class PumpFun:
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
                           closed_t=t, closed_at=datetime.fromtimestamp(t, timezone.utc).isoformat(), exit_price=px)
             tr["pos_id"] = p["id"]                         # 0.31.38: par real × fictícia (espelho)
+            tr["entrou_porque"] = self.entry_why(p)         # 0.32.60: motivo da entrada guardado junto com o da saída
             if p.get("follow_of"):
                 tr["follow_of"] = p["follow_of"]           # 0.31.63: cópia de outra conta não entra no aprendizado geral
             if p.get("origem") and "origem" not in tr:
@@ -4200,6 +4201,7 @@ class PumpFun:
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             tr["sim_id"] = p.get("sim_id")                 # 0.31.38: par na fictícia (espelho)
             tr["lat"] = p.get("lat")                       # 0.31.51: tempo da compra real (montar, confirmar, total)
+            tr["entrou_porque"] = self.entry_why(p)         # 0.32.60
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
@@ -4216,6 +4218,46 @@ class PumpFun:
     # ------------------------------------------------------------------ painel
     ABA_ORIGEM = {"explorar": "Explorar", "barrado": "Explorar · barrados", "barrado_btn": "Explorar · barrados", "base": "Base da pump.fun",
                   "elite": "Maiores traders", "calls": "Calls quentes", "bruxo": "Aba do Bruxo"}
+
+    def entry_why(self, p: dict) -> str:
+        """0.32.60 (pedido do dono: "explicar sempre o motivo que levou o robô a entrar e sair de tal moeda, e salvar"): o
+        motivo da ENTRADA em texto, a partir do que a posição guardou quando abriu."""
+        if p.get("entrou_porque"):
+            return str(p["entrou_porque"])
+        fo = p.get("follow_of") or {}
+        if fo:
+            return f"copiou a operação da conta {fo.get('nome') or 'seguida'} (mesmo valor e mesmas regras de saída)"
+        bx = p.get("bruxo") or {}
+        if p.get("origem") == "bruxo" or bx:
+            parts = [f"top trader {', '.join(bx.get('names') or []) or '?'} comprou" + (f" {bx['trader_sol']:.2f} SOL" if bx.get("trader_sol") else "")]
+            if bx.get("age_min") is not None:
+                parts.append(f"token com {bx['age_min']:.1f} min de vida")
+            if bx.get("flow") is not None:
+                parts.append(f"ritmo de compra {bx['flow']:.1f} SOL/min" + (f" (média dos novos {bx['flow_base']:.1f})" if bx.get("flow_base") else ""))
+            if bx.get("top10") is not None:
+                parts.append(f"10 maiores com {bx['top10']:.0f}%")
+            if bx.get("dev_pct") is not None:
+                parts.append(f"criador com {bx['dev_pct']:.1f}%")
+            return "Aba do Bruxo: " + " · ".join(parts)
+        ai = p.get("auto_info") or {}
+        if p.get("auto") is True and ai:
+            txt = f"{self.aba_of(p)}: veredito {ai.get('veredito') or '?'}" + (f" ({ai['chance']}%)" if ai.get("chance") is not None else "")
+            why = ai.get("why") or []
+            return txt + (" · " + " · ".join(str(w) for w in why[:3]) if why else "")
+        if isinstance(p.get("auto"), str) and p["auto"]:
+            return str(p["auto"])                          # ex.: barrado que subiu (o texto do motivo da compra)
+        if p.get("eq"):
+            return f"Copiar igual: a carteira {short(p['wallet'])} comprou e a cópia entra sem filtro"
+        if p.get("manual") or p.get("wallet") == "manual":
+            return "você clicou em Comprar"
+        out = f"copiou {short(p['wallet'])}" + (f": o trader comprou {p['trader_sol']:.2f} SOL" if p.get("trader_sol") else "")
+        if p.get("score") is not None:
+            out += f" · nota da entrada {float(p['score']):.0f}"
+        if p.get("lag_s") is not None:
+            out += f" · entrou {float(p['lag_s']):.1f} s depois dele"
+        if p.get("mcap_in"):
+            out += f" · market cap {float(p['mcap_in']):.0f} SOL"
+        return out
 
     def aba_of(self, x: dict) -> str:
         """0.32.41 (pedido do dono: "no histórico, de qual aba está vindo cada trade"): a tela que originou a operação."""
@@ -4292,7 +4334,7 @@ class PumpFun:
                               "source": "leaderboard" if self.leaderboard else "ranking próprio"},
                 "followed": followed, "ranking": [r | {"followed": r["wallet"] in fol} for r in rk[:50]],
                 "manual": self.manual, "banned": self.banned,
-                "positions": [dict(p, aba=self.aba_of(p)) for p in pos], "trades": [dict(x, aba=self.aba_of(x)) for x in self.trades(300)],
+                "positions": [dict(p, aba=self.aba_of(p), entrou_porque=self.entry_why(p)) for p in pos], "trades": [dict(x, aba=self.aba_of(x)) for x in self.trades(300)],
                 "feed": list(self.feed)[:150], "recent_closed": [dict(x, aba=self.aba_of(x)) for x in self.recent_closed()],
                 "live": [e for e in list(self.live) if e["wallet"] in fol][:200], "trader_pos": self.trader_positions(),
                 "wallet": self.wallet(), "real_wallet": self.wallet(real=True), "curve": self.curve(),

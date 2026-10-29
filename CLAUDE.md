@@ -1289,3 +1289,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.59: `curve_block` barra token graduado com a faixa da curva ligada; `pump_cx_copies_only` (saída antes da graduação só nas cópias)
   e `p["cx_pct"]` (regra da posição; Aba do Bruxo `pump_bx_grad_exit`); `pump_bx_curve_max`; `hub.bruxo_launch_scan` (`pump_lanc_on`,
   sinais `kind="lancamento"`, até 12/h, só estudo) e `bruxo_state["lancamento"]`. Migração `20261029000011` (override só do dono).
+- 0.32.60: `PumpFun.entry_why(p)` → `tr["entrou_porque"]` (fictícia e real) e `entrou_porque` nas posições do snapshot; "Por que entrou" no detalhe.

@@ -90,7 +90,8 @@
         .map(([l, v, s]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + "</div></div>").join("") + "</div>" +
       '<div class="tbl-wrap"><table class="systbl"><tbody>' +
       row("Token", pfM(p.mint, p.symbol) + (p.venue_in ? " · " + esc(p.venue_in) : "") + (p.mcap_in ? " · mcap na entrada " + f(p.mcap_in, 0) + " SOL" : "") + (p.mcap_now ? " · agora " + f(p.mcap_now, 0) + " SOL" : "")) +
-      row("Origem", pfW(p.wallet, p) + (p.auto && p.auto !== true ? '<div class="muted small">' + esc(p.auto) + "</div>" : "")) +
+      row("Origem", pfW(p.wallet, p)) +
+      row("Por que entrou", esc(p.entrou_porque || (p.auto && p.auto !== true ? p.auto : "–"))) +
       row("Preço de entrada", ex(p.price_in) + (p.trader_price ? " · trader " + ex(p.trader_price) : "") + (p.lag_s != null ? " · atraso " + f(p.lag_s, 1) + " s" : "")) +
       row("Preço agora", ex(p.price_now || p.price_in) + (p.price_at ? " · há " + agoT(p.price_at) : "")) +
       row("Variação (o que segura)", pc(p.chg_pct) + (p.best_pct != null ? " · melhor " + pc(p.best_pct) : "") + (p.worst_pct != null ? " · pior " + pc(p.worst_pct) : "")) +
@@ -2272,6 +2273,7 @@
     $("posMB").innerHTML = '<div class="kpis" style="margin:4px 0 12px">' +
       [["Resultado", sg(t.pnl_sol), (t.pnl_pct == null ? "" : f(t.pnl_pct, 1) + "% do investido, já com taxas")], ["Investido", s4(t.sol_in) + " SOL", ""], ["Recebido", s4(t.sol_out) + " SOL", ""], ["Segurou", hms(t.hold_s), ""]]
         .map(([l, v, s]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + "</div></div>").join("") + "</div>" +
+      (t.entrou_porque ? '<div class="decbox"><b>Por que entrou:</b> ' + esc(t.entrou_porque) + "</div>" : "") +
       '<div class="decbox ' + ((t.pnl_sol || 0) > 0 ? "ok" : "bad") + '"><b>Por que saiu:</b> ' + esc(t.reason || "–") + "</div>" +
       '<div class="tbl-wrap"><table class="systbl"><tbody>' +
       row("Token", pfM(t.mint, t.symbol) + (t.venue ? " · " + esc(t.venue) : "")) +

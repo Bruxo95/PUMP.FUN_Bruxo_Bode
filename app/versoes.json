@@ -1055,6 +1055,11 @@
    "versao": "0.32.59",
    "inicio": "2026-10-29T15:00:00+00:00",
    "titulo": "entrar no começo da curva e sair antes de graduar; estudo do lançamento"
+  },
+  {
+   "versao": "0.32.60",
+   "inicio": "2026-10-29T15:20:00+00:00",
+   "titulo": "por que entrou guardado em cada operação"
   }
  ]
 }
