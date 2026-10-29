@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "8720176a057e268bc2ad62b33dbcc6f4e6fa9690",
-    "application_version": "0.32.67 · 2026-10-29 · erro antigo de venda some do card",
+    "repository_reference": "8b790d8bba1e50d0cd25f1e659fde824d616f0ee",
+    "application_version": "0.32.67 · 2026-10-29 · Copiar igual só copia a carteira clicada",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "676004ee3a05420fdfd99d1cfc92073ff50ad2164fe225736d8309fc841c3192",
+      "app/version.py": "69e7e8955849e0da722663f2166cb460838793bf570ef57d7f1a2c26b6f50b3b",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b0099187b7f80687c63e1fe034cbdaea84d24e51f081dc2c90ecf230e43b52e6"
+  "pdf_sha256": "90595d1d4cdd847adcd766ffaba0bee343bb4ba2c35142f51e98fa34e33dbeb0"
 }

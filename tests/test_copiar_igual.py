@@ -11,6 +11,7 @@ def _eq(tmp_path, **kw):
     pf = _pf(tmp_path, **kw)
     pf.cfg.pump_real_enabled = False
     pf.copy_equal = [_W]
+    pf.eq_mode = {_W: "sim"}                  # 0.32.67: só copia a carteira em que clicou Copiar
     pf.cfg.pump_eq_on = True
     pf.cfg.pump_min_trader_sol = 5.0          # filtro normal que barraria a compra pequena
     pf.cfg.pump_copy_delay_s = 30.0           # espera normal que atrasaria a cópia
@@ -132,3 +133,11 @@ def test_per_wallet_button_stop_and_real(tmp_path):
     pf.cfg.pump_real_enabled = True
     pf.on_message(_ev("buy", _W, M, 0.1, 1e5, 30, 3e7, signature="S2"), 1001.0)
     assert [p for p in pf.positions() if p["mint"] == M and p.get("eq")] and M in pf._real_buying
+
+
+def test_only_clicked_wallet_is_copied(tmp_path):
+    """0.32.67: com o modo ligado, carteira da lista sem clique em Copiar fica parada."""
+    pf = _eq(tmp_path)
+    other = "Outr".ljust(44, "2")
+    pf.copy_equal = [_W, other]
+    assert pf.eq_wallets() == [_W]

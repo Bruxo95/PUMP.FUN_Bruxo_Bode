@@ -1484,7 +1484,7 @@ class PumpHub:
             vis = [x for x in diag if x[1] == w and now - x[0] <= 86400]
             cop = sum(1 for x in vis if x[2] == "copiou")
             mt = [t for t in trs if t.get("wallet") == w and not t.get("real")]
-            rows.append({"wallet": w, "vistas_24h": len(vis), "copiadas_24h": cop, "modo": (pf.eq_mode or {}).get(w, "sim"),
+            rows.append({"wallet": w, "vistas_24h": len(vis), "copiadas_24h": cop, "modo": (pf.eq_mode or {}).get(w, "off"),
                          "ultimo_motivo": next((x[2] for x in reversed(vis) if x[2] != "copiou"), None),
                          "abertas": sum(1 for p in pos if p["wallet"] == w and not p.get("real")),
                          "fechadas": len(mt), "ganhos": sum(1 for t in mt if (t.get("pnl_sol") or 0) > 0),

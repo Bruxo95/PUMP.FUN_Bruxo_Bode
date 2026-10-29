@@ -1095,6 +1095,11 @@
    "versao": "0.32.67",
    "inicio": "2026-10-29T20:49:17+00:00",
    "titulo": "erro antigo de venda some do card"
+  },
+  {
+   "versao": "0.32.67",
+   "inicio": "2026-10-29T22:10:00+00:00",
+   "titulo": "Copiar igual só copia a carteira clicada"
   }
  ]
 }

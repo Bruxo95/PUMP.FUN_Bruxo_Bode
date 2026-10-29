@@ -1023,7 +1023,8 @@ class PumpFun:
         if not getattr(self.cfg, "pump_eq_on", False):
             return []
         mode = getattr(self, "eq_mode", None) or {}               # 0.32.65: botão Copiar de cada carteira (Parar = fora)
-        return [w for w in (getattr(self, "copy_equal", None) or []) if mode.get(w, "sim") != "off"]
+        # 0.32.67 (dono: "cliquei copiar UMA carteira e acionou todas"): só copia a carteira em que a pessoa clicou Copiar
+        return [w for w in (getattr(self, "copy_equal", None) or []) if mode.get(w, "off") != "off"]
 
     def is_eq(self, who: str) -> bool:
         return bool(who) and who in self.eq_wallets()

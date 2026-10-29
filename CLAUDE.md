@@ -1313,3 +1313,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `_ex_funnel`, sombras e trades do Explorar); link `data-chance` no cartão Chance alta de Logs → modal `#chaM` (`openChance`). `tests/test_chance_alta.py`.
 - 0.32.66: Copiar igual por carteira: `pf.eq_mode` {carteira: sim|both|off} (salvo `_eq_mode`; `eq_wallets` tira as "off"; "both" espelha na real
   só aquela), `hub.eq_mode_set` + `POST /api/pump/copy-equal/mode` (liga `pump_eq_on` se estava desligado; audit), coluna Cópia e modal `#eqM`.
+- 0.32.67: Copiar igual só copia carteira com `eq_mode` sim/both (sem clique = "off"); antes, com `pump_eq_on`, toda a lista copiava.
