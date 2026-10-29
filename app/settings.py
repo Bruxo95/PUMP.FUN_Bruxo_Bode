@@ -77,7 +77,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bx_grad_exit": (float, 0.0, 0.0, 100.0),        # 0.32.59: vende tudo com a curva em X% (antes de graduar; 0 = não usa)
     "pump_lanc_on": (bool, False, 0, 1),                  # 0.32.59: estuda o lançamento sem trader (só mede, nunca compra)
     "pump_bx_follow_sell": (bool, True, 0, 1),            # sai quando o top trader do sinal vende
-    "pump_bx_max_open": (int, 5, 1, 50),                  # posições abertas da aba (vagas próprias)
+    "pump_bx_max_open": (int, 5, 1, 50),
+    "pump_lanc_max_open": (int, 30, 1, 100),              # 0.32.78: vagas próprias das compras do Lançamento sem trader                  # posições abertas da aba (vagas próprias)
     "pump_bx_max_h": (int, 6, 1, 60),                     # entradas por hora
     # 0.32.32 (pedido do dono: "nas Proteções das automáticas tem que ter a opção do real"): entradas automáticas do Explorar
     # também na REAL (padrão ON = como já era pelo espelho) e o valor delas na real (0 = "SOL por compra" da Execução real)

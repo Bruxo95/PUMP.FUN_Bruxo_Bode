@@ -3101,7 +3101,8 @@ class PumpFun:
         return [m for m in out if m]
 
     # 0.32.41: origens com vagas próprias (opção do limite, padrão, texto do aviso)
-    OWN_SLOTS = {"barrado": ("pump_bar_max_open", 20, " dos barrados"), "bruxo": ("pump_bx_max_open", 5, " da Aba do Bruxo")}
+    OWN_SLOTS = {"barrado": ("pump_bar_max_open", 20, " dos barrados"), "bruxo": ("pump_bx_max_open", 5, " da Aba do Bruxo"),
+                 "lancamento": ("pump_lanc_max_open", 30, " dos lançamentos")}   # 0.32.78: Comprar todas não esbarra nas vagas das cópias
 
     def _slot(self, origem) -> str | None:
         o = str(origem or "")
@@ -3322,7 +3323,7 @@ class PumpFun:
                 return b / (b + s) * 100, ("negociações 5 min" if w == "m5" else "negociações 1 h")
         return None, ""
 
-    GUARD_ORIGINS = ("", "barrado", "barrado_btn", "bruxo")     # 0.32.53: botão Comprar, barrados e Aba do Bruxo
+    GUARD_ORIGINS = ("", "barrado", "barrado_btn", "bruxo", "lancamento")     # 0.32.53: botão Comprar, barrados e Aba do Bruxo
 
     def entry_guard(self, mint: str, t: float | None = None) -> str | None:
         """0.32.53: trava das entradas que não são cópia nem Explorar. Um stop não protege de queda de uma vez (o próximo preço
@@ -4336,7 +4337,8 @@ class PumpFun:
 
     # ------------------------------------------------------------------ painel
     ABA_ORIGEM = {"explorar": "Explorar", "barrado": "Explorar · barrados", "barrado_btn": "Explorar · barrados", "base": "Base da pump.fun",
-                  "elite": "Maiores traders", "calls": "Calls quentes", "bruxo": "Aba do Bruxo"}
+                  "elite": "Maiores traders", "calls": "Calls quentes", "bruxo": "Aba do Bruxo",
+                  "lancamento": "Lançamento sem trader"}
 
     def entry_why(self, p: dict) -> str:
         """0.32.60 (pedido do dono: "explicar sempre o motivo que levou o robô a entrar e sair de tal moeda, e salvar"): o

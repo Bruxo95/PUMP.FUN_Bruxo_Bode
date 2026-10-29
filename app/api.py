@@ -498,7 +498,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         if target not in ("sim", "real", "both"):
             return {"error": "carteira inválida"}
         orig = str(body.get("origem") or "")
-        orig = orig if orig in ("barrado_btn",) else ""         # 0.32.29: rótulo "barrado que subiu (você comprou)"
+        orig = orig if orig in ("barrado_btn", "lancamento") else ""   # 0.32.78: Comprar do Lançamento sem trader         # 0.32.29: rótulo "barrado que subiu (você comprou)"
         r = pf.manual_buy(mint, target=target, origem=orig)  # 0.32.21: Comprar na fictícia, na real ou nas duas
         if not r.get("error"):
             await audit(hub.db, pf.user_id, "compra manual", f"{mint[:6]}… · fictícia: {r.get('sim')} · real: {r.get('real') or 'desligada'}")

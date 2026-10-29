@@ -53,7 +53,7 @@
     return [fx.lido ? age : '<span class="muted" title="lendo na blockchain (algumas por minuto)">lendo…</span>', fx.usd == null ? "–" : "$" + f(fx.usd, 0),
       fx.txs == null ? "–" : f(fx.txs, 0) + (fx.age_more ? "+" : ""), fx.criados == null ? "–" : String(fx.criados) + (fx.rugs ? ' <span class="down" title="tokens dela que despencaram">(' + fx.rugs + " rug)</span>" : "")]; };
   // 0.32.12: nota geral 0–100 (acerto com poucos tokens pesa menos + quanto do dinheiro foi ganho) e a janela "Ver tudo"
-  let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", POS_DET = null, POS_ID = null, STC_W = "", STAI_ID = "";
+  let SA_LOG = [], BUY_MINT = "", BUY_ORIG = "", BUY_ALL = null, LN_OPEN = [], POS_DET = null, POS_ID = null, STC_W = "", STAI_ID = "";
   // 0.32.48 (pedido do dono): histórico dos relatórios para o ChatGPT e o estado de cada um
   const SAI_TAG = { gerado: "neutral", esperando: "pause", resposta: "pause", analisado: "win" };
   async function loadStudyAi() {
@@ -1150,7 +1150,9 @@
     kpis("lnK", [["Lançamentos estudados", String(LS.n || 0), (LN.sinais || []).length + " nas últimas 24 h", "mon"], ["Pico típico", LS.pico_mediano == null ? "–" : pc(LS.pico_mediano), "mediana", "hit"],
       ["Dobraram", LS.dobrou_pct == null ? "–" : LS.dobrou_pct + "%", (LS.dobrou || 0) + " · em " + (LS.tempo_ate_dobrar_mediano_s == null ? "–" : hms(LS.tempo_ate_dobrar_mediano_s)), "hit"],
       ["−30% antes de dobrar", LS.stop_antes_pct == null ? "–" : LS.stop_antes_pct + "%", "dos estudados", "usr"]]);
-    table("lnT", ["Quando", "Token", "Idade", "Compra do criador", "Pico em 30 min", "5 / 10 / 25 min"], (LN.sinais || []).map((s) => [dt(s.em), pfM(s.mint, s.symbol), s.age_min == null ? "–" : f(s.age_min, 1) + " min",
+    LN_OPEN = (LN.sinais || []).filter((s) => !s.done).map((s) => ({ mint: s.mint, symbol: s.symbol }));
+    if ($("lnBuyAll")) { $("lnBuyAll").textContent = "Comprar todas" + (LN_OPEN.length ? " (" + LN_OPEN.length + ")" : ""); $("lnBuyAll").disabled = !LN_OPEN.length; }
+    table("lnT", ["Quando", "Token", "Idade", "Compra do criador", "Pico em 30 min", "5 / 10 / 25 min"], (LN.sinais || []).map((s) => [dt(s.em), pfM(s.mint, s.symbol) + ' <button class="btn sm primary" data-buy="' + esc(s.mint) + '" data-sym="' + esc(s.symbol || "") + '" data-orig="lancamento">Comprar</button>', s.age_min == null ? "–" : f(s.age_min, 1) + " min",
       (s.filtros || {}).dev_buy == null ? "–" : s4(s.filtros.dev_buy) + " SOL", s.peak_pct == null ? '<span class="dim">medindo</span>' : pc(s.peak_pct) + "<small>em " + hms(s.peak_s || 0) + "</small>",
       ["5", "10", "25"].map((m) => (s.marks || {})[m] == null ? "–" : pc(s.marks[m])).join(" / ")]), "Nenhum lançamento estudado ainda.");
     const rows = (r.abertas || []).map((p) => ["aberta", pfM(p.mint, p.symbol), s4(p.sol_in) + " SOL", pc(p.chg_pct || 0), "–", esc((p.bruxo || {}).names ? p.bruxo.names.join(", ") : "")])
@@ -1499,10 +1501,22 @@
     if (t.dataset.buy) {
       const c0 = cfg(), real = !!(D && D.real && D.real.enabled);
       const regras = "Stop −" + c0.pump_manual_stop_pct + "% · alvo " + (c0.pump_manual_tp_pct > 0 ? "+" + c0.pump_manual_tp_pct + "%" : "sem alvo") + (c0.pump_manual_trail_on ? " · stop móvel em +" + c0.pump_manual_trail_start + "% (−" + c0.pump_manual_trail_dist + " pts)" : "") + (c0.pump_manual_boost_on ? " · com Boost ON vende em +" + c0.pump_manual_boost_tp + "%" : "");
-      BUY_MINT = t.dataset.buy; BUY_ORIG = t.dataset.orig || "";
+      BUY_MINT = t.dataset.buy; BUY_ORIG = t.dataset.orig || ""; BUY_ALL = null;
       $("buyMT").textContent = "Comprar " + (t.dataset.sym || "este token");
       $("buyMS").textContent = regras;
       $("buyMB").innerHTML = "<p>Carteira fictícia: <b>" + c0.pump_manual_sol + " SOL</b></p><p>Carteira REAL: " + (real ? "<b>até " + c0.pump_real_max_sol + " SOL</b> (execução real ligada)" : '<span class="down">execução real desligada</span>') + "</p>";
+      $("buyReal").disabled = $("buyBoth").disabled = !real;
+      $("buyM").hidden = false; return;
+    }
+    // 0.32.78 (pedido do dono): "Comprar todas" os lançamentos ainda acompanhados (menos de 30 min), perguntando a carteira
+    if (t.id === "lnBuyAll") {
+      if (!LN_OPEN.length) return;
+      const c0 = cfg(), real = !!(D && D.real && D.real.enabled);
+      BUY_ALL = LN_OPEN.slice(); BUY_ORIG = "lancamento";
+      $("buyMT").textContent = "Comprar todas (" + BUY_ALL.length + " lançamentos)";
+      $("buyMS").textContent = "os lançamentos com menos de 30 min da lista · regras do botão Comprar (Base da pump.fun → Botão Comprar)";
+      $("buyMB").innerHTML = "<p>Carteira fictícia: <b>" + c0.pump_manual_sol + " SOL</b> cada · total " + s4(c0.pump_manual_sol * BUY_ALL.length) + " SOL</p><p>Carteira REAL: " + (real ? "<b>até " + c0.pump_real_max_sol + " SOL</b> cada" : '<span class="down">execução real desligada</span>') + "</p>" +
+        '<p class="muted small">' + BUY_ALL.map((x) => esc(x.symbol || x.mint.slice(0, 6))).join(", ") + "</p>";
       $("buyReal").disabled = $("buyBoth").disabled = !real;
       $("buyM").hidden = false; return;
     }
@@ -1523,6 +1537,13 @@
       const tg = t.dataset.buygo;
       if (tg !== "sim" && !confirm("Confirmar compra na carteira REAL (dinheiro de verdade)?")) return;
       t.disabled = true;
+      if (BUY_ALL) {                                   // 0.32.78: Comprar todas, um de cada vez
+        let ok = 0; const err = [];
+        for (const x of BUY_ALL) { const q = await BB.api("/api/pump/manual-buy", { body: { mint: x.mint, target: tg, origem: BUY_ORIG } });
+          if (q.error || (q.sim && !/^comprou|^ok|abriu/i.test(String(q.sim)) && tg === "sim")) err.push((x.symbol || "?") + ": " + (q.error || q.sim)); else ok++; }
+        t.disabled = false; $("buyM").hidden = true; BUY_ALL = null;
+        toast(ok + " compradas" + (err.length ? " · " + err.length + " não: " + err.slice(0, 3).join(" · ") : "")); await poll(true); markBought(); return;
+      }
       const r = await BB.api("/api/pump/manual-buy", { body: { mint: BUY_MINT, target: tg, origem: BUY_ORIG } });
       t.disabled = false; $("buyM").hidden = true;
       toast(r.error ? "Não comprou: " + r.error : "Fictícia: " + r.sim + (r.real ? " · Real: " + r.real : ""));
@@ -3435,7 +3456,7 @@
     $("logoutB").onclick = BB.logout;
     $("burger").onclick = () => { $("side").classList.add("open"); $("scrim").classList.add("open"); };
     if ($("tbMenu")) $("tbMenu").onclick = () => { $("side").classList.add("open"); $("scrim").classList.add("open"); };
-    // 0.32.75: aberto pelo atalho da tela de início do iPhone/Android (modo app)
+    // 0.32.78: aberto pelo atalho da tela de início do iPhone/Android (modo app)
     try { if (window.navigator.standalone || matchMedia("(display-mode: standalone)").matches) document.documentElement.classList.add("pwa"); } catch (e) { /* navegador antigo */ }
     // computador: botão no topo do menu recolhe para só ícones (fica lembrado neste navegador)
     document.querySelectorAll("#nav a").forEach((a) => { a.title = a.textContent.trim().replace(/NOVO$/, "").replace(/\d+$/, "").trim(); });

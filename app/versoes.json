@@ -1145,6 +1145,11 @@
    "versao": "0.32.77",
    "inicio": "2026-10-29T21:48:38+00:00",
    "titulo": "ícone novo também na aba do navegador"
+  },
+  {
+   "versao": "0.32.78",
+   "inicio": "2026-10-30T00:20:00+00:00",
+   "titulo": "Comprar e Comprar todas no Lançamento sem trader"
   }
  ]
 }

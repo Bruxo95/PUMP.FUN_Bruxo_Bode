@@ -1336,3 +1336,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.76: ícones do atalho (`web/apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) trocados pelo "Banker" (Symbolon, Noun Project, CC BY 3.0:
   crédito obrigatório, fica em Como funciona) em branco sobre preto, a pedido do dono.
 - 0.32.77: ícones renomeados para `web/fun-copy-180/192/512.png` (o iPhone guardava os nomes antigos); favicon da aba = `fun-copy-192.png`.
+- 0.32.78: Lançamento sem trader: `data-buy` com `data-orig="lancamento"` em cada linha e `#lnBuyAll` (Comprar todas os sinais não `done`, `BUY_ALL` no
+  modal `#buyM`); origem `lancamento` aceita em `/api/pump/manual-buy`, em `GUARD_ORIGINS`, `ABA_ORIGEM` e `OWN_SLOTS` (`pump_lanc_max_open` 30).
