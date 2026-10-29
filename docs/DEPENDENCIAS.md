@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-29**; revisão documental **2.0**.
-Aplicação: **0.32.75 · 2026-10-29 · celular em formato de app e atalho FUN COPY**.
-Referência Git na emissão: `990367de4d19ea8f2ff4415ec8b5a1cad6f63d87`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.76 · 2026-10-29 · ícone novo do atalho FUN COPY**.
+Referência Git na emissão: `a414b332a2c57a5a3512182254199e79c01870d6`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

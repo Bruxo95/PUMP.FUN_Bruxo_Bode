@@ -1333,3 +1333,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   Atalho do iPhone: `apple-mobile-web-app-title` = FUN COPY, `web/apple-touch-icon.png` (180), `web/icon-192.png`/`icon-512.png` (mascote do
   print do dono em fundo preto) e `web/manifest.json` (standalone, start_url /app) em `app.html` e `index.html`; `viewport-fit=cover`;
   `html.pwa` quando aberto pelo ícone. `tests/test_app_celular.py`.
+- 0.32.76: ícones do atalho (`web/apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) trocados pelo "Banker" (Symbolon, Noun Project, CC BY 3.0:
+  crédito obrigatório, fica em Como funciona) em branco sobre preto, a pedido do dono.
