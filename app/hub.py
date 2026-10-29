@@ -1457,6 +1457,21 @@ class PumpHub:
         wallet = str(wallet or "").strip()
         if mode not in ("sim", "both", "off"):
             return {"error": "modo inválido"}
+        if wallet == "*":                                      # 0.32.72 (pedido do dono): "Copiar todas" no topo da lista
+            if not pf.copy_equal:
+                return {"error": "a lista está vazia"}
+            for w in pf.copy_equal:
+                pf.eq_mode[w] = mode
+            ligou = False
+            if mode != "off" and not getattr(pf.cfg, "pump_eq_on", False):
+                pf.cfg.apply({"pump_eq_on": True})
+                ligou = True
+            await self.save_settings(pf)
+            pf.refresh_followed(force=True)
+            nome = {"sim": "só FICTÍCIA", "both": "FICTÍCIA e REAL", "off": "parou de copiar"}[mode]
+            await audit(self.db, pf.user_id, "copiar igual: todas", f"{len(pf.copy_equal)} carteiras → {nome}")
+            return {"ok": True, "wallet": "*", "n": len(pf.copy_equal), "mode": mode, "ligou_modo": ligou,
+                    "real_ligada": bool(getattr(pf.cfg, "pump_real_enabled", False))}
         if not B58_ADDR.fullmatch(wallet):
             return {"error": "endereço inválido"}
         if wallet not in pf.copy_equal:

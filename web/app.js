@@ -2163,7 +2163,8 @@
     }
     // 0.32.65 (pedido do dono): Copiar igual por carteira — pergunta fictícia ou REAL
     if (t.dataset.eqc) { EQ_W = t.dataset.eqc; const real = !!(D && D.real && D.real.enabled);
-      $("eqMS").textContent = EQ_W.slice(0, 4) + "…" + EQ_W.slice(-4) + " · copia TODA compra e venda dela, na hora e sem filtros";
+      $("eqMS").textContent = EQ_W === "*" ? "TODAS as " + ((EQ && EQ.wallets) || []).length + " carteiras da lista · copia toda compra e venda delas, na hora e sem filtros"
+        : EQ_W.slice(0, 4) + "…" + EQ_W.slice(-4) + " · copia TODA compra e venda dela, na hora e sem filtros";
       $("eqMB").innerHTML = "<p>Carteira fictícia: <b>" + (cfg().pump_eq_sol || 0.05) + " SOL</b> por compra; vende a mesma parte quando ela vende.</p><p>Carteira REAL: " + (real ? "<b>até " + cfg().pump_real_max_sol + " SOL</b> por compra" : '<span class="down">execução real desligada</span> (o botão REAL fica guardado e só vale quando você ligar)') + "</p>" +
         '<p class="muted small">Só copia o que o monitor VÊ: se o Status do sistema mostra o Solana RPC com erro (429), as compras dela não chegam e nada é copiado.</p>';
       $("eqM").hidden = false; return; }
@@ -2171,9 +2172,9 @@
     // 0.32.70 (pedido do dono): acompanhar o que a carteira copiada está fazendo
     if (t.dataset.eqd || t.id === "eqDR") { if (t.dataset.eqd) EQ_D = t.dataset.eqd; return openEqDetail(); }
     if (t.id === "eqDX") { $("eqD").hidden = true; return; }
-    if (t.dataset.eqgo) { const md = t.dataset.eqgo; if (md === "both" && !confirm("Copiar esta carteira também na carteira REAL (dinheiro de verdade)?")) return;
+    if (t.dataset.eqgo) { const md = t.dataset.eqgo; if (md === "both" && !confirm((EQ_W === "*" ? "Copiar TODAS as carteiras" : "Copiar esta carteira") + " também na carteira REAL (dinheiro de verdade)?")) return;
       const r = await BB.api("/api/pump/copy-equal/mode", { body: { wallet: EQ_W, mode: md } }); $("eqM").hidden = true;
-      toast(r.error || (md === "off" ? "Parou de copiar esta carteira." : (md === "both" ? "Copiando na fictícia e na REAL" + (r.real_ligada ? "." : " (a REAL só sai quando a Execução real estiver ligada).") : "Copiando na fictícia.") + (r.ligou_modo ? " O Copiar igual foi ligado." : "")));
+      toast(r.error || (EQ_W === "*" ? (md === "off" ? "Parou de copiar todas." : r.n + " carteiras copiando " + (md === "both" ? "na fictícia e na REAL." : "na fictícia.")) : md === "off" ? "Parou de copiar esta carteira." : (md === "both" ? "Copiando na fictícia e na REAL" + (r.real_ligada ? "." : " (a REAL só sai quando a Execução real estiver ligada).") : "Copiando na fictícia.") + (r.ligou_modo ? " O Copiar igual foi ligado." : "")));
       poll(true); return loadEq(); }
     // 0.32.38 (pedido do dono): o Copiar do estudo pergunta em qual carteira copiar
     if (t.dataset.stc) { STC_W = t.dataset.stc; const real = !!(D && D.real && D.real.enabled);

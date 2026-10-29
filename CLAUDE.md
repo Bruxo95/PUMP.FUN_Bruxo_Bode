@@ -1321,3 +1321,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`refresh_leaderboard` e gancho `response` do httpx em `apiusage.resp_hook`). `hub.st_pick(prefer)` (pessoais → sistema, pulando as sem créditos) no
   risco, Explorar, estudo e Raio-X; `lb_once` tenta a próxima chave na mesma volta; `PumpFun.lb_key` usa a do sistema se a sua está sem créditos;
   `lb_key_src` no Status. Caso do dono: a consulta compartilhada usava a chave pessoal sem créditos de outra conta. `tests/conftest.py` zera o estado.
+- 0.32.72: Copiar todas (`data-eqc="*"` no topo de Carteiras da lista; `hub.eq_mode_set(pf, "*", modo)` aplica a todas da lista).
