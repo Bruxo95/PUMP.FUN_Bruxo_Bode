@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "0d6394fdae3da5001c11aa499711057974db41ff",
-    "application_version": "0.32.43 · 2026-10-29 · Top traders só ativos (vagas próprias) e gráfico do dia ao lado da carteira",
+    "repository_reference": "25ff542bb72664ead3bfb6e23c278fc12ef47179",
+    "application_version": "0.32.44 · 2026-10-29 · barrados automáticos desligados na conta do dono",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "09e3c56474c92aa393537a7dfd306aff562e2561bd5feda5d910d6be9d6f9861",
+      "app/version.py": "42464dc973038a03ea154dbbb667c8d380060ad4a22173a46bfad71b256f41e7",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "a2e75fe7c307e75da19dd08667a81ad013f9fa399ff2b73da9a2e9733b0a5e8a"
+  "pdf_sha256": "50f203aa51ffaddd285299eba2d5733a5bef9049b0b1fbeecbef8078a9e4b0d3"
 }

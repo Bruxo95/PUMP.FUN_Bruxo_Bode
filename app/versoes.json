@@ -975,6 +975,11 @@
    "versao": "0.32.43",
    "inicio": "2026-10-29T09:01:16+00:00",
    "titulo": "Top traders só ativos com vagas próprias"
+  },
+  {
+   "versao": "0.32.44",
+   "inicio": "2026-10-29T10:30:00+00:00",
+   "titulo": "barrados automáticos desligados na conta do dono"
   }
  ]
 }

@@ -1247,3 +1247,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   inativos | todos os inativos do ranking). Visão geral: `#dayChartCard` ao lado da Evolução e `#lrnChartCard` ao lado das Operações
   (`.vgtop` em `auto-fit`: sem os cards de admin, a Evolução ocupa a linha). Relatório `app/relatorios_ia/2026-10-29-0.32.43.md`.
   Teste `tests/test_online.py::test_active_top_traders_get_own_slots_even_with_many_manuals`.
+
+- 0.32.44: migração `20261029000005` (pedido do dono no chat): `pump_bar_auto_on`=false só na conta dele, por `settings_overrides`
+  (barrados entravam no topo: 11 stops de −30% em 15 fechadas em 3 h). Religar quando o Relatório de cada aba mostrar gatilho com lucro.
