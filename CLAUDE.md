@@ -1296,3 +1296,11 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.62: venda REAL que falha espera 10 s → 5 min (`PumpFun._real_sell` devolve bool, `_sell_failed`, `sell_retry_at`/`sell_fails`; "por você" não
   espera); `PumpReal._rpc` explica resposta sem JSON; `balances`/`_raw_tok` com `_rpc_retry`. Caso PEPE do Bruxo. `tests/test_venda_real_espera.py`.
 - 0.32.63: `apis.solana_tracker.fonte` (sua chave / chave do sistema / nenhuma) na linha da Solana Tracker do `#sysM`.
+
+## Análise das APIs de consulta (2026-10-29, sobre a 0.32.63 — só documento, sem mudança no código)
+- Pedido do dono (Bruxo95). `docs/ANALISE-APIS-2026-10-29.md`: a Solana Tracker pede ≈ 2.500–3.000 consultas/dia contra 10 mil/mês do
+  grátis ("Insufficient credits"). Maior gasto: Carteiras em estudo a cada 30 min (≈ 52 mil/mês), Explorar (≈ 8,6 mil), ranking
+  a cada 10 min (≈ 4,3 mil/grupo), risco do token (2 consultas por token, antes dos outros filtros). Propostas A (economia),
+  B (`app/stclient.py`: 2/s por chave, prioridade, pausa em "Insufficient credits", último resultado bom, `GET /credits`),
+  C (plano pago, decisão do dono), D (RPC Helius no Portainer). Divisão sugerida entre Bruxo95 e Douglas no fim do documento.
+  Aguardando o OK do dono antes de mexer no código.
