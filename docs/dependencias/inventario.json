@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "25ff542bb72664ead3bfb6e23c278fc12ef47179",
-    "application_version": "0.32.44 · 2026-10-29 · barrados automáticos desligados na conta do dono",
+    "repository_reference": "adb10977732e1c2db7e494bc3e19e2116636645b",
+    "application_version": "0.32.45 · 2026-10-29 · notificações fecham ao clicar fora",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "42464dc973038a03ea154dbbb667c8d380060ad4a22173a46bfad71b256f41e7",
+      "app/version.py": "f10a019b82bf6d33bd8423c59e4b9d5869a0e47ab9205cddcac0286778db2de2",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "50f203aa51ffaddd285299eba2d5733a5bef9049b0b1fbeecbef8078a9e4b0d3"
+  "pdf_sha256": "f4b036b638c913ea25872fa08838d6fc2479f848ae8b46deff1b7ed14a1b2123"
 }

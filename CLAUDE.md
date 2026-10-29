@@ -1250,3 +1250,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.44: migração `20261029000005` (pedido do dono no chat): `pump_bar_auto_on`=false só na conta dele, por `settings_overrides`
   (barrados entravam no topo: 11 stops de −30% em 15 fechadas em 3 h). Religar quando o Relatório de cada aba mostrar gatilho com lucro.
+
+- 0.32.45: `#ntfP` fecha com clique fora (menos `#ntfB` e `.modal`) ou Esc. Pedido do dono.

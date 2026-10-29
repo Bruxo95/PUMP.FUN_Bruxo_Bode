@@ -3215,6 +3215,10 @@
     $("scrim").onclick = closeDrawer;
     $("ntfB").onclick = () => { const p = $("ntfP"); p.hidden = !p.hidden; if (!p.hidden) { NTFU = 0; ntfList(); } ntfBtn(); };
     $("ntfX").onclick = () => { $("ntfP").hidden = true; };
+    // 0.32.45 (pedido do dono): clicar fora do quadro (ou Esc) fecha as notificações; clique numa janela aberta por ele não fecha
+    document.addEventListener("click", (ev) => { const p = $("ntfP"); if (!p || p.hidden) return;
+      if (ev.target.closest("#ntfP, #ntfB, .modal") || !document.body.contains(ev.target)) return; p.hidden = true; });
+    document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && $("ntfP") && !$("ntfP").hidden) $("ntfP").hidden = true; });
     $("ntfC").onclick = () => { NTFL = []; NTFU = 0; ntfList(); ntfBtn(); };
     $("ntfL").addEventListener("click", (ev) => { const it = ev.target.closest("[data-ntfi]"); if (it && !ev.target.closest("a")) openNtf(+it.dataset.ntfi); });
     $("ntfS").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };

@@ -980,6 +980,11 @@
    "versao": "0.32.44",
    "inicio": "2026-10-29T10:30:00+00:00",
    "titulo": "barrados automáticos desligados na conta do dono"
+  },
+  {
+   "versao": "0.32.45",
+   "inicio": "2026-10-29T10:45:00+00:00",
+   "titulo": "notificações fecham ao clicar fora"
   }
  ]
 }
