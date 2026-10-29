@@ -781,6 +781,29 @@ def create_app(hub, auth, cfg) -> FastAPI:
             log.warning("compartilhar carteira em estudo: %s", str(e)[:120])
             return {"error": "não consegui compartilhar agora"}
 
+    @app.get("/api/pump/study/ai")
+    async def study_ai(wallet: str = "", pf=Depends(admin_engine)):
+        """0.32.47 (pedido do dono): relatório da carteira (ou de todas as do estudo) + prompt para o ChatGPT fazer a varredura
+        das transações; a análise volta para o Claude."""
+        from .study import copy_params
+        from .study_ai import ai_text, wallet_block
+        mine = list(getattr(pf, "study", []) or [])
+        ws = [wallet] if wallet else mine
+        if wallet and (not pf.valid_addr(wallet) or wallet not in mine):
+            return {"error": "carteira não está no seu estudo"}
+        names = getattr(pf, "study_names", None) if isinstance(getattr(pf, "study_names", None), dict) else {}
+        prm = copy_params(pf)
+        blocks = []
+        for w in ws[:30]:
+            prof = await hub.study_profile(w, prm)
+            if prof.get("error"):
+                blocks.append(f"## Carteira {w}\n- (o sistema não conseguiu ler os dados: {prof['error']})")
+                continue
+            T = [t for t in pf.trades(5000) if t.get("wallet") == w and not t.get("real")]
+            blocks.append(wallet_block(w, names.get(w), prof, hub.wallet_facts(w, want=False),
+                                       {"trades": len(T), "pnl_sol": sum(t.get("pnl_sol") or 0 for t in T)} if T else None))
+        return {"text": ai_text(blocks), "carteiras": len(blocks)}
+
     @app.get("/api/pump/study/{wallet}")
     async def study_profile(wallet: str, pf=Depends(admin_engine)):
         if not pf.valid_addr(wallet) or wallet not in (getattr(pf, "study", []) or []):

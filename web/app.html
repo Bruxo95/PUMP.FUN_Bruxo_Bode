@@ -101,6 +101,9 @@
           <button class="btn sm" id="uTrX" style="margin-left:8px">Fechar</button></header>
         <div class="kpis" id="uTrK" style="margin:4px 0 12px"></div>
         <div class="tbl-wrap"><table id="uTrTbl" class="daytbl"></table></div></div></div>
+      <div class="modal" id="staiM" hidden role="dialog" aria-modal="true" aria-labelledby="staiMT"><div class="modal-box" style="max-width:900px">
+        <header><div><h2 id="staiMT">Relatório + prompt para o ChatGPT</h2><div class="sub">copie tudo, cole no ChatGPT (com navegação) e traga a resposta para o Claude analisar</div></div><div class="sp"></div><button class="btn sm primary" id="staiCp">Copiar tudo</button> <button class="btn sm" id="staiX">Fechar</button></header>
+        <textarea id="staiT" class="in" readonly style="width:100%;min-height:60vh;font-family:var(--mono);font-size:12px;white-space:pre"></textarea></div></div>
       <div class="modal" id="stcM" hidden role="dialog" aria-modal="true" aria-labelledby="stcMT"><div class="modal-box" style="max-width:520px">
         <header><div><h2 id="stcMT">Copiar esta carteira</h2><div class="sub" id="stcMS"></div></div><div class="sp"></div><button class="btn sm" id="stcMX">Fechar</button></header>
         <div id="stcMB"></div>
@@ -243,7 +246,7 @@
           <h3 class="h3s">Decisões da IA</h3><div class="tbl-wrap"><table id="saLog"></table></div></div>
         <div class="card" data-novo-ate="2026-11-08"><header><div><h2>Ranking: quem compensa copiar</h2><div class="sub" id="stRkSub">quanto VOCÊ teria ganho copiando cada carteira nos últimos 30 dias, com atraso e taxas</div></div></header>
           <div class="tbl-wrap"><table id="stRank"></table></div></div>
-        <div class="card" data-novo-ate="2026-11-08"><header><div><h2>Carteiras estudadas</h2><div class="sub">ganho = lucro realizado da carteira (não o seu copiando) · clique em Perfil para ver tudo · Compartilhar coloca a carteira no estudo de outro usuário</div></div></header>
+        <div class="card" data-novo-ate="2026-11-08"><header><div><h2>Carteiras estudadas</h2><div class="sub">ganho = lucro realizado da carteira (não o seu copiando) · clique em Perfil para ver tudo · Compartilhar coloca a carteira no estudo de outro usuário</div></div><div class="sp"></div><button class="btn sm primary" data-stai="" data-novo-ate="2026-11-12" title="Relatório de todas as carteiras do estudo com o prompt para o ChatGPT">Relatório + prompt (todas)</button></header>
           <div class="tbl-wrap"><table id="stList"></table></div></div>
         <div class="card" id="stMineCard" data-novo-ate="2026-11-09"><header><div><h2>Seu resultado copiando</h2><div class="sub">o que VOCÊ ganhou ou perdeu de verdade com cada carteira desde que começou a copiar (trades fechados, já com taxas) + o que ainda está aberto</div></div></header>
           <div class="kpis" id="stMineK"></div>

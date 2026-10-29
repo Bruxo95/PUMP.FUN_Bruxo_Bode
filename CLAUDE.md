@@ -1253,3 +1253,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.45: `#ntfP` fecha com clique fora (menos `#ntfB` e `.modal`) ou Esc. Pedido do dono.
 - 0.32.46: na Base geral o cartão "O cérebro do robô" é sempre o primeiro (pedido do dono); cartão novo entra abaixo dele.
+- 0.32.47: `app/study_ai.py` (`wallet_block`, `PROMPT`, `ai_text`) + `GET /api/pump/study/ai[?wallet=]` (admin; antes da rota `{wallet}`);
+  botões `data-stai` e modal `#staiM` em Carteiras estudadas. O ChatGPT só levanta os dados; a análise é do Claude. `tests/test_estudo_ai.py`.

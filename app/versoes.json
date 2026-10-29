@@ -990,6 +990,11 @@
    "versao": "0.32.46",
    "inicio": "2026-10-29T10:55:00+00:00",
    "titulo": "O cérebro do robô sempre no topo da Base geral"
+  },
+  {
+   "versao": "0.32.47",
+   "inicio": "2026-10-29T11:10:00+00:00",
+   "titulo": "relatório + prompt das Carteiras em estudo para o ChatGPT"
   }
  ]
 }

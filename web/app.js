@@ -1796,7 +1796,7 @@
     table("stList", ["Carteira", "Ganho/hora (24 h)", "Ganho/dia (média 7 d)", "Acerto", "Segura (mediana)", "Tokens fechados", ...FACTS_H, ""], (r.wallets || []).map((x) => { const s = x.summary || {};
       return [pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : "") + (x.followed ? ' <span class="tag win">copiando</span>' : ""), mny(s.per_hour, s.unit), mny(s.per_day_7d, s.unit),
         s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%", mm(s.hold_med_s), s.closed == null ? "–" : String(s.closed), ...factsCells(x.facts),
-        '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> <button class="btn sm" data-sts="' + esc(x.wallet) + '">Compartilhar</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
+        '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button> <button class="btn sm" data-stai="' + esc(x.wallet) + '" title="Relatório desta carteira com o prompt para o ChatGPT">Relatório + prompt</button> <button class="btn sm" data-sts="' + esc(x.wallet) + '">Compartilhar</button> ' + (x.followed ? "" : '<button class="btn sm" data-stc="' + esc(x.wallet) + '">Copiar</button> ') + '<button class="btn sm" data-str="' + esc(x.wallet) + '">Remover</button>']; }),
       "Nenhuma carteira em estudo. Cole um endereço acima.");
     const sa = r.auto || {}, sc = sa.counts || {}, nAuto = (r.wallets || []).filter((x) => String(x.apelido || "").startsWith(sa.tag || "auto · ")).length;
     $("saSub").textContent = (sa.on ? "LIGADO" : "DESLIGADO") + " · " + nAuto + " de " + (sa.max || 0) + " carteiras automáticas no estudo · última volta " + (sa.last_run ? dt(sa.last_run) : "ainda não rodou (roda a cada 30 min)");
@@ -2081,6 +2081,12 @@
         '<p class="muted small">A IA acompanha o resultado de verdade: com 8+ trades no prejuízo e acerto abaixo de 40% ela avisa (e para de copiar as que ela mesma aprovou).</p>';
       $("stcBoth").disabled = !real; $("stcM").hidden = false; return; }
     if (t.id === "stcMX") { $("stcM").hidden = true; return; }
+    // 0.32.47 (pedido do dono): relatório da carteira em estudo + prompt para o ChatGPT fazer a varredura das transações
+    if (t.dataset.stai !== undefined && t.closest("[data-stai]") === t) { $("staiT").value = "Gerando o relatório…"; $("staiM").hidden = false;
+      const r = await BB.api("/api/pump/study/ai" + (t.dataset.stai ? "?wallet=" + encodeURIComponent(t.dataset.stai) : ""));
+      $("staiT").value = r.error || r.text || "–"; $("staiMT").textContent = "Relatório + prompt · " + (r.carteiras || 0) + " carteira(s)"; return; }
+    if (t.id === "staiX") { $("staiM").hidden = true; return; }
+    if (t.id === "staiCp") { const ta = $("staiT"); ta.select(); try { await navigator.clipboard.writeText(ta.value); toast("Copiado. Cole no ChatGPT."); } catch (e) { document.execCommand("copy"); toast("Copiado."); } return; }
     if (t.dataset.stcgo) { const tg = t.dataset.stcgo; if (tg === "both" && !confirm("Copiar também na carteira REAL (dinheiro de verdade)?")) return;
       const r = await BB.api("/api/pump/study/copy", { body: { wallet: STC_W, target: tg } }); $("stcM").hidden = true;
       toast(r.error || (tg === "both" ? "Copiando na fictícia e na REAL." : "Copiando só na fictícia.")); poll(true); return loadStudy(); }
