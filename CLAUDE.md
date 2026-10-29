@@ -1315,3 +1315,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.66: Copiar igual por carteira: `pf.eq_mode` {carteira: sim|both|off} (salvo `_eq_mode`; `eq_wallets` tira as "off"; "both" espelha na real
   só aquela), `hub.eq_mode_set` + `POST /api/pump/copy-equal/mode` (liga `pump_eq_on` se estava desligado; audit), coluna Cópia e modal `#eqM`.
 - 0.32.68: Copiar igual só copia carteira com `eq_mode` sim/both (sem clique = "off"); antes, com `pump_eq_on`, toda a lista copiava.
+- 0.32.70: `hub.eq_detail` + `GET /api/pump/copy-equal/wallet/{w}` (admin): monitor ouvindo, última atividade, Feed da carteira, decisões, abertas e
+  fechadas do Copiar igual; botão `data-eqd` Acompanhar e modal `#eqD` (`openEqDetail`). `tests/test_eq_detalhe.py`.

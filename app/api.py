@@ -1265,6 +1265,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.4: "Copiar igual" — carteiras do leaderboard da pump.fun coladas à mão e o resultado de cada uma."""
         return hub.eq_status(pf)
 
+    @app.get("/api/pump/copy-equal/wallet/{wallet}")
+    async def copy_equal_wallet(wallet: str, pf=Depends(admin_engine)):
+        """0.32.70: acompanhar UMA carteira do Copiar igual (monitor, atividade, decisões, posições)."""
+        if not pf.valid_addr(wallet):
+            return {"error": "endereço inválido"}
+        return hub.eq_detail(pf, wallet)
+
     @app.post("/api/pump/copy-equal/mode")
     async def copy_equal_mode(body: dict, pf=Depends(admin_engine)):
         """0.32.65: botão Copiar de cada carteira do Copiar igual (sim = só fictícia, both = fictícia e REAL, off = parar)."""

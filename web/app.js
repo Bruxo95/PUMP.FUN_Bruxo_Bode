@@ -564,7 +564,24 @@
       (r.seguidores && r.seguidores.length ? ' <span class="muted">· Copiam os SEUS trades: ' + esc(r.seguidores.join(", ")) + "</span>" : "");
   }
   // 0.32.4 (pedido do dono, 28/10): "Copiar igual" — carteiras do leaderboard da pump.fun coladas à mão
-  let EQ = null, EQ_W = "";
+  let EQ = null, EQ_W = "", EQ_D = "";
+  async function openEqDetail() {
+    $("eqDT").textContent = "Acompanhar " + EQ_D.slice(0, 4) + "…" + EQ_D.slice(-4); $("eqDS").textContent = "carregando…"; $("eqD").hidden = false;
+    const r = await BB.api("/api/pump/copy-equal/wallet/" + encodeURIComponent(EQ_D)); if (r.error) { $("eqDS").textContent = r.error; return; }
+    const modo = !r.ligado || r.modo === "off" ? "parada" : r.modo === "both" ? "copiando na FICTÍCIA e na REAL" : "copiando na FICTÍCIA";
+    $("eqDS").textContent = modo + " · última atividade: " + (r.ultima_atividade ? dt(r.ultima_atividade) : "nenhuma vista") + (r.online ? " (online)" : "");
+    const aviso = !r.monitor_ok ? '<div class="decbox bad"><b>O monitor da Solana está fora:</b> ' + esc(r.monitor_erro || "sem conexão") + ". Enquanto ele não voltar, as compras desta carteira não chegam e nada é copiado (precisa do RPC próprio no Portainer).</div>"
+      : !r.ouvindo ? '<div class="decbox bad"><b>Esta carteira não está sendo ouvida.</b> Clique em Copiar para ela entrar na lista.</div>'
+      : '<div class="decbox ok">O monitor está ouvindo esta carteira. Cada compra ou venda dela aparece abaixo em segundos.</div>';
+    $("eqDB").innerHTML = aviso + '<p class="muted small"><a href="https://solscan.io/account/' + encodeURIComponent(r.wallet) + '" target="_blank" rel="noopener">Ver a carteira no Solscan</a> (o que ela fez de verdade, para comparar)</p>' +
+      "<h3>Posições abertas</h3><div class=\"tbl-wrap\"><table id=\"eqDA\" class=\"daytbl\"></table></div>" +
+      "<h3>O que ela fez e o que o robô fez (24 h)</h3><div class=\"tbl-wrap\"><table id=\"eqDE\" class=\"daytbl\"></table></div>" +
+      "<h3>Fechadas</h3><div class=\"tbl-wrap\"><table id=\"eqDF\" class=\"daytbl\"></table></div>";
+    table("eqDA", ["Aberta", "Token", "Carteira", "Investido", "Agora"], (r.abertas || []).map((p) => [dt(p.aberta_em), pfM(p.mint, p.token), p.real ? '<span class="tag real">REAL</span>' : '<span class="tag">FICTÍCIA</span>', s4(p.investido) + " SOL", p.agora_pct == null ? "–" : pc(p.agora_pct)]), "Nenhuma posição aberta desta carteira.");
+    table("eqDE", ["Quando", "Ação", "Token", "SOL dela", "Motivo"], (r.eventos || []).map((x) => [dt(x.em), esc(x.acao || ""), x.mint ? pfM(x.mint, x.token) : esc(x.token || "–"), x.sol == null ? "–" : s4(x.sol), '<span class="wrapcell">' + esc(x.motivo || "") + "</span>"]),
+      r.monitor_ok ? "Nenhuma compra ou venda desta carteira vista nas últimas 24 h." : "Nada visto: o monitor está fora.");
+    table("eqDF", ["Fechou", "Token", "Carteira", "Resultado", "Tempo", "Saída"], (r.fechadas || []).map((x) => [dt(x.fechou_em), pfM(x.mint, x.token), x.real ? '<span class="tag real">REAL</span>' : '<span class="tag">FICTÍCIA</span>', sg(x.pnl_sol) + "<small>" + pc(x.pnl_pct) + "</small>", x.hold_s == null ? "–" : hms(x.hold_s), '<span class="wrapcell">' + esc(x.motivo || "") + "</span>"]), "Nenhuma operação fechada ainda.");
+  }
   async function loadEq() {
     let r; try { r = await BB.api("/api/pump/copy-equal"); } catch (e) { return; }
     if (!r || r.error) return;
@@ -575,7 +592,7 @@
     // 0.32.65 (pedido do dono): botão Copiar em cada carteira, pergunta fictícia ou REAL
     const eqTag = (w) => !r.on || w.modo === "off" ? '<span class="tag loss">parado</span>' : w.modo === "both" || r.real ? '<span class="tag win">copiando · FICTÍCIA e REAL</span>' : '<span class="tag win">copiando · FICTÍCIA</span>';
     table("eqTbl", ["Carteira", "Cópia", "Online", "Vistas 24 h", "Copiadas 24 h", "Abertas", "Fechadas", "Acerto", "Resultado", "Real", "Último motivo de não copiar"],
-      r.wallets.map((w) => [pfW(w.wallet), '<span class="nowrap">' + eqTag(w) + ' <button class="btn sm primary" data-eqc="' + esc(w.wallet) + '">' + (r.on && w.modo !== "off" ? "Mudar" : "Copiar") + "</button></span>", w.online ? '<span class="up">sim</span>' : '<span class="muted">não</span>', w.vistas_24h, w.copiadas_24h, w.abertas, w.fechadas,
+      r.wallets.map((w) => [pfW(w.wallet), '<span class="nowrap">' + eqTag(w) + ' <button class="btn sm primary" data-eqc="' + esc(w.wallet) + '">' + (r.on && w.modo !== "off" ? "Mudar" : "Copiar") + '</button> <button class="btn sm" data-eqd="' + esc(w.wallet) + '">Acompanhar</button></span>', w.online ? '<span class="up">sim</span>' : '<span class="muted">não</span>', w.vistas_24h, w.copiadas_24h, w.abertas, w.fechadas,
         w.fechadas ? f(w.ganhos / w.fechadas * 100, 0) + "%" : "–", sg(w.pnl_sol), w.pnl_real_sol ? sg(w.pnl_real_sol) : "–", '<span class="wrapcell">' + esc(w.ultimo_motivo || "–") + "</span>"]),
       "Nenhuma carteira na lista.");
     if (document.activeElement !== $("eqList")) $("eqList").value = r.wallets.map((w) => w.wallet).join("\n");
@@ -2151,6 +2168,9 @@
         '<p class="muted small">Só copia o que o monitor VÊ: se o Status do sistema mostra o Solana RPC com erro (429), as compras dela não chegam e nada é copiado.</p>';
       $("eqM").hidden = false; return; }
     if (t.id === "eqMX") { $("eqM").hidden = true; return; }
+    // 0.32.70 (pedido do dono): acompanhar o que a carteira copiada está fazendo
+    if (t.dataset.eqd || t.id === "eqDR") { if (t.dataset.eqd) EQ_D = t.dataset.eqd; return openEqDetail(); }
+    if (t.id === "eqDX") { $("eqD").hidden = true; return; }
     if (t.dataset.eqgo) { const md = t.dataset.eqgo; if (md === "both" && !confirm("Copiar esta carteira também na carteira REAL (dinheiro de verdade)?")) return;
       const r = await BB.api("/api/pump/copy-equal/mode", { body: { wallet: EQ_W, mode: md } }); $("eqM").hidden = true;
       toast(r.error || (md === "off" ? "Parou de copiar esta carteira." : (md === "both" ? "Copiando na fictícia e na REAL" + (r.real_ligada ? "." : " (a REAL só sai quando a Execução real estiver ligada).") : "Copiando na fictícia.") + (r.ligou_modo ? " O Copiar igual foi ligado." : "")));

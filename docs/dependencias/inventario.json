@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9841b679af20aab7b0416ab986272aa0f4c6f94e",
-    "application_version": "0.32.69 · 2026-10-29 · Solana Tracker sem créditos explicado",
+    "repository_reference": "beda0c4a026466dc7f75ebaa7b115091d5802f58",
+    "application_version": "0.32.70 · 2026-10-29 · acompanhar cada carteira do Copiar igual",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "281dc3cf903f1da95c658dbbb44ca89d0a6e37e7e149521327e5f60c9d525287",
+      "app/version.py": "46a4ce06987f3db928c648a6db00a4550c76b9f1633c0841c4c8102e41a457fa",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "daef8a0474b3beb464f801637e89ee9e9d2e9dbca81f96649469e0dda71f5c39",
+      "web/app.html": "3b04577e2ee42f7652456b4f4142ab4ff81bd93a5a2474b276202bc7122476ce",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f8450a93414e58fc4ea36e44875f829ccb8cba108d86087b48297e9c1fffaead"
+  "pdf_sha256": "667839889e1b52ad887640915e5d2331f77eec71b58364dccb1914852d107342"
 }

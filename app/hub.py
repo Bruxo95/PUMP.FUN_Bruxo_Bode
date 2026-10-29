@@ -1474,6 +1474,37 @@ class PumpHub:
         return {"ok": True, "wallet": wallet, "mode": mode, "ligou_modo": ligou,
                 "real_ligada": bool(getattr(pf.cfg, "pump_real_enabled", False))}
 
+    def eq_detail(self, pf: PumpFun, wallet: str, now: float | None = None) -> dict:
+        """0.32.70 (pedido do dono: "onde acompanho o que está fazendo depois que cliquei Copiar?"): tudo de UMA carteira do
+        Copiar igual — se o monitor está ouvindo, a última atividade, o que ela fez (Feed), o que o robô decidiu, as
+        posições abertas e as fechadas."""
+        from .ghosts import _ts
+        now = time.time() if now is None else now
+        mon = self.monitor
+        st = self.market.rpc_status if hasattr(self.market, "rpc_status") else {}
+        try:
+            ouvindo = bool(mon is not None and wallet in mon.union_followed())
+        except Exception:
+            ouvindo = False
+        ls = pf.last_seen(wallet)
+        feed = [x for x in list(pf.feed) if x.get("wallet") == wallet and now - (_ts(x.get("at")) or 0) <= 86400]
+        diag = [x for x in pf.__dict__.get("_copy_diag") or [] if x[1] == wallet and now - x[0] <= 86400]
+        pos = [p for p in pf.positions() if p.get("wallet") == wallet and p.get("eq")]
+        trs = [t for t in pf.trades(5000) if t.get("wallet") == wallet and t.get("eq")]
+        return {"wallet": wallet, "modo": (pf.eq_mode or {}).get(wallet, "off"), "ligado": bool(getattr(pf.cfg, "pump_eq_on", False)),
+                "ouvindo": ouvindo, "monitor_ok": bool(st.get("ws")), "monitor_erro": st.get("error"),
+                "pp_copy": bool(getattr(pf.cfg, "pump_pp_copy", False)),
+                "ultima_atividade": datetime.fromtimestamp(ls, timezone.utc).isoformat() if ls else None,
+                "online": bool(ls and now - ls <= 600),
+                "eventos": [{"em": x.get("at"), "acao": x.get("action"), "token": x.get("symbol"), "mint": x.get("mint"),
+                             "sol": x.get("sol"), "motivo": x.get("reason"), "tipo": x.get("kind")} for x in reversed(feed[-100:])],
+                "decisoes": [{"em": datetime.fromtimestamp(x[0], timezone.utc).isoformat(), "o_que": x[2]} for x in reversed(diag[-50:])],
+                "abertas": [{"id": p.get("id"), "token": p.get("symbol"), "mint": p.get("mint"), "real": bool(p.get("real")),
+                             "investido": p.get("sol_in"), "agora_pct": p.get("chg_pct"), "aberta_em": p.get("opened_at")} for p in pos],
+                "fechadas": [{"token": t.get("symbol"), "mint": t.get("mint"), "real": bool(t.get("real")), "pnl_sol": t.get("pnl_sol"),
+                              "pnl_pct": t.get("pnl_pct"), "motivo": t.get("reason"), "fechou_em": t.get("closed_at"),
+                              "hold_s": t.get("hold_s")} for t in trs[:50]]}
+
     def eq_status(self, pf: PumpFun) -> dict:
         diag = pf.__dict__.get("_copy_diag") or []
         now = time.time()
