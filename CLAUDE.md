@@ -1322,3 +1322,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   risco, Explorar, estudo e Raio-X; `lb_once` tenta a próxima chave na mesma volta; `PumpFun.lb_key` usa a do sistema se a sua está sem créditos;
   `lb_key_src` no Status. Caso do dono: a consulta compartilhada usava a chave pessoal sem créditos de outra conta. `tests/conftest.py` zera o estado.
 - 0.32.72: Copiar todas (`data-eqc="*"` no topo de Carteiras da lista; `hub.eq_mode_set(pf, "*", modo)` aplica a todas da lista).
+- 0.32.73: `app/eqreport.py` (`build` por carteira + operações + veredito; `learn` para a Base geral) + `hub.eq_report_tick/loop` (confere a cada 30 min,
+  grava a cada 6 h; tabela `eq_reports`, migração `20261029000013`) + `GET /api/pump/copy-equal/reports[?real=1]`; cartão no `#igual` (`loadEqRep`)
+  e `#bgEq` na Base geral. `tests/test_eq_relatorio.py`.

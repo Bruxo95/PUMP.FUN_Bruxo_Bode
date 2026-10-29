@@ -488,6 +488,13 @@
             <textarea class="in" id="eqList" rows="6" style="width:100%;font-family:monospace;font-size:12px" placeholder="cole aqui os endereços das carteiras (abra o perfil na pump.fun e copie o endereço)"></textarea></div>
           <div class="row" style="margin-top:8px"><button class="btn" id="eqSave">Salvar lista</button><button class="btn sm" id="eqSeed">Voltar às 20 de 28/10</button></div>
           <p class="muted" style="margin-top:8px">O site da pump.fun não deixa o sistema ler o leaderboard sozinho (proteção contra robôs), por isso a lista é colada à mão. Copiadas 24 h = compras que a fictícia copiou; "vistas" conta só o que o monitor leu.</p></div>
+        <div class="card" data-novo-ate="2026-11-13" data-nosanf><header><div><h2>Relatório a cada 6 h</h2><div class="sub" id="erSub">ganhos, perdas, cada operação e o veredito de cada carteira · carteira FICTÍCIA</div></div></header>
+          <div class="help"><p>A cada 6 h o robô fecha um relatório do Copiar igual e guarda: compras vistas e copiadas (e por que não copiou), operações fechadas, acerto, resultado, melhor e pior operação de cada carteira e o <b>veredito</b> (manter / parar / observar / poucos dados). Os relatórios guardados vão para a Base geral. Abaixo, as últimas 6 h ao vivo.</p></div>
+          <div class="decbox" id="erV"></div>
+          <div class="kpis" id="erK"></div>
+          <h3>Por carteira</h3><div class="tbl-wrap"><table id="erW" class="daytbl"></table></div>
+          <h3>Cada operação (6 h)</h3><div class="tbl-wrap"><table id="erOps" class="daytbl"></table></div>
+          <h3>Relatórios guardados</h3><div class="tbl-wrap"><table id="erHist" class="daytbl"></table></div></div>
       </section>
       <section class="view" data-view="elite" hidden>
         <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="elite"><b>Logs dos robôs → Maiores traders</b></a>.</p></div>
@@ -1096,6 +1103,9 @@
           <div class="kpis" id="bgK"></div>
           <div class="help"><p><b>Maturidade</b> é quanto de dado a base já tem para decidir com confiança: faixas com 30+ operações, regras de saída com 20+ trades e 2 dias, e 7 dias de histórico. <b>100% não quer dizer ganhar todos os trades</b>: quer dizer que o que a base mostra é confiável. Nada aqui muda regra ou configuração de ninguém.</p></div>
           <div id="bgParts"></div></div>
+        <div class="card" data-novo-ate="2026-11-13" data-nosanf><header><div><h2>Copiar igual · o que os relatórios de 6 h ensinam</h2><div class="sub" id="bgEqSub">por carteira, somando todos os relatórios guardados</div></div></header>
+          <div class="help"><p>Junta os relatórios de 6 h do Copiar igual: em quantos períodos cada carteira deu lucro, o acerto e o resultado somados. <b>Manter</b> = lucro em 60%+ dos períodos (2 ou mais); <b>parar</b> = prejuízo com menos de 40% de acerto. Nada muda sozinho.</p></div>
+          <div class="tbl-wrap"><table id="bgEq" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-12" data-nosanf><header><div><h2>Relatório de cada aba (a cada 30 min)</h2><div class="sub" id="trSub">ganhos, perdas, veredito e o que corrigir · carteira FICTÍCIA</div></div></header>
           <div class="help"><p><b>Como lê:</b> a cada 30 min o robô fecha um relatório de cada aba que faz trades (Top traders, Explorar, barrados, Aba do Bruxo, Botão Comprar…): o que fechou nos últimos 30 min e em 24 h, a causa de cada perda e o <b>veredito</b> (ganhando / atenção / perdendo / poucos dados). Os relatórios ficam guardados e o <b>Aprendizado</b> abaixo junta o que se repete. Nada muda sozinho: são as respostas para decidir o que ajustar.</p></div>
           <div class="kpis" id="trK"></div><div class="tbl-wrap"><table id="trAbas" class="daytbl"></table></div>

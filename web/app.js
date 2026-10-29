@@ -1066,6 +1066,35 @@
     table("evoC", ["", "E" + a, "E" + b, "Diferença", "Variação", "Melhorou?"], (r.linhas || []).map((x) => ['<span class="hovhelp" title="' + esc(x.explica || "") + '">' + esc(x.nome) + "</span>",
       fmt(x.chave, x.a), fmt(x.chave, x.b), dif(x.chave, x.diferenca), x.pct == null ? "–" : (x.pct > 0 ? "+" : "") + f(x.pct, 1) + "%", vd(x)]), "–");
   }
+  // 0.32.73 (pedido do dono): relatório do Copiar igual a cada 6 h — no Copiar igual e o aprendizado na Base geral
+  const ER_VC = { manter: "win", observar: "pause", parar: "loss", "poucos dados": "neutral", ganhando: "win", perdendo: "loss", "sem dados": "neutral" };
+  const erTag = (v) => '<span class="tag ' + (ER_VC[v] || "neutral") + '">' + esc(v || "–") + "</span>";
+  async function loadEqRep() {
+    if (!$("erW") && !$("bgEq")) return;
+    const r = await BB.api("/api/pump/copy-equal/reports" + (realMode() ? "?real=1" : "")); if (r.error) return;
+    const L = r.aprendizado || {};
+    if ($("bgEq")) {
+      $("bgEqSub").textContent = (L.relatorios || 0) + " relatórios guardados · " + (L.n || 0) + " operações · " + s4(L.pnl_sol || 0) + " SOL";
+      table("bgEq", ["Carteira", "Períodos com lucro", "Operações", "Acerto", "Resultado", "Veredito"], (L.carteiras || []).map((c) => [pfW(c.wallet), c.positivos + " de " + c.periodos,
+        String(c.n), c.acerto == null ? "–" : c.acerto + "%", sg(c.pnl_sol), erTag(c.veredito)]), "Ainda sem relatórios de 6 h com operações (o 1º sai 10 min depois de subir e depois a cada 6 h).");
+    }
+    if (!$("erW")) return;
+    const A = r.agora || {}, T = A.total || {};
+    $("erSub").textContent = "ganhos, perdas, cada operação e o veredito de cada carteira · carteira " + (realMode() ? "REAL" : "FICTÍCIA") + " · último guardado: " + (r.ultimo ? dt(r.ultimo.em) : "ainda nenhum");
+    $("erV").innerHTML = erTag(A.veredito) + " " + esc(A.por_que || "");
+    kpis("erK", [["Resultado 6 h", sg(T.pnl_sol || 0), (T.n || 0) + " fechadas · " + (A.abertas || []).length + " abertas", "tr"], ["Acerto", T.acerto == null ? "–" : T.acerto + "%", T.n ? T.ganhos + " ganhos · " + T.perdas + " perdas" : "sem operações", "hit"],
+      ["Compras vistas", String(A.vistas || 0), (A.copiadas || 0) + " copiadas", "mon"], ["Fator", T.fator == null ? "–" : f(T.fator, 2), "ganhos ÷ perdas", "pnl"]]);
+    table("erW", ["Carteira", "Modo", "Vistas / copiadas", "Fechadas", "Acerto", "Resultado", "Melhor / pior", "Tempo médio", "Veredito", "Por que não copiou"], (A.carteiras || []).map((c) => [pfW(c.wallet),
+      c.modo === "off" ? '<span class="dim">parado</span>' : c.modo === "both" ? "FICTÍCIA e REAL" : "FICTÍCIA", c.vistas + " / " + c.copiadas, String(c.n) + (c.abertas ? "<small>" + c.abertas + " abertas</small>" : ""),
+      c.acerto == null ? "–" : c.acerto + "%", sg(c.pnl_sol), (c.melhor ? esc(c.melhor.symbol || "") + " " + pc(c.melhor.pnl_pct) : "–") + (c.pior ? "<small>" + esc(c.pior.symbol || "") + " " + pc(c.pior.pnl_pct) + "</small>" : ""),
+      c.tempo_medio_s == null ? "–" : hms(c.tempo_medio_s), erTag(c.veredito) + '<small class="wrapcell">' + esc(c.por_que || "") + "</small>",
+      '<span class="wrapcell">' + ((c.nao_copiou || []).map((m) => m.n + "× " + esc(m.motivo)).join("<br>") || "–") + "</span>"]), "Nenhuma carteira na lista.");
+    table("erOps", ["Abriu", "Fechou", "Carteira", "Token", "Investido", "Resultado", "Pico", "Tempo", "Saída", "Veredito"], (A.operacoes || []).map((o) => [dt(o.abriu), dt(o.fechou), pfW(o.wallet), pfM(o.mint, o.symbol),
+      s4(o.investido) + " SOL", sg(o.pnl_sol) + "<small>" + (o.pnl_pct == null ? "" : pc(o.pnl_pct)) + "</small>", o.pico_pct == null ? "–" : pc(o.pico_pct), o.hold_s == null ? "–" : hms(o.hold_s),
+      '<span class="wrapcell">' + esc(o.saida || "") + "</span>", '<span class="wrapcell">' + esc(o.veredito || "") + "</span>"]), "Nenhuma operação fechada nas últimas 6 h.");
+    table("erHist", ["Relatório de", "Veredito", "Vistas / copiadas", "Fechadas", "Acerto", "Resultado"], (r.historico || []).map((h) => [dt(h.em), erTag(h.veredito), (h.vistas || 0) + " / " + (h.copiadas || 0),
+      String((h.total || {}).n || 0), (h.total || {}).acerto == null ? "–" : h.total.acerto + "%", sg((h.total || {}).pnl_sol || 0)]), "O 1º relatório é guardado 10 min depois de o sistema subir; depois a cada 6 h.");
+  }
   // 0.32.41 (pedido do dono): relatório de cada aba a cada 30 min, maiores ganhos/perdas com veredito e o aprendizado
   async function loadTabReports() {
     const r = await BB.api("/api/pump/tab-reports"); if (r.error || !$("trAbas")) return;
@@ -1134,6 +1163,7 @@
   async function loadBaseGeral() {
     loadEvo();
     loadTabReports();
+    loadEqRep();
     const r = await BB.api("/api/pump/base-geral");
     if (r.error) { $("bgSub").textContent = r.error; return; }
     // 0.32.33 (pedido do dono): aprendizado das posições — entrou/saiu na hora certa
@@ -2269,7 +2299,7 @@
     if (VIEW === "bruxo") loadBruxo();
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
-    if (VIEW === "igual") loadEq();
+    if (VIEW === "igual") { loadEq(); loadEqRep(); }
     if (VIEW === "aprendizado") loadLearning();
     if (VIEW === "estudo") { loadStudy(); loadStudyAi(); }
     if (VIEW === "radar") loadRadar(true);

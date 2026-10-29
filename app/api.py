@@ -1157,6 +1157,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.41: Aba do Bruxo — sinais de top trader em moeda nova, o que a conta fez em cada um e o estudo."""
         return hub.bruxo_state(pf, max(1.0, min(168.0, horas)))
 
+    @app.get("/api/pump/copy-equal/reports")
+    async def copy_equal_reports(real: int = 0, pf=Depends(admin_engine)):
+        """0.32.73: relatório do Copiar igual (6 h agora + guardados + aprendizado para a Base geral)."""
+        return hub.eq_report_state(pf, bool(real))
+
     @app.get("/api/pump/tab-reports")
     async def tab_reports(real: int = 0, pf=Depends(admin_engine)):
         """0.32.41: relatório de ganhos e perdas de cada aba (a cada 30 min), maiores ganhos/perdas com veredito e o aprendizado."""

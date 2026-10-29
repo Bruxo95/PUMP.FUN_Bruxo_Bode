@@ -58,6 +58,7 @@ class PumpHub:
         self.bruxo = Bruxo()                      # 0.32.41: Aba do Bruxo (top trader em moeda nova)
         self._bx_base: tuple[float, dict] = (0.0, {})
         self._ov_recent: dict[str, list] = {}       # 0.32.52: ajustes aplicados há pouco (reafirmados por 20 min)
+        self.eq_reports: dict[str, list] = {}      # 0.32.73: relatórios de 6 h do Copiar igual, por usuário
         self.tab_reports: dict[str, list] = {}     # 0.32.41: relatórios de cada aba (a cada 30 min), por usuário                  # listas estilo pump.fun/explore pela Solana Tracker (0.28.0)
         self._study_at: dict[str, float] = {}      # carteira -> quando o histórico foi atualizado
         self._study_auto_at: dict[str, float] = {}  # usuário -> última volta do estudo automático (0.31.13)
@@ -843,6 +844,61 @@ class PumpHub:
                     log.warning("relatório da aba não gravou: %s", str(ex)[:120])
                 n += 1
         return n
+
+    def _eq_report(self, e: PumpFun, now: float, real: bool = False) -> dict:
+        from . import eqreport
+        return eqreport.build(e.trades(5000), e.positions(), list(e.__dict__.get("_copy_diag") or []), list(e.copy_equal),
+                              dict(getattr(e, "eq_mode", None) or {}), now, real)
+
+    async def eq_report_tick(self, now: float | None = None) -> int:
+        """0.32.73 (pedido do dono): relatório do Copiar igual a cada 6 h, guardado (fictícia e, se houver, real)."""
+        from . import eqreport
+        now = time.time() if now is None else now
+        n = 0
+        for e in list(self.engines.values()):
+            if getattr(e, "role", "user") != "admin":
+                continue
+            for real in (False, True):
+                if not any(t.get("eq") and bool(t.get("real")) == real for t in e.trades(5000)) and not (
+                        not real and getattr(e.cfg, "pump_eq_on", False)):
+                    continue
+                key = f"{e.user_id}:{int(real)}"
+                L = self.eq_reports.setdefault(key, [])
+                if L and now - float(L[-1].get("t") or 0) < eqreport.EVERY_S - 60:
+                    continue                                   # já tem o deste período (reinício no meio)
+                r = self._eq_report(e, now, real)
+                L.append(r)
+                del L[:-120]                                   # 30 dias em memória
+                try:
+                    await self.db.insert("eq_reports", {"user_id": e.user_id, "real": real, "em": r["em"], "data": r})
+                except Exception as ex:
+                    log.warning("relatório do Copiar igual não gravou: %s", str(ex)[:120])
+                n += 1
+        return n
+
+    async def eq_report_loop(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - 30 * 86400, timezone.utc).isoformat()
+            for r in reversed(await self.db.select("eq_reports", None, order="em.desc", limit=3000, gte={"em": since})):
+                if isinstance(r.get("data"), dict):
+                    self.eq_reports.setdefault(f"{r['user_id']}:{int(bool(r.get('real')))}", []).append(r["data"])
+        except Exception as e:
+            log.warning("relatórios do Copiar igual não carregaram: %s", str(e)[:120])
+        await asyncio.sleep(600)
+        while True:
+            try:
+                await self.eq_report_tick()
+            except Exception as e:
+                log.warning("relatório do Copiar igual: %s", str(e)[:160])
+            await asyncio.sleep(1800)                          # confere a cada 30 min; grava só quando passaram 6 h
+
+    def eq_report_state(self, pf: PumpFun, real: bool = False) -> dict:
+        from . import eqreport
+        hist = self.eq_reports.get(f"{pf.user_id}:{int(real)}", [])
+        return {"agora": self._eq_report(pf, time.time(), real), "historico": [
+                    {"em": r["em"], "veredito": r.get("veredito"), "total": r.get("total"), "vistas": r.get("vistas"), "copiadas": r.get("copiadas")}
+                    for r in reversed(hist[-60:])],
+                "ultimo": hist[-1] if hist else None, "aprendizado": eqreport.learn(hist), "a_cada_h": eqreport.EVERY_S / 3600}
 
     async def tab_report_loop(self) -> None:
         await self.load_tab_reports()
@@ -2972,7 +3028,8 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
         self._tasks.append(asyncio.create_task(self.bruxo_loop()))          # 0.32.41: Aba do Bruxo
-        self._tasks.append(asyncio.create_task(self.tab_report_loop()))     # 0.32.41: relatório de cada aba (30 min)
+        self._tasks.append(asyncio.create_task(self.tab_report_loop()))
+        self._tasks.append(asyncio.create_task(self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))
         from .monitor import SharedMonitor
