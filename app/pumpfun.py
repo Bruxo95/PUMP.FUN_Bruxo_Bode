@@ -1147,6 +1147,8 @@ class PumpFun:
                 if not why:
                     why = self.flow_block(mint)
                 if not why:
+                    why = self.dump_block(mint)
+                if not why:
                     why = self.blacklist_block(who, mint)
                 mn = self._onv("pump_score_min_on", "pump_score_min")
                 if not why and mn and score < mn:
@@ -3210,6 +3212,28 @@ class PumpFun:
             if b + s >= mn:
                 return b / (b + s) * 100, ("negociações 5 min" if w == "m5" else "negociações 1 h")
         return None, ""
+
+    def dump_block(self, mint: str) -> str | None:
+        """0.32.50: não copiar token com cara de despejo — concentração nos 10 maiores, fatia do criador e carteiras novas.
+        Sem a leitura dos detentores (RPC não respondeu), não bloqueia: só os números lidos contam."""
+        if not getattr(self.cfg, "pump_dump_on", False) or not self.is_pump(mint):
+            return None
+        tk = self.tokens.get(mint) or {}
+        top = float(self._c("pump_dump_top10_max", 35))
+        if tk.get("top10_pct") is not None and time.time() - float(tk.get("top10_t") or 0) < 600 and tk["top10_pct"] > top:
+            return f"despejo: 10 maiores detentores com {tk['top10_pct']:.0f}% (máximo {top:g}%)"
+        cr = tk.get("creator")
+        if cr:
+            dp = ((self.market.wallets.get(cr) or {}).get("pos") or {}).get(mint) or {}
+            dev = float(dp.get("tok") or 0) / 1e9 * 100
+            dv = float(self._c("pump_dump_dev_max", 10))
+            if dev > dv:
+                return f"despejo: criador com {dev:.1f}% do token (máximo {dv:g}%)"
+        fr = tk.get("fresh")
+        fx = float(self._c("pump_dump_fresh_max", 30))
+        if fr and fr.get("pct", 0) > fx:
+            return f"despejo: {fr['pct']:.0f}% de carteiras novas entre os maiores detentores (máximo {fx:g}%)"
+        return None
 
     def flow_block(self, mint: str) -> str | None:
         mn = self._onv("pump_buy_pressure_on", "pump_min_buy_pressure_pct")

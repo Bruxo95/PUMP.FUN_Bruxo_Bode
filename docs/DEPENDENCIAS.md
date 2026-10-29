@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-29**; revisão documental **2.0**.
-Aplicação: **0.32.49 · 2026-10-29 · posição do criador marcada como criou o token**.
-Referência Git na emissão: `f3f3d6bf90cfcd0ce6f48690d79f41273c831253`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.50 · 2026-10-29 · filtro contra despejo e saídas mais rápidas nas cópias (conta do dono)**.
+Referência Git na emissão: `c87d46c3a74ea6bae4e7d8a23d720929c7b0d1a1`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

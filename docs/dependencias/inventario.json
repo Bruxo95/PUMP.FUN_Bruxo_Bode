@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "f3f3d6bf90cfcd0ce6f48690d79f41273c831253",
-    "application_version": "0.32.49 · 2026-10-29 · posição do criador marcada como criou o token",
+    "repository_reference": "c87d46c3a74ea6bae4e7d8a23d720929c7b0d1a1",
+    "application_version": "0.32.50 · 2026-10-29 · filtro contra despejo e saídas mais rápidas nas cópias (conta do dono)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "192d4b2ac064b2e022b9a1b2fe7cf93e3cb1a44f819e8a4958d0ae6609f6ee25",
+      "app/version.py": "5bbd08bc2866f50930347b89df1adcc349a8ec4cd1d87c086dc1dfa657e1fd24",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "8d18d744ace359a1c9270d0a61ecc7306983dec0a74a551d0aea35300b400509",
+      "web/app.html": "38340214c8b0df80a99f6d7d026872a4b07606a5ab4970a520c8139db30e013f",
       "web/index.html": "e92f66e17400d2bd0188b7b9b495a3d8fccc9824e201a03b49350b2c59e6d4b2"
     },
     "python_runtime_direct": [
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "43bab3aa5e151620816c81f87ede10b88864e094eed5b74f072c401d94eae649"
+  "pdf_sha256": "631d518ce00d33e3e3a36dd19ead5e07d62f4de5752fff9a70c0e4abec8bfb2c"
 }

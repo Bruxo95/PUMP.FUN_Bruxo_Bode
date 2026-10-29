@@ -121,3 +121,22 @@ def test_graduated_price_ignores_dead_curve_pair_even_without_pool_flag(tmp_path
     pf.tokens[G] = {"created_t": 1}                        # o motor ainda não marcou como graduado
     asyncio.run(pf._fetch_prices([G]))
     assert abs(pf.tokens[G]["price"] - 0.0000009) < 1e-12
+
+
+def test_copy_dump_filter(tmp_path):
+    """0.32.50: filtro contra despejo nas cópias (10 maiores, criador, carteiras novas); desligado não bloqueia."""
+    pf = _pf(tmp_path)
+    D = "Dump".ljust(40, "1") + "pump"
+    cr = "Crea".ljust(44, "1")
+    pf.tokens[D] = {"price": 1e-6, "top10_pct": 60.0, "top10_t": time.time(), "creator": cr}
+    assert pf.dump_block(D) is None
+    pf.cfg.pump_dump_on = True
+    assert "10 maiores" in pf.dump_block(D)
+    pf.tokens[D]["top10_pct"] = 20.0
+    pf.market.wallets[cr] = {"pos": {D: {"tok": 2e8}}}
+    assert "criador com 20.0%" in pf.dump_block(D)
+    pf.market.wallets[cr]["pos"][D]["tok"] = 1e7
+    pf.tokens[D]["fresh"] = {"pct": 55.0}
+    assert "carteiras novas" in pf.dump_block(D)
+    pf.tokens[D]["fresh"] = {"pct": 10.0}
+    assert pf.dump_block(D) is None

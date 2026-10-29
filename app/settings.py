@@ -82,6 +82,12 @@ USER_KEYS: dict[str, tuple] = {
     "pump_timestop_on": (bool, False, 0, 1),             # stop por tempo: depois de X s…
     "pump_timestop_s": (float, 180.0, 10.0, 86400.0),
     "pump_timestop_gain_pct": (float, 0.0, -100.0, 1000.0),  # …se o melhor momento não passou de +Y% líquido, vende tudo
+    # 0.32.50 (pedido do dono, 29/10: perdas de −54% a −101% com stop de −30% = moeda despejada de uma vez): filtro contra despejo
+    # nas cópias, igual ao da Aba do Bruxo. Começa DESLIGADO.
+    "pump_dump_on": (bool, False, 0, 1),
+    "pump_dump_top10_max": (float, 35.0, 5.0, 100.0),    # 10 maiores detentores (sem a curva) com no máximo X%
+    "pump_dump_dev_max": (float, 10.0, 0.0, 100.0),      # criador com no máximo X% do token
+    "pump_dump_fresh_max": (float, 30.0, 0.0, 100.0),    # carteiras novas entre os maiores detentores (quando já checado)
     "pump_entry_curve_on": (bool, False, 0, 1),          # só copia com a curva da pump.fun entre min% e max%
     "pump_entry_curve_min": (float, 0.0, 0.0, 100.0),
     "pump_entry_curve_max": (float, 85.0, 0.0, 100.0),

@@ -1263,3 +1263,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.49: `PumpMarket.ingest` marca `dev=True` na posição em memória criada pela compra do criador no evento `create`;
   `trader_positions()` devolve `dev`; `#tTP` mostra a etiqueta "criou o token". Lógica de cópia igual (lançamento nunca foi
   copiado). Caso: GeUn…UX1W (lançador em série, dev buy 3,0617 SOL, tudo "morreu"). Teste em `tests/test_online.py`.
+- 0.32.50: `PumpFun.dump_block` (`pump_dump_*`, OFF) na cadeia de filtros de `_copy`; `SharedMonitor.handle_ev` lê `holders_check` (até 3 s)
+  na compra só se algum seguidor ligou o filtro. Migração `20261029000007` (override só do dono): timestop 300 s/+10%, `pump_max_hold_h` 0,4,
+  tp1 35%/50%, trail 13 pontos, filtro ligado. Relatório `app/relatorios_ia/2026-10-29-0.32.50.md`.

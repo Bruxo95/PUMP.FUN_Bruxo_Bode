@@ -374,6 +374,14 @@ class SharedMonitor:
         tk0 = self.market.tokens.get(mint) or {}
         if not tk0.get("symbol") or tk0.get("liq_usd") is None or time.time() - (tk0.get("last_t") or 0) > 30:
             await svc._fetch_prices([mint])
+        # 0.32.50: filtro contra despejo — lê os maiores detentores antes de decidir (só se alguém que segue ligou o filtro)
+        tkd = self.market.tokens.get(mint) or {}
+        if ev.get("txType") == "buy" and svc.is_pump(mint) and time.time() - float(tkd.get("top10_t") or 0) > 120 \
+                and any(getattr(e.cfg, "pump_dump_on", False) for e in self.followers(w)):
+            try:
+                await asyncio.wait_for(svc.holders_check(mint), timeout=3)
+            except Exception:
+                pass
         fol = self.followers(w)
         targets = None                                  # None = todos os motores (stops de quem tem o token)
         if not svc.is_pump(mint):
