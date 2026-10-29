@@ -17,7 +17,11 @@
   const usd = (v, d = 0) => (v == null ? "–" : "$" + f(v, d));
   const usdS = (v) => (v == null ? "–" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : v < 0 ? "−" : "") + "$" + f(Math.abs(v), 0) + "</span>");
   const uk = (v) => (v == null ? "–" : v >= 1e6 ? "$" + f(v / 1e6, 2) + " M" : v >= 1e3 ? "$" + f(v / 1e3, 1) + " mil" : "$" + f(v, 0));
-  const ex = (n) => (n ? Number(n).toExponential(3) : "–");
+  // 0.32.51 (pedido do dono): preço pequeno com os zeros contados, como na pump.fun/DexScreener — 0,0₆3831 = 0,0000003831
+  const ex = (n) => { n = Number(n); if (!n || !isFinite(n)) return "–";
+    if (n >= 0.001) return n.toLocaleString("pt-BR", { maximumSignificantDigits: 4 });
+    const z = -Math.floor(Math.log10(n)) - 1, d = Math.min(9999, Math.round(n * Math.pow(10, z + 4))).toString().replace(/0+$/, "");
+    return '<span class="px" title="' + n.toExponential(3) + '">0,0<sub>' + z + "</sub>" + d + "</span>"; };
   const hms = (s) => { if (s == null) return "–"; s = Math.max(0, Math.round(s)); if (s < 60) return s + " s"; if (s < 3600) return Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " s"; if (s < 86400) return Math.floor(s / 3600) + " h " + String(Math.floor((s % 3600) / 60)).padStart(2, "0") + " min"; const d = Math.floor(s / 86400); return d + (d === 1 ? " dia " : " dias ") + Math.floor((s % 86400) / 3600) + " h"; };
   const agoT = (t) => hms(Date.now() / 1000 - t);
   const agoIso = (x) => (x ? hms((Date.now() - new Date(x)) / 1000) : "–");
@@ -2216,7 +2220,8 @@
   }
   function openTradeDet(t) {
     const row = (k, v) => "<tr><td><b>" + k + "</b></td><td>" + v + "</td></tr>";
-    $("posMT").innerHTML = (t.real ? '<span class="tag real">REAL</span> ' : '<span class="tag sim">FICTÍCIA</span> ') + esc(t.symbol || "") + " · fechada";
+    $("posMT").innerHTML = (t.real ? '<span class="tag real">REAL</span> ' : '<span class="tag sim">FICTÍCIA</span> ') + esc(t.symbol || "") + " · fechada " +
+      '<span class="tag ' + ((t.pnl_sol || 0) > 0 ? "win" : "loss") + '">' + ((t.pnl_sol || 0) > 0 ? "LUCRO +" : "PREJUÍZO ") + s4(t.pnl_sol) + " SOL · investiu " + s4(t.sol_in) + " SOL</span>";
     $("posMS").textContent = "abriu " + dt(t.opened_at) + " · fechou " + dt(t.closed_at) + " · origem: " + whoLabel(t);
     $("posMB").innerHTML = '<div class="kpis" style="margin:4px 0 12px">' +
       [["Resultado", sg(t.pnl_sol), (t.pnl_pct == null ? "" : f(t.pnl_pct, 1) + "% do investido, já com taxas")], ["Investido", s4(t.sol_in) + " SOL", ""], ["Recebido", s4(t.sol_out) + " SOL", ""], ["Segurou", hms(t.hold_s), ""]]
@@ -2244,13 +2249,24 @@
     if (t) { openTradeDet(t); return; }
     toast("Não achei a operação de " + sym + " (talvez já tenha saído da lista); veja no Histórico.");
   }
+  // 0.32.51 (pedido do dono): "deu lucro?" logo de cara — resultado e quanto foi investido (o investido sai do próprio %)
+  function ntfMoney(msg) {
+    const num = (x) => Number(String(x).replace("−", "-"));
+    const m = /→\s*([+\-−]?[0-9.]+)\s*SOL\s*\(([+\-−]?[0-9.]+)%\)/.exec(msg || "");
+    if (m) { const pnl = num(m[1]), pct = num(m[2]), inv = pct ? Math.abs(pnl / (pct / 100)) : null, up = pnl > 0;
+      return '<div class="ntfmoney ' + (up ? "up" : "down") + '"><b>' + (up ? "LUCRO " : "PREJUÍZO ") + (up ? "+" : "") + s4(pnl) + " SOL</b> (" + (up ? "+" : "") + f(pct, 1) + "%)" +
+        (inv ? ' <span class="muted">· investiu ' + s4(inv) + " SOL · recebeu " + s4(inv + pnl) + " SOL</span>" : "") + "</div>"; }
+    const b = /compra (?:automática|manual)[^:]*:\s*\S+\s+([0-9.]+)\s*SOL/i.exec(msg || "");
+    if (b) return '<div class="ntfmoney"><b>Investiu ' + s4(num(b[1])) + " SOL</b></div>";
+    return "";
+  }
   function ntfList() {
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
     // 0.31.58 (pedido do dono): toda notificação diz se é da carteira REAL ou da FICTÍCIA
     $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !/NÃO feita|não copiou/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
       const isReal = /^\[PUMP REAL\]/.test(n.msg || ""), mk = mascKind(n.msg);
       const nome = mk ? String(mk[2]).replace(/ \(REAL\)$/, "") : kk[0];
-      return '<div class="ntfi" data-ntfi="' + NTFL.indexOf(n) + '" title="Clique para ver o que aconteceu"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span><div>" + esc(n.msg) + "</div></div>"; }).join("")
+      return '<div class="ntfi" data-ntfi="' + NTFL.indexOf(n) + '" title="Clique para ver o que aconteceu"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span>" + ntfMoney(n.msg) + "<div>" + esc(String(n.msg || "").replace(/^\[PUMP (SIM|REAL)\]\s*/, "")) + "</div></div>"; }).join("")
       : '<p class="muted">Nenhuma notificação ainda.</p>';
   }
   function tone(C, t0, fr, dur, type, vol) { const o = C.createOscillator(), g = C.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(C.destination); o.start(t0); o.stop(t0 + dur + 0.02); }
@@ -3247,6 +3263,10 @@
     $("scrim").onclick = closeDrawer;
     $("ntfB").onclick = () => { const p = $("ntfP"); p.hidden = !p.hidden; if (!p.hidden) { NTFU = 0; ntfList(); } ntfBtn(); };
     $("ntfX").onclick = () => { $("ntfP").hidden = true; };
+    // 0.32.51 (pedido do dono): clicar no fundo escuro de qualquer janela (fora da caixa) ou Esc fecha a janela
+    document.addEventListener("mousedown", (ev) => { const m = ev.target; if (m && m.classList && m.classList.contains("modal") && !m.hidden) { m.hidden = true; if (m.id === "posM") POS_ID = null; } });
+    document.addEventListener("keydown", (ev) => { if (ev.key !== "Escape") return; const open = [...document.querySelectorAll(".modal")].filter((m) => !m.hidden);
+      if (open.length) { const m = open[open.length - 1]; m.hidden = true; if (m.id === "posM") POS_ID = null; } });
     // 0.32.45 (pedido do dono): clicar fora do quadro (ou Esc) fecha as notificações; clique numa janela aberta por ele não fecha
     document.addEventListener("click", (ev) => { const p = $("ntfP"); if (!p || p.hidden) return;
       if (ev.target.closest("#ntfP, #ntfB, .modal") || !document.body.contains(ev.target)) return; p.hidden = true; });

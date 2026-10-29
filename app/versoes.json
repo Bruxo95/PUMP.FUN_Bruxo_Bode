@@ -1010,6 +1010,11 @@
    "versao": "0.32.50",
    "inicio": "2026-10-29T12:00:00+00:00",
    "titulo": "filtro contra despejo e saídas mais rápidas nas cópias (conta do dono)"
+  },
+  {
+   "versao": "0.32.51",
+   "inicio": "2026-10-29T12:20:00+00:00",
+   "titulo": "preço com zeros contados, lucro nas notificações, janelas fecham ao clicar fora"
   }
  ]
 }

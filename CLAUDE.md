@@ -1266,3 +1266,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.50: `PumpFun.dump_block` (`pump_dump_*`, OFF) na cadeia de filtros de `_copy`; `SharedMonitor.handle_ev` lê `holders_check` (até 3 s)
   na compra só se algum seguidor ligou o filtro. Migração `20261029000007` (override só do dono): timestop 300 s/+10%, `pump_max_hold_h` 0,4,
   tp1 35%/50%, trail 13 pontos, filtro ligado. Relatório `app/relatorios_ia/2026-10-29-0.32.50.md`.
+- 0.32.51: `ex()` em `web/app.js` devolve HTML (0,0<sub>6</sub>3831; só usar em HTML, não em textContent/title). `ntfMoney` na lista do sino;
+  prefixo [PUMP SIM]/[PUMP REAL] escondido na tela (a mensagem continua igual para som/mascote). `.modal` fecha no fundo ou com Esc.
