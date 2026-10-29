@@ -90,3 +90,16 @@ def test_active_top_traders_get_own_slots_even_with_many_manuals(tmp_path):
     assert pf.followed[:5] == mans and pf.followed[5:] == [L[1], L[2]] and pf.top_active == [L[1], L[2]]
     snap = {r["wallet"]: r for r in pf.snapshot()["leaderboard"]}
     assert snap[L[1]]["top_active"] and not snap[L[3]]["top_active"] and not snap[L[0]]["online"]
+
+
+def test_creator_dev_buy_shows_as_created_not_copied(tmp_path):
+    """0.32.49: a compra do criador no lançamento aparece como "criou o token" e não vira cópia."""
+    pf = _pump(tmp_path, paid=False, pump_only_online=False)
+    dev = "DevCreat".ljust(44, "1")
+    pf.add_manual(dev)
+    m = "Lanc".ljust(40, "1") + "pump"
+    pf.on_message({"txType": "create", "traderPublicKey": dev, "mint": m, "solAmount": 3.0617, "initialBuy": 1e8,
+                   "vSolInBondingCurve": 33, "vTokensInBondingCurve": 9e8, "marketCapSol": 34, "symbol": "WALT"})
+    tp = [x for x in pf.trader_positions() if x["mint"] == m]
+    assert tp and tp[0]["dev"] is True and abs(tp[0]["invested_sol"] - 3.0617) < 1e-6
+    assert pf.positions() == []

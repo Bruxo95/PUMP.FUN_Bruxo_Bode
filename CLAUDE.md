@@ -1259,3 +1259,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `app/analises_carteiras/<id>.md`). `hub.study_ai_create/reports/auto/analysis`; `study_ai_auto` no fim do `study_auto` (5 carteiras
   novas sem relatório ou a mais antiga com 24 h: `study_ai.AUTO_MIN`/`AUTO_WAIT_S`). Rotas `/api/pump/study/ai/reports[/novas|/{id}]`.
   **Quando o dono trouxer a resposta do ChatGPT:** analisar e gravar `app/analises_carteiras/<id do relatório>.md` na mesma entrega.
+
+- 0.32.49: `PumpMarket.ingest` marca `dev=True` na posição em memória criada pela compra do criador no evento `create`;
+  `trader_positions()` devolve `dev`; `#tTP` mostra a etiqueta "criou o token". Lógica de cópia igual (lançamento nunca foi
+  copiado). Caso: GeUn…UX1W (lançador em série, dev buy 3,0617 SOL, tudo "morreu"). Teste em `tests/test_online.py`.

@@ -1000,6 +1000,11 @@
    "versao": "0.32.48",
    "inicio": "2026-10-29T11:30:00+00:00",
    "titulo": "histórico dos relatórios para o ChatGPT e relatório automático das carteiras novas"
+  },
+  {
+   "versao": "0.32.49",
+   "inicio": "2026-10-29T09:55:42+00:00",
+   "titulo": "posição do criador marcada"
   }
  ]
 }

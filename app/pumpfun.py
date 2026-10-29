@@ -412,6 +412,9 @@ class PumpFun:
             if who and float(ev.get("solAmount") or 0) > 0:   # compra inicial do dev conta como compra dele
                 self._wallet_trade(who, mint, "buy", float(ev.get("solAmount") or 0),
                                    float(ev.get("initialBuy") or ev.get("tokenAmount") or 0), t)
+                dp = ((self.wallets.get(who) or {}).get("pos") or {}).get(mint)
+                if dp is not None:
+                    dp["dev"] = True                     # 0.32.49: é a compra do criador no lançamento, não uma compra copiável
             return None
         if kind not in ("buy", "sell"):
             return None
@@ -478,7 +481,8 @@ class PumpFun:
                             "invested_sol": round(p["cost"], 4), "avg_price": avg, "price": px,
                             "chg_pct": round((px / avg - 1) * 100, 1) if px and avg else None,
                             "value_sol": round(p["tok"] * px, 4) if px else None, "mcap_sol": tk.get("mcap_sol"),
-                            "held_s": round(now - p.get("first_t", now)), "last_t": tk.get("last_t")})
+                            "held_s": round(now - p.get("first_t", now)), "last_t": tk.get("last_t"),
+                            "dev": bool(p.get("dev"))})
         out.sort(key=lambda x: x["held_s"] or 0)          # mais recentes primeiro
         return out
 

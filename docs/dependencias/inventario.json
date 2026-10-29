@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-29",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9b45efe4239fd0a6b8c1cf65b3df320f085fd540",
-    "application_version": "0.32.48 · 2026-10-29 · histórico dos relatórios para o ChatGPT e relatório automático das carteiras novas",
+    "repository_reference": "f3f3d6bf90cfcd0ce6f48690d79f41273c831253",
+    "application_version": "0.32.49 · 2026-10-29 · posição do criador marcada como criou o token",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "3c9973dd0149efdc5490cf3e3da0a41250fb8c404ae1df77835737adf1575153",
+      "app/version.py": "192d4b2ac064b2e022b9a1b2fe7cf93e3cb1a44f819e8a4958d0ae6609f6ee25",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "04612c20bd1d32f7e08e89c883e7f88518a2dd96b1eda506b18a0db4548b808a"
+  "pdf_sha256": "43bab3aa5e151620816c81f87ede10b88864e094eed5b74f072c401d94eae649"
 }
