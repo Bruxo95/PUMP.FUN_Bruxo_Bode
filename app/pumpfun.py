@@ -575,6 +575,9 @@ class PumpFun:
         now = time.time()
         bots = {w for w, a in self.activity.items() if a.get("bot_until", 0) > now}
         bots |= set(self.paused())                       # pausados também ficam fora (entra o próximo do top)
+        if getattr(self.cfg, "pump_nc_on", False):       # 0.32.57: lançador de token / alta frequência nunca é copiado
+            cand = set(man) | set(self.study_copy_wallets()) | {r.get("wallet") for r in self.leaderboard} | {r.get("wallet") for r in self.ranking_cache}
+            bots |= {w for w in cand if w and self.uncopiable(w)}
         man = [w for w in man if w not in bots]
         # 0.32.4: "Copiar igual" — entram sempre (sem filtro de robô/pausa) enquanto o modo estiver ligado
         man += [w for w in self.eq_wallets() if w not in banned and w not in man]
@@ -1148,6 +1151,8 @@ class PumpFun:
                     why = self.flow_block(mint)
                 if not why:
                     why = self.dump_block(mint)
+                if not why and getattr(c, "pump_nc_on", False) and who not in self.eq_wallets():
+                    why = self.uncopiable(who)
                 if not why:
                     why = self.blacklist_block(who, mint)
                 mn = self._onv("pump_score_min_on", "pump_score_min")
@@ -3123,6 +3128,25 @@ class PumpFun:
                 "trail_start": float(self._c("pump_manual_trail_start", 30)),
                 "trail_dist": float(self._c("pump_manual_trail_dist", 15)),
                 "boost_tp": float(self._c("pump_manual_boost_tp", 80)) if getattr(self.cfg, "pump_manual_boost_on", True) else None}
+
+    def uncopiable(self, w: str, now: float | None = None) -> str | None:
+        """0.32.57 (análise das 26 carteiras em estudo): o "acerto de 99%" de quem cria o próprio token e vende em segundos
+        não passa para quem copia — a cópia chega depois e é para ela que eles vendem. Devolve o motivo, ou None."""
+        now = time.time() if now is None else now
+        cs = self.market.creator_stats.get(w) or {}
+        mn = int(self._c("pump_nc_launch_min", 20))
+        if cs.get("tokens", 0) >= mn:
+            return f"lançador de token: criou {cs['tokens']} tokens (vistos pela Base em 14 dias)"
+        st = self.wallets.get(w) or {}
+        day = sum(1 for x in (st.get("trades") or []) if now - x <= 86400)
+        hf = int(self._c("pump_nc_hft_day", 150))
+        if day >= hf:
+            return f"robô de alta frequência: {day} trades em 24 h"
+        holds = sorted(c["hold"] for c in (st.get("closed") or []) if now - c.get("t", 0) <= 7 * 86400 and c.get("hold") is not None)
+        hm = float(self._c("pump_nc_hold_min_s", 30))
+        if hm and len(holds) >= 8 and holds[len(holds) // 2] < hm:
+            return f"segura {holds[len(holds) // 2]:.0f} s na mediana (menos que o atraso da cópia)"
+        return None
 
     def blacklist_add(self, addr: str, tipo: str, motivo: str) -> None:
         """Lista negra COMPARTILHADA (0.20.0): o que um usuário descobre protege todos. Entra sozinho o criador de

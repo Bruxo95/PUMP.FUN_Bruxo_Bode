@@ -1891,6 +1891,9 @@ class PumpHub:
             if p.get("error"):
                 continue
             j = judge(ts(r.get("criado_em")) or now, summary(p), now)
+            nc = pf.uncopiable(r["wallet"], now) if getattr(pf.cfg, "pump_nc_on", False) else None
+            if nc:
+                j = ("descartou", "não copiável: " + nc)          # 0.32.57: lançador / alta frequência
             if not j or (j[0] == "aprovou" and r["wallet"] in approved):
                 continue
             if j[0] == "descartou":

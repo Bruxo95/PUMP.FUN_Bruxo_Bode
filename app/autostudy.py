@@ -85,6 +85,8 @@ def judge(added_t: float, summary: dict, now: float) -> tuple[str, str] | None:
         wr = (cp.get("win_rate") or 0) * 100
         if cp.get("verdict") == "não compensa":
             return "descartou", f"não compensa copiar: {pnl:+.4f} SOL em {n} tokens (acerto copiando {wr:.0f}%)"
+        if cp.get("verdict") == "não dá para copiar":       # 0.32.57: segura menos de 30 s (lançador/robô)
+            return "descartou", f"não dá para copiar: metade ou mais dos {n} tokens ela segurou menos de 30 s"
         if cp.get("verdict") == "compensa copiar":
             return "aprovou", f"compensa copiar: {pnl:+.4f} SOL em {n} tokens (acerto copiando {wr:.0f}%)"
         return None

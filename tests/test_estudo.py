@@ -70,7 +70,7 @@ def test_copy_simulation_counts_fees_slippage_and_lag():
     assert copy_sim(small, prm, now)["pnl_30d"] < 0                     # +3% da carteira vira prejuízo para quem copia
     fast = [{"realized": 80.0, "invested": 100.0, "last_sell": now - 60, "hold_s": 2} for _ in range(5)]
     cf = copy_sim(fast, prm, now)
-    assert cf["fast_pct"] == 1.0 and cf["pnl_30d"] < 0 and cf["verdict"] == "não compensa"
+    assert cf["fast_pct"] == 1.0 and cf["pnl_30d"] < 0 and cf["verdict"] == "não dá para copiar"   # 0.32.57: segura < 30 s
     assert copy_sim([], prm, now) is None and copy_sim(good[:2], prm, now)["verdict"] == "poucos dados"
 
 

@@ -139,6 +139,10 @@ def copy_params(pf) -> dict:
             "delay_s": float(getattr(c, "pump_copy_delay_s", 0) or 0)}
 
 
+FLIP_S = 30          # 0.32.57: segurou menos que isto = a cópia não acompanha
+FLIP_LOSS = 0.30     # perda considerada nesses tokens (o stop de perda)
+
+
 def copy_sim(closed: list[dict], prm: dict, now: float) -> dict | None:
     """Recalcula cada token fechado pela carteira como se você tivesse copiado com o seu valor por cópia:
     entra e sai com slippage extra, paga taxa (plataforma + PumpPortal) nos dois lados e a prioridade.
@@ -154,8 +158,12 @@ def copy_sim(closed: list[dict], prm: dict, now: float) -> dict | None:
     for p in rows:
         r = max(-1.0, p["realized"] / p["invested"])                   # retorno da carteira nesse token
         fast = p.get("hold_s") is not None and p["hold_s"] <= wait
-        mine = a * (keep - 1) - 2 * prio if fast else a * ((1 + r) * keep - 1) - 2 * prio
-        out.append({"t": p["last_sell"], "trader_r": r, "pnl": mine, "fast": fast})
+        # 0.32.57 (análise das 26 carteiras): quem segura menos de 30 s é lançador/robô — a cópia entra no preço que ele já
+        # empurrou e ele vende em cima dela. Conta como o stop de perda (−30%), não como o ganho dele.
+        flip = p.get("hold_s") is not None and p["hold_s"] < FLIP_S
+        mine = (a * (keep * (1 - FLIP_LOSS) - 1) - 2 * prio if flip else a * (keep - 1) - 2 * prio if fast
+                else a * ((1 + r) * keep - 1) - 2 * prio)
+        out.append({"t": p["last_sell"], "trader_r": r, "pnl": mine, "fast": fast, "flip": flip})
 
     def win(sec):
         sel = [x for x in out if now - x["t"] <= sec]
@@ -164,8 +172,9 @@ def copy_sim(closed: list[dict], prm: dict, now: float) -> dict | None:
     s30, p30 = win(30 * 86400)
     n = len(s30)
     wins = sum(1 for x in s30 if x["pnl"] > 0)
-    verdict = ("poucos dados" if n < 5 else "compensa copiar" if p30 > 0 and wins / n >= 0.4 else
-               "não compensa" if p30 < 0 else "no limite")
+    flips = sum(1 for x in s30 if x.get("flip"))
+    verdict = ("poucos dados" if n < 5 else "não dá para copiar" if flips / n >= 0.5 else
+               "compensa copiar" if p30 > 0 and wins / n >= 0.4 else "não compensa" if p30 < 0 else "no limite")
     return {"amt": a, "pnl_7d": p7, "pnl_30d": p30, "per_day_7d": round(p7 / 7, 4), "n_30d": n, "n_7d": len(s7),
             "win_rate": wins / n if n else None, "fast_pct": (sum(1 for x in s30 if x["fast"]) / n) if n else None,
             "trader_win_rate": (sum(1 for x in s30 if x["trader_r"] > 0) / n) if n else None,

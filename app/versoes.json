@@ -1040,6 +1040,11 @@
    "versao": "0.32.56",
    "inicio": "2026-10-29T14:00:00+00:00",
    "titulo": "ajuste do chat até você mudar na tela; aba nas notificações; voz na compra"
+  },
+  {
+   "versao": "0.32.57",
+   "inicio": "2026-10-29T14:20:00+00:00",
+   "titulo": "nunca copiar lançador de token nem robô de alta frequência"
   }
  ]
 }

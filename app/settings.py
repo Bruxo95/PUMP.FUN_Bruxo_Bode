@@ -89,6 +89,12 @@ USER_KEYS: dict[str, tuple] = {
     # e da Aba do Bruxo — token graduado só com preço da PumpSwap/DEX lido há até 30 s e liquidez mínima, e o filtro contra
     # despejo sempre. Começa DESLIGADA (ligada só na conta do dono por settings_overrides). O Explorar não passa por ela.
     "pump_guard_on": (bool, False, 0, 1),
+    # 0.32.57 (análise das 26 carteiras em estudo, "sim, aplica" do dono): nunca copiar lançador de token, robô de alta frequência
+    # nem quem segura menos que o atraso da cópia. Começa DESLIGADO (ligado só na conta do dono por settings_overrides).
+    "pump_nc_on": (bool, False, 0, 1),
+    "pump_nc_launch_min": (int, 20, 1, 100000),          # criou N+ tokens (vistos pela Base da pump.fun em 14 dias)
+    "pump_nc_hft_day": (int, 150, 10, 100000),           # N+ trades em 24 h
+    "pump_nc_hold_min_s": (float, 30.0, 0.0, 86400.0),   # segura menos que X s na mediana (8+ tokens fechados em 7 dias)
     "pump_guard_min_liq_usd": (float, 15000.0, 0.0, 1e9),
     "pump_dump_top10_max": (float, 35.0, 5.0, 100.0),    # 10 maiores detentores (sem a curva) com no máximo X%
     "pump_dump_dev_max": (float, 10.0, 0.0, 100.0),      # criador com no máximo X% do token

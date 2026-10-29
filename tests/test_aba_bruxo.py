@@ -161,3 +161,18 @@ def test_entry_guard_for_button_barrados_and_bruxo(tmp_path):
     assert "despejo" in pf.manual_buy(G, target="sim", origem="bruxo")["error"]
     pf.tokens[G].update(top10_pct=20.0)
     assert pf.manual_buy(G, target="sim").get("sim", "").startswith("comprou")
+
+
+def test_uncopiable_launcher_hft_and_flipper(tmp_path):
+    """0.32.57 (análise das 26 carteiras): lançador de token, alta frequência e quem segura < 30 s não são copiados."""
+    pf = _pf(tmp_path)
+    now = time.time()
+    L, H, F, OK = ("Lanc".ljust(44, "1"), "Hfts".ljust(44, "1"), "Flip".ljust(44, "1"), "Good".ljust(44, "1"))
+    pf.market.creator_stats[L] = {"tokens": 25}
+    pf.market.wallets[H] = {"trades": [now - i * 60 for i in range(200)], "closed": []}
+    pf.market.wallets[F] = {"trades": [], "closed": [{"t": now - 100, "hold": 4, "pnl": 1} for _ in range(10)]}
+    pf.market.wallets[OK] = {"trades": [now - 60] * 20, "closed": [{"t": now - 100, "hold": 600, "pnl": 1} for _ in range(10)]}
+    assert "lançador" in pf.uncopiable(L, now)
+    assert "alta frequência" in pf.uncopiable(H, now)
+    assert "mediana" in pf.uncopiable(F, now)
+    assert pf.uncopiable(OK, now) is None
