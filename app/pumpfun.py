@@ -3074,9 +3074,9 @@ class PumpFun:
             if f["flow"] < f["flow_base"] * mult:
                 return f"ritmo de compra {f['flow']:.1f} SOL/min abaixo da média inicial ({f['flow_base']:.1f} x {mult:g})"
         top = float(self._c("pump_bx_top10_max", 35))
-        if f.get("top10") is None:
-            return "sem dados dos maiores detentores (RPC não respondeu)"
-        if f["top10"] > top:
+        # 0.32.58 (dono: "cadê as compras da Aba do Bruxo?"): o RPC grátis quase não responde e TODO sinal parava aqui; sem a
+        # leitura dos detentores a entrada segue (os outros filtros e a trava de segurança continuam valendo)
+        if f.get("top10") is not None and f["top10"] > top:
             return f"10 maiores detentores com {f['top10']:.0f}% (máximo {top:g}%)"
         if any(p["mint"] == mint and not p.get("real") for p in self.positions()):
             return "já tem posição fictícia neste token"

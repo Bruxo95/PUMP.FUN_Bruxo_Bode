@@ -61,11 +61,11 @@ def test_entry_filters_from_the_prompt(tmp_path):
     assert "idade do token desconhecida" in pf.bruxo_entry(s, _facts(age_min=None), t)
     assert "abaixo da média inicial" in pf.bruxo_entry(s, _facts(flow=1.0), t)
     assert "10 maiores detentores" in pf.bruxo_entry(s, _facts(top10=60), t)
-    assert "sem dados dos maiores detentores" in pf.bruxo_entry(s, _facts(top10=None), t)
     assert "criador com" in pf.bruxo_entry(s, _facts(dev_pct=25), t)
     assert "pouca liquidez" in pf.bruxo_entry(s, _facts(mcap=29), t)
     assert "compra do trader pequena" in pf.bruxo_entry(s, _facts(trader_sol=0.01), t)
     assert pf.bruxo_entry(s, _facts(graduated=True), t) == "token já graduou"
+    assert pf.bruxo_entry(s, _facts(top10=None), t) is None             # 0.32.58: sem leitura dos detentores não trava
 
 
 def test_signal_study_measures_peak_and_doubling():

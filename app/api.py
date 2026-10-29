@@ -161,8 +161,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
                                   "fila": len(getattr(pf.store, "_q", []) or [])}}
         return snap
 
+    AUTO_SWITCHES = {"pump_bar_auto_on", "pump_bar_real", "pump_bx_on", "pump_bx_real", "pump_ex_auto_on", "pump_calls_auto_on",
+                     "pump_el_auto_on", "pump_auto_on", "pump_st_auto_copy", "pump_eq_on", "pump_guard_on", "pump_nc_on"}
+
     @app.post("/api/pump/settings")
-    async def pump_settings(body: dict, pf=Depends(engine), u: dict = Depends(user)):
+    async def pump_settings(body: dict, request: Request, pf=Depends(engine), u: dict = Depends(user)):
         if u["role"] != "admin" and any(key.startswith(("pump_ex_auto_", "pump_ar_")) for key in body):
             raise HTTPException(403, "só o admin pode configurar as novas entradas automáticas")
         radar_keys = ("pump_radar_enabled", "pump_radar_min_wallets", "pump_radar_window_min")
@@ -175,6 +178,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
             for key in applied:
                 ov[key] = datetime.now(timezone.utc).isoformat()
             await hub.save_settings(pf)
+            # 0.32.58 (barrados voltavam a comprar depois de desligados): quem liga/desliga uma compra automática fica registrado,
+            # com o navegador que mandou, para achar uma aba antiga do painel que grava a opção por cima
+            for key in sorted(set(applied) & AUTO_SWITCHES):
+                await audit(hub.db, pf.user_id, "compra automática mudada na tela",
+                            f"{key} → {'ligada' if applied[key] else 'desligada'} · {str(request.headers.get('user-agent') or '')[:80]}")
             if any(key in applied and applied[key] != radar_before[key] for key in radar_keys):
                 pf._radar_alerts = {}
             if {"pump_min_winrate", "pump_lb_min_trades", "pump_top_n", "pump_only_online", "pump_online_min"} & set(applied):

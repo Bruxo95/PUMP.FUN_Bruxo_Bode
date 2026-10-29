@@ -1284,3 +1284,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.57: `PumpFun.uncopiable` (`pump_nc_*`, OFF; migração `20261029000010` liga no dono e tira 24 carteiras do estudo/lista manual dele):
   `refresh_followed` põe em `bots`, `_copy` barra, `study_auto` descarta; `study.copy_sim` (FLIP_S 30 s → −30%, veredito "não dá para copiar").
   Relatório `app/relatorios_ia/2026-10-29-0.32.57.md`.
+- 0.32.58: `bruxo_reason` não trava sem `top10`; `pp_wanted` inclui `elite.wallets()` com Aba do Bruxo ligada; `/api/pump/settings` grava
+  audit "compra automática mudada na tela" (`AUTO_SWITCHES`, com user-agent). Barrados do dono religaram às 11:49 CET mesmo com o ajuste.

@@ -100,7 +100,12 @@ class SharedMonitor:
             return set()
         if not any(getattr(e.cfg, "pump_pp_copy", False) and getattr(e, "role", None) == "admin" for e in self.engines()):
             return set()
-        return set(self.union_followed())
+        out = set(self.union_followed())
+        # 0.32.58 (dono: "entrar no começo, ser o primeiro"): os Maiores traders também chegam pela PumpPortal (sem o atraso do
+        # RPC) quando alguém ligou a Aba do Bruxo, que entra junto com eles
+        if any(getattr(e.cfg, "pump_bx_on", False) for e in self.engines()):
+            out |= set(self.hub.elite.wallets())
+        return out
 
     def _seen_sig(self, sig) -> bool:
         """True se esta transação já foi entregue aos motores (pela PumpPortal ou pelo RPC)."""

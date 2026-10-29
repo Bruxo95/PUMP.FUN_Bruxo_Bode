@@ -1045,6 +1045,11 @@
    "versao": "0.32.57",
    "inicio": "2026-10-29T14:20:00+00:00",
    "titulo": "nunca copiar lançador de token nem robô de alta frequência"
+  },
+  {
+   "versao": "0.32.58",
+   "inicio": "2026-10-29T14:40:00+00:00",
+   "titulo": "Aba do Bruxo destravada e registro de quem liga as compras automáticas"
   }
  ]
 }
