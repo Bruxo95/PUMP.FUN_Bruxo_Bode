@@ -1255,6 +1255,11 @@
    "versao": "0.32.99",
    "inicio": "2026-10-30T21:49:22+00:00",
    "titulo": "REAL: curva completa (erro 6005) tenta PumpSwap e Jupiter"
+  },
+  {
+   "versao": "0.32.100",
+   "inicio": "2026-10-30T22:01:09+00:00",
+   "titulo": "REAL: simulação em lotes menores (Too many accounts; max 21)"
   }
  ]
 }

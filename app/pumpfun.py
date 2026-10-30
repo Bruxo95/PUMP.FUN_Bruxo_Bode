@@ -4617,6 +4617,8 @@ class PumpReal:
                     await asyncio.sleep(0.15 * (i + 1))
         raise last
 
+    SIM_BATCH = 19                                 # contas de token por simulação (+ a carteira); diminui sozinho se o RPC pedir
+
     async def _sim_guard(self, raw_b64: str, mint: str | None, lim: dict) -> str | None:
         """0.31.48: para a rota intermediária da PumpPortal (txguard.PUMPPORTAL_ROUTER), simula ANTES de enviar e devolve
         o motivo para não enviar: SOL saindo da carteira acima do pedido + tetos de taxa, ou outro token da carteira mexido.
@@ -4638,11 +4640,23 @@ class PumpReal:
             # 0.31.58 (AI, 27/10 18:00: "Too many accounts provided; max 22"): o RPC aceita no máximo 22 contas por
             # simulação. A carteira do bot tem mais contas de token que isso, então a conferência vai em lotes de 21
             # (+ a carteira), todos ao mesmo tempo. Nenhuma conta deixa de ser conferida.
-            others = others[:210]
-            chunks = [others[i:i + 21] for i in range(0, len(others), 21)] or [[]]
-            sims = await asyncio.gather(*[self._rpc_retry("simulateTransaction", [raw_b64, {
-                "encoding": "base64", "sigVerify": False, "commitment": "processed",
-                "accounts": {"encoding": "base64", "addresses": [owner] + [k for k, _ in ch]}}]) for ch in chunks])
+            # 0.32.100 (LENNY, 30/10 23:00: "Too many accounts provided; max 21"): o limite muda de RPC para RPC (22 em 27/10,
+            # 21 agora). Lote padrão = 19 contas + a carteira (20) e, se o RPC disser "max N", refaz os lotes com N − 1 + a carteira.
+            others = others[:200]
+            size = self.SIM_BATCH
+            for _ in range(3):
+                chunks = [others[i:i + size] for i in range(0, len(others), size)] or [[]]
+                try:
+                    sims = await asyncio.gather(*[self._rpc_retry("simulateTransaction", [raw_b64, {
+                        "encoding": "base64", "sigVerify": False, "commitment": "processed",
+                        "accounts": {"encoding": "base64", "addresses": [owner] + [k for k, _ in ch]}}]) for ch in chunks])
+                    break
+                except Exception as e:
+                    m = re.search(r"Too many accounts provided; max (\d+)", str(e))
+                    if not m or int(m.group(1)) - 1 >= size or int(m.group(1)) < 2:
+                        raise
+                    size = int(m.group(1)) - 1
+                    type(self).SIM_BATCH = size          # lembra o limite para as próximas simulações
         except Exception as e:
             return f"não deu para simular ({type(e).__name__}: {str(e)[:120]})"
         for sim, ch in zip(sims, chunks):

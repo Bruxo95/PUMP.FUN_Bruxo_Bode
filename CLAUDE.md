@@ -1419,3 +1419,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `SOL_HTTP`; erro da própria rede não repete. `tests/test_envio_429.py`. O RPC próprio do dono (`rpc_url`) respondeu 429 no envio do ">_" (Jev Trade).
 - 0.32.99 (erro do dono, PIO 30/10 22:47): a simulação devolve o erro da pump.fun em DECIMAL (`{'Custom': 6005}` = BondingCurveComplete);
   `PumpReal.retryable`/`PUMP_ERRORS` agora reconhecem 6002–6005 em decimal → tenta PumpSwap e Jupiter. Teste em `tests/test_envio_429.py`.
+- 0.32.100 (venda LENNY, 30/10 23:00): o RPC passou a aceitar no máx. 21 contas por `simulateTransaction` e toda simulação da rota PumpPortal falhava.
+  `PumpReal.SIM_BATCH` = 19 + a carteira; com "Too many accounts provided; max N" refaz os lotes com N − 1 e lembra. Teste em `tests/test_seguranca.py`.

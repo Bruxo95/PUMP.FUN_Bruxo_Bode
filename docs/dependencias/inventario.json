@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-30",
     "timezone": "Europe/Dublin",
-    "repository_reference": "15145faf344c173a92a2d720240c8e758b8bd777",
-    "application_version": "0.32.99 · 2026-10-30 · REAL: curva completa (erro 6005) tenta PumpSwap e Jupiter",
+    "repository_reference": "c5e74de82273f31b500e15b40563216bdb90761a",
+    "application_version": "0.32.100 · 2026-10-30 · REAL: simulação em lotes menores (Too many accounts; max 21)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "fc01211d060597d5f64cc6dbbd0aab555fdbc2fbc25ca8846fe75fc6030dc946",
+      "app/version.py": "51ec91070d3cc9d8a32ef5f5d36c0558d99a19c44be58c4a78d473c1af1dfae6",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "2f44e7d9296b317d721b7577698350fd66ef0335f191b486d247172ff96d7399"
+  "pdf_sha256": "506435991ed0751baad7656a51eb4400c71ec5f8f12fbd73f70decd89831284c"
 }

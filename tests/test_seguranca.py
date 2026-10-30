@@ -420,6 +420,7 @@ def test_sim_guard_checks_many_token_accounts_in_batches_of_21():
         async def safe_rpc_url(self):
             return "https://meu-rpc.exemplo.test"
     accs = [f"Acc{i}".ljust(44, "1") for i in range(50)]
+    lim = {"n": 22}
 
     async def rpc(method, params, url=None):
         if method == "getTokenAccountsByOwner":
@@ -429,15 +430,22 @@ def test_sim_guard_checks_many_token_accounts_in_batches_of_21():
         if method == "getBalance":
             return {"value": 1_000_000_000}
         addrs = params[1]["accounts"]["addresses"]
-        if len(addrs) > 22:
-            raise RuntimeError("{'code': -32602, 'message': 'Too many accounts provided; max 22'}")
+        if len(addrs) > lim["n"]:
+            raise RuntimeError("{'code': -32602, 'message': 'Too many accounts provided; max %d'}" % lim["n"])
         seen.append(len(addrs))
         data = bytearray(165)
         data[64:72] = (7).to_bytes(8, "little")
         return {"value": {"err": None, "logs": [f"Program {txguard.PUMP} invoke [2]"],
                           "accounts": [{"lamports": 950_000_000}] + [{"data": [b64.b64encode(bytes(data)).decode(), "base64"]}] * (len(addrs) - 1)}}
+    PumpReal.SIM_BATCH = 19
     pr = PumpReal.__new__(PumpReal)
     pr.wallet, pr._rpc = W(), rpc
     caps = {"max_spend_lamports": 60_000_000, "max_fee_lamports": 2_000_000, "max_priority_lamports": 2_000_000}
     assert asyncio.run(pr._sim_guard("x", "M", caps)) is None
-    assert sorted(seen) == [9, 22, 22]                                   # 50 contas = 21 + 21 + 8, cada lote + a carteira
+    assert sorted(seen) == [13, 20, 20]
+    # LENNY (30/10 23:00): outro RPC aceita menos ("max 12") → refaz os lotes com 11 + a carteira e lembra
+    seen.clear()
+    lim["n"] = 12
+    assert asyncio.run(pr._sim_guard("x", "M", caps)) is None
+    assert max(seen) == 12 and sum(x - 1 for x in seen) == 50 and PumpReal.SIM_BATCH == 11
+    PumpReal.SIM_BATCH = 19                                  # 0.32.100: lotes de 19 + a carteira

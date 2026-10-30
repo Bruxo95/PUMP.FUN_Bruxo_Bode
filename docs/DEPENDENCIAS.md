@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-30**; revisão documental **2.0**.
-Aplicação: **0.32.99 · 2026-10-30 · REAL: curva completa (erro 6005) tenta PumpSwap e Jupiter**.
-Referência Git na emissão: `15145faf344c173a92a2d720240c8e758b8bd777`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.100 · 2026-10-30 · REAL: simulação em lotes menores (Too many accounts; max 21)**.
+Referência Git na emissão: `c5e74de82273f31b500e15b40563216bdb90761a`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
