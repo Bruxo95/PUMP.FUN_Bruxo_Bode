@@ -50,6 +50,17 @@ def test_study_groups_and_compares_with_all_signals():
     assert D["linhas"][0]["ligou"] == 2 and "poucos dados" in D["leitura"]
 
 
+def test_detail_shows_the_tokens_and_the_total_without_the_biggest_wins():
+    sigs = [_sig({0: 45, 1: 60, 2: 80}, marks={10: v}, hpx={2: 0}, t=1000.0 + i, peak_pct=max(v, 0)) for i, v in enumerate((500, 10, -10, -20, -20))]
+    D = detentores.study(sigs, "10")
+    G = D["detalhe"]["todos"]
+    assert G["medidos"] == 5 and G["itens"][0]["res"] == 496 and G["itens"][-1]["res"] == -24
+    assert G["ganhos_sol"] == round((496 + 6) * 0.1 / 100, 5) and G["perdas_sol"] == round(-(14 + 24 + 24) * 0.1 / 100, 5)
+    assert G["mediana_pct"] == -14 and G["sem_top3_sol"] == round(-48 * 0.1 / 100, 5) and G["sem_top3_media"] == -24
+    assert D["detalhe"]["regra"]["itens"][0]["ligou"] == 2 and D["detalhe"]["regra_jev"]["n"] == 0
+    assert detentores.study([_sig({0: 45, 1: 60, 2: 80}, marks={10: 3000}, hpx={2: 0})], "10")["detalhe"]["todos"]["suspeitos"] == 1
+
+
 def test_only_coins_with_40_holders_are_read_every_minute():
     b = Bruxo()
     t = 1_000_000.0

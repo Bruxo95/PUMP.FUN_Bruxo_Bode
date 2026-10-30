@@ -1387,4 +1387,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   + `hub.jt_tick/jt_loop` (20 s; lê `lab.live` aos 5–8 min vivos, 40+ detentores observados por até 15 min, Jev a cada 60 s, stop só sobe, detentores −30% do pico saem) +
   `jev_trades` e `tipo='trade'` em `jev_usage` (migração `20261030000004`) + `GET /api/pump/jev-trade[/{mint}]` (admin) + opção `pump_jt_on`. Limites: 60 conferências/h, 2.500 leituras/dia (≈750 mil créditos Helius/mês),
   6.000 perguntas/dia, 10 abertas. "Criador vendeu" só é conhecido se o monitor viu a venda. Régua fixa (−30%/25 min) mede se o Jev ajuda; decidir compra só com 20+ fechadas. Não testado com a API real do Jev.
-
+- 0.32.88: `detentores._detail` (`detalhe` em `study`: itens, ganhos, perdas, mediana, sem os 3 maiores); `kpis()` aceita 6º campo → `data-kpi`/`.kpiclick`; `openJd`/`JD_INFO` usam o modal `#jtM`. Pedido do dono.

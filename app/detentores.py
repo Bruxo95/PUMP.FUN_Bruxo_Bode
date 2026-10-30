@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import statistics
 
+from .auto_trades import SUSPECT_PCT
 from .jev import FEE_PCT, sim_result
 
 MIN_HOLDERS = 40
@@ -66,10 +67,24 @@ def _group(rows: list[tuple[float | None, bool, float | None]], sol: float) -> d
             "pico_mediano": round(statistics.median(pk), 1) if pk else None}
 
 
+def _detail(rows: list[dict], sol: float, max_itens: int = 300) -> dict:
+    """A conta de um cartão, token por token. O total sozinho engana: poucos ganhos enormes escondem muitas perdas,
+    então mostra também a mediana e o resultado sem os 3 maiores (0.32.88, pedido do dono)."""
+    med = sorted((x for x in rows if x["res"] is not None), key=lambda x: -x["res"])
+    res = [x["res"] for x in med]
+    rest = res[3:]
+    return {"n": len(rows), "medidos": len(med), "ganhos_sol": round(sum(r for r in res if r > 0) * sol / 100, 5),
+            "perdas_sol": round(sum(r for r in res if r < 0) * sol / 100, 5), "mediana_pct": round(statistics.median(res), 2) if res else None,
+            "top3_sol": round(sum(res[:3]) * sol / 100, 5), "sem_top3_sol": round(sum(rest) * sol / 100, 5),
+            "sem_top3_media": round(sum(rest) / len(rest), 2) if rest else None, "suspeitos": sum(r >= SUSPECT_PCT for r in res),
+            "sol": sol, "itens": (med + [x for x in rows if x["res"] is None])[:max_itens]}
+
+
 def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow_pct: float = MIN_GROW_PCT, sol: float = 0.1) -> dict:
     sigs = sorted(signals, key=lambda s: s["t"])
     with_h = [s for s in sigs if readings(s)]
     regra, combo, todos, linhas, curva = [], [], [], [], []
+    det: dict[str, list] = {"regra": [], "todos": [], "regra_jev": []}
     faixas: dict[str, list] = {f[2]: [] for f in FAIXAS}
     evol: dict[str, list] = {k: [] for k in EVOLUCAO}
     acc = 0.0
@@ -77,6 +92,8 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
         R = readings(s)
         base = (sim_result(s, saida), s.get("hit100_s") is not None, s.get("peak_pct"))
         todos.append(base)
+        meta = {"t": s["t"], "mint": s.get("mint"), "symbol": s.get("symbol"), "pico": s.get("peak_pct")}
+        det["todos"].append({**meta, "res": base[0], "ligou": None})
         next(faixas[nome] for lo, hi, nome in FAIXAS if lo <= R[0][1] < hi).append(base)
         h5 = (s.get("holders") or {}).get("5")
         if R[0][0] <= 1 and h5 is not None:
@@ -88,8 +105,10 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
         if m is not None:
             r, dob = result(s, m, saida)
             regra.append((r, dob, s.get("peak_pct")))
+            det["regra"].append({**meta, "res": r, "ligou": m})
             if (s.get("jev") or {}).get("acao") == "entrar":
                 combo.append((r, dob, s.get("peak_pct")))
+                det["regra_jev"].append({**meta, "res": r, "ligou": m})
             if r is not None:
                 acc += sol * r / 100
                 curva.append([s["t"] + m * 60, round(acc, 5)])
@@ -106,4 +125,5 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
     return {"min_h": min_h, "cresc_pct": grow_pct, "saida_min": saida, "sinais": len(sigs), "medidos": len(with_h),
             "sem_dados": len(sigs) - len(with_h), "regra": {**g_regra, "curva": curva}, "todos": g_todos, "regra_jev": _group(combo, sol),
             "faixas": [{"faixa": k, **_group(v, sol)} for k, v in faixas.items() if v],
-            "evolucao": [{"faixa": k, **_group(v, sol)} for k, v in evol.items() if v], "leitura": leitura, "linhas": linhas[:200]}
+            "evolucao": [{"faixa": k, **_group(v, sol)} for k, v in evol.items() if v], "leitura": leitura, "linhas": linhas[:200],
+            "detalhe": {k: _detail(v, sol) for k, v in det.items()}}

@@ -1195,6 +1195,11 @@
    "versao": "0.32.87",
    "inicio": "2026-10-30T13:51:17+01:00",
    "titulo": "Jev Trade: o Jev decide entrada e saída em simulação"
+  },
+  {
+   "versao": "0.32.88",
+   "inicio": "2026-10-30T14:26:11+01:00",
+   "titulo": "cartões dos detentores abrem a conta e os tokens"
   }
  ]
 }

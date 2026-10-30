@@ -243,7 +243,7 @@
   };
   function kpis(id, items) {
     const el = $(id); if (!el) return;
-    el.innerHTML = items.map((x) => '<div class="kpi"><div class="k"><span>' + x[0] + "</span>" + (x[3] ? IC[x[3]] : "") + '</div><div class="v ' + (x[4] || "") + '">' + x[1] + '</div><div class="d">' + (x[2] || "&nbsp;") + "</div></div>").join("");
+    el.innerHTML = items.map((x) => '<div class="kpi' + (x[5] ? ' kpiclick" role="button" tabindex="0" data-kpi="' + x[5] + '"' : '"') + '><div class="k"><span>' + x[0] + "</span>" + (x[3] ? IC[x[3]] : "") + '</div><div class="v ' + (x[4] || "") + '">' + x[1] + '</div><div class="d">' + (x[2] || "&nbsp;") + "</div></div>").join("");
   }
   // Novidades ficam marcadas em verde ("NOVO") até a data de data-novo-ate (AAAA-MM-DD); depois somem sozinhas.
   function marcarNovos() {
@@ -1242,14 +1242,41 @@
   document.addEventListener("change", (e) => { if (e.target.id === "jtH") loadJt(); });
 
   // 0.32.86 (áudio do Bruxo, 30/10): detentores no início e evolução minuto a minuto × o que o token fez; só mede, nunca compra
+  // 0.32.88 (pedido do dono): cada cartão abre a conta, em palavras e token por token
+  let JV_D = {};
+  const JD_INFO = {
+    tokens: ["Tokens com detentores", "todos", (D) => "Dos " + (D.sinais || 0) + " sinais do período (top trader comprou ou lançamento estudado), " + (D.medidos || 0) + " têm pelo menos uma contagem de detentores. Os outros " + (D.sem_dados || 0) + " ficam fora de todas as contas deste quadro."],
+    ligou: ["A regra ligou", "regra", (D) => "A regra liga quando o token tem " + D.min_h + "+ detentores, duas altas seguidas e crescimento de pelo menos " + D.cresc_pct + "% nas 3 últimas leituras, até os 10 min. Aqui estão os tokens em que isso aconteceu, no minuto em que ligou."],
+    regra: ["Seguindo a regra", "regra", (D) => "Quanto teria dado entrar SÓ nos tokens em que a regra ligou. Cada entrada usa 0,1 SOL fictício, no preço do minuto em que a regra ligou. A saída é aos " + D.saida_min + " min (ou aos 25 min, se a regra ligou depois disso), ou no −30% se vier antes. Já desconta 4% de taxas. Nada foi comprado."],
+    todos: ["Todos os sinais", "todos", (D) => "Quanto teria dado entrar em TODOS os tokens com detentores lidos, sem filtro nenhum, com 0,1 SOL fictício. A entrada é no preço do sinal, antes da regra, e a saída é aos " + D.saida_min + " min ou no −30%, com 4% de taxas. Serve de comparação: a regra só vale a pena se ganhar disto de forma consistente."],
+    regra_jev: ["Regra + Jev mandou entrar", "regra_jev", (D) => "Só os tokens em que a regra ligou E o Jev respondeu \"entrar\". Mesma conta de Seguindo a regra. Mostra se juntar os dois é melhor que a regra sozinha."] };
+  function openJd(k) {
+    const I = JD_INFO[k], D = JV_D, G = (D.detalhe || {})[I[1]]; if (!G) return;
+    const L = G.itens || [], sl = G.sol || 0.1;
+    $("jtMT").textContent = I[0]; $("jtMS").textContent = (G.medidos || 0) + " tokens medidos" + (G.n > G.medidos ? " · " + (G.n - G.medidos) + " ainda medindo" : "");
+    $("jtMB").innerHTML = '<p class="muted small" style="margin:0 0 10px">' + esc(I[2](D)) + '</p><div class="kpis" id="jdK"></div><p class="small" id="jdN"></p><div class="tablewrap"><table id="jdT" class="daytbl"></table></div>';
+    kpis("jdK", [["Ganhos somados", sg(G.ganhos_sol || 0), "", "pnl"], ["Perdas somadas", sg(G.perdas_sol || 0), "", "pnl"],
+      ["Token típico (mediana)", G.mediana_pct == null ? "–" : pc(G.mediana_pct), "metade foi melhor, metade pior", "hit"],
+      ["Sem os 3 maiores ganhos", sg(G.sem_top3_sol || 0), "os 3 maiores somam " + s4(G.top3_sol || 0) + " SOL", "mon"]]);
+    const av = [];
+    if ((G.top3_sol || 0) > 0 && (G.sem_top3_sol || 0) < 0) av.push("O total positivo vem de poucos tokens: sem os 3 maiores, o resultado fica negativo.");
+    if (G.suspeitos) av.push(G.suspeitos + " ganho(s) acima de 20× na lista: confira se o preço era verdadeiro antes de confiar no total.");
+    if (G.medidos < 20) av.push("Ainda são poucos tokens: a comparação vale a partir de 20.");
+    $("jdN").textContent = av.join(" ");
+    table("jdT", ["Token", "Entrou aos", "Resultado", "Em SOL", "Pico do token"], L.map((x) => [pfM(x.mint, x.symbol), x.ligou == null ? "sinal" : x.ligou + " min", x.res == null ? '<span class="dim">medindo</span>' : pc(x.res), x.res == null ? "–" : sg(x.res * sl / 100, ""), x.pico == null ? "–" : pc(x.pico)]), "Nenhum token.");
+    $("jtM").hidden = false; $("jtMX").focus();
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-kpi]"); if (b) openJd(b.dataset.kpi); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.dataset && e.target.dataset.kpi) openJd(e.target.dataset.kpi); });
   function jvHold(D) {
+    JV_D = D;
     const R = D.regra || {}, T = D.todos || {}, C = D.regra_jev || {};
     const nota = (g) => "acerto " + (g.acerto == null ? "–" : g.acerto + "%") + " · média " + (g.media_pct == null ? "–" : pc(g.media_pct));
-    kpis("jvDK", [["Tokens com detentores", String(D.medidos || 0), "de " + (D.sinais || 0) + " sinais no período", "mon"],
-      ["A regra ligou", String(R.n || 0), (R.medidos || 0) + " entradas medidas · " + (R.dobrou || 0) + " dobraram", "hit"],
-      ["Seguindo a regra", sg(R.sol || 0), nota(R), "pnl"],
-      ["Todos os sinais", sg(T.sol || 0), nota(T), "pnl"],
-      ["Regra + Jev mandou entrar", String(C.n || 0), nota(C), "tr"]]);
+    kpis("jvDK", [["Tokens com detentores", String(D.medidos || 0), "de " + (D.sinais || 0) + " sinais no período", "mon", "", "tokens"],
+      ["A regra ligou", String(R.n || 0), (R.medidos || 0) + " entradas medidas · " + (R.dobrou || 0) + " dobraram", "hit", "", "ligou"],
+      ["Seguindo a regra", sg(R.sol || 0), nota(R), "pnl", "", "regra"],
+      ["Todos os sinais", sg(T.sol || 0), nota(T), "pnl", "", "todos"],
+      ["Regra + Jev mandou entrar", String(C.n || 0), nota(C), "tr", "", "regra_jev"]]);
     $("jvDL").textContent = !D.sinais ? "Ainda sem sinais neste período." : !D.medidos ? "Nenhum sinal com detentores lidos: a contagem precisa do RPC próprio (Administração → Chaves do sistema); o RPC público não conta." : (D.leitura || "");
     const head = (a) => [a, "Tokens", "Medidos", "Subiu", "Dobrou", "Média", "Pico mediano"];
     const row = (g) => [esc(g.faixa), String(g.n), String(g.medidos), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou), g.media_pct == null ? "–" : pc(g.media_pct), g.pico_mediano == null ? "–" : pc(g.pico_mediano)];
