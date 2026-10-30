@@ -1200,6 +1200,11 @@
    "versao": "0.32.88",
    "inicio": "2026-10-30T14:26:11+01:00",
    "titulo": "cartões dos detentores abrem a conta e os tokens"
+  },
+  {
+   "versao": "0.32.89",
+   "inicio": "2026-10-30T18:46:46+00:00",
+   "titulo": "datas certas nas abas JEV e Jev Trade"
   }
  ]
 }

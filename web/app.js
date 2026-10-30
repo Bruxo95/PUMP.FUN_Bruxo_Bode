@@ -25,7 +25,8 @@
   const hms = (s) => { if (s == null) return "–"; s = Math.max(0, Math.round(s)); if (s < 60) return s + " s"; if (s < 3600) return Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " s"; if (s < 86400) return Math.floor(s / 3600) + " h " + String(Math.floor((s % 3600) / 60)).padStart(2, "0") + " min"; const d = Math.floor(s / 86400); return d + (d === 1 ? " dia " : " dias ") + Math.floor((s % 86400) / 3600) + " h"; };
   const agoT = (t) => hms(Date.now() / 1000 - t);
   const agoIso = (x) => (x ? hms((Date.now() - new Date(x)) / 1000) : "–");
-  const dt = (x) => { if (!x) return "–"; const d = new Date(x); return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
+  const dt = (x) => { if (!x) return "–"; const d = new Date(typeof x === "number" && x < 1e11 ? x * 1000 : x);  // 0.32.89: número em segundos (Jev, Jev Trade) virava 21/01/1970
+   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
   // 0.31.73 (pedido do dono): "manual" não é carteira — é o marcador das compras que não vieram de um trader (automáticas
   // do Explorar/Base/Maiores traders, botão Comprar, cópia de outra conta). Mostra de onde veio, sem link quebrado.
   const ORIG_NOME = { bruxo: "Aba do Bruxo (automática, só fictícia)", calls: "Calls quentes (automática)", explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)", barrado: "Barrado que subiu (automática, só fictícia)", barrado_btn: "Barrado que subiu (você comprou)" };
