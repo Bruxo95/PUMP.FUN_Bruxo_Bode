@@ -335,12 +335,16 @@ def test_entries_and_sales_go_to_the_fictitious_wallet_never_real(tmp_path):
     hub.jt.add_read(it, 61, 1.2e-6, 60.0, T0 + 120)
     assert hub.jt.bruxo_entry(it, {"acao": "esperar"}, 1.2e-6, T0 + 120) == "entrar"
     pos = [p for p in pf.positions() if p["mint"] == M]
-    assert len(pos) == 1 and pos[0]["origem"] == "jevtrade" and not pos[0]["real"] and pos[0]["stop_pct"] == 0.0
+    assert len(pos) == 1 and pos[0]["origem"] == "jevtrade" and not pos[0]["real"] and pos[0]["stop_pct"] > 0
+    q = pos[0]                                       # 0.32.96: mesmas regras do Jev Trade, visíveis no card
+    assert q["tp1_pct"] == 100 and q["tp1_frac"] == 50 and q["trail_rel"] == 25 and q["be_after"] == 50 and q["trail_on"]
     assert "comprou" in it["carteiras"]["u1"]
     pf.tokens[M]["price"] = 2.4e-6
     hub.jt.sell(it, 0.5, 2.4e-6, T0 + 120, "vendeu metade em +100%")
     p = [p for p in pf.positions() if p["mint"] == M][0]
     assert abs(p["tokens_left"] - p["tokens"] / 2) < p["tokens"] * 0.01
+    hub.jt.sell(it, 0.5, 2.4e-6, T0 + 130, "outra parcial")       # parcial repetida não vende de novo na carteira
+    assert abs([p for p in pf.positions() if p["mint"] == M][0]["tokens_left"] - p["tokens"] / 2) < p["tokens"] * 0.01
     hub.jt.sell(it, 1.0, 2.4e-6, T0 + 180, "saiu")
     assert [p for p in pf.positions() if p["mint"] == M] == []
     assert any(t.get("origem") == "jevtrade" for t in pf.trades(50))
@@ -350,3 +354,46 @@ def test_price_only_needs_to_be_positive_not_20_pct():
     """Dono, 30/10 21:30: os 20% são dos detentores; o preço só precisa estar positivo."""
     r = JevTrade.rule_check([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 56, "px": 1.005}, {"m": 7, "h": 61, "px": 1.01}])
     assert r["ok"] and r["px_pct"] == 1.0
+
+
+def test_wallet_position_follows_jev_rules_in_the_engine(tmp_path):
+    """0.32.96 (dono): a posição da fictícia sai pelas regras do Jev Trade no motor: stop móvel 25% abaixo do pico e empate."""
+    from app.hub import PumpHub
+    from tests.test_pump import _pump
+    pf = _pump(tmp_path, paid=False)
+    pf.role = "admin"
+    hub = PumpHub.__new__(PumpHub)
+    hub.engines = {"u1": pf}
+    hub.jt = JevTrade()
+    hub.jt.on_event = hub._jt_wallet
+    pf.tokens.setdefault(M, {}).update(price=1e-6, last_t=T0, symbol="JVT")
+    it = hub.jt.on_checked(_live()[M], 50, T0)
+    for k, (h, px) in enumerate([(50, 1e-6), (56, 1.1e-6), (61, 1.2e-6)]):
+        hub.jt.add_read(it, h, px, 60.0, T0 + 60 * k)
+    hub.jt.bruxo_entry(it, {"acao": "esperar"}, 1.2e-6, T0 + 120)
+    p = [p for p in pf.positions() if p["mint"] == M][0]
+    p0 = p["price_in"]
+    for k, mult in enumerate([1.6, 2.0, 1.4]):                       # sobe +100% e cai 30% do pico
+        pf.tokens[M].update(price=p0 * mult, last_t=T0 + 130 + k)
+        pf._check_stops(M, T0 + 130 + k)
+    sells = [t for t in pf.trades(50) if t.get("origem") == "jevtrade"]
+    assert [p for p in pf.positions() if p["mint"] == M] == [] and sells
+    assert any("stop móvel" in (t.get("reason") or t.get("motivo") or "") for t in sells)
+
+
+def test_old_wallet_positions_get_the_rules(tmp_path):
+    from app.hub import PumpHub
+    from tests.test_pump import _pump
+    pf = _pump(tmp_path, paid=False)
+    pf.role = "admin"
+    hub = PumpHub.__new__(PumpHub)
+    hub.engines = {"u1": pf}
+    hub.jt = JevTrade()
+    pf.tokens.setdefault(M, {}).update(price=1e-6, last_t=T0, symbol="JVT")
+    it = hub.jt.on_checked(_live()[M], 50, T0)
+    it.update(estado="aberta", stop=-20.0, parcial_feita=True)
+    pf.manual_buy(M, t=T0, origem="jevtrade", target="sim", amt_sol=0.1,
+                  pos_rules={"stop_pct": 0.0, "tp_pct": 0.0, "trail_on": False, "boost_tp": None, "smart": False})
+    hub._jt_wallet_sync()
+    p = [p for p in pf.positions() if p["mint"] == M][0]
+    assert p["stop_pct"] == 20 and p["trail_on"] and p["tp1_done"] and p["jt_rules"]

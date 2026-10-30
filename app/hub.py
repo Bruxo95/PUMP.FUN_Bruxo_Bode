@@ -1120,8 +1120,33 @@ class PumpHub:
         px = (self.market.tokens.get(it["mint"]) or {}).get("price")     # preço DEPOIS da resposta: é onde entraria de verdade
         (jt.on_exit if it["estado"] == "aberta" else jt.bruxo_entry)(it, out, px, now)
 
-    JT_WALLET_RULES = {"stop_pct": 0.0, "tp_pct": 0.0, "trail_on": False, "boost_tp": None, "smart": False,
-                       "max_hold_s": (jevtrade.MAX_HOLD_MIN + 10) * 60}   # as saídas vêm do Jev Trade; isto só fecha se ele parar
+    @staticmethod
+    def jt_wallet_rules(it: dict) -> dict:
+        """0.32.96 (pedido do dono): a posição da carteira fictícia leva as MESMAS regras do Jev Trade (stop, empate, metade em
+        +100%, stop móvel 25% abaixo do pico), executadas pelo motor a cada ~1 s e visíveis/ajustáveis no card da posição."""
+        S = jevtrade.STRAT
+        st = abs(float(it.get("stop") or 0)) or float(S["stop_pct"])
+        return {"stop_pct": st, "tp_pct": 0.0, "boost_tp": None, "smart": False,
+                "trail_on": True, "trail_start": float(S["trail_apos"]), "trail_dist": float(S["trail_pct"]),
+                "trail_rel": float(S["trail_pct"]), "tp1_pct": float(S["parcial_em"]), "tp1_frac": float(S["parcial_frac"]) * 100,
+                "be_after": float(S["empate_apos"]), "jt_rules": True,
+                "max_hold_s": (jevtrade.MAX_HOLD_MIN + 10) * 60}
+
+    def _jt_wallet_sync(self) -> None:
+        """Posições do Jev Trade abertas antes da 0.32.96 (sem stop) recebem as regras; a parcial já feita conta como feita."""
+        abertos = {x["mint"]: x for x in self.jt.items.values() if x.get("estado") == "aberta"}
+        for pf in list(getattr(self, "engines", {}).values()):
+            for p in (pf.positions() if hasattr(pf, "positions") else []):
+                it = abertos.get(p.get("mint"))
+                if it is None or p.get("real") or p.get("origem") != "jevtrade" or p.get("jt_rules"):
+                    continue
+                p.update(self.jt_wallet_rules(it))
+                if it.get("parcial_feita") or float(p.get("proceeds") or 0) > 0:
+                    p["tp1_done"] = True
+                try:
+                    pf._save_pos(p)
+                except Exception:
+                    pass
 
     def _jt_wallet(self, ev: str, it: dict, px: float | None, now: float, frac: float, why: str) -> None:
         """0.32.93 (pedido do dono): o Jev Trade entrou → a mesma entrada vai para a carteira FICTÍCIA de cada admin com
@@ -1135,12 +1160,16 @@ class PumpHub:
                     if px and not tk.get("price"):
                         tk.update(price=px, last_t=now, symbol=it.get("symbol"))
                     r = pf.manual_buy(it["mint"], t=now, auto="Jev Trade · " + why[:140], origem="jevtrade", target="sim",
-                                      amt_sol=jevtrade.SOL, pos_rules=dict(self.JT_WALLET_RULES))
+                                      amt_sol=jevtrade.SOL, pos_rules=self.jt_wallet_rules(it))
                     it.setdefault("carteiras", {})[uid] = (r or {}).get("sim") or (r or {}).get("error")
                     self.jt.dirty.add(it["id"])
                 elif ev == "vendeu" and px:
                     for p in pf.positions():
                         if p.get("mint") == it["mint"] and not p.get("real") and p.get("origem") == "jevtrade" and not p.get("selling"):
+                            if frac < 1.0:                 # parcial: o motor já faz a "venda em partes" (não vende duas vezes)
+                                if p.get("tp1_done") or p.get("off_tp1"):
+                                    continue
+                                p["tp1_done"] = True
                             pf._sell(p, min(1.0, max(0.0, frac)), px, "Jev Trade · " + why[:120], now)
             except Exception as e:
                 log.warning("jev trade → carteira fictícia: %s", str(e)[:120])
@@ -1149,6 +1178,10 @@ class PumpHub:
         now = time.time() if now is None else now
         jt = self.jt
         ativos = jt.active()
+        try:
+            self._jt_wallet_sync()
+        except Exception as e:
+            log.warning("jev trade: regras na carteira fictícia: %s", str(e)[:120])
         await self._prices_for([x["mint"] for x in ativos])
         for it in ativos:
             jt.on_price(it, (self.market.tokens.get(it["mint"]) or {}).get("price"), now)

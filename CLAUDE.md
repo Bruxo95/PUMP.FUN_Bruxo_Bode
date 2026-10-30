@@ -1410,3 +1410,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   positivo (qualquer alta). Código já era assim; textos da tela ajustados e teste `test_price_only_needs_to_be_positive_not_20_pct`.
 - 0.32.95 (pedido do dono): Jev Trade sem o mínimo de +20% de detentores (`STRAT["cresc_pct"]`=0): detentores subindo em cada leitura e preço positivo;
   `rule_check` exige leituras cobrindo os 2 min (`cobre`, 3 leituras) para uma alta de 1 detentor em 1 min não disparar. Relatório `app/relatorios_ia/2026-10-30-0.32.95.md`.
+- 0.32.96 (pedido do dono, caso xpad): a posição do Jev Trade na fictícia leva as regras do Jev Trade (`hub.jt_wallet_rules`: stop, `be_after` 50 = empate,
+  tp1 100%/50%, stop móvel após +30% com `trail_rel` 25 = % abaixo do pico do preço) executadas pelo motor; `_jt_wallet_sync` aplica nas já abertas;
+  parcial do Jev Trade não repete a do motor. `_check_stops` ganhou `trail_rel` e `be_after`; card mostra os textos. Relatório `app/relatorios_ia/2026-10-30-0.32.96.md`.

@@ -1585,6 +1585,10 @@ class PumpFun:
                     p["trail_since"] = now_iso()
                 p["trail_peak"] = round(max(chg, p.get("trail_peak") or chg), 2)
                 p["trail_exit"] = round(max(p["trail_peak"] - t_dist, float(self._c("pump_trail_min_lock_pct", 2))), 2)
+                if p.get("trail_rel"):                     # 0.32.96 (Jev Trade): sai X% abaixo do PICO do preço, não X pontos
+                    rel = float(p["trail_rel"]) / 100
+                    p["trail_exit"] = round(max(((1 + p["trail_peak"] / 100) * (1 - rel) - 1) * 100,
+                                                float(self._c("pump_trail_min_lock_pct", 2))), 2)
             tp1 = float(p["tp1_pct"]) if p.get("tp1_pct") is not None else self._onv("pump_tp1_on", "pump_tp1_pct")
             prog = None
             cx = self._onv("pump_curve_exit_on", "pump_curve_exit_pct")
@@ -1625,6 +1629,9 @@ class PumpFun:
                 continue
             if trail_on and p.get("trail_peak") is not None and chg <= p["trail_exit"]:
                 out.append(self._sell(p, 1.0, px, f"stop móvel (pico {p['trail_peak']:+.1f}% → saiu em {chg:+.1f}% líquido)", t))
+            elif (p.get("be_after") and not p.get("off_stop") and float(p.get("best_pct") or 0) >= float(p["be_after"])
+                  and chg <= 0):                           # 0.32.96 (Jev Trade): depois de +X% o stop vira 0% (empate)
+                out.append(self._sell(p, 1.0, px, f"empate: passou de +{float(p['be_after']):.0f}% e voltou a {chg:+.1f}%", t))
             elif p.get("hold_profit") and chg > float(self._c("pump_hold_min_profit_pct", 0.0)):
                 out.append(self._sell(p, 1.0, px, f"segurou até ficar positivo ({chg:+.1f}% líquido)", t))
             elif chg <= -stop and not p.get("off_stop") and not no_stop:

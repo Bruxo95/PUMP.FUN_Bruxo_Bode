@@ -3252,8 +3252,8 @@
       '<div class="pc-sec"><div><small>Sai por tempo em</small>' + leftTxt + (h != null && h < 3e8 ? '<small class="dim">limite ' + hms(h) + "</small>" : "") + "</div>" +
       (p.selling ? "" : '<div class="pc-chips">' + btn("+30 min", "hold", { id: p.id, add: 30 }, "chip") + btn("+1 h", "hold", { id: p.id, add: 60 }, "chip") + btn("Sem limite", "hold", { id: p.id, add: "none" }, "chip") + "</div>") + "</div>" +
       (p.selling ? "" : '<div class="pc-rules">' +
-        rule("Stop de perda", stopOff ? "desligado nesta posição" : "sai em −" + f(stopV, 0) + "%", sw("stop", stopOff)) +
-        rule("Stop móvel", !trOn ? "desligado nesta posição" : p.trail_peak != null ? "armado · pico " + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + "%" : "liga em +" + f(trS, 0) + "% · sai " + f(trD, 0) + " pts abaixo do pico", sw("trail", !trOn)) +
+        rule("Stop de perda", stopOff ? "desligado nesta posição" : "sai em −" + f(stopV, 0) + "%" + (p.be_after ? " · vira 0% depois de +" + f(p.be_after, 0) + "%" : ""), sw("stop", stopOff)) +
+        rule("Stop móvel", !trOn ? "desligado nesta posição" : p.trail_peak != null ? "armado · pico " + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + "%" : "liga em +" + f(trS, 0) + "% · sai " + (p.trail_rel ? f(p.trail_rel, 0) + "% abaixo do pico do preço" : f(trD, 0) + " pts abaixo do pico"), sw("trail", !trOn)) +
         rule("Venda em partes", p.tp1_done ? "já vendeu " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : tp1 ? "vende " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : "sem venda em partes", p.tp1_done ? '<span class="tag win">feita</span>' : sw("tp1", !!p.off_tp1 || !tp1)) + "</div>") +
       (p.selling ? "" : '<div class="pc-act">' + btn("Vender 25%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 0.25 }, "pill") + btn("Vender 50%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 0.5 }, "pill") +
         btn(p.real ? "Vender tudo" : "Fechar 100%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 1 }, "pill no") + "</div>") +
