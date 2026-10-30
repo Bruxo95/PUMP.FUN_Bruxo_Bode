@@ -1210,6 +1210,11 @@
    "versao": "0.32.90",
    "inicio": "2026-10-30T18:56:17+00:00",
    "titulo": "Jev Trade: nome abre a pump.fun e detentores 5 min → agora"
+  },
+  {
+   "versao": "0.32.91",
+   "inicio": "2026-10-30T19:20:57+00:00",
+   "titulo": "Jev Trade com a regra do Bruxo: detentores +20% em 2 min e saída antes do dump"
   }
  ]
 }

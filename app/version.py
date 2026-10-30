@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.90 · 2026-10-30 · Jev Trade: nome abre a pump.fun e detentores 5 min → agora"
+VERSION = "0.32.91 · 2026-10-30 · Jev Trade com a regra do Bruxo: detentores +20% em 2 min e saída antes do dump"

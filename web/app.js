@@ -1214,6 +1214,11 @@
     return "<b>" + (x.h0 == null ? "–" : x.h0) + " → " + (x.h == null ? "–" : x.h) + "</b>" +
       (d == null ? "" : ' <span class="' + (d > 0 ? "up" : d < 0 ? "down" : "dim") + '">(' + (d > 0 ? "+" : "") + d + ")</span>");
   };
+  // 0.32.91 (Bruxo): regra de entrada e tempo corrido de cada token em observação
+  const jtRule = (x) => { const R = x.regra || {}; if (R.cresc == null) return '<span class="dim">' + esc(R.motivo || "esperando leitura") + "</span>";
+    return '<span class="' + (R.cresc >= 20 ? "up" : "dim") + '">detentores ' + (R.cresc > 0 ? "+" : "") + f(R.cresc, 0) + '%</span> · <span class="' + (R.px_pct > 0 ? "up" : "down") + '">preço ' + (R.px_pct > 0 ? "+" : "") + f(R.px_pct, 0) + "%</span><small>precisa +20% e preço subindo</small>"; };
+  const jtTime = (x) => "há " + hms(x.obs_s || 0) + "<small>" + (x.leituras || 0) + " leituras · última há " + (x.ultima_s == null ? "–" : x.ultima_s + " s") + " · próxima em " + (x.prox_s == null ? "–" : x.prox_s + " s") + "</small>" +
+    (x.prazo_s == null ? "" : '<small class="' + (x.prazo_s < 60 ? "down" : "") + '">prazo: ' + hms(x.prazo_s) + "</small>");
   let JT_T = null;
   async function loadJt() {
     clearTimeout(JT_T); JT_T = setTimeout(() => { if (VIEW === "jevtrade") loadJt(); }, 20000);
@@ -1228,8 +1233,16 @@
       ["Régua fixa, todos os 40+", sg(T.sol || 0), (T.n || 0) + " medidos · média " + (T.media_pct == null ? "–" : pc(T.media_pct)), "mon"]]);
     $("jtL").textContent = E.leitura || "";
     $("jtC").innerHTML = jvChart({ jev: (E.curva || {}).jev, regra: (E.curva || {}).igual });
-    table("jtO", ["Token", "Entrou", "Detentores 5 min → agora", "Agora", "Pico", "Stop", "Restante", "Jev"], (r.abertas || []).map((x) => [jtTk(x), dt(x.entrada.t), jtEv(x), x.agora_pct == null ? "–" : pc(x.agora_pct), x.peak == null ? "–" : pc(x.peak), pc(x.stop), Math.round((x.left || 0) * 100) + "%", jtTag(x.decisao)]), "Nenhuma posição aberta.");
-    table("jtW", ["Token", "Desde", "Detentores 5 min → agora", "Pico", "Jev"], (r.olhando || []).map((x) => [jtTk(x), dt(x.t), jtEv(x), x.h_peak == null ? "–" : String(x.h_peak), jtTag(x.decisao)]), "Nenhum token em observação.");
+    const RP = r.regra_passado || {};
+    kpis("jtRK", [["Tokens com leituras", String((RP.analisados || 0)), (RP.sem_leituras || 0) + " com uma leitura só · Jev Trade + sinais da Aba do Bruxo com 40+", "mon"],
+      ["A regra entraria", String(RP.entradas || 0), (RP.medidas || 0) + " com resultado", "tr"],
+      ["Acerto", RP.acerto == null ? "–" : RP.acerto + "%", "média " + (RP.media_pct == null ? "–" : pc(RP.media_pct)), "hit"],
+      ["Resultado (0,1 SOL cada)", sg(RP.sol || 0), "estimativa, com 4% de taxas", "pnl"]]);
+    table("jtR", ["Hora", "Token", "Fonte", "Entraria aos", "Resultado", "Pico", "Saída"], (RP.itens || []).map((x) => [dt(x.t), pfM(x.mint, x.symbol), esc(x.fonte || ""), x.m == null ? "–" : f(x.m, 1) + " min",
+      x.res == null ? "–" : pc(x.res), x.pico == null ? "–" : pc(x.pico), esc(x.motivo || "–")]), "A regra ainda não ligaria em nenhum token com leituras guardadas.");
+    table("jtO", ["Token", "Entrou", "Por que entrou", "Detentores 5 min → agora", "Agora", "Pico", "Stop", "Restante", "Jev"], (r.abertas || []).map((x) => [jtTk(x), dt(x.entrada.t),
+      '<span class="wrapcell small">' + esc(x.por || "pelo Jev") + "</span>", jtEv(x), x.agora_pct == null ? "–" : pc(x.agora_pct), x.peak == null ? "–" : pc(x.peak), pc(x.stop), Math.round((x.left || 0) * 100) + "%", jtTag(x.decisao)]), "Nenhuma posição aberta.");
+    table("jtW", ["Token", "Desde", "Detentores 5 min → agora", "Regra (2 min)", "Tempo", "Pico", "Jev"], (r.olhando || []).map((x) => [jtTk(x), dt(x.t), jtEv(x), jtRule(x), jtTime(x), x.h_peak == null ? "–" : String(x.h_peak), jtTag(x.decisao)]), "Nenhum token em observação.");
     table("jtF", ["Hora", "Token", "Detentores 5 min → fim", "Entrou", "Resultado", "Pico", "Régua fixa", "Vendas", "Por que acabou"], (r.fechadas || []).map((x) => [dt(x.fechou_t || x.t), jtTk(x), jtEv(x), x.entrada ? "sim" : "não", x.res == null ? "–" : pc(x.res), x.peak == null ? "–" : pc(x.peak),
       x.regua == null ? (x.regua_todos == null ? "–" : pc(x.regua_todos)) : pc(x.regua), String(x.vendas || 0), '<span class="wrapcell">' + esc(x.motivo || "–") + "</span>"]), "Nada encerrado no período.");
     table("jtM2", ["Motivo", "Vezes", "Média"], (E.motivos || []).map((m) => [esc(m.motivo), String(m.n), pc(m.media_pct)]), "Sem saídas ainda.");

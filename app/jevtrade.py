@@ -26,12 +26,20 @@ SCAN_SHARE, WATCH_SHARE = 0.7, 0.9                # acima dessa fatia das leitur
 JEV_DAY = 6000            # perguntas por dia (separadas das 3.000 da aba JEV)
 READ_S = 60
 MAX_WATCH, MAX_OPEN = 15, 10
-WATCH_MAX_MIN = 15        # sem entrada nesse tempo, a observação acaba
+WATCH_MAX_MIN = 7         # 0.32.91 (Bruxo, 30/10): entra no máximo 7 min depois da 1ª análise; senão a observação acaba
 MAX_HOLD_MIN = 60
 HOLD_DROP_PCT = 30.0      # queda de detentores desde o pico que tira da moeda
 SOL = 0.1
 BASE_STOP, BASE_EXIT_MIN = 30.0, 25
 HIST_MAX = 120
+
+# 0.32.91 — estratégia do Bruxo (áudio/chat de 30/10 20:17): token com 40+ detentores vai para a lista e é lido a cada
+# minuto; se os detentores sobem 20%+ em até 2 min E o preço também sobe, entra (no máximo 7 min depois da 1ª análise).
+# O Jev continua opinando (fica registrado e escolhe o stop), mas não pode mais descartar o token antes da regra.
+# Saída "antes do dump": stop inicial, metade vendida em +100%, stop no empate depois de +50%, stop móvel de 25% do pico
+# depois de +30% e saída total quando os detentores começam a sair (15% abaixo do pico depois da entrada).
+STRAT = {"cresc_pct": 20.0, "janela_min": 2.0, "prazo_min": WATCH_MAX_MIN, "stop_pct": 25.0, "empate_apos": 50.0,
+         "parcial_em": 100.0, "parcial_frac": 0.5, "trail_apos": 30.0, "trail_pct": 25.0, "saida_detentores_pct": 15.0}
 KEEP_S = 7 * 86400
 
 STOPS_IN = {"perda_15": -15.0, "perda_20": -20.0, "perda_30": -30.0, "perda_40": -40.0, "perda_50": -50.0}
@@ -252,6 +260,65 @@ class JevTrade:
         h = next((x["h"] for x in reversed(it["hist"]) if x.get("h") is not None), None)
         return h is not None and h <= it["h_peak"] * (1 - HOLD_DROP_PCT / 100)
 
+    # ------------------------------------------------------------------ 0.32.91: regra do Bruxo
+    @staticmethod
+    def rule_check(hist: list[dict], cfg: dict | None = None) -> dict:
+        """Detentores e preço de agora contra os de ~2 min atrás (ou da 1ª leitura, se ainda não há 2 min).
+        Devolve {ok, cresc, px_pct, ref_m, motivo}."""
+        S = cfg or STRAT
+        H = [x for x in hist if x.get("h") is not None and x.get("px")]
+        if len(H) < 2:
+            return {"ok": False, "cresc": None, "px_pct": None, "motivo": "esperando a 2ª leitura"}
+        cur = H[-1]
+        olds = [x for x in H[:-1] if cur["m"] - x["m"] <= S["janela_min"] + 0.3]
+        ref = olds[0] if olds else H[-2]
+        cresc = round((cur["h"] / ref["h"] - 1) * 100, 1) if ref["h"] else None
+        pxp = round((cur["px"] / ref["px"] - 1) * 100, 1)
+        ok = cresc is not None and cresc >= S["cresc_pct"] and pxp > 0
+        why = (f"detentores {ref['h']} → {cur['h']} ({cresc:+.0f}%) e preço {pxp:+.0f}% em {cur['m'] - ref['m']:.1f} min"
+               if cresc is not None else "sem contagem")
+        return {"ok": ok, "cresc": cresc, "px_pct": pxp, "ref_m": ref["m"], "motivo": why}
+
+    def bruxo_entry(self, it: dict, out: dict | None, px: float | None, now: float) -> str:
+        """Entrada pela regra do Bruxo. O Jev só opina (fica guardado e escolhe o stop); "desistir" não descarta mais."""
+        out = out or {}
+        rc = self.rule_check(it["hist"])
+        it["regra"] = rc
+        it["decisoes"] = (it["decisoes"] + [{"m": round((now - it["created_t"]) / 60, 1), "fase": "entrada", "regra": rc["ok"],
+                                             **{k: out.get(k) for k in ("acao", "stop", "conf", "qualidade", "armadilha")}}])[-HIST_MAX:]
+        self.dirty.add(it["id"])
+        if not rc["ok"] or not px:
+            return "esperando a regra"
+        if len(self.open()) >= MAX_OPEN:
+            return "sem vaga"
+        st = STOPS_IN.get(out.get("stop") or "", -STRAT["stop_pct"])
+        h = next((x["h"] for x in reversed(it["hist"]) if x.get("h") is not None), None)
+        it["entrada"] = {"t": now, "px": px, "h": h, "m": round((now - it["created_t"]) / 60, 1), "stop": st, "por": "regra do Bruxo: " + rc["motivo"],
+                         "jev": out.get("acao"), "qualidade": out.get("qualidade"), "armadilha": out.get("armadilha")}
+        it.update(estado="aberta", stop=st, peak=0.0, base_igual=_base_new(px, now), last_read=now, h_peak_in=h or 0)
+        return "entrar"
+
+    def guard_exit(self, it: dict, px: float, now: float) -> bool:
+        """Saída antes do dump, só com o preço: parcial em +100%, empate depois de +50%, stop móvel depois de +30%."""
+        S = STRAT
+        pct = pct_of(it, px)
+        if it["peak"] >= S["empate_apos"] and it["stop"] < 0:
+            it["stop"] = 0.0
+        if it["peak"] >= S["parcial_em"] and not it.get("parcial_feita") and it["left"] > 0.5:
+            it["parcial_feita"] = True
+            self.sell(it, S["parcial_frac"], px, now, f"vendeu metade em +{S['parcial_em']:g}% (garante o lucro)")
+            if it["estado"] != "aberta":
+                return True
+        if it["peak"] >= S["trail_apos"] and (1 + pct / 100) <= (1 + it["peak"] / 100) * (1 - S["trail_pct"] / 100):
+            self.sell(it, 1.0, px, now, f"caiu {S['trail_pct']:g}% do pico (+{it['peak']:g}%): saiu antes do dump")
+            return True
+        return False
+
+    def holders_leaving(self, it: dict) -> bool:
+        """Depois da entrada: detentores 15% abaixo do maior número visto desde a entrada = começaram a sair."""
+        H = [x["h"] for x in it["hist"] if x.get("h") is not None and x["m"] >= (it.get("entrada") or {}).get("m", 0)]
+        return len(H) >= 2 and H[-1] <= max(H) * (1 - STRAT["saida_detentores_pct"] / 100)
+
     def discard(self, it: dict, motivo: str, now: float) -> None:
         it["estado"], it["motivo"], it["fechou_t"] = "descartada", motivo, now
         self.dirty.add(it["id"])
@@ -313,7 +380,9 @@ class JevTrade:
             if px:
                 pct = pct_of(it, px)
                 it["peak"] = max(it["peak"], round(pct, 1))
-                if pct <= it["stop"]:
+                if self.guard_exit(it, px, now):
+                    pass
+                elif pct <= it["stop"]:
                     self.sell(it, 1.0, px, now, f"stop de {it['stop']:+g}%")
                 elif now - it["entrada"]["t"] >= MAX_HOLD_MIN * 60:
                     self.sell(it, 1.0, px, now, f"tempo máximo de {MAX_HOLD_MIN} min")
@@ -365,7 +434,7 @@ class JevTrade:
                 "curva": curva, "motivos": sorted(motivos.values(), key=lambda g: -g["n"]), "leitura": leitura}
 
     @staticmethod
-    def row(x: dict, px: float | None = None) -> dict:
+    def row(x: dict, px: float | None = None, now: float | None = None) -> dict:
         e = x.get("entrada") or {}
         H = [a["h"] for a in x["hist"] if a.get("h") is not None]
         agora = pct_of(x, px) if px and e else None
@@ -374,7 +443,12 @@ class JevTrade:
                 "h_peak": x.get("h_peak"), "evol": H[-8:], "decisao": (x["decisoes"][-1] if x["decisoes"] else None), "entrada": e or None,
                 "stop": x.get("stop"), "left": x.get("left"), "peak": x.get("peak"), "agora_pct": None if lucro is None else round(lucro, 1),
                 "res": x.get("res"), "motivo": x.get("motivo"), "fechou_t": x.get("fechou_t"), "vendas": len(x.get("vendas") or []), "suspeito": x.get("suspeito"),
-                "regua": (x.get("base_igual") or {}).get("res"), "regua_todos": (x.get("base_todos") or {}).get("res")}
+                "regua": (x.get("base_igual") or {}).get("res"), "regua_todos": (x.get("base_todos") or {}).get("res"),
+                "regra": x.get("regra") or (JevTrade.rule_check(x["hist"]) if x["estado"] == "olhando" else None),
+                "por": e.get("por"), "jev_entrada": e.get("jev"), "leituras": len(x["hist"]),
+                "obs_s": None if now is None else round(now - x["t"]), "ultima_s": None if now is None or not x.get("last_read") else round(now - x["last_read"]),
+                "prox_s": None if now is None or not x.get("last_read") else max(0, round(READ_S - (now - x["last_read"]))),
+                "prazo_s": None if now is None or x["estado"] != "olhando" else max(0, round(WATCH_MAX_MIN * 60 - (now - x["t"])))}
 
     def load(self, rows: list[dict], now: float) -> None:
         for r in rows or []:
@@ -388,3 +462,78 @@ class JevTrade:
     def trim(self, now: float) -> None:
         for k in [k for k, x in self.items.items() if now - x["t"] > KEEP_S and x["estado"] not in ("olhando", "aberta")]:
             self.items.pop(k, None)
+
+
+def backtest_rule(items: list[dict]) -> dict:
+    """0.32.91 ("já ir para o resultado"): a regra nova aplicada às leituras guardadas dos tokens já observados.
+    Entra na leitura em que a regra ligaria (até 7 min da 1ª leitura); a saída usa as leituras seguintes com as mesmas
+    proteções (stop, parcial, empate, stop móvel, detentores saindo). Se as leituras acabam antes da saída, usa o preço
+    final da régua fixa (25 min) — por isso é ESTIMATIVA."""
+    S = STRAT
+    out, sem = [], 0
+    for it in items:
+        H = [x for x in it.get("hist") or [] if x.get("px")]
+        if len([x for x in H if x.get("h") is not None]) < 2:
+            sem += 1
+            continue
+        m0 = H[0]["m"]
+        k = None
+        for i in range(1, len(H)):
+            if H[i]["m"] - m0 > S["prazo_min"] + 0.3:
+                break
+            if JevTrade.rule_check(H[: i + 1])["ok"]:
+                k = i
+                break
+        if k is None:
+            out.append({"mint": it.get("mint"), "symbol": it.get("symbol"), "t": it.get("t"), "entrou": False, "fonte": it.get("fonte")})
+            continue
+        e = H[k]
+        px0, stop, peak, left, real, partial, why = e["px"], -S["stop_pct"], 0.0, 1.0, 0.0, False, None
+        hmax = e.get("h") or 0
+        for x in H[k + 1:]:
+            pct = (x["px"] / px0 - 1) * 100
+            peak = max(peak, pct)
+            if x.get("h") is not None:
+                hmax = max(hmax, x["h"])
+                if x["h"] <= hmax * (1 - S["saida_detentores_pct"] / 100):
+                    why = "detentores saindo"
+            if peak >= S["empate_apos"]:
+                stop = max(stop, 0.0)
+            if not why and peak >= S["parcial_em"] and not partial:
+                partial, real, left = True, real + 0.5 * pct, 0.5
+            if not why and peak >= S["trail_apos"] and (1 + pct / 100) <= (1 + peak / 100) * (1 - S["trail_pct"] / 100):
+                why = "stop móvel"
+            if not why and pct <= stop:
+                why = "stop"
+            if why:
+                real += left * pct
+                left = 0
+                break
+        if left:
+            b = it.get("base_todos") or {}
+            if b.get("res") is not None and b.get("px"):
+                fpx = b["px"] * (1 + (b["res"] + FEE_PCT) / 100)
+                real += left * max((fpx / px0 - 1) * 100, stop if stop > -100 else -100)
+                why = "estimado pelo preço aos 25 min"
+            else:
+                out.append({"mint": it.get("mint"), "symbol": it.get("symbol"), "t": it.get("t"), "entrou": True, "res": None, "motivo": "sem preço final", "fonte": it.get("fonte")})
+                continue
+        out.append({"mint": it.get("mint"), "symbol": it.get("symbol"), "t": it.get("t"), "entrou": True, "m": e["m"], "res": round(real - FEE_PCT, 1),
+                    "pico": round(peak, 1), "motivo": why, "fonte": it.get("fonte")})
+    R = [x["res"] for x in out if x.get("entrou") and x.get("res") is not None]
+    return {"analisados": len(out), "sem_leituras": sem, "entradas": sum(1 for x in out if x.get("entrou")), "medidas": len(R),
+            "acerto": round(sum(r > 0 for r in R) / len(R) * 100) if R else None, "media_pct": round(sum(R) / len(R), 1) if R else None,
+            "sol": round(sum(R) * SOL / 100, 5), "itens": sorted([x for x in out if x.get("entrou")], key=lambda x: -(x.get("t") or 0))[:100]}
+
+
+def from_bruxo_signal(s: dict) -> dict | None:
+    """Sinal da Aba do Bruxo com detentores e preço minuto a minuto (desde a 0.32.86) no formato das leituras do Jev Trade.
+    Só entra quem tinha 40+ detentores na 1ª leitura (a mesma porta do Jev Trade). Preço relativo ao do sinal (1,0)."""
+    H, P = s.get("holders") or {}, s.get("hpx") or {}
+    ks = sorted((int(k) for k in H if H.get(k) is not None and (k in P or k == "0")), key=int)
+    if len(ks) < 2 or (H.get(str(ks[0])) or 0) < MIN_HOLDERS:
+        return None
+    hist = [{"m": k, "h": H[str(k)], "px": 1 + float(P.get(str(k), 0) or 0) / 100} for k in ks]
+    m25 = (s.get("marks") or {}).get("25")
+    return {"mint": s.get("mint"), "symbol": s.get("symbol"), "t": s.get("t"), "hist": hist, "fonte": "Aba do Bruxo",
+            "base_todos": {"px": 1.0, "res": None if m25 is None else m25 - FEE_PCT}}

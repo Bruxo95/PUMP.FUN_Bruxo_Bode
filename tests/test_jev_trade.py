@@ -65,7 +65,7 @@ def test_jev_chooses_entry_and_stop_and_gives_up():
     j2 = JevTrade()
     x = j2.on_checked(_live()[M], 50, T0)
     assert j2.on_entry(x, {"acao": "esperar"}, 1.0, T0) == "esperar" and x["estado"] == "olhando"
-    assert j2.on_entry(x, {"acao": "desistir"}, 1.0, T0) == "desistir" and x["estado"] == "descartada"
+    assert j2.on_entry(x, {"acao": "desistir"}, 1.0, T0) == "desistir" and x["estado"] == "descartada"   # on_entry antigo (o hub usa bruxo_entry)
     j3 = JevTrade()
     y = j3.on_checked(_live()[M], 50, T0)
     j3.on_entry(y, {"acao": "entrar", "stop": "outra"}, 1.0, T0)
@@ -176,29 +176,79 @@ def _answer(acao, stop):
 
 
 def test_tick_watches_enters_and_sells_only_in_simulation():
+    """0.32.91: a 1ª contagem já é leitura; entra quando os detentores sobem 20%+ com o preço subindo (regra do Bruxo)."""
     hosts = []
-    seq = [("entrar", "perda_20"), ("vender_tudo", "manter")]
+    seq = [("desistir", "perda_20"), ("vender_tudo", "manter")]
 
     def h(req):
         hosts.append(req.url.host)
         return httpx.Response(200, json=_answer(*seq.pop(0)))
     hub = _hub(h)
+    cnt = {"n": 50}
 
     async def count(mint):
-        return 50
+        return cnt["n"]
     hub.holders_count = count
     t = __import__("time").time()
     hub.lab.live = {M: {**_live()[M], "t0": t - 330}}
     asyncio.run(hub.jt_tick(t))
     it = hub.jt.items[M]
-    assert it["estado"] == "aberta" and it["stop"] == -20 and it["decisoes"][0]["acao"] == "entrar"
-    hub.market.tokens[M]["price"] = 2.0
+    assert it["estado"] == "olhando" and it["hist"][0]["h"] == 50 and hosts == []
+    cnt["n"], hub.market.tokens[M]["price"] = 62, 1.2               # +24% de detentores e preço subindo em 1 min
     asyncio.run(hub.jt_tick(t + 60))
+    assert it["estado"] == "aberta" and it["stop"] == -20            # o Jev disse "desistir", mas a regra manda
+    assert it["entrada"]["px"] == 1.2 and it["entrada"]["por"].startswith("regra do Bruxo") and it["entrada"]["jev"] == "desistir"
+    hub.market.tokens[M]["price"] = 2.4
+    asyncio.run(hub.jt_tick(t + 120))
     assert it["estado"] == "fechada" and it["res"] == 100 - jevtrade.FEE_PCT
+    assert it["vendas"][0]["motivo"].startswith("vendeu metade")
     assert hosts == ["api.typesafe.ai"] * 2                            # só o Jev: nada de compra, swap ou RPC de transação
     assert ("jev_trades", M) in hub.db.rows
     st = hub.jt_state(hub.engines["u1"], 24)
-    assert st["ativo"] and st["fechadas"][0]["res"] == 96 and st["hoje"]["calls"] == 2
+    assert st["ativo"] and st["fechadas"][0]["res"] == 96 and st["hoje"]["calls"] == 2 and st["estrategia"]["cresc_pct"] == 20
+
+
+def test_rule_needs_holders_and_price_up_within_2_min():
+    rc = JevTrade.rule_check
+    assert rc([{"m": 5, "h": 50, "px": 1.0}])["ok"] is False
+    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 61, "px": 1.1}])["ok"] is True
+    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 61, "px": 0.9}])["ok"] is False       # preço caindo
+    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 55, "px": 1.1}])["ok"] is False       # só +10%
+    H = [{"m": 5, "h": 40, "px": 1.0}, {"m": 6, "h": 44, "px": 1.0}, {"m": 7, "h": 50, "px": 1.1}, {"m": 8, "h": 56, "px": 1.2}]
+    r = rc(H)                                                          # 2 min atrás = 44 (m 6) → 56: +27%
+    assert r["ok"] and r["ref_m"] == 6
+
+
+def test_watch_ends_7_min_after_first_read_and_jev_cannot_discard():
+    j = JevTrade()
+    it = j.on_checked(_live()[M], 50, T0)
+    j.add_read(it, 50, 1.0, 60.0, T0)
+    j.add_read(it, 52, 1.0, 60.0, T0 + 60)
+    assert j.bruxo_entry(it, {"acao": "desistir"}, 1.0, T0 + 60) == "esperando a regra" and it["estado"] == "olhando"
+    j.on_price(it, 1.0, T0 + 7 * 60)
+    assert it["estado"] == "descartada" and "7 min" in it["motivo"]
+
+
+def test_exit_before_the_dump():
+    j, it = _open(px=1.0, stop="perda_30")
+    j.on_price(it, 1.6, T0 + 60)                                       # +60%: stop vai para o empate
+    assert it["stop"] == 0.0 and it["estado"] == "aberta"
+    j.on_price(it, 1.15, T0 + 120)                                     # caiu 28% do pico: sai antes do dump
+    assert it["estado"] == "fechada" and "antes do dump" in it["motivo"]
+    j2, it2 = _open(px=1.0)
+    j2.add_read(it2, 60, 1.2, 60.0, T0 + 60)
+    j2.add_read(it2, 50, 1.2, 60.0, T0 + 120)                          # 60 → 50: −17% de detentores
+    assert j2.holders_leaving(it2)
+
+
+def test_backtest_rule_on_stored_reads():
+    it = {"mint": M, "symbol": "X", "t": T0, "hist": [{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 65, "px": 1.2},
+                                                      {"m": 7, "h": 80, "px": 2.0}, {"m": 8, "h": 85, "px": 2.6}, {"m": 9, "h": 84, "px": 1.8}]}
+    r = jevtrade.backtest_rule([it, {"mint": "y", "hist": [{"m": 5, "h": 50, "px": 1.0}]}])
+    x = r["itens"][0]
+    assert r["entradas"] == 1 and r["sem_leituras"] == 1 and x["m"] == 6 and x["motivo"] == "stop móvel"
+    # entrada 1,2; metade em 2,6 (+116,7%) ao passar de +100%; resto em 1,8 (+50%, caiu 31% do pico)
+    assert abs(x["res"] - round(0.5 * (2.6 / 1.2 - 1) * 100 + 0.5 * 50 - jevtrade.FEE_PCT, 1)) < 0.2
 
 
 def test_no_key_means_no_jev_and_no_reads_but_open_position_still_stops():

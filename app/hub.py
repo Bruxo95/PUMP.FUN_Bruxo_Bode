@@ -1085,6 +1085,9 @@ class PumpHub:
             jt.note_scan(now)
             h = await self.holders_count(r["mint"])
             it = jt.on_checked(r, h, now, (self.market.creator_stats or {}).get(r.get("creator") or ""))
+            if it is not None:                         # 0.32.91: a 1ª contagem (aos 5 min) também é uma leitura, com o preço
+                tk0 = self.market.tokens.get(r["mint"]) or {}
+                jt.add_read(it, h, tk0.get("price"), tk0.get("mcap_sol"), now)
             if it is not None and svc is not None:
                 try:
                     await asyncio.wait_for(svc.holders_check(r["mint"]), timeout=3)      # top 10, uma vez por token
@@ -1101,6 +1104,9 @@ class PumpHub:
             h = await self.holders_count(it["mint"])
         tk = self.market.tokens.get(it["mint"]) or {}
         jt.add_read(it, h, tk.get("price"), tk.get("mcap_sol"), now)
+        if aberta and jt.holders_leaving(it) and tk.get("price"):        # 0.32.91: detentores saindo depois da entrada
+            jt.sell(it, 1.0, tk["price"], now, f"detentores começaram a sair ({jevtrade.STRAT['saida_detentores_pct']:g}% abaixo do pico)")
+            return
         if jt.holders_fell(it):
             if aberta and tk.get("price"):
                 jt.sell(it, 1.0, tk["price"], now, f"detentores caíram {jevtrade.HOLD_DROP_PCT:g}% do pico")
@@ -1108,10 +1114,10 @@ class PumpHub:
                 jt.discard(it, f"detentores caíram {jevtrade.HOLD_DROP_PCT:g}% do pico", now)
             return
         out = await self._jt_jev(jevtrade.state_for(it, tk, now), jevtrade.Q_OUT if aberta else jevtrade.Q_IN, now)
-        if out is None or it["estado"] not in ("olhando", "aberta"):
+        if it["estado"] not in ("olhando", "aberta") or (out is None and aberta):
             return
         px = (self.market.tokens.get(it["mint"]) or {}).get("price")     # preço DEPOIS da resposta: é onde entraria de verdade
-        (jt.on_exit if it["estado"] == "aberta" else jt.on_entry)(it, out, px, now)
+        (jt.on_exit if it["estado"] == "aberta" else jt.bruxo_entry)(it, out, px, now)
 
     async def jt_tick(self, now: float | None = None) -> None:
         now = time.time() if now is None else now
@@ -1167,7 +1173,10 @@ class PumpHub:
                 "ativo": self.jt_wanted(), "rpc_falhou": now < jt.rpc_off_until, "hoje": dict(jt.day(now)),
                 "limites": {"leituras": jevtrade.READS_DAY, "jev": jevtrade.JEV_DAY, "por_hora": jevtrade.SCAN_HOUR, "min_detentores": jevtrade.MIN_HOLDERS,
                             "max_abertas": jevtrade.MAX_OPEN, "sol": jevtrade.SOL},
-                "estudo": jt.study(hours, now), "abertas": [jt.row(x, px(x)) for x in jt.open()], "olhando": [jt.row(x, px(x)) for x in jt.watching()],
+                "estudo": jt.study(hours, now), "abertas": [jt.row(x, px(x), now) for x in jt.open()], "olhando": [jt.row(x, px(x), now) for x in jt.watching()],
+                "estrategia": jevtrade.STRAT, "regra_passado": jevtrade.backtest_rule(
+                    [dict(x, fonte="Jev Trade") for x in L if x["t"] >= since] +
+                    [b for b in (jevtrade.from_bruxo_signal(sg) for sg in (self.bruxo.recent(hours or 24 * 30, now) if getattr(self, "bruxo", None) else [])) if b]),
                 "fechadas": [jt.row(x) for x in L if x["estado"] not in ("olhando", "aberta") and x["t"] >= since][:200], "ignorados": jt.ignorados}
 
     TOKEN_PROGRAMS = ("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")

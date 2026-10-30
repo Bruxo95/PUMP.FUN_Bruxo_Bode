@@ -1392,3 +1392,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   aparecia como 21/01/1970 19:09 (mesma hora). Dados no banco estavam certos (conferido: `jev_backtest` 26/10–30/10, `jev_decisions` 30/10).
 - 0.32.90 (pedido do dono): Jev Trade — `jtTk` = `pfM` (nome abre a pump.fun + ficha "i") + link "leituras" (`data-jt`, janela de cada minuto);
   `jtEv` = detentores `h0 → h (±diferença)` (1ª leitura aos 5 min → agora/fim) nas tabelas `jtO`, `jtW` e `jtF` (coluna nova nos Encerrados).
+- 0.32.91 (pedido do dono, caso SKIVE): Jev Trade com a REGRA DO BRUXO. Os 52 tokens até então foram descartados por "o Jev desistiu" na 1ª leitura.
+  `jevtrade.STRAT` (20% de detentores em 2 min + preço subindo; prazo 7 min = `WATCH_MAX_MIN`; stop 25%; empate após +50%; metade em +100%;
+  stop móvel 25% do pico após +30%; saída com detentores 15% abaixo do pico desde a entrada). `JevTrade.rule_check`, `bruxo_entry` (o hub usa no lugar
+  de `on_entry`; o Jev só opina e escolhe o stop), `guard_exit` (em `on_price`), `holders_leaving` (em `hub._jt_read`). `_jt_scan` grava a 1ª contagem
+  como leitura. `row(..., now)` → `regra`, `obs_s`, `ultima_s`, `prox_s`, `prazo_s`, `por`. `backtest_rule` + `from_bruxo_signal` → `regra_passado` em
+  `/api/pump/jev-trade` (cartão `#jtRK`/`#jtR`). Relatório `app/relatorios_ia/2026-10-30-0.32.91.md`. Ainda só simulação.
