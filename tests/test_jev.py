@@ -114,3 +114,91 @@ def test_no_key_or_switched_off_means_no_call():
 def test_jev_key_is_a_system_key():
     from app.keystore import KEY_LINKS, SYSTEM_NAMES
     assert "jev_api_key" in SYSTEM_NAMES and KEY_LINKS["jev_api_key"].startswith("https://")
+
+
+# ------------------------------------------------------------------ 0.32.84: estudo do passado
+TL = {"symbol": "OCT", "name": "Octover", "mcap0": 30.0, "dev_buy": 1.5, "peak": 90.0, "label": "despencou", "pred5": "lixo",
+      "chance5": 45.2, "snaps": {"1": 60.0, "5": 30.0, "15": 30.0, "60": 27.0}, "created_at": "2026-10-30T06:03:36+00:00",
+      "creator_before": {"tokens": 3, "rugs": 1}}
+SH = {"t0": 1793343917.8, "px0": 1e-7, "ret": 25.0, "pico": 140.0, "veredito": "chance alta", "symbol": "HYPE",
+      "why": "variação em 5 min fora da faixa", "info": {"age_min": 7.9, "holders": 117, "top10": 22.7, "pressure": 70.6}}
+
+
+def test_past_cases_carry_nothing_from_the_future():
+    c = jev.case_base(M, TL)
+    blob = json.dumps(c["state"])
+    for leak in ("despencou", "lixo", "45.2", "27.0", "90.0"):          # rótulo, previsão dos 5 min, fotos e pico futuros
+        assert leak not in blob
+    assert c["state"]["numbers"]["first_minute_change_pct"] == 100.0
+    assert c["res"] == {"5": -54.0, "15": -54.0, "60": -59.0} and c["stop"] and c["pico"] == 50.0
+    e = jev.case_explorar(M, SH)
+    assert "ret" not in json.dumps(e["state"]) and "140" not in json.dumps(e["state"])
+    assert e["res"] == {"15": 21.0} and e["regra"] is True and e["dobrou"] is True
+    assert jev.case_base(M, {"snaps": {}}) is None and jev.case_explorar(M, {"t0": 1}) is None
+
+
+def test_study_rows_uses_the_nearest_exit():
+    rows = [dict(jev.compact(jev.case_explorar(M, SH), {"acao": "entrar", "p": {"entrar": 0.9}}), fonte="explorar"),
+            dict(jev.compact(jev.case_base(M, TL), {"acao": "evitar", "p": {"entrar": 0.1}}), fonte="base")]
+    st = jev.study_rows(rows, "10")                                     # explorar só tem 15 min; base usa 15 min
+    assert st["n"] == 2 and st["por_acao"]["entrar"]["acerto"] == 100 and st["por_acao"]["evitar"]["acerto"] == 0
+    assert abs(st["total"]["jev"] - 0.021) < 1e-6
+
+
+class _DB:
+    def __init__(self, tables):
+        self.t, self.saved = tables, []
+
+    async def select(self, table, filters=None, order=None, limit=None, columns="*", offset=0, **kw):
+        rows = self.t.get(table, [])
+        return rows[offset:offset + (limit or len(rows))]
+
+    async def insert(self, table, rows, upsert=False, on_conflict=None):
+        self.saved += rows if isinstance(rows, list) else [rows]
+
+
+def test_hub_backtest_asks_each_past_case_once_and_saves():
+    asked = []
+
+    def h(req):
+        asked.append(json.loads(req.content)["state"]["signal"]["kind"])
+        return httpx.Response(200, json=_resp("entrar"))
+    hub, e = _hub(h)
+    hub.db = _DB({"bruxo_signals": [], "base_shadows": [{"mint": M, "data": SH}],
+                  "token_life": [{"mint": M, "data": TL}, {"mint": "x", "data": {"snaps": {}}}]})
+
+    async def go():
+        assert hub.jev_bt_set(True, quiet=True)["ok"]
+        for _ in range(50):
+            await asyncio.sleep(0.01)
+            if hub.jev_bt["fase"] == "em dia":
+                break
+        hub.jev_bt_set(False, quiet=True)
+        hub.jev_bt["task"].cancel()
+    import app.jev as J
+    J.BT_GAP_S = 0
+    asyncio.run(go())
+    assert asked == ["explorar", "lancamento"]                          # caso sem foto de 1 min é pulado
+    assert {r["id"] for r in hub.db.saved} == {"explorar:" + M + ":1793343917", "base:" + M}
+    st = hub.jev_state(e, 0, "10", "todos")
+    assert st["estudo"]["n"] == 2 and st["passado"]["feitos"] == {"explorar": 1, "base": 1} and len(st["linhas"]) == 2
+    # de novo: nada é perguntado duas vezes
+    asked.clear()
+    hub.jev_bt["fase"] = "parado"
+
+    async def again():
+        hub.jev_bt_set(True, quiet=True)
+        for _ in range(50):
+            await asyncio.sleep(0.01)
+            if hub.jev_bt["fase"] == "em dia":
+                break
+        hub.jev_bt_set(False, quiet=True)
+        hub.jev_bt["task"].cancel()
+    asyncio.run(again())
+    assert asked == []
+
+
+def test_backtest_needs_the_key():
+    hub, _ = _hub(lambda req: httpx.Response(500))
+    hub.system_keys = {}
+    assert "error" in hub.jev_bt_set(True, quiet=True)

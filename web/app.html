@@ -1007,10 +1007,15 @@
             <p><b>Chave:</b> Administração → Chaves do sistema → Jev. Sem chave, nada é chamado. Desligue abaixo para parar as chamadas.</p></div>
           <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 12px">
             <span class="small">Jev opinando</span><button class="btn sm tgl" data-toggle="pump_jev_on" aria-label="Jev opinando nos sinais (modo sombra)">…</button>
-            <span class="small">Período</span><select class="in" id="jvH" aria-label="Período"><option value="6">6 h</option><option value="24" selected>24 h</option><option value="72">3 dias</option><option value="168">7 dias</option></select>
+            <span class="small" data-novo-ate="2026-11-13">Casos</span><select class="in" id="jvF" aria-label="Quais casos"><option value="ao_vivo" selected>Ao vivo (Aba do Bruxo)</option><option value="todos">Passado: todos</option><option value="bruxo">Passado: Aba do Bruxo</option><option value="explorar">Passado: Explorar (barrados)</option><option value="base">Passado: lançamentos da Base</option></select>
+            <span class="small">Período</span><select class="in" id="jvH" aria-label="Período"><option value="6">6 h</option><option value="24" selected>24 h</option><option value="72">3 dias</option><option value="168">7 dias</option><option value="0">Tudo</option></select>
             <span class="small">Sair aos</span><select class="in" id="jvX" aria-label="Minuto da saída simulada"><option value="5">5 min</option><option value="10" selected>10 min</option><option value="25">25 min</option></select>
             <button type="button" class="btn sm" id="jvNow">Atualizar</button></div>
           <div class="kpis" id="jvK"></div></div>
+        <div class="card" data-novo-ate="2026-11-13"><header><div><h2>Estudo do passado</h2><div class="sub" id="jvPSub">o Jev analisa os casos já guardados desde o início do projeto</div></div>
+            <div class="row" style="gap:8px;align-items:center"><span class="small">Estudar o passado</span><button type="button" class="btn sm tgl sw" id="jvPOn" role="switch" aria-checked="false" aria-label="Estudo do passado do Jev">…</button></div></header>
+          <div class="help"><p>Cada caso guardado no banco (sinais da Aba do Bruxo, tokens que o Explorar barrou e todos os lançamentos vistos pela Base da pump.fun) é mandado ao Jev <b>só com o que se sabia naquela hora</b> — nada do futuro. A resposta dele é comparada com o que o token fez depois. Assim dá para medir, em milhares de casos, se o Jev acerta, antes de confiar nele. O Jev não é treinado com os nossos dados: ele responde caso a caso, e quem aprende somos nós (em que faixa de chance ele acerta). Roda em segundo plano, meio segundo entre perguntas, e continua sozinho depois de cada atualização do site. Nunca compra.</p></div>
+          <div class="kpis" id="jvPK"></div></div>
         <div class="card"><header><div><h2>Como poderia ter ganhado ou perdido</h2><div class="sub">SOL acumulado · 0,1 SOL por entrada · <span style="color:var(--up)">■</span> Jev mandou entrar · <span style="color:var(--info)">■</span> a regra da Aba do Bruxo entrou · <span style="color:var(--muted)">■</span> todos os sinais</div></div></header>
           <div id="jvC" class="chartbox"></div></div>
         <div class="grid2e">

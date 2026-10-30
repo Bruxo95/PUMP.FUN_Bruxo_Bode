@@ -755,8 +755,171 @@ class PumpHub:
             st["tokens_in"] = st.get("tokens_in", 0) + int(out.get("tokens_in") or 0)
         self.bruxo.dirty.add(s["id"])
 
-    def jev_state(self, pf: PumpFun, hours: float = 24, exit_min: str = "10") -> dict:
+    # ---------------------------------------------------------------- 0.32.84: Jev estuda os casos passados (backtest)
+    def _bt(self) -> dict:
+        return self.__dict__.setdefault("jev_bt", {"on": False, "fase": "parado", "msg": "", "feitos": {}, "total": {},
+                                                   "dia": "", "calls_dia": 0, "erros": 0, "cases": {}, "task": None})
+
+    async def _bt_pages(self, table: str, columns: str, order: str, page: int = 1000):
+        off = 0
+        while True:
+            rows = await self.db.select(table, None, order=order, limit=page, columns=columns, offset=off)
+            if not rows:
+                return
+            yield rows
+            if len(rows) < page:
+                return
+            off += len(rows)
+
+    async def jev_bt_load(self) -> None:
+        """Casos já analisados (guardados em jev_backtest) voltam para a memória no início; se o estudo estava ligado, continua."""
+        bt = self._bt()
+        try:
+            async for rows in self._bt_pages("jev_backtest", "id,fonte,data", "em.asc"):
+                for r in rows:
+                    if r.get("fonte") == "_estado":
+                        bt["want_on"] = bool((r.get("data") or {}).get("on"))
+                    elif isinstance(r.get("data"), dict):
+                        bt["cases"][r["id"]] = dict(r["data"], fonte=r["fonte"])
+        except Exception as e:
+            log.warning("estudo do passado do Jev não carregou: %s", str(e)[:120])
+        for c in bt["cases"].values():
+            bt["feitos"][c["fonte"]] = bt["feitos"].get(c["fonte"], 0) + 1
+        if bt.get("want_on") and self.system_keys.get("jev_api_key"):
+            self.jev_bt_set(True, quiet=True)
+
+    def jev_bt_set(self, on: bool, quiet: bool = False) -> dict:
+        bt = self._bt()
+        if on and not self.system_keys.get("jev_api_key"):
+            return {"error": "Cole a chave do Jev em Administração → Chaves do sistema."}
+        bt["on"] = on
+        if on and not (bt.get("task") and not bt["task"].done()):
+            try:
+                bt["task"] = asyncio.get_running_loop().create_task(self._jev_bt_run())
+            except RuntimeError:
+                bt["on"] = False
+        if not on:
+            bt["fase"], bt["msg"] = "parado", "parado por você"
+        if not quiet:
+            try:
+                asyncio.get_running_loop().create_task(self.db.insert("jev_backtest", {"id": "_run", "fonte": "_estado",
+                    "em": datetime.now(timezone.utc).isoformat(), "data": {"on": on}}, upsert=True, on_conflict="id"))
+            except Exception:
+                pass
+        return {"ok": True, "on": bt["on"]}
+
+    async def _bt_cases(self, fonte: str):
+        """Casos de cada fonte, do mais antigo para o mais novo (desde o início do que está guardado)."""
+        if fonte == "bruxo":
+            async for rows in self._bt_pages("bruxo_signals", "id,data", "em.asc"):
+                for r in rows:
+                    c = jev.case_bruxo(r.get("data") or {}) if isinstance(r.get("data"), dict) else None
+                    if c:
+                        yield c
+        elif fonte == "explorar":
+            async for rows in self._bt_pages("base_shadows", "mint,data", "em.asc"):
+                for r in rows:
+                    c = jev.case_explorar(r["mint"], r.get("data") or {}) if isinstance(r.get("data"), dict) else None
+                    if c:
+                        yield c
+        elif fonte == "base":
+            async for rows in self._bt_pages("token_life", "mint,data,criado_em", "criado_em.asc"):
+                for r in rows:
+                    c = jev.case_base(r["mint"], r.get("data") or {}, r.get("criado_em")) if isinstance(r.get("data"), dict) else None
+                    if c:
+                        yield c
+
+    async def _jev_bt_run(self, gap_s: float | None = None, rest_s: float = 6 * 3600) -> None:
+        """Pergunta ao Jev caso a caso (meio segundo entre perguntas, até jev.BT_DAY_MAX por dia), grava em jev_backtest e
+        repete a cada 6 h para pegar os casos novos. Nunca compra nada."""
+        bt = self._bt()
+        gap = jev.BT_GAP_S if gap_s is None else gap_s
+        while bt["on"]:
+            for fonte in jev.BT_SOURCES:
+                bt["fase"], bt["msg"] = fonte, "lendo os casos guardados"
+                batch, total, fails = [], 0, 0
+                async for c in self._bt_cases(fonte):
+                    total += 1
+                    bt["total"][fonte] = max(bt["total"].get(fonte, 0), total)
+                    if not bt["on"]:
+                        break
+                    if c["id"] in bt["cases"]:
+                        continue
+                    day = time.strftime("%Y-%m-%d", time.gmtime())
+                    if bt["dia"] != day:
+                        bt["dia"], bt["calls_dia"] = day, 0
+                    while bt["calls_dia"] >= jev.BT_DAY_MAX and bt["on"]:
+                        bt["msg"] = f"limite de {jev.BT_DAY_MAX} perguntas do dia; continua depois da meia-noite (UTC)"
+                        await asyncio.sleep(300)
+                        if time.strftime("%Y-%m-%d", time.gmtime()) != bt["dia"]:
+                            bt["dia"], bt["calls_dia"] = time.strftime("%Y-%m-%d", time.gmtime()), 0
+                    key = self.system_keys.get("jev_api_key") or ""
+                    if not key:
+                        bt["on"], bt["msg"] = False, "sem a chave do Jev"
+                        break
+                    bt["calls_dia"] += 1
+                    try:
+                        out = await jev.ask(self.http, key, c["state"])
+                        fails = 0
+                    except Exception as e:
+                        msg = str(e)[:160].replace(key, "***")
+                        bt["erros"] += 1
+                        bt["ultimo_erro"] = msg
+                        fails += 1
+                        if fails >= 20:
+                            bt["on"], bt["msg"] = False, "parou: 20 erros seguidos (" + msg + ")"
+                            break
+                        await asyncio.sleep(30 if ("429" in msg or "529" in msg) else 2)
+                        continue
+                    row = jev.compact(c, out)
+                    bt["cases"][c["id"]] = dict(row, fonte=fonte)
+                    bt["feitos"][fonte] = bt["feitos"].get(fonte, 0) + 1
+                    bt["ultimo"] = time.time()
+                    bt["msg"] = "perguntando ao Jev"
+                    batch.append({"id": c["id"], "fonte": fonte, "data": row,
+                                  "em": datetime.fromtimestamp(c["t"], timezone.utc).isoformat()})
+                    if len(batch) >= 50:
+                        await self._bt_flush(batch)
+                        batch = []
+                    await asyncio.sleep(gap)
+                await self._bt_flush(batch)
+                if not bt["on"]:
+                    break
+            if not bt["on"]:
+                break
+            bt["fase"], bt["msg"] = "em dia", "todos os casos guardados já foram analisados; confere de novo a cada 6 h"
+            await asyncio.sleep(rest_s)
+        if bt["fase"] != "parado":
+            bt["fase"] = "parado"
+
+    async def _bt_flush(self, batch: list[dict]) -> None:
+        if not batch:
+            return
+        try:
+            await self.db.insert("jev_backtest", batch, upsert=True, on_conflict="id")
+        except Exception as e:
+            log.warning("estudo do passado do Jev não gravou: %s", str(e)[:120])
+
+    def jev_bt_view(self, fonte: str, hours: float, saida: str) -> dict:
+        bt = self._bt()
         now = time.time()
+        rows = [c for c in bt["cases"].values() if (fonte == "todos" or c.get("fonte") == fonte)
+                and (not hours or now - float(c.get("t") or 0) <= hours * 3600)]
+        rows.sort(key=lambda c: c.get("t") or 0, reverse=True)
+        st = jev.study_rows(rows, saida)
+        linhas = [{"t": c.get("t"), "fonte": c.get("fonte"), "kind": c.get("kind"), "mint": c.get("mint"), "symbol": c.get("symbol"),
+                   "jev": c.get("jev"), "regra": c.get("regra"), "res_all": c.get("res"), "res": jev.pick(c.get("res") or {}, saida),
+                   "pico": c.get("pico"), "n": c.get("n")} for c in rows[:500]]
+        return {"estudo": st, "linhas": linhas}
+
+    def jev_bt_status(self) -> dict:
+        bt = self._bt()
+        return {k: bt.get(k) for k in ("on", "fase", "msg", "feitos", "total", "calls_dia", "erros", "ultimo", "ultimo_erro")} | {
+            "limite_dia": jev.BT_DAY_MAX, "fontes": jev.BT_SOURCES}
+
+    def jev_state(self, pf: PumpFun, hours: float = 24, exit_min: str = "10", fonte: str = "ao_vivo") -> dict:
+        now = time.time()
+        hours = hours or 24 * 365
         uid = pf.user_id
         sigs = self.bruxo.recent(hours, now)
         rows = []
@@ -774,9 +937,12 @@ class PumpHub:
             ok = max(1, st["calls"] - st.get("erros", 0))
             st["ms_medio"] = round(st.get("ms", 0) / ok)
             st["custo_usd"] = round(st.get("tokens_in", 0) / 1e6 * 0.042, 5)
-        return {"chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
-                "ativo": self.jev_wanted(), "limite_dia": jev.DAY_MAX, "uso": st, "saida_min": exit_min,
-                "estudo": jev.study([s for s in sigs if s.get("jev")], exit_min), "linhas": rows[:500]}
+        out = {"chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
+               "ativo": self.jev_wanted(), "limite_dia": jev.DAY_MAX, "uso": st, "saida_min": exit_min, "fonte": fonte,
+               "passado": self.jev_bt_status()}
+        if fonte == "ao_vivo":
+            return out | {"estudo": jev.study([s for s in sigs if s.get("jev")], exit_min), "linhas": rows[:500]}
+        return out | self.jev_bt_view(fonte, hours, exit_min)
 
     async def bruxo_tick(self, now: float | None = None) -> int:
         now = time.time() if now is None else now
@@ -3213,6 +3379,7 @@ class PumpHub:
         await self.load_shadows()
         await self.load_calls()
         await self.load_bruxo()
+        await self.jev_bt_load()                                         # 0.32.84: estudo do passado do Jev
         for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
             lead = self.engines.get(getattr(pf, "follow_user", ""))
             if lead is not None:

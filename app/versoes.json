@@ -1175,6 +1175,11 @@
    "versao": "0.32.83",
    "inicio": "2026-10-30T06:52:06+00:00",
    "titulo": "JEV em modo sombra na Aba do Bruxo"
+  },
+  {
+   "versao": "0.32.84",
+   "inicio": "2026-10-30T07:10:10+00:00",
+   "titulo": "Jev estuda os casos passados desde o início"
   }
  ]
 }

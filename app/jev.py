@@ -118,7 +118,7 @@ def study(signals: list[dict], exit_min: str = "10", sol: float = 0.1) -> dict:
         j = s["jev"]
         g = by_act.setdefault(j["acao"], {"n": 0, "medidos": 0, "subiu": 0, "dobrou": 0, "stop": 0, "res": []})
         g["n"] += 1
-        r = sim_result(s, exit_min)
+        r = s["_r"] if "_r" in s else sim_result(s, exit_min)
         if r is None:
             continue
         g["medidos"] += 1
@@ -149,3 +149,102 @@ def study(signals: list[dict], exit_min: str = "10", sol: float = 0.1) -> dict:
     return {"n": len(js), "saida_min": exit_min, "sol_por_entrada": sol, "por_acao": by_act,
             "calibracao": [{"faixa": k, **bands[k], "subiu_pct": round(bands[k]["subiu"] / bands[k]["n"] * 100)} for k in order if k in bands],
             "curva": curve, "total": {k: round(v, 5) for k, v in acc.items()}}
+
+
+# ---------------------------------------------------------------------------- 0.32.84: estudo do passado (backtest)
+# Pedido do dono (30/10): o Jev também analisa os casos JÁ PASSADOS guardados no banco desde o início do projeto.
+# O Jev não "aprende" com eles (não é treinado com os nossos dados): ele recebe cada caso só com o que se sabia NA HORA
+# (nada do futuro entra no estado) e responde como se fosse ao vivo. Depois comparamos com o que o token fez.
+# É isso que mede se vale confiar nele — e em que faixa de chance.
+BT_SOURCES = {"bruxo": "Aba do Bruxo (sinais e lançamentos)", "explorar": "Explorar (tokens barrados, sombras)",
+              "base": "Base da pump.fun (todo lançamento, foto de 1 min)"}
+BT_DAY_MAX = 20000          # perguntas por dia do estudo do passado (separado das 3.000 do ao vivo)
+BT_GAP_S = 0.5              # meio segundo entre perguntas
+PICK = {"5": ("5", "10", "15"), "10": ("10", "15", "5"), "25": ("25", "15", "60", "10")}
+
+
+def _pct(a, b):
+    try:
+        return round((float(a) / float(b) - 1) * 100, 2) if a and b else None
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def case_bruxo(s: dict) -> dict | None:
+    """Sinal da Aba do Bruxo já encerrado (30 min acompanhado)."""
+    if not s.get("done") or not s.get("marks") or (s.get("jev") or {}).get("acao"):
+        return None
+    res = {k: sim_result(s, k) for k in ("5", "10", "25")}
+    dec = s.get("decisoes") or {}
+    return {"id": "bruxo:" + str(s["id"]), "fonte": "bruxo", "t": s["t"], "mint": s.get("mint"), "symbol": s.get("symbol"),
+            "kind": s.get("kind", "trader"), "state": state_for(s), "res": {k: v for k, v in res.items() if v is not None},
+            "pico": s.get("peak_pct"), "regra": any(d.get("entrou") for d in dec.values()) if s.get("kind", "trader") == "trader" else None,
+            "dobrou": s.get("hit100_s") is not None,
+            "stop": s.get("stop30_s") is not None and (s.get("hit100_s") is None or s["stop30_s"] < s["hit100_s"])}
+
+
+def case_explorar(mint: str, d: dict) -> dict | None:
+    """Token que o Explorar analisou e barrou (sombra): preço na hora e aos 15 min."""
+    if d.get("ret") is None or not d.get("t0"):
+        return None
+    i = d.get("info") or {}
+    st = {"token": {"symbol": d.get("symbol"), "age_min": i.get("age_min")},
+          "signal": {"kind": "explorar", "our_verdict": d.get("veredito")},
+          "numbers": {k: i.get(k) for k in ("holders", "top10", "dev_pct", "pressure", "curve_pct", "chg_5m", "risk",
+                                            "snipers_pct", "bundlers_pct", "insiders_pct", "avg_trade_usd") if i.get(k) is not None}}
+    r = round(float(d["ret"]) - FEE_PCT, 2)
+    return {"id": "explorar:" + mint + ":" + str(int(d["t0"])), "fonte": "explorar", "t": float(d["t0"]), "mint": mint,
+            "symbol": d.get("symbol"), "kind": "explorar", "state": st, "res": {"15": r}, "pico": d.get("pico"),
+            "regra": d.get("veredito") == "chance alta", "dobrou": (d.get("pico") or 0) >= 100, "stop": r <= -30}
+
+
+def case_base(mint: str, d: dict, created_em: str | None = None) -> dict | None:
+    """Lançamento da pump.fun visto pela Base: decide no 1º minuto (foto de 1 min), resultado aos 5/15/60 min."""
+    from datetime import datetime
+    sn = d.get("snaps") or {}
+    m1 = sn.get("1")
+    if not m1:
+        return None
+    try:
+        t0 = datetime.fromisoformat(str(d.get("created_at") or created_em).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return None
+    cb = d.get("creator_before") if isinstance(d.get("creator_before"), dict) else {}
+    st = {"token": {"symbol": d.get("symbol"), "name": d.get("name"), "age_min": 1},
+          "signal": {"kind": "lancamento"},
+          "numbers": {"market_cap_sol": round(float(m1), 2), "market_cap_at_launch_sol": round(float(d.get("mcap0") or 0), 2),
+                      "first_minute_change_pct": _pct(m1, d.get("mcap0")), "creator_buy_sol": d.get("dev_buy"),
+                      "creator_past_tokens": {k: v for k, v in cb.items() if isinstance(v, (int, float))} or None}}
+    res = {k: round(_pct(sn.get(k), m1) - FEE_PCT, 2) for k in ("5", "15", "60") if _pct(sn.get(k), m1) is not None}
+    if not res:
+        return None
+    pico = _pct(max([float(v) for v in sn.values() if v] + [float(d.get("peak") or 0)]), m1)
+    return {"id": "base:" + mint, "fonte": "base", "t": t0 + 60, "mint": mint, "symbol": d.get("symbol"), "kind": "lancamento",
+            "state": st, "res": res, "pico": pico, "regra": None, "dobrou": (pico or 0) >= 100,
+            "stop": any(v <= -30 - FEE_PCT for v in res.values())}
+
+
+def compact(c: dict, j: dict) -> dict:
+    """O que fica guardado do caso (sem o estado inteiro, para o banco e a memória não crescerem demais)."""
+    return {"t": c["t"], "mint": c.get("mint"), "symbol": c.get("symbol"), "kind": c.get("kind"), "res": c["res"],
+            "pico": c.get("pico"), "regra": c.get("regra"), "dobrou": c.get("dobrou"), "stop": c.get("stop"),
+            "n": (c.get("state") or {}).get("numbers"),
+            "jev": {k: j.get(k) for k in ("acao", "p", "qualidade", "armadilha", "ms", "erro") if j.get(k) is not None}}
+
+
+def pick(res: dict, saida: str):
+    for k in PICK.get(saida, (saida,)):
+        if (res or {}).get(k) is not None:
+            return res[k]
+    return None
+
+
+def study_rows(rows: list[dict], saida: str = "10", sol: float = 0.1) -> dict:
+    """Mesmo estudo do ao vivo, para casos guardados (cada um com jev, res, regra, dobrou, stop)."""
+    sigs = []
+    for c in rows:
+        if not (c.get("jev") or {}).get("acao"):
+            continue
+        sigs.append({"t": c["t"], "jev": c["jev"], "_r": pick(c.get("res") or {}, saida), "entrou_regra": bool(c.get("regra")),
+                     "hit100_s": 1 if c.get("dobrou") else None, "stop30_s": 0 if c.get("stop") else None})
+    return study(sigs, saida, sol)

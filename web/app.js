@@ -1203,18 +1203,21 @@
   }
   async function loadJev() {
     if (!$("jvK")) return;
-    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10)); if (r.error) { $("jvSub").textContent = r.error; return; }
+    const F = $("jvF").value || "ao_vivo";
+    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10) + "&fonte=" + F); if (r.error) { $("jvSub").textContent = r.error; return; }
+    jvPast(r.passado || {}, r.chave);
     const E = r.estudo || {}, U = r.uso || {}, T = E.total || {}, A = E.por_acao || {};
     $("jvSub").textContent = !r.chave ? "sem a chave do Jev: cole em Administração → Chaves do sistema" : !r.ativo ? "chave configurada, mas o Jev está desligado" : "ligado · só opina, nunca compra · carteira FICTÍCIA";
     const ae = A.entrar || {};
-    kpis("jvK", [["Tokens analisados", String(E.n || 0), (U.calls || 0) + " perguntas hoje (limite " + (r.limite_dia || 0) + ")" + (U.erros ? " · " + U.erros + " erros" : ""), "mon"],
+    kpis("jvK", [["Tokens analisados", String(E.n || 0), F === "ao_vivo" ? (U.calls || 0) + " perguntas hoje (limite " + (r.limite_dia || 0) + ")" + (U.erros ? " · " + U.erros + " erros" : "") : "casos passados · " + esc(($("jvF").selectedOptions[0] || {}).textContent || ""), "mon"],
       ["Jev mandou entrar", String(ae.n || 0), "acerto " + (ae.acerto == null ? "–" : ae.acerto + "%") + " · média " + (ae.media_pct == null ? "–" : ae.media_pct + "%"), "hit"],
-      ["Se seguisse o Jev", sg(T.jev || 0), "regra da aba: " + s4(T.regra || 0) + " · todos: " + s4(T.todos || 0), "pnl"],
+      ["Se seguisse o Jev", sg(T.jev || 0), (F === "base" ? "" : "nossa regra: " + s4(T.regra || 0) + " · ") + "todos: " + s4(T.todos || 0), "pnl"],
       ["Velocidade e custo", U.ms_medio == null ? "–" : U.ms_medio + " ms", U.custo_usd == null ? "sem uso hoje" : "≈ US$ " + U.custo_usd + " hoje" + (U.ultimo_erro ? " · último erro: " + U.ultimo_erro : ""), "tr"]]);
     $("jvC").innerHTML = jvChart(E.curva);
     table("jvA", ["Decisão", "Tokens", "Medidos", "Subiu", "Dobrou", "−30% antes", "Média", "SOL (0,1/entrada)"], ["entrar", "esperar", "evitar"].map((k) => { const g = A[k] || {};
       return [jvTag(k), String(g.n || 0), String(g.medidos || 0), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou || 0), String(g.stop || 0), g.media_pct == null ? "–" : pc(g.media_pct), sg(g.sol || 0)]; }), "Nada ainda.");
     table("jvB", ["Chance de \"entrar\"", "Tokens", "Subiram"], (E.calibracao || []).map((b) => [esc(b.faixa), String(b.n), b.subiu_pct + "%"]), "Aparece quando houver tokens medidos.");
+    if (F !== "ao_vivo") { jvPastTable(r.linhas || []); return; }
     table("jvT", ["Hora", "Token", "Tipo", "Idade", "Jev", "Chances", "Nota / armadilha", "Regra", "Preço 1 / 5 / 10 / 25 min", "Pico", "Detentores", "Resultado"], (r.linhas || []).map((x) => { const j = x.jev || {};
       const dec = j.pendente ? '<span class="dim">perguntando…</span>' : j.erro ? '<span class="down" title="' + esc(j.erro) + '">erro</span>' : jvTag(j.acao) + (j.ms ? "<small>" + j.ms + " ms</small>" : "");
       return [dt(x.t), pfM(x.mint, x.symbol), x.kind === "lancamento" ? "lançamento" : esc((x.names || []).join(", ")), bxAge(x), dec, j.acao ? jvProb(j) : "–",
@@ -1223,8 +1226,33 @@
         bxMarks(x), x.peak_pct == null ? "–" : pc(x.peak_pct) + (x.peak_s ? "<small>aos " + hms(x.peak_s) + "</small>" : ""), bxHold(x), x.res == null ? '<span class="dim">medindo</span>' : pc(x.res)]; }),
       r.chave ? "Ainda nenhum sinal analisado pelo Jev neste período." : "Cole a chave do Jev em Administração → Chaves do sistema.");
   }
-  document.addEventListener("click", (e) => { if (e.target.closest("#jvNow")) loadJev(); });
-  document.addEventListener("change", (e) => { if (e.target.id === "jvH" || e.target.id === "jvX") loadJev(); });
+  // 0.32.84 (pedido do dono): estudo do passado — o Jev analisa os casos guardados desde o início
+  const JV_FONTE = { bruxo: "Aba do Bruxo", explorar: "Explorar", base: "Base (lançamento)" };
+  function jvPast(P, chave) {
+    const b = $("jvPOn"); if (!b) return;
+    b.classList.toggle("on", !!P.on); b.classList.toggle("off", !P.on); b.setAttribute("aria-checked", P.on ? "true" : "false");
+    b.textContent = P.on ? "Ligado" : "Desligado";
+    $("jvPSub").textContent = !chave ? "precisa da chave do Jev (Administração → Chaves do sistema)" : (P.on ? "rodando" : "parado") + (P.msg ? " · " + P.msg : "");
+    const fe = P.feitos || {}, to = P.total || {};
+    kpis("jvPK", Object.keys(P.fontes || JV_FONTE).map((k) => [JV_FONTE[k] || k, String(fe[k] || 0), to[k] ? "de " + to[k] + " casos guardados" + (to[k] ? " · " + Math.min(100, Math.round((fe[k] || 0) / to[k] * 100)) + "%" : "") : "aguardando leitura", "hit"])
+      .concat([["Perguntas hoje", String(P.calls_dia || 0), "limite " + (P.limite_dia || 0) + "/dia" + (P.erros ? " · " + P.erros + " erros" : "") + (P.ultimo_erro ? " · " + esc(P.ultimo_erro) : ""), "tr"]]));
+  }
+  function jvPastTable(L) {
+    const rs = (x) => { const R = x.res_all || {}; return Object.keys(R).sort((a, b) => +a - +b).map((k) => k + " min " + pc(R[k])).join("<br>") || "–"; };
+    table("jvT", ["Hora", "Fonte", "Token", "Jev", "Chances", "Nota / armadilha", "Nossa regra", "Resultado (com taxas)", "Pico", "Na saída escolhida"], L.map((x) => { const j = x.jev || {};
+      return [dt(x.t), esc(JV_FONTE[x.fonte] || x.fonte || ""), pfM(x.mint, x.symbol), j.acao ? jvTag(j.acao) : '<span class="down">erro</span>', j.acao ? jvProb(j) : "–",
+        j.acao ? (j.qualidade == null ? "–" : f(j.qualidade, 1) + "/4") + "<small>armadilha " + (j.armadilha == null ? "–" : Math.round(j.armadilha * 100) + "%") + "</small>" : "–",
+        x.regra == null ? '<span class="dim">–</span>' : x.regra ? '<span class="tag win">entraria</span>' : '<span class="dim">não</span>', rs(x), x.pico == null ? "–" : pc(x.pico), x.res == null ? "–" : pc(x.res)]; }),
+      "Nenhum caso passado analisado ainda. Ligue \"Estudar o passado\" acima.");
+  }
+  document.addEventListener("click", async (e) => {
+    if (e.target.closest("#jvNow")) loadJev();
+    const b = e.target.closest("#jvPOn"); if (!b) return;
+    const on = b.getAttribute("aria-checked") !== "true";
+    const r = await BB.api("/api/pump/jev/passado", { body: { on } });
+    if (r.error) toast(r.error); loadJev();
+  });
+  document.addEventListener("change", (e) => { if (["jvH", "jvX", "jvF"].includes(e.target.id)) loadJev(); });
   let BX_T = null;
   // 0.32.81 (pedido do dono): atualizar a tela sozinho liga/desliga e o tempo é escolhido (fica neste navegador)
   const BXR = { on: true, s: 20 };

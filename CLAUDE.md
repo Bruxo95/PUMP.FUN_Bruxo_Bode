@@ -1363,3 +1363,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Front: menu `#navJev` "JEV (sombra)" logo abaixo da Aba do Bruxo, tela `data-view="jev"` (`loadJev`, `jvChart` com 3 séries, tabelas
   `#jvA`/`#jvB`/`#jvT`). Testes: `tests/test_jev.py`. **Não testado com a API real do Jev** (falta a chave; formato da resposta lido da doc).
 - Próximo passo só com OK do dono e depois de dias de dados na aba JEV: usar o Jev como filtro da Aba do Bruxo (ainda só fictícia).
+- 0.32.84 (pedido do dono: "estudar os casos passados desde o início"): estudo do passado (backtest) do Jev. `jev.case_bruxo`
+  (sinais encerrados de `bruxo_signals`), `jev.case_explorar` (`base_shadows`: estado do `info`, resultado `ret` − 4% aos 15 min,
+  regra = veredito "chance alta") e `jev.case_base` (`token_life`: decide na foto de 1 min, resultado 5/15/60 min) — o estado leva SÓ
+  o que se sabia na hora (sem rótulo, previsão, fotos futuras ou pico). `hub._jev_bt_run` (liga em `jev_bt_set`, rota
+  `POST /api/pump/jev/passado` com audit; 0,5 s entre perguntas, `jev.BT_DAY_MAX`=20 mil/dia, para após 20 erros seguidos, repete a
+  cada 6 h) → tabela `jev_backtest` (migração `20261030000002`, só backend; linha `_run` guarda ligado/desligado e `jev_bt_load` retoma
+  após reinício). `GET /api/pump/jev?fonte=ao_vivo|bruxo|explorar|base|todos&horas=0` (0 = tudo); `jev.study_rows`/`pick` (saída mais
+  próxima que existe na fonte). Front: seletor `#jvF`, cartão "Estudo do passado" (`#jvPOn`, `#jvPK`, `jvPast`, `jvPastTable`).
+  O Jev não é treinado com esses casos: responde um a um e nós medimos o acerto. Não testado com a API real.

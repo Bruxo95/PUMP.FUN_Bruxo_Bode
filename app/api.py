@@ -1158,10 +1158,22 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return hub.bruxo_state(pf, max(1.0, min(168.0, horas)))
 
     @app.get("/api/pump/jev")
-    async def jev_view(horas: float = 24, saida: str = "10", pf=Depends(admin_engine)):
-        """0.32.83: aba JEV — cada decisão do Jev (modo sombra) nos sinais da Aba do Bruxo × o que o token fez."""
+    async def jev_view(horas: float = 24, saida: str = "10", fonte: str = "ao_vivo", pf=Depends(admin_engine)):
+        """0.32.83: aba JEV — cada decisão do Jev (modo sombra) nos sinais da Aba do Bruxo × o que o token fez.
+        0.32.84: `fonte` = ao_vivo | bruxo | explorar | base | todos (casos passados analisados pelo estudo do passado);
+        horas=0 = tudo."""
         saida = saida if saida in ("5", "10", "25") else "10"
-        return hub.jev_state(pf, max(1.0, min(168.0, horas)), saida)
+        fonte = fonte if fonte in ("ao_vivo", "bruxo", "explorar", "base", "todos") else "ao_vivo"
+        return hub.jev_state(pf, 0 if horas <= 0 else max(1.0, min(24 * 90, horas)), saida, fonte)
+
+    @app.post("/api/pump/jev/passado")
+    async def jev_past(body: dict, pf=Depends(admin_engine)):
+        """0.32.84: liga/desliga o estudo do passado (o Jev analisa os casos guardados desde o início). Nunca compra."""
+        on = bool((body or {}).get("on"))
+        r = hub.jev_bt_set(on)
+        if r.get("ok"):
+            await audit(hub.db, pf.user_id, "jev: estudo do passado " + ("ligado" if on else "desligado"))
+        return r
 
     @app.get("/api/pump/copy-equal/reports")
     async def copy_equal_reports(real: int = 0, pf=Depends(admin_engine)):
