@@ -165,7 +165,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     AUTO_SWITCHES = {"pump_bar_auto_on", "pump_bar_real", "pump_bx_on", "pump_bx_real", "pump_ex_auto_on", "pump_calls_auto_on",
                      "pump_el_auto_on", "pump_auto_on", "pump_st_auto_copy", "pump_eq_on", "pump_guard_on", "pump_nc_on",
-                     "pump_lanc_on", "pump_calls_real", "pump_el_real", "pump_auto_real", "pump_st_real", "pump_eq_real",
+                     "pump_lanc_on", "pump_jt_real", "pump_calls_real", "pump_el_real", "pump_auto_real", "pump_st_real", "pump_eq_real",
                      "pump_ex_real_on", "pump_radar_enabled"}
 
     @app.post("/api/pump/settings")

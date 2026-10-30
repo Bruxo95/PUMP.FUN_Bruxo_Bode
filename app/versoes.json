@@ -1240,6 +1240,11 @@
    "versao": "0.32.96",
    "inicio": "2026-10-30T21:06:46+00:00",
    "titulo": "Jev Trade: posição da fictícia com stop, stop móvel e venda em partes do Jev"
+  },
+  {
+   "versao": "0.32.97",
+   "inicio": "2026-10-30T21:13:04+00:00",
+   "titulo": "Jev Trade: botão Também na carteira REAL (desligado)"
   }
  ]
 }

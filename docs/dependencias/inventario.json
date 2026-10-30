@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-30",
     "timezone": "Europe/Dublin",
-    "repository_reference": "88e6b28a75b4b032e74ef6784dfea43e49ce262a",
-    "application_version": "0.32.96 · 2026-10-30 · Jev Trade: posição da fictícia com stop, stop móvel e venda em partes do Jev",
+    "repository_reference": "1db55c3e7b9864de1d0190542a08b1f527831c8a",
+    "application_version": "0.32.97 · 2026-10-30 · Jev Trade: botão Também na carteira REAL (desligado)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "0d48eebfb93a5900852d27429f21d748e5c0cd7ebee0415ca114c8638eb4563c",
+      "app/version.py": "de65a0fffe40f53f4a27a1b499e0fe781023baaab2c302df5e0e997c728d78d1",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "81e163afd30bce6290a3a0e339267fbac31419bf5f357130dcb55dc2666bdaf0",
+      "web/app.html": "8a338e7123338a361109c4ce9440637cf56ea0b30af9f030a2608f6db83bc437",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "804edf689e4a0c7aaa56ce96e5a12441b50e2fb3b0473aca10e70c1ec184a6e3"
+  "pdf_sha256": "7dd3a36198d7f76924fff308da4b2d7bd688f46a52c32fc7ba13cf0344ec7494"
 }

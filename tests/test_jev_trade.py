@@ -397,3 +397,23 @@ def test_old_wallet_positions_get_the_rules(tmp_path):
     hub._jt_wallet_sync()
     p = [p for p in pf.positions() if p["mint"] == M][0]
     assert p["stop_pct"] == 20 and p["trail_on"] and p["tp1_done"] and p["jt_rules"]
+
+
+def test_real_button_starts_off_and_sends_both_when_on(tmp_path):
+    """0.32.97 (dono): botão "Também na carteira REAL" do Jev Trade, desligado por padrão."""
+    from app.hub import PumpHub
+    from app.settings import USER_KEYS
+    from tests.test_pump import _pump
+    assert USER_KEYS["pump_jt_real"][1] is False
+    pf = _pump(tmp_path, paid=False)
+    pf.role = "admin"
+    hub = PumpHub.__new__(PumpHub)
+    hub.engines = {"u1": pf}
+    seen = []
+    pf.manual_buy = lambda *a, **k: seen.append(k["target"]) or {"sim": "ok", "real": "enviando"}
+    it = {"id": "x", "mint": M, "symbol": "JVT", "stop": -25.0}
+    hub.jt = JevTrade()
+    hub._jt_wallet("abriu", it, 1e-6, T0, 1.0, "regra")
+    pf.cfg.pump_jt_real = True
+    hub._jt_wallet("abriu", it, 1e-6, T0, 1.0, "regra")
+    assert seen == ["sim", "both"] and "REAL: enviando" in it["carteiras"]["u1"]

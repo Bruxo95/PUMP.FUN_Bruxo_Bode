@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-30**; revisão documental **2.0**.
-Aplicação: **0.32.96 · 2026-10-30 · Jev Trade: posição da fictícia com stop, stop móvel e venda em partes do Jev**.
-Referência Git na emissão: `88e6b28a75b4b032e74ef6784dfea43e49ce262a`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.97 · 2026-10-30 · Jev Trade: botão Também na carteira REAL (desligado)**.
+Referência Git na emissão: `1db55c3e7b9864de1d0190542a08b1f527831c8a`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

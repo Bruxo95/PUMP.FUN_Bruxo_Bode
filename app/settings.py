@@ -77,6 +77,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bx_grad_exit": (float, 0.0, 0.0, 100.0),        # 0.32.59: vende tudo com a curva em X% (antes de graduar; 0 = não usa)
     "pump_jt_wallet": (bool, True, 0, 1),                 # 0.32.93: cada entrada do Jev Trade vai também para a carteira FICTÍCIA
     "pump_jt_wallet_max": (int, 10, 1, 50),
+    "pump_jt_real": (bool, False, 0, 1),                  # 0.32.97: entradas do Jev Trade também na REAL (começa desligado; o dono liga)
     "pump_jt_on": (bool, True, 0, 1),                     # 0.32.87: Jev Trade: o Jev decide entrada e saída em simulação
     "pump_jev_on": (bool, True, 0, 1),                    # 0.32.83: Jev (TypeSafe AI) opina em cada sinal da Aba do Bruxo (só sombra)
     "pump_lanc_on": (bool, False, 0, 1),                  # 0.32.59: estuda o lançamento sem trader (só mede, nunca compra)

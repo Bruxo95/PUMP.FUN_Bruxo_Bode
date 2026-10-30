@@ -2949,7 +2949,8 @@ class PumpFun:
                 self._feed(**base, action="REAL não copiou", reason="Explorar: 'Também na carteira REAL' desligado (só fictícia)",
                            sim_id=(sim_pos or {}).get("id"))
             return out
-        if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or getattr(self.cfg, "pump_auto_real", False)):
+        jt_real = origem == "jevtrade" and target == "both" and getattr(self.cfg, "pump_jt_real", False)   # 0.32.97
+        if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or jt_real or getattr(self.cfg, "pump_auto_real", False)):
             if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
                 out["real"] = "já tem posição REAL neste token"
             elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):

@@ -1159,9 +1159,12 @@ class PumpHub:
                     tk = pf.tokens.setdefault(it["mint"], {})
                     if px and not tk.get("price"):
                         tk.update(price=px, last_t=now, symbol=it.get("symbol"))
-                    r = pf.manual_buy(it["mint"], t=now, auto="Jev Trade · " + why[:140], origem="jevtrade", target="sim",
+                    real = bool(getattr(pf.cfg, "pump_jt_real", False))        # 0.32.97: botão "Também na REAL" (OFF por padrão)
+                    r = pf.manual_buy(it["mint"], t=now, auto="Jev Trade · " + why[:140], origem="jevtrade",
+                                      target="both" if real else "sim",
                                       amt_sol=jevtrade.SOL, pos_rules=self.jt_wallet_rules(it))
-                    it.setdefault("carteiras", {})[uid] = (r or {}).get("sim") or (r or {}).get("error")
+                    it.setdefault("carteiras", {})[uid] = ((r or {}).get("sim") or (r or {}).get("error") or "") + (
+                        f" · REAL: {r['real']}" if real and (r or {}).get("real") else "")
                     self.jt.dirty.add(it["id"])
                 elif ev == "vendeu" and px:
                     for p in pf.positions():
