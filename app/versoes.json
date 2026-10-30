@@ -1245,6 +1245,11 @@
    "versao": "0.32.97",
    "inicio": "2026-10-30T21:13:04+00:00",
    "titulo": "Jev Trade: botão Também na carteira REAL (desligado)"
+  },
+  {
+   "versao": "0.32.98",
+   "inicio": "2026-10-30T21:31:24+00:00",
+   "titulo": "REAL: envio tenta de novo quando o RPC responde 429"
   }
  ]
 }

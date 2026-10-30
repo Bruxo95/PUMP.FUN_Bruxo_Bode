@@ -1415,3 +1415,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   parcial do Jev Trade não repete a do motor. `_check_stops` ganhou `trail_rel` e `be_after`; card mostra os textos. Relatório `app/relatorios_ia/2026-10-30-0.32.96.md`.
 - 0.32.97 (pedido do dono): `pump_jt_real` (OFF) — botão "Também na carteira REAL" no Jev Trade; `hub._jt_wallet` usa `target="both"` e `manual_buy`
   deixa passar (`jt_real`) com a Execução real ligada; regras de saída iguais às da fictícia; em `AUTO_SWITCHES` (audit). Só o dono liga.
+- 0.32.98 (erro do dono, 30/10 22:28): `PumpReal._send_raw` — `sendTransaction` com 429/sem dados/queda tenta de novo no RPC da carteira e depois no
+  `SOL_HTTP`; erro da própria rede não repete. `tests/test_envio_429.py`. O RPC próprio do dono (`rpc_url`) respondeu 429 no envio do ">_" (Jev Trade).

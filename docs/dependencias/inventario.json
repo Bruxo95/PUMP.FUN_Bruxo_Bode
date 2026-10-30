@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-30",
     "timezone": "Europe/Dublin",
-    "repository_reference": "1db55c3e7b9864de1d0190542a08b1f527831c8a",
-    "application_version": "0.32.97 · 2026-10-30 · Jev Trade: botão Também na carteira REAL (desligado)",
+    "repository_reference": "5b38cab135d74a8f84ac53796e5535a1c8795266",
+    "application_version": "0.32.98 · 2026-10-30 · REAL: envio tenta de novo quando o RPC responde 429",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "de65a0fffe40f53f4a27a1b499e0fe781023baaab2c302df5e0e997c728d78d1",
+      "app/version.py": "3668c9506e70f1f48373fd097f290798a1055994698a6276bf43cbba296b2b75",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "7dd3a36198d7f76924fff308da4b2d7bd688f46a52c32fc7ba13cf0344ec7494"
+  "pdf_sha256": "4f8a2e4ab0e6fea96608a1c76fb5dd1fa5ae311771f5c4a8026321ff8c00704d"
 }

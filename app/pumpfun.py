@@ -4522,11 +4522,31 @@ class PumpReal:
             tok += float(ta.get("uiAmountString") or ta.get("uiAmount") or 0)
         return sol, tok
 
+    async def _send_raw(self, raw_b64: str, opts: dict) -> str:
+        """0.32.98 (dono, 30/10 22:28: "RPC respondeu HTTP 429 sem dados em sendTransaction"): o envio tentava uma vez só no RPC
+        da carteira. Agora, se o RPC recusar por limite de pedidos ou sem resposta, tenta de novo em 0,3 s e depois no RPC
+        público da Solana. Reenviar a MESMA transação assinada é seguro: a assinatura é a mesma e a rede só executa uma vez.
+        Erro da própria transação (saldo, slippage, programa) não é repetido."""
+        last: Exception | None = None
+        own = await self.wallet.safe_rpc_url()
+        urls = [own, own] + ([SOL_HTTP] if own != SOL_HTTP else [])
+        for i, url in enumerate(urls):
+            try:
+                return await self._rpc("sendTransaction", [raw_b64, opts], url=url)
+            except Exception as e:
+                last = e
+                msg = str(e)
+                if not ("HTTP" in msg or "429" in msg or "sem dados" in msg or isinstance(e, OSError) or type(e).__module__.startswith("httpx")):
+                    raise                              # a rede recusou a transação: não adianta repetir
+                if i < len(urls) - 1:
+                    await asyncio.sleep(0.3)
+        raise last if last else RuntimeError("sendTransaction sem resposta")
+
     async def _send_confirm(self, raw_b64: str, simulated: bool = False) -> tuple[str | None, str, str | None]:
         try:
             # 0.31.51: transação que o servidor já simulou não passa por outra simulação no RPC (economiza uma ida)
-            sig = await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": bool(simulated),
-                                                                "preflightCommitment": "processed", "maxRetries": 3}])
+            sig = await self._send_raw(raw_b64, {"encoding": "base64", "skipPreflight": bool(simulated),
+                                                 "preflightCommitment": "processed", "maxRetries": 3})
         except Exception as e:
             return None, "recusada", str(e)[:160]
         for i in range(240):                     # 0.31.46: confere a cada 0,25 s (antes 0,75 s); reenvia a cada ~1 s
