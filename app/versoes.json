@@ -1230,6 +1230,11 @@
    "versao": "0.32.94",
    "inicio": "2026-10-30T20:32:09+00:00",
    "titulo": "Jev Trade: regra explicada (20% dos detentores, preço só positivo)"
+  },
+  {
+   "versao": "0.32.95",
+   "inicio": "2026-10-30T20:38:50+00:00",
+   "titulo": "Jev Trade: sem os +20% de detentores (só subindo por 2 min)"
   }
  ]
 }

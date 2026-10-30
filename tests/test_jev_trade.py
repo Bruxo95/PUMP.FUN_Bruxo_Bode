@@ -178,7 +178,7 @@ def _answer(acao, stop):
 def test_tick_watches_enters_and_sells_only_in_simulation():
     """0.32.91: a 1ª contagem já é leitura; entra quando os detentores sobem 20%+ com o preço subindo (regra do Bruxo)."""
     hosts = []
-    seq = [("desistir", "perda_20"), ("vender_tudo", "manter")]
+    seq = [("esperar", "perda_30"), ("desistir", "perda_20"), ("vender_tudo", "manter")]
 
     def h(req):
         hosts.append(req.url.host)
@@ -194,28 +194,32 @@ def test_tick_watches_enters_and_sells_only_in_simulation():
     asyncio.run(hub.jt_tick(t))
     it = hub.jt.items[M]
     assert it["estado"] == "olhando" and it["hist"][0]["h"] == 50 and hosts == []
-    cnt["n"], hub.market.tokens[M]["price"] = 62, 1.2               # +24% de detentores e preço subindo em 1 min
+    cnt["n"], hub.market.tokens[M]["price"] = 56, 1.1
     asyncio.run(hub.jt_tick(t + 60))
+    assert it["estado"] == "olhando"                                  # só 1 min de leituras: ainda não cobre os 2 min
+    cnt["n"], hub.market.tokens[M]["price"] = 62, 1.2               # 50 → 56 → 62 e preço positivo em 2 min
+    asyncio.run(hub.jt_tick(t + 120))
     assert it["estado"] == "aberta" and it["stop"] == -20            # o Jev disse "desistir", mas a regra manda
     assert it["entrada"]["px"] == 1.2 and it["entrada"]["por"].startswith("regra do Bruxo") and it["entrada"]["jev"] == "desistir"
     hub.market.tokens[M]["price"] = 2.4
-    asyncio.run(hub.jt_tick(t + 120))
+    asyncio.run(hub.jt_tick(t + 180))
     assert it["estado"] == "fechada" and it["res"] == 100 - jevtrade.FEE_PCT
     assert it["vendas"][0]["motivo"].startswith("vendeu metade")
-    assert hosts == ["api.typesafe.ai"] * 2                            # só o Jev: nada de compra, swap ou RPC de transação
+    assert hosts == ["api.typesafe.ai"] * 3                            # só o Jev: nada de compra, swap ou RPC de transação
     assert ("jev_trades", M) in hub.db.rows
     st = hub.jt_state(hub.engines["u1"], 24)
-    assert st["ativo"] and st["fechadas"][0]["res"] == 96 and st["hoje"]["calls"] == 2 and st["estrategia"]["cresc_pct"] == 20
+    assert st["ativo"] and st["fechadas"][0]["res"] == 96 and st["hoje"]["calls"] == 3 and st["estrategia"]["cresc_pct"] == 0
 
 
 def test_rule_needs_holders_and_price_up_within_2_min():
+    """0.32.95 (dono): sem exigir +20%; detentores só subindo cobrindo ~2 min de leituras e preço positivo."""
     rc = JevTrade.rule_check
     assert rc([{"m": 5, "h": 50, "px": 1.0}])["ok"] is False
-    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 61, "px": 1.1}])["ok"] is True
-    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 61, "px": 0.9}])["ok"] is False       # preço caindo
-    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 55, "px": 1.1}])["ok"] is False       # só +10%
+    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 61, "px": 1.1}])["ok"] is False       # só 1 min de leituras
+    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 51, "px": 1.0}, {"m": 7, "h": 53, "px": 1.01}])["ok"] is True  # +6% vale
+    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 51, "px": 1.0}, {"m": 7, "h": 53, "px": 0.99}])["ok"] is False # preço negativo
     H = [{"m": 5, "h": 40, "px": 1.0}, {"m": 6, "h": 44, "px": 1.0}, {"m": 7, "h": 50, "px": 1.1}, {"m": 8, "h": 56, "px": 1.2}]
-    r = rc(H)                                                          # 2 min atrás = 44 (m 6) → 56: +27%
+    r = rc(H)
     assert r["ok"] and r["ref_m"] == 6
 
 
@@ -246,9 +250,9 @@ def test_backtest_rule_on_stored_reads():
                                                       {"m": 7, "h": 80, "px": 2.0}, {"m": 8, "h": 85, "px": 2.6}, {"m": 9, "h": 84, "px": 1.8}]}
     r = jevtrade.backtest_rule([it, {"mint": "y", "hist": [{"m": 5, "h": 50, "px": 1.0}]}])
     x = r["itens"][0]
-    assert r["entradas"] == 1 and r["sem_leituras"] == 1 and x["m"] == 6 and x["motivo"] == "stop móvel"
-    # entrada 1,2; metade em 2,6 (+116,7%) ao passar de +100%; resto em 1,8 (+50%, caiu 31% do pico)
-    assert abs(x["res"] - round(0.5 * (2.6 / 1.2 - 1) * 100 + 0.5 * 50 - jevtrade.FEE_PCT, 1)) < 0.2
+    assert r["entradas"] == 1 and r["sem_leituras"] == 1 and x["m"] == 7 and x["motivo"] == "stop móvel"
+    # entrada aos 7 min em 2,0 (50 → 65 → 80); pico 2,6 (+30%); caiu para 1,8 (−10%, 31% abaixo do pico)
+    assert abs(x["res"] - (-10 - jevtrade.FEE_PCT)) < 0.2
 
 
 def test_no_key_means_no_jev_and_no_reads_but_open_position_still_stops():
@@ -327,8 +331,9 @@ def test_entries_and_sales_go_to_the_fictitious_wallet_never_real(tmp_path):
     pf.tokens.setdefault(M, {}).update(price=1e-6, last_t=T0, symbol="JVT")
     it = hub.jt.on_checked(_live()[M], 50, T0)
     hub.jt.add_read(it, 50, 1e-6, 60.0, T0)
-    hub.jt.add_read(it, 61, 1.2e-6, 60.0, T0 + 60)
-    assert hub.jt.bruxo_entry(it, {"acao": "esperar"}, 1.2e-6, T0 + 60) == "entrar"
+    hub.jt.add_read(it, 56, 1.1e-6, 60.0, T0 + 60)
+    hub.jt.add_read(it, 61, 1.2e-6, 60.0, T0 + 120)
+    assert hub.jt.bruxo_entry(it, {"acao": "esperar"}, 1.2e-6, T0 + 120) == "entrar"
     pos = [p for p in pf.positions() if p["mint"] == M]
     assert len(pos) == 1 and pos[0]["origem"] == "jevtrade" and not pos[0]["real"] and pos[0]["stop_pct"] == 0.0
     assert "comprou" in it["carteiras"]["u1"]

@@ -1408,3 +1408,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `ABA_ORIGEM["jevtrade"]`. Nunca REAL. `backtest_rule` também considera a entrada do fechamento. Relatório `app/relatorios_ia/2026-10-30-0.32.93.md`.
 - 0.32.94: confirmado pelo dono (30/10 21:30): os 20% da regra do Jev Trade são só dos DETENTORES (subindo em cada leitura); o preço só precisa estar
   positivo (qualquer alta). Código já era assim; textos da tela ajustados e teste `test_price_only_needs_to_be_positive_not_20_pct`.
+- 0.32.95 (pedido do dono): Jev Trade sem o mínimo de +20% de detentores (`STRAT["cresc_pct"]`=0): detentores subindo em cada leitura e preço positivo;
+  `rule_check` exige leituras cobrindo os 2 min (`cobre`, 3 leituras) para uma alta de 1 detentor em 1 min não disparar. Relatório `app/relatorios_ia/2026-10-30-0.32.95.md`.

@@ -38,7 +38,7 @@ HIST_MAX = 120
 # O Jev continua opinando (fica registrado e escolhe o stop), mas não pode mais descartar o token antes da regra.
 # Saída "antes do dump": stop inicial, metade vendida em +100%, stop no empate depois de +50%, stop móvel de 25% do pico
 # depois de +30% e saída total quando os detentores começam a sair (15% abaixo do pico depois da entrada).
-STRAT = {"cresc_pct": 20.0, "janela_min": 2.0, "prazo_min": WATCH_MAX_MIN, "stop_pct": 25.0, "empate_apos": 50.0,
+STRAT = {"cresc_pct": 0.0, "janela_min": 2.0, "prazo_min": WATCH_MAX_MIN, "stop_pct": 25.0, "empate_apos": 50.0,
          "parcial_em": 100.0, "parcial_frac": 0.5, "trail_apos": 30.0, "trail_pct": 25.0, "saida_detentores_pct": 15.0}
 KEEP_S = 7 * 86400
 
@@ -264,9 +264,9 @@ class JevTrade:
     # ------------------------------------------------------------------ 0.32.91: regra do Bruxo
     @staticmethod
     def rule_check(hist: list[dict], cfg: dict | None = None) -> dict:
-        """Regra do Bruxo (0.32.93): nas leituras dos últimos ~2 min os detentores têm que SÓ SUBIR (cada leitura maior que a
-        anterior: parado ou caindo não vale) e somar +20% ou mais; o preço só precisa estar POSITIVO no mesmo período (qualquer
-        alta — confirmado pelo dono em 30/10 21:30: os 20% são só dos detentores). Devolve {ok, cresc, px_pct, motivo}."""
+        """Regra do Bruxo: nas leituras dos últimos ~2 min (precisam cobrir os 2 min) os detentores têm que SÓ SUBIR (cada leitura
+        maior que a anterior: parado ou caindo não vale) e o preço tem que estar POSITIVO no período (qualquer alta).
+        0.32.95 (dono, 30/10 21:36): não exige mais +20% dos detentores (`cresc_pct` 0 = qualquer alta)."""
         S = cfg or STRAT
         H = [x for x in hist if x.get("h") is not None and x.get("px")]
         if len(H) < 2:
@@ -276,14 +276,17 @@ class JevTrade:
         if len(W) < 2:
             W = H[-2:]
         ref = W[0]
+        cobre = cur["m"] - ref["m"] >= S["janela_min"] - 0.5          # 0.32.95: as leituras precisam cobrir os ~2 min
         subindo = all(b["h"] > a["h"] for a, b in zip(W, W[1:]))
         cresc = round((cur["h"] / ref["h"] - 1) * 100, 1) if ref["h"] else None
         pxp = round((cur["px"] / ref["px"] - 1) * 100, 1)
-        ok = subindo and cresc is not None and cresc >= S["cresc_pct"] and pxp > 0
+        ok = cobre and subindo and cresc is not None and cresc > S["cresc_pct"] and pxp > 0
         seq = " → ".join(str(x["h"]) for x in W)
         why = (f"detentores {seq} ({cresc:+.0f}%{'' if subindo else ', parou ou caiu no meio'}) e preço {pxp:+.0f}% em {cur['m'] - ref['m']:.1f} min"
                if cresc is not None else "sem contagem")
-        return {"ok": ok, "cresc": cresc, "px_pct": pxp, "subindo": subindo, "ref_m": ref["m"], "motivo": why}
+        if not cobre:
+            why += f" · esperando completar {S['janela_min']:g} min de leituras"
+        return {"ok": ok, "cresc": cresc, "px_pct": pxp, "subindo": subindo, "cobre": cobre, "ref_m": ref["m"], "motivo": why}
 
     @staticmethod
     def market_positive(hist: list[dict], px: float | None) -> dict:

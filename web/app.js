@@ -1216,7 +1216,7 @@
   };
   // 0.32.91 (Bruxo): regra de entrada e tempo corrido de cada token em observação
   const jtRule = (x) => { const R = x.regra || {}; if (R.cresc == null) return '<span class="dim">' + esc(R.motivo || "esperando leitura") + "</span>";
-    return '<span class="' + (R.cresc >= 20 ? "up" : "dim") + '">detentores ' + (R.cresc > 0 ? "+" : "") + f(R.cresc, 0) + '%</span> · <span class="' + (R.px_pct > 0 ? "up" : "down") + '">preço ' + (R.px_pct > 0 ? "+" : "") + f(R.px_pct, 0) + "%</span>" + (R.subindo === false ? ' <span class="down">parou ou caiu</span>' : "") + "<small>precisa: detentores subindo em cada leitura e +20% no total · preço positivo (qualquer alta, não precisa ser 20%)</small>"; };
+    return '<span class="' + (R.cresc > 0 ? "up" : "dim") + '">detentores ' + (R.cresc > 0 ? "+" : "") + f(R.cresc, 0) + '%</span> · <span class="' + (R.px_pct > 0 ? "up" : "down") + '">preço ' + (R.px_pct > 0 ? "+" : "") + f(R.px_pct, 0) + "%</span>" + (R.subindo === false ? ' <span class="down">parou ou caiu</span>' : "") + "<small>precisa: detentores subindo em cada leitura por 2 min (qualquer alta) · preço positivo (qualquer alta)</small>"; };
   const jtTime = (x) => "há " + hms(x.obs_s || 0) + "<small>" + (x.leituras || 0) + " leituras · última há " + (x.ultima_s == null ? "–" : x.ultima_s + " s") + " · próxima em " + (x.prox_s == null ? "–" : x.prox_s + " s") + "</small>" +
     (x.prazo_s == null ? "" : '<small class="' + (x.prazo_s < 60 ? "down" : "") + '">prazo: ' + hms(x.prazo_s) + "</small>");
   // 0.32.92 (pedido do dono, caso hunch): mostrar quando o token NASCEU, com quantos minutos entrou na lista e quando saiu
