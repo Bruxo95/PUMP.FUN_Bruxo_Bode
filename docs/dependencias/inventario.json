@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-30",
     "timezone": "Europe/Dublin",
-    "repository_reference": "698a761138cbfd0a6b1a30d83e14b3242ed3d9af",
-    "application_version": "0.32.84 · 2026-10-30 · Jev estuda os casos passados desde o início",
+    "repository_reference": "b76af26f9767f5bc4ac1004b14837f86d5ffd407",
+    "application_version": "0.32.85 · 2026-10-30 · chave do Jev salva e análises do Jev no Supabase",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "eda32beac0dbe3ef91722bca41232ba1ad5fd6e5b5c7c964c700a5087074f3ee",
+      "app/version.py": "40e37ca407f2ed9784d6e1b6327b07fe3f5d09f8d32b26284ce9c4e243908d8f",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "177b4131dd4e53cc1a90adefa06f9baabd74fa3044efb7ba5836a8a017d98b02"
+  "pdf_sha256": "931ff4633963a52d861f75f9f02bd06cc1e598d48564bc2f541e09e2745138ac"
 }

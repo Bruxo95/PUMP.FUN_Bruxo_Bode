@@ -754,6 +754,61 @@ class PumpHub:
             st["ms"] = st.get("ms", 0) + int(out.get("ms") or 0)
             st["tokens_in"] = st.get("tokens_in", 0) + int(out.get("tokens_in") or 0)
         self.bruxo.dirty.add(s["id"])
+        await self._jev_save_decision(s, state, out)
+        await self._jev_usage_save("ao_vivo")
+
+    # ---------------------------------------------------------------- 0.32.85: toda análise do Jev no Supabase
+    async def _jev_save_decision(self, s: dict, state: dict, out: dict) -> None:
+        p = out.get("p") or {}
+        row = {"em": datetime.fromtimestamp(out.get("em") or time.time(), timezone.utc).isoformat(),
+               "fonte": "lancamento" if s.get("kind") == "lancamento" else "bruxo", "sinal_id": str(s.get("id") or ""),
+               "mint": s.get("mint"), "symbol": s.get("symbol"), "acao": out.get("acao"),
+               "p_entrar": p.get("entrar"), "p_esperar": p.get("esperar"), "p_evitar": p.get("evitar"),
+               "confianca": out.get("conf"), "qualidade": out.get("qualidade"), "armadilha": out.get("armadilha"),
+               "ms": out.get("ms"), "tokens_in": out.get("tokens_in"), "erro": out.get("erro"), "estado": state or {}}
+        try:
+            await self.db.insert("jev_decisions", row)
+        except Exception as e:
+            log.warning("decisão do Jev não gravou no banco: %s", str(e)[:120])
+
+    async def _jev_usage_save(self, tipo: str, force: bool = False) -> None:
+        """Uso do dia (perguntas, erros, tokens, tempo) em jev_usage; no máximo 1 gravação a cada 30 s por tipo."""
+        last = self.__dict__.setdefault("_jev_usage_t", {})
+        if not force and time.time() - last.get(tipo, 0) < 30:
+            return
+        last[tipo] = time.time()
+        if tipo == "ao_vivo":
+            st = getattr(self, "jev_stats", {}) or {}
+            dia, row = st.get("dia"), {"calls": st.get("calls", 0), "erros": st.get("erros", 0),
+                                       "tokens_in": st.get("tokens_in", 0), "ms": st.get("ms", 0)}
+        else:
+            bt = self._bt()
+            dia, row = bt.get("dia"), {"calls": bt.get("calls_dia", 0), "erros": bt.get("erros_dia", 0),
+                                       "tokens_in": bt.get("tokens_dia", 0), "ms": bt.get("ms_dia", 0)}
+        if not dia:
+            return
+        try:
+            await self.db.insert("jev_usage", dict(row, dia=dia, tipo=tipo, atualizado=datetime.now(timezone.utc).isoformat()),
+                                 upsert=True, on_conflict="dia,tipo")
+        except Exception as e:
+            log.warning("uso do Jev não gravou no banco: %s", str(e)[:120])
+
+    async def jev_usage_load(self) -> None:
+        """Contadores de hoje voltam do banco (o limite por dia continua valendo depois de um reinício)."""
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        try:
+            rows = await self.db.select("jev_usage", {"dia": day})
+        except Exception as e:
+            log.warning("uso do Jev não carregou: %s", str(e)[:120])
+            return
+        for r in rows or []:
+            if r.get("tipo") == "ao_vivo":
+                st = self.__dict__.setdefault("jev_stats", {})
+                st.update(dia=day, calls=int(r.get("calls") or 0), erros=int(r.get("erros") or 0),
+                          tokens_in=int(r.get("tokens_in") or 0), ms=int(r.get("ms") or 0), ultimo_erro=st.get("ultimo_erro"))
+            elif r.get("tipo") == "passado":
+                self._bt().update(dia=day, calls_dia=int(r.get("calls") or 0), erros_dia=int(r.get("erros") or 0),
+                                  tokens_dia=int(r.get("tokens_in") or 0), ms_dia=int(r.get("ms") or 0))
 
     # ---------------------------------------------------------------- 0.32.84: Jev estuda os casos passados (backtest)
     def _bt(self) -> dict:
@@ -847,12 +902,12 @@ class PumpHub:
                         continue
                     day = time.strftime("%Y-%m-%d", time.gmtime())
                     if bt["dia"] != day:
-                        bt["dia"], bt["calls_dia"] = day, 0
+                        bt.update(dia=day, calls_dia=0, erros_dia=0, tokens_dia=0, ms_dia=0)
                     while bt["calls_dia"] >= jev.BT_DAY_MAX and bt["on"]:
                         bt["msg"] = f"limite de {jev.BT_DAY_MAX} perguntas do dia; continua depois da meia-noite (UTC)"
                         await asyncio.sleep(300)
                         if time.strftime("%Y-%m-%d", time.gmtime()) != bt["dia"]:
-                            bt["dia"], bt["calls_dia"] = time.strftime("%Y-%m-%d", time.gmtime()), 0
+                            bt.update(dia=time.strftime("%Y-%m-%d", time.gmtime()), calls_dia=0, erros_dia=0, tokens_dia=0, ms_dia=0)
                     key = self.system_keys.get("jev_api_key") or ""
                     if not key:
                         bt["on"], bt["msg"] = False, "sem a chave do Jev"
@@ -864,6 +919,7 @@ class PumpHub:
                     except Exception as e:
                         msg = str(e)[:160].replace(key, "***")
                         bt["erros"] += 1
+                        bt["erros_dia"] = bt.get("erros_dia", 0) + 1
                         bt["ultimo_erro"] = msg
                         fails += 1
                         if fails >= 20:
@@ -871,6 +927,8 @@ class PumpHub:
                             break
                         await asyncio.sleep(30 if ("429" in msg or "529" in msg) else 2)
                         continue
+                    bt["tokens_dia"] = bt.get("tokens_dia", 0) + int(out.get("tokens_in") or 0)
+                    bt["ms_dia"] = bt.get("ms_dia", 0) + int(out.get("ms") or 0)
                     row = jev.compact(c, out)
                     bt["cases"][c["id"]] = dict(row, fonte=fonte)
                     bt["feitos"][fonte] = bt["feitos"].get(fonte, 0) + 1
@@ -899,6 +957,8 @@ class PumpHub:
             await self.db.insert("jev_backtest", batch, upsert=True, on_conflict="id")
         except Exception as e:
             log.warning("estudo do passado do Jev não gravou: %s", str(e)[:120])
+            self._bt()["msg"] = "não gravou no banco: " + str(e)[:80]
+        await self._jev_usage_save("passado", force=True)
 
     def jev_bt_view(self, fonte: str, hours: float, saida: str) -> dict:
         bt = self._bt()
@@ -914,7 +974,7 @@ class PumpHub:
 
     def jev_bt_status(self) -> dict:
         bt = self._bt()
-        return {k: bt.get(k) for k in ("on", "fase", "msg", "feitos", "total", "calls_dia", "erros", "ultimo", "ultimo_erro")} | {
+        return {k: bt.get(k) for k in ("on", "fase", "msg", "feitos", "total", "calls_dia", "erros", "ultimo", "ultimo_erro", "tokens_dia")} | {
             "limite_dia": jev.BT_DAY_MAX, "fontes": jev.BT_SOURCES}
 
     def jev_state(self, pf: PumpFun, hours: float = 24, exit_min: str = "10", fonte: str = "ao_vivo") -> dict:
@@ -3379,6 +3439,7 @@ class PumpHub:
         await self.load_shadows()
         await self.load_calls()
         await self.load_bruxo()
+        await self.jev_usage_load()
         await self.jev_bt_load()                                         # 0.32.84: estudo do passado do Jev
         for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
             lead = self.engines.get(getattr(pf, "follow_user", ""))

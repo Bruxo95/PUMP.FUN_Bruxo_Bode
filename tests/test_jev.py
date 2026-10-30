@@ -147,14 +147,17 @@ def test_study_rows_uses_the_nearest_exit():
 
 class _DB:
     def __init__(self, tables):
-        self.t, self.saved = tables, []
+        self.t, self.saved, self.by = tables, [], {}
 
     async def select(self, table, filters=None, order=None, limit=None, columns="*", offset=0, **kw):
         rows = self.t.get(table, [])
         return rows[offset:offset + (limit or len(rows))]
 
     async def insert(self, table, rows, upsert=False, on_conflict=None):
-        self.saved += rows if isinstance(rows, list) else [rows]
+        rows = rows if isinstance(rows, list) else [rows]
+        self.by.setdefault(table, []).extend(rows)
+        if table == "jev_backtest":
+            self.saved += rows
 
 
 def test_hub_backtest_asks_each_past_case_once_and_saves():
@@ -202,3 +205,54 @@ def test_backtest_needs_the_key():
     hub, _ = _hub(lambda req: httpx.Response(500))
     hub.system_keys = {}
     assert "error" in hub.jev_bt_set(True, quiet=True)
+
+
+def test_live_decision_and_usage_go_to_supabase():
+    """0.32.85: cada pergunta ao vivo vira linha em jev_decisions e o uso do dia em jev_usage (sem a chave)."""
+    hub, _ = _hub(lambda req: httpx.Response(200, json=_resp("esperar")))
+    hub.db = _DB({})
+    s, _ = hub.bruxo.on_buy(W, "Top1", M, "JEV", 1.0, 1e-6, {}, 1.0, {}, __import__("time").time())
+
+    async def go():
+        hub.jev_shadow(s)
+        await asyncio.sleep(0.05)
+    asyncio.run(go())
+    d = hub.db.by["jev_decisions"][0]
+    assert d["acao"] == "esperar" and d["fonte"] == "bruxo" and d["sinal_id"] == s["id"] and d["p_esperar"] == 0.8
+    assert KEY not in json.dumps(hub.db.by)
+    u = hub.db.by["jev_usage"][0]
+    assert u["tipo"] == "ao_vivo" and u["calls"] == 1
+
+
+def test_usage_of_today_comes_back_after_restart():
+    import time as _t
+    hub, _ = _hub(lambda req: httpx.Response(500))
+    day = _t.strftime("%Y-%m-%d", _t.gmtime())
+    hub.db = _DB({"jev_usage": [{"dia": day, "tipo": "ao_vivo", "calls": 2999, "erros": 1, "tokens_in": 5, "ms": 9},
+                                {"dia": day, "tipo": "passado", "calls": 7}]})
+    asyncio.run(hub.jev_usage_load())
+    assert hub.jev_stats["calls"] == 2999 and hub.jev_bt["calls_dia"] == 7
+    s, _ = hub.bruxo.on_buy(W, "Top1", M, "JEV", 1.0, 1e-6, {}, 1.0, {}, _t.time())
+
+    async def go():
+        assert hub.jev_shadow(s) is True                     # a 3000ª ainda passa
+        s2, _ = hub.bruxo.on_buy(W, "Top1", "Other".ljust(40, "1") + "pump", "X", 1.0, 1e-6, {}, 1.0, {}, _t.time())
+        assert hub.jev_shadow(s2) is False                   # limite do dia continua valendo
+        await asyncio.sleep(0.02)
+    asyncio.run(go())
+
+
+def test_migration_allows_every_system_key():
+    """A chave do Jev não salvava: o banco só aceitava 4 nomes. Toda chave do sistema precisa estar na última regra."""
+    import glob
+    import re
+    from app.keystore import SYSTEM_NAMES
+    last = ""
+    for f in sorted(glob.glob("supabase/migrations/*.sql")):
+        txt = open(f, encoding="utf-8").read()
+        m = re.findall(r"add constraint app_secrets_nome_check check \((.*?)\);", txt, re.S)
+        if m:
+            last = m[-1]
+    assert last, "não achei a regra app_secrets_nome_check"
+    for k in SYSTEM_NAMES:
+        assert "'" + k + "'" in last, k + " falta na regra app_secrets_nome_check"

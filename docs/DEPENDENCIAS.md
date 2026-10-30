@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-30**; revisão documental **2.0**.
-Aplicação: **0.32.84 · 2026-10-30 · Jev estuda os casos passados desde o início**.
-Referência Git na emissão: `698a761138cbfd0a6b1a30d83e14b3242ed3d9af`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.85 · 2026-10-30 · chave do Jev salva e análises do Jev no Supabase**.
+Referência Git na emissão: `b76af26f9767f5bc4ac1004b14837f86d5ffd407`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

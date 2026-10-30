@@ -1180,6 +1180,11 @@
    "versao": "0.32.84",
    "inicio": "2026-10-30T07:10:10+00:00",
    "titulo": "Jev estuda os casos passados desde o início"
+  },
+  {
+   "versao": "0.32.85",
+   "inicio": "2026-10-30T07:27:07+00:00",
+   "titulo": "chave do Jev salva e análises do Jev no Supabase"
   }
  ]
 }

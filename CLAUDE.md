@@ -1372,3 +1372,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   após reinício). `GET /api/pump/jev?fonte=ao_vivo|bruxo|explorar|base|todos&horas=0` (0 = tudo); `jev.study_rows`/`pick` (saída mais
   próxima que existe na fonte). Front: seletor `#jvF`, cartão "Estudo do passado" (`#jvPOn`, `#jvPK`, `jvPast`, `jvPastTable`).
   O Jev não é treinado com esses casos: responde um a um e nós medimos o acerto. Não testado com a API real.
+- 0.32.85 (dono: "a chave do Jev não salvou"): a regra `app_secrets_nome_check` só aceitava 4 nomes; a migração
+  `20261030000003_jev_chave_e_tabelas.sql` libera `jev_api_key` e cria `jev_decisions` (cada pergunta ao vivo: estado mandado, ação,
+  chances, nota, armadilha, ms, tokens, erro; `hub._jev_save_decision`) e `jev_usage` (dia × ao_vivo|passado; `hub._jev_usage_save` a cada
+  30 s, `jev_usage_load` no início para o limite do dia valer após reinício). Leitura para `leitor_ia` nas 3 tabelas do Jev.
+  **Chave nova do sistema = acrescentar o nome também numa migração da regra `app_secrets_nome_check`** —
+  `tests/test_jev.py::test_migration_allows_every_system_key` falha se faltar.
