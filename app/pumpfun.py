@@ -4702,6 +4702,11 @@ class PumpReal:
                    # (IDL oficial pump.json). A curva é cotada em outra moeda (Grokbot: SPCX) e a PumpPortal manda SOL.
                    # 0.32.27: na PumpSwap (IDL pump_amm.json de 07/10/2026, conferido em 28/10) o mesmo 6063 é
                    # InsufficientRealQuoteReserves — o pool não tem a moeda de cotação suficiente para a venda/compra.
+                   # 0.32.98: a simulação devolve o código em decimal ({'Custom': 6005}), não em hex (0x1775)
+                   "'Custom': 6002}": "preço subiu além do slippage (SOL insuficiente)",
+                   "'Custom': 6003}": "preço caiu além do slippage (SOL recebido baixo)",
+                   "'Custom': 6004}": "token não bate com a curva",
+                   "'Custom': 6005}": "curva já completou — token graduou para a PumpSwap",
                    "'Custom': 6063": "erro 6063: na curva da pump.fun = cotada em outra moeda (não SOL); na PumpSwap = pool sem reserva suficiente",
                    "0x17af": "erro 6063: na curva da pump.fun = cotada em outra moeda (não SOL); na PumpSwap = pool sem reserva suficiente"}
 
@@ -4721,7 +4726,8 @@ class PumpReal:
     def retryable(reason) -> bool:
         """Vale tentar outro caminho? (curva completa, rota errada, slippage)"""
         r = str(reason or "")
-        return any(c in r for c in ("0x1775", "0x1774", "0x1772", "0x1773", "0x1771", "HTTP 400", "HTTP 500"))
+        return any(c in r for c in ("0x1775", "0x1774", "0x1772", "0x1773", "0x1771", "HTTP 400", "HTTP 500",
+                                    "'Custom': 6005}", "'Custom': 6004}", "'Custom': 6002}", "'Custom': 6003}"))
 
     @staticmethod
     def other_quote(reason) -> bool:

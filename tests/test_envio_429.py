@@ -38,3 +38,11 @@ def test_send_does_not_repeat_when_the_network_rejects_the_transaction():
     with pytest.raises(RuntimeError):
         asyncio.run(r._send_raw("tx", {}))
     assert len(calls) == 1
+
+
+def test_simulation_6005_in_decimal_tries_pumpswap_and_jupiter():
+    """PIO (30/10 22:47): {'Custom': 6005} = curva completou; antes a compra parava na 1ª rota por o código vir em decimal."""
+    why = "transação recusada pela simulação: a simulação falhou: {'InstructionError': [3, {'Custom': 6005}]}"
+    assert PumpReal.retryable(why)
+    assert "graduou" in PumpReal.explain(why)
+    assert not PumpReal.retryable("{'InstructionError': [3, {'Custom': 6063}]}")

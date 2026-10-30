@@ -1250,6 +1250,11 @@
    "versao": "0.32.98",
    "inicio": "2026-10-30T21:31:24+00:00",
    "titulo": "REAL: envio tenta de novo quando o RPC responde 429"
+  },
+  {
+   "versao": "0.32.99",
+   "inicio": "2026-10-30T21:49:22+00:00",
+   "titulo": "REAL: curva completa (erro 6005) tenta PumpSwap e Jupiter"
   }
  ]
 }
