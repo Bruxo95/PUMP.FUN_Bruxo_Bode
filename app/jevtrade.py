@@ -42,6 +42,36 @@ STRAT = {"cresc_pct": 0.0, "janela_min": 2.0, "prazo_min": WATCH_MAX_MIN, "stop_
          "parcial_em": 100.0, "parcial_frac": 0.5, "trail_apos": 30.0, "trail_pct": 25.0, "saida_detentores_pct": 15.0}
 KEEP_S = 7 * 86400
 
+# 0.32.102 (dono, 31/10): os filtros viram opções da tela (pump_jt_*). A simulação é uma só para todos: vale o último valor
+# que um admin salvou (hub.jt_cfg). Sem ninguém ter mexido, ficam exatamente os valores acima.
+CFG_KEYS = {"pump_jt_min_holders": "min_holders", "pump_jt_age_min": "age_min", "pump_jt_age_max": "age_max",
+            "pump_jt_janela_min": "janela_min", "pump_jt_cresc_pct": "cresc_pct", "pump_jt_prazo_min": "prazo_min",
+            "pump_jt_stop_pct": "stop_pct", "pump_jt_empate_pct": "empate_apos", "pump_jt_parcial_pct": "parcial_em",
+            "pump_jt_parcial_frac": "parcial_frac", "pump_jt_trail_apos": "trail_apos", "pump_jt_trail_pct": "trail_pct",
+            "pump_jt_saida_det_pct": "saida_detentores_pct"}
+DEFAULTS = {"min_holders": MIN_HOLDERS, "age_min": SCAN_MIN_AGE_MIN, "age_max": SCAN_MAX_AGE_MIN, **STRAT,
+            "parcial_frac": STRAT["parcial_frac"] * 100}
+
+
+def current_cfg() -> dict:
+    return {"min_holders": MIN_HOLDERS, "age_min": SCAN_MIN_AGE_MIN, "age_max": SCAN_MAX_AGE_MIN, **STRAT,
+            "parcial_frac": round(STRAT["parcial_frac"] * 100, 1)}
+
+
+def apply_cfg(c: dict | None) -> dict:
+    """Aplica os filtros (nomes de DEFAULTS; o que faltar volta ao padrão). Devolve os valores em uso."""
+    global MIN_HOLDERS, SCAN_MIN_AGE_MIN, SCAN_MAX_AGE_MIN, WATCH_MAX_MIN
+    v = {**DEFAULTS, **{k: x for k, x in (c or {}).items() if x is not None}}
+    MIN_HOLDERS = int(v["min_holders"])
+    SCAN_MIN_AGE_MIN = float(v["age_min"])
+    SCAN_MAX_AGE_MIN = max(SCAN_MIN_AGE_MIN, float(v["age_max"]))
+    WATCH_MAX_MIN = float(v["prazo_min"])
+    STRAT.update(cresc_pct=float(v["cresc_pct"]), janela_min=float(v["janela_min"]), prazo_min=WATCH_MAX_MIN,
+                 stop_pct=float(v["stop_pct"]), empate_apos=float(v["empate_apos"]), parcial_em=float(v["parcial_em"]),
+                 parcial_frac=float(v["parcial_frac"]) / 100, trail_apos=float(v["trail_apos"]),
+                 trail_pct=float(v["trail_pct"]), saida_detentores_pct=float(v["saida_detentores_pct"]))
+    return current_cfg()
+
 STOPS_IN = {"perda_15": -15.0, "perda_20": -20.0, "perda_30": -30.0, "perda_40": -40.0, "perda_50": -50.0}
 STOPS_OUT = {"empate": 0.0, "lucro_20": 20.0, "lucro_50": 50.0, "lucro_100": 100.0}
 SELLS = {"vender_25": 0.25, "vender_50": 0.5, "vender_tudo": 1.0}
@@ -298,7 +328,7 @@ class JevTrade:
         pxp = round((px / H[0]["px"] - 1) * 100, 1)
         hp = round((h_now / H[0]["h"] - 1) * 100, 1) if H[0]["h"] else 0.0
         return {"ok": pxp > 0 and h_now > H[0]["h"], "px_pct": pxp, "h_pct": hp,
-                "motivo": f"fechamento dos {WATCH_MAX_MIN} min: preço {pxp:+.0f}% e detentores {H[0]['h']} → {h_now} ({hp:+.0f}%) desde a 1ª leitura"}
+                "motivo": f"fechamento dos {WATCH_MAX_MIN:g} min: preço {pxp:+.0f}% e detentores {H[0]['h']} → {h_now} ({hp:+.0f}%) desde a 1ª leitura"}
 
     def _enter(self, it: dict, px: float, now: float, por: str, st: float, out: dict | None = None) -> str:
         if len(self.open()) >= MAX_OPEN:
@@ -415,7 +445,7 @@ class JevTrade:
             mp = self.market_positive(it["hist"], px)       # 0.32.93: no fechamento dos 7 min, mercado positivo = entra
             it["fechamento"] = mp
             if not (mp["ok"] and self._enter(it, px, now, mp["motivo"], it.get("jev_stop") or -STRAT["stop_pct"]) == "entrar"):
-                self.discard(it, f"não entrou em {WATCH_MAX_MIN} min (" + ("mercado positivo, mas sem vaga" if mp["ok"] else "mercado não ficou positivo") + ")", now)
+                self.discard(it, f"não entrou em {WATCH_MAX_MIN:g} min (" + ("mercado positivo, mas sem vaga" if mp["ok"] else "mercado não ficou positivo") + ")", now)
         elif it["estado"] == "aberta":
             if px:
                 pct = pct_of(it, px)

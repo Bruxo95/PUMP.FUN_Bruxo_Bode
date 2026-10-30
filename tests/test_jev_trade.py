@@ -417,3 +417,32 @@ def test_real_button_starts_off_and_sends_both_when_on(tmp_path):
     pf.cfg.pump_jt_real = True
     hub._jt_wallet("abriu", it, 1e-6, T0, 1.0, "regra")
     assert seen == ["sim", "both"] and "REAL: enviando" in it["carteiras"]["u1"]
+
+
+def test_filters_come_from_the_screen_and_default_to_the_old_rule(tmp_path):
+    """0.32.102 (dono, 31/10): filtros do Jev Trade na tela, já preenchidos com a regra que valia."""
+    from app import jevtrade
+    from app.hub import PumpHub
+    from app.settings import USER_KEYS
+    from tests.test_pump import _pump
+    assert USER_KEYS["pump_jt_min_holders"][1] == jevtrade.DEFAULTS["min_holders"] == 40
+    assert USER_KEYS["pump_jt_prazo_min"][1] == 7 and USER_KEYS["pump_jt_stop_pct"][1] == 25 and USER_KEYS["pump_jt_cresc_pct"][1] == 0
+    pf = _pump(tmp_path, paid=False)
+    pf.role, pf.user_id = "admin", "u1"
+    hub = PumpHub.__new__(PumpHub)
+    hub.engines = {"u1": pf}
+    c = hub.jt_cfg()
+    assert c == {"_de": {}}                                      # ninguém mudou: padrão
+    pf.cfg.apply({"pump_jt_min_holders": 60, "pump_jt_stop_pct": 20})
+    pf._ov_user = {"pump_jt_min_holders": "2026-10-31T00:00:00", "pump_jt_stop_pct": "2026-10-31T00:00:01"}
+    c = hub.jt_cfg()
+    assert c["min_holders"] == 60 and c["stop_pct"] == 20 and c["_de"]["min_holders"] == "u1"
+    try:
+        c.pop("_de")
+        used = jevtrade.apply_cfg(c)
+        assert jevtrade.MIN_HOLDERS == 60 and jevtrade.STRAT["stop_pct"] == 20 and used["prazo_min"] == 7
+        it = JevTrade().on_checked(_live()[M], 55, T0)               # 55 < 60: não entra mais na lista
+        assert it is None or it.get("estado") != "olhando"
+    finally:
+        jevtrade.apply_cfg({})
+    assert jevtrade.MIN_HOLDERS == 40 and jevtrade.STRAT["stop_pct"] == 25 and jevtrade.STRAT["parcial_frac"] == 0.5

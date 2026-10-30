@@ -1424,3 +1424,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.101 (BALLOON/MLC, 30/10 23:14): `_send_confirm` conferia a cada 0,25 s e reenviava a cada 1 s no RPC da carteira → 429 → confirmação só após o
   blockhash vencer (~172 s). Agora 0,5 s, reserva no `SOL_HTTP`, reenvio a cada 2 s; `reconcile`/`_sol_change` com `_rpc_retry` (sem isso o gasto
   caía na diferença de saldo e misturava compras simultâneas). `pos_cfg` leva `origem` (card mostrava "Botão comprar"). Teste em `tests/test_envio_429.py`.
+- 0.32.102 (pedido do dono, 31/10): filtros do Jev Trade na tela — 13 opções `pump_jt_*` (padrão = regra que valia) → `hub.jt_cfg` (por opção, o admin
+  que mudou por último em `_ov_user`) → `jevtrade.apply_cfg` (globais `MIN_HOLDERS`, `SCAN_*_AGE_MIN`, `WATCH_MAX_MIN` e `STRAT`) a cada `jt_tick` e
+  no `jt_state` (`filtros` com `_de`). Cartão `#jtf_*` + `#jtFReset` + `#jtFNow`; `#jtWSub` dinâmico. Teste em `tests/test_jev_trade.py`.

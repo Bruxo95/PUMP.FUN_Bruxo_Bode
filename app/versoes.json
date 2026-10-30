@@ -1265,6 +1265,11 @@
    "versao": "0.32.101",
    "inicio": "2026-10-30T22:16:21+00:00",
    "titulo": "REAL: confirmação sem atraso e valor certo quando o RPC está no limite"
+  },
+  {
+   "versao": "0.32.102",
+   "inicio": "2026-10-30T23:06:44+00:00",
+   "titulo": "Jev Trade: filtros na tela (detentores mínimos e outros), já com o padrão"
   }
  ]
 }

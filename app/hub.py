@@ -1051,6 +1051,23 @@ class PumpHub:
                 await svc._fetch_prices(list(dict.fromkeys(rest))[:90])
 
     # ---------------------------------------------------------------- 0.32.87: Jev Trade (simulação, nunca compra de verdade)
+    def jt_cfg(self) -> dict:
+        """0.32.102: filtros do Jev Trade. A simulação é uma só: para cada opção vale o valor do admin que a mudou por último
+        na tela (`_ov_user`); se nenhum mudou, o padrão. Devolve {nome do filtro: valor} + `_de` (quem definiu cada um)."""
+        out, de = {}, {}
+        for key, name in jevtrade.CFG_KEYS.items():
+            best = None
+            for e in getattr(self, "engines", {}).values():
+                if getattr(e, "role", "user") != "admin":
+                    continue
+                when = (getattr(e, "_ov_user", None) or {}).get(key)
+                if when and (best is None or str(when) > best[0]):
+                    best = (str(when), getattr(e.cfg, key, None), getattr(e, "user_id", ""))
+            if best and best[1] is not None:
+                out[name], de[name] = best[1], best[2]
+        out["_de"] = de
+        return out
+
     def jt_wanted(self) -> bool:
         if not self.system_keys.get("jev_api_key"):
             return False
@@ -1180,6 +1197,12 @@ class PumpHub:
     async def jt_tick(self, now: float | None = None) -> None:
         now = time.time() if now is None else now
         jt = self.jt
+        try:
+            c = self.jt_cfg()
+            c.pop("_de", None)
+            jevtrade.apply_cfg(c)
+        except Exception as e:
+            log.warning("jev trade: filtros: %s", str(e)[:120])
         ativos = jt.active()
         try:
             self._jt_wallet_sync()
@@ -1231,12 +1254,16 @@ class PumpHub:
         px = lambda x: (self.market.tokens.get(x["mint"]) or {}).get("price")
         L = sorted(jt.items.values(), key=lambda x: -(x.get("fechou_t") or x["t"]))
         since = now - hours * 3600 if hours else 0
+        cfg = self.jt_cfg()
+        de = {k: ("você" if v == getattr(pf, "user_id", None) else "outro admin") for k, v in cfg.pop("_de", {}).items()}
+        filtros = {**jevtrade.apply_cfg(cfg), "_de": de}
         return {"ligado": bool(getattr(pf.cfg, "pump_jt_on", True)), "chave": bool(self.system_keys.get("jev_api_key")),
                 "ativo": self.jt_wanted(), "rpc_falhou": now < jt.rpc_off_until, "hoje": dict(jt.day(now)),
                 "limites": {"leituras": jevtrade.READS_DAY, "jev": jevtrade.JEV_DAY, "por_hora": jevtrade.SCAN_HOUR, "min_detentores": jevtrade.MIN_HOLDERS,
                             "max_abertas": jevtrade.MAX_OPEN, "sol": jevtrade.SOL},
                 "estudo": jt.study(hours, now), "abertas": [jt.row(x, px(x), now) for x in jt.open()], "olhando": [jt.row(x, px(x), now) for x in jt.watching()],
-                "estrategia": jevtrade.STRAT, "regra_passado": jevtrade.backtest_rule(
+                "estrategia": jevtrade.STRAT, "filtros": filtros,
+                "regra_passado": jevtrade.backtest_rule(
                     [dict(x, fonte="Jev Trade") for x in L if x["t"] >= since] +
                     [b for b in (jevtrade.from_bruxo_signal(sg) for sg in (self.bruxo.recent(hours or 24 * 30, now) if getattr(self, "bruxo", None) else [])) if b]),
                 "fechadas": [jt.row(x) for x in L if x["estado"] not in ("olhando", "aberta") and x["t"] >= since][:200], "ignorados": jt.ignorados}

@@ -77,7 +77,21 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bx_grad_exit": (float, 0.0, 0.0, 100.0),        # 0.32.59: vende tudo com a curva em X% (antes de graduar; 0 = não usa)
     "pump_jt_wallet": (bool, True, 0, 1),                 # 0.32.93: cada entrada do Jev Trade vai também para a carteira FICTÍCIA
     "pump_jt_wallet_max": (int, 10, 1, 50),
-    "pump_jt_real": (bool, False, 0, 1),                  # 0.32.97: entradas do Jev Trade também na REAL (começa desligado; o dono liga)
+    "pump_jt_real": (bool, False, 0, 1),
+    # 0.32.102 (dono, 31/10): filtros do Jev Trade editáveis na tela; padrão = a regra que estava valendo
+    "pump_jt_min_holders": (int, 40, 5, 5000),            # detentores mínimos na 1ª conferência
+    "pump_jt_age_min": (float, 5.0, 1.0, 60.0),           # confere o token a partir de X min de vida…
+    "pump_jt_age_max": (float, 8.0, 1.0, 120.0),          # …até Y min
+    "pump_jt_janela_min": (float, 2.0, 1.0, 10.0),        # janela da regra (detentores subindo em cada leitura)
+    "pump_jt_cresc_pct": (float, 0.0, 0.0, 500.0),        # alta mínima de detentores na janela (0 = qualquer alta)
+    "pump_jt_prazo_min": (float, 7.0, 2.0, 30.0),         # prazo na lista (fechamento)
+    "pump_jt_stop_pct": (float, 25.0, 1.0, 90.0),         # stop de perda (quando o Jev não escolhe outro)
+    "pump_jt_empate_pct": (float, 50.0, 1.0, 1000.0),     # depois de +X% o stop vai para 0%
+    "pump_jt_parcial_pct": (float, 100.0, 1.0, 5000.0),   # vende parte em +X%
+    "pump_jt_parcial_frac": (float, 50.0, 5.0, 100.0),    # quanto vende (%)
+    "pump_jt_trail_apos": (float, 30.0, 1.0, 1000.0),     # stop móvel liga em +X%
+    "pump_jt_trail_pct": (float, 25.0, 1.0, 90.0),        # sai se cair X% do pico
+    "pump_jt_saida_det_pct": (float, 15.0, 1.0, 90.0),    # sai se os detentores caírem X% do maior número desde a entrada                  # 0.32.97: entradas do Jev Trade também na REAL (começa desligado; o dono liga)
     "pump_jt_on": (bool, True, 0, 1),                     # 0.32.87: Jev Trade: o Jev decide entrada e saída em simulação
     "pump_jev_on": (bool, True, 0, 1),                    # 0.32.83: Jev (TypeSafe AI) opina em cada sinal da Aba do Bruxo (só sombra)
     "pump_lanc_on": (bool, False, 0, 1),                  # 0.32.59: estuda o lançamento sem trader (só mede, nunca compra)

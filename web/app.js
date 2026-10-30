@@ -1232,12 +1232,18 @@
     const D = r.hoje || {}, E = r.estudo || {}, Lm = r.limites || {}, I = E.igual || {}, T = E.todos || {};
     $("jtSub").textContent = !r.chave ? "sem a chave do Jev: nada é chamado (Administração → Chaves do sistema)" : r.rpc_falhou ? "o RPC não contou detentores: configure o RPC próprio em Administração → Chaves do sistema" :
       !r.ativo ? "desligado" : "ligado · só simulação · " + (D.leituras || 0) + " de " + (Lm.leituras || 0) + " leituras de detentores hoje · " + (D.calls || 0) + " perguntas ao Jev" + (D.erros ? " · " + D.erros + " erros" : "");
-    kpis("jtK", [["Hoje", (D.com_40 || 0) + " com 40+", (D.conferidos || 0) + " conferidos · " + (D.abaixo || 0) + " abaixo · " + (D.parados || 0) + " parados", "tr"],
+    kpis("jtK", [["Hoje", (D.com_40 || 0) + " com " + (Lm.min_detentores || 40) + "+", (D.conferidos || 0) + " conferidos · " + (D.abaixo || 0) + " abaixo · " + (D.parados || 0) + " parados", "tr"],
       ["Resultado do Jev", sg(E.sol || 0), (E.fechadas || 0) + " fechadas · média " + (E.media_pct == null ? "–" : pc(E.media_pct)), "pnl"],
       ["Acerto", E.acerto == null ? "–" : E.acerto + "%", "fator " + (E.fator == null ? "–" : f(E.fator, 2)) + (E.suspeitos ? " · " + E.suspeitos + " preço suspeito" : ""), "hit"],
       ["Régua fixa, mesmas entradas", sg(I.sol || 0), (I.n || 0) + " medidas · média " + (I.media_pct == null ? "–" : pc(I.media_pct)), "mon"],
       ["Régua fixa, todos os 40+", sg(T.sol || 0), (T.n || 0) + " medidos · média " + (T.media_pct == null ? "–" : pc(T.media_pct)), "mon"]]);
     $("jtL").textContent = E.leitura || "";
+    const FL = r.filtros || {}, DE = FL._de || {};
+    if (FL.min_holders != null) {
+      $("jtWSub").textContent = FL.min_holders + "+ detentores (conferido de " + f(FL.age_min, 1) + " a " + f(FL.age_max, 1) + " min de vida) · leitura a cada minuto · entra se os detentores sobem em cada leitura por " + f(FL.janela_min, 0) + " min" + (FL.cresc_pct > 0 ? " e somam +" + f(FL.cresc_pct, 0) + "%" : " (qualquer alta)") + ", com o preço positivo · prazo de " + f(FL.prazo_min, 0) + " min";
+      const quem = Object.keys(DE).length ? " · alterado por: " + Object.entries(DE).map((e) => e[0].replace(/_/g, " ") + " (" + e[1] + ")").join(", ") : " · padrão (ninguém mudou)";
+      $("jtFNow").textContent = "Em uso agora: " + FL.min_holders + "+ detentores, " + f(FL.age_min, 1) + "–" + f(FL.age_max, 1) + " min de vida, janela " + f(FL.janela_min, 0) + " min, alta mínima " + (FL.cresc_pct > 0 ? "+" + f(FL.cresc_pct, 0) + "%" : "qualquer") + ", prazo " + f(FL.prazo_min, 0) + " min · stop −" + f(FL.stop_pct, 0) + "%, empate após +" + f(FL.empate_apos, 0) + "%, vende " + f(FL.parcial_frac, 0) + "% em +" + f(FL.parcial_em, 0) + "%, stop móvel após +" + f(FL.trail_apos, 0) + "% (−" + f(FL.trail_pct, 0) + "% do pico), detentores −" + f(FL.saida_detentores_pct, 0) + "%" + quem;
+    }
     $("jtC").innerHTML = jvChart({ jev: (E.curva || {}).jev, regra: (E.curva || {}).igual });
     const RP = r.regra_passado || {};
     kpis("jtRK", [["Tokens com leituras", String((RP.analisados || 0)), (RP.sem_leituras || 0) + " com uma leitura só · Jev Trade + sinais da Aba do Bruxo com 40+", "mon"],
@@ -2416,6 +2422,12 @@
     if (t.id === "sysMX") { $("sysM").hidden = true; SYS_SUB = null; return; }
     // 0.32.19: Configuração do Trader
     if (t.id === "tcSave") { await poll(true); toast("Configurações gravadas (cada campo já grava ao mudar)."); return; }
+    if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão
+      setCfg({ pump_jt_min_holders: 40, pump_jt_age_min: 5, pump_jt_age_max: 8, pump_jt_janela_min: 2, pump_jt_cresc_pct: 0, pump_jt_prazo_min: 7,
+        pump_jt_stop_pct: 25, pump_jt_empate_pct: 50, pump_jt_parcial_pct: 100, pump_jt_parcial_frac: 50, pump_jt_trail_apos: 30,
+        pump_jt_trail_pct: 25, pump_jt_saida_det_pct: 15 }).then(() => { if (VIEW === "jevtrade") loadJt(); });
+      return;
+    }
     if (t.id === "tcReset") {
       if (!confirm("Restaurar os Padrões Pump.fun na SUA conta?\n\nCompra 0,1 SOL (fictícia e REAL), slippage real 15%, priority 0,005 SOL, stop −25%, stop móvel em +30% saindo 15 pontos abaixo do pico, stop por tempo 180 s, 1º alvo +100% vende 50%, 2º alvo +300% vende 25% (moonbag 25%), sair quando o dev vende, market cap máximo 100 SOL e curva de 0% a 85%.\n\nA compra REAL passa a ser 0,1 SOL.")) return;
       setCfg({ pump_copy_sol: 0.1, pump_real_max_sol: 0.1, pump_real_slippage_pct: 15, pump_priority_sol: 0.005, pump_real_jito_tip_sol: 0.001,

@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-10-30",
+    "generated_date": "2026-10-31",
     "timezone": "Europe/Dublin",
-    "repository_reference": "1a66b29ec9f7aea4302c9700c9d9862c8544d677",
-    "application_version": "0.32.101 · 2026-10-30 · REAL: confirmação sem atraso e valor certo quando o RPC está no limite",
+    "repository_reference": "001c3a1b0fbcd18f94ebf8c451933d7801d0c4f9",
+    "application_version": "0.32.102 · 2026-10-31 · Jev Trade: filtros na tela (detentores mínimos e outros), já com o padrão",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "8d101ce442529490213b00fc113ccc5f474cdb1bb344b5c69cabd30e20324a9f",
+      "app/version.py": "befd25ba66458099b018416e5fb4823f3f55b975d6e038acb3c2850a2b408c73",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "8a338e7123338a361109c4ce9440637cf56ea0b30af9f030a2608f6db83bc437",
+      "web/app.html": "f6c2b1244ab9012a69f221f38efb4d88ee771bd70fcbbca9fddc463a121784e8",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e6be14779561430b24b67491144484b590b7a590ae3954cfde8f6b1c81189ef8"
+  "pdf_sha256": "3ad7011cb359982909ca2381f43e89f192a9213f6b1b58cd53730ab6896b331d"
 }

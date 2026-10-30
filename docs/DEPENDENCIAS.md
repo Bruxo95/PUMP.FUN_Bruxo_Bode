@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
-Emissão: **2026-10-30**; revisão documental **2.0**.
-Aplicação: **0.32.101 · 2026-10-30 · REAL: confirmação sem atraso e valor certo quando o RPC está no limite**.
-Referência Git na emissão: `1a66b29ec9f7aea4302c9700c9d9862c8544d677`; fontes locais identificadas por SHA-256 no JSON.
+Emissão: **2026-10-31**; revisão documental **2.0**.
+Aplicação: **0.32.102 · 2026-10-31 · Jev Trade: filtros na tela (detentores mínimos e outros), já com o padrão**.
+Referência Git na emissão: `001c3a1b0fbcd18f94ebf8c451933d7801d0c4f9`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
