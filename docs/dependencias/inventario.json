@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-30",
     "timezone": "Europe/Dublin",
-    "repository_reference": "6ee249d392304825b58ecd9f75bc31ac4a4af524",
-    "application_version": "0.32.86 · 2026-10-30 · regra dos detentores do Bruxo medida na aba JEV",
+    "repository_reference": "9b16db49e88a54fc648de4ed7df152a559201086",
+    "application_version": "0.32.87 · 2026-10-30 · Jev Trade: o Jev decide entrada e saída em simulação",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "c010d9d80a3564e477b3c69f37a414ad764d89b9533c3d35482da2e505924db5",
+      "app/version.py": "c4647735567e77b0a6a84dbe199bcf21c951c88a38018e7c068685006fc6a8f0",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "a4f28f7aa176f08721540cb877cfcff5b06801a0286a59b89e6277fdd13939d3",
+      "web/app.html": "1ea4287f7b2fa734dfe993381d1daf6108b1514cbf63fae5a731ebec0bebd375",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "0184becd99edd34638a1c51c455976ba504bfa443bf56280328b04ae9c7d1688"
+  "pdf_sha256": "2a4ca9255b8f64d8fbcf569454d417fcaef8b86567bcaa7072406926d0d2488c"
 }

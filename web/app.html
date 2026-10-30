@@ -50,6 +50,7 @@
       <a href="#basegeral" id="navBaseG" hidden data-v="basegeral" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3z"/><path d="M15 4a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a3 3 0 0 1-3-3"/></svg>Base geral</a>
       <a href="#logs" id="navLogs" hidden data-v="logs" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Logs dos robôs</a>
       <a href="#bruxo" id="navBruxo" hidden data-v="bruxo" data-novo-ate="2026-11-12"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h-6l3-7z"/><path d="M5 21h14l-3-12H8L5 21z"/></svg>Aba do Bruxo</a>
+      <a href="#jevtrade" id="navJt" hidden data-v="jevtrade" data-novo-ate="2026-11-14"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Jev Trade</a>
       <a href="#jev" id="navJev" hidden data-v="jev" data-novo-ate="2026-11-13"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>JEV (sombra)</a>
       <a href="#calls" id="navCalls" hidden data-v="calls" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></svg>Calls e Radar</a>
       <div class="navgrp" id="navGrp" hidden>
@@ -148,6 +149,9 @@
       <div class="modal" id="saM" hidden role="dialog" aria-modal="true" aria-labelledby="saMT"><div class="modal-box">
         <header><div><h2 id="saMT">Carteira</h2><div class="sub" id="saMS"></div></div><div class="sp"></div><button class="btn sm" id="saMX">Fechar</button></header>
         <div id="saMB"></div></div></div>
+      <div class="modal" id="jtM" hidden role="dialog" aria-modal="true" aria-labelledby="jtMT"><div class="modal-box">
+        <header><div><h2 id="jtMT">Token</h2><div class="sub" id="jtMS"></div></div><div class="sp"></div><button class="btn sm" id="jtMX">Fechar</button></header>
+        <div id="jtMB"></div></div></div>
       <div class="modal" id="chaM" hidden role="dialog" aria-modal="true" aria-labelledby="chaMT"><div class="modal-box">
         <header><div><h2 id="chaMT">Chance alta</h2><div class="sub" id="chaMS"></div></div><div class="sp"></div><button class="btn sm" id="chaMX">Fechar</button></header>
         <div id="chaMB"></div></div></div>
@@ -1000,6 +1004,20 @@
 
       <!-- ========================================================= NOVIDADES (web/novidades.json) -->
       <!-- ========================================================= BASE GERAL (0.31.71, app/basegeral.py) -->
+      <section class="view" data-view="jevtrade" hidden>
+        <div class="card" data-novo-ate="2026-11-14"><header><div><h2>Jev Trade: o Jev faz o trade inteiro, em simulação</h2><div class="sub" id="jtSub">carregando…</div></div>
+            <div class="row" style="gap:8px;align-items:center"><span class="small">Jev Trade</span><button class="btn sm tgl sw" data-toggle="pump_jt_on" aria-label="Jev Trade em simulação">…</button></div></header>
+          <div class="help"><p><b>Como funciona:</b> todo token novo vivo é conferido aos 5 min. Com 40 detentores ou mais, ele entra na observação: a cada minuto o robô lê detentores, preço e volume e pergunta ao Jev se entra. Ele escolhe entrar, esperar ou desistir, e também o stop (de −15% a −50%).</p>
+            <p><b>Depois da entrada:</b> a cada minuto o Jev decide segurar, vender 25%, vender 50% ou sair, e pode subir o stop (empate, +20%, +50%, +100%). Ele nunca baixa o stop. Se os detentores caem 30% do pico, sai tudo, mesmo sem o Jev pedir. Tempo máximo: 60 min.</p>
+            <p><b>É simulação:</b> 0,1 SOL fictício por entrada, com 4% de taxas. Não usa carteira nenhuma e não aparece em Posições. Para saber se o Jev ajuda, as mesmas entradas rodam numa régua fixa (stop de −30%, saída aos 25 min).</p></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 12px"><span class="small">Período</span><select class="in" id="jtH" aria-label="Período"><option value="6">6 h</option><option value="24" selected>24 h</option><option value="72">3 dias</option><option value="168">7 dias</option></select><button type="button" class="btn sm" id="jtNow">Atualizar</button></div>
+          <div class="kpis" id="jtK"></div><p class="small" id="jtL"></p>
+          <div class="chartbox" id="jtC"></div><p class="small"><span class="up">Verde</span>: o Jev. <span style="color:var(--info)">Azul</span>: régua fixa nas mesmas entradas.</p></div>
+        <div class="card"><header><div><h2>Posições simuladas abertas</h2></div></header><div class="tablewrap"><table id="jtO" class="daytbl"></table></div></div>
+        <div class="card"><header><div><h2>Em observação</h2><div class="sub">40+ detentores · o Jev olha a cada minuto</div></div></header><div class="tablewrap"><table id="jtW" class="daytbl"></table></div></div>
+        <div class="card"><header><div><h2>Encerrados</h2><div class="sub">clique no token para ver cada leitura e decisão</div></div></header><div class="tablewrap"><table id="jtF" class="daytbl"></table></div></div>
+        <div class="card"><header><div><h2>Por que saiu</h2></div></header><div class="tablewrap"><table id="jtM2" class="daytbl"></table></div></div>
+      </section>
       <section class="view" data-view="jev" hidden>
         <div class="card" data-novo-ate="2026-11-13"><header><div><h2>JEV em modo sombra: o que ele decidiu em cada token</h2><div class="sub" id="jvSub">carregando…</div></div></header>
           <div class="help"><p><b>O que é:</b> o Jev (TypeSafe AI) é um modelo de decisão. Cada sinal da Aba do Bruxo (top trader comprou moeda nova) e cada lançamento estudado é mandado para ele com os números que o robô já mediu (idade, ritmo de compras, detentores, top 10, fatia do criador, SOL dos traders, valor de mercado). Ele responde <b>entrar / esperar / evitar</b>, com a chance de cada um, uma nota de 0 a 4 e a chance de ser armadilha.</p>

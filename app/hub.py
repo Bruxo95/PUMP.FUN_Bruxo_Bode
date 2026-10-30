@@ -14,7 +14,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from . import detentores, jev, stkeys
+from . import detentores, jev, jevtrade, stkeys
 from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
@@ -57,6 +57,7 @@ class PumpHub:
         from .bruxo import Bruxo
         self.bx_reports: dict[str, dict] = {}     # 0.32.80: relatórios da Aba do Bruxo por usuário {"30min": [...], "dia": [...]}
         self.bruxo = Bruxo()                      # 0.32.41: Aba do Bruxo (top trader em moeda nova)
+        self.jt = jevtrade.JevTrade()             # 0.32.87: Jev Trade (simulação; o Jev decide entrada e saída)
         self._bx_base: tuple[float, dict] = (0.0, {})
         self._ov_recent: dict[str, list] = {}       # 0.32.52: ajustes aplicados há pouco (reafirmados por 20 min)
         self.eq_reports: dict[str, list] = {}      # 0.32.73: relatórios de 6 h do Copiar igual, por usuário
@@ -777,8 +778,8 @@ class PumpHub:
         if not force and time.time() - last.get(tipo, 0) < 30:
             return
         last[tipo] = time.time()
-        if tipo == "ao_vivo":
-            st = getattr(self, "jev_stats", {}) or {}
+        if tipo in ("ao_vivo", "trade"):
+            st = self.jt.stats if tipo == "trade" else getattr(self, "jev_stats", {}) or {}
             dia, row = st.get("dia"), {"calls": st.get("calls", 0), "erros": st.get("erros", 0),
                                        "tokens_in": st.get("tokens_in", 0), "ms": st.get("ms", 0)}
         else:
@@ -809,6 +810,9 @@ class PumpHub:
             elif r.get("tipo") == "passado":
                 self._bt().update(dia=day, calls_dia=int(r.get("calls") or 0), erros_dia=int(r.get("erros") or 0),
                                   tokens_dia=int(r.get("tokens_in") or 0), ms_dia=int(r.get("ms") or 0))
+            elif r.get("tipo") == "trade":
+                self.jt.day(time.time()).update(calls=int(r.get("calls") or 0), erros=int(r.get("erros") or 0),
+                                                tokens_in=int(r.get("tokens_in") or 0), ms=int(r.get("ms") or 0))
 
     # ---------------------------------------------------------------- 0.32.84: Jev estuda os casos passados (backtest)
     def _bt(self) -> dict:
@@ -1007,16 +1011,7 @@ class PumpHub:
 
     async def bruxo_tick(self, now: float | None = None) -> int:
         now = time.time() if now is None else now
-        svc = getattr(self.monitor, "svc", None) if self.monitor else None
-        mints = self.bruxo.open_mints(now)
-        if mints and svc is not None:
-            for i in range(0, len(mints), 100):
-                chunk = mints[i:i + 100]
-                pump = [m for m in chunk if svc.is_pump(m)]
-                rest = await svc._curve_prices(pump, public_first=True) if pump else []
-                rest += [m for m in chunk if m not in pump]
-                if rest:
-                    await svc._fetch_prices(list(dict.fromkeys(rest))[:90])
+        await self._prices_for(self.bruxo.open_mints(now))
         self.bruxo_launch_scan(now)
         n = self.bruxo.tick(lambda m: (self.market.tokens.get(m) or {}).get("price"), now)
         for s, k in self.bruxo.holders_due(now):              # 0.32.82: detentores no sinal e aos 1/5/10/25 min
@@ -1041,6 +1036,139 @@ class PumpHub:
                 break
         self.bruxo.trim(now)
         return n
+
+    async def _prices_for(self, mints: list[str]) -> None:
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        if not mints or svc is None:
+            return
+        for i in range(0, len(mints), 100):
+            chunk = mints[i:i + 100]
+            pump = [m for m in chunk if svc.is_pump(m)]
+            rest = await svc._curve_prices(pump, public_first=True) if pump else []
+            rest += [m for m in chunk if m not in pump]
+            if rest:
+                await svc._fetch_prices(list(dict.fromkeys(rest))[:90])
+
+    # ---------------------------------------------------------------- 0.32.87: Jev Trade (simulação, nunca compra de verdade)
+    def jt_wanted(self) -> bool:
+        if not self.system_keys.get("jev_api_key"):
+            return False
+        return any(getattr(e, "role", "user") == "admin" and getattr(e.cfg, "pump_jt_on", True) for e in self.engines.values())
+
+    async def _jt_jev(self, state: dict, questions: dict, now: float) -> dict | None:
+        jt, key = self.jt, self.system_keys.get("jev_api_key") or ""
+        if jt.jev_left(now) <= 0:
+            return None
+        st = jt.day(now)
+        st["calls"] += 1
+        for i in range(2):
+            try:
+                out = await jevtrade.ask(self.http, key, state, questions)
+                st["ms"] += int(out.get("ms") or 0)
+                st["tokens_in"] += int(out.get("tokens_in") or 0)
+                return out
+            except Exception as e:
+                msg = str(e)[:160].replace(key, "***") if key else str(e)[:160]
+                if i or not any(c in msg for c in ("429", "529")):
+                    st["erros"] += 1
+                    st["ultimo_erro"] = msg
+                    return None
+                await asyncio.sleep(2)
+        return None
+
+    async def _jt_scan(self, now: float) -> None:
+        """Tokens novos vivos aos 5 min: conta os detentores uma vez; 40+ entram na observação."""
+        jt, svc = self.jt, getattr(self.monitor, "svc", None) if self.monitor else None
+        for r in jt.candidates(self.lab.live, getattr(self.market, "blacklist", None), now)[:6]:
+            if not jt.can_scan(now):
+                break
+            jt.note_scan(now)
+            h = await self.holders_count(r["mint"])
+            it = jt.on_checked(r, h, now, (self.market.creator_stats or {}).get(r.get("creator") or ""))
+            if it is not None and svc is not None:
+                try:
+                    await asyncio.wait_for(svc.holders_check(r["mint"]), timeout=3)      # top 10, uma vez por token
+                except Exception:
+                    pass
+
+    async def _jt_read(self, it: dict, now: float) -> None:
+        jt = self.jt
+        aberta = it["estado"] == "aberta"
+        d = jt.day(now)
+        h = None
+        if aberta and d["leituras"] < jevtrade.READS_DAY or d["leituras"] < jevtrade.READS_DAY * jevtrade.WATCH_SHARE:
+            d["leituras"] += 1
+            h = await self.holders_count(it["mint"])
+        tk = self.market.tokens.get(it["mint"]) or {}
+        jt.add_read(it, h, tk.get("price"), tk.get("mcap_sol"), now)
+        if jt.holders_fell(it):
+            if aberta and tk.get("price"):
+                jt.sell(it, 1.0, tk["price"], now, f"detentores caíram {jevtrade.HOLD_DROP_PCT:g}% do pico")
+            elif not aberta:
+                jt.discard(it, f"detentores caíram {jevtrade.HOLD_DROP_PCT:g}% do pico", now)
+            return
+        out = await self._jt_jev(jevtrade.state_for(it, tk, now), jevtrade.Q_OUT if aberta else jevtrade.Q_IN, now)
+        if out is None or it["estado"] not in ("olhando", "aberta"):
+            return
+        px = (self.market.tokens.get(it["mint"]) or {}).get("price")     # preço DEPOIS da resposta: é onde entraria de verdade
+        (jt.on_exit if it["estado"] == "aberta" else jt.on_entry)(it, out, px, now)
+
+    async def jt_tick(self, now: float | None = None) -> None:
+        now = time.time() if now is None else now
+        jt = self.jt
+        ativos = jt.active()
+        await self._prices_for([x["mint"] for x in ativos])
+        for it in ativos:
+            jt.on_price(it, (self.market.tokens.get(it["mint"]) or {}).get("price"), now)
+        if self.jt_wanted():
+            await self._jt_scan(now)
+            due = jt.read_due(now)
+            svc = getattr(self.monitor, "svc", None) if self.monitor else None
+            if due and svc is not None and now - self.__dict__.get("_jt_ds_t", 0) >= 60:     # volume, compras e vendas (DexScreener)
+                self._jt_ds_t = now
+                await svc._fetch_prices([x["mint"] for x in due][:90], set_price=False)
+            await asyncio.gather(*[self._jt_read(x, now) for x in due], return_exceptions=True)
+            await self._jev_usage_save("trade")
+        for k in list(jt.dirty)[:100]:
+            jt.dirty.discard(k)
+            it = jt.items.get(k)
+            if it is None:
+                continue
+            try:
+                await self.db.insert("jev_trades", {"id": k, "em": it["em"], "data": it}, upsert=True, on_conflict="id")
+            except Exception as e:
+                log.warning("jev trade não gravou: %s", str(e)[:120])
+                jt.dirty.add(k)
+                break
+        jt.trim(now)
+
+    async def jt_loop(self) -> None:
+        await asyncio.sleep(50)
+        while True:
+            try:
+                await self.jt_tick()
+            except Exception as e:
+                log.warning("jev trade: %s", str(e)[:160])
+            await asyncio.sleep(20)
+
+    async def load_jt(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - jevtrade.KEEP_S, timezone.utc).isoformat()
+            self.jt.load(await self.db.select("jev_trades", None, order="em.desc", limit=20000, gte={"em": since}), time.time())
+        except Exception as e:
+            log.warning("jev trade não carregou: %s", str(e)[:120])
+
+    def jt_state(self, pf: PumpFun, hours: float = 24) -> dict:
+        now, jt = time.time(), self.jt
+        px = lambda x: (self.market.tokens.get(x["mint"]) or {}).get("price")
+        L = sorted(jt.items.values(), key=lambda x: -(x.get("fechou_t") or x["t"]))
+        since = now - hours * 3600 if hours else 0
+        return {"ligado": bool(getattr(pf.cfg, "pump_jt_on", True)), "chave": bool(self.system_keys.get("jev_api_key")),
+                "ativo": self.jt_wanted(), "rpc_falhou": now < jt.rpc_off_until, "hoje": dict(jt.day(now)),
+                "limites": {"leituras": jevtrade.READS_DAY, "jev": jevtrade.JEV_DAY, "por_hora": jevtrade.SCAN_HOUR, "min_detentores": jevtrade.MIN_HOLDERS,
+                            "max_abertas": jevtrade.MAX_OPEN, "sol": jevtrade.SOL},
+                "estudo": jt.study(hours, now), "abertas": [jt.row(x, px(x)) for x in jt.open()], "olhando": [jt.row(x, px(x)) for x in jt.watching()],
+                "fechadas": [jt.row(x) for x in L if x["estado"] not in ("olhando", "aberta") and x["t"] >= since][:200], "ignorados": jt.ignorados}
 
     TOKEN_PROGRAMS = ("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")
 
@@ -3443,6 +3571,7 @@ class PumpHub:
         await self.load_shadows()
         await self.load_calls()
         await self.load_bruxo()
+        await self.load_jt()
         await self.jev_usage_load()
         await self.jev_bt_load()                                         # 0.32.84: estudo do passado do Jev
         for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
@@ -3467,6 +3596,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
         self._tasks.append(asyncio.create_task(self.bruxo_loop()))
+        self._tasks.append(asyncio.create_task(self.jt_loop()))             # 0.32.87: Jev Trade
         self._tasks.append(asyncio.create_task(self.bx_report_loop()))      # 0.32.80: relatórios da Aba do Bruxo (30 min e 1 dia)          # 0.32.41: Aba do Bruxo
         self._tasks.append(asyncio.create_task(self.tab_report_loop()))
         self._tasks.append(asyncio.create_task(self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)

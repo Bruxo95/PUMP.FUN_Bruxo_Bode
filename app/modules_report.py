@@ -36,7 +36,7 @@ def build(hub, pf, day: str, live: bool) -> list[dict]:
                _auto("elite", "Maiores traders (compra automática)"), _manual, _ghosts, _whatif, _options, _learning,
                _elite, _explore, _base, _radar, _blacklist,
                _origin_sec(("barrado", "barrado_btn"), "Explorar · barrados que subiram"), _origin_sec(("bruxo",), "Aba do Bruxo"),
-               _origin_sec(("calls",), "Calls quentes (compra automática)")):
+               _origin_sec(("calls",), "Calls quentes (compra automática)"), _jevtrade):
         try:
             sec = fn(hub, pf, day, T, live)
             if sec:
@@ -239,6 +239,16 @@ def _base(hub, pf, day, T, live):
                                      f"\"{b['sinal']}\" levou {b['up_pct']:.0f}% dos tokens a subir ({b['n']} tokens, média {ls.get('base_up_pct')}%): "
                                      "use esse sinal na nota da entrada / na compra automática da Base.", b["n"]))
     return sec
+
+
+def _jevtrade(hub, pf, day, T, live):
+    if not live or getattr(hub, "jt", None) is None:
+        return None
+    E = hub.jt.study(24, time.time())
+    if not E["olhados"]:
+        return None
+    return {"menu": "Jev Trade (simulação)", "linhas": [f"{E['olhados']} tokens com 40+ detentores · {E['entradas']} entradas · {E['fechadas']} fechadas · "
+                                                        f"{E['sol']:+.4f} SOL · {E['leitura']}"], "sugestoes": []}
 
 
 def _radar(hub, pf, day, T, live):

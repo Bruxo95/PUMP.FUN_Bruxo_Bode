@@ -1190,6 +1190,11 @@
    "versao": "0.32.86",
    "inicio": "2026-10-30T09:04:39+00:00",
    "titulo": "regra dos detentores do Bruxo medida na aba JEV"
+  },
+  {
+   "versao": "0.32.87",
+   "inicio": "2026-10-30T13:51:17+01:00",
+   "titulo": "Jev Trade: o Jev decide entrada e saída em simulação"
   }
  ]
 }

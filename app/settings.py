@@ -75,6 +75,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bx_max_hold_min": (float, 25.0, 1.0, 1440.0),   # tempo máximo (o Bruxo viu que dura uns 25 min)
     "pump_bx_curve_max": (float, 100.0, 1.0, 100.0),      # 0.32.59: só entra com a curva até X% (100 = não usa)
     "pump_bx_grad_exit": (float, 0.0, 0.0, 100.0),        # 0.32.59: vende tudo com a curva em X% (antes de graduar; 0 = não usa)
+    "pump_jt_on": (bool, True, 0, 1),                     # 0.32.87: Jev Trade: o Jev decide entrada e saída em simulação
     "pump_jev_on": (bool, True, 0, 1),                    # 0.32.83: Jev (TypeSafe AI) opina em cada sinal da Aba do Bruxo (só sombra)
     "pump_lanc_on": (bool, False, 0, 1),                  # 0.32.59: estuda o lançamento sem trader (só mede, nunca compra)
     "pump_bx_follow_sell": (bool, True, 0, 1),            # sai quando o top trader do sinal vende

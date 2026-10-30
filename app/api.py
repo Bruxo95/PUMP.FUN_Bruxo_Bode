@@ -1168,6 +1168,18 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return hub.jev_state(pf, 0 if horas <= 0 else max(1.0, min(24 * 90, horas)), saida, fonte,
                              max(5, min(1000, hold_min)), max(0.0, min(500.0, hold_cresc)))
 
+    @app.get("/api/pump/jev-trade")
+    async def jev_trade(horas: float = 24, pf=Depends(admin_engine)):
+        """0.32.87: aba Jev Trade. Simulação: o Jev decide entrada e saída nos tokens novos com 40+ detentores. Nunca compra."""
+        return hub.jt_state(pf, 0 if horas <= 0 else max(1.0, min(24 * 7, horas)))
+
+    @app.get("/api/pump/jev-trade/{mint}")
+    async def jev_trade_token(mint: str, pf=Depends(admin_engine)):
+        it = hub.jt.items.get(mint)
+        if it is None:
+            raise HTTPException(404, "token não acompanhado")
+        return it
+
     @app.post("/api/pump/jev/passado")
     async def jev_past(body: dict, pf=Depends(admin_engine)):
         """0.32.84: liga/desliga o estudo do passado (o Jev analisa os casos guardados desde o início). Nunca compra."""
