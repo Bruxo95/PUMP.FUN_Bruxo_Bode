@@ -58,6 +58,7 @@ class PumpHub:
         self.bx_reports: dict[str, dict] = {}     # 0.32.80: relatórios da Aba do Bruxo por usuário {"30min": [...], "dia": [...]}
         self.bruxo = Bruxo()                      # 0.32.41: Aba do Bruxo (top trader em moeda nova)
         self.jt = jevtrade.JevTrade()             # 0.32.87: Jev Trade (simulação; o Jev decide entrada e saída)
+        self.jt.on_event = self._jt_wallet        # 0.32.93: entradas e vendas também na carteira FICTÍCIA de quem ligou
         self._bx_base: tuple[float, dict] = (0.0, {})
         self._ov_recent: dict[str, list] = {}       # 0.32.52: ajustes aplicados há pouco (reafirmados por 20 min)
         self.eq_reports: dict[str, list] = {}      # 0.32.73: relatórios de 6 h do Copiar igual, por usuário
@@ -1118,6 +1119,31 @@ class PumpHub:
             return
         px = (self.market.tokens.get(it["mint"]) or {}).get("price")     # preço DEPOIS da resposta: é onde entraria de verdade
         (jt.on_exit if it["estado"] == "aberta" else jt.bruxo_entry)(it, out, px, now)
+
+    JT_WALLET_RULES = {"stop_pct": 0.0, "tp_pct": 0.0, "trail_on": False, "boost_tp": None, "smart": False,
+                       "max_hold_s": (jevtrade.MAX_HOLD_MIN + 10) * 60}   # as saídas vêm do Jev Trade; isto só fecha se ele parar
+
+    def _jt_wallet(self, ev: str, it: dict, px: float | None, now: float, frac: float, why: str) -> None:
+        """0.32.93 (pedido do dono): o Jev Trade entrou → a mesma entrada vai para a carteira FICTÍCIA de cada admin com
+        "Também na carteira fictícia" ligado; cada venda do Jev Trade vende a mesma parte lá. Nunca vai para a REAL."""
+        for uid, pf in list(getattr(self, "engines", {}).items()):
+            if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_jt_wallet", True) or not hasattr(pf, "manual_buy"):
+                continue
+            try:
+                if ev == "abriu":
+                    tk = pf.tokens.setdefault(it["mint"], {})
+                    if px and not tk.get("price"):
+                        tk.update(price=px, last_t=now, symbol=it.get("symbol"))
+                    r = pf.manual_buy(it["mint"], t=now, auto="Jev Trade · " + why[:140], origem="jevtrade", target="sim",
+                                      amt_sol=jevtrade.SOL, pos_rules=dict(self.JT_WALLET_RULES))
+                    it.setdefault("carteiras", {})[uid] = (r or {}).get("sim") or (r or {}).get("error")
+                    self.jt.dirty.add(it["id"])
+                elif ev == "vendeu" and px:
+                    for p in pf.positions():
+                        if p.get("mint") == it["mint"] and not p.get("real") and p.get("origem") == "jevtrade" and not p.get("selling"):
+                            pf._sell(p, min(1.0, max(0.0, frac)), px, "Jev Trade · " + why[:120], now)
+            except Exception as e:
+                log.warning("jev trade → carteira fictícia: %s", str(e)[:120])
 
     async def jt_tick(self, now: float | None = None) -> None:
         now = time.time() if now is None else now

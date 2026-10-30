@@ -166,6 +166,7 @@ class JevTrade:
         self.hour = (0, 0)
         self.ignorados: list[dict] = []
         self.rpc_off_until = 0.0
+        self.on_event = None      # 0.32.93: o hub manda cada entrada e venda para a carteira fictícia de quem ligou
 
     # ------------------------------------------------------------------ orçamento do dia
     def day(self, now: float) -> dict:
@@ -263,21 +264,53 @@ class JevTrade:
     # ------------------------------------------------------------------ 0.32.91: regra do Bruxo
     @staticmethod
     def rule_check(hist: list[dict], cfg: dict | None = None) -> dict:
-        """Detentores e preço de agora contra os de ~2 min atrás (ou da 1ª leitura, se ainda não há 2 min).
-        Devolve {ok, cresc, px_pct, ref_m, motivo}."""
+        """Regra do Bruxo (0.32.93): nas leituras dos últimos ~2 min os detentores têm que SÓ SUBIR (cada leitura maior que a
+        anterior: parado ou caindo não vale), somar +20% ou mais, e o preço também subir. Devolve {ok, cresc, px_pct, motivo}."""
         S = cfg or STRAT
         H = [x for x in hist if x.get("h") is not None and x.get("px")]
         if len(H) < 2:
-            return {"ok": False, "cresc": None, "px_pct": None, "motivo": "esperando a 2ª leitura"}
+            return {"ok": False, "cresc": None, "px_pct": None, "subindo": None, "motivo": "esperando a 2ª leitura"}
         cur = H[-1]
-        olds = [x for x in H[:-1] if cur["m"] - x["m"] <= S["janela_min"] + 0.3]
-        ref = olds[0] if olds else H[-2]
+        W = [x for x in H if cur["m"] - x["m"] <= S["janela_min"] + 0.3]
+        if len(W) < 2:
+            W = H[-2:]
+        ref = W[0]
+        subindo = all(b["h"] > a["h"] for a, b in zip(W, W[1:]))
         cresc = round((cur["h"] / ref["h"] - 1) * 100, 1) if ref["h"] else None
         pxp = round((cur["px"] / ref["px"] - 1) * 100, 1)
-        ok = cresc is not None and cresc >= S["cresc_pct"] and pxp > 0
-        why = (f"detentores {ref['h']} → {cur['h']} ({cresc:+.0f}%) e preço {pxp:+.0f}% em {cur['m'] - ref['m']:.1f} min"
+        ok = subindo and cresc is not None and cresc >= S["cresc_pct"] and pxp > 0
+        seq = " → ".join(str(x["h"]) for x in W)
+        why = (f"detentores {seq} ({cresc:+.0f}%{'' if subindo else ', parou ou caiu no meio'}) e preço {pxp:+.0f}% em {cur['m'] - ref['m']:.1f} min"
                if cresc is not None else "sem contagem")
-        return {"ok": ok, "cresc": cresc, "px_pct": pxp, "ref_m": ref["m"], "motivo": why}
+        return {"ok": ok, "cresc": cresc, "px_pct": pxp, "subindo": subindo, "ref_m": ref["m"], "motivo": why}
+
+    @staticmethod
+    def market_positive(hist: list[dict], px: float | None) -> dict:
+        """Fechamento dos 7 min (0.32.93): mercado positivo = preço acima da 1ª leitura E detentores acima da 1ª leitura."""
+        H = [x for x in hist if x.get("h") is not None and x.get("px")]
+        if not H or not px:
+            return {"ok": False, "motivo": "sem leituras"}
+        h_now = H[-1]["h"]
+        pxp = round((px / H[0]["px"] - 1) * 100, 1)
+        hp = round((h_now / H[0]["h"] - 1) * 100, 1) if H[0]["h"] else 0.0
+        return {"ok": pxp > 0 and h_now > H[0]["h"], "px_pct": pxp, "h_pct": hp,
+                "motivo": f"fechamento dos {WATCH_MAX_MIN} min: preço {pxp:+.0f}% e detentores {H[0]['h']} → {h_now} ({hp:+.0f}%) desde a 1ª leitura"}
+
+    def _enter(self, it: dict, px: float, now: float, por: str, st: float, out: dict | None = None) -> str:
+        if len(self.open()) >= MAX_OPEN:
+            return "sem vaga"
+        out = out or {}
+        h = next((x["h"] for x in reversed(it["hist"]) if x.get("h") is not None), None)
+        it["entrada"] = {"t": now, "px": px, "h": h, "m": round((now - it["created_t"]) / 60, 1), "stop": st, "por": por,
+                         "jev": out.get("acao"), "qualidade": out.get("qualidade"), "armadilha": out.get("armadilha")}
+        it.update(estado="aberta", stop=st, peak=0.0, base_igual=_base_new(px, now), last_read=now, h_peak_in=h or 0)
+        self.dirty.add(it["id"])
+        if self.on_event:
+            try:
+                self.on_event("abriu", it, px, now, 1.0, por)
+            except Exception:
+                pass
+        return "entrar"
 
     def bruxo_entry(self, it: dict, out: dict | None, px: float | None, now: float) -> str:
         """Entrada pela regra do Bruxo. O Jev só opina (fica guardado e escolhe o stop); "desistir" não descarta mais."""
@@ -289,14 +322,9 @@ class JevTrade:
         self.dirty.add(it["id"])
         if not rc["ok"] or not px:
             return "esperando a regra"
-        if len(self.open()) >= MAX_OPEN:
-            return "sem vaga"
         st = STOPS_IN.get(out.get("stop") or "", -STRAT["stop_pct"])
-        h = next((x["h"] for x in reversed(it["hist"]) if x.get("h") is not None), None)
-        it["entrada"] = {"t": now, "px": px, "h": h, "m": round((now - it["created_t"]) / 60, 1), "stop": st, "por": "regra do Bruxo: " + rc["motivo"],
-                         "jev": out.get("acao"), "qualidade": out.get("qualidade"), "armadilha": out.get("armadilha")}
-        it.update(estado="aberta", stop=st, peak=0.0, base_igual=_base_new(px, now), last_read=now, h_peak_in=h or 0)
-        return "entrar"
+        it["jev_stop"] = st
+        return self._enter(it, px, now, "regra do Bruxo: " + rc["motivo"], st, out)
 
     def guard_exit(self, it: dict, px: float, now: float) -> bool:
         """Saída antes do dump, só com o preço: parcial em +100%, empate depois de +50%, stop móvel depois de +30%."""
@@ -360,6 +388,11 @@ class JevTrade:
         it["realizado"] += frac * pct
         it["left"] = round(it["left"] - frac, 4)
         it["vendas"].append({"t": now, "frac": round(frac, 3), "pct": round(pct, 1), "motivo": motivo})
+        if self.on_event:
+            try:
+                self.on_event("vendeu", it, px, now, frac_left, motivo)
+            except Exception:
+                pass
         if it["left"] < 0.02:
             it["left"] = 0.0
             self._close(it, motivo, now)
@@ -375,7 +408,10 @@ class JevTrade:
             _base_step(it.get("base_todos"), px, now)
             _base_step(it.get("base_igual"), px, now)
         if it["estado"] == "olhando" and now - it["t"] >= WATCH_MAX_MIN * 60:
-            self.discard(it, f"não entrou em {WATCH_MAX_MIN} min", now)
+            mp = self.market_positive(it["hist"], px)       # 0.32.93: no fechamento dos 7 min, mercado positivo = entra
+            it["fechamento"] = mp
+            if not (mp["ok"] and self._enter(it, px, now, mp["motivo"], it.get("jev_stop") or -STRAT["stop_pct"]) == "entrar"):
+                self.discard(it, f"não entrou em {WATCH_MAX_MIN} min (" + ("mercado positivo, mas sem vaga" if mp["ok"] else "mercado não ficou positivo") + ")", now)
         elif it["estado"] == "aberta":
             if px:
                 pct = pct_of(it, px)
@@ -484,6 +520,11 @@ def backtest_rule(items: list[dict]) -> dict:
             if JevTrade.rule_check(H[: i + 1])["ok"]:
                 k = i
                 break
+        if k is None:                                   # 0.32.93: fechamento dos 7 min com mercado positivo também entra
+            W = [i for i in range(len(H)) if H[i]["m"] - m0 <= S["prazo_min"] + 0.3]
+            j = W[-1] if W else None
+            if j and JevTrade.market_positive(H[: j + 1], H[j]["px"])["ok"] and H[j]["m"] - m0 >= S["prazo_min"] - 1.5:
+                k = j
         if k is None:
             out.append({"mint": it.get("mint"), "symbol": it.get("symbol"), "t": it.get("t"), "entrou": False, "fonte": it.get("fonte")})
             continue

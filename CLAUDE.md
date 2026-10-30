@@ -1401,3 +1401,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.92 (caso hunch): os Encerrados do Jev Trade mostravam `fechou_t` como "Hora" (parecia 13 min de atraso). `row` devolve `created_t`; tabelas
   `jtW`/`jtO`/`jtF` com Nasceu (`jtBorn`) e Na lista (`jtList`: entrou com X min de vida, saiu, tempo na lista). Conferido no banco: hunch nasceu
   20:32:29, entrou 20:38:04 (5,6 min, porta dos 5 min do Bruxo) e saiu 20:45:17 por "não entrou em 7 min" (detentores 77→84, só +9% em 2 min).
+- 0.32.93 (pedido do dono, caso hunch): `rule_check` exige detentores SÓ subindo nas leituras dos últimos ~2 min (`subindo`), +20% e preço subindo.
+  Fechamento dos 7 min: `market_positive` (preço e detentores acima da 1ª leitura) → `_enter` em `on_price`; senão descarta. `JevTrade.on_event`
+  → `hub._jt_wallet`: entrada vira `manual_buy(origem="jevtrade", target="sim", amt_sol=0,1, pos_rules=JT_WALLET_RULES)` na fictícia de cada admin
+  com `pump_jt_wallet` (padrão ON); vendas do Jev Trade vendem a mesma fração (`pf._sell`). `OWN_SLOTS["jevtrade"]` (`pump_jt_wallet_max` 10),
+  `ABA_ORIGEM["jevtrade"]`. Nunca REAL. `backtest_rule` também considera a entrada do fechamento. Relatório `app/relatorios_ia/2026-10-30-0.32.93.md`.

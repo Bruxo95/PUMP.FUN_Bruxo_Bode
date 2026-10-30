@@ -287,3 +287,55 @@ def test_row_has_birth_time_for_the_screen():
     j.on_price(it, 1.0, T0 + jevtrade.WATCH_MAX_MIN * 60)
     r = JevTrade.row(it)
     assert round((r["t"] - r["created_t"]) / 60, 1) == 5.6 and r["fechou_t"] - r["t"] == jevtrade.WATCH_MAX_MIN * 60
+
+
+def test_rule_needs_holders_only_rising_in_the_window():
+    """0.32.93: dentro dos 2 min os detentores não podem parar nem cair (77 → 84 → 81 → 73 → 84 não vale)."""
+    rc = JevTrade.rule_check
+    assert rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 55, "px": 1.1}, {"m": 7, "h": 61, "px": 1.2}])["ok"] is True
+    r = rc([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 60, "px": 1.1}, {"m": 7, "h": 60, "px": 1.2}, {"m": 7.5, "h": 62, "px": 1.3}])
+    assert r["ok"] is False and r["subindo"] is False                  # parou em 60
+    H = [{"m": 5.6, "h": 77, "px": 1.0}, {"m": 6.6, "h": 84, "px": 1.1}, {"m": 7.6, "h": 81, "px": 1.1}, {"m": 8.7, "h": 73, "px": 1.0},
+         {"m": 9.7, "h": 84, "px": 1.2}, {"m": 10.7, "h": 83, "px": 1.2}, {"m": 11.8, "h": 87, "px": 1.3}]
+    assert not any(rc(H[: i + 1])["ok"] for i in range(len(H)))        # caso hunch: nunca liga
+
+
+def test_closing_of_7_min_enters_when_market_is_positive():
+    j = JevTrade()
+    it = j.on_checked(_live()[M], 77, T0)
+    j.add_read(it, 77, 1.0, 60.0, T0)
+    j.add_read(it, 87, 1.3, 60.0, T0 + 6 * 60)
+    j.on_price(it, 1.3, T0 + jevtrade.WATCH_MAX_MIN * 60)
+    assert it["estado"] == "aberta" and it["entrada"]["por"].startswith("fechamento dos 7 min") and it["stop"] == -25
+    j2 = JevTrade()
+    it2 = j2.on_checked(_live()[M], 77, T0)
+    j2.add_read(it2, 77, 1.0, 60.0, T0)
+    j2.add_read(it2, 87, 0.9, 60.0, T0 + 6 * 60)                       # detentores subiram, preço caiu: não entra
+    j2.on_price(it2, 0.9, T0 + jevtrade.WATCH_MAX_MIN * 60)
+    assert it2["estado"] == "descartada" and "não ficou positivo" in it2["motivo"]
+
+
+def test_entries_and_sales_go_to_the_fictitious_wallet_never_real(tmp_path):
+    from app.hub import PumpHub
+    from tests.test_pump import _pump
+    pf = _pump(tmp_path, paid=False)
+    pf.role = "admin"
+    hub = PumpHub.__new__(PumpHub)
+    hub.engines = {"u1": pf}
+    hub.jt = JevTrade()
+    hub.jt.on_event = hub._jt_wallet
+    pf.tokens.setdefault(M, {}).update(price=1e-6, last_t=T0, symbol="JVT")
+    it = hub.jt.on_checked(_live()[M], 50, T0)
+    hub.jt.add_read(it, 50, 1e-6, 60.0, T0)
+    hub.jt.add_read(it, 61, 1.2e-6, 60.0, T0 + 60)
+    assert hub.jt.bruxo_entry(it, {"acao": "esperar"}, 1.2e-6, T0 + 60) == "entrar"
+    pos = [p for p in pf.positions() if p["mint"] == M]
+    assert len(pos) == 1 and pos[0]["origem"] == "jevtrade" and not pos[0]["real"] and pos[0]["stop_pct"] == 0.0
+    assert "comprou" in it["carteiras"]["u1"]
+    pf.tokens[M]["price"] = 2.4e-6
+    hub.jt.sell(it, 0.5, 2.4e-6, T0 + 120, "vendeu metade em +100%")
+    p = [p for p in pf.positions() if p["mint"] == M][0]
+    assert abs(p["tokens_left"] - p["tokens"] / 2) < p["tokens"] * 0.01
+    hub.jt.sell(it, 1.0, 2.4e-6, T0 + 180, "saiu")
+    assert [p for p in pf.positions() if p["mint"] == M] == []
+    assert any(t.get("origem") == "jevtrade" for t in pf.trades(50))
