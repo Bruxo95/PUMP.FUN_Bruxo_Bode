@@ -1260,6 +1260,11 @@
    "versao": "0.32.100",
    "inicio": "2026-10-30T22:01:09+00:00",
    "titulo": "REAL: simulação em lotes menores (Too many accounts; max 21)"
+  },
+  {
+   "versao": "0.32.101",
+   "inicio": "2026-10-30T22:16:21+00:00",
+   "titulo": "REAL: confirmação sem atraso e valor certo quando o RPC está no limite"
   }
  ]
 }

@@ -2966,6 +2966,7 @@ class PumpFun:
                                       "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t,
                                       "sim_id": (sim_pos or {}).get("id") if mirror and sim_pos else None,
                                       "pos_cfg": {**rules, "manual": True,
+                                                  **({"origem": origem} if origem else {}),   # 0.32.101: Jev Trade etc.
                                                   **({"auto": True, "origem": origem,
                                                       "auto_info": copy.deepcopy((sim_pos or {}).get("auto_info") or info or {})} if own_auto else {})}}))
                 self._feed(**base, action="REAL: comprando", reason="compra manual enviada para a fila real"
@@ -4549,16 +4550,28 @@ class PumpReal:
                                                  "preflightCommitment": "processed", "maxRetries": 3})
         except Exception as e:
             return None, "recusada", str(e)[:160]
-        for i in range(240):                     # 0.31.46: confere a cada 0,25 s (antes 0,75 s); reenvia a cada ~1 s
-            await asyncio.sleep(0.25)
+        # 0.32.101 (BALLOON/MLC, 30/10 23:08: 172 s para confirmar): conferir a cada 0,25 s e reenviar a cada 1 s no RPC da
+        # carteira estourava o limite dele (429) — as conferências falhavam e a compra só aparecia depois do blockhash vencer.
+        # Agora confere a cada 0,5 s; se o RPC da carteira recusar, confere no RPC público; reenvia a cada 2 s nos dois.
+        own = await self.wallet.safe_rpc_url()
+        pub = SOL_HTTP if own != SOL_HTTP else None
+        for i in range(120):
+            await asyncio.sleep(0.5)
             if i % 4 == 3:
+                for url in [own] + ([pub] if pub else []):
+                    try:
+                        await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 0}],
+                                        url=url)
+                    except Exception:
+                        pass
+            st = None
+            for url in [own] + ([pub] if pub else []):
                 try:
-                    await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 0}])
+                    st = (await self._rpc("getSignatureStatuses", [[sig]], url=url))["value"][0]
+                    break
                 except Exception:
-                    pass
-            try:
-                st = (await self._rpc("getSignatureStatuses", [[sig]]))["value"][0]
-            except Exception:
+                    continue
+            if st is None:
                 continue
             if st and st.get("err"):
                 return sig, "falhou", str(st["err"])[:120]
@@ -4596,7 +4609,7 @@ class PumpReal:
         t1 = time.monotonic()
         sig, st, err = await self._send_confirm(raw, simulated=bool(summary.get("needs_simulation")))
         if st == "pendente":                     # SEC-04: espera confirmar ou vencer antes de qualquer nova tentativa
-            st, err = await txguard.reconcile(self._rpc, sig, str(tx.message.recent_blockhash))
+            st, err = await txguard.reconcile(self._rpc_retry, sig, str(tx.message.recent_blockhash))
         # 0.31.51: quanto tempo levou cada parte (montar+conferir na PumpPortal × enviar+confirmar na blockchain)
         lat = {"montar_ms": round((t1 - t0) * 1000), "confirmar_ms": round((time.monotonic() - t1) * 1000)}
         return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada", "lat": lat}
@@ -4773,8 +4786,13 @@ class PumpReal:
         if not sig:
             return None
         try:
-            tx = await self._rpc("getTransaction", [sig, {"encoding": "json", "commitment": "confirmed",
-                                                          "maxSupportedTransactionVersion": 0}])
+            tx = None
+            for k in range(4):                         # 0.32.101: a transação recém-confirmada pode demorar a aparecer; RPC
+                tx = await self._rpc_retry("getTransaction", [sig, {"encoding": "json", "commitment": "confirmed",   # com
+                                                                    "maxSupportedTransactionVersion": 0}])           # reserva
+                if tx:
+                    break
+                await asyncio.sleep(1.0)
             meta = (tx or {}).get("meta") or {}
             keys = (((tx or {}).get("transaction") or {}).get("message") or {}).get("accountKeys") or []
             i = keys.index(self.wallet.address) if self.wallet.address in keys else 0

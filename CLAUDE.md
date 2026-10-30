@@ -1421,3 +1421,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `PumpReal.retryable`/`PUMP_ERRORS` agora reconhecem 6002–6005 em decimal → tenta PumpSwap e Jupiter. Teste em `tests/test_envio_429.py`.
 - 0.32.100 (venda LENNY, 30/10 23:00): o RPC passou a aceitar no máx. 21 contas por `simulateTransaction` e toda simulação da rota PumpPortal falhava.
   `PumpReal.SIM_BATCH` = 19 + a carteira; com "Too many accounts provided; max N" refaz os lotes com N − 1 e lembra. Teste em `tests/test_seguranca.py`.
+- 0.32.101 (BALLOON/MLC, 30/10 23:14): `_send_confirm` conferia a cada 0,25 s e reenviava a cada 1 s no RPC da carteira → 429 → confirmação só após o
+  blockhash vencer (~172 s). Agora 0,5 s, reserva no `SOL_HTTP`, reenvio a cada 2 s; `reconcile`/`_sol_change` com `_rpc_retry` (sem isso o gasto
+  caía na diferença de saldo e misturava compras simultâneas). `pos_cfg` leva `origem` (card mostrava "Botão comprar"). Teste em `tests/test_envio_429.py`.
