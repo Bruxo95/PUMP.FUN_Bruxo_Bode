@@ -14,7 +14,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from . import stkeys
+from . import jev, stkeys
 from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
@@ -700,7 +700,83 @@ class PumpHub:
             except Exception as ex:
                 why = f"erro: {str(ex)[:80]}"
             self.bruxo.decide(s, e.user_id, why)
+        self.jev_shadow(s, f)
         return s
+
+    # ---------------------------------------------------------------- 0.32.83: Jev em modo sombra (só opina, nunca compra)
+    def jev_wanted(self) -> bool:
+        if not self.system_keys.get("jev_api_key"):
+            return False
+        return any(getattr(e, "role", "user") == "admin" and getattr(e.cfg, "pump_jev_on", True) for e in self.engines.values())
+
+    def jev_shadow(self, s: dict, facts: dict | None = None) -> bool:
+        """Pergunta ao Jev em segundo plano (não atrasa o sinal nem a entrada). A resposta fica em s["jev"]."""
+        if s.get("jev") or not self.jev_wanted():
+            return False
+        st = self.__dict__.setdefault("jev_stats", {})
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        if st.get("dia") != day:
+            st.clear()
+            st.update(dia=day, calls=0, erros=0, ms=0, tokens_in=0, ultimo_erro=None)
+        if st["calls"] >= jev.DAY_MAX:
+            return False
+        st["calls"] += 1
+        s["jev"] = {"pendente": True}
+        extra = {"creator_tokens": ((facts or {}).get("creator") or {}).get("tokens") if isinstance((facts or {}).get("creator"), dict) else None,
+                 "graduated": (facts or {}).get("graduated")}
+        try:
+            asyncio.get_running_loop().create_task(self._jev_run(s, jev.state_for(s, extra)))
+        except RuntimeError:
+            s.pop("jev", None)
+            return False
+        return True
+
+    async def _jev_run(self, s: dict, state: dict) -> None:
+        st = self.jev_stats
+        key = self.system_keys.get("jev_api_key") or ""
+        out: dict = {}
+        for i in range(2):
+            try:
+                out = await jev.ask(self.http, key, state)
+                break
+            except Exception as e:
+                msg = str(e)[:160].replace(key, "***") if key else str(e)[:160]
+                out = {"erro": msg}
+                if not any(c in msg for c in ("429", "529")) or i:
+                    break
+                await asyncio.sleep(2)
+        out["em"] = time.time()
+        s["jev"] = out
+        if out.get("erro"):
+            st["erros"] = st.get("erros", 0) + 1
+            st["ultimo_erro"] = out["erro"]
+        else:
+            st["ms"] = st.get("ms", 0) + int(out.get("ms") or 0)
+            st["tokens_in"] = st.get("tokens_in", 0) + int(out.get("tokens_in") or 0)
+        self.bruxo.dirty.add(s["id"])
+
+    def jev_state(self, pf: PumpFun, hours: float = 24, exit_min: str = "10") -> dict:
+        now = time.time()
+        uid = pf.user_id
+        sigs = self.bruxo.recent(hours, now)
+        rows = []
+        for s in sigs:
+            j = s.get("jev")
+            if not j:
+                continue
+            d = (s.get("decisoes") or {}).get(uid)
+            s["entrou_regra"] = bool(d and d.get("entrou"))
+            rows.append({k: s.get(k) for k in ("id", "em", "t", "kind", "mint", "symbol", "names", "age_min", "created_t", "holders",
+                                                "filtros", "marks", "peak_pct", "peak_s", "low_pct", "hit100_s", "stop30_s", "done")}
+                        | {"jev": j, "entrou_regra": s["entrou_regra"], "res": jev.sim_result(s, exit_min)})
+        st = dict(getattr(self, "jev_stats", {}) or {})
+        if st.get("calls"):
+            ok = max(1, st["calls"] - st.get("erros", 0))
+            st["ms_medio"] = round(st.get("ms", 0) / ok)
+            st["custo_usd"] = round(st.get("tokens_in", 0) / 1e6 * 0.042, 5)
+        return {"chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
+                "ativo": self.jev_wanted(), "limite_dia": jev.DAY_MAX, "uso": st, "saida_min": exit_min,
+                "estudo": jev.study([s for s in sigs if s.get("jev")], exit_min), "linhas": rows[:500]}
 
     async def bruxo_tick(self, now: float | None = None) -> int:
         now = time.time() if now is None else now
@@ -822,6 +898,7 @@ class PumpHub:
                                        now, kind="lancamento")
             if new:
                 s["filtros"] = {k: f.get(k) for k in ("age_min", "flow", "flow_base", "mcap", "dev_pct")} | {"dev_buy": r.get("dev_buy")}
+                self.jev_shadow(s, f)
                 room -= 1
                 n += 1
         return n

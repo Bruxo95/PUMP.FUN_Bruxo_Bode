@@ -1347,3 +1347,19 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.82: Aba do Bruxo — sinal guarda `created_t` (nascimento = t − age_min; a idade da tela é a da compra, conferida com a DexScreener)
   e `holders` {0,1,5,10,25 min} via `Bruxo.holders_due` + `hub.holders_count` (RPC do sistema: Helius `getTokenAccounts` 1.000/página,
   senão `getProgramAccounts` nos 2 programas de token; cache 45 s; RPC público não conta). Tela: `bxAge`/`bxHold`. `tests/test_bruxo_detentores.py`.
+
+## TESTE: Jev (TypeSafe AI) em modo sombra (2026-10-30, versão 0.32.83) — aviso para o Douglas
+- Pedido do dono (Bruxo95): colocar a API do Jev direto aqui (não é o bot hermes-jev) e começar SÓ pela Aba do Bruxo, em sombra.
+  **O Jev não compra nem vende nada.** Ele só opina; a decisão fica no sinal e a aba JEV compara com o que o token fez.
+- Chave do SISTEMA `jev_api_key` (`keystore.SYSTEM_NAMES`/`KEY_LINKS`; Administração → Chaves do sistema, salva criptografada em
+  `app_secrets`). Sem chave = nenhuma chamada. Opção `pump_jev_on` (padrão ON, por admin; chama se algum admin tiver ligada).
+- `app/jev.py`: `QUESTIONS` (choice `acao` entrar/esperar/evitar, score `qualidade` 0–4, noul `armadilha`), `state_for(sinal)` (só números já
+  medidos: idade, ritmo × média, mcap, top10, criador, detentores, SOL dos traders), `ask` (POST https://api.typesafe.ai/v1/systemone,
+  modelo `jev-latest`, Bearer, 8 s; erro nunca mostra a chave), `sim_result`/`study` (acerto por decisão, calibração por faixa, curva em SOL
+  com 0,1 SOL por entrada, saída na marca 5/10/25 min ou no −30%, −4% de taxas).
+- `hub.jev_shadow(s, f)` no fim de `bruxo_on_trade` (sinal novo) e em `bruxo_launch_scan` (lançamento novo): tarefa em segundo plano,
+  1 pergunta por sinal, até `jev.DAY_MAX`=3000/dia (contadores `hub.jev_stats` só em memória), 1 nova tentativa em 429/529. Resultado em
+  `s["jev"]` → gravado junto com o sinal em `bruxo_signals` (sem migração nova). `hub.jev_state` + `GET /api/pump/jev?horas=&saida=` (admin).
+- Front: menu `#navJev` "JEV (sombra)" logo abaixo da Aba do Bruxo, tela `data-view="jev"` (`loadJev`, `jvChart` com 3 séries, tabelas
+  `#jvA`/`#jvB`/`#jvT`). Testes: `tests/test_jev.py`. **Não testado com a API real do Jev** (falta a chave; formato da resposta lido da doc).
+- Próximo passo só com OK do dono e depois de dias de dados na aba JEV: usar o Jev como filtro da Aba do Bruxo (ainda só fictícia).

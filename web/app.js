@@ -491,7 +491,7 @@
   // todas as telas. Em Configurações vira um quadro editável (os botões e campos são os mesmos data-toggle/data-cfg, então
   // salvar aqui é salvar lá); na Visão geral vira um resumo só de leitura, junto com "está copiando alguém?".
   let ALLCFG = null;
-  const ADMIN_VIEWS = ["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo"];
+  const ADMIN_VIEWS = ["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo", "jev"];
   function cfgItems() {
     if (ALLCFG) return ALLCFG;
     const out = [], seen = new Set(), adm = !!(ME && ME.role === "admin");
@@ -1178,6 +1178,53 @@
     BR = r; if ($("bgBx")) renderBrDays(r.aprendizado || {}); renderBr();
   }
   document.addEventListener("click", (e) => { const b = e.target.closest("[data-brp]"); if (b) { BR_P = b.dataset.brp; renderBr(); } });
+
+  // 0.32.83 (pedido do dono): aba JEV — o Jev opina (modo sombra) em cada sinal da Aba do Bruxo; aqui o que ele decidiu e o que teria dado
+  const JV_ACT = { entrar: ["entrar", "win"], esperar: ["esperar", "neutral"], evitar: ["evitar", "loss"] };
+  const jvTag = (a) => '<span class="tag ' + ((JV_ACT[a] || [])[1] || "neutral") + '">' + esc((JV_ACT[a] || [a || "–"])[0]) + "</span>";
+  function jvChart(C) {
+    const S = [["todos", "jvs3"], ["regra", "jvs2"], ["jev", "jvs1"]].map(([k, c]) => [c, (C || {})[k] || []]);
+    const all = S.flatMap((x) => x[1]);
+    if (all.length < 2) return '<p class="muted">O gráfico aparece com 2 ou mais tokens medidos na marca escolhida.</p>';
+    const W = 640, H = 200, P = 36, xs = all.map((p) => p[0]), ys = all.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const y0 = Math.min(0, ...ys), y1 = Math.max(0, ...ys), sx = (t) => P + (W - 2 * P) * (x1 > x0 ? (t - x0) / (x1 - x0) : 1), sy = (v) => H - P + (y1 > y0 ? -(H - 2 * P) * (v - y0) / (y1 - y0) : 0);
+    let out = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="SOL acumulado: Jev, regra e todos"><line class="ax" x1="' + P + '" x2="' + (W - P) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/><text x="2" y="' + (sy(0) + 4) + '">0</text>';
+    S.forEach(([c, pts], i) => {
+      if (!pts.length) return;
+      out += '<path class="' + c + '" d="' + pts.map((p, j) => (j ? "L" : "M") + sx(p[0]).toFixed(1) + " " + sy(p[1]).toFixed(1)).join(" ") + '"/>';
+      const l = pts[pts.length - 1];
+      out += '<text class="' + c + 't" x="' + Math.min(sx(l[0]) + 4, W - 70) + '" y="' + (sy(l[1]) - 6 - i * 12) + '">' + (l[1] > 0 ? "+" : "") + l[1].toFixed(3) + "</text>";
+    });
+    return out + "</svg>";
+  }
+  function jvProb(j) {
+    const p = j.p || {};
+    return ["entrar", "esperar", "evitar"].map((k) => '<span class="' + (k === j.acao ? "" : "dim") + '">' + k.slice(0, 3) + " " + Math.round((p[k] || 0) * 100) + "%</span>").join(" · ");
+  }
+  async function loadJev() {
+    if (!$("jvK")) return;
+    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10)); if (r.error) { $("jvSub").textContent = r.error; return; }
+    const E = r.estudo || {}, U = r.uso || {}, T = E.total || {}, A = E.por_acao || {};
+    $("jvSub").textContent = !r.chave ? "sem a chave do Jev: cole em Administração → Chaves do sistema" : !r.ativo ? "chave configurada, mas o Jev está desligado" : "ligado · só opina, nunca compra · carteira FICTÍCIA";
+    const ae = A.entrar || {};
+    kpis("jvK", [["Tokens analisados", String(E.n || 0), (U.calls || 0) + " perguntas hoje (limite " + (r.limite_dia || 0) + ")" + (U.erros ? " · " + U.erros + " erros" : ""), "mon"],
+      ["Jev mandou entrar", String(ae.n || 0), "acerto " + (ae.acerto == null ? "–" : ae.acerto + "%") + " · média " + (ae.media_pct == null ? "–" : ae.media_pct + "%"), "hit"],
+      ["Se seguisse o Jev", sg(T.jev || 0), "regra da aba: " + s4(T.regra || 0) + " · todos: " + s4(T.todos || 0), "pnl"],
+      ["Velocidade e custo", U.ms_medio == null ? "–" : U.ms_medio + " ms", U.custo_usd == null ? "sem uso hoje" : "≈ US$ " + U.custo_usd + " hoje" + (U.ultimo_erro ? " · último erro: " + U.ultimo_erro : ""), "tr"]]);
+    $("jvC").innerHTML = jvChart(E.curva);
+    table("jvA", ["Decisão", "Tokens", "Medidos", "Subiu", "Dobrou", "−30% antes", "Média", "SOL (0,1/entrada)"], ["entrar", "esperar", "evitar"].map((k) => { const g = A[k] || {};
+      return [jvTag(k), String(g.n || 0), String(g.medidos || 0), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou || 0), String(g.stop || 0), g.media_pct == null ? "–" : pc(g.media_pct), sg(g.sol || 0)]; }), "Nada ainda.");
+    table("jvB", ["Chance de \"entrar\"", "Tokens", "Subiram"], (E.calibracao || []).map((b) => [esc(b.faixa), String(b.n), b.subiu_pct + "%"]), "Aparece quando houver tokens medidos.");
+    table("jvT", ["Hora", "Token", "Tipo", "Idade", "Jev", "Chances", "Nota / armadilha", "Regra", "Preço 1 / 5 / 10 / 25 min", "Pico", "Detentores", "Resultado"], (r.linhas || []).map((x) => { const j = x.jev || {};
+      const dec = j.pendente ? '<span class="dim">perguntando…</span>' : j.erro ? '<span class="down" title="' + esc(j.erro) + '">erro</span>' : jvTag(j.acao) + (j.ms ? "<small>" + j.ms + " ms</small>" : "");
+      return [dt(x.t), pfM(x.mint, x.symbol), x.kind === "lancamento" ? "lançamento" : esc((x.names || []).join(", ")), bxAge(x), dec, j.acao ? jvProb(j) : "–",
+        j.acao ? (j.qualidade == null ? "–" : f(j.qualidade, 1) + "/4") + "<small>armadilha " + (j.armadilha == null ? "–" : Math.round(j.armadilha * 100) + "%") + "</small>" : "–",
+        x.kind === "lancamento" ? '<span class="dim">só estudo</span>' : x.entrou_regra ? '<span class="tag win">entrou</span>' : '<span class="dim">não entrou</span>',
+        bxMarks(x), x.peak_pct == null ? "–" : pc(x.peak_pct) + (x.peak_s ? "<small>aos " + hms(x.peak_s) + "</small>" : ""), bxHold(x), x.res == null ? '<span class="dim">medindo</span>' : pc(x.res)]; }),
+      r.chave ? "Ainda nenhum sinal analisado pelo Jev neste período." : "Cole a chave do Jev em Administração → Chaves do sistema.");
+  }
+  document.addEventListener("click", (e) => { if (e.target.closest("#jvNow")) loadJev(); });
+  document.addEventListener("change", (e) => { if (e.target.id === "jvH" || e.target.id === "jvX") loadJev(); });
   let BX_T = null;
   // 0.32.81 (pedido do dono): atualizar a tela sozinho liga/desliga e o tempo é escolhido (fica neste navegador)
   const BXR = { on: true, s: 20 };
@@ -2367,7 +2414,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -2398,6 +2445,7 @@
     if (VIEW === "logs") showLogTab(LOGTAB);
     if (VIEW === "calls") loadCalls();
     if (VIEW === "bruxo") { loadBruxo(); loadBxReports(); }
+    if (VIEW === "jev") loadJev();
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") { loadEq(); loadEqRep(); }
@@ -3191,7 +3239,8 @@
     pumpportal_api_key: "Opcional. Só para dados extras pagos da PumpPortal.",
     wallet_private_key: "Chave privada (base58 da Phantom/Solflare ou os 64 números do id.json) de uma carteira NOVA só para o bot. Fica criptografada e só é usada no servidor para assinar.",
     rpc_url: "Opcional. Endereço https:// de um RPC próprio (Helius, QuickNode…) — mais rápido e sem limite do público.",
-    jupiter_api_key: "Opcional. Aumenta o limite de cotações da Jupiter para a sua carteira." };
+    jupiter_api_key: "Opcional. Aumenta o limite de cotações da Jupiter para a sua carteira.",
+    jev_api_key: "Chave da API do Jev (TypeSafe AI). Só opina nos sinais da Aba do Bruxo (modo sombra, nunca compra). Veja a aba JEV." };
   // 0.31.25: passo a passo de cada chave, para quem nunca fez (pedido do dono em 2026-10-27: "muito usuário sem
   // experiência"). Os nomes dos botões nos sites de fora podem mudar; por isso o texto diz o que procurar.
   const KEY_HOW = {
@@ -3225,6 +3274,9 @@
         "Escolha um nome (ex.: Meu PUMP) e depois um usuário que termine em bot (ex.: meupump123_bot).",
         "O BotFather responde com o token (números:letras). Copie, cole no campo abaixo e clique em Salvar.",
         "Abra o seu bot novo (link na resposta do BotFather) e toque em Iniciar. Sem isso ele não consegue mandar mensagem para você."] },
+    jev_api_key: { custo: "Pago por uso, bem barato (cerca de US$ 0,04 por milhão de tokens de entrada; cada pergunta usa poucas centenas).", ganha: "O Jev dá a opinião dele (entrar/esperar/evitar) em cada sinal da Aba do Bruxo. A aba JEV mostra se ele acerta.",
+      passos: ["Clique em \"Criar minha chave →\" (abre o site da TypeSafe AI).", "Entre com a sua conta e abra a parte de API keys.", "Crie uma chave nova e copie na hora.",
+        "Cole no campo abaixo e clique em Salvar. A chave fica criptografada e nunca volta para a tela.", "Na aba JEV, os tokens começam a aparecer no próximo sinal da Aba do Bruxo."] },
     telegram_chat_id: { custo: "Grátis.", ganha: "Diz ao bot para quem mandar os avisos.",
       passos: ["Clique no link (abre o @userinfobot no Telegram) e toque em Iniciar.", "Ele responde com o seu Id (só números).",
         "Copie o número, cole no campo abaixo e clique em Salvar.", "Com as duas chaves salvas (token e Id), os avisos podem ser ligados."] },
@@ -3235,9 +3287,9 @@
       "<ol>" + h.passos.map((p) => "<li>" + esc(p) + "</li>").join("") + "</ol></details>";
   }
   const KEY_SHORT = { solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", wallet_private_key: "Carteira do bot", rpc_url: "RPC",
-    jupiter_api_key: "Jupiter", telegram_bot_token: "Bot Telegram", telegram_chat_id: "Id Telegram" };
+    jupiter_api_key: "Jupiter", telegram_bot_token: "Bot Telegram", telegram_chat_id: "Id Telegram", jev_api_key: "Jev" };
   const KEY_NEED = { solanatracker_api_key: "Recomendada", wallet_private_key: "Só modo real", pumpportal_api_key: "Opcional", rpc_url: "Opcional",
-    jupiter_api_key: "Opcional", telegram_bot_token: "Para avisos", telegram_chat_id: "Para avisos" };
+    jupiter_api_key: "Opcional", telegram_bot_token: "Para avisos", telegram_chat_id: "Para avisos", jev_api_key: "Teste (sombra)" };
   const KEY_EDIT = {}; let KEY_SAVED = "";
   async function loadSecrets() {
     const r = await BB.api("/api/secrets"); if (r.error) return;
@@ -3281,7 +3333,7 @@
     const m = A.monitor || {}, rpc = m.rpc || {}, pp = m.pumpportal || {}, j = m.jupiter || {};
     $("adminS").innerHTML = [["Usuários cadastrados", A.users_total], ["Motores carregados", A.users_loaded], ["Com execução real ON", A.real_on], ["Trava do real (.env)", A.real_allowed ? "liberado" : "travado"],
       ["Monitor Solana", rpc.ws ? "conectado · " + (rpc.subs || 0) + " carteiras" : rpc.error || "desconectado"], ["Trades lidos / erros", (rpc.parsed || 0) + " / " + (rpc.tx_errors || 0)], ["PumpPortal (tokens novos)", pp.ws ? "conectado · " + (pp.new_tokens || 0) : pp.error || "desconectado"],
-      ["Jupiter", j && j.on ? "ok " + (j.latency_ms || "") + " ms" : (j && j.error) || "–"], ["Preço do SOL", m.sol_usd ? "$" + f(m.sol_usd, 2) : "–"], ["Chaves do sistema", Object.entries(A.system_keys || {}).filter((x) => x[1]).map((x) => ({ solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", jupiter_api_key: "Jupiter", rpc_url: "RPC próprio" }[x[0]])).join(", ") || "nenhuma"], ["No ar há", hms(A.uptime_s)],
+      ["Jupiter", j && j.on ? "ok " + (j.latency_ms || "") + " ms" : (j && j.error) || "–"], ["Preço do SOL", m.sol_usd ? "$" + f(m.sol_usd, 2) : "–"], ["Chaves do sistema", Object.entries(A.system_keys || {}).filter((x) => x[1]).map((x) => ({ solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", jupiter_api_key: "Jupiter", rpc_url: "RPC próprio", jev_api_key: "Jev" }[x[0]])).join(", ") || "nenhuma"], ["No ar há", hms(A.uptime_s)],
       ["Erros de gravação no banco", (A.db_errors || []).length ? A.db_errors.map((e) => e.user + ": " + (e.error || e.queued + " gravações na fila")).join(" · ") : "nenhum"]]
       .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + esc(x[1]) + "</span></div>").join("");
   }
@@ -3582,6 +3634,7 @@
     if ($("navLogs")) $("navLogs").hidden = ME.role !== "admin";
     if ($("navCalls")) $("navCalls").hidden = ME.role !== "admin";
     if ($("navBruxo")) $("navBruxo").hidden = ME.role !== "admin";
+    if ($("navJev")) $("navJev").hidden = ME.role !== "admin";
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };

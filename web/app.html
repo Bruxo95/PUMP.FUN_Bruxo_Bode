@@ -50,6 +50,7 @@
       <a href="#basegeral" id="navBaseG" hidden data-v="basegeral" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3z"/><path d="M15 4a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a3 3 0 0 1-3-3"/></svg>Base geral</a>
       <a href="#logs" id="navLogs" hidden data-v="logs" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Logs dos robôs</a>
       <a href="#bruxo" id="navBruxo" hidden data-v="bruxo" data-novo-ate="2026-11-12"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h-6l3-7z"/><path d="M5 21h14l-3-12H8L5 21z"/></svg>Aba do Bruxo</a>
+      <a href="#jev" id="navJev" hidden data-v="jev" data-novo-ate="2026-11-13"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>JEV (sombra)</a>
       <a href="#calls" id="navCalls" hidden data-v="calls" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></svg>Calls e Radar</a>
       <div class="navgrp" id="navGrp" hidden>
         <button type="button" class="navgrp-h" id="navGrpH" aria-expanded="true" data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg><span>Usar ou descartar</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -999,6 +1000,25 @@
 
       <!-- ========================================================= NOVIDADES (web/novidades.json) -->
       <!-- ========================================================= BASE GERAL (0.31.71, app/basegeral.py) -->
+      <section class="view" data-view="jev" hidden>
+        <div class="card" data-novo-ate="2026-11-13"><header><div><h2>JEV em modo sombra: o que ele decidiu em cada token</h2><div class="sub" id="jvSub">carregando…</div></div></header>
+          <div class="help"><p><b>O que é:</b> o Jev (TypeSafe AI) é um modelo de decisão. Cada sinal da Aba do Bruxo (top trader comprou moeda nova) e cada lançamento estudado é mandado para ele com os números que o robô já mediu (idade, ritmo de compras, detentores, top 10, fatia do criador, SOL dos traders, valor de mercado). Ele responde <b>entrar / esperar / evitar</b>, com a chance de cada um, uma nota de 0 a 4 e a chance de ser armadilha.</p>
+            <p><b>Modo sombra:</b> o Jev <b>não compra nada</b>. A decisão fica guardada e esta tela compara com o que o token fez depois (1/5/10/25 min, pico, detentores). O gráfico mostra quanto teria ganhado ou perdido com 0,1 SOL por entrada, saindo na marca escolhida (ou no −30%, se veio antes), já com 4% de taxas.</p>
+            <p><b>Chave:</b> Administração → Chaves do sistema → Jev. Sem chave, nada é chamado. Desligue abaixo para parar as chamadas.</p></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 12px">
+            <span class="small">Jev opinando</span><button class="btn sm tgl" data-toggle="pump_jev_on" aria-label="Jev opinando nos sinais (modo sombra)">…</button>
+            <span class="small">Período</span><select class="in" id="jvH" aria-label="Período"><option value="6">6 h</option><option value="24" selected>24 h</option><option value="72">3 dias</option><option value="168">7 dias</option></select>
+            <span class="small">Sair aos</span><select class="in" id="jvX" aria-label="Minuto da saída simulada"><option value="5">5 min</option><option value="10" selected>10 min</option><option value="25">25 min</option></select>
+            <button type="button" class="btn sm" id="jvNow">Atualizar</button></div>
+          <div class="kpis" id="jvK"></div></div>
+        <div class="card"><header><div><h2>Como poderia ter ganhado ou perdido</h2><div class="sub">SOL acumulado · 0,1 SOL por entrada · <span style="color:var(--up)">■</span> Jev mandou entrar · <span style="color:var(--info)">■</span> a regra da Aba do Bruxo entrou · <span style="color:var(--muted)">■</span> todos os sinais</div></div></header>
+          <div id="jvC" class="chartbox"></div></div>
+        <div class="grid2e">
+          <div class="card"><header><div><h2>Acerto por decisão</h2><div class="sub">subiu = fechou acima de 0 depois das taxas</div></div></header><div class="tablewrap"><table id="jvA"></table></div></div>
+          <div class="card"><header><div><h2>Calibração</h2><div class="sub">quando o Jev diz X% de chance de "entrar", quantos subiram de verdade</div></div></header><div class="tablewrap"><table id="jvB"></table></div></div>
+        </div>
+        <div class="card"><header><div><h2>Cada token analisado</h2><div class="sub">decisão do Jev × evolução do token</div></div></header><div class="tablewrap"><table id="jvT" class="daytbl"></table></div></div>
+      </section>
       <section class="view" data-view="bruxo" hidden>
         <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Aba do Bruxo: entrar junto com os top traders em moeda nova</h2><div class="sub" id="bxSub">sinais chegam na hora pelo monitor</div></div></header>
           <div class="help"><p><b>A ideia (áudios e prompt do Bruxo, 29/10):</b> o Explorar espera a moeda chegar perto de graduar, e na pump.fun a moeda costuma durar uns 25 min, então quando chega lá ela despeja. Esta aba faz o contrário: quando um <b>top trader</b> (os que você copia em Top traders e os Maiores traders) compra uma moeda com <b>menos de 5 min</b> de vida, confere o <b>ritmo de compra</b> (acima da média inicial dos tokens novos), os <b>10 maiores detentores</b>, a <b>liquidez</b> e a <b>fatia do criador</b>, e entra. A saída vende <b>50% em +100%</b> e deixa o resto num <b>stop móvel</b>, com stop de perda, tempo máximo e saída quando o top trader vender. O Explorar não muda nada.</p>

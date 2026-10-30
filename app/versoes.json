@@ -1170,6 +1170,11 @@
    "versao": "0.32.82",
    "inicio": "2026-10-29T22:55:48+00:00",
    "titulo": "Aba do Bruxo: idade de agora e detentores"
+  },
+  {
+   "versao": "0.32.83",
+   "inicio": "2026-10-30T06:52:06+00:00",
+   "titulo": "JEV em modo sombra na Aba do Bruxo"
   }
  ]
 }

@@ -25,6 +25,7 @@ SYSTEM_NAMES = {
     "pumpportal_api_key": "Chave da PumpPortal",
     "jupiter_api_key": "Chave da Jupiter (opcional)",
     "rpc_url": "RPC próprio (Helius etc.)",
+    "jev_api_key": "Chave do Jev (TypeSafe AI) — modo sombra",
 }
 SYSTEM_OWNER = "__sistema__"                        # "dono" usado na criptografia das chaves do sistema
 
@@ -34,6 +35,7 @@ KEY_LINKS = {
     "pumpportal_api_key": "https://pumpportal.fun/trading-api/setup",
     "jupiter_api_key": "https://developers.jup.ag/portal",
     "rpc_url": "https://dashboard.helius.dev",
+    "jev_api_key": "https://typesafe.ai",
     "wallet_private_key": "https://phantom.com",
     "telegram_bot_token": "https://t.me/BotFather",
     "telegram_chat_id": "https://t.me/userinfobot",

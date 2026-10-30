@@ -180,7 +180,7 @@ def test_system_keys_let_everyone_view_and_personal_key_wins(env):
     assert c.post("/api/admin/keys", json={"name": "solanatracker_api_key", "value": SYS}, headers=B).status_code == 403
     assert c.post("/api/admin/keys", json={"name": "wallet_private_key", "value": "x" * 40}, headers=A).json()["error"]
     assert c.post("/api/admin/keys", json={"name": "solanatracker_api_key", "value": SYS}, headers=A).json()["ok"]
-    for name in ("pumpportal_api_key", "jupiter_api_key"):
+    for name in ("pumpportal_api_key", "jupiter_api_key", "jev_api_key"):
         assert c.post("/api/admin/keys", json={"name": name, "value": "k-" + name + "-" + "z" * 20}, headers=A).json()["ok"]
     assert c.post("/api/admin/keys", json={"name": "rpc_url", "value": "https://helius.com/?api-key=" + "z" * 20}, headers=A).json()["ok"]
     view = c.get("/api/admin/keys", headers=A)
@@ -208,7 +208,7 @@ def test_system_keys_let_everyone_view_and_personal_key_wins(env):
     assert c.get("/api/secrets", headers=A).json()["keys"]["solanatracker_api_key"]["system"] is False
     assert c.get("/api/pump", headers=B).json()["lb_status"]["key_set"] is True
     acoes = [a["acao"] for a in db.tables["audit_log"] if a["user_id"] == UA]
-    assert acoes.count("admin: salvar chave do sistema") == 4 and "admin: remover chave do sistema" in acoes
+    assert acoes.count("admin: salvar chave do sistema") == 5 and "admin: remover chave do sistema" in acoes
 
 
 def test_system_keys_survive_restart(env):

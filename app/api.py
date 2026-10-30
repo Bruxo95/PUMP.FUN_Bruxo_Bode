@@ -1157,6 +1157,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.41: Aba do Bruxo — sinais de top trader em moeda nova, o que a conta fez em cada um e o estudo."""
         return hub.bruxo_state(pf, max(1.0, min(168.0, horas)))
 
+    @app.get("/api/pump/jev")
+    async def jev_view(horas: float = 24, saida: str = "10", pf=Depends(admin_engine)):
+        """0.32.83: aba JEV — cada decisão do Jev (modo sombra) nos sinais da Aba do Bruxo × o que o token fez."""
+        saida = saida if saida in ("5", "10", "25") else "10"
+        return hub.jev_state(pf, max(1.0, min(168.0, horas)), saida)
+
     @app.get("/api/pump/copy-equal/reports")
     async def copy_equal_reports(real: int = 0, pf=Depends(admin_engine)):
         """0.32.73: relatório do Copiar igual (6 h agora + guardados + aprendizado para a Base geral)."""
