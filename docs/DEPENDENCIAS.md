@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-30**; revisão documental **2.0**.
-Aplicação: **0.32.91 · 2026-10-30 · Jev Trade com a regra do Bruxo: detentores +20% em 2 min e saída antes do dump**.
-Referência Git na emissão: `aae18714f924b8128ea01e1a7c3a4973b883ce10`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.92 · 2026-10-30 · Jev Trade mostra quando o token nasceu**.
+Referência Git na emissão: `cfb65362e70348f44635350299b10dd05075dd3b`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

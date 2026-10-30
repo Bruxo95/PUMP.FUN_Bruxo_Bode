@@ -1398,3 +1398,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   de `on_entry`; o Jev só opina e escolhe o stop), `guard_exit` (em `on_price`), `holders_leaving` (em `hub._jt_read`). `_jt_scan` grava a 1ª contagem
   como leitura. `row(..., now)` → `regra`, `obs_s`, `ultima_s`, `prox_s`, `prazo_s`, `por`. `backtest_rule` + `from_bruxo_signal` → `regra_passado` em
   `/api/pump/jev-trade` (cartão `#jtRK`/`#jtR`). Relatório `app/relatorios_ia/2026-10-30-0.32.91.md`. Ainda só simulação.
+- 0.32.92 (caso hunch): os Encerrados do Jev Trade mostravam `fechou_t` como "Hora" (parecia 13 min de atraso). `row` devolve `created_t`; tabelas
+  `jtW`/`jtO`/`jtF` com Nasceu (`jtBorn`) e Na lista (`jtList`: entrou com X min de vida, saiu, tempo na lista). Conferido no banco: hunch nasceu
+  20:32:29, entrou 20:38:04 (5,6 min, porta dos 5 min do Bruxo) e saiu 20:45:17 por "não entrou em 7 min" (detentores 77→84, só +9% em 2 min).

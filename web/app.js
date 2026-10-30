@@ -1219,6 +1219,12 @@
     return '<span class="' + (R.cresc >= 20 ? "up" : "dim") + '">detentores ' + (R.cresc > 0 ? "+" : "") + f(R.cresc, 0) + '%</span> · <span class="' + (R.px_pct > 0 ? "up" : "down") + '">preço ' + (R.px_pct > 0 ? "+" : "") + f(R.px_pct, 0) + "%</span><small>precisa +20% e preço subindo</small>"; };
   const jtTime = (x) => "há " + hms(x.obs_s || 0) + "<small>" + (x.leituras || 0) + " leituras · última há " + (x.ultima_s == null ? "–" : x.ultima_s + " s") + " · próxima em " + (x.prox_s == null ? "–" : x.prox_s + " s") + "</small>" +
     (x.prazo_s == null ? "" : '<small class="' + (x.prazo_s < 60 ? "down" : "") + '">prazo: ' + hms(x.prazo_s) + "</small>");
+  // 0.32.92 (pedido do dono, caso hunch): mostrar quando o token NASCEU, com quantos minutos entrou na lista e quando saiu
+  const hhmm = (t) => t ? new Date((t < 1e11 ? t * 1000 : t)).toLocaleTimeString("pt-BR") : "–";
+  const jtBorn = (x) => x.created_t ? dt(x.created_t) : dt(x.t);
+  const jtList = (x) => { const age = x.created_t ? (x.t - x.created_t) / 60 : null;
+    return "entrou " + hhmm(x.t) + (age == null ? "" : " <small>(com " + f(age, 1) + " min de vida)</small>") +
+      (x.fechou_t ? "<small>saiu " + hhmm(x.fechou_t) + " · " + hms(Math.max(0, x.fechou_t - x.t)) + " na lista</small>" : ""); };
   let JT_T = null;
   async function loadJt() {
     clearTimeout(JT_T); JT_T = setTimeout(() => { if (VIEW === "jevtrade") loadJt(); }, 20000);
@@ -1240,10 +1246,10 @@
       ["Resultado (0,1 SOL cada)", sg(RP.sol || 0), "estimativa, com 4% de taxas", "pnl"]]);
     table("jtR", ["Hora", "Token", "Fonte", "Entraria aos", "Resultado", "Pico", "Saída"], (RP.itens || []).map((x) => [dt(x.t), pfM(x.mint, x.symbol), esc(x.fonte || ""), x.m == null ? "–" : f(x.m, 1) + " min",
       x.res == null ? "–" : pc(x.res), x.pico == null ? "–" : pc(x.pico), esc(x.motivo || "–")]), "A regra ainda não ligaria em nenhum token com leituras guardadas.");
-    table("jtO", ["Token", "Entrou", "Por que entrou", "Detentores 5 min → agora", "Agora", "Pico", "Stop", "Restante", "Jev"], (r.abertas || []).map((x) => [jtTk(x), dt(x.entrada.t),
+    table("jtO", ["Nasceu", "Token", "Entrou", "Por que entrou", "Detentores 5 min → agora", "Agora", "Pico", "Stop", "Restante", "Jev"], (r.abertas || []).map((x) => [jtBorn(x), jtTk(x), hhmm(x.entrada.t) + (x.created_t ? " <small>com " + f((x.entrada.t - x.created_t) / 60, 1) + " min de vida</small>" : ""),
       '<span class="wrapcell small">' + esc(x.por || "pelo Jev") + "</span>", jtEv(x), x.agora_pct == null ? "–" : pc(x.agora_pct), x.peak == null ? "–" : pc(x.peak), pc(x.stop), Math.round((x.left || 0) * 100) + "%", jtTag(x.decisao)]), "Nenhuma posição aberta.");
-    table("jtW", ["Token", "Desde", "Detentores 5 min → agora", "Regra (2 min)", "Tempo", "Pico", "Jev"], (r.olhando || []).map((x) => [jtTk(x), dt(x.t), jtEv(x), jtRule(x), jtTime(x), x.h_peak == null ? "–" : String(x.h_peak), jtTag(x.decisao)]), "Nenhum token em observação.");
-    table("jtF", ["Hora", "Token", "Detentores 5 min → fim", "Entrou", "Resultado", "Pico", "Régua fixa", "Vendas", "Por que acabou"], (r.fechadas || []).map((x) => [dt(x.fechou_t || x.t), jtTk(x), jtEv(x), x.entrada ? "sim" : "não", x.res == null ? "–" : pc(x.res), x.peak == null ? "–" : pc(x.peak),
+    table("jtW", ["Nasceu", "Token", "Na lista", "Detentores 5 min → agora", "Regra (2 min)", "Tempo", "Pico", "Jev"], (r.olhando || []).map((x) => [jtBorn(x), jtTk(x), jtList(x), jtEv(x), jtRule(x), jtTime(x), x.h_peak == null ? "–" : String(x.h_peak), jtTag(x.decisao)]), "Nenhum token em observação.");
+    table("jtF", ["Nasceu", "Token", "Na lista", "Detentores 5 min → fim", "Entrou", "Resultado", "Pico", "Régua fixa", "Vendas", "Por que acabou"], (r.fechadas || []).map((x) => [jtBorn(x), jtTk(x), jtList(x), jtEv(x), x.entrada ? "sim" : "não", x.res == null ? "–" : pc(x.res), x.peak == null ? "–" : pc(x.peak),
       x.regua == null ? (x.regua_todos == null ? "–" : pc(x.regua_todos)) : pc(x.regua), String(x.vendas || 0), '<span class="wrapcell">' + esc(x.motivo || "–") + "</span>"]), "Nada encerrado no período.");
     table("jtM2", ["Motivo", "Vezes", "Média"], (E.motivos || []).map((m) => [esc(m.motivo), String(m.n), pc(m.media_pct)]), "Sem saídas ainda.");
   }

@@ -1215,6 +1215,11 @@
    "versao": "0.32.91",
    "inicio": "2026-10-30T19:20:57+00:00",
    "titulo": "Jev Trade com a regra do Bruxo: detentores +20% em 2 min e saída antes do dump"
+  },
+  {
+   "versao": "0.32.92",
+   "inicio": "2026-10-30T19:49:15+00:00",
+   "titulo": "Jev Trade mostra quando o token nasceu"
   }
  ]
 }

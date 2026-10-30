@@ -278,3 +278,12 @@ def test_key_never_appears_in_error():
     hub = _hub(h)
     out = asyncio.run(hub._jt_jev({}, jevtrade.Q_IN, T0))
     assert out is None and KEY not in hub.jt.stats["ultimo_erro"] and hub.jt.stats["erros"] == 1
+
+
+def test_row_has_birth_time_for_the_screen():
+    """0.32.92 (caso hunch): a tela mostra quando nasceu, quando entrou na lista e quando saiu (antes só a hora do fim)."""
+    j = JevTrade()
+    it = j.on_checked(_live(age_min=5.6)[M], 77, T0)
+    j.on_price(it, 1.0, T0 + jevtrade.WATCH_MAX_MIN * 60)
+    r = JevTrade.row(it)
+    assert round((r["t"] - r["created_t"]) / 60, 1) == 5.6 and r["fechou_t"] - r["t"] == jevtrade.WATCH_MAX_MIN * 60

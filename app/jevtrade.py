@@ -439,7 +439,7 @@ class JevTrade:
         H = [a["h"] for a in x["hist"] if a.get("h") is not None]
         agora = pct_of(x, px) if px and e else None
         lucro = None if agora is None else x["realizado"] + x["left"] * agora - FEE_PCT
-        return {"mint": x["mint"], "symbol": x.get("symbol"), "t": x["t"], "estado": x["estado"], "h0": H[0] if H else None, "h": H[-1] if H else None,
+        return {"mint": x["mint"], "symbol": x.get("symbol"), "t": x["t"], "created_t": x.get("created_t"), "estado": x["estado"], "h0": H[0] if H else None, "h": H[-1] if H else None,
                 "h_peak": x.get("h_peak"), "evol": H[-8:], "decisao": (x["decisoes"][-1] if x["decisoes"] else None), "entrada": e or None,
                 "stop": x.get("stop"), "left": x.get("left"), "peak": x.get("peak"), "agora_pct": None if lucro is None else round(lucro, 1),
                 "res": x.get("res"), "motivo": x.get("motivo"), "fechou_t": x.get("fechou_t"), "vendas": len(x.get("vendas") or []), "suspeito": x.get("suspeito"),
