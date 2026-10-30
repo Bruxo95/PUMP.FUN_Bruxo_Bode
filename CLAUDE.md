@@ -1378,3 +1378,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   30 s, `jev_usage_load` no início para o limite do dia valer após reinício). Leitura para `leitor_ia` nas 3 tabelas do Jev.
   **Chave nova do sistema = acrescentar o nome também numa migração da regra `app_secrets_nome_check`** —
   `tests/test_jev.py::test_migration_allows_every_system_key` falha se faltar.
+
+- 0.32.86 (áudio do Bruxo, 30/10): `app/detentores.py` (`entry`: mínimo de detentores + 2 altas seguidas + crescimento, até 10 min; `result`: entrada no preço da
+  leitura, `hpx`, nunca no do sinal; `study`: faixas no início, evolução até 5 min, regra × todos × regra+Jev). `Bruxo.holders_due`: 40+ detentores = leitura a cada
+  minuto até 10 min (`HOLD_WATCH`, `HOLD_EVERY`). `GET /api/pump/jev?hold_min=&hold_cresc=` devolve `detentores`; cartão na aba JEV (`jvHold`) e 4ª série do gráfico.
+  Só mede, nunca compra. Sem RPC próprio não há leitura. Dados de produção não conferidos (sem `pump.env`). `tests/test_detentores.py`.

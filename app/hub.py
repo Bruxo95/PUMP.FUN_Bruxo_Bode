@@ -14,7 +14,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from . import jev, stkeys
+from . import detentores, jev, stkeys
 from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
@@ -977,7 +977,8 @@ class PumpHub:
         return {k: bt.get(k) for k in ("on", "fase", "msg", "feitos", "total", "calls_dia", "erros", "ultimo", "ultimo_erro", "tokens_dia")} | {
             "limite_dia": jev.BT_DAY_MAX, "fontes": jev.BT_SOURCES}
 
-    def jev_state(self, pf: PumpFun, hours: float = 24, exit_min: str = "10", fonte: str = "ao_vivo") -> dict:
+    def jev_state(self, pf: PumpFun, hours: float = 24, exit_min: str = "10", fonte: str = "ao_vivo",
+                  hold_min: int = detentores.MIN_HOLDERS, hold_cresc: float = detentores.MIN_GROW_PCT) -> dict:
         now = time.time()
         hours = hours or 24 * 365
         uid = pf.user_id
@@ -999,7 +1000,7 @@ class PumpHub:
             st["custo_usd"] = round(st.get("tokens_in", 0) / 1e6 * 0.042, 5)
         out = {"chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
                "ativo": self.jev_wanted(), "limite_dia": jev.DAY_MAX, "uso": st, "saida_min": exit_min, "fonte": fonte,
-               "passado": self.jev_bt_status()}
+               "passado": self.jev_bt_status(), "detentores": detentores.study(sigs, exit_min, hold_min, hold_cresc)}
         if fonte == "ao_vivo":
             return out | {"estudo": jev.study([s for s in sigs if s.get("jev")], exit_min), "linhas": rows[:500]}
         return out | self.jev_bt_view(fonte, hours, exit_min)
@@ -1023,6 +1024,9 @@ class PumpHub:
                 s["holders"][k] = await self.holders_count(s["mint"])
             except Exception:
                 s["holders"][k] = None
+            px = (self.market.tokens.get(s["mint"]) or {}).get("price")   # 0.32.86: preço de cada leitura (entrada simulada da regra)
+            if px and s.get("px0"):
+                s.setdefault("hpx", {})[k] = round((px / s["px0"] - 1) * 100, 1)
             self.bruxo.dirty.add(s["id"])
         for sid in list(self.bruxo.dirty)[:300]:
             self.bruxo.dirty.discard(sid)

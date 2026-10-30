@@ -837,3 +837,4 @@ html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none
 .chartbox .jvs1{fill:none;stroke:var(--up);stroke-width:2.2}.chartbox .jvs1t{fill:var(--up)}
 .chartbox .jvs2{fill:none;stroke:var(--info);stroke-width:1.8}.chartbox .jvs2t{fill:var(--info)}
 .chartbox .jvs3{fill:none;stroke:var(--muted);stroke-width:1.4;stroke-dasharray:4 3}.chartbox .jvs3t{fill:var(--muted)}
+.chartbox .jvs4{fill:none;stroke:var(--warn,#f5b342);stroke-width:2}.chartbox .jvs4t{fill:var(--warn,#f5b342)}

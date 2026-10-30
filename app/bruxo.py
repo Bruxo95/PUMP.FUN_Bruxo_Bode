@@ -76,26 +76,34 @@ class Bruxo:
         return sorted({s["mint"] for s in self.signals.values() if not s["done"] and now - s["t"] <= WATCH_S + 120})
 
     HOLD_MARKS = (0, 1, 5, 10, 25)          # 0.32.82: detentores no sinal e 1/5/10/25 min depois
+    # 0.32.86 (áudio do Bruxo, 30/10): moeda com 40+ detentores é lida a cada minuto até os 10 min, para ver a evolução
+    HOLD_WATCH = 40
+    HOLD_EVERY = (2, 3, 4, 6, 7, 8, 9)
 
-    def holders_due(self, now: float, limit: int = 8) -> list[tuple[dict, str]]:
-        """(sinal, marca) cujos detentores ainda não foram lidos. Marca perdida (passou 3 min) fica sem dado."""
+    def holders_due(self, now: float, limit: int = 12) -> list[tuple[dict, str]]:
+        """(sinal, marca) cujos detentores ainda não foram lidos. Marca perdida (passou 3 min) fica sem dado.
+        Leitura extra de 1 em 1 min atrasada é só pulada; as marcas fixas vêm primeiro quando a fila enche."""
         out = []
         for s in self.signals.values():
             if s.get("done"):
                 continue
             el = now - s["t"]
             H = s.setdefault("holders", {})
-            for m in self.HOLD_MARKS:
+            watched = any((v or 0) >= self.HOLD_WATCH for v in H.values())
+            for m in sorted(self.HOLD_MARKS + (self.HOLD_EVERY if watched else ())):
                 k = str(m)
                 if k in H or el < m * 60:
                     continue
-                if el > m * 60 + 180:
+                if m in self.HOLD_EVERY:
+                    if el > m * 60 + 90:
+                        continue
+                elif el > m * 60 + 180:
                     H[k] = None
                     self.dirty.add(s["id"])
                     continue
                 out.append((s, k))
                 break
-        out.sort(key=lambda x: x[0]["t"])
+        out.sort(key=lambda x: (int(x[1]) in self.HOLD_EVERY, x[0]["t"]))
         return out[:limit]
 
     def tick(self, price_of, now: float) -> int:

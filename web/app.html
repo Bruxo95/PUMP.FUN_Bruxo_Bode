@@ -1012,11 +1012,23 @@
             <span class="small">Sair aos</span><select class="in" id="jvX" aria-label="Minuto da saída simulada"><option value="5">5 min</option><option value="10" selected>10 min</option><option value="25">25 min</option></select>
             <button type="button" class="btn sm" id="jvNow">Atualizar</button></div>
           <div class="kpis" id="jvK"></div></div>
+        <div class="card" data-novo-ate="2026-11-14"><header><div><h2>Detentores: a ideia do Bruxo (só medindo)</h2><div class="sub" id="jvDSub">moeda boa já começa com uns 40 detentores e eles continuam entrando · nunca compra</div></div></header>
+          <div class="help"><p><b>A ideia:</b> o Bruxo notou que as moedas que dão pump de verdade começam com uns 40 detentores e esse número continua subindo. Quando fica parado, a moeda não sobe.</p>
+            <p><b>A regra medida:</b> moeda com 40 detentores ou mais é lida a cada minuto até os 10 min. A regra liga quando atinge o mínimo escolhido, com duas altas seguidas e o crescimento escolhido nas últimas 3 leituras. A entrada simulada é no preço daquela leitura (não no preço do sinal), com 0,1 SOL, saída na marca escolhida acima ou no −30%, e 4% de taxas. O −30% é conferido só nas leituras, então pode ser um pouco pior na prática.</p></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 12px">
+            <span class="small">Mínimo de detentores</span><select class="in" id="jvHM" aria-label="Mínimo de detentores"><option value="20">20</option><option value="30">30</option><option value="40" selected>40</option><option value="60">60</option><option value="100">100</option></select>
+            <span class="small">Crescimento mínimo</span><select class="in" id="jvHG" aria-label="Crescimento mínimo nas últimas leituras"><option value="0">qualquer alta</option><option value="10" selected>10%</option><option value="25">25%</option><option value="50">50%</option></select></div>
+          <div class="kpis" id="jvDK"></div><p class="small" id="jvDL"></p>
+          <div class="grid2e">
+            <div><h3 class="small">Quantos detentores tinha no início</h3><div class="tablewrap"><table id="jvDF"></table></div></div>
+            <div><h3 class="small">Como evoluiu até os 5 min (entrando aos 5 min)</h3><div class="tablewrap"><table id="jvDE"></table></div></div>
+          </div>
+          <h3 class="small">Tokens medidos</h3><div class="tablewrap"><table id="jvDT" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-13"><header><div><h2>Estudo do passado</h2><div class="sub" id="jvPSub">o Jev analisa os casos já guardados desde o início do projeto</div></div>
             <div class="row" style="gap:8px;align-items:center"><span class="small">Estudar o passado</span><button type="button" class="btn sm tgl sw" id="jvPOn" role="switch" aria-checked="false" aria-label="Estudo do passado do Jev">…</button></div></header>
           <div class="help"><p>Cada caso guardado no banco (sinais da Aba do Bruxo, tokens que o Explorar barrou e todos os lançamentos vistos pela Base da pump.fun) é mandado ao Jev <b>só com o que se sabia naquela hora</b> — nada do futuro. A resposta dele é comparada com o que o token fez depois. Assim dá para medir, em milhares de casos, se o Jev acerta, antes de confiar nele. O Jev não é treinado com os nossos dados: ele responde caso a caso, e quem aprende somos nós (em que faixa de chance ele acerta). Roda em segundo plano, meio segundo entre perguntas, e continua sozinho depois de cada atualização do site. Nunca compra.</p></div>
           <div class="kpis" id="jvPK"></div></div>
-        <div class="card"><header><div><h2>Como poderia ter ganhado ou perdido</h2><div class="sub">SOL acumulado · 0,1 SOL por entrada · <span style="color:var(--up)">■</span> Jev mandou entrar · <span style="color:var(--info)">■</span> a regra da Aba do Bruxo entrou · <span style="color:var(--muted)">■</span> todos os sinais</div></div></header>
+        <div class="card"><header><div><h2>Como poderia ter ganhado ou perdido</h2><div class="sub">SOL acumulado · 0,1 SOL por entrada · <span style="color:var(--up)">■</span> Jev mandou entrar · <span style="color:var(--info)">■</span> a regra da Aba do Bruxo entrou · <span style="color:var(--muted)">■</span> todos os sinais · <span style="color:var(--warn,#f5b342)">■</span> regra dos detentores</div></div></header>
           <div id="jvC" class="chartbox"></div></div>
         <div class="grid2e">
           <div class="card"><header><div><h2>Acerto por decisão</h2><div class="sub">subiu = fechou acima de 0 depois das taxas</div></div></header><div class="tablewrap"><table id="jvA"></table></div></div>

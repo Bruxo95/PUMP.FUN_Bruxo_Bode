@@ -1183,12 +1183,12 @@
   const JV_ACT = { entrar: ["entrar", "win"], esperar: ["esperar", "neutral"], evitar: ["evitar", "loss"] };
   const jvTag = (a) => '<span class="tag ' + ((JV_ACT[a] || [])[1] || "neutral") + '">' + esc((JV_ACT[a] || [a || "–"])[0]) + "</span>";
   function jvChart(C) {
-    const S = [["todos", "jvs3"], ["regra", "jvs2"], ["jev", "jvs1"]].map(([k, c]) => [c, (C || {})[k] || []]);
+    const S = [["todos", "jvs3"], ["regra", "jvs2"], ["jev", "jvs1"], ["detentores", "jvs4"]].map(([k, c]) => [c, (C || {})[k] || []]);
     const all = S.flatMap((x) => x[1]);
     if (all.length < 2) return '<p class="muted">O gráfico aparece com 2 ou mais tokens medidos na marca escolhida.</p>';
     const W = 640, H = 200, P = 36, xs = all.map((p) => p[0]), ys = all.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs);
     const y0 = Math.min(0, ...ys), y1 = Math.max(0, ...ys), sx = (t) => P + (W - 2 * P) * (x1 > x0 ? (t - x0) / (x1 - x0) : 1), sy = (v) => H - P + (y1 > y0 ? -(H - 2 * P) * (v - y0) / (y1 - y0) : 0);
-    let out = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="SOL acumulado: Jev, regra e todos"><line class="ax" x1="' + P + '" x2="' + (W - P) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/><text x="2" y="' + (sy(0) + 4) + '">0</text>';
+    let out = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="SOL acumulado: Jev, regra, todos e detentores"><line class="ax" x1="' + P + '" x2="' + (W - P) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/><text x="2" y="' + (sy(0) + 4) + '">0</text>';
     S.forEach(([c, pts], i) => {
       if (!pts.length) return;
       out += '<path class="' + c + '" d="' + pts.map((p, j) => (j ? "L" : "M") + sx(p[0]).toFixed(1) + " " + sy(p[1]).toFixed(1)).join(" ") + '"/>';
@@ -1201,10 +1201,29 @@
     const p = j.p || {};
     return ["entrar", "esperar", "evitar"].map((k) => '<span class="' + (k === j.acao ? "" : "dim") + '">' + k.slice(0, 3) + " " + Math.round((p[k] || 0) * 100) + "%</span>").join(" · ");
   }
+  // 0.32.86 (áudio do Bruxo, 30/10): detentores no início e evolução minuto a minuto × o que o token fez; só mede, nunca compra
+  function jvHold(D) {
+    const R = D.regra || {}, T = D.todos || {}, C = D.regra_jev || {};
+    const nota = (g) => "acerto " + (g.acerto == null ? "–" : g.acerto + "%") + " · média " + (g.media_pct == null ? "–" : pc(g.media_pct));
+    kpis("jvDK", [["Tokens com detentores", String(D.medidos || 0), "de " + (D.sinais || 0) + " sinais no período", "mon"],
+      ["A regra ligou", String(R.n || 0), (R.medidos || 0) + " entradas medidas · " + (R.dobrou || 0) + " dobraram", "hit"],
+      ["Seguindo a regra", sg(R.sol || 0), nota(R), "pnl"],
+      ["Todos os sinais", sg(T.sol || 0), nota(T), "pnl"],
+      ["Regra + Jev mandou entrar", String(C.n || 0), nota(C), "tr"]]);
+    $("jvDL").textContent = !D.sinais ? "Ainda sem sinais neste período." : !D.medidos ? "Nenhum sinal com detentores lidos: a contagem precisa do RPC próprio (Administração → Chaves do sistema); o RPC público não conta." : (D.leitura || "");
+    const head = (a) => [a, "Tokens", "Medidos", "Subiu", "Dobrou", "Média", "Pico mediano"];
+    const row = (g) => [esc(g.faixa), String(g.n), String(g.medidos), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou), g.media_pct == null ? "–" : pc(g.media_pct), g.pico_mediano == null ? "–" : pc(g.pico_mediano)];
+    table("jvDF", head("No início"), (D.faixas || []).map(row), "Aparece com as primeiras leituras.");
+    table("jvDE", head("Até os 5 min"), (D.evolucao || []).map(row), "Aparece com tokens de 5 min ou mais.");
+    table("jvDT", ["Hora", "Token", "Tipo", "Detentores por minuto", "Regra", "Jev", "Resultado", "Pico"], (D.linhas || []).map((x) => [dt(x.t), pfM(x.mint, x.symbol), x.kind === "lancamento" ? "lançamento" : "top trader",
+      (x.evol || []).map((p) => p[0] + " min: <b>" + p[1] + "</b>").join(" · "), x.ligou == null ? '<span class="dim">não ligou</span>' : '<span class="tag win">ligou aos ' + x.ligou + " min</span>",
+      x.jev ? jvTag(x.jev) : "–", x.res == null ? (x.ligou == null ? "–" : '<span class="dim">medindo</span>') : pc(x.res), x.pico == null ? "–" : pc(x.pico)]), "Nenhum token com detentores lidos ainda.");
+  }
   async function loadJev() {
     if (!$("jvK")) return;
     const F = $("jvF").value || "ao_vivo";
-    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10) + "&fonte=" + F); if (r.error) { $("jvSub").textContent = r.error; return; }
+    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10) + "&fonte=" + F + "&hold_min=" + ($("jvHM").value || 40) + "&hold_cresc=" + ($("jvHG").value || 10)); if (r.error) { $("jvSub").textContent = r.error; return; }
+    jvHold(r.detentores || {});
     jvPast(r.passado || {}, r.chave);
     const E = r.estudo || {}, U = r.uso || {}, T = E.total || {}, A = E.por_acao || {};
     $("jvSub").textContent = !r.chave ? "sem a chave do Jev: cole em Administração → Chaves do sistema" : !r.ativo ? "chave configurada, mas o Jev está desligado" : "ligado · só opina, nunca compra · carteira FICTÍCIA";
@@ -1213,7 +1232,7 @@
       ["Jev mandou entrar", String(ae.n || 0), "acerto " + (ae.acerto == null ? "–" : ae.acerto + "%") + " · média " + (ae.media_pct == null ? "–" : ae.media_pct + "%"), "hit"],
       ["Se seguisse o Jev", sg(T.jev || 0), (F === "base" ? "" : "nossa regra: " + s4(T.regra || 0) + " · ") + "todos: " + s4(T.todos || 0), "pnl"],
       ["Velocidade e custo", U.ms_medio == null ? "–" : U.ms_medio + " ms", U.custo_usd == null ? "sem uso hoje" : "≈ US$ " + U.custo_usd + " hoje" + (U.ultimo_erro ? " · último erro: " + U.ultimo_erro : ""), "tr"]]);
-    $("jvC").innerHTML = jvChart(E.curva);
+    $("jvC").innerHTML = jvChart(F === "ao_vivo" ? Object.assign({}, E.curva, { detentores: ((r.detentores || {}).regra || {}).curva }) : E.curva);
     table("jvA", ["Decisão", "Tokens", "Medidos", "Subiu", "Dobrou", "−30% antes", "Média", "SOL (0,1/entrada)"], ["entrar", "esperar", "evitar"].map((k) => { const g = A[k] || {};
       return [jvTag(k), String(g.n || 0), String(g.medidos || 0), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou || 0), String(g.stop || 0), g.media_pct == null ? "–" : pc(g.media_pct), sg(g.sol || 0)]; }), "Nada ainda.");
     table("jvB", ["Chance de \"entrar\"", "Tokens", "Subiram"], (E.calibracao || []).map((b) => [esc(b.faixa), String(b.n), b.subiu_pct + "%"]), "Aparece quando houver tokens medidos.");
@@ -1252,7 +1271,7 @@
     const r = await BB.api("/api/pump/jev/passado", { body: { on } });
     if (r.error) toast(r.error); loadJev();
   });
-  document.addEventListener("change", (e) => { if (["jvH", "jvX", "jvF"].includes(e.target.id)) loadJev(); });
+  document.addEventListener("change", (e) => { if (["jvH", "jvX", "jvF", "jvHM", "jvHG"].includes(e.target.id)) loadJev(); });
   let BX_T = null;
   // 0.32.81 (pedido do dono): atualizar a tela sozinho liga/desliga e o tempo é escolhido (fica neste navegador)
   const BXR = { on: true, s: 20 };
