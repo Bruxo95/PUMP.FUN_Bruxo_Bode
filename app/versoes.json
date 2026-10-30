@@ -1225,6 +1225,11 @@
    "versao": "0.32.93",
    "inicio": "2026-10-30T20:20:36+00:00",
    "titulo": "Jev Trade: detentores só subindo, fechamento dos 7 min e entrada na carteira fictícia"
+  },
+  {
+   "versao": "0.32.94",
+   "inicio": "2026-10-30T20:32:09+00:00",
+   "titulo": "Jev Trade: regra explicada (20% dos detentores, preço só positivo)"
   }
  ]
 }

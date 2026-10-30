@@ -265,7 +265,8 @@ class JevTrade:
     @staticmethod
     def rule_check(hist: list[dict], cfg: dict | None = None) -> dict:
         """Regra do Bruxo (0.32.93): nas leituras dos últimos ~2 min os detentores têm que SÓ SUBIR (cada leitura maior que a
-        anterior: parado ou caindo não vale), somar +20% ou mais, e o preço também subir. Devolve {ok, cresc, px_pct, motivo}."""
+        anterior: parado ou caindo não vale) e somar +20% ou mais; o preço só precisa estar POSITIVO no mesmo período (qualquer
+        alta — confirmado pelo dono em 30/10 21:30: os 20% são só dos detentores). Devolve {ok, cresc, px_pct, motivo}."""
         S = cfg or STRAT
         H = [x for x in hist if x.get("h") is not None and x.get("px")]
         if len(H) < 2:

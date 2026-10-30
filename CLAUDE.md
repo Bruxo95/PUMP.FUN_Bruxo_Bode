@@ -1406,3 +1406,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   → `hub._jt_wallet`: entrada vira `manual_buy(origem="jevtrade", target="sim", amt_sol=0,1, pos_rules=JT_WALLET_RULES)` na fictícia de cada admin
   com `pump_jt_wallet` (padrão ON); vendas do Jev Trade vendem a mesma fração (`pf._sell`). `OWN_SLOTS["jevtrade"]` (`pump_jt_wallet_max` 10),
   `ABA_ORIGEM["jevtrade"]`. Nunca REAL. `backtest_rule` também considera a entrada do fechamento. Relatório `app/relatorios_ia/2026-10-30-0.32.93.md`.
+- 0.32.94: confirmado pelo dono (30/10 21:30): os 20% da regra do Jev Trade são só dos DETENTORES (subindo em cada leitura); o preço só precisa estar
+  positivo (qualquer alta). Código já era assim; textos da tela ajustados e teste `test_price_only_needs_to_be_positive_not_20_pct`.

@@ -339,3 +339,9 @@ def test_entries_and_sales_go_to_the_fictitious_wallet_never_real(tmp_path):
     hub.jt.sell(it, 1.0, 2.4e-6, T0 + 180, "saiu")
     assert [p for p in pf.positions() if p["mint"] == M] == []
     assert any(t.get("origem") == "jevtrade" for t in pf.trades(50))
+
+
+def test_price_only_needs_to_be_positive_not_20_pct():
+    """Dono, 30/10 21:30: os 20% são dos detentores; o preço só precisa estar positivo."""
+    r = JevTrade.rule_check([{"m": 5, "h": 50, "px": 1.0}, {"m": 6, "h": 56, "px": 1.005}, {"m": 7, "h": 61, "px": 1.01}])
+    assert r["ok"] and r["px_pct"] == 1.0
