@@ -1205,8 +1205,15 @@
   // 0.32.87 (áudio do Bruxo, 30/10): Jev Trade — o Jev faz o trade inteiro, só em simulação
   const JT_ACT = { entrar: "win", esperar: "neutral", desistir: "loss", segurar: "neutral", vender_25: "win", vender_50: "win", vender_tudo: "loss" };
   const jtTag = (d) => !d ? "–" : '<span class="tag ' + (JT_ACT[d.acao] || "neutral") + '">' + esc(String(d.acao || "–").replace("_", " ")) + "</span>";
-  const jtTk = (x) => '<a href="#" data-jt="' + esc(x.mint) + '">' + esc(x.symbol || String(x.mint).slice(0, 6)) + "</a>";
-  const jtEv = (x) => esc((x.evol || []).join(" → ")) || "–";
+  // 0.32.90 (pedido do dono): o nome abre o token na pump.fun; "leituras" abre a janela com cada minuto e decisão
+  const jtTk = (x) => pfM(x.mint, x.symbol) + ' <a href="#" class="small muted" data-jt="' + esc(x.mint) + '" title="Cada leitura e decisão do Jev">leituras</a>';
+  // 0.32.90: detentores só em número — aos 5 min (1ª leitura) → agora, e a diferença
+  const jtEv = (x) => {
+    if (x.h0 == null && x.h == null) return '<span class="dim">–</span>';
+    const d = x.h0 != null && x.h != null ? x.h - x.h0 : null;
+    return "<b>" + (x.h0 == null ? "–" : x.h0) + " → " + (x.h == null ? "–" : x.h) + "</b>" +
+      (d == null ? "" : ' <span class="' + (d > 0 ? "up" : d < 0 ? "down" : "dim") + '">(' + (d > 0 ? "+" : "") + d + ")</span>");
+  };
   let JT_T = null;
   async function loadJt() {
     clearTimeout(JT_T); JT_T = setTimeout(() => { if (VIEW === "jevtrade") loadJt(); }, 20000);
@@ -1221,9 +1228,9 @@
       ["Régua fixa, todos os 40+", sg(T.sol || 0), (T.n || 0) + " medidos · média " + (T.media_pct == null ? "–" : pc(T.media_pct)), "mon"]]);
     $("jtL").textContent = E.leitura || "";
     $("jtC").innerHTML = jvChart({ jev: (E.curva || {}).jev, regra: (E.curva || {}).igual });
-    table("jtO", ["Token", "Entrou", "Detentores", "Agora", "Pico", "Stop", "Restante", "Jev"], (r.abertas || []).map((x) => [jtTk(x), dt(x.entrada.t), jtEv(x), x.agora_pct == null ? "–" : pc(x.agora_pct), x.peak == null ? "–" : pc(x.peak), pc(x.stop), Math.round((x.left || 0) * 100) + "%", jtTag(x.decisao)]), "Nenhuma posição aberta.");
-    table("jtW", ["Token", "Desde", "Detentores", "Pico", "Jev"], (r.olhando || []).map((x) => [jtTk(x), dt(x.t), jtEv(x), x.h_peak == null ? "–" : String(x.h_peak), jtTag(x.decisao)]), "Nenhum token em observação.");
-    table("jtF", ["Hora", "Token", "Entrou", "Resultado", "Pico", "Régua fixa", "Vendas", "Por que acabou"], (r.fechadas || []).map((x) => [dt(x.fechou_t || x.t), jtTk(x), x.entrada ? "sim" : "não", x.res == null ? "–" : pc(x.res), x.peak == null ? "–" : pc(x.peak),
+    table("jtO", ["Token", "Entrou", "Detentores 5 min → agora", "Agora", "Pico", "Stop", "Restante", "Jev"], (r.abertas || []).map((x) => [jtTk(x), dt(x.entrada.t), jtEv(x), x.agora_pct == null ? "–" : pc(x.agora_pct), x.peak == null ? "–" : pc(x.peak), pc(x.stop), Math.round((x.left || 0) * 100) + "%", jtTag(x.decisao)]), "Nenhuma posição aberta.");
+    table("jtW", ["Token", "Desde", "Detentores 5 min → agora", "Pico", "Jev"], (r.olhando || []).map((x) => [jtTk(x), dt(x.t), jtEv(x), x.h_peak == null ? "–" : String(x.h_peak), jtTag(x.decisao)]), "Nenhum token em observação.");
+    table("jtF", ["Hora", "Token", "Detentores 5 min → fim", "Entrou", "Resultado", "Pico", "Régua fixa", "Vendas", "Por que acabou"], (r.fechadas || []).map((x) => [dt(x.fechou_t || x.t), jtTk(x), jtEv(x), x.entrada ? "sim" : "não", x.res == null ? "–" : pc(x.res), x.peak == null ? "–" : pc(x.peak),
       x.regua == null ? (x.regua_todos == null ? "–" : pc(x.regua_todos)) : pc(x.regua), String(x.vendas || 0), '<span class="wrapcell">' + esc(x.motivo || "–") + "</span>"]), "Nada encerrado no período.");
     table("jtM2", ["Motivo", "Vezes", "Média"], (E.motivos || []).map((m) => [esc(m.motivo), String(m.n), pc(m.media_pct)]), "Sem saídas ainda.");
   }

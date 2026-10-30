@@ -1205,6 +1205,11 @@
    "versao": "0.32.89",
    "inicio": "2026-10-30T18:46:46+00:00",
    "titulo": "datas certas nas abas JEV e Jev Trade"
+  },
+  {
+   "versao": "0.32.90",
+   "inicio": "2026-10-30T18:56:17+00:00",
+   "titulo": "Jev Trade: nome abre a pump.fun e detentores 5 min → agora"
   }
  ]
 }

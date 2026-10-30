@@ -1390,3 +1390,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.88: `detentores._detail` (`detalhe` em `study`: itens, ganhos, perdas, mediana, sem os 3 maiores); `kpis()` aceita 6º campo → `data-kpi`/`.kpiclick`; `openJd`/`JD_INFO` usam o modal `#jtM`. Pedido do dono.
 - 0.32.89: `dt()` em `web/app.js` aceita número em SEGUNDOS (< 1e11 → ×1000). As abas JEV e Jev Trade mandam `t` em segundos e tudo
   aparecia como 21/01/1970 19:09 (mesma hora). Dados no banco estavam certos (conferido: `jev_backtest` 26/10–30/10, `jev_decisions` 30/10).
+- 0.32.90 (pedido do dono): Jev Trade — `jtTk` = `pfM` (nome abre a pump.fun + ficha "i") + link "leituras" (`data-jt`, janela de cada minuto);
+  `jtEv` = detentores `h0 → h (±diferença)` (1ª leitura aos 5 min → agora/fim) nas tabelas `jtO`, `jtW` e `jtF` (coluna nova nos Encerrados).

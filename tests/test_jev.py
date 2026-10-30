@@ -262,3 +262,12 @@ def test_dates_in_seconds_show_the_right_day():
     """0.32.89: as abas JEV e Jev Trade mandam a hora em segundos; dt() tratava como milissegundos (21/01/1970)."""
     js = open("web/app.js", encoding="utf-8").read()
     assert 'x < 1e11 ? x * 1000 : x' in js.split("const dt =", 1)[1].split("\n", 1)[0]
+
+
+def test_jev_trade_token_opens_pump_fun_and_shows_holders_start_to_now():
+    """0.32.90: nome do token abre a pump.fun e Detentores = 5 min → agora (diferença)."""
+    js = open("web/app.js", encoding="utf-8").read()
+    tk = js.split("const jtTk =", 1)[1].split("\n", 1)[0]
+    assert "pfM(x.mint, x.symbol)" in tk and "data-jt" in tk
+    ev = js.split("const jtEv =", 1)[1].split("};", 1)[0]
+    assert "x.h0" in ev and "x.h - x.h0" in ev

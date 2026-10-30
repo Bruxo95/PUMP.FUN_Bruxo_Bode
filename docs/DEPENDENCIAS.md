@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-30**; revisão documental **2.0**.
-Aplicação: **0.32.89 · 2026-10-30 · datas certas nas abas JEV e Jev Trade**.
-Referência Git na emissão: `860eef630d9dae821f2ba5e63c603da7c1f92be6`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.90 · 2026-10-30 · Jev Trade: nome abre a pump.fun e detentores 5 min → agora**.
+Referência Git na emissão: `35bd7961e5901dbf88bc8f6afb7cdb6bb8bb651b`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
