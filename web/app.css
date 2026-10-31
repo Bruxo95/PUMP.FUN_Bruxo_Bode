@@ -840,3 +840,11 @@ html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none
 .chartbox .jvs4{fill:none;stroke:var(--warn,#f5b342);stroke-width:2}.chartbox .jvs4t{fill:var(--warn,#f5b342)}
 .kpiclick{cursor:pointer}.kpiclick:hover,.kpiclick:focus-visible{border-color:var(--info)}
 #realAll{font-size:0;min-width:48px;padding-left:48px;margin-top:6px}
+
+/* 0.32.104 — Posições: busca, ordem e filtros */
+.posbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 8px}
+.posbar #posQ{flex:1;min-width:200px}
+.posabas{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.posabas .chip.on{color:var(--up);background:var(--up-bg);border-color:rgba(34,197,94,.45)}
+#posK{margin-bottom:10px}
+@media (max-width:860px){.posbar #posQ{min-width:100%}.posbar select{flex:1}}

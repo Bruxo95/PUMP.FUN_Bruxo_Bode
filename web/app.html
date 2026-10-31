@@ -262,6 +262,18 @@
       <!-- ========================================================= POSIÇÕES -->
       <section class="view" data-view="posicoes" hidden>
         <div class="card"><header><div><h2 data-novo-ate="2026-11-12" title="novo: posições em cards">Posições copiadas <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub" id="posSub"></div></div></header>
+          <div class="posbar" data-novo-ate="2026-11-14">
+            <input class="in" id="posQ" type="search" placeholder="Buscar token, símbolo ou carteira" aria-label="Buscar posição">
+            <select class="in" id="posSort" aria-label="Ordenar">
+              <option value="ganho_pct">Maior ganho (%) primeiro</option><option value="ganho_sol">Maior ganho (SOL) primeiro</option>
+              <option value="perda_pct">Maior perda primeiro</option><option value="novas">Mais novas primeiro</option>
+              <option value="antigas">Mais antigas primeiro</option><option value="saida">Mais perto de sair (tempo)</option>
+              <option value="investido">Maior valor investido</option><option value="pico">Maior pico</option></select>
+            <div class="seg" id="posRes"><button data-posres="todas" class="on">Todas</button><button data-posres="ganho">Ganhando</button><button data-posres="perda">Perdendo</button><button data-posres="parcial">Já vendeu parte</button></div>
+          </div>
+          <div class="posabas" id="posAbas"></div>
+          <div class="kpis" id="posK" data-novo-ate="2026-11-14"></div>
+          <div class="tablewrap"><table id="posAbaT" class="daytbl"></table></div>
           <div class="poscards" id="posCards"></div><details class="origleg"><summary>O que quer dizer a coluna Trader quando não é uma carteira?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
               <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Fechadas agora (últimas 3 h)</h2><div class="sub">stops, alvos, tempo, trader vendeu… para ver que o trade terminou e por quê</div></div><div class="sp"></div><a class="btn sm" href="#historico">Histórico completo</a></header>
           <div class="tbl-wrap"><table id="tClosedNow"></table></div></div>

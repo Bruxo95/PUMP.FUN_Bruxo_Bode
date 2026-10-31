@@ -3369,6 +3369,52 @@
       ((p.snaps || []).length ? '<p class="pc-lbl">Fotos a cada 15 min</p><p class="pc-why">' + p.snaps.map((x) => x.min + " min: " + (x.chg == null ? "–" : (x.chg > 0 ? "+" : "") + f(x.chg, 1) + "%")).join(" · ") + "</p>" : "") +
       "</details></article>";
   }
+  // 0.32.104 — Posições: busca, ordem, filtro por aba de origem e resumo (estado guardado neste navegador)
+  const POSF = { q: "", sort: "ganho_pct", res: "todas", aba: "" };
+  try { Object.assign(POSF, JSON.parse(localStorage.getItem("pf_posf") || "{}")); } catch (e) { /* sem armazenamento */ }
+  const posSave = () => { try { localStorage.setItem("pf_posf", JSON.stringify(POSF)); } catch (e) { /* */ } };
+  const posAba = (p) => p.aba || (p.wallet && p.wallet !== "manual" ? "Top traders" : "Outras");
+  const posPct = (p) => p.pnl_now_pct != null ? p.pnl_now_pct : (p.chg_pct != null ? p.chg_pct : null);
+  const posOpenT = (p) => p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : 0);
+  const posLeft = (p) => { const h = p.hold_s; if (h == null || h >= 3e8) return Infinity; return h - (Date.now() / 1000 - posOpenT(p)); };
+  function posView(P) {
+    // resumo por aba (antes dos filtros de aba e resultado, depois da busca)
+    const q = (POSF.q || "").trim().toLowerCase();
+    const Q = !q ? P : P.filter((p) => [p.symbol, p.mint, p.wallet, posAba(p), p.auto].some((v) => v && String(v).toLowerCase().includes(q)));
+    const by = {};
+    Q.forEach((p) => { const a = posAba(p), s = by[a] || (by[a] = { n: 0, sol: 0, inv: 0, g: 0, l: 0 }); s.n++; s.sol += p.pnl_now_sol || 0; s.inv += p.sol_in || 0; (posPct(p) || 0) >= 0 ? s.g++ : s.l++; });
+    if (POSF.aba && !by[POSF.aba]) POSF.aba = "";
+    const abas = Object.keys(by).sort((a, b) => by[b].n - by[a].n);
+    $("posAbas").innerHTML = ['<button class="btn sm chip' + (POSF.aba ? "" : " on") + '" data-posaba="">Todas · ' + Q.length + "</button>"].concat(abas.map((a) =>
+      '<button class="btn sm chip' + (POSF.aba === a ? " on" : "") + '" data-posaba="' + esc(a) + '">' + esc(a) + " · " + by[a].n + ' <span class="' + (by[a].sol >= 0 ? "up" : "down") + '">' + sg(by[a].sol) + "</span></button>")).join("");
+    let V = POSF.aba ? Q.filter((p) => posAba(p) === POSF.aba) : Q.slice();
+    if (POSF.res === "ganho") V = V.filter((p) => (posPct(p) || 0) > 0);
+    else if (POSF.res === "perda") V = V.filter((p) => (posPct(p) || 0) < 0);
+    else if (POSF.res === "parcial") V = V.filter((p) => (p.sells || []).length || p.proceeds > 0);
+    const key = { ganho_pct: (p) => -(posPct(p) ?? -1e9), ganho_sol: (p) => -(p.pnl_now_sol ?? -1e9), perda_pct: (p) => (posPct(p) ?? 1e9),
+      novas: (p) => -posOpenT(p), antigas: (p) => posOpenT(p), saida: posLeft, investido: (p) => -(p.sol_in || 0), pico: (p) => -(p.best_pct ?? -1e9) }[POSF.sort] || ((p) => -(posPct(p) ?? -1e9));
+    V.sort((a, b) => key(a) - key(b));
+    const tot = V.reduce((s, p) => s + (p.pnl_now_sol || 0), 0), inv = V.reduce((s, p) => s + (p.sol_in || 0), 0);
+    const win = V.filter((p) => (posPct(p) || 0) > 0), los = V.filter((p) => (posPct(p) || 0) < 0);
+    const best = V.reduce((b, p) => (posPct(p) ?? -1e9) > (posPct(b) ?? -1e9) ? p : b, V[0]), worst = V.reduce((b, p) => (posPct(p) ?? 1e9) < (posPct(b) ?? 1e9) ? p : b, V[0]);
+    kpis("posK", [["Mostrando", String(V.length), "de " + P.length + " abertas" + (POSF.aba ? " · " + POSF.aba : ""), "tr"],
+      ["Ganho agora", sg(tot), "sobre " + s4(inv) + " SOL investidos" + (inv ? " (" + pc(tot / inv * 100) + ")" : ""), "pnl"],
+      ["Ganhando × perdendo", win.length + " × " + los.length, V.length ? f(win.length / V.length * 100, 0) + "% no verde" : "–", "hit"],
+      ["Melhor / pior", V.length ? pc(posPct(best)) + " / " + pc(posPct(worst)) : "–", V.length ? esc(best.symbol || "") + " · " + esc(worst.symbol || "") : "", "mon"]]);
+    table("posAbaT", ["Aba de origem", "Abertas", "Ganhando", "Perdendo", "Investido", "Ganho agora"], abas.map((a) => [esc(a), String(by[a].n), String(by[a].g), String(by[a].l), s4(by[a].inv) + " SOL", '<b class="' + (by[a].sol >= 0 ? "up" : "down") + '">' + sg(by[a].sol) + "</b>"]), "");
+    if ($("posQ") && document.activeElement !== $("posQ")) $("posQ").value = POSF.q || "";
+    if ($("posSort")) $("posSort").value = POSF.sort;
+    document.querySelectorAll("[data-posres]").forEach((b) => b.classList.toggle("on", b.dataset.posres === POSF.res));
+    return V;
+  }
+  document.addEventListener("input", (e) => { if (e.target && e.target.id === "posQ") { POSF.q = e.target.value; posSave(); renderPositions(); } });
+  document.addEventListener("change", (e) => { if (e.target && e.target.id === "posSort") { POSF.sort = e.target.value; posSave(); renderPositions(); } });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-posaba],[data-posres]");
+    if (!b) return;
+    if (b.dataset.posaba != null) POSF.aba = b.dataset.posaba; else POSF.res = b.dataset.posres;
+    posSave(); renderPositions();
+  });
   function renderPositions() {
     const c = cfg(), rm = realMode(), P = (D.positions || []).filter((p) => !!p.real === rm);
     $("posSub").textContent = (rm ? "REAL · " : "FICTÍCIO · ") + P.length + " de " + (rm ? c.pump_real_max_open : c.pump_max_open) + " · " + s4(rm ? c.pump_real_max_sol : c.pump_copy_sol) + " SOL cada" + (rm ? " (valores medidos na carteira)" : " · slippage extra " + c.pump_extra_slip_pct + "%") + " · variação já líquida de taxas";
@@ -3393,9 +3439,11 @@
     const tags = (p) => (p.trail_peak != null ? '<span class="tag trail" title="pico ' + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + '%">Stop móvel</span>' : "") + (p.hold_profit ? '<span class="tag pause" title="desde ' + esc(dt(p.hold_since)) + '">Segurando até lucro</span>' : "") + (p.selling ? '<span class="tag pause">Vendendo…</span>' : "");
     const leftShort = (p) => { const h = p.hold_s, open = p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : null); if (h == null || !open) return "–"; if (h >= 3e8) return "sem limite"; const rest = h - (Date.now() / 1000 - open); return rest > 0 ? "em " + hms(rest) : '<b class="down">saindo</b>'; };
     POS_DET = { list: P, left, soldCell, vol, holdBtns };
+    // 0.32.104 (pedido do dono): ordenar (ganhos primeiro), filtrar por aba de origem, busca e resumo por aba
+    const V = posView(P);
     // 0.32.40 (pedido do dono: "no celular fica ruim de ver"): cada posição vira um card com tudo à vista —
     // ganho e variação ao vivo, faixa stop ↔ alvo, tempo de abertura e de saída e os botões de alteração.
-    $("posCards").innerHTML = P.length ? P.map((p) => posCard(p, c)).join("") : '<div class="empty">' + (rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.") + "</div>";
+    $("posCards").innerHTML = V.length ? V.map((p) => posCard(p, c)).join("") : '<div class="empty">' + (!P.length ? (rm ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. Quando um trader copiado comprar, a cópia aparece aqui.") : "Nenhuma posição com esses filtros.") + "</div>";
     if (!$("posM").hidden && POS_ID != null) openPosDet(POS_ID, true);
     // 0.32.33 (pedido do dono): as que acabaram de fechar, com o motivo (stop, alvo, tempo…)
     if ($("tClosedNow")) table("tClosedNow", ["Fechou", "Token", "Origem", "Investido", "Resultado", "%", "Segurou", "Motivo"], (D.recent_closed || []).filter((t) => !!t.real === rm).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), pfW(t.wallet, t), s4(t.sol_in) + " SOL", "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),

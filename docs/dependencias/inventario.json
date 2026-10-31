@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-31",
     "timezone": "Europe/Dublin",
-    "repository_reference": "f36d9bdc4855774569065efc3554cb4531d0fba8",
-    "application_version": "0.32.103 · 2026-10-31 · Jev Trade: faixa de idade antes dos 5 min volta a achar tokens",
+    "repository_reference": "bd8d7bdd768b30a94b1aa552cf7ece099d3d94e7",
+    "application_version": "0.32.109 · 2026-10-31 · Posições: ganhos primeiro, filtro por aba, busca e resumo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "ad595550f8042c346a407f1c3e73eb20b8eb08e0ea0917344fc70b74a740b3f9",
+      "app/version.py": "68f283877a7d2127d52412fdfccbbf48b5aabb1d0c1bd25fe5bbe9d4d5d435ca",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "7f8c2f9a36e8aa3790429b43c73891d90f6d7a55776bcbbc83a0e4adf9aeda44",
+      "web/app.html": "7cbe00f37bb755ab79583ee5975180a65c7076a725fd2d11dfacb452164d42bd",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e7859823b1009142cd86b2a4d8153b685a39515b8132d25ed47c4ecd69e61dea"
+  "pdf_sha256": "34fd798b21f93476f5798ab58d73cb9e8ba247d32e820b571b64e18d6468d835"
 }
