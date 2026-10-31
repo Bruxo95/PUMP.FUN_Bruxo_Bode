@@ -1280,6 +1280,11 @@
    "versao": "0.32.104",
    "inicio": "2026-10-31T09:05:50+01:00",
    "titulo": "cada chave avisa onde vale: REAL, fictícia ou sem compra"
+  },
+  {
+   "versao": "0.32.105",
+   "inicio": "2026-10-31T09:24:58+01:00",
+   "titulo": "PumpPortal sem entregar não faz perder cópia; aviso explica o benefício"
   }
  ]
 }

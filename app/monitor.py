@@ -95,6 +95,8 @@ class SharedMonitor:
         return out
 
     # ------------------------------------------------------------------ entrega de um evento a todos
+    PP_FRESH_S = 120
+
     def pp_wanted(self) -> set:
         """0.32.18: carteiras copiadas por alguém, se algum admin ligou pump_pp_copy e existe a chave PumpPortal do sistema."""
         if not self.hub.system_keys.get("pumpportal_api_key"):
@@ -260,8 +262,11 @@ class SharedMonitor:
             act["other"] += 1
         if not fol and not studied:
             return                                     # só observando (status online do top)
-        if is_pump and w in self._pp_subs:
-            st["pp_skip"] = st.get("pp_skip", 0) + 1   # 0.32.18: chega pronta pela PumpPortal; não gasta o RPC
+        # 0.32.18: chega pronta pela PumpPortal; não gasta o RPC. 0.32.105: só pula se ela entregou trade há pouco. Em 31/10 havia
+        # 60 carteiras assinadas, 0 trades recebidos e 273 leituras puladas: sem entrega, essas cópias se perdiam. O mesmo trade
+        # nunca é copiado duas vezes (_seen_sig), então na dúvida lê pelo RPC.
+        if is_pump and w in self._pp_subs and now - float(self.market.status.get("acct_last") or 0) < self.PP_FRESH_S:
+            st["pp_skip"] = st.get("pp_skip", 0) + 1
             return
         if not is_pump and not studied and not any(getattr(e.cfg, "pump_copy_other", True) for e in fol):
             return

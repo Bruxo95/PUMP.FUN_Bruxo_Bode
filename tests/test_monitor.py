@@ -336,6 +336,12 @@ def test_pumpportal_account_trades_copy_without_rpc_and_no_double(setup):
     mon.on_notification({"method": "logsNotification", "params": {"subscription": 1, "result": {"value": {
         "signature": "ppsig2", "err": None, "logs": ["Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke"]}}}})
     assert mon._tx_q.qsize() == 0 and mon.market.rpc_status["pp_skip"] == 1
+    # 0.32.105: PumpPortal assinada mas sem entregar: a transação continua sendo lida pelo RPC (não perde a cópia)
+    mon.market.status["acct_last"] = time.time() - mon.PP_FRESH_S - 1
+    n0 = mon.market.rpc_status.get("queued", 0)
+    mon.on_notification({"method": "logsNotification", "params": {"subscription": 1, "result": {"value": {
+        "signature": "ppsig3", "err": None, "logs": ["Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke"]}}}})
+    assert mon.market.rpc_status["queued"] == n0 + 1 and mon.market.rpc_status["pp_skip"] == 1
 
 
 def test_dead_personal_key_of_other_user_does_not_break_system_key(setup):
