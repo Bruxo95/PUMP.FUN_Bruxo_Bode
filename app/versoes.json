@@ -1340,6 +1340,11 @@
    "versao": "0.32.116",
    "inicio": "2026-11-01T00:09:52+01:00",
    "titulo": "detentores aos 5 min, faixa de confiança, dia frio e alerta da carteira real"
+  },
+  {
+   "versao": "0.32.117",
+   "inicio": "2026-10-31T23:26:42+00:00",
+   "titulo": "cérebro em sombra nas outras abas"
   }
  ]
 }

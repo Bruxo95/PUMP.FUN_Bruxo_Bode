@@ -1458,6 +1458,7 @@ class PumpFun:
             tr["lag_s"] = p.get("lag_s")
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             tr["score"] = p.get("score")
+            tr["score_parts"] = p.get("score_parts")       # 0.32.117: cérebro em sombra mede pressão, curva e criador na entrada
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
@@ -4363,6 +4364,7 @@ class PumpFun:
             tr["lag_s"] = p.get("lag_s")
             tr["best_pct"], tr["worst_pct"] = p.get("best_pct"), p.get("worst_pct")
             tr["score"] = p.get("score")
+            tr["score_parts"] = p.get("score_parts")       # 0.32.117: cérebro em sombra mede pressão, curva e criador na entrada
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             tr["sim_id"] = p.get("sim_id")                 # 0.31.38: par na fictícia (espelho)

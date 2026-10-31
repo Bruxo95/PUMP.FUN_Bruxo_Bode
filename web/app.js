@@ -2623,7 +2623,7 @@
     if (VIEW === "bruxo") { loadBruxo(); loadBxReports(); }
     if (VIEW === "jev") loadJev();
     if (VIEW === "jevtrade") loadJt();
-    if (VIEW === "basegeral") loadRsBase();
+    if (VIEW === "basegeral") { loadRsBase(); loadBrainShadow(); }
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") { loadEq(); loadEqRep(); }
@@ -3171,6 +3171,19 @@
     const v = e.target.closest("[data-rsv]"); if (v) { openRsItem(v.dataset.rsv); return; }
     const k = e.target.closest("[data-kpi-back]"); if (k) { e.preventDefault(); openOv(k.dataset.kpiBack); }
   });
+  // 0.32.117: cérebro em sombra; o veredito vem da faixa de confiança por dia, nunca só do total em SOL
+  async function loadBrainShadow() {
+    const r = await BB.api("/api/pump/base-geral/sombra", { quiet: true }); if (r.error || !$("bgSh")) return;
+    $("bgShSub").textContent = "carteira FICTÍCIA · todas as contas · " + (r.fechadas || 0) + " trades fechados · faixa com " + r.min_n + "+ fechadas, acerto abaixo de " + r.max_acerto + "% e média abaixo de " + r.max_media + "%";
+    const L = r.abas || [];
+    const cell = (x) => x.n ? x.n + " trades · " + x.ganhos + " ganhos" : "nenhum";
+    const sol = (v) => '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + s4(v) + " SOL</span>";
+    const rows = [];
+    L.forEach((a) => [["Regra atual", a.atual], ["Regra rígida", a.wilson]].forEach(([nome, x]) => rows.push([esc(a.aba), a.fechadas + " · " + s4(a.saldo_sol) + " SOL", nome, cell(x), s4(x.poupado_sol) + " SOL", s4(x.perderia_sol) + " SOL", sol(x.efeito_sol), esc(x.leitura)])));
+    table("bgSh", ["Aba", "Fechados · saldo", "Regra", "Teria barrado", "Perdas evitadas", "Ganhos perdidos", "Efeito", "Veredito"], rows, "Ainda não há trades fechados nas outras abas.");
+    const F = []; L.forEach((a) => (a.faixas || []).forEach((x) => F.push([esc(a.aba), esc(x.sinal), esc(x.faixa), String(x.n), x.acerto + "%", x.media_pct + "%", x.wilson ? "atual e rígida" : "atual"])));
+    table("bgShF", ["Aba", "Sinal", "Faixa", "Trades", "Acerto", "Média", "Regra"], F, "Nenhuma faixa ruim com base mínima por enquanto.");
+  }
   async function loadRsBase() {
     const rm = realMode(), r = await BB.api("/api/pump/result-study/learn?real=" + (rm ? 1 : 0), { quiet: true }); if (r.error || !$("bgRsA")) return;
     $("bgRsSub").textContent = (rm ? "carteira REAL" : "carteira FICTÍCIA") + " · todas as contas · " + (r.dias || 0) + " dias · " + (r.trades || 0) + " trades · " + s4(r.saldo_sol || 0) + " SOL";

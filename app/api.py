@@ -1305,6 +1305,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def evo_auto(pf=Depends(admin_engine)):
         return await hub.evo_auto(pf)
 
+    @app.get("/api/pump/base-geral/sombra")
+    async def base_geral_sombra(pf=Depends(admin_engine)):
+        """0.32.117: o que o cérebro teria barrado nas outras abas. Só mede."""
+        return hub.brain_shadow()
+
     @app.get("/api/pump/base-geral")
     async def base_geral(pf=Depends(admin_engine)):
         """0.31.71: o cérebro do robô — maturidade, o que aprendeu, o que está por vir, gráfico e log."""

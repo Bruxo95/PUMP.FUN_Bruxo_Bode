@@ -422,6 +422,23 @@ class PumpHub:
         out += [(False, t) for t in self.shadow_trades()]                    # 0.31.72: o que teria acontecido
         return out
 
+    def brain_shadow(self) -> dict:
+        """0.32.117: a regra do aprender com os erros medida nas outras abas, só com o passado de cada trade. Não bloqueia nada."""
+        now = time.time()
+        hit = self.__dict__.get("_brain_shadow")
+        if hit and now - hit[0] < 60:
+            return hit[1]
+        from . import brainshadow
+        rows = []
+        for e in list(self.engines.values()):
+            for t in e.trades(100000):
+                nome = brainshadow.aba(t, e.aba_of)
+                if nome:
+                    rows.append((e.user_id, nome, t))
+        out = brainshadow.run(rows)
+        self.__dict__["_brain_shadow"] = (now, out)
+        return out
+
     # ------------------------------------------------------------------ entradas sombra (0.31.72)
     SHADOW_S = 900                 # o resultado da sombra é o preço 15 min depois de o Explorar barrar o token
     SHADOW_COST_PCT = 4.0          # taxas + slippage de uma compra e uma venda, aproximado
