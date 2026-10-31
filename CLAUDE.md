@@ -58,6 +58,10 @@ cada API): `docs/GUIA-DO-PROJETO.md`.
 - Visual: tema escuro "painel profissional" (estilo inspirado em rbp-security-template.vercel.app — só o
   estilo, nada copiado). Botões liga/desliga: **verde = ON, vermelho = OFF**. Tem que funcionar no celular
   (menu vira gaveta, sem rolagem lateral). JS sem handlers inline (a CSP bloqueia).
+- **Toda mudança de visualização web é conferida no PC E no celular (pedido do dono em 2026-10-31).** Antes do commit: tirar
+  print da tela mexida em 1440 px e em 390 px (Playwright já instalado; copiar `web/` para uma pasta temporária, tirar o
+  `?v=` e o `/static/` dos links, mostrar só a `section[data-view=...]` e desligar os scripts), olhar os dois prints e
+  conferir que não há rolagem lateral (`scrollWidth - innerWidth = 0`). Dizer na resposta que os dois foram conferidos.
 
 ## Segurança (nunca quebrar)
 - Nunca mostrar, logar ou devolver chaves pela API; a tela só mostra "configurada: sim/não".
@@ -1439,3 +1443,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.109 (pedido do dono, 31/10): Posições com `POSF` (`localStorage` `pf_posf`: busca `#posQ`, ordem `#posSort` — padrão maior ganho %, resultado `data-posres`,
   aba `data-posaba` por `posAba` = `p.aba`), `posView` (KPIs `#posK`, tabela por aba `#posAbaT`); `POS_DET.list` continua com todas. CSS `.posbar`/`.posabas`.
   Atenção: antes de escolher o número da versão, conferir `app/version.py` DEPOIS do `git pull` (a 0.32.108 saiu como 0.32.103 por engano).
+- 0.32.110 (pedido do dono, 31/10): Jev Trade na ordem Abertas (`.jtfirst`, `#jtOSub`) → Em observação → controle (chaves em `.jtsw`, "Como funciona"
+  recolhido em `details.jtcomo`) → Filtros (`.jtfilt`, 2 colunas até 860 px) → Resultado (`#jtH`/`#jtK`/`#jtC`) → regra no passado → Encerrados → Por que saiu.
+  Conferido em 1440 px e 390 px (sem rolagem lateral).
