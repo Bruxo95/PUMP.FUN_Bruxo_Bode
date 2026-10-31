@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-10-31",
     "timezone": "Europe/Dublin",
-    "repository_reference": "05999d6a971ecb529ec87bfb69ab811a75425c77",
-    "application_version": "0.32.103 · 2026-10-31 · Visão geral com cartões que abrem e chave geral da REAL",
+    "repository_reference": "0e7a2485d27f3f22975df480299f2336793390c1",
+    "application_version": "0.32.104 · 2026-10-31 · cada chave avisa onde vale: REAL, fictícia ou sem compra",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "313ad93660ccfeec80678dba16aad22b855ae9d06a464a084b3471ab0aa764f9",
-      "app/version.py": "73f5d80771c5c57ea84e9dd19fea2ad66d0b32fc4df2c307591e3e7ee500f1e7",
+      "app/version.py": "78dd6af2c6c7c923370ad52aeccf68108b480e6787b78f144e470cc400c852ec",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "3039399a8c16ad7f2ed558055e5442f03b7abc1b1289bc875516c3ae12ef7ad8"
+  "pdf_sha256": "58efa38e711416d0ab8eda62d3d592fd6bf624b34e0f41c08ff8ef8ac7cfda46"
 }

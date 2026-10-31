@@ -2948,7 +2948,7 @@
       row("Solana RPC", okb(RP.ws, RP.error), RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado")) +
       row("PumpPortal", okb(PPs.ws, PPs.error), PPs.ws ? "tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado")) +
       // 0.32.18 (pedido do dono): trades das copiadas pela PumpPortal paga (0,01 SOL a cada 10 mil trades, na carteira da chave do sistema)
-      row("Trades das copiadas pela PumpPortal", '<button class="btn sm tgl" data-toggle="pump_pp_copy" data-confirm="Ligar? A PumpPortal cobra 0,01 SOL a cada 10 mil trades recebidos, da carteira ligada à chave PumpPortal do sistema (precisa ter saldo).">…</button>',
+      row("Trades das copiadas pela PumpPortal", '<button class="btn sm tgl" data-toggle="pump_pp_copy" data-confirm="Ligar? Isto não compra nada: só faz os trades das carteiras copiadas chegarem mais rápido, pela PumpPortal. As cópias continuam onde já estão. Custo em SOL de verdade: 0,01 SOL a cada 10 mil trades recebidos, da carteira ligada à chave PumpPortal do sistema (precisa ter saldo).">…</button>',
         (PPs.acct_subs ? PPs.acct_subs + " carteiras assinadas · " + f(PPs.acct_trades || 0, 0) + " trades recebidos (≈ " + ((PPs.acct_trades || 0) / 1e6).toFixed(4) + " SOL)" + (PPs.acct_last ? " · último " + ago(PPs.acct_last) : "") + (RP.pp_skip ? " · " + f(RP.pp_skip, 0) + " leituras do RPC economizadas" : "")
           : "desligado · ligado, as compras e vendas das carteiras copiadas chegam prontas, sem gastar o RPC (só pump.fun/PumpSwap; cobra 0,01 SOL a cada 10 mil trades da carteira da chave PumpPortal do sistema)")) +
       row("Preços", okb(!RP.price_error, RP.price_error), esc(RP.price_error || "–")) +
@@ -3032,7 +3032,7 @@
     document.querySelectorAll("[data-hcfg]").forEach((el) => { const v = isAutoCfg(el.dataset.hcfg) ? autoValue(el.dataset.hcfg, c) : c[el.dataset.hcfg];
       if (document.activeElement !== el && v != null) el.value = +(v / 60).toFixed(2);
       if (el.id === "exAutoHold" && v != null) $("exAutoHoldN").textContent = "= " + f(v, 0) + " min · máximo 24 h"; });
-    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); b.textContent = on ? "Ligado" : "Desligado"; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
+    document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); const sc = tglScope(b.dataset.toggle, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.title = sc[1]; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
@@ -3066,6 +3066,18 @@
     else if (VIEW === "real") renderReal();
   }
 
+  // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
+  const NL2 = String.fromCharCode(10, 10);
+  const TGL_REAL = ["pump_real_mirror", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_copy_other_real"];
+  const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
+    pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
+  const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
+  function tglScope(k, c) {
+    if (TGL_REAL.includes(k)) return ["REAL", "só a carteira REAL (dinheiro de verdade), e só com a Execução real ligada"];
+    if (TGL_NOBUY.includes(k)) return ["SEM COMPRA", "não compra nada, nem na fictícia nem na real: só muda dados, avisos ou contas"];
+    if (k in TGL_ENTRY) { const r = TGL_ENTRY[k], both = !!(D && D.real && D.real.enabled) && (r === 1 || !!c[r]); return both ? ["FICTÍCIA e REAL", "compra na FICTÍCIA e na REAL (a Execução real e a opção REAL desta aba estão ligadas)"] : ["FICTÍCIA", "compra só na FICTÍCIA (a REAL está desligada aqui)"]; }
+    return ["REGRA", "regra de filtro ou de saída: não compra sozinha, vale para as compras que já acontecem"];
+  }
   // ------------------------------------------------------------------ visão geral
   // 0.32.103 (pedido do dono): cada cartão abre o que há por trás dele; a conta segue o botão FICTÍCIA/REAL do topo
   function ovShow(t, sub, html) { $("jtMT").textContent = t; $("jtMS").textContent = sub; $("jtMB").innerHTML = html; $("jtM").hidden = false; $("jtMX").focus(); }
@@ -3687,7 +3699,7 @@
       EX_AUTO.days = +t.dataset.autoDays; EX_AUTO.revision++; EX_AUTO.data = null; EX_AUTO.error = "";
       renderAutoTrades(); loadAutoTrades(true); return;
     }
-    if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k]; if (on && t.dataset.confirm && !confirm(t.dataset.confirm)) return; setCfg({ [k]: on }); if (k === "pump_base_hide_trash") setTimeout(loadBase, 700); return; }
+    if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k], sc = tglScope(k, cfg()); if (on && t.dataset.confirm && !confirm("VALE PARA: " + sc[1] + NL2 + t.dataset.confirm)) return; setCfg({ [k]: on }); toast((on ? "Ligado" : "Desligado") + " · " + sc[1]); if (k === "pump_base_hide_trash") setTimeout(loadBase, 700); return; }
     if (t.dataset.set) { setCfg({ [t.dataset.set]: +t.dataset.val }); return; }
     if (t.dataset.mode) { MODE = t.dataset.mode; try { localStorage.setItem("pf:mode", MODE); } catch (e) { /* */ } render(); return; }
     if (t.dataset.r) { RANGE = +t.dataset.r; try { localStorage.setItem("pf:range", RANGE); } catch (e) { /* */ } render(); return; }

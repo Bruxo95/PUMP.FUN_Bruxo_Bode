@@ -1275,6 +1275,11 @@
    "versao": "0.32.103",
    "inicio": "2026-10-31T08:27:47+01:00",
    "titulo": "Visão geral com cartões que abrem e chave geral da REAL"
+  },
+  {
+   "versao": "0.32.104",
+   "inicio": "2026-10-31T09:05:50+01:00",
+   "titulo": "cada chave avisa onde vale: REAL, fictícia ou sem compra"
   }
  ]
 }
