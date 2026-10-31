@@ -1630,6 +1630,74 @@ class PumpHub:
         return eqreport.build(e.trades(5000), e.positions(), list(e.__dict__.get("_copy_diag") or []), list(e.copy_equal),
                               dict(getattr(e, "eq_mode", None) or {}), now, real)
 
+    # ---------------------------------------------------------------- 0.32.114: estudo do Resultado por período
+    def rs_study(self, pf: PumpFun, horas: float, real: bool, now: float | None = None) -> dict:
+        from . import resultstudy
+        now = time.time() if now is None else now
+        return resultstudy.build(pf.trades(100000), now - horas * 3600, now, real, pf.aba_of, horas)
+
+    async def rs_save(self, pf: PumpFun, horas: float, real: bool, now: float | None = None) -> dict:
+        """Botão Estudar: guarda, e clicar de novo na mesma hora só atualiza a mesma linha."""
+        now = time.time() if now is None else now
+        E = self.rs_study(pf, horas, real, now)
+        await self.db.insert("result_studies", {"id": f"{pf.user_id}:{int(real)}:{int(horas)}h:{int(now // 3600)}", "user_id": pf.user_id, "real": real, "origem": "manual",
+                                                "em": datetime.fromtimestamp(now, timezone.utc).isoformat(), "data": E}, upsert=True, on_conflict="id")
+        return E
+
+    async def rs_saved(self, pf: PumpFun, real: bool) -> list[dict]:
+        rows = await self.db.select("result_studies", {"user_id": pf.user_id, "real": real}, order="em.desc", limit=12)
+        return [{"em": r.get("em"), "origem": r.get("origem"), "dia": r.get("dia"), **{k: (r.get("data") or {}).get(k) for k in ("horas", "trades", "acerto", "saldo_sol", "investido_sol")}} for r in rows]
+
+    async def result_tick(self, now: float | None = None) -> int:
+        """Grava sozinho cada dia fechado (UTC) dos últimos 7, de cada conta. É o que a Base geral soma: dias não se sobrepõem."""
+        from . import resultstudy
+        now = time.time() if now is None else now
+        done = self.__dict__.setdefault("_rs_done", set())
+        today = int(now // 86400)
+        n = 0
+        for e in list(self.engines.values()):
+            T = e.trades(100000)
+            for real in (False, True):
+                for d in range(today - 7, today):
+                    dia = time.strftime("%Y-%m-%d", time.gmtime(d * 86400))
+                    key = f"{e.user_id}:{int(real)}:{dia}"
+                    if key in done:
+                        continue
+                    E = resultstudy.build(T, d * 86400, (d + 1) * 86400, real, e.aba_of)
+                    done.add(key)
+                    if not E["trades"]:
+                        continue
+                    row = {"id": key, "user_id": e.user_id, "real": real, "origem": "dia", "dia": dia, "em": datetime.fromtimestamp((d + 1) * 86400, timezone.utc).isoformat(), "data": E}
+                    try:
+                        await self.db.insert("result_studies", row, upsert=True, on_conflict="id")
+                        self.__dict__.setdefault("rs_days", []).append(row)
+                        n += 1
+                    except Exception as ex:
+                        done.discard(key)
+                        log.warning("estudo do resultado não gravou: %s", str(ex)[:120])
+        return n
+
+    async def result_loop(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - 60 * 86400, timezone.utc).isoformat()
+            rows = await self.db.select("result_studies", {"origem": "dia"}, order="em.desc", limit=5000, gte={"em": since})
+            self.rs_days = list(rows or [])
+            self._rs_done = {r["id"] for r in self.rs_days}
+        except Exception as e:
+            log.warning("estudos do resultado não carregaram: %s", str(e)[:120])
+            return                                         # sem a lista, regravaria tudo a cada reinício
+        await asyncio.sleep(120)
+        while True:
+            try:
+                await self.result_tick()
+            except Exception as e:
+                log.warning("estudo do resultado: %s", str(e)[:160])
+            await asyncio.sleep(3600)
+
+    def rs_learn(self, real: bool = False) -> dict:
+        from . import resultstudy
+        return resultstudy.learn([r for r in self.__dict__.get("rs_days", []) if bool(r.get("real")) == real])
+
     async def eq_report_tick(self, now: float | None = None) -> int:
         """0.32.73 (pedido do dono): relatório do Copiar igual a cada 6 h, guardado (fictícia e, se houver, real)."""
         from . import eqreport
@@ -3841,6 +3909,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.jt_loop()))             # 0.32.87: Jev Trade
         self._tasks.append(asyncio.create_task(self.bx_report_loop()))      # 0.32.80: relatórios da Aba do Bruxo (30 min e 1 dia)          # 0.32.41: Aba do Bruxo
         self._tasks.append(asyncio.create_task(self.tab_report_loop()))
+        self._tasks.append(asyncio.create_task(self.result_loop()))         # 0.32.114: estudo do Resultado (dias fechados)
         self._tasks.append(asyncio.create_task(self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
         self._tasks.append(asyncio.create_task(self.config_watch_loop()))

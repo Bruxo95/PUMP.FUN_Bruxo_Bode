@@ -219,6 +219,22 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.103: onde a chave geral da execução real vale (a janela que abre ao desligar)."""
         return hub.real_places(await hub.engine(u["id"]))
 
+    @app.get("/api/pump/result-study")
+    async def result_study(horas: float = 24, real: int = 0, pf=Depends(engine)):
+        """0.32.114: de onde veio o resultado do período. O user_id vem só do token (ou da visualização do admin)."""
+        h = horas if horas in (1, 6, 12, 24) else 24
+        return {"estudo": hub.rs_study(pf, h, bool(real)), "guardados": await hub.rs_saved(pf, bool(real))}
+
+    @app.post("/api/pump/result-study")
+    async def result_study_save(body: dict, pf=Depends(engine)):
+        h = body.get("horas") if body.get("horas") in (1, 6, 12, 24) else 24
+        await hub.rs_save(pf, h, bool(body.get("real")))
+        return {"ok": True}
+
+    @app.get("/api/pump/result-study/learn")
+    async def result_study_learn(real: int = 0, pf=Depends(admin_engine)):
+        return hub.rs_learn(bool(real))
+
     @app.get("/api/pump/reports")
     async def pump_reports(days: int = 7, real: int = 0, pf=Depends(admin_engine)):
         """Aba Relatórios: resultado por trader copiado, por motivo de saída, cópias barradas e por dia."""

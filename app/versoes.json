@@ -1325,6 +1325,11 @@
    "versao": "0.32.113",
    "inicio": "2026-10-31T23:31:24+01:00",
    "titulo": "janela Resultado mostra 1, 6, 12 e 24 horas"
+  },
+  {
+   "versao": "0.32.114",
+   "inicio": "2026-10-31T23:46:10+01:00",
+   "titulo": "estudar o Resultado por período e guardar na Base geral"
   }
  ]
 }

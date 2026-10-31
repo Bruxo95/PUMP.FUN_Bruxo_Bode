@@ -2619,6 +2619,7 @@
     if (VIEW === "bruxo") { loadBruxo(); loadBxReports(); }
     if (VIEW === "jev") loadJev();
     if (VIEW === "jevtrade") loadJt();
+    if (VIEW === "basegeral") loadRsBase();
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") { loadEq(); loadEqRep(); }
@@ -3102,7 +3103,7 @@
       kpis("ovK", [rm ? ["Saldo", W && W.sol != null ? s4(W.sol) + " SOL" : "–", "na blockchain", "wallet"] : ["Valor total", s4(Wt.equity_sol) + " SOL", "início " + s4(Wt.start_sol) + " SOL", "wallet"], ["Em posições abertas", s4(Wt.open_value_sol) + " SOL", (Wt.open || 0) + " posições", "pos"], ["Resultado", sg(Wt.pnl_sol, ""), "fechado " + sg(Wt.realized_sol, ""), "pnl"]]);
     } else if (k === "ov_resultado") {
       ovShow("Resultado", "carteira " + nome, '<p class="muted small" style="margin:0 0 10px">Tudo que já fechou, mais as posições abertas no preço de agora. A coluna 24 h do cartão soma só os trades fechados nas últimas 24 horas.</p><h3 class="small">Por período</h3>' + tb("ovP") + '<p class="muted small">Soma os trades fechados no período. Investido é o que entrou nesses trades, e Perdido é a soma das perdas. Posições abertas e vendas parciais de posições ainda abertas não entram.' + (rm ? " Na carteira real, o saldo de antes não aparece porque depósitos e saques mudam a conta." : "") + '</p><div class="kpis" id="ovK"></div><h3 class="small">Últimos trades</h3>' + tb("ovT"));
-      table("ovP", ["Período", "Trades", "Ganhos", "Perdido", "Saldo do período", "Investido", "Saldo antes"], (Wt.periodos || []).map((p) => ["Última" + (p.horas === 1 ? " hora" : "s " + p.horas + " h"), p.trades + "<small>" + p.ganhos + " ganhos · " + p.perdas + " perdas</small>", sg(p.ganhos_sol, ""), sg(p.perdas_sol, ""), sg(p.saldo_sol, ""), s4(p.investido_sol) + " SOL", rm ? "–" : s4(p.saldo_antes) + " SOL"]), "Sem dados.");
+      table("ovP", ["Período", "Trades", "Ganhos", "Perdido", "Saldo do período", "Investido", "Saldo antes", ""], (Wt.periodos || []).map((p) => ["Última" + (p.horas === 1 ? " hora" : "s " + p.horas + " h"), p.trades + "<small>" + p.ganhos + " ganhos · " + p.perdas + " perdas</small>", sg(p.ganhos_sol, ""), sg(p.perdas_sol, ""), sg(p.saldo_sol, ""), s4(p.investido_sol) + " SOL", rm ? "–" : s4(p.saldo_antes) + " SOL", p.trades ? '<button type="button" class="btn sm" data-rsh="' + p.horas + '">Estudar</button>' : "–"]), "Sem dados.");
       kpis("ovK", [["Resultado total", sg(Wt.pnl_sol, ""), "", "pnl"], ["Já fechado", sg(Wt.realized_sol, ""), (Wt.count || 0) + " trades", "tr"], ["Ganhos somados", sg(Wt.gains_sol, ""), (Wt.wins || 0) + " trades", "hit"], ["Perdas somadas", sg(Wt.losses_sol, ""), (Wt.losses || 0) + " trades", "mon"]]);
       ovTrades("ovT", T.slice(0, 30));
     } else if (k === "ov_pos") {
@@ -3124,6 +3125,36 @@
       table("ovT", ["Trader", "Origem"], Fo.map((x) => [pfW(x.wallet, x), x.manual ? "lista manual" : "ranking"]), "Nenhum trader copiado.");
       if (Pa.length) table("ovU", ["Trader", "Motivo"], Pa.map((x) => [pfW(x.wallet, x), '<span class="wrapcell">' + esc(x.reason || "–") + "</span>"]), "");
     }
+  }
+  // 0.32.114 (pedido do dono): estudar o período e guardar para a Base geral. Na visualização de outra conta só mostra, não grava.
+  async function openRs(h) {
+    const rm = realMode(), nome = rm ? "REAL" : "FICTÍCIA";
+    ovShow("Estudo: " + (h === 1 ? "última hora" : "últimas " + h + " h"), "carregando…", "");
+    const r = await BB.api("/api/pump/result-study?horas=" + h + "&real=" + (rm ? 1 : 0)); if (r.error) { $("jtMS").textContent = r.error; return; }
+    const E = r.estudo || {}, tb = (id) => '<div class="tablewrap"><table id="' + id + '" class="daytbl"></table></div>', view = document.body.classList.contains("viewas");
+    if (!view) BB.api("/api/pump/result-study", { body: { horas: h, real: rm }, quiet: true });
+    $("jtMS").textContent = "carteira " + nome + (view ? "" : " · estudo guardado para a Base geral");
+    $("jtMB").innerHTML = '<p class="small"><a href="#" data-kpi-back="ov_resultado">‹ Voltar ao Resultado</a></p><div class="kpis" id="rsK"></div><h3 class="small">O que este período ensina</h3><ul class="small" id="rsL"></ul>' +
+      '<h3 class="small">Por aba</h3>' + tb("rsA") + '<h3 class="small">Por motivo de saída</h3>' + tb("rsM") + '<h3 class="small">Por tempo de posição</h3>' + tb("rsT") + '<h3 class="small">Maiores ganhos</h3>' + tb("rsG") + '<h3 class="small">Maiores perdas</h3>' + tb("rsP") + '<h3 class="small">Estudos guardados</h3>' + tb("rsH") + '<p class="muted small">Só mede: não muda filtro, compra ou venda. A Base geral soma os dias fechados, que o robô grava sozinho, para não contar o mesmo trade duas vezes.</p>';
+    kpis("rsK", [["Saldo do período", sg(E.saldo_sol, ""), (E.trades || 0) + " trades", "pnl"], ["Retorno sobre o investido", E.retorno_pct == null ? "–" : pc(E.retorno_pct), s4(E.investido_sol) + " SOL investidos", "tr"],
+      ["Acerto", (E.acerto || 0) + "%", E.acerto_empate == null ? "" : "para empatar: " + E.acerto_empate + "%", "hit"], ["Ganhos × perdas", sg(E.ganhos_sol, ""), "perdas " + sg(E.perdas_sol, ""), "mon"]]);
+    $("rsL").innerHTML = (E.licoes || []).map((x) => "<li>" + esc(x) + "</li>").join("") || "<li>Sem lições neste período.</li>";
+    const g = (id, a, L) => table(id, [a, "Trades", "Acerto", "Média", "Resultado"], (L || []).map((x) => [esc(x.nome), String(x.n), x.acerto + "%", pc(x.media_pct), sg(x.sol, "")]), "Sem dados.");
+    g("rsA", "Aba", E.por_aba); g("rsM", "Motivo", E.por_motivo); g("rsT", "Tempo", E.por_tempo);
+    const it = (id, L) => table(id, ["Token", "Aba", "Resultado", "%", "Motivo"], (L || []).map((x) => [pfM(x.mint || "", x.symbol), esc(x.aba || "–"), sg(x.sol, ""), pc(x.pct), '<span class="wrapcell">' + esc(x.motivo || "–") + "</span>"]), "Nenhum.");
+    it("rsG", E.melhores); it("rsP", E.piores);
+    table("rsH", ["Guardado", "Tipo", "Trades", "Acerto", "Saldo"], (r.guardados || []).map((x) => [dt(x.em), x.origem === "dia" ? "dia " + esc(x.dia || "") : (x.horas || "?") + " h", String(x.trades || 0), (x.acerto || 0) + "%", sg(x.saldo_sol, "")]), "O primeiro estudo será guardado agora.");
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rsh]"); if (b) { openRs(+b.dataset.rsh); return; }
+    const k = e.target.closest("[data-kpi-back]"); if (k) { e.preventDefault(); openOv(k.dataset.kpiBack); }
+  });
+  async function loadRsBase() {
+    const rm = realMode(), r = await BB.api("/api/pump/result-study/learn?real=" + (rm ? 1 : 0), { quiet: true }); if (r.error || !$("bgRsA")) return;
+    $("bgRsSub").textContent = (rm ? "carteira REAL" : "carteira FICTÍCIA") + " · todas as contas · " + (r.dias || 0) + " dias · " + (r.trades || 0) + " trades · " + s4(r.saldo_sol || 0) + " SOL";
+    const VD = { "lucro repetido": "win", "perda repetida": "loss" };
+    const g = (id, a, L) => table(id, [a, "Dias com lucro", "Trades", "Acerto", "Média", "Resultado", "Veredito"], (L || []).map((x) => [esc(x.nome), x.dias_positivos + " de " + x.dias, String(x.n), x.acerto + "%", x.media_pct == null ? "–" : pc(x.media_pct), sg(x.sol, ""), '<span class="tag ' + (VD[x.veredito] || "neutral") + '">' + esc(x.veredito) + "</span>"]), "Aparece depois do primeiro dia fechado.");
+    g("bgRsA", "Aba", r.por_aba); g("bgRsM", "Motivo de saída", r.por_motivo); g("bgRsT", "Tempo de posição", r.por_tempo);
   }
   // 0.32.103 (pedido do dono): chave geral da REAL; desligar é na hora, ligar continua pedindo a confirmação de sempre
   async function openRealPlaces() {
