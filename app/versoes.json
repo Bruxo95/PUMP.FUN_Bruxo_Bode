@@ -1330,6 +1330,11 @@
    "versao": "0.32.114",
    "inicio": "2026-10-31T23:46:10+01:00",
    "titulo": "estudar o Resultado por período e guardar na Base geral"
+  },
+  {
+   "versao": "0.32.115",
+   "inicio": "2026-10-31T23:58:29+01:00",
+   "titulo": "estudo marcado em verde e seção de estudos na Base geral"
   }
  ]
 }

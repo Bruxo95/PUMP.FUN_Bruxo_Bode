@@ -3106,6 +3106,7 @@
       table("ovP", ["Período", "Trades", "Ganhos", "Perdido", "Saldo do período", "Investido", "Saldo antes", ""], (Wt.periodos || []).map((p) => ["Última" + (p.horas === 1 ? " hora" : "s " + p.horas + " h"), p.trades + "<small>" + p.ganhos + " ganhos · " + p.perdas + " perdas</small>", sg(p.ganhos_sol, ""), sg(p.perdas_sol, ""), sg(p.saldo_sol, ""), s4(p.investido_sol) + " SOL", rm ? "–" : s4(p.saldo_antes) + " SOL", p.trades ? '<button type="button" class="btn sm" data-rsh="' + p.horas + '">Estudar</button>' : "–"]), "Sem dados.");
       kpis("ovK", [["Resultado total", sg(Wt.pnl_sol, ""), "", "pnl"], ["Já fechado", sg(Wt.realized_sol, ""), (Wt.count || 0) + " trades", "tr"], ["Ganhos somados", sg(Wt.gains_sol, ""), (Wt.wins || 0) + " trades", "hit"], ["Perdas somadas", sg(Wt.losses_sol, ""), (Wt.losses || 0) + " trades", "mon"]]);
       ovTrades("ovT", T.slice(0, 30));
+      rsPaint(); rsMarks(rm);
     } else if (k === "ov_pos") {
       ovShow("Posições abertas", P.length + " na carteira " + nome, '<p class="small"><a href="#posicoes" data-jtclose="1">Abrir a tela de Posições</a></p>' + tb("ovT"));
       table("ovT", ["Token", "Aba", "Investido", "Agora", "Aberta há"], P.map((p) => [pfM(p.mint, p.symbol), esc(p.aba || "–"), s4(p.sol_in) + " SOL", p.pnl_now_pct == null ? "–" : pc(p.pnl_now_pct), hms(Date.now() / 1000 - (p.open_t || Date.now() / 1000))]), "Nenhuma posição aberta.");
@@ -3127,15 +3128,16 @@
     }
   }
   // 0.32.114 (pedido do dono): estudar o período e guardar para a Base geral. Na visualização de outra conta só mostra, não grava.
-  async function openRs(h) {
-    const rm = realMode(), nome = rm ? "REAL" : "FICTÍCIA";
-    ovShow("Estudo: " + (h === 1 ? "última hora" : "últimas " + h + " h"), "carregando…", "");
-    const r = await BB.api("/api/pump/result-study?horas=" + h + "&real=" + (rm ? 1 : 0)); if (r.error) { $("jtMS").textContent = r.error; return; }
-    const E = r.estudo || {}, tb = (id) => '<div class="tablewrap"><table id="' + id + '" class="daytbl"></table></div>', view = document.body.classList.contains("viewas");
-    if (!view) BB.api("/api/pump/result-study", { body: { horas: h, real: rm }, quiet: true });
-    $("jtMS").textContent = "carteira " + nome + (view ? "" : " · estudo guardado para a Base geral");
-    $("jtMB").innerHTML = '<p class="small"><a href="#" data-kpi-back="ov_resultado">‹ Voltar ao Resultado</a></p><div class="kpis" id="rsK"></div><h3 class="small">O que este período ensina</h3><ul class="small" id="rsL"></ul>' +
-      '<h3 class="small">Por aba</h3>' + tb("rsA") + '<h3 class="small">Por motivo de saída</h3>' + tb("rsM") + '<h3 class="small">Por tempo de posição</h3>' + tb("rsT") + '<h3 class="small">Maiores ganhos</h3>' + tb("rsG") + '<h3 class="small">Maiores perdas</h3>' + tb("rsP") + '<h3 class="small">Estudos guardados</h3>' + tb("rsH") + '<p class="muted small">Só mede: não muda filtro, compra ou venda. A Base geral soma os dias fechados, que o robô grava sozinho, para não contar o mesmo trade duas vezes.</p>';
+  let RS_MK = {};
+  function rsPaint() {
+    document.querySelectorAll("[data-rsh]").forEach((b) => { const em = RS_MK[b.dataset.rsh]; if (!em) return;
+      b.classList.add("rsdone"); b.innerHTML = "✓ Estudado<small>" + esc(dt(em)) + "</small>"; b.title = "Enviado para a Base geral. Clique para estudar de novo."; });
+  }
+  async function rsMarks(rm) { const r = await BB.api("/api/pump/result-study/marcas?real=" + (rm ? 1 : 0), { quiet: true }); if (!r.error) { RS_MK = r; rsPaint(); } }
+  function renderRs(E, guard) {
+    const tb = (id) => '<div class="tablewrap"><table id="' + id + '" class="daytbl"></table></div>';
+    $("jtMB").innerHTML = (guard ? '<p class="small"><a href="#" data-kpi-back="ov_resultado">‹ Voltar ao Resultado</a></p>' : "") + '<div class="kpis" id="rsK"></div><h3 class="small">O que este período ensina</h3><ul class="small" id="rsL"></ul>' +
+      '<h3 class="small">Por aba</h3>' + tb("rsA") + '<h3 class="small">Por motivo de saída</h3>' + tb("rsM") + '<h3 class="small">Por tempo de posição</h3>' + tb("rsT") + '<h3 class="small">Maiores ganhos</h3>' + tb("rsG") + '<h3 class="small">Maiores perdas</h3>' + tb("rsP") + (guard ? '<h3 class="small">Estudos guardados</h3>' + tb("rsH") : "") + '<p class="muted small">Só mede: não muda filtro, compra ou venda. A Base geral soma os dias fechados, que o robô grava sozinho, para não contar o mesmo trade duas vezes.</p>';
     kpis("rsK", [["Saldo do período", sg(E.saldo_sol, ""), (E.trades || 0) + " trades", "pnl"], ["Retorno sobre o investido", E.retorno_pct == null ? "–" : pc(E.retorno_pct), s4(E.investido_sol) + " SOL investidos", "tr"],
       ["Acerto", (E.acerto || 0) + "%", E.acerto_empate == null ? "" : "para empatar: " + E.acerto_empate + "%", "hit"], ["Ganhos × perdas", sg(E.ganhos_sol, ""), "perdas " + sg(E.perdas_sol, ""), "mon"]]);
     $("rsL").innerHTML = (E.licoes || []).map((x) => "<li>" + esc(x) + "</li>").join("") || "<li>Sem lições neste período.</li>";
@@ -3143,10 +3145,25 @@
     g("rsA", "Aba", E.por_aba); g("rsM", "Motivo", E.por_motivo); g("rsT", "Tempo", E.por_tempo);
     const it = (id, L) => table(id, ["Token", "Aba", "Resultado", "%", "Motivo"], (L || []).map((x) => [pfM(x.mint || "", x.symbol), esc(x.aba || "–"), sg(x.sol, ""), pc(x.pct), '<span class="wrapcell">' + esc(x.motivo || "–") + "</span>"]), "Nenhum.");
     it("rsG", E.melhores); it("rsP", E.piores);
-    table("rsH", ["Guardado", "Tipo", "Trades", "Acerto", "Saldo"], (r.guardados || []).map((x) => [dt(x.em), x.origem === "dia" ? "dia " + esc(x.dia || "") : (x.horas || "?") + " h", String(x.trades || 0), (x.acerto || 0) + "%", sg(x.saldo_sol, "")]), "O primeiro estudo será guardado agora.");
+    if (guard) table("rsH", ["Guardado", "Tipo", "Trades", "Acerto", "Saldo"], guard.map((x) => [dt(x.em), x.origem === "dia" ? "dia " + esc(x.dia || "") : (x.horas || "?") + " h", String(x.trades || 0), (x.acerto || 0) + "%", sg(x.saldo_sol, "")]), "O primeiro estudo será guardado agora.");
+  }
+  async function openRs(h) {
+    const rm = realMode(), nome = rm ? "REAL" : "FICTÍCIA", view = document.body.classList.contains("viewas");
+    ovShow("Estudo: " + (h === 1 ? "última hora" : "últimas " + h + " h"), "carregando…", "");
+    const s = view ? null : await BB.api("/api/pump/result-study", { body: { horas: h, real: rm }, quiet: true });   // primeiro guarda, para só dizer "enviado" se gravou
+    const r = await BB.api("/api/pump/result-study?horas=" + h + "&real=" + (rm ? 1 : 0)); if (r.error) { $("jtMS").textContent = r.error; return; }
+    renderRs(r.estudo || {}, r.guardados || []);
+    $("jtMS").innerHTML = "carteira " + nome + (view ? " · visualização: não guarda" : s && s.ok ? ' · <span class="tag win">✓ Estudado e enviado para a Base geral</span>' : ' · <span class="tag loss">não guardou: ' + esc((s && s.error) || "erro") + "</span>");
+    if (s && s.ok) RS_MK[h] = new Date().toISOString();
+  }
+  async function openRsItem(id) {
+    ovShow("Estudo guardado", "carregando…", "");
+    const E = await BB.api("/api/pump/result-study/item?id=" + encodeURIComponent(id)); if (E.error) { $("jtMS").textContent = E.error; return; }
+    renderRs(E, null); $("jtMS").textContent = (E.real ? "carteira REAL" : "carteira FICTÍCIA") + " · " + (E.horas === 1 ? "última hora" : "últimas " + E.horas + " h") + " · " + dt(E.fim);
   }
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-rsh]"); if (b) { openRs(+b.dataset.rsh); return; }
+    const v = e.target.closest("[data-rsv]"); if (v) { openRsItem(v.dataset.rsv); return; }
     const k = e.target.closest("[data-kpi-back]"); if (k) { e.preventDefault(); openOv(k.dataset.kpiBack); }
   });
   async function loadRsBase() {
@@ -3155,6 +3172,10 @@
     const VD = { "lucro repetido": "win", "perda repetida": "loss" };
     const g = (id, a, L) => table(id, [a, "Dias com lucro", "Trades", "Acerto", "Média", "Resultado", "Veredito"], (L || []).map((x) => [esc(x.nome), x.dias_positivos + " de " + x.dias, String(x.n), x.acerto + "%", x.media_pct == null ? "–" : pc(x.media_pct), sg(x.sol, ""), '<span class="tag ' + (VD[x.veredito] || "neutral") + '">' + esc(x.veredito) + "</span>"]), "Aparece depois do primeiro dia fechado.");
     g("bgRsA", "Aba", r.por_aba); g("bgRsM", "Motivo de saída", r.por_motivo); g("bgRsT", "Tempo de posição", r.por_tempo);
+    const b = await BB.api("/api/pump/result-study/base?real=" + (rm ? 1 : 0), { quiet: true }); if (b.error || !$("bgRsS")) return;
+    const L = b.estudos || [];
+    $("bgRsSSub").textContent = (rm ? "carteira REAL" : "carteira FICTÍCIA") + " · " + L.length + " estudos guardados pelo botão Estudar";
+    table("bgRsS", ["Quando", "Conta", "Período", "Trades", "Acerto", "Saldo", "Investido", "Retorno", ""], L.map((x) => [dt(x.em), esc(x.conta), x.horas === 1 ? "última hora" : "últimas " + x.horas + " h", String(x.trades || 0), (x.acerto || 0) + "%", sg(x.saldo_sol, ""), s4(x.investido_sol) + " SOL", x.retorno_pct == null ? "–" : pc(x.retorno_pct), '<button type="button" class="btn sm" data-rsv="' + esc(x.id) + '">Ver estudo</button>']), "Nenhum estudo guardado ainda. Em Visão geral → Resultado, clique em Estudar.");
   }
   // 0.32.103 (pedido do dono): chave geral da REAL; desligar é na hora, ligar continua pedindo a confirmação de sempre
   async function openRealPlaces() {

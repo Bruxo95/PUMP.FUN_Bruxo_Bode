@@ -852,3 +852,4 @@ html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none
 /* 0.32.110 — Jev Trade: chaves com o nome junto e filtros em 2 colunas no celular */
 .jtsw{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 @media (max-width:860px){.jtfilt .form{grid-template-columns:1fr 1fr;gap:10px}.jtfilt .field label{font-size:12px}.jtsw{width:100%;justify-content:space-between}}
+.btn.rsdone{color:var(--up);background:var(--up-bg);border-color:rgba(34,197,94,.45);white-space:nowrap}.btn.rsdone small{display:block;font-size:10.5px;font-weight:400;opacity:.85}

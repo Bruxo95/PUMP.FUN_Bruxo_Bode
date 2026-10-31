@@ -231,6 +231,21 @@ def create_app(hub, auth, cfg) -> FastAPI:
         await hub.rs_save(pf, h, bool(body.get("real")))
         return {"ok": True}
 
+    @app.get("/api/pump/result-study/marcas")
+    async def result_study_marks(real: int = 0, pf=Depends(engine)):
+        return await hub.rs_marks(pf, bool(real))
+
+    @app.get("/api/pump/result-study/base")
+    async def result_study_base(real: int = 0, pf=Depends(admin_engine)):
+        return {"estudos": await hub.rs_base(bool(real))}
+
+    @app.get("/api/pump/result-study/item")
+    async def result_study_item(id: str, pf=Depends(admin_engine)):
+        E = await hub.rs_item(id)
+        if E is None:
+            raise HTTPException(404, "estudo não encontrado")
+        return E
+
     @app.get("/api/pump/result-study/learn")
     async def result_study_learn(real: int = 0, pf=Depends(admin_engine)):
         return hub.rs_learn(bool(real))

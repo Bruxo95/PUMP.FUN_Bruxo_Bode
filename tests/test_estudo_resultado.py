@@ -65,6 +65,29 @@ class _E:
         return t["aba"]
 
 
+class _DbS:
+    ROWS = [{"id": "u1:0:1h:9", "user_id": "u1", "real": False, "origem": "manual", "em": "2026-10-31T23:00:00+00:00", "data": {"horas": 1, "trades": 6, "acerto": 33, "saldo_sol": 0.15}},
+            {"id": "u1:0:1h:8", "user_id": "u1", "real": False, "origem": "manual", "em": "2026-10-31T22:00:00+00:00", "data": {"horas": 1, "trades": 2}},
+            {"id": "u2:0:6h:9", "user_id": "u2", "real": False, "origem": "manual", "em": "2026-10-31T21:00:00+00:00", "data": {"horas": 6, "trades": 9}}]
+
+    async def select(self, table, filters=None, **kw):
+        if table == "profiles":
+            return [{"user_id": "u1", "nome": "Dono"}, {"user_id": "u2", "email": "bruxo@x.com"}]
+        return [r for r in self.ROWS if all(r.get(k) == v for k, v in (filters or {}).items())]
+
+
+def test_marks_and_base_section_show_only_what_was_saved():
+    from app.hub import PumpHub
+    h = PumpHub.__new__(PumpHub)
+    h.db = _DbS()
+    M = asyncio.run(h.rs_marks(_E([]), False))
+    assert M == {"1": "2026-10-31T23:00:00+00:00"}                     # só desta conta, e o mais novo de cada período
+    B = asyncio.run(h.rs_base(False))
+    assert [x["conta"] for x in B] == ["Dono", "Dono", "bruxo"] and B[0]["saldo_sol"] == 0.15
+    assert asyncio.run(h.rs_base(True)) == []                          # real não mistura com fictícia
+    assert asyncio.run(h.rs_item("u1:0:1h:9"))["trades"] == 6 and asyncio.run(h.rs_item("x")) is None
+
+
 def test_closed_days_are_saved_once_and_never_the_empty_ones():
     from app.hub import PumpHub
     h = PumpHub.__new__(PumpHub)

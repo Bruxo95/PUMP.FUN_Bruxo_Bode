@@ -1648,6 +1648,31 @@ class PumpHub:
         rows = await self.db.select("result_studies", {"user_id": pf.user_id, "real": real}, order="em.desc", limit=12)
         return [{"em": r.get("em"), "origem": r.get("origem"), "dia": r.get("dia"), **{k: (r.get("data") or {}).get(k) for k in ("horas", "trades", "acerto", "saldo_sol", "investido_sol")}} for r in rows]
 
+    async def rs_marks(self, pf: PumpFun, real: bool) -> dict:
+        """0.32.115: último estudo guardado de cada período, para o botão ficar verde."""
+        rows = await self.db.select("result_studies", {"user_id": pf.user_id, "real": real, "origem": "manual"}, order="em.desc", limit=60)
+        out: dict[str, str] = {}
+        for r in rows:
+            h = (r.get("data") or {}).get("horas")
+            if h is not None:
+                out.setdefault(str(int(h)), r.get("em"))
+        return out
+
+    async def rs_base(self, real: bool, limit: int = 100) -> list[dict]:
+        """Seção da Base geral: estudos guardados pelo botão, de todas as contas (só admin vê)."""
+        rows = await self.db.select("result_studies", {"origem": "manual", "real": real}, order="em.desc", limit=limit)
+        try:
+            ps = await self.db.select("profiles", None, columns="user_id,nome,email")
+            names = {p["user_id"]: p.get("nome") or (p.get("email") or "").split("@")[0] or "usuário" for p in ps}
+        except Exception:
+            names = {}
+        return [{"id": r.get("id"), "em": r.get("em"), "conta": names.get(r.get("user_id"), "usuário"),
+                 **{k: (r.get("data") or {}).get(k) for k in ("horas", "trades", "acerto", "saldo_sol", "investido_sol", "retorno_pct")}} for r in rows]
+
+    async def rs_item(self, sid: str) -> dict | None:
+        rows = await self.db.select("result_studies", {"id": sid}, limit=1)
+        return rows[0].get("data") if rows else None
+
     async def result_tick(self, now: float | None = None) -> int:
         """Grava sozinho cada dia fechado (UTC) dos últimos 7, de cada conta. É o que a Base geral soma: dias não se sobrepõem."""
         from . import resultstudy
