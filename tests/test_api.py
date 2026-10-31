@@ -258,6 +258,21 @@ def test_real_needs_server_lock_wallet_and_confirmation_and_is_audited(env, capl
     assert db.tables["audit_log"][-1]["acao"] == "remover chave"
 
 
+def test_general_real_switch_shows_since_when_and_every_place(env):
+    from solders.keypair import Keypair
+    c, hub = env["c"], env["hub"]
+    hub.real_allowed = True
+    c.post("/api/secrets", json={"name": "wallet_private_key", "value": str(Keypair())}, headers=tok(UA))
+    assert c.post("/api/pump/real", json={"enabled": True}, headers=tok(UA)).json()["error"]        # ligar segue pedindo confirmação
+    c.post("/api/pump/real", json={"enabled": True, "confirm": "LIGAR"}, headers=tok(UA))
+    r = c.get("/api/pump/real/lugares", headers=tok(UA)).json()
+    assert r["enabled"] and r["on_at"] and not r["off_at"]
+    assert any(x["aba"] == "Top traders" for x in r["lugares"])
+    assert c.post("/api/pump/real", json={"enabled": False}, headers=tok(UA)).json()["ok"]          # desligar é na hora
+    r = c.get("/api/pump/real/lugares", headers=tok(UA)).json()
+    assert not r["enabled"] and r["off_at"] >= r["on_at"]
+
+
 def test_real_stays_on_after_server_restart_until_user_turns_off(env):
     from app.api import create_app
     from app.auth import Auth

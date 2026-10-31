@@ -61,6 +61,16 @@ def test_detail_shows_the_tokens_and_the_total_without_the_biggest_wins():
     assert detentores.study([_sig({0: 45, 1: 60, 2: 80}, marks={10: 3000}, hpx={2: 0})], "10")["detalhe"]["todos"]["suspeitos"] == 1
 
 
+def test_list_filter_and_growth():
+    sigs = [_sig({0: 188, 1: 207, 5: 402}, t=1000.0, mcap0=30.0), _sig({0: 2, 1: 2}, t=2000.0), _sig({0: 12, 1: 14}, t=3000.0)]
+    assert len(detentores.study(sigs, "10")["linhas"]) == 3
+    D = detentores.study(sigs, "10", show=40)
+    assert D["mostrando"] == 1 and D["medidos"] == 3 and D["todos"]["n"] == 3            # o filtro é só da lista, não da conta
+    x = D["linhas"][0]
+    assert (x["h0"], x["h"], x["cresc_pct"], x["mc0"], x["h_t"]) == (188, 402, 113.8, 30.0, 1300.0)
+    assert len(detentores.study(sigs, "10", show=10)["linhas"]) == 2
+
+
 def test_only_coins_with_40_holders_are_read_every_minute():
     b = Bruxo()
     t = 1_000_000.0

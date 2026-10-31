@@ -80,7 +80,8 @@ def _detail(rows: list[dict], sol: float, max_itens: int = 300) -> dict:
             "sol": sol, "itens": (med + [x for x in rows if x["res"] is None])[:max_itens]}
 
 
-def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow_pct: float = MIN_GROW_PCT, sol: float = 0.1) -> dict:
+def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow_pct: float = MIN_GROW_PCT, sol: float = 0.1,
+          show: int = 0) -> dict:
     sigs = sorted(signals, key=lambda s: s["t"])
     with_h = [s for s in sigs if readings(s)]
     regra, combo, todos, linhas, curva = [], [], [], [], []
@@ -112,8 +113,14 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
             if r is not None:
                 acc += sol * r / 100
                 curva.append([s["t"] + m * 60, round(acc, 5)])
-        linhas.append({"t": s["t"], "mint": s.get("mint"), "symbol": s.get("symbol"), "kind": s.get("kind", "trader"), "evol": R,
-                       "ligou": m, "res": r, "pico": s.get("peak_pct"), "jev": (s.get("jev") or {}).get("acao")})
+        if max(h for _, h in R) >= show:               # 0.32.103: o filtro vem antes do corte das 200 linhas
+            fl = s.get("flow") or {}
+            linhas.append({"t": s["t"], "mint": s.get("mint"), "symbol": s.get("symbol"), "kind": s.get("kind", "trader"), "evol": R,
+                           "ligou": m, "res": r, "pico": s.get("peak_pct"), "jev": (s.get("jev") or {}).get("acao"),
+                           "h0": R[0][1], "h": R[-1][1], "h_t": s["t"] + R[-1][0] * 60,
+                           "cresc_pct": round((R[-1][1] / R[0][1] - 1) * 100, 1) if R[0][1] else None,
+                           "mc0": s.get("mcap0") if s.get("mcap0") is not None else fl.get("mcap"), "px0": s.get("px0"),
+                           "top10": s.get("top10"), "dev_pct": s.get("dev_pct") if s.get("dev_pct") is not None else fl.get("dev_pct")})
     g_regra, g_todos = _group(regra, sol), _group(todos, sol)
     if g_regra["medidos"] < 20:
         leitura = f"poucos dados: {g_regra['medidos']} entradas medidas; a comparação vale a partir de 20"
@@ -123,7 +130,7 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
         leitura = f"a regra não está ajudando: média {g_regra['media_pct']:+.1f}% por entrada contra {g_todos['media_pct'] or 0:+.1f}% de todos os sinais"
     linhas.sort(key=lambda x: (x["ligou"] is None, -x["t"]))
     return {"min_h": min_h, "cresc_pct": grow_pct, "saida_min": saida, "sinais": len(sigs), "medidos": len(with_h),
-            "sem_dados": len(sigs) - len(with_h), "regra": {**g_regra, "curva": curva}, "todos": g_todos, "regra_jev": _group(combo, sol),
+            "sem_dados": len(sigs) - len(with_h), "show": show, "mostrando": len(linhas), "regra": {**g_regra, "curva": curva}, "todos": g_todos, "regra_jev": _group(combo, sol),
             "faixas": [{"faixa": k, **_group(v, sol)} for k, v in faixas.items() if v],
             "evolucao": [{"faixa": k, **_group(v, sol)} for k, v in evol.items() if v], "leitura": leitura, "linhas": linhas[:200],
             "detalhe": {k: _detail(v, sol) for k, v in det.items()}}

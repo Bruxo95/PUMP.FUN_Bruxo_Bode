@@ -178,8 +178,15 @@ class PumpHub:
         # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta
         # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
         # carteira) grava OFF.
+        pf.real_on_at, pf.real_off_at = saved.get("_real_on_at"), saved.get("_real_off_at")
         if saved.get("_real_on") and self.real_allowed and pf.sol_wallet and pf.sol_wallet.keypair and uid not in self._blocked:
             pf.cfg.pump_real_enabled = True
+            if not pf.real_on_at:                      # ligada antes da 0.32.103: a hora está no registro de atividades
+                try:
+                    rows = await self.db.select("audit_log", {"user_id": uid, "acao": "ligar execução real"}, order="at.desc", limit=1)
+                    pf.real_on_at = datetime.fromisoformat(str(rows[0]["at"]).replace("Z", "+00:00")).timestamp() if rows else None
+                except Exception:
+                    pass
             pf._emit("[PUMP REAL] execução real continua LIGADA depois do reinício do servidor (ligada por você)")
             await audit(self.db, uid, "execução real religada após reinício", f"máx. {pf.cfg.pump_real_max_sol} SOL por compra")
         # 0.32.33: ajustes pendentes do dono (settings_overrides) — no fim, com tudo da conta já carregado, para o salvar não
@@ -982,8 +989,31 @@ class PumpHub:
         return {k: bt.get(k) for k in ("on", "fase", "msg", "feitos", "total", "calls_dia", "erros", "ultimo", "ultimo_erro", "tokens_dia")} | {
             "limite_dia": jev.BT_DAY_MAX, "fontes": jev.BT_SOURCES}
 
+    async def hold_market(self, D: dict) -> None:
+        """0.32.103 (pedido do dono): volume, compras × vendas e valor de mercado de agora nas linhas dos detentores.
+        DexScreener, no máximo 1 vez a cada 30 s e 90 tokens, só ao abrir a tela."""
+        L = D.get("linhas") or []
+        now = time.time()
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        old = [x["mint"] for x in L if now - float((self.market.tokens.get(x["mint"]) or {}).get("vol_t") or 0) > 60][:90]
+        if old and svc is not None and now - self.__dict__.get("_hold_ds_t", 0) >= 30:
+            self._hold_ds_t = now
+            try:
+                await svc._fetch_prices(old, set_price=False)
+            except Exception as e:
+                log.warning("volume dos detentores: %s", str(e)[:120])
+        for x in L:
+            tk = self.market.tokens.get(x["mint"]) or {}
+            v = tk.get("vol") or {}
+            nt = int(v.get("buys_h24") or 0) + int(v.get("sells_h24") or 0)
+            px = tk.get("price")
+            x.update(vol24=v.get("h24"), b5=v.get("buys_m5"), s5=v.get("sells_m5"), medio_usd=round(v["h24"] / nt, 2) if nt and v.get("h24") else None,
+                     mc=round(x["mc0"] * px / x["px0"], 2) if px and x.get("px0") and x.get("mc0") else tk.get("mcap_sol"))
+            if x.get("top10") is None:
+                x["top10"] = tk.get("top10_pct")
+
     def jev_state(self, pf: PumpFun, hours: float = 24, exit_min: str = "10", fonte: str = "ao_vivo",
-                  hold_min: int = detentores.MIN_HOLDERS, hold_cresc: float = detentores.MIN_GROW_PCT) -> dict:
+                  hold_min: int = detentores.MIN_HOLDERS, hold_cresc: float = detentores.MIN_GROW_PCT, hold_show: int = 0) -> dict:
         now = time.time()
         hours = hours or 24 * 365
         uid = pf.user_id
@@ -1005,7 +1035,7 @@ class PumpHub:
             st["custo_usd"] = round(st.get("tokens_in", 0) / 1e6 * 0.042, 5)
         out = {"chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
                "ativo": self.jev_wanted(), "limite_dia": jev.DAY_MAX, "uso": st, "saida_min": exit_min, "fonte": fonte,
-               "passado": self.jev_bt_status(), "detentores": detentores.study(sigs, exit_min, hold_min, hold_cresc)}
+               "passado": self.jev_bt_status(), "detentores": detentores.study(sigs, exit_min, hold_min, hold_cresc, show=hold_show)}
         if fonte == "ao_vivo":
             return out | {"estudo": jev.study([s for s in sigs if s.get("jev")], exit_min), "linhas": rows[:500]}
         return out | self.jev_bt_view(fonte, hours, exit_min)
@@ -1020,6 +1050,8 @@ class PumpHub:
                 s["holders"][k] = await self.holders_count(s["mint"])
             except Exception:
                 s["holders"][k] = None
+            if (s["holders"][k] or 0) >= self.bruxo.HOLD_WATCH and "top10" not in s:     # 0.32.103: uma vez por token
+                await self._bruxo_top10(s, now)
             px = (self.market.tokens.get(s["mint"]) or {}).get("price")   # 0.32.86: preço de cada leitura (entrada simulada da regra)
             if px and s.get("px0"):
                 s.setdefault("hpx", {})[k] = round((px / s["px0"] - 1) * 100, 1)
@@ -1037,6 +1069,17 @@ class PumpHub:
                 break
         self.bruxo.trim(now)
         return n
+
+    async def _bruxo_top10(self, s: dict, now: float) -> None:
+        s["top10"] = None
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        try:
+            if svc is not None:
+                await asyncio.wait_for(svc.holders_check(s["mint"]), timeout=3)
+            s["top10"] = (self.market.tokens.get(s["mint"]) or {}).get("top10_pct")
+            s["dev_pct"] = self.bruxo_facts(s["mint"], 0.0, now).get("dev_pct")
+        except Exception:
+            pass
 
     async def _prices_for(self, mints: list[str]) -> None:
         svc = getattr(self.monitor, "svc", None) if self.monitor else None
@@ -2264,10 +2307,37 @@ class PumpHub:
                 "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in trs if not t.get("real")), 6),
                 "fechadas": len([t for t in trs if not t.get("real")])}
 
+    # 0.32.103 (pedido do dono): tudo que compra na REAL. A chave geral (pump_real_enabled) barra todos; a opção de cada aba não
+    # muda, e ao religar cada aba volta como estava. (aba, opção, o que faz, só admin)
+    REAL_PLACES = (("Top traders", None, "copia as compras dos traders", False),
+                   ("Espelho da fictícia", "pump_real_mirror", "repete na REAL o que a fictícia comprou", False),
+                   ("Botão Comprar", None, "pergunta FICTÍCIA ou REAL a cada compra", False),
+                   ("Explorar", "pump_ex_real_on", "compra automática", True), ("Explorar: barrados", "pump_bar_real", "barrados que subiram", True),
+                   ("Base da pump.fun", "pump_auto_real", "compra automática", True), ("Maiores traders", "pump_el_real", "compra automática", True),
+                   ("Calls quentes", "pump_calls_real", "compra automática", True), ("Aba do Bruxo", "pump_bx_real", "compra automática", True),
+                   ("Jev Trade", "pump_jt_real", "compra do Jev", True), ("Copiar igual", "pump_eq_real", "cópia das carteiras da lista", True),
+                   ("Carteiras em estudo", "pump_st_real", "cópia das carteiras estudadas", True),
+                   ("Tokens fora da pump.fun", "pump_copy_other_real", "cópia pela Jupiter", False))
+
+    def real_places(self, pf: PumpFun) -> dict:
+        adm = getattr(pf, "role", "user") == "admin"
+        rows = [{"aba": a, "o_que": t, "opcao": None if k is None else bool(getattr(pf.cfg, k, False))} for a, k, t, so in self.REAL_PLACES if adm or not so]
+        both = sum(1 for v in (getattr(pf, "eq_mode", None) or {}).values() if v == "both")
+        for r in rows:
+            if r["aba"] == "Copiar igual" and both:
+                r.update(opcao=True, o_que=f"{both} carteiras copiadas na REAL")
+        return {"enabled": bool(getattr(pf.cfg, "pump_real_enabled", False)), "on_at": getattr(pf, "real_on_at", None), "off_at": getattr(pf, "real_off_at", None),
+                "abertas": sum(1 for p in pf.positions() if p.get("real")), "lugares": rows}
+
     async def save_settings(self, pf: PumpFun) -> None:
         s = pf.cfg.user_dict()
         if getattr(pf.cfg, "pump_real_enabled", False):
             s["_real_on"] = True                       # 0.31.28: o real ligado sobrevive ao reinício (ver _load)
+        elif getattr(pf, "real_on_at", None) and float(getattr(pf, "real_off_at", 0) or 0) < pf.real_on_at:
+            pf.real_off_at = time.time()               # 0.32.103: vale para todo jeito de desligar (você, admin, carteira removida)
+        for k in ("real_on_at", "real_off_at"):
+            if getattr(pf, k, None):
+                s["_" + k] = getattr(pf, k)
         if getattr(pf, "follow_user", ""):
             s["_follow_user"] = pf.follow_user         # 0.31.61: de quem esta conta copia os trades
         if getattr(pf, "study_copy", None):

@@ -340,7 +340,7 @@ select.in{padding-right:24px}
 
 /* ---------------------------------------------------------------- mascote (Visão geral, ao lado do Monitor) */
 /* os cartões do .kpis viram filhos diretos da grade: o mascote fica sempre ao lado do Monitor, do mesmo tamanho */
-.kpirow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) minmax(176px,1.25fr);gap:12px;align-items:stretch}
+.kpirow{display:grid;grid-template-columns:repeat(8,minmax(0,1fr)) minmax(176px,1.25fr);gap:12px;align-items:stretch}
 .kpirow .kpis{display:contents}
 .masc{display:flex;align-items:flex-end;gap:10px;padding:8px 12px 8px 10px;overflow:hidden;position:relative}
 .masc.novo{padding-left:10px}
@@ -839,3 +839,4 @@ html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none
 .chartbox .jvs3{fill:none;stroke:var(--muted);stroke-width:1.4;stroke-dasharray:4 3}.chartbox .jvs3t{fill:var(--muted)}
 .chartbox .jvs4{fill:none;stroke:var(--warn,#f5b342);stroke-width:2}.chartbox .jvs4t{fill:var(--warn,#f5b342)}
 .kpiclick{cursor:pointer}.kpiclick:hover,.kpiclick:focus-visible{border-color:var(--info)}
+#realAll{font-size:0;min-width:48px;padding-left:48px;margin-top:6px}

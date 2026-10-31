@@ -78,7 +78,7 @@ class Bruxo:
     HOLD_MARKS = (0, 1, 5, 10, 25)          # 0.32.82: detentores no sinal e 1/5/10/25 min depois
     # 0.32.86 (áudio do Bruxo, 30/10): moeda com 40+ detentores é lida a cada minuto até os 10 min, para ver a evolução
     HOLD_WATCH = 40
-    HOLD_EVERY = (2, 3, 4, 6, 7, 8, 9)
+    HOLD_EVERY = (2, 3, 4, 6, 7, 8, 9, 12, 15, 20)     # 0.32.103: depois dos 10 min, menos leituras (10 créditos cada)
 
     def holders_due(self, now: float, limit: int = 12) -> list[tuple[dict, str]]:
         """(sinal, marca) cujos detentores ainda não foram lidos. Marca perdida (passou 3 min) fica sem dado.

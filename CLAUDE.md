@@ -1427,3 +1427,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.102 (pedido do dono, 31/10): filtros do Jev Trade na tela — 13 opções `pump_jt_*` (padrão = regra que valia) → `hub.jt_cfg` (por opção, o admin
   que mudou por último em `_ov_user`) → `jevtrade.apply_cfg` (globais `MIN_HOLDERS`, `SCAN_*_AGE_MIN`, `WATCH_MAX_MIN` e `STRAT`) a cada `jt_tick` e
   no `jt_state` (`filtros` com `_de`). Cartão `#jtf_*` + `#jtFReset` + `#jtFNow`; `#jtWSub` dinâmico. Teste em `tests/test_jev_trade.py`.
+- 0.32.103 (pedido do dono): `kpis()` com `data-kpi` nos cartões da Visão geral → `openOv` (modal `#jtM`; segue FICTÍCIA/REAL; trades = últimos 300 do snapshot). Cartão Execução real com chave `#realAll` = `pump_real_enabled` (`realAll`, `openRealPlaces`): desligar é na hora, ligar segue pedindo LIGAR; 
+  `hub.REAL_PLACES`/`real_places` + `GET /api/pump/real/lugares`: a opção de cada aba não muda e a venda real não depende da chave. `pf.real_on_at/real_off_at` salvos como `_real_on_at/_real_off_at` (ligada antes: lê do `audit_log`). Aba nova que compra na REAL = linha em `REAL_PLACES`. 
+  Detentores: `study(show=)`, `hub.hold_market` (DexScreener ao abrir, 30 s, 90 tokens), `s["top10"]`/`dev_pct` uma vez aos 40+ (`_bruxo_top10`), `HOLD_EVERY` até 20 min, `openJl`, filtro `#jvHS` (padrão 40+).

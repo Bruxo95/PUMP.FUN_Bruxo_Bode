@@ -1270,6 +1270,11 @@
    "versao": "0.32.102",
    "inicio": "2026-10-30T23:06:44+00:00",
    "titulo": "Jev Trade: filtros na tela (detentores mínimos e outros), já com o padrão"
+  },
+  {
+   "versao": "0.32.103",
+   "inicio": "2026-10-31T08:27:47+01:00",
+   "titulo": "Visão geral com cartões que abrem e chave geral da REAL"
   }
  ]
 }

@@ -1299,8 +1299,22 @@
     table("jdT", ["Token", "Entrou aos", "Resultado", "Em SOL", "Pico do token"], L.map((x) => [pfM(x.mint, x.symbol), x.ligou == null ? "sinal" : x.ligou + " min", x.res == null ? '<span class="dim">medindo</span>' : pc(x.res), x.res == null ? "–" : sg(x.res * sl / 100, ""), x.pico == null ? "–" : pc(x.pico)]), "Nenhum token.");
     $("jtM").hidden = false; $("jtMX").focus();
   }
-  document.addEventListener("click", (e) => { const b = e.target.closest("[data-kpi]"); if (b) openJd(b.dataset.kpi); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.dataset && e.target.dataset.kpi) openJd(e.target.dataset.kpi); });
+  const kpiOpen = (k) => (JD_INFO[k] ? openJd(k) : openOv(k));
+  document.addEventListener("click", (e) => { if (e.target.closest("button")) return; const b = e.target.closest("[data-kpi]"); if (b) kpiOpen(b.dataset.kpi); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.dataset && e.target.dataset.kpi) kpiOpen(e.target.dataset.kpi); });
+  // 0.32.103 (pedido do dono): o token da lista dos detentores abre tudo que sabemos dele
+  function openJl(mint) {
+    const x = (JV_D.linhas || []).find((y) => y.mint === mint); if (!x) return;
+    const mod = (a, b) => (a != null && b != null ? a + " compras × " + b + " vendas" : "–");
+    $("jtMT").textContent = x.symbol || mint; $("jtMS").textContent = (x.kind === "lancamento" ? "lançamento" : "top trader") + " · " + dt(x.t);
+    $("jtMB").innerHTML = '<p class="small">' + pfM(x.mint, x.symbol) + '</p><div class="kpis" id="jlK"></div><h3 class="small">Detentores por minuto</h3><div class="tablewrap"><table id="jlT" class="daytbl"></table></div>';
+    kpis("jlK", [["Regra", x.ligou == null ? "não ligou" : "ligou aos " + x.ligou + " min", "Jev: " + esc(x.jev || "sem resposta"), "hit"], ["Resultado", x.res == null ? "–" : pc(x.res), "pico " + (x.pico == null ? "–" : pc(x.pico)), "pnl"],
+      ["Compras × vendas (5 min)", mod(x.b5, x.s5), "agora, DexScreener", "tr"], ["Valor médio por negócio", usd(x.medio_usd, 2), "muito baixo costuma ser robô", "mon"],
+      ["Top 10 detentores", x.top10 == null ? "–" : f(x.top10, 1) + "%", "fatia nas 10 maiores carteiras", "usr"], ["Fatia do criador", x.dev_pct == null ? "–" : f(x.dev_pct, 1) + "%", "o que o monitor viu", "usr"]]);
+    table("jlT", ["Minuto", "Detentores"], (x.evol || []).map((p) => [p[0] + " min", "<b>" + p[1] + "</b>"]), "Sem leituras.");
+    $("jtM").hidden = false; $("jtMX").focus();
+  }
+  document.addEventListener("click", (e) => { const a = e.target.closest("[data-jvl]"); if (a) { e.preventDefault(); openJl(a.dataset.jvl); } });
   function jvHold(D) {
     JV_D = D;
     const R = D.regra || {}, T = D.todos || {}, C = D.regra_jev || {};
@@ -1315,14 +1329,16 @@
     const row = (g) => [esc(g.faixa), String(g.n), String(g.medidos), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou), g.media_pct == null ? "–" : pc(g.media_pct), g.pico_mediano == null ? "–" : pc(g.pico_mediano)];
     table("jvDF", head("No início"), (D.faixas || []).map(row), "Aparece com as primeiras leituras.");
     table("jvDE", head("Até os 5 min"), (D.evolucao || []).map(row), "Aparece com tokens de 5 min ou mais.");
-    table("jvDT", ["Hora", "Token", "Tipo", "Detentores por minuto", "Regra", "Jev", "Resultado", "Pico"], (D.linhas || []).map((x) => [dt(x.t), pfM(x.mint, x.symbol), x.kind === "lancamento" ? "lançamento" : "top trader",
-      (x.evol || []).map((p) => p[0] + " min: <b>" + p[1] + "</b>").join(" · "), x.ligou == null ? '<span class="dim">não ligou</span>' : '<span class="tag win">ligou aos ' + x.ligou + " min</span>",
-      x.jev ? jvTag(x.jev) : "–", x.res == null ? (x.ligou == null ? "–" : '<span class="dim">medindo</span>') : pc(x.res), x.pico == null ? "–" : pc(x.pico)]), "Nenhum token com detentores lidos ainda.");
+    const Lh = D.linhas || [], nowS = Date.now() / 1000;
+    $("jvDTn").textContent = "· " + Lh.length + (D.show ? " com " + D.show + "+ detentores" : "") + " de " + (D.medidos || 0) + " · clique no token para ver tudo";
+    table("jvDT", ["Hora", "Token", "Detentores", "Crescimento", "Volume 24 h", "Valor de mercado", "Resultado"], Lh.map((x) => [dt(x.t), '<a href="#" data-jvl="' + esc(x.mint) + '">' + esc(x.symbol || String(x.mint).slice(0, 6)) + "</a>",
+      (x.h0 !== x.h ? x.h0 + " → " : "") + "<b>" + x.h + "</b><small> há " + hms(nowS - x.h_t) + "</small>", x.cresc_pct == null ? "–" : pc(x.cresc_pct, 0), usd(x.vol24, 0),
+      (x.mc0 == null ? "–" : f(x.mc0, 0)) + " → " + (x.mc == null ? "–" : f(x.mc, 0)) + " SOL", x.res != null ? pc(x.res) : x.ligou == null ? '<span class="dim">não ligou</span>' : '<span class="dim">medindo</span>']), "Nenhum token com " + (D.show || 1) + "+ detentores neste período. Troque em Mostrar na lista.");
   }
   async function loadJev() {
     if (!$("jvK")) return;
     const F = $("jvF").value || "ao_vivo";
-    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10) + "&fonte=" + F + "&hold_min=" + ($("jvHM").value || 40) + "&hold_cresc=" + ($("jvHG").value || 10)); if (r.error) { $("jvSub").textContent = r.error; return; }
+    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10) + "&fonte=" + F + "&hold_min=" + ($("jvHM").value || 40) + "&hold_cresc=" + ($("jvHG").value || 10) + "&hold_show=" + $("jvHS").value); if (r.error) { $("jvSub").textContent = r.error; return; }
     jvHold(r.detentores || {});
     jvPast(r.passado || {}, r.chave);
     const E = r.estudo || {}, U = r.uso || {}, T = E.total || {}, A = E.por_acao || {};
@@ -1371,7 +1387,7 @@
     const r = await BB.api("/api/pump/jev/passado", { body: { on } });
     if (r.error) toast(r.error); loadJev();
   });
-  document.addEventListener("change", (e) => { if (["jvH", "jvX", "jvF", "jvHM", "jvHG"].includes(e.target.id)) loadJev(); });
+  document.addEventListener("change", (e) => { if (["jvH", "jvX", "jvF", "jvHM", "jvHG", "jvHS"].includes(e.target.id)) loadJev(); });
   let BX_T = null;
   // 0.32.81 (pedido do dono): atualizar a tela sozinho liga/desliga e o tempo é escolhido (fica neste navegador)
   const BXR = { on: true, s: 20 };
@@ -3051,19 +3067,73 @@
   }
 
   // ------------------------------------------------------------------ visão geral
+  // 0.32.103 (pedido do dono): cada cartão abre o que há por trás dele; a conta segue o botão FICTÍCIA/REAL do topo
+  function ovShow(t, sub, html) { $("jtMT").textContent = t; $("jtMS").textContent = sub; $("jtMB").innerHTML = html; $("jtM").hidden = false; $("jtMX").focus(); }
+  const ovTrades = (id, L) => table(id, ["Fechou", "Token", "Aba", "Resultado", "%", "Motivo"], L.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), esc(t.aba || "–"), sg(t.pnl_sol, ""), pc(t.pnl_pct), '<span class="wrapcell">' + esc(t.reason || "–") + "</span>"]), "Nenhum trade ainda.");
+  function openOv(k) {
+    if (k === "ov_monitor") { openSys(); return; }
+    if (k === "ov_real") { openRealPlaces(); return; }
+    const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, nome = rm ? "REAL" : "FICTÍCIA";
+    const T = (D.trades || []).filter((t) => !!t.real === rm), P = (D.positions || []).filter((p) => !!p.real === rm);
+    const tb = (id) => '<div class="tablewrap"><table id="' + id + '" class="daytbl"></table></div>';
+    if (k === "ov_carteira") {
+      const addr = D.real && D.real.address;
+      ovShow(rm ? "Carteira real" : "Saldo fictício", "carteira " + nome, '<p class="muted small" style="margin:0 0 10px">' + (rm ? "O saldo em SOL lido da blockchain. Não inclui o valor dos tokens que estão em posições abertas." : "Dinheiro de mentira: o valor inicial, mais o que já ganhou ou perdeu, mais as posições abertas no preço de agora.") + '</p><div class="kpis" id="ovK"></div>' + (rm && addr ? '<p class="small">Endereço: <a href="https://solscan.io/account/' + encodeURIComponent(addr) + '" target="_blank" rel="noopener">' + esc(addr) + "</a></p>" : ""));
+      kpis("ovK", [rm ? ["Saldo", W && W.sol != null ? s4(W.sol) + " SOL" : "–", "na blockchain", "wallet"] : ["Valor total", s4(Wt.equity_sol) + " SOL", "início " + s4(Wt.start_sol) + " SOL", "wallet"], ["Em posições abertas", s4(Wt.open_value_sol) + " SOL", (Wt.open || 0) + " posições", "pos"], ["Resultado", sg(Wt.pnl_sol, ""), "fechado " + sg(Wt.realized_sol, ""), "pnl"]]);
+    } else if (k === "ov_resultado") {
+      ovShow("Resultado", "carteira " + nome, '<p class="muted small" style="margin:0 0 10px">Tudo que já fechou, mais as posições abertas no preço de agora. A coluna 24 h do cartão soma só os trades fechados nas últimas 24 horas.</p><div class="kpis" id="ovK"></div><h3 class="small">Últimos trades</h3>' + tb("ovT"));
+      kpis("ovK", [["Resultado total", sg(Wt.pnl_sol, ""), "", "pnl"], ["Já fechado", sg(Wt.realized_sol, ""), (Wt.count || 0) + " trades", "tr"], ["Ganhos somados", sg(Wt.gains_sol, ""), (Wt.wins || 0) + " trades", "hit"], ["Perdas somadas", sg(Wt.losses_sol, ""), (Wt.losses || 0) + " trades", "mon"]]);
+      ovTrades("ovT", T.slice(0, 30));
+    } else if (k === "ov_pos") {
+      ovShow("Posições abertas", P.length + " na carteira " + nome, '<p class="small"><a href="#posicoes" data-jtclose="1">Abrir a tela de Posições</a></p>' + tb("ovT"));
+      table("ovT", ["Token", "Aba", "Investido", "Agora", "Aberta há"], P.map((p) => [pfM(p.mint, p.symbol), esc(p.aba || "–"), s4(p.sol_in) + " SOL", p.pnl_now_pct == null ? "–" : pc(p.pnl_now_pct), hms(Date.now() / 1000 - (p.open_t || Date.now() / 1000))]), "Nenhuma posição aberta.");
+    } else if (k === "ov_trades") {
+      ovShow("Trades fechados", (Wt.count || 0) + " na carteira " + nome + (T.length < (Wt.count || 0) ? " · mostrando os últimos " + T.length : ""), tb("ovT"));
+      ovTrades("ovT", T);
+    } else if (k === "ov_acerto") {
+      const G = {}; T.forEach((t) => { const a = t.aba || "Outros", g = G[a] = G[a] || { n: 0, w: 0, sol: 0 }; g.n++; g.w += t.pnl_sol > 0 ? 1 : 0; g.sol += t.pnl_sol || 0; });
+      const best = T.reduce((a, b) => (!a || b.pnl_sol > a.pnl_sol ? b : a), null), worst = T.reduce((a, b) => (!a || b.pnl_sol < a.pnl_sol ? b : a), null);
+      ovShow("Taxa de acerto", "carteira " + nome, '<p class="muted small" style="margin:0 0 10px">De cada 100 trades fechados, quantos deram lucro depois das taxas. O número sozinho não basta: compare os ganhos somados com as perdas somadas.' + (T.length < (Wt.count || 0) ? " A tabela usa os últimos " + T.length + " trades." : "") + '</p><div class="kpis" id="ovK"></div><h3 class="small">Por aba</h3>' + tb("ovT"));
+      kpis("ovK", [["Acerto", Wt.win_rate == null ? "–" : f(Wt.win_rate * 100, 0) + "%", (Wt.wins || 0) + " ganhos · " + (Wt.losses || 0) + " perdas", "hit"], ["Ganhos × perdas", sg(Wt.gains_sol, ""), "perdas " + sg(Wt.losses_sol, ""), "pnl"],
+        ["Melhor trade", best ? sg(best.pnl_sol, "") : "–", best ? esc(best.symbol || "") : "", "tr"], ["Pior trade", worst ? sg(worst.pnl_sol, "") : "–", worst ? esc(worst.symbol || "") : "", "tr"]]);
+      table("ovT", ["Aba", "Trades", "Acerto", "Resultado"], Object.entries(G).sort((a, b) => a[1].sol - b[1].sol).map(([a, g]) => [esc(a), String(g.n), f(g.w / g.n * 100, 0) + "%", sg(g.sol, "")]), "Nenhum trade ainda.");
+    } else if (k === "ov_traders") {
+      const Fo = D.followed || [], Pa = D.paused || [];
+      ovShow("Traders copiados", Fo.length + " copiados · " + Pa.length + " pausados", '<p class="small"><a href="#traders" data-jtclose="1">Abrir a tela de Top traders</a></p>' + tb("ovT") + (Pa.length ? '<h3 class="small">Pausados</h3>' + tb("ovU") : ""));
+      table("ovT", ["Trader", "Origem"], Fo.map((x) => [pfW(x.wallet, x), x.manual ? "lista manual" : "ranking"]), "Nenhum trader copiado.");
+      if (Pa.length) table("ovU", ["Trader", "Motivo"], Pa.map((x) => [pfW(x.wallet, x), '<span class="wrapcell">' + esc(x.reason || "–") + "</span>"]), "");
+    }
+  }
+  // 0.32.103 (pedido do dono): chave geral da REAL; desligar é na hora, ligar continua pedindo a confirmação de sempre
+  async function openRealPlaces() {
+    ovShow("Execução real", "carregando…", "");
+    const r = await BB.api("/api/pump/real/lugares"); if (r.error) { $("jtMS").textContent = r.error; return; }
+    $("jtMS").textContent = r.enabled ? "LIGADA" + (r.on_at ? " desde " + dt(r.on_at) : "") : "DESLIGADA em todas as abas" + (r.off_at ? " desde " + dt(r.off_at) : "");
+    $("jtMB").innerHTML = '<p class="muted small" style="margin:0 0 10px">' + (r.enabled ? "A chave geral está ligada: cada aba compra na REAL conforme a própria opção." : "Nenhuma compra real sai de nenhuma aba.") +
+      " Desligar não vende nada: " + (r.abertas ? "as " + r.abertas + " posições reais abertas continuam" : "posições reais abertas continuam") + " com stop e venda normais. A opção de cada aba fica guardada, e ao religar tudo volta como estava.</p>" + '<div class="tablewrap"><table id="rlT" class="daytbl"></table></div>';
+    table("rlT", ["Aba", "O que faz", "Opção da aba", "Compra na REAL agora"], (r.lugares || []).map((x) => [esc(x.aba), esc(x.o_que), x.opcao == null ? "–" : x.opcao ? "ligada" : "desligada",
+      !r.enabled ? '<span class="tag loss">bloqueada</span>' : x.opcao === false ? '<span class="dim">não</span>' : '<span class="tag win">sim</span>']), "");
+  }
+  async function realAll() {
+    const was = !!(D && D.real && D.real.enabled);
+    if (was) { const r = await BB.api("/api/pump/real", { body: { enabled: false } }); if (r.error) { toast(r.error); return; } await poll(true); openRealPlaces(); } else { await realToggle(); }
+  }
+  document.addEventListener("click", (e) => { if (e.target.closest("#realAll")) realAll(); if (e.target.closest("[data-jtclose]")) $("jtM").hidden = true; });
   function renderOverview() {
     const c = cfg(), R = D.real || {}, rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, st0 = D.status || {}, RP = D.rpc || {};
     const pnlPct = Wt.start_sol ? (Wt.pnl_sol / Wt.start_sol) * 100 : null;
     const day = (rm ? D.real_curve : D.curve) || [];
     const since = Date.now() - 86400000; let d24 = 0; day.forEach((p, i) => { if (new Date(p[0]) >= since) d24 += p[1] - (i ? day[i - 1][1] : (rm ? 0 : Wt.start_sol)); });
     kpis("kpis", [
-      [rm ? "Carteira real" : "Saldo fictício", rm ? (W && W.sol != null ? s4(W.sol) + "<small> SOL</small>" : "–") : s4(Wt.equity_sol) + "<small> SOL</small>", rm ? (W && W.configured ? "na blockchain" : "carteira não configurada") : (D.sol_usd ? "≈ " + usd(Wt.equity_sol * D.sol_usd, 2) : "início " + s4(Wt.start_sol) + " SOL"), "wallet"],
-      ["Resultado", sg(Wt.pnl_sol, ""), (pnlPct != null ? pc(pnlPct) + " desde o início · " : "") + "24 h " + sg(d24, ""), "pnl"],
-      ["Posições abertas", String(Wt.open || 0), "valor " + s4(Wt.open_value_sol) + " SOL · máx. " + (rm ? c.pump_real_max_open : c.pump_max_open), "pos"],
-      ["Trades fechados", String(Wt.count || 0), '<span class="up">' + (Wt.wins || 0) + " ganhos</span> · <span class=\"down\">" + (Wt.losses || 0) + " perdas</span>", "tr"],
-      ["Taxa de acerto", Wt.win_rate == null ? "–" : f(Wt.win_rate * 100, 0) + "%", "ganhos " + s4(Wt.gains_sol) + " · perdas " + s4(Wt.losses_sol), "hit"],
-      ["Traders copiados", String(st0.followed || 0), (D.paused || []).length ? D.paused.length + " pausados" : (st0.wallets_seen || 0) + " carteiras vistas", "usr"],
-      ["Monitor", RP.ws ? '<span class="up">ON</span>' : '<span class="down">OFF</span>', RP.ws ? (RP.subs || 0) + " carteiras · real " + (R.enabled ? "LIGADO" : "OFF") : esc(RP.error || "aguardando"), "mon"],
+      [rm ? "Carteira real" : "Saldo fictício", rm ? (W && W.sol != null ? s4(W.sol) + "<small> SOL</small>" : "–") : s4(Wt.equity_sol) + "<small> SOL</small>", rm ? (W && W.configured ? "na blockchain" : "carteira não configurada") : (D.sol_usd ? "≈ " + usd(Wt.equity_sol * D.sol_usd, 2) : "início " + s4(Wt.start_sol) + " SOL"), "wallet", "", "ov_carteira"],
+      ["Resultado", sg(Wt.pnl_sol, ""), (pnlPct != null ? pc(pnlPct) + " desde o início · " : "") + "24 h " + sg(d24, ""), "pnl", "", "ov_resultado"],
+      ["Posições abertas", String(Wt.open || 0), "valor " + s4(Wt.open_value_sol) + " SOL · máx. " + (rm ? c.pump_real_max_open : c.pump_max_open), "pos", "", "ov_pos"],
+      ["Trades fechados", String(Wt.count || 0), '<span class="up">' + (Wt.wins || 0) + " ganhos</span> · <span class=\"down\">" + (Wt.losses || 0) + " perdas</span>", "tr", "", "ov_trades"],
+      ["Taxa de acerto", Wt.win_rate == null ? "–" : f(Wt.win_rate * 100, 0) + "%", "ganhos " + s4(Wt.gains_sol) + " · perdas " + s4(Wt.losses_sol), "hit", "", "ov_acerto"],
+      ["Traders copiados", String(st0.followed || 0), (D.paused || []).length ? D.paused.length + " pausados" : (st0.wallets_seen || 0) + " carteiras vistas", "usr", "", "ov_traders"],
+      ["Monitor", RP.ws ? '<span class="up">ON</span>' : '<span class="down">OFF</span>', RP.ws ? (RP.subs || 0) + " carteiras · real " + (R.enabled ? "LIGADO" : "OFF") : esc(RP.error || "aguardando"), "mon", "", "ov_monitor"],
+      ["Execução real", R.enabled ? '<span class="up">LIGADA</span>' : '<span class="down">DESLIGADA</span>', (R.enabled ? (R.on_at ? "desde " + dt(R.on_at) : "ligada") : (R.off_at ? "desde " + dt(R.off_at) : "nenhuma compra real")) +
+        '<br><button type="button" class="btn sm tgl sw ' + (R.enabled ? "on" : "off") + '" id="realAll" role="switch" aria-checked="' + !!R.enabled + '" aria-label="Execução real em todas as abas">' + (R.enabled ? "Ligado" : "Desligado") + "</button>", "wallet", "", "ov_real"],
     ]);
     $("curveSub").textContent = "SOL · " + (rm ? "real" : "simulado");
     document.querySelectorAll("#rangeSeg button").forEach((b) => b.classList.toggle("on", +b.dataset.r === RANGE));

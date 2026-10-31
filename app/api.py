@@ -205,12 +205,19 @@ def create_app(hub, auth, cfg) -> FastAPI:
             if not (pf.sol_wallet and pf.sol_wallet.keypair):
                 return {"error": "configure a carteira Solana do bot antes"}
         hub.check_active(u["id"], pf)
+        if on and not pf.cfg.pump_real_enabled:
+            pf.real_on_at = time.time()               # 0.32.103: o cartão da Visão geral mostra desde quando
         pf.cfg.pump_real_enabled = on
         await hub.save_settings(pf)                   # 0.31.28: fica ligado até o usuário desligar (sobrevive ao reinício)
         await audit(hub.db, u["id"], "ligar execução real" if on else "desligar execução real",
                     f"máx. {pf.cfg.pump_real_max_sol} SOL por compra" if on else "")
         pf._emit(f"[PUMP REAL] execução real {'LIGADA' if on else 'DESLIGADA'} por você")
         return {"ok": True, "enabled": on}
+
+    @app.get("/api/pump/real/lugares")
+    async def pump_real_places(u: dict = Depends(user)):
+        """0.32.103: onde a chave geral da execução real vale (a janela que abre ao desligar)."""
+        return hub.real_places(await hub.engine(u["id"]))
 
     @app.get("/api/pump/reports")
     async def pump_reports(days: int = 7, real: int = 0, pf=Depends(admin_engine)):
@@ -1159,14 +1166,16 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     @app.get("/api/pump/jev")
     async def jev_view(horas: float = 24, saida: str = "10", fonte: str = "ao_vivo", hold_min: int = 40, hold_cresc: float = 10,
-                       pf=Depends(admin_engine)):
+                       hold_show: int = 40, pf=Depends(admin_engine)):
         """0.32.83: aba JEV — cada decisão do Jev (modo sombra) nos sinais da Aba do Bruxo × o que o token fez.
         0.32.84: `fonte` = ao_vivo | bruxo | explorar | base | todos (casos passados analisados pelo estudo do passado);
         horas=0 = tudo."""
         saida = saida if saida in ("5", "10", "25") else "10"
         fonte = fonte if fonte in ("ao_vivo", "bruxo", "explorar", "base", "todos") else "ao_vivo"
-        return hub.jev_state(pf, 0 if horas <= 0 else max(1.0, min(24 * 90, horas)), saida, fonte,
-                             max(5, min(1000, hold_min)), max(0.0, min(500.0, hold_cresc)))
+        out = hub.jev_state(pf, 0 if horas <= 0 else max(1.0, min(24 * 90, horas)), saida, fonte,
+                            max(5, min(1000, hold_min)), max(0.0, min(500.0, hold_cresc)), max(0, min(1000, hold_show)))
+        await hub.hold_market(out["detentores"])
+        return out
 
     @app.get("/api/pump/jev-trade")
     async def jev_trade(horas: float = 24, pf=Depends(admin_engine)):
