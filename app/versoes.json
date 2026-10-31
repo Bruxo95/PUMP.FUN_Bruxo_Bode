@@ -1310,6 +1310,11 @@
    "versao": "0.32.110",
    "inicio": "2026-10-31T11:46:33+00:00",
    "titulo": "Jev Trade: abertas e observação primeiro, depois botões e filtros"
+  },
+  {
+   "versao": "0.32.111",
+   "inicio": "2026-10-31T12:25:35+00:00",
+   "titulo": "Jev Trade: sai antes do dump quando o mercado fica parado 3 min"
   }
  ]
 }

@@ -91,7 +91,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_jt_parcial_frac": (float, 50.0, 5.0, 100.0),    # quanto vende (%)
     "pump_jt_trail_apos": (float, 30.0, 1.0, 1000.0),     # stop móvel liga em +X%
     "pump_jt_trail_pct": (float, 25.0, 1.0, 90.0),        # sai se cair X% do pico
-    "pump_jt_saida_det_pct": (float, 15.0, 1.0, 90.0),    # sai se os detentores caírem X% do maior número desde a entrada                  # 0.32.97: entradas do Jev Trade também na REAL (começa desligado; o dono liga)
+    "pump_jt_saida_det_pct": (float, 15.0, 1.0, 90.0),
+    "pump_jt_parado_min": (float, 3.0, 0.0, 30.0),        # 0.32.111: mercado parado X min com posição aberta = sai (0 = desligado)
+    "pump_jt_parado_pct": (float, 5.0, 0.5, 50.0),        # "parado" = o preço variou menos de X% na janela    # sai se os detentores caírem X% do maior número desde a entrada                  # 0.32.97: entradas do Jev Trade também na REAL (começa desligado; o dono liga)
     "pump_jt_on": (bool, True, 0, 1),                     # 0.32.87: Jev Trade: o Jev decide entrada e saída em simulação
     "pump_jev_on": (bool, True, 0, 1),                    # 0.32.83: Jev (TypeSafe AI) opina em cada sinal da Aba do Bruxo (só sombra)
     "pump_lanc_on": (bool, False, 0, 1),                  # 0.32.59: estuda o lançamento sem trader (só mede, nunca compra)

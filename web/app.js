@@ -1242,7 +1242,7 @@
     if (FL.min_holders != null) {
       $("jtWSub").textContent = FL.min_holders + "+ detentores (conferido de " + f(FL.age_min, 1) + " a " + f(FL.age_max, 1) + " min de vida) · leitura a cada minuto · entra se os detentores sobem em cada leitura por " + f(FL.janela_min, 0) + " min" + (FL.cresc_pct > 0 ? " e somam +" + f(FL.cresc_pct, 0) + "%" : " (qualquer alta)") + ", com o preço positivo · prazo de " + f(FL.prazo_min, 0) + " min";
       const quem = Object.keys(DE).length ? " · alterado por: " + Object.entries(DE).map((e) => e[0].replace(/_/g, " ") + " (" + e[1] + ")").join(", ") : " · padrão (ninguém mudou)";
-      $("jtFNow").textContent = "Em uso agora: " + FL.min_holders + "+ detentores, " + f(FL.age_min, 1) + "–" + f(FL.age_max, 1) + " min de vida, janela " + f(FL.janela_min, 0) + " min, alta mínima " + (FL.cresc_pct > 0 ? "+" + f(FL.cresc_pct, 0) + "%" : "qualquer") + ", prazo " + f(FL.prazo_min, 0) + " min · stop −" + f(FL.stop_pct, 0) + "%, empate após +" + f(FL.empate_apos, 0) + "%, vende " + f(FL.parcial_frac, 0) + "% em +" + f(FL.parcial_em, 0) + "%, stop móvel após +" + f(FL.trail_apos, 0) + "% (−" + f(FL.trail_pct, 0) + "% do pico), detentores −" + f(FL.saida_detentores_pct, 0) + "%" + quem;
+      $("jtFNow").textContent = "Em uso agora: " + FL.min_holders + "+ detentores, " + f(FL.age_min, 1) + "–" + f(FL.age_max, 1) + " min de vida, janela " + f(FL.janela_min, 0) + " min, alta mínima " + (FL.cresc_pct > 0 ? "+" + f(FL.cresc_pct, 0) + "%" : "qualquer") + ", prazo " + f(FL.prazo_min, 0) + " min · stop −" + f(FL.stop_pct, 0) + "%, empate após +" + f(FL.empate_apos, 0) + "%, vende " + f(FL.parcial_frac, 0) + "% em +" + f(FL.parcial_em, 0) + "%, stop móvel após +" + f(FL.trail_apos, 0) + "% (−" + f(FL.trail_pct, 0) + "% do pico), detentores −" + f(FL.saida_detentores_pct, 0) + "%" + (FL.parado_min > 0 ? ", mercado parado " + f(FL.parado_min, 1) + " min (preço < " + f(FL.parado_pct, 1) + "%) sai" : ", regra do mercado parado desligada") + quem;
     }
     $("jtC").innerHTML = jvChart({ jev: (E.curva || {}).jev, regra: (E.curva || {}).igual });
     const RP = r.regra_passado || {};
@@ -2444,7 +2444,7 @@
     if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão
       setCfg({ pump_jt_min_holders: 40, pump_jt_age_min: 5, pump_jt_age_max: 8, pump_jt_janela_min: 2, pump_jt_cresc_pct: 0, pump_jt_prazo_min: 7,
         pump_jt_stop_pct: 25, pump_jt_empate_pct: 50, pump_jt_parcial_pct: 100, pump_jt_parcial_frac: 50, pump_jt_trail_apos: 30,
-        pump_jt_trail_pct: 25, pump_jt_saida_det_pct: 15 }).then(() => { if (VIEW === "jevtrade") loadJt(); });
+        pump_jt_trail_pct: 25, pump_jt_saida_det_pct: 15, pump_jt_parado_min: 3, pump_jt_parado_pct: 5 }).then(() => { if (VIEW === "jevtrade") loadJt(); });
       return;
     }
     if (t.id === "tcReset") {

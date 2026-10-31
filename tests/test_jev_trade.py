@@ -468,3 +468,44 @@ def test_age_window_before_5_min_uses_live_market_cap():
         assert len(c) == 1 and c[0]["_jt_mc"] == 45.0 and j.day(T0)["parados"] == 1
     finally:
         jevtrade.apply_cfg({})
+
+
+def test_stalled_market_exits_before_the_dump():
+    """0.32.111 (dono, 31/10): aberta e o mercado parado 3 min (preço < 5%, sem pico novo, detentores sem subir) = sai."""
+    j, it = _open(px=1.0, stop="perda_30")
+    j.on_price(it, 1.30, T0 + 20)                                  # subiu +30% (pico)
+    t = T0 + 40
+    for k in range(10):                                            # 3 min e pouco andando de lado entre 1,25 e 1,28
+        j.add_read(it, 60, 1.26, 60.0, t) if k % 3 == 0 else None
+        j.on_price(it, 1.25 + 0.03 * (k % 2), t)
+        t += 20
+        if it["estado"] != "aberta":
+            break
+    assert it["estado"] == "fechada" and "mercado parado" in it["motivo"]
+
+
+def test_market_moving_or_new_holders_is_not_stalled():
+    j, it = _open(px=1.0, stop="perda_30")
+    t = T0 + 20
+    for k in range(12):                                            # sobe um pouco a cada volta: pico novo
+        j.on_price(it, 1.0 + 0.02 * k, t); t += 20
+    assert it["estado"] == "aberta"
+    j2, it2 = _open(px=1.0, stop="perda_30")
+    t = T0 + 20
+    for k in range(12):                                            # preço parado, mas detentores subindo
+        j2.add_read(it2, 50 + k, 1.0, 60.0, t)
+        j2.on_price(it2, 1.0, t); t += 20
+    assert it2["estado"] == "aberta"
+
+
+def test_stalled_rule_can_be_turned_off():
+    from app import jevtrade
+    try:
+        jevtrade.apply_cfg({"parado_min": 0})
+        j, it = _open(px=1.0, stop="perda_30")
+        t = T0 + 20
+        for k in range(15):
+            j.on_price(it, 1.0, t); t += 20
+        assert it["estado"] == "aberta"
+    finally:
+        jevtrade.apply_cfg({})

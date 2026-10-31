@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-31**; revisão documental **2.0**.
-Aplicação: **0.32.110 · 2026-10-31 · Jev Trade: abertas e observação primeiro, depois botões e filtros**.
-Referência Git na emissão: `0a6eb6a67f3e4bf1d676383c2b2930774438b369`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.111 · 2026-10-31 · Jev Trade: sai antes do dump quando o mercado fica parado 3 min**.
+Referência Git na emissão: `df30c6ac71b112e292cbc37ed49f50c08279c8aa`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

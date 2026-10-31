@@ -39,7 +39,11 @@ HIST_MAX = 120
 # Saída "antes do dump": stop inicial, metade vendida em +100%, stop no empate depois de +50%, stop móvel de 25% do pico
 # depois de +30% e saída total quando os detentores começam a sair (15% abaixo do pico depois da entrada).
 STRAT = {"cresc_pct": 0.0, "janela_min": 2.0, "prazo_min": WATCH_MAX_MIN, "stop_pct": 25.0, "empate_apos": 50.0,
-         "parcial_em": 100.0, "parcial_frac": 0.5, "trail_apos": 30.0, "trail_pct": 25.0, "saida_detentores_pct": 15.0}
+         "parcial_em": 100.0, "parcial_frac": 0.5, "trail_apos": 30.0, "trail_pct": 25.0, "saida_detentores_pct": 15.0,
+         # 0.32.111 (dono, 31/10): posição aberta com o mercado PARADO por 3 min sai antes do dump. Parado = o preço variou menos
+         # de 5% (máx./mín.) na janela, sem pico novo, e os detentores não subiram (guias de pump.fun: fim do volume e da entrada
+         # de gente nova vem antes da queda). 0 min = regra desligada.
+         "parado_min": 3.0, "parado_pct": 5.0}
 KEEP_S = 7 * 86400
 
 # 0.32.102 (dono, 31/10): os filtros viram opções da tela (pump_jt_*). A simulação é uma só para todos: vale o último valor
@@ -48,7 +52,8 @@ CFG_KEYS = {"pump_jt_min_holders": "min_holders", "pump_jt_age_min": "age_min", 
             "pump_jt_janela_min": "janela_min", "pump_jt_cresc_pct": "cresc_pct", "pump_jt_prazo_min": "prazo_min",
             "pump_jt_stop_pct": "stop_pct", "pump_jt_empate_pct": "empate_apos", "pump_jt_parcial_pct": "parcial_em",
             "pump_jt_parcial_frac": "parcial_frac", "pump_jt_trail_apos": "trail_apos", "pump_jt_trail_pct": "trail_pct",
-            "pump_jt_saida_det_pct": "saida_detentores_pct"}
+            "pump_jt_saida_det_pct": "saida_detentores_pct", "pump_jt_parado_min": "parado_min",
+            "pump_jt_parado_pct": "parado_pct"}
 DEFAULTS = {"min_holders": MIN_HOLDERS, "age_min": SCAN_MIN_AGE_MIN, "age_max": SCAN_MAX_AGE_MIN, **STRAT,
             "parcial_frac": STRAT["parcial_frac"] * 100}
 
@@ -69,7 +74,8 @@ def apply_cfg(c: dict | None) -> dict:
     STRAT.update(cresc_pct=float(v["cresc_pct"]), janela_min=float(v["janela_min"]), prazo_min=WATCH_MAX_MIN,
                  stop_pct=float(v["stop_pct"]), empate_apos=float(v["empate_apos"]), parcial_em=float(v["parcial_em"]),
                  parcial_frac=float(v["parcial_frac"]) / 100, trail_apos=float(v["trail_apos"]),
-                 trail_pct=float(v["trail_pct"]), saida_detentores_pct=float(v["saida_detentores_pct"]))
+                 trail_pct=float(v["trail_pct"]), saida_detentores_pct=float(v["saida_detentores_pct"]),
+                 parado_min=float(v["parado_min"]), parado_pct=float(v["parado_pct"]))
     return current_cfg()
 
 STOPS_IN = {"perda_15": -15.0, "perda_20": -20.0, "perda_30": -30.0, "perda_40": -40.0, "perda_50": -50.0}
@@ -296,6 +302,30 @@ class JevTrade:
             it["base_todos"] = _base_new(px, now)
         self.dirty.add(it["id"])
 
+    @staticmethod
+    def stalled(it: dict, now: float) -> dict | None:
+        """0.32.111: mercado parado depois da entrada (ver STRAT["parado_min"]). Usa os preços guardados a cada volta (`ticks`) e as
+        leituras de detentores da janela. Devolve o motivo ou None."""
+        win = float(STRAT.get("parado_min") or 0) * 60
+        ent = (it.get("entrada") or {}).get("t")
+        if win <= 0 or not ent or now - ent < win:
+            return None
+        T = [(t, p) for t, p in (it.get("ticks") or []) if t >= now - win and p]
+        if len(T) < 3 or T[0][0] > now - win + 40:             # precisa cobrir a janela (volta a cada 20 s)
+            return None
+        ps = [p for _, p in T]
+        rng = (max(ps) / min(ps) - 1) * 100
+        if rng >= float(STRAT.get("parado_pct") or 0):
+            return None
+        older = [p for t, p in (it.get("ticks") or []) if t < now - win and p]
+        if older and max(ps) > max(older) * 1.0001:             # pico novo dentro da janela = ainda andando
+            return None
+        m0 = (now - win - it["created_t"]) / 60
+        H = [x["h"] for x in it.get("hist") or [] if x.get("h") is not None and x["m"] >= m0 - 0.2]
+        if len(H) >= 2 and H[-1] > H[0]:                       # entrou gente nova: não está parado
+            return None
+        return {"faixa": round(rng, 1), "det": (H[0], H[-1]) if len(H) >= 2 else None}
+
     def holders_fell(self, it: dict) -> bool:
         h = next((x["h"] for x in reversed(it["hist"]) if x.get("h") is not None), None)
         return h is not None and h <= it["h_peak"] * (1 - HOLD_DROP_PCT / 100)
@@ -459,8 +489,14 @@ class JevTrade:
             if px:
                 pct = pct_of(it, px)
                 it["peak"] = max(it["peak"], round(pct, 1))
+                it["ticks"] = [x for x in (it.get("ticks") or []) if x[0] >= now - 900] + [(now, px)]
+                st = self.stalled(it, now)
                 if self.guard_exit(it, px, now):
                     pass
+                elif st is not None:
+                    det = f", detentores {st['det'][0]} → {st['det'][1]}" if st["det"] else ""
+                    self.sell(it, 1.0, px, now, f"mercado parado {STRAT['parado_min']:g} min (preço variou só {st['faixa']:g}%{det}): "
+                                                f"saiu antes do dump ({pct:+.1f}%)")
                 elif pct <= it["stop"]:
                     self.sell(it, 1.0, px, now, f"stop de {it['stop']:+g}%")
                 elif now - it["entrada"]["t"] >= MAX_HOLD_MIN * 60:
