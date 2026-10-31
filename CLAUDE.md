@@ -1449,3 +1449,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.111 (pedido do dono, 31/10): Jev Trade sai com o mercado parado — `JevTrade.stalled` em `on_price` (posição aberta; `ticks` de preço a cada
   20 s, 15 min; janela `STRAT["parado_min"]`=3, faixa < `parado_pct`=5%, sem pico novo e sem detentores subindo). Opções `pump_jt_parado_min/_pct`
   nos Filtros (0 = desliga). Conferido em 1440 e 390 px. Relatório `app/relatorios_ia/2026-10-31-0.32.111.md`.
+- 0.32.112: `sysDetail` usava `c`, inexistente ali (erro da 0.32.106): com carteiras assinadas na PumpPortal a janela do Monitor não abria. Usa `cfg()`. Teste em `tests/test_avisos_chaves.py`.

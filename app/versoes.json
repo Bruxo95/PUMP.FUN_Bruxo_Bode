@@ -1315,6 +1315,11 @@
    "versao": "0.32.111",
    "inicio": "2026-10-31T12:25:35+00:00",
    "titulo": "Jev Trade: sai antes do dump quando o mercado fica parado 3 min"
+  },
+  {
+   "versao": "0.32.112",
+   "inicio": "2026-10-31T23:27:42+01:00",
+   "titulo": "janela do Monitor volta a abrir"
   }
  ]
 }
