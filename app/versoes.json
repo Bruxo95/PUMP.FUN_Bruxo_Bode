@@ -1290,6 +1290,11 @@
    "versao": "0.32.106",
    "inicio": "2026-10-31T09:40:25+01:00",
    "titulo": "pesquisa aplicada: versão do Jev fixa, custo real nos estudos e teste da contagem barata"
+  },
+  {
+   "versao": "0.32.107",
+   "inicio": "2026-10-31T09:55:01+01:00",
+   "titulo": "real × fictícia medida, venda real registrada e custo com slippage"
   }
  ]
 }

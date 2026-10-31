@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.106 · 2026-10-31 · pesquisa aplicada: versão do Jev fixa, custo real nos estudos e teste da contagem barata"
+VERSION = "0.32.107 · 2026-10-31 · real × fictícia medida, venda real registrada e custo com slippage"

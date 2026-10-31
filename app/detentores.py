@@ -10,7 +10,7 @@ from __future__ import annotations
 import statistics
 
 from .auto_trades import SUSPECT_PCT
-from .jev import FEE_PCT, real_cost_pct, sim_result, with_real_cost
+from .jev import FEE_PCT, SLIP_LADO_PCT, real_cost_pct, sim_result, with_real_cost
 
 MIN_HOLDERS = 40
 MIN_GROW_PCT = 10
@@ -65,6 +65,7 @@ def _group(rows: list[tuple[float | None, bool, float | None]], sol: float) -> d
             "acerto": round(sum(r > 0 for r in res) / len(res) * 100) if res else None,
             "media_pct": round(sum(res) / len(res), 2) if res else None, "sol": round(sum(res) * sol / 100, 5),
             "sol_real": with_real_cost(round(sum(res) * sol / 100, 5), len(res), sol),
+            "sol_slip": with_real_cost(round(sum(res) * sol / 100, 5), len(res), sol, SLIP_LADO_PCT),
             "pico_mediano": round(statistics.median(pk), 1) if pk else None}
 
 
@@ -131,7 +132,7 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
         leitura = f"a regra não está ajudando: média {g_regra['media_pct']:+.1f}% por entrada contra {g_todos['media_pct'] or 0:+.1f}% de todos os sinais"
     linhas.sort(key=lambda x: (x["ligou"] is None, -x["t"]))
     return {"min_h": min_h, "cresc_pct": grow_pct, "saida_min": saida, "sinais": len(sigs), "medidos": len(with_h),
-            "sem_dados": len(sigs) - len(with_h), "custo_real_pct": real_cost_pct(sol), "show": show, "mostrando": len(linhas), "regra": {**g_regra, "curva": curva}, "todos": g_todos, "regra_jev": _group(combo, sol),
+            "sem_dados": len(sigs) - len(with_h), "custo_real_pct": real_cost_pct(sol), "custo_slip_pct": real_cost_pct(sol, slip_lado=SLIP_LADO_PCT), "show": show, "mostrando": len(linhas), "regra": {**g_regra, "curva": curva}, "todos": g_todos, "regra_jev": _group(combo, sol),
             "faixas": [{"faixa": k, **_group(v, sol)} for k, v in faixas.items() if v],
             "evolucao": [{"faixa": k, **_group(v, sol)} for k, v in evol.items() if v], "leitura": leitura, "linhas": linhas[:200],
             "detalhe": {k: _detail(v, sol) for k, v in det.items()}}

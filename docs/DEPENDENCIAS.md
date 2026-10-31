@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-10-31**; revisão documental **2.0**.
-Aplicação: **0.32.106 · 2026-10-31 · pesquisa aplicada: versão do Jev fixa, custo real nos estudos e teste da contagem barata**.
-Referência Git na emissão: `65aeaf7f01acb6245cc6cd50dd674b8791d106ea`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.107 · 2026-10-31 · real × fictícia medida, venda real registrada e custo com slippage**.
+Referência Git na emissão: `179a404c10c831d9bf6fd5d43917ff90f9a79feb`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -1233,9 +1233,9 @@
     $("jtSub").textContent = !r.chave ? "sem a chave do Jev: nada é chamado (Administração → Chaves do sistema)" : r.rpc_falhou ? "o RPC não contou detentores: configure o RPC próprio em Administração → Chaves do sistema" :
       !r.ativo ? "desligado" : "ligado · só simulação · " + (D.leituras || 0) + " de " + (Lm.leituras || 0) + " leituras de detentores hoje · " + (D.calls || 0) + " perguntas ao Jev" + (D.erros ? " · " + D.erros + " erros" : "");
     kpis("jtK", [["Hoje", (D.com_40 || 0) + " com " + (Lm.min_detentores || 40) + "+", (D.conferidos || 0) + " conferidos · " + (D.abaixo || 0) + " abaixo · " + (D.parados || 0) + " parados", "tr"],
-      ["Resultado do Jev", sg(E.sol || 0), (E.fechadas || 0) + " fechadas · média " + (E.media_pct == null ? "–" : pc(E.media_pct)) + "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(E.sol_real || 0), "pnl"],
+      ["Resultado do Jev", sg(E.sol || 0), (E.fechadas || 0) + " fechadas · média " + (E.media_pct == null ? "–" : pc(E.media_pct)) + "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(E.sol_real || 0) + "<br>com slippage (" + f(E.custo_slip_pct, 1) + "%): " + sg(E.sol_slip || 0), "pnl"],
       ["Acerto", E.acerto == null ? "–" : E.acerto + "%", "fator " + (E.fator == null ? "–" : f(E.fator, 2)) + (E.suspeitos ? " · " + E.suspeitos + " preço suspeito" : ""), "hit"],
-      ["Régua fixa, mesmas entradas", sg(I.sol || 0), (I.n || 0) + " medidas · média " + (I.media_pct == null ? "–" : pc(I.media_pct)) + "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(I.sol_real || 0), "mon"],
+      ["Régua fixa, mesmas entradas", sg(I.sol || 0), (I.n || 0) + " medidas · média " + (I.media_pct == null ? "–" : pc(I.media_pct)) + "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(I.sol_real || 0) + "<br>com slippage (" + f(E.custo_slip_pct, 1) + "%): " + sg(I.sol_slip || 0), "mon"],
       ["Régua fixa, todos os 40+", sg(T.sol || 0), (T.n || 0) + " medidos · média " + (T.media_pct == null ? "–" : pc(T.media_pct)), "mon"]]);
     $("jtL").textContent = E.leitura || "";
     const FL = r.filtros || {}, DE = FL._de || {};
@@ -1319,7 +1319,7 @@
     JV_D = D;
     const R = D.regra || {}, T = D.todos || {}, C = D.regra_jev || {};
     const nota = (g) => "acerto " + (g.acerto == null ? "–" : g.acerto + "%") + " · média " + (g.media_pct == null ? "–" : pc(g.media_pct));
-    const notaR = (g) => nota(g) + "<br>com custo de " + f(D.custo_real_pct, 1) + "%: " + sg(g.sol_real || 0);
+    const notaR = (g) => nota(g) + "<br>com custo de " + f(D.custo_real_pct, 1) + "%: " + sg(g.sol_real || 0) + "<br>com slippage (" + f(D.custo_slip_pct, 1) + "%): " + sg(g.sol_slip || 0);
     kpis("jvDK", [["Tokens com detentores", String(D.medidos || 0), "de " + (D.sinais || 0) + " sinais no período", "mon", "", "tokens"],
       ["A regra ligou", String(R.n || 0), (R.medidos || 0) + " entradas medidas · " + (R.dobrou || 0) + " dobraram", "hit", "", "ligou"],
       ["Seguindo a regra", sg(R.sol || 0), notaR(R), "pnl", "", "regra"],
@@ -1347,7 +1347,7 @@
     const ae = A.entrar || {};
     kpis("jvK", [["Tokens analisados", String(E.n || 0), F === "ao_vivo" ? (U.calls || 0) + " perguntas hoje (limite " + (r.limite_dia || 0) + ")" + (U.erros ? " · " + U.erros + " erros" : "") : "casos passados · " + esc(($("jvF").selectedOptions[0] || {}).textContent || ""), "mon"],
       ["Jev mandou entrar", String(ae.n || 0), "acerto " + (ae.acerto == null ? "–" : ae.acerto + "%") + " · média " + (ae.media_pct == null ? "–" : ae.media_pct + "%"), "hit"],
-      ["Se seguisse o Jev", sg(T.jev || 0), (F === "base" ? "" : "nossa regra: " + s4(T.regra || 0) + " · ") + "todos: " + s4(T.todos || 0) + (E.total_real ? "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(E.total_real.jev || 0) : ""), "pnl"],
+      ["Se seguisse o Jev", sg(T.jev || 0), (F === "base" ? "" : "nossa regra: " + s4(T.regra || 0) + " · ") + "todos: " + s4(T.todos || 0) + (E.total_real ? "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(E.total_real.jev || 0) + "<br>com slippage (" + f(E.custo_slip_pct, 1) + "%): " + sg(E.total_slip.jev || 0) : ""), "pnl"],
       ["Velocidade e custo", U.ms_medio == null ? "–" : U.ms_medio + " ms", (r.modelo ? esc(r.modelo) + " · " : "") + (U.custo_usd == null ? "sem uso hoje" : "≈ US$ " + U.custo_usd + " hoje" + (U.ultimo_erro ? " · último erro: " + esc(U.ultimo_erro) : "")), "tr"]]);
     { const V = r.contagem_v2; $("jvDV").textContent = !V ? "" : "Teste da contagem barata (só compara, não muda nada): " + (V.n || 0) + " comparações hoje · " + (V.iguais || 0) + " iguais · " + (V.perto || 0) + " com diferença de até 1 · maior diferença " + (V.dif_max || 0) + " · " + (V.n ? f(V.paginas / V.n, 1) : "–") + " páginas por contagem" + (V.erros ? " · " + V.erros + " erros (" + V.ultimo_erro + ")" : ""); }
     $("jvC").innerHTML = jvChart(F === "ao_vivo" ? Object.assign({}, E.curva, { detentores: ((r.detentores || {}).regra || {}).curva }) : E.curva);
@@ -2915,7 +2915,12 @@
   }
   async function loadMirror() {
     const r = await BB.api("/api/pump/real/mirror"); if (r.error || !$("rmT")) return;
-    const L = r.pairs || [];
+    const L = r.pairs || [], G = r.resumo || {}, pts = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + f(v, 1) + (v === 0 ? "" : "") + " pts");
+    kpis("rmG", [["Pares medidos", String(G.pares || 0), (G.sem_par_48h || 0) + " sem par nas últimas 48 h", "tr"], ["Mesmos trades", sg(G.real_sol || 0), "na real · na fictícia " + sg(G.fict_sol || 0), "pnl"],
+      ["Diferença típica", pts(G.dif_mediana), "real − fictícia, mediana por trade", "mon"], ["Entrada e saída", (G.entrada_mediana == null ? "–" : pc(G.entrada_mediana)) + " · " + (G.saida_mediana == null ? "–" : pc(G.saida_mediana)), "preço da real contra a fictícia", "hit"],
+      ["Lucro que sumiu", String(G.ganhou_fict_perdeu_real || 0), "ganhou na fictícia e perdeu na real" + (G.atraso_mediano_s == null ? "" : " · atraso " + hms(G.atraso_mediano_s)), "pos"]]);
+    $("rmGL").textContent = G.leitura || "";
+    table("rmV", ["Tentativa de venda", "Vezes", "Entrou", "Sem confirmação", "Tempo típico"], (G.vendas || []).map((x) => [esc(x.degrau), String(x.tentativas), x.entrou + " (" + x.entrou_pct + "%)", String(x.pendente), x.ms_mediano == null ? "–" : f(x.ms_mediano / 1000, 1) + " s"]), "Sem vendas reais registradas ainda.");
     kpis("rmK", [["Trades reais do espelho", String(L.length), "com par na fictícia: " + L.filter((x) => x.sim_pct != null).length, "tr"], ["Resultado real", sg(r.real_sol), "soma dos trades reais acima", "pnl"],
       ["Diferença média", r.media_dif_pct == null ? "–" : (r.media_dif_pct > 0 ? "+" : "") + f(r.media_dif_pct, 1) + " pts", "real − fictícia, em % por trade", "mon"]]);
     table("rmT", ["Fechou", "Token", "Fictícia", "Real", "Diferença", "Atraso", "Saída real / fictícia"], L.map((x) => [esc(dt(x.fechou)), pfM(x.mint || "", x.token),

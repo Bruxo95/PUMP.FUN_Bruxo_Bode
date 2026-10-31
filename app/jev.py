@@ -94,15 +94,18 @@ EXITS = ("5", "10", "25")
 FEE_PCT = 4.0               # compra + venda na pump.fun (mesma estimativa das sombras)
 
 
-def real_cost_pct(sol: float, prio_sol: float = 0.0005, portal_pct: float = 0.5) -> float:
+SLIP_LADO_PCT = 3.0         # 0.32.107: o valor de pump_extra_slip_pct; a única execução real publicada (lote 11) mediu perto disso, por lado
+
+
+def real_cost_pct(sol: float, prio_sol: float = 0.0005, portal_pct: float = 0.5, slip_lado: float = 0.0) -> float:
     """0.32.106 (lotes 8 e 10, conta refeita): compra + venda na curva pela rota Local, antes de slippage e impacto:
     1,25% da curva + 0,5% da PumpPortal por lado, mais rede e priority fee. Os 4% dos estudos ficam como estão, para comparar
     com o passado; este número aparece ao lado."""
-    return round(2 * (1.25 + portal_pct) + 100 * 2 * (0.000005 + prio_sol) / sol, 2)
+    return round(2 * (1.25 + portal_pct + slip_lado) + 100 * 2 * (0.000005 + prio_sol) / sol, 2)
 
 
-def with_real_cost(total_sol: float, n: int, sol: float) -> float:
-    return round(total_sol - n * sol * (real_cost_pct(sol) - FEE_PCT) / 100, 5)
+def with_real_cost(total_sol: float, n: int, sol: float, slip_lado: float = 0.0) -> float:
+    return round(total_sol - n * sol * (real_cost_pct(sol, slip_lado=slip_lado) - FEE_PCT) / 100, 5)
 
 
 def sim_result(s: dict, exit_min: str, stop_pct: float = 30.0) -> float | None:
@@ -159,7 +162,9 @@ def study(signals: list[dict], exit_min: str = "10", sol: float = 0.1) -> dict:
     order = ["0–20%", "20–40%", "40–60%", "60–80%", "80–100%"]
     cnt = {"todos": sum(g["medidos"] for g in by_act.values()), "jev": (by_act.get("entrar") or {}).get("medidos", 0)}
     return {"n": len(js), "saida_min": exit_min, "sol_por_entrada": sol, "por_acao": by_act, "custo_real_pct": real_cost_pct(sol),
+            "custo_slip_pct": real_cost_pct(sol, slip_lado=SLIP_LADO_PCT),
             "total_real": {k: with_real_cost(acc[k], cnt[k], sol) for k in cnt},
+            "total_slip": {k: with_real_cost(acc[k], cnt[k], sol, SLIP_LADO_PCT) for k in cnt},
             "calibracao": [{"faixa": k, **bands[k], "subiu_pct": round(bands[k]["subiu"] / bands[k]["n"] * 100)} for k in order if k in bands],
             "curva": curve, "total": {k: round(v, 5) for k, v in acc.items()}}
 

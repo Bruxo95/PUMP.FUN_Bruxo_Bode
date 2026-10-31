@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 
 from .auto_trades import SUSPECT_PCT
-from .jev import FEE_PCT, JEV_MODEL, JEV_URL, TIMEOUT_S, real_cost_pct, with_real_cost
+from .jev import FEE_PCT, JEV_MODEL, JEV_URL, SLIP_LADO_PCT, TIMEOUT_S, real_cost_pct, with_real_cost
 
 MIN_HOLDERS = 40
 SCAN_MIN_AGE_MIN, SCAN_MAX_AGE_MIN = 5.0, 8.0     # "a partir dos cinco minutos"
@@ -166,12 +166,15 @@ def state_for(it: dict, tk: dict, now: float) -> dict:
                      "volume_5m_usd": v.get("m5"), "buys_5m": v.get("buys_m5"), "sells_5m": v.get("sells_m5")},
           "risk": {"top10_pct": tk.get("top10_pct"), "creator_buy_sol": it.get("dev_buy"), "creator_tokens": c.get("tokens"),
                    "creator_rugs": c.get("rugs"), "creator_sold": bool(tk.get("dev_sold_t"))}}
+    # 0.32.107 (docs do Jev, lote 11): cada chamada vê só o que é enviado; sem isto ele não sabe o que já decidiu nem o que já vendeu
+    st["past_decisions"] = [{"age_min": x.get("m"), "action": x.get("acao"), "stop": x.get("stop")} for x in (it.get("decisoes") or [])[-3:]]
     if it["estado"] == "aberta":
         e = it["entrada"]
         px = tk.get("price")
         st["position"] = {"result_pct": round(pct_of(it, px), 1) if px else None, "peak_pct": it.get("peak"), "stop_pct": it.get("stop"),
                           "held_min": round((now - e["t"]) / 60, 1), "left_pct": round(it["left"] * 100),
-                          "holders_at_entry": e.get("h")}
+                          "holders_at_entry": e.get("h"), "realized_pct": round(it.get("realizado") or 0, 1),
+                          "partial_sales": [{"sold_pct": round(float(x.get("frac") or 0) * 100), "result_pct": x.get("pct")} for x in (it.get("vendas") or [])[-5:]]}
     return st
 
 
@@ -499,9 +502,12 @@ class JevTrade:
         return {"olhados": len(L), "entradas": sum(1 for x in L if x.get("entrada")), "fechadas": len(F), "suspeitos": sum(1 for x in L if x.get("suspeito")),
                 "acerto": round(sum(r > 0 for r in res) / len(res) * 100) if res else None, "media_pct": media(res),
                 "sol": round(sum(res) * SOL / 100, 5), "fator": round(win / lose, 2) if lose else None, "custo_real_pct": real_cost_pct(SOL),
+                "custo_slip_pct": real_cost_pct(SOL, slip_lado=SLIP_LADO_PCT),
                 "sol_real": with_real_cost(round(sum(res) * SOL / 100, 5), len(res), SOL),
+                "sol_slip": with_real_cost(round(sum(res) * SOL / 100, 5), len(res), SOL, SLIP_LADO_PCT),
                 "igual": {"n": len(igual), "media_pct": media(igual), "sol": round(sum(igual) * SOL / 100, 5), "jev_mesmas_pct": media(comp),
-                          "sol_real": with_real_cost(round(sum(igual) * SOL / 100, 5), len(igual), SOL)},
+                          "sol_real": with_real_cost(round(sum(igual) * SOL / 100, 5), len(igual), SOL),
+                          "sol_slip": with_real_cost(round(sum(igual) * SOL / 100, 5), len(igual), SOL, SLIP_LADO_PCT)},
                 "todos": {"n": len(todos), "media_pct": media(todos), "sol": round(sum(todos) * SOL / 100, 5),
                           "sol_real": with_real_cost(round(sum(todos) * SOL / 100, 5), len(todos), SOL)},
                 "curva": curva, "motivos": sorted(motivos.values(), key=lambda g: -g["n"]), "leitura": leitura}

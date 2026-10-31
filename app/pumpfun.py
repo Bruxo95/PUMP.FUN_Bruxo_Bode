@@ -1421,6 +1421,7 @@ class PumpFun:
             tr = {"opened_at": p["opened_at"], "closed_at": now_iso(), "wallet": p["wallet"], "mint": p["mint"],
                   "symbol": p["symbol"], "sol_in": p["sol_in"], "sol_out": round(p["proceeds"], 6),
                   "pnl_sol": round(pnl, 6), "pnl_pct": round(pnl / p["sol_in"] * 100, 2), "price_in": p["price_in"],
+                  "sim_entry_px": (p.get("sim_entry") or {}).get("price_in") or p["price_in"],
                   "price_out": price_out, "fees_sol": round(p["fees_sol"], 6), "reason": why,
                   "fee_parts": {k: round(v, 6) for k, v in (p.get("fee_parts") or {}).items()},
                   "gross_sol": round(pnl + p["fees_sol"], 6),       # resultado antes das taxas (já com slippage)
@@ -4005,6 +4006,10 @@ class PumpFun:
         return [e for e in self.events if e["id"] > after]
 
     # ------------------------------------------------------------------ real (preparado, desligado)
+    @staticmethod
+    def _px_gap(real, sim) -> float | None:
+        return round((real / sim - 1) * 100, 2) if real and sim else None
+
     def mirror_pairs(self, limit: int = 100) -> list[dict]:
         """0.31.38 — sugestão do Bruxo + aprendizagem do bot: cada trade real do espelho ao lado do trade fictício par,
         para ver quanto do resultado simulado sobra no dinheiro de verdade (atraso, slippage e taxas)."""
@@ -4024,7 +4029,9 @@ class PumpFun:
                         "real_sol": r.get("pnl_sol"), "real_pct": r.get("pnl_pct"), "real_in": r.get("sol_in"),
                         "sim_sol": s.get("pnl_sol") if s else None, "sim_pct": s.get("pnl_pct") if s else None,
                         "dif_pct": round((r.get("pnl_pct") or 0) - (s.get("pnl_pct") or 0), 2) if s else None,
-                        "atraso_s": r.get("lag_s"), "lat": r.get("lat"), "motivo_real": r.get("reason"), "motivo_sim": s.get("reason") if s else None})
+                        "atraso_s": r.get("lag_s"), "lat": r.get("lat"), "motivo_real": r.get("reason"), "motivo_sim": s.get("reason") if s else None,
+                        "entrada_pct": self._px_gap(r.get("price_in"), s.get("sim_entry_px")) if s else None,   # 0.32.107: preço original da fictícia
+                        "saida_pct": self._px_gap(r.get("price_out"), s.get("price_out")) if s else None})
         out.sort(key=lambda x: str(x.get("fechou") or ""), reverse=True)
         return out[:limit]
 
@@ -4294,6 +4301,8 @@ class PumpFun:
             if st == "confirmada":
                 self._emit(f"[PUMP REAL] a venda pendente de {p['symbol']} confirmou depois; o saldo já reflete isso")
         res = await self.real.sell(p["mint"], frac, other=not self.is_pump(p["mint"]))
+        p["sell_tries"] = (p.get("sell_tries") or []) + list(res.get("tentativas") or [])
+        p["sell_tries"] = p["sell_tries"][-40:]
         if res.get("status") == "pendente" and res.get("signature"):
             p["sell_pending"] = {"signature": res["signature"], "at": time.time()}
         if not res.get("ok"):
@@ -4331,6 +4340,7 @@ class PumpFun:
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             tr["sim_id"] = p.get("sim_id")                 # 0.31.38: par na fictícia (espelho)
             tr["lat"] = p.get("lat")                       # 0.31.51: tempo da compra real (montar, confirmar, total)
+            tr["sell_tries"] = p.get("sell_tries")         # 0.32.107: cada tentativa de venda
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
@@ -4860,7 +4870,7 @@ class PumpReal:
             return {"ok": True, "sol_received": 0.0, "tokens_left": 0.0, "reason": "sem saldo do token"}
         pct = f"{max(1, min(100, round(frac * 100)))}%"
         base_slip = float(getattr(self.cfg, "pump_real_slippage_pct", 15))
-        tried, last = [], {}
+        tried, last, tries = [], {}, []                # 0.32.107: cada degrau medido (lote 11: escada parecida terminou em −84%)
         if other:
             plan = [("jupiter", None, s_) for s_ in (3.0, 6.0, 10.0)]
         else:
@@ -4870,6 +4880,7 @@ class PumpReal:
         while k < len(plan):
             via, pool, slip = plan[k]
             k += 1
+            t0 = time.monotonic()
             if via == "jupiter":
                 raw, _dec = await self._raw_tok(mint)
                 amount = raw if frac >= 0.999 else int(raw * frac)
@@ -4884,18 +4895,20 @@ class PumpReal:
                 await asyncio.sleep(3)
             sol1, tok1 = await self.balances(mint)
             tried.append(f"{label}: {self.explain(last.get('reason')) or last.get('status')}")
+            res_ = "entrou" if tok1 < tok0 * 0.999 else "pendente" if last.get("status") == "pendente" else "falhou"
+            tries.append({"via": label, "res": res_, "ms": round((time.monotonic() - t0) * 1000), "erro": None if res_ == "entrou" else str(self.explain(last.get("reason")) or last.get("status"))[:100]})
             if tok1 < tok0 * 0.999:
                 d = await self._sol_change(last.get("signature"))
                 return {"ok": True, "signature": last.get("signature"), "sol_received": max(0.0, d if d is not None else sol1 - sol0),
-                        "tokens_left": tok1, "attempts": tried}
+                        "tokens_left": tok1, "attempts": tried, "tentativas": tries}
             if last.get("status") == "pendente":
                 # SEC-04 (auditoria 2026-10-25): a venda ainda pode entrar; montar outra venderia duas vezes
-                return {"ok": False, "status": "pendente", "signature": last.get("signature"), "attempts": tried,
+                return {"ok": False, "status": "pendente", "signature": last.get("signature"), "attempts": tried, "tentativas": tries,
                         "reason": "venda sem confirmação — não reenvia até conferir a assinatura"}
             why = str(last.get("reason") or "")
             if via == "pp" and "0x1775" in why and pool_override is None:
                 pool_override = "pump-amm"                 # graduou: as próximas tentativas vão na PumpSwap
             if via == "pp" and ("HTTP" in why or "0x1774" in why) and not any(p_[0] == "jupiter" for p_ in plan):
                 plan.append(("jupiter", None, 10.0))       # PumpPortal não montou: tenta a Jupiter no fim
-        return {"ok": False, "status": last.get("status"), "attempts": tried,
+        return {"ok": False, "status": last.get("status"), "attempts": tried, "tentativas": tries,
                 "reason": " → ".join(tried)[:400] or "o token não saiu da carteira"}

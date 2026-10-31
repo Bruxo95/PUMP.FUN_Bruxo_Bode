@@ -284,11 +284,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/real/mirror")
     async def real_mirror(pf=Depends(engine)):
         """0.31.38: trades reais do espelho × o trade fictício par."""
-        L = pf.mirror_pairs()
+        from . import realgap
+        A = pf.mirror_pairs(2000)
+        L, miss = A[:100], pf.mirror_misses()
         dif = [x["dif_pct"] for x in L if x["dif_pct"] is not None]
         return {"pairs": L, "media_dif_pct": round(sum(dif) / len(dif), 2) if dif else None,
                 "real_sol": round(sum(x["real_sol"] or 0 for x in L), 6), "sim_pct_medio": None,
-                "misses": pf.mirror_misses(), "real_on": bool(getattr(pf.cfg, "pump_real_enabled", False)),
+                "resumo": realgap.summary(A, [t for t in pf.trades(5000) if t.get("real")], int(miss.get("total") or 0)),
+                "misses": miss, "real_on": bool(getattr(pf.cfg, "pump_real_enabled", False)),
                 "mirror_on": bool(getattr(pf.cfg, "pump_real_mirror", True))}
 
     def safety_marks(pf, x: dict) -> None:

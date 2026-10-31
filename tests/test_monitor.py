@@ -344,6 +344,24 @@ def test_pumpportal_account_trades_copy_without_rpc_and_no_double(setup):
     assert mon.market.rpc_status["queued"] == n0 + 1 and mon.market.rpc_status["pp_skip"] == 1
 
 
+def test_pumpportal_drop_goes_back_to_rpc_at_once(setup, monkeypatch):
+    import websockets
+    mon = setup["mon"]
+    mon._pp_subs = {WA}
+
+    def boom(*a, **k):
+        raise OSError("caiu")
+    monkeypatch.setattr(websockets, "connect", boom)
+
+    async def go():
+        try:
+            await asyncio.wait_for(mon.pumpportal_run(), 0.05)
+        except asyncio.TimeoutError:
+            pass
+    _run(go())
+    assert mon._pp_subs == set()
+
+
 def test_dead_personal_key_of_other_user_does_not_break_system_key(setup):
     """0.32.71 (dono, 29/10 22:03): a chave do sistema tinha créditos, mas o ranking vinha "Insufficient credits"
     porque a consulta compartilhada usava a chave pessoal (sem créditos) de outra conta."""

@@ -77,6 +77,7 @@ def test_real_cost_goes_beside_the_4_pct():
     assert jev.with_real_cost(1.0, 10, 0.1) == round(1.0 - 10 * 0.1 * 0.51 / 100, 5)
     D = detentores.study([_sig({0: 45, 1: 60, 2: 80}, marks={10: 50}, hpx={2: 0})], "10")
     assert D["custo_real_pct"] == 4.51 and D["todos"]["sol_real"] == round(D["todos"]["sol"] - 0.1 * 0.51 / 100, 5)
+    assert D["custo_slip_pct"] == 10.51 and D["todos"]["sol_slip"] == round(D["todos"]["sol"] - 0.1 * 6.51 / 100, 5)
 
 
 def test_only_coins_with_40_holders_are_read_every_minute():

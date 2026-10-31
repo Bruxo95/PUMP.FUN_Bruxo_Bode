@@ -129,6 +129,14 @@ def test_suspect_price_stays_out_of_the_totals():
     assert it["suspeito"] and E["fechadas"] == 0 and E["suspeitos"] == 1
 
 
+def test_state_tells_the_jev_what_it_already_decided_and_sold():
+    j, it = _open()
+    j.on_exit(it, {"acao": "vender_50", "stop": "manter"}, 2.0, T0 + 60)
+    st = jevtrade.state_for(it, {"price": 2.0}, T0 + 120)
+    assert st["past_decisions"][-1]["action"] == "vender_50" and len(st["past_decisions"]) == 2
+    assert st["position"]["realized_pct"] == 50 and st["position"]["partial_sales"] == [{"sold_pct": 50, "result_pct": 100.0}]
+
+
 def test_load_keeps_open_positions_after_restart():
     j, it = _open()
     k = JevTrade()

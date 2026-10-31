@@ -471,6 +471,7 @@ class SharedMonitor:
             except Exception as e:
                 from .logsafe import redact
                 st.update(ws=False, error=redact(f"{type(e).__name__}: {str(e)[:120]}"))
+                self._pp_subs = set()                  # 0.32.107: conexão caiu: as copiadas voltam ao RPC na hora, sem esperar os 2 min
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
 
