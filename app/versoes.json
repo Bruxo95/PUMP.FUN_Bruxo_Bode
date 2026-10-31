@@ -1295,6 +1295,11 @@
    "versao": "0.32.107",
    "inicio": "2026-10-31T09:55:01+01:00",
    "titulo": "real × fictícia medida, venda real registrada e custo com slippage"
+  },
+  {
+   "versao": "0.32.103",
+   "inicio": "2026-10-31T10:37:06+00:00",
+   "titulo": "Jev Trade: faixa de idade antes dos 5 min volta a achar tokens"
   }
  ]
 }

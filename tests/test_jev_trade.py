@@ -454,3 +454,17 @@ def test_filters_come_from_the_screen_and_default_to_the_old_rule(tmp_path):
     finally:
         jevtrade.apply_cfg({})
     assert jevtrade.MIN_HOLDERS == 40 and jevtrade.STRAT["stop_pct"] == 25 and jevtrade.STRAT["parcial_frac"] == 0.5
+
+
+def test_age_window_before_5_min_uses_live_market_cap():
+    """0.32.103 (dono, 31/10): faixa 3–4 min não achava nada (só existia a foto de 1 min); usa o valor de mercado atual."""
+    from app import jevtrade
+    try:
+        jevtrade.apply_cfg({"age_min": 3, "age_max": 4})
+        j = JevTrade()
+        L = {M: {"mint": M, "symbol": "JVT", "creator": "C", "t0": T0 - 3.5 * 60, "mcap0": 30.0, "snaps": {"1": 31.0}}}
+        assert j.candidates(L, {}, T0) == []                                         # parado agora (31 < 31,5)…
+        c = j.candidates(L, {}, T0 + 20, {M: {"mcap_sol": 45.0}})                    # …subiu ainda dentro da faixa: entra
+        assert len(c) == 1 and c[0]["_jt_mc"] == 45.0 and j.day(T0)["parados"] == 1
+    finally:
+        jevtrade.apply_cfg({})

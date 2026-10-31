@@ -1140,7 +1140,8 @@ class PumpHub:
     async def _jt_scan(self, now: float) -> None:
         """Tokens novos vivos aos 5 min: conta os detentores uma vez; 40+ entram na observação."""
         jt, svc = self.jt, getattr(self.monitor, "svc", None) if self.monitor else None
-        for r in jt.candidates(self.lab.live, getattr(self.market, "blacklist", None), now)[:6]:
+        for r in jt.candidates(self.lab.live, getattr(self.market, "blacklist", None), now,
+                                     getattr(self.market, "tokens", None))[:6]:
             if not jt.can_scan(now):
                 break
             jt.note_scan(now)

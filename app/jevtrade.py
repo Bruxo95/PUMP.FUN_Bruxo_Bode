@@ -225,22 +225,28 @@ class JevTrade:
         return JEV_DAY - self.day(now)["calls"]
 
     # ------------------------------------------------------------------ escolha dos tokens
-    def candidates(self, live: dict, blacklist, now: float) -> list[dict]:
-        """Tokens vivos da Base entre 5 e 8 min que ainda não foram conferidos; os que mais subiram primeiro."""
+    def candidates(self, live: dict, blacklist, now: float, tokens: dict | None = None) -> list[dict]:
+        """Tokens vivos da Base dentro da faixa de idade (padrão 5 a 8 min) que ainda não foram conferidos; os que mais subiram
+        primeiro. 0.32.103 (dono, 31/10: faixa 3–4 min e nada entrava): o valor de mercado vinha só da foto de 5 min da Base, que
+        não existe antes dos 5 min — agora usa o valor de mercado atual (preço ao vivo) e, sem ele, a foto mais recente."""
         out = []
         for mint, r in list(live.items()):
             age = (now - float(r.get("t0") or now)) / 60
-            mc, m0 = (r.get("snaps") or {}).get("5"), r.get("mcap0")
+            snaps = r.get("snaps") or {}
+            last = next((snaps[k] for k in sorted(snaps, key=lambda k: -float(k)) if snaps.get(k)), None)
+            mc, m0 = (tokens or {}).get(mint, {}).get("mcap_sol") or last, r.get("mcap0")
             if mint in self.items or r.get("_jt") or not (SCAN_MIN_AGE_MIN <= age <= SCAN_MAX_AGE_MIN) or not mc or not m0:
                 continue
             if mc >= 300 or (r.get("creator") and r["creator"] in (blacklist or {})):
                 continue                       # curva quase cheia em 5 min = bundle (mesma regra da Base)
-            if mc < m0 * ALIVE_GAIN:
-                r["_jt"] = True
-                self.day(now)["parados"] += 1
+            if mc < m0 * ALIVE_GAIN:            # parado agora; pode andar ainda dentro da faixa de idade (conta uma vez só)
+                if not r.get("_jt_p"):
+                    r["_jt_p"] = True
+                    self.day(now)["parados"] += 1
                 continue
             out.append(r)
-        return sorted(out, key=lambda r: -(r["snaps"]["5"] / r["mcap0"]))
+            r["_jt_mc"] = mc
+        return sorted(out, key=lambda r: -(r["_jt_mc"] / r["mcap0"]))
 
     def on_checked(self, r: dict, h: int | None, now: float, cstats: dict | None = None) -> dict | None:
         """Resultado da 1ª contagem: 40+ detentores abre a observação."""
