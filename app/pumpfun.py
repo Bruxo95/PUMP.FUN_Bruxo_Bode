@@ -925,6 +925,33 @@ class PumpFun:
             self.auto_rows[key] = row
             self._auto_dirty.add(key)
 
+    PERIODS_H = (1, 6, 12, 24)
+
+    @classmethod
+    def periods(cls, closed: list[dict], balance: float, now: float | None = None) -> list[dict]:
+        """0.32.113 (pedido do dono): ganhos, perdas, saldo e investido dos trades FECHADOS nas últimas 1/6/12/24 h.
+        `saldo_antes` = caixa da carteira no início do período, sem as posições abertas."""
+        now = time.time() if now is None else now
+        out = {h: {"horas": h, "trades": 0, "ganhos": 0, "perdas": 0, "ganhos_sol": 0.0, "perdas_sol": 0.0, "investido_sol": 0.0} for h in cls.PERIODS_H}
+        for t in closed:
+            try:
+                age = now - datetime.fromisoformat(str(t.get("closed_at")).replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                continue
+            pnl = float(t.get("pnl_sol") or 0)
+            for h, g in out.items():
+                if age <= h * 3600:
+                    g["trades"] += 1
+                    g["investido_sol"] += float(t.get("sol_in") or 0)
+                    g["ganhos" if pnl > 0 else "perdas"] += 1
+                    g["ganhos_sol" if pnl > 0 else "perdas_sol"] += pnl
+        res = []
+        for g in out.values():
+            saldo = g["ganhos_sol"] + g["perdas_sol"]
+            res.append({**g, "ganhos_sol": round(g["ganhos_sol"], 6), "perdas_sol": round(g["perdas_sol"], 6), "investido_sol": round(g["investido_sol"], 6),
+                        "saldo_sol": round(saldo, 6), "saldo_antes": round(balance - saldo, 6)})
+        return res
+
     def wallet(self, real: bool = False) -> dict:
         start = 0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))
         closed = [t for t in self.trades(100000) if bool(t.get("real")) == real]
@@ -941,7 +968,7 @@ class PumpFun:
                 "losses": len(closed) - len(wins), "win_rate": round(len(wins) / len(closed), 3) if closed else None,
                 "gains_sol": round(sum(t["pnl_sol"] for t in wins), 6),
                 "losses_sol": round(sum(t["pnl_sol"] for t in closed if t["pnl_sol"] <= 0), 6),
-                "sol_usd": self.sol_usd}
+                "sol_usd": self.sol_usd, "periodos": self.periods(closed, start + realized)}
 
     def curve(self, real: bool = False) -> list[list]:
         bal, pts = (0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))), []

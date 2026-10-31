@@ -1450,3 +1450,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   20 s, 15 min; janela `STRAT["parado_min"]`=3, faixa < `parado_pct`=5%, sem pico novo e sem detentores subindo). Opções `pump_jt_parado_min/_pct`
   nos Filtros (0 = desliga). Conferido em 1440 e 390 px. Relatório `app/relatorios_ia/2026-10-31-0.32.111.md`.
 - 0.32.112: `sysDetail` usava `c`, inexistente ali (erro da 0.32.106): com carteiras assinadas na PumpPortal a janela do Monitor não abria. Usa `cfg()`. Teste em `tests/test_avisos_chaves.py`.
+- 0.32.113 (pedido do dono): `PumpFun.periods` → `wallet()["periodos"]` (1/6/12/24 h, só trades fechados, todos, não os 300 do snapshot); tabela `#ovP` na janela Resultado. `tests/test_periodos.py`.

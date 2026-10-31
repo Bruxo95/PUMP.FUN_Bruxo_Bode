@@ -1320,6 +1320,11 @@
    "versao": "0.32.112",
    "inicio": "2026-10-31T23:27:42+01:00",
    "titulo": "janela do Monitor volta a abrir"
+  },
+  {
+   "versao": "0.32.113",
+   "inicio": "2026-10-31T23:31:24+01:00",
+   "titulo": "janela Resultado mostra 1, 6, 12 e 24 horas"
   }
  ]
 }
