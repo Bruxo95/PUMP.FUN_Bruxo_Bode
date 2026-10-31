@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import time
 
+from . import stats
 from .auto_trades import SUSPECT_PCT
 from .jev import FEE_PCT, JEV_MODEL, JEV_URL, SLIP_LADO_PCT, TIMEOUT_S, real_cost_pct, with_real_cost
 
@@ -197,9 +198,33 @@ def _base_step(b: dict | None, px: float, now: float) -> None:
         b["res"] = round(p - FEE_PCT, 2)
 
 
+H5_WAIT_S, H5_GIVE_UP_S, H5_KEEP_S = 3900, 3 * 3600, 30 * 86400
+H5_FAIXAS = ((0, 20, "menos de 20"), (20, 40, "20 a 39"), (40, 80, "40 a 79"), (80, 10 ** 9, "80 ou mais"))
+
+
+def h5_study(rows: list[dict], corte: int = 40) -> dict:
+    """Detentores aos 5 min × o que o token fez depois. Vale só para tokens vivos aos 5 min e conferidos, não para todo o mercado."""
+    F = [x for x in rows if (x.get("fim") or {}).get("label")]
+    def g(nome: str, L: list[dict]) -> dict:
+        gr, db = sum(1 for x in L if x["fim"]["graduou"]), sum(1 for x in L if x["fim"]["dobrou"])
+        return {"faixa": nome, "n": len(L), "graduou": gr, "graduou_pct": round(gr / len(L) * 100, 1) if L else None, "graduou_ic": stats.wilson(gr, len(L)),
+                "dobrou": db, "dobrou_pct": round(db / len(L) * 100, 1) if L else None, "dobrou_ic": stats.wilson(db, len(L))}
+    alto, baixo = g(f"{corte} ou mais", [x for x in F if x["h"] >= corte]), g(f"menos de {corte}", [x for x in F if x["h"] < corte])
+    if min(alto["n"], baixo["n"]) < 30:
+        leitura = f"poucos dados: {alto['n']} tokens com {corte}+ e {baixo['n']} com menos; precisa de 30 em cada grupo"
+    elif alto["dobrou_ic"][0] > baixo["dobrou_ic"][1]:
+        leitura = f"os tokens com {corte}+ detentores dobraram mais, e as faixas não se encostam"
+    else:
+        leitura = f"ainda não dá para dizer que {corte}+ detentores dobram mais: as faixas se encostam"
+    return {"total": len(rows), "medidos": len(F), "aguardando": sum(1 for x in rows if x.get("fim") is None), "corte": corte, "grupos": [alto, baixo],
+            "faixas": [g(n, [x for x in F if lo <= x["h"] < hi]) for lo, hi, n in H5_FAIXAS], "leitura": leitura}
+
+
 class JevTrade:
     def __init__(self):
         self.items: dict[str, dict] = {}
+        self.h5: dict[str, dict] = {}
+        self.h5_dirty: set[str] = set()
         self.dirty: set[str] = set()
         self.stats: dict = {}
         self.hour = (0, 0)
@@ -263,6 +288,9 @@ class JevTrade:
             d["sem_leitura"] += 1
             self.rpc_off_until = now + 300     # RPC público não conta detentores: não insiste a cada volta
             return None
+        # 0.32.116: guarda também os abaixo de 40. É o que permite comparar os dois grupos com o próprio dado do robô
+        self.h5[mint] = {"mint": mint, "symbol": r.get("symbol"), "t": now, "t0": float(r["t0"]), "h": h, "mc": (r.get("snaps") or {}).get("5"), "m0": r.get("mcap0"), "fim": None}
+        self.h5_dirty.add(mint)
         if h < MIN_HOLDERS:
             d["abaixo"] += 1
             self.ignorados = ([{"t": now, "mint": mint, "symbol": r.get("symbol"), "h": h}] + self.ignorados)[:30]
@@ -535,12 +563,9 @@ class JevTrade:
         for g in motivos.values():
             g["media_pct"] = round(g.pop("soma") / g["n"], 2)
         media = lambda v: round(sum(v) / len(v), 2) if v else None
-        if len(comp) < 20:
-            leitura = f"poucos dados: {len(comp)} entradas fechadas com a comparação pronta; vale a partir de 20"
-        elif media(comp) > media(igual):
-            leitura = f"o Jev está melhor: média {media(comp):+.1f}% contra {media(igual):+.1f}% da régua fixa nas mesmas entradas"
-        else:
-            leitura = f"o Jev não está ajudando: média {media(comp):+.1f}% contra {media(igual):+.1f}% da régua fixa nas mesmas entradas"
+        pares = [(stats.day_of(x["fechou_t"]), x["res"] - x["base_igual"]["res"]) for x in F if (x.get("base_igual") or {}).get("res") is not None]
+        ci = stats.ci_days(pares)                      # 0.32.116: faixa por dia, no lugar do antigo "vale a partir de 20"
+        leitura = stats.reading(ci, "entradas, Jev contra a régua fixa")
         return {"olhados": len(L), "entradas": sum(1 for x in L if x.get("entrada")), "fechadas": len(F), "suspeitos": sum(1 for x in L if x.get("suspeito")),
                 "acerto": round(sum(r > 0 for r in res) / len(res) * 100) if res else None, "media_pct": media(res),
                 "sol": round(sum(res) * SOL / 100, 5), "fator": round(win / lose, 2) if lose else None, "custo_real_pct": real_cost_pct(SOL),
@@ -552,7 +577,7 @@ class JevTrade:
                           "sol_slip": with_real_cost(round(sum(igual) * SOL / 100, 5), len(igual), SOL, SLIP_LADO_PCT)},
                 "todos": {"n": len(todos), "media_pct": media(todos), "sol": round(sum(todos) * SOL / 100, 5),
                           "sol_real": with_real_cost(round(sum(todos) * SOL / 100, 5), len(todos), SOL)},
-                "curva": curva, "motivos": sorted(motivos.values(), key=lambda g: -g["n"]), "leitura": leitura}
+                "curva": curva, "motivos": sorted(motivos.values(), key=lambda g: -g["n"]), "leitura": leitura, "ci": ci}
 
     @staticmethod
     def row(x: dict, px: float | None = None, now: float | None = None) -> dict:
@@ -570,6 +595,22 @@ class JevTrade:
                 "obs_s": None if now is None else round(now - x["t"]), "ultima_s": None if now is None or not x.get("last_read") else round(now - x["last_read"]),
                 "prox_s": None if now is None or not x.get("last_read") else max(0, round(READ_S - (now - x["last_read"]))),
                 "prazo_s": None if now is None or x["estado"] != "olhando" else max(0, round(WATCH_MAX_MIN * 60 - (now - x["t"])))}
+
+    def h5_due(self, now: float) -> list[dict]:
+        return [x for x in self.h5.values() if x.get("fim") is None and now - x["t0"] >= H5_WAIT_S]
+
+    def h5_close(self, x: dict, life: dict | None, now: float) -> None:
+        """Fecha com a ficha da Base da pump.fun. O 2× é visto só nas fotos de 15 e 60 min, então pode deixar pico entre elas de fora."""
+        if life is None:
+            if now - x["t0"] < H5_GIVE_UP_S:
+                return
+            x["fim"] = {"sem_dado": True}
+        else:
+            sn, mc = life.get("snaps") or {}, x.get("mc")
+            grad = life.get("label") == "graduou"
+            vals = [float(sn[k]) for k in ("15", "60") if sn.get(k)]
+            x["fim"] = {"label": life.get("label"), "graduou": grad, "dobrou": bool(mc) and (any(v >= 2 * mc for v in vals) or (grad and mc < 200))}
+        self.h5_dirty.add(x["mint"])
 
     def load(self, rows: list[dict], now: float) -> None:
         for r in rows or []:

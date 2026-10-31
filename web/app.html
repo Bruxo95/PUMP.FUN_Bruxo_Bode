@@ -742,6 +742,8 @@
       <section class="view" data-view="real" hidden>
         <div class="alert red">Use uma carteira <b>nova, só para o bot, com pouco saldo</b>. Quem tem a chave privada tem todo o dinheiro dela.
           A execução real começa DESLIGADA. Depois de ligada, continua ligada (mesmo se o servidor reiniciar ou você trocar de navegador) até você desligar.</div>
+        <div class="alert red" id="rwAlert" hidden></div>
+        <p class="small muted" id="rwGuard" data-novo-ate="2026-11-15"></p>
         <div class="kpis" id="wKpis"></div>
         <div class="card">
           <header><div><h2>Execução real <span class="tag real">REAL</span></h2><div class="sub" id="realSub"></div></div></header>
@@ -967,7 +969,7 @@
           <header><div><h2>Taxas usadas na simulação</h2><div class="sub">as mesmas que o modo real paga</div></div></header>
           <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
             <div class="field"><label>pump.fun na curva / PumpSwap</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_fee_pct"><span class="muted">% /</span><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_swap_fee_pct"><span class="muted">%</span></div></div>
-            <div class="field" data-novo-ate="2026-11-11"><label>PumpSwap: usar a tabela oficial da pump.fun</label><div class="row"><button class="btn sm tgl" data-toggle="pump_swap_fee_official">…</button></div>
+            <div class="field" data-novo-ate="2026-11-11"><label>PumpSwap: usar a tabela oficial da pump.fun</label><div class="row"><button class="btn sm tgl" data-toggle="pump_swap_fee_official">…</button></div><p class="small" id="feeHint" hidden style="color:var(--warn)">Sugestão: ligue esta opção. O campo padrão de 0,30% fica abaixo da taxa de tokens graduados pequenos, então a fictícia parece melhor do que é. Vale só para a fictícia; você decide.</p>
               <div class="muted small">Ligado: depois que o token gradua, a taxa segue a tabela oficial pelo valor de mercado (1,25% até 420 SOL, 1,20% até 1.470, 1,15% até 2.460… e 0,30% só acima de 98 mil SOL). Desligado: usa o valor fixo do campo acima. Muda o resultado mostrado e a hora em que stop e alvo disparam (eles olham o valor já sem taxas). Só tokens cotados em SOL e <b>só na carteira fictícia</b> (desde a 0.32.0; a real paga a taxa de verdade).</div></div>
           </div>
         </div>
@@ -1063,6 +1065,7 @@
             <span class="small">Crescimento mínimo</span><select class="in" id="jvHG" aria-label="Crescimento mínimo nas últimas leituras"><option value="0">qualquer alta</option><option value="10" selected>10%</option><option value="25">25%</option><option value="50">50%</option></select>
             <span class="small" data-novo-ate="2026-11-14">Mostrar na lista</span><select class="in" id="jvHS" aria-label="Quais tokens mostrar na lista"><option value="0">Todos</option><option value="10">10+ detentores</option><option value="40" selected>40+ detentores</option></select></div>
           <div class="kpis" id="jvDK"></div><p class="small muted">Clique em um cartão para ver a conta e os tokens.</p><p class="small" id="jvDL"></p><p class="small muted">"Com custo de X%" troca os 4% da conta pelo custo documentado de compra e venda na curva com 0,1 SOL. "Com slippage" soma 3% por lado, perto do que a única execução real publicada mediu; é estimativa, não medição nossa.</p><p class="small muted" id="jvDV"></p>
+          <h3 class="small" data-novo-ate="2026-11-15">Detentores aos 5 min × o que o token fez depois</h3><p class="small" id="jvH5L"></p><div class="tablewrap"><table id="jvH5" class="daytbl"></table></div>
           <div class="grid2e">
             <div><h3 class="small">Quantos detentores tinha no início</h3><div class="tablewrap"><table id="jvDF"></table></div></div>
             <div><h3 class="small">Como evoluiu até os 5 min (entrando aos 5 min)</h3><div class="tablewrap"><table id="jvDE"></table></div></div>
@@ -1224,6 +1227,7 @@
         <div class="card" data-novo-ate="2026-11-14" data-nosanf><header><div><h2>Estudos guardados do Resultado</h2><div class="sub" id="bgRsSSub">cada clique em Estudar fica salvo aqui</div></div></header>
           <div class="tbl-wrap"><table id="bgRsS" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-14" data-nosanf><header><div><h2>Resultado · o que os dias fechados ensinam</h2><div class="sub" id="bgRsSub">por aba, motivo de saída e tempo de posição</div></div></header>
+          <h3 class="small" data-novo-ate="2026-11-15">Dia frio × normal</h3><p class="small muted" id="bgRsFS"></p><div class="tbl-wrap"><table id="bgRsF" class="daytbl"></table></div>
           <div class="tbl-wrap"><table id="bgRsA" class="daytbl"></table></div><div class="tbl-wrap"><table id="bgRsM" class="daytbl"></table></div><div class="tbl-wrap"><table id="bgRsT" class="daytbl"></table></div></div>
         <div class="card" data-novo-ate="2026-11-13" data-nosanf><header><div><h2>Copiar igual · o que os relatórios de 6 h ensinam</h2><div class="sub" id="bgEqSub">por carteira, somando todos os relatórios guardados</div></div></header>
           <div class="help"><p>Junta os relatórios de 6 h do Copiar igual: em quantos períodos cada carteira deu lucro, o acerto e o resultado somados. <b>Manter</b> = lucro em 60%+ dos períodos (2 ou mais); <b>parar</b> = prejuízo com menos de 40% de acerto. Nada muda sozinho.</p></div>

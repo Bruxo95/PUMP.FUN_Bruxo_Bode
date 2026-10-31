@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import statistics
 
-MIN_PARES = 20
+from . import stats
+
 
 
 def _med(v: list) -> float | None:
@@ -40,8 +41,6 @@ def summary(pairs: list[dict], real_trades: list[dict], sem_par: int = 0) -> dic
             "fict_sol": round(sum(x.get("sim_sol") or 0 for x in P), 6), "dif_mediana": _med(dif),
             "entrada_mediana": _med([x.get("entrada_pct") for x in P]), "saida_mediana": _med([x.get("saida_pct") for x in P]),
             "atraso_mediano_s": _med([x.get("atraso_s") for x in P]), "ganhou_fict_perdeu_real": pior, "vendas": sells(real_trades)}
-    if len(P) < MIN_PARES:
-        base["leitura"] = f"poucos dados: {len(P)} pares; a diferença vale a partir de {MIN_PARES}"
-    else:
-        base["leitura"] = f"a cada trade, a real ficou {base['dif_mediana']:+.1f} pontos da fictícia (mediana)"
+    base["ci"] = stats.ci_days([(stats.day_of(x.get("fechou")), x.get("dif_pct")) for x in P])
+    base["leitura"] = stats.reading(base["ci"], "pares, real menos fictícia")
     return base

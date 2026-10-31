@@ -89,6 +89,22 @@ def build(trades: list[dict], start: float, end: float, real: bool, aba_of, hora
     return E
 
 
+def by_market(rows: list[dict], marks: dict[str, str]) -> list[dict]:
+    """Resultado em dias frios × normais. O rótulo só existe depois do dia: serve para estudar, nunca para decidir uma entrada."""
+    g: dict[str, dict] = {}
+    for r in rows:
+        tipo = marks.get(str(r.get("dia")), "sem dado")
+        E = r.get("data") or {}
+        d = g.setdefault(tipo, {"tipo": tipo, "dias": set(), "trades": 0, "ganhos": 0, "saldo_sol": 0.0, "investido_sol": 0.0})
+        d["dias"].add(r.get("dia"))
+        d["trades"] += int(E.get("trades") or 0)
+        d["ganhos"] += int(E.get("ganhos") or 0)
+        d["saldo_sol"] += float(E.get("saldo_sol") or 0)
+        d["investido_sol"] += float(E.get("investido_sol") or 0)
+    return [{**d, "dias": len(d["dias"]), "acerto": round(d["ganhos"] / d["trades"] * 100) if d["trades"] else None, "saldo_sol": round(d["saldo_sol"], 6),
+             "retorno_pct": round(d["saldo_sol"] / d["investido_sol"] * 100, 2) if d["investido_sol"] else None} for d in sorted(g.values(), key=lambda x: x["tipo"])]
+
+
 def learn(rows: list[dict]) -> dict:
     """Soma os estudos de dias fechados. `rows`: [{"dia", "data"}], uma linha por conta e dia."""
     dias = {r.get("dia") for r in rows}

@@ -1033,7 +1033,7 @@ class PumpHub:
             ok = max(1, st["calls"] - st.get("erros", 0))
             st["ms_medio"] = round(st.get("ms", 0) / ok)
             st["custo_usd"] = round(st.get("tokens_in", 0) / 1e6 * 0.042, 5)
-        out = {"modelo": jev.JEV_MODEL, "contagem_v2": self.__dict__.get("hv2"), "chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
+        out = {"modelo": jev.JEV_MODEL, "h5": jevtrade.h5_study(list(self.jt.h5.values()) if "jt" in self.__dict__ else []), "contagem_v2": self.__dict__.get("hv2"), "chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
                "ativo": self.jev_wanted(), "limite_dia": jev.DAY_MAX, "uso": st, "saida_min": exit_min, "fonte": fonte,
                "passado": self.jev_bt_status(), "detentores": detentores.study(sigs, exit_min, hold_min, hold_cresc, show=hold_show)}
         if fonte == "ao_vivo":
@@ -1278,6 +1278,7 @@ class PumpHub:
                 jt.dirty.add(k)
                 break
         jt.trim(now)
+        await self.h5_tick(now)
 
     async def jt_loop(self) -> None:
         await asyncio.sleep(50)
@@ -1288,7 +1289,35 @@ class PumpHub:
                 log.warning("jev trade: %s", str(e)[:160])
             await asyncio.sleep(20)
 
+    async def h5_tick(self, now: float) -> None:
+        jt = self.jt
+        due = jt.h5_due(now)
+        if due:
+            life = {r.get("mint"): r for r in list(self.lab.done)[-20000:]}
+            for x in due:
+                jt.h5_close(x, life.get(x["mint"]), now)
+        for k in list(jt.h5_dirty)[:100]:
+            jt.h5_dirty.discard(k)
+            x = jt.h5.get(k)
+            if x is None:
+                continue
+            try:
+                await self.db.insert("holders_t5", {"mint": k, "em": datetime.fromtimestamp(x["t"], timezone.utc).isoformat(), "data": x}, upsert=True, on_conflict="mint")
+            except Exception as e:
+                log.warning("detentores aos 5 min não gravaram: %s", str(e)[:120])
+                jt.h5_dirty.add(k)
+                break
+        for k in [k for k, x in jt.h5.items() if now - x["t"] > jevtrade.H5_KEEP_S]:
+            jt.h5.pop(k, None)
+
     async def load_jt(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - jevtrade.H5_KEEP_S, timezone.utc).isoformat()
+            for r in await self.db.select("holders_t5", None, order="em.desc", limit=20000, gte={"em": since}):
+                if isinstance(r.get("data"), dict):
+                    self.jt.h5[r["mint"]] = r["data"]
+        except Exception as e:
+            log.warning("detentores aos 5 min não carregaram: %s", str(e)[:120])
         try:
             since = datetime.fromtimestamp(time.time() - jevtrade.KEEP_S, timezone.utc).isoformat()
             self.jt.load(await self.db.select("jev_trades", None, order="em.desc", limit=20000, gte={"em": since}), time.time())
@@ -1673,6 +1702,34 @@ class PumpHub:
         rows = await self.db.select("result_studies", {"id": sid}, limit=1)
         return rows[0].get("data") if rows else None
 
+    async def market_tick(self, now: float | None = None) -> int:
+        """0.32.116: dados do dia na pumpdata.fun (limite 60 por minuto; aqui cerca de 1 por segundo no 1º uso, depois 1 por dia)."""
+        from . import marketday
+        now = time.time() if now is None else now
+        M = self.__dict__.setdefault("market_days", {})
+        today = int(now // 86400)
+        n = 0
+        for d in range(today - marketday.DIAS, today):
+            dia = time.strftime("%Y-%m-%d", time.gmtime(d * 86400))
+            if dia in M:
+                continue
+            try:
+                r = await self.http.get(marketday.URL.format(dia), timeout=15)
+                x = marketday.parse(r.json()) if r.status_code == 200 else None
+            except Exception as e:
+                log.warning("mercado do dia: %s", type(e).__name__)
+                break
+            if x is None:
+                continue
+            M[dia] = x
+            n += 1
+            try:
+                await self.db.insert("market_days", {"dia": dia, "data": x}, upsert=True, on_conflict="dia")
+            except Exception as e:
+                log.warning("mercado do dia não gravou: %s", str(e)[:120])
+            await asyncio.sleep(1.1)
+        return n
+
     async def result_tick(self, now: float | None = None) -> int:
         """Grava sozinho cada dia fechado (UTC) dos últimos 7, de cada conta. É o que a Base geral soma: dias não se sobrepõem."""
         from . import resultstudy
@@ -1702,18 +1759,82 @@ class PumpHub:
                         log.warning("estudo do resultado não gravou: %s", str(ex)[:120])
         return n
 
+    # 0.32.116 (caso Bloom, 26/10: 48 carteiras drenadas em 94 s): avisa se sair SOL ou token da carteira real numa transação que não é
+    # swap. O robô só compra e vende por pump.fun, PumpSwap e Jupiter, então transferência simples nunca é dele. Não bloqueia nada.
+    WG_MIN_SOL = 0.002
+
+    @classmethod
+    def wallet_leak(cls, tx: dict, addr: str) -> dict | None:
+        from .pumpfun import PUMP_PROGRAMS
+        from .txguard import JUPITER, PUMPPORTAL_ROUTER
+        meta = (tx or {}).get("meta") or {}
+        if meta.get("err"):
+            return None
+        logs = " ".join(meta.get("logMessages") or [])
+        if any(p in logs for p in (*PUMP_PROGRAMS, JUPITER, PUMPPORTAL_ROUTER)):
+            return None
+        keys = [k.get("pubkey") if isinstance(k, dict) else k for k in ((tx.get("transaction") or {}).get("message") or {}).get("accountKeys") or []]
+        out_sol = 0.0
+        if addr in keys:
+            i = keys.index(addr)
+            out_sol = (meta["preBalances"][i] - meta["postBalances"][i]) / 1e9
+        tk = lambda L: {b.get("mint"): float((b.get("uiTokenAmount") or {}).get("uiAmount") or 0) for b in L or [] if b.get("owner") == addr}
+        pre, post = tk(meta.get("preTokenBalances")), tk(meta.get("postTokenBalances"))
+        tokens = sum(1 for m, v in pre.items() if v > post.get(m, 0.0))
+        return {"sol": round(out_sol, 6), "tokens": tokens} if out_sol >= cls.WG_MIN_SOL or tokens else None
+
+    async def wallet_guard_once(self, e, now: float | None = None) -> int:
+        w = getattr(e, "sol_wallet", None)
+        if not (w and getattr(w, "keypair", None) and getattr(w, "address", None)):
+            return 0
+        url = await w.safe_rpc_url()
+        rpc = lambda m, p: self.http.post(url, timeout=10, json={"jsonrpc": "2.0", "id": 1, "method": m, "params": p})
+        r = await rpc("getSignaturesForAddress", [w.address, {"limit": 20}])
+        sigs = [x["signature"] for x in (r.json().get("result") or []) if not x.get("err")]
+        last, n = getattr(e, "_wg_last", None), 0
+        e._wg_last = sigs[0] if sigs else last
+        e._wg_at = time.time() if now is None else now
+        if last is None:                               # 1ª volta só marca o ponto de partida: não alerta o passado
+            return 0
+        for sig in sigs:
+            if sig == last:
+                break
+            r = await rpc("getTransaction", [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 1}])
+            leak = self.wallet_leak(r.json().get("result") or {}, w.address)
+            if not leak:
+                continue
+            n += 1
+            msg = (f"[PUMP REAL] ALERTA da carteira: saíram {leak['sol']:.4f} SOL" + (f" e {leak['tokens']} token(s)" if leak["tokens"] else "") +
+                   f" numa transação que NÃO é do robô ({sig[:8]}…). Se não foi você, tire o saldo e troque de carteira agora.")
+            e._emit(msg)
+            e.wallet_alerts = ([{"sig": sig, "sol": leak["sol"], "tokens": leak["tokens"], "t": e._wg_at}] + list(getattr(e, "wallet_alerts", [])))[:5]
+            await audit(self.db, e.user_id, "alerta da carteira real", f"{sig} · {leak['sol']} SOL · {leak['tokens']} tokens")
+        return n
+
+    async def wallet_guard_loop(self) -> None:
+        await asyncio.sleep(90)
+        while True:
+            for e in list(self.engines.values()):
+                try:
+                    await self.wallet_guard_once(e)
+                except Exception as ex:
+                    log.warning("vigia da carteira: %s", type(ex).__name__)    # o endereço do RPC leva a chave: nunca o texto do erro
+            await asyncio.sleep(60)
+
     async def result_loop(self) -> None:
         try:
             since = datetime.fromtimestamp(time.time() - 60 * 86400, timezone.utc).isoformat()
             rows = await self.db.select("result_studies", {"origem": "dia"}, order="em.desc", limit=5000, gte={"em": since})
             self.rs_days = list(rows or [])
             self._rs_done = {r["id"] for r in self.rs_days}
+            self.market_days = {str(r["dia"]): r["data"] for r in await self.db.select("market_days", None, order="dia.desc", limit=120)}
         except Exception as e:
             log.warning("estudos do resultado não carregaram: %s", str(e)[:120])
             return                                         # sem a lista, regravaria tudo a cada reinício
         await asyncio.sleep(120)
         while True:
             try:
+                await self.market_tick()
                 await self.result_tick()
             except Exception as e:
                 log.warning("estudo do resultado: %s", str(e)[:160])
@@ -1721,7 +1842,10 @@ class PumpHub:
 
     def rs_learn(self, real: bool = False) -> dict:
         from . import resultstudy
-        return resultstudy.learn([r for r in self.__dict__.get("rs_days", []) if bool(r.get("real")) == real])
+        from . import marketday
+        rows = [r for r in self.__dict__.get("rs_days", []) if bool(r.get("real")) == real]
+        marks = marketday.classify(self.__dict__.get("market_days", {}))
+        return {**resultstudy.learn(rows), "mercado": resultstudy.by_market(rows, marks), "dias_mercado": [{"dia": d, "tipo": marks[d]} for d in sorted(marks)[-14:]]}
 
     async def eq_report_tick(self, now: float | None = None) -> int:
         """0.32.73 (pedido do dono): relatório do Copiar igual a cada 6 h, guardado (fictícia e, se houver, real)."""
@@ -3934,6 +4058,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.jt_loop()))             # 0.32.87: Jev Trade
         self._tasks.append(asyncio.create_task(self.bx_report_loop()))      # 0.32.80: relatórios da Aba do Bruxo (30 min e 1 dia)          # 0.32.41: Aba do Bruxo
         self._tasks.append(asyncio.create_task(self.tab_report_loop()))
+        self._tasks.append(asyncio.create_task(self.wallet_guard_loop()))   # 0.32.116: alerta de saída da carteira real
         self._tasks.append(asyncio.create_task(self.result_loop()))         # 0.32.114: estudo do Resultado (dias fechados)
         self._tasks.append(asyncio.create_task(self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs

@@ -15,8 +15,8 @@ def test_summary_compares_only_real_pairs():
 
 
 def test_verdict_only_with_enough_pairs():
-    S = realgap.summary([_p(10, 5) for _ in range(realgap.MIN_PARES)], [])
-    assert "-5.0" in S["leitura"]
+    S = realgap.summary([_p(10, 5, fechou=f"2026-10-{20 + i}T10:00:00+00:00") for i in range(6)], [])
+    assert S["ci"]["dias"] == 6 and S["leitura"].startswith("pior") and "-5.0" in S["leitura"]
 
 
 def test_sell_ladder_is_counted_step_by_step():

@@ -4513,6 +4513,7 @@ class PumpFun:
                 "cfg": {**{k: getattr(c, k, None) for k in USER_KEYS},
                         "pump_real_enabled": bool(getattr(c, "pump_real_enabled", False))},
                 "real": {"enabled": bool(getattr(c, "pump_real_enabled", False)), "on_at": getattr(self, "real_on_at", None), "off_at": getattr(self, "real_off_at", None),
+                         "alertas": list(getattr(self, "wallet_alerts", [])), "vigia_at": getattr(self, "_wg_at", None),
                          "wallet_configured": bool(self.sol_wallet and getattr(self.sol_wallet, "keypair", None)),
                          "api_key_set": bool(self.real and self.real.api_key()),
                          "address": getattr(self.sol_wallet, "address", None) if self.sol_wallet else None}}

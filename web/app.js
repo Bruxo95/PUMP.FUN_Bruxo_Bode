@@ -1295,7 +1295,7 @@
     const av = [];
     if ((G.top3_sol || 0) > 0 && (G.sem_top3_sol || 0) < 0) av.push("O total positivo vem de poucos tokens: sem os 3 maiores, o resultado fica negativo.");
     if (G.suspeitos) av.push(G.suspeitos + " ganho(s) acima de 20× na lista: confira se o preço era verdadeiro antes de confiar no total.");
-    if (G.medidos < 20) av.push("Ainda são poucos tokens: a comparação vale a partir de 20.");
+    if (G.medidos < 20) av.push("Ainda são poucos tokens: o número é só uma pista.");
     $("jdN").textContent = av.join(" ");
     table("jdT", ["Token", "Entrou aos", "Resultado", "Em SOL", "Pico do token"], L.map((x) => [pfM(x.mint, x.symbol), x.ligou == null ? "sinal" : x.ligou + " min", x.res == null ? '<span class="dim">medindo</span>' : pc(x.res), x.res == null ? "–" : sg(x.res * sl / 100, ""), x.pico == null ? "–" : pc(x.pico)]), "Nenhum token.");
     $("jtM").hidden = false; $("jtMX").focus();
@@ -1316,6 +1316,7 @@
     $("jtM").hidden = false; $("jtMX").focus();
   }
   document.addEventListener("click", (e) => { const a = e.target.closest("[data-jvl]"); if (a) { e.preventDefault(); openJl(a.dataset.jvl); } });
+  let JV_R = {};
   function jvHold(D) {
     JV_D = D;
     const R = D.regra || {}, T = D.todos || {}, C = D.regra_jev || {};
@@ -1329,6 +1330,9 @@
     $("jvDL").textContent = !D.sinais ? "Ainda sem sinais neste período." : !D.medidos ? "Nenhum sinal com detentores lidos: a contagem precisa do RPC próprio (Administração → Chaves do sistema); o RPC público não conta." : (D.leitura || "");
     const head = (a) => [a, "Tokens", "Medidos", "Subiu", "Dobrou", "Média", "Pico mediano"];
     const row = (g) => [esc(g.faixa), String(g.n), String(g.medidos), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou), g.media_pct == null ? "–" : pc(g.media_pct), g.pico_mediano == null ? "–" : pc(g.pico_mediano)];
+    const H5 = JV_R.h5 || {}, ic = (v, x) => (v == null ? "–" : f(v, 1) + "%<small>" + (x ? "de " + f(x[0], 1) + " a " + f(x[1], 1) + "%" : "") + "</small>");
+    $("jvH5L").textContent = (H5.leitura || "") + " · " + (H5.medidos || 0) + " medidos, " + (H5.aguardando || 0) + " aguardando. Só tokens vivos aos 5 min e conferidos, não o mercado inteiro. O 2× é visto nas fotos de 15 e 60 min.";
+    table("jvH5", ["Detentores aos 5 min", "Tokens", "Graduou", "Dobrou"], [...(H5.grupos || []), ...(H5.faixas || [])].map((x) => [esc(x.faixa), String(x.n), ic(x.graduou_pct, x.graduou_ic), ic(x.dobrou_pct, x.dobrou_ic)]), "Aparece cerca de 1 hora depois das primeiras conferências.");
     table("jvDF", head("No início"), (D.faixas || []).map(row), "Aparece com as primeiras leituras.");
     table("jvDE", head("Até os 5 min"), (D.evolucao || []).map(row), "Aparece com tokens de 5 min ou mais.");
     const Lh = D.linhas || [], nowS = Date.now() / 1000;
@@ -1340,7 +1344,7 @@
   async function loadJev() {
     if (!$("jvK")) return;
     const F = $("jvF").value || "ao_vivo";
-    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10) + "&fonte=" + F + "&hold_min=" + ($("jvHM").value || 40) + "&hold_cresc=" + ($("jvHG").value || 10) + "&hold_show=" + $("jvHS").value); if (r.error) { $("jvSub").textContent = r.error; return; }
+    const r = await BB.api("/api/pump/jev?horas=" + ($("jvH").value || 24) + "&saida=" + ($("jvX").value || 10) + "&fonte=" + F + "&hold_min=" + ($("jvHM").value || 40) + "&hold_cresc=" + ($("jvHG").value || 10) + "&hold_show=" + $("jvHS").value); if (r.error) { $("jvSub").textContent = r.error; return; } JV_R = r;
     jvHold(r.detentores || {});
     jvPast(r.passado || {}, r.chave);
     const E = r.estudo || {}, U = r.uso || {}, T = E.total || {}, A = E.por_acao || {};
@@ -3011,6 +3015,7 @@
   }
   function render() {
     if (!D) return;
+    const fh = $("feeHint"); if (fh) fh.hidden = !!cfg().pump_swap_fee_official;
     const c = cfg(), R = D.real || {}, RP = D.rpc || {};
     const rm = realMode();
     document.querySelectorAll("#modeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.mode === (rm ? "real" : "sim")));
@@ -3172,6 +3177,9 @@
     const VD = { "lucro repetido": "win", "perda repetida": "loss" };
     const g = (id, a, L) => table(id, [a, "Dias com lucro", "Trades", "Acerto", "Média", "Resultado", "Veredito"], (L || []).map((x) => [esc(x.nome), x.dias_positivos + " de " + x.dias, String(x.n), x.acerto + "%", x.media_pct == null ? "–" : pc(x.media_pct), sg(x.sol, ""), '<span class="tag ' + (VD[x.veredito] || "neutral") + '">' + esc(x.veredito) + "</span>"]), "Aparece depois do primeiro dia fechado.");
     g("bgRsA", "Aba", r.por_aba); g("bgRsM", "Motivo de saída", r.por_motivo); g("bgRsT", "Tempo de posição", r.por_tempo);
+    const DM = r.dias_mercado || [];
+    $("bgRsFS").textContent = "Dados de mercado: pumpdata.fun. Frio = criações e volume abaixo da mediana dos 14 dias anteriores. Só se sabe depois que o dia fecha, então serve para estudar, não para decidir entrada." + (DM.length ? " Últimos dias: " + DM.slice(-7).map((x) => x.dia.slice(8) + " " + x.tipo).join(" · ") + "." : "");
+    table("bgRsF", ["Mercado", "Dias", "Trades", "Acerto", "Saldo", "Retorno"], (r.mercado || []).map((x) => [esc(x.tipo), String(x.dias), String(x.trades), x.acerto == null ? "–" : x.acerto + "%", sg(x.saldo_sol, ""), x.retorno_pct == null ? "–" : pc(x.retorno_pct)]), "Aparece depois do primeiro dia fechado.");
     const b = await BB.api("/api/pump/result-study/base?real=" + (rm ? 1 : 0), { quiet: true }); if (b.error || !$("bgRsS")) return;
     const L = b.estudos || [];
     $("bgRsSSub").textContent = (rm ? "carteira REAL" : "carteira FICTÍCIA") + " · " + L.length + " estudos guardados pelo botão Estudar";
@@ -3539,6 +3547,10 @@
   // ------------------------------------------------------------------ execução real
   function renderReal() {
     const c = cfg(), R = D ? D.real || {} : {}, w = W || {}, p = w.sol_usd || (D && D.sol_usd) || 0, Rw = (D && D.real_wallet) || {};
+    const Al = R.alertas || [];
+    $("rwAlert").hidden = !Al.length;
+    $("rwAlert").innerHTML = Al.length ? "<b>Saída da carteira que não é do robô:</b> " + Al.map((a) => dt(a.t) + " · " + s4(a.sol) + " SOL" + (a.tokens ? " e " + a.tokens + " token(s)" : "") + ' · <a href="https://solscan.io/tx/' + encodeURIComponent(a.sig) + '" target="_blank" rel="noopener">ver</a>').join("<br>") + "<br>Se não foi você, tire o saldo e troque de carteira agora." : "";
+    $("rwGuard").textContent = "Vigia da carteira: confere a cada minuto se saiu SOL ou token numa transação que não é do robô e avisa aqui, no sino e no Telegram. Só avisa, não bloqueia." + (R.vigia_at ? " Última conferência: " + dt(R.vigia_at) + "." : "");
     kpis("wKpis", w.configured ? [["Saldo da carteira", w.sol == null ? "–" : s4(w.sol) + " SOL", p && w.sol != null ? "≈ $" + f(w.sol * p, 2) : esc(w.error || ""), "wallet"],
       ["USDC na carteira", w.usdc_in_sol == null ? "–" : s4(w.usdc_in_sol) + " SOL", "$" + f(w.usdc || 0, 2) + " USDC — troque por SOL para usar", "pnl"],
       ["Compras possíveis", w.sol == null || !c.pump_real_max_sol ? "–" : String(Math.max(0, Math.floor((w.sol - (w.reserve_sol || 0.02)) / (c.pump_real_max_sol * 1.02 + 0.0006)))), "de " + s4(c.pump_real_max_sol) + " SOL (guarda 0,02 SOL p/ taxas)", "pos"],

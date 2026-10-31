@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import statistics
 
+from . import stats
+
 from .auto_trades import SUSPECT_PCT
 from .jev import FEE_PCT, SLIP_LADO_PCT, real_cost_pct, sim_result, with_real_cost
 
@@ -87,6 +89,7 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
     sigs = sorted(signals, key=lambda s: s["t"])
     with_h = [s for s in sigs if readings(s)]
     regra, combo, todos, linhas, curva = [], [], [], [], []
+    pares: list[tuple[str | None, float]] = []        # regra − todos nos mesmos tokens, por dia
     det: dict[str, list] = {"regra": [], "todos": [], "regra_jev": []}
     faixas: dict[str, list] = {f[2]: [] for f in FAIXAS}
     evol: dict[str, list] = {k: [] for k in EVOLUCAO}
@@ -112,6 +115,8 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
             if (s.get("jev") or {}).get("acao") == "entrar":
                 combo.append((r, dob, s.get("peak_pct")))
                 det["regra_jev"].append({**meta, "res": r, "ligou": m})
+            if r is not None and base[0] is not None:
+                pares.append((stats.day_of(s["t"]), r - base[0]))
             if r is not None:
                 acc += sol * r / 100
                 curva.append([s["t"] + m * 60, round(acc, 5)])
@@ -124,15 +129,11 @@ def study(signals: list[dict], saida: str = "10", min_h: int = MIN_HOLDERS, grow
                            "mc0": s.get("mcap0") if s.get("mcap0") is not None else fl.get("mcap"), "px0": s.get("px0"),
                            "top10": s.get("top10"), "dev_pct": s.get("dev_pct") if s.get("dev_pct") is not None else fl.get("dev_pct")})
     g_regra, g_todos = _group(regra, sol), _group(todos, sol)
-    if g_regra["medidos"] < 20:
-        leitura = f"poucos dados: {g_regra['medidos']} entradas medidas; a comparação vale a partir de 20"
-    elif g_regra["media_pct"] > (g_todos["media_pct"] or 0):
-        leitura = f"a regra está melhor: média {g_regra['media_pct']:+.1f}% por entrada contra {g_todos['media_pct'] or 0:+.1f}% de todos os sinais"
-    else:
-        leitura = f"a regra não está ajudando: média {g_regra['media_pct']:+.1f}% por entrada contra {g_todos['media_pct'] or 0:+.1f}% de todos os sinais"
+    ci = stats.ci_days(pares)                         # 0.32.116: faixa por dia, no lugar do antigo "vale a partir de 20"
+    leitura = stats.reading(ci, "tokens em que a regra ligou, contra entrar em todos")
     linhas.sort(key=lambda x: (x["ligou"] is None, -x["t"]))
     return {"min_h": min_h, "cresc_pct": grow_pct, "saida_min": saida, "sinais": len(sigs), "medidos": len(with_h),
             "sem_dados": len(sigs) - len(with_h), "custo_real_pct": real_cost_pct(sol), "custo_slip_pct": real_cost_pct(sol, slip_lado=SLIP_LADO_PCT), "show": show, "mostrando": len(linhas), "regra": {**g_regra, "curva": curva}, "todos": g_todos, "regra_jev": _group(combo, sol),
             "faixas": [{"faixa": k, **_group(v, sol)} for k, v in faixas.items() if v],
-            "evolucao": [{"faixa": k, **_group(v, sol)} for k, v in evol.items() if v], "leitura": leitura, "linhas": linhas[:200],
+            "evolucao": [{"faixa": k, **_group(v, sol)} for k, v in evol.items() if v], "leitura": leitura, "ci": ci, "linhas": linhas[:200],
             "detalhe": {k: _detail(v, sol) for k, v in det.items()}}
