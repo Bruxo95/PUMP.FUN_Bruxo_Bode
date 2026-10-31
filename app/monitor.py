@@ -455,6 +455,10 @@ class SharedMonitor:
                             ev = json.loads(raw)
                         except ValueError:
                             continue
+                        if isinstance(ev, dict) and not ev.get("txType") and (ev.get("errors") or ev.get("error") or ev.get("message")):
+                            # 0.32.106: sem isto, um aviso de saldo ou de chave da PumpPortal sumia sem ninguém ver
+                            txt = str(ev.get("errors") or ev.get("error") or ev.get("message"))[:200]
+                            st["pp_msg"], st["pp_msg_t"] = txt.replace(pk, "***") if pk else txt, time.time()
                         if not isinstance(ev, dict) or not ev.get("txType"):
                             continue
                         w = ev.get("traderPublicKey")

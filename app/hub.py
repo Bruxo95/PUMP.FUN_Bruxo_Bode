@@ -774,7 +774,7 @@ class PumpHub:
                "mint": s.get("mint"), "symbol": s.get("symbol"), "acao": out.get("acao"),
                "p_entrar": p.get("entrar"), "p_esperar": p.get("esperar"), "p_evitar": p.get("evitar"),
                "confianca": out.get("conf"), "qualidade": out.get("qualidade"), "armadilha": out.get("armadilha"),
-               "ms": out.get("ms"), "tokens_in": out.get("tokens_in"), "erro": out.get("erro"), "estado": state or {}}
+               "ms": out.get("ms"), "tokens_in": out.get("tokens_in"), "erro": out.get("erro"), "estado": state or {}, "modelo": out.get("modelo")}
         try:
             await self.db.insert("jev_decisions", row)
         except Exception as e:
@@ -1033,7 +1033,7 @@ class PumpHub:
             ok = max(1, st["calls"] - st.get("erros", 0))
             st["ms_medio"] = round(st.get("ms", 0) / ok)
             st["custo_usd"] = round(st.get("tokens_in", 0) / 1e6 * 0.042, 5)
-        out = {"chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
+        out = {"modelo": jev.JEV_MODEL, "contagem_v2": self.__dict__.get("hv2"), "chave": bool(self.system_keys.get("jev_api_key")), "ligado": bool(getattr(pf.cfg, "pump_jev_on", True)),
                "ativo": self.jev_wanted(), "limite_dia": jev.DAY_MAX, "uso": st, "saida_min": exit_min, "fonte": fonte,
                "passado": self.jev_bt_status(), "detentores": detentores.study(sigs, exit_min, hold_min, hold_cresc, show=hold_show)}
         if fonte == "ao_vivo":
@@ -1175,6 +1175,8 @@ class PumpHub:
                 jt.discard(it, f"detentores caíram {jevtrade.HOLD_DROP_PCT:g}% do pico", now)
             return
         out = await self._jt_jev(jevtrade.state_for(it, tk, now), jevtrade.Q_OUT if aberta else jevtrade.Q_IN, now)
+        if out and out.get("modelo"):
+            it["modelo"] = out["modelo"]
         if it["estado"] not in ("olhando", "aberta") or (out is None and aberta):
             return
         px = (self.market.tokens.get(it["mint"]) or {}).get("price")     # preço DEPOIS da resposta: é onde entraria de verdade
@@ -1313,6 +1315,72 @@ class PumpHub:
 
     TOKEN_PROGRAMS = ("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")
 
+    @staticmethod
+    def _raw_key(key: str | None) -> bytes | None:
+        try:
+            from solders.pubkey import Pubkey
+            return bytes(Pubkey.from_string(key)) if key else None
+        except Exception:
+            return None
+
+    # 0.32.106 (lote 8 de 31/10, conferido): getProgramAccountsV2 custa 1 crédito por página contra 10 do método atual. Roda AO LADO,
+    # 1 em cada 5 contagens e no máximo 300 por dia, e só compara: a tela e as regras seguem usando a contagem atual.
+    HV2_EVERY, HV2_DAY = 5, 300
+
+    async def _holders_v2(self, mint: str, url: str) -> tuple[int, int]:
+        import base64 as _b64
+        owners: set[bytes] = set()
+        pages = 0
+        for prog in self.TOKEN_PROGRAMS:
+            key = None
+            for _ in range(6):
+                cfg = {"encoding": "base64", "dataSlice": {"offset": 32, "length": 40}, "limit": 1000, "filters": [{"memcmp": {"offset": 0, "bytes": mint}}]}
+                if key:
+                    cfg["paginationKey"] = key
+                r = await self.http.post(url, timeout=10, json={"jsonrpc": "2.0", "id": "h", "method": "getProgramAccountsV2", "params": [prog, cfg]})
+                js = r.json()
+                if "error" in js:
+                    raise RuntimeError(str((js["error"] or {}).get("message"))[:100])
+                res = js.get("result") or {}
+                acc = res.get("accounts") or []
+                pages += 1
+                for a in acc:
+                    raw = _b64.b64decode((a.get("account") or {}).get("data", [""])[0])
+                    if len(raw) >= 40 and int.from_bytes(raw[32:40], "little") > 0:
+                        owners.add(raw[:32])
+                key = res.get("paginationKey")
+                if not acc or not key:          # página curta não é o fim: só para sem contas ou sem chave
+                    break
+        return len(owners - {self._raw_key(PumpFun.curve_pda(mint))}), pages
+
+    def _hv2_sample(self, mint: str, n: int) -> None:
+        url = self.system_keys.get("rpc_url") or ""
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        st = self.__dict__.setdefault("hv2", {})
+        if st.get("dia") != day:
+            st.clear()
+            st.update(dia=day, contagens=0, n=0, iguais=0, perto=0, dif_max=0, paginas=0, erros=0, ultimo_erro=None)
+        st["contagens"] += 1
+        if not url or st.get("rodando") or st["contagens"] % self.HV2_EVERY or st["n"] >= self.HV2_DAY:
+            return
+        st["rodando"] = True
+        try:
+            asyncio.get_running_loop().create_task(self._hv2_run(mint, n, url, st))
+        except RuntimeError:
+            st["rodando"] = False
+
+    async def _hv2_run(self, mint: str, n: int, url: str, st: dict) -> None:
+        try:
+            v2, pages = await self._holders_v2(mint, url)
+            dif = abs(v2 - n)
+            st.update(n=st["n"] + 1, iguais=st["iguais"] + (dif == 0), perto=st["perto"] + (dif <= 1), dif_max=max(st["dif_max"], dif), paginas=st["paginas"] + pages)
+        except RuntimeError as e:
+            st.update(erros=st["erros"] + 1, ultimo_erro=str(e)[:100])
+        except Exception as e:                         # o endereço do RPC leva a chave: nunca guardar o texto do erro de rede
+            st.update(erros=st["erros"] + 1, ultimo_erro=type(e).__name__)
+        finally:
+            st["rodando"] = False
+
     async def holders_count(self, mint: str) -> int | None:
         """0.32.82 (pedido do dono): quantas carteiras têm o token agora. Usa o RPC do sistema (Helius: getTokenAccounts,
         10 créditos por página de 1.000) e, se o RPC não tiver esse método, getProgramAccounts nos dois programas de token.
@@ -1324,6 +1392,8 @@ class PumpHub:
             return hit[1]
         urls = [u for u in dict.fromkeys([self.system_keys.get("rpc_url") or "", getattr(self.cfg, "solana_rpc_public", "") or ""]) if u]
         n = None
+        curve = PumpFun.curve_pda(mint)                # 0.32.106: a conta da curva não é um investidor
+        curve_raw = PumpHub._raw_key(curve)
         for u in urls:
             try:
                 owners: set[str] = set()
@@ -1337,7 +1407,7 @@ class PumpHub:
                     owners |= {a.get("owner") for a in acc if a.get("owner") and int(a.get("amount") or 0) > 0}
                     if len(acc) < 1000:
                         break
-                n = len(owners)
+                n = len(owners - {curve})
                 break
             except LookupError:
                 pass
@@ -1356,11 +1426,14 @@ class PumpHub:
                         raw = _b64.b64decode((a.get("account") or {}).get("data", [""])[0])
                         if len(raw) >= 40 and int.from_bytes(raw[32:40], "little") > 0:
                             owners.add(raw[:32])
-                n = len(owners)
+                n = len(owners - {curve_raw})
                 break
             except Exception:
                 continue
         cache[mint] = (time.time(), n)
+        sample = getattr(self, "_hv2_sample", None)
+        if sample and n is not None:
+            sample(mint, n)
         if len(cache) > 2000:
             for k in sorted(cache, key=lambda k: cache[k][0])[:500]:
                 cache.pop(k, None)

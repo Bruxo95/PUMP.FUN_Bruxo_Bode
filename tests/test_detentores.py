@@ -71,6 +71,14 @@ def test_list_filter_and_growth():
     assert len(detentores.study(sigs, "10", show=10)["linhas"]) == 2
 
 
+def test_real_cost_goes_beside_the_4_pct():
+    from app import jev
+    assert jev.real_cost_pct(0.1) == 4.51 and jev.real_cost_pct(0.05) == 5.52
+    assert jev.with_real_cost(1.0, 10, 0.1) == round(1.0 - 10 * 0.1 * 0.51 / 100, 5)
+    D = detentores.study([_sig({0: 45, 1: 60, 2: 80}, marks={10: 50}, hpx={2: 0})], "10")
+    assert D["custo_real_pct"] == 4.51 and D["todos"]["sol_real"] == round(D["todos"]["sol"] - 0.1 * 0.51 / 100, 5)
+
+
 def test_only_coins_with_40_holders_are_read_every_minute():
     b = Bruxo()
     t = 1_000_000.0

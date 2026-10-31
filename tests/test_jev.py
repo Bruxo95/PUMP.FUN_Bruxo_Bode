@@ -33,7 +33,7 @@ def test_ask_sends_state_and_questions_and_parses():
     s, _ = b.on_buy(W, "Top1", M, "JEV", 1.2, 1e-6, {"mcap_sol": 40}, 2.0, {"flow": 3.0, "flow_base": 1.0}, 1000.0)
     out = asyncio.run(jev.ask(http, KEY, jev.state_for(s)))
     assert seen["auth"] == "Bearer " + KEY
-    assert seen["body"]["model"] == "jev-latest" and set(seen["body"]["questions"]) == {"acao", "qualidade", "armadilha"}
+    assert seen["body"]["model"] == "jev-1.14.0" and set(seen["body"]["questions"]) == {"acao", "qualidade", "armadilha"}
     assert seen["body"]["state"]["numbers"]["buy_pace_sol_per_min"] == 3.0
     assert KEY not in json.dumps(seen["body"])                     # a chave só vai no cabeçalho
     assert out["acao"] == "entrar" and out["p"]["entrar"] == 0.8 and out["qualidade"] == 3.2 and out["armadilha"] == 0.15
@@ -61,6 +61,13 @@ def test_study_compares_decisions_with_what_happened():
     assert abs(st["total"]["jev"] - 0.032) < 1e-6 and abs(st["total"]["regra"] - 0.012) < 1e-6
     assert len(st["curva"]["todos"]) == 4
     assert {b["faixa"] for b in st["calibracao"]} == {"80–100%", "0–20%"}
+
+
+def test_version_is_fixed_and_saved_with_the_answer():
+    assert jev.JEV_MODEL == "jev-1.14.0"
+    r = jev.parse({"model": "jev-1.14.0", "answers": {"acao": {"choice": "entrar"}}, "usage": {}})
+    assert r["modelo"] == "jev-1.14.0"
+    assert jev.compact({"t": 1, "res": {}}, {"acao": "entrar", "modelo": "jev-1.14.0"})["jev"]["modelo"] == "jev-1.14.0"
 
 
 def _hub(handler, admin_on=True):

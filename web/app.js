@@ -1233,9 +1233,9 @@
     $("jtSub").textContent = !r.chave ? "sem a chave do Jev: nada é chamado (Administração → Chaves do sistema)" : r.rpc_falhou ? "o RPC não contou detentores: configure o RPC próprio em Administração → Chaves do sistema" :
       !r.ativo ? "desligado" : "ligado · só simulação · " + (D.leituras || 0) + " de " + (Lm.leituras || 0) + " leituras de detentores hoje · " + (D.calls || 0) + " perguntas ao Jev" + (D.erros ? " · " + D.erros + " erros" : "");
     kpis("jtK", [["Hoje", (D.com_40 || 0) + " com " + (Lm.min_detentores || 40) + "+", (D.conferidos || 0) + " conferidos · " + (D.abaixo || 0) + " abaixo · " + (D.parados || 0) + " parados", "tr"],
-      ["Resultado do Jev", sg(E.sol || 0), (E.fechadas || 0) + " fechadas · média " + (E.media_pct == null ? "–" : pc(E.media_pct)), "pnl"],
+      ["Resultado do Jev", sg(E.sol || 0), (E.fechadas || 0) + " fechadas · média " + (E.media_pct == null ? "–" : pc(E.media_pct)) + "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(E.sol_real || 0), "pnl"],
       ["Acerto", E.acerto == null ? "–" : E.acerto + "%", "fator " + (E.fator == null ? "–" : f(E.fator, 2)) + (E.suspeitos ? " · " + E.suspeitos + " preço suspeito" : ""), "hit"],
-      ["Régua fixa, mesmas entradas", sg(I.sol || 0), (I.n || 0) + " medidas · média " + (I.media_pct == null ? "–" : pc(I.media_pct)), "mon"],
+      ["Régua fixa, mesmas entradas", sg(I.sol || 0), (I.n || 0) + " medidas · média " + (I.media_pct == null ? "–" : pc(I.media_pct)) + "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(I.sol_real || 0), "mon"],
       ["Régua fixa, todos os 40+", sg(T.sol || 0), (T.n || 0) + " medidos · média " + (T.media_pct == null ? "–" : pc(T.media_pct)), "mon"]]);
     $("jtL").textContent = E.leitura || "";
     const FL = r.filtros || {}, DE = FL._de || {};
@@ -1319,10 +1319,11 @@
     JV_D = D;
     const R = D.regra || {}, T = D.todos || {}, C = D.regra_jev || {};
     const nota = (g) => "acerto " + (g.acerto == null ? "–" : g.acerto + "%") + " · média " + (g.media_pct == null ? "–" : pc(g.media_pct));
+    const notaR = (g) => nota(g) + "<br>com custo de " + f(D.custo_real_pct, 1) + "%: " + sg(g.sol_real || 0);
     kpis("jvDK", [["Tokens com detentores", String(D.medidos || 0), "de " + (D.sinais || 0) + " sinais no período", "mon", "", "tokens"],
       ["A regra ligou", String(R.n || 0), (R.medidos || 0) + " entradas medidas · " + (R.dobrou || 0) + " dobraram", "hit", "", "ligou"],
-      ["Seguindo a regra", sg(R.sol || 0), nota(R), "pnl", "", "regra"],
-      ["Todos os sinais", sg(T.sol || 0), nota(T), "pnl", "", "todos"],
+      ["Seguindo a regra", sg(R.sol || 0), notaR(R), "pnl", "", "regra"],
+      ["Todos os sinais", sg(T.sol || 0), notaR(T), "pnl", "", "todos"],
       ["Regra + Jev mandou entrar", String(C.n || 0), nota(C), "tr", "", "regra_jev"]]);
     $("jvDL").textContent = !D.sinais ? "Ainda sem sinais neste período." : !D.medidos ? "Nenhum sinal com detentores lidos: a contagem precisa do RPC próprio (Administração → Chaves do sistema); o RPC público não conta." : (D.leitura || "");
     const head = (a) => [a, "Tokens", "Medidos", "Subiu", "Dobrou", "Média", "Pico mediano"];
@@ -1346,8 +1347,9 @@
     const ae = A.entrar || {};
     kpis("jvK", [["Tokens analisados", String(E.n || 0), F === "ao_vivo" ? (U.calls || 0) + " perguntas hoje (limite " + (r.limite_dia || 0) + ")" + (U.erros ? " · " + U.erros + " erros" : "") : "casos passados · " + esc(($("jvF").selectedOptions[0] || {}).textContent || ""), "mon"],
       ["Jev mandou entrar", String(ae.n || 0), "acerto " + (ae.acerto == null ? "–" : ae.acerto + "%") + " · média " + (ae.media_pct == null ? "–" : ae.media_pct + "%"), "hit"],
-      ["Se seguisse o Jev", sg(T.jev || 0), (F === "base" ? "" : "nossa regra: " + s4(T.regra || 0) + " · ") + "todos: " + s4(T.todos || 0), "pnl"],
-      ["Velocidade e custo", U.ms_medio == null ? "–" : U.ms_medio + " ms", U.custo_usd == null ? "sem uso hoje" : "≈ US$ " + U.custo_usd + " hoje" + (U.ultimo_erro ? " · último erro: " + U.ultimo_erro : ""), "tr"]]);
+      ["Se seguisse o Jev", sg(T.jev || 0), (F === "base" ? "" : "nossa regra: " + s4(T.regra || 0) + " · ") + "todos: " + s4(T.todos || 0) + (E.total_real ? "<br>com custo de " + f(E.custo_real_pct, 1) + "%: " + sg(E.total_real.jev || 0) : ""), "pnl"],
+      ["Velocidade e custo", U.ms_medio == null ? "–" : U.ms_medio + " ms", (r.modelo ? esc(r.modelo) + " · " : "") + (U.custo_usd == null ? "sem uso hoje" : "≈ US$ " + U.custo_usd + " hoje" + (U.ultimo_erro ? " · último erro: " + esc(U.ultimo_erro) : "")), "tr"]]);
+    { const V = r.contagem_v2; $("jvDV").textContent = !V ? "" : "Teste da contagem barata (só compara, não muda nada): " + (V.n || 0) + " comparações hoje · " + (V.iguais || 0) + " iguais · " + (V.perto || 0) + " com diferença de até 1 · maior diferença " + (V.dif_max || 0) + " · " + (V.n ? f(V.paginas / V.n, 1) : "–") + " páginas por contagem" + (V.erros ? " · " + V.erros + " erros (" + V.ultimo_erro + ")" : ""); }
     $("jvC").innerHTML = jvChart(F === "ao_vivo" ? Object.assign({}, E.curva, { detentores: ((r.detentores || {}).regra || {}).curva }) : E.curva);
     table("jvA", ["Decisão", "Tokens", "Medidos", "Subiu", "Dobrou", "−30% antes", "Média", "SOL (0,1/entrada)"], ["entrar", "esperar", "evitar"].map((k) => { const g = A[k] || {};
       return [jvTag(k), String(g.n || 0), String(g.medidos || 0), g.acerto == null ? "–" : g.acerto + "%", String(g.dobrou || 0), String(g.stop || 0), g.media_pct == null ? "–" : pc(g.media_pct), sg(g.sol || 0)]; }), "Nada ainda.");
@@ -2949,7 +2951,7 @@
       row("PumpPortal", okb(PPs.ws, PPs.error), PPs.ws ? "tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado")) +
       // 0.32.18 (pedido do dono): trades das copiadas pela PumpPortal paga (0,01 SOL a cada 10 mil trades, na carteira da chave do sistema)
       row("Trades das copiadas pela PumpPortal", '<button class="btn sm tgl" data-toggle="pump_pp_copy" data-confirm="O que faz: sem isto, o robô recebe um aviso da carteira e ainda precisa pedir a transação ao RPC, que pode atrasar ou falhar. Com isto, a PumpPortal entrega a compra ou venda já pronta (só pump.fun e PumpSwap). Benefício: cópia mais rápida, menos trades perdidos e menos créditos de RPC. Se a PumpPortal parar de entregar, o robô volta sozinho para o RPC em até 2 min. Custo em SOL de verdade: 0,01 SOL a cada 10 mil trades, cerca de 0,005 SOL por dia com 200 trades por hora, da carteira ligada à chave PumpPortal do sistema, que precisa ter saldo. Vale para todas as contas. Ligar?">…</button>',
-        (PPs.acct_subs ? PPs.acct_subs + " carteiras assinadas · " + f(PPs.acct_trades || 0, 0) + " trades recebidos (≈ " + ((PPs.acct_trades || 0) / 1e6).toFixed(4) + " SOL)" + (PPs.acct_last ? " · último " + ago(PPs.acct_last) : "") + (RP.pp_skip ? " · " + f(RP.pp_skip, 0) + " leituras do RPC economizadas" : "") + (!c.pump_pp_copy ? " · ligado por outro admin" : "") + (PPs.acct_trades ? "" : " · nenhum trade entregue ainda: confira o saldo da carteira da chave; enquanto isso o robô lê pelo RPC")
+        (PPs.acct_subs ? PPs.acct_subs + " carteiras assinadas · " + f(PPs.acct_trades || 0, 0) + " trades recebidos (≈ " + ((PPs.acct_trades || 0) / 1e6).toFixed(4) + " SOL)" + (PPs.acct_last ? " · último " + ago(PPs.acct_last) : "") + (RP.pp_skip ? " · " + f(RP.pp_skip, 0) + " leituras do RPC economizadas" : "") + (!c.pump_pp_copy ? " · ligado por outro admin" : "") + (PPs.acct_trades ? "" : " · nenhum trade entregue ainda: confira se a carteira da chave tem pelo menos 0,02 SOL; enquanto isso o robô lê pelo RPC") + (PPs.pp_msg ? " · última mensagem da PumpPortal (" + ago(PPs.pp_msg_t) + "): " + esc(PPs.pp_msg) : "")
           : "desligado · ligado, as compras e vendas das carteiras copiadas chegam prontas, sem gastar o RPC (só pump.fun/PumpSwap; cobra 0,01 SOL a cada 10 mil trades da carteira da chave PumpPortal do sistema)")) +
       row("Preços", okb(!RP.price_error, RP.price_error), esc(RP.price_error || "–")) +
       row("Jupiter", okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error), esc((A.jupiter || {}).error || "–")) +

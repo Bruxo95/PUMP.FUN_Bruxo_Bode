@@ -13,7 +13,7 @@ from __future__ import annotations
 import time
 
 JEV_URL = "https://api.typesafe.ai/v1/systemone"
-JEV_MODEL = "jev-latest"
+JEV_MODEL = "jev-1.14.0"     # 0.32.106: versão fixa; "jev-latest" muda sozinho e misturaria modelos nos estudos (docs.typesafe.ai/models)
 DAY_MAX = 3000              # chamadas por dia (todas as contas juntas)
 TIMEOUT_S = 8.0
 ACTIONS = ("entrar", "esperar", "evitar")
@@ -73,7 +73,7 @@ def parse(js: dict) -> dict:
     u = (js or {}).get("usage") or {}
     return {"acao": ac.get("choice"), "p": probs, "conf": ac.get("confidence"),
             "qualidade": (a.get("qualidade") or {}).get("score"), "armadilha": (a.get("armadilha") or {}).get("noul"),
-            "tokens_in": int(u.get("input_tokens") or 0)}
+            "tokens_in": int(u.get("input_tokens") or 0), "modelo": (js or {}).get("model")}
 
 
 async def ask(http, key: str, state: dict, url: str = JEV_URL, model: str = JEV_MODEL) -> dict:
@@ -92,6 +92,17 @@ async def ask(http, key: str, state: dict, url: str = JEV_URL, model: str = JEV_
 # ---------------------------------------------------------------------------- análise da aba JEV
 EXITS = ("5", "10", "25")
 FEE_PCT = 4.0               # compra + venda na pump.fun (mesma estimativa das sombras)
+
+
+def real_cost_pct(sol: float, prio_sol: float = 0.0005, portal_pct: float = 0.5) -> float:
+    """0.32.106 (lotes 8 e 10, conta refeita): compra + venda na curva pela rota Local, antes de slippage e impacto:
+    1,25% da curva + 0,5% da PumpPortal por lado, mais rede e priority fee. Os 4% dos estudos ficam como estão, para comparar
+    com o passado; este número aparece ao lado."""
+    return round(2 * (1.25 + portal_pct) + 100 * 2 * (0.000005 + prio_sol) / sol, 2)
+
+
+def with_real_cost(total_sol: float, n: int, sol: float) -> float:
+    return round(total_sol - n * sol * (real_cost_pct(sol) - FEE_PCT) / 100, 5)
 
 
 def sim_result(s: dict, exit_min: str, stop_pct: float = 30.0) -> float | None:
@@ -146,7 +157,9 @@ def study(signals: list[dict], exit_min: str = "10", sol: float = 0.1) -> dict:
         g["media_pct"] = round(sum(res) / len(res), 2) if res else None
         g["sol"] = round(sum(res) * sol / 100, 5) if res else 0.0
     order = ["0–20%", "20–40%", "40–60%", "60–80%", "80–100%"]
-    return {"n": len(js), "saida_min": exit_min, "sol_por_entrada": sol, "por_acao": by_act,
+    cnt = {"todos": sum(g["medidos"] for g in by_act.values()), "jev": (by_act.get("entrar") or {}).get("medidos", 0)}
+    return {"n": len(js), "saida_min": exit_min, "sol_por_entrada": sol, "por_acao": by_act, "custo_real_pct": real_cost_pct(sol),
+            "total_real": {k: with_real_cost(acc[k], cnt[k], sol) for k in cnt},
             "calibracao": [{"faixa": k, **bands[k], "subiu_pct": round(bands[k]["subiu"] / bands[k]["n"] * 100)} for k in order if k in bands],
             "curva": curve, "total": {k: round(v, 5) for k, v in acc.items()}}
 
@@ -229,7 +242,7 @@ def compact(c: dict, j: dict) -> dict:
     return {"t": c["t"], "mint": c.get("mint"), "symbol": c.get("symbol"), "kind": c.get("kind"), "res": c["res"],
             "pico": c.get("pico"), "regra": c.get("regra"), "dobrou": c.get("dobrou"), "stop": c.get("stop"),
             "n": (c.get("state") or {}).get("numbers"),
-            "jev": {k: j.get(k) for k in ("acao", "p", "qualidade", "armadilha", "ms", "erro") if j.get(k) is not None}}
+            "jev": {k: j.get(k) for k in ("acao", "p", "qualidade", "armadilha", "ms", "erro", "modelo") if j.get(k) is not None}}
 
 
 def pick(res: dict, saida: str):

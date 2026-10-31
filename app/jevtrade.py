@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 
 from .auto_trades import SUSPECT_PCT
-from .jev import FEE_PCT, JEV_MODEL, JEV_URL, TIMEOUT_S
+from .jev import FEE_PCT, JEV_MODEL, JEV_URL, TIMEOUT_S, real_cost_pct, with_real_cost
 
 MIN_HOLDERS = 40
 SCAN_MIN_AGE_MIN, SCAN_MAX_AGE_MIN = 5.0, 8.0     # "a partir dos cinco minutos"
@@ -134,7 +134,7 @@ def parse_answers(js: dict) -> dict:
     u = (js or {}).get("usage") or {}
     return {"acao": ac.get("choice"), "stop": st.get("choice"), "conf": ac.get("confidence"),
             "qualidade": (a.get("qualidade") or {}).get("score"), "armadilha": (a.get("armadilha") or {}).get("noul"),
-            "tokens_in": int(u.get("input_tokens") or 0)}
+            "tokens_in": int(u.get("input_tokens") or 0), "modelo": (js or {}).get("model")}
 
 
 async def ask(http, key: str, state: dict, questions: dict, url: str = JEV_URL, model: str = JEV_MODEL) -> dict:
@@ -498,9 +498,12 @@ class JevTrade:
             leitura = f"o Jev não está ajudando: média {media(comp):+.1f}% contra {media(igual):+.1f}% da régua fixa nas mesmas entradas"
         return {"olhados": len(L), "entradas": sum(1 for x in L if x.get("entrada")), "fechadas": len(F), "suspeitos": sum(1 for x in L if x.get("suspeito")),
                 "acerto": round(sum(r > 0 for r in res) / len(res) * 100) if res else None, "media_pct": media(res),
-                "sol": round(sum(res) * SOL / 100, 5), "fator": round(win / lose, 2) if lose else None,
-                "igual": {"n": len(igual), "media_pct": media(igual), "sol": round(sum(igual) * SOL / 100, 5), "jev_mesmas_pct": media(comp)},
-                "todos": {"n": len(todos), "media_pct": media(todos), "sol": round(sum(todos) * SOL / 100, 5)},
+                "sol": round(sum(res) * SOL / 100, 5), "fator": round(win / lose, 2) if lose else None, "custo_real_pct": real_cost_pct(SOL),
+                "sol_real": with_real_cost(round(sum(res) * SOL / 100, 5), len(res), SOL),
+                "igual": {"n": len(igual), "media_pct": media(igual), "sol": round(sum(igual) * SOL / 100, 5), "jev_mesmas_pct": media(comp),
+                          "sol_real": with_real_cost(round(sum(igual) * SOL / 100, 5), len(igual), SOL)},
+                "todos": {"n": len(todos), "media_pct": media(todos), "sol": round(sum(todos) * SOL / 100, 5),
+                          "sol_real": with_real_cost(round(sum(todos) * SOL / 100, 5), len(todos), SOL)},
                 "curva": curva, "motivos": sorted(motivos.values(), key=lambda g: -g["n"]), "leitura": leitura}
 
     @staticmethod

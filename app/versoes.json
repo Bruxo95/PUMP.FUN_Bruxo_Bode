@@ -1285,6 +1285,11 @@
    "versao": "0.32.105",
    "inicio": "2026-10-31T09:24:58+01:00",
    "titulo": "PumpPortal sem entregar não faz perder cópia; aviso explica o benefício"
+  },
+  {
+   "versao": "0.32.106",
+   "inicio": "2026-10-31T09:40:25+01:00",
+   "titulo": "pesquisa aplicada: versão do Jev fixa, custo real nos estudos e teste da contagem barata"
   }
  ]
 }
