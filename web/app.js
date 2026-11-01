@@ -1533,6 +1533,25 @@
       return '<small title="' + esc(DEX[p.dex] || p.dex || "?") + ": volume $" + f(p.vol24 || 0, 0) + " · " + (p.buys24 || 0) + " compras × " + (p.sells24 || 0) + " vendas" + esc(p.quote ? " · par com " + p.quote : "") + " · liquidez $" + f(p.liq || 0, 0) + '">' + esc(DEX[p.dex] || p.dex || "?") +
         (avg != null ? ' · <span class="' + (avg < 5 && n >= 20 ? "down" : "muted") + '">$' + f(avg, avg < 10 ? 2 : 0) + "/neg.</span>" : "") + "</small>"; }).join("");
   }
+  // 0.32.124: Laboratório do Top traders; o veredito vem sempre da faixa de confiança
+  async function loadTopLab() {
+    const r = await BB.api("/api/pump/top-lab", { quiet: true }); if (r.error || !$("tlK")) return;
+    const fx = (x) => (x.lo == null ? "–" : f(x.lo, 1) + "% a " + f(x.hi, 1) + "%");
+    const vd = (v) => '<span class="tag ' + ({ provado: "win", ruim: "loss", promissor: "sim", "pode estar barrando ganhos": "pause", "filtro ajudou": "win" }[v] || "neutral") + '">' + esc(v) + "</span>";
+    kpis("tlK", [["Resultado", pc(r.pct), sg(r.saldo_sol, "") + " SOL em " + r.trades + " trades", "pnl"], ["Dias com trades", String(r.dias), "faixa de confiança pede 5", "tr"],
+      ["Sem os 3 maiores", sg(r.sem_top3_sol, ""), "os 3 maiores somam " + s4(r.top3_sol) + " SOL", "hit"], ["Faixa por trade", fx(r.ci), "com 95% de confiança", "pnl"]]);
+    $("tlR").textContent = r.leitura || "";
+    table("tlT", ["Trader", "Veredito", "Saldo", "Trades", "Acerto", "Média", "Faixa", ""], (r.traders || []).map((x) => [pfW(x.wallet, {}), vd(x.veredito), sg(x.saldo_sol, ""), x.trades + "<small>" + x.dias + " dias</small>", x.acerto + "%", pc(x.media_pct), fx(x),
+      x.veredito === "ruim" ? '<button class="btn sm" data-tlpause="' + esc(x.wallet) + '">Pausar 48 h</button>' : ""]), "Ainda não há cópias fechadas nesta aba.");
+    const op = r.opcoes || {}; $("tlO1").textContent = op.pump_size_by_trader ? "ligada" : "desligada"; $("tlO2").textContent = op.pump_size_by_score ? "ligada" : "desligada";
+    table("tlL", ["Entrando depois de", "Trades", "Fictícia", "Estimada", "Diferença", "Faixa"], (r.late || []).map((x) => [x.segundos + " s", String(x.n), pc(x.ficticia_pct), pc(x.honesta_pct), pc(x.perda_pct), fx(x)]), "");
+    const B = r.barradas || {};
+    $("tlBS").textContent = "Cada compra barrada é acompanhada por 15 min a partir do preço de 5 s depois, com stop de 30% e 4% de custos. " + (B.prontas || 0) + " prontas · " + (B.abertas || 0) + " em acompanhamento" + (B.fora ? " · " + B.fora + " ficaram de fora por falta de vaga" : "") + ".";
+    table("tlB", ["Motivo", "Veredito", "Compras", "Dias", "Ganhariam", "Média", "Faixa"], (B.motivos || []).map((x) => ['<span class="shv" title="' + esc(x.exemplo) + '">' + esc(x.motivo) + "</span>", vd(x.veredito), String(x.n), String(x.dias), String(x.ganharia), pc(x.media_pct), fx(x)]), "Nenhuma compra barrada acompanhada ainda.");
+    const S = r.saidas || {}, Y = S.yours || {}, Ya = Y.trades ? Y.pnl_sol / Y.trades : null;
+    $("tlGS").textContent = "Mostra todas as cópias de trader, de todas as contas. As suas regras: " + (Ya == null ? "ainda sem base" : s4(Ya) + " SOL por trade em " + Y.trades + " trades") + ". Trocar de regra é pelas Sugestões do Ajuste automático, na Base geral.";
+    table("tlG", ["Regra", "Por trade", "Trades", "Acerto"], (S.variants || []).map((v) => ['<span class="shv">' + esc(v.nome) + "</span>", sg(v.avg_sol, ""), String(v.trades), v.win_rate == null ? "–" : f(v.win_rate * 100, 0) + "%"]), "Os fantasmas ainda não têm base.");
+  }
   async function loadCopyDiag() {
     const r = await BB.api("/api/pump/copy-diag"); if (r.error || !$("cdK")) return;
     const fl = r.filtros || {};
@@ -2500,6 +2519,11 @@
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
+    if (t.dataset.tlpause) {
+      if (!confirm("Pausar este trader por 48 h?\n\nAs cópias dele param nas carteiras FICTÍCIA e REAL até acabar a pausa.")) return;
+      const r = await BB.api("/api/pump/wallets", { body: { wallet: t.dataset.tlpause, action: "pause", hours: 48 } });
+      toast(r.error ? r.error : "Trader pausado por 48 h"); return loadTopLab();
+    }
     if (t.dataset.tusug) {
       const x = TUSUG.find((y) => y.id === t.dataset.tusug); if (!x) return;
       const txt = x.tipo === "trader" ? "A cópia desse trader para nas carteiras FICTÍCIA e REAL até acabar a pausa." : "A regra de saída muda nas carteiras FICTÍCIA e REAL (" + x.alvo + "). Não liga nem desliga a execução real.";
@@ -2645,7 +2669,7 @@
     if (VIEW === "jev") loadJev();
     if (VIEW === "jevtrade") loadJt();
     if (VIEW === "basegeral") { loadRsBase(); loadBrainShadow(); loadTuneBase(); }
-    if (VIEW === "traders") loadCopyDiag();
+    if (VIEW === "traders") { loadCopyDiag(); loadTopLab(); }
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") { loadEq(); loadEqRep(); }
     if (VIEW === "aprendizado") loadLearning();

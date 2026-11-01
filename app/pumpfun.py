@@ -168,6 +168,7 @@ class PumpFun:
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
         self.learn_pool = None
+        self.top_hook = None                          # 0.32.124: compra barrada do Top traders vira acompanhamento
         self.shadow_hook = None                       # 0.31.72: token "chance alta" barrado vira entrada sombra (hub)
         self._real_buying: set = set()
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
@@ -1236,6 +1237,7 @@ class PumpFun:
             if why:
                 self._feed(**base, action="não copiou", reason=why)
                 self._copy_note(who, why, t)
+                self._top_barred(who, mint, why, t)
                 return []
             msgs = []
             # REAL (se ligado): compra de verdade, com o valor de "SOL por compra". Com o espelho (0.31.37) o real só
@@ -1289,6 +1291,7 @@ class PumpFun:
                 swhy = "saldo fictício insuficiente"
             if swhy:
                 self._copy_note(who, swhy, t)
+                self._top_barred(who, mint, swhy, t)
                 self._feed(**base, action="não copiou", reason=swhy)
                 return msgs
             fr = self._fee_rates(mint)
@@ -1479,6 +1482,7 @@ class PumpFun:
             tr["score"] = p.get("score")
             tr["score_parts"] = p.get("score_parts")       # 0.32.117: cérebro em sombra mede pressão, curva e criador na entrada
             tr["trader_px"] = p.get("trader_px") or p.get("trader_price")
+            tr["late"] = p.get("late")                     # 0.32.124: preço do mercado 5/15/30 s depois da cópia
             tr["manual"] = bool(p.get("manual")) or p.get("wallet") == "manual"
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
@@ -1558,6 +1562,23 @@ class PumpFun:
                            kind="sell", action="preço suspeito", real=bool(p.get("real")),
                            reason=f"preço {x:,.0f}× a entrada em {'posição REAL' if p.get('real') else 'posição fictícia'} — provável leitura errada (token cotado em outra moeda)")
 
+    def _late_note(self, p: dict, px: float, t: float) -> None:
+        """0.32.124: a cópia fictícia entra no preço do próprio trader, o que é otimista. Guarda o preço do mercado 5/15/30 s depois.
+        Só registra: não muda entrada, saída nem resultado. Leitura muito atrasada fica vazia, em vez de valer como preço daquela marca."""
+        if p.get("real") or p.get("manual") or p.get("wallet") == "manual" or not p.get("open_t"):
+            return
+        late, age, mudou = p.setdefault("late", {}), t - float(p["open_t"]), False
+        for s in (5, 15, 30):
+            if str(s) not in late and age >= s:
+                late[str(s)] = px if age <= s + 20 else None
+                mudou = True
+        if mudou:
+            self._save_pos(p)
+
+    def _top_barred(self, who: str, mint: str, why: str, t: float) -> None:
+        if self.top_hook is not None and why and not why.startswith("já tem posição"):
+            self.top_hook(who, mint, (self.tokens.get(mint) or {}).get("symbol"), why, t)
+
     def _check_stops(self, mint: str, t: float) -> list[str]:
         out = []
         px = (self.tokens.get(mint) or {}).get("price")
@@ -1570,6 +1591,7 @@ class PumpFun:
         for p in [p for p in self.positions() if p["mint"] == mint]:
             if not px or p.get("selling"):
                 continue
+            self._late_note(p, px, t)
             dfix = (self.tokens.get(mint) or {}).get("dec_fix_t")
             if dfix and float(p.get("dec_fix_t") or 0) < dfix:
                 # 0.32.65: o preço desta posição vinha com as casas decimais erradas; pico e stop móvel eram falsos

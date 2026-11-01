@@ -219,6 +219,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.103: onde a chave geral da execução real vale (a janela que abre ao desligar)."""
         return hub.real_places(await hub.engine(u["id"]))
 
+    @app.get("/api/pump/top-lab")
+    async def top_lab(pf=Depends(admin_engine)):
+        """0.32.124: Laboratório do Top traders. Só mede."""
+        return hub.top_lab(pf)
+
     @app.get("/api/pump/result-tabs")
     async def result_tabs(real: int = 0, pf=Depends(engine)):
         """0.32.123: resultado por aba da janela Resultado. Só os trades desta conta."""

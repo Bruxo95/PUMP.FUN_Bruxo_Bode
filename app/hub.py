@@ -174,6 +174,7 @@ class PumpHub:
         pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
         pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
         pf.shadow_hook = self.shadow_note                                     # 0.31.72: entradas sombra
+        pf.top_hook = self.top_note                                           # 0.32.124: compras barradas do Top traders
         # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
         # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta
         # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
@@ -437,6 +438,62 @@ class PumpHub:
                     rows.append((e.user_id, nome, t))
         out = brainshadow.run(rows)
         self.__dict__["_brain_shadow"] = (now, out)
+        return out
+
+    # ------------------------------------------------------------------ laboratório do Top traders (0.32.124)
+    def top_barred(self):
+        from .toplab import Barred
+        return self.__dict__.setdefault("_top_barred", Barred())
+
+    def top_note(self, who: str, mint: str, symbol, why: str, t: float) -> None:
+        self.top_barred().note(who, mint, symbol, why, t)
+
+    async def top_tick(self, now: float | None = None) -> int:
+        """Preço das compras barradas em acompanhamento; grava as prontas. Não abre posição nenhuma."""
+        now = time.time() if now is None else now
+        b = self.top_barred()
+        need, svc = b.mints(), getattr(self.monitor, "svc", None) if self.monitor else None
+        if need and svc is not None:
+            pump = [m for m in need if svc.is_pump(m)]
+            rest = await svc._curve_prices(pump, public_first=True) if pump else []
+            rest += [m for m in need if m not in pump]
+            if rest:
+                await svc._fetch_prices(list(dict.fromkeys(rest)))
+        done = b.tick(lambda m: (self.market.tokens.get(m) or {}).get("price"), now)
+        if done:
+            await self.db.insert("top_shadows", [{"id": x["id"], "em": datetime.fromtimestamp(x["t0"], timezone.utc).isoformat(), "data": x} for x in done], upsert=True, on_conflict="id")
+        return len(done)
+
+    async def top_loop(self) -> None:
+        await asyncio.sleep(30)
+        while True:
+            try:
+                await self.top_tick()
+            except Exception as e:
+                log.warning("laboratório do top traders: %s", str(e)[:160])
+            await asyncio.sleep(30)
+
+    async def load_top(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - 30 * 86400, timezone.utc).isoformat()
+            self.top_barred().load([r.get("data") for r in await self.db.select("top_shadows", None, order="em.desc", limit=20000, gte={"em": since})])
+        except Exception as e:
+            log.warning("laboratório do top traders não carregou: %s", str(e)[:120])
+
+    def top_lab(self, pf) -> dict:
+        from . import toplab
+        now, cache = time.time(), self.__dict__.setdefault("_top_lab", {})
+        hit = cache.get(pf.user_id)
+        if hit and now - hit[0] < 30:
+            return hit[1]
+        trades = pf.trades(100000)
+        out = toplab.study(trades, pf.aba_of)
+        out["barradas"] = self.top_barred().study()
+        snap = self.ghosts_merged(pf, "ghosts", trades)
+        out["saidas"] = {"yours": snap.get("yours") or {}, "variants": sorted([v for v in snap.get("variants") or [] if v.get("trades")], key=lambda v: -(v.get("avg_sol") or 0))[:14]}
+        opts = ("pump_size_by_trader", "pump_size_by_score")
+        out["opcoes"] = {k: bool(getattr(pf.cfg, k, False)) for k in opts}
+        cache[pf.user_id] = (now, out)
         return out
 
     # ------------------------------------------------------------------ entradas sombra (0.31.72)
@@ -4143,7 +4200,7 @@ class PumpHub:
         for nome, carga in (("chave compartilhada", self.refresh_shared_key), ("lista negra", self.load_blacklist), ("base pump.fun", self.load_lab),
                             ("maiores traders", self.load_elite), ("sombras", self.load_shadows), ("calls", self.load_calls),
                             ("aba do bruxo", self.load_bruxo), ("jev trade", self.load_jt), ("uso do jev", self.jev_usage_load),
-                            ("passado do jev", self.jev_bt_load)):                # 0.32.84: estudo do passado do Jev
+                            ("passado do jev", self.jev_bt_load), ("top traders", self.load_top)):                # 0.32.84: estudo do passado do Jev
             self._step(nome)
             await carga()
         self._step("ligando o monitor")
@@ -4165,6 +4222,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.tune_loop()))
         self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
         self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
+        self._tasks.append(asyncio.create_task(self.top_loop()))            # 0.32.124: compras barradas do Top traders
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
