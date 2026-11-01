@@ -1380,6 +1380,11 @@
    "versao": "0.32.124",
    "inicio": "2026-11-01T12:32:00+00:00",
    "titulo": "Laboratório do Top traders"
+  },
+  {
+   "versao": "0.32.125",
+   "inicio": "2026-11-01T12:41:20+00:00",
+   "titulo": "conta simples no Resultado"
   }
  ]
 }
