@@ -1504,3 +1504,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.153 (pedido do dono): `traderreport._linha` guarda `lista` (até `LISTA_MAX`=60 trades, mais recentes primeiro); `openTrRep` com `solW` (Solscan) e botão `data-trlist` → `openTrList` (`#ovTL`, `data-trback` volta). Teste em `tests/test_trader_report.py`.
 
 - 0.32.154 (pedido do dono): `abcUndoGet` usa `APPLIED[].antes` (convite aceito mais recente com opção da aba ainda diferente) quando não há troca guardada no navegador; texto "Nada para desfazer" quando não há.
+
+- 0.32.155 (pedido do dono): `openTrRep` ordena `todo`/`h24` por `saldo_sol` (maior primeiro) e filtra com `TRPOS` (`data-trpos`, `localStorage` `pf_trpos`); o índice do botão Trades segue a lista ordenada.

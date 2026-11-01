@@ -940,3 +940,4 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .abc-h{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;border-bottom:1px solid var(--line);padding:6px 0}.abc-h small{display:block;font-size:10.5px;color:var(--dim)}.abc-h b{font-family:var(--mono);font-size:13px}
 .abcmp{border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:10px;background:var(--bg2)}.abcmp-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px}.abcmp-h select{max-width:200px;height:30px}.abcmp-ok{color:#4ade80;font-size:13px}.abcmp-dif{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:#fbbf24;font-size:13px;margin-bottom:6px}
 .abcmp-undo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;margin-bottom:6px}.abcmp-pend{color:#fbbf24;font-size:13px;margin-bottom:6px}.abcmp-act{display:flex;gap:8px;margin-top:8px}
+.trposseg{margin:8px 0 2px}

@@ -3941,13 +3941,22 @@
     e.preventDefault();
     if (t.dataset.trback) { if (TRREP) openTrRep(TRREP.R, TRREP.quando); } else { const [q, i] = t.dataset.trlist.split(":"); openTrList(q, +i); }
   });
+  // 0.32.155 (pedido do dono): mais positivo sempre em cima e botão "Só positivos" (lembrado neste navegador)
+  let TRPOS = false; try { TRPOS = localStorage.getItem("pf_trpos") === "1"; } catch (e) { /* */ }
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest && e.target.closest("[data-trpos]"); if (!t || !TRREP) return;
+    TRPOS = t.dataset.trpos === "1"; try { localStorage.setItem("pf_trpos", TRPOS ? "1" : "0"); } catch (er) { /* */ }
+    openTrRep(TRREP.R, TRREP.quando);
+  });
   function openTrRep(R, quando) {
+    const ord = (L) => (L || []).slice().sort((a, b) => (b.saldo_sol || 0) - (a.saldo_sol || 0));
+    R = Object.assign({}, R, { todo: ord(R.todo), h24: ord(R.h24) });
     TRREP = { R, quando };
     const nome = (x) => (x.nome ? solW(x.wallet, esc(x.nome)) + "<small>" + esc(shortW(x.wallet)) + "</small>" : solW(x.wallet, esc(shortW(x.wallet))));
     const VD = { provado: "win", ruim: "loss", promissor: "sim" };
-    const tab = (id, L) => table(id, ["Trader", "Veredito", "Trades", "Acerto", "%", "Resultado", "Melhor", "Pior", ""], L.map((x, i) => [nome(x), '<span class="tag ' + (VD[x.veredito] || "neutral") + '">' + esc(x.veredito) + "</span>", x.trades + "<small>" + x.dias + " dias</small>", x.acerto + "%", pc(x.pct), sg(x.saldo_sol, ""), esc(x.melhor.symbol || "") + "<small>" + sg(x.melhor.sol, "") + "</small>", esc(x.pior.symbol || "") + "<small>" + sg(x.pior.sol, "") + "</small>", '<button class="btn sm" data-trlist="' + (id === "ovU" ? "h24" : "todo") + ":" + i + '">Trades</button>']), "Nenhum trader neste período.");
+    const tab = (id, L0) => { const L = L0.map((x, i) => [x, i]).filter(([x]) => !TRPOS || (x.saldo_sol || 0) > 0); table(id, ["Trader", "Veredito", "Trades", "Acerto", "%", "Resultado", "Melhor", "Pior", ""], L.map(([x, i]) => [nome(x), '<span class="tag ' + (VD[x.veredito] || "neutral") + '">' + esc(x.veredito) + "</span>", x.trades + "<small>" + x.dias + " dias</small>", x.acerto + "%", pc(x.pct), sg(x.saldo_sol, ""), esc(x.melhor.symbol || "") + "<small>" + sg(x.melhor.sol, "") + "</small>", esc(x.pior.symbol || "") + "<small>" + sg(x.pior.sol, "") + "</small>", '<button class="btn sm" data-trlist="' + (id === "ovU" ? "h24" : "todo") + ":" + i + '">Trades</button>']), TRPOS ? "Nenhum trader positivo neste período." : "Nenhum trader neste período."); };
     const tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';
-    ovShow("Relatório · " + R.aba, (R.real ? "carteira REAL" : "carteira FICTÍCIA") + (quando ? " · " + dt(quando) : ""), '<div class="kpis" id="ovK"></div><h3 class="small">O que este relatório mostra</h3><ul class="small trlic">' + (R.licoes || []).map((x) => "<li>" + esc(x) + "</li>").join("") + '</ul><h3 class="small">Todo o tempo</h3>' + tb("ovT") + '<h3 class="small">Últimas 24 h</h3>' + tb("ovU"));
+    ovShow("Relatório · " + R.aba, (R.real ? "carteira REAL" : "carteira FICTÍCIA") + (quando ? " · " + dt(quando) : ""), '<div class="kpis" id="ovK"></div><h3 class="small">O que este relatório mostra</h3><ul class="small trlic">' + (R.licoes || []).map((x) => "<li>" + esc(x) + "</li>").join("") + '</ul><div class="seg trposseg"><button data-trpos="0"' + (TRPOS ? "" : ' class="on"') + '>Todos</button><button data-trpos="1"' + (TRPOS ? ' class="on"' : "") + '>Só positivos</button></div><h3 class="small">Todo o tempo</h3>' + tb("ovT") + '<h3 class="small">Últimas 24 h</h3>' + tb("ovU"));
     const k = (t, x) => [t, sg(x.saldo_sol, ""), x.trades + " trades · " + x.traders + " traders", "pnl"];
     kpis("ovK", [k("Todo o tempo", R.total), k("Últimas 24 h", R.total24)]);
     tab("ovT", R.todo); tab("ovU", R.h24);
