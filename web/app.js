@@ -3240,10 +3240,11 @@
     // 0.32.148 (pedido do dono): quadro em cima dizendo se a carteira REAL está ligada e quais abas compram nela
     const c = cfg(), R = (D && D.real) || {}, on = !!c.pump_real_enabled, rl = L.filter(([a]) => cfgNow(a[1]) && c[a[2]]).map(([a]) => a[0]);
     $("abReal").className = "card abreal " + (on ? "on" : "off");
+    $("abReal").hidden = !rm;                         // 0.32.149 (pedido do dono): só no modo Real
     $("abReal").innerHTML = '<div class="abr-l"><small>Carteira REAL</small><b>' + (on ? "LIGADA" : "DESLIGADA") + "</b></div><div class=\"abr-t\">" +
       (on ? (rl.length ? "Compram com dinheiro de verdade: <b>" + rl.map(esc).join(", ") + "</b>." : "Ligada, mas nenhuma aba ligada está com a opção REAL: nada compra na real agora.") + (R.wallet_configured === false ? ' <span class="down">Carteira real não configurada.</span>' : "")
         : "Nenhuma aba compra na carteira real. As abas ligadas abaixo compram só na FICTÍCIA.") +
-      '</div><a class="btn sm" href="#real">Abrir Execução real</a>';
+      '</div><button type="button" class="btn tgl sw ' + (on ? "on" : "off") + '" data-realall="1" role="switch" aria-checked="' + on + '" aria-label="Execução real">' + (on ? "Ligado" : "Desligado") + "</button>";
     $("abSum").innerHTML = "<b>" + n + " de " + ABAS_TR.length + " abas</b> comprando · " + np + (np === 1 ? " posição aberta" : " posições abertas");
     $("abGrid").innerHTML = grp("Copiam carteiras", "repetem o que uma carteira faz", L.filter(([a]) => ABAS_COPIA.includes(a[0]))) + grp("Compram sozinhas", "decidem pelas próprias regras", L.filter(([a]) => !ABAS_COPIA.includes(a[0])));
     let tem = false; try { tem = !!localStorage.getItem(ABAS_MEM); } catch (e) { /* idem */ }
@@ -3477,11 +3478,12 @@
     table("rlT", ["Aba", "O que faz", "Opção da aba", "Compra na REAL agora"], (r.lugares || []).map((x) => [esc(x.aba), esc(x.o_que), x.opcao == null ? "–" : x.opcao ? "ligada" : "desligada",
       !r.enabled ? '<span class="tag loss">bloqueada</span>' : x.opcao === false ? '<span class="dim">não</span>' : '<span class="tag win">sim</span>']), "");
   }
-  async function realAll() {
+  async function realAll(places = true) {
     const was = !!(D && D.real && D.real.enabled);
-    if (was) { const r = await BB.api("/api/pump/real", { body: { enabled: false } }); if (r.error) { toast(r.error); return; } await poll(true); openRealPlaces(); } else { await realToggle(); }
+    if (was) { const r = await BB.api("/api/pump/real", { body: { enabled: false } }); if (r.error) { toast(r.error); return; } await poll(true); if (places) openRealPlaces(); } else { await realToggle(); }
   }
-  document.addEventListener("click", (e) => { if (e.target.closest("#realAll")) realAll(); if (e.target.closest("[data-jtclose]")) $("jtM").hidden = true; });
+  // 0.32.149: a chave do quadro de Abas de trades é a mesma da tela Execução real (mesma rota; ligar pede a confirmação de sempre)
+  document.addEventListener("click", (e) => { if (e.target.closest("#realAll")) realAll(); if (e.target.closest("[data-realall]")) realAll(false); if (e.target.closest("[data-jtclose]")) $("jtM").hidden = true; });
   function renderOverview() {
     const c = cfg(), R = D.real || {}, rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, st0 = D.status || {}, RP = D.rpc || {};
     const pnlPct = Wt.start_sol ? (Wt.pnl_sol / Wt.start_sol) * 100 : null;

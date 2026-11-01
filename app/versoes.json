@@ -1500,6 +1500,11 @@
    "versao": "0.32.148",
    "inicio": "2026-11-01T21:38:01+00:00",
    "titulo": "quadro da carteira REAL no topo de Abas de trades"
+  },
+  {
+   "versao": "0.32.149",
+   "inicio": "2026-11-01T21:45:47+00:00",
+   "titulo": "chave da carteira REAL em Abas de trades, só no modo Real"
   }
  ]
 }

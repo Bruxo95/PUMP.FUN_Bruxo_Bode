@@ -936,3 +936,4 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .kphbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 -4px}.kphbar .muted{margin-right:auto}.kpis.kphide{display:none!important}
 .posbar .seg{flex-wrap:wrap;max-width:100%}
 .abreal{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 18px;margin-bottom:10px;border-width:2px}.abreal.on{border-color:#ef4444;background:linear-gradient(90deg,rgba(239,68,68,.18),transparent 70%)}.abreal.off{border-color:#3b82f6;background:linear-gradient(90deg,rgba(59,130,246,.16),transparent 70%)}.abreal .abr-l{display:flex;flex-direction:column;min-width:150px}.abreal .abr-l small{color:var(--muted);font-size:12px}.abreal .abr-l b{font-size:22px;letter-spacing:.5px}.abreal.on .abr-l b{color:#f87171}.abreal.off .abr-l b{color:#93c5fd}.abreal .abr-t{flex:1;min-width:220px}
+.abreal[hidden]{display:none}
