@@ -17,3 +17,15 @@ def test_each_window_counts_only_its_own_trades():
     assert P[6]["trades"] == 2 and P[6]["saldo_sol"] == 0.15 and P[6]["perdas"] == 1
     assert P[12]["trades"] == 3 and P[12]["investido_sol"] == 0.3
     assert P[24]["trades"] == 4 and P[24]["saldo_sol"] == 0.24 and P[24]["saldo_antes"] == 9.76
+
+
+def test_each_tab_gets_its_own_percent_and_windows():
+    T = [dict(_t(0.5, 0.02), aba="A", reason="stop de perda (-20%)"), dict(_t(3, -0.05), aba="A", reason="stop de perda (-30%)"), dict(_t(30, 0.3, 1.0), aba="B", reason="alvo")]
+    L = {x["aba"]: x for x in PumpFun.tabs(T, lambda t: t["aba"], NOW)}
+    assert L["A"]["trades"] == 2 and L["A"]["pct"] == -15.0 and L["A"]["acerto"] == 50
+    assert L["B"]["pct"] == 30.0 and L["B"]["saldo_sol"] == 0.3
+    P = {p["horas"]: p for p in L["A"]["periodos"]}
+    assert P[1]["pct"] == 20.0 and P[6]["pct"] == -15.0 and "saldo_antes" not in P[1]
+    assert {p["horas"]: p["pct"] for p in L["B"]["periodos"]}[24] is None      # fora da janela de 24 h
+    assert L["A"]["motivos"][0]["nome"] == "stop de perda" and L["A"]["motivos"][0]["n"] == 2
+    assert [x["aba"] for x in PumpFun.tabs(T, lambda t: t["aba"], NOW)] == ["B", "A"]

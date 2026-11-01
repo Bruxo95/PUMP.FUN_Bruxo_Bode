@@ -1370,6 +1370,11 @@
    "versao": "0.32.122",
    "inicio": "2026-11-01T11:47:31+00:00",
    "titulo": "reenvio da abertura antes de carregar os dados"
+  },
+  {
+   "versao": "0.32.123",
+   "inicio": "2026-11-01T12:08:08+00:00",
+   "titulo": "resultado por aba na janela Resultado"
   }
  ]
 }

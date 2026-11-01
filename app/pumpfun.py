@@ -952,6 +952,25 @@ class PumpFun:
                         "saldo_sol": round(saldo, 6), "saldo_antes": round(balance - saldo, 6)})
         return res
 
+    @classmethod
+    def tabs(cls, closed: list[dict], aba_of, now: float | None = None) -> list[dict]:
+        """0.32.123 (pedido do dono): resultado de cada aba, no total e em 1/6/12/24 h. O percentual é o saldo sobre o que entrou
+        nos trades fechados da aba. Roda só quando a janela abre: conta todos os trades e não cabe no snapshot de cada 2 s."""
+        from .resultstudy import _group, motivo
+        g: dict[str, list] = {}
+        for t in closed:
+            g.setdefault(aba_of(t), []).append(t)
+        pct = lambda saldo, inv: round(saldo / inv * 100, 2) if inv else None
+        out = []
+        for nome, L in g.items():
+            pnl = [float(t.get("pnl_sol") or 0) for t in L]
+            inv = sum(float(t.get("sol_in") or 0) for t in L)
+            per = [{k: v for k, v in p.items() if k != "saldo_antes"} | {"pct": pct(p["saldo_sol"], p["investido_sol"])} for p in cls.periods(L, 0.0, now)]
+            out.append({"aba": nome, "trades": len(L), "ganhos": sum(p > 0 for p in pnl), "perdas": sum(p <= 0 for p in pnl), "acerto": round(sum(p > 0 for p in pnl) / len(L) * 100),
+                        "ganhos_sol": round(sum(p for p in pnl if p > 0), 6), "perdas_sol": round(sum(p for p in pnl if p <= 0), 6), "saldo_sol": round(sum(pnl), 6),
+                        "investido_sol": round(inv, 6), "pct": pct(sum(pnl), inv), "periodos": per, "motivos": _group([(motivo(t.get("reason")), t) for t in L])[:6]})
+        return sorted(out, key=lambda x: -x["saldo_sol"])
+
     def wallet(self, real: bool = False) -> dict:
         start = 0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))
         closed = [t for t in self.trades(100000) if bool(t.get("real")) == real]

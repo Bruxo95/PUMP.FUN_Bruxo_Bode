@@ -1276,7 +1276,7 @@
     $("jtMT").textContent = "Token"; $("jtMS").textContent = "carregando…"; $("jtMB").innerHTML = ""; $("jtM").hidden = false; $("jtMX").focus();
     const x = await BB.api("/api/pump/jev-trade/" + encodeURIComponent(mint)); if (x.error) { $("jtMS").textContent = x.error; return; }
     $("jtMT").textContent = x.symbol || mint; $("jtMS").textContent = x.estado + (x.motivo ? " · " + x.motivo : "") + (x.res == null ? "" : " · resultado " + f(x.res, 1) + "%");
-    $("jtMB").innerHTML = '<h3 class="small">Leituras por minuto</h3><div class="tablewrap"><table id="jtMH" class="daytbl"></table></div><h3 class="small">Decisões do Jev</h3><div class="tablewrap"><table id="jtMD" class="daytbl"></table></div>';
+    $("jtMB").innerHTML = '<h3 class="small">Leituras por minuto</h3><div class="tbl-wrap"><table id="jtMH" class="daytbl"></table></div><h3 class="small">Decisões do Jev</h3><div class="tbl-wrap"><table id="jtMD" class="daytbl"></table></div>';
     table("jtMH", ["Idade (min)", "Detentores", "Valor de mercado (SOL)"], (x.hist || []).map((a) => [String(a.m), a.h == null ? "–" : String(a.h), a.mc == null ? "–" : String(a.mc)]), "Sem leituras.");
     table("jtMD", ["Idade (min)", "Fase", "Decisão", "Stop", "Resultado na hora"], (x.decisoes || []).map((d) => [String(d.m), esc(d.fase), jtTag(d), esc(String(d.stop || "–").replace("_", " ")), d.pct == null ? "–" : pc(d.pct)]), "Sem decisões.");
   }
@@ -1300,7 +1300,7 @@
     const I = JD_INFO[k], D = JV_D, G = (D.detalhe || {})[I[1]]; if (!G) return;
     const L = G.itens || [], sl = G.sol || 0.1;
     $("jtMT").textContent = I[0]; $("jtMS").textContent = (G.medidos || 0) + " tokens medidos" + (G.n > G.medidos ? " · " + (G.n - G.medidos) + " ainda medindo" : "");
-    $("jtMB").innerHTML = '<p class="muted small" style="margin:0 0 10px">' + esc(I[2](D)) + '</p><div class="kpis" id="jdK"></div><p class="small" id="jdN"></p><div class="tablewrap"><table id="jdT" class="daytbl"></table></div>';
+    $("jtMB").innerHTML = '<p class="muted small" style="margin:0 0 10px">' + esc(I[2](D)) + '</p><div class="kpis" id="jdK"></div><p class="small" id="jdN"></p><div class="tbl-wrap"><table id="jdT" class="daytbl"></table></div>';
     kpis("jdK", [["Ganhos somados", sg(G.ganhos_sol || 0), "", "pnl"], ["Perdas somadas", sg(G.perdas_sol || 0), "", "pnl"],
       ["Token típico (mediana)", G.mediana_pct == null ? "–" : pc(G.mediana_pct), "metade foi melhor, metade pior", "hit"],
       ["Sem os 3 maiores ganhos", sg(G.sem_top3_sol || 0), "os 3 maiores somam " + s4(G.top3_sol || 0) + " SOL", "mon"]]);
@@ -1320,7 +1320,7 @@
     const x = (JV_D.linhas || []).find((y) => y.mint === mint); if (!x) return;
     const mod = (a, b) => (a != null && b != null ? a + " compras × " + b + " vendas" : "–");
     $("jtMT").textContent = x.symbol || mint; $("jtMS").textContent = (x.kind === "lancamento" ? "lançamento" : "top trader") + " · " + dt(x.t);
-    $("jtMB").innerHTML = '<p class="small">' + pfM(x.mint, x.symbol) + '</p><div class="kpis" id="jlK"></div><h3 class="small">Detentores por minuto</h3><div class="tablewrap"><table id="jlT" class="daytbl"></table></div>';
+    $("jtMB").innerHTML = '<p class="small">' + pfM(x.mint, x.symbol) + '</p><div class="kpis" id="jlK"></div><h3 class="small">Detentores por minuto</h3><div class="tbl-wrap"><table id="jlT" class="daytbl"></table></div>';
     kpis("jlK", [["Regra", x.ligou == null ? "não ligou" : "ligou aos " + x.ligou + " min", "Jev: " + esc(x.jev || "sem resposta"), "hit"], ["Resultado", x.res == null ? "–" : pc(x.res), "pico " + (x.pico == null ? "–" : pc(x.pico)), "pnl"],
       ["Compras × vendas (5 min)", mod(x.b5, x.s5), "agora, DexScreener", "tr"], ["Valor médio por negócio", usd(x.medio_usd, 2), "muito baixo costuma ser robô", "mon"],
       ["Top 10 detentores", x.top10 == null ? "–" : f(x.top10, 1) + "%", "fatia nas 10 maiores carteiras", "usr"], ["Fatia do criador", x.dev_pct == null ? "–" : f(x.dev_pct, 1) + "%", "o que o monitor viu", "usr"]]);
@@ -3117,18 +3117,45 @@
   // 0.32.103 (pedido do dono): cada cartão abre o que há por trás dele; a conta segue o botão FICTÍCIA/REAL do topo
   function ovShow(t, sub, html) { $("jtMT").textContent = t; $("jtMS").textContent = sub; $("jtMB").innerHTML = html; $("jtM").hidden = false; $("jtMX").focus(); }
   const ovTrades = (id, L) => table(id, ["Fechou", "Token", "Aba", "Resultado", "%", "Motivo"], L.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), esc(t.aba || "–"), sg(t.pnl_sol, ""), pc(t.pnl_pct), '<span class="wrapcell">' + esc(t.reason || "–") + "</span>"]), "Nenhum trade ainda.");
+  // 0.32.123 (pedido do dono): resultado por aba. Vem do servidor porque o painel só recebe os últimos 300 trades
+  let OV_ABAS = [];
+  const ABA_INFO = { "Explorar": "Compra sozinha tokens quase graduando que passam nos filtros do Explorar.", "Explorar · barrados": "Tokens que o Explorar barrou e continuaram subindo.",
+    "Base da pump.fun": "Compra sozinha tokens novos da Base com Boost ou chance alta.", "Maiores traders": "Compra quando os maiores traders entram no mesmo token.", "Maiores traders (80%+)": "Copia as carteiras sugeridas com 80% ou mais de acerto.",
+    "Calls quentes": "Compra a partir das calls com nota alta.", "Aba do Bruxo": "Entra quando um top trader compra um token novo.", "Lançamento sem trader": "Tokens novos com ritmo forte, sem trader por trás.",
+    "Jev Trade": "Observa os detentores do token e entra pela regra do Bruxo.", "Top traders": "Copia os traders do ranking e da sua lista.", "Copiar igual": "Copia as carteiras escolhidas, sem filtros.",
+    "Carteiras em estudo": "Copia as carteiras em estudo liberadas.", "Botão Comprar": "Compras feitas por você no botão.", "Copiar trades de usuário": "Repete as operações de outra conta." };
+  const ovPer = (h) => (h === 1 ? "Última hora" : "Últimas " + h + " h");
+  async function loadOvAbas(rm) {
+    const r = await BB.api("/api/pump/result-tabs?real=" + (rm ? 1 : 0), { quiet: true }); if (!$("ovA")) return;
+    OV_ABAS = r.abas || [];
+    table("ovA", ["Aba", "%", "Saldo", "Últimas 24 h", "Trades", "Acerto"], OV_ABAS.map((a, i) => { const d = a.periodos.find((p) => p.horas === 24) || {};
+      return ['<button class="linkbtn" data-ovaba="' + i + '">' + esc(a.aba) + "</button>", pc(a.pct), sg(a.saldo_sol, ""), d.trades ? pc(d.pct) + "<small>" + sg(d.saldo_sol, "") + " · " + d.trades + " trades</small>" : "–", a.trades + "<small>" + a.ganhos + " ganhos · " + a.perdas + " perdas</small>", a.acerto + "%"]; }),
+      r.error ? "Não consegui carregar agora." : "Nenhum trade fechado ainda.");
+  }
+  function openOvAba(i) {
+    const a = OV_ABAS[i]; if (!a) return;
+    const rm = realMode(), T = (D.trades || []).filter((t) => !!t.real === rm && t.aba === a.aba), P = (D.positions || []).filter((p) => !!p.real === rm && p.aba === a.aba);
+    const d = a.periodos.find((p) => p.horas === 24) || {}, sim = a.saldo_sol > 0 ? "lucro" : a.saldo_sol < 0 ? "prejuízo" : "empate";
+    const txt = "No total, " + a.trades + " trades fechados deram " + sim + " de " + s4(Math.abs(a.saldo_sol)) + " SOL, com " + a.acerto + "% de acerto." + (d.trades ? " Nas últimas 24 h foram " + d.trades + " trades e saldo de " + (d.saldo_sol > 0 ? "+" : "") + s4(d.saldo_sol) + " SOL." : " Nenhum trade fechou nas últimas 24 h.");
+    ovShow(a.aba, "carteira " + (rm ? "REAL" : "FICTÍCIA"), '<p class="small"><a href="#" data-kpi-back="ov_resultado">‹ Voltar ao Resultado</a></p><p class="muted small" style="margin:0 0 10px">' + esc(ABA_INFO[a.aba] || "") + " " + esc(txt) + '</p><div class="kpis" id="ovK"></div><h3 class="small">Por período</h3><div class="tbl-wrap"><table id="ovAP" class="daytbl"></table></div><h3 class="small">Por que saiu</h3><div class="tbl-wrap"><table id="ovAM" class="daytbl"></table></div><h3 class="small">Últimos trades</h3><div class="tbl-wrap"><table id="ovT" class="daytbl"></table></div>' + (T.length ? "" : '<p class="muted small">Esta aba não tem trades entre os últimos 300 da carteira.</p>'));
+    kpis("ovK", [["Resultado", pc(a.pct), sg(a.saldo_sol, "") + " SOL", "pnl"], ["Acerto", a.acerto + "%", a.ganhos + " ganhos · " + a.perdas + " perdas", "hit"], ["Investido", s4(a.investido_sol) + " SOL", "nos trades fechados", "wallet"], ["Abertas agora", String(P.length), "ainda não entram na conta", "tr"]]);
+    table("ovAP", ["Período", "%", "Saldo", "Ganhos", "Perdido", "Trades", "Investido"], a.periodos.map((p) => [ovPer(p.horas), p.trades ? pc(p.pct) : "–", sg(p.saldo_sol, ""), sg(p.ganhos_sol, ""), sg(p.perdas_sol, ""), p.trades + "<small>" + p.ganhos + " ganhos · " + p.perdas + " perdas</small>", s4(p.investido_sol) + " SOL"]), "");
+    table("ovAM", ["Motivo", "Trades", "Acerto", "Média", "Saldo"], (a.motivos || []).map((m) => ['<span class="shv">' + esc(m.nome) + "</span>", String(m.n), m.acerto + "%", pc(m.media_pct), sg(m.sol, "")]), "Sem dados.");
+    ovTrades("ovT", T.slice(0, 20));
+  }
   function openOv(k) {
     if (k === "ov_monitor") { openSys(); return; }
     if (k === "ov_real") { openRealPlaces(); return; }
     const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, nome = rm ? "REAL" : "FICTÍCIA";
     const T = (D.trades || []).filter((t) => !!t.real === rm), P = (D.positions || []).filter((p) => !!p.real === rm);
-    const tb = (id) => '<div class="tablewrap"><table id="' + id + '" class="daytbl"></table></div>';
+    const tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';
     if (k === "ov_carteira") {
       const addr = D.real && D.real.address;
       ovShow(rm ? "Carteira real" : "Saldo fictício", "carteira " + nome, '<p class="muted small" style="margin:0 0 10px">' + (rm ? "O saldo em SOL lido da blockchain. Não inclui o valor dos tokens que estão em posições abertas." : "Dinheiro de mentira: o valor inicial, mais o que já ganhou ou perdeu, mais as posições abertas no preço de agora.") + '</p><div class="kpis" id="ovK"></div>' + (rm && addr ? '<p class="small">Endereço: <a href="https://solscan.io/account/' + encodeURIComponent(addr) + '" target="_blank" rel="noopener">' + esc(addr) + "</a></p>" : ""));
       kpis("ovK", [rm ? ["Saldo", W && W.sol != null ? s4(W.sol) + " SOL" : "–", "na blockchain", "wallet"] : ["Valor total", s4(Wt.equity_sol) + " SOL", "início " + s4(Wt.start_sol) + " SOL", "wallet"], ["Em posições abertas", s4(Wt.open_value_sol) + " SOL", (Wt.open || 0) + " posições", "pos"], ["Resultado", sg(Wt.pnl_sol, ""), "fechado " + sg(Wt.realized_sol, ""), "pnl"]]);
     } else if (k === "ov_resultado") {
-      ovShow("Resultado", "carteira " + nome, '<p class="muted small" style="margin:0 0 10px">Tudo que já fechou, mais as posições abertas no preço de agora. A coluna 24 h do cartão soma só os trades fechados nas últimas 24 horas.</p><h3 class="small">Por período</h3>' + tb("ovP") + '<p class="muted small">Soma os trades fechados no período. Investido é o que entrou nesses trades, e Perdido é a soma das perdas. Posições abertas e vendas parciais de posições ainda abertas não entram.' + (rm ? " Na carteira real, o saldo de antes não aparece porque depósitos e saques mudam a conta." : "") + '</p><div class="kpis" id="ovK"></div><h3 class="small">Últimos trades</h3>' + tb("ovT"));
+      ovShow("Resultado", "carteira " + nome, '<p class="muted small" style="margin:0 0 10px">Tudo que já fechou, mais as posições abertas no preço de agora. A coluna 24 h do cartão soma só os trades fechados nas últimas 24 horas.</p><h3 class="small">Por período</h3>' + tb("ovP") + '<p class="muted small">Soma os trades fechados no período. Investido é o que entrou nesses trades, e Perdido é a soma das perdas. Posições abertas e vendas parciais de posições ainda abertas não entram.' + (rm ? " Na carteira real, o saldo de antes não aparece porque depósitos e saques mudam a conta." : "") + '</p><h3 class="small" data-novo-ate="2026-11-15">Por aba</h3>' + tb("ovA") + '<p class="muted small">O percentual é o saldo sobre o que entrou nos trades fechados da aba. Clique no nome da aba para ver os detalhes.</p><div class="kpis" id="ovK"></div><h3 class="small">Últimos trades</h3>' + tb("ovT"));
+      marcarNovos(); loadOvAbas(rm);
       table("ovP", ["Período", "Trades", "Ganhos", "Perdido", "Saldo do período", "Investido", "Saldo antes", ""], (Wt.periodos || []).map((p) => ["Última" + (p.horas === 1 ? " hora" : "s " + p.horas + " h"), p.trades + "<small>" + p.ganhos + " ganhos · " + p.perdas + " perdas</small>", sg(p.ganhos_sol, ""), sg(p.perdas_sol, ""), sg(p.saldo_sol, ""), s4(p.investido_sol) + " SOL", rm ? "–" : s4(p.saldo_antes) + " SOL", p.trades ? '<button type="button" class="btn sm" data-rsh="' + p.horas + '">Estudar</button>' : "–"]), "Sem dados.");
       kpis("ovK", [["Resultado total", sg(Wt.pnl_sol, ""), "", "pnl"], ["Já fechado", sg(Wt.realized_sol, ""), (Wt.count || 0) + " trades", "tr"], ["Ganhos somados", sg(Wt.gains_sol, ""), (Wt.wins || 0) + " trades", "hit"], ["Perdas somadas", sg(Wt.losses_sol, ""), (Wt.losses || 0) + " trades", "mon"]]);
       ovTrades("ovT", T.slice(0, 30));
@@ -3161,7 +3188,7 @@
   }
   async function rsMarks(rm) { const r = await BB.api("/api/pump/result-study/marcas?real=" + (rm ? 1 : 0), { quiet: true }); if (!r.error) { RS_MK = r; rsPaint(); } }
   function renderRs(E, guard) {
-    const tb = (id) => '<div class="tablewrap"><table id="' + id + '" class="daytbl"></table></div>';
+    const tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';
     $("jtMB").innerHTML = (guard ? '<p class="small"><a href="#" data-kpi-back="ov_resultado">‹ Voltar ao Resultado</a></p>' : "") + '<div class="kpis" id="rsK"></div><h3 class="small">O que este período ensina</h3><ul class="small" id="rsL"></ul>' +
       '<h3 class="small">Por aba</h3>' + tb("rsA") + '<h3 class="small">Por motivo de saída</h3>' + tb("rsM") + '<h3 class="small">Por tempo de posição</h3>' + tb("rsT") + '<h3 class="small">Maiores ganhos</h3>' + tb("rsG") + '<h3 class="small">Maiores perdas</h3>' + tb("rsP") + (guard ? '<h3 class="small">Estudos guardados</h3>' + tb("rsH") : "") + '<p class="muted small">Só mede: não muda filtro, compra ou venda. A Base geral soma os dias fechados, que o robô grava sozinho, para não contar o mesmo trade duas vezes.</p>';
     kpis("rsK", [["Saldo do período", sg(E.saldo_sol, ""), (E.trades || 0) + " trades", "pnl"], ["Retorno sobre o investido", E.retorno_pct == null ? "–" : pc(E.retorno_pct), s4(E.investido_sol) + " SOL investidos", "tr"],
@@ -3190,6 +3217,7 @@
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-rsh]"); if (b) { openRs(+b.dataset.rsh); return; }
     const v = e.target.closest("[data-rsv]"); if (v) { openRsItem(v.dataset.rsv); return; }
+    const oa = e.target.closest("[data-ovaba]"); if (oa) { openOvAba(+oa.dataset.ovaba); return; }
     const k = e.target.closest("[data-kpi-back]"); if (k) { e.preventDefault(); openOv(k.dataset.kpiBack); }
   });
   // 0.32.117: cérebro em sombra; o veredito vem da faixa de confiança por dia, nunca só do total em SOL
@@ -3230,7 +3258,7 @@
     const r = await BB.api("/api/pump/real/lugares"); if (r.error) { $("jtMS").textContent = r.error; return; }
     $("jtMS").textContent = r.enabled ? "LIGADA" + (r.on_at ? " desde " + dt(r.on_at) : "") : "DESLIGADA em todas as abas" + (r.off_at ? " desde " + dt(r.off_at) : "");
     $("jtMB").innerHTML = '<p class="muted small" style="margin:0 0 10px">' + (r.enabled ? "A chave geral está ligada: cada aba compra na REAL conforme a própria opção." : "Nenhuma compra real sai de nenhuma aba.") +
-      " Desligar não vende nada: " + (r.abertas ? "as " + r.abertas + " posições reais abertas continuam" : "posições reais abertas continuam") + " com stop e venda normais. A opção de cada aba fica guardada, e ao religar tudo volta como estava.</p>" + '<div class="tablewrap"><table id="rlT" class="daytbl"></table></div>';
+      " Desligar não vende nada: " + (r.abertas ? "as " + r.abertas + " posições reais abertas continuam" : "posições reais abertas continuam") + " com stop e venda normais. A opção de cada aba fica guardada, e ao religar tudo volta como estava.</p>" + '<div class="tbl-wrap"><table id="rlT" class="daytbl"></table></div>';
     table("rlT", ["Aba", "O que faz", "Opção da aba", "Compra na REAL agora"], (r.lugares || []).map((x) => [esc(x.aba), esc(x.o_que), x.opcao == null ? "–" : x.opcao ? "ligada" : "desligada",
       !r.enabled ? '<span class="tag loss">bloqueada</span>' : x.opcao === false ? '<span class="dim">não</span>' : '<span class="tag win">sim</span>']), "");
   }

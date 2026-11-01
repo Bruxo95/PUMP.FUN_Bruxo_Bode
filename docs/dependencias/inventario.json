@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-01",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9d02a75e09cdb220a9b56c08228e073588180fb4",
-    "application_version": "0.32.122 · 2026-11-01 · reenvio da abertura antes de carregar os dados",
+    "repository_reference": "cec3d75cd605d4018c59abfe24540114f3cbf6f0",
+    "application_version": "0.32.123 · 2026-11-01 · resultado por aba na janela Resultado",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "5747fff4c09e0b06c0ef904e6ff59b97507867f8ad2b981a1f6f2754b57d043a",
+      "app/version.py": "156b2286508e2d92be043633ba63502a297f6e72c16d072a595575d9d195cc9f",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f6d6f9bae78a8df17fc31e93a3d40469ae6fcd4b3df9239b4350848920d3eb50"
+  "pdf_sha256": "6f2c90eb825e2ced3e8331af2a9d238d14ae01547741dd79950b2367376f1b28"
 }
