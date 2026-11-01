@@ -1490,6 +1490,11 @@
    "versao": "0.32.146",
    "inicio": "2026-11-01T21:18:05+00:00",
    "titulo": "linha de 6 h e esconder as linhas de período na Visão geral"
+  },
+  {
+   "versao": "0.32.147",
+   "inicio": "2026-11-01T21:21:14+00:00",
+   "titulo": "posições por período 1/6/12/24 h"
   }
  ]
 }

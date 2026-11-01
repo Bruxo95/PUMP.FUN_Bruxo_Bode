@@ -934,3 +934,4 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .hrep-h{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.hrep-h .sp{flex:1}.hrep-s{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:6px 0}
 .trlic{margin:4px 0 8px;padding-left:18px;line-height:1.5}
 .kphbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 -4px}.kphbar .muted{margin-right:auto}.kpis.kphide{display:none!important}
+.posbar .seg{flex-wrap:wrap;max-width:100%}

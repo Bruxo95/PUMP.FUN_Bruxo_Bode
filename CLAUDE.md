@@ -1488,3 +1488,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   regex (`ov1_*`); botão `data-r="0.0416667"` (1h) no `#rangeSeg`. Conferido em 1440 e 390 px sem rolagem lateral.
 
 - 0.32.146 (pedido do dono): `#kpis6` e botão `data-r="0.25"` (6h); barra `.kphbar` com `#kpHSeg` (`data-kph`) e `#kpHAll`: `KPH` (horas escondidas, `localStorage` `pf_kph`), `kphApply` põe `.kphide` nas linhas. Conferido em 1440 e 390 px sem rolagem lateral.
+
+- 0.32.147 (pedido do dono): Posições com `POSF.h` (`#posH`, `data-posh`; 0 = tudo) filtra por `posOpenT` antes das abas e dos KPIs. `.posbar .seg` quebra linha no celular. Conferido em 1440 e 390 px sem rolagem lateral.

@@ -3735,7 +3735,7 @@
       "</details></article>";
   }
   // 0.32.104 — Posições: busca, ordem, filtro por aba de origem e resumo (estado guardado neste navegador)
-  const POSF = { q: "", sort: "ganho_pct", res: "todas", aba: "" };
+  const POSF = { q: "", sort: "ganho_pct", res: "todas", aba: "", h: 0 };
   try { Object.assign(POSF, JSON.parse(localStorage.getItem("pf_posf") || "{}")); } catch (e) { /* sem armazenamento */ }
   const posSave = () => { try { localStorage.setItem("pf_posf", JSON.stringify(POSF)); } catch (e) { /* */ } };
   const posAba = (p) => p.aba || (p.wallet && p.wallet !== "manual" ? "Top traders" : "Outras");
@@ -3745,7 +3745,9 @@
   function posView(P) {
     // resumo por aba (antes dos filtros de aba e resultado, depois da busca)
     const q = (POSF.q || "").trim().toLowerCase();
-    const Q = !q ? P : P.filter((p) => [p.symbol, p.mint, p.wallet, posAba(p), p.auto].some((v) => v && String(v).toLowerCase().includes(q)));
+    // 0.32.147 (pedido do dono): só as posições abertas na última 1/6/12/24 h (0 = todas)
+    const hc = POSF.h ? Date.now() / 1000 - POSF.h * 3600 : 0;
+    const Q = P.filter((p) => (!q || [p.symbol, p.mint, p.wallet, posAba(p), p.auto].some((v) => v && String(v).toLowerCase().includes(q))) && (!hc || posOpenT(p) >= hc));
     const by = {};
     Q.forEach((p) => { const a = posAba(p), s = by[a] || (by[a] = { n: 0, sol: 0, inv: 0, g: 0, l: 0 }); s.n++; s.sol += p.pnl_now_sol || 0; s.inv += p.sol_in || 0; (posPct(p) || 0) >= 0 ? s.g++ : s.l++; });
     if (POSF.aba && !by[POSF.aba]) POSF.aba = "";
@@ -3762,7 +3764,7 @@
     const tot = V.reduce((s, p) => s + (p.pnl_now_sol || 0), 0), inv = V.reduce((s, p) => s + (p.sol_in || 0), 0);
     const win = V.filter((p) => (posPct(p) || 0) > 0), los = V.filter((p) => (posPct(p) || 0) < 0);
     const best = V.reduce((b, p) => (posPct(p) ?? -1e9) > (posPct(b) ?? -1e9) ? p : b, V[0]), worst = V.reduce((b, p) => (posPct(p) ?? 1e9) < (posPct(b) ?? 1e9) ? p : b, V[0]);
-    kpis("posK", [["Mostrando", String(V.length), "de " + P.length + " abertas" + (POSF.aba ? " · " + POSF.aba : ""), "tr"],
+    kpis("posK", [["Mostrando", String(V.length), "de " + P.length + " abertas" + (POSF.h ? " · abertas na última" + (POSF.h > 1 ? "s " + POSF.h + " h" : " 1 h") : "") + (POSF.aba ? " · " + POSF.aba : ""), "tr"],
       ["Ganho agora", sg(tot), "sobre " + s4(inv) + " SOL investidos" + (inv ? " (" + pc(tot / inv * 100) + ")" : ""), "pnl"],
       ["Ganhando × perdendo", win.length + " × " + los.length, V.length ? f(win.length / V.length * 100, 0) + "% no verde" : "–", "hit"],
       ["Melhor / pior", V.length ? pc(posPct(best)) + " / " + pc(posPct(worst)) : "–", V.length ? esc(best.symbol || "") + " · " + esc(worst.symbol || "") : "", "mon"]]);
@@ -3770,14 +3772,15 @@
     if ($("posQ") && document.activeElement !== $("posQ")) $("posQ").value = POSF.q || "";
     if ($("posSort")) $("posSort").value = POSF.sort;
     document.querySelectorAll("[data-posres]").forEach((b) => b.classList.toggle("on", b.dataset.posres === POSF.res));
+    document.querySelectorAll("[data-posh]").forEach((b) => b.classList.toggle("on", +b.dataset.posh === +(POSF.h || 0)));
     return V;
   }
   document.addEventListener("input", (e) => { if (e.target && e.target.id === "posQ") { POSF.q = e.target.value; posSave(); renderPositions(); } });
   document.addEventListener("change", (e) => { if (e.target && e.target.id === "posSort") { POSF.sort = e.target.value; posSave(); renderPositions(); } });
   document.addEventListener("click", (e) => {
-    const b = e.target.closest && e.target.closest("[data-posaba],[data-posres]");
+    const b = e.target.closest && e.target.closest("[data-posaba],[data-posres],[data-posh]");
     if (!b) return;
-    if (b.dataset.posaba != null) POSF.aba = b.dataset.posaba; else POSF.res = b.dataset.posres;
+    if (b.dataset.posh != null) POSF.h = +b.dataset.posh; else if (b.dataset.posaba != null) POSF.aba = b.dataset.posaba; else POSF.res = b.dataset.posres;
     posSave(); renderPositions();
   });
   function renderPositions() {
