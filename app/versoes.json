@@ -1520,6 +1520,11 @@
    "versao": "0.32.152",
    "inicio": "2026-11-01T22:19:29+00:00",
    "titulo": "ver o que muda antes e desfazer nos Ajustes de cada aba"
+  },
+  {
+   "versao": "0.32.153",
+   "inicio": "2026-11-01T22:42:38+00:00",
+   "titulo": "carteira no Solscan e todos os trades de cada trader no relatório"
   }
  ]
 }

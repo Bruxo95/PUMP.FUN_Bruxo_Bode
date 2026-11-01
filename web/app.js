@@ -3911,10 +3911,29 @@
     HIST_T.busy = false;
     if (!r.error) { HIST_T.key = key; HIST_T.at = Date.now(); HIST_T.data = r; if (VIEW === "historico") renderHistory(); }
   }
+  // 0.32.153 (pedido do dono): a carteira abre no Solscan e o botão Trades mostra cada moeda com o ganho dela
+  let TRREP = null;
+  const solW = (w, t) => '<a href="https://solscan.io/account/' + encodeURIComponent(w) + '" target="_blank" rel="noopener" title="' + esc(w) + ' · abrir no Solscan">' + t + "</a>";
+  function openTrList(qual, i) {
+    const R = TRREP && TRREP.R, x = R && (R[qual] || [])[i]; if (!x) return;
+    const L = x.lista || [], nm = x.nome || shortW(x.wallet);
+    ovShow("Trades · " + nm, (R.real ? "carteira REAL" : "carteira FICTÍCIA") + " · " + R.aba + " · " + (qual === "h24" ? "últimas 24 h" : "todo o tempo"),
+      '<p class="small"><a href="#" data-trback="1">‹ Voltar ao relatório</a> · ' + solW(x.wallet, "abrir a carteira no Solscan") + '</p><div class="kpis" id="ovK2"></div><div class="tbl-wrap"><table id="ovTL" class="daytbl"></table></div>' +
+      (x.trades > L.length ? '<p class="muted small">Mostrando os ' + L.length + " mais recentes de " + x.trades + " trades.</p>" : ""));
+    kpis("ovK2", [["Resultado", sg(x.saldo_sol, ""), pc(x.pct) + " sobre " + s4(x.investido_sol) + " SOL", "pnl"], ["Trades", String(x.trades), '<span class="up">' + x.ganhos + " ganhos</span> · <span class=\"down\">" + x.perdas + " perdas</span>", "tr"], ["Acerto", x.acerto + "%", x.dias + " dias com trade", "hit"]]);
+    table("ovTL", ["Fechou", "Moeda", "Investido", "%", "Resultado", "Por que saiu"], L.map((t) => [dt(t.closed_at), t.mint ? pfM(t.mint, t.symbol) : esc(t.symbol || "?"), s4(t.sol_in || 0), pc(t.pnl_pct), sg(t.pnl_sol, ""), esc(t.reason || "")]),
+      x.lista === undefined ? "Este relatório é antigo e não guardou os trades. Gere de novo pelo Histórico." : "Nenhum trade.");
+  }
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest && e.target.closest("[data-trlist],[data-trback]"); if (!t) return;
+    e.preventDefault();
+    if (t.dataset.trback) { if (TRREP) openTrRep(TRREP.R, TRREP.quando); } else { const [q, i] = t.dataset.trlist.split(":"); openTrList(q, +i); }
+  });
   function openTrRep(R, quando) {
-    const nome = (x) => (x.nome ? esc(x.nome) + "<small>" + esc(shortW(x.wallet)) + "</small>" : esc(shortW(x.wallet)));
+    TRREP = { R, quando };
+    const nome = (x) => (x.nome ? solW(x.wallet, esc(x.nome)) + "<small>" + esc(shortW(x.wallet)) + "</small>" : solW(x.wallet, esc(shortW(x.wallet))));
     const VD = { provado: "win", ruim: "loss", promissor: "sim" };
-    const tab = (id, L) => table(id, ["Trader", "Veredito", "Trades", "Acerto", "%", "Resultado", "Melhor", "Pior"], L.map((x) => [nome(x), '<span class="tag ' + (VD[x.veredito] || "neutral") + '">' + esc(x.veredito) + "</span>", x.trades + "<small>" + x.dias + " dias</small>", x.acerto + "%", pc(x.pct), sg(x.saldo_sol, ""), esc(x.melhor.symbol || "") + "<small>" + sg(x.melhor.sol, "") + "</small>", esc(x.pior.symbol || "") + "<small>" + sg(x.pior.sol, "") + "</small>"]), "Nenhum trader neste período.");
+    const tab = (id, L) => table(id, ["Trader", "Veredito", "Trades", "Acerto", "%", "Resultado", "Melhor", "Pior", ""], L.map((x, i) => [nome(x), '<span class="tag ' + (VD[x.veredito] || "neutral") + '">' + esc(x.veredito) + "</span>", x.trades + "<small>" + x.dias + " dias</small>", x.acerto + "%", pc(x.pct), sg(x.saldo_sol, ""), esc(x.melhor.symbol || "") + "<small>" + sg(x.melhor.sol, "") + "</small>", esc(x.pior.symbol || "") + "<small>" + sg(x.pior.sol, "") + "</small>", '<button class="btn sm" data-trlist="' + (id === "ovU" ? "h24" : "todo") + ":" + i + '">Trades</button>']), "Nenhum trader neste período.");
     const tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';
     ovShow("Relatório · " + R.aba, (R.real ? "carteira REAL" : "carteira FICTÍCIA") + (quando ? " · " + dt(quando) : ""), '<div class="kpis" id="ovK"></div><h3 class="small">O que este relatório mostra</h3><ul class="small trlic">' + (R.licoes || []).map((x) => "<li>" + esc(x) + "</li>").join("") + '</ul><h3 class="small">Todo o tempo</h3>' + tb("ovT") + '<h3 class="small">Últimas 24 h</h3>' + tb("ovU"));
     const k = (t, x) => [t, sg(x.saldo_sol, ""), x.trades + " trades · " + x.traders + " traders", "pnl"];

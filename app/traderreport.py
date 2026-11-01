@@ -15,6 +15,7 @@ from .toplab import trader_verdict
 JANELA_S = 86400
 MIN_REP = 2
 MIN_LICAO = 3
+LISTA_MAX = 60                       # 0.32.153: trades de cada trader no relatório (mais recentes primeiro)
 
 
 def _linha(w: str, L: list[dict], names: dict) -> dict:
@@ -26,7 +27,10 @@ def _linha(w: str, L: list[dict], names: dict) -> dict:
     o = sorted(L, key=lambda t: float(t.get("pnl_sol") or 0))
     return {"wallet": w, "nome": names.get(w), "trades": len(L), "ganhos": ganhos, "perdas": len(L) - ganhos, "acerto": acerto, "saldo_sol": round(saldo, 6), "investido_sol": round(inv, 6),
             "pct": round(saldo / inv * 100, 2) if inv else None, "dias": ci["dias"], "lo": ci["lo"], "hi": ci["hi"], "veredito": trader_verdict(ci, len(L), acerto, saldo),
-            "melhor": {"symbol": o[-1].get("symbol"), "sol": o[-1].get("pnl_sol")}, "pior": {"symbol": o[0].get("symbol"), "sol": o[0].get("pnl_sol")}}
+            "melhor": {"symbol": o[-1].get("symbol"), "sol": o[-1].get("pnl_sol")}, "pior": {"symbol": o[0].get("symbol"), "sol": o[0].get("pnl_sol")},
+            # 0.32.153 (pedido do dono): botão "Trades" abre cada moeda com o ganho/perda dela
+            "lista": [{k: t.get(k) for k in ("symbol", "mint", "opened_at", "closed_at", "sol_in", "pnl_sol", "pnl_pct", "reason")}
+                      for t in sorted(L, key=lambda t: ts(t) or 0, reverse=True)[:LISTA_MAX]]}
 
 
 def linhas(L: list[dict], names: dict) -> list[dict]:

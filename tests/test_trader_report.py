@@ -57,3 +57,13 @@ def test_routes_save_and_list_the_report(env):
     assert len(b["relatorios"]) == 1 and b["traders"][0]["trades"] == 1
     assert c.get("/api/pump/trader-report/item?id=" + b["relatorios"][0]["id"], headers=A).json()["aba"] == "Top traders"
     assert c.post("/api/pump/trader-report", json={"aba": "inventada"}, headers=A).status_code == 400
+
+
+def test_report_lists_each_trade_of_the_trader():
+    from app import traderreport
+    now = 1_800_000_000
+    T = [{"wallet": "W" * 44, "aba": "Top traders", "symbol": f"T{i}", "mint": f"M{i}", "sol_in": 0.1, "pnl_sol": 0.01 * i, "pnl_pct": 10.0 * i,
+          "closed_at": f"2026-11-01T{20 - i:02d}:00:00+00:00", "reason": "stop"} for i in range(1, 4)]
+    r = traderreport.build(T, "Top traders", lambda t: t["aba"], False, {}, now)
+    L = r["todo"][0]["lista"]
+    assert [x["symbol"] for x in L] == ["T1", "T2", "T3"] and L[0]["pnl_sol"] == 0.01 and L[0]["reason"] == "stop"
