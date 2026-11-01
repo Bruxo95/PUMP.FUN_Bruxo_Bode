@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-01",
     "timezone": "Europe/Dublin",
-    "repository_reference": "72e249cdadec92c7615f7801b6afbe91b45a066e",
-    "application_version": "0.32.131 · 2026-11-01 · redesenho da tela Abas de trades",
+    "repository_reference": "79cd810548402dc4bc4d14203263d6422f2db908",
+    "application_version": "0.32.132 · 2026-11-01 · abas desligadas em quadrados",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "03a6a008e8afd81c87f1458c2e532027f06c8ddec0fd99c6936c860ef5ff2d57",
+      "app/version.py": "49c3225434cc56f4a2a1c10a78e7845fdca95cd9a8424e6e590a202b49278a6c",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "57e2838cb5eb03b2f0e686f8774140c5b40ea0c9939f99d101c42929465f1201"
+  "pdf_sha256": "e194b7df74169e824111549724d659be1c337be484aeca885f933596820801d5"
 }

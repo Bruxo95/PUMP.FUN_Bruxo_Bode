@@ -3221,7 +3221,7 @@
   }
   function abaBox(a, i) {
     const [nome, k, rk] = a, x = ABAS_R.find((y) => y.aba === nome), d = x && x.periodos.find((p) => p.horas === 24), rm = realMode(), n = ((D && D.positions) || []).filter((p) => !!p.real === rm && p.aba === nome).length, c = cfg();
-    return '<div class="abc"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && c[rk] ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
+    return '<div class="abc' + (cfgNow(k) ? "" : " off") + '"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && c[rk] ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
       '<div class="abc-d">' + esc(ABA_INFO[nome] || "") + '</div><div class="abc-n"><div><small>24 h</small><b>' + (d && d.trades ? pc(d.pct) : "–") + "</b></div><div><small>Trades</small><b>" + (d ? d.trades : 0) + "</b></div><div><small>Abertas</small><b>" + n + "</b></div></div>" +
       '<div class="abc-b"><button class="btn sm" data-abafoco="' + k + '">Só esta</button><button class="btn sm primary" data-abaopen="' + i + '">Ajustes</button></div></div>';
   }
@@ -3232,7 +3232,7 @@
     const grp = (t, s, G) => (G.length ? '<div class="abg"><b>' + t + '</b> <span class="muted">' + s + '</span></div><div class="abgrid">' + G.map(([a, i]) => abaBox(a, i)).join("") + "</div>" : "");
     $("abSum").innerHTML = "<b>" + on.length + " de " + ABAS_TR.length + " abas</b> comprando · " + np + (np === 1 ? " posição aberta" : " posições abertas");
     $("abGrid").innerHTML = grp("Copiam carteiras", "repetem o que uma carteira faz", on.filter(([a]) => ABAS_COPIA.includes(a[0]))) + grp("Compram sozinhas", "decidem pelas próprias regras", on.filter(([a]) => !ABAS_COPIA.includes(a[0]))) +
-      (off.length ? '<div class="abg"><b>Desligadas</b> <span class="muted">' + off.length + (off.length === 1 ? " aba" : " abas") + '</span></div><div class="abpills">' + off.map(([a, i]) => '<span class="abpill"><button class="linkbtn" data-abaopen="' + i + '">' + esc(a[0]) + '</button><button class="btn sm tgl sw" data-toggle="' + a[1] + '" data-clone="1">…</button></span>').join("") + "</div>" : "");
+      grp("Desligadas", off.length === 1 ? "1 aba sem compras novas" : off.length + " abas sem compras novas", off);
     let tem = false; try { tem = !!localStorage.getItem(ABAS_MEM); } catch (e) { /* idem */ }
     $("abUndo").hidden = !tem;
   }

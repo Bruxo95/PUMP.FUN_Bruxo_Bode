@@ -1415,6 +1415,11 @@
    "versao": "0.32.131",
    "inicio": "2026-11-01T13:29:34+00:00",
    "titulo": "redesenho da tela Abas de trades"
+  },
+  {
+   "versao": "0.32.132",
+   "inicio": "2026-11-01T13:47:07+00:00",
+   "titulo": "abas desligadas em quadrados"
   }
  ]
 }
