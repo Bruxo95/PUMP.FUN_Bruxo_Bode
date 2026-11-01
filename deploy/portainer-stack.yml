@@ -1,32 +1,64 @@
-## PUMP.FUN Bruxo Bode — stack do Portainer (Swarm + Traefik). Chaves em "Environment variables" do stack.
+## PUMP FUN COPY (PUMP.FUN Bruxo Bode) — stack do Portainer (Swarm + Traefik).
+## Este é o modelo que está no Portainer (formato do dono, 01/11/2026), com as melhorias para o projeto atual.
+## Environment variables do stack (Portainer → Stacks → pump_bruxo_bode → Environment variables):
+##   SUPABASE_ANON_KEY          chave anon (pública)
+##   SUPABASE_SERVICE_ROLE_KEY  chave service_role (SECRETA)
+##   APP_ENCRYPTION_KEY         chave mestra — sempre a MESMA; se trocar, as chaves salvas no painel param de abrir
+##   PUMP_REAL_ALLOWED          true = carteira REAL liberada; sem a variável = false (travada para todos)
+##   SOLANA_RPC_PUBLIC          opcional: RPC próprio (ex.: Helius); sem a variável = RPC público da Solana
+## Nunca coloque os valores das chaves neste arquivo.
 version: "3.7"
 services:
+
+## --------------------------- PUMP.FUN BRUXO BODE --------------------------- ##
+
   pump_bruxo_bode:
     image: ghcr.io/bruxo95/pump.fun_bruxo_bode:latest
+
     networks:
       - vpsrachar
+
     environment:
-      PUBLIC_BASE_URL: "https://pump.rachar.app.br"
-      PORT: "8080"
-      SUPABASE_URL: "https://vnvfluimpqvxbvdbmwqa.supabase.co"
-      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
-      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
-      APP_ENCRYPTION_KEY: "${APP_ENCRYPTION_KEY}"
-      SOLANA_RPC_PUBLIC: "https://api.mainnet-beta.solana.com"
-      PUMP_REAL_ALLOWED: "false"
+      - PUBLIC_BASE_URL=https://pump.rachar.app.br
+      - PORT=8080
+      - TZ_PAINEL=Europe/Berlin
+      - SUPABASE_URL=https://vnvfluimpqvxbvdbmwqa.supabase.co
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
+      - SOLANA_RPC_PUBLIC=${SOLANA_RPC_PUBLIC:-https://api.mainnet-beta.solana.com}
+      - PUMP_REAL_ALLOWED=${PUMP_REAL_ALLOWED:-false}
+
+    # logs do container com limite (30 MB no máximo): o disco cheio de 01/11/2026 derrubou o site
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     deploy:
       replicas: 1
+      # nunca 2 ao mesmo tempo: cada cópia do servidor compraria e venderia sozinha (stop-first = desliga a antiga antes)
+      update_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 10s
       placement:
         constraints:
-          - "node.role == manager"
+          - node.role == manager
       labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.pump_bruxo_bode.rule=Host(`pump.rachar.app.br`)"
-        - "traefik.http.routers.pump_bruxo_bode.entrypoints=websecure"
-        - "traefik.http.routers.pump_bruxo_bode.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.pump_bruxo_bode.service=pump_bruxo_bode"
-        - "traefik.http.services.pump_bruxo_bode.loadbalancer.server.port=8080"
-        - "traefik.http.services.pump_bruxo_bode.loadbalancer.passHostHeader=true"
+        - traefik.enable=true
+        - traefik.http.routers.pump_bruxo_bode.rule=Host(`pump.rachar.app.br`)
+        - traefik.http.routers.pump_bruxo_bode.entrypoints=websecure
+        - traefik.http.routers.pump_bruxo_bode.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.pump_bruxo_bode.service=pump_bruxo_bode
+        - traefik.http.services.pump_bruxo_bode.loadbalancer.server.port=8080
+        - traefik.http.services.pump_bruxo_bode.loadbalancer.passHostHeader=true
+
+## --------------------------- PUMP.FUN BRUXO BODE --------------------------- ##
+
 networks:
   vpsrachar:
     external: true

@@ -1470,6 +1470,11 @@
    "versao": "0.32.142",
    "inicio": "2026-11-01T18:37:39+00:00",
    "titulo": "gráfico da carteira com período de 12 h"
+  },
+  {
+   "versao": "0.32.143",
+   "inicio": "2026-11-01T19:39:10+00:00",
+   "titulo": "stack do Portainer no formato do dono"
   }
  ]
 }
