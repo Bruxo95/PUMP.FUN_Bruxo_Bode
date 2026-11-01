@@ -17,7 +17,6 @@ from .daily import TZ, TZ_NAME
 from .resultstudy import ts as closed_ts
 
 FORA = ("Explorar", "Botão Comprar", "Copiar trades de usuário")    # o Explorar já decide; os outros dois não são decisão do robô
-BASE = "Base da pump.fun"
 MCAP = [(0, 30, "abaixo de 30 SOL"), (30, 60, "30 a 60 SOL"), (60, 100, "60 a 100 SOL"), (100, 300, "100 a 300 SOL"), (300, 1e12, "300 SOL ou mais")]
 NOTA = [(0, 40, "abaixo de 40"), (40, 55, "40 a 55"), (55, 70, "55 a 70"), (70, 101, "70 ou mais")]
 PARTE = [(0, 0.4, "fraca"), (0.4, 0.7, "média"), (0.7, 1.01, "forte")]
@@ -46,8 +45,6 @@ def aba(t: dict, aba_of) -> str | None:
     if t.get("real") or t.get("follow_of") or t.get("origem") == "barrado_btn" or float(t.get("pnl_pct") or 0) >= SUSPECT_PCT:
         return None
     nome = aba_of(t)
-    if nome == "Botão Comprar" and str(t.get("entrou_porque") or "").startswith("automático:"):
-        return BASE                       # a compra automática da Base não grava origem: só o texto do motivo a separa do botão
     return None if nome in FORA else nome
 
 

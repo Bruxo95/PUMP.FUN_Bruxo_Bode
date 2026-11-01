@@ -1350,6 +1350,11 @@
    "versao": "0.32.118",
    "inicio": "2026-11-01T06:21:17+00:00",
    "titulo": "sugestões do ajuste, evolução por aba e teste do limite por hora"
+  },
+  {
+   "versao": "0.32.119",
+   "inicio": "2026-11-01T06:28:50+00:00",
+   "titulo": "etiqueta certa nas compras automáticas da Base"
   }
  ]
 }

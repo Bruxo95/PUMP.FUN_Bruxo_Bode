@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.118 · 2026-11-01 · sugestões do ajuste, evolução por aba e teste do limite por hora"
+VERSION = "0.32.119 · 2026-11-01 · etiqueta certa nas compras automáticas da Base"

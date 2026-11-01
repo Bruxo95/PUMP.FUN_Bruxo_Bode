@@ -4438,6 +4438,9 @@ class PumpFun:
         if x.get("eq"):
             return "Copiar igual"
         w = x.get("wallet")
+        # 0.32.119: a compra automática da Base não grava origem e caía como "Botão Comprar"; só o texto do motivo a separa
+        if str(x.get("auto") or x.get("entrou_porque") or "").startswith("automático:"):
+            return self.ABA_ORIGEM["base"]
         if x.get("manual") or w == "manual":
             return "Botão Comprar"
         if w in (getattr(self, "study", None) or []) or w in (getattr(self, "study_copy", None) or []):

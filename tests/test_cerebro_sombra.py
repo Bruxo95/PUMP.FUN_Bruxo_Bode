@@ -57,7 +57,6 @@ def test_real_copies_and_explorar_stay_out():
     assert bs.aba({"pnl_pct": 1, "follow_of": {"user": "x"}}, of) is None
     assert bs.aba({"pnl_pct": 1, "_a": "Explorar"}, of) is None and bs.aba({"pnl_pct": 5000}, of) is None
     assert bs.aba({"pnl_pct": 1, "_a": "Botão Comprar"}, of) is None
-    assert bs.aba({"pnl_pct": 1, "_a": "Botão Comprar", "entrou_porque": "automático: Boost ON"}, of) == bs.BASE
 
 
 def test_reading_never_claims_gain_without_the_range():
@@ -72,3 +71,14 @@ def test_module_decides_nothing():
     src = inspect.getsource(bs)
     for proibido in ("manual_buy", "learned_for_entry", "save_settings", "_sell("):
         assert proibido not in src
+
+
+def test_every_automatic_tab_gets_its_own_label():
+    import types
+    from app.pumpfun import PumpFun
+    o = types.SimpleNamespace(ABA_ORIGEM=PumpFun.ABA_ORIGEM, study=[], study_copy=[], elite_follow=[])
+    assert PumpFun.aba_of(o, {"origem": "jevtrade", "wallet": "manual"}) == "Jev Trade"
+    assert PumpFun.aba_of(o, {"origem": "explorar", "wallet": "manual"}) == "Explorar"
+    assert PumpFun.aba_of(o, {"wallet": "manual", "manual": True, "auto": "automático: Boost ON"}) == "Base da pump.fun"
+    assert PumpFun.aba_of(o, {"wallet": "manual", "manual": True, "entrou_porque": "automático: chance alta (70%)"}) == "Base da pump.fun"
+    assert PumpFun.aba_of(o, {"wallet": "manual", "manual": True}) == "Botão Comprar"
