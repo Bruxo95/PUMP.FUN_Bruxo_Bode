@@ -3221,7 +3221,7 @@
   let ABAS_R = [], ABAS_SIG = "", ABM = null;
   const abaRank = (x) => { const i = ABA_ORD.findIndex((r) => r.test(x.k)); return i < 0 ? 99 : i; };
   const abaTabOf = (x) => (ABA_SAI.test(x.k) ? "s" : ABA_LIM.test(x.k) ? "l" : "e");
-  const abaSig = () => abasKeys().map((k) => (cfgNow(k) ? 1 : 0)).join("") + (realMode() ? "r" : "f") + (cfg().pump_real_enabled ? "R" : "");
+  const abaSig = () => abasKeys().map((k) => (cfgNow(k) ? 1 : 0)).join("") + ABAS_TR.map((a) => (cfg()[a[2]] ? 1 : 0)).join("") + (realMode() ? "r" : "f") + (cfg().pump_real_enabled ? "R" : "") + ((D && D.real && D.real.wallet_configured) ? "W" : "");
   function abaOpts(i) {
     const [nome, k] = ABAS_TR[i], f = ABAS_OPT[nome], L = f ? cfgItems().filter((x) => f(x) && x.k !== k && !/real|jito/.test(x.k)) : [];
     return L.map((x, n) => [x, n]).sort((a, b) => abaRank(a[0]) - abaRank(b[0]) || a[1] - b[1]).map((a) => a[0]);
@@ -3237,6 +3237,13 @@
     ABAS_SIG = abaSig();
     const L = ABAS_TR.map((a, i) => [a, i]), n = L.filter(([a]) => cfgNow(a[1])).length, rm = realMode(), np = ((D && D.positions) || []).filter((p) => !!p.real === rm).length;
     const grp = (t, s, G) => '<div class="abg"><b>' + t + '</b> <span class="muted">' + s + '</span></div><div class="abgrid">' + G.map(([a, i]) => abaBox(a, i)).join("") + "</div>";
+    // 0.32.148 (pedido do dono): quadro em cima dizendo se a carteira REAL está ligada e quais abas compram nela
+    const c = cfg(), R = (D && D.real) || {}, on = !!c.pump_real_enabled, rl = L.filter(([a]) => cfgNow(a[1]) && c[a[2]]).map(([a]) => a[0]);
+    $("abReal").className = "card abreal " + (on ? "on" : "off");
+    $("abReal").innerHTML = '<div class="abr-l"><small>Carteira REAL</small><b>' + (on ? "LIGADA" : "DESLIGADA") + "</b></div><div class=\"abr-t\">" +
+      (on ? (rl.length ? "Compram com dinheiro de verdade: <b>" + rl.map(esc).join(", ") + "</b>." : "Ligada, mas nenhuma aba ligada está com a opção REAL: nada compra na real agora.") + (R.wallet_configured === false ? ' <span class="down">Carteira real não configurada.</span>' : "")
+        : "Nenhuma aba compra na carteira real. As abas ligadas abaixo compram só na FICTÍCIA.") +
+      '</div><a class="btn sm" href="#real">Abrir Execução real</a>';
     $("abSum").innerHTML = "<b>" + n + " de " + ABAS_TR.length + " abas</b> comprando · " + np + (np === 1 ? " posição aberta" : " posições abertas");
     $("abGrid").innerHTML = grp("Copiam carteiras", "repetem o que uma carteira faz", L.filter(([a]) => ABAS_COPIA.includes(a[0]))) + grp("Compram sozinhas", "decidem pelas próprias regras", L.filter(([a]) => !ABAS_COPIA.includes(a[0])));
     let tem = false; try { tem = !!localStorage.getItem(ABAS_MEM); } catch (e) { /* idem */ }

@@ -1495,6 +1495,11 @@
    "versao": "0.32.147",
    "inicio": "2026-11-01T21:21:14+00:00",
    "titulo": "posições por período 1/6/12/24 h"
+  },
+  {
+   "versao": "0.32.148",
+   "inicio": "2026-11-01T21:38:01+00:00",
+   "titulo": "quadro da carteira REAL no topo de Abas de trades"
   }
  ]
 }
