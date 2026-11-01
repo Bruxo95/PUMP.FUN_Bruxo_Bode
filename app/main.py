@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from contextlib import asynccontextmanager
 
 import httpx
@@ -41,7 +42,9 @@ def build_app():
     @asynccontextmanager
     async def lifespan(_app):
         log.info("PUMP FUN COPY %s iniciando — execução real DESLIGADA para todos", VERSION)
+        t0 = time.time()
         await hub.start()
+        hub.boot_s = round(time.time() - t0, 1)                # 0.32.120: aparece no /health
         yield
         await hub.stop()
         await http.aclose()

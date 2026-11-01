@@ -151,8 +151,11 @@ def limites(prep: list[tuple]) -> list[dict]:
                     cort.setdefault((nome, lim), []).append(t)
                 else:
                     aceitos.append(ab)
-        vistos = [x[0] for x in L]
-        pico[nome] = max(pico.get(nome, 0), max(sum(1 for y in vistos[i:] if y - x < 3600) for i, x in enumerate(vistos)))
+        ini = 0
+        for fim, (ab, _t) in enumerate(L):
+            while ab - L[ini][0] >= 3600:
+                ini += 1
+            pico[nome] = max(pico.get(nome, 0), fim - ini + 1)
     out = [{"aba": nome, "limite": lim, "pico_hora": pico[nome], **_total(L)} for (nome, lim), L in cort.items()]
     return sorted(out, key=lambda x: (x["aba"], x["limite"]))
 

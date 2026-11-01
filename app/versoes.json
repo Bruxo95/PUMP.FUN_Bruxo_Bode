@@ -1355,6 +1355,11 @@
    "versao": "0.32.119",
    "inicio": "2026-11-01T06:28:50+00:00",
    "titulo": "etiqueta certa nas compras automáticas da Base"
+  },
+  {
+   "versao": "0.32.120",
+   "inicio": "2026-11-01T06:51:26+00:00",
+   "titulo": "mais tempo para o servidor subir"
   }
  ]
 }
