@@ -1498,3 +1498,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.150 (pedido do dono): `abaBox` com `.abc-h` (12/6/1 h de `ABAS_R[].periodos`, que já vinham de `PumpFun.tabs`). Conferido em 1440 e 390 px.
 
 - 0.32.151 (pedido do dono): `hub.config_peer` + `POST /api/pump/config/peer` (admin, só leitura, `share_filter`); `config_applied` devolve `de_user`. Ajustes de Abas de trades: `#abCmp` (`abaCmpInit/Load/Draw`, `ABC`, `pf_abcmp`; padrão = último convite aceito, senão nome com "bruxo"), `data-abequal` (setCfg das diferentes) e `data-abshare` (convite por `/api/pump/config/share`). `tests/test_comparar_aba.py`.
+
+- 0.32.152 (pedido do dono): Ajustes de Abas de trades com prévia (`ABC.pend`, `abcPlan`, `data-abok`/`data-abcancel`) e desfazer (`data-abundo`, `localStorage` `pf_abundo:<aba>` com os valores de antes da última troca). Conferido em 1440 e 390 px.

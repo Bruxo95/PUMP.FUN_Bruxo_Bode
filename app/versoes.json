@@ -1515,6 +1515,11 @@
    "versao": "0.32.151",
    "inicio": "2026-11-01T22:10:01+00:00",
    "titulo": "comparar e compartilhar os ajustes de cada aba"
+  },
+  {
+   "versao": "0.32.152",
+   "inicio": "2026-11-01T22:19:29+00:00",
+   "titulo": "ver o que muda antes e desfazer nos Ajustes de cada aba"
   }
  ]
 }

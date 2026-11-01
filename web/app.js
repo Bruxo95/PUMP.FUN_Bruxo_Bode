@@ -3300,28 +3300,50 @@
     ABC.peer = uid; try { localStorage.setItem("pf_abcmp", uid); } catch (e) { /* */ }
     const r = await BB.api("/api/pump/config/peer", { body: { user: uid, keys: ABC.L.map((x) => x.k) }, quiet: true });
     if (!ABC || ABC.peer !== uid || !$("abCmpR")) return;
-    ABC.r = r; abaCmpDraw();
+    ABC.r = r; ABC.pend = null; abaCmpDraw();
   }
   const abcSame = (a, b) => (typeof a === "number" || typeof b === "number") ? Math.abs(+a - +b) < 1e-9 : a === b;
+  // 0.32.152 (pedido do dono): antes de trocar, mostra o que vai mudar; o "Desfazer" volta as opções de antes (guardadas neste navegador)
+  const abcFv = (v, x) => v === true ? "ligado" : v === false ? "desligado" : v == null ? "–" : (typeof v === "number" ? s4(v) : esc(String(v))) + (x.unit ? " " + esc(x.unit) : "");
+  const abcUndoKey = () => "pf_abundo:" + (ABC && ABC.nome);
+  function abcUndoGet() { try { return JSON.parse(localStorage.getItem(abcUndoKey()) || "null"); } catch (e) { return null; } }
+  function abcPlan(vals, tipo, titulo) {
+    const rows = ABC.L.filter((x) => x.k in vals && !abcSame(cfgNow(x.k), vals[x.k]));
+    if (!rows.length) { toast("Nada a mudar: já está assim."); return; }
+    ABC.pend = { tipo, titulo, vals: Object.fromEntries(rows.map((x) => [x.k, vals[x.k]])), rows };
+    abaCmpDraw();
+  }
   function abaCmpDraw() {
     const r = ABC && ABC.r; if (!r || !$("abCmpR")) return;
     if (r.error) { $("abCmpR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
-    const V = r.valores || {};
-    const fv = (v, x) => v === true ? "ligado" : v === false ? "desligado" : v == null ? "–" : (typeof v === "number" ? s4(v) : esc(String(v))) + (x.unit ? " " + esc(x.unit) : "");
+    const V = r.valores || {}, fv = abcFv, u = abcUndoGet(), pd = ABC.pend;
+    const undo = u && u.vals && Object.keys(u.vals).length ? '<div class="abcmp-undo">Última troca: ' + dt(u.t) + " (igual à de " + esc(u.de || "?") + ', ' + Object.keys(u.vals).length + ' opções) <button class="btn sm" data-abundo="1">Desfazer · voltar como estava</button></div>' : "";
+    if (pd) {
+      $("abCmpR").innerHTML = '<div class="abcmp-pend"><b>' + esc(pd.titulo) + "</b> · vai mudar " + pd.rows.length + " opç" + (pd.rows.length > 1 ? "ões" : "ão") + ":</div>" +
+        '<div class="tbl-wrap"><table class="daytbl"><thead><tr><th>Opção</th><th>Agora</th><th>Vai ficar</th></tr></thead><tbody>' +
+        pd.rows.map((x) => "<tr><td>" + esc(x.label) + "</td><td>" + fv(cfgNow(x.k), x) + "</td><td><b>" + fv(pd.vals[x.k], x) + "</b></td></tr>").join("") + "</tbody></table></div>" +
+        '<div class="abcmp-act"><button class="btn sm primary" data-abok="1">Confirmar</button><button class="btn sm" data-abcancel="1">Cancelar</button></div>';
+      return;
+    }
     const L = ABC.L.filter((x) => x.k in V), dif = L.filter((x) => !abcSame(cfgNow(x.k), V[x.k])), nm = esc(r.nome);
-    $("abCmpR").innerHTML = !dif.length ? '<div class="abcmp-ok">✓ Idêntica à de <b>' + nm + "</b> · " + L.length + " opções iguais</div>"
+    $("abCmpR").innerHTML = undo + (!dif.length ? '<div class="abcmp-ok">✓ Idêntica à de <b>' + nm + "</b> · " + L.length + " opções iguais</div>"
       : '<div class="abcmp-dif"><b>' + dif.length + " diferente" + (dif.length > 1 ? "s" : "") + "</b> da de " + nm + " (" + (L.length - dif.length) + ' iguais) <button class="btn sm primary" data-abequal="1">Deixar igual à de ' + nm + "</button></div>" +
         '<div class="tbl-wrap"><table class="daytbl"><thead><tr><th>Opção</th><th>Sua</th><th>De ' + nm + "</th></tr></thead><tbody>" +
-        dif.map((x) => "<tr><td>" + esc(x.label) + "</td><td>" + fv(cfgNow(x.k), x) + "</td><td><b>" + fv(V[x.k], x) + "</b></td></tr>").join("") + "</tbody></table></div>";
+        dif.map((x) => "<tr><td>" + esc(x.label) + "</td><td>" + fv(cfgNow(x.k), x) + "</td><td><b>" + fv(V[x.k], x) + "</b></td></tr>").join("") + "</tbody></table></div>");
   }
   document.addEventListener("change", (e) => { if (e.target && e.target.id === "abCmpU") abaCmpLoad(e.target.value); });
   document.addEventListener("click", async (e) => {
-    const t = e.target.closest && e.target.closest("[data-abequal],[data-abshare]"); if (!t || !ABC) return;
-    if (t.dataset.abequal) {
-      const V = (ABC.r && ABC.r.valores) || {}, body = {};
-      ABC.L.forEach((x) => { if (x.k in V && !abcSame(cfgNow(x.k), V[x.k])) body[x.k] = V[x.k]; });
-      if (!Object.keys(body).length || !confirm("Trocar " + Object.keys(body).length + " opções desta aba pelas de " + ABC.r.nome + "?")) return;
-      await setCfg(body); setTimeout(abaCmpDraw, 1500);
+    const t = e.target.closest && e.target.closest("[data-abequal],[data-abshare],[data-abundo],[data-abok],[data-abcancel]"); if (!t || !ABC) return;
+    if (t.dataset.abequal) abcPlan((ABC.r && ABC.r.valores) || {}, "igual", "Deixar igual à de " + ABC.r.nome);
+    else if (t.dataset.abundo) { const u = abcUndoGet(); if (u) abcPlan(u.vals, "undo", "Desfazer · voltar como estava antes de " + dt(u.t)); }
+    else if (t.dataset.abcancel) { ABC.pend = null; abaCmpDraw(); }
+    else if (t.dataset.abok) {
+      const pd = ABC.pend; if (!pd) return;
+      const antes = Object.fromEntries(pd.rows.map((x) => [x.k, cfgNow(x.k)]));
+      ABC.pend = null;
+      await setCfg(pd.vals);
+      try { if (pd.tipo === "undo") localStorage.removeItem(abcUndoKey()); else localStorage.setItem(abcUndoKey(), JSON.stringify({ t: Date.now(), de: ABC.r.nome, vals: antes })); } catch (er) { /* sem armazenamento */ }
+      setTimeout(abaCmpDraw, 1500); abaCmpDraw();
     } else {
       const to = $("abShU") && $("abShU").value; if (!to) return;
       const r = await BB.api("/api/pump/config/share", { body: { to, keys: ABC.L.map((x) => x.k), parte: (ABC.nome || "Aba") + " · ajustes" } });
