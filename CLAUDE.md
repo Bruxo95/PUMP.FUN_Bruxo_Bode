@@ -1474,3 +1474,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.134 (pedido do dono): `abaPct` em `renderHistory` mostra o percentual de cada aba no filtro do Histórico, com os trades do painel.
 - 0.32.135 (pedido do dono): gráfico da carteira com `CURVE`, `curveTip` (mouse e toque) e faixa `#curveRes`; ganho e perda somados desde o começo do período, só com trades fechados.
 - 0.32.136 (pedido do dono): quadrados da Visão geral com `k24`, usando `wallet().periodos`; `periods` ganhou `traders` (carteiras distintas com trade fechado). O 24 h do Resultado agora vem só de trades fechados, como o resto.
+- 0.32.137 (pedido do dono): `#kpis24` abaixo de `.kpirow` e `openOv24` (`ov24_*`): janelas só com 24 h; as listas usam os últimos 300 trades do painel e os totais usam `wallet().periodos`. O `k24` da 0.32.136 saiu.

@@ -919,7 +919,6 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .cres{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;border-top:1px solid var(--line);margin-top:8px;padding-top:9px}.cres:empty{display:none}
 .cres small{display:block;font-size:10.5px;color:var(--dim)}.cres b{font-family:var(--mono);font-size:13px;font-weight:600}
 @media (max-width:620px){.cres{grid-template-columns:repeat(2,minmax(0,1fr))}}
-/* 0.32.136: número de 24 h embaixo do total, no mesmo quadrado */
-.kpi .d:has(.k24){display:block;-webkit-line-clamp:unset;overflow:visible}
-.k24{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 5px;margin-top:7px;padding-top:6px;border-top:1px solid var(--line);color:var(--text);font-size:12.5px}
-.k24 i{font-style:normal;color:var(--dim);font-size:11px}
+/* 0.32.137: linha de quadrados de 24 h */
+.kp24{grid-template-columns:repeat(4,minmax(0,1fr))}.kp24 .v{font-size:clamp(15px,1.25vw,22px)}
+@media (max-width:860px){.kp24{grid-template-columns:repeat(2,minmax(0,1fr))}}
