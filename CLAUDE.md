@@ -1486,3 +1486,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.145 (pedido do dono): `#kpis1` (mesma linha de `#kpis24`/`#kpis12`, `periodos` com 1 h que já vinha do motor); `openOvH` lê as horas por
   regex (`ov1_*`); botão `data-r="0.0416667"` (1h) no `#rangeSeg`. Conferido em 1440 e 390 px sem rolagem lateral.
+
+- 0.32.146 (pedido do dono): `#kpis6` e botão `data-r="0.25"` (6h); barra `.kphbar` com `#kpHSeg` (`data-kph`) e `#kpHAll`: `KPH` (horas escondidas, `localStorage` `pf_kph`), `kphApply` põe `.kphide` nas linhas. Conferido em 1440 e 390 px sem rolagem lateral.

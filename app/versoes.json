@@ -1485,6 +1485,11 @@
    "versao": "0.32.145",
    "inicio": "2026-11-01T21:08:56+00:00",
    "titulo": "resultado e gráfico de 1 h na Visão geral"
+  },
+  {
+   "versao": "0.32.146",
+   "inicio": "2026-11-01T21:18:05+00:00",
+   "titulo": "linha de 6 h e esconder as linhas de período na Visão geral"
   }
  ]
 }

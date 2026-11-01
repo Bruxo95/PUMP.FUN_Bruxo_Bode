@@ -3340,8 +3340,16 @@
       table("ovT", ["Trader", "Trades", "Acerto", "Resultado"], Object.values(by).sort((a, b) => b.sol - a.sol).map((b) => [pfW(b.t.wallet, b.t), String(b.n), f(b.w / b.n * 100, 0) + "%", sg(b.sol, "")]), "Nenhum trader copiado fechou trade nas últimas " + hh + " h.");
     }
   }
+  // 0.32.146 (pedido do dono): linhas de período escondíveis, efeito sanfona; KPH = horas escondidas
+  let KPH = [];
+  try { KPH = JSON.parse(localStorage.getItem("pf_kph") || "[]") || []; } catch (e) { KPH = []; }
+  function kphApply() {
+    [24, 12, 6, 1].forEach((h) => { const el = $("kpis" + h); if (el) el.classList.toggle("kphide", KPH.includes(h)); });
+    document.querySelectorAll("#kpHSeg button").forEach((b) => b.classList.toggle("on", !KPH.includes(+b.dataset.kph)));
+    const a = $("kpHAll"); if (a) a.textContent = KPH.length === 4 ? "Mostrar tudo" : "Esconder tudo";
+  }
   function openOv(k) {
-    if (/^ov(1|12|24)_/.test(k)) { openOvH(k); return; }
+    if (/^ov(1|6|12|24)_/.test(k)) { openOvH(k); return; }
     if (k === "ov_monitor") { openSys(); return; }
     if (k === "ov_real") { openRealPlaces(); return; }
     const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, nome = rm ? "REAL" : "FICTÍCIA";
@@ -3482,13 +3490,14 @@
         '<br><button type="button" class="btn sm tgl sw ' + (R.enabled ? "on" : "off") + '" id="realAll" role="switch" aria-checked="' + !!R.enabled + '" aria-label="Execução real em todas as abas">' + (R.enabled ? "Ligado" : "Desligado") + "</button>", "wallet", "", "ov_real"],
     ]);
     // 0.32.137 (pedido do dono): uma linha própria de quadrados, só com as últimas 24 h; o clique abre a mesma janela, só com esse período
-    [24, 12, 1].forEach((h) => { const p = (Wt.periodos || []).find((x) => x.horas === h) || {}, o = "ov" + h + "_";
+    [24, 12, 6, 1].forEach((h) => { const p = (Wt.periodos || []).find((x) => x.horas === h) || {}, o = "ov" + h + "_";
       kpis("kpis" + h, [["Resultado " + h + " h", sg(p.saldo_sol || 0, ""), p.investido_sol ? pc(p.saldo_sol / p.investido_sol * 100) + " sobre o investido" : "sem trades fechados", "pnl", "", o + "resultado"],
         ["Trades fechados " + h + " h", String(p.trades || 0), '<span class="up">' + (p.ganhos || 0) + " ganhos</span> · <span class=\"down\">" + (p.perdas || 0) + " perdas</span>", "tr", "", o + "trades"],
         ["Taxa de acerto " + h + " h", p.trades ? f(p.ganhos / p.trades * 100, 0) + "%" : "–", "ganhos " + s4(p.ganhos_sol || 0) + " · perdas " + s4(p.perdas_sol || 0), "hit", "", o + "acerto"],
         ["Traders copiados " + h + " h", String(p.traders || 0), "com trades fechados", "usr", "", o + "traders"]]); });
     $("curveSub").textContent = "SOL · " + (rm ? "real" : "simulado");
     document.querySelectorAll("#rangeSeg button").forEach((b) => b.classList.toggle("on", +b.dataset.r === RANGE));
+    kphApply();
     drawCurve(rm ? 0 : Wt.start_sol, rm ? D.real_curve : D.curve);
     renderOps(rm);
     renderCfgStatus();
@@ -4166,6 +4175,12 @@
     if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k], sc = tglScope(k, cfg()); if (on && t.dataset.confirm && !confirm("VALE PARA: " + sc[1] + NL2 + t.dataset.confirm)) return; setCfg({ [k]: on }); toast((on ? "Ligado" : "Desligado") + " · " + sc[1]); if (k === "pump_base_hide_trash") setTimeout(loadBase, 700); return; }
     if (t.dataset.set) { setCfg({ [t.dataset.set]: +t.dataset.val }); return; }
     if (t.dataset.mode) { MODE = t.dataset.mode; try { localStorage.setItem("pf:mode", MODE); } catch (e) { /* */ } render(); return; }
+    if (t.dataset.kph) {           // 0.32.146: mostrar/esconder as linhas de 24/12/6/1 h (lembra no navegador)
+      const all = [24, 12, 6, 1], k = t.dataset.kph;
+      KPH = k === "all" ? (KPH.length === all.length ? [] : all.slice()) : (KPH.includes(+k) ? KPH.filter((h) => h !== +k) : KPH.concat(+k));
+      try { localStorage.setItem("pf_kph", JSON.stringify(KPH)); } catch (e) { /* */ }
+      kphApply(); return;
+    }
     if (t.dataset.r) { RANGE = +t.dataset.r; try { localStorage.setItem("pf:range", RANGE); } catch (e) { /* */ } render(); return; }
     if (t.dataset.f) { MONF = t.dataset.f; render(); return; }
     if (t.dataset.off && t.closest("#lbOffSeg")) { LBOFF = t.dataset.off; render(); return; }
