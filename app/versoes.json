@@ -1365,6 +1365,11 @@
    "versao": "0.32.121",
    "inicio": "2026-11-01T07:11:06+00:00",
    "titulo": "servidor abre a porta antes de carregar"
+  },
+  {
+   "versao": "0.32.122",
+   "inicio": "2026-11-01T11:47:31+00:00",
+   "titulo": "reenvio da abertura antes de carregar os dados"
   }
  ]
 }
