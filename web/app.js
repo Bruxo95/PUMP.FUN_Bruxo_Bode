@@ -231,8 +231,30 @@
     const el = $(id); if (!el) return;
     if (!rows.length) { el.innerHTML = '<tr><td class="empty" colspan="' + head.length + '">' + (empty || "Nada por aqui ainda.") + "</td></tr>"; return; }
     rows = byTimeDesc(head, rows);
-    el.innerHTML = "<thead><tr>" + head.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" + rows.map((r) => "<tr>" + r.map((c) => "<td>" + (c == null ? "" : c) + "</td>").join("") + "</tr>").join("") + "</tbody>";
+    // 0.32.130 (pedido do dono: sem rolagem lateral): cada célula leva o nome da coluna (data-l); no celular a linha vira um cartão
+    const lab = head.map((h) => esc(String(h == null ? "" : h).replace(/<[^>]*>/g, "").trim()));
+    el.innerHTML = "<thead><tr>" + head.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" + rows.map((r) => "<tr>" + r.map((c, i) => '<td data-l="' + (lab[i] || "") + '">' + (c == null ? "" : c) + "</td>").join("") + "</tr>").join("") + "</tbody>";
   }
+  // 0.32.130: tabelas montadas fora de table() também ganham o nome da coluna em cada célula
+  function labelTables(root) {
+    (root || document).querySelectorAll("table").forEach((t) => {
+      const ths = t.querySelectorAll("thead th"); if (!ths.length) return;
+      const L = Array.from(ths).map((th) => th.textContent.trim());
+      t.querySelectorAll("tbody tr").forEach((tr) => Array.from(tr.children).forEach((td, i) => { if (td.tagName === "TD" && !td.hasAttribute("data-l")) td.setAttribute("data-l", L[i] || ""); }));
+    });
+  }
+  // tabela que não cabe na largura do cartão (mesmo com o texto quebrando) vira cartões: classe tcard
+  function fitTables() {
+    if (window.innerWidth <= 860) return;                       // no celular o CSS já faz todas virarem cartões
+    document.querySelectorAll(".view:not([hidden]) table:not(.nocard), .modal:not([hidden]) table:not(.nocard)").forEach((t) => {
+      const box = t.parentElement; if (!box || !box.clientWidth) return;
+      t.classList.remove("tcard");
+      if (t.scrollWidth > box.clientWidth + 2) t.classList.add("tcard");
+    });
+  }
+  window.addEventListener("resize", () => requestAnimationFrame(fitTables));
+  let LT_Q = false;
+  new MutationObserver(() => { if (LT_Q) return; LT_Q = true; requestAnimationFrame(() => { LT_Q = false; labelTables(); fitTables(); }); }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
   const IC = {
     wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M16 13h2M3 10h18"/></svg>',
     pnl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>',

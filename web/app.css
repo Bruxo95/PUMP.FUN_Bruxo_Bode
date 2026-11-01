@@ -858,3 +858,33 @@ html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none
 @media (max-width:700px){.shv{min-width:148px}}
 #ovAMt{display:flex;flex-wrap:wrap;gap:6px}
 #ovAMt .chip{white-space:normal;text-align:left}
+
+/* 0.32.130 (pedido do dono: evitar rolagem lateral em todo o painel)
+   - O texto das tabelas quebra linha em vez de empurrar a tela para o lado.
+   - Tabela que mesmo assim não cabe (no PC, num cartão estreito) ganha a classe tcard (labelTables em app.js) e vira cartões.
+   - Celular (até 860 px): toda tabela vira cartões, com o nome da coluna (data-l) à esquerda de cada valor.
+   - Tabela que nunca deve virar cartão: classe "nocard". */
+td{white-space:normal;overflow-wrap:anywhere}
+th{white-space:normal}
+td .btn,td .tag,td .chip{white-space:nowrap}
+#tUsers td{white-space:normal}
+.tablewrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  :is(.view,.modal) table.tcard:not(.nocard){display:block;width:100%;min-width:0!important}
+  :is(.view,.modal) table.tcard:not(.nocard) thead{display:none}
+  :is(.view,.modal) table.tcard:not(.nocard) tbody{display:block}
+  :is(.view,.modal) table.tcard:not(.nocard) tr{display:block;border:1px solid var(--line);border-radius:10px;margin:0 0 10px;padding:6px 10px;background:var(--bg2)}
+  :is(.view,.modal) table.tcard:not(.nocard) td{display:flow-root;border:0;padding:5px 0 5px 40%;min-height:22px;text-align:left;white-space:normal!important;min-width:0!important;max-width:none!important}
+  :is(.view,.modal) table.tcard:not(.nocard) td::before{content:attr(data-l);float:left;width:61.5%;margin-left:-66.6%;color:var(--muted);font-size:11.5px;line-height:1.35;overflow-wrap:anywhere}
+  :is(.view,.modal) table.tcard:not(.nocard) td:is([data-l=""],:not([data-l]),.empty){padding-left:0}
+  :is(.view,.modal) table.tcard:not(.nocard) td:is([data-l=""],:not([data-l]),.empty)::before{content:none}
+@media (max-width:860px){
+  :is(.view,.modal) table:not(.nocard){display:block;width:100%;min-width:0!important}
+  :is(.view,.modal) table:not(.nocard) thead{display:none}
+  :is(.view,.modal) table:not(.nocard) tbody{display:block}
+  :is(.view,.modal) table:not(.nocard) tr{display:block;border:1px solid var(--line);border-radius:10px;margin:0 0 10px;padding:6px 10px;background:var(--bg2)}
+  :is(.view,.modal) table:not(.nocard) td{display:flow-root;border:0;padding:5px 0 5px 40%;min-height:22px;text-align:left;white-space:normal!important;min-width:0!important;max-width:none!important}
+  :is(.view,.modal) table:not(.nocard) td::before{content:attr(data-l);float:left;width:61.5%;margin-left:-66.6%;color:var(--muted);font-size:11.5px;line-height:1.35;overflow-wrap:anywhere}
+  :is(.view,.modal) table:not(.nocard) td:is([data-l=""],:not([data-l]),.empty){padding-left:0}
+  :is(.view,.modal) table:not(.nocard) td:is([data-l=""],:not([data-l]),.empty)::before{content:none}
+  :is(.view,.modal) :is(.tbl-wrap,.tablewrap){margin:0;overflow-x:visible}
+}

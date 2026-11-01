@@ -1405,6 +1405,11 @@
    "versao": "0.32.129",
    "inicio": "2026-11-01T13:12:28+00:00",
    "titulo": "ajustes de cada aba na tela Abas de trades"
+  },
+  {
+   "versao": "0.32.130",
+   "inicio": "2026-11-01T13:28:17+00:00",
+   "titulo": "painel sem rolagem lateral"
   }
  ]
 }
