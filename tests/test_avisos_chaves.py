@@ -16,3 +16,10 @@ def test_status_window_only_uses_variables_it_has():
     js = open("web/app.js", encoding="utf-8").read()
     corpo = js[js.index("function sysDetail("):js.index("function openSys(")]
     assert not re.search(r"(?<![\w.])c\.pump_", corpo)
+
+
+def test_tab_settings_never_show_real_options():
+    import pathlib
+    s = pathlib.Path("web/app.js").read_text(encoding="utf-8")
+    assert "!/real|jito/.test(x.k)" in s[s.index("function abasPanel"):s.index("async function abasSet")]
+    assert 'id="abPn"' in pathlib.Path("web/app.html").read_text(encoding="utf-8")

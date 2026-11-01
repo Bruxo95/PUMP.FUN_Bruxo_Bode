@@ -510,16 +510,16 @@
     });
     return ME ? (ALLCFG = out) : out;            // sem saber se é admin ainda, não guarda
   }
+  const cfgCtl = (x) => x.tog ? '<button class="btn sm tgl" data-clone="1" data-toggle="' + esc(x.k) + '"' + (x.confirm ? ' data-confirm="' + esc(x.confirm) + '"' : "") + ">…</button>"
+    : '<input class="in w100" type="number" data-clone="1" data-cfg="' + esc(x.k) + '"' + (x.min != null ? ' min="' + esc(x.min) + '"' : "") + (x.max != null ? ' max="' + esc(x.max) + '"' : "") + (x.step != null ? ' step="' + esc(x.step) + '"' : "") + ' aria-label="' + esc(x.label) + '">' + (x.unit ? ' <span class="muted">' + esc(x.unit) + "</span>" : "");
   function buildAllCfg() {
     if (!ME || !$("allCfg") || $("allCfg").dataset.ok) return;
     const items = cfgItems().filter((x) => x.v !== "config"), by = {};
     items.forEach((x) => { (by[x.v] = by[x.v] || []).push(x); });
-    const ctl = (x) => x.tog ? '<button class="btn sm tgl" data-clone="1" data-toggle="' + esc(x.k) + '"' + (x.confirm ? ' data-confirm="' + esc(x.confirm) + '"' : "") + ">…</button>"
-      : '<input class="in w100" type="number" data-clone="1" data-cfg="' + esc(x.k) + '"' + (x.min != null ? ' min="' + esc(x.min) + '"' : "") + (x.max != null ? ' max="' + esc(x.max) + '"' : "") + (x.step != null ? ' step="' + esc(x.step) + '"' : "") + ' aria-label="' + esc(x.label) + '">' + (x.unit ? ' <span class="muted">' + esc(x.unit) + "</span>" : "");
     $("allCfg").innerHTML = Object.keys(by).map((v) => {
       let last = "";
       return '<details class="allcfg"><summary><b>' + esc(by[v][0].vt) + "</b> <span class=\"muted\">" + by[v].length + ' opções</span> <span data-allid="' + esc(v) + '"></span> <a class="btn sm" href="#' + v + '">abrir a tela</a></summary>' +
-        by[v].map((x) => (x.ct !== last ? '<div class="allcfg-h">' + esc((last = x.ct)) + "</div>" : "") + '<div class="allcfg-r"><span>' + esc(x.label) + "</span><span>" + ctl(x) + "</span></div>").join("") + "</details>";
+        by[v].map((x) => (x.ct !== last ? '<div class="allcfg-h">' + esc((last = x.ct)) + "</div>" : "") + '<div class="allcfg-r"><span>' + esc(x.label) + "</span><span>" + cfgCtl(x) + "</span></div>").join("") + "</details>";
     }).join("") || '<p class="muted">Nenhuma opção de outra tela disponível para esta conta.</p>';
     $("allCfg").dataset.ok = "1";
     if (D) render();
@@ -2519,6 +2519,7 @@
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
+    if (t.dataset.abaopen != null) { const d = $("abd" + t.dataset.abaopen); if (d) { d.open = true; d.scrollIntoView({ block: "start", behavior: "smooth" }); } return; }
     if (t.dataset.abafoco) {
       const a = ABAS_TR.find((x) => x[1] === t.dataset.abafoco);
       if (!confirm("Deixar comprando só " + a[0] + "?\n\nAs outras abas param de abrir compras novas. As posições abertas continuam com stop e venda normais. As opções REAL de cada aba não mudam.")) return;
@@ -3163,6 +3164,24 @@
     ["Calls quentes", "pump_calls_auto_on", "pump_calls_real", "calls"], ["Aba do Bruxo", "pump_bx_on", "pump_bx_real", "bruxo"], ["Jev Trade", "pump_jt_wallet", "pump_jt_real", "jevtrade"],
     ["Copiar igual", "pump_eq_on", "pump_eq_real", "igual"], ["Carteiras em estudo", "pump_st_copy_on", "pump_st_real", "estudo"]];
   const ABAS_MEM = "pf_abas_antes";
+  // 0.32.129 (pedido do dono): as regras de cada aba aqui dentro. São cópias dos campos das outras telas (mesma opção); as opções REAL ficam fora
+  const ABAS_TOPX = ["pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
+  const ABAS_OPT = { "Top traders": (x) => x.v === "tradercfg" || ABAS_TOPX.includes(x.k), "Explorar": (x) => x.v === "explorar" && !/^pump_bar_/.test(x.k), "Explorar · barrados": (x) => /^pump_bar_/.test(x.k), "Base da pump.fun": (x) => x.v === "base",
+    "Maiores traders": (x) => x.v === "elite", "Calls quentes": (x) => x.v === "calls", "Aba do Bruxo": (x) => x.v === "bruxo", "Jev Trade": (x) => x.v === "jevtrade", "Copiar igual": (x) => x.v === "igual", "Carteiras em estudo": (x) => x.v === "estudo" };
+  function abasPanel() {
+    if (!ME || !$("abPn") || $("abPn").dataset.ok) return;
+    const items = cfgItems();
+    $("abPn").innerHTML = ABAS_TR.map(([nome, k], i) => {
+      const f = ABAS_OPT[nome], L = f ? items.filter((x) => f(x) && x.k !== k && !/real|jito/.test(x.k)) : [];
+      if (nome === "Top traders") L.sort((a, b) => ABAS_TOPX.includes(b.k) - ABAS_TOPX.includes(a.k));
+      if (!L.length) return "";
+      let last = "";
+      return '<details class="allcfg" id="abd' + i + '"><summary><b>' + esc(nome) + '</b> <span class="muted">' + L.length + " opções</span></summary>" +
+        L.map((x) => (x.ct !== last ? '<div class="allcfg-h">' + esc((last = x.ct)) + "</div>" : "") + '<div class="allcfg-r"><span>' + esc(x.label) + "</span><span>" + cfgCtl(x) + "</span></div>").join("") + "</details>";
+    }).join("");
+    $("abPn").dataset.ok = "1";
+    if (D) render();
+  }
   const abasKeys = () => ABAS_TR.map((a) => a[1]);
   function abasBackup() { const c = cfg(), b = {}; abasKeys().forEach((k) => { b[k] = !!(isAutoCfg(k) ? autoValue(k, c) : c[k]); }); try { localStorage.setItem(ABAS_MEM, JSON.stringify(b)); } catch (e) { /* sem navegador guardando, só não dá para voltar */ } }
   async function abasSet(body) {
@@ -3174,9 +3193,10 @@
   }
   async function loadAbas() {
     if (!$("abT")) return;
+    abasPanel();
     const rm = realMode(), r = await BB.api("/api/pump/result-tabs?real=" + (rm ? 1 : 0), { quiet: true }), L = r.abas || [], c = cfg(), P = (D && D.positions) || [];
     table("abT", ["Aba", "Compras", "24 h", "Abertas", "REAL"], ABAS_TR.map(([nome, k, rk, v]) => { const x = L.find((y) => y.aba === nome), d = x && x.periodos.find((p) => p.horas === 24), n = P.filter((p) => p.aba === nome).length;
-      return ['<a href="#' + v + '">' + esc(nome) + '</a><br><button class="btn sm" style="margin-top:6px" data-abafoco="' + k + '">Só esta</button>', '<button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button>', d && d.trades ? pc(d.pct) + "<small>" + d.trades + " trades</small>" : "–", String(n), c.pump_real_enabled && c[rk] ? '<span class="tag loss">pode comprar</span>' : '<span class="dim">não</span>']; }), "");
+      return ['<a href="#' + v + '">' + esc(nome) + '</a><br><span class="row" style="gap:6px;margin-top:6px;flex-wrap:nowrap"><button class="btn sm" data-abafoco="' + k + '">Só esta</button><button class="btn sm" data-abaopen="' + (ABAS_OPT[nome] ? ABAS_TR.findIndex((a) => a[0] === nome) : 0) + '">Ajustes</button></span>', '<button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button>', d && d.trades ? pc(d.pct) + "<small>" + d.trades + " trades</small>" : "–", String(n), c.pump_real_enabled && c[rk] ? '<span class="tag loss">pode comprar</span>' : '<span class="dim">não</span>']; }), "");
     $("abT").querySelectorAll("[data-toggle]").forEach((b) => { const k = b.dataset.toggle, on = !!(isAutoCfg(k) ? autoValue(k, c) : c[k]), sc = tglScope(k, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.classList.toggle("on", on); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); });
     let tem = false; try { tem = !!localStorage.getItem(ABAS_MEM); } catch (e) { /* idem */ }
     $("abUndo").hidden = !tem;

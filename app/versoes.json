@@ -1400,6 +1400,11 @@
    "versao": "0.32.128",
    "inicio": "2026-11-01T13:06:39+00:00",
    "titulo": "ganho falso do PEPE anulado"
+  },
+  {
+   "versao": "0.32.129",
+   "inicio": "2026-11-01T13:12:28+00:00",
+   "titulo": "ajustes de cada aba na tela Abas de trades"
   }
  ]
 }

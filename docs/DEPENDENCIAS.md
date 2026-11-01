@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-01**; revisão documental **2.0**.
-Aplicação: **0.32.128 · 2026-11-01 · ganho falso do PEPE anulado**.
-Referência Git na emissão: `8879f878e58a13022cdf1252737f68687e3ca5b0`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.129 · 2026-11-01 · ajustes de cada aba na tela Abas de trades**.
+Referência Git na emissão: `825228ddbde38e2fdabcb3f80f3010610fe2a2c5`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
