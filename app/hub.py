@@ -4107,8 +4107,31 @@ class PumpHub:
             return {"error": "tabelas das carteiras em estudo ainda não criadas no banco", "detail": str(e)[:120]}
         return profile(wallet, pos, trades, prm=prm)
 
+    def _step(self, etapa: str) -> None:
+        self.__dict__.setdefault("boot_info", {})["etapa"] = etapa
+
+    def boot_status(self) -> dict:
+        """Para o /health, que é público: só o nome da etapa, o tempo e o tipo do erro, nunca a mensagem."""
+        b = self.__dict__.get("boot_info") or {}
+        if not b:
+            return {}
+        return {"etapa": b.get("etapa"), "carregando": bool(b.get("carregando")), "erro": b.get("erro"),
+                "segundos": b.get("segundos") if b.get("segundos") is not None else round(time.time() - b.get("inicio", time.time()), 1)}
+
+    async def boot(self) -> None:
+        """Roda `start` em segundo plano. Se falhar, o servidor fica de pé dizendo onde parou, em vez de reiniciar sem parar."""
+        t0 = time.time()
+        self.boot_info = {"etapa": "começando", "inicio": t0, "carregando": True}
+        try:
+            await self.start()
+            self.boot_info.update(etapa="pronto", segundos=round(time.time() - t0, 1), carregando=False)
+        except Exception as e:
+            self.boot_info.update(segundos=round(time.time() - t0, 1), erro=type(e).__name__, carregando=False, falhou=True)
+            log.error("a subida parou em %s: %s", self.boot_info.get("etapa"), str(e)[:300])
+
     async def start(self) -> None:
         """Carrega todos os usuários (o bot copia mesmo com o painel fechado) e liga as tarefas."""
+        self._step("contas")
         try:
             for r in await self.db.select("profiles", None, columns="user_id,bloqueado"):
                 if r.get("bloqueado"):
@@ -4117,16 +4140,13 @@ class PumpHub:
                     await self.engine(r["user_id"])
         except Exception as e:
             log.warning("Não consegui carregar os usuários do Supabase: %s", str(e)[:160])
-        await self.refresh_shared_key()
-        await self.load_blacklist()
-        await self.load_lab()
-        await self.load_elite()
-        await self.load_shadows()
-        await self.load_calls()
-        await self.load_bruxo()
-        await self.load_jt()
-        await self.jev_usage_load()
-        await self.jev_bt_load()                                         # 0.32.84: estudo do passado do Jev
+        for nome, carga in (("chave compartilhada", self.refresh_shared_key), ("lista negra", self.load_blacklist), ("base pump.fun", self.load_lab),
+                            ("maiores traders", self.load_elite), ("sombras", self.load_shadows), ("calls", self.load_calls),
+                            ("aba do bruxo", self.load_bruxo), ("jev trade", self.load_jt), ("uso do jev", self.jev_usage_load),
+                            ("passado do jev", self.jev_bt_load)):                # 0.32.84: estudo do passado do Jev
+            self._step(nome)
+            await carga()
+        self._step("ligando o monitor")
         for pf in list(self.engines.values()):        # 0.31.62: nome de quem é copiado, para os avisos de quem copia
             lead = self.engines.get(getattr(pf, "follow_user", ""))
             if lead is not None:
@@ -4172,9 +4192,13 @@ class PumpHub:
         for pf in list(self.engines.values()):
             try:
                 await pf.store.flush()
-                await self.save_auto(pf)
+                if not (self.__dict__.get("boot_info") or {}).get("carregando"):
+                    await self.save_auto(pf)
             except Exception:
                 pass
+        b = self.__dict__.get("boot_info") or {}
+        if b.get("carregando") or b.get("falhou"):
+            return                                     # 0.32.121: dados pela metade na memória; salvar agora apagaria o que está no banco
         try:
             await self.save_ghosts()
             await self.save_lab()

@@ -125,7 +125,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     # ------------------------------------------------------------------ público
     @app.get("/health")
     def health():
-        return {"ok": True, "version": VERSION, "no_ar_desde": STARTED_AT, "subida_s": getattr(hub, "boot_s", None)}
+        return {"ok": True, "version": VERSION, "no_ar_desde": STARTED_AT, "subida": hub.boot_status()}
 
     @app.get("/api/public-config")
     def public_config():

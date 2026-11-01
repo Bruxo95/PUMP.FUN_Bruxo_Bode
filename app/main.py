@@ -1,8 +1,8 @@
 """Início do servidor: python -m app.main"""
 from __future__ import annotations
 
+import asyncio
 import logging
-import time
 from contextlib import asynccontextmanager
 
 import httpx
@@ -42,10 +42,11 @@ def build_app():
     @asynccontextmanager
     async def lifespan(_app):
         log.info("PUMP FUN COPY %s iniciando — execução real DESLIGADA para todos", VERSION)
-        t0 = time.time()
-        await hub.start()
-        hub.boot_s = round(time.time() - t0, 1)                # 0.32.120: aparece no /health
+        # 0.32.121: em 01/11/2026 o site ficou em 404 sem dar para saber em que ponto a subida parava. A porta abre primeiro,
+        # os dados carregam em segundo plano e o /health mostra a etapa e o erro, sem precisar do Portainer.
+        boot = asyncio.create_task(hub.boot())
         yield
+        boot.cancel()
         await hub.stop()
         await http.aclose()
 

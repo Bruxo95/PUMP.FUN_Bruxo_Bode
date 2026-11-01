@@ -1360,6 +1360,11 @@
    "versao": "0.32.120",
    "inicio": "2026-11-01T06:51:26+00:00",
    "titulo": "mais tempo para o servidor subir"
+  },
+  {
+   "versao": "0.32.121",
+   "inicio": "2026-11-01T07:11:06+00:00",
+   "titulo": "servidor abre a porta antes de carregar"
   }
  ]
 }
