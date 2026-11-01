@@ -3466,7 +3466,7 @@
     const t0 = Date.now() - RANGE * 86400000;
     const before = pts.filter((p) => p[0] < t0); let base = before.length ? before[before.length - 1][1] : start;
     let S = [[t0, base]].concat(pts.filter((p) => p[0] >= t0)); S.push([Date.now(), S[S.length - 1][1]]);
-    if (S.length <= 2 && !pts.length) { el.innerHTML = '<div class="empty" style="padding-top:90px">A carteira começa com ' + s4(start) + " SOL. A linha aparece a partir do primeiro trade fechado.</div>"; return; }
+    if (S.length <= 2 && !pts.length) { el.innerHTML = '<div class="empty" style="padding-top:90px">A carteira começa com ' + s4(start) + " SOL. A linha aparece a partir do primeiro trade fechado.</div>"; $("curveRes").innerHTML = ""; CURVE = null; return; }
     const ys = S.map((p) => p[1]); let lo = Math.min(...ys, start), hi = Math.max(...ys, start); if (hi - lo < 0.01) { lo -= 0.005; hi += 0.005; }
     const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
     const X = (t) => P + ((t - t0) / (Date.now() - t0)) * (Wd - P - 10), Y = (v) => 10 + ((hi - v) / (hi - lo)) * (H - B - 14);
@@ -3476,8 +3476,30 @@
     const xl = [0, 0.5, 1].map((k) => { const t = t0 + k * (Date.now() - t0); const d = new Date(t); const lab = RANGE === 1 ? d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); return '<text x="' + Math.min(Wd - 40, Math.max(P, X(t) - 16)) + '" y="' + (H - 4) + '" font-size="10.5" fill="#5d5d66">' + lab + "</text>"; }).join("");
     el.innerHTML = '<svg viewBox="0 0 ' + Wd + " " + H + '" preserveAspectRatio="none"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".25"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' + grid +
       '<line x1="' + P + '" x2="' + Wd + '" y1="' + Y(start) + '" y2="' + Y(start) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
-      '<path d="' + path + " V" + (H - B) + " H" + X(t0) + 'Z" fill="url(#cg)"/><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2"/>' + xl + "</svg>";
+      '<path d="' + path + " V" + (H - B) + " H" + X(t0) + 'Z" fill="url(#cg)"/><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2"/>' + xl + '</svg><i class="cline" id="cLine" hidden></i><i class="cdot" id="cDot" hidden></i><div class="ctip" id="cTip" hidden></div>';
+    // 0.32.135 (pedido do dono): cada ponto guarda o ganho e a perda somados desde o começo do período mostrado
+    let g = 0, l = 0;
+    const C = S.map((p, i) => { const d = i ? p[1] - S[i - 1][1] : 0; if (d > 0) g += d; else l += d; return { t: p[0], v: p[1], g, l }; });
+    CURVE = { C, base, t0, t1: Date.now(), Wd, P, X, Y, H, B };
+    const fim = C[C.length - 1];
+    $("curveRes").innerHTML = [["Início", s4(base) + " SOL"], ["Ganhou", sg(fim.g, "")], ["Perdeu", sg(fim.l, "")], ["Agora", s4(fim.v) + " SOL" + (base ? " " + pc((fim.v - base) / base * 100) : "")]].map((x) => "<div><small>" + x[0] + "</small><b>" + x[1] + "</b></div>").join("");
+    if (CURVE_X != null) curveTip(CURVE_X);
   }
+  let CURVE = null, CURVE_X = null;
+  function curveTip(x) {
+    const c = CURVE, tip = $("cTip"); if (!c || !tip) return;
+    const t = c.t0 + Math.max(0, Math.min(1, (x - c.P) / (c.Wd - c.P - 10))) * (c.t1 - c.t0);
+    let i = 0; while (i + 1 < c.C.length && c.C[i + 1].t <= t) i++;
+    const p = c.C[i], px = c.X(t);
+    tip.innerHTML = "<b>" + esc(new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })) + "</b><span>Saldo <b>" + s4(p.v) + " SOL</b></span><span>Ganhou " + sg(p.g, "") + "</span><span>Perdeu " + sg(p.l, "") + "</span><span>Resultado " + sg(p.v - c.base, "") + "</span>";
+    tip.hidden = false; $("cLine").hidden = false; $("cDot").hidden = false;
+    $("cLine").style.left = px + "px"; $("cLine").style.height = (c.H - c.B) + "px";
+    $("cDot").style.left = px + "px"; $("cDot").style.top = c.Y(p.v) + "px";
+    tip.style.left = px > c.Wd / 2 ? Math.max(0, px - tip.offsetWidth - 12) + "px" : px + 12 + "px";
+  }
+  function curveHide() { CURVE_X = null; ["cTip", "cLine", "cDot"].forEach((id) => { if ($(id)) $(id).hidden = true; }); }
+  document.addEventListener("pointermove", (e) => { const el = e.target.closest && e.target.closest("#curve"); if (el && CURVE) { const r = el.getBoundingClientRect(); CURVE_X = (e.clientX - r.left) * (CURVE.Wd / r.width); curveTip(CURVE_X); } else if (CURVE_X != null) curveHide(); });
+  document.addEventListener("pointerdown", (e) => { const el = e.target.closest && e.target.closest("#curve"); if (el && CURVE) { const r = el.getBoundingClientRect(); CURVE_X = (e.clientX - r.left) * (CURVE.Wd / r.width); curveTip(CURVE_X); } else if (CURVE_X != null) curveHide(); });
 
   function opTag(kind) {
     return { buy: '<span class="tag buy">Compra</span>', win: '<span class="tag win">Venda c/ lucro</span>', loss: '<span class="tag loss">Venda c/ prejuízo</span>', stop: '<span class="tag stop">Stop</span>',

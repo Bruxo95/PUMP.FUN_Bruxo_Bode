@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.134 · 2026-11-01 · percentual de cada aba no Histórico"
+VERSION = "0.32.135 · 2026-11-01 · ganho e perda no gráfico da carteira"
