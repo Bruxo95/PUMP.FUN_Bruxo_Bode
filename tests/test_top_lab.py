@@ -133,3 +133,33 @@ def test_position_already_held_is_not_a_barred_buy():
     PumpFun._top_barred(o, "W", "M", "já tem posição copiada neste token (fictícia)", 1.0)
     PumpFun._top_barred(o, "W", "M", "market cap alto", 1.0)
     assert [n[3] for n in notas] == ["market cap alto"]
+
+
+def _tab(**cfg):
+    import types
+    from app.pumpfun import PumpFun
+    o = types.SimpleNamespace(cfg=types.SimpleNamespace(**cfg), ABA_ORIGEM=PumpFun.ABA_ORIGEM, TAB_SWITCH=PumpFun.TAB_SWITCH, study=["S"], study_copy=[], elite_follow=["E"])
+    o.aba_of = lambda x: PumpFun.aba_of(o, x)
+    return lambda who: PumpFun.tab_off(o, who)
+
+
+def test_tab_switch_only_stops_its_own_tab_and_defaults_to_on():
+    assert _tab()("W") is None and _tab()("S") is None
+    off = _tab(pump_top_on=False)
+    assert off("W") == "aba Top traders desligada" and off("S") is None and off("E") is None
+    assert _tab(pump_st_copy_on=False)("S") == "aba Carteiras em estudo desligada" and _tab(pump_st_copy_on=False)("W") is None
+
+
+def test_switched_off_tab_is_not_a_barred_buy():
+    import types
+    from app.pumpfun import PumpFun
+    notas = []
+    o = types.SimpleNamespace(top_hook=lambda *a: notas.append(a), tokens={})
+    PumpFun._top_barred(o, "W", "M", "aba Top traders desligada", 1.0)
+    PumpFun._top_barred(o, "W", "M", "cópia desligada", 1.0)
+    assert notas == []
+
+
+def test_new_switches_exist_and_start_on():
+    from app.settings import USER_KEYS
+    assert USER_KEYS["pump_top_on"][1] is True and USER_KEYS["pump_st_copy_on"][1] is True

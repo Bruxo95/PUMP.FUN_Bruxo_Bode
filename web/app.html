@@ -47,6 +47,7 @@
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
       <a href="#explorar" id="navExp" hidden data-v="explorar" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Explorar</a>
+      <a href="#abas" id="navAbas" hidden data-v="abas" data-novo-ate="2026-11-15"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M7.5 6.5a8 8 0 1 0 9 0"/></svg>Abas de trades</a>
       <a href="#basegeral" id="navBaseG" hidden data-v="basegeral" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3z"/><path d="M15 4a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a3 3 0 0 1-3-3"/></svg>Base geral</a>
       <a href="#logs" id="navLogs" hidden data-v="logs" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Logs dos robôs</a>
       <a href="#bruxo" id="navBruxo" hidden data-v="bruxo" data-novo-ate="2026-11-12"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h-6l3-7z"/><path d="M5 21h14l-3-12H8L5 21z"/></svg>Aba do Bruxo</a>
@@ -1229,6 +1230,13 @@
           <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Aprendizado dos logs (um resumo por dia)</h2><div class="sub" data-rdsub="elite">todos os dias guardados; atualizado de hora em hora com os dias já fechados</div></div></header>
           <div class="help" data-rdtr="elite"></div><div class="tbl-wrap tall"><table id="rd_elite" class="daytbl"></table></div></div>
         </div>
+      </section>
+      <section class="view" data-view="abas" hidden>
+        <div class="card" data-novo-ate="2026-11-15" data-nosanf><header><div><h2>Abas de trades</h2><div class="sub">liga e desliga as compras de cada aba em um clique</div></div>
+          <div class="row" style="gap:8px"><button class="btn sm" id="abUndo" hidden>Voltar como estava</button><button class="btn sm" id="abOff">Desligar todas</button></div></header>
+          <div class="help"><p><b>Desligado</b> para só as compras novas: as posições abertas continuam com stop e venda normais. <b>Só esta</b> deixa uma aba comprando e desliga as outras. A coluna REAL mostra se a aba pode comprar na carteira real; esta tela não muda isso.</p></div>
+          <div class="tbl-wrap"><table id="abT" class="daytbl"></table></div>
+          <p class="muted small">A cópia automática geral, em Configurações, continua valendo: desligada, ela para todas as cópias de carteiras.</p></div>
       </section>
       <section class="view" data-view="basegeral" hidden>
         <div class="card" data-novo-ate="2026-11-11"><header><div><h2>O cérebro do robô</h2><div class="sub" id="bgSub">o que o sistema aprendeu com todas as contas</div></div></header>

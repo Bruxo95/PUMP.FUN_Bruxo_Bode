@@ -1212,6 +1212,8 @@ class PumpFun:
             score, sparts = self.entry_score(who, mint, self.price_of(ev), px)
             if not getattr(c, "pump_copy_enabled", True):
                 why = "cópia desligada"
+            elif self.tab_off(who):
+                why = self.tab_off(who)
             elif getattr(c, "pump_streak_on", False) and self._halt_until > time.time():
                 why = "pausa por sequência de perdas até " + datetime.fromtimestamp(self._halt_until).strftime("%H:%M")
             elif not px:
@@ -1582,8 +1584,16 @@ class PumpFun:
         if mudou:
             self._save_pos(p)
 
+    # 0.32.127 (pedido do dono: focar em uma aba): a chave geral da cópia também para o Copiar igual, então estas duas abas ganharam chave própria
+    TAB_SWITCH = {"Top traders": "pump_top_on", "Carteiras em estudo": "pump_st_copy_on"}
+
+    def tab_off(self, who: str) -> str | None:
+        aba = self.aba_of({"wallet": who})
+        key = self.TAB_SWITCH.get(aba)
+        return f"aba {aba} desligada" if key and not getattr(self.cfg, key, True) else None
+
     def _top_barred(self, who: str, mint: str, why: str, t: float) -> None:
-        if self.top_hook is not None and why and not why.startswith("já tem posição"):
+        if self.top_hook is not None and why and not why.startswith(("já tem posição", "aba ", "cópia desligada")):
             self.top_hook(who, mint, (self.tokens.get(mint) or {}).get("symbol"), why, t)
 
     def _check_stops(self, mint: str, t: float) -> list[str]:
