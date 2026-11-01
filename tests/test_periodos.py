@@ -29,3 +29,10 @@ def test_each_tab_gets_its_own_percent_and_windows():
     assert {p["horas"]: p["pct"] for p in L["B"]["periodos"]}[24] is None      # fora da janela de 24 h
     assert L["A"]["motivos"][0]["nome"] == "stop de perda" and L["A"]["motivos"][0]["n"] == 2
     assert [x["aba"] for x in PumpFun.tabs(T, lambda t: t["aba"], NOW)] == ["B", "A"]
+
+
+def test_each_exit_reason_lists_its_own_coins_newest_first():
+    T = [dict(_t(5, -0.03), symbol="AAA", reason="stop de perda (-30%)"), dict(_t(1, -0.02), symbol="BBB", reason="stop de perda (-20%)"), dict(_t(2, 0.5), symbol="CCC", reason="alvo")]
+    M = {m["nome"]: m for m in PumpFun.tabs(T, lambda t: "A", NOW)[0]["motivos"]}
+    assert [x["symbol"] for x in M["stop de perda"]["itens"]] == ["BBB", "AAA"] and [x["symbol"] for x in M["alvo"]["itens"]] == ["CCC"]
+    assert len(PumpFun.tabs([dict(_t(1, -0.01), reason="x") for _ in range(PumpFun.TAB_ITENS + 5)], lambda t: "A", NOW)[0]["motivos"][0]["itens"]) == PumpFun.TAB_ITENS

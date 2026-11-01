@@ -927,6 +927,7 @@ class PumpFun:
             self._auto_dirty.add(key)
 
     PERIODS_H = (1, 6, 12, 24)
+    TAB_ITENS = 60
 
     @classmethod
     def periods(cls, closed: list[dict], balance: float, now: float | None = None) -> list[dict]:
@@ -962,6 +963,7 @@ class PumpFun:
         for t in closed:
             g.setdefault(aba_of(t), []).append(t)
         pct = lambda saldo, inv: round(saldo / inv * 100, 2) if inv else None
+        campos = ("symbol", "mint", "opened_at", "closed_at", "sol_in", "pnl_sol", "pnl_pct", "hold_s", "best_pct", "reason")
         out = []
         for nome, L in g.items():
             pnl = [float(t.get("pnl_sol") or 0) for t in L]
@@ -969,7 +971,12 @@ class PumpFun:
             per = [{k: v for k, v in p.items() if k != "saldo_antes"} | {"pct": pct(p["saldo_sol"], p["investido_sol"])} for p in cls.periods(L, 0.0, now)]
             out.append({"aba": nome, "trades": len(L), "ganhos": sum(p > 0 for p in pnl), "perdas": sum(p <= 0 for p in pnl), "acerto": round(sum(p > 0 for p in pnl) / len(L) * 100),
                         "ganhos_sol": round(sum(p for p in pnl if p > 0), 6), "perdas_sol": round(sum(p for p in pnl if p <= 0), 6), "saldo_sol": round(sum(pnl), 6),
-                        "investido_sol": round(inv, 6), "pct": pct(sum(pnl), inv), "periodos": per, "motivos": _group([(motivo(t.get("reason")), t) for t in L])[:6]})
+                        "investido_sol": round(inv, 6), "pct": pct(sum(pnl), inv), "periodos": per, "motivos": _group([(motivo(t.get("reason")), t) for t in L])})
+            por = {}
+            for t in sorted(L, key=lambda t: str(t.get("closed_at") or ""), reverse=True):      # 0.32.126: moedas e horários de cada motivo
+                por.setdefault(motivo(t.get("reason")), []).append({k: t.get(k) for k in campos})
+            for m in out[-1]["motivos"]:
+                m["itens"] = por[m["nome"]][:cls.TAB_ITENS]
         return sorted(out, key=lambda x: -x["saldo_sol"])
 
     def wallet(self, real: bool = False) -> dict:

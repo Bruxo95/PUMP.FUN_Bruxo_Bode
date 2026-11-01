@@ -3160,15 +3160,29 @@
       return ['<button class="linkbtn" data-ovaba="' + i + '">' + esc(a.aba) + "</button>", c[4], c[0], c[1], c[2], c[3], d.trades ? pc(d.pct) + "<small>" + d.trades + " trades</small>" : "–", a.trades + "<small>" + a.ganhos + " ganhos · " + a.perdas + " perdas</small>", a.acerto + "%"]; }),
       r.error ? "Não consegui carregar agora." : "Nenhum trade fechado ainda.");
   }
+  // 0.32.126 (pedido do dono): cada motivo de saída vira uma aba, com as moedas e os horários
+  function ovMot(i, j) {
+    const a = OV_ABAS[i], M = (a && a.motivos) || [], m = M[j]; if (!a || !$("ovAMt")) return;
+    $("ovAMt").innerHTML = ['<button class="btn sm chip' + (m ? "" : " on") + '" data-ovmot="' + i + ':-1">Todos · ' + a.trades + "</button>"].concat(M.map((x, k) =>
+      '<button class="btn sm chip' + (k === j ? " on" : "") + '" data-ovmot="' + i + ":" + k + '">' + esc(x.nome) + " · " + x.n + ' <span class="' + (x.sol >= 0 ? "up" : "down") + '">' + sg(x.sol, "") + "</span></button>")).join("");
+    if (!m) {
+      $("ovAMs").textContent = "Clique em um motivo para ver as moedas e os horários.";
+      table("ovAM", ["Motivo", "Trades", "Acerto", "Média", "Saldo"], M.map((x, k) => ['<button class="linkbtn shv" data-ovmot="' + i + ":" + k + '">' + esc(x.nome) + "</button>", String(x.n), x.acerto + "%", pc(x.media_pct), sg(x.sol, "")]), "Sem dados.");
+      return;
+    }
+    const L = m.itens || [];
+    $("ovAMs").textContent = m.n + " trades · " + m.acerto + "% de acerto · média por trade " + f(m.media_pct, 1) + "%" + (L.length < m.n ? " · mostrando os " + L.length + " mais recentes" : "");
+    table("ovAM", ["Saiu", "Token", "Entrou", "Tempo", "Investido", "Resultado", "%", "Pico"], L.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), dt(t.opened_at), t.hold_s == null ? "–" : hms(t.hold_s), s4(t.sol_in) + " SOL", sg(t.pnl_sol, ""), pc(t.pnl_pct), t.best_pct == null ? "–" : pc(t.best_pct)]), "Sem trades.");
+  }
   function openOvAba(i) {
     const a = OV_ABAS[i]; if (!a) return;
     const rm = realMode(), T = (D.trades || []).filter((t) => !!t.real === rm && t.aba === a.aba), P = (D.positions || []).filter((p) => !!p.real === rm && p.aba === a.aba);
     const d = a.periodos.find((p) => p.horas === 24) || {};
     const txt = "Você colocou " + s4(a.investido_sol) + " SOL em " + a.trades + " trades, ganhou " + s4(a.ganhos_sol) + ", perdeu " + s4(Math.abs(a.perdas_sol)) + " e ficou com " + s4(ovTotal(a)) + " SOL." + (d.trades ? " Nas últimas 24 h foram " + d.trades + " trades." : " Nenhum trade fechou nas últimas 24 h.") + (P.length ? " " + (P.length === 1 ? "Há 1 posição aberta, que ainda não entra" : "Há " + P.length + " posições abertas, que ainda não entram") + " na conta." : "");
-    ovShow(a.aba, "carteira " + (rm ? "REAL" : "FICTÍCIA"), '<p class="small"><a href="#" data-kpi-back="ov_resultado">‹ Voltar ao Resultado</a></p><p class="muted small" style="margin:0 0 10px">' + esc(ABA_INFO[a.aba] || "") + " " + esc(txt) + '</p><div class="kpis" id="ovK"></div><h3 class="small">Por período</h3><div class="tbl-wrap"><table id="ovAP" class="daytbl"></table></div><h3 class="small">Por que saiu</h3><div class="tbl-wrap"><table id="ovAM" class="daytbl"></table></div><h3 class="small">Últimos trades</h3><div class="tbl-wrap"><table id="ovT" class="daytbl"></table></div>' + (T.length ? "" : '<p class="muted small">Esta aba não tem trades entre os últimos 300 da carteira.</p>'));
+    ovShow(a.aba, "carteira " + (rm ? "REAL" : "FICTÍCIA"), '<p class="small"><a href="#" data-kpi-back="ov_resultado">‹ Voltar ao Resultado</a></p><p class="muted small" style="margin:0 0 10px">' + esc(ABA_INFO[a.aba] || "") + " " + esc(txt) + '</p><div class="kpis" id="ovK"></div><h3 class="small">Por período</h3><div class="tbl-wrap"><table id="ovAP" class="daytbl"></table></div><h3 class="small" data-novo-ate="2026-11-15">Por que saiu</h3><div class="posabas" id="ovAMt"></div><p class="muted small" id="ovAMs" style="margin:6px 0"></p><div class="tbl-wrap"><table id="ovAM" class="daytbl"></table></div><h3 class="small">Últimos trades</h3><div class="tbl-wrap"><table id="ovT" class="daytbl"></table></div>' + (T.length ? "" : '<p class="muted small">Esta aba não tem trades entre os últimos 300 da carteira.</p>'));
     kpis("ovK", [["Investido", s4(a.investido_sol) + " SOL", "soma de cada trade", "wallet"], ["Ganhou", sg(a.ganhos_sol, ""), a.ganhos + " trades · " + a.acerto + "% de acerto", "hit"], ["Perdeu", sg(a.perdas_sol, ""), a.perdas + " trades", "mon"], ["Resultado total", s4(ovTotal(a)) + " SOL", pc(a.pct) + " sobre o investido", "pnl"]]);
     table("ovAP", ["Período", ...OV_CONTA, "Trades"], a.periodos.map((p) => [ovPer(p.horas), ...ovConta(p), p.trades + "<small>" + p.ganhos + " ganhos · " + p.perdas + " perdas</small>"]), "");
-    table("ovAM", ["Motivo", "Trades", "Acerto", "Média", "Saldo"], (a.motivos || []).map((m) => ['<span class="shv">' + esc(m.nome) + "</span>", String(m.n), m.acerto + "%", pc(m.media_pct), sg(m.sol, "")]), "Sem dados.");
+    marcarNovos(); ovMot(i, -1);
     ovTrades("ovT", T.slice(0, 20));
   }
   function openOv(k) {
@@ -3246,6 +3260,7 @@
     const b = e.target.closest("[data-rsh]"); if (b) { openRs(+b.dataset.rsh); return; }
     const v = e.target.closest("[data-rsv]"); if (v) { openRsItem(v.dataset.rsv); return; }
     const oa = e.target.closest("[data-ovaba]"); if (oa) { openOvAba(+oa.dataset.ovaba); return; }
+    const om = e.target.closest("[data-ovmot]"); if (om) { const [ai, mi] = om.dataset.ovmot.split(":").map(Number); ovMot(ai, mi); return; }
     const k = e.target.closest("[data-kpi-back]"); if (k) { e.preventDefault(); openOv(k.dataset.kpiBack); }
   });
   // 0.32.117: cérebro em sombra; o veredito vem da faixa de confiança por dia, nunca só do total em SOL

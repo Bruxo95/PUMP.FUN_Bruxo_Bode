@@ -1385,6 +1385,11 @@
    "versao": "0.32.125",
    "inicio": "2026-11-01T12:41:20+00:00",
    "titulo": "conta simples no Resultado"
+  },
+  {
+   "versao": "0.32.126",
+   "inicio": "2026-11-01T12:53:00+00:00",
+   "titulo": "abas por motivo de saída"
   }
  ]
 }

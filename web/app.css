@@ -856,3 +856,5 @@ html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none
 /* 0.32.118: veredito perto do início e legível no celular, sem precisar arrastar a tabela */
 .shv{display:block;white-space:normal;min-width:170px;max-width:300px}
 @media (max-width:700px){.shv{min-width:148px}}
+#ovAMt{display:flex;flex-wrap:wrap;gap:6px}
+#ovAMt .chip{white-space:normal;text-align:left}

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-01",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9cb4b4d9791b60a7093df4a8a8822b5473feeb33",
-    "application_version": "0.32.125 · 2026-11-01 · conta simples no Resultado",
+    "repository_reference": "e17a157172744b22077bbc3f83d101d8197cdb25",
+    "application_version": "0.32.126 · 2026-11-01 · abas por motivo de saída",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "71e64b396b4c15476c763515963d06aaad8ea295ffde1c6f22a460e3158d7e90",
+      "app/version.py": "b56f36e90fe59fc2d5514a650e425d4175ee5a42f1c80c0df4953ceb800fa1a3",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "78e980280715ca78ffee3648a7dcd586fa737cf85755b1ba5f73d949bc5ee40d"
+  "pdf_sha256": "f3b576cc493fa8029de6e94b7fc98cab51cb4b5130b58892ea95e9bca6cc0c25"
 }
