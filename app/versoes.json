@@ -1460,6 +1460,11 @@
    "versao": "0.32.140",
    "inicio": "2026-11-01T18:19:31+00:00",
    "titulo": "traders em todo o tempo e 24 h, com relatório na Base geral"
+  },
+  {
+   "versao": "0.32.141",
+   "inicio": "2026-11-01T18:25:13+00:00",
+   "titulo": "linha de quadrados de 12 h na Visão geral"
   }
  ]
 }

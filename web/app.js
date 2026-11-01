@@ -3313,34 +3313,35 @@
     marcarNovos(); ovMot(i, -1);
     ovTrades("ovT", T.slice(0, 20));
   }
-  function openOv24(k) {
-    const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, p = (Wt.periodos || []).find((x) => x.horas === 24) || {}, nome = "carteira " + (rm ? "REAL" : "FICTÍCIA") + " · últimas 24 h";
-    const lim = Date.now() - 86400000, T = (D.trades || []).filter((t) => !!t.real === rm && new Date(t.closed_at).getTime() >= lim);
+  function openOvH(k) {
+    const hh = +k.slice(2, 4), tp = k.slice(5);
+    const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, p = (Wt.periodos || []).find((x) => x.horas === hh) || {}, nome = "carteira " + (rm ? "REAL" : "FICTÍCIA") + " · últimas " + hh + " h";
+    const lim = Date.now() - hh * 3600000, T = (D.trades || []).filter((t) => !!t.real === rm && new Date(t.closed_at).getTime() >= lim);
     const tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';
-    const nota = T.length < (p.trades || 0) ? '<p class="muted small">A lista mostra os últimos ' + T.length + " de " + p.trades + " trades de 24 h. Os totais contam todos.</p>" : "";
+    const nota = T.length < (p.trades || 0) ? '<p class="muted small">A lista mostra os últimos ' + T.length + " de " + p.trades + " trades de " + hh + " h. Os totais contam todos.</p>" : "";
     const conta = [["Investido", s4(p.investido_sol || 0) + " SOL", "soma de cada trade", "wallet"], ["Ganhou", sg(p.ganhos_sol || 0, ""), (p.ganhos || 0) + " trades", "hit"], ["Perdeu", sg(p.perdas_sol || 0, ""), (p.perdas || 0) + " trades", "mon"],
       ["Resultado total", s4((p.investido_sol || 0) + (p.saldo_sol || 0)) + " SOL", p.investido_sol ? pc(p.saldo_sol / p.investido_sol * 100) + " sobre o investido" : "sem trades", "pnl"]];
     const G = {}; T.forEach((t) => { const a = t.aba || "Outros", g = (G[a] = G[a] || { n: 0, w: 0, sol: 0, inv: 0 }); g.n++; g.w += t.pnl_sol > 0 ? 1 : 0; g.sol += t.pnl_sol || 0; g.inv += t.sol_in || 0; });
-    const abas = () => table("ovA", ["Aba", "%", "Investido", "Resultado", "Trades", "Acerto"], Object.entries(G).sort((a, b) => b[1].sol - a[1].sol).map(([a, g]) => [esc(a), g.inv ? pc(g.sol / g.inv * 100) : "–", s4(g.inv) + " SOL", sg(g.sol, ""), String(g.n), f(g.w / g.n * 100, 0) + "%"]), "Nenhum trade fechado nas últimas 24 h.");
-    if (k === "ov24_resultado") {
-      ovShow("Resultado 24 h", nome, '<div class="kpis" id="ovK"></div><h3 class="small">Por aba</h3>' + tb("ovA") + '<h3 class="small">Últimos trades</h3>' + nota + tb("ovT"));
+    const abas = () => table("ovA", ["Aba", "%", "Investido", "Resultado", "Trades", "Acerto"], Object.entries(G).sort((a, b) => b[1].sol - a[1].sol).map(([a, g]) => [esc(a), g.inv ? pc(g.sol / g.inv * 100) : "–", s4(g.inv) + " SOL", sg(g.sol, ""), String(g.n), f(g.w / g.n * 100, 0) + "%"]), "Nenhum trade fechado nas últimas " + hh + " h.");
+    if (tp === "resultado") {
+      ovShow("Resultado " + hh + " h", nome, '<div class="kpis" id="ovK"></div><h3 class="small">Por aba</h3>' + tb("ovA") + '<h3 class="small">Últimos trades</h3>' + nota + tb("ovT"));
       kpis("ovK", conta); abas(); ovTrades("ovT", T.slice(0, 30));
-    } else if (k === "ov24_trades") {
-      ovShow("Trades fechados 24 h", (p.trades || 0) + " na " + nome, nota + tb("ovT"));
+    } else if (tp === "trades") {
+      ovShow("Trades fechados " + hh + " h", (p.trades || 0) + " na " + nome, nota + tb("ovT"));
       ovTrades("ovT", T);
-    } else if (k === "ov24_acerto") {
+    } else if (tp === "acerto") {
       const best = T.reduce((a, b) => (!a || b.pnl_sol > a.pnl_sol ? b : a), null), worst = T.reduce((a, b) => (!a || b.pnl_sol < a.pnl_sol ? b : a), null);
-      ovShow("Taxa de acerto 24 h", nome, '<div class="kpis" id="ovK"></div><h3 class="small">Por aba</h3>' + nota + tb("ovA"));
+      ovShow("Taxa de acerto " + hh + " h", nome, '<div class="kpis" id="ovK"></div><h3 class="small">Por aba</h3>' + nota + tb("ovA"));
       kpis("ovK", [["Acerto", p.trades ? f(p.ganhos / p.trades * 100, 0) + "%" : "–", (p.ganhos || 0) + " ganhos · " + (p.perdas || 0) + " perdas", "hit"], conta[1], conta[2], ["Melhor trade", best ? sg(best.pnl_sol, "") : "–", best ? esc(best.symbol || "") : "", "tr"], ["Pior trade", worst ? sg(worst.pnl_sol, "") : "–", worst ? esc(worst.symbol || "") : "", "tr"]]);
       abas();
-    } else if (k === "ov24_traders") {
+    } else if (tp === "traders") {
       const by = {}; T.filter((t) => t.wallet && t.wallet !== "manual").forEach((t) => { const b = (by[t.wallet] = by[t.wallet] || { t, n: 0, w: 0, sol: 0 }); b.n++; b.w += t.pnl_sol > 0 ? 1 : 0; b.sol += t.pnl_sol || 0; });
-      ovShow("Traders copiados 24 h", (p.traders || 0) + " com trades fechados · " + nome, '<p class="small"><a href="#traders" data-jtclose="1">Abrir a tela de Top traders</a></p>' + nota + tb("ovT"));
-      table("ovT", ["Trader", "Trades", "Acerto", "Resultado"], Object.values(by).sort((a, b) => b.sol - a.sol).map((b) => [pfW(b.t.wallet, b.t), String(b.n), f(b.w / b.n * 100, 0) + "%", sg(b.sol, "")]), "Nenhum trader copiado fechou trade nas últimas 24 h.");
+      ovShow("Traders copiados " + hh + " h", (p.traders || 0) + " com trades fechados · " + nome, '<p class="small"><a href="#traders" data-jtclose="1">Abrir a tela de Top traders</a></p>' + nota + tb("ovT"));
+      table("ovT", ["Trader", "Trades", "Acerto", "Resultado"], Object.values(by).sort((a, b) => b.sol - a.sol).map((b) => [pfW(b.t.wallet, b.t), String(b.n), f(b.w / b.n * 100, 0) + "%", sg(b.sol, "")]), "Nenhum trader copiado fechou trade nas últimas " + hh + " h.");
     }
   }
   function openOv(k) {
-    if (k.startsWith("ov24_")) { openOv24(k); return; }
+    if (/^ov(12|24)_/.test(k)) { openOvH(k); return; }
     if (k === "ov_monitor") { openSys(); return; }
     if (k === "ov_real") { openRealPlaces(); return; }
     const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, nome = rm ? "REAL" : "FICTÍCIA";
@@ -3481,11 +3482,11 @@
         '<br><button type="button" class="btn sm tgl sw ' + (R.enabled ? "on" : "off") + '" id="realAll" role="switch" aria-checked="' + !!R.enabled + '" aria-label="Execução real em todas as abas">' + (R.enabled ? "Ligado" : "Desligado") + "</button>", "wallet", "", "ov_real"],
     ]);
     // 0.32.137 (pedido do dono): uma linha própria de quadrados, só com as últimas 24 h; o clique abre a mesma janela, só com esse período
-    const p24 = (Wt.periodos || []).find((p) => p.horas === 24) || {};
-    kpis("kpis24", [["Resultado 24 h", sg(p24.saldo_sol || 0, ""), p24.investido_sol ? pc(p24.saldo_sol / p24.investido_sol * 100) + " sobre o investido" : "sem trades fechados", "pnl", "", "ov24_resultado"],
-      ["Trades fechados 24 h", String(p24.trades || 0), '<span class="up">' + (p24.ganhos || 0) + " ganhos</span> · <span class=\"down\">" + (p24.perdas || 0) + " perdas</span>", "tr", "", "ov24_trades"],
-      ["Taxa de acerto 24 h", p24.trades ? f(p24.ganhos / p24.trades * 100, 0) + "%" : "–", "ganhos " + s4(p24.ganhos_sol || 0) + " · perdas " + s4(p24.perdas_sol || 0), "hit", "", "ov24_acerto"],
-      ["Traders copiados 24 h", String(p24.traders || 0), "com trades fechados", "usr", "", "ov24_traders"]]);
+    [24, 12].forEach((h) => { const p = (Wt.periodos || []).find((x) => x.horas === h) || {}, o = "ov" + h + "_";
+      kpis("kpis" + h, [["Resultado " + h + " h", sg(p.saldo_sol || 0, ""), p.investido_sol ? pc(p.saldo_sol / p.investido_sol * 100) + " sobre o investido" : "sem trades fechados", "pnl", "", o + "resultado"],
+        ["Trades fechados " + h + " h", String(p.trades || 0), '<span class="up">' + (p.ganhos || 0) + " ganhos</span> · <span class=\"down\">" + (p.perdas || 0) + " perdas</span>", "tr", "", o + "trades"],
+        ["Taxa de acerto " + h + " h", p.trades ? f(p.ganhos / p.trades * 100, 0) + "%" : "–", "ganhos " + s4(p.ganhos_sol || 0) + " · perdas " + s4(p.perdas_sol || 0), "hit", "", o + "acerto"],
+        ["Traders copiados " + h + " h", String(p.traders || 0), "com trades fechados", "usr", "", o + "traders"]]); });
     $("curveSub").textContent = "SOL · " + (rm ? "real" : "simulado");
     document.querySelectorAll("#rangeSeg button").forEach((b) => b.classList.toggle("on", +b.dataset.r === RANGE));
     drawCurve(rm ? 0 : Wt.start_sol, rm ? D.real_curve : D.curve);
