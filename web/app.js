@@ -3202,7 +3202,7 @@
     if (Object.keys(auto).length) await setCfg(auto);
     loadAbas();
   }
-  // 0.32.130 (opção B aprovada pelo dono no PDF): quadrados agrupados, desligadas recolhidas e Ajustes numa janela só
+  // 0.32.131 (opção B aprovada pelo dono no PDF): quadrados agrupados, desligadas recolhidas e Ajustes numa janela só
   const ABAS_COPIA = ["Top traders", "Maiores traders (80%+)", "Copiar igual", "Carteiras em estudo"];
   const ABA_TAB = { s: "Saída", e: "Entrada", l: "Valores e limites" };
   const ABA_LIST = 8;

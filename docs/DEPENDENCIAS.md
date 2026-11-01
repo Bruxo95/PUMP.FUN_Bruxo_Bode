@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-01**; revisão documental **2.0**.
-Aplicação: **0.32.130 · 2026-11-01 · painel sem rolagem lateral**.
-Referência Git na emissão: `3727fa3eec55388ed825222f12ab1b1325e27c4a`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.131 · 2026-11-01 · redesenho da tela Abas de trades**.
+Referência Git na emissão: `72e249cdadec92c7615f7801b6afbe91b45a066e`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -858,7 +858,24 @@ html.pwa .tabbar,html.pwa .topbar .btn{-webkit-user-select:none;user-select:none
 @media (max-width:700px){.shv{min-width:148px}}
 #ovAMt{display:flex;flex-wrap:wrap;gap:6px}
 #ovAMt .chip{white-space:normal;text-align:left}
-<<<<<<< Updated upstream
+/* 0.32.131: tela Abas de trades */
+.absum{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;margin-bottom:6px}
+.abg{margin:14px 0 8px;font-size:13px}
+.abgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.abc{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.abc-t{display:flex;align-items:center;gap:7px;min-height:28px}.abc-t .sp{flex:1}
+.abc .btn.tgl.sw,.abpill .btn.tgl.sw{font-size:0;padding-left:48px;flex:none}
+.abc-d{font-size:12px;color:var(--muted);line-height:1.35;min-height:32px}
+.abc-n{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px 0}
+.abc-n small{display:block;font-size:10.5px;color:var(--dim)}.abc-n b{font-family:var(--mono);font-size:14px}
+.abc-b{display:flex;gap:6px}.abc-b .btn{flex:1;justify-content:center}
+.abpills{display:flex;flex-wrap:wrap;gap:8px}
+.abpill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:30px;padding:4px 8px 4px 13px;font-size:12.5px}
+.abres{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:12.5px;margin-bottom:10px}
+.abtabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
+#abRows .allcfg-r{border-bottom:1px solid var(--line);padding:7px 0}#abRows .allcfg-r small{display:block;color:var(--muted);font-size:11.5px}
+.abmore{margin-top:10px;width:100%;justify-content:center}
+#abK{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}#abK .kpi{min-width:0;padding:10px 12px}#abK .v{font-size:18px}#abK .d{overflow-wrap:anywhere}
 
 /* 0.32.130 (pedido do dono: evitar rolagem lateral em todo o painel)
    - O texto das tabelas quebra linha em vez de empurrar a tela para o lado.
@@ -889,23 +906,3 @@ td .btn,td .tag,td .chip{white-space:nowrap}
   :is(.view,.modal) table:not(.nocard) td:is([data-l=""],:not([data-l]),.empty)::before{content:none}
   :is(.view,.modal) :is(.tbl-wrap,.tablewrap){margin:0;overflow-x:visible}
 }
-=======
-/* 0.32.130: tela Abas de trades */
-.absum{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;margin-bottom:6px}
-.abg{margin:14px 0 8px;font-size:13px}
-.abgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
-.abc{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.abc-t{display:flex;align-items:center;gap:7px;min-height:28px}.abc-t .sp{flex:1}
-.abc .btn.tgl.sw,.abpill .btn.tgl.sw{font-size:0;padding-left:48px;flex:none}
-.abc-d{font-size:12px;color:var(--muted);line-height:1.35;min-height:32px}
-.abc-n{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px 0}
-.abc-n small{display:block;font-size:10.5px;color:var(--dim)}.abc-n b{font-family:var(--mono);font-size:14px}
-.abc-b{display:flex;gap:6px}.abc-b .btn{flex:1;justify-content:center}
-.abpills{display:flex;flex-wrap:wrap;gap:8px}
-.abpill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:30px;padding:4px 8px 4px 13px;font-size:12.5px}
-.abres{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:12.5px;margin-bottom:10px}
-.abtabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
-#abRows .allcfg-r{border-bottom:1px solid var(--line);padding:7px 0}#abRows .allcfg-r small{display:block;color:var(--muted);font-size:11.5px}
-.abmore{margin-top:10px;width:100%;justify-content:center}
-#abK{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}#abK .kpi{min-width:0;padding:10px 12px}#abK .v{font-size:18px}#abK .d{overflow-wrap:anywhere}
->>>>>>> Stashed changes
