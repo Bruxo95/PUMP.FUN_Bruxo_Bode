@@ -2541,7 +2541,9 @@
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
-    if (t.dataset.abaopen != null) { const d = $("abd" + t.dataset.abaopen); if (d) { d.open = true; d.scrollIntoView({ block: "start", behavior: "smooth" }); } return; }
+    if (t.dataset.abaopen != null) { openAba(+t.dataset.abaopen); return; }
+    if (t.dataset.abtab && ABM) { ABM.tab = t.dataset.abtab; ABM.all = false; abaRows(); return; }
+    if (t.dataset.abmore && ABM) { ABM.all = true; abaRows(); return; }
     if (t.dataset.abafoco) {
       const a = ABAS_TR.find((x) => x[1] === t.dataset.abafoco);
       if (!confirm("Deixar comprando só " + a[0] + "?\n\nAs outras abas param de abrir compras novas. As posições abertas continuam com stop e venda normais. As opções REAL de cada aba não mudam.")) return;
@@ -3130,6 +3132,7 @@
     document.querySelectorAll("[data-hcfg]").forEach((el) => { const v = isAutoCfg(el.dataset.hcfg) ? autoValue(el.dataset.hcfg, c) : c[el.dataset.hcfg];
       if (document.activeElement !== el && v != null) el.value = +(v / 60).toFixed(2);
       if (el.id === "exAutoHold" && v != null) $("exAutoHoldN").textContent = "= " + f(v, 0) + " min · máximo 24 h"; });
+    abasSync();
     document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); const sc = tglScope(b.dataset.toggle, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.title = sc[1]; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
@@ -3190,20 +3193,6 @@
   const ABAS_TOPX = ["pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
   const ABAS_OPT = { "Top traders": (x) => x.v === "tradercfg" || ABAS_TOPX.includes(x.k), "Explorar": (x) => x.v === "explorar" && !/^pump_bar_/.test(x.k), "Explorar · barrados": (x) => /^pump_bar_/.test(x.k), "Base da pump.fun": (x) => x.v === "base",
     "Maiores traders": (x) => x.v === "elite", "Calls quentes": (x) => x.v === "calls", "Aba do Bruxo": (x) => x.v === "bruxo", "Jev Trade": (x) => x.v === "jevtrade", "Copiar igual": (x) => x.v === "igual", "Carteiras em estudo": (x) => x.v === "estudo" };
-  function abasPanel() {
-    if (!ME || !$("abPn") || $("abPn").dataset.ok) return;
-    const items = cfgItems();
-    $("abPn").innerHTML = ABAS_TR.map(([nome, k], i) => {
-      const f = ABAS_OPT[nome], L = f ? items.filter((x) => f(x) && x.k !== k && !/real|jito/.test(x.k)) : [];
-      if (nome === "Top traders") L.sort((a, b) => ABAS_TOPX.includes(b.k) - ABAS_TOPX.includes(a.k));
-      if (!L.length) return "";
-      let last = "";
-      return '<details class="allcfg" id="abd' + i + '"><summary><b>' + esc(nome) + '</b> <span class="muted">' + L.length + " opções</span></summary>" +
-        L.map((x) => (x.ct !== last ? '<div class="allcfg-h">' + esc((last = x.ct)) + "</div>" : "") + '<div class="allcfg-r"><span>' + esc(x.label) + "</span><span>" + cfgCtl(x) + "</span></div>").join("") + "</details>";
-    }).join("");
-    $("abPn").dataset.ok = "1";
-    if (D) render();
-  }
   const abasKeys = () => ABAS_TR.map((a) => a[1]);
   function abasBackup() { const c = cfg(), b = {}; abasKeys().forEach((k) => { b[k] = !!(isAutoCfg(k) ? autoValue(k, c) : c[k]); }); try { localStorage.setItem(ABAS_MEM, JSON.stringify(b)); } catch (e) { /* sem navegador guardando, só não dá para voltar */ } }
   async function abasSet(body) {
@@ -3213,15 +3202,66 @@
     if (Object.keys(auto).length) await setCfg(auto);
     loadAbas();
   }
-  async function loadAbas() {
-    if (!$("abT")) return;
-    abasPanel();
-    const rm = realMode(), r = await BB.api("/api/pump/result-tabs?real=" + (rm ? 1 : 0), { quiet: true }), L = r.abas || [], c = cfg(), P = (D && D.positions) || [];
-    table("abT", ["Aba", "Compras", "24 h", "Abertas", "REAL"], ABAS_TR.map(([nome, k, rk, v]) => { const x = L.find((y) => y.aba === nome), d = x && x.periodos.find((p) => p.horas === 24), n = P.filter((p) => p.aba === nome).length;
-      return ['<a href="#' + v + '">' + esc(nome) + '</a><br><span class="row" style="gap:6px;margin-top:6px;flex-wrap:nowrap"><button class="btn sm" data-abafoco="' + k + '">Só esta</button><button class="btn sm" data-abaopen="' + (ABAS_OPT[nome] ? ABAS_TR.findIndex((a) => a[0] === nome) : 0) + '">Ajustes</button></span>', '<button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button>', d && d.trades ? pc(d.pct) + "<small>" + d.trades + " trades</small>" : "–", String(n), c.pump_real_enabled && c[rk] ? '<span class="tag loss">pode comprar</span>' : '<span class="dim">não</span>']; }), "");
-    $("abT").querySelectorAll("[data-toggle]").forEach((b) => { const k = b.dataset.toggle, on = !!(isAutoCfg(k) ? autoValue(k, c) : c[k]), sc = tglScope(k, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.classList.toggle("on", on); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); });
+  // 0.32.130 (opção B aprovada pelo dono no PDF): quadrados agrupados, desligadas recolhidas e Ajustes numa janela só
+  const ABAS_COPIA = ["Top traders", "Maiores traders (80%+)", "Copiar igual", "Carteiras em estudo"];
+  const ABA_TAB = { s: "Saída", e: "Entrada", l: "Valores e limites" };
+  const ABA_LIST = 8;
+  const ABA_SAI = /stop|trail|tp\d?_|_tp|hold|exit|timestop|curve_exit|cx_|sell|stale|be_after|parado/;
+  const ABA_LIM = /max_open|max_h$|per_hour|loss|pause|streak|cold|(copy|auto|ar|eq|el|bx|jt|calls|bar|lanc|wallet|manual)_sol$/;
+  const ABA_ORD = [/hold_until|follow_sell/, /stop_pct/, /trail/, /tp1/, /_tp_pct|tp_pct/, /max_hold/];
+  const ABA_DICA = [[/hold_until_profit/, "Ligado: se estiver no prejuízo, segura até ficar positivo. Desligado: vende junto com o trader."], [/follow_sell/, "Vende quando o trader vende."], [/stop_pct/, "Vende se cair esse percentual."],
+    [/trail_enabled/, "Depois de subir, protege o lucro."], [/tp1_on/, "Vende uma parte no lucro."], [/max_hold/, "Fecha a posição depois desse tempo."]];
+  let ABAS_R = [], ABAS_SIG = "", ABM = null;
+  const abaRank = (x) => { const i = ABA_ORD.findIndex((r) => r.test(x.k)); return i < 0 ? 99 : i; };
+  const abaTabOf = (x) => (ABA_SAI.test(x.k) ? "s" : ABA_LIM.test(x.k) ? "l" : "e");
+  const abaSig = () => abasKeys().map((k) => (cfgNow(k) ? 1 : 0)).join("") + (realMode() ? "r" : "f") + (cfg().pump_real_enabled ? "R" : "");
+  function abaOpts(i) {
+    const [nome, k] = ABAS_TR[i], f = ABAS_OPT[nome], L = f ? cfgItems().filter((x) => f(x) && x.k !== k && !/real|jito/.test(x.k)) : [];
+    return L.map((x, n) => [x, n]).sort((a, b) => abaRank(a[0]) - abaRank(b[0]) || a[1] - b[1]).map((a) => a[0]);
+  }
+  function abaBox(a, i) {
+    const [nome, k, rk] = a, x = ABAS_R.find((y) => y.aba === nome), d = x && x.periodos.find((p) => p.horas === 24), rm = realMode(), n = ((D && D.positions) || []).filter((p) => !!p.real === rm && p.aba === nome).length, c = cfg();
+    return '<div class="abc"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && c[rk] ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
+      '<div class="abc-d">' + esc(ABA_INFO[nome] || "") + '</div><div class="abc-n"><div><small>24 h</small><b>' + (d && d.trades ? pc(d.pct) : "–") + "</b></div><div><small>Trades</small><b>" + (d ? d.trades : 0) + "</b></div><div><small>Abertas</small><b>" + n + "</b></div></div>" +
+      '<div class="abc-b"><button class="btn sm" data-abafoco="' + k + '">Só esta</button><button class="btn sm primary" data-abaopen="' + i + '">Ajustes</button></div></div>';
+  }
+  function abasDraw() {
+    if (!$("abGrid")) return;
+    ABAS_SIG = abaSig();
+    const L = ABAS_TR.map((a, i) => [a, i]), on = L.filter(([a]) => cfgNow(a[1])), off = L.filter(([a]) => !cfgNow(a[1])), rm = realMode(), np = ((D && D.positions) || []).filter((p) => !!p.real === rm).length;
+    const grp = (t, s, G) => (G.length ? '<div class="abg"><b>' + t + '</b> <span class="muted">' + s + '</span></div><div class="abgrid">' + G.map(([a, i]) => abaBox(a, i)).join("") + "</div>" : "");
+    $("abSum").innerHTML = "<b>" + on.length + " de " + ABAS_TR.length + " abas</b> comprando · " + np + (np === 1 ? " posição aberta" : " posições abertas");
+    $("abGrid").innerHTML = grp("Copiam carteiras", "repetem o que uma carteira faz", on.filter(([a]) => ABAS_COPIA.includes(a[0]))) + grp("Compram sozinhas", "decidem pelas próprias regras", on.filter(([a]) => !ABAS_COPIA.includes(a[0]))) +
+      (off.length ? '<div class="abg"><b>Desligadas</b> <span class="muted">' + off.length + (off.length === 1 ? " aba" : " abas") + '</span></div><div class="abpills">' + off.map(([a, i]) => '<span class="abpill"><button class="linkbtn" data-abaopen="' + i + '">' + esc(a[0]) + '</button><button class="btn sm tgl sw" data-toggle="' + a[1] + '" data-clone="1">…</button></span>').join("") + "</div>" : "");
     let tem = false; try { tem = !!localStorage.getItem(ABAS_MEM); } catch (e) { /* idem */ }
     $("abUndo").hidden = !tem;
+  }
+  function abasSync() { if (VIEW === "abas" && abaSig() !== ABAS_SIG) abasDraw(); }
+  async function loadAbas() {
+    if (!$("abGrid")) return;
+    const r = await BB.api("/api/pump/result-tabs?real=" + (realMode() ? 1 : 0), { quiet: true });
+    ABAS_R = r.abas || []; abasDraw();
+    if (D) render();
+  }
+  function abaRows() {
+    const m = ABM; if (!m || !$("abRows")) return;
+    const L = m.L.filter((x) => abaTabOf(x) === m.tab), V = m.all ? L : L.slice(0, ABA_LIST), val = cfgNow;
+    $("abTabs").innerHTML = Object.keys(ABA_TAB).map((t) => '<button class="btn sm chip' + (t === m.tab ? " on" : "") + '" data-abtab="' + t + '">' + ABA_TAB[t] + " · " + m.L.filter((x) => abaTabOf(x) === t).length + "</button>").join("");
+    let last = "";
+    $("abRows").innerHTML = (V.length ? V.map((x) => { const d = (ABA_DICA.find((y) => y[0].test(x.k)) || [])[1]; const h = m.all && x.ct !== last ? '<div class="allcfg-h">' + esc((last = x.ct)) + "</div>" : "";
+      return h + '<div class="allcfg-r"><span>' + esc(x.label) + (d ? "<small>" + esc(d) + "</small>" : "") + "</span><span>" + cfgCtl(x) + "</span></div>"; }).join("") : '<p class="muted small">Esta aba não tem opções aqui.</p>') +
+      (L.length > V.length ? '<button class="btn sm abmore" data-abmore="1">Ver todas as ' + L.length + " opções</button>" : "");
+    if (D) render();
+    return val;
+  }
+  function openAba(i) {
+    const nota = ABAS_OPT[ABAS_TR[i][0]] ? "" : ABAS_TR[i][0] + " usa as regras de Top traders.", j = nota ? 0 : i, [nome] = ABAS_TR[j], L = abaOpts(j), x = ABAS_R.find((y) => y.aba === ABAS_TR[i][0]), M = ((x && x.motivos) || []).slice().sort((a, b) => b.sol - a.sol), d = x && x.periodos.find((p) => p.horas === 24);
+    const fmt = (y) => { const v = cfgNow(y.k); return esc(y.label) + ": " + (v === true ? "ligado" : v === false ? "desligado" : (typeof v === "number" ? s4(v) : esc(String(v))) + (y.unit ? " " + esc(y.unit) : "")); };
+    const res = L.filter((y) => abaTabOf(y) === "s").slice(0, 4).map(fmt).join(" · ");
+    ABM = { L, tab: "s", all: false };
+    ovShow(ABAS_TR[i][0], "Ajustes desta aba", (nota ? '<p class="small" style="margin:0 0 8px">' + esc(nota) + "</p>" : "") + (res ? '<div class="abres"><b>Como ' + (nota ? esc(nome) : "esta aba") + " sai hoje:</b> " + res + "</div>" : "") + '<div class="kpis" id="abK"></div><div class="posabas abtabs" id="abTabs"></div><div id="abRows"></div><p class="muted small" style="margin:10px 0 0">São as mesmas opções da tela da aba: mudar aqui muda lá. As opções da carteira REAL ficam só nas telas originais.</p>');
+    kpis("abK", [["24 h", d && d.trades ? pc(d.pct) : "–", d ? d.trades + " trades" : "sem trades", "pnl"], ["Melhor saída", M[0] ? sg(M[0].sol, "") : "–", M[0] ? esc(M[0].nome) + " · " + M[0].n + " trades" : "sem dados", "hit"], ["Pior saída", M.length > 1 ? sg(M[M.length - 1].sol, "") : "–", M.length > 1 ? esc(M[M.length - 1].nome) + " · " + M[M.length - 1].n + " trades" : "sem dados", "mon"]]);
+    abaRows();
   }
   // 0.32.123 (pedido do dono): resultado por aba. Vem do servidor porque o painel só recebe os últimos 300 trades
   let OV_ABAS = [];

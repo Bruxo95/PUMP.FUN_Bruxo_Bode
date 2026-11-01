@@ -21,5 +21,5 @@ def test_status_window_only_uses_variables_it_has():
 def test_tab_settings_never_show_real_options():
     import pathlib
     s = pathlib.Path("web/app.js").read_text(encoding="utf-8")
-    assert "!/real|jito/.test(x.k)" in s[s.index("function abasPanel"):s.index("async function abasSet")]
-    assert 'id="abPn"' in pathlib.Path("web/app.html").read_text(encoding="utf-8")
+    assert "!/real|jito/.test(x.k)" in s[s.index("function abaOpts"):s.index("function abaBox")]
+    assert 'id="abGrid"' in pathlib.Path("web/app.html").read_text(encoding="utf-8")

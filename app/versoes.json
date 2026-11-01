@@ -1408,8 +1408,13 @@
   },
   {
    "versao": "0.32.130",
+<<<<<<< Updated upstream
    "inicio": "2026-11-01T13:28:17+00:00",
    "titulo": "painel sem rolagem lateral"
+=======
+   "inicio": "2026-11-01T13:28:12+00:00",
+   "titulo": "redesenho da tela Abas de trades"
+>>>>>>> Stashed changes
   }
  ]
 }
