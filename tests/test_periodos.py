@@ -36,3 +36,11 @@ def test_each_exit_reason_lists_its_own_coins_newest_first():
     M = {m["nome"]: m for m in PumpFun.tabs(T, lambda t: "A", NOW)[0]["motivos"]}
     assert [x["symbol"] for x in M["stop de perda"]["itens"]] == ["BBB", "AAA"] and [x["symbol"] for x in M["alvo"]["itens"]] == ["CCC"]
     assert len(PumpFun.tabs([dict(_t(1, -0.01), reason="x") for _ in range(PumpFun.TAB_ITENS + 5)], lambda t: "A", NOW)[0]["motivos"][0]["itens"]) == PumpFun.TAB_ITENS
+
+
+def test_pepe_fix_only_touches_the_false_fictitious_trade_and_keeps_the_original():
+    import pathlib
+    sql = pathlib.Path("supabase/migrations/20261101000003_anula_ganho_falso_pepe.sql").read_text(encoding="utf-8")
+    onde = sql[sql.index("where real = false"):]
+    assert "data->>'symbol' = 'PEPE'" in onde and ">= 1900" in onde and "fechada_em <" in onde
+    assert "'corrigido'" in sql and "delete" not in sql.split("update public.pump_trades")[1].lower()
