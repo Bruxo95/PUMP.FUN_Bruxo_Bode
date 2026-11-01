@@ -1505,6 +1505,11 @@
    "versao": "0.32.149",
    "inicio": "2026-11-01T21:45:47+00:00",
    "titulo": "chave da carteira REAL em Abas de trades, só no modo Real"
+  },
+  {
+   "versao": "0.32.150",
+   "inicio": "2026-11-01T21:52:00+00:00",
+   "titulo": "resultado de 12, 6 e 1 h em cada aba"
   }
  ]
 }

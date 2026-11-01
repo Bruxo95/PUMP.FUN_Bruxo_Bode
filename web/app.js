@@ -3230,6 +3230,8 @@
     const [nome, k, rk] = a, x = ABAS_R.find((y) => y.aba === nome), d = x && x.periodos.find((p) => p.horas === 24), rm = realMode(), n = ((D && D.positions) || []).filter((p) => !!p.real === rm && p.aba === nome).length, c = cfg();
     return '<div class="abc"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && c[rk] ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
       '<div class="abc-d">' + esc(ABA_INFO[nome] || "") + '</div><div class="abc-n"><div><small>24 h</small><b>' + (d && d.trades ? pc(d.pct) : "–") + "</b></div><div><small>Trades</small><b>" + (d ? d.trades : 0) + "</b></div><div><small>Abertas</small><b>" + n + "</b></div></div>" +
+      // 0.32.150 (pedido do dono): resultado de 12, 6 e 1 h dentro do quadrado (% e trades fechados)
+      '<div class="abc-h">' + [12, 6, 1].map((h) => { const q = x && x.periodos.find((p) => p.horas === h); return "<div><small>" + h + " h</small><b>" + (q && q.trades ? pc(q.pct) : "–") + "</b><small>" + (q ? q.trades : 0) + " trades</small></div>"; }).join("") + "</div>" +
       '<div class="abc-b"><button class="btn sm" data-abafoco="' + k + '">Só esta</button><button class="btn sm primary" data-abaopen="' + i + '">Ajustes</button></div></div>';
   }
   function abasDraw() {

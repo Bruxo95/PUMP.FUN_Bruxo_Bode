@@ -1494,3 +1494,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.148 (pedido do dono): `#abReal` no topo de `#abas` (`.abreal.on` vermelho / `.off` azul) a partir de `pump_real_enabled` e das chaves REAL de `ABAS_TR`; `abaSig` inclui as chaves REAL e a carteira configurada. Só mostra. Conferido em 1440 e 390 px.
 
 - 0.32.149 (pedido do dono): `#abReal` só com `realMode()` e chave `data-realall` → `realAll(false)` (mesma rota `/api/pump/real` da tela Execução real; ligar pede LIGAR). `.abreal[hidden]`. Conferido em 1440 e 390 px.
+
+- 0.32.150 (pedido do dono): `abaBox` com `.abc-h` (12/6/1 h de `ABAS_R[].periodos`, que já vinham de `PumpFun.tabs`). Conferido em 1440 e 390 px.
