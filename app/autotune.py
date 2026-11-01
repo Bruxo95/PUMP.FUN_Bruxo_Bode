@@ -2,7 +2,7 @@
 ir ganhando mais e ficando mais inteligente").
 
 A cada 6 h, para cada admin com `pump_tune_on` e SÓ com a execução real desligada (as opções valem para as duas
-carteiras; com o real ligado o ajuste para e avisa):
+carteiras; com o real ligado nada muda sozinho e as mesmas contas viram sugestões com botão, 0.32.118, `hub.tune_suggest`):
 1. Saída: as Estratégias fantasma testam, com as mesmas entradas, várias regras de saída. Se uma regra rende mais por
    trade que as suas regras atuais (base mínima de MIN_TRADES fechados e MIN_DAYS dias de fantasmas), ela é aplicada nas
    suas opções. A regra fica "em teste" por EVAL_S e EVAL_TRADES trades: se o resultado por trade piorar em relação

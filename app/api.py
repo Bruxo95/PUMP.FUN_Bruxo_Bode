@@ -672,11 +672,24 @@ def create_app(hub, auth, cfg) -> FastAPI:
             rows = []
         last = hub._tune_at.get(pf.user_id)
         sai = next((r for r in rows if r.get("tipo") == "saida"), None)
-        return {"on": bool(getattr(pf.cfg, "pump_tune_on", True)), "real_on": bool(getattr(pf.cfg, "pump_real_enabled", False)),
+        try:
+            sugestoes = await hub.tune_suggest(pf)
+        except Exception as e:
+            log.warning("sugestões do ajuste: %s", str(e)[:120])
+            sugestoes = []
+        return {"sugestoes": sugestoes, "on": bool(getattr(pf.cfg, "pump_tune_on", True)), "real_on": bool(getattr(pf.cfg, "pump_real_enabled", False)),
                 "last_run": datetime.fromtimestamp(last, timezone.utc).isoformat() if last else None,
                 "testing": {"nome": (sai.get("detalhe") or {}).get("nome"), "desde": sai.get("em")} if sai and sai.get("acao") == "aplicou" else None,
                 "rules": {"min_trades": MIN_TRADES, "min_days": MIN_DAYS, "eval_h": EVAL_S // 3600, "eval_trades": EVAL_TRADES},
                 "log": [{k: r.get(k) for k in ("tipo", "acao", "motivo", "em")} for r in rows[:60]]}
+
+    @app.post("/api/pump/tune/apply")
+    async def tune_apply(body: dict, pf=Depends(admin_engine)):
+        """0.32.118: a pessoa aplica uma sugestão do ajuste. Só o id vem do navegador; os valores são recalculados no servidor."""
+        r = await hub.tune_apply(pf, str((body or {}).get("id") or ""))
+        if r.get("ok"):
+            await audit(hub.db, pf.user_id, "ajuste automático: sugestão aplicada", str(r.get("nome"))[:120])
+        return r
 
     @app.post("/api/pump/tune/run")
     async def tune_run(pf=Depends(admin_engine)):

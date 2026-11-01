@@ -647,11 +647,23 @@
       const b = document.createElement("button"); b.className = "btn sm"; b.dataset.cfsh = "card"; b.textContent = "Compartilhar"; h.appendChild(b);
     });
   }
+  // 0.32.118: com a real ligada o ajuste só sugere; o clique manda só o id e o servidor refaz a conta
+  let TUSUG = [];
+  function renderTuSug(r) {
+    TUSUG = r.sugestoes || [];
+    const val = (v) => (v === true ? "ligado" : v === false ? "desligado" : v == null ? "–" : String(v));
+    const muda = (x) => (x.mudancas || []).map((m) => esc(cfgLabel(m.opcao)) + ": " + esc(val(m.antes)) + " → " + esc(val(m.depois))).join("<br>") || "–";
+    const rows = TUSUG.map((x) => ['<button class="btn" data-tusug="' + esc(x.id) + '">Aplicar</button>', esc(x.nome), esc(x.alvo), esc(x.motivo), muda(x)]);
+    const vazio = r.real_on ? "Nenhuma sugestão agora: falta base nos fantasmas, ou uma regra ainda está em teste." : "Sem sugestões: com a real desligada o ajuste aplica sozinho.";
+    ["tuSug", "bgTu"].forEach((id) => { if ($(id)) table(id, ["", "Sugestão", "Vale para", "Por quê", "O que muda"], rows, vazio); });
+  }
+  async function loadTuneBase() { const r = await BB.api("/api/pump/tune", { quiet: true }); if (!r.error) renderTuSug(r); }
   async function loadTune() {
     const r = await BB.api("/api/pump/tune");
     if (r.error) return;
+    renderTuSug(r);
     const ru = r.rules || {};
-    $("tuSub").textContent = (r.on ? "LIGADO" : "DESLIGADO") + (r.real_on ? " · parado: a execução real está ligada" : "") + " · última volta " + (r.last_run ? dt(r.last_run) : "ainda não rodou (roda a cada 6 h)") +
+    $("tuSub").textContent = (r.on ? "LIGADO" : "DESLIGADO") + (r.real_on ? " · com a real ligada nada muda sozinho: use as sugestões" : "") + " · última volta " + (r.last_run ? dt(r.last_run) : "ainda não rodou (roda a cada 6 h)") +
       (r.testing ? " · em teste: " + (r.testing.nome || "") + " desde " + dt(r.testing.desde) : " · nenhuma regra em teste") + " · precisa de " + ru.min_trades + " trades e " + ru.min_days + " dias de fantasmas";
     const AC = { aplicou: "win", manteve: "win", desfez: "loss", pausou: "pause" };
     table("tuLog", ["Quando", "O quê", "Decisão", "Por quê"], (r.log || []).map((x) => [dt(x.em), x.tipo === "saida" ? "saída das cópias" : x.tipo === "saida_auto" ? "saída das automáticas" : "trader", '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", esc(x.motivo || "")]),
@@ -2488,6 +2500,15 @@
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
+    if (t.dataset.tusug) {
+      const x = TUSUG.find((y) => y.id === t.dataset.tusug); if (!x) return;
+      const txt = x.tipo === "trader" ? "A cópia desse trader para nas carteiras FICTÍCIA e REAL até acabar a pausa." : "A regra de saída muda nas carteiras FICTÍCIA e REAL (" + x.alvo + "). Não liga nem desliga a execução real.";
+      if (!confirm("Aplicar esta sugestão?\n\n" + x.nome + "\n\n" + txt)) return;
+      t.disabled = true;
+      const r = await BB.api("/api/pump/tune/apply", { body: { id: x.id } });
+      toast(r.error ? r.error : "Aplicado: " + r.nome);
+      return loadTuneBase();
+    }
     if (t.id === "tuRun") {
       t.disabled = true;
       const r = await BB.api("/api/pump/tune/run", { body: {} });
@@ -2623,7 +2644,7 @@
     if (VIEW === "bruxo") { loadBruxo(); loadBxReports(); }
     if (VIEW === "jev") loadJev();
     if (VIEW === "jevtrade") loadJt();
-    if (VIEW === "basegeral") { loadRsBase(); loadBrainShadow(); }
+    if (VIEW === "basegeral") { loadRsBase(); loadBrainShadow(); loadTuneBase(); }
     if (VIEW === "traders") loadCopyDiag();
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") { loadEq(); loadEqRep(); }
@@ -3178,11 +3199,16 @@
     const L = r.abas || [];
     const cell = (x) => x.n ? x.n + " trades · " + x.ganhos + " ganhos" : "nenhum";
     const sol = (v) => '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + s4(v) + " SOL</span>";
+    const vd = (x) => '<span class="shv">' + esc(x) + "</span>";
     const rows = [];
-    L.forEach((a) => [["Regra atual", a.atual], ["Regra rígida", a.wilson]].forEach(([nome, x]) => rows.push([esc(a.aba), a.fechadas + " · " + s4(a.saldo_sol) + " SOL", nome, cell(x), s4(x.poupado_sol) + " SOL", s4(x.perderia_sol) + " SOL", sol(x.efeito_sol), esc(x.leitura)])));
-    table("bgSh", ["Aba", "Fechados · saldo", "Regra", "Teria barrado", "Perdas evitadas", "Ganhos perdidos", "Efeito", "Veredito"], rows, "Ainda não há trades fechados nas outras abas.");
+    L.forEach((a) => [["Regra atual", a.atual], ["Regra rígida", a.wilson]].forEach(([nome, x]) => rows.push([esc(a.aba), nome, vd(x.leitura), cell(x), s4(x.poupado_sol) + " SOL", s4(x.perderia_sol) + " SOL", sol(x.efeito_sol), a.fechadas + " · " + s4(a.saldo_sol) + " SOL"])));
+    table("bgSh", ["Aba", "Regra", "Veredito", "Teria barrado", "Perdas evitadas", "Ganhos perdidos", "Efeito", "Fechados · saldo"], rows, "Ainda não há trades fechados nas outras abas.");
     const F = []; L.forEach((a) => (a.faixas || []).forEach((x) => F.push([esc(a.aba), esc(x.sinal), esc(x.faixa), String(x.n), x.acerto + "%", x.media_pct + "%", x.wilson ? "atual e rígida" : "atual"])));
     table("bgShF", ["Aba", "Sinal", "Faixa", "Trades", "Acerto", "Média", "Regra"], F, "Nenhuma faixa ruim com base mínima por enquanto.");
+    table("bgShL", ["Aba", "Limite por hora", "Veredito", "Cortaria", "Perdas evitadas", "Ganhos perdidos", "Efeito", "Pico por hora"], (r.limites || []).map((x) => [esc(x.aba), String(x.limite), vd(x.leitura), cell(x), s4(x.poupado_sol) + " SOL", s4(x.perderia_sol) + " SOL", sol(x.efeito_sol), String(x.pico_hora)]), "Nenhuma aba passou desses limites até agora.");
+    const sem = (b) => b.n ? b.n + " trades · " + (b.acerto == null ? "–" : b.acerto + "%") + " · " + (b.media == null ? "–" : f(b.media, 1) + "%") + (b.lo == null ? "" : " (" + f(b.lo, 1) + "% a " + f(b.hi, 1) + "%)") : "sem trades";
+    const EVT = { melhorou: "win", piorou: "loss" };
+    table("bgEv", ["Aba", "Veredito", "Últimos 7 dias", "7 dias antes", "Saldo recente", "Leitura"], (r.evolucao || []).map((x) => [esc(x.aba), '<span class="tag ' + (EVT[x.veredito] || "") + '">' + esc(x.veredito) + "</span>", sem(x.recente), sem(x.antes), sol(x.recente.saldo_sol), esc(x.leitura)]), "Ainda não há trades fechados nas últimas duas semanas.");
   }
   async function loadRsBase() {
     const rm = realMode(), r = await BB.api("/api/pump/result-study/learn?real=" + (rm ? 1 : 0), { quiet: true }); if (r.error || !$("bgRsA")) return;

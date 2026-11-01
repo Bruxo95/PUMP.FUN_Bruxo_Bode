@@ -3375,18 +3375,98 @@ class PumpHub:
             if rem:
                 pf._emit("Estudo automático: parou de copiar " + ", ".join(f"{w[:4]}…{w[-4:]}" for w in rem))
 
+    @staticmethod
+    def _tune_kinds() -> tuple:
+        from .autotune import AUTO_KEYS, AUTO_MIN_TRADES, KEYS, MIN_TRADES, auto_variant_settings, variant_settings
+        return (("saida", variant_settings, KEYS, MIN_TRADES, lambda t: not t.get("manual") and not t.get("auto")),
+                ("saida_auto", auto_variant_settings, AUTO_KEYS, AUTO_MIN_TRADES, lambda t: t.get("origem") == "explorar"))
+
+    async def tune_suggest(self, pf, now: float | None = None) -> list[dict]:
+        """0.32.118: com a execução real ligada o ajuste não muda nada sozinho (as opções valem para as duas carteiras), então ficava parado
+        e a base não evoluía. Faz as mesmas contas de `auto_tune` e devolve o que faria, para a pessoa aplicar com um clique."""
+        from .auto_trades import ts
+        from .autotune import PAUSE_H, REJECT_S, bad_traders, evaluate, pick_exit
+        from .pumpfun import AUTO_ORIGINS
+        from .reports import autopsy
+        now = time.time() if now is None else now
+        if (getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_tune_on", True) or getattr(pf, "brain_freeze", None)
+                or not getattr(pf.cfg, "pump_real_enabled", False)):
+            return []
+        log_rows = await self.db.select("auto_tune_log", {"user_id": pf.user_id}, order="em.desc", limit=500)
+        trades = pf.trades(100000)
+        out: list[dict] = []
+        for tipo, mapper, keys, min_n, sel in self._tune_kinds():
+            alvo = "automáticas do Explorar" if tipo == "saida_auto" else "cópias"
+            last = next((r for r in log_rows if r.get("tipo") == tipo), None)
+            if last and last.get("acao") == "aplicou":
+                det = last.get("detalhe") or {}
+                ev = evaluate(last, trades, now, ts, sel)
+                if ev is None:
+                    continue                                   # ainda em teste: uma mudança de cada vez
+                if ev[0] == "desfez":
+                    antes = det.get("antes") or {}
+                    mud = [{"opcao": k, "antes": getattr(pf.cfg, k, None), "depois": v} for k, v in antes.items() if getattr(pf.cfg, k, None) != v]
+                    if mud:
+                        out.append({"id": f"{tipo}:voltar", "tipo": tipo, "acao": "desfez", "alvo": alvo, "variante": det.get("variante"),
+                                    "nome": f"Voltar ao que era antes de {det.get('nome')}", "motivo": ev[1], "mudancas": mud})
+                    continue
+            rejected = {(r.get("detalhe") or {}).get("variante") for r in log_rows
+                        if r.get("tipo") == tipo and r.get("acao") == "desfez" and now - (ts(r.get("em")) or 0) < REJECT_S}
+            snap = self.ghosts_merged(pf, "ghosts_auto" if tipo == "saida_auto" else "ghosts", trades)
+            pick = pick_exit(snap, (now - (ts(snap.get("since")) or now)) / 86400, rejected, mapper, min_n)
+            new = mapper(pick["id"]) if pick else None
+            antes = {k: getattr(pf.cfg, k) for k in keys}
+            mud = [{"opcao": k, "antes": antes.get(k), "depois": v} for k, v in (new or {}).items() if antes.get(k) != v]
+            if mud:
+                out.append({"id": f"{tipo}:{pick['id']}", "tipo": tipo, "acao": "aplicou", "alvo": alvo, "variante": pick["id"], "nome": pick["nome"],
+                            "motivo": f"{pick['avg']:+.5f} SOL/trade nos fantasmas ({pick['trades']} trades) × suas regras {pick['mine_avg']:+.5f}",
+                            "mudancas": mud, "antes": antes})
+        week = [t for t in trades if not t.get("real") and not t.get("manual") and t.get("origem") not in AUTO_ORIGINS
+                and pf.valid_addr(t.get("wallet") or "") and now - (ts(t.get("closed_at")) or 0) < 7 * 86400]
+        for x in bad_traders(autopsy(week), set(pf.paused())):
+            out.append({"id": "trader:" + x["wallet"], "tipo": "trader", "acao": "pausou", "alvo": "cópias", "wallet": x["wallet"], "horas": PAUSE_H,
+                        "nome": f"Pausar {x['wallet'][:4]}…{x['wallet'][-4:]} por {PAUSE_H} h", "mudancas": [],
+                        "motivo": f"{x['trades']} cópias, acerto {x['acerto'] * 100:.0f}%, {x['pnl_sol']:+.4f} SOL ({x['causa_nome']})"})
+        return out
+
+    async def tune_apply(self, pf, sid: str, now: float | None = None) -> dict:
+        """Aplica uma sugestão de `tune_suggest`. Refaz a conta aqui: nada do que o navegador manda vira valor de opção."""
+        now = time.time() if now is None else now
+        sug = next((x for x in await self.tune_suggest(pf, now) if x["id"] == sid), None)
+        if not sug:
+            return {"error": "essa sugestão não vale mais; atualize a tela"}
+        det = {"variante": sug.get("variante"), "nome": sug["nome"]}
+        if sug["tipo"] == "trader":
+            pf.pause(sug["wallet"], sug["horas"], "sugestão do ajuste automático: " + sug["motivo"])
+            det = {"wallet": sug["wallet"]}
+        else:
+            vals = {m["opcao"]: m["depois"] for m in sug["mudancas"]}
+            applied, errors = pf.cfg.apply(vals)
+            if errors:
+                return {"error": "não consegui aplicar: " + str(errors)[:120]}
+            quando = datetime.fromtimestamp(now, timezone.utc).isoformat()
+            ov = pf.__dict__.setdefault("_ov_user", {})        # foi a pessoa que clicou: ajuste antigo do chat não volta por cima
+            for key in applied:
+                ov[key] = quando
+            await self.save_settings(pf)
+            if sug["acao"] == "aplicou":
+                det.update(antes=sug["antes"], depois=vals)
+        await self.db.insert("auto_tune_log", {"user_id": pf.user_id, "tipo": sug["tipo"], "acao": sug["acao"], "motivo": f"você aplicou · {sug['alvo']} · {sug['nome']}: {sug['motivo']}",
+                                               "detalhe": det, "em": datetime.fromtimestamp(now, timezone.utc).isoformat()})
+        pf._emit(f"Ajuste automático: você aplicou — {sug['nome']}")
+        return {"ok": True, "nome": sug["nome"]}
+
     async def auto_tune(self, pf, now: float | None = None) -> dict:
         """Ajuste automático (0.31.14, app/autotune.py): aplica a regra de saída que os fantasmas mostram render mais,
         desfaz se piorar e pausa trader que só dá prejuízo. Só com a execução real desligada."""
         from .auto_trades import ts
-        from .autotune import (AUTO_KEYS, AUTO_MIN_TRADES, KEYS, MIN_TRADES, PAUSE_H, REJECT_S, auto_variant_settings,
-                               bad_traders, evaluate, pick_exit, variant_settings)
+        from .autotune import PAUSE_H, REJECT_S, bad_traders, evaluate, pick_exit
         from .reports import autopsy
         now = time.time() if now is None else now
         if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_tune_on", True):
             return {"ok": False, "motivo": "desligado"}
         if getattr(pf.cfg, "pump_real_enabled", False):
-            return {"ok": False, "motivo": "execução real ligada: o ajuste automático só mexe com o real desligado"}
+            return {"ok": False, "motivo": "execução real ligada: o ajuste não muda nada sozinho; veja as sugestões na tela"}
         if getattr(pf, "brain_freeze", None):
             return {"ok": False, "motivo": f"cérebro congelado na evolução E{pf.brain_freeze.get('numero')} (Base geral)"}
         log_rows = await self.db.select("auto_tune_log", {"user_id": pf.user_id}, order="em.desc", limit=500)
@@ -3401,10 +3481,7 @@ class PumpHub:
         trades = pf.trades(100000)
         testing = False
         # 1) saída das cópias (fantasmas das cópias) e 2) saída das automáticas do Explorar (fantasmas das automáticas)
-        for tipo, ghosts, mapper, keys, min_n, sel in (
-                ("saida", pf.ghosts, variant_settings, KEYS, MIN_TRADES, lambda t: not t.get("manual") and not t.get("auto")),
-                ("saida_auto", pf.ghosts_auto, auto_variant_settings, AUTO_KEYS, AUTO_MIN_TRADES,
-                 lambda t: t.get("origem") == "explorar")):
+        for tipo, mapper, keys, min_n, sel in self._tune_kinds():
             last = next((r for r in log_rows if r.get("tipo") == tipo), None)
             busy, undone = False, None
             if last and last.get("acao") == "aplicou":
