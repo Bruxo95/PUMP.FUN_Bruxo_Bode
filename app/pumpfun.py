@@ -934,7 +934,7 @@ class PumpFun:
         """0.32.113 (pedido do dono): ganhos, perdas, saldo e investido dos trades FECHADOS nas últimas 1/6/12/24 h.
         `saldo_antes` = caixa da carteira no início do período, sem as posições abertas."""
         now = time.time() if now is None else now
-        out = {h: {"horas": h, "trades": 0, "ganhos": 0, "perdas": 0, "ganhos_sol": 0.0, "perdas_sol": 0.0, "investido_sol": 0.0} for h in cls.PERIODS_H}
+        out = {h: {"horas": h, "trades": 0, "ganhos": 0, "perdas": 0, "ganhos_sol": 0.0, "perdas_sol": 0.0, "investido_sol": 0.0, "_w": set()} for h in cls.PERIODS_H}
         for t in closed:
             try:
                 age = now - datetime.fromisoformat(str(t.get("closed_at")).replace("Z", "+00:00")).timestamp()
@@ -947,10 +947,12 @@ class PumpFun:
                     g["investido_sol"] += float(t.get("sol_in") or 0)
                     g["ganhos" if pnl > 0 else "perdas"] += 1
                     g["ganhos_sol" if pnl > 0 else "perdas_sol"] += pnl
+                    if t.get("wallet") not in (None, "", "manual"):
+                        g["_w"].add(t["wallet"])               # 0.32.136: carteiras copiadas com trade fechado no período
         res = []
         for g in out.values():
             saldo = g["ganhos_sol"] + g["perdas_sol"]
-            res.append({**g, "ganhos_sol": round(g["ganhos_sol"], 6), "perdas_sol": round(g["perdas_sol"], 6), "investido_sol": round(g["investido_sol"], 6),
+            res.append({**{k: v for k, v in g.items() if k != "_w"}, "traders": len(g["_w"]), "ganhos_sol": round(g["ganhos_sol"], 6), "perdas_sol": round(g["perdas_sol"], 6), "investido_sol": round(g["investido_sol"], 6),
                         "saldo_sol": round(saldo, 6), "saldo_antes": round(balance - saldo, 6)})
         return res
 

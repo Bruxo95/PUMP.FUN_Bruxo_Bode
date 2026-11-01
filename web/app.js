@@ -3439,15 +3439,15 @@
   function renderOverview() {
     const c = cfg(), R = D.real || {}, rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, st0 = D.status || {}, RP = D.rpc || {};
     const pnlPct = Wt.start_sol ? (Wt.pnl_sol / Wt.start_sol) * 100 : null;
-    const day = (rm ? D.real_curve : D.curve) || [];
-    const since = Date.now() - 86400000; let d24 = 0; day.forEach((p, i) => { if (new Date(p[0]) >= since) d24 += p[1] - (i ? day[i - 1][1] : (rm ? 0 : Wt.start_sol)); });
+    // 0.32.136 (pedido do dono): o total em cima e, embaixo, o mesmo número só das últimas 24 h (trades fechados)
+    const p24 = (Wt.periodos || []).find((p) => p.horas === 24) || {}, k24 = (h) => '<span class="k24"><i>24 h</i> ' + h + "</span>", ac24 = p24.trades ? f(p24.ganhos / p24.trades * 100, 0) + "%" : "–";
     kpis("kpis", [
       [rm ? "Carteira real" : "Saldo fictício", rm ? (W && W.sol != null ? s4(W.sol) + "<small> SOL</small>" : "–") : s4(Wt.equity_sol) + "<small> SOL</small>", rm ? (W && W.configured ? "na blockchain" : "carteira não configurada") : (D.sol_usd ? "≈ " + usd(Wt.equity_sol * D.sol_usd, 2) : "início " + s4(Wt.start_sol) + " SOL"), "wallet", "", "ov_carteira"],
-      ["Resultado", sg(Wt.pnl_sol, ""), (pnlPct != null ? pc(pnlPct) + " desde o início · " : "") + "24 h " + sg(d24, ""), "pnl", "", "ov_resultado"],
+      ["Resultado", sg(Wt.pnl_sol, ""), (pnlPct != null ? pc(pnlPct) + " desde o início" : "") + k24(sg(p24.saldo_sol || 0, "") + (p24.investido_sol ? " · " + pc(p24.saldo_sol / p24.investido_sol * 100) : "")), "pnl", "", "ov_resultado"],
       ["Posições abertas", String(Wt.open || 0), "valor " + s4(Wt.open_value_sol) + " SOL · máx. " + (rm ? c.pump_real_max_open : c.pump_max_open), "pos", "", "ov_pos"],
-      ["Trades fechados", String(Wt.count || 0), '<span class="up">' + (Wt.wins || 0) + " ganhos</span> · <span class=\"down\">" + (Wt.losses || 0) + " perdas</span>", "tr", "", "ov_trades"],
-      ["Taxa de acerto", Wt.win_rate == null ? "–" : f(Wt.win_rate * 100, 0) + "%", "ganhos " + s4(Wt.gains_sol) + " · perdas " + s4(Wt.losses_sol), "hit", "", "ov_acerto"],
-      ["Traders copiados", String(st0.followed || 0), (D.paused || []).length ? D.paused.length + " pausados" : (st0.wallets_seen || 0) + " carteiras vistas", "usr", "", "ov_traders"],
+      ["Trades fechados", String(Wt.count || 0), '<span class="up">' + (Wt.wins || 0) + " ganhos</span> · <span class=\"down\">" + (Wt.losses || 0) + " perdas</span>" + k24((p24.trades || 0) + ' · <span class="up">' + (p24.ganhos || 0) + '</span> · <span class="down">' + (p24.perdas || 0) + "</span>"), "tr", "", "ov_trades"],
+      ["Taxa de acerto", Wt.win_rate == null ? "–" : f(Wt.win_rate * 100, 0) + "%", "ganhos " + s4(Wt.gains_sol) + " · perdas " + s4(Wt.losses_sol) + k24(ac24), "hit", "", "ov_acerto"],
+      ["Traders copiados", String(st0.followed || 0), ((D.paused || []).length ? D.paused.length + " pausados" : (st0.wallets_seen || 0) + " carteiras vistas") + k24((p24.traders || 0) + " com trades fechados"), "usr", "", "ov_traders"],
       ["Monitor", RP.ws ? '<span class="up">ON</span>' : '<span class="down">OFF</span>', RP.ws ? (RP.subs || 0) + " carteiras · real " + (R.enabled ? "LIGADO" : "OFF") : esc(RP.error || "aguardando"), "mon", "", "ov_monitor"],
       ["Execução real", R.enabled ? '<span class="up">LIGADA</span>' : '<span class="down">DESLIGADA</span>', (R.enabled ? (R.on_at ? "desde " + dt(R.on_at) : "ligada") : (R.off_at ? "desde " + dt(R.off_at) : "nenhuma compra real")) +
         '<br><button type="button" class="btn sm tgl sw ' + (R.enabled ? "on" : "off") + '" id="realAll" role="switch" aria-checked="' + !!R.enabled + '" aria-label="Execução real em todas as abas">' + (R.enabled ? "Ligado" : "Desligado") + "</button>", "wallet", "", "ov_real"],

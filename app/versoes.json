@@ -1435,6 +1435,11 @@
    "versao": "0.32.135",
    "inicio": "2026-11-01T16:54:12+00:00",
    "titulo": "ganho e perda no gráfico da carteira"
+  },
+  {
+   "versao": "0.32.136",
+   "inicio": "2026-11-01T17:40:04+00:00",
+   "titulo": "números de 24 h nos quadrados da Visão geral"
   }
  ]
 }

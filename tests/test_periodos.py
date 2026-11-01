@@ -44,3 +44,9 @@ def test_pepe_fix_only_touches_the_false_fictitious_trade_and_keeps_the_original
     onde = sql[sql.index("where real = false"):]
     assert "data->>'symbol' = 'PEPE'" in onde and ">= 1900" in onde and "fechada_em <" in onde
     assert "'corrigido'" in sql and "delete" not in sql.split("update public.pump_trades")[1].lower()
+
+
+def test_traders_counts_distinct_copied_wallets_in_each_window():
+    T = [dict(_t(1, 0.1), wallet="A"), dict(_t(2, 0.1), wallet="A"), dict(_t(3, 0.1), wallet="B"), dict(_t(2, 0.1), wallet="manual"), dict(_t(30, 0.1), wallet="C")]
+    P = {p["horas"]: p for p in PumpFun.periods(T, 10.0, NOW)}
+    assert P[24]["traders"] == 2 and P[1]["traders"] == 1 and "_w" not in P[24]
