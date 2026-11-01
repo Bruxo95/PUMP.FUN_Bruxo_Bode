@@ -1483,3 +1483,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 
 - 0.32.143 (pedido do dono): `deploy/portainer-stack.yml` no formato que está no Portainer (lista `- CHAVE=valor`, cabeçalhos do dono) com melhorias: `PUMP_REAL_ALLOWED=${PUMP_REAL_ALLOWED:-false}` e `SOLANA_RPC_PUBLIC=${SOLANA_RPC_PUBLIC:-…}` pelas variáveis do stack, `TZ_PAINEL`, `logging` json-file 10m×3, `update_config` stop-first (nunca 2 servidores operando juntos). Variáveis do stack: SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, APP_ENCRYPTION_KEY (sempre a mesma), PUMP_REAL_ALLOWED, SOLANA_RPC_PUBLIC (opcional). Quando o dono pedir o stack, partir deste arquivo e adaptar ao projeto atual.
 - 0.32.144: stack ganhou `PUMP_RPC_WS=${PUMP_RPC_WS:-wss://api.mainnet-beta.solana.com}` (o dono usa Helius em `SOLANA_RPC_PUBLIC` e `PUMP_RPC_WS`; a chave do Helius fica só nas variáveis do Portainer, nunca no repositório).
+
+- 0.32.145 (pedido do dono): `#kpis1` (mesma linha de `#kpis24`/`#kpis12`, `periodos` com 1 h que já vinha do motor); `openOvH` lê as horas por
+  regex (`ov1_*`); botão `data-r="0.0416667"` (1h) no `#rangeSeg`. Conferido em 1440 e 390 px sem rolagem lateral.

@@ -3314,7 +3314,7 @@
     ovTrades("ovT", T.slice(0, 20));
   }
   function openOvH(k) {
-    const hh = +k.slice(2, 4), tp = k.slice(5);
+    const km = k.match(/^ov(\d+)_(.*)$/) || [], hh = +km[1], tp = km[2] || "";   // 0.32.145: 1 h também
     const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, p = (Wt.periodos || []).find((x) => x.horas === hh) || {}, nome = "carteira " + (rm ? "REAL" : "FICTÍCIA") + " · últimas " + hh + " h";
     const lim = Date.now() - hh * 3600000, T = (D.trades || []).filter((t) => !!t.real === rm && new Date(t.closed_at).getTime() >= lim);
     const tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';
@@ -3341,7 +3341,7 @@
     }
   }
   function openOv(k) {
-    if (/^ov(12|24)_/.test(k)) { openOvH(k); return; }
+    if (/^ov(1|12|24)_/.test(k)) { openOvH(k); return; }
     if (k === "ov_monitor") { openSys(); return; }
     if (k === "ov_real") { openRealPlaces(); return; }
     const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, nome = rm ? "REAL" : "FICTÍCIA";
@@ -3482,7 +3482,7 @@
         '<br><button type="button" class="btn sm tgl sw ' + (R.enabled ? "on" : "off") + '" id="realAll" role="switch" aria-checked="' + !!R.enabled + '" aria-label="Execução real em todas as abas">' + (R.enabled ? "Ligado" : "Desligado") + "</button>", "wallet", "", "ov_real"],
     ]);
     // 0.32.137 (pedido do dono): uma linha própria de quadrados, só com as últimas 24 h; o clique abre a mesma janela, só com esse período
-    [24, 12].forEach((h) => { const p = (Wt.periodos || []).find((x) => x.horas === h) || {}, o = "ov" + h + "_";
+    [24, 12, 1].forEach((h) => { const p = (Wt.periodos || []).find((x) => x.horas === h) || {}, o = "ov" + h + "_";
       kpis("kpis" + h, [["Resultado " + h + " h", sg(p.saldo_sol || 0, ""), p.investido_sol ? pc(p.saldo_sol / p.investido_sol * 100) + " sobre o investido" : "sem trades fechados", "pnl", "", o + "resultado"],
         ["Trades fechados " + h + " h", String(p.trades || 0), '<span class="up">' + (p.ganhos || 0) + " ganhos</span> · <span class=\"down\">" + (p.perdas || 0) + " perdas</span>", "tr", "", o + "trades"],
         ["Taxa de acerto " + h + " h", p.trades ? f(p.ganhos / p.trades * 100, 0) + "%" : "–", "ganhos " + s4(p.ganhos_sol || 0) + " · perdas " + s4(p.perdas_sol || 0), "hit", "", o + "acerto"],

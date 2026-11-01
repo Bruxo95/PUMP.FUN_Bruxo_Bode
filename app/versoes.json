@@ -1480,6 +1480,11 @@
    "versao": "0.32.144",
    "inicio": "2026-11-01T19:43:03+00:00",
    "titulo": "stack com o WebSocket do RPC próprio"
+  },
+  {
+   "versao": "0.32.145",
+   "inicio": "2026-11-01T21:08:56+00:00",
+   "titulo": "resultado e gráfico de 1 h na Visão geral"
   }
  ]
 }
