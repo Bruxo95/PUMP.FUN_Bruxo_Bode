@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-01**; revisão documental **2.0**.
-Aplicação: **0.32.143 · 2026-11-01 · stack do Portainer no formato do dono**.
-Referência Git na emissão: `0d3a4dd627f89c8c7219b263cfa033ca0bb1bae0`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.144 · 2026-11-01 · stack com o WebSocket do RPC próprio**.
+Referência Git na emissão: `32042649fed7261a7fea999ba82aa55e05655ca3`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

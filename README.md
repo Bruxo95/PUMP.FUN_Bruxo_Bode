@@ -77,6 +77,7 @@ Em **Environment variables** adicione (valores do Supabase em Project Settings �
 | `APP_ENCRYPTION_KEY` | a chave mestra do passo 5 |
 | `PUMP_REAL_ALLOWED` | `true` libera a carteira REAL; sem ela fica `false` (travada para todos) |
 | `SOLANA_RPC_PUBLIC` | opcional: RPC próprio (ex.: Helius); sem ela usa o RPC público |
+| `PUMP_RPC_WS` | opcional: o mesmo RPC em `wss://` (WebSocket do monitor) |
 
 Marque o registry do `ghcr.io` e clique **Deploy the stack**. Confira em `https://pump.rachar.app.br/health`.
 

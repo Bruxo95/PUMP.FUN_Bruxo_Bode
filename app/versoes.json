@@ -1475,6 +1475,11 @@
    "versao": "0.32.143",
    "inicio": "2026-11-01T19:39:10+00:00",
    "titulo": "stack do Portainer no formato do dono"
+  },
+  {
+   "versao": "0.32.144",
+   "inicio": "2026-11-01T19:43:03+00:00",
+   "titulo": "stack com o WebSocket do RPC próprio"
   }
  ]
 }

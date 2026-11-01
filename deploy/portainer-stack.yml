@@ -5,7 +5,8 @@
 ##   SUPABASE_SERVICE_ROLE_KEY  chave service_role (SECRETA)
 ##   APP_ENCRYPTION_KEY         chave mestra — sempre a MESMA; se trocar, as chaves salvas no painel param de abrir
 ##   PUMP_REAL_ALLOWED          true = carteira REAL liberada; sem a variável = false (travada para todos)
-##   SOLANA_RPC_PUBLIC          opcional: RPC próprio (ex.: Helius); sem a variável = RPC público da Solana
+##   SOLANA_RPC_PUBLIC          RPC próprio https (ex.: Helius); sem a variável = RPC público da Solana
+##   PUMP_RPC_WS                o mesmo RPC em wss:// (WebSocket do monitor); sem a variável = público
 ## Nunca coloque os valores das chaves neste arquivo.
 version: "3.7"
 services:
@@ -27,6 +28,7 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
       - SOLANA_RPC_PUBLIC=${SOLANA_RPC_PUBLIC:-https://api.mainnet-beta.solana.com}
+      - PUMP_RPC_WS=${PUMP_RPC_WS:-wss://api.mainnet-beta.solana.com}
       - PUMP_REAL_ALLOWED=${PUMP_REAL_ALLOWED:-false}
 
     # logs do container com limite (30 MB no máximo): o disco cheio de 01/11/2026 derrubou o site
