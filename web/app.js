@@ -3805,6 +3805,8 @@
   let HIST_L = [];
   const hSet = (id, h) => { if (HIST_H[id] !== h && $(id)) { HIST_H[id] = h; $(id).innerHTML = h; } };
   const soma0 = (L) => L.reduce((x, t) => x + (t.sol_in || 0), 0);
+  // 0.32.138 (pedido do dono): quem é o trader; o nome vem do ranking da Solana Tracker e só existe para quem tem perfil público
+  const hWho = (t) => { const w = t.wallet, n = (D.wallet_names || {})[w]; return '<div class="hc-t">' + (!w || w === "manual" ? '<span class="muted">' + esc(whoLabel(t)) + "</span>" : (n ? "<b>" + esc(n) + "</b> " : "") + pfW0(w, t)) + "</div>"; };
   function renderHistory() {
     const rm = realMode(), W = (rm ? D.real_wallet : D.wallet) || {}, A = (D.trades || []).filter((t) => !!t.real === rm);
     const res = (t) => HIST.res === "all" || (HIST.res === "win") === (t.pnl_sol > 0);
@@ -3822,9 +3824,9 @@
     hSet("hFil", [["all", "Todos"], ["win", "Ganhos"], ["loss", "Perdas"]].map((x) => ch("data-hres", x[0], HIST.res === x[0], x[1])).join("") + '<span class="hsep"></span>' + ch("data-haba", "", !HIST.aba, "Todas as abas " + abaPct(A)) + abas.map((x) => ch("data-haba", x, HIST.aba === x, esc(x) + " " + abaPct(A.filter((t) => t.aba === x)))).join(""));
     HIST_L = V;
     hSet("hCards", V.map((t, i) => '<div class="abc hc" data-htrade="' + i + '" role="button" tabindex="0"><div class="abc-t"><b>' + esc(t.symbol || "?") + '</b><span class="sp"></span><b class="hc-r">' + sg(t.pnl_sol, "") + "</b></div>" +
-      '<div class="hc-a">' + abaTag(t) + '</div><div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + '</b></div></div><div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">Nenhum trade com esse filtro.</p>');
+      '<div class="hc-a">' + abaTag(t) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + '</b></div></div><div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">Nenhum trade com esse filtro.</p>');
     $("hMore").hidden = T.length <= V.length; $("hMore").textContent = "Ver mais (" + (T.length - V.length) + " restantes)";
-    hSet("hByC", BY.map((b) => '<div class="abc"><div class="abc-t"><div class="hc-w">' + pfW(b.t.wallet, b.t) + '</div><span class="sp"></span><b class="hc-r">' + sg(b.p, "") + '</b></div><div class="abc-n"><div><small>%</small><b>' + (b.inv ? pc(b.p / b.inv * 100) : "–") + "</b></div><div><small>Trades</small><b>" + b.n + "</b></div><div><small>Acerto</small><b>" + f((b.w / b.n) * 100, 0) + "%</b></div></div></div>").join("") || '<p class="muted">Sem trades fechados ainda.</p>');
+    hSet("hByC", BY.map((b) => '<div class="abc"><div class="abc-t"><div class="hc-w">' + abaTag(b.t) + hWho(b.t) + '</div><span class="sp"></span><b class="hc-r">' + sg(b.p, "") + '</b></div><div class="abc-n"><div><small>%</small><b>' + (b.inv ? pc(b.p / b.inv * 100) : "–") + "</b></div><div><small>Trades</small><b>" + b.n + "</b></div><div><small>Acerto</small><b>" + f((b.w / b.n) * 100, 0) + "%</b></div></div></div>").join("") || '<p class="muted">Sem trades fechados ainda.</p>');
     if ($("tPart")) table("tPart", ["Quando", "Token", "Trader", "Vendeu", "Recebeu", "Motivo", "Transação"], PS, "Nenhuma venda parcial em posição aberta.");
   }
   // 0.31.55 (pedido do dono): no Histórico também aparecem os erros e desistências (compra real recusada, preço suspeito…)

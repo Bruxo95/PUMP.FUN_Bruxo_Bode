@@ -727,6 +727,8 @@ class PumpFun:
                 flags.append("carteira suspeita")
             if w in self.banned:
                 flags.append("banida por você")
+            if idn.get("name"):
+                self.market.__dict__.setdefault("trader_names", {})[w] = str(idn["name"])[:40]    # 0.32.138: fica depois que ele sai do ranking
             out.append({"rank": i + 1, "wallet": w, "short": short(w), "name": idn.get("name"),
                         "twitter": idn.get("twitter"), "avatar": idn.get("avatar"),
                         "realized_usd": self._num(per.get("realized")), "roi": self._num(per.get("roi")),
@@ -4558,6 +4560,7 @@ class PumpFun:
                 "paused": [{"wallet": w, "short": short(w), **v,
                             "act": self.activity_view(w), "lb": lbmap.get(w), "copied": copied.get(w)}
                            for w, v in self.paused().items()],
+                "wallet_names": dict(self.market.__dict__.get("trader_names") or {}),
                 "leaderboard": [r | {"followed": r["wallet"] in fol, "manual": r["wallet"] in man,
                                      "paused": r["wallet"] in self.paused(),
                                      "act": self.activity_view(r["wallet"]),

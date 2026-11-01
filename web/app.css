@@ -922,3 +922,4 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 /* 0.32.137: linha de quadrados de 24 h */
 .kp24{grid-template-columns:repeat(4,minmax(0,1fr))}.kp24 .v{font-size:clamp(15px,1.25vw,22px)}
 @media (max-width:860px){.kp24{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.hc-t{font-size:12px;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

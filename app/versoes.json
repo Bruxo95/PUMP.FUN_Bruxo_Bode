@@ -1445,6 +1445,11 @@
    "versao": "0.32.137",
    "inicio": "2026-11-01T17:53:22+00:00",
    "titulo": "linha de quadrados de 24 h na Visão geral"
+  },
+  {
+   "versao": "0.32.138",
+   "inicio": "2026-11-01T18:01:32+00:00",
+   "titulo": "nome do trader no Histórico"
   }
  ]
 }

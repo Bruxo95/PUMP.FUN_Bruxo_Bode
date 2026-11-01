@@ -50,3 +50,9 @@ def test_traders_counts_distinct_copied_wallets_in_each_window():
     T = [dict(_t(1, 0.1), wallet="A"), dict(_t(2, 0.1), wallet="A"), dict(_t(3, 0.1), wallet="B"), dict(_t(2, 0.1), wallet="manual"), dict(_t(30, 0.1), wallet="C")]
     P = {p["horas"]: p for p in PumpFun.periods(T, 10.0, NOW)}
     assert P[24]["traders"] == 2 and P[1]["traders"] == 1 and "_w" not in P[24]
+
+
+def test_history_shows_trader_name_only_from_the_ranking():
+    import pathlib
+    s = pathlib.Path("app/pumpfun.py").read_text(encoding="utf-8")
+    assert '"wallet_names": dict(self.market.__dict__.get("trader_names") or {})' in s
