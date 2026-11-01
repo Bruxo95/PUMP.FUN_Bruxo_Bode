@@ -2541,6 +2541,10 @@
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
+    if (t.dataset.htab) { HIST.tab = t.dataset.htab; renderHistory(); return; }
+    if (t.dataset.hres) { HIST.res = t.dataset.hres; HIST.n = 24; renderHistory(); return; }
+    if (t.dataset.haba != null) { HIST.aba = t.dataset.haba; HIST.n = 24; renderHistory(); return; }
+    if (t.id === "hMore") { HIST.n += 24; renderHistory(); return; }
     if (t.dataset.abaopen != null) { openAba(+t.dataset.abaopen); return; }
     if (t.dataset.abtab && ABM) { ABM.tab = t.dataset.abtab; ABM.all = false; abaRows(); return; }
     if (t.dataset.abmore && ABM) { ABM.all = true; abaRows(); return; }
@@ -3221,18 +3225,17 @@
   }
   function abaBox(a, i) {
     const [nome, k, rk] = a, x = ABAS_R.find((y) => y.aba === nome), d = x && x.periodos.find((p) => p.horas === 24), rm = realMode(), n = ((D && D.positions) || []).filter((p) => !!p.real === rm && p.aba === nome).length, c = cfg();
-    return '<div class="abc' + (cfgNow(k) ? "" : " off") + '"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && c[rk] ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
+    return '<div class="abc"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && c[rk] ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
       '<div class="abc-d">' + esc(ABA_INFO[nome] || "") + '</div><div class="abc-n"><div><small>24 h</small><b>' + (d && d.trades ? pc(d.pct) : "–") + "</b></div><div><small>Trades</small><b>" + (d ? d.trades : 0) + "</b></div><div><small>Abertas</small><b>" + n + "</b></div></div>" +
       '<div class="abc-b"><button class="btn sm" data-abafoco="' + k + '">Só esta</button><button class="btn sm primary" data-abaopen="' + i + '">Ajustes</button></div></div>';
   }
   function abasDraw() {
     if (!$("abGrid")) return;
     ABAS_SIG = abaSig();
-    const L = ABAS_TR.map((a, i) => [a, i]), on = L.filter(([a]) => cfgNow(a[1])), off = L.filter(([a]) => !cfgNow(a[1])), rm = realMode(), np = ((D && D.positions) || []).filter((p) => !!p.real === rm).length;
-    const grp = (t, s, G) => (G.length ? '<div class="abg"><b>' + t + '</b> <span class="muted">' + s + '</span></div><div class="abgrid">' + G.map(([a, i]) => abaBox(a, i)).join("") + "</div>" : "");
-    $("abSum").innerHTML = "<b>" + on.length + " de " + ABAS_TR.length + " abas</b> comprando · " + np + (np === 1 ? " posição aberta" : " posições abertas");
-    $("abGrid").innerHTML = grp("Copiam carteiras", "repetem o que uma carteira faz", on.filter(([a]) => ABAS_COPIA.includes(a[0]))) + grp("Compram sozinhas", "decidem pelas próprias regras", on.filter(([a]) => !ABAS_COPIA.includes(a[0]))) +
-      grp("Desligadas", off.length === 1 ? "1 aba sem compras novas" : off.length + " abas sem compras novas", off);
+    const L = ABAS_TR.map((a, i) => [a, i]), n = L.filter(([a]) => cfgNow(a[1])).length, rm = realMode(), np = ((D && D.positions) || []).filter((p) => !!p.real === rm).length;
+    const grp = (t, s, G) => '<div class="abg"><b>' + t + '</b> <span class="muted">' + s + '</span></div><div class="abgrid">' + G.map(([a, i]) => abaBox(a, i)).join("") + "</div>";
+    $("abSum").innerHTML = "<b>" + n + " de " + ABAS_TR.length + " abas</b> comprando · " + np + (np === 1 ? " posição aberta" : " posições abertas");
+    $("abGrid").innerHTML = grp("Copiam carteiras", "repetem o que uma carteira faz", L.filter(([a]) => ABAS_COPIA.includes(a[0]))) + grp("Compram sozinhas", "decidem pelas próprias regras", L.filter(([a]) => !ABAS_COPIA.includes(a[0])));
     let tem = false; try { tem = !!localStorage.getItem(ABAS_MEM); } catch (e) { /* idem */ }
     $("abUndo").hidden = !tem;
   }
@@ -3383,6 +3386,7 @@
     const v = e.target.closest("[data-rsv]"); if (v) { openRsItem(v.dataset.rsv); return; }
     const oa = e.target.closest("[data-ovaba]"); if (oa) { openOvAba(+oa.dataset.ovaba); return; }
     const om = e.target.closest("[data-ovmot]"); if (om) { const [ai, mi] = om.dataset.ovmot.split(":").map(Number); ovMot(ai, mi); return; }
+    const ht = e.target.closest("[data-htrade]"); if (ht && !e.target.closest("a,button")) { const x = HIST_L[+ht.dataset.htrade]; if (x) openTradeDet(x); return; }
     const k = e.target.closest("[data-kpi-back]"); if (k) { e.preventDefault(); openOv(k.dataset.kpiBack); }
   });
   // 0.32.117: cérebro em sombra; o veredito vem da faixa de confiança por dia, nunca só do total em SOL
@@ -3743,18 +3747,31 @@
     if ($("tClosedNow")) table("tClosedNow", ["Fechou", "Token", "Origem", "Investido", "Resultado", "%", "Segurou", "Motivo"], (D.recent_closed || []).filter((t) => !!t.real === rm).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol), pfW(t.wallet, t), s4(t.sol_in) + " SOL", "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
       '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]), "Nenhuma posição fechou nas últimas 3 h.");
   }
+  // redesenho do Histórico (pedido do dono): resumo em cima, um assunto por vez e trades em quadrados, como a tela Abas de trades
+  const HIST = { tab: "tr", res: "all", aba: "", n: 24 }, HIST_H = {};
+  let HIST_L = [];
+  const hSet = (id, h) => { if (HIST_H[id] !== h && $(id)) { HIST_H[id] = h; $(id).innerHTML = h; } };
+  const soma0 = (L) => L.reduce((x, t) => x + (t.sol_in || 0), 0);
   function renderHistory() {
-    const rm = realMode(), T = (D.trades || []).filter((t) => !!t.real === rm);
-    $("trSub").textContent = T.length + " trades · líquido = depois de TODAS as taxas (pump.fun/PumpSwap, PumpPortal, rede) e do slippage";
-    const fee = (t) => { const fp = t.fee_parts || {}; if (t.fees_sol == null) return "–"; const tip = "pump.fun/PumpSwap: " + s4(fp.platform) + " · PumpPortal: " + s4(fp.portal) + " · rede: " + s4(fp.network) + (fp.slippage ? " · slippage: " + s4(fp.slippage) : ""); return '<span title="' + esc(tip) + '">' + s4(t.fees_sol) + " SOL</span><small>" + (t.sol_in ? f((t.fees_sol / t.sol_in) * 100, 1) + "% do investido" : "") + "</small>"; };
-    table("tTr", ["Fechou", "Token", "Aba · origem", "Investido", "Recebido", "Taxas", "Bruto", "Líquido", "%", "Segurou", "Motivo", "Tipo"], T.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.venue ? "<small>" + esc(t.venue) + "</small>" : ""), pfW(t.wallet, t), s4(t.sol_in), s4(t.sol_out), fee(t), sg(t.gross_sol), "<b>" + sg(t.pnl_sol) + "</b>", pc(t.pnl_pct), hms(t.hold_s),
-      '<span style="white-space:normal;display:block;max-width:280px">' + esc(t.reason) + "</span>", t.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>']), "Nenhum trade fechado ainda.");
-    // 0.31.87 (Bruxo): vendas parciais de posições que ainda estão abertas (antes só apareciam na carteira)
-    const PS = []; (D.positions || []).filter((p) => !!p.real === rm).forEach((p) => (p.sells || []).forEach((s) => PS.push([dt(s.at), pfM(p.mint, p.symbol), pfW(p.wallet, p), f((s.frac || 0) * 100, 0) + "%", s4(s.sol) + " SOL",
-      '<span class="wrapcell">' + esc(s.why || "") + "</span>", s.signature ? '<a href="https://solscan.io/tx/' + encodeURIComponent(s.signature) + '" target="_blank" rel="noopener">ver ↗</a>' : "–"])));
+    const rm = realMode(), W = (rm ? D.real_wallet : D.wallet) || {}, A = (D.trades || []).filter((t) => !!t.real === rm);
+    const res = (t) => HIST.res === "all" || (HIST.res === "win") === (t.pnl_sol > 0);
+    const T = A.filter((t) => res(t) && (!HIST.aba || t.aba === HIST.aba)), V = T.slice(0, HIST.n);
+    const g = T.filter((t) => t.pnl_sol > 0), p = T.filter((t) => !(t.pnl_sol > 0)), soma = (L) => L.reduce((x, t) => x + (t.pnl_sol || 0), 0), inv = soma0(T);
+    const PS = []; (D.positions || []).filter((x) => !!x.real === rm).forEach((x) => (x.sells || []).forEach((y) => PS.push([dt(y.at), pfM(x.mint, x.symbol), pfW(x.wallet, x), f((y.frac || 0) * 100, 0) + "%", s4(y.sol) + " SOL",
+      '<span class="wrapcell">' + esc(y.why || "") + "</span>", y.signature ? '<a href="https://solscan.io/tx/' + encodeURIComponent(y.signature) + '" target="_blank" rel="noopener">ver ↗</a>' : "–"])));
+    const by = {}; A.forEach((t) => { const key = t.wallet === "manual" ? "manual:" + whoLabel(t) : t.wallet, b = (by[key] = by[key] || { t, n: 0, w: 0, p: 0, inv: 0 }); b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol || 0; b.inv += t.sol_in || 0; });
+    const BY = Object.values(by).sort((x, y) => y.p - x.p), abas = [...new Set(A.map((t) => t.aba).filter(Boolean))].sort(), errs = (D.feed || []).filter((e) => ERR_ACT.test(String(e.action || ""))).length;
+    hSet("hSum", "<b>" + T.length + " trades</b> · ganhou " + sg(soma(g), "") + " · perdeu " + sg(soma(p), "") + " · resultado " + sg(soma(T), "") + " SOL" + (inv ? " · " + pc(soma(T) / inv * 100) : "") + (A.length < (W.count || 0) ? ' <span class="muted">· últimos ' + A.length + " de " + W.count + "</span>" : ""));
+    const ch = (attr, v, on, txt) => '<button class="btn sm chip' + (on ? " on" : "") + '" ' + attr + '="' + esc(v) + '">' + txt + "</button>";
+    hSet("hTabs", [["tr", "Trades", A.length], ["by", "Por trader", BY.length], ["mov", "Movimentos", (D.live || []).length], ["par", "Vendas parciais", PS.length], ["err", "Erros", errs]].map((x) => ch("data-htab", x[0], HIST.tab === x[0], x[1] + " · " + x[2])).join(""));
+    document.querySelectorAll("[data-hp]").forEach((e) => { e.hidden = e.dataset.hp !== HIST.tab; });
+    hSet("hFil", [["all", "Todos"], ["win", "Ganhos"], ["loss", "Perdas"]].map((x) => ch("data-hres", x[0], HIST.res === x[0], x[1])).join("") + '<span class="hsep"></span>' + ch("data-haba", "", !HIST.aba, "Todas as abas") + abas.map((x) => ch("data-haba", x, HIST.aba === x, esc(x))).join(""));
+    HIST_L = V;
+    hSet("hCards", V.map((t, i) => '<div class="abc hc" data-htrade="' + i + '" role="button" tabindex="0"><div class="abc-t"><b>' + esc(t.symbol || "?") + '</b><span class="sp"></span><b class="hc-r">' + sg(t.pnl_sol, "") + "</b></div>" +
+      '<div class="hc-a">' + abaTag(t) + '</div><div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + '</b></div></div><div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">Nenhum trade com esse filtro.</p>');
+    $("hMore").hidden = T.length <= V.length; $("hMore").textContent = "Ver mais (" + (T.length - V.length) + " restantes)";
+    hSet("hByC", BY.map((b) => '<div class="abc"><div class="abc-t"><div class="hc-w">' + pfW(b.t.wallet, b.t) + '</div><span class="sp"></span><b class="hc-r">' + sg(b.p, "") + '</b></div><div class="abc-n"><div><small>%</small><b>' + (b.inv ? pc(b.p / b.inv * 100) : "–") + "</b></div><div><small>Trades</small><b>" + b.n + "</b></div><div><small>Acerto</small><b>" + f((b.w / b.n) * 100, 0) + "%</b></div></div></div>").join("") || '<p class="muted">Sem trades fechados ainda.</p>');
     if ($("tPart")) table("tPart", ["Quando", "Token", "Trader", "Vendeu", "Recebeu", "Motivo", "Transação"], PS, "Nenhuma venda parcial em posição aberta.");
-    const by = {}, byX = {}; T.forEach((t) => { const key = t.wallet === "manual" ? "manual:" + whoLabel(t) : t.wallet; byX[key] = byX[key] || t; const b = (by[key] = by[key] || { n: 0, w: 0, p: 0, pp: 0, po: 0, np: 0, no: 0 }); const isP = String(t.venue || "pump").toLowerCase().indexOf("pump") >= 0; b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol; if (isP) { b.pp += t.pnl_sol; b.np++; } else { b.po += t.pnl_sol; b.no++; } });
-    table("tBy", ["Trader", "Trades", "Acerto", "Resultado", "pump.fun", "Fora da pump.fun"], Object.entries(by).sort((a, b) => b[1].p - a[1].p).map(([w, b]) => [pfW(byX[w].wallet, byX[w]), String(b.n), f((b.w / b.n) * 100, 0) + "%", sg(b.p), b.np ? sg(b.pp) + "<small>" + b.np + " trades</small>" : "–", b.no ? sg(b.po) + "<small>" + b.no + " trades</small>" : "–"]), "Sem trades fechados ainda.");
   }
   // 0.31.55 (pedido do dono): no Histórico também aparecem os erros e desistências (compra real recusada, preço suspeito…)
   const ERR_ACT = /^(REAL falhou|REAL não copiou|preço suspeito)$/;

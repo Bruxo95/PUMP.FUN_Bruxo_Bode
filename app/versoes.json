@@ -1420,6 +1420,11 @@
    "versao": "0.32.132",
    "inicio": "2026-11-01T13:47:07+00:00",
    "titulo": "abas desligadas em quadrados"
+  },
+  {
+   "versao": "0.32.133",
+   "inicio": "2026-11-01T13:53:46+00:00",
+   "titulo": "quadrados fixos nas Abas de trades e Histórico reorganizado"
   }
  ]
 }

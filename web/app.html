@@ -287,7 +287,7 @@
           <div class="posabas" id="posAbas"></div>
           <div class="kpis" id="posK" data-novo-ate="2026-11-14"></div>
           <div class="tablewrap"><table id="posAbaT" class="daytbl"></table></div>
-          <div class="poscards" id="posCards"></div><details class="origleg"><summary>O que quer dizer a coluna Trader quando não é uma carteira?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
+          <div class="poscards" id="posCards"></div><details class="origleg"><summary>O que quer dizer cada origem?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
               <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Fechadas agora (últimas 3 h)</h2><div class="sub">stops, alvos, tempo, trader vendeu… para ver que o trade terminou e por quê</div></div><div class="sp"></div><a class="btn sm" href="#historico">Histórico completo</a></header>
           <div class="tbl-wrap"><table id="tClosedNow"></table></div></div>
 </section>
@@ -731,18 +731,21 @@
 
       <!-- ========================================================= HISTÓRICO -->
       <section class="view" data-view="historico" hidden>
-        <div class="card"><header><div><h2>Resultado por trader copiado <span class="tag sim" data-mtag>FICTÍCIA</span></h2></div></header>
-          <div class="tbl-wrap"><table id="tBy"></table></div></div>
-        <div class="card"><header><div><h2>Trades fechados <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub" id="trSub"></div></div></header>
-          <div class="tbl-wrap tall"><table id="tTr"></table></div>
-          <h3 data-novo-ate="2026-11-11" style="margin-top:14px">Vendas parciais (posições ainda abertas)</h3>
-          <p class="muted small">Quando a "venda em partes" vende um pedaço, o resto da posição continua aberto; a venda aparece aqui e na coluna Vendido de Posições até a posição fechar.</p>
-          <div class="tbl-wrap"><table id="tPart" class="daytbl"></table></div><details class="origleg"><summary>O que quer dizer a coluna Trader quando não é uma carteira?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
+        <div class="card absum" data-novo-ate="2026-11-15" data-nosanf><div id="hSum"></div><span class="tag sim" data-mtag>FICTÍCIA</span></div>
+        <div class="posabas abtabs" id="hTabs"></div>
+        <div data-hp="tr"><div class="posabas abtabs" id="hFil"></div><div class="abgrid" id="hCards"></div><button class="btn sm abmore" id="hMore" hidden>Ver mais</button>
+          <details class="origleg"><summary>O que quer dizer a coluna Trader quando não é uma carteira?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
+        <div data-hp="by" hidden><div class="abgrid" id="hByC"></div></div>
+        <div data-hp="mov" hidden>
         <div class="card" data-novo-ate="2026-11-13"><header><div><h2>Movimentos dos traders copiados</h2><div class="sub" id="hMonSub">o que cada trader copiado comprou e vendeu · os últimos 200 vistos pelo monitor</div></div><div class="sp"></div>
             <div class="seg" id="hMonSeg"><button data-hf="all" class="on">Tudo</button><button data-hf="buy">Entradas</button><button data-hf="sell">Saídas</button></div></header>
           <div class="tbl-wrap tall"><table id="hMon" class="daytbl"></table></div></div>
+        </div>
+        <div data-hp="par" hidden><div class="card"><header><div><h2>Vendas parciais</h2><div class="sub">quando a venda em partes vende um pedaço, o resto da posição continua aberto</div></div></header><div class="tbl-wrap"><table id="tPart" class="daytbl"></table></div></div></div>
+        <div data-hp="err" hidden>
         <div class="card" data-novo-ate="2026-11-10"><header><div><h2>Erros e falhas (compras e vendas que não aconteceram)</h2><div class="sub" id="hErrSub"></div></div></header>
           <div class="tbl-wrap"><table id="hErr" class="daytbl"></table></div></div>
+        </div>
       </section>
 
       <!-- ========================================================= FEED -->
