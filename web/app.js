@@ -3502,15 +3502,16 @@
     const before = pts.filter((p) => p[0] < t0); let base = before.length ? before[before.length - 1][1] : start;
     let S = [[t0, base]].concat(pts.filter((p) => p[0] >= t0)); S.push([Date.now(), S[S.length - 1][1]]);
     if (S.length <= 2 && !pts.length) { el.innerHTML = '<div class="empty" style="padding-top:90px">A carteira começa com ' + s4(start) + " SOL. A linha aparece a partir do primeiro trade fechado.</div>"; $("curveRes").innerHTML = ""; CURVE = null; return; }
-    const ys = S.map((p) => p[1]); let lo = Math.min(...ys, start), hi = Math.max(...ys, start); if (hi - lo < 0.01) { lo -= 0.005; hi += 0.005; }
+    // 0.32.142: a escala segue o período; com a inicial sempre incluída, a linha de 12 h ficava achatada no fundo
+    const ys = S.map((p) => p[1]); let lo = Math.min(...ys), hi = Math.max(...ys); if (hi - lo < 0.01) { lo -= 0.005; hi += 0.005; }
     const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
     const X = (t) => P + ((t - t0) / (Date.now() - t0)) * (Wd - P - 10), Y = (v) => 10 + ((hi - v) / (hi - lo)) * (H - B - 14);
     const up = S[S.length - 1][1] >= base, col = up ? "#22c55e" : "#ef4444";
     let path = ""; S.forEach((p, i) => { const x = X(p[0]).toFixed(1), y = Y(p[1]).toFixed(1); path += i ? " H" + x + " V" + y : "M" + x + " " + y; });
     const grid = [0, 1, 2, 3].map((i) => { const v = lo + ((hi - lo) * i) / 3; return '<line x1="' + P + '" x2="' + Wd + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="#1e1e22"/><text x="4" y="' + (Y(v) + 4) + '" font-size="10.5" fill="#5d5d66" font-family="JetBrains Mono,monospace">' + v.toFixed(3) + "</text>"; }).join("");
-    const xl = [0, 0.5, 1].map((k) => { const t = t0 + k * (Date.now() - t0); const d = new Date(t); const lab = RANGE === 1 ? d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); return '<text x="' + Math.min(Wd - 40, Math.max(P, X(t) - 16)) + '" y="' + (H - 4) + '" font-size="10.5" fill="#5d5d66">' + lab + "</text>"; }).join("");
+    const xl = [0, 0.5, 1].map((k) => { const t = t0 + k * (Date.now() - t0); const d = new Date(t); const lab = RANGE <= 1 ? d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); return '<text x="' + Math.min(Wd - 40, Math.max(P, X(t) - 16)) + '" y="' + (H - 4) + '" font-size="10.5" fill="#5d5d66">' + lab + "</text>"; }).join("");
     el.innerHTML = '<svg viewBox="0 0 ' + Wd + " " + H + '" preserveAspectRatio="none"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".25"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' + grid +
-      '<line x1="' + P + '" x2="' + Wd + '" y1="' + Y(start) + '" y2="' + Y(start) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
+      '<line x1="' + P + '" x2="' + Wd + '" y1="' + Y(base) + '" y2="' + Y(base) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
       '<path d="' + path + " V" + (H - B) + " H" + X(t0) + 'Z" fill="url(#cg)"/><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2"/>' + xl + '</svg><i class="cline" id="cLine" hidden></i><i class="cdot" id="cDot" hidden></i><div class="ctip" id="cTip" hidden></div>';
     // 0.32.135 (pedido do dono): cada ponto guarda o ganho e a perda somados desde o começo do período mostrado
     let g = 0, l = 0;

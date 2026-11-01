@@ -1465,6 +1465,11 @@
    "versao": "0.32.141",
    "inicio": "2026-11-01T18:25:13+00:00",
    "titulo": "linha de quadrados de 12 h na Visão geral"
+  },
+  {
+   "versao": "0.32.142",
+   "inicio": "2026-11-01T18:37:39+00:00",
+   "titulo": "gráfico da carteira com período de 12 h"
   }
  ]
 }

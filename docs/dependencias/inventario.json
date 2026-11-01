@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-01",
     "timezone": "Europe/Dublin",
-    "repository_reference": "7a415581952b90f0dd9658de7aca8e541d760996",
-    "application_version": "0.32.141 · 2026-11-01 · linha de quadrados de 12 h na Visão geral",
+    "repository_reference": "54e100182ec42bdee5f01d6022e6f997a1653a05",
+    "application_version": "0.32.142 · 2026-11-01 · gráfico da carteira com período de 12 h",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "c9ee014eae8195b7f0a7e2146e0335b67a1844a66fb3fcd51590a46264eaf4e6",
+      "app/version.py": "52b083507f39ed09a1f4cc916495a1282be12b560b74f057ce8ef14e0eeed5da",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "e57c387974e11b85199a41e0af0f91f983b63a3fb9990f00cdfb65be38bc4165",
+      "web/app.html": "627b27672b963cc1ae52a92b13f1e303d49091939baa1537b1701f12063660ad",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5b4e104034a0f1c90d10dfefbb9cfaead5ac790dfc53858666bd00eb269fe3e4"
+  "pdf_sha256": "66bc14213db1e380073ae348745adff5c320e12baf84296611646846ead9f498"
 }
