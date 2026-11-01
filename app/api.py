@@ -224,6 +224,29 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.124: Laboratório do Top traders. Só mede."""
         return hub.top_lab(pf)
 
+    @app.get("/api/pump/traders-aba")
+    async def traders_aba(aba: str, real: int = 0, pf=Depends(engine)):
+        """0.32.140: traders de uma aba, em todo o tempo e nas últimas 24 h. Só os trades desta conta."""
+        return hub.tr_tabela(pf, aba[:60], bool(real))
+
+    @app.post("/api/pump/trader-report")
+    async def trader_report(body: dict, pf=Depends(admin_engine)):
+        aba = str((body or {}).get("aba") or "")
+        if aba not in {*pf.ABA_ORIGEM.values(), "Top traders", "Copiar igual", "Carteiras em estudo", "Maiores traders (80%+)"}:
+            raise HTTPException(400, "aba inválida")
+        return await hub.tr_save(pf, aba, bool((body or {}).get("real")))
+
+    @app.get("/api/pump/trader-report/base")
+    async def trader_report_base(real: int = 0, pf=Depends(admin_engine)):
+        return await hub.tr_base(bool(real))
+
+    @app.get("/api/pump/trader-report/item")
+    async def trader_report_item(id: str, pf=Depends(admin_engine)):
+        R = await hub.tr_item(id)
+        if R is None:
+            raise HTTPException(404, "relatório não encontrado")
+        return R
+
     @app.get("/api/pump/result-tabs")
     async def result_tabs(real: int = 0, pf=Depends(engine)):
         """0.32.123: resultado por aba da janela Resultado. Só os trades desta conta."""

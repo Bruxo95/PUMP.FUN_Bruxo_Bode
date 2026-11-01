@@ -1761,6 +1761,59 @@ class PumpHub:
                 out.setdefault(str(int(h)), r.get("em"))
         return out
 
+    # ------------------------------------------------------------------ relatório dos traders de cada aba (0.32.140)
+    def tr_names(self) -> dict:
+        return self.market.__dict__.get("trader_names") or {}
+
+    def tr_tabela(self, pf: PumpFun, aba: str, real: bool) -> dict:
+        from . import traderreport
+        return traderreport.tabela(pf.trades(100000), aba, pf.aba_of, real, self.tr_names())
+
+    async def tr_save(self, pf: PumpFun, aba: str, real: bool, origem: str = "manual", now: float | None = None) -> dict:
+        from . import traderreport
+        now = time.time() if now is None else now
+        R = traderreport.build(pf.trades(100000), aba, pf.aba_of, real, self.tr_names(), now)
+        await self.db.insert("trader_reports", {"id": f"{pf.user_id}:{int(real)}:{aba}:{int(now // 3600)}", "user_id": pf.user_id, "real": real, "aba": aba, "origem": origem,
+                                                "em": datetime.fromtimestamp(now, timezone.utc).isoformat(), "data": R}, upsert=True, on_conflict="id")
+        return R
+
+    async def tr_base(self, real: bool, limit: int = 300) -> dict:
+        from . import traderreport
+        rows = await self.db.select("trader_reports", {"real": real}, order="em.desc", limit=limit)
+        try:
+            ps = await self.db.select("profiles", None, columns="user_id,nome,email")
+            names = {p["user_id"]: p.get("nome") or (p.get("email") or "").split("@")[0] or "usuário" for p in ps}
+        except Exception:
+            names = {}
+        return {"relatorios": [{"id": r.get("id"), "em": r.get("em"), "conta": names.get(r.get("user_id"), "usuário"), "aba": r.get("aba"), "origem": r.get("origem"),
+                                "total": (r.get("data") or {}).get("total"), "total24": (r.get("data") or {}).get("total24")} for r in rows[:60]],
+                "traders": traderreport.learn(rows)[:40]}
+
+    async def tr_item(self, rid: str) -> dict | None:
+        rows = await self.db.select("trader_reports", {"id": rid}, limit=1)
+        return rows[0].get("data") if rows else None
+
+    async def tr_tick(self, now: float | None = None) -> int:
+        """Um relatório por dia do Top traders de cada admin, sem precisar clicar."""
+        now = time.time() if now is None else now
+        done, dia, n = self.__dict__.setdefault("_tr_done", set()), int(now // 86400), 0
+        for e in list(self.engines.values()):
+            key = (e.user_id, dia)
+            if getattr(e, "role", "user") == "admin" and key not in done:
+                await self.tr_save(e, "Top traders", False, "dia", now)
+                done.add(key)
+                n += 1
+        return n
+
+    async def tr_loop(self) -> None:
+        await asyncio.sleep(600)
+        while True:
+            try:
+                await self.tr_tick()
+            except Exception as e:
+                log.warning("relatório de traders: %s", str(e)[:160])
+            await asyncio.sleep(3600)
+
     async def rs_base(self, real: bool, limit: int = 100) -> list[dict]:
         """Seção da Base geral: estudos guardados pelo botão, de todas as contas (só admin vê)."""
         rows = await self.db.select("result_studies", {"origem": "manual", "real": real}, order="em.desc", limit=limit)
@@ -4223,6 +4276,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
         self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
         self._tasks.append(asyncio.create_task(self.top_loop()))            # 0.32.124: compras barradas do Top traders
+        self._tasks.append(asyncio.create_task(self.tr_loop()))             # 0.32.140: relatório dos traders
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes

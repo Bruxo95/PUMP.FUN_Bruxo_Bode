@@ -1455,6 +1455,11 @@
    "versao": "0.32.139",
    "inicio": "2026-11-01T18:10:42+00:00",
    "titulo": "traders repetidos no filtro do Histórico"
+  },
+  {
+   "versao": "0.32.140",
+   "inicio": "2026-11-01T18:19:31+00:00",
+   "titulo": "traders em todo o tempo e 24 h, com relatório na Base geral"
   }
  ]
 }
