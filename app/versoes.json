@@ -1525,6 +1525,11 @@
    "versao": "0.32.153",
    "inicio": "2026-11-01T22:42:38+00:00",
    "titulo": "carteira no Solscan e todos os trades de cada trader no relatório"
+  },
+  {
+   "versao": "0.32.154",
+   "inicio": "2026-11-01T22:43:53+00:00",
+   "titulo": "desfazer também a configuração aceita por convite"
   }
  ]
 }

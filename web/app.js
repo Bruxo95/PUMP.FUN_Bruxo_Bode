@@ -3306,7 +3306,18 @@
   // 0.32.152 (pedido do dono): antes de trocar, mostra o que vai mudar; o "Desfazer" volta as opções de antes (guardadas neste navegador)
   const abcFv = (v, x) => v === true ? "ligado" : v === false ? "desligado" : v == null ? "–" : (typeof v === "number" ? s4(v) : esc(String(v))) + (x.unit ? " " + esc(x.unit) : "");
   const abcUndoKey = () => "pf_abundo:" + (ABC && ABC.nome);
-  function abcUndoGet() { try { return JSON.parse(localStorage.getItem(abcUndoKey()) || "null"); } catch (e) { return null; } }
+  // 0.32.154 (pedido do dono): sem troca feita aqui, o desfazer usa a última configuração aceita por convite (o servidor guarda os
+  // valores de antes de aceitar), só nas opções desta aba que ainda estão diferentes do que eram
+  function abcUndoGet() {
+    let u = null; try { u = JSON.parse(localStorage.getItem(abcUndoKey()) || "null"); } catch (e) { u = null; }
+    if (u && u.vals && Object.keys(u.vals).length) return u;
+    const ks = new Set(((ABC && ABC.L) || []).map((x) => x.k));
+    for (const a of APPLIED || []) {
+      const vals = {}; Object.entries(a.antes || {}).forEach(([k, v]) => { if (ks.has(k) && !abcSame(cfgNow(k), v)) vals[k] = v; });
+      if (Object.keys(vals).length) return { t: a.em, de: a.de, vals, convite: true };
+    }
+    return null;
+  }
   function abcPlan(vals, tipo, titulo) {
     const rows = ABC.L.filter((x) => x.k in vals && !abcSame(cfgNow(x.k), vals[x.k]));
     if (!rows.length) { toast("Nada a mudar: já está assim."); return; }
@@ -3317,7 +3328,8 @@
     const r = ABC && ABC.r; if (!r || !$("abCmpR")) return;
     if (r.error) { $("abCmpR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
     const V = r.valores || {}, fv = abcFv, u = abcUndoGet(), pd = ABC.pend;
-    const undo = u && u.vals && Object.keys(u.vals).length ? '<div class="abcmp-undo">Última troca: ' + dt(u.t) + " (igual à de " + esc(u.de || "?") + ', ' + Object.keys(u.vals).length + ' opções) <button class="btn sm" data-abundo="1">Desfazer · voltar como estava</button></div>' : "";
+    const undo = u && u.vals && Object.keys(u.vals).length ? '<div class="abcmp-undo">' + (u.convite ? "Configuração de " + esc(u.de || "?") + " aceita em " + dt(u.t) : "Última troca: " + dt(u.t) + " (igual à de " + esc(u.de || "?") + ")") + " · " + Object.keys(u.vals).length + ' opç' + (Object.keys(u.vals).length > 1 ? "ões" : "ão") + ' mudaram <button class="btn sm" data-abundo="1">Desfazer · voltar como estava</button></div>'
+      : '<div class="abcmp-undo">Nada para desfazer nesta aba: nenhuma troca feita aqui nem configuração aceita mudou estas opções.</div>';
     if (pd) {
       $("abCmpR").innerHTML = '<div class="abcmp-pend"><b>' + esc(pd.titulo) + "</b> · vai mudar " + pd.rows.length + " opç" + (pd.rows.length > 1 ? "ões" : "ão") + ":</div>" +
         '<div class="tbl-wrap"><table class="daytbl"><thead><tr><th>Opção</th><th>Agora</th><th>Vai ficar</th></tr></thead><tbody>' +
@@ -3335,7 +3347,7 @@
   document.addEventListener("click", async (e) => {
     const t = e.target.closest && e.target.closest("[data-abequal],[data-abshare],[data-abundo],[data-abok],[data-abcancel]"); if (!t || !ABC) return;
     if (t.dataset.abequal) abcPlan((ABC.r && ABC.r.valores) || {}, "igual", "Deixar igual à de " + ABC.r.nome);
-    else if (t.dataset.abundo) { const u = abcUndoGet(); if (u) abcPlan(u.vals, "undo", "Desfazer · voltar como estava antes de " + dt(u.t)); }
+    else if (t.dataset.abundo) { const u = abcUndoGet(); if (u) abcPlan(u.vals, "undo", "Desfazer · voltar como estava antes de " + (u.convite ? "aceitar a de " + (u.de || "?") + " (" + dt(u.t) + ")" : dt(u.t))); }
     else if (t.dataset.abcancel) { ABC.pend = null; abaCmpDraw(); }
     else if (t.dataset.abok) {
       const pd = ABC.pend; if (!pd) return;
