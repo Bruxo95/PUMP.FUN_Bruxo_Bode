@@ -1471,3 +1471,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.131 (opção B aprovada pelo dono no PDF): tela `#abas` em quadrados (`abasDraw`, `abaBox`, `#abGrid`, `.abc`; `abasSync` no `render` redesenha quando uma chave muda) e janela Ajustes no `#jtM` (`openAba`, `abaRows`, `ABM`, abas `ABA_TAB`, ordem `ABA_ORD`, dicas `ABA_DICA`). Trocou `#abT`/`#abPn`. `abaTabOf` separa Saída, Entrada e Valores pelo nome da chave.
 - 0.32.132 (pedido do dono): Abas de trades: as desligadas usam `abaBox` com `.abc.off`, sem as pílulas.
 - 0.32.133 (pedido do dono): Abas de trades com quadrados fixos (desligado só muda a cor; `.abc.off` saiu) e grade 4/3/2/1 colunas. Histórico: `HIST`, `hSet`, abas `#hTabs` (`data-hp`), quadrados `#hCards`/`#hByC`, `data-htrade` abre `openTradeDet`; `#tTr`, `#tBy` saíram.
+- 0.32.134 (pedido do dono): `abaPct` em `renderHistory` mostra o percentual de cada aba no filtro do Histórico, com os trades do painel.

@@ -1425,6 +1425,11 @@
    "versao": "0.32.133",
    "inicio": "2026-11-01T13:53:46+00:00",
    "titulo": "quadrados fixos nas Abas de trades e Histórico reorganizado"
+  },
+  {
+   "versao": "0.32.134",
+   "inicio": "2026-11-01T14:01:26+00:00",
+   "titulo": "percentual de cada aba no Histórico"
   }
  ]
 }
