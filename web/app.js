@@ -2543,7 +2543,8 @@
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
     if (t.dataset.htab) { HIST.tab = t.dataset.htab; renderHistory(); return; }
     if (t.dataset.hres) { HIST.res = t.dataset.hres; HIST.n = 24; renderHistory(); return; }
-    if (t.dataset.haba != null) { HIST.aba = t.dataset.haba; HIST.n = 24; renderHistory(); return; }
+    if (t.dataset.haba != null) { HIST.aba = t.dataset.haba; HIST.w = ""; HIST.n = 24; renderHistory(); return; }
+    if (t.dataset.hw) { HIST.w = HIST.w === t.dataset.hw ? "" : t.dataset.hw; HIST.n = 24; renderHistory(); return; }
     if (t.id === "hMore") { HIST.n += 24; renderHistory(); return; }
     if (t.dataset.abaopen != null) { openAba(+t.dataset.abaopen); return; }
     if (t.dataset.abtab && ABM) { ABM.tab = t.dataset.abtab; ABM.all = false; abaRows(); return; }
@@ -3801,16 +3802,16 @@
       '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]), "Nenhuma posição fechou nas últimas 3 h.");
   }
   // redesenho do Histórico (pedido do dono): resumo em cima, um assunto por vez e trades em quadrados, como a tela Abas de trades
-  const HIST = { tab: "tr", res: "all", aba: "", n: 24 }, HIST_H = {};
-  let HIST_L = [];
+  const HIST = { tab: "tr", res: "all", aba: "", w: "", n: 24 }, HIST_H = {};
+  let HIST_L = [], HIST_C = {};
   const hSet = (id, h) => { if (HIST_H[id] !== h && $(id)) { HIST_H[id] = h; $(id).innerHTML = h; } };
   const soma0 = (L) => L.reduce((x, t) => x + (t.sol_in || 0), 0);
   // 0.32.138 (pedido do dono): quem é o trader; o nome vem do ranking da Solana Tracker e só existe para quem tem perfil público
-  const hWho = (t) => { const w = t.wallet, n = (D.wallet_names || {})[w]; return '<div class="hc-t">' + (!w || w === "manual" ? '<span class="muted">' + esc(whoLabel(t)) + "</span>" : (n ? "<b>" + esc(n) + "</b> " : "") + pfW0(w, t)) + "</div>"; };
+  const hWho = (t) => { const w = t.wallet, n = (D.wallet_names || {})[w]; return '<div class="hc-t">' + (!w || w === "manual" ? '<span class="muted">' + esc(whoLabel(t)) + "</span>" : (n ? "<b>" + esc(n) + "</b> " : "") + pfW0(w, t) + (HIST_C[w] && HIST_C[w].n > 1 ? ' <span class="hc-n">' + HIST_C[w].n + " trades</span>" : "")) + "</div>"; };
   function renderHistory() {
     const rm = realMode(), W = (rm ? D.real_wallet : D.wallet) || {}, A = (D.trades || []).filter((t) => !!t.real === rm);
     const res = (t) => HIST.res === "all" || (HIST.res === "win") === (t.pnl_sol > 0);
-    const T = A.filter((t) => res(t) && (!HIST.aba || t.aba === HIST.aba)), V = T.slice(0, HIST.n);
+    const T = A.filter((t) => res(t) && (!HIST.aba || t.aba === HIST.aba) && (!HIST.w || t.wallet === HIST.w)), V = T.slice(0, HIST.n);
     const g = T.filter((t) => t.pnl_sol > 0), p = T.filter((t) => !(t.pnl_sol > 0)), soma = (L) => L.reduce((x, t) => x + (t.pnl_sol || 0), 0), inv = soma0(T);
     const PS = []; (D.positions || []).filter((x) => !!x.real === rm).forEach((x) => (x.sells || []).forEach((y) => PS.push([dt(y.at), pfM(x.mint, x.symbol), pfW(x.wallet, x), f((y.frac || 0) * 100, 0) + "%", s4(y.sol) + " SOL",
       '<span class="wrapcell">' + esc(y.why || "") + "</span>", y.signature ? '<a href="https://solscan.io/tx/' + encodeURIComponent(y.signature) + '" target="_blank" rel="noopener">ver ↗</a>' : "–"])));
@@ -3822,7 +3823,12 @@
     hSet("hTabs", [["tr", "Trades", A.length], ["by", "Por trader", BY.length], ["mov", "Movimentos", (D.live || []).length], ["par", "Vendas parciais", PS.length], ["err", "Erros", errs]].map((x) => ch("data-htab", x[0], HIST.tab === x[0], x[1] + " · " + x[2])).join(""));
     document.querySelectorAll("[data-hp]").forEach((e) => { e.hidden = e.dataset.hp !== HIST.tab; });
     hSet("hFil", [["all", "Todos"], ["win", "Ganhos"], ["loss", "Perdas"]].map((x) => ch("data-hres", x[0], HIST.res === x[0], x[1])).join("") + '<span class="hsep"></span>' + ch("data-haba", "", !HIST.aba, "Todas as abas " + abaPct(A)) + abas.map((x) => ch("data-haba", x, HIST.aba === x, esc(x) + " " + abaPct(A.filter((t) => t.aba === x)))).join(""));
-    HIST_L = V;
+    // 0.32.139 (pedido do dono): com uma aba escolhida, os traders que se repetem aparecem com nome, endereço e quantos trades
+    const NW = {}; A.filter((t) => t.aba === HIST.aba && t.wallet && t.wallet !== "manual").forEach((t) => { const b = (NW[t.wallet] = NW[t.wallet] || { w: t.wallet, t, n: 0, sol: 0 }); b.n++; b.sol += t.pnl_sol || 0; });
+    const REP = Object.values(NW).filter((b) => b.n > 1).sort((a, b) => b.n - a.n || b.sol - a.sol);
+    hSet("hRep", REP.length ? '<div class="abg"><b>Traders repetidos</b> <span class="muted">clique para ver só os trades dele</span></div><div class="hreps">' + REP.map((b) => { const nm = (D.wallet_names || {})[b.w];
+      return '<button class="hrep' + (HIST.w === b.w ? " on" : "") + '" data-hw="' + esc(b.w) + '">' + (nm ? "<b>" + esc(nm) + "</b>" : "") + '<span class="mono">' + esc(shortW(b.w)) + "</span><span><b>" + b.n + " trades</b> · " + sg(b.sol, "") + "</span></button>"; }).join("") + "</div>" : "");
+    HIST_C = NW; HIST_L = V;
     hSet("hCards", V.map((t, i) => '<div class="abc hc" data-htrade="' + i + '" role="button" tabindex="0"><div class="abc-t"><b>' + esc(t.symbol || "?") + '</b><span class="sp"></span><b class="hc-r">' + sg(t.pnl_sol, "") + "</b></div>" +
       '<div class="hc-a">' + abaTag(t) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + '</b></div></div><div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">Nenhum trade com esse filtro.</p>');
     $("hMore").hidden = T.length <= V.length; $("hMore").textContent = "Ver mais (" + (T.length - V.length) + " restantes)";

@@ -1450,6 +1450,11 @@
    "versao": "0.32.138",
    "inicio": "2026-11-01T18:01:32+00:00",
    "titulo": "nome do trader no Histórico"
+  },
+  {
+   "versao": "0.32.139",
+   "inicio": "2026-11-01T18:10:42+00:00",
+   "titulo": "traders repetidos no filtro do Histórico"
   }
  ]
 }

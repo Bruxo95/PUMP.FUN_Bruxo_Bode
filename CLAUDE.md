@@ -1476,3 +1476,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.136 (pedido do dono): quadrados da Visão geral com `k24`, usando `wallet().periodos`; `periods` ganhou `traders` (carteiras distintas com trade fechado). O 24 h do Resultado agora vem só de trades fechados, como o resto.
 - 0.32.137 (pedido do dono): `#kpis24` abaixo de `.kpirow` e `openOv24` (`ov24_*`): janelas só com 24 h; as listas usam os últimos 300 trades do painel e os totais usam `wallet().periodos`. O `k24` da 0.32.136 saiu.
 - 0.32.138 (pedido do dono): `trader_names` (nome do ranking, só memória) → `wallet_names` no snapshot → `hWho` no Histórico. Top traders vem do ranking da Solana Tracker + lista manual; Maiores traders são os 15 primeiros do mesmo ranking.
+- 0.32.139 (pedido do dono): Histórico com `#hRep` (traders com 2+ trades na aba escolhida), filtro `HIST.w` (`data-hw`) e contagem em `hWho`, com os trades do painel.

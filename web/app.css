@@ -923,3 +923,10 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .kp24{grid-template-columns:repeat(4,minmax(0,1fr))}.kp24 .v{font-size:clamp(15px,1.25vw,22px)}
 @media (max-width:860px){.kp24{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .hc-t{font-size:12px;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 0.32.139: traders repetidos no filtro do Histórico */
+.hreps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.hrep{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--text);font:inherit;font-size:12.5px;cursor:pointer;min-width:0}
+.hrep:hover{border-color:var(--line2)}.hrep.on{border-color:rgba(34,197,94,.55);background:var(--up-bg)}.hrep .mono{color:var(--muted);font-size:11.5px}.hrep b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hc-t{display:flex;align-items:center;gap:5px}.hc-t>b{overflow:hidden;text-overflow:ellipsis}.hc-t a{flex:none}.hc-n{flex:none;margin-left:auto;color:var(--muted);font-size:11px}
+@media (max-width:1400px){.hreps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:1050px){.hreps{grid-template-columns:repeat(2,minmax(0,1fr))}}
