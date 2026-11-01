@@ -3275,10 +3275,59 @@
     const fmt = (y) => { const v = cfgNow(y.k); return esc(y.label) + ": " + (v === true ? "ligado" : v === false ? "desligado" : (typeof v === "number" ? s4(v) : esc(String(v))) + (y.unit ? " " + esc(y.unit) : "")); };
     const res = L.filter((y) => abaTabOf(y) === "s").slice(0, 4).map(fmt).join(" · ");
     ABM = { L, tab: "s", all: false };
-    ovShow(ABAS_TR[i][0], "Ajustes desta aba", (nota ? '<p class="small" style="margin:0 0 8px">' + esc(nota) + "</p>" : "") + (res ? '<div class="abres"><b>Como ' + (nota ? esc(nome) : "esta aba") + " sai hoje:</b> " + res + "</div>" : "") + '<div class="kpis" id="abK"></div><div class="posabas abtabs" id="abTabs"></div><div id="abRows"></div><p class="muted small" style="margin:10px 0 0">São as mesmas opções da tela da aba: mudar aqui muda lá. As opções da carteira REAL ficam só nas telas originais.</p>');
+    ovShow(ABAS_TR[i][0], "Ajustes desta aba", (nota ? '<p class="small" style="margin:0 0 8px">' + esc(nota) + "</p>" : "") + (res ? '<div class="abres"><b>Como ' + (nota ? esc(nome) : "esta aba") + " sai hoje:</b> " + res + "</div>" : "") + '<div class="abcmp" id="abCmp"></div><div class="kpis" id="abK"></div><div class="posabas abtabs" id="abTabs"></div><div id="abRows"></div><p class="muted small" style="margin:10px 0 0">São as mesmas opções da tela da aba: mudar aqui muda lá. As opções da carteira REAL ficam só nas telas originais.</p>');
     kpis("abK", [["24 h", d && d.trades ? pc(d.pct) : "–", d ? d.trades + " trades" : "sem trades", "pnl"], ["Melhor saída", M[0] ? sg(M[0].sol, "") : "–", M[0] ? esc(M[0].nome) + " · " + M[0].n + " trades" : "sem dados", "hit"], ["Pior saída", M.length > 1 ? sg(M[M.length - 1].sol, "") : "–", M.length > 1 ? esc(M[M.length - 1].nome) + " · " + M[M.length - 1].n + " trades" : "sem dados", "mon"]]);
     abaRows();
+    abaCmpInit(L); ABC.nome = ABAS_TR[i][0];
   }
+  // 0.32.151 (pedido do dono): Ajustes compara a aba com a de outro usuário (padrão: quem te mandou a configuração por último,
+  // senão o Bruxo), mostra o que está diferente, deixa igual com um clique e compartilha a sua por convite
+  let ABC = null, ABC_USERS = null;
+  async function abaCmpInit(L) {
+    ABC = { L, peer: null, r: null };
+    if (!$("abCmp")) return;
+    if (!ABC_USERS) { try { ABC_USERS = ((await BB.api("/api/pump/config/share-targets", { quiet: true })) || {}).users || []; } catch (e) { ABC_USERS = []; } }
+    let pick = ""; try { pick = localStorage.getItem("pf_abcmp") || ""; } catch (e) { /* */ }
+    const ids = ABC_USERS.map((u) => u.user_id), ap = (APPLIED || []).find((a) => a.de_user && ids.includes(a.de_user));
+    if (!ids.includes(pick)) pick = (ap && ap.de_user) || (ABC_USERS.find((u) => /bruxo/i.test(u.nome + " " + u.email)) || ABC_USERS[0] || {}).user_id || "";
+    const opts = (sel) => ABC_USERS.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === sel ? " selected" : "") + ">" + esc(u.nome || u.email) + "</option>").join("");
+    $("abCmp").innerHTML = '<div class="abcmp-h"><b>Comparar com</b><select class="in" id="abCmpU" aria-label="Comparar com o usuário">' + opts(pick) + '</select><span class="sp"></span>' +
+      '<b>Compartilhar a minha com</b><select class="in" id="abShU" aria-label="Compartilhar com o usuário">' + opts(pick) + '</select><button class="btn sm" data-abshare="1">Enviar</button></div><div id="abCmpR" class="small">' + (pick ? "comparando…" : "Nenhum outro usuário para comparar.") + "</div>";
+    if (pick) abaCmpLoad(pick);
+  }
+  async function abaCmpLoad(uid) {
+    if (!ABC || !$("abCmpR")) return;
+    ABC.peer = uid; try { localStorage.setItem("pf_abcmp", uid); } catch (e) { /* */ }
+    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, keys: ABC.L.map((x) => x.k) }, quiet: true });
+    if (!ABC || ABC.peer !== uid || !$("abCmpR")) return;
+    ABC.r = r; abaCmpDraw();
+  }
+  const abcSame = (a, b) => (typeof a === "number" || typeof b === "number") ? Math.abs(+a - +b) < 1e-9 : a === b;
+  function abaCmpDraw() {
+    const r = ABC && ABC.r; if (!r || !$("abCmpR")) return;
+    if (r.error) { $("abCmpR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
+    const V = r.valores || {};
+    const fv = (v, x) => v === true ? "ligado" : v === false ? "desligado" : v == null ? "–" : (typeof v === "number" ? s4(v) : esc(String(v))) + (x.unit ? " " + esc(x.unit) : "");
+    const L = ABC.L.filter((x) => x.k in V), dif = L.filter((x) => !abcSame(cfgNow(x.k), V[x.k])), nm = esc(r.nome);
+    $("abCmpR").innerHTML = !dif.length ? '<div class="abcmp-ok">✓ Idêntica à de <b>' + nm + "</b> · " + L.length + " opções iguais</div>"
+      : '<div class="abcmp-dif"><b>' + dif.length + " diferente" + (dif.length > 1 ? "s" : "") + "</b> da de " + nm + " (" + (L.length - dif.length) + ' iguais) <button class="btn sm primary" data-abequal="1">Deixar igual à de ' + nm + "</button></div>" +
+        '<div class="tbl-wrap"><table class="daytbl"><thead><tr><th>Opção</th><th>Sua</th><th>De ' + nm + "</th></tr></thead><tbody>" +
+        dif.map((x) => "<tr><td>" + esc(x.label) + "</td><td>" + fv(cfgNow(x.k), x) + "</td><td><b>" + fv(V[x.k], x) + "</b></td></tr>").join("") + "</tbody></table></div>";
+  }
+  document.addEventListener("change", (e) => { if (e.target && e.target.id === "abCmpU") abaCmpLoad(e.target.value); });
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest && e.target.closest("[data-abequal],[data-abshare]"); if (!t || !ABC) return;
+    if (t.dataset.abequal) {
+      const V = (ABC.r && ABC.r.valores) || {}, body = {};
+      ABC.L.forEach((x) => { if (x.k in V && !abcSame(cfgNow(x.k), V[x.k])) body[x.k] = V[x.k]; });
+      if (!Object.keys(body).length || !confirm("Trocar " + Object.keys(body).length + " opções desta aba pelas de " + ABC.r.nome + "?")) return;
+      await setCfg(body); setTimeout(abaCmpDraw, 1500);
+    } else {
+      const to = $("abShU") && $("abShU").value; if (!to) return;
+      const r = await BB.api("/api/pump/config/share", { body: { to, keys: ABC.L.map((x) => x.k), parte: (ABC.nome || "Aba") + " · ajustes" } });
+      toast(r.error || "Convite enviado (" + r.opcoes + " opções). A pessoa aceita ou recusa no topo do painel.");
+    }
+  });
   // 0.32.123 (pedido do dono): resultado por aba. Vem do servidor porque o painel só recebe os últimos 300 trades
   let OV_ABAS = [];
   const ABA_INFO = { "Explorar": "Compra sozinha tokens quase graduando que passam nos filtros do Explorar.", "Explorar · barrados": "Tokens que o Explorar barrou e continuaram subindo.",

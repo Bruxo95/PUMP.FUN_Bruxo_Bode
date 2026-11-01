@@ -3932,6 +3932,19 @@ class PumpHub:
         await audit(self.db, pf.user_id, "convite de configuração", f"{parte} para {to_uid}")
         return {"ok": True, "opcoes": len(keys)}
 
+    async def config_peer(self, uid: str, peer: str, keys) -> dict:
+        """0.32.151 (pedido do dono): Abas de trades → Ajustes compara as opções da aba com as de outro usuário (só admin,
+        só leitura). Mesmas regras do compartilhar: nada da carteira real nem do Telegram."""
+        if peer == uid:
+            return {"error": "escolha outro usuário"}
+        rows = await self.db.select("profiles", {"user_id": peer}, columns="user_id,bloqueado,role,nome,email")
+        if not rows or rows[0].get("bloqueado"):
+            return {"error": "usuário não encontrado"}
+        keys = self.share_filter(keys, True)
+        other = self.engines.get(peer) or await self.engine(peer)
+        nome = rows[0].get("nome") or (rows[0].get("email") or "").split("@")[0] or "outro usuário"
+        return {"user_id": peer, "nome": nome, "valores": {k: getattr(other.cfg, k) for k in keys}}
+
     async def config_offers(self, uid: str) -> list[dict]:
         from .auto_trades import ts
         rows = await self.db.select("config_offers", {"para_user": uid, "status": "pendente"}, order="criado_em.desc", limit=20)
@@ -4026,7 +4039,7 @@ class PumpHub:
         from .auto_trades import ts
         rows = self._no_traders(await self.db.select("config_offers", {"para_user": uid, "status": "aceita"}, order="respondido_em.desc", limit=30))
         now = time.time()
-        return [{"id": r["id"], "de": r.get("de_nome"), "parte": r.get("parte"), "em": r.get("respondido_em"),
+        return [{"id": r["id"], "de": r.get("de_nome"), "de_user": r.get("de_user"), "parte": r.get("parte"), "em": r.get("respondido_em"),
                  "valores": r.get("valores") or {}, "antes": r.get("antes") or {}}
                 for r in rows if now - (ts(r.get("respondido_em")) or now) < 60 * 86400]
 

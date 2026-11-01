@@ -1510,6 +1510,11 @@
    "versao": "0.32.150",
    "inicio": "2026-11-01T21:52:00+00:00",
    "titulo": "resultado de 12, 6 e 1 h em cada aba"
+  },
+  {
+   "versao": "0.32.151",
+   "inicio": "2026-11-01T22:10:01+00:00",
+   "titulo": "comparar e compartilhar os ajustes de cada aba"
   }
  ]
 }
