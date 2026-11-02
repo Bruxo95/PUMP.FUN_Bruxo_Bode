@@ -170,7 +170,7 @@ class PumpFun:
         self.learn_pool = None
         self.top_hook = None                          # 0.32.124: compra barrada do Top traders vira acompanhamento
         self.shadow_hook = None                       # 0.31.72: token "chance alta" barrado vira entrada sombra (hub)
-        self._real_buying: set = set()
+        self._real_buying: _Buying = _Buying()
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
         self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
         self.leaderboard: list[dict] = []          # top traders da pump.fun (Solana Tracker), julgados p/ este usuário
@@ -1099,6 +1099,14 @@ class PumpFun:
             return True
         return who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False)
 
+    def sim_only_why(self, who: str) -> str:
+        """0.32.162: por que esta carteira copia só na fictícia (o texto aparece no feed e nas Operações recentes do modo REAL)."""
+        if who in (getattr(self, "sim_only_list", None) or []):
+            return "você escolheu 'só fictícia' no Copiar desta carteira (Carteiras em estudo)"
+        if who in self.study_copy_wallets():
+            return "carteira aprovada pelo estudo automático: cópia só na fictícia"
+        return "carteira em Carteiras em estudo: copia só na fictícia (para ir à real, ligue a REAL do estudo ou escolha 'fictícia e REAL' no Copiar)"
+
     def eq_wallets(self) -> list[str]:
         """0.32.4: carteiras do "Copiar igual" (vazio com o modo desligado)."""
         if not getattr(self.cfg, "pump_eq_on", False):
@@ -1262,11 +1270,12 @@ class PumpFun:
             alone = (self.real is not None and getattr(c, "pump_real_enabled", False) and getattr(c, "pump_real_mirror", True)
                      and any(not p.get("real") for p in mine))
             if self.sim_only(who) and self.real is not None and getattr(c, "pump_real_enabled", False):
-                self._feed(**base, action="REAL não copiou", reason="carteira aprovada pelo estudo automático: cópia só na fictícia")
+                self._feed(**base, action="REAL não copiou", reason=self.sim_only_why(who))
             elif self.real is not None and getattr(c, "pump_real_enabled", False) and (alone or not getattr(c, "pump_real_mirror", True)):
                 rwhy = None
                 if not self.is_pump(mint) and not getattr(c, "pump_copy_other_real", False):
                     rwhy = "fora da pump.fun: real desligado para outras DEXs (só fictício)"
+                self._real_buying.prune()
                 rmine = [p for p in mine if p.get("real")] or ([1] if mint in self._real_buying else [])
                 if rwhy:
                     pass
@@ -3119,6 +3128,7 @@ class PumpFun:
             jt_real = origem == "jevtrade" and target == "both" and getattr(self.cfg, "pump_jt_real", False)   # 0.32.97
             if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or jt_real or getattr(self.cfg, "pump_auto_real", False)):
                 st["tried"] = True
+                self._real_buying.prune()
                 if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
                     out["real"] = "já tem posição REAL neste token"
                 elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
@@ -4227,6 +4237,58 @@ class PumpFun:
                  ("slippage", "O preço andou mais que a slippage da real na hora da compra: aumente a slippage da real com cuidado."),
                  ("recusad", "A rede recusou ou não confirmou; confira saldo e slippage da real."))
 
+    MISS_ACTIONS = ("REAL não copiou", "REAL falhou", "FICTÍCIA desfeita")
+
+    def real_why(self, hours: float = 6, now: float | None = None) -> dict:
+        """0.32.162 (pedido do dono: "por que só a fictícia está funcionando?"): o que impede a REAL de comprar agora e, nas
+        últimas horas, quantas compras a fictícia fez, quantas a real fez e por que a real ficou de fora em cada token."""
+        now = time.time() if now is None else now
+        c = self.cfg
+        self._real_buying.prune()
+        ro = [p for p in self.positions() if p.get("real")]
+        lim_open = int(self._c("pump_real_max_open", 5))
+        lim_loss = float(self._c("pump_real_daily_loss_sol", 0.5) or 0)
+        T = self.trades(2000)
+        loss = self.real.today_loss(T) if self.real is not None else 0.0
+        agora = []
+        if not getattr(c, "pump_real_enabled", False):
+            agora.append("a Execução real está desligada")
+        if not (self.sol_wallet and getattr(self.sol_wallet, "keypair", None)):
+            agora.append("a carteira real não está configurada (Configurações → Chaves pessoais)")
+        if len(ro) + len(self._real_buying) >= lim_open:
+            agora.append(f"limite de {lim_open} posições reais ao mesmo tempo ({len(ro)} abertas"
+                         + (f", {len(self._real_buying)} comprando" if self._real_buying else "") + ") — Execução real → Posições reais ao mesmo tempo")
+        if lim_loss and loss >= lim_loss:
+            agora.append(f"a perda de hoje na real ({loss:.4f} SOL) chegou ao limite de {lim_loss:g} SOL — volta a comprar às 00:00 UTC")
+        ini = now - hours * 3600
+        F = [f for f in list(self.feed or []) if (self._ts(f.get("at")) or 0) >= ini]
+        motivos: dict = {}
+        itens = []
+        for f in F:                                            # o feed vem do mais novo para o mais antigo
+            a = str(f.get("action") or "")
+            if not a.startswith(self.MISS_ACTIONS):
+                continue
+            why = str(f.get("reason") or "sem motivo")
+            k = re.sub(r"[-+]?\d+(?:[.,]\d+)?", "#", why)[:80]
+            g = motivos.setdefault(k, {"motivo": why[:160], "n": 0, "ultimo": f.get("at"), "tokens": [], "acao": a,
+                                       "dica": next((tp for key, tp in self.MISS_TIPS if key in why.lower()), "")})
+            g["n"] += 1
+            if f.get("symbol") and f.get("symbol") not in g["tokens"] and len(g["tokens"]) < 6:
+                g["tokens"].append(f.get("symbol"))
+            if len(itens) < 60:
+                itens.append({"at": f.get("at"), "acao": a, "token": f.get("symbol"), "mint": f.get("mint"), "motivo": why[:200],
+                              "carteira": f.get("wallet")})
+        compras = lambda acts: sum(1 for f in F if str(f.get("action") or "") in acts)
+        abertas = [p.get("open_t") or self._ts(p.get("opened_at")) for p in ro]
+        fechadas = [self._ts(t.get("opened_at")) for t in T if t.get("real")]
+        ult = max([x for x in abertas + fechadas if x] or [0]) or None
+        return {"pode_comprar": not agora, "agora": agora, "horas": hours, "espelho": bool(getattr(c, "pump_real_mirror", True)),
+                "exata": self.exact_on(), "valor_sol": float(self._c("pump_real_max_sol", 0.05)), "abertas": len(ro), "max_abertas": lim_open,
+                "comprando": len(self._real_buying), "perda_hoje": round(loss, 6), "max_perda": lim_loss,
+                "compras_ficticia": compras(("copiou compra", "comprou (automático)", "comprou (manual)")),
+                "compras_real": compras(("REAL comprou",)), "nao_copiou_real": sum(g["n"] for g in motivos.values()),
+                "ultima_real_t": ult, "motivos": sorted(motivos.values(), key=lambda g: -g["n"]), "itens": itens}
+
     def mirror_misses(self, hours: float = 48, now: float | None = None) -> dict:
         """0.31.43 — trades da fictícia que NÃO tiveram par na real (com o espelho ligado), com o motivo anotado no feed
         e a dica do que ajustar. É o que alimenta o aprendizado: motivos que se repetem."""
@@ -4267,6 +4329,7 @@ class PumpFun:
         c = self.cfg
         if self.real is None or not getattr(c, "pump_real_enabled", False) or not getattr(c, "pump_real_mirror", True):
             return None
+        self._real_buying.prune()
         mint, allpos = p["mint"], self.positions()
         base = {"wallet": p["wallet"], "short": short(p["wallet"]), "mint": mint, "symbol": p.get("symbol"), "kind": "buy"}
         why = None
@@ -4733,6 +4796,29 @@ class PumpFun:
                          "wallet_configured": bool(self.sol_wallet and getattr(self.sol_wallet, "keypair", None)),
                          "api_key_set": bool(self.real and self.real.api_key()),
                          "address": getattr(self.sol_wallet, "address", None) if self.sol_wallet else None}}
+
+
+class _Buying(set):
+    """0.32.162: tokens com compra REAL na fila ou saindo, com a hora em que entraram. Uma compra leva no máximo ~3 min
+    (o blockhash vence); uma entrada esquecida aqui contaria para sempre no limite de posições reais e travaria a real."""
+
+    def __init__(self, *a):
+        super().__init__(*a)
+        self.at: dict = {}
+
+    def add(self, m) -> None:
+        super().add(m)
+        self.at[m] = time.time()
+
+    def discard(self, m) -> None:
+        super().discard(m)
+        self.at.pop(m, None)
+
+    def prune(self, max_s: float = 600) -> list:
+        old = [m for m, t in list(self.at.items()) if time.time() - t > max_s]
+        for m in old:
+            self.discard(m)
+        return old
 
 
 class PumpReal:

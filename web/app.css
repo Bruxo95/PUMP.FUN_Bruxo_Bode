@@ -943,3 +943,4 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .trposseg{margin:8px 0 2px}
 #secrets .secret.key-err{border-left-color:var(--down);background:rgba(239,68,68,.05)}.key-err .kst{color:var(--down)}.key-err .keystate .muted{color:#fca5a5;max-width:360px}.keychip.err{color:var(--down);background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35)}
 .abc-w{grid-template-columns:repeat(2,1fr)}
+.rwcard{padding:12px 16px;margin-bottom:10px}.rw-h{display:flex;flex-direction:column;gap:4px}.rw-h b{font-size:15px}.rw-h.ok b{color:var(--up)}.rw-h.bad b{color:var(--down)}.rw-h ul,.rw-m{margin:4px 0 0 18px;padding:0;font-size:13px}.rw-n{font-size:13px;margin:8px 0 2px;color:var(--muted)}.rw-n b{color:var(--text)}.rwcard .btn{margin-top:8px}

@@ -254,6 +254,15 @@ def create_app(hub, auth, cfg) -> FastAPI:
         L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
         return {"abas": pf.tabs(L, pf.aba_of), "semanas": weekparts.por_aba(L, pf.aba_of)}   # 0.32.161: fim de semana × dias de semana
 
+    @app.get("/api/pump/real/why")
+    async def real_why(horas: float = 6, pf=Depends(engine)):
+        """0.32.162 (pedido do dono): o que impede a REAL de comprar agora e por que ela ficou de fora nas últimas horas."""
+        r = pf.real_why(min(max(float(horas), 1.0), 48.0))
+        if not hub.real_allowed:
+            r["agora"].insert(0, "a trava geral do servidor (PUMP_REAL_ALLOWED) está fechada")
+            r["pode_comprar"] = False
+        return r
+
     @app.get("/api/pump/weekparts")
     async def weekparts_view(real: int = 0, pf=Depends(engine)):
         """0.32.161 (pedido do dono): dias de semana × fins de semana desta conta — blocos ao vivo, resumo, por aba e por trader,

@@ -3161,7 +3161,8 @@
     }
     ntfTraders();                                   // 0.32.74: contador "novos" da aba Traders copiados do sino
     $("foot").textContent = "versão " + (D.version || "") + (D.started_at ? " · no ar desde " + D.started_at : "") + " · SOL $" + f(D.sol_usd, 2);
-    if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); loadWk(); }
+    if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); loadWk(); loadRealWhy(); }
+    if (VIEW === "abas") loadRealWhy();
     if (VIEW === "semanas") loadWk();
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
     if (VIEW === "config") renderAllCfgCopy();
@@ -3646,8 +3647,11 @@
         '<br><button type="button" class="btn sm tgl sw ' + (R.enabled ? "on" : "off") + '" id="realAll" role="switch" aria-checked="' + !!R.enabled + '" aria-label="Execução real em todas as abas">' + (R.enabled ? "Ligado" : "Desligado") + "</button>", "wallet", "", "ov_real"],
     ]);
     // 0.32.137 (pedido do dono): uma linha própria de quadrados, só com as últimas 24 h; o clique abre a mesma janela, só com esse período
+    // 0.32.162 (pedido do dono: "por que 6 h e 1 h não aparecem?"): período sem trade fechado diz há quanto tempo foi o último
+    const lastC = (D.trades || []).filter((t) => !!t.real === rm && t.closed_at).reduce((m, t) => Math.max(m, new Date(t.closed_at).getTime() || 0), 0);
+    const semTr = "sem trades fechados" + (lastC ? " · o último fechou há " + hms((Date.now() - lastC) / 1000) : "");
     [24, 12, 6, 1].forEach((h) => { const p = (Wt.periodos || []).find((x) => x.horas === h) || {}, o = "ov" + h + "_";
-      kpis("kpis" + h, [["Resultado " + h + " h", sg(p.saldo_sol || 0, ""), p.investido_sol ? pc(p.saldo_sol / p.investido_sol * 100) + " sobre o investido" : "sem trades fechados", "pnl", "", o + "resultado"],
+      kpis("kpis" + h, [["Resultado " + h + " h", sg(p.saldo_sol || 0, ""), p.investido_sol ? pc(p.saldo_sol / p.investido_sol * 100) + " sobre o investido" : semTr, "pnl", "", o + "resultado"],
         ["Trades fechados " + h + " h", String(p.trades || 0), '<span class="up">' + (p.ganhos || 0) + " ganhos</span> · <span class=\"down\">" + (p.perdas || 0) + " perdas</span>", "tr", "", o + "trades"],
         ["Taxa de acerto " + h + " h", p.trades ? f(p.ganhos / p.trades * 100, 0) + "%" : "–", "ganhos " + s4(p.ganhos_sol || 0) + " · perdas " + s4(p.perdas_sol || 0), "hit", "", o + "acerto"],
         ["Traders copiados " + h + " h", String(p.traders || 0), "com trades fechados", "usr", "", o + "traders"]]); });
@@ -3704,25 +3708,68 @@
 
   function opTag(kind) {
     return { buy: '<span class="tag buy">Compra</span>', win: '<span class="tag win">Venda c/ lucro</span>', loss: '<span class="tag loss">Venda c/ prejuízo</span>', stop: '<span class="tag stop">Stop</span>',
-      trail: '<span class="tag trail">Stop móvel</span>', err: '<span class="tag err">Erro</span>', pause: '<span class="tag pause">Pausado</span>' }[kind];
+      trail: '<span class="tag trail">Stop móvel</span>', err: '<span class="tag err">Erro</span>', pause: '<span class="tag pause">Pausado</span>',
+      skip: '<span class="tag pause">Real não comprou</span>' }[kind];
   }
+  // 0.32.162 (pedido do dono: "por que só a fictícia está funcionando?"): a lista segue o botão FICTÍCIA/REAL. Antes misturava as
+  // duas carteiras; no modo REAL mostrava as vendas da fictícia. No REAL entram também as vezes em que a real ficou de fora, com o motivo.
   function renderOps(rm) {
     const out = [];
     (D.trades || []).forEach((t) => {
+      if (!!t.real !== rm) return;
       const r = String(t.reason || ""); const k = /stop móvel/.test(r) ? "trail" : /^stop de perda/.test(r) ? "stop" : t.pnl_sol > 0 ? "win" : "loss";
       out.push({ at: t.closed_at, k, real: !!t.real, t: (t.symbol || "?") + " · " + r, m: "copiado de " + shortW(t.wallet, t), amt: sg(t.pnl_sol) + '<div class="m">' + pc(t.pnl_pct) + "</div>" });
     });
     (D.feed || []).forEach((e) => {
       const a = String(e.action || ""); let k = null;
-      if (a === "copiou compra" || a === "REAL comprou") k = "buy"; else if (/falhou/.test(a)) k = "err"; else if (/pausad/.test(String(e.reason || ""))) k = "pause";
-      if (k) out.push({ at: e.at, k, real: /REAL/.test(a), t: (e.symbol || "?") + " · " + (k === "buy" ? "copiou " + shortW(e.wallet, e) : e.reason), m: "trader " + shortW(e.wallet, e) + (e.sol != null ? " · ele usou " + s4(e.sol) + " SOL" : ""), amt: "" });
+      const isReal = /REAL/.test(a) || a === "FICTÍCIA desfeita";
+      if (a === "copiou compra" || a === "REAL comprou" || a === "comprou (automático)" || a === "comprou (manual)") k = "buy"; else if (/falhou/.test(a)) k = "err";
+      else if (a === "REAL não copiou" || a === "FICTÍCIA desfeita") k = "skip"; else if (/pausad/.test(String(e.reason || ""))) k = "pause";
+      if (!k || (k !== "pause" && isReal !== rm)) return;
+      out.push({ at: e.at, k, real: k === "pause" ? null : isReal, t: (e.symbol || "?") + " · " + (k === "buy" ? (e.wallet === "manual" ? a : "copiou " + shortW(e.wallet, e)) : e.reason),
+        m: (e.wallet === "manual" ? "" : "trader " + shortW(e.wallet, e)) + (e.sol != null && e.wallet !== "manual" ? " · ele usou " + s4(e.sol) + " SOL" : ""), amt: "" });
     });
-    (D.paused || []).forEach((p) => out.push({ at: p.at, k: "pause", real: false, t: shortW(p.wallet, p) + " · " + (p.reason || "pausado"), m: p.until ? "volta em " + hms(p.until - Date.now() / 1000) : "até você retomar", amt: "" }));
+    (D.paused || []).forEach((p) => out.push({ at: p.at, k: "pause", real: null, t: shortW(p.wallet, p) + " · " + (p.reason || "pausado"), m: p.until ? "volta em " + hms(p.until - Date.now() / 1000) : "até você retomar", amt: "" }));
     out.sort((a, b) => new Date(b.at) - new Date(a.at));
-    const L = out.slice(0, 9);
-    $("ops").innerHTML = L.length ? L.map((o) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(o.t) + '</div><div class="m">há ' + agoIso(o.at) + " · " + esc(o.m) + '</div></div><div><div class="tags">' + opTag(o.k) + (o.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + '</div><div class="amt">' + o.amt + "</div></div></div>").join("")
-      : '<div class="empty">Ainda não houve operação. Quando um trader copiado comprar, aparece aqui.</div>';
+    const L = out.slice(0, rm ? 12 : 9);
+    $("ops").innerHTML = L.length ? L.map((o) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(o.t) + '</div><div class="m">há ' + agoIso(o.at) + " · " + esc(o.m) + '</div></div><div><div class="tags">' + opTag(o.k) + (o.real == null ? "" : o.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + '</div><div class="amt">' + o.amt + "</div></div></div>").join("")
+      : '<div class="empty">' + (rm ? "Nenhuma operação na carteira REAL ainda. O quadro \"A REAL agora\", acima, diz se ela pode comprar e por que ficou de fora." : "Ainda não houve operação. Quando um trader copiado comprar, aparece aqui.") + "</div>";
   }
+
+  // 0.32.162 (pedido do dono): "A REAL agora" — se a carteira real pode comprar, o que a trava e, nas últimas 6 h, quantas compras a
+  // fictícia fez, quantas a real fez e por que a real ficou de fora em cada token. Aparece no modo REAL (Visão geral e Abas de trades).
+  const RW = { at: 0, r: null };
+  async function loadRealWhy(force) {
+    if (!realMode()) { ["rwCard", "abRealWhy"].forEach((id) => { if ($(id)) $(id).hidden = true; }); return; }
+    if (!force && Date.now() - RW.at < 30000) { renderRealWhy(); return; }
+    RW.at = Date.now();
+    const r = await BB.api("/api/pump/real/why", { quiet: true });
+    if (r && !r.error) { RW.r = r; renderRealWhy(); }
+  }
+  function realWhyHtml(r) {
+    const extra = [];
+    if (W && W.sol != null && r.valor_sol && W.sol < r.valor_sol + 0.005) extra.push("saldo da carteira real (" + s4(W.sol) + " SOL) menor que o valor de cada compra (" + s4(r.valor_sol) + " SOL)");
+    const agora = (r.agora || []).concat(extra), ok = !agora.length;
+    const last = r.ultima_real_t ? "última compra REAL há " + hms(Date.now() / 1000 - r.ultima_real_t) : "nenhuma compra REAL registrada";
+    const top = (r.motivos || []).slice(0, 4);
+    return '<div class="rw-h ' + (ok ? "ok" : "bad") + '"><b>' + (ok ? "✓ A REAL pode comprar agora" : "✗ A REAL não está comprando agora") + "</b>" +
+      (ok ? '<span class="muted small">espelho ' + (r.espelho ? "ligado" : "desligado") + (r.exata ? " · cópia exata ligada" : "") + " · " + r.abertas + " de " + r.max_abertas + " posições reais · perda de hoje " + s4(r.perda_hoje) + (r.max_perda ? " de " + s4(r.max_perda) : "") + " SOL</span>"
+        : "<ul>" + agora.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul>") + "</div>" +
+      '<div class="rw-n">Últimas ' + r.horas + " h: <b>" + r.compras_ficticia + "</b> compras na FICTÍCIA · <b>" + r.compras_real + "</b> na REAL · <b>" + r.nao_copiou_real + "</b> vezes a REAL ficou de fora · " + last + "</div>" +
+      (top.length ? '<ul class="rw-m">' + top.map((g) => "<li><b>" + g.n + "×</b> " + esc(g.motivo) + (g.tokens.length ? ' <small class="muted">(' + g.tokens.map(esc).join(", ") + ")</small>" : "") + "</li>").join("") + "</ul>" : "") +
+      ((r.itens || []).length ? '<button type="button" class="btn sm" data-rwall="1">Ver cada token</button>' : "");
+  }
+  function renderRealWhy() {
+    const r = RW.r, show = !!r && realMode();
+    ["rwCard", "abRealWhy"].forEach((id) => { const el = $(id); if (!el) return; el.hidden = !show; if (show) { const h = realWhyHtml(r); if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; } } });
+  }
+  function openRealWhy() {
+    const r = RW.r; if (!r) return;
+    const tip = (m) => { const g = (r.motivos || []).find((x) => x.motivo === String(m).slice(0, 160)); return g && g.dica ? "<small>" + esc(g.dica) + "</small>" : ""; };
+    ovShow("Por que a REAL ficou de fora", "últimas " + r.horas + " h · do mais novo para o mais antigo", '<div class="tbl-wrap"><table id="ovRW" class="daytbl"></table></div>');
+    table("ovRW", ["Quando", "Token", "O que houve", "Motivo"], (r.itens || []).map((x) => [dt(x.at), x.mint ? pfM(x.mint, x.token) : esc(x.token || "?"), esc(x.acao), esc(x.motivo) + tip(x.motivo)]), "Nada nas últimas horas.");
+  }
+  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("[data-rwall]")) openRealWhy(); });
 
   function renderCfgStatus() {
     const c = cfg(), R = D.real || {}, n = (v) => (v == null ? "–" : f(v, v % 1 ? 2 : 0));
