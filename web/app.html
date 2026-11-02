@@ -47,6 +47,7 @@
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
       <a href="#semanas" data-v="semanas" data-novo-ate="2026-11-16"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M15 15h3v3h-3z"/></svg>Semana × fim de semana</a>
+      <a href="#tradershist" data-v="tradershist" data-novo-ate="2026-11-16"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 20a6 6 0 0 0-3-5.2"/></svg>Traders copiados</a>
       <a href="#explorar" id="navExp" hidden data-v="explorar" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Explorar</a>
       <a href="#abas" id="navAbas" hidden data-v="abas" data-novo-ate="2026-11-15"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M7.5 6.5a8 8 0 1 0 9 0"/></svg>Abas de trades</a>
       <a href="#basegeral" id="navBaseG" hidden data-v="basegeral" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3z"/><path d="M15 4a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a3 3 0 0 1-3-3"/></svg>Base geral</a>
@@ -740,6 +741,15 @@
       </section>
 
       <!-- ========================================================= HISTÓRICO -->
+      <!-- ========================================================= TRADERS COPIADOS (0.32.163) -->
+      <section class="view" data-view="tradershist" hidden>
+        <div class="card" data-novo-ate="2026-11-16"><header><div><h2>Traders copiados <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub">tudo o que você copiou de cada carteira · guardado de hora em hora, mesmo depois de zerar a fictícia</div></div></header>
+          <div class="posbar"><input class="in" id="thQ" type="search" placeholder="Buscar nome ou carteira" aria-label="Buscar trader">
+            <select class="in" id="thSort" aria-label="Ordenar"><option value="saldo">Maior resultado primeiro</option><option value="perda">Maior prejuízo primeiro</option><option value="trades">Mais trades primeiro</option><option value="acerto">Maior acerto primeiro</option><option value="ultimo">Copiado mais recentemente</option></select></div>
+          <div class="kpis" id="thK"></div>
+          <div class="tbl-wrap"><table id="thT" class="daytbl"></table></div>
+          <p class="muted small" style="margin:8px 0 0">Resultado = o que a sua carteira ganhou ou perdeu copiando cada um, já com taxas. Ganhos falsos (+1.900% ou mais, preço lido errado) ficam fora das contas. "Ranking" é o que a Solana Tracker diz do próprio trader quando ele aparece lá.</p></div>
+      </section>
       <!-- ========================================================= SEMANA × FIM DE SEMANA (0.32.161) -->
       <section class="view" data-view="semanas" hidden>
         <div class="card" data-novo-ate="2026-11-16"><header><div><h2>Dias de semana × fins de semana <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub">segunda a sexta × sábado e domingo · horário de Berlim · só trades fechados</div></div></header>

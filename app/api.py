@@ -254,6 +254,31 @@ def create_app(hub, auth, cfg) -> FastAPI:
         L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
         return {"abas": pf.tabs(L, pf.aba_of), "semanas": weekparts.por_aba(L, pf.aba_of)}   # 0.32.161: fim de semana × dias de semana
 
+    @app.get("/api/pump/trader-hist")
+    async def trader_hist(real: int = 0, pf=Depends(engine)):
+        """0.32.163 (pedido do dono): todos os traders que esta conta copiou, com o resultado de cada um. Os que só existem no
+        guardado (ex.: depois de zerar a fictícia) vêm em `guardados`. O user_id vem só do token."""
+        from . import traderhist
+        L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
+        rows = traderhist.resumo(L, pf.aba_of, hub.tr_names(), traderhist.lb_map(getattr(pf, "leaderboard", None)))
+        live = {r["wallet"] for r in rows}
+        return {"traders": rows, "guardados": [g for g in await hub.th_saved(pf, bool(real)) if g.get("wallet") not in live]}
+
+    @app.get("/api/pump/trader-hist/w/{wallet}")
+    async def trader_hist_one(wallet: str, pf=Depends(engine)):
+        """0.32.163: tudo o que esta conta copiou de uma carteira, na fictícia e na real, com cada trade e as abertas agora."""
+        from . import traderhist
+        if not pf.valid_addr(wallet):
+            raise HTTPException(400, "carteira inválida")
+        r = traderhist.detalhe(pf.trades(100000), wallet, pf.aba_of, hub.tr_names(), traderhist.lb_map(getattr(pf, "leaderboard", None)),
+                               pf.positions())
+        saved = {g.get("wallet"): g for g in await hub.th_saved(pf, False) + await hub.th_saved(pf, True) if g.get("wallet") == wallet}
+        g = saved.get(wallet) or {}
+        r["ranking_dias"] = g.get("ranking_dias") or {}
+        if not r.get("ranking"):
+            r["ranking"] = g.get("ranking")
+        return r
+
     @app.get("/api/pump/real/why")
     async def real_why(horas: float = 6, pf=Depends(engine)):
         """0.32.162 (pedido do dono): o que impede a REAL de comprar agora e por que ela ficou de fora nas últimas horas."""

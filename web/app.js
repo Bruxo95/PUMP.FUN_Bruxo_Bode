@@ -91,7 +91,7 @@
         .map(([l, v, s]) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + esc(s) + "</div></div>").join("") + "</div>" +
       '<div class="tbl-wrap"><table class="systbl"><tbody>' +
       row("Token", pfM(p.mint, p.symbol) + (p.venue_in ? " · " + esc(p.venue_in) : "") + (p.mcap_in ? " · mcap na entrada " + f(p.mcap_in, 0) + " SOL" : "") + (p.mcap_now ? " · agora " + f(p.mcap_now, 0) + " SOL" : "")) +
-      row("Origem", pfW(p.wallet, p)) +
+      row("Origem", pfW(p.wallet, p) + thBtn(p, "Ver resultados deste trader")) +
       row("Por que entrou", esc(p.entrou_porque || (p.auto && p.auto !== true ? p.auto : "–"))) +
       row("Preço de entrada", ex(p.price_in) + (p.trader_price ? " · trader " + ex(p.trader_price) : "") + (p.lag_s != null ? " · atraso " + f(p.lag_s, 1) + " s" : "")) +
       row("Preço agora", ex(p.price_now || p.price_in) + (p.price_at ? " · há " + agoT(p.price_at) : "")) +
@@ -2682,7 +2682,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
+    tradershist: ["Traders copiados", "todo o histórico de cada trader que você copiou: ganhos, perdas e cada trade"], semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
     tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -2700,6 +2700,7 @@
     closeDrawer();
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
+    if (VIEW === "tradershist") loadTH(true);
     if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
     if (VIEW === "real") { walletLoad(true); loadMirror(); }
@@ -2817,7 +2818,7 @@
       '<div class="decbox ' + ((t.pnl_sol || 0) > 0 ? "ok" : "bad") + '"><b>Por que saiu:</b> ' + esc(t.reason || "–") + "</div>" +
       '<div class="tbl-wrap"><table class="systbl"><tbody>' +
       row("Token", pfM(t.mint, t.symbol) + (t.venue ? " · " + esc(t.venue) : "")) +
-      row("Origem", pfW(t.wallet, t)) +
+      row("Origem", pfW(t.wallet, t) + thBtn(t, "Ver resultados deste trader")) +
       row("Preço de entrada → saída", ex(t.price_in) + " → " + ex(t.price_out)) +
       row("Melhor e pior momento", (t.best_pct == null ? "–" : pc(t.best_pct)) + " · " + (t.worst_pct == null ? "–" : pc(t.worst_pct))) +
       row("Taxas", t.fees_sol == null ? "–" : s4(t.fees_sol) + " SOL") +
@@ -3164,6 +3165,7 @@
     if (VIEW === "visao") { renderOverview(); renderSummary(); if (DAY_MODE !== null && DAY_MODE !== realMode()) loadDaily(); loadWk(); loadRealWhy(); }
     if (VIEW === "abas") loadRealWhy();
     if (VIEW === "semanas") loadWk();
+    if (VIEW === "tradershist") loadTH();
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
     if (VIEW === "config") renderAllCfgCopy();
     else if (VIEW === "traders") renderTraders();
@@ -3580,6 +3582,77 @@
   }
   // 0.32.149: a chave do quadro de Abas de trades é a mesma da tela Execução real (mesma rota; ligar pede a confirmação de sempre)
   document.addEventListener("click", (e) => { if (e.target.closest("#realAll")) realAll(); if (e.target.closest("[data-realall]")) realAll(false); if (e.target.closest("[data-jtclose]")) $("jtM").hidden = true; });
+  // 0.32.163 (pedido do dono): "Traders copiados" — tudo o que a conta copiou de cada carteira, guardado; botão nas posições e nos trades
+  const TH = { rm: null, at: 0, r: null, one: null, aba: "ficticia", all: false };
+  const thBtn = (x, label) => x && x.wallet && x.wallet !== "manual" ? ' <button type="button" class="btn sm ghost thbtn" data-th="' + esc(x.wallet) + '" data-thc="' + (x.real ? "real" : "ficticia") + '">' + (label || "Resultados do trader") + "</button>" : "";
+  async function loadTH(force) {
+    const rm = realMode();
+    if (!force && TH.rm === rm && Date.now() - TH.at < 60000) return;
+    TH.rm = rm; TH.at = Date.now();
+    const r = await BB.api("/api/pump/trader-hist?real=" + (rm ? 1 : 0), { quiet: true });
+    if (!r || r.error || rm !== realMode()) return;
+    TH.r = r; renderTH();
+  }
+  const thName = (x) => (x.nome ? solW(x.wallet, esc(x.nome)) + "<small>" + esc(shortW(x.wallet)) + "</small>" : solW(x.wallet, esc(shortW(x.wallet))));
+  const thRank = (k) => k ? "#" + (k.rank || "–") + (k.winrate != null ? " · acerto " + f(k.winrate, 0) + "%" : "") + (k.realized_usd != null ? " · lucro " + usd(k.realized_usd, 0) : "") : '<span class="dim">fora do ranking</span>';
+  function renderTH() {
+    const r = TH.r; if (!r || !$("thT")) return;
+    const q = (($("thQ") || {}).value || "").trim().toLowerCase(), sort = ($("thSort") || {}).value || "saldo";
+    let L = (r.traders || []).concat((r.guardados || []).map((g) => Object.assign({}, g, { guardado: true })));
+    if (q) L = L.filter((x) => (x.wallet + " " + (x.nome || "")).toLowerCase().includes(q));
+    const key = { saldo: (x) => -(x.saldo_sol || 0), perda: (x) => x.saldo_sol || 0, trades: (x) => -(x.trades || 0), acerto: (x) => -(x.acerto ?? -1), ultimo: (x) => -(x.ultimo || 0) }[sort];
+    L.sort((a, b) => key(a) - key(b));
+    const tot = (r.traders || []).reduce((s, x) => ({ n: s.n + (x.trades || 0), sol: s.sol + (x.saldo_sol || 0), g: s.g + (x.ganhos || 0), pos: s.pos + ((x.saldo_sol || 0) > 0 ? 1 : 0) }), { n: 0, sol: 0, g: 0, pos: 0 });
+    const best = (r.traders || [])[0];
+    kpis("thK", [["Traders copiados", String((r.traders || []).length), tot.pos + " no lucro · " + ((r.traders || []).length - tot.pos) + " no prejuízo", "usr"],
+      ["Trades", String(tot.n), tot.n ? f(tot.g / tot.n * 100, 0) + "% de acerto" : "–", "tr"],
+      ["Resultado somado", sg(tot.sol, ""), "copiando todos eles, já com taxas", "pnl"],
+      ["Melhor trader", best ? sg(best.saldo_sol, "") : "–", best ? esc(best.nome || shortW(best.wallet)) + " · " + best.trades + " trades" : "", "hit"]]);
+    table("thT", ["Trader", "Trades", "Acerto", "Resultado", "%", "Último", "Abas", "Ranking", ""], L.map((x) => [thName(x) + (x.guardado ? ' <span class="tag neutral" title="só no guardado (os trades não estão mais na carteira)">guardado</span>' : ""),
+      String(x.trades || 0) + (x.falsos ? '<small class="dim">+' + x.falsos + " falso(s)</small>" : ""), x.acerto != null ? x.acerto + "%" : "–", sg(x.saldo_sol || 0, ""), pc(x.pct),
+      x.ultimo ? "há " + hms(Date.now() / 1000 - x.ultimo) : "–", esc(Object.keys(x.abas || {}).slice(0, 2).join(", ")), thRank(x.ranking),
+      '<button type="button" class="btn sm" data-th="' + esc(x.wallet) + '" data-thc="' + (realMode() ? "real" : "ficticia") + '">Ver</button>']), "Nenhum trader copiado com trade fechado ainda.");
+  }
+  async function openTH(wallet, aba) {
+    $("posM").hidden = true; POS_ID = null;                    // o detalhe da posição fecha; o do trader abre no lugar
+    ovShow("Trader " + shortW(wallet), "carregando…", "");
+    const r = await BB.api("/api/pump/trader-hist/w/" + encodeURIComponent(wallet));
+    if (!r || r.error) { $("jtMS").textContent = (r && r.error) || "não consegui abrir"; return; }
+    TH.one = r; TH.aba = aba === "real" ? "real" : "ficticia"; TH.all = false; drawTH();
+  }
+  function drawTH() {
+    const r = TH.one; if (!r) return;
+    const b = r[TH.aba] || {}, tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';
+    const tabs = [["ficticia", "FICTÍCIA"], ["real", "REAL"]].map(([k, n]) => '<button class="btn sm chip' + (TH.aba === k ? " on" : "") + '" data-thab="' + k + '">' + n + " · " + ((r[k] || {}).trades || 0) + "</button>").join("");
+    const dias = Object.entries(r.ranking_dias || {}).sort((a, c) => (a[0] < c[0] ? 1 : -1)).slice(0, 14);
+    ovShow(r.nome || shortW(r.wallet), "tudo o que você copiou desta carteira",
+      '<p class="small">' + solW(r.wallet, "Abrir a carteira no Solscan") + ' · <a href="https://pump.fun/profile/' + encodeURIComponent(r.wallet) + '" target="_blank" rel="noopener">perfil na pump.fun</a> · Ranking: ' + thRank(r.ranking) + "</p>" +
+      '<div class="posabas">' + tabs + '</div><div class="kpis" id="ovK"></div>' +
+      ((b.abertas || []).length ? '<h3 class="small">Abertas agora</h3>' + tb("ovTHo") : "") +
+      '<h3 class="small">Todos os trades</h3>' + tb("ovTHt") +
+      ((b.total_lista || 0) > 200 && !TH.all ? '<button class="btn sm" data-thall="1">Mostrar todos os ' + b.total_lista + "</button>" : "") +
+      ((b.por_dia || []).length ? '<h3 class="small">Por dia</h3>' + tb("ovTHd") : "") +
+      (dias.length ? '<h3 class="small">O trader no ranking, dia a dia</h3>' + tb("ovTHr") : ""));
+    kpis("ovK", [["Resultado", sg(b.saldo_sol || 0, ""), b.pct != null ? pc(b.pct) + " sobre " + s4(b.investido_sol || 0) + " SOL" : "sem trade fechado", "pnl"],
+      ["Trades", String(b.trades || 0), '<span class="up">' + (b.ganhos || 0) + " ganhos</span> · <span class=\"down\">" + (b.perdas || 0) + " perdas</span>" + (b.falsos ? " · " + b.falsos + " falso(s) fora" : ""), "tr"],
+      ["Acerto", b.acerto != null ? b.acerto + "%" : "–", (b.dias || 0) + " dias com trade" + (b.primeiro ? " · desde " + dt(b.primeiro) : ""), "hit"],
+      ["Melhor / pior", b.melhor ? sg(b.melhor.sol, "") + " / " + sg((b.pior || {}).sol, "") : "–", b.melhor ? esc(b.melhor.symbol || "") + " · " + esc((b.pior || {}).symbol || "") : "", "mon"]]);
+    if ((b.abertas || []).length) table("ovTHo", ["Abriu", "Moeda", "Aba", "Investido", "Variação"], b.abertas.map((p) => [dt(p.opened_at), p.mint ? pfM(p.mint, p.symbol) : esc(p.symbol || "?"), esc(p.aba || ""), s4(p.sol_in || 0), pc(p.chg_pct)]), "");
+    const T = TH.all ? (b.trades_lista || []) : (b.trades_lista || []).slice(0, 200);
+    table("ovTHt", ["Fechou", "Moeda", "Aba", "Investido", "%", "Resultado", "Por que saiu"], T.map((x) => [dt(x.closed_at), (x.mint ? pfM(x.mint, x.symbol) : esc(x.symbol || "?")) + (x.falso ? ' <span class="tag neutral">ganho falso</span>' : ""),
+      esc(x.aba || ""), s4(x.sol_in || 0), pc(x.pnl_pct), sg(x.pnl_sol, ""), esc(x.reason || "")]), "Nenhum trade nesta carteira.");
+    if ((b.por_dia || []).length) table("ovTHd", ["Dia", "Trades", "Resultado"], b.por_dia.map((d) => [esc(d.dia.split("-").reverse().join("/")), String(d.trades), sg(d.saldo_sol, "")]), "");
+    if (dias.length) table("ovTHr", ["Dia", "Posição", "Acerto", "Lucro realizado", "Trades"], dias.map(([d, k]) => [esc(d.split("-").reverse().join("/")), "#" + (k.rank || "–"), k.winrate != null ? f(k.winrate, 0) + "%" : "–", k.realized_usd != null ? usd(k.realized_usd, 0) : "–", String(k.trades ?? "–")]), "");
+  }
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest && e.target.closest("[data-th],[data-thab],[data-thall]"); if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    if (t.dataset.th) openTH(t.dataset.th, t.dataset.thc);
+    else if (t.dataset.thab) { TH.aba = t.dataset.thab; TH.all = false; drawTH(); }
+    else { TH.all = true; drawTH(); }
+  }, true);
+  document.addEventListener("input", (e) => { if (e.target && e.target.id === "thQ") renderTH(); });
+  document.addEventListener("change", (e) => { if (e.target && e.target.id === "thSort") renderTH(); });
   // 0.32.161 (pedido do dono): dias de semana × fins de semana — linha na Visão geral, janela de cada bloco e tela própria
   const WK = { rm: null, at: 0, r: null };
   async function loadWk(force) {
@@ -3915,7 +3988,7 @@
     const id = String(p.id);
     return '<article class="pcard ' + (up ? "is-up" : "is-down") + (p.real ? " is-real" : "") + '" data-pid="' + esc(id) + '">' +
       '<header class="pc-h"><div class="pc-tk">' + pfM(p.mint, p.symbol) + " " + tags + '</div><button class="btn sm ghost" data-posdet="' + esc(id) + '">Detalhes</button>' +
-      '<div class="pc-sub">' + pfW(p.wallet, p) + ' · aberta há <b>' + agoIso(p.opened_at) + "</b></div></header>" +
+      '<div class="pc-sub">' + pfW(p.wallet, p) + ' · aberta há <b>' + agoIso(p.opened_at) + "</b></div>" + (thBtn(p) ? '<div class="pc-th">' + thBtn(p) + "</div>" : "") + "</header>" +
       '<div class="pc-box"><div><small>Ganho agora</small><b class="pc-big ' + (up ? "up" : "down") + '">' + (pnl == null ? "–" : (pnl > 0 ? "+" : "") + s4(pnl) + " SOL") + "</b><small>" + (p.pnl_now_pct == null ? "" : pc(p.pnl_now_pct) + " do investido") + "</small></div>" +
       '<div class="pc-var"><small>Variação</small><b>' + pc(chg) + "</b>" + posSpark(p) + "</div></div>" + range +
       '<dl class="pc-grid">' + st("Investido", s4(p.sol_in) + " SOL") + st("Vale agora", p.value_sol == null ? "–" : s4(p.value_sol) + " SOL") +

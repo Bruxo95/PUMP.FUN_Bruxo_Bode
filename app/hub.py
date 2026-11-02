@@ -1814,6 +1814,60 @@ class PumpHub:
                 log.warning("relatório de traders: %s", str(e)[:160])
             await asyncio.sleep(3600)
 
+    # ------------------------------------------------------------------ histórico de cada trader (0.32.163)
+    async def th_save(self, pf: PumpFun, now: float | None = None) -> int:
+        """Guarda o resumo de cada trader copiado (fictícia e real) quando muda, com o ranking dele por dia. Fica mesmo depois
+        de zerar a carteira fictícia (pedido do dono: "quero guardar esse histórico")."""
+        from . import traderhist
+        now = time.time() if now is None else now
+        cache = self.__dict__.setdefault("_th_data", {})
+        trades, lb, names, n = pf.trades(100000), traderhist.lb_map(getattr(pf, "leaderboard", None)), self.tr_names(), 0
+        hoje = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
+        for real in (False, True):
+            key0 = (pf.user_id, real)
+            if key0 not in cache:                       # depois de reiniciar: o que já estava guardado (para não perder o ranking por dia)
+                try:
+                    rows = await self.db.select("trader_history", {"user_id": pf.user_id, "real": real}, limit=2000)
+                except Exception:
+                    rows = []
+                cache[key0] = {r.get("wallet"): r.get("data") or {} for r in rows}
+            saved = cache[key0]
+            for row in traderhist.resumo([t for t in trades if bool(t.get("real")) == real], pf.aba_of, names, lb):
+                antes = saved.get(row["wallet"])
+                data = traderhist.guardar(row, antes, hoje)
+                sig = lambda d: (d.get("trades"), d.get("falsos"), round(d.get("saldo_sol") or 0, 6), d.get("ultimo"), (d.get("ranking") or {}).get("rank"),
+                                 (d.get("ranking") or {}).get("winrate"), len(d.get("ranking_dias") or {}))
+                if antes is not None and sig(antes) == sig(data):
+                    continue
+                await self.db.insert("trader_history", {"id": f"{pf.user_id}:{int(real)}:{row['wallet']}", "user_id": pf.user_id, "real": real,
+                                                        "wallet": row["wallet"], "em": datetime.fromtimestamp(now, timezone.utc).isoformat(), "data": data},
+                                     upsert=True, on_conflict="id")
+                saved[row["wallet"]] = data
+                n += 1
+        return n
+
+    async def th_saved(self, pf: PumpFun, real: bool) -> list[dict]:
+        try:
+            rows = await self.db.select("trader_history", {"user_id": pf.user_id, "real": real}, limit=2000)
+        except Exception:
+            return []
+        return [dict(r.get("data") or {}, wallet=r.get("wallet"), guardado_em=r.get("em")) for r in rows]
+
+    async def th_tick(self, now: float | None = None) -> int:
+        n = 0
+        for e in list(self.engines.values()):
+            try:
+                n += await self.th_save(e, now)
+            except Exception as ex:
+                log.warning("histórico dos traders (%s): %s", e.user_id, str(ex)[:160])
+        return n
+
+    async def th_loop(self) -> None:
+        await asyncio.sleep(600)
+        while True:
+            await self.th_tick()
+            await asyncio.sleep(3600)
+
     # ------------------------------------------------------------------ semana × fim de semana (0.32.161)
     async def week_save(self, pf: PumpFun, now: float | None = None) -> int:
         """Guarda cada bloco FECHADO (seg–sex ou sáb–dom) da fictícia e da real desta conta. Upsert pelo id: repetir não duplica."""
@@ -4334,6 +4388,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.top_loop()))            # 0.32.124: compras barradas do Top traders
         self._tasks.append(asyncio.create_task(self.tr_loop()))             # 0.32.140: relatório dos traders
         self._tasks.append(asyncio.create_task(self.week_loop()))           # 0.32.161: semana × fim de semana guardados
+        self._tasks.append(asyncio.create_task(self.th_loop()))             # 0.32.163: histórico de cada trader guardado
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
