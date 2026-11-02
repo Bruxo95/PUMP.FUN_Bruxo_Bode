@@ -1605,6 +1605,11 @@
    "versao": "0.32.169",
    "inicio": "2026-11-02T23:38:31+00:00",
    "titulo": "escolha do projeto ao entrar e BNB em página própria"
+  },
+  {
+   "versao": "0.32.170",
+   "inicio": "2026-11-02T23:55:13+00:00",
+   "titulo": "painel da BNB com menu e cópia fictícia"
   }
  ]
 }

@@ -23,6 +23,8 @@ import os
 import time
 from collections import deque
 
+from . import bnbcopy
+
 log = logging.getLogger("bnb")
 
 TM2 = "0x5c952063c7fc8610ffdb798152d69f0b9550762b"            # TokenManager2 da Four.Meme
@@ -37,6 +39,8 @@ STABLES = {"0x55d398326f99059ff775485246999027b3197955": "USDT",   # símbolo e 
            "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d": "USD1",
            "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": "USDC"}
 ZERO = "0x" + "0" * 40
+WBNB = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+DEX_URL = "https://api.dexscreener.com/latest/dex/tokens/"   # preço depois da graduação (grátis, 300/min)
 
 RPCS = [u.strip() for u in os.environ.get("BNB_RPCS", "https://bsc-rpc.publicnode.com,https://bsc.blockrazor.xyz").split(",")
         if u.strip()]
@@ -104,6 +108,18 @@ def to_bnb(tr: dict, quote: str | None, bnb_usd: float | None) -> float | None:
         return v
     if q in STABLES and bnb_usd:
         return v / bnb_usd
+    return None
+
+
+def price_bnb(tr: dict, quote: str | None, bnb_usd: float | None) -> float | None:
+    """Preço do token em BNB pelo trade (o evento traz o preço na moeda da curva)."""
+    q = (quote or "").lower()
+    if not tr.get("price"):
+        return None
+    if q in ("", ZERO):
+        return tr["price"]
+    if q in STABLES and bnb_usd:
+        return tr["price"] / bnb_usd
     return None
 
 
@@ -218,6 +234,13 @@ class BnbWatch:
         self._bal_q: deque = deque()
         self._rank_cache: tuple[float, dict] | None = None
         self.loaded = False
+        # 0.32.170: cópia fictícia por conta de admin (bnbcopy.Book); o que cada trader tem em cada token (para vender a
+        # mesma parte) e o último preço em BNB de cada token
+        self.books: dict[str, bnbcopy.Book] = {}
+        self.hold: dict[tuple, float] = {}
+        self.px: dict[str, tuple] = {}
+        self._dex_at: dict[str, float] = {}
+        self._grad_at: dict[str, float] = {}
 
     # ------------------------------------------------------------------ RPC
     async def rpc(self, method: str, params: list):
@@ -292,6 +315,7 @@ class BnbWatch:
                     continue
                 tr["t"] = round(ht - (head - tr["block"]) * self.block_s, 1)
                 new.append(tr)
+            cop = set(self.ranking()["copiaria"]) if new and self.books else set()
             for tr in new:
                 if tr["token"] not in self.quotes:
                     try:
@@ -299,7 +323,9 @@ class BnbWatch:
                     except RpcError:
                         pass                                   # tenta de novo na próxima vez que o token negociar
                 tr["quote"] = self.quotes.get(tr["token"])
+                before = self.hold.get((tr["wallet"], tr["token"]), 0.0)
                 self._add(tr, save=True)
+                self._copy(tr, before, cop)
                 n += 1
             self.stat["logs"] += len(logs)
             self.cursor = b
@@ -317,9 +343,140 @@ class BnbWatch:
         self.seen.add(tr["id"])
         if tr.get("quote") and tr["token"] not in self.quotes:
             self.quotes[tr["token"]] = tr["quote"]
+        k = (tr["wallet"], tr["token"])
+        self.hold[k] = max(0.0, self.hold.get(k, 0.0) + (tr["amount"] or 0) * (1 if tr["side"] == "buy" else -1))
+        px = price_bnb(tr, tr.get("quote"), self.bnb_usd)
+        if px and (tr["token"] not in self.px or tr["t"] >= self.px[tr["token"]][1]):
+            self.px[tr["token"]] = (px, tr["t"])
         if save:
             self.pending.append(tr)
         self._rank_cache = None
+
+    # ------------------------------------------------------------------ cópia fictícia (0.32.170)
+    def book(self, uid: str) -> bnbcopy.Book:
+        b = self.books.get(uid)
+        if b is None:
+            b = self.books[uid] = bnbcopy.Book(uid)
+            b.dirty_book = True
+        return b
+
+    def _copy(self, tr: dict, before: float, cop: set) -> None:
+        """Trade novo lido: o trader do ranking comprou → a fictícia compra; quem tem posição copiada vendeu → vende a
+        mesma parte. Também atualiza o preço das posições abertas do token."""
+        px = self.px.get(tr["token"], (None,))[0]
+        for b in self.books.values():
+            if px:
+                b.on_price(tr["token"], px, tr["t"])
+            if tr["side"] == "buy" and tr["wallet"] in cop and time.time() - tr["t"] <= 60:   # recuperação após reinício não copia
+                tr["bnb"] = to_bnb(tr, tr.get("quote"), self.bnb_usd)
+                b.buy(tr, px, time.time())
+            elif tr["side"] == "sell":
+                frac = min(1.0, (tr["amount"] or 0) / before) if before > 0 else 1.0
+                for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
+                    b.sell(p, frac, px, time.time(), f"trader vendeu {frac * 100:.0f}%")
+
+    async def positions_tick(self) -> None:
+        """Tempo máximo das posições e preço dos tokens que já foram para a PancakeSwap (a Four.Meme não negocia mais)."""
+        now = time.time()
+        for b in self.books.values():
+            b.timeouts(now)
+        toks = {p["token"] for b in self.books.values() for p in b.pos.values()}
+        for tk in list(toks)[:20]:
+            if tk not in self.graduated and now - self._grad_at.get(tk, 0) > 300:
+                self._grad_at[tk] = now
+                try:
+                    await self.token_info(tk)
+                except RpcError:
+                    pass
+            if tk in self.graduated and now - self._dex_at.get(tk, 0) > 60:
+                self._dex_at[tk] = now
+                px = await self.dex_price(tk)
+                if px:
+                    self.px[tk] = (px, now)
+                    for b in self.books.values():
+                        b.on_price(tk, px, now)
+
+    async def dex_price(self, token: str) -> float | None:
+        try:
+            r = await self.http.get(DEX_URL + token, timeout=10)
+            pairs = [x for x in (r.json().get("pairs") or []) if x.get("chainId") == "bsc"
+                     and ((x.get("quoteToken") or {}).get("address") or "").lower() == WBNB and x.get("priceNative")]
+            pairs.sort(key=lambda x: float((x.get("liquidity") or {}).get("usd") or 0), reverse=True)
+            return float(pairs[0]["priceNative"]) if pairs else None
+        except Exception:
+            return None
+
+    def painel(self, uid: str, now: float | None = None) -> dict:
+        now = now or time.time()
+        b = self.book(uid)
+        pos = []
+        for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
+            sol, pct = b.pnl_now(p)
+            pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "bnb_in",
+                                                  "proceeds", "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "aba")},
+                        "pnl_bnb": round(sol, 6), "pnl_pct": round(pct, 2), "graduou": p["token"] in self.graduated,
+                        "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
+        return {"cfg": b.cfg, "padrao": bnbcopy.CFG_DEFAULT, "carteira": b.wallet(now), "posicoes": pos,
+                "trades": b.trades[:500], "eventos": b.events[:100], "semana": bnbcopy.week_split(b.trades),
+                "abas": [{"aba": "top", "nome": "Top traders BNB", "ligada": b.cfg["on"], "abertas": len(b.pos),
+                          "fechadas": len(b.trades), "periodos": bnbcopy.periods(b.trades, now),
+                          "resultado": round(sum(x["pnl_bnb"] for x in b.trades), 6)}],
+                "copiaria": self.ranking(now)["copiaria"],
+                "leitura_ok": bool(self.trades) and not (self.stat["ultimo_erro_t"] and now - self.stat["ultimo_erro_t"] < 120)}
+
+    async def save_book_cfg(self, uid: str, raw: dict) -> dict:
+        b = self.book(uid)
+        old = b.cfg["saldo_inicial"]
+        b.cfg = bnbcopy.clean_cfg(raw, b.cfg)
+        b.cash += b.cfg["saldo_inicial"] - old             # mudar o saldo inicial soma/tira a diferença do saldo
+        b.dirty_book = True
+        await self.flush_books()
+        return b.cfg
+
+    def close_manual(self, uid: str, pid: str) -> dict | None:
+        b = self.book(uid)
+        p = b.pos.get(pid)
+        return b.sell(p, 1.0, None, time.time(), "vendido por você") if p else None
+
+    async def flush_books(self) -> None:
+        if self.db is None:
+            for b in self.books.values():
+                b.dirty_pos.clear()
+                b.closed_pos.clear()
+                b.new_trades.clear()
+                b.dirty_book = False
+            return
+        for b in list(self.books.values()):
+            try:
+                if b.dirty_book:
+                    await self.db.insert("bnb_books", {"user_id": b.user_id, "cfg": b.cfg, "cash": b.cash},
+                                         upsert=True, on_conflict="user_id")
+                    b.dirty_book = False
+                if b.new_trades:
+                    rows = [{"id": x["id"], "user_id": b.user_id, "t": x["close_t"], "data": x} for x in b.new_trades]
+                    await self.db.insert("bnb_trades", rows, upsert=True, on_conflict="id")
+                    b.new_trades.clear()
+                for pid in list(b.closed_pos):
+                    await self.db.delete("bnb_positions", {"id": pid, "user_id": b.user_id})
+                    b.closed_pos.discard(pid)
+                rows = [{"id": pid, "user_id": b.user_id, "data": b.pos[pid]} for pid in b.dirty_pos if pid in b.pos]
+                if rows:
+                    await self.db.insert("bnb_positions", rows, upsert=True, on_conflict="id")
+                b.dirty_pos.clear()
+            except Exception as e:
+                log.warning("BNB: carteira fictícia não gravou: %s", str(e)[:160])
+
+    async def load_books(self) -> None:
+        for r in await self.db.select("bnb_books", None) or []:
+            b = self.books[r["user_id"]] = bnbcopy.Book(r["user_id"], r.get("cfg"), r.get("cash"))
+            b.dirty_book = False
+        for r in await self.db.select("bnb_positions", None) or []:
+            if r.get("user_id") in self.books and isinstance(r.get("data"), dict):
+                self.books[r["user_id"]].pos[r["id"]] = r["data"]
+        for r in await self.db.select("bnb_trades", None, order="t.desc", limit=20000) or []:
+            b = self.books.get(r.get("user_id"))
+            if b is not None and isinstance(r.get("data"), dict) and len(b.trades) < bnbcopy.KEEP_TRADES:
+                b.trades.append(r["data"])
 
     async def balances_tick(self, wallets: list[str]) -> None:
         """Saldo das carteiras do topo (BNB + USDT + USD1 + USDC), no máximo 6 por volta; vale 30 min."""
@@ -372,6 +529,7 @@ class BnbWatch:
                 if len(rows) < 5000 or off >= MAX_MEM:
                     break
             self.stat["carregados"] = off
+            await self.load_books()
         except Exception as e:
             log.warning("BNB: dados guardados não carregaram: %s", str(e)[:160])
         self.loaded = True
@@ -414,12 +572,14 @@ class BnbWatch:
                 await self.poll()
                 await self.refresh_bnb_usd()
                 await self.balances_tick([r["wallet"] for r in self.ranking()["rows"][:30]])
+                await self.positions_tick()
             except Exception as e:
                 self.stat["erros"] += 1
                 self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = str(e)[:200], time.time()
             if time.time() - self._flush_at > 30:
                 self._flush_at = time.time()
                 await self.flush()
+                await self.flush_books()
             await asyncio.sleep(POLL_S)
 
     def state(self, now: float | None = None) -> dict:

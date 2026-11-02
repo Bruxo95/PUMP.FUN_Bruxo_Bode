@@ -1548,3 +1548,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `boot()` em `app.js` manda o admin para `/entrar` quando `sessionStorage.pf_hub` está vazio (cada aba nova pergunta de novo); usuário
   comum vai direto a `/app`. O login do Google continua voltando para `/app` (não mexer nas Redirect URLs). Trocar de projeto:
   `#menuHub` no menu da foto e link no topo da `/bnb`. Teste em `tests/test_bnb.py`.
+- 0.32.170 (pedido do dono): painel `/bnb` no padrão do `/app` (menu lateral, barra de abas no celular, Fictícia/Real no topo, botão
+  Trocar rede ↔ `/app`; no `/app` o botão `#menuHub` foi para o topo e leva direto à `/bnb`). Telas: Visão geral, Top traders, Posições,
+  Histórico, Semana × fim de semana, Abas de trades (uma: "Top traders BNB"), Configurações, Administração (leitura + regra do
+  ranking), Changelog (itens de `app/novidades.json` com `"projeto": "bnb"` — marcar assim toda entrega da BNB).
+  `app/bnbcopy.py` (`Book`: carteira FICTÍCIA por admin, compra valor fixo quando trader do ranking compra, vende a mesma parte,
+  tempo máximo, stop opcional, taxa 1% + gás + slippage; `periods`, `week_split`) ligado em `BnbWatch._copy` (compra só de trade
+  com até 60 s: a recuperação depois de reiniciar não copia) e `positions_tick` (tempo máximo; preço pela DexScreener depois da
+  graduação). Rotas `/api/pump/bnb/painel|conta|fechar` (admin). Tabelas `bnb_books`, `bnb_positions`, `bnb_trades` (migração
+  `20261103000001`). REAL da BNB não existe: a tela avisa; nada é enviado. Testes `tests/test_bnb_ficticia.py`.

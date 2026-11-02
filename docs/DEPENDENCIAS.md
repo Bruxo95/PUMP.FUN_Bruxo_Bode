@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-03**; revisão documental **2.0**.
-Aplicação: **0.32.169 · 2026-11-03 · escolha do projeto ao entrar e BNB em página própria**.
-Referência Git na emissão: `46fe560487b3884ed9635366532f17a4c0d53999`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.170 · 2026-11-03 · painel da BNB com menu e cópia fictícia**.
+Referência Git na emissão: `209f4d0bd4e9dff48399d9a6995edb8928ca7d38`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
