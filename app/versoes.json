@@ -1590,6 +1590,11 @@
    "versao": "0.32.166",
    "inicio": "2026-11-02T17:01:56+00:00",
    "titulo": "por dia da semana, por hora do dia e gráficos de progresso"
+  },
+  {
+   "versao": "0.32.167",
+   "inicio": "2026-11-02T21:55:17+00:00",
+   "titulo": "por que duas contas compraram moedas diferentes"
   }
  ]
 }

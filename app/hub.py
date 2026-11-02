@@ -4042,6 +4042,22 @@ class PumpHub:
         nome = rows[0].get("nome") or (rows[0].get("email") or "").split("@")[0] or "outro usuário"
         return {"user_id": peer, "nome": nome, "valores": {k: getattr(other.cfg, k) for k in keys}}
 
+    async def buy_diff(self, uid: str, peer: str, horas: float) -> dict:
+        """0.32.167 (pedido do dono): compras FICTÍCIAS de duas contas lado a lado e, moeda a moeda, por que a outra não
+        comprou. Só leitura."""
+        if peer == uid:
+            return {"error": "escolha outro usuário"}
+        rows = await self.db.select("profiles", {"user_id": peer}, columns="user_id,bloqueado,role,nome,email")
+        if not rows or rows[0].get("bloqueado"):
+            return {"error": "usuário não encontrado"}
+        from . import buydiff
+        a = self.engines.get(uid) or await self.engine(uid)
+        b = self.engines.get(peer) or await self.engine(peer)
+        r = buydiff.compare(a, b, horas)
+        r["outro"] = rows[0].get("nome") or (rows[0].get("email") or "").split("@")[0] or "outro usuário"
+        r["nomes"] = dict(a.market.__dict__.get("trader_names") or {})
+        return r
+
     async def config_offers(self, uid: str) -> list[dict]:
         from .auto_trades import ts
         rows = await self.db.select("config_offers", {"para_user": uid, "status": "pendente"}, order="criado_em.desc", limit=20)

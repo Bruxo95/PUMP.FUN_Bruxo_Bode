@@ -1308,6 +1308,7 @@
     if (e.target.id === "jtNow") loadJt();
   });
   document.addEventListener("change", (e) => { if (e.target.id === "jtH") loadJt(); });
+  document.addEventListener("change", (e) => { if (e.target.id === "bdU") { BD.peer = e.target.value; try { localStorage.setItem("pf_bdu", BD.peer); } catch (x) { /* */ } loadBuyDiff(); } });
 
   // 0.32.86 (áudio do Bruxo, 30/10): detentores no início e evolução minuto a minuto × o que o token fez; só mede, nunca compra
   // 0.32.88 (pedido do dono): cada cartão abre a conta, em palavras e token por token
@@ -1573,6 +1574,52 @@
     const S = r.saidas || {}, Y = S.yours || {}, Ya = Y.trades ? Y.pnl_sol / Y.trades : null;
     $("tlGS").textContent = "Mostra todas as cópias de trader, de todas as contas. As suas regras: " + (Ya == null ? "ainda sem base" : s4(Ya) + " SOL por trade em " + Y.trades + " trades") + ". Trocar de regra é pelas Sugestões do Ajuste automático, na Base geral.";
     table("tlG", ["Regra", "Por trade", "Trades", "Acerto"], (S.variants || []).map((v) => ['<span class="shv">' + esc(v.nome) + "</span>", sg(v.avg_sol, ""), String(v.trades), v.win_rate == null ? "–" : f(v.win_rate * 100, 0) + "%"]), "Os fantasmas ainda não têm base.");
+  }
+  // 0.32.167 (pedido do dono: "configuração 100% igual ao Bruxo e as compras são diferentes"): moeda a moeda, por que a outra conta
+  // não comprou. A diferença vem da lista de traders de cada conta, que não faz parte da configuração.
+  let BD = { peer: "", h: 24, r: null };
+  try { BD.h = +localStorage.getItem("pf_bdh") || 24; BD.peer = localStorage.getItem("pf_bdu") || ""; } catch (e) { /* */ }
+  async function loadBuyDiff() {
+    if (!$("bdU")) return;
+    if (!ABC_USERS) { try { ABC_USERS = ((await BB.api("/api/pump/config/share-targets", { quiet: true })) || {}).users || []; } catch (e) { ABC_USERS = []; } }
+    const ids = ABC_USERS.map((u) => u.user_id);
+    if (!ids.includes(BD.peer)) BD.peer = (ABC_USERS.find((u) => /bruxo/i.test((u.nome || "") + " " + (u.email || ""))) || ABC_USERS[0] || {}).user_id || "";
+    $("bdU").innerHTML = ABC_USERS.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === BD.peer ? " selected" : "") + ">" + esc(u.nome || u.email) + "</option>").join("");
+    document.querySelectorAll("#bdH button").forEach((b) => b.classList.toggle("on", +b.dataset.bdh === BD.h));
+    if (!BD.peer) { kpis("bdK", []); $("bdNote").textContent = "Nenhum outro usuário admin para comparar."; return; }
+    busy("bdK", "Comparando");
+    const peer = BD.peer, r = await BB.api("/api/pump/buy-diff?peer=" + encodeURIComponent(peer) + "&horas=" + BD.h, { quiet: true });
+    if (peer !== BD.peer || !$("bdK")) return;
+    if (r.error) { $("bdK").innerHTML = '<div class="empty">' + esc(r.error) + "</div>"; return; }
+    BD.r = r; drawBuyDiff();
+  }
+  function drawBuyDiff() {
+    const r = BD.r, nm = esc(r.outro || "a outra conta"), n = r.n || {}, names = r.nomes || {};
+    const who = (w) => w && w !== "manual" ? pfW0(w, { wallet: w }) + (names[w] ? ' <span class="muted small">' + esc(names[w]) + "</span>" : "") : "–";
+    const res = (x) => x.aberta ? '<span class="muted">aberta</span>' : x.pnl_sol == null ? "–" : sg(x.pnl_sol, "") + " · " + pc(x.pnl_pct || 0);
+    $("bdSub").textContent = "você × " + (r.outro || "outra conta") + " · últimas " + (BD.h >= 72 ? "72 h" : BD.h + " h") + " · carteira FICTÍCIA";
+    kpis("bdK", [["As duas compraram", String(n.ambos || 0), "a mesma moeda", "hit"],
+      ["Só " + nm, String(n.so_outro || 0), "moedas que você não comprou", "mon"],
+      ["Só você", String(n.so_eu || 0), "moedas que " + nm + " não comprou", "tr"],
+      ["Traders copiados", (r.copiados || {}).eu + " × " + (r.copiados || {}).outro, "você × " + nm, "usr"]]);
+    const tr = (r.traders_so_outro || []).map((x) => [who(x.wallet), '<span class="tag neutral">só ' + nm + "</span>", '<span class="wrapcell">' + esc(x.fonte) + "</span>",
+      '<span class="wrapcell">você: ' + esc(x.por_que_nao) + "</span>", /^pausado/.test(x.por_que_nao) ? '<button class="btn sm" data-bdres="' + esc(x.wallet) + '">Retomar</button>'
+        : /^banido/.test(x.por_que_nao) ? "–" : '<button class="btn sm primary" data-bdadd="' + esc(x.wallet) + '">Copiar também</button>'])
+      .concat((r.traders_so_eu || []).map((x) => [who(x.wallet), '<span class="tag neutral">só você</span>', '<span class="wrapcell">' + esc(x.fonte) + "</span>", '<span class="wrapcell">' + nm + ": " + esc(x.por_que_nao) + "</span>", "–"]));
+    table("bdTr", ["Trader", "Quem copia", "Por que copia", "Por que a outra não copia", ""], tr, "As duas contas copiam os mesmos traders agora.");
+    const nAdd = (r.traders_so_outro || []).filter((x) => !/^(pausado|banido)/.test(x.por_que_nao)).length;
+    $("bdBS").innerHTML = "Moedas que só " + nm + " comprou" + (nAdd > 1 ? ' <button class="btn sm" data-bdadd="*" style="margin-left:8px">Copiar também os ' + nAdd + " traders dele</button>" : "");
+    const row = (x) => [dt(x.t), "<b>" + esc(x.symbol) + "</b>", esc(x.aba), who(x.wallet), res(x), '<span class="wrapcell">' + esc(x.por_que_nao) + "</span>"];
+    table("bdB", ["Hora", "Moeda", "Aba", "Trader", "Resultado de " + nm, "Por que você não comprou"], (r.so_outro || []).map(row), "Nenhuma moeda só de " + nm + " neste período.");
+    table("bdA", ["Hora", "Moeda", "Aba", "Trader", "Seu resultado", "Por que " + nm + " não comprou"], (r.so_eu || []).map(row), "Nenhuma moeda só sua neste período.");
+    $("bdNote").textContent = "O motivo de cada compra vista fica guardado na memória desde o último reinício do servidor" + (r.diag_desde ? " (" + dt(r.diag_desde) + ")" : "") + ". Compras de antes disso aparecem com o motivo da lista de traders.";
+  }
+  async function bdAdd(w) {
+    const ws = w === "*" ? (BD.r.traders_so_outro || []).filter((x) => !/^(pausado|banido)/.test(x.por_que_nao)).map((x) => x.wallet) : [w];
+    if (w === "*" && !confirm("Pôr " + ws.length + " traders na SUA lista de cópia? Eles passam pelos seus filtros normais.")) return;
+    for (const x of ws) await BB.api("/api/pump/wallets", { body: { wallet: x, action: "add" } });
+    toast(ws.length + (ws.length === 1 ? " trader adicionado" : " traders adicionados") + " à sua lista");
+    await poll(true); loadBuyDiff();
   }
   async function loadCopyDiag() {
     const r = await BB.api("/api/pump/copy-diag"); if (r.error || !$("cdK")) return;
@@ -2459,6 +2506,9 @@
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
+    if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
+    if (t.dataset.bdadd) { bdAdd(t.dataset.bdadd); return; }
+    if (t.dataset.bdres) { BB.api("/api/pump/wallets", { body: { wallet: t.dataset.bdres, action: "resume" } }).then(() => { toast("Trader retomado na sua conta"); poll(true).then(loadBuyDiff); }); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
     const ltb = t.closest && t.closest("[data-logtab]"); if (ltb) { LOGTAB = ltb.dataset.logtab; if (VIEW === "logs") { e.preventDefault(); showLogTab(LOGTAB); } return; }
     if (t.dataset.rlh) { const [md, hh] = t.dataset.rlh.split(":"); RLH[md] = +hh; loadRobotLog(md); return; }
@@ -2719,7 +2769,7 @@
     if (VIEW === "jevtrade") loadJt();
     if (VIEW === "basegeral") { loadRsBase(); loadBrainShadow(); loadTuneBase(); loadTrBase(); }
     if (VIEW === "abas") loadAbas();
-    if (VIEW === "traders") { loadCopyDiag(); loadTopLab(); }
+    if (VIEW === "traders") { loadCopyDiag(); loadTopLab(); loadBuyDiff(); }
     if (VIEW === "elite") { loadElite(); loadSteps(); }
     if (VIEW === "igual") { loadEq(); loadEqRep(); }
     if (VIEW === "aprendizado") loadLearning();

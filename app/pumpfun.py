@@ -633,6 +633,48 @@ class PumpFun:
                          len([w for w in new if w not in man]))
             self.followed = new
 
+    def follow_info(self, w: str) -> dict:
+        """0.32.167 (pedido do dono: "configuração igual, compras diferentes"): se esta conta copia a carteira e de onde ela
+        veio, ou por que não copia. A configuração não inclui a lista de traders: manual, IA, pausas e banidos são de cada conta."""
+        if not w or w == "manual":
+            return {"segue": False, "por": "não é cópia de trader"}
+        if w in self.banned:
+            return {"segue": False, "por": "banido nesta conta"}
+        pz = self.paused().get(w)
+        if pz:
+            return {"segue": False, "por": "pausado nesta conta" + (f" ({pz.get('reason')})" if pz.get("reason") else "")}
+        if w in self.followed:
+            if w in self.eq_wallets():
+                por = "Copiar igual"
+            elif w in self.manual:
+                por = "lista manual (botão Copiar ou lista recebida)"
+            elif w in (getattr(self, "elite_follow", None) or []):
+                por = "sugerido dos Maiores traders (80%+)"
+            elif w in self.study_copy_wallets():
+                por = "aprovado pelo estudo automático (IA)"
+            elif w in (getattr(self, "top_active", None) or []):
+                por = "Top traders (entre os ativos do ranking)"
+            else:
+                por = "tem posição aberta dele (segue até fechar)"
+            return {"segue": True, "por": por}
+        if ((self.activity.get(w) or {}).get("bot_until") or 0) > time.time():
+            return {"segue": False, "por": "marcado como robô"}
+        if getattr(self.cfg, "pump_nc_on", False):
+            u = self.uncopiable(w)
+            if u:
+                return {"segue": False, "por": u}
+        r = next((r for r in self.leaderboard if r.get("wallet") == w), None)
+        if r is None:
+            if w in (getattr(self, "study", None) or []):
+                return {"segue": False, "por": "está em Carteiras em estudo desta conta, mas o estudo só observa (não foi aprovada para copiar)"}
+            return {"segue": False, "por": "não está na lista desta conta (não é manual, nem aprovada pela IA, nem está no ranking)"}
+        if not r.get("eligible"):
+            return {"segue": False, "por": "está no ranking, mas os filtros barram: " + "; ".join(r.get("flags") or [])}
+        if self._c("pump_only_online", True) and not self.is_online(w):
+            ls = self.last_seen(w)
+            return {"segue": False, "por": "fora do ar" + (f" (último trade há {int((time.time() - ls) // 60)} min)" if ls else "")}
+        return {"segue": False, "por": f"apto no ranking, mas fora dos {int(self._c('pump_top_n', 10))} melhores ativos desta conta"}
+
     def is_online(self, w: str) -> bool:
         ls = self.last_seen(w)
         return bool(ls and time.time() - ls <= float(self._c("pump_online_min", 10)) * 60)
@@ -1052,11 +1094,13 @@ class PumpFun:
                 out.append(self.rlog_summary(rec))
         return out
 
-    def _copy_note(self, who: str, outcome: str, t: float | None = None) -> None:
+    def _copy_note(self, who: str, outcome: str, t: float | None = None, mint: str | None = None) -> None:
         """0.31.78 (pedido do dono: "não há cópia dos top traders nas últimas 24 h"): cada compra de trader seguido que o
         robô viu e o que fez com ela (copiou / motivo de não copiar). Só memória, 24 h (o Feed guarda só os últimos 500)."""
         d = self.__dict__.setdefault("_copy_diag", deque(maxlen=50000))
         d.append((time.time() if t is None else t, who, str(outcome)[:160]))
+        if mint:     # 0.32.167: com a moeda, para dizer por que outra conta comprou e esta não (Por que compramos diferente)
+            self.__dict__.setdefault("_copy_mint", deque(maxlen=50000)).append((d[-1][0], who, mint, d[-1][2]))
         n = self.__dict__["_rlog_n"] = self.__dict__.get("_rlog_n", 0) + 1         # cada compra vista é um item
         self.rlog("copia", f"{who}:{n}", short(who), None if outcome == "copiou" else outcome, t)
 
@@ -1161,7 +1205,7 @@ class PumpFun:
             why = "saldo fictício insuficiente"
         if why:
             self._feed(**base, action="não copiou", reason=why)
-            self._copy_note(who, why, t)
+            self._copy_note(who, why, t, mint)
             return []
         fr = self._fee_rates(mint)
         slip, prio = fr["slip"], fr["prio"]
@@ -1183,7 +1227,7 @@ class PumpFun:
         self._save_pos(p)
         self._feed(**base, action="copiou compra", reason=f"copiar igual: comprou {amt:.3f} SOL a {price_in:.3e}"
                    + (f" · atraso {lag:.0f} s" if lag is not None else ""))
-        self._copy_note(who, "copiou", t)
+        self._copy_note(who, "copiou", t, mint)
         msgs = [f"[PUMP SIM] copiar igual {short(who)}: compra {sym} {amt:.3f} SOL (carteira comprou {sol:.3f} SOL)"]
         # 0.32.65: "FICTÍCIA e REAL" no botão Copiar da carteira vale para ela (sem ligar a REAL das outras)
         if getattr(c, "pump_eq_real", False) or (getattr(self, "eq_mode", None) or {}).get(who) == "both":
@@ -1210,7 +1254,7 @@ class PumpFun:
         if kind == "buy" and self.is_paused(who):
             pz = self.paused().get(who) or {}
             self._feed(**base, action="não copiou", reason="trader pausado" + (f" ({pz.get('reason')})" if pz.get("reason") else ""))
-            self._copy_note(who, "trader pausado", t)
+            self._copy_note(who, "trader pausado", t, mint)
             return []
         if kind == "buy" and delay > 0 and not ev.get("_delayed"):
             key = (who, mint)
@@ -1218,7 +1262,7 @@ class PumpFun:
                 self._pending[key] = {"due": t + delay, "t": t, "who": who, "mint": mint, "sol": sol, "tok": tok,
                                       "ev": dict(ev), "before": before}
                 self._feed(**base, action="aguardando", reason=f"copia em {delay:.0f} s se o trader continuar no token")
-                self._copy_note(who, "aguardando a espera configurada antes de copiar", t)
+                self._copy_note(who, "aguardando a espera configurada antes de copiar", t, mint)
             return []
         if kind == "buy":
             why = None
@@ -1258,7 +1302,7 @@ class PumpFun:
                     why = f"nota da entrada {score:.0f} abaixo do mínimo {mn:.0f}"
             if why:
                 self._feed(**base, action="não copiou", reason=why)
-                self._copy_note(who, why, t)
+                self._copy_note(who, why, t, mint)
                 self._top_barred(who, mint, why, t)
                 return []
             msgs = []
@@ -1316,7 +1360,7 @@ class PumpFun:
             elif not follow_real and self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
                 swhy = "saldo fictício insuficiente"
             if swhy:
-                self._copy_note(who, swhy, t)
+                self._copy_note(who, swhy, t, mint)
                 self._top_barred(who, mint, swhy, t)
                 self._feed(**base, action="não copiou", reason=swhy)
                 return msgs
@@ -1338,7 +1382,7 @@ class PumpFun:
             self.ghosts.on_open(p, t)
             self._feed(**base, action="copiou compra", reason=f"comprou {amt:.3f} SOL a {price_in:.3e} · nota {score:.0f}"
                        + (f" · atraso {lag:.0f} s" if lag is not None else "") + (f" · {mwhy}" if mwhy else ""))
-            self._copy_note(who, "copiou", t)
+            self._copy_note(who, "copiou", t, mint)
             msgs.append(f"[PUMP SIM] copiou {short(who)}: compra {sym} {amt:.3f} SOL (trader comprou {sol:.3f} SOL)")
             if not self.sim_only(who):
                 if self._mirror_real(p, trader_sol=sol, block_t=ev.get("blockTime")) and self.exact_on():

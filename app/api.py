@@ -905,6 +905,17 @@ def create_app(hub, auth, cfg) -> FastAPI:
             log.warning("comparar configuração: %s", str(e)[:120])
             return {"error": "não consegui ler a configuração agora"}
 
+    @app.get("/api/pump/buy-diff")
+    async def buy_diff(peer: str = "", horas: float = 24, u: dict = Depends(admin_only)):
+        """0.32.167: por que duas contas compraram moedas diferentes (só leitura)."""
+        if not UUID_ANY.fullmatch(peer or ""):
+            return {"error": "escolha um usuário"}
+        try:
+            return await hub.buy_diff(u["id"], peer, max(1.0, min(168.0, float(horas))))
+        except Exception as e:
+            log.warning("comparar compras: %s", str(e)[:120])
+            return {"error": "não consegui comparar agora"}
+
     @app.get("/api/pump/config/offers")
     async def config_offers(u: dict = Depends(user)):
         try:

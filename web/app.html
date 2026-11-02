@@ -234,6 +234,17 @@
       <!-- ========================================================= TOP TRADERS -->
       <section class="view" data-view="traders" hidden>
         <a class="thgo" href="#tradershist" data-novo-ate="2026-11-16"><b>Traders copiados</b><span>o histórico guardado de cada carteira que você copiou: ganhos, perdas e cada trade, com o botão Resultados do trader</span><i>Abrir →</i></a>
+        <div class="card" id="bdCard" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>Por que compramos diferente</h2><div class="sub" id="bdSub">mesma configuração, compras diferentes: moeda a moeda, o motivo · carteira FICTÍCIA</div></div><div class="sp"></div>
+            <div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="bdU" aria-label="Comparar com o usuário"></select><div class="seg" id="bdH"><button data-bdh="6">6 h</button><button data-bdh="24">24 h</button><button data-bdh="72">3 dias</button></div></div></header>
+          <div class="help"><p>A configuração igual não inclui a <b>lista de traders</b>. Cada conta tem a sua: carteiras manuais, as aprovadas pelo estudo automático, as pausadas (também pelo ajuste automático) e as banidas. Por isso duas contas iguais compram moedas diferentes. Aqui cada moeda que só uma conta comprou mostra o motivo da outra. Só mostra: o botão <b>Copiar também</b> põe o trader na <b>sua</b> lista e não mexe na conta da outra pessoa.</p></div>
+          <div class="kpis" id="bdK"></div>
+          <div class="sub" style="margin-top:14px">Traders que só uma das contas copia agora</div>
+          <div class="tbl-wrap"><table id="bdTr" class="daytbl"></table></div>
+          <div class="sub" style="margin-top:14px" id="bdBS">Moedas que só a outra conta comprou</div>
+          <div class="tbl-wrap"><table id="bdB" class="daytbl"></table></div>
+          <div class="sub" style="margin-top:14px">Moedas que só você comprou</div>
+          <div class="tbl-wrap"><table id="bdA" class="daytbl"></table></div>
+          <p class="muted small" id="bdNote" style="margin:10px 0 0"></p></div>
         <div class="card" data-novo-ate="2026-11-15" data-nosanf><header><div><h2>Laboratório do Top traders</h2><div class="sub" id="tlSub">mede se o resultado desta aba é método ou sorte · carteira FICTÍCIA</div></div></header>
           <div class="help"><p>Só mede: <b>nada aqui compra, vende ou muda opção</b>. Um resultado só é provado com pelo menos 5 dias de trades e a faixa de confiança inteira acima de zero.</p></div>
           <div class="kpis" id="tlK"></div><p class="small" id="tlR" style="margin:10px 0 0"></p>
