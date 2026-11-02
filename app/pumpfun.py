@@ -1351,15 +1351,25 @@ class PumpFun:
         if frac < 0.01:                                  # venda irrelevante (<1% do que ele tinha): não mexe
             return []
         out = []
-        for p in mine:
+        # 0.32.156 (pedido do dono, casos inu e WB de 01/11: "a prioridade é sempre a real"): com as duas carteiras no token do
+        # mesmo trader, a REAL decide junto com a fictícia e sai PRIMEIRO. Antes cada uma olhava o próprio preço de entrada:
+        # a real, que entra mais caro, ficava "segurando até ficar positivo" enquanto a fictícia vendia no lucro (WB: a
+        # fictícia saiu em +20,8% e a real caiu até o stop de −40%).
+        def _chg(q):
+            pxn = px or q.get("price_now") or q["price_in"]
+            left_cost = q["sol_in"] * (q["tokens_left"] / q["tokens"])
+            return (self._exit_value(q, pxn) / left_cost - 1) * 100 if left_cost else 0.0
+        hold_on = getattr(self.cfg, "pump_hold_until_profit", True)
+        lim = float(self._c("pump_hold_min_profit_pct", 0.0))
+        lead = next((q for q in mine if not q.get("real")), None)
+        lead_hold = bool(lead and (lead.get("hold_profit") or (hold_on and _chg(lead) < lim)))
+        for p in sorted(mine, key=lambda q: not q.get("real")):              # real primeiro
             if p.get("hold_profit"):
                 continue                                  # já está segurando até ficar positivo
-            if getattr(self.cfg, "pump_hold_until_profit", True):
-                pxn = px or p.get("price_now") or p["price_in"]
-                left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"])
-                val = self._exit_value(p, pxn)
-                chg = (val / left_cost - 1) * 100 if left_cost else 0.0
-                if chg < float(self._c("pump_hold_min_profit_pct", 0.0)):
+            if hold_on:
+                chg = _chg(p)
+                follow = p.get("real") and lead is not None
+                if (lead_hold if follow else chg < lim):
                     # trader saiu e NÓS estamos no prejuízo (já contando as taxas de saída): segura até ficar positivo
                     p["hold_profit"] = True
                     p["hold_since"] = now_iso()
@@ -1367,11 +1377,13 @@ class PumpFun:
                     p["chg_pct"] = round(chg, 2)
                     self._save_pos(p)
                     self._feed(**base, action="segurando",
-                               reason=f"trader saiu, mas a posição está {chg:+.1f}% depois das taxas — vende quando ficar positiva")
+                               reason=f"trader saiu, mas a posição está {chg:+.1f}% depois das taxas — vende quando ficar positiva"
+                               + (" (a real segue a fictícia)" if follow else ""))
                     out.append(f"[PUMP {'REAL' if p.get('real') else 'SIM'}] {p['symbol']}: trader saiu no prejuízo "
                                f"({chg:+.1f}%) — segurando até ficar positivo")
                     continue
             if p.get("real"):
+                p["_paired_sell_t"] = t                    # a fictícia vende logo em seguida: não repete a venda real
                 self._real_sell(p, frac, f"trader vendeu {frac * 100:.0f}%")
                 self._feed(**base, action="REAL: vendendo", reason=f"vendendo {frac * 100:.0f}% da posição real")
                 continue
@@ -1458,11 +1470,15 @@ class PumpFun:
             p["exit_wait"] = {"frac": frac, "why": why}
             self._save_pos(p)
             return f"[PUMP SIM] {p['symbol']}: saída ({why}) espera a compra REAL confirmar — a real tem prioridade"
-        if frac >= 1.0 or p["tokens_left"] * (1 - frac) <= p["tokens"] * 0.005:
-            if getattr(self.cfg, "pump_real_mirror", True):          # 0.31.47: a venda real sai primeiro
-                for rp in self.positions():
-                    if rp.get("real") and rp.get("sim_id") == p["id"] and not rp.get("selling"):
-                        self._real_sell(rp, 1.0, f"espelho do fictício: {why}")
+        full = frac >= 1.0 or p["tokens_left"] * (1 - frac) <= p["tokens"] * 0.005
+        for rp in self.real_twins(p):                    # 0.31.47/0.32.156: a venda real sai primeiro
+            if rp.get("selling") or rp.get("_paired_sell_t") == t:
+                continue
+            if full:
+                self._real_sell(rp, 1.0, f"espelho do fictício: {why}" if rp.get("sim_id") == p["id"] else f"junto com a fictícia: {why}")
+            elif why.startswith("venda em partes") and not rp.get("tp1_done"):
+                rp["tp1_done"] = True                    # a parte da real sai junto e não repete depois pelo preço dela
+                self._real_sell(rp, frac, f"junto com a fictícia: {why}")
         fr = self._fee_rates(p["mint"])
         slip, prio = fr["slip"], fr["prio"]
         fee = fr["venue"] + fr["portal"]
@@ -1518,6 +1534,16 @@ class PumpFun:
                     f"{pnl:+.4f} SOL ({tr['pnl_pct']:+.1f}%)")
         self._save_pos(p)
         return f"[PUMP SIM] {p['symbol']}: vendeu {frac * 100:.0f}% ({why}) → {got:.4f} SOL"
+
+    def real_twins(self, p: dict) -> list[dict]:
+        """0.32.156: posições REAIS que andam junto com esta fictícia: o par do espelho (sim_id) e, sem espelho, a real do
+        mesmo token copiada do mesmo trader."""
+        if p.get("real"):                    # a venda real não depende da chave da execução real (0.32.103)
+            return []
+        mirror = getattr(self.cfg, "pump_real_mirror", True)
+        return [rp for rp in self.positions() if rp.get("real") and rp["mint"] == p["mint"]
+                and ((mirror and rp.get("sim_id") == p["id"])
+                     or (not rp.get("sim_id") and rp.get("wallet") == p.get("wallet") and p.get("wallet") not in (None, "manual")))]
 
     def _waits_real(self, p: dict) -> bool:
         """Fictícia com a compra REAL do espelho ainda saindo (real ligada): a real tem prioridade (0.31.47)."""

@@ -3252,10 +3252,15 @@
     let tem = false; try { tem = !!localStorage.getItem(ABAS_MEM); } catch (e) { /* idem */ }
     $("abUndo").hidden = !tem;
   }
-  function abasSync() { if (VIEW === "abas" && abaSig() !== ABAS_SIG) abasDraw(); }
+  // 0.32.156 (pedido do dono): os números de cada aba seguem o botão FICTÍCIA/REAL; ao trocar, busca de novo (antes só redesenhava
+  // e o modo REAL mostrava os percentuais da fictícia)
+  let ABAS_RM = null;
+  function abasSync() { if (VIEW !== "abas") return; if (ABAS_RM !== null && ABAS_RM !== realMode()) { ABAS_RM = realMode(); loadAbas(); return; } if (abaSig() !== ABAS_SIG) abasDraw(); }
   async function loadAbas() {
     if (!$("abGrid")) return;
-    const r = await BB.api("/api/pump/result-tabs?real=" + (realMode() ? 1 : 0), { quiet: true });
+    const rm = realMode(); ABAS_RM = rm;
+    const r = await BB.api("/api/pump/result-tabs?real=" + (rm ? 1 : 0), { quiet: true });
+    if (rm !== realMode()) return;
     ABAS_R = r.abas || []; abasDraw();
     if (D) render();
   }
