@@ -25,7 +25,7 @@ def test_study_wallet_says_why_it_copies_only_in_sim(tmp_path):
     m = "Stud".ljust(40, "1") + "pump"
     pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7))
     e = next(f for f in pf.feed if f.get("action") == "REAL não copiou")
-    assert "Carteiras em estudo" in e["reason"] and pf._rq.qsize() == 0
+    assert "Carteiras em estudo" in e["reason"] and (pf._rq is None or pf._rq.qsize() == 0)   # nada foi para a real
 
 
 def test_forgotten_real_buy_does_not_hold_the_limit_forever():
