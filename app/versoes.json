@@ -1545,6 +1545,11 @@
    "versao": "0.32.157",
    "inicio": "2026-11-02T08:02:56+00:00",
    "titulo": "erro da chave da Solana Tracker também em Configurações"
+  },
+  {
+   "versao": "0.32.158",
+   "inicio": "2026-11-02T08:09:08+00:00",
+   "titulo": "cópia exata: a real manda e a fictícia acompanha"
   }
  ]
 }

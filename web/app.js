@@ -3176,7 +3176,7 @@
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_real_mirror", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_copy_other_real"];
+  const TGL_REAL = ["pump_real_mirror", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_copy_other_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
@@ -3228,7 +3228,7 @@
   }
   function abaBox(a, i) {
     const [nome, k, rk] = a, x = ABAS_R.find((y) => y.aba === nome), d = x && x.periodos.find((p) => p.horas === 24), rm = realMode(), n = ((D && D.positions) || []).filter((p) => !!p.real === rm && p.aba === nome).length, c = cfg();
-    return '<div class="abc"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && c[rk] ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
+    return '<div class="abc"><div class="abc-t"><b>' + esc(nome) + "</b>" + (c.pump_real_enabled && (c[rk] || rk === "pump_real_mirror") ? '<span class="tag loss" title="esta aba pode comprar na carteira REAL">REAL</span>' : "") + '<span class="sp"></span><button class="btn sm tgl sw" data-toggle="' + k + '" data-clone="1">…</button></div>' +
       '<div class="abc-d">' + esc(ABA_INFO[nome] || "") + '</div><div class="abc-n"><div><small>24 h</small><b>' + (d && d.trades ? pc(d.pct) : "–") + "</b></div><div><small>Trades</small><b>" + (d ? d.trades : 0) + "</b></div><div><small>Abertas</small><b>" + n + "</b></div></div>" +
       // 0.32.150 (pedido do dono): resultado de 12, 6 e 1 h dentro do quadrado (% e trades fechados)
       '<div class="abc-h">' + [12, 6, 1].map((h) => { const q = x && x.periodos.find((p) => p.horas === h); return "<div><small>" + h + " h</small><b>" + (q && q.trades ? pc(q.pct) : "–") + "</b><small>" + (q ? q.trades : 0) + " trades</small></div>"; }).join("") + "</div>" +
@@ -3240,7 +3240,7 @@
     const L = ABAS_TR.map((a, i) => [a, i]), n = L.filter(([a]) => cfgNow(a[1])).length, rm = realMode(), np = ((D && D.positions) || []).filter((p) => !!p.real === rm).length;
     const grp = (t, s, G) => '<div class="abg"><b>' + t + '</b> <span class="muted">' + s + '</span></div><div class="abgrid">' + G.map(([a, i]) => abaBox(a, i)).join("") + "</div>";
     // 0.32.148 (pedido do dono): quadro em cima dizendo se a carteira REAL está ligada e quais abas compram nela
-    const c = cfg(), R = (D && D.real) || {}, on = !!c.pump_real_enabled, rl = L.filter(([a]) => cfgNow(a[1]) && c[a[2]]).map(([a]) => a[0]);
+    const c = cfg(), R = (D && D.real) || {}, on = !!c.pump_real_enabled, rl = L.filter(([a]) => cfgNow(a[1]) && (c[a[2]] || a[2] === "pump_real_mirror")).map(([a]) => a[0]);   // 0.32.158: sem espelho, as cópias de trader vão direto para a real
     $("abReal").className = "card abreal " + (on ? "on" : "off");
     $("abReal").hidden = !rm;                         // 0.32.149 (pedido do dono): só no modo Real
     $("abReal").innerHTML = '<div class="abr-l"><small>Carteira REAL</small><b>' + (on ? "LIGADA" : "DESLIGADA") + "</b></div><div class=\"abr-t\">" +
