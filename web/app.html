@@ -54,7 +54,6 @@
       <a href="#logs" id="navLogs" hidden data-v="logs" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Logs dos robôs</a>
       <a href="#bruxo" id="navBruxo" hidden data-v="bruxo" data-novo-ate="2026-11-12"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h-6l3-7z"/><path d="M5 21h14l-3-12H8L5 21z"/></svg>Aba do Bruxo</a>
       <a href="#jevtrade" id="navJt" hidden data-v="jevtrade" data-novo-ate="2026-11-14"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Jev Trade</a>
-      <a href="#bnb" id="navBnb" hidden data-v="bnb" data-novo-ate="2026-11-16"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 3-3 3-3-3zM6 9l3 3-3 3-3-3zM18 9l3 3-3 3-3-3zM12 15l3 3-3 3-3-3zM12 10.5l1.5 1.5-1.5 1.5-1.5-1.5z"/></svg>BNB · Four.Meme</a>
       <a href="#jev" id="navJev" hidden data-v="jev" data-novo-ate="2026-11-13"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>JEV (sombra)</a>
       <a href="#calls" id="navCalls" hidden data-v="calls" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></svg>Calls e Radar</a>
       <div class="navgrp" id="navGrp" hidden>
@@ -114,6 +113,7 @@
     <div class="menu" id="menu" hidden>
       <div class="who"><b id="mName"></b><small id="mMail"></small><small id="mRole"></small></div>
       <button data-goto="config">Configurações e chaves</button>
+      <a class="menulink" id="menuHub" href="/entrar" hidden>Trocar de projeto (pump.fun · BNB)</a>
       <button id="logoutB">Sair</button>
     </div>
 
@@ -542,23 +542,6 @@
 
       <!-- ========================================================= MAIORES TRADERS (app/elite.py, 0.31.2) -->
       <!-- ========================================================= COPIAR IGUAL (0.32.4) -->
-      <section class="view" data-view="bnb" hidden>
-        <div class="card" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>BNB · Four.Meme <span class="tag sim">só leitura</span></h2><div class="sub" id="bnSub">etapa 1: lê todas as compras e vendas da Four.Meme e monta o ranking dos traders · ainda não copia nada</div></div></header>
-          <div class="kpis" id="bnK"></div>
-          <div class="decbox" id="bnSt"></div></div>
-        <div class="card" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>Seriam copiados agora</h2><div class="sub" id="bnSelSub">os melhores aptos que negociaram nos últimos minutos, pela mesma regra do Top traders</div></div></header>
-          <div class="tbl-wrap"><table id="bnSel"></table></div></div>
-        <div class="card" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>Regra do ranking</h2><div class="sub">vale só para esta aba · salva para todos os admins</div></div></header>
-          <div class="form" id="bnCfg"></div>
-          <div class="row" style="margin-top:10px"><button class="btn primary" id="bnSave">Salvar regra</button><button class="btn sm" id="bnReset">Voltar ao padrão</button></div>
-          <div class="help"><p><b>Como escolhe (igual ao Top traders):</b> pega os 50 que mais lucraram na Four.Meme nos últimos dias (lucro realizado, já com a taxa de 1% da plataforma). Apto = trades mínimos, acerto acima do mínimo (tokens fechados com lucro), carteira com saldo mínimo em BNB + dólar e sem cara de robô. Copiaria os melhores aptos que negociaram nos últimos minutos.</p>
-          <p><b>Diferença da Solana:</b> lá o ranking vem pronto da Solana Tracker (paga). Aqui o sistema monta sozinho, de graça, com os trades que lê. Por isso começa vazio e vai enchendo; o mínimo de trades começa em 20 porque a Four.Meme tem bem menos movimento que a pump.fun.</p>
-          <p><b>O que ainda não vê:</b> venda feita na PancakeSwap depois que o token gradua (o token fica como "aberto"), e tokens cotados em moeda que não é BNB nem dólar.</p></div></div>
-        <div class="card" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>Ranking dos traders</h2><div class="sub" id="bnRkSub">os 50 que mais lucraram</div></div></header>
-          <div class="tbl-wrap"><table id="bnRk"></table></div></div>
-        <div class="card" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>Últimos trades lidos</h2><div class="sub">compras e vendas na curva da Four.Meme, ao vivo</div></div></header>
-          <div class="tbl-wrap"><table id="bnTr"></table></div></div>
-      </section>
       <section class="view" data-view="igual" hidden>
         <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Copiar igual</h2><div class="sub" id="eqSub">copia toda compra e venda das carteiras desta lista, sem filtros e sem espera</div></div></header>
           <div class="kpis" id="eqK"></div>
@@ -1443,6 +1426,5 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="/static/common.js?v=__V__"></script>
 <script src="/static/app.js?v=__V__"></script>
-<script src="/static/bnb.js?v=__V__"></script>
 </body>
 </html>

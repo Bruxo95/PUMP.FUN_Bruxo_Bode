@@ -64,7 +64,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
-        elif request.url.path in ("/", "/app") or request.url.path.startswith("/static/"):
+        elif request.url.path in ("/", "/app", "/entrar", "/bnb") or request.url.path.startswith("/static/"):
             resp.headers["Cache-Control"] = "no-cache"          # o navegador sempre confere se há versão nova
         return resp
 
@@ -1602,7 +1602,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     VTAG = hashlib.sha256(VERSION.encode()).hexdigest()[:10]
     PAGES = {n: open(os.path.join(WEB, n), encoding="utf-8").read().replace("__V__", VTAG)
              .replace("__BASE__", (cfg.public_base_url or "").rstrip("/"))
-             for n in ("index.html", "app.html")}
+             for n in ("index.html", "app.html", "entrar.html", "bnb.html")}
 
     @app.get("/")
     def landing():
@@ -1611,6 +1611,15 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/app")
     def panel():
         return HTMLResponse(PAGES["app.html"])
+
+    # 0.32.169 (pedido do dono): depois do login o admin escolhe o projeto; a BNB tem página própria, fora do painel da pump.fun
+    @app.get("/entrar")
+    def hub_pick():
+        return HTMLResponse(PAGES["entrar.html"])
+
+    @app.get("/bnb")
+    def bnb_panel():
+        return HTMLResponse(PAGES["bnb.html"])
 
     # 0.32.168: aba BNB (Four.Meme) isolada em bnb.py/bnb_api.py; sem a leitura ligada as rotas só dizem "desligada"
     from .bnb_api import add_routes as bnb_routes

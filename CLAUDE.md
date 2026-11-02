@@ -1543,3 +1543,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   169 trades de 1 h lidos em 37 s, sem erro. Volume da Four.Meme ≈ 3 compras/min, por isso `min_trades` padrão 20 (Solana: 1.000).
 - Não vê: venda na PancakeSwap depois da graduação; tokens cotados em outra moeda. Próximo: etapa 2 = cópia FICTÍCIA em BNB
   (igual ao Copiar igual) com tabelas próprias; etapa 3 = checagem de token golpe (taxa de venda/honeypot). Real só com OK do dono.
+- 0.32.169 (pedido do dono: "não quero misturar"): a BNB saiu do painel da pump.fun. `/entrar` (`web/entrar.html`/`entrar.js`): depois
+  do login o admin escolhe PUMP FUN (→ `/app`) ou BNB · Four.Meme (→ `/bnb`, `web/bnb.html` + `bnb.js`), logos em SVG desenhados à mão.
+  `boot()` em `app.js` manda o admin para `/entrar` quando `sessionStorage.pf_hub` está vazio (cada aba nova pergunta de novo); usuário
+  comum vai direto a `/app`. O login do Google continua voltando para `/app` (não mexer nas Redirect URLs). Trocar de projeto:
+  `#menuHub` no menu da foto e link no topo da `/bnb`. Teste em `tests/test_bnb.py`.

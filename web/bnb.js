@@ -1,4 +1,5 @@
-// 0.32.168 (pedido do dono, 02/11): aba BNB · Four.Meme, isolada do painel da Solana (arquivo próprio, rota própria).
+// 0.32.168 (pedido do dono, 02/11): painel BNB · Four.Meme, isolado do painel da Solana (arquivo próprio, rota própria).
+// 0.32.169: virou página própria (/bnb), escolhida em /entrar; nada dela fica dentro do painel da pump.fun.
 // Etapa 1: só mostra o que a leitura da rede encontrou e o ranking dos traders; não copia nada.
 (function () {
   "use strict";
@@ -92,9 +93,9 @@
     drawCfg();
   }
 
+  let READY = false;
   async function load() {
-    const sec = document.querySelector('.view[data-view="bnb"]');
-    if (!sec || sec.hidden || BUSY || !BB.api) return;
+    if (!READY || BUSY || document.hidden) return;
     BUSY = true;
     try {
       const r = await BB.api("/api/pump/bnb", { quiet: true });
@@ -113,7 +114,21 @@
     DIRTY = false;
     if (r && r.ok && D) { D.cfg = r.cfg; drawCfg(); load(); }
   });
-  window.addEventListener("hashchange", () => setTimeout(load, 50));
-  setTimeout(load, 800);
+  async function boot() {
+    $("boot").innerHTML = BB.loader("Carregando", { grid: 4, pattern: "sweep", font: 15, cell: 7, glow: true });
+    $("bnOut").addEventListener("click", BB.logout);
+    let s = null;
+    try { s = await BB.session(); } catch (e) { /* sem sessão: volta ao início */ }
+    if (!s) { location.href = "/"; return; }
+    const me = await BB.api("/api/me", { quiet: true });
+    if (me.error || me.role !== "admin") { location.replace("/app"); return; }      // a BNB é só do admin
+    try { sessionStorage.setItem("pf_hub", "bnb"); } catch (e) { /* */ }
+    $("bnVer").textContent = "versão " + String(me.version || "").split(" · ")[0];
+    $("boot").hidden = true; $("bnShell").hidden = false;
+    READY = true;
+    load();
+  }
+  document.addEventListener("visibilitychange", load);
+  boot();
   setInterval(load, 10000);
 })();
