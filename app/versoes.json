@@ -1550,6 +1550,11 @@
    "versao": "0.32.158",
    "inicio": "2026-11-02T08:09:08+00:00",
    "titulo": "cópia exata: a real manda e a fictícia acompanha"
+  },
+  {
+   "versao": "0.32.159",
+   "inicio": "2026-11-02T08:11:33+00:00",
+   "titulo": "na cópia exata os limites da fictícia não barram a real"
   }
  ]
 }

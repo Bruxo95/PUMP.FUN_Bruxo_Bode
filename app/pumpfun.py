@@ -1296,11 +1296,14 @@ class PumpFun:
             bt = ev.get("blockTime")
             lag = round(max(0.0, t - float(bt)), 1) if bt else None     # do trade do trader até a nossa cópia
             swhy = None
+            # 0.32.159 (pedido do dono: "a real sempre primeiro"): na cópia exata quem decide é a real — os limites e o saldo da
+            # fictícia não barram a compra; valem os da real (conferidos em _mirror_real)
+            follow_real = self.exact_on() and not self.sim_only(who)
             if smine:
                 swhy = "já tem posição copiada neste token (fictícia)"
-            elif len([p for p in allpos if not p.get("real") and not p.get("eq") and p.get("origem") != "barrado"]) >= int(self._c("pump_max_open", 10)):
+            elif not follow_real and len([p for p in allpos if not p.get("real") and not p.get("eq") and p.get("origem") != "barrado"]) >= int(self._c("pump_max_open", 10)):
                 swhy = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
-            elif self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
+            elif not follow_real and self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
                 swhy = "saldo fictício insuficiente"
             if swhy:
                 self._copy_note(who, swhy, t)

@@ -65,3 +65,12 @@ def test_without_exact_mirror_keeps_old_behavior(tmp_path):
     pf.real.buy = no
     asyncio.run(pf._real_buy(it))
     assert [p["real"] for p in pf.positions()] == [False]               # a fictícia continua (como antes)
+
+
+def test_sim_limits_do_not_block_when_real_decides(tmp_path):
+    pf = _exact(tmp_path)
+    pf.cfg.pump_max_open = 0                                            # a fictícia "lotada" não barra: quem decide é a real
+    m = "Exa4".ljust(40, "1") + "pump"
+    pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7))
+    kind, it = pf._rq.get_nowait()
+    assert kind == "buy" and it["sim_id"] and [p["real"] for p in pf.positions()] == [False]

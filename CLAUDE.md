@@ -1512,3 +1512,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.157 (pedido do dono): `keyErr` (a partir de `D.apis.solana_tracker`: fonte "sua chave (sem créditos)"/"a sua está sem créditos" ou erro com a sua chave) → estado `err` no cartão e no `keychip`; `keysSync` no `render` recarrega quando muda. CSS `.key-err`.
 
 - 0.32.158 (pedido do dono, 02/11: real e fictícia com resultados diferentes): `pump_real_exact` (OFF; override só do dono com `pump_real_mirror`, migração `20261102000001`). `PumpFun.exact_on`/`_cancel_sim` (real não comprou → fictícia desfeita, sem trade), `_align_to_real` iguala também o valor, `_real_do_sell` fecha a fictícia par quando a real fecha. Abas: Top traders/80%+ contam como REAL também sem espelho. Relatório `app/relatorios_ia/2026-11-02-0.32.158.md`. `tests/test_copia_exata.py`.
+
+- 0.32.159: em `_copy`, com `exact_on()` (e carteira que não é só fictícia), `pump_max_open` e o saldo fictício não barram; valem os limites da real em `_mirror_real`. Teste em `tests/test_copia_exata.py`.
