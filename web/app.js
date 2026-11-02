@@ -3801,7 +3801,10 @@
     const leftTxt = h == null || !open ? "–" : h >= 3e8 ? '<b class="up">sem limite</b>' : rest > 0 ? "<b>" + hms(rest) + "</b>" : '<b class="down">vencido · saindo</b>';
     const sw = (regra, off) => btn(off ? "OFF" : "ON", "prule", { id: p.id, regra: regra, on: off ? 1 : 0 }, "tgl sw " + (off ? "off" : "on"));
     const rule = (nome, val, ctl) => '<div class="pc-rule"><div><b>' + nome + "</b><small>" + val + "</small></div>" + ctl + "</div>";
-    const tags = (p.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + (p.hold_profit ? ' <span class="tag pause" title="desde ' + esc(dt(p.hold_since)) + '">Segurando até lucro</span>' : "") + (p.selling ? ' <span class="tag pause">Vendendo…</span>' : "") + (p.trail_peak != null ? ' <span class="tag trail">Stop móvel armado</span>' : "");
+    const tags = (p.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + (p.hold_profit ? ' <span class="tag pause" title="desde ' + esc(dt(p.hold_since)) + '">Segurando até lucro</span>' : "") + (p.selling ? ' <span class="tag pause">Vendendo…</span>' : "") +
+      // 0.32.160 (cópia exata): a fictícia espera a real comprar ou vender e acompanha o resultado dela
+      (p.exit_wait ? ' <span class="tag pause" title="a saída acontece quando a compra real confirmar">Esperando a compra REAL</span>' : "") +
+      (p.exit_follow ? ' <span class="tag pause" title="sai no mesmo preço que a venda real conseguir">Saindo junto com a REAL</span>' : "") + (p.trail_peak != null ? ' <span class="tag trail">Stop móvel armado</span>' : "");
     const st = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
     const v = p.vol || {};
     const sells = (p.sells || []).map((x) => "<li>" + dt(x.at) + " · " + f((x.frac || 0) * 100, 0) + "% · " + s4(x.sol) + " SOL" + (x.why ? " · " + esc(x.why) : "") + "</li>").join("");

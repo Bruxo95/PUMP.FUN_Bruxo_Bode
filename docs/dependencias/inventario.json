@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-02",
     "timezone": "Europe/Dublin",
-    "repository_reference": "e2189aa3e1405de90318c8f0a0ec18198b14068f",
-    "application_version": "0.32.159 · 2026-11-02 · na cópia exata os limites da fictícia não barram a real",
+    "repository_reference": "0cc794f85a346d24d684e72442f185b73a3f535b",
+    "application_version": "0.32.160 · 2026-11-02 · a real primeiro em todas as ações (cópia exata)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "22795bb5351c925c27bde22a07a2abae580d771c3f34e2b9e610c28a212f7adb",
+      "app/version.py": "a3df666463bfd3121b9afab535bcac0b3ccf9a5af884fc9f6b7eff47cbb1f4e7",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "2285ece6dc488788dc12f7b0377f1fb6bced1bbfaf81e4ac2881844266a880ed"
+  "pdf_sha256": "6b629fe4f42d196354d0d4ca3dfe2d81fef87b53ca515498d9e8ba506bad3a6a"
 }
