@@ -1530,3 +1530,16 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.166 (pedido do dono): `weekparts.dias_horas` (dia da semana e hora pela entrada, com média por dia) e `weekparts.serie` (dia a dia com acumulado) no `resumo`. Front: `wkCharts` → `wkLine` (`#wkLine`, faixa do fim de semana, `#wkLineRes`), `wkBars` (`#wkDow`, `#wkHr`, `#wkBlk`), tabelas `#wkDowT`/`#wkHrT`, dica no mouse/toque (`wkTip`, `WKC`), redesenha no resize. CSS `.wkc`. Teste em `tests/test_semana_fds.py`.
 
 - 0.32.167 (pedido do dono: configuração igual ao Bruxo e compras diferentes): `app/buydiff.py` (`opens`, `why_not`, `traders`, `compare`) + `PumpFun.follow_info` (de onde vem cada trader copiado ou por que não é copiado) + `_copy_note(..., mint)` → `_copy_mint` (só memória) + `hub.buy_diff` + `GET /api/pump/buy-diff?peer=&horas=` (admin). Cartão `#bdCard` em Top traders (`loadBuyDiff`, `drawBuyDiff`, `bdAdd`; `data-bdh`, `data-bdadd`, `data-bdres`). A configuração não inclui a lista de traders (manual, IA, pausas do ajuste automático, banidos), e é daí que vem a diferença. Só mostra; Copiar também mexe só na conta de quem clica. `tests/test_compras_diferentes.py`.
+
+## BNB · Four.Meme, etapa 1 só leitura (2026-11-02, versão 0.32.168)
+- Pedido do dono: copiar traders da BNB pela regra do Top traders, de graça e ISOLADO do que funciona na Solana (nada do motor
+  da Solana foi mexido). `app/bnb.py` (`BnbWatch`: laço próprio a cada 3 s, `decode`, `to_bnb`, `rank`, `clean_cfg`) +
+  `app/bnb_api.py` (`GET /api/pump/bnb`, `POST /api/pump/bnb/cfg`, só admin, audit) + `web/bnb.js` (tela `#bnb`, menu `#navBnb`).
+  Ligação: `hub.bnb` criado em `main.py` (`BNB_ON=false` desliga) e `bnb_routes` no fim de `create_app`. Tabelas `bnb_fm_trades`
+  (14 dias, `bnb_trim`) e `bnb_state` (cursor + regra), migração `20261102000004`.
+- Conferido na rede em 02/11: TokenManager2 `0x5c95…762b` recebe todos os trades da curva; TokenPurchase/TokenSale com 8 palavras
+  (valor na moeda da curva, taxa 1%); moeda de cada token por `TokenManagerHelper3.getTokenInfo` (posição 2; zero = BNB; muitos
+  tokens são em USDT). RPC grátis: publicnode aceita 400+ blocos por eth_getLogs; blockrazor 25; bsc-dataseed recusa. Teste ao vivo:
+  169 trades de 1 h lidos em 37 s, sem erro. Volume da Four.Meme ≈ 3 compras/min, por isso `min_trades` padrão 20 (Solana: 1.000).
+- Não vê: venda na PancakeSwap depois da graduação; tokens cotados em outra moeda. Próximo: etapa 2 = cópia FICTÍCIA em BNB
+  (igual ao Copiar igual) com tabelas próprias; etapa 3 = checagem de token golpe (taxa de venda/honeypot). Real só com OK do dono.

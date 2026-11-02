@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import httpx
@@ -36,6 +37,11 @@ def build_app():
     db = SupaREST(cfg.supabase_url, cfg.supabase_service_key, http)
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
     hub.usage = usage
+    # 0.32.168: leitura da BNB (Four.Meme), isolada: laço próprio, RPC grátis próprio e tabelas bnb_*; BNB_ON=false desliga
+    hub.bnb = None
+    if os.environ.get("BNB_ON", "true").lower() not in ("0", "false", "no", "off"):
+        from .bnb import BnbWatch
+        hub.bnb = BnbWatch(http, db)
     auth = Auth(cfg.supabase_url, cfg.supabase_anon_key, http, cfg.supabase_jwt_secret)
     app = create_app(hub, auth, cfg)
 
@@ -45,8 +51,11 @@ def build_app():
         # 0.32.121: em 01/11/2026 o site ficou em 404 sem dar para saber em que ponto a subida parava. A porta abre primeiro,
         # os dados carregam em segundo plano e o /health mostra a etapa e o erro, sem precisar do Portainer.
         boot = asyncio.create_task(hub.boot())
+        bnb = asyncio.create_task(hub.bnb.run()) if hub.bnb is not None else None
         yield
         boot.cancel()
+        if bnb is not None:
+            bnb.cancel()
         await hub.stop()
         await http.aclose()
 
