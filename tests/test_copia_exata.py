@@ -97,7 +97,8 @@ def test_trader_sell_real_first_and_sim_closes_at_real_price(tmp_path):
     pf.on_message(_ev("sell", _W, m, 1.5, 1e6, 30, 3e7 / 1.5, newTokenBalance=0))
     kind, it = pf._rq.get_nowait()
     assert kind == "sell" and it["id"] == real["id"] and it["frac"] == 1.0
-    assert sim in pf.positions() and sim.get("exit_follow")             # a fictícia espera a venda real
+    sims = [p for p in pf.positions() if not p.get("real")]
+    assert sims and sims[0].get("exit_follow") and not pf.trades()      # a fictícia espera a venda real
 
     async def sell(mint, frac, other=False):
         return {"ok": True, "signature": "S", "sol_received": 0.028, "tokens_left": 0.0}
@@ -116,13 +117,15 @@ def test_sim_own_stop_asks_real_first_and_waits(tmp_path):
     pf._check_stops(m, 0)
     kind, it = pf._rq.get_nowait()
     assert kind == "sell" and it["id"] == real["id"] and pf._rq.qsize() == 0
-    assert sim in pf.positions() and sim.get("exit_follow") and not pf.trades()
+    sims = [p for p in pf.positions() if not p.get("real")]
+    assert sims and sims[0].get("exit_follow") and not pf.trades()
 
 
 def test_sim_waiting_without_real_closes_at_market(tmp_path):
     m = "Exa7".ljust(40, "1") + "pump"
     pf, real, sim = _opened(tmp_path, m)
     sim["exit_follow"] = {"frac": 1.0, "why": "trader vendeu 100%", "t": 0}
+    pf._save_pos(sim)
     pf._del_pos(real)                                                   # a real sumiu (vendida por fora)
     pf._check_stops(m, 0)
     assert not pf.positions() and pf.trades()[0]["reason"] == "trader vendeu 100%"
