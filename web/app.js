@@ -3692,7 +3692,101 @@
     table("wkA", ["Aba", "Dias de semana", "Fim de semana", "Melhor"], (R.abas || []).map((x) => [esc(x.aba), wkCell(x.semana), wkCell(x.fds),
       !(x.semana || {}).trades || !(x.fds || {}).trades ? '<span class="dim">falta um dos dois</span>' : ((x.semana.pct || 0) >= (x.fds.pct || 0) ? "dias de semana" : "fim de semana")]), "Nenhum trade fechado ainda.");
     table("wkT", ["Trader", "Dias de semana", "Fim de semana"], (R.traders || []).map((x) => [wkName(x), wkCell(x.semana), wkCell(x.fds)]), "Nenhum trader copiado com trade fechado.");
+    wkCharts(r);
   }
+  // 0.32.166 (pedido do dono: "dividir por dia da semana e pelas horas do dia, e um gráfico como o da Visão geral para ver o progresso
+  // ou o regresso"): linha do acumulado dia a dia e barras por bloco, por dia da semana e por hora. Mouse ou toque mostra cada número.
+  const WKC = {};
+  const ddm = (iso) => String(iso || "").split("-").reverse().slice(0, 2).join("/");
+  const tipRow = (k, v) => "<span>" + k + " <b>" + v + "</b></span>";
+  function wkCharts(r) {
+    const R = r.resumo || {}, S = R.serie || [];
+    wkLine("wkLine", S);
+    if ($("wkLineRes")) {
+      const best = S.reduce((m, p) => (!m || p.saldo_sol > m.saldo_sol ? p : m), null), worst = S.reduce((m, p) => (!m || p.saldo_sol < m.saldo_sol ? p : m), null);
+      $("wkLineRes").innerHTML = S.length ? [["Dias com trade", String(S.length)], ["Melhor dia", sg(best.saldo_sol, "") + " · " + best.nome.slice(0, 3) + " " + ddm(best.dia)],
+        ["Pior dia", sg(worst.saldo_sol, "") + " · " + worst.nome.slice(0, 3) + " " + ddm(worst.dia)], ["Acumulado", sg(S[S.length - 1].acumulado_sol, "")]].map((x) => "<div><small>" + x[0] + "</small><b>" + x[1] + "</b></div>").join("") : "";
+    }
+    const DW = R.dias_semana || [];
+    wkBars("wkDow", DW.map((d) => ({ label: d.nome.slice(0, 3), v: d.por_dia_sol || 0, n: d.trades, fds: d.fds,
+      tip: "<b>" + d.nome + "</b>" + tipRow("Média por dia", sg(d.por_dia_sol || 0, "")) + tipRow("Total", sg(d.saldo_sol || 0, "")) + tipRow("Trades", String(d.trades)) + tipRow("Acerto", d.acerto != null ? d.acerto + "%" : "–") + tipRow("Dias", String(d.dias || 0)) })), 1);
+    table("wkDowT", ["Dia", "Trades", "Acerto", "Resultado", "Média por dia", "%"], DW.map((d) => [esc(d.nome) + (d.fds ? ' <span class="tag sim">fim de semana</span>' : ""), String(d.trades), d.acerto != null ? d.acerto + "%" : "–",
+      sg(d.saldo_sol || 0, ""), d.por_dia_sol != null ? sg(d.por_dia_sol, "") + "<small>" + (d.dias || 0) + " dias</small>" : "–", pc(d.pct)]), "");
+    const HR = R.horas || [], hh = (h) => String(h).padStart(2, "0");
+    wkBars("wkHr", HR.map((x) => ({ label: hh(x.hora), v: x.saldo_sol || 0, n: x.trades,
+      tip: "<b>" + hh(x.hora) + ":00 – " + hh(x.hora) + ":59</b>" + tipRow("Resultado", sg(x.saldo_sol || 0, "")) + tipRow("Trades", String(x.trades)) + tipRow("Acerto", x.acerto != null ? x.acerto + "%" : "–") + tipRow("Sobre o investido", x.pct != null ? f(x.pct, 1) + "%" : "–") })), 3);
+    const comT = HR.filter((x) => x.trades), bestH = comT.slice().sort((a, b) => b.saldo_sol - a.saldo_sol).filter((x) => x.saldo_sol > 0).slice(0, 3), worstH = comT.slice().sort((a, b) => a.saldo_sol - b.saldo_sol).filter((x) => x.saldo_sol < 0).slice(0, 3);
+    if ($("wkHrS")) $("wkHrS").innerHTML = comT.length ? "Melhores horas: " + (bestH.map((x) => "<b>" + hh(x.hora) + "h</b> " + sg(x.saldo_sol, "")).join(" · ") || "nenhuma no lucro") +
+      "<br>Piores horas: " + (worstH.map((x) => "<b>" + hh(x.hora) + "h</b> " + sg(x.saldo_sol, "")).join(" · ") || "nenhuma no prejuízo") : "Sem trades fechados ainda.";
+    table("wkHrT", ["Hora", "Trades", "Acerto", "Resultado", "%"], comT.map((x) => [hh(x.hora) + ":00", String(x.trades), x.acerto != null ? x.acerto + "%" : "–", sg(x.saldo_sol, ""), pc(x.pct)]), "Sem trades fechados ainda.");
+    const BL = wkAll().slice().sort((a, b) => (a.ini || 0) - (b.ini || 0));
+    wkBars("wkBlk", BL.map((b) => ({ label: (b.tipo === "fds" ? "FDS " : "Sem ") + ddm(String(b.key || "").slice(0, 10)), v: b.saldo_sol || 0, n: b.trades || 0, fds: b.tipo === "fds",
+      tip: "<b>" + esc(b.nome || "") + "</b><span>" + esc(b.rotulo || "") + "</span>" + tipRow("Resultado", sg(b.saldo_sol || 0, "")) + tipRow("Trades", String(b.trades || 0)) + tipRow("Acerto", b.acerto != null ? b.acerto + "%" : "–") + tipRow("Por dia", b.por_dia_sol != null ? sg(b.por_dia_sol, "") : "–") })));
+  }
+  const wkEmpty = (el, txt) => { el.innerHTML = '<div class="empty" style="padding-top:60px">' + txt + "</div>"; };
+  function wkLine(id, S) {
+    const el = $(id); if (!el) return;
+    if (!S.length) { WKC[id] = null; wkEmpty(el, "A linha aparece a partir do primeiro trade fechado."); return; }
+    const Wd = el.clientWidth || 600, H = el.clientHeight || 240, P = 54, B = 22, n = S.length, Wp = Wd - P - 10;
+    const ys = [0].concat(S.map((p) => p.acumulado_sol)); let lo = Math.min(...ys), hi = Math.max(...ys); if (hi - lo < 0.01) { lo -= 0.005; hi += 0.005; }
+    const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+    const X = (i) => P + (n === 1 ? Wp / 2 : (i / (n - 1)) * Wp), Y = (v) => 10 + ((hi - v) / (hi - lo)) * (H - B - 14), bw = n > 1 ? Wp / (n - 1) : 40;
+    const col = S[n - 1].acumulado_sol >= 0 ? "#22c55e" : "#ef4444";
+    const shade = S.map((p, i) => (p.fds ? '<rect x="' + (X(i) - bw / 2).toFixed(1) + '" y="10" width="' + bw.toFixed(1) + '" height="' + (H - B - 14) + '" fill="rgba(154,164,255,.10)"/>' : "")).join("");
+    const grid = [0, 1, 2, 3].map((i) => { const v = lo + ((hi - lo) * i) / 3; return '<line x1="' + P + '" x2="' + Wd + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="#1e1e22"/><text x="4" y="' + (Y(v) + 4) + '" font-size="10.5" fill="#5d5d66" font-family="JetBrains Mono,monospace">' + v.toFixed(3) + "</text>"; }).join("");
+    const path = S.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.acumulado_sol).toFixed(1)).join(" ");
+    const xl = (n === 1 ? [0] : [0, Math.floor((n - 1) / 2), n - 1]).map((i) => '<text x="' + Math.min(Wd - 40, Math.max(P, X(i) - 16)) + '" y="' + (H - 4) + '" font-size="10.5" fill="#5d5d66">' + ddm(S[i].dia) + "</text>").join("");
+    const dots = n <= 45 ? S.map((p, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.acumulado_sol).toFixed(1) + '" r="2.5" fill="' + (p.saldo_sol >= 0 ? "#22c55e" : "#ef4444") + '"/>').join("") : "";
+    el.innerHTML = '<svg viewBox="0 0 ' + Wd + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Resultado acumulado dia a dia">' + shade + grid +
+      '<line x1="' + P + '" x2="' + Wd + '" y1="' + Y(0) + '" y2="' + Y(0) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
+      '<path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2"/>' + dots + xl + '</svg><i class="cline" hidden></i><i class="cdot" hidden></i><div class="ctip" hidden></div>';
+    WKC[id] = { kind: "line", S, X, Y, P, Wd, Wp, H, B, n };
+  }
+  function wkBars(id, rows, every) {
+    const el = $(id); if (!el) return;
+    if (!rows.some((r) => r.n)) { WKC[id] = null; wkEmpty(el, "Aparece quando houver trades fechados."); return; }
+    const Wd = el.clientWidth || 600, H = el.clientHeight || 190, P = 50, B = 22, n = rows.length, slot = (Wd - P - 6) / n, bw = Math.max(3, Math.min(46, slot - 2));
+    const mx = Math.max(0.0001, ...rows.map((r) => Math.abs(r.v))), neg = rows.some((r) => r.v < 0), pos = rows.some((r) => r.v > 0);
+    let lo = neg ? -mx : 0, hi = pos ? mx : 0; if (lo === hi) { lo = -1; hi = 1; } const pad = (hi - lo) * 0.08; lo -= neg ? pad : 0; hi += pos ? pad : 0;
+    const Y = (v) => 8 + ((hi - v) / (hi - lo)) * (H - B - 12), y0 = Y(0), step = every || Math.max(1, Math.ceil(n / Math.max(1, Math.floor((Wd - P) / 44))));
+    const body = rows.map((r, i) => {
+      const x = P + i * slot, bx = x + (slot - bw) / 2, yv = Y(r.v), y = Math.min(yv, y0), h = Math.max(r.n ? 1.5 : 0, Math.abs(yv - y0));
+      return (r.fds ? '<rect x="' + x.toFixed(1) + '" y="8" width="' + slot.toFixed(1) + '" height="' + (H - B - 12) + '" fill="rgba(154,164,255,.10)"/>' : "") +
+        (r.n ? '<rect x="' + bx.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="3" fill="' + (r.v >= 0 ? "#22c55e" : "#ef4444") + '"/>' : "") +
+        (i % step === 0 ? '<text x="' + (x + slot / 2).toFixed(1) + '" y="' + (H - 5) + '" font-size="10" fill="#5d5d66" text-anchor="middle">' + esc(r.label) + "</text>" : "");
+    }).join("");
+    const yl = [hi, lo].filter((v) => v !== 0).map((v) => '<text x="4" y="' + (Y(v) + 4) + '" font-size="10.5" fill="#5d5d66" font-family="JetBrains Mono,monospace">' + v.toFixed(3) + "</text>").join("");
+    el.innerHTML = '<svg viewBox="0 0 ' + Wd + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Resultado por grupo">' + body +
+      '<line x1="' + P + '" x2="' + Wd + '" y1="' + y0 + '" y2="' + y0 + '" stroke="#5d5d66" opacity=".7"/>' + yl + '<text x="4" y="' + (y0 + 4) + '" font-size="10.5" fill="#5d5d66" font-family="JetBrains Mono,monospace">0</text>' +
+      '</svg><i class="cline" hidden></i><div class="ctip" hidden></div>';
+    WKC[id] = { kind: "bars", rows, P, Wd, H, B, slot };
+  }
+  function wkTip(el, clientX) {
+    const c = WKC[el.id]; if (!c) return;
+    const r = el.getBoundingClientRect(), x = (clientX - r.left) * (c.Wd / r.width), tip = el.querySelector(".ctip"), line = el.querySelector(".cline"), dot = el.querySelector(".cdot");
+    let px, html;
+    if (c.kind === "line") {
+      const i = Math.max(0, Math.min(c.n - 1, c.n === 1 ? 0 : Math.round((x - c.P) / (c.Wp / (c.n - 1))))), p = c.S[i];
+      px = c.X(i);
+      html = "<b>" + p.nome + " " + ddm(p.dia) + (p.fds ? " · fim de semana" : "") + "</b>" + tipRow("Resultado do dia", sg(p.saldo_sol, "")) + tipRow("Acumulado", sg(p.acumulado_sol, "")) +
+        tipRow("Trades", String(p.trades)) + tipRow("Acerto", p.acerto != null ? p.acerto + "%" : "–");
+      if (dot) { dot.hidden = false; dot.style.left = px + "px"; dot.style.top = c.Y(p.acumulado_sol) + "px"; }
+    } else {
+      const i = Math.max(0, Math.min(c.rows.length - 1, Math.floor((x - c.P) / c.slot)));
+      px = c.P + (i + 0.5) * c.slot; html = c.rows[i].tip;
+    }
+    tip.innerHTML = html; tip.hidden = false;
+    if (line) { line.hidden = false; line.style.left = px + "px"; line.style.height = (c.H - c.B) + "px"; }
+    tip.style.left = px > c.Wd / 2 ? Math.max(0, px - tip.offsetWidth - 12) + "px" : px + 12 + "px";
+  }
+  function wkTipHide() { document.querySelectorAll(".wkc .ctip, .wkc .cline, .wkc .cdot").forEach((x) => { x.hidden = true; }); }
+  ["pointermove", "pointerdown"].forEach((ev) => document.addEventListener(ev, (e) => {
+    const el = e.target.closest && e.target.closest(".wkc");
+    if (el) { document.querySelectorAll(".wkc").forEach((x) => { if (x !== el) x.querySelectorAll(".ctip, .cline, .cdot").forEach((y) => { y.hidden = true; }); }); wkTip(el, e.clientX); }
+    else if (document.querySelector(".wkc .ctip:not([hidden])")) wkTipHide();
+  }));
+  let WK_RS = null;
+  window.addEventListener("resize", () => { clearTimeout(WK_RS); WK_RS = setTimeout(() => { if (VIEW === "semanas" && WK.r) wkCharts(WK.r); }, 200); });
   function openWk(key) {
     const b = wkAll().find((x) => x.key === key); if (!b) return;
     const tb = (id) => '<div class="tbl-wrap"><table id="' + id + '" class="daytbl"></table></div>';

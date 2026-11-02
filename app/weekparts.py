@@ -135,6 +135,8 @@ def resumo(trades: list[dict], aba_of, names: dict | None = None) -> dict:
         for x in _traders(L[tp], names):
             tr.setdefault(x["wallet"], {"wallet": x["wallet"], "nome": x.get("nome"), "semana": None, "fds": None})[tp] = x
     out["traders"] = sorted(tr.values(), key=lambda y: -(((y["semana"] or {}).get("saldo_sol") or 0) + ((y["fds"] or {}).get("saldo_sol") or 0)))[:MAX_TRADERS]
+    out.update(dias_horas(trades))                     # 0.32.166: por dia da semana e por hora do dia
+    out["serie"] = serie(trades)                       # 0.32.166: dia a dia, com o acumulado
     return out
 
 
@@ -144,3 +146,49 @@ def por_aba(trades: list[dict], aba_of) -> dict:
     for t, c in _closed(trades):
         _add(g.setdefault(aba_of(t), {"semana": _soma(), "fds": _soma()})[bloco(c)["tipo"]], t)
     return {a: {"semana": _fim(v["semana"]), "fds": _fim(v["fds"])} for a, v in g.items()}
+
+
+# ------------------------------------------------------------------ dia da semana, hora do dia e dia a dia (0.32.166)
+DIAS_NOME = ("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo")
+
+
+def _aberto(t: dict, fechado: float) -> float:
+    """Hora em que a compra entrou (é quando o robô decide); sem ela, a do fechamento."""
+    v = t.get("open_t")
+    if isinstance(v, (int, float)) and v > 0:
+        return float(v)
+    try:
+        return datetime.fromisoformat(str(t.get("opened_at")).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return fechado
+
+
+def dias_horas(trades: list[dict]) -> dict:
+    """0.32.166 (pedido do dono: "dividir por dia da semana e pelas horas do dia"): o resultado por dia da semana (com a média
+    por dia, porque cada dia da semana aparece um número diferente de vezes) e por hora do dia, pela hora em que a compra entrou,
+    no horário de Berlim."""
+    dias, horas, datas = [_soma() for _ in range(7)], [_soma() for _ in range(24)], [set() for _ in range(7)]
+    for t, c in _closed(trades):
+        d = datetime.fromtimestamp(_aberto(t, c), TZ)
+        _add(dias[d.weekday()], t)
+        datas[d.weekday()].add(d.date())
+        _add(horas[d.hour], t)
+    return {"dias_semana": [{"dia": i, "nome": DIAS_NOME[i], "fds": i >= 5, **_fim(g, len(datas[i]) or None)} for i, g in enumerate(dias)],
+            "horas": [{"hora": h, **_fim(g)} for h, g in enumerate(horas)]}
+
+
+def serie(trades: list[dict]) -> list[dict]:
+    """O resultado de cada dia (pelo fechamento) e o acumulado, do mais antigo ao mais novo: a linha do progresso."""
+    g: dict = {}
+    for t, c in _closed(trades):
+        d = datetime.fromtimestamp(c, TZ).date()
+        x = g.setdefault(d, _soma())
+        _add(x, t)
+        x["_d"] = d
+    out, acc = [], 0.0
+    for d in sorted(g):
+        x = g[d]
+        acc += x["saldo_sol"]
+        out.append({"dia": d.isoformat(), "nome": DIAS_NOME[d.weekday()], "fds": d.weekday() >= 5, "acumulado_sol": round(acc, 6),
+                    **_fim({k: v for k, v in x.items() if k != "_d"})})
+    return out

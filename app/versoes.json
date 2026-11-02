@@ -1585,6 +1585,11 @@
    "versao": "0.32.165",
    "inicio": "2026-11-02T16:42:52+00:00",
    "titulo": "atalho para Traders copiados e o mesmo botão na lista"
+  },
+  {
+   "versao": "0.32.166",
+   "inicio": "2026-11-02T17:01:56+00:00",
+   "titulo": "por dia da semana, por hora do dia e gráficos de progresso"
   }
  ]
 }

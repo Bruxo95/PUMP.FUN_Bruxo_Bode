@@ -1526,3 +1526,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.164 (pedido do dono): `renderOps` guarda `ref` (trade ou linha do feed) e a carteira de cada item; botões `data-opdet` (`openOpDet`: posição aberta → `openPosDet`, senão trade → `openTradeDet`, senão o motivo) e `thBtn`. `OPS_M`/`OPS_SIG`: só redesenha quando a lista muda ou a cada 15 s. CSS `.op .opb`.
 
 - 0.32.165 (pedido do dono: não achava a tela): atalho `.thgo` para `#tradershist` no topo de Top traders e Histórico; botão "Resultados do trader" (`thbtn`) na lista; link "Ver todos os traders copiados" na janela do trader.
+
+- 0.32.166 (pedido do dono): `weekparts.dias_horas` (dia da semana e hora pela entrada, com média por dia) e `weekparts.serie` (dia a dia com acumulado) no `resumo`. Front: `wkCharts` → `wkLine` (`#wkLine`, faixa do fim de semana, `#wkLineRes`), `wkBars` (`#wkDow`, `#wkHr`, `#wkBlk`), tabelas `#wkDowT`/`#wkHrT`, dica no mouse/toque (`wkTip`, `WKC`), redesenha no resize. CSS `.wkc`. Teste em `tests/test_semana_fds.py`.

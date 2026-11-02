@@ -55,3 +55,17 @@ def test_route_and_closed_blocks_are_saved_once(env):
     g = c.get("/api/pump/weekparts", headers=A).json()["guardados"]
     assert g and g[0]["key"] == "2026-10-31-fds"
     assert "semanas" in c.get("/api/pump/result-tabs", headers=A).json()
+
+
+def test_weekday_and_hour_by_entry_time_and_daily_series():
+    T = [t("2026-10-27T08:10:00+00:00", -10), t("2026-10-27T09:10:00+00:00", 30), t("2026-11-01T12:00:00+00:00", 20)]
+    T[0]["opened_at"], T[1]["opened_at"], T[2]["opened_at"] = "2026-10-27T08:00:00+00:00", "2026-10-27T09:00:00+00:00", "2026-11-01T11:50:00+00:00"
+    d = wk.dias_horas(T)
+    ter, dom = d["dias_semana"][1], d["dias_semana"][6]
+    assert ter["nome"] == "Terça" and ter["trades"] == 2 and ter["dias"] == 1 and abs(ter["por_dia_sol"] - 0.02) < 1e-9
+    assert dom["fds"] and dom["trades"] == 1
+    assert [h["hora"] for h in d["horas"] if h["trades"]] == [9, 10, 12]        # hora de Berlim (UTC+1 depois de 25/10)
+    s = wk.serie(T)
+    assert [(x["dia"], x["fds"]) for x in s] == [("2026-10-27", False), ("2026-11-01", True)] and abs(s[-1]["acumulado_sol"] - 0.04) < 1e-9
+    R = wk.resumo(T, ab)
+    assert len(R["dias_semana"]) == 7 and len(R["horas"]) == 24 and R["serie"][0]["dia"] == "2026-10-27"
