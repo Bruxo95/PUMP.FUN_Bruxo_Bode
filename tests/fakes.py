@@ -20,7 +20,7 @@ PKS = {"profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": 
        "auto_tune_log": ("id",), "config_offers": ("id",), "config_compare_reports": ("id",),
        "base_snapshots": ("id",), "base_log": ("id",), "base_shadows": ("mint",), "api_usage": ("mes", "api", "chave"), "base_evolutions": ("numero",), "token_xray": ("mint",), "explore_cycles": ("id",), "robot_log": ("id",), "robot_daily": ("id",), "calls": ("id",),
        "settings_overrides": ("id",), "position_learn": ("id",), "bruxo_signals": ("id",), "tab_reports": ("id",), "eq_reports": ("id",), "bruxo_reports": ("id",), "result_studies": ("id",), "holders_t5": ("mint",), "market_days": ("dia",), "jev_trades": ("id",),
-       "study_ai_reports": ("id",), "top_shadows": ("id",), "trader_reports": ("id",)}
+       "study_ai_reports": ("id",), "top_shadows": ("id",), "trader_reports": ("id",), "week_results": ("id",)}
 AUTO_ID = {"pump_feed", "audit_log", "study_auto_log", "auto_tune_log", "config_offers", "config_compare_reports",
            "base_snapshots", "base_log", "settings_overrides", "position_learn", "tab_reports", "eq_reports", "bruxo_reports"}
 DEFAULT_TS = {"config_compare_reports": "criado_em", "config_offers": "criado_em", "study_wallets": "criado_em", "pump_trades": "fechada_em", "pump_positions": "aberta_em", "audit_log": "at", "pump_feed": "at",
