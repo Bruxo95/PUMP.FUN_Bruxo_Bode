@@ -1575,6 +1575,11 @@
    "versao": "0.32.163",
    "inicio": "2026-11-02T16:32:45+00:00",
    "titulo": "histórico de cada trader copiado"
+  },
+  {
+   "versao": "0.32.164",
+   "inicio": "2026-11-02T16:38:45+00:00",
+   "titulo": "Detalhes e Resultados do trader em cada operação recente"
   }
  ]
 }

@@ -3791,7 +3791,7 @@
     (D.trades || []).forEach((t) => {
       if (!!t.real !== rm) return;
       const r = String(t.reason || ""); const k = /stop móvel/.test(r) ? "trail" : /^stop de perda/.test(r) ? "stop" : t.pnl_sol > 0 ? "win" : "loss";
-      out.push({ at: t.closed_at, k, real: !!t.real, t: (t.symbol || "?") + " · " + r, m: "copiado de " + shortW(t.wallet, t), amt: sg(t.pnl_sol) + '<div class="m">' + pc(t.pnl_pct) + "</div>" });
+      out.push({ at: t.closed_at, k, real: !!t.real, t: (t.symbol || "?") + " · " + r, m: "copiado de " + shortW(t.wallet, t), amt: sg(t.pnl_sol) + '<div class="m">' + pc(t.pnl_pct) + "</div>", ref: { trade: t }, w: t.wallet });
     });
     (D.feed || []).forEach((e) => {
       const a = String(e.action || ""); let k = null;
@@ -3800,14 +3800,37 @@
       else if (a === "REAL não copiou" || a === "FICTÍCIA desfeita") k = "skip"; else if (/pausad/.test(String(e.reason || ""))) k = "pause";
       if (!k || (k !== "pause" && isReal !== rm)) return;
       out.push({ at: e.at, k, real: k === "pause" ? null : isReal, t: (e.symbol || "?") + " · " + (k === "buy" ? (e.wallet === "manual" ? a : "copiou " + shortW(e.wallet, e)) : e.reason),
-        m: (e.wallet === "manual" ? "" : "trader " + shortW(e.wallet, e)) + (e.sol != null && e.wallet !== "manual" ? " · ele usou " + s4(e.sol) + " SOL" : ""), amt: "" });
+        m: (e.wallet === "manual" ? "" : "trader " + shortW(e.wallet, e)) + (e.sol != null && e.wallet !== "manual" ? " · ele usou " + s4(e.sol) + " SOL" : ""), amt: "", ref: { feed: e }, w: e.wallet });
     });
-    (D.paused || []).forEach((p) => out.push({ at: p.at, k: "pause", real: null, t: shortW(p.wallet, p) + " · " + (p.reason || "pausado"), m: p.until ? "volta em " + hms(p.until - Date.now() / 1000) : "até você retomar", amt: "" }));
+    (D.paused || []).forEach((p) => out.push({ at: p.at, k: "pause", real: null, t: shortW(p.wallet, p) + " · " + (p.reason || "pausado"), m: p.until ? "volta em " + hms(p.until - Date.now() / 1000) : "até você retomar", amt: "", w: p.wallet }));
     out.sort((a, b) => new Date(b.at) - new Date(a.at));
     const L = out.slice(0, rm ? 12 : 9);
-    $("ops").innerHTML = L.length ? L.map((o) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(o.t) + '</div><div class="m">há ' + agoIso(o.at) + " · " + esc(o.m) + '</div></div><div><div class="tags">' + opTag(o.k) + (o.real == null ? "" : o.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + '</div><div class="amt">' + o.amt + "</div></div></div>").join("")
+    // 0.32.164 (pedido do dono): cada operação com Detalhes (a posição aberta ou o trade fechado) e Resultados do trader. A lista só
+    // é redesenhada quando muda (ou a cada 15 s, para o "há X min"): redesenhar a cada 2 s fazia o clique no botão falhar.
+    if (Object.keys(OPS_M).length > 300) Object.keys(OPS_M).forEach((k) => delete OPS_M[k]);
+    L.forEach((o) => { o.key = [o.at, o.k, o.real, o.t].join("|"); OPS_M[o.key] = o; });
+    const sig = rm + "§" + L.map((o) => o.key).join("§");
+    if (sig === OPS_SIG.s && Date.now() - OPS_SIG.t < 15000 && $("ops").innerHTML) return;
+    OPS_SIG.s = sig; OPS_SIG.t = Date.now();
+    const btns = (o) => '<div class="opb">' + (o.ref ? '<button type="button" class="btn sm ghost" data-opdet="' + esc(o.key) + '">Detalhes</button>' : "") +
+      thBtn(o.w ? { wallet: o.w, real: o.real } : null) + "</div>";
+    $("ops").innerHTML = L.length ? L.map((o) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(o.t) + '</div><div class="m">há ' + agoIso(o.at) + " · " + esc(o.m) + "</div>" + btns(o) + '</div><div><div class="tags">' + opTag(o.k) + (o.real == null ? "" : o.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + '</div><div class="amt">' + o.amt + "</div></div></div>").join("")
       : '<div class="empty">' + (rm ? "Nenhuma operação na carteira REAL ainda. O quadro \"A REAL agora\", acima, diz se ela pode comprar e por que ficou de fora." : "Ainda não houve operação. Quando um trader copiado comprar, aparece aqui.") + "</div>";
   }
+
+  const OPS_M = {}, OPS_SIG = { s: "", t: 0 };
+  function openOpDet(key) {
+    const o = OPS_M[key]; if (!o || !o.ref) return;
+    if (o.ref.trade) { openTradeDet(o.ref.trade); return; }
+    const e = o.ref.feed, real = !!o.real;
+    const same = (x) => x.mint === e.mint && !!x.real === real && (e.wallet === "manual" || !x.wallet || x.wallet === e.wallet);
+    const p = (D && D.positions || []).find(same);
+    if (p) { POS_DET = POS_DET || { list: D.positions, left: () => "–", soldCell: () => "–", vol: () => "–" }; if (!POS_DET.list.includes(p)) POS_DET.list = D.positions; openPosDet(p.id); return; }
+    const t = (D && D.trades || []).find(same) || (D && D.recent_closed || []).find(same);
+    if (t) { openTradeDet(t); return; }
+    toast(o.k === "skip" || o.k === "err" ? (e.symbol || "?") + ": " + (e.reason || e.action) : "Essa operação já saiu da lista; veja no Histórico.");
+  }
+  document.addEventListener("click", (e) => { const t = e.target.closest && e.target.closest("[data-opdet]"); if (t) { e.preventDefault(); openOpDet(t.dataset.opdet); } });
 
   // 0.32.162 (pedido do dono): "A REAL agora" — se a carteira real pode comprar, o que a trava e, nas últimas 6 h, quantas compras a
   // fictícia fez, quantas a real fez e por que a real ficou de fora em cada token. Aparece no modo REAL (Visão geral e Abas de trades).
