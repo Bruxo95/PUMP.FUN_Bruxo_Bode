@@ -250,7 +250,19 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/result-tabs")
     async def result_tabs(real: int = 0, pf=Depends(engine)):
         """0.32.123: resultado por aba da janela Resultado. Só os trades desta conta."""
-        return {"abas": pf.tabs([t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)], pf.aba_of)}
+        from . import weekparts
+        L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
+        return {"abas": pf.tabs(L, pf.aba_of), "semanas": weekparts.por_aba(L, pf.aba_of)}   # 0.32.161: fim de semana × dias de semana
+
+    @app.get("/api/pump/weekparts")
+    async def weekparts_view(real: int = 0, pf=Depends(engine)):
+        """0.32.161 (pedido do dono): dias de semana × fins de semana desta conta — blocos ao vivo, resumo, por aba e por trader,
+        e os blocos já guardados. O user_id vem só do token (ou da visualização do admin)."""
+        from . import weekparts
+        L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
+        names = hub.tr_names()
+        return {"blocos": weekparts.blocos(L, pf.aba_of, names), "resumo": weekparts.resumo(L, pf.aba_of, names),
+                "guardados": await hub.week_saved(pf, bool(real))}
 
     @app.get("/api/pump/result-study")
     async def result_study(horas: float = 24, real: int = 0, pf=Depends(engine)):

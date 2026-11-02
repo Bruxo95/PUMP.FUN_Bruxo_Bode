@@ -46,6 +46,7 @@
       <a href="#traders" data-v="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Top traders<b class="nb" id="nbTr"></b></a>
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Posições<b class="nb" id="nbPos"></b></a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
+      <a href="#semanas" data-v="semanas" data-novo-ate="2026-11-16"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M15 15h3v3h-3z"/></svg>Semana × fim de semana</a>
       <a href="#explorar" id="navExp" hidden data-v="explorar" data-novo-ate="2026-11-09"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Explorar</a>
       <a href="#abas" id="navAbas" hidden data-v="abas" data-novo-ate="2026-11-15"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M7.5 6.5a8 8 0 1 0 9 0"/></svg>Abas de trades</a>
       <a href="#basegeral" id="navBaseG" hidden data-v="basegeral" data-novo-ate="2026-11-11"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3z"/><path d="M15 4a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a3 3 0 0 1-3-3"/></svg>Base geral</a>
@@ -176,6 +177,7 @@
         <div class="kpis kp24" id="kpis12" data-novo-ate="2026-11-15"></div>
         <div class="kpis kp24" id="kpis6" data-novo-ate="2026-11-15"></div>
         <div class="kpis kp24" id="kpis1" data-novo-ate="2026-11-15"></div>
+        <div class="kpis kp24" id="kpisWk" data-novo-ate="2026-11-16"></div>
         <div class="grid2e vgtop">
           <div class="card">
             <header><div><h2>Evolução da carteira</h2><div class="sub" id="curveSub">SOL</div></div><div class="sp"></div>
@@ -737,6 +739,15 @@
       </section>
 
       <!-- ========================================================= HISTÓRICO -->
+      <!-- ========================================================= SEMANA × FIM DE SEMANA (0.32.161) -->
+      <section class="view" data-view="semanas" hidden>
+        <div class="card" data-novo-ate="2026-11-16"><header><div><h2>Dias de semana × fins de semana <span class="tag sim" data-mtag>FICTÍCIA</span></h2><div class="sub">segunda a sexta × sábado e domingo · horário de Berlim · só trades fechados</div></div></header>
+          <div class="kpis" id="wkK"></div>
+          <p class="muted small" style="margin:8px 0 0">A semana tem 5 dias e o fim de semana 2: a comparação justa é a média por dia. Cada semana e cada fim de semana que fecham ficam guardados para comparar depois.</p></div>
+        <div class="card"><header><div><h2>Cada semana e cada fim de semana</h2><div class="sub">o mais novo em cima · clique em Ver para as abas e os traders</div></div></header><div class="tbl-wrap"><table id="wkB" class="daytbl"></table></div></div>
+        <div class="card"><header><div><h2>Por aba</h2><div class="sub">todos os dias de semana × todos os fins de semana</div></div></header><div class="tbl-wrap"><table id="wkA" class="daytbl"></table></div></div>
+        <div class="card"><header><div><h2>Traders: dias de semana × fim de semana</h2><div class="sub">endereço (abre no Solscan), trades, acerto e resultado de cada um</div></div></header><div class="tbl-wrap"><table id="wkT" class="daytbl"></table></div></div>
+      </section>
       <section class="view" data-view="historico" hidden>
         <div class="card absum" data-novo-ate="2026-11-15" data-nosanf><div id="hSum"></div><span class="tag sim" data-mtag>FICTÍCIA</span></div>
         <div class="posabas abtabs" id="hTabs"></div>

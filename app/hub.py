@@ -1814,6 +1814,49 @@ class PumpHub:
                 log.warning("relatório de traders: %s", str(e)[:160])
             await asyncio.sleep(3600)
 
+    # ------------------------------------------------------------------ semana × fim de semana (0.32.161)
+    async def week_save(self, pf: PumpFun, now: float | None = None) -> int:
+        """Guarda cada bloco FECHADO (seg–sex ou sáb–dom) da fictícia e da real desta conta. Upsert pelo id: repetir não duplica."""
+        from . import weekparts
+        now = time.time() if now is None else now
+        done, n = self.__dict__.setdefault("_wk_done", set()), 0
+        trades = pf.trades(100000)
+        for real in (False, True):
+            L = [t for t in trades if bool(t.get("real")) == real]
+            for b in weekparts.blocos(L, pf.aba_of, self.tr_names(), now):
+                rid = f"{pf.user_id}:{int(real)}:{b['key']}"
+                if not b["fechado"] or rid in done:
+                    continue
+                await self.db.insert("week_results", {"id": rid, "user_id": pf.user_id, "real": real, "bloco": b["key"], "tipo": b["tipo"],
+                                                      "inicio": datetime.fromtimestamp(b["ini"], timezone.utc).isoformat(),
+                                                      "em": datetime.fromtimestamp(now, timezone.utc).isoformat(), "data": b},
+                                     upsert=True, on_conflict="id")
+                done.add(rid)
+                n += 1
+        return n
+
+    async def week_saved(self, pf: PumpFun, real: bool, limit: int = 60) -> list[dict]:
+        try:
+            rows = await self.db.select("week_results", {"user_id": pf.user_id, "real": real}, order="inicio.desc", limit=limit)
+        except Exception:
+            return []
+        return [r.get("data") or {} for r in rows]
+
+    async def week_tick(self, now: float | None = None) -> int:
+        n = 0
+        for e in list(self.engines.values()):
+            try:
+                n += await self.week_save(e, now)
+            except Exception as ex:
+                log.warning("semana × fim de semana (%s): %s", e.user_id, str(ex)[:160])
+        return n
+
+    async def week_loop(self) -> None:
+        await asyncio.sleep(900)
+        while True:
+            await self.week_tick()
+            await asyncio.sleep(3600)
+
     async def rs_base(self, real: bool, limit: int = 100) -> list[dict]:
         """Seção da Base geral: estudos guardados pelo botão, de todas as contas (só admin vê)."""
         rows = await self.db.select("result_studies", {"origem": "manual", "real": real}, order="em.desc", limit=limit)
@@ -4290,6 +4333,7 @@ class PumpHub:
         self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
         self._tasks.append(asyncio.create_task(self.top_loop()))            # 0.32.124: compras barradas do Top traders
         self._tasks.append(asyncio.create_task(self.tr_loop()))             # 0.32.140: relatório dos traders
+        self._tasks.append(asyncio.create_task(self.week_loop()))           # 0.32.161: semana × fim de semana guardados
         self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
         self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
         self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes

@@ -1560,6 +1560,11 @@
    "versao": "0.32.160",
    "inicio": "2026-11-02T08:27:36+00:00",
    "titulo": "a real primeiro em todas as ações (cópia exata)"
+  },
+  {
+   "versao": "0.32.161",
+   "inicio": "2026-11-02T12:17:02+00:00",
+   "titulo": "dias de semana × fins de semana, guardados"
   }
  ]
 }

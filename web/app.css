@@ -942,3 +942,4 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .abcmp-undo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;margin-bottom:6px}.abcmp-pend{color:#fbbf24;font-size:13px;margin-bottom:6px}.abcmp-act{display:flex;gap:8px;margin-top:8px}
 .trposseg{margin:8px 0 2px}
 #secrets .secret.key-err{border-left-color:var(--down);background:rgba(239,68,68,.05)}.key-err .kst{color:var(--down)}.key-err .keystate .muted{color:#fca5a5;max-width:360px}.keychip.err{color:var(--down);background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35)}
+.abc-w{grid-template-columns:repeat(2,1fr)}
