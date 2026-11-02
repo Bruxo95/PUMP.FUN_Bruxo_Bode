@@ -3611,7 +3611,7 @@
     table("thT", ["Trader", "Trades", "Acerto", "Resultado", "%", "Último", "Abas", "Ranking", ""], L.map((x) => [thName(x) + (x.guardado ? ' <span class="tag neutral" title="só no guardado (os trades não estão mais na carteira)">guardado</span>' : ""),
       String(x.trades || 0) + (x.falsos ? '<small class="dim">+' + x.falsos + " falso(s)</small>" : ""), x.acerto != null ? x.acerto + "%" : "–", sg(x.saldo_sol || 0, ""), pc(x.pct),
       x.ultimo ? "há " + hms(Date.now() / 1000 - x.ultimo) : "–", esc(Object.keys(x.abas || {}).slice(0, 2).join(", ")), thRank(x.ranking),
-      '<button type="button" class="btn sm" data-th="' + esc(x.wallet) + '" data-thc="' + (realMode() ? "real" : "ficticia") + '">Ver</button>']), "Nenhum trader copiado com trade fechado ainda.");
+      '<button type="button" class="btn sm thbtn" data-th="' + esc(x.wallet) + '" data-thc="' + (realMode() ? "real" : "ficticia") + '">Resultados do trader</button>']), "Nenhum trader copiado com trade fechado ainda.");
   }
   async function openTH(wallet, aba) {
     $("posM").hidden = true; POS_ID = null;                    // o detalhe da posição fecha; o do trader abre no lugar
@@ -3626,7 +3626,8 @@
     const tabs = [["ficticia", "FICTÍCIA"], ["real", "REAL"]].map(([k, n]) => '<button class="btn sm chip' + (TH.aba === k ? " on" : "") + '" data-thab="' + k + '">' + n + " · " + ((r[k] || {}).trades || 0) + "</button>").join("");
     const dias = Object.entries(r.ranking_dias || {}).sort((a, c) => (a[0] < c[0] ? 1 : -1)).slice(0, 14);
     ovShow(r.nome || shortW(r.wallet), "tudo o que você copiou desta carteira",
-      '<p class="small">' + solW(r.wallet, "Abrir a carteira no Solscan") + ' · <a href="https://pump.fun/profile/' + encodeURIComponent(r.wallet) + '" target="_blank" rel="noopener">perfil na pump.fun</a> · Ranking: ' + thRank(r.ranking) + "</p>" +
+      '<p class="small">' + solW(r.wallet, "Abrir a carteira no Solscan") + ' · <a href="https://pump.fun/profile/' + encodeURIComponent(r.wallet) + '" target="_blank" rel="noopener">perfil na pump.fun</a> · Ranking: ' + thRank(r.ranking) +
+        ' · <a href="#tradershist" data-jtclose="1"><b>Ver todos os traders copiados →</b></a></p>' +
       '<div class="posabas">' + tabs + '</div><div class="kpis" id="ovK"></div>' +
       ((b.abertas || []).length ? '<h3 class="small">Abertas agora</h3>' + tb("ovTHo") : "") +
       '<h3 class="small">Todos os trades</h3>' + tb("ovTHt") +

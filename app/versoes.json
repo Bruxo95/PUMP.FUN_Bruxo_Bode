@@ -1580,6 +1580,11 @@
    "versao": "0.32.164",
    "inicio": "2026-11-02T16:38:45+00:00",
    "titulo": "Detalhes e Resultados do trader em cada operação recente"
+  },
+  {
+   "versao": "0.32.165",
+   "inicio": "2026-11-02T16:42:52+00:00",
+   "titulo": "atalho para Traders copiados e o mesmo botão na lista"
   }
  ]
 }
