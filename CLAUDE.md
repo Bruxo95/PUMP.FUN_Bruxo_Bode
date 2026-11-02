@@ -1508,3 +1508,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.155 (pedido do dono): `openTrRep` ordena `todo`/`h24` por `saldo_sol` (maior primeiro) e filtra com `TRPOS` (`data-trpos`, `localStorage` `pf_trpos`); o índice do botão Trades segue a lista ordenada.
 
 - 0.32.156 (casos inu e WB do dono, 01/11): na venda do trader a real segue a decisão de segurar/vender da fictícia (`lead`, real processada primeiro, `_paired_sell_t`); `PumpFun.real_twins` (par do espelho ou, sem espelho, real do mesmo token e mesmo trader) vende junto em toda saída da fictícia (venda em partes também, marcando `tp1_done`); não depende da chave da real. Abas: `ABAS_RM` recarrega `result-tabs` ao trocar FICTÍCIA/REAL; `.abreal.on` verde. Relatório `app/relatorios_ia/2026-11-02-0.32.156.md`. `tests/test_real_primeiro.py`. Neste PC o `pump.env` está só com o modelo: sem leitura do banco.
+
+- 0.32.157 (pedido do dono): `keyErr` (a partir de `D.apis.solana_tracker`: fonte "sua chave (sem créditos)"/"a sua está sem créditos" ou erro com a sua chave) → estado `err` no cartão e no `keychip`; `keysSync` no `render` recarrega quando muda. CSS `.key-err`.

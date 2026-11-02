@@ -3139,7 +3139,7 @@
     document.querySelectorAll("[data-hcfg]").forEach((el) => { const v = isAutoCfg(el.dataset.hcfg) ? autoValue(el.dataset.hcfg, c) : c[el.dataset.hcfg];
       if (document.activeElement !== el && v != null) el.value = +(v / 60).toFixed(2);
       if (el.id === "exAutoHold" && v != null) $("exAutoHoldN").textContent = "= " + f(v, 0) + " min · máximo 24 h"; });
-    abasSync();
+    abasSync(); keysSync();
     document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); const sc = tglScope(b.dataset.toggle, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.title = sc[1]; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
@@ -4129,20 +4129,37 @@
     jupiter_api_key: "Jupiter", telegram_bot_token: "Bot Telegram", telegram_chat_id: "Id Telegram", jev_api_key: "Jev" };
   const KEY_NEED = { solanatracker_api_key: "Recomendada", wallet_private_key: "Só modo real", pumpportal_api_key: "Opcional", rpc_url: "Opcional",
     jupiter_api_key: "Opcional", telegram_bot_token: "Para avisos", telegram_chat_id: "Para avisos", jev_api_key: "Teste (sombra)" };
-  const KEY_EDIT = {}; let KEY_SAVED = "";
+  const KEY_EDIT = {}; let KEY_SAVED = "", KEY_ERR_SIG = "";
+  // 0.32.157 (pedido do dono): o erro que o Monitor mostra (ex.: Solana Tracker sem créditos) aparece também no cartão da chave
+  function keyErr(k) {
+    if (k !== "solanatracker_api_key") return null;
+    const a = (D && D.apis && D.apis.solana_tracker) || {};
+    const f = a.fonte || "";
+    if (/a sua está sem créditos|sua chave \(sem créditos\)/i.test(f) || (/^sua chave/i.test(f) && /insufficient credits/i.test(a.error || "")))
+      return "Os créditos do mês acabaram nesta chave (plano da Solana Tracker). " + (/^chave do sistema/i.test(f) ? "Por enquanto o painel está usando a chave do sistema." : "Sem créditos o ranking e os dados da Solana Tracker param até virar o mês ou você trocar de plano.");
+    if (a.ok === false && a.error && /^sua chave/i.test(f)) return "A Solana Tracker recusou esta chave: " + a.error;
+    return null;
+  }
+  function keysSync() {
+    if (VIEW !== "config") return;
+    const sig = String(keyErr("solanatracker_api_key") || "");
+    if (sig !== KEY_ERR_SIG) { KEY_ERR_SIG = sig; loadSecrets(); }
+  }
   async function loadSecrets() {
     const r = await BB.api("/api/secrets"); if (r.error) return;
     const w = r.wallet || {};
     // 0.31.27 (pedido do dono em 2026-10-27: "tudo junto, não dá para saber se foi configurado"): cada chave vira um
     // bloco com faixa colorida e estado em uma frase; configurada esconde o campo (botão Trocar), e o resumo fica no topo.
     const ks = Object.entries(r.keys), nOk = ks.filter(([, v]) => v.configured).length;
-    const st = (v) => v.configured ? ["ok", "✓ Configurada", "A sua chave está salva e em uso."]
+    KEY_ERR_SIG = String(keyErr("solanatracker_api_key") || "");
+    const st = (v, k) => v.configured && keyErr(k) ? ["err", "✗ Configurada, com erro", keyErr(k)]
+      : v.configured ? ["ok", "✓ Configurada", "A sua chave está salva e em uso."]
       : v.system ? ["sys", "Usando a chave do sistema", "Funciona só para ver os dados. Cole a sua para ter a sua própria cota."]
       : ["none", "Não configurada", "Nada salvo ainda."];
     $("secretsSum").innerHTML = '<div class="keysum"><b>' + nOk + " de " + ks.length + "</b> chaves configuradas" +
-      ks.map(([k, v]) => '<span class="keychip ' + st(v)[0] + '">' + (v.configured ? "✓ " : "") + esc(KEY_SHORT[k] || v.label) + "</span>").join("") + "</div>";
+      ks.map(([k, v]) => '<span class="keychip ' + st(v, k)[0] + '">' + (st(v, k)[0] === "err" ? "✗ " : v.configured ? "✓ " : "") + esc(KEY_SHORT[k] || v.label) + "</span>").join("") + "</div>";
     $("secrets").innerHTML = ks.map(([k, v]) => {
-      const [cls, title, sub] = st(v), open = !v.configured || KEY_EDIT[k];
+      const [cls, title, sub] = st(v, k), open = !v.configured || KEY_EDIT[k];
       const extra = (k === "wallet_private_key" && w.address ? '<div class="keyinfo">Endereço público: <span class="mono">' + esc(w.address) + "</span></div>" : "") +
         (k === "rpc_url" && w.rpc_set ? '<div class="keyinfo">Servidor: <span class="mono">' + esc(w.rpc_host || "") + "</span></div>" : "");
       return '<div class="secret key-' + cls + (KEY_SAVED === k ? " just" : "") + '" id="key-' + k + '">' +
