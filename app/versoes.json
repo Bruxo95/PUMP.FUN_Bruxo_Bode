@@ -1630,6 +1630,11 @@
    "versao": "0.32.174",
    "inicio": "2026-11-03T22:06:11+00:00",
    "titulo": "posições da BNB em cartões"
+  },
+  {
+   "versao": "0.32.175",
+   "inicio": "2026-11-03T22:34:21+00:00",
+   "titulo": "Ajustes da BNB em abas e quadro Saídas"
   }
  ]
 }

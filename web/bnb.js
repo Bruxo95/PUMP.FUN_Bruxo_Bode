@@ -27,10 +27,11 @@
   ];
   const CF_INFO = [
     ["bnb_por_compra", "BNB por compra", "BNB", 0.001, 10, 0.01], ["max_abertas", "Máximo de posições abertas", "posições", 1, 100, 1],
-    ["max_hold_h", "Tempo máximo da posição", "horas", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = sem stop)", "%", 0, 100, 1],
-    ["slip_pct", "Slippage em cada lado", "%", 0, 50, 0.5], ["gas_bnb", "Gás por transação", "BNB", 0, 0.01, 0.0001],
+    ["slip_pct", "Slippage simulado em cada lado", "%", 0, 50, 0.5], ["gas_bnb", "Gás simulado por transação", "BNB", 0, 0.01, 0.0001],
     ["saldo_inicial", "Saldo inicial da fictícia", "BNB", 0.01, 1000, 0.1],
   ];
+  // 0.32.175 (pedido do dono, 03/11): tempo máximo e stop num quadro próprio, porque valem para a FICTÍCIA e para a REAL
+  const SA_INFO = [["max_hold_h", "Tempo máximo da posição", "horas", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = sem stop)", "%", 0, 100, 1]];
   const RC_INFO = [
     ["real_bnb_por_compra", "BNB por compra na REAL", "BNB", 0.001, 1, 0.001], ["real_max_abertas", "Máximo de posições REAL abertas", "posições", 1, 30, 1],
     ["real_slip_pct", "Slippage máximo (compra e venda)", "%", 1, 49, 1], ["real_perda_dia", "Perda máxima por dia", "BNB", 0.001, 10, 0.01],
@@ -39,10 +40,10 @@
   // 0.32.171 (pedido do dono, 03/11): Log geral com o Registro de segurança e o Log do servidor (as mesmas rotas de
   // Administração do painel da pump.fun). "Só BNB" filtra o que é da BNB; "Tudo" mostra os dois projetos.
   const LG = { tab: "seg", f: "bnb", lv: "INFO", after: 0, key: "" };
-  let VIEW = "visao", REAL = false, R = null, P = null, CHG = null, BUSY = false, READY = false, DIRTY = { rk: false, cf: false, rc: false };
+  let VIEW = "visao", REAL = false, R = null, P = null, CHG = null, BUSY = false, READY = false, DIRTY = { rk: false, cf: false, rc: false, sa: false };
   let ME = null, USERS = null;
-  let TRT = "rank", RANGE = 1;
-  try { TRT = localStorage.getItem("bnb_trt") || "rank"; RANGE = Number(localStorage.getItem("bnb_range")) || 1; } catch (e) { /* */ }
+  let TRT = "rank", RANGE = 1, AJT = "rk";
+  try { TRT = localStorage.getItem("bnb_trt") || "rank"; RANGE = Number(localStorage.getItem("bnb_range")) || 1; AJT = localStorage.getItem("bnb_ajt") || "rk"; } catch (e) { /* */ }
 
   // ------------------------------------------------------------------ formatos
   const num = (v, d) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: d == null ? 4 : d }));
@@ -244,7 +245,10 @@
   }
   function drawAjustes() {
     if (R && R.ligado && !DIRTY.rk) form("bnCfg", RK_INFO, R.cfg, R.padrao, "bnc_");
+    document.querySelectorAll("#ajTab button").forEach((b) => b.classList.toggle("on", b.dataset.ajt === AJT));
+    document.querySelectorAll("[data-ajp]").forEach((c) => (c.hidden = c.dataset.ajp !== AJT));
     if (P && !DIRTY.cf) form("cfF", CF_INFO, P.cfg_sim || P.cfg, P.padrao, "cf_");
+    if (P && !DIRTY.sa) form("saF", SA_INFO, P.cfg_sim || P.cfg, P.padrao, "sa_");
     if (P && !DIRTY.rc && P.real_cfg) form("rcF", RC_INFO, P.real_cfg, P.real_padrao, "rc_");
   }
   function drawPosicoes() {
@@ -490,6 +494,7 @@
     if (id === "bnUQ") drawUsers();
     if (id.startsWith("bnc_")) DIRTY.rk = true;
     if (id.startsWith("cf_")) DIRTY.cf = true;
+    if (id.startsWith("sa_")) DIRTY.sa = true;
     if (id.startsWith("rc_")) DIRTY.rc = true;
   });
   document.addEventListener("pointermove", curveMove);
@@ -521,13 +526,15 @@
       if (r && r.ok && R) { R.cfg = r.cfg; drawAjustes(); load(); }
       return;
     }
-    const cf = t.closest("#cfSave, #cfReset");
+    const aj = t.closest("[data-ajt]");
+    if (aj) { AJT = aj.dataset.ajt; try { localStorage.setItem("bnb_ajt", AJT); } catch (x) { /* */ } drawAjustes(); return; }
+    const cf = t.closest("#cfSave, #cfReset, #saSave, #saReset");
     if (cf) {
-      const body = {};
-      if (cf.id === "cfReset") Object.assign(body, (P && P.padrao) || {});
-      else CF_INFO.forEach((c) => { const el = $("cf_" + c[0]); if (el && el.value !== "") body[c[0]] = Number(el.value); });
+      const sa = cf.id.startsWith("sa"), info = sa ? SA_INFO : CF_INFO, pre = sa ? "sa_" : "cf_", body = {};
+      if (/Reset$/.test(cf.id)) info.forEach((c) => { if (P && P.padrao && c[0] in P.padrao) body[c[0]] = P.padrao[c[0]]; });
+      else info.forEach((c) => { const el = $(pre + c[0]); if (el && el.value !== "") body[c[0]] = Number(el.value); });
       const r = await BB.api("/api/pump/bnb/conta", { body: body });
-      DIRTY.cf = false;
+      DIRTY.cf = DIRTY.sa = false;
       if (r && r.ok && P) { P.cfg_sim = r.cfg; drawAjustes(); load(); }
       return;
     }

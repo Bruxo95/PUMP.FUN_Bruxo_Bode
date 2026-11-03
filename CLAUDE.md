@@ -1573,3 +1573,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   conta não admin; `painel(..., peek=True)` não cria carteira para quem é visto. Faixa `#viewBar` e `body.viewas` em `web/bnb.html`.
 
 - 0.32.174 (pedido do dono): Posições da `/bnb` em cartões (`bnCard` em `web/bnb.js`, `#poT` virou `div.poscards`; mesmas classes `.pcard`/`.pc-*` do `/app`, `PO_OPEN` guarda os "Mais detalhes" abertos). Venda só 100% (`data-bnclose`; a BNB não tem venda parcial manual). `.pc-err`/`.pc-why`/`.pc-list li` quebram texto sem espaço. Conferido em 1440 e 390 px, todas as telas da `/bnb` sem rolagem lateral.
+- 0.32.175 (pedido do dono): Top traders → Ajustes da BNB em abas (`#ajTab`, `data-ajt`/`data-ajp`, `AJT` em `localStorage` `bnb_ajt`): Regra do ranking,
+  Saídas (`SA_INFO`: `max_hold_h` e `stop_pct`, valem para FICTÍCIA e REAL, salvos em `/api/pump/bnb/conta`), Cópia FICTÍCIA (`CF_INFO`) e Cópia REAL.
+  "Voltar ao padrão" de cada aba só repõe os campos dela. Só tela; nenhuma regra mudou.
