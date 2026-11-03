@@ -227,3 +227,22 @@ def test_real_routes(env):
     assert c.post("/api/pump/bnb/fechar-todas", json={"real": False}, headers=tok(UA)).json()["ok"]
     for path in ("/api/pump/bnb/chave", "/api/pump/bnb/real", "/api/pump/bnb/fechar-todas"):
         assert c.post(path, json={}, headers=tok(UB, "b@x.com")).status_code == 403
+
+
+def test_bnb_admin_users_and_view_screen(env):
+    """0.32.173 (pedido do dono): Administração da BNB lista os usuários e o admin vê a tela da BNB de cada um, só leitura."""
+    from tests.test_api import UA, UB, tok
+    c, hub = env["c"], env["hub"]
+    w = hub.bnb = bnb.BnbWatch(_Http([], {}), None)
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/me", headers=B)                                          # cria o perfil do usuário B
+    us = c.get("/api/pump/bnb/usuarios", headers=A).json()
+    assert us["me"] == UA and any(x["user_id"] == UB and x["bnb"]["ficticia"] is None for x in us["users"])
+    assert c.get("/api/pump/bnb/usuarios", headers=B).status_code == 403
+    assert c.get("/api/pump/bnb/painel", headers=B).status_code == 403   # usuário comum não abre a BNB sozinho
+    V = {**A, "X-View-As": UB}
+    r = c.get("/api/pump/bnb/painel", headers=V).json()
+    assert r["ligado"] and r["carteira"]["saldo"] == 1.0 and UB not in w.books   # visualizar não cria carteira para ele
+    assert c.get("/api/pump/bnb/painel?real=1", headers=V).json()["real"] and UB not in w.real
+    assert c.get("/api/pump/bnb", headers=V).json()["ligado"]
+    assert c.post("/api/pump/bnb/conta", json={"on": False}, headers=V).status_code == 403   # só leitura

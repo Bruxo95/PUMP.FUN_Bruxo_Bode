@@ -40,6 +40,7 @@
   // Administração do painel da pump.fun). "Só BNB" filtra o que é da BNB; "Tudo" mostra os dois projetos.
   const LG = { tab: "seg", f: "bnb", lv: "INFO", after: 0, key: "" };
   let VIEW = "visao", REAL = false, R = null, P = null, CHG = null, BUSY = false, READY = false, DIRTY = { rk: false, cf: false, rc: false };
+  let ME = null, USERS = null;
   let TRT = "rank", RANGE = 1;
   try { TRT = localStorage.getItem("bnb_trt") || "rank"; RANGE = Number(localStorage.getItem("bnb_range")) || 1; } catch (e) { /* */ }
 
@@ -301,6 +302,28 @@
     t.className = "btn sm tgl sw " + (rs.ligada ? "on" : "off"); t.setAttribute("aria-checked", rs.ligada ? "true" : "false"); t.textContent = rs.ligada ? "Ligado" : "Desligado";
     $("rlKeyDel").hidden = !rs.chave;
   }
+  // 0.32.173 (pedido do dono, 03/11): usuários na Administração da BNB, com Visualizar tela (só leitura, igual ao painel da pump.fun)
+  function drawUsers() {
+    if (!USERS) return;
+    const q = ($("bnUQ").value || "").trim().toLowerCase();
+    const L = USERS.users.filter((x) => !q || (String(x.nome || "") + " " + String(x.email || "")).toLowerCase().includes(q));
+    const av = (x) => (x.avatar_url ? '<img src="' + esc(x.avatar_url) + '" alt="" referrerpolicy="no-referrer">' : "<i>" + esc(String(x.nome || x.email || "?").slice(0, 1).toUpperCase()) + "</i>");
+    table("bnU", ["Usuário", "Categoria", "Último acesso", "BNB FICTÍCIA", "BNB REAL", ""], L.map((x) => {
+      const f = x.bnb && x.bnb.ficticia, r = x.bnb && x.bnb.real;
+      return ['<div class="bnuser">' + av(x) + "<div><b>" + esc(x.nome || "—") + "</b><small>" + esc(x.email || "") + "</small></div></div>",
+        (x.role === "admin" ? '<span class="tag win">Admin</span>' : '<span class="tag">Usuário</span>') + (x.bloqueado ? ' <span class="tag loss">bloqueado</span>' : ""),
+        x.ultimo_acesso ? "há " + ago(Date.parse(x.ultimo_acesso) / 1000) : "—",
+        f ? bnb(f.resultado) + '<br><span class="muted">' + f.fechadas + " fechados · " + f.abertas + " abertas" + (f.acerto == null ? "" : " · " + num(f.acerto, 0) + "%") + "</span>" : '<span class="muted">nunca abriu a BNB</span>',
+        r && (r.ligada || r.endereco || r.fechadas) ? (r.ligada ? '<span class="tag real">ON</span> ' : '<span class="tag">OFF</span> ') + bnb(r.resultado) +
+          '<br><span class="muted">' + r.fechadas + " fechados · " + r.abertas + " abertas" + (r.endereco ? " · " + sw(r.endereco) : "") + "</span>" : '<span class="muted">sem carteira</span>',
+        x.user_id === USERS.me ? '<span class="muted">você</span>' : '<button class="btn sm" data-viewas="' + esc(x.user_id) + '">Visualizar tela</button>'];
+    }), "Nenhum usuário.");
+  }
+  async function loadUsers() {
+    if (ME && ME.view_by) { $("bnUCard").hidden = true; return; }
+    const r = await BB.api("/api/pump/bnb/usuarios", { quiet: true });
+    if (r && r.users) { USERS = r; drawUsers(); }
+  }
   function drawAdmin() {
     if (!R || !R.ligado) return;
     const s = R.status || {};
@@ -386,6 +409,7 @@
       if (p && !p.error && real === REAL) P = p.ligado === false ? null : p;
       if (r && !r.error) R = r;
       if (VIEW === "logs") await loadLogs(false);
+      if (VIEW === "admin") await loadUsers();
       if (VIEW === "changelog" && !CHG) { const c = await BB.api("/api/admin/novidades", { quiet: true }); CHG = (c && c.itens) || []; }
       draw();
     } catch (e) { /* tenta de novo na próxima volta */ } finally { BUSY = false; }
@@ -436,6 +460,7 @@
   document.addEventListener("input", (e) => {
     const id = (e.target && e.target.id) || "";
     if (id === "lgQ") { clearTimeout(LGQ_T); LGQ_T = setTimeout(() => loadLogs(true), 400); }
+    if (id === "bnUQ") drawUsers();
     if (id.startsWith("bnc_")) DIRTY.rk = true;
     if (id.startsWith("cf_")) DIRTY.cf = true;
     if (id.startsWith("rc_")) DIRTY.rc = true;
@@ -447,6 +472,12 @@
   document.addEventListener("click", async (e) => {
     const t = e.target.closest ? e.target : null; if (!t) return;
     const mb = t.closest("#modeSeg button"); if (mb) { setMode(mb.dataset.mode === "real"); return; }
+    const va = t.closest("[data-viewas]");
+    if (va) {
+      try { sessionStorage.setItem("pf_viewas", va.dataset.viewas); } catch (x) { alert("O navegador bloqueou a visualização."); return; }
+      location.hash = "#visao"; location.reload(); return;
+    }
+    if (t.closest("#viewExit")) { try { sessionStorage.removeItem("pf_viewas"); } catch (x) { /* */ } location.hash = "#admin"; location.reload(); return; }
     if (t.closest("#sysBox")) { drawSysModal(); $("sysM").hidden = false; return; }
     if (t.closest("#sysMX") || t.id === "sysM") { closeSys(); return; }
     const rg = t.closest("#rangeSeg button");
@@ -551,8 +582,16 @@
     try { s = await BB.session(); } catch (e) { /* sem sessão: volta ao início */ }
     if (!s) { location.href = "/"; return; }
     const me = await BB.api("/api/me", { quiet: true });
-    if (me.error || me.role !== "admin") { location.replace("/app"); return; }      // a BNB é só do admin
+    if (me.error || (me.role !== "admin" && !me.view_by)) { location.replace("/app"); return; }      // a BNB é só do admin
+    ME = me;
     try { sessionStorage.setItem("pf_hub", "bnb"); } catch (e) { /* */ }
+    if (me.view_by) {
+      // visualização da tela de um usuário: só leitura (o servidor recusa qualquer alteração e nada é gravado para ele)
+      document.body.classList.add("viewas");
+      $("viewBar").hidden = false;
+      $("viewBar").innerHTML = '<div class="viewbar"><span>👁 Você está vendo a tela da BNB de <b>' + esc(me.nome || me.email || "usuário") + "</b>" + (me.email ? " · " + esc(me.email) : "") +
+        " — somente visualização: nada pode ser alterado e as chaves não aparecem.</span><button class=\"btn sm primary\" id=\"viewExit\">Sair da visualização</button></div>";
+    }
     $("ver").textContent = "versão " + String(me.version || "").split(" · ")[0];
     let m = "sim"; try { m = localStorage.getItem("bnb_mode") || "sim"; } catch (e) { /* */ }
     $("boot").hidden = true; $("shell").hidden = false;

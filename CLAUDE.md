@@ -1568,3 +1568,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `20261103000002`). Trava geral = `PUMP_REAL_ALLOWED` (`main.py`). Só compras novas (até 60 s) a partir de quando liga. Rotas `/api/pump/bnb/chave`,
   `/chave/remover`, `/real` (LIGAR), `/real/cfg`, `/fechar-todas` (VENDER na REAL), `/painel?real=1`. Front: Monitor `#sysBox`/`#sysM`, `#curve` e `#ops`
   na Visão geral, Top traders com abas Ranking | Ajustes (`#bnCfg`, `#cfF`, `#rcF`), Configurações = carteira REAL, `#poAll`. Nenhuma transação enviada.
+- 0.32.173 (pedido do dono): Administração da BNB com usuários (`GET /api/pump/bnb/usuarios`, `BnbWatch.user_summary`, tabela `#bnU`) e Visualizar
+  tela (`data-viewas` → `pf_viewas`, o mesmo X-View-As do /app). `bnb_api.viewer` deixa `/api/pump/bnb` e `/painel` abrirem na visualização de
+  conta não admin; `painel(..., peek=True)` não cria carteira para quem é visto. Faixa `#viewBar` e `body.viewas` em `web/bnb.html`.

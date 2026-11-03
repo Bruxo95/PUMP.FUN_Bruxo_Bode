@@ -1,16 +1,24 @@
 """Rotas do painel BNB (0.32.168). Só admin. Separadas de api.py para a BNB ficar isolada do que já funciona."""
 from __future__ import annotations
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from .db import audit
 
 OFF = {"ligado": False, "motivo": "leitura da BNB desligada no servidor (BNB_ON=false)"}
 
 
-def add_routes(app, get_watch, admin_only, db) -> None:
+def add_routes(app, get_watch, admin_only, db, user=None) -> None:
+    # 0.32.173 (pedido do dono, 03/11): Administração da BNB com "Visualizar tela" de cada usuário, como no painel da pump.fun.
+    # Na visualização (cabeçalho X-View-As, que só o admin manda e só vale para GET) a conta é a do usuário vista; estas
+    # duas leituras aceitam essa conta mesmo quando ela não é admin. Nada é gravado para quem é visto.
+    def viewer(u: dict = Depends(user or admin_only)) -> dict:
+        if u.get("role") != "admin" and not u.get("view_by"):
+            raise HTTPException(403, "só o admin")
+        return u
+
     @app.get("/api/pump/bnb")
-    async def bnb_state(u: dict = Depends(admin_only)):
+    async def bnb_state(u: dict = Depends(viewer)):
         w = get_watch()
         return OFF if w is None else w.state()
 
@@ -25,12 +33,24 @@ def add_routes(app, get_watch, admin_only, db) -> None:
 
     # 0.32.170: carteira fictícia da conta (Visão geral, Posições, Histórico, Semana × fim de semana, Abas, Configurações)
     @app.get("/api/pump/bnb/painel")
-    async def bnb_painel(real: int = 0, u: dict = Depends(admin_only)):
+    async def bnb_painel(real: int = 0, u: dict = Depends(viewer)):
         w = get_watch()
         if w is None:
             return OFF
         await w.get_key(u["id"])                      # endereço da carteira BNB (a chave nunca vai para a tela)
-        return {"ligado": True, **w.painel(u["id"], real=bool(real))}
+        return {"ligado": True, **w.painel(u["id"], real=bool(real), peek=bool(u.get("view_by")))}
+
+    @app.get("/api/pump/bnb/usuarios")
+    async def bnb_usuarios(u: dict = Depends(admin_only)):
+        w = get_watch()
+        rows = await db.select("profiles", None, order="criado_em.asc") or []
+        out = []
+        for p in rows:
+            uid = p.get("user_id")
+            out.append({"user_id": uid, "email": p.get("email"), "nome": p.get("nome"), "avatar_url": p.get("avatar_url"),
+                        "role": p.get("role") or "user", "bloqueado": bool(p.get("bloqueado")), "ultimo_acesso": p.get("ultimo_acesso"),
+                        "bnb": w.user_summary(uid) if w is not None else None})
+        return {"users": out, "me": u["id"]}
 
     @app.post("/api/pump/bnb/conta")
     async def bnb_conta(body: dict, u: dict = Depends(admin_only)):

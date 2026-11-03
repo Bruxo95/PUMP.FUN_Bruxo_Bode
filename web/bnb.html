@@ -38,6 +38,10 @@
   .bnkey{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.bnkey .in{flex:1 1 260px;min-width:0}
   .bnaddr{font-family:var(--mono);font-size:12.5px;word-break:break-all}
   .op .tx{font-size:11.5px}
+  .bnuser{display:flex;gap:10px;align-items:center;min-width:0}.bnuser img,.bnuser i{width:32px;height:32px;border-radius:50%;flex:0 0 32px;background:var(--line2);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:600}
+  .bnuser b{display:block}.bnuser small{color:var(--muted);word-break:break-all}
+  body.viewas button.btn:not(#viewExit):not(#sysMX),body.viewas .in{pointer-events:none;opacity:.5}
+  body.viewas [data-v="admin"],body.viewas [data-v="logs"]{display:none}
 </style>
 </head>
 <body>
@@ -88,6 +92,7 @@
     </header>
 
     <main class="page">
+      <div id="viewBar" hidden></div>
       <div class="bnreal" id="bnReal" hidden></div>
       <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
         <header><div><h2 id="sysMT">Monitor da BNB</h2><div class="sub">leitura da Four.Meme pela rede, RPC grátis</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
@@ -178,6 +183,9 @@
       </section>
 
       <section class="view" data-view="admin" hidden>
+        <div class="card" id="bnUCard"><header><div><h2>Usuários</h2><div class="sub">o que cada conta tem na BNB · Visualizar tela abre o painel da BNB como a pessoa vê, só leitura</div></div><div class="sp"></div>
+            <input class="in" id="bnUQ" placeholder="Filtrar por nome ou e-mail" style="width:220px;max-width:100%"></header>
+          <div class="tbl-wrap"><table id="bnU"></table></div></div>
         <div class="card"><header><div><h2>Leitura da rede</h2><div class="sub">RPC grátis, consultas e gravação no banco</div></div></header>
           <div class="decbox" id="bnSt"></div></div>
         <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">agora fica em Top traders → Ajustes</div></div><div class="sp"></div><a class="btn sm" href="#traders" data-gotr="aj">Abrir Ajustes</a></header></div>

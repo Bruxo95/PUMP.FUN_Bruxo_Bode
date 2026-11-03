@@ -679,11 +679,29 @@ class BnbWatch:
         except Exception:
             return None
 
-    def painel(self, uid: str, now: float | None = None, real: bool = False) -> dict:
+    def _bk(self, uid: str, peek: bool = False) -> bnbcopy.Book:
+        """Carteira fictícia da conta. peek = visualização do admin: não cria nem grava nada para quem é visto."""
+        if peek:
+            return self.books.get(uid) or bnbcopy.Book(uid)
+        return self.book(uid)
+
+    def user_summary(self, uid: str, now: float | None = None) -> dict:
+        """Resumo de uma conta para a Administração da BNB (0.32.173)."""
+        now = now or time.time()
+        b, rb, rc = self.books.get(uid), self.real.get(uid), self.real_cfg.get(uid) or {}
+        f = None
+        if b is not None:
+            w = b.wallet(now)
+            f = {"ligada": b.cfg["on"], "resultado": w["resultado"], "abertas": w["abertas"], "fechadas": w["fechadas"], "acerto": w["acerto"]}
+        r = {"ligada": bool(rc.get("real_on")), "endereco": rb.address if rb else None, "abertas": len(rb.pos) if rb else 0,
+             "fechadas": len(rb.trades) if rb else 0, "resultado": round(sum(x["pnl_bnb"] for x in rb.trades), 6) if rb else 0.0}
+        return {"ficticia": f, "real": r}
+
+    def painel(self, uid: str, now: float | None = None, real: bool = False, peek: bool = False) -> dict:
         now = now or time.time()
         if real:
-            return self.painel_real(uid, now)
-        b = self.book(uid)
+            return self.painel_real(uid, now, peek)
+        b = self._bk(uid, peek)
         pos = []
         for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
             sol, pct = b.pnl_now(p)
@@ -696,16 +714,18 @@ class BnbWatch:
                 "abas": [{"aba": "top", "nome": "Top traders BNB", "ligada": b.cfg["on"], "abertas": len(b.pos),
                           "fechadas": len(b.trades), "periodos": bnbcopy.periods(b.trades, now),
                           "resultado": round(sum(x["pnl_bnb"] for x in b.trades), 6)}],
-                "copiaria": self.ranking(now)["copiaria"], "real_cfg": self.rcfg(uid), "cfg_sim": b.cfg, "real_padrao": bnbreal.REAL_DEFAULT,
+                "copiaria": self.ranking(now)["copiaria"], "real_cfg": self.real_cfg.get(uid) or bnbreal.clean(None), "cfg_sim": b.cfg, "real_padrao": bnbreal.REAL_DEFAULT,
                 "real_status": self.real_status(uid), "leitura_ok": self.reading_ok(now)}
 
     def reading_ok(self, now: float | None = None) -> bool:
         now = now or time.time()
         return bool(self.trades) and not (self.stat["ultimo_erro_t"] and now - self.stat["ultimo_erro_t"] < 120)
 
-    def painel_real(self, uid: str, now: float) -> dict:
+    def painel_real(self, uid: str, now: float, peek: bool = False) -> dict:
         """Mesmo formato do painel fictício, com as posições e trades da carteira REAL."""
-        b, rb, rc = self.book(uid), self.rbook(uid), self.rcfg(uid)
+        b = self._bk(uid, peek)
+        rb = (self.real.get(uid) or bnbreal.RealBook(uid)) if peek else self.rbook(uid)
+        rc = (self.real_cfg.get(uid) or bnbreal.clean(None)) if peek else self.rcfg(uid)
         pos = []
         for p in sorted(rb.pos.values(), key=lambda x: x["open_t"], reverse=True):
             v, pct = rb.pnl_now(p, rc["real_slip_pct"])

@@ -1623,7 +1623,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     # 0.32.168: aba BNB (Four.Meme) isolada em bnb.py/bnb_api.py; sem a leitura ligada as rotas só dizem "desligada"
     from .bnb_api import add_routes as bnb_routes
-    bnb_routes(app, lambda: getattr(hub, "bnb", None), admin_only, hub.db)
+    bnb_routes(app, lambda: getattr(hub, "bnb", None), admin_only, hub.db, user)
 
     app.mount("/static", StaticFiles(directory=WEB), name="static")
     return app
