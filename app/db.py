@@ -17,7 +17,7 @@ import uuid
 from collections import deque
 
 from .crypto import SecretBox
-from .keystore import SECRET_NAMES
+from .keystore import BNB_SECRET_NAMES, SECRET_NAMES
 from .store import FEED_KEEP, MemStore
 
 log = logging.getLogger("db")
@@ -225,7 +225,7 @@ class Vault:
         return {r["nome"] for r in await self.db.select("user_secrets", {"user_id": user_id}, columns="nome")}
 
     async def save(self, user_id: str, name: str, value: str) -> None:
-        if name not in SECRET_NAMES:
+        if name not in SECRET_NAMES and name not in BNB_SECRET_NAMES:
             raise ValueError("nome de chave desconhecido")
         await self.db.insert("user_secrets", {"user_id": user_id, "nome": name,
                                               "valor_criptografado": self.box.encrypt(user_id, name, value)},

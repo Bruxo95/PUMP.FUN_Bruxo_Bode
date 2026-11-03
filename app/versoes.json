@@ -1615,6 +1615,11 @@
    "versao": "0.32.171",
    "inicio": "2026-11-03T07:55:53+00:00",
    "titulo": "Log geral no painel da BNB"
+  },
+  {
+   "versao": "0.32.172",
+   "inicio": "2026-11-03T17:54:52+00:00",
+   "titulo": "carteira REAL da BNB, Monitor e Vender todas"
   }
  ]
 }

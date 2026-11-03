@@ -18,6 +18,10 @@ SECRET_NAMES = {
     "telegram_chat_id": "ID do seu chat no Telegram",
 }
 
+# 0.32.172: chave da carteira BNB, guardada no mesmo cofre (user_secrets, criptografada), mas fora da lista acima para não
+# aparecer nas Chaves pessoais do painel da Solana: o painel da BNB tem a tela própria.
+BNB_SECRET_NAMES = {"bnb_private_key": "Chave privada da carteira BNB (Four.Meme)"}
+
 
 # chaves que o ADMIN pode configurar para todos usarem na VISUALIZAÇÃO (dados e cotações; nunca execução real)
 SYSTEM_NAMES = {

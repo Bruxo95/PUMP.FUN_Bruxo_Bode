@@ -42,6 +42,8 @@ def build_app():
     if os.environ.get("BNB_ON", "true").lower() not in ("0", "false", "no", "off"):
         from .bnb import BnbWatch
         hub.bnb = BnbWatch(http, db)
+        hub.bnb.vault = hub.vault                     # 0.32.172: chave da carteira BNB (cofre criptografado)
+        hub.bnb.real_allowed = hub.real_allowed       # mesma trava geral da Solana (PUMP_REAL_ALLOWED)
     auth = Auth(cfg.supabase_url, cfg.supabase_anon_key, http, cfg.supabase_jwt_secret)
     app = create_app(hub, auth, cfg)
 

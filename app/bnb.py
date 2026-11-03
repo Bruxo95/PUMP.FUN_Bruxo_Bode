@@ -23,7 +23,7 @@ import os
 import time
 from collections import deque
 
-from . import bnbcopy
+from . import bnbcopy, bnbreal, evm
 
 log = logging.getLogger("bnb")
 
@@ -41,6 +41,7 @@ STABLES = {"0x55d398326f99059ff775485246999027b3197955": "USDT",   # símbolo e 
 ZERO = "0x" + "0" * 40
 WBNB = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
 DEX_URL = "https://api.dexscreener.com/latest/dex/tokens/"   # preço depois da graduação (grátis, 300/min)
+BNB_KEY_NAME = "bnb_private_key"   # 0.32.172: nome no cofre (user_secrets), separado das chaves da Solana
 
 RPCS = [u.strip() for u in os.environ.get("BNB_RPCS", "https://bsc-rpc.publicnode.com,https://bsc.blockrazor.xyz").split(",")
         if u.strip()]
@@ -241,6 +242,16 @@ class BnbWatch:
         self.px: dict[str, tuple] = {}
         self._dex_at: dict[str, float] = {}
         self._grad_at: dict[str, float] = {}
+        # 0.32.172: carteira REAL (bnbreal). Começa desligada; a chave vem do cofre (user_secrets, criptografada) e só fica
+        # na memória. real_allowed = trava geral PUMP_REAL_ALLOWED do servidor (main.py liga as duas).
+        self.real: dict[str, bnbreal.RealBook] = {}
+        self.real_cfg: dict[str, dict] = {}
+        self.vault = None
+        self.real_allowed = False
+        self.chain = bnbreal.Chain(self.rpc)
+        self._keys: dict[str, tuple] = {}
+        self._tasks: set = set()
+        self._rbal_at = 0.0
 
     # ------------------------------------------------------------------ RPC
     async def rpc(self, method: str, params: list):
@@ -374,13 +385,273 @@ class BnbWatch:
                 frac = min(1.0, (tr["amount"] or 0) / before) if before > 0 else 1.0
                 for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     b.sell(p, frac, px, time.time(), f"trader vendeu {frac * 100:.0f}%")
+        # 0.32.172: a REAL segue a mesma decisão, com valor e limites próprios; só compras novas (até 60 s) entram
+        for uid, rb in self.real.items():
+            if px:
+                self._real_price(uid, rb, tr["token"], px, tr["t"])
+            if tr["side"] == "sell":
+                frac = min(1.0, (tr["amount"] or 0) / before) if before > 0 else 1.0
+                for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
+                    p["retry_frac"] = frac
+                    self._spawn(self._real_sell(uid, p, frac, f"trader vendeu {frac * 100:.0f}%"))
+        if tr["side"] == "buy" and tr["wallet"] in cop and time.time() - tr["t"] <= 60:
+            for uid, rc in list(self.real_cfg.items()):
+                if rc.get("real_on"):
+                    self._spawn(self._real_buy(uid, tr, px))
+
+    # ------------------------------------------------------------------ carteira REAL (0.32.172)
+    def rbook(self, uid: str) -> bnbreal.RealBook:
+        rb = self.real.get(uid)
+        if rb is None:
+            rb = self.real[uid] = bnbreal.RealBook(uid)
+        return rb
+
+    def rcfg(self, uid: str) -> dict:
+        if uid not in self.real_cfg:
+            self.real_cfg[uid] = bnbreal.clean(None)
+        return self.real_cfg[uid]
+
+    def _spawn(self, coro) -> None:
+        t = asyncio.ensure_future(coro)
+        self._tasks.add(t)
+        t.add_done_callback(self._tasks.discard)
+
+    async def get_key(self, uid: str):
+        """(chave, endereço) da carteira BNB da conta, ou (None, None). A chave nunca sai da memória do servidor."""
+        k = self._keys.get(uid)
+        if k and time.time() - k[2] < 300:
+            return k[0], k[1]
+        if self.vault is None:
+            return None, None
+        try:
+            v = (await self.vault.load(uid)).get(BNB_KEY_NAME)
+            key = evm.parse_key(v) if v else None
+        except Exception:
+            key = None
+        addr = evm.address_of(key) if key else None
+        self._keys[uid] = (key, addr, time.time())
+        if addr:
+            self.rbook(uid).address = addr
+        return key, addr
+
+    def real_status(self, uid: str) -> dict:
+        rc, rb = self.rcfg(uid), self.real.get(uid)
+        k = self._keys.get(uid)
+        return {"permitido": self.real_allowed, "chave": bool(k and k[0]),
+                "endereco": (k[1] if k else None) or (rb.address if rb else None),
+                "ligada": bool(rc.get("real_on")), "desde": rc.get("on_since"), "saldo": rb.balance if rb else None}
+
+    def _real_price(self, uid: str, rb, token: str, px: float, t: float) -> None:
+        rc, cf = self.rcfg(uid), self.book(uid).cfg
+        for p in list(rb.pos.values()):
+            if p["token"] != token or px <= 0:
+                continue
+            p["px_now"], p["px_t"] = px, t
+            _, pct = rb.pnl_now(p, rc["real_slip_pct"])
+            p["best_pct"], p["worst_pct"] = max(p.get("best_pct", 0), pct), min(p.get("worst_pct", 0), pct)
+            rb.dirty_pos.add(p["id"])
+            if cf["stop_pct"] and pct <= -cf["stop_pct"] and (p.get("sell_retry_at") or 0) <= time.time():
+                p["retry_frac"] = 1.0
+                self._spawn(self._real_sell(uid, p, 1.0, f"stop de {cf['stop_pct']:.0f}%"))
+
+    def real_why_not(self, uid: str, tr: dict, rb, rc: dict) -> str | None:
+        q = self.quotes.get(tr["token"])
+        if not self.real_allowed:
+            return "trava geral do servidor fechada (PUMP_REAL_ALLOWED)"
+        if q is None or q == "?":
+            return "moeda do token ainda desconhecida"
+        if q != ZERO and q not in STABLES:
+            return "token cotado em moeda que não é BNB nem dólar"
+        if q in STABLES and not self.bnb_usd:
+            return "sem a cotação BNB/dólar"
+        if tr["token"] in self.graduated:
+            return "o token já foi para a PancakeSwap"
+        if any(p["wallet"] == tr["wallet"] and p["token"] == tr["token"] for p in rb.pos.values()) or (tr["wallet"], tr["token"]) in rb.busy:
+            return "já tem a posição REAL deste trader neste token"
+        if len(rb.pos) + len(rb.busy) >= rc["real_max_abertas"]:
+            return f"limite de {rc['real_max_abertas']} posições REAL abertas"
+        lost = rb.lost_today(time.time())
+        if lost >= rc["real_perda_dia"]:
+            return f"perda do dia ({lost:.4f} BNB) chegou ao limite de {rc['real_perda_dia']:g} BNB: volta amanhã (00:00 UTC)"
+        if rb.balance is not None and rb.balance < rc["real_bnb_por_compra"] + bnbreal.GAS_RESERVE:
+            return f"saldo da carteira ({rb.balance:.4f} BNB) menor que a compra + {bnbreal.GAS_RESERVE} BNB de gás"
+        return None
+
+    async def _real_buy(self, uid: str, tr: dict, px: float | None) -> None:
+        rb, rc = self.rbook(uid), self.rcfg(uid)
+        now = time.time()
+        key, addr = await self.get_key(uid)
+        why = "sem a chave da carteira BNB" if not key else self.real_why_not(uid, tr, rb, rc)
+        if why:
+            rb.ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
+            return
+        k = (tr["wallet"], tr["token"])
+        rb.busy.add(k)
+        try:
+            async with rb.lock:
+                if rb.balance is None or time.time() - rb.balance_t > 30:
+                    rb.balance, rb.balance_t = await self.chain.balance(addr) / 1e18, time.time()
+                if rb.balance < rc["real_bnb_por_compra"] + bnbreal.GAS_RESERVE:
+                    rb.ev(now, tr["wallet"], tr["token"], "REAL não copiou",
+                          f"saldo da carteira ({rb.balance:.4f} BNB) menor que a compra + gás")
+                    return
+                res = await self.chain.buy(key, addr, tr["token"], self.quotes.get(tr["token"]) or ZERO, rc["real_bnb_por_compra"],
+                                           self.bnb_usd, rc["real_slip_pct"], rc["real_gwei"])
+            t = time.time()
+            p = bnbreal.new_position(tr, res, t, px, self.quotes.get(tr["token"]) or ZERO)
+            rb.pos[p["id"]] = p
+            rb.dirty_pos.add(p["id"])
+            rb.balance_t = 0
+            rb.ev(t, tr["wallet"], tr["token"], "REAL comprou", f"{rc['real_bnb_por_compra']:g} BNB, {t - tr['t']:.0f} s depois do trader", res["tx"])
+            log.info("BNB REAL: comprou %s… %.4f BNB (conta %s…)", tr["token"][:10], res["bnb"], uid[:8])
+        except Exception as e:
+            rb.ev(time.time(), tr["wallet"], tr["token"], "REAL falhou", str(e)[:200])
+            log.warning("BNB REAL: compra falhou (%s…): %s", tr["token"][:10], str(e)[:160])
+        finally:
+            rb.busy.discard(k)
+            await self.flush_books()
+
+    async def _real_sell(self, uid: str, p: dict, frac: float, motivo: str, manual: bool = False) -> dict | None:
+        rb, rc = self.rbook(uid), self.rcfg(uid)
+        if p.get("selling") or p["id"] not in rb.pos:
+            return None
+        if not manual and (p.get("sell_retry_at") or 0) > time.time():
+            return None
+        p["selling"] = True
+        frac = 1.0 if frac >= 0.95 else max(0.0, frac)
+        try:
+            key, addr = await self.get_key(uid)
+            if not key:
+                raise bnbreal.ChainError("sem a chave da carteira BNB: cole a chave em Configurações para vender")
+            left = int(p["raw_left"])
+            raw = left if frac >= 1 else int(left * frac)
+            async with rb.lock:
+                try:
+                    res = await self.chain.sell(key, addr, p["token"], p.get("quote") or ZERO, raw, p["token"] in self.graduated,
+                                                rc["real_slip_pct"], rc["real_gwei"])
+                except bnbreal.ChainError as e:
+                    if "não tem mais" in str(e):
+                        p["tokens_left"], p["raw_left"] = 0.0, "0"
+                        tr = rb.close(p, time.time(), "a carteira não tem mais o token (vendido fora do sistema?)", p.get("px_now"))
+                        rb.ev(time.time(), p["wallet"], p["token"], "REAL fechou", tr["motivo"])
+                        return tr
+                    raise
+            t = time.time()
+            p["raw_left"] = str(max(0, left - raw))
+            p["tokens_left"] = max(0.0, p["tokens_left"] - raw / 1e18)
+            p["proceeds"] += res["bnb"]
+            p["fees"] = p.get("fees", 0) + res.get("gas", 0)
+            p["tx_last"] = res["tx"]
+            for k in ("sell_error", "sell_retry_at", "retry_frac"):
+                p.pop(k, None)
+            rb.balance_t = 0
+            if int(p["raw_left"]) > 0 and frac < 1:
+                p.setdefault("vendas", []).append({"t": t, "frac": round(frac, 4), "bnb": round(res["bnb"], 6), "motivo": motivo, "tx": res["tx"]})
+                rb.dirty_pos.add(p["id"])
+                rb.ev(t, p["wallet"], p["token"], "REAL vendeu parte", f"{frac * 100:.0f}% · {motivo}", res["tx"])
+                return None
+            tr = rb.close(p, t, motivo, p.get("px_now"))
+            rb.ev(t, p["wallet"], p["token"], "REAL fechou", f"{motivo} · {tr['pnl_bnb']:+.4f} BNB", res["tx"])
+            return tr
+        except Exception as e:
+            p["sell_error"] = str(e)[:200]
+            p["sell_retry_at"] = time.time() + bnbreal.RETRY_S
+            p.setdefault("retry_frac", frac)
+            rb.dirty_pos.add(p["id"])
+            rb.ev(time.time(), p["wallet"], p["token"], "REAL falhou ao vender", str(e)[:200])
+            log.warning("BNB REAL: venda falhou (%s…): %s", p["token"][:10], str(e)[:160])
+            if manual:
+                raise
+            return None
+        finally:
+            p["selling"] = False
+            await self.flush_books()
+
+    async def real_tick(self) -> None:
+        """Tempo máximo das posições REAL, nova tentativa das vendas que falharam e saldo da carteira (a cada 30 s)."""
+        now = time.time()
+        bal = now - self._rbal_at > 30
+        if bal:
+            self._rbal_at = now
+        for uid, rb in list(self.real.items()):
+            cf = self.book(uid).cfg
+            for p in list(rb.pos.values()):
+                if now - p["open_t"] >= cf["max_hold_h"] * 3600:
+                    p["retry_frac"] = 1.0
+                    self._spawn(self._real_sell(uid, p, 1.0, f"tempo máximo de {cf['max_hold_h']:g} h"))
+                elif p.get("sell_error") and (p.get("sell_retry_at") or 0) <= now and p.get("retry_frac"):
+                    self._spawn(self._real_sell(uid, p, p["retry_frac"], "nova tentativa de venda"))
+            if bal and (rb.address or self.rcfg(uid).get("real_on")):
+                _, addr = await self.get_key(uid)
+                if addr:
+                    try:
+                        rb.balance, rb.balance_t = await self.chain.balance(addr) / 1e18, now
+                    except Exception:
+                        pass
+
+    async def set_key(self, uid: str, value: str) -> str:
+        key = evm.parse_key(value)
+        await self.vault.save(uid, BNB_KEY_NAME, value.strip())
+        self._keys.pop(uid, None)
+        _, addr = await self.get_key(uid)
+        return addr or evm.address_of(key)
+
+    async def remove_key(self, uid: str) -> None:
+        self.rcfg(uid)["real_on"] = False
+        await self.vault.delete(uid, BNB_KEY_NAME)
+        self._keys.pop(uid, None)
+        rb = self.real.get(uid)
+        if rb:
+            rb.address, rb.balance = None, None
+        self.book(uid).dirty_book = True
+        await self.flush_books()
+
+    async def set_real(self, uid: str, on: bool) -> dict:
+        rc = self.rcfg(uid)
+        if on:
+            if not self.real_allowed:
+                raise ValueError("a trava geral do servidor está fechada (PUMP_REAL_ALLOWED=false): nada é enviado")
+            key, _ = await self.get_key(uid)
+            if not key:
+                raise ValueError("cole antes a chave privada da carteira BNB em Configurações")
+            rc["real_on"], rc["on_since"] = True, time.time()
+        else:
+            rc["real_on"] = False
+        self.book(uid).dirty_book = True
+        await self.flush_books()
+        return self.real_status(uid)
+
+    async def save_real_cfg(self, uid: str, raw: dict) -> dict:
+        rc = self.rcfg(uid)
+        keep = {k: rc[k] for k in ("real_on", "on_since") if k in rc}
+        self.real_cfg[uid] = {**bnbreal.clean(raw, rc), **keep}
+        self.book(uid).dirty_book = True
+        await self.flush_books()
+        return self.real_cfg[uid]
+
+    async def close_all(self, uid: str, real: bool) -> dict:
+        if not real:
+            b = self.book(uid)
+            out = [b.sell(p, 1.0, None, time.time(), "vendido por você (vender todas)") for p in list(b.pos.values())]
+            await self.flush_books()
+            return {"vendidas": len([x for x in out if x]), "falhas": 0}
+        rb = self.rbook(uid)
+        ok = bad = 0
+        for p in list(rb.pos.values()):
+            try:
+                if await self._real_sell(uid, p, 1.0, "vendido por você (vender todas)", manual=True):
+                    ok += 1
+            except Exception:
+                bad += 1
+        return {"vendidas": ok, "falhas": bad}
 
     async def positions_tick(self) -> None:
         """Tempo máximo das posições e preço dos tokens que já foram para a PancakeSwap (a Four.Meme não negocia mais)."""
         now = time.time()
         for b in self.books.values():
             b.timeouts(now)
-        toks = {p["token"] for b in self.books.values() for p in b.pos.values()}
+        toks = {p["token"] for b in self.books.values() for p in b.pos.values()} | \
+            {p["token"] for rb in self.real.values() for p in rb.pos.values()}
         for tk in list(toks)[:20]:
             if tk not in self.graduated and now - self._grad_at.get(tk, 0) > 300:
                 self._grad_at[tk] = now
@@ -395,6 +666,8 @@ class BnbWatch:
                     self.px[tk] = (px, now)
                     for b in self.books.values():
                         b.on_price(tk, px, now)
+                    for uid, rb in list(self.real.items()):
+                        self._real_price(uid, rb, tk, px, now)
 
     async def dex_price(self, token: str) -> float | None:
         try:
@@ -406,8 +679,10 @@ class BnbWatch:
         except Exception:
             return None
 
-    def painel(self, uid: str, now: float | None = None) -> dict:
+    def painel(self, uid: str, now: float | None = None, real: bool = False) -> dict:
         now = now or time.time()
+        if real:
+            return self.painel_real(uid, now)
         b = self.book(uid)
         pos = []
         for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
@@ -421,8 +696,32 @@ class BnbWatch:
                 "abas": [{"aba": "top", "nome": "Top traders BNB", "ligada": b.cfg["on"], "abertas": len(b.pos),
                           "fechadas": len(b.trades), "periodos": bnbcopy.periods(b.trades, now),
                           "resultado": round(sum(x["pnl_bnb"] for x in b.trades), 6)}],
-                "copiaria": self.ranking(now)["copiaria"],
-                "leitura_ok": bool(self.trades) and not (self.stat["ultimo_erro_t"] and now - self.stat["ultimo_erro_t"] < 120)}
+                "copiaria": self.ranking(now)["copiaria"], "real_cfg": self.rcfg(uid), "cfg_sim": b.cfg, "real_padrao": bnbreal.REAL_DEFAULT,
+                "real_status": self.real_status(uid), "leitura_ok": self.reading_ok(now)}
+
+    def reading_ok(self, now: float | None = None) -> bool:
+        now = now or time.time()
+        return bool(self.trades) and not (self.stat["ultimo_erro_t"] and now - self.stat["ultimo_erro_t"] < 120)
+
+    def painel_real(self, uid: str, now: float) -> dict:
+        """Mesmo formato do painel fictício, com as posições e trades da carteira REAL."""
+        b, rb, rc = self.book(uid), self.rbook(uid), self.rcfg(uid)
+        pos = []
+        for p in sorted(rb.pos.values(), key=lambda x: x["open_t"], reverse=True):
+            v, pct = rb.pnl_now(p, rc["real_slip_pct"])
+            pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "bnb_in", "proceeds",
+                                                  "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "aba", "sell_error", "selling")},
+                        "pnl_bnb": round(v, 6), "pnl_pct": round(pct, 2), "graduou": p["token"] in self.graduated,
+                        "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600, "real": True})
+        cfg = {**b.cfg, "on": bool(rc.get("real_on")), "bnb_por_compra": rc["real_bnb_por_compra"],
+               "max_abertas": rc["real_max_abertas"], "slip_pct": rc["real_slip_pct"]}
+        return {"real": True, "cfg": cfg, "padrao": bnbcopy.CFG_DEFAULT, "carteira": rb.wallet(now, rc["real_slip_pct"], bnbcopy.periods),
+                "posicoes": pos, "trades": rb.trades[:500], "eventos": rb.events[:100], "semana": bnbcopy.week_split(rb.trades),
+                "abas": [{"aba": "top", "nome": "Top traders BNB", "ligada": bool(rc.get("real_on")), "abertas": len(rb.pos),
+                          "fechadas": len(rb.trades), "periodos": bnbcopy.periods(rb.trades, now),
+                          "resultado": round(sum(x["pnl_bnb"] for x in rb.trades), 6)}],
+                "copiaria": self.ranking(now)["copiaria"], "real_cfg": rc, "cfg_sim": b.cfg, "real_padrao": bnbreal.REAL_DEFAULT,
+                "real_status": self.real_status(uid), "leitura_ok": self.reading_ok(now)}
 
     async def save_book_cfg(self, uid: str, raw: dict) -> dict:
         b = self.book(uid)
@@ -438,19 +737,24 @@ class BnbWatch:
         p = b.pos.get(pid)
         return b.sell(p, 1.0, None, time.time(), "vendido por você") if p else None
 
+    async def close_real(self, uid: str, pid: str) -> dict | None:
+        p = self.rbook(uid).pos.get(pid)
+        return await self._real_sell(uid, p, 1.0, "vendido por você", manual=True) if p else None
+
     async def flush_books(self) -> None:
         if self.db is None:
-            for b in self.books.values():
+            for b in list(self.books.values()) + list(self.real.values()):
                 b.dirty_pos.clear()
                 b.closed_pos.clear()
                 b.new_trades.clear()
-                b.dirty_book = False
+                if hasattr(b, "dirty_book"):
+                    b.dirty_book = False
             return
         for b in list(self.books.values()):
             try:
                 if b.dirty_book:
-                    await self.db.insert("bnb_books", {"user_id": b.user_id, "cfg": b.cfg, "cash": b.cash},
-                                         upsert=True, on_conflict="user_id")
+                    await self.db.insert("bnb_books", {"user_id": b.user_id, "cfg": {**b.cfg, "real": self.rcfg(b.user_id)},
+                                                       "cash": b.cash}, upsert=True, on_conflict="user_id")
                     b.dirty_book = False
                 if b.new_trades:
                     rows = [{"id": x["id"], "user_id": b.user_id, "t": x["close_t"], "data": x} for x in b.new_trades]
@@ -465,18 +769,46 @@ class BnbWatch:
                 b.dirty_pos.clear()
             except Exception as e:
                 log.warning("BNB: carteira fictícia não gravou: %s", str(e)[:160])
+        for rb in list(self.real.values()):
+            try:
+                if rb.new_trades:
+                    rows = [{"id": x["id"], "user_id": rb.user_id, "t": x["close_t"], "data": x} for x in rb.new_trades]
+                    await self.db.insert("bnb_trades", rows, upsert=True, on_conflict="id")
+                    rb.new_trades.clear()
+                for pid in list(rb.closed_pos):
+                    await self.db.delete("bnb_positions", {"id": pid, "user_id": rb.user_id})
+                    rb.closed_pos.discard(pid)
+                ids = set(rb.dirty_pos)                    # compra que chega durante a gravação fica para a próxima
+                rows = [{"id": pid, "user_id": rb.user_id, "data": {k: v for k, v in rb.pos[pid].items() if k != "selling"}}
+                        for pid in ids if pid in rb.pos]
+                if rows:
+                    await self.db.insert("bnb_positions", rows, upsert=True, on_conflict="id")
+                rb.dirty_pos -= ids
+            except Exception as e:
+                log.warning("BNB: carteira REAL não gravou: %s", str(e)[:160])
 
     async def load_books(self) -> None:
         for r in await self.db.select("bnb_books", None) or []:
             b = self.books[r["user_id"]] = bnbcopy.Book(r["user_id"], r.get("cfg"), r.get("cash"))
             b.dirty_book = False
+            rc = (r.get("cfg") or {}).get("real")
+            if isinstance(rc, dict):
+                self.real_cfg[r["user_id"]] = {**bnbreal.clean(rc, rc), **{k: rc[k] for k in ("real_on", "on_since") if k in rc}}
         for r in await self.db.select("bnb_positions", None) or []:
-            if r.get("user_id") in self.books and isinstance(r.get("data"), dict):
-                self.books[r["user_id"]].pos[r["id"]] = r["data"]
+            d = r.get("data")
+            if not isinstance(d, dict) or not r.get("user_id"):
+                continue
+            if d.get("real"):
+                self.rbook(r["user_id"]).pos[r["id"]] = d
+            elif r["user_id"] in self.books:
+                self.books[r["user_id"]].pos[r["id"]] = d
         for r in await self.db.select("bnb_trades", None, order="t.desc", limit=20000) or []:
-            b = self.books.get(r.get("user_id"))
-            if b is not None and isinstance(r.get("data"), dict) and len(b.trades) < bnbcopy.KEEP_TRADES:
-                b.trades.append(r["data"])
+            d = r.get("data")
+            if not isinstance(d, dict):
+                continue
+            b = self.rbook(r["user_id"]) if d.get("real") and r.get("user_id") else self.books.get(r.get("user_id"))
+            if b is not None and len(b.trades) < bnbcopy.KEEP_TRADES:
+                b.trades.append(d)
 
     async def balances_tick(self, wallets: list[str]) -> None:
         """Saldo das carteiras do topo (BNB + USDT + USD1 + USDC), no máximo 6 por volta; vale 30 min."""
@@ -573,6 +905,7 @@ class BnbWatch:
                 await self.refresh_bnb_usd()
                 await self.balances_tick([r["wallet"] for r in self.ranking()["rows"][:30]])
                 await self.positions_tick()
+                await self.real_tick()
             except Exception as e:
                 self.stat["erros"] += 1
                 self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = str(e)[:200], time.time()

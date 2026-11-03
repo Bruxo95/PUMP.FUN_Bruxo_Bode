@@ -33,6 +33,11 @@
   .bnchg p{margin:4px 0;color:var(--muted)}
   .hubbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}.hubbtn svg{width:14px;height:14px}
   @media (max-width:860px){.hubbtn span{display:none}}
+  /* 0.32.172: Monitor no menu, gráfico da carteira, operações, Ajustes e carteira REAL */
+  .bnsub{margin-bottom:14px}
+  .bnkey{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.bnkey .in{flex:1 1 260px;min-width:0}
+  .bnaddr{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+  .op .tx{font-size:11.5px}
 </style>
 </head>
 <body>
@@ -56,6 +61,7 @@
       <a href="#changelog" data-v="changelog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Changelog</a>
     </nav>
     <div class="sp"></div>
+    <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver a leitura da rede"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
     <div class="ver" id="ver"></div>
   </aside>
   <nav class="tabbar" id="tabbar" aria-label="Atalhos">
@@ -82,22 +88,34 @@
     </header>
 
     <main class="page">
-      <div class="bnreal" id="bnReal" hidden><b>Carteira REAL da BNB:</b> ainda não existe. Por enquanto o painel da BNB só tem a carteira
-        <b>FICTÍCIA</b> (nenhuma ordem é enviada). A execução real é a última etapa, só com a sua autorização, e começa desligada.</div>
+      <div class="bnreal" id="bnReal" hidden></div>
+      <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
+        <header><div><h2 id="sysMT">Monitor da BNB</h2><div class="sub">leitura da Four.Meme pela rede, RPC grátis</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
+        <div id="sysMB"></div></div></div>
 
       <section class="view" data-view="visao" hidden>
         <div class="kpis" id="ovK"></div>
         <div class="kpis" id="ovP" style="margin-top:12px"></div>
-        <div class="grid2e" style="margin-top:16px">
-          <div class="card"><header><div><h2>Operações recentes</h2><div class="sub">o que a cópia fez ou deixou de fazer</div></div></header>
-            <div class="tbl-wrap"><table id="ovOps"></table></div></div>
-          <div class="card"><header><div><h2>Status</h2><div class="sub">leitura da rede e cópia</div></div></header>
-            <div class="decbox" id="ovSt"></div>
-            <div class="help"><p><b>Como funciona:</b> o sistema lê todas as compras e vendas da Four.Meme, escolhe os melhores traders pela regra do Top traders e a carteira FICTÍCIA copia: quando um deles compra, ela compra o valor das Configurações; quando ele vende, ela vende a mesma parte. Também sai pelo tempo máximo e pelo stop, se você ligar.</p></div></div>
+        <div class="grid2e vgtop" style="margin-top:16px">
+          <div class="card">
+            <header><div><h2>Evolução da carteira</h2><div class="sub" id="curveSub">BNB</div></div><div class="sp"></div>
+              <div class="seg" id="rangeSeg"><button data-r="0.0416667">1h</button><button data-r="0.25">6h</button><button data-r="0.5">12h</button><button data-r="1">24h</button><button data-r="7">7d</button><button data-r="30">30d</button></div></header>
+            <div class="chart" id="curve"></div>
+            <div class="cres" id="curveRes"></div>
+          </div>
+          <div class="card">
+            <header><div><h2>Operações recentes</h2><div class="sub" id="opsSub">compras, vendas e o que ficou de fora</div></div><div class="sp"></div><a class="btn sm" href="#historico">Ver tudo</a></header>
+            <div class="ops" id="ops"></div>
+          </div>
         </div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Status</h2><div class="sub">leitura da rede e cópia</div></div></header>
+          <div class="decbox" id="ovSt"></div>
+          <div class="help"><p><b>Como funciona:</b> o sistema lê todas as compras e vendas da Four.Meme, escolhe os melhores traders pela regra do Top traders e copia: quando um deles compra, a carteira compra o valor dos Ajustes; quando ele vende, ela vende a mesma parte. Também sai pelo tempo máximo e pelo stop, se você ligar. A FICTÍCIA e a REAL seguem a mesma decisão, cada uma com o próprio valor e limite.</p></div></div>
       </section>
 
       <section class="view" data-view="traders" hidden>
+        <div class="seg bnsub" id="trTab"><button data-trt="rank">Ranking</button><button data-trt="aj">Ajustes</button></div>
+        <div id="trRank">
         <div class="card"><header><div><h2>Leitura da Four.Meme <span class="tag sim">grátis</span></h2><div class="sub" id="bnSub">lê todas as compras e vendas da Four.Meme e monta o ranking dos traders</div></div></header>
           <div class="kpis" id="bnK"></div></div>
         <div class="card"><header><div><h2>Copiados agora</h2><div class="sub" id="bnSelSub">os melhores aptos que negociaram nos últimos minutos, pela mesma regra do Top traders</div></div></header>
@@ -106,17 +124,32 @@
           <div class="tbl-wrap"><table id="bnRk"></table></div>
           <div class="help"><p><b>Como escolhe (igual ao Top traders):</b> pega os 50 que mais lucraram na Four.Meme nos últimos dias (lucro realizado, já com a taxa de 1% da plataforma). Apto = trades mínimos, acerto acima do mínimo (tokens fechados com lucro), carteira com saldo mínimo em BNB + dólar e sem cara de robô. Copia os melhores aptos que negociaram nos últimos minutos. A regra fica em Administração.</p>
           <p><b>O que ainda não vê:</b> venda feita na PancakeSwap depois que o token gradua, e tokens cotados em moeda que não é BNB nem dólar.</p></div></div>
+        </div>
+        <div id="trAj" hidden>
+          <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">quem entra na lista de copiados · vale para todos os admins</div></div></header>
+            <div class="form" id="bnCfg"></div>
+            <div class="row" style="margin-top:10px"><button class="btn primary" id="bnSave">Salvar regra</button><button class="btn sm" id="bnReset">Voltar ao padrão</button></div></div>
+          <div class="card"><header><div><h2>Cópia FICTÍCIA</h2><div class="sub">valor, limites e saídas · vale só para a sua conta</div></div></header>
+            <div class="form" id="cfF"></div>
+            <div class="row" style="margin-top:10px"><button class="btn primary" id="cfSave">Salvar</button><button class="btn sm" id="cfReset">Voltar ao padrão</button></div>
+            <div class="help"><p>A taxa da Four.Meme (1% em cada lado) é sempre cobrada. Gás e slippage deixam a conta fictícia perto do que seria a real. Mudar o saldo inicial soma ou tira a diferença do saldo atual. <b>Tempo máximo e stop valem também para a REAL.</b></p></div></div>
+          <div class="card"><header><div><h2>Cópia REAL</h2><div class="sub">valor e limites da carteira REAL · ligar e a chave ficam em Configurações</div></div></header>
+            <div class="form" id="rcF"></div>
+            <div class="row" style="margin-top:10px"><button class="btn primary" id="rcSave">Salvar</button><button class="btn sm" id="rcReset">Voltar ao padrão</button></div>
+            <div class="help"><p>Slippage da REAL é a perda máxima aceita no preço em cada compra e venda: se o preço andar mais que isso, a rede recusa e nada é gasto além do gás. Perda do dia: a REAL para de comprar até 00:00 UTC (as vendas continuam).</p></div></div>
+        </div>
       </section>
 
       <section class="view" data-view="posicoes" hidden>
         <div class="kpis" id="poK"></div>
-        <div class="card" style="margin-top:16px"><header><div><h2>Posições abertas</h2><div class="sub">carteira FICTÍCIA · o resultado já desconta a taxa de 1%, o gás e o slippage da saída</div></div></header>
+        <div class="card" style="margin-top:16px"><header><div><h2>Posições abertas</h2><div class="sub" id="poSub">carteira FICTÍCIA · o resultado já desconta a taxa de 1%, o gás e o slippage da saída</div></div><div class="sp"></div>
+            <button class="btn sm" id="poAll" type="button">Vender todas</button></header>
           <div class="tbl-wrap"><table id="poT"></table></div></div>
       </section>
 
       <section class="view" data-view="historico" hidden>
         <div class="kpis" id="hiK"></div>
-        <div class="card" style="margin-top:16px"><header><div><h2>Trades fechados</h2><div class="sub">carteira FICTÍCIA · mais novos primeiro</div></div></header>
+        <div class="card" style="margin-top:16px"><header><div><h2>Trades fechados</h2><div class="sub" id="hiSub">carteira FICTÍCIA · mais novos primeiro</div></div></header>
           <div class="tbl-wrap"><table id="hiT"></table></div></div>
       </section>
 
@@ -132,18 +165,22 @@
       </section>
 
       <section class="view" data-view="config" hidden>
-        <div class="card"><header><div><h2>Cópia fictícia</h2><div class="sub">vale só para a sua conta</div></div></header>
-          <div class="form" id="cfF"></div>
-          <div class="row" style="margin-top:10px"><button class="btn primary" id="cfSave">Salvar</button><button class="btn sm" id="cfReset">Voltar ao padrão</button></div>
-          <div class="help"><p>A taxa da Four.Meme (1% em cada lado) é sempre cobrada. Gás e slippage deixam a conta fictícia perto do que seria a real. Mudar o saldo inicial soma ou tira a diferença do saldo atual.</p></div></div>
+        <div class="card"><header><div><h2>Carteira REAL da BNB</h2><div class="sub">chave da carteira e ligar/desligar · começa desligada</div></div></header>
+          <div class="decbox" id="rlSt"></div>
+          <div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap"><button class="btn sm tgl sw off" role="switch" aria-checked="false" id="rlTgl">Desligado</button><span class="muted">compras na REAL</span></div>
+          <div class="field" style="margin-top:16px"><label for="rlKey">Chave privada da carteira BNB</label>
+            <div class="bnkey"><input class="in" id="rlKey" type="password" autocomplete="off" spellcheck="false" placeholder="cole aqui os 64 caracteres da chave privada">
+              <button class="btn primary" id="rlKeySave" type="button">Salvar chave</button><button class="btn sm" id="rlKeyDel" type="button">Remover</button></div>
+            <div class="muted" style="margin-top:6px">Fica criptografada no servidor; a tela só mostra o endereço. Use uma carteira nova, só para o robô, com pouco saldo. Na MetaMask: Detalhes da conta → Mostrar chave privada.</div></div>
+          <div class="help"><p><b>O que acontece com as posições que já existem:</b> nada. Ao ligar, a REAL só entra nas compras <b>novas</b> dos traders, a partir daquele momento. As posições que a FICTÍCIA já tem não são compradas na REAL, porque o preço já andou. Cada posição REAL tem a sua própria venda: quando o trader vende, a REAL vende a mesma parte do que ela comprou.</p>
+            <p><b>Como acompanhar:</b> o botão <b>Real</b> no topo troca as telas (Visão geral, Posições, Histórico, Semana e Abas) para a carteira REAL. Cada compra e venda tem o link da transação no BscScan.</p>
+            <p><b>Valores e limites</b> (BNB por compra, posições, slippage, perda do dia) ficam em <a href="#traders" data-gotr="aj">Top traders → Ajustes</a>.</p></div></div>
       </section>
 
       <section class="view" data-view="admin" hidden>
         <div class="card"><header><div><h2>Leitura da rede</h2><div class="sub">RPC grátis, consultas e gravação no banco</div></div></header>
           <div class="decbox" id="bnSt"></div></div>
-        <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">vale para todos os admins</div></div></header>
-          <div class="form" id="bnCfg"></div>
-          <div class="row" style="margin-top:10px"><button class="btn primary" id="bnSave">Salvar regra</button><button class="btn sm" id="bnReset">Voltar ao padrão</button></div></div>
+        <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">agora fica em Top traders → Ajustes</div></div><div class="sp"></div><a class="btn sm" href="#traders" data-gotr="aj">Abrir Ajustes</a></header></div>
         <div class="card"><header><div><h2>Últimos trades lidos</h2><div class="sub">compras e vendas na curva da Four.Meme, ao vivo</div></div></header>
           <div class="tbl-wrap"><table id="bnTr"></table></div></div>
       </section>

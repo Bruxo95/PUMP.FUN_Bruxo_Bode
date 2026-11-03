@@ -2,17 +2,20 @@
 // 0.32.169: página própria (/bnb), escolhida em /entrar; nada dela fica dentro do painel da pump.fun.
 // 0.32.170 (pedido do dono, 03/11): menu no padrão do painel da pump.fun (Visão geral, Top traders, Posições, Histórico,
 // Semana × fim de semana, Abas de trades, Configurações, Administração, Changelog), Fictícia/Real no topo e a cópia
-// FICTÍCIA dos traders do ranking. A Real ainda não existe na BNB: a tela diz isso, nada é enviado.
+// FICTÍCIA dos traders do ranking.
+// 0.32.172 (pedido do dono, 03/11): Monitor no menu da esquerda, Evolução da carteira e Operações recentes na Visão geral,
+// os ajustes juntos em Top traders → Ajustes, Vender todas em Posições e a carteira REAL (chave e ligar em Configurações;
+// o botão Real do topo troca todas as telas para ela).
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const esc = (s) => BB.esc(s);
   const TITLES = {
-    visao: ["Visão geral", "sua carteira da BNB e o que a cópia fez"], traders: ["Top traders", "ranking da Four.Meme e quem é copiado"],
+    visao: ["Visão geral", "sua carteira da BNB e o que a cópia fez"], traders: ["Top traders", "ranking da Four.Meme, quem é copiado e os ajustes"],
     posicoes: ["Posições", "o que está aberto agora"], historico: ["Histórico", "trades fechados"],
     semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo"],
-    abas: ["Abas de trades", "liga e desliga as compras de cada aba"], config: ["Configurações", "valor por compra, limites e saídas"],
-    admin: ["Administração", "leitura da rede e regra do ranking"],
+    abas: ["Abas de trades", "liga e desliga as compras de cada aba"], config: ["Configurações", "carteira REAL: chave e ligar/desligar"],
+    admin: ["Administração", "leitura da rede"],
     logs: ["Log geral", "registro de segurança e log do servidor"], changelog: ["Changelog", "o que mudou no projeto da BNB"],
   };
   const REAL_VIEWS = ["visao", "posicoes", "historico", "semanas", "abas"];
@@ -28,10 +31,17 @@
     ["slip_pct", "Slippage em cada lado", "%", 0, 50, 0.5], ["gas_bnb", "Gás por transação", "BNB", 0, 0.01, 0.0001],
     ["saldo_inicial", "Saldo inicial da fictícia", "BNB", 0.01, 1000, 0.1],
   ];
+  const RC_INFO = [
+    ["real_bnb_por_compra", "BNB por compra na REAL", "BNB", 0.001, 1, 0.001], ["real_max_abertas", "Máximo de posições REAL abertas", "posições", 1, 30, 1],
+    ["real_slip_pct", "Slippage máximo (compra e venda)", "%", 1, 49, 1], ["real_perda_dia", "Perda máxima por dia", "BNB", 0.001, 10, 0.01],
+    ["real_gwei", "Preço do gás", "gwei", 0.05, 5, 0.05],
+  ];
   // 0.32.171 (pedido do dono, 03/11): Log geral com o Registro de segurança e o Log do servidor (as mesmas rotas de
   // Administração do painel da pump.fun). "Só BNB" filtra o que é da BNB; "Tudo" mostra os dois projetos.
   const LG = { tab: "seg", f: "bnb", lv: "INFO", after: 0, key: "" };
-  let VIEW = "visao", REAL = false, R = null, P = null, CHG = null, BUSY = false, READY = false, DIRTY = { rk: false, cf: false };
+  let VIEW = "visao", REAL = false, R = null, P = null, CHG = null, BUSY = false, READY = false, DIRTY = { rk: false, cf: false, rc: false };
+  let TRT = "rank", RANGE = 1;
+  try { TRT = localStorage.getItem("bnb_trt") || "rank"; RANGE = Number(localStorage.getItem("bnb_range")) || 1; } catch (e) { /* */ }
 
   // ------------------------------------------------------------------ formatos
   const num = (v, d) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: d == null ? 4 : d }));
@@ -49,6 +59,7 @@
   const wal = (w) => '<a href="https://bscscan.com/address/' + esc(w) + '" target="_blank" rel="noopener" title="' + esc(w) + '">' + sw(w) + "</a>";
   const tok = (t) => '<a href="https://four.meme/token/' + esc(t) + '" target="_blank" rel="noopener" title="' + esc(t) + '">' + sw(t) + "</a>";
   const txl = (h) => (h ? '<a href="https://bscscan.com/tx/' + esc(h) + '" target="_blank" rel="noopener">ver</a>' : "—");
+  const modeTag = () => (REAL ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>');
 
   function table(id, head, rows, empty) {
     const el = $(id); if (!el) return;
@@ -66,33 +77,147 @@
       '" type="number" min="' + c[3] + '" max="' + c[4] + '" step="' + c[5] + '" value="' + esc(cfg[c[0]]) + '"><span class="muted">' + esc(c[2]) +
       (padrao && padrao[c[0]] !== cfg[c[0]] ? " · padrão " + esc(padrao[c[0]]) : "") + "</span></div></div>").join("");
   }
-  const realMsg = (id, cols) => table(id, Array(cols).fill(""), [], "Carteira REAL da BNB ainda não existe: só a FICTÍCIA.");
+  const RS = () => (P && P.real_status) || {};
+
+  // ------------------------------------------------------------------ monitor (menu da esquerda)
+  function sysInfo() {
+    const s = (R && R.status) || {};
+    const erro = s.ultimo_erro && s.ultimo_erro_t && Date.now() / 1000 - s.ultimo_erro_t < 120;
+    const parado = !s.ultimo_trade_t || Date.now() / 1000 - s.ultimo_trade_t > 600;
+    const atraso = s.atraso_s != null && s.atraso_s > 60;
+    const ok = !!(R && R.ligado && !erro && !parado && !atraso);
+    return { s, ok, probs: [erro && "erro na leitura", parado && "sem trade lido há mais de 10 min", atraso && "leitura atrasada"].filter(Boolean) };
+  }
+  function drawSys() {
+    const i = sysInfo(), s = i.s;
+    $("sysDot").className = "dot " + (i.ok ? "on" : "off");
+    $("sysT").textContent = !R ? "Monitor…" : !R.ligado ? "Monitor OFF" : i.ok ? "Monitor ON" : "Monitor com problema";
+    $("sysS").textContent = !R ? "conectando" : !R.ligado ? "leitura desligada" : i.ok ? "último trade há " + ago(s.ultimo_trade_t) + " · atraso " + num(s.atraso_s, 0) + " s" : i.probs.join(" · ");
+    $("sysBox").title = i.probs.length ? "Com problema: " + i.probs.join(", ") : "Tudo ok · clique para ver a leitura da rede";
+    if (!$("sysM").hidden) drawSysModal();
+  }
+  function drawSysModal() {
+    const i = sysInfo(), s = i.s, rk = (R && R.ranking) || {};
+    const rows = [
+      ["Leitura", R && R.ligado ? (i.ok ? '<span class="up">funcionando</span>' : '<span class="down">' + esc(i.probs.join(" · ") || "com problema") + "</span>") : '<span class="down">desligada</span>'],
+      ["RPC grátis", esc(s.rpc || "—") + " · " + num(s.chamadas, 0) + " consultas desde " + hora(s.desde)],
+      ["Bloco", num(s.bloco, 0) + " · lido até " + num(s.lido_ate, 0) + " · atraso " + (s.atraso_s == null ? "—" : num(s.atraso_s, 1) + " s")],
+      ["Último trade lido", ago(s.ultimo_trade_t) + " · " + hora(s.ultimo_trade_t)],
+      ["Últimas 24 h", num(s.trades_24h, 0) + " trades · " + num(s.compras_24h, 0) + " compras · " + num(s.carteiras_24h, 0) + " carteiras · " + num(s.tokens_24h, 0) + " tokens"],
+      ["Moeda das curvas (24 h)", Object.entries(s.moedas_24h || {}).map((x) => esc(x[0]) + " " + x[1]).join(" · ") || "—"],
+      ["Ranking", num(rk.aptos, 0) + " aptos · " + num((rk.copiaria || []).length, 0) + " copiados agora"],
+      ["BNB em dólar", s.bnb_usd ? "US$ " + num(s.bnb_usd, 2) : "—"],
+      ["Gravação", num(s.trades_memoria, 0) + " trades na memória · " + num(s.a_gravar, 0) + " esperando gravar"],
+      ["Erros", num(s.erros, 0) + (s.ultimo_erro ? " · último há " + ago(s.ultimo_erro_t) + ": " + esc(s.ultimo_erro) : "")],
+      ["Carteira REAL", RS().ligada ? '<span class="up">ligada</span> desde ' + hora(RS().desde) : "desligada"],
+    ];
+    $("sysMB").innerHTML = '<div class="tbl-wrap"><table class="systbl nocard"><tbody>' + rows.map((r) => "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>").join("") + "</tbody></table></div>";
+  }
+
+  // ------------------------------------------------------------------ gráfico da carteira
+  let CURVE = null;
+  function drawCurve() {
+    const el = $("curve"); if (!el || !P) return;
+    const Wd = el.clientWidth || 600, H = el.clientHeight || 260, PL = 58, B = 22;
+    const start = REAL ? 0 : Number(P.carteira.inicial || 0);
+    const ts = (P.trades || []).slice().sort((a, b) => a.close_t - b.close_t);
+    let acc = start; const pts = ts.map((x) => { acc += x.pnl_bnb; return [x.close_t * 1000, acc]; });
+    $("curveSub").textContent = REAL ? "BNB · REAL · resultado somado dos trades fechados" : "BNB · FICTÍCIA · saldo pelos trades fechados";
+    const now = Date.now(), t0 = now - RANGE * 86400000;
+    const before = pts.filter((p) => p[0] < t0), base = before.length ? before[before.length - 1][1] : start;
+    const S = [[t0, base]].concat(pts.filter((p) => p[0] >= t0)); S.push([now, S[S.length - 1][1]]);
+    if (!pts.length) { el.innerHTML = '<div class="empty" style="padding-top:90px">' + (REAL ? "A linha aparece a partir do primeiro trade REAL fechado." : "A carteira começa com " + num(start, 4) + " BNB. A linha aparece a partir do primeiro trade fechado.") + "</div>"; $("curveRes").innerHTML = ""; CURVE = null; return; }
+    const ys = S.map((p) => p[1]); let lo = Math.min(...ys), hi = Math.max(...ys); if (hi - lo < 0.002) { lo -= 0.001; hi += 0.001; }
+    const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+    const X = (t) => PL + ((t - t0) / (now - t0)) * (Wd - PL - 10), Y = (v) => 10 + ((hi - v) / (hi - lo)) * (H - B - 14);
+    const up = S[S.length - 1][1] >= base, col = up ? "#22c55e" : "#ef4444";
+    let path = ""; S.forEach((p, i) => { const x = X(p[0]).toFixed(1), y = Y(p[1]).toFixed(1); path += i ? " H" + x + " V" + y : "M" + x + " " + y; });
+    const grid = [0, 1, 2, 3].map((i) => { const v = lo + ((hi - lo) * i) / 3; return '<line x1="' + PL + '" x2="' + Wd + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="#1e1e22"/><text x="4" y="' + (Y(v) + 4) + '" font-size="10.5" fill="#5d5d66" font-family="JetBrains Mono,monospace">' + v.toFixed(4) + "</text>"; }).join("");
+    const xl = [0, 0.5, 1].map((k) => { const t = t0 + k * (now - t0), d = new Date(t); const lab = RANGE <= 1 ? d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); return '<text x="' + Math.min(Wd - 40, Math.max(PL, X(t) - 16)) + '" y="' + (H - 4) + '" font-size="10.5" fill="#5d5d66">' + lab + "</text>"; }).join("");
+    el.innerHTML = '<svg viewBox="0 0 ' + Wd + " " + H + '" preserveAspectRatio="none"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".25"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' + grid +
+      '<line x1="' + PL + '" x2="' + Wd + '" y1="' + Y(base) + '" y2="' + Y(base) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
+      '<path d="' + path + " V" + (H - B) + " H" + X(t0) + 'Z" fill="url(#cg)"/><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2"/>' + xl + '</svg><i class="cline" id="cLine" hidden></i><i class="cdot" id="cDot" hidden></i><div class="ctip" id="cTip" hidden></div>';
+    let g = 0, l = 0;
+    const C = S.map((p, i) => { const d = i ? p[1] - S[i - 1][1] : 0; if (d > 0) g += d; else l += d; return { t: p[0], v: p[1], g, l }; });
+    CURVE = { C, base, t0, t1: now, Wd, PL, X, Y, H, B };
+    const fim = C[C.length - 1];
+    $("curveRes").innerHTML = [["Início", num(base, 4) + " BNB"], ["Ganhou", bnb(fim.g)], ["Perdeu", bnb(fim.l)], ["Agora", num(fim.v, 4) + " BNB" + (base ? " " + pct((fim.v - base) / Math.abs(base) * 100) : "")]].map((x) => "<div><small>" + x[0] + "</small><b>" + x[1] + "</b></div>").join("");
+  }
+  function curveTip(x) {
+    const c = CURVE, tip = $("cTip"); if (!c || !tip) return;
+    const t = c.t0 + Math.max(0, Math.min(1, (x - c.PL) / (c.Wd - c.PL - 10))) * (c.t1 - c.t0);
+    let i = 0; while (i + 1 < c.C.length && c.C[i + 1].t <= t) i++;
+    const p = c.C[i], px = c.X(t);
+    tip.innerHTML = "<b>" + esc(new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })) + "</b><span>" + (REAL ? "Resultado" : "Saldo") + " <b>" + num(p.v, 4) + " BNB</b></span><span>Ganhou " + bnb(p.g) + "</span><span>Perdeu " + bnb(p.l) + "</span>";
+    tip.hidden = false; $("cLine").hidden = false; $("cDot").hidden = false;
+    $("cLine").style.left = px + "px"; $("cLine").style.height = (c.H - c.B) + "px";
+    $("cDot").style.left = px + "px"; $("cDot").style.top = c.Y(p.v) + "px";
+    tip.style.left = px > c.Wd / 2 ? Math.max(0, px - tip.offsetWidth - 12) + "px" : px + 12 + "px";
+  }
+  function curveMove(e) {
+    const el = e.target.closest && e.target.closest("#curve");
+    if (el && CURVE) { const r = el.getBoundingClientRect(); curveTip((e.clientX - r.left) * (CURVE.Wd / r.width)); }
+    else ["cTip", "cLine", "cDot"].forEach((id) => { if ($(id)) $(id).hidden = true; });
+  }
 
   // ------------------------------------------------------------------ telas
+  function opKind(a, motivo) {
+    if (/falhou/.test(a)) return '<span class="tag err">Erro</span>';
+    if (/não copiou/.test(a)) return '<span class="tag pause">Ficou de fora</span>';
+    if (/comprou|copiou compra/.test(a)) return '<span class="tag buy">Compra</span>';
+    if (/vendeu parte/.test(a)) return '<span class="tag trail">Venda parcial</span>';
+    if (/fechou/.test(a)) return /[+]\d/.test(motivo || "") ? '<span class="tag win">Venda c/ lucro</span>' : '<span class="tag loss">Venda c/ prejuízo</span>';
+    return "";
+  }
+  function drawOps() {
+    const ev = (P.eventos || []).slice(0, 30);
+    $("opsSub").textContent = (REAL ? "carteira REAL" : "carteira FICTÍCIA") + " · compras, vendas e o que ficou de fora";
+    $("ops").innerHTML = ev.length ? ev.map((e) => '<div class="op"><div style="min-width:0"><div class="t">' + esc(e.acao) + " · " + sw(e.token) +
+      '</div><div class="m">há ' + ago(e.t) + " · trader " + sw(e.wallet) + (e.motivo ? " · " + esc(e.motivo) : "") + "</div>" +
+      '<div class="opb"><a class="btn sm ghost" href="https://four.meme/token/' + esc(e.token) + '" target="_blank" rel="noopener">Token</a>' +
+      (e.tx ? ' <a class="btn sm ghost tx" href="https://bscscan.com/tx/' + esc(e.tx) + '" target="_blank" rel="noopener">Transação</a>' : "") +
+      '</div></div><div><div class="tags">' + opKind(e.acao, e.motivo) + modeTag() + "</div></div></div>").join("")
+      : '<div class="empty">' + (REAL ? (RS().ligada ? "A REAL está ligada e esperando a próxima compra de um trader do ranking." : "A carteira REAL está desligada. Ligue em Configurações.") : "Nenhuma operação ainda. Assim que um trader do ranking comprar, a fictícia copia.") + "</div>";
+  }
   function drawVisao() {
     if (!P) return;
-    if (REAL) { kpis("ovK", [["Carteira REAL", "—", "ainda não existe na BNB"]]); $("ovP").innerHTML = ""; realMsg("ovOps", 4); return; }
-    const w = P.carteira;
-    kpis("ovK", [
-      ["Saldo livre", num(w.saldo, 4) + " BNB", "inicial " + num(w.inicial, 4) + " BNB"],
-      ["Em posições", num(w.em_posicoes, 4) + " BNB", w.abertas + " abertas"],
-      ["Total", num(w.total, 4) + " BNB", "saldo + posições"],
-      ["Resultado", bnb(w.resultado), pct(w.resultado_pct) + " desde o início", cls(w.resultado)],
-      ["Fechadas", num(w.fechadas, 0), "realizado " + num(w.realizado, 4) + " BNB"],
-      ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", "trades fechados com lucro"],
-      ["Copiando agora", num((P.copiaria || []).length, 0), "traders do ranking"],
-    ]);
+    const w = P.carteira, rs = RS();
+    if (REAL) {
+      kpis("ovK", [
+        ["Saldo na carteira", w.saldo == null ? "—" : num(w.saldo, 4) + " BNB", w.endereco ? sw(w.endereco) : "sem chave configurada"],
+        ["Em posições", num(w.em_posicoes, 4) + " BNB", w.abertas + " abertas"],
+        ["Total", w.total == null ? "—" : num(w.total, 4) + " BNB", "saldo + posições"],
+        ["Resultado", bnb(w.resultado), pct(w.resultado_pct) + " sobre o investido", cls(w.resultado)],
+        ["Fechadas", num(w.fechadas, 0), "realizado " + num(w.realizado, 4) + " BNB"],
+        ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", "trades fechados com lucro"],
+        ["REAL", rs.ligada ? '<span class="up">ligada</span>' : '<span class="down">desligada</span>', rs.ligada ? "desde " + hora(rs.desde) : "ligue em Configurações"],
+      ]);
+    } else {
+      kpis("ovK", [
+        ["Saldo livre", num(w.saldo, 4) + " BNB", "inicial " + num(w.inicial, 4) + " BNB"],
+        ["Em posições", num(w.em_posicoes, 4) + " BNB", w.abertas + " abertas"],
+        ["Total", num(w.total, 4) + " BNB", "saldo + posições"],
+        ["Resultado", bnb(w.resultado), pct(w.resultado_pct) + " desde o início", cls(w.resultado)],
+        ["Fechadas", num(w.fechadas, 0), "realizado " + num(w.realizado, 4) + " BNB"],
+        ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", "trades fechados com lucro"],
+        ["Copiando agora", num((P.copiaria || []).length, 0), "traders do ranking"],
+      ]);
+    }
     kpis("ovP", (w.periodos || []).map((x) => ["Últimas " + x.h + " h", bnb(x.pnl), x.n ? x.n + " trades · " + x.ganhos + " com lucro · " + x.traders + " traders" : "nenhum trade fechado", cls(x.pnl)]));
-    table("ovOps", ["Hora", "Trader", "Token", "O que fez"], (P.eventos || []).slice(0, 40).map((e) => [hora(e.t), wal(e.wallet), tok(e.token), esc(e.acao) + (e.motivo ? ' <span class="muted">· ' + esc(e.motivo) + "</span>" : "")]),
-      "Nenhuma operação ainda. Assim que um trader do ranking comprar, a fictícia copia.");
-    const st = $("ovSt");
+    document.querySelectorAll("#rangeSeg button").forEach((b) => b.classList.toggle("on", Number(b.dataset.r) === RANGE));
+    drawCurve();
+    drawOps();
+    const st = $("ovSt"), c = P.cfg;
     st.className = "decbox " + (P.leitura_ok ? "ok" : "bad");
-    st.innerHTML = (P.leitura_ok ? "Leitura da Four.Meme funcionando." : "<b>Leitura da Four.Meme com problema</b> (veja Administração).") +
-      " Cópia fictícia: <b>" + (P.cfg.on ? "ligada" : "desligada") + "</b> · " + num(P.cfg.bnb_por_compra, 4) + " BNB por compra · até " + P.cfg.max_abertas +
-      " posições · tempo máximo " + num(P.cfg.max_hold_h, 1) + " h" + (P.cfg.stop_pct ? " · stop " + P.cfg.stop_pct + "%" : " · sem stop") +
+    st.innerHTML = (P.leitura_ok ? "Leitura da Four.Meme funcionando." : "<b>Leitura da Four.Meme com problema</b> (veja o Monitor no menu).") +
+      " Cópia " + (REAL ? "REAL" : "FICTÍCIA") + ": <b>" + (c.on ? "ligada" : "desligada") + "</b> · " + num(c.bnb_por_compra, 4) + " BNB por compra · até " + c.max_abertas +
+      " posições · tempo máximo " + num(c.max_hold_h, 1) + " h" + (c.stop_pct ? " · stop " + c.stop_pct + "%" : " · sem stop") +
       ". Copiando " + (P.copiaria || []).length + " trader(s) agora.";
   }
   function drawTraders() {
+    document.querySelectorAll("#trTab button").forEach((b) => b.classList.toggle("on", b.dataset.trt === TRT));
+    $("trRank").hidden = TRT !== "rank"; $("trAj").hidden = TRT !== "aj";
+    if (TRT === "aj") { drawAjustes(); return; }
     if (!R || !R.ligado) { kpis("bnK", [["Leitura", "desligada", (R && R.motivo) || "", "down"]]); return; }
     const s = R.status || {}, rk = R.ranking || { rows: [], copiaria: [] };
     kpis("bnK", [
@@ -103,8 +228,7 @@
       ["Último trade lido", ago(s.ultimo_trade_t), hora(s.ultimo_trade_t)],
       ["BNB em dólar", s.bnb_usd ? "US$ " + num(s.bnb_usd, 2) : "—", "PancakeSwap USDT/WBNB"],
     ]);
-    $("nbTr").textContent = (rk.copiaria || []).length || "";
-    $("bnSelSub").textContent = "os " + R.cfg.top_n + " melhores aptos que negociaram nos últimos " + R.cfg.online_min + " min · a fictícia copia as compras e vendas deles";
+    $("bnSelSub").textContent = "os " + R.cfg.top_n + " melhores aptos que negociaram nos últimos " + R.cfg.online_min + " min · a FICTÍCIA (e a REAL, se ligada) copia as compras e vendas deles";
     const rows = rk.rows || [];
     const line = (r, i) => [String(i + 1), wal(r.wallet), bnb(r.realized_bnb), r.winrate == null ? "—" : num(r.winrate, 0) + "%",
       num(r.trades, 0) + " · " + num(r.per_day, 0) + "/dia", r.closed + " fechados · " + r.open + " abertos" + (r.grad_open ? " (" + r.grad_open + " já na Pancake)" : ""),
@@ -117,51 +241,65 @@
       rows.map((r, i) => line(r, i).concat([r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="muted">apto, mas offline ou fora das vagas</span>' : esc((r.flags || []).join(" · "))])),
       "Ainda sem trades lidos.");
   }
+  function drawAjustes() {
+    if (R && R.ligado && !DIRTY.rk) form("bnCfg", RK_INFO, R.cfg, R.padrao, "bnc_");
+    if (P && !DIRTY.cf) form("cfF", CF_INFO, P.cfg_sim || P.cfg, P.padrao, "cf_");
+    if (P && !DIRTY.rc && P.real_cfg) form("rcF", RC_INFO, P.real_cfg, P.real_padrao, "rc_");
+  }
   function drawPosicoes() {
     if (!P) return;
-    $("nbPos").textContent = REAL ? "" : (P.posicoes || []).length || "";
-    if (REAL) { kpis("poK", [["Posições REAL", "—", "ainda não existe na BNB"]]); realMsg("poT", 9); return; }
+    drawPosicoesBadge();
     const ps = P.posicoes || [], tot = ps.reduce((a, p) => a + p.pnl_bnb, 0), inv = ps.reduce((a, p) => a + p.bnb_in, 0);
-    kpis("poK", [["Abertas", num(ps.length, 0), "de " + P.cfg.max_abertas], ["Investido", num(inv, 4) + " BNB", ""],
+    $("poSub").textContent = REAL ? "carteira REAL · o resultado agora já desconta a taxa de 1% e o slippage máximo da saída" : "carteira FICTÍCIA · o resultado já desconta a taxa de 1%, o gás e o slippage da saída";
+    $("poAll").hidden = !ps.length;
+    kpis("poK", [["Abertas", num(ps.length, 0), "de " + P.cfg.max_abertas + " · " + (REAL ? "REAL" : "FICTÍCIA")], ["Investido", num(inv, 4) + " BNB", ""],
       ["Resultado agora", bnb(tot), inv ? pct(100 * tot / inv) : "", cls(tot)], ["No lucro", num(ps.filter((p) => p.pnl_bnb > 0).length, 0), "posições"]]);
     const now = Date.now() / 1000;
     table("poT", ["Abriu", "Trader", "Token", "Investido", "Agora", "Melhor · pior", "Preço", "Fecha em", ""],
-      ps.map((p) => [hora(p.open_t) + '<br><span class="muted">há ' + ago(p.open_t) + "</span>", wal(p.wallet), tok(p.token) + (p.graduou ? ' <span class="tag sim">Pancake</span>' : ""),
+      ps.map((p) => [hora(p.open_t) + '<br><span class="muted">há ' + ago(p.open_t) + "</span>" + (p.tx_in && REAL ? "<br>" + txl(p.tx_in) : ""), wal(p.wallet),
+        tok(p.token) + (p.graduou ? ' <span class="tag sim">Pancake</span>' : ""),
         num(p.bnb_in, 4) + " BNB" + (p.proceeds ? '<br><span class="muted">já recebeu ' + num(p.proceeds, 4) + "</span>" : ""),
         bnb(p.pnl_bnb) + "<br>" + pct(p.pnl_pct), pct(p.best_pct) + " · " + pct(p.worst_pct),
         '<span class="muted">' + (p.px_t ? "há " + ago(p.px_t) : "—") + "</span>", p.fecha_em > now ? dur(p.fecha_em - now) : "agora",
-        '<button class="btn sm" data-bnclose="' + esc(p.id) + '">Vender</button>']),
-      "Nenhuma posição aberta.");
+        (p.selling ? '<span class="muted">vendendo…</span>' : '<button class="btn sm" data-bnclose="' + esc(p.id) + '">Vender</button>') +
+        (p.sell_error ? '<br><span class="down" title="' + esc(p.sell_error) + '">venda falhou: tenta de novo em 1 min</span>' : "")]),
+      REAL ? (RS().ligada ? "Nenhuma posição REAL aberta." : "Nenhuma posição REAL. A carteira REAL está desligada (Configurações).") : "Nenhuma posição aberta.");
   }
   function drawHistorico() {
     if (!P) return;
-    if (REAL) { kpis("hiK", [["Trades REAL", "—", "ainda não existe na BNB"]]); realMsg("hiT", 8); return; }
+    $("hiSub").textContent = (REAL ? "carteira REAL" : "carteira FICTÍCIA") + " · mais novos primeiro";
     const ts = P.trades || [], tot = ts.reduce((a, x) => a + x.pnl_bnb, 0), g = ts.filter((x) => x.pnl_bnb > 0);
-    kpis("hiK", [["Fechados", num(ts.length, 0), ""], ["Resultado", bnb(tot), "", cls(tot)], ["Acerto", ts.length ? num(100 * g.length / ts.length, 0) + "%" : "—", g.length + " com lucro"],
+    kpis("hiK", [["Fechados", num(ts.length, 0), REAL ? "REAL" : "FICTÍCIA"], ["Resultado", bnb(tot), "", cls(tot)], ["Acerto", ts.length ? num(100 * g.length / ts.length, 0) + "%" : "—", g.length + " com lucro"],
       ["Melhor", ts.length ? bnb(Math.max(...ts.map((x) => x.pnl_bnb))) : "—", ""], ["Pior", ts.length ? bnb(Math.min(...ts.map((x) => x.pnl_bnb))) : "—", ""]]);
     table("hiT", ["Fechou", "Trader", "Token", "Investido", "Recebido", "Resultado", "Tempo", "Motivo"],
-      ts.map((x) => [hora(x.close_t), wal(x.wallet), tok(x.token), num(x.bnb_in, 4), num(x.bnb_out, 4), bnb(x.pnl_bnb) + "<br>" + pct(x.pnl_pct),
+      ts.map((x) => [hora(x.close_t) + (x.tx_out ? "<br>" + txl(x.tx_out) : ""), wal(x.wallet), tok(x.token), num(x.bnb_in, 4), num(x.bnb_out, 4), bnb(x.pnl_bnb) + "<br>" + pct(x.pnl_pct),
         dur(x.close_t - x.open_t), esc(x.motivo)]),
-      "Nenhum trade fechado ainda.");
+      REAL ? "Nenhum trade REAL fechado ainda." : "Nenhum trade fechado ainda.");
   }
   function drawSemanas() {
     if (!P) return;
-    if (REAL) { kpis("wkK", [["Carteira REAL", "—", "ainda não existe na BNB"]]); realMsg("wkT", 4); return; }
     const b = P.semana.blocos, it = (n, x) => [n, bnb(x.pnl), x.n ? x.n + " trades · acerto " + num(x.acerto, 0) + "% · investido " + num(x.investido, 3) + " BNB" : "nenhum trade fechado", cls(x.pnl)];
-    kpis("wkK", [it("Segunda a sexta", b.semana), it("Sábado e domingo", b.fds)]);
+    kpis("wkK", [it("Segunda a sexta" + (REAL ? " · REAL" : ""), b.semana), it("Sábado e domingo" + (REAL ? " · REAL" : ""), b.fds)]);
     table("wkT", ["Dia", "Trades", "Acerto", "Resultado"], P.semana.dias.map((d) => [esc(d.dia), num(d.n, 0), d.acerto == null ? "—" : num(d.acerto, 0) + "%", bnb(d.pnl)]));
   }
   function drawAbas() {
     if (!P) return;
-    if (REAL) { $("abG").innerHTML = '<p class="muted">Carteira REAL da BNB ainda não existe: só a FICTÍCIA.</p>'; return; }
-    $("abG").innerHTML = (P.abas || []).map((a) => '<div class="bnaba"><h3>' + esc(a.nome) + '</h3><div class="muted">copia os traders do ranking (Top traders) · ' + a.abertas + " abertas · " + a.fechadas + " fechadas · resultado " + bnb(a.resultado) +
+    $("abG").innerHTML = (P.abas || []).map((a) => '<div class="bnaba"><h3>' + esc(a.nome) + " " + modeTag() + '</h3><div class="muted">copia os traders do ranking (Top traders) · ' + a.abertas + " abertas · " + a.fechadas + " fechadas · resultado " + bnb(a.resultado) +
       '</div><div class="row" style="margin-top:10px"><button class="btn sm tgl sw ' + (a.ligada ? "on" : "off") + '" role="switch" aria-checked="' + a.ligada + '" data-bnaba="' + esc(a.aba) + '">' + (a.ligada ? "Ligado" : "Desligado") +
-      '</button><span class="muted">compras na FICTÍCIA</span></div><div class="per">' +
+      '</button><span class="muted">compras na ' + (REAL ? "REAL" : "FICTÍCIA") + '</span></div><div class="per">' +
       (a.periodos || []).map((x) => "<div>" + x.h + " h<b>" + bnb(x.pnl, 3) + '</b><span class="muted">' + x.n + " trades</span></div>").join("") + "</div></div>").join("");
   }
   function drawConfig() {
-    if (!P || DIRTY.cf) return;
-    form("cfF", CF_INFO, P.cfg, P.padrao, "cf_");
+    if (!P) return;
+    const rs = RS(), el = $("rlSt");
+    el.className = "decbox " + (rs.ligada ? "ok" : "");
+    el.innerHTML = (!rs.permitido ? "<b>Trava geral do servidor fechada</b> (PUMP_REAL_ALLOWED=false): a REAL não liga nem envia nada.<br>" : "") +
+      (rs.chave ? 'Carteira: <span class="bnaddr">' + esc(rs.endereco) + '</span> · <a href="https://bscscan.com/address/' + esc(rs.endereco) + '" target="_blank" rel="noopener">BscScan</a>' +
+        " · saldo " + (rs.saldo == null ? "—" : num(rs.saldo, 4) + " BNB") : "Nenhuma chave de carteira BNB salva.") +
+      "<br>REAL: <b>" + (rs.ligada ? "ligada desde " + hora(rs.desde) : "desligada") + "</b>";
+    const t = $("rlTgl");
+    t.className = "btn sm tgl sw " + (rs.ligada ? "on" : "off"); t.setAttribute("aria-checked", rs.ligada ? "true" : "false"); t.textContent = rs.ligada ? "Ligado" : "Desligado";
+    $("rlKeyDel").hidden = !rs.chave;
   }
   function drawAdmin() {
     if (!R || !R.ligado) return;
@@ -175,7 +313,6 @@
       " · " + num(s.trades_memoria, 0) + " trades na memória" + (s.carregados ? " (" + num(s.carregados, 0) + " recuperados do banco)" : "") +
       (moedas ? " · moedas da curva em 24 h: " + moedas : "") + (s.a_gravar ? " · " + num(s.a_gravar, 0) + " esperando gravar" : "") +
       (R.carregado ? "" : " · <b>carregando os dias guardados…</b>");
-    if (!DIRTY.rk) form("bnCfg", RK_INFO, R.cfg, R.padrao, "bnc_");
     table("bnTr", ["Hora", "Carteira", "Token", "Lado", "BNB", "Moeda", "Tx"],
       (R.recentes || []).map((t) => [hora(t.t), wal(t.wallet), tok(t.token), t.side === "buy" ? '<span class="up">compra</span>' : '<span class="down">venda</span>',
         t.bnb == null ? "—" : num(t.bnb, 4), esc(t.moeda), txl(t.tx)]), "Ainda sem trades lidos.");
@@ -220,21 +357,33 @@
     $("lgSrvSub").textContent = (r.total || 0) + " registros guardados · " + (r.warnings || 0) + " avisos · " + (r.errors || 0) + " erros · chaves mascaradas";
   }
 
+  function drawBanner() {
+    const el = $("bnReal"), rs = RS();
+    el.hidden = !(REAL && REAL_VIEWS.includes(VIEW));
+    if (el.hidden) return;
+    el.innerHTML = rs.ligada ? "<b>Carteira REAL da BNB ligada</b> desde " + hora(rs.desde) + " · " + (rs.saldo == null ? "" : "saldo " + num(rs.saldo, 4) + " BNB · ") +
+      'só entra nas compras novas dos traders. <a href="#config">Configurações</a>'
+      : "<b>Carteira REAL da BNB desligada.</b> " + (rs.chave ? "A chave já está salva; ligue em " : "Cole a chave da carteira e ligue em ") + '<a href="#config">Configurações</a>. Nada é enviado enquanto estiver desligada.';
+  }
   function draw() {
-    $("bnReal").hidden = !(REAL && REAL_VIEWS.includes(VIEW));
+    drawBanner();
+    drawSys();
     ({ visao: drawVisao, traders: drawTraders, posicoes: drawPosicoes, historico: drawHistorico, semanas: drawSemanas, abas: drawAbas, config: drawConfig, admin: drawAdmin, changelog: drawChangelog }[VIEW] || (() => {}))();
     if (VIEW !== "posicoes") drawPosicoesBadge();
   }
-  function drawPosicoesBadge() { if (P) $("nbPos").textContent = REAL ? "" : (P.posicoes || []).length || ""; }
+  function drawPosicoesBadge() {
+    if (P) $("nbPos").textContent = (P.posicoes || []).length || "";
+    if (R && R.ranking) $("nbTr").textContent = (R.ranking.copiaria || []).length || "";
+  }
 
   // ------------------------------------------------------------------ dados
   async function load() {
     if (!READY || BUSY || document.hidden) return;
     BUSY = true;
     try {
-      const needR = ["traders", "admin"].includes(VIEW) || !R;
-      const [p, r] = await Promise.all([BB.api("/api/pump/bnb/painel", { quiet: true }), needR ? BB.api("/api/pump/bnb", { quiet: true }) : Promise.resolve(null)]);
-      if (p && !p.error) P = p.ligado === false ? null : p;
+      const real = REAL;
+      const [p, r] = await Promise.all([BB.api("/api/pump/bnb/painel" + (real ? "?real=1" : ""), { quiet: true }), BB.api("/api/pump/bnb", { quiet: true })]);
+      if (p && !p.error && real === REAL) P = p.ligado === false ? null : p;
       if (r && !r.error) R = r;
       if (VIEW === "logs") await loadLogs(false);
       if (VIEW === "changelog" && !CHG) { const c = await BB.api("/api/admin/novidades", { quiet: true }); CHG = (c && c.itens) || []; }
@@ -255,13 +404,32 @@
     load();
   }
   function setMode(real) {
+    if (REAL !== real) P = null;
     REAL = real;
     try { localStorage.setItem("bnb_mode", real ? "real" : "sim"); } catch (e) { /* */ }
     document.querySelectorAll("#modeSeg button").forEach((b) => b.classList.toggle("on", (b.dataset.mode === "real") === REAL));
     draw();
+    load();
   }
   const openDrawer = () => { $("side").classList.add("open"); $("scrim").classList.add("open"); };
   const closeDrawer = () => { $("side").classList.remove("open"); $("scrim").classList.remove("open"); };
+  const closeSys = () => { $("sysM").hidden = true; };
+
+  async function toggleReal() {
+    const rs = RS();
+    if (rs.ligada) {
+      if (!confirm("Desligar a carteira REAL da BNB? Ela para de comprar na hora. As posições REAL abertas continuam e são vendidas pelas regras (trader vendeu, tempo máximo, stop) ou por você.")) return;
+      await BB.api("/api/pump/bnb/real", { body: { on: false } });
+    } else {
+      const c = (P && P.real_cfg) || {};
+      const v = prompt("Ligar a carteira REAL da BNB?\n\nEla compra " + num(c.real_bnb_por_compra, 4) + " BNB a cada compra NOVA de um trader do ranking (até " + c.real_max_abertas +
+        " posições, perda máxima de " + num(c.real_perda_dia, 4) + " BNB por dia). As posições que a fictícia já tem NÃO são compradas.\n\nDigite LIGAR para confirmar.");
+      if (v == null) return;
+      const r = await BB.api("/api/pump/bnb/real", { body: { on: true, confirm: v } });
+      if (r && r.error) { alert(r.error); return; }
+    }
+    await load();
+  }
 
   // ------------------------------------------------------------------ ações
   let LGQ_T = 0;
@@ -270,10 +438,21 @@
     if (id === "lgQ") { clearTimeout(LGQ_T); LGQ_T = setTimeout(() => loadLogs(true), 400); }
     if (id.startsWith("bnc_")) DIRTY.rk = true;
     if (id.startsWith("cf_")) DIRTY.cf = true;
+    if (id.startsWith("rc_")) DIRTY.rc = true;
   });
+  document.addEventListener("pointermove", curveMove);
+  document.addEventListener("pointerdown", curveMove);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSys(); });
+  window.addEventListener("resize", () => { if (VIEW === "visao") drawCurve(); });
   document.addEventListener("click", async (e) => {
     const t = e.target.closest ? e.target : null; if (!t) return;
     const mb = t.closest("#modeSeg button"); if (mb) { setMode(mb.dataset.mode === "real"); return; }
+    if (t.closest("#sysBox")) { drawSysModal(); $("sysM").hidden = false; return; }
+    if (t.closest("#sysMX") || t.id === "sysM") { closeSys(); return; }
+    const rg = t.closest("#rangeSeg button");
+    if (rg) { RANGE = Number(rg.dataset.r) || 1; try { localStorage.setItem("bnb_range", RANGE); } catch (x) { /* */ } drawVisao(); return; }
+    const tt = t.closest("[data-trt], [data-gotr]");
+    if (tt) { TRT = tt.dataset.trt || tt.dataset.gotr; try { localStorage.setItem("bnb_trt", TRT); } catch (x) { /* */ } if (VIEW === "traders") drawTraders(); return; }
     const rk = t.closest("#bnSave, #bnReset");
     if (rk) {
       const body = {};
@@ -281,7 +460,7 @@
       else RK_INFO.forEach((c) => { const el = $("bnc_" + c[0]); if (el && el.value !== "") body[c[0]] = Number(el.value); });
       const r = await BB.api("/api/pump/bnb/cfg", { body: body });
       DIRTY.rk = false;
-      if (r && r.ok && R) { R.cfg = r.cfg; drawAdmin(); load(); }
+      if (r && r.ok && R) { R.cfg = r.cfg; drawAjustes(); load(); }
       return;
     }
     const cf = t.closest("#cfSave, #cfReset");
@@ -291,11 +470,40 @@
       else CF_INFO.forEach((c) => { const el = $("cf_" + c[0]); if (el && el.value !== "") body[c[0]] = Number(el.value); });
       const r = await BB.api("/api/pump/bnb/conta", { body: body });
       DIRTY.cf = false;
-      if (r && r.ok && P) { P.cfg = r.cfg; drawConfig(); load(); }
+      if (r && r.ok && P) { P.cfg_sim = r.cfg; drawAjustes(); load(); }
+      return;
+    }
+    const rc = t.closest("#rcSave, #rcReset");
+    if (rc) {
+      const body = {};
+      if (rc.id === "rcReset") Object.assign(body, (P && P.real_padrao) || {});
+      else RC_INFO.forEach((c) => { const el = $("rc_" + c[0]); if (el && el.value !== "") body[c[0]] = Number(el.value); });
+      delete body.real_on;
+      const r = await BB.api("/api/pump/bnb/real/cfg", { body: body });
+      DIRTY.rc = false;
+      if (r && r.ok && P) { P.real_cfg = r.cfg; drawAjustes(); load(); }
+      return;
+    }
+    if (t.closest("#rlTgl")) { await toggleReal(); return; }
+    if (t.closest("#rlKeySave")) {
+      const v = ($("rlKey").value || "").trim();
+      if (!v) { alert("Cole a chave privada da carteira BNB."); return; }
+      const r = await BB.api("/api/pump/bnb/chave", { body: { value: v } });
+      $("rlKey").value = "";
+      if (r && r.error) { alert(r.error); return; }
+      alert("Chave salva. Carteira: " + r.endereco);
+      await load();
+      return;
+    }
+    if (t.closest("#rlKeyDel")) {
+      if (!confirm("Remover a chave da carteira BNB? A REAL da BNB desliga. As posições REAL abertas ficam paradas até você salvar a chave de novo.")) return;
+      await BB.api("/api/pump/bnb/chave/remover", { body: {} });
+      await load();
       return;
     }
     const ab = t.closest("[data-bnaba]");
     if (ab && P) {
+      if (REAL) { await toggleReal(); return; }
       const r = await BB.api("/api/pump/bnb/conta", { body: { on: !P.cfg.on } });
       if (r && r.ok) { P.cfg = r.cfg; P.abas.forEach((a) => (a.ligada = r.cfg.on)); drawAbas(); load(); }
       return;
@@ -308,11 +516,27 @@
       loadLogs(true);
       return;
     }
+    const all = t.closest("#poAll");
+    if (all) {
+      const n = ((P && P.posicoes) || []).length;
+      let confirmTxt = "";
+      if (REAL) {
+        confirmTxt = prompt("Vender TODAS as " + n + " posições REAL agora, a mercado (com o slippage máximo dos Ajustes)?\n\nDigite VENDER para confirmar.");
+        if (confirmTxt == null) return;
+      } else if (!confirm("Vender todas as " + n + " posições FICTÍCIAS agora pelo último preço?")) return;
+      all.disabled = true;
+      const r = await BB.api("/api/pump/bnb/fechar-todas", { body: { real: REAL, confirm: confirmTxt } });
+      all.disabled = false;
+      if (r && r.error) alert(r.error); else if (r) alert(r.vendidas + " vendidas" + (r.falhas ? " · " + r.falhas + " falharam (tenta de novo em 1 min)" : ""));
+      load();
+      return;
+    }
     const cl = t.closest("[data-bnclose]");
     if (cl) {
-      if (!confirm("Vender esta posição FICTÍCIA agora pelo último preço?")) return;
+      if (!confirm(REAL ? "Vender esta posição REAL agora, a mercado?" : "Vender esta posição FICTÍCIA agora pelo último preço?")) return;
       cl.disabled = true;
-      await BB.api("/api/pump/bnb/fechar", { body: { id: cl.dataset.bnclose } });
+      const r = await BB.api("/api/pump/bnb/fechar", { body: { id: cl.dataset.bnclose, real: REAL } });
+      if (r && r.error) alert(r.error);
       load();
     }
   });
@@ -333,7 +557,8 @@
     let m = "sim"; try { m = localStorage.getItem("bnb_mode") || "sim"; } catch (e) { /* */ }
     $("boot").hidden = true; $("shell").hidden = false;
     READY = true;
-    setMode(m === "real");
+    REAL = m === "real";
+    document.querySelectorAll("#modeSeg button").forEach((b) => b.classList.toggle("on", (b.dataset.mode === "real") === REAL));
     route();
   }
   window.addEventListener("hashchange", route);

@@ -1559,3 +1559,12 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `20261103000001`). REAL da BNB não existe: a tela avisa; nada é enviado. Testes `tests/test_bnb_ficticia.py`.
 - 0.32.171 (pedido do dono): menu Log geral na `/bnb` (`data-view="logs"`, `loadLogs`/`LG` em `web/bnb.js`): abas Registro de segurança
   (`/api/admin/audit`) e Log do servidor (`/api/admin/logs`), as mesmas rotas de Administração do `/app`; "Só BNB" filtra por bnb/Four.Meme.
+- 0.32.172 (pedido do dono): carteira REAL da BNB, começa DESLIGADA. `app/evm.py` (keccak, secp256k1 RFC 6979, RLP, transação EIP-155 e ABI,
+  só biblioteca padrão; conferido com o exemplo da EIP-155 em `tests/test_evm.py`) + `app/bnbreal.py` (`RealBook`, `Chain.buy/sell/send`, `clean`).
+  Compra: `TokenManager2.buyTokenAMAP` (BNB) ou `TokenManagerHelper3.buyWithEth` (USDT); venda: `sellToken(token, qtd, mínimo)` + PancakeSwap V2 para
+  USDT e token graduado. Toda transação passa por `eth_estimateGas` antes (se daria erro, não sai). `BnbWatch`: `real`, `real_cfg` (salvo em
+  `bnb_books.cfg.real`), `_real_buy`/`_real_sell`/`real_tick`, `set_key`/`set_real`/`close_all`; posições e trades REAIS nas tabelas `bnb_positions`
+  e `bnb_trades` com `data.real`. Chave `bnb_private_key` no cofre (`keystore.BNB_SECRET_NAMES`, fora das Chaves pessoais da Solana; migração
+  `20261103000002`). Trava geral = `PUMP_REAL_ALLOWED` (`main.py`). Só compras novas (até 60 s) a partir de quando liga. Rotas `/api/pump/bnb/chave`,
+  `/chave/remover`, `/real` (LIGAR), `/real/cfg`, `/fechar-todas` (VENDER na REAL), `/painel?real=1`. Front: Monitor `#sysBox`/`#sysM`, `#curve` e `#ops`
+  na Visão geral, Top traders com abas Ranking | Ajustes (`#bnCfg`, `#cfF`, `#rcF`), Configurações = carteira REAL, `#poAll`. Nenhuma transação enviada.
