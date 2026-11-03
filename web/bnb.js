@@ -44,6 +44,7 @@
   let ME = null, USERS = null;
   let TRT = "rank", RANGE = 1, AJT = "rk";
   try { TRT = localStorage.getItem("bnb_trt") || "rank"; RANGE = Number(localStorage.getItem("bnb_range")) || 1; AJT = localStorage.getItem("bnb_ajt") || "rk"; } catch (e) { /* */ }
+  if (AJT !== "rk") AJT = "cp";          // 0.32.176: Saídas, FICTÍCIA e REAL viraram uma aba só (Cópia)
 
   // ------------------------------------------------------------------ formatos
   const num = (v, d) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: d == null ? 4 : d }));
@@ -250,6 +251,11 @@
     if (P && !DIRTY.cf) form("cfF", CF_INFO, P.cfg_sim || P.cfg, P.padrao, "cf_");
     if (P && !DIRTY.sa) form("saF", SA_INFO, P.cfg_sim || P.cfg, P.padrao, "sa_");
     if (P && !DIRTY.rc && P.real_cfg) form("rcF", RC_INFO, P.real_cfg, P.real_padrao, "rc_");
+    if (P) {
+      const sw2 = (id, on) => { const el = $(id); el.className = "btn sm tgl sw " + (on ? "on" : "off"); el.setAttribute("aria-checked", on ? "true" : "false"); el.textContent = on ? "Ligado" : "Desligado"; };
+      sw2("cfTgl", !!(P.cfg_sim || P.cfg).on);
+      sw2("rcTgl", !!RS().ligada);
+    }
   }
   function drawPosicoes() {
     if (!P) return;
@@ -476,6 +482,7 @@
       if (!confirm("Desligar a carteira REAL da BNB? Ela para de comprar na hora. As posições REAL abertas continuam e são vendidas pelas regras (trader vendeu, tempo máximo, stop) ou por você.")) return;
       await BB.api("/api/pump/bnb/real", { body: { on: false } });
     } else {
+      if (!rs.chave) { alert("Para ligar a REAL, salve antes a chave da carteira BNB em Configurações."); location.hash = "#config"; return; }
       const c = (P && P.real_cfg) || {};
       const v = prompt("Ligar a carteira REAL da BNB?\n\nEla compra " + num(c.real_bnb_por_compra, 4) + " BNB a cada compra NOVA de um trader do ranking (até " + c.real_max_abertas +
         " posições, perda máxima de " + num(c.real_perda_dia, 4) + " BNB por dia). As posições que a fictícia já tem NÃO são compradas.\n\nDigite LIGAR para confirmar.");
@@ -528,27 +535,33 @@
     }
     const aj = t.closest("[data-ajt]");
     if (aj) { AJT = aj.dataset.ajt; try { localStorage.setItem("bnb_ajt", AJT); } catch (x) { /* */ } drawAjustes(); return; }
-    const cf = t.closest("#cfSave, #cfReset, #saSave, #saReset");
-    if (cf) {
-      const sa = cf.id.startsWith("sa"), info = sa ? SA_INFO : CF_INFO, pre = sa ? "sa_" : "cf_", body = {};
-      if (/Reset$/.test(cf.id)) info.forEach((c) => { if (P && P.padrao && c[0] in P.padrao) body[c[0]] = P.padrao[c[0]]; });
-      else info.forEach((c) => { const el = $(pre + c[0]); if (el && el.value !== "") body[c[0]] = Number(el.value); });
-      const r = await BB.api("/api/pump/bnb/conta", { body: body });
-      DIRTY.cf = DIRTY.sa = false;
-      if (r && r.ok && P) { P.cfg_sim = r.cfg; drawAjustes(); load(); }
+    // 0.32.176 (pedido do dono): aba Cópia com um Salvar só (saídas + fictícia na conta; valores da REAL na rota da REAL)
+    const cp = t.closest("#cpSave, #cpReset");
+    if (cp) {
+      const reset = cp.id === "cpReset", body = {}, rbody = {};
+      if (reset && !confirm("Voltar Saídas, FICTÍCIA e REAL aos valores padrão?")) return;
+      SA_INFO.concat(CF_INFO).forEach((c) => {
+        const pre = SA_INFO.includes(c) ? "sa_" : "cf_", el = $(pre + c[0]);
+        if (reset) { if (P && P.padrao && c[0] in P.padrao) body[c[0]] = P.padrao[c[0]]; } else if (el && el.value !== "") body[c[0]] = Number(el.value);
+      });
+      RC_INFO.forEach((c) => { const el = $("rc_" + c[0]); if (reset) { if (P && P.real_padrao) rbody[c[0]] = P.real_padrao[c[0]]; } else if (el && el.value !== "") rbody[c[0]] = Number(el.value); });
+      cp.disabled = true;
+      const [r1, r2] = await Promise.all([BB.api("/api/pump/bnb/conta", { body: body }), BB.api("/api/pump/bnb/real/cfg", { body: rbody })]);
+      cp.disabled = false;
+      DIRTY.cf = DIRTY.sa = DIRTY.rc = false;
+      if (P && r1 && r1.ok) P.cfg_sim = r1.cfg;
+      if (P && r2 && r2.ok) P.real_cfg = r2.cfg;
+      if (!(r1 && r1.ok) || !(r2 && r2.ok)) alert("Não salvou tudo: " + ((r1 && r1.error) || (r2 && r2.error) || "tente de novo"));
+      drawAjustes(); load();
       return;
     }
-    const rc = t.closest("#rcSave, #rcReset");
-    if (rc) {
-      const body = {};
-      if (rc.id === "rcReset") Object.assign(body, (P && P.real_padrao) || {});
-      else RC_INFO.forEach((c) => { const el = $("rc_" + c[0]); if (el && el.value !== "") body[c[0]] = Number(el.value); });
-      delete body.real_on;
-      const r = await BB.api("/api/pump/bnb/real/cfg", { body: body });
-      DIRTY.rc = false;
-      if (r && r.ok && P) { P.real_cfg = r.cfg; drawAjustes(); load(); }
+    if (t.closest("#cfTgl") && P) {
+      const on = !(P.cfg_sim || P.cfg).on;
+      const r = await BB.api("/api/pump/bnb/conta", { body: { on } });
+      if (r && r.ok) { P.cfg_sim = r.cfg; if (!REAL) P.cfg = r.cfg; drawAjustes(); load(); }
       return;
     }
+    if (t.closest("#rcTgl")) { await toggleReal(); return; }
     if (t.closest("#rlTgl")) { await toggleReal(); return; }
     if (t.closest("#rlKeySave")) {
       const v = ($("rlKey").value || "").trim();

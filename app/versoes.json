@@ -1635,6 +1635,11 @@
    "versao": "0.32.175",
    "inicio": "2026-11-03T22:34:21+00:00",
    "titulo": "Ajustes da BNB em abas e quadro Saídas"
+  },
+  {
+   "versao": "0.32.176",
+   "inicio": "2026-11-03T22:41:40+00:00",
+   "titulo": "aba Cópia com FICTÍCIA e REAL lado a lado"
   }
  ]
 }

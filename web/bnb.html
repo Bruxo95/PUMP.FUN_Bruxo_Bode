@@ -38,6 +38,11 @@
   .bnkey{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.bnkey .in{flex:1 1 260px;min-width:0}
   .bnaddr{font-family:var(--mono);font-size:12.5px;word-break:break-all}
   .op .tx{font-size:11.5px}
+  .bnh3{font-size:14px;margin:4px 0 8px}.bncp{margin-top:14px;gap:14px}
+  .bncol{border:1px solid var(--line2);border-radius:12px;padding:14px;min-width:0}
+  .bncolh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.bncolh h3{margin:0;font-size:15px}
+  .bncol .form{grid-template-columns:1fr 1fr}.bnhelp{font-size:12.5px;margin:10px 0 0}
+  @media (max-width:860px){.bncol .form{grid-template-columns:1fr}}
   .bnuser{display:flex;gap:10px;align-items:center;min-width:0}.bnuser img,.bnuser i{width:32px;height:32px;border-radius:50%;flex:0 0 32px;background:var(--line2);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:600}
   .bnuser b{display:block}.bnuser small{color:var(--muted);word-break:break-all}
   body.viewas button.btn:not(#viewExit):not(#sysMX),body.viewas .in{pointer-events:none;opacity:.5}
@@ -131,22 +136,23 @@
           <p><b>O que ainda não vê:</b> venda feita na PancakeSwap depois que o token gradua, e tokens cotados em moeda que não é BNB nem dólar.</p></div></div>
         </div>
         <div id="trAj" hidden>
-          <div class="seg bnsub" id="ajTab"><button data-ajt="rk">Regra do ranking</button><button data-ajt="sa">Saídas</button><button data-ajt="cf">Cópia FICTÍCIA</button><button data-ajt="rc">Cópia REAL</button></div>
+          <div class="seg bnsub" id="ajTab"><button data-ajt="rk">Regra do ranking</button><button data-ajt="cp">Cópia</button></div>
           <div class="card" data-ajp="rk"><header><div><h2>Regra do ranking</h2><div class="sub">quem entra na lista de copiados · vale para todos os admins</div></div></header>
             <div class="form" id="bnCfg"></div>
             <div class="row" style="margin-top:10px"><button class="btn primary" id="bnSave">Salvar regra</button><button class="btn sm" id="bnReset">Voltar ao padrão</button></div></div>
-          <div class="card" data-ajp="sa" hidden><header><div><h2>Saídas</h2><div class="sub">valem para a FICTÍCIA e para a REAL · só para a sua conta</div></div></header>
+          <div class="card" data-ajp="cp" hidden><header><div><h2>Cópia</h2><div class="sub">saídas, carteira FICTÍCIA e carteira REAL · só para a sua conta</div></div></header>
+            <h3 class="bnh3">Saídas <span class="muted">· valem para a FICTÍCIA e para a REAL</span></h3>
             <div class="form" id="saF"></div>
-            <div class="row" style="margin-top:10px"><button class="btn primary" id="saSave">Salvar</button><button class="btn sm" id="saReset">Voltar ao padrão</button></div>
-            <div class="help"><p>Além destas, as duas carteiras vendem quando o trader copiado vende (a mesma parte) e quando você vende na tela de Posições.</p></div></div>
-          <div class="card" data-ajp="cf" hidden><header><div><h2>Cópia FICTÍCIA</h2><div class="sub">valor, limites e custos simulados · só para a sua conta</div></div></header>
-            <div class="form" id="cfF"></div>
-            <div class="row" style="margin-top:10px"><button class="btn primary" id="cfSave">Salvar</button><button class="btn sm" id="cfReset">Voltar ao padrão</button></div>
-            <div class="help"><p>Na fictícia nada vai para a rede, então o gás e o slippage são simulados para o resultado ficar perto do que seria o real. A taxa da Four.Meme (1% em cada lado) é sempre cobrada. Mudar o saldo inicial soma ou tira a diferença do saldo atual.</p></div></div>
-          <div class="card" data-ajp="rc" hidden><header><div><h2>Cópia REAL</h2><div class="sub">valor e limites da carteira REAL · ligar e a chave ficam em Configurações</div></div></header>
-            <div class="form" id="rcF"></div>
-            <div class="row" style="margin-top:10px"><button class="btn primary" id="rcSave">Salvar</button><button class="btn sm" id="rcReset">Voltar ao padrão</button></div>
-            <div class="help"><p>Aqui o gás gasto vem da rede; o preço do gás é o que vai na transação. Slippage da REAL é a perda máxima aceita no preço em cada compra e venda: se o preço andar mais que isso, a rede recusa e nada é gasto além do gás. Perda do dia: a REAL para de comprar até 00:00 UTC (as vendas continuam).</p></div></div>
+            <div class="grid2e bncp">
+              <div class="bncol"><div class="bncolh"><h3>FICTÍCIA</h3><button class="btn sm tgl sw off" role="switch" aria-checked="false" id="cfTgl">Desligado</button></div>
+                <div class="form" id="cfF"></div>
+                <p class="muted bnhelp">Nada vai para a rede: gás e slippage são simulados para o resultado ficar perto do real. A taxa da Four.Meme (1% em cada lado) é sempre cobrada. Mudar o saldo inicial soma ou tira a diferença do saldo atual.</p></div>
+              <div class="bncol"><div class="bncolh"><h3>REAL</h3><button class="btn sm tgl sw off" role="switch" aria-checked="false" id="rcTgl">Desligado</button></div>
+                <div class="form" id="rcF"></div>
+                <p class="muted bnhelp">Ligar pede para digitar LIGAR e precisa da chave da carteira salva em <a href="#config">Configurações</a>. Só entra nas compras novas. Slippage máximo: se o preço andar mais que isso, a rede recusa e só o gás é gasto. Perda do dia: para de comprar até 00:00 UTC (as vendas continuam).</p></div>
+            </div>
+            <div class="row" style="margin-top:12px"><button class="btn primary" id="cpSave">Salvar</button><button class="btn sm" id="cpReset">Voltar ao padrão</button></div>
+            <div class="help"><p>Além do tempo máximo e do stop, as duas carteiras vendem quando o trader copiado vende (a mesma parte) e quando você vende na tela de Posições.</p></div></div>
         </div>
       </section>
 
