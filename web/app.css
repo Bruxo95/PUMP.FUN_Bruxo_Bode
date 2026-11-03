@@ -953,3 +953,6 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 /* 0.32.170: botão Trocar rede no topo (pump.fun ⇄ BNB) */
 .hubbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}.hubbtn svg{width:14px;height:14px}.hubbtn[hidden]{display:none}
 @media (max-width:860px){.hubbtn span{display:none}}
+
+/* 0.32.174: erro longo sem espaço (ex.: resposta do RPC) quebra dentro do cartão */
+.pc-err,.pc-why,.pc-list li{overflow-wrap:anywhere}

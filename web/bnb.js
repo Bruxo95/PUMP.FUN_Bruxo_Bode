@@ -255,16 +255,43 @@
     $("poAll").hidden = !ps.length;
     kpis("poK", [["Abertas", num(ps.length, 0), "de " + P.cfg.max_abertas + " · " + (REAL ? "REAL" : "FICTÍCIA")], ["Investido", num(inv, 4) + " BNB", ""],
       ["Resultado agora", bnb(tot), inv ? pct(100 * tot / inv) : "", cls(tot)], ["No lucro", num(ps.filter((p) => p.pnl_bnb > 0).length, 0), "posições"]]);
-    const now = Date.now() / 1000;
-    table("poT", ["Abriu", "Trader", "Token", "Investido", "Agora", "Melhor · pior", "Preço", "Fecha em", ""],
-      ps.map((p) => [hora(p.open_t) + '<br><span class="muted">há ' + ago(p.open_t) + "</span>" + (p.tx_in && REAL ? "<br>" + txl(p.tx_in) : ""), wal(p.wallet),
-        tok(p.token) + (p.graduou ? ' <span class="tag sim">Pancake</span>' : ""),
-        num(p.bnb_in, 4) + " BNB" + (p.proceeds ? '<br><span class="muted">já recebeu ' + num(p.proceeds, 4) + "</span>" : ""),
-        bnb(p.pnl_bnb) + "<br>" + pct(p.pnl_pct), pct(p.best_pct) + " · " + pct(p.worst_pct),
-        '<span class="muted">' + (p.px_t ? "há " + ago(p.px_t) : "—") + "</span>", p.fecha_em > now ? dur(p.fecha_em - now) : "agora",
-        (p.selling ? '<span class="muted">vendendo…</span>' : '<button class="btn sm" data-bnclose="' + esc(p.id) + '">Vender</button>') +
-        (p.sell_error ? '<br><span class="down" title="' + esc(p.sell_error) + '">venda falhou: tenta de novo em 1 min</span>' : "")]),
-      REAL ? (RS().ligada ? "Nenhuma posição REAL aberta." : "Nenhuma posição REAL. A carteira REAL está desligada (Configurações).") : "Nenhuma posição aberta.");
+    // 0.32.174 (pedido do dono): posições em cartões, como no painel da pump.fun (PC e celular, sem rolagem lateral)
+    const box = $("poT"); if (!box) return;
+    box.innerHTML = ps.length ? ps.map(bnCard).join("") : '<div class="empty">' + (REAL ? (RS().ligada ? "Nenhuma posição REAL aberta." : "Nenhuma posição REAL. A carteira REAL está desligada (Configurações).") : "Nenhuma posição aberta.") + "</div>";
+  }
+  const PO_OPEN = new Set();   // "Mais detalhes" abertos continuam abertos entre atualizações
+  function bnCard(p) {
+    const now = Date.now() / 1000, c = P.cfg || {};
+    const chg = p.px_in && p.px_now ? (p.px_now / p.px_in - 1) * 100 : null, up = (p.pnl_bnb || 0) >= 0;
+    const stopV = c.stop_pct || 0, stopOff = !stopV;
+    const lo = stopOff ? Math.min(-50, (p.worst_pct || 0) * 1.1) : -stopV;
+    const hi = Math.max((p.best_pct || 0) * 1.1, (chg || 0) * 1.1, 30);
+    const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100)).toFixed(1);
+    const range = chg == null ? "" : '<div class="pc-range" title="faixa entre o stop de perda e o melhor momento; ● = agora, ▲ = pico">' +
+      '<div class="pc-bar"><span class="pc-zero" style="left:' + at(0) + '%"></span>' +
+      (p.best_pct != null ? '<span class="pc-peak" style="left:' + at(p.best_pct) + '%" title="pico ' + num(p.best_pct, 1) + '%"></span>' : "") +
+      '<span class="pc-now ' + (chg >= 0 ? "up" : "down") + '" style="left:' + at(chg) + '%"></span></div>' +
+      '<div class="pc-rl"><span>' + (stopOff ? "sem stop" : "stop −" + num(stopV, 0) + "%") + "</span><span>" + (p.best_pct != null ? "pico " + num(p.best_pct, 1) + "%" : "") + "</span></div></div>";
+    const rest = p.fecha_em - now;
+    const tags = (REAL ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + (p.graduou ? ' <span class="tag sim">Pancake</span>' : "") + (p.selling ? ' <span class="tag pause">Vendendo…</span>' : "");
+    const st = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
+    const vendas = (p.vendas || []).map((x) => "<li>" + hora(x.t) + " · " + num((x.frac || 0) * 100, 0) + "% · " + num(x.bnb, 4) + " BNB" + (x.motivo ? " · " + esc(x.motivo) : "") + "</li>").join("");
+    const id = String(p.id);
+    return '<article class="pcard ' + (up ? "is-up" : "is-down") + (REAL ? " is-real" : "") + '">' +
+      '<header class="pc-h"><div class="pc-tk">' + tok(p.token) + " " + tags + "</div>" +
+      '<div class="pc-sub">trader ' + wal(p.wallet) + " · aberta há <b>" + ago(p.open_t) + "</b></div></header>" +
+      '<div class="pc-box"><div><small>Ganho agora</small><b class="pc-big ' + (up ? "up" : "down") + '">' + (p.pnl_bnb > 0 ? "+" : "") + num(p.pnl_bnb, 4) + " BNB</b><small>" + num(p.pnl_pct, 1) + "% do investido</small></div>" +
+      '<div class="pc-var"><small>Variação do preço</small><b>' + pct(chg) + "</b></div></div>" + range +
+      '<dl class="pc-grid">' + st("Investido", num(p.bnb_in, 4) + " BNB") + st("Já recebido", num(p.proceeds || 0, 4) + " BNB") +
+      st("Melhor / pior", pct(p.best_pct) + " / " + pct(p.worst_pct)) + st("Preço lido", p.px_t ? "há " + ago(p.px_t) : "—") + "</dl>" +
+      '<div class="pc-sec"><div><small>Sai por tempo em</small>' + (rest > 0 ? "<b>" + dur(rest) + "</b>" : '<b class="down">agora</b>') + '<small class="dim">limite ' + num(c.max_hold_h, 1) + " h</small></div></div>" +
+      (p.selling ? "" : '<div class="pc-act"><button class="btn sm pill no" type="button" data-bnclose="' + esc(id) + '">' + (REAL ? "Vender tudo" : "Fechar 100%") + "</button></div>") +
+      (p.sell_error ? '<div class="pc-err down">venda falhou: ' + esc(p.sell_error) + " · tenta de novo em 1 min</div>" : "") +
+      '<details class="pc-more" data-poid="' + esc(id) + '"' + (PO_OPEN.has(id) ? " open" : "") + "><summary>Mais detalhes</summary>" +
+      '<dl class="pc-grid">' + st("Abriu", hora(p.open_t)) + st("Atraso na cópia", p.lag_s == null ? "—" : num(p.lag_s, 1) + " s") +
+      st("Preço de entrada", p.px_in == null ? "—" : Number(p.px_in).toPrecision(4)) + st("Preço agora", p.px_now == null ? "—" : Number(p.px_now).toPrecision(4)) +
+      st("Aba", esc(p.aba || "Top traders BNB")) + st("Transação", REAL && p.tx_in ? txl(p.tx_in) : "—") + "</dl>" +
+      (vendas ? '<p class="pc-lbl">Vendas parciais</p><ul class="pc-list">' + vendas + "</ul>" : "") + "</details></article>";
   }
   function drawHistorico() {
     if (!P) return;
@@ -571,6 +598,11 @@
       load();
     }
   });
+
+  document.addEventListener("toggle", (e) => {
+    const d = e.target; if (!d.dataset || !d.dataset.poid) return;
+    d.open ? PO_OPEN.add(d.dataset.poid) : PO_OPEN.delete(d.dataset.poid);
+  }, true);
 
   async function boot() {
     $("boot").innerHTML = BB.loader("Carregando", { grid: 4, pattern: "sweep", font: 15, cell: 7, glow: true });

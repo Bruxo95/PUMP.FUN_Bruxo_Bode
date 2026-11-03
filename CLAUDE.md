@@ -1571,3 +1571,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.173 (pedido do dono): Administração da BNB com usuários (`GET /api/pump/bnb/usuarios`, `BnbWatch.user_summary`, tabela `#bnU`) e Visualizar
   tela (`data-viewas` → `pf_viewas`, o mesmo X-View-As do /app). `bnb_api.viewer` deixa `/api/pump/bnb` e `/painel` abrirem na visualização de
   conta não admin; `painel(..., peek=True)` não cria carteira para quem é visto. Faixa `#viewBar` e `body.viewas` em `web/bnb.html`.
+
+- 0.32.174 (pedido do dono): Posições da `/bnb` em cartões (`bnCard` em `web/bnb.js`, `#poT` virou `div.poscards`; mesmas classes `.pcard`/`.pc-*` do `/app`, `PO_OPEN` guarda os "Mais detalhes" abertos). Venda só 100% (`data-bnclose`; a BNB não tem venda parcial manual). `.pc-err`/`.pc-why`/`.pc-list li` quebram texto sem espaço. Conferido em 1440 e 390 px, todas as telas da `/bnb` sem rolagem lateral.

@@ -1625,6 +1625,11 @@
    "versao": "0.32.173",
    "inicio": "2026-11-03T19:17:23+00:00",
    "titulo": "usuários e Visualizar tela na Administração da BNB"
+  },
+  {
+   "versao": "0.32.174",
+   "inicio": "2026-11-03T22:06:11+00:00",
+   "titulo": "posições da BNB em cartões"
   }
  ]
 }
