@@ -52,6 +52,7 @@
       <a href="#abas" data-v="abas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Abas de trades</a>
       <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Configurações</a>
       <a href="#admin" data-v="admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Administração</a>
+      <a href="#logs" data-v="logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/></svg>Log geral</a>
       <a href="#changelog" data-v="changelog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Changelog</a>
     </nav>
     <div class="sp"></div>
@@ -145,6 +146,20 @@
           <div class="row" style="margin-top:10px"><button class="btn primary" id="bnSave">Salvar regra</button><button class="btn sm" id="bnReset">Voltar ao padrão</button></div></div>
         <div class="card"><header><div><h2>Últimos trades lidos</h2><div class="sub">compras e vendas na curva da Four.Meme, ao vivo</div></div></header>
           <div class="tbl-wrap"><table id="bnTr"></table></div></div>
+      </section>
+
+      <section class="view" data-view="logs" hidden>
+        <div class="card"><header><div><h2>Log geral</h2><div class="sub">os mesmos registros de Administração do painel da pump.fun</div></div><div class="sp"></div>
+            <div class="seg" id="lgF" title="O que mostrar"><button data-lgf="bnb">Só BNB</button><button data-lgf="all">Tudo</button></div></header>
+          <div class="seg" id="lgTab" style="margin-bottom:12px"><button data-lgt="seg">Registro de segurança</button><button data-lgt="srv">Log do servidor</button></div>
+          <div id="lgSeg">
+            <p class="muted" id="lgSegSub" style="margin:0 0 8px"></p>
+            <div class="tbl-wrap tall"><table id="lgAud"></table></div></div>
+          <div id="lgSrv" hidden>
+            <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
+              <div class="seg" id="lgLv"><button data-lglv="INFO">Tudo</button><button data-lglv="WARNING">Avisos</button><button data-lglv="ERROR">Erros</button></div>
+              <input class="in" id="lgQ" placeholder="Buscar no log" style="width:180px"><span class="muted" id="lgSrvSub"></span></div>
+            <div class="logs" id="lgLog"></div></div></div>
       </section>
 
       <section class="view" data-view="changelog" hidden>

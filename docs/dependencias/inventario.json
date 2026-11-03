@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-03",
     "timezone": "Europe/Dublin",
-    "repository_reference": "209f4d0bd4e9dff48399d9a6995edb8928ca7d38",
-    "application_version": "0.32.170 · 2026-11-03 · painel da BNB com menu e cópia fictícia",
+    "repository_reference": "2cee5dc708a85e8d3aea7ed9688103f130fd92a9",
+    "application_version": "0.32.171 · 2026-11-03 · Log geral no painel da BNB",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "97dc675aecc819ac8d8775c89cfeeda004e785a7537f74c3ec421add9ffdb997",
+      "app/version.py": "c62ead4688f28b88db36813ea80f5bfd63ded6801ec40729815de217c389a8cd",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f49032ef2fa2d5dc8122a6e8d4021fe77906b89bb1b4047a00d3bbd6d19edf3c"
+  "pdf_sha256": "44f516d2ed0f3d9e3f9d8771847ca1f97ee759a564226777ab4ad97739d71a11"
 }

@@ -1557,3 +1557,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   com até 60 s: a recuperação depois de reiniciar não copia) e `positions_tick` (tempo máximo; preço pela DexScreener depois da
   graduação). Rotas `/api/pump/bnb/painel|conta|fechar` (admin). Tabelas `bnb_books`, `bnb_positions`, `bnb_trades` (migração
   `20261103000001`). REAL da BNB não existe: a tela avisa; nada é enviado. Testes `tests/test_bnb_ficticia.py`.
+- 0.32.171 (pedido do dono): menu Log geral na `/bnb` (`data-view="logs"`, `loadLogs`/`LG` em `web/bnb.js`): abas Registro de segurança
+  (`/api/admin/audit`) e Log do servidor (`/api/admin/logs`), as mesmas rotas de Administração do `/app`; "Só BNB" filtra por bnb/Four.Meme.

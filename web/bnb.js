@@ -12,7 +12,8 @@
     posicoes: ["Posições", "o que está aberto agora"], historico: ["Histórico", "trades fechados"],
     semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo"],
     abas: ["Abas de trades", "liga e desliga as compras de cada aba"], config: ["Configurações", "valor por compra, limites e saídas"],
-    admin: ["Administração", "leitura da rede e regra do ranking"], changelog: ["Changelog", "o que mudou no projeto da BNB"],
+    admin: ["Administração", "leitura da rede e regra do ranking"],
+    logs: ["Log geral", "registro de segurança e log do servidor"], changelog: ["Changelog", "o que mudou no projeto da BNB"],
   };
   const REAL_VIEWS = ["visao", "posicoes", "historico", "semanas", "abas"];
   const RK_INFO = [
@@ -27,6 +28,9 @@
     ["slip_pct", "Slippage em cada lado", "%", 0, 50, 0.5], ["gas_bnb", "Gás por transação", "BNB", 0, 0.01, 0.0001],
     ["saldo_inicial", "Saldo inicial da fictícia", "BNB", 0.01, 1000, 0.1],
   ];
+  // 0.32.171 (pedido do dono, 03/11): Log geral com o Registro de segurança e o Log do servidor (as mesmas rotas de
+  // Administração do painel da pump.fun). "Só BNB" filtra o que é da BNB; "Tudo" mostra os dois projetos.
+  const LG = { tab: "seg", f: "bnb", lv: "INFO", after: 0, key: "" };
   let VIEW = "visao", REAL = false, R = null, P = null, CHG = null, BUSY = false, READY = false, DIRTY = { rk: false, cf: false };
 
   // ------------------------------------------------------------------ formatos
@@ -182,6 +186,40 @@
     $("chL").innerHTML = it.length ? it.map((x) => '<div class="bnchg"><span class="tag sim">' + esc(x.versao) + "</span> <span class=\"muted\">" + esc(x.inicio ? hora(Date.parse(x.inicio) / 1000) : x.data) + " · " + esc(x.tipo) +
       "</span><h3>" + esc(x.titulo) + '</h3><p class="muted">' + esc(x.onde) + "</p><p>" + esc(x.oque) + "</p></div>").join("") : '<p class="muted">Nada ainda.</p>';
   }
+  const isBnb = (txt) => /bnb|four\.?meme/i.test(String(txt || ""));
+  async function loadLogs(reset) {
+    if (VIEW !== "logs") return;
+    document.querySelectorAll("#lgTab button").forEach((b) => b.classList.toggle("on", b.dataset.lgt === LG.tab));
+    document.querySelectorAll("#lgF button").forEach((b) => b.classList.toggle("on", b.dataset.lgf === LG.f));
+    document.querySelectorAll("#lgLv button").forEach((b) => b.classList.toggle("on", b.dataset.lglv === LG.lv));
+    $("lgSeg").hidden = LG.tab !== "seg"; $("lgSrv").hidden = LG.tab !== "srv";
+    if (LG.tab === "seg") {
+      const L = await BB.api("/api/admin/audit?limit=500", { quiet: true }); if (!Array.isArray(L)) return;
+      const rows = LG.f === "bnb" ? L.filter((a) => isBnb(a.acao) || isBnb(a.detalhe)) : L;
+      $("lgSegSub").textContent = rows.length + " registros" + (LG.f === "bnb" ? " da BNB (de " + L.length + " no total)" : "") + " · o detalhe nunca mostra chaves";
+      table("lgAud", ["Quando", "Usuário", "Ação", "Detalhe"], rows.map((a) => [a.at ? hora(Date.parse(a.at) / 1000) : "—", esc(a.email || (a.user_id || "").slice(0, 8)),
+        esc(a.acao), '<span style="white-space:normal;display:block;max-width:520px">' + esc(a.detalhe || "") + "</span>"]),
+        LG.f === "bnb" ? "Nada da BNB registrado ainda. Mudar a regra, a configuração ou vender uma posição da BNB aparece aqui." : "Nada registrado ainda.");
+      return;
+    }
+    const q = ($("lgQ").value || "").trim(), key = LG.f + "|" + LG.lv + "|" + q;
+    if (reset || key !== LG.key) { LG.after = 0; LG.key = key; $("lgLog").innerHTML = ""; }
+    const r = await BB.api("/api/admin/logs?after=" + LG.after + "&level=" + LG.lv + "&q=" + encodeURIComponent(q || (LG.f === "bnb" ? "bnb" : "")), { quiet: true });
+    if (!r || r.error) return;
+    const el = $("lgLog"), atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+    (r.logs || []).forEach((x) => {
+      LG.after = Math.max(LG.after, x.id);
+      if (LG.f === "bnb" && !isBnb(x.name + " " + x.msg)) return;
+      const d = document.createElement("div"); d.className = x.level;
+      d.innerHTML = '<span class="t">' + new Date(x.t * 1000).toLocaleString("pt-BR") + '</span><span class="n">' + esc(x.level) + " · " + esc(x.name) + "</span>" + esc(x.msg);
+      el.appendChild(d);
+    });
+    while (el.childNodes.length > 1500) el.removeChild(el.firstChild);
+    if (atEnd) el.scrollTop = el.scrollHeight;
+    if (!el.childNodes.length) el.innerHTML = '<div class="muted">' + (LG.f === "bnb" ? "Nenhuma linha da BNB no log ainda (a leitura só escreve quando algo dá errado)." : "Nada no log.") + "</div>";
+    $("lgSrvSub").textContent = (r.total || 0) + " registros guardados · " + (r.warnings || 0) + " avisos · " + (r.errors || 0) + " erros · chaves mascaradas";
+  }
+
   function draw() {
     $("bnReal").hidden = !(REAL && REAL_VIEWS.includes(VIEW));
     ({ visao: drawVisao, traders: drawTraders, posicoes: drawPosicoes, historico: drawHistorico, semanas: drawSemanas, abas: drawAbas, config: drawConfig, admin: drawAdmin, changelog: drawChangelog }[VIEW] || (() => {}))();
@@ -198,6 +236,7 @@
       const [p, r] = await Promise.all([BB.api("/api/pump/bnb/painel", { quiet: true }), needR ? BB.api("/api/pump/bnb", { quiet: true }) : Promise.resolve(null)]);
       if (p && !p.error) P = p.ligado === false ? null : p;
       if (r && !r.error) R = r;
+      if (VIEW === "logs") await loadLogs(false);
       if (VIEW === "changelog" && !CHG) { const c = await BB.api("/api/admin/novidades", { quiet: true }); CHG = (c && c.itens) || []; }
       draw();
     } catch (e) { /* tenta de novo na próxima volta */ } finally { BUSY = false; }
@@ -225,8 +264,10 @@
   const closeDrawer = () => { $("side").classList.remove("open"); $("scrim").classList.remove("open"); };
 
   // ------------------------------------------------------------------ ações
+  let LGQ_T = 0;
   document.addEventListener("input", (e) => {
     const id = (e.target && e.target.id) || "";
+    if (id === "lgQ") { clearTimeout(LGQ_T); LGQ_T = setTimeout(() => loadLogs(true), 400); }
     if (id.startsWith("bnc_")) DIRTY.rk = true;
     if (id.startsWith("cf_")) DIRTY.cf = true;
   });
@@ -257,6 +298,14 @@
     if (ab && P) {
       const r = await BB.api("/api/pump/bnb/conta", { body: { on: !P.cfg.on } });
       if (r && r.ok) { P.cfg = r.cfg; P.abas.forEach((a) => (a.ligada = r.cfg.on)); drawAbas(); load(); }
+      return;
+    }
+    const lg = t.closest("[data-lgt], [data-lgf], [data-lglv]");
+    if (lg) {
+      if (lg.dataset.lgt) LG.tab = lg.dataset.lgt;
+      if (lg.dataset.lgf) LG.f = lg.dataset.lgf;
+      if (lg.dataset.lglv) LG.lv = lg.dataset.lglv;
+      loadLogs(true);
       return;
     }
     const cl = t.closest("[data-bnclose]");

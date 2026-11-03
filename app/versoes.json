@@ -1610,6 +1610,11 @@
    "versao": "0.32.170",
    "inicio": "2026-11-02T23:55:13+00:00",
    "titulo": "painel da BNB com menu e cópia fictícia"
+  },
+  {
+   "versao": "0.32.171",
+   "inicio": "2026-11-03T07:55:53+00:00",
+   "titulo": "Log geral no painel da BNB"
   }
  ]
 }

@@ -201,3 +201,14 @@ def test_bnb_has_own_page_and_is_out_of_the_pump_panel(env):
     page = c.get("/bnb")
     assert page.status_code == 200 and 'id="bnRk"' in page.text and "bnb.js" in page.text and "app.js" not in page.text
     assert page.headers.get("Cache-Control") == "no-cache" and "frame-ancestors 'none'" in page.headers["Content-Security-Policy"]
+
+
+def test_bnb_log_tab_uses_admin_logs(env):
+    """0.32.171 (pedido do dono): aba Log geral no painel BNB, com as mesmas rotas de Administração (só admin)."""
+    from tests.test_api import UA, UB, tok
+    c = env["c"]
+    page = c.get("/bnb").text
+    assert 'data-view="logs"' in page and 'data-lgt="seg"' in page and 'data-lgt="srv"' in page
+    for path in ("/api/admin/audit", "/api/admin/logs"):
+        assert c.get(path, headers=tok(UB, "b@x.com")).status_code == 403
+        assert c.get(path, headers=tok(UA)).status_code == 200
