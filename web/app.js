@@ -3171,9 +3171,13 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     }));
     return Object.values(g).sort((a, b) => b.janelas["24"] - a.janelas["24"]);
   }
+  // 0.32.190 (pedido do dono): cada tela mostra sempre quanto gastou de cada serviço principal, mesmo quando é zero
+  const USO_BASE = [["Helius (RPC da Solana)", "requisições"], ["Helius (RPC da Solana)", "créditos"], ["Solana Tracker", "requisições"],
+    ["DexScreener", "requisições"], ["Jupiter", "requisições"], ["PumpPortal", "requisições"]];
   function usoTabela(L) {
     const HS = ["Serviço", "O quê", "1 h", "6 h", "12 h", "24 h", "Desde o início"];
-    if (!L.length) return '<p class="muted small" style="margin:6px 0 0">Nenhum pedido próprio desde a última atualização do sistema.</p>';
+    L = L.slice();
+    USO_BASE.forEach(([api, tipo]) => { if (!L.some((s) => s.api === api && s.tipo === tipo)) L.push({ api, tipo, janelas: { 1: 0, 6: 0, 12: 0, 24: 0 }, desde_inicio: 0 }); });
     return '<div class="tbl-wrap"><table class="systbl"><thead><tr>' + HS.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
       L.map((s) => "<tr>" + [esc(s.api), esc(s.tipo), f(s.janelas["1"], 0), f(s.janelas["6"], 0), f(s.janelas["12"], 0), f(s.janelas["24"], 0), f(s.desde_inicio, 0)]
         .map((c, i) => '<td data-l="' + HS[i] + '">' + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
@@ -3200,7 +3204,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<h3 style="margin:18px 0 8px;font-size:13px">Cada tela</h3><div class="usgrid sysaba">' + cards.map((x) => x[0]).join("") + "</div>" +
       (resto.length ? '<h3 style="margin:18px 0 8px;font-size:13px">Outras partes do robô (não são telas)</h3>' + resto.map((x) => '<div class="card sysrest"><b>' + esc(x.aba) + "</b>" + usoTabela(x.servicos) + "</div>").join("") : "") +
       '<p class="muted" style="margin-top:8px">Cada parte do robô que roda sozinha conta os pedidos que fez; a tela soma as partes dela. "Telas do painel" = pedidos feitos quando alguém abre ou clica numa tela. ' +
-      "O painel da BNB é outro projeto e não entra nesta conta. Os números zeram a cada atualização do sistema.</p>";
+      "O painel da BNB é outro projeto e não entra nesta conta. As janelas de 1 a 24 h ficam guardadas a partir de 04/11 16 h (a separação por tela começou nesse dia).</p>";
   }
   function useHtml() {
     if (!(ME && ME.role === "admin")) return "";
@@ -3224,7 +3228,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<p class="muted" style="margin-top:8px">A % ao lado de cada número: com limite por mês (Solana Tracker 10 mil consultas; Helius 1 milhão de créditos), é quanto do mês aquele período gastou; com limite por minuto, é o uso médio desse limite no período. ' +
       "Helius: a chamada comum gasta 1 crédito e a getProgramAccounts (contagem de detentores) gasta 10 (helius.dev/pricing, conferido em 04/11). " +
       "Mensagens do WebSocket não têm preço publicado, então aparecem só em quantidade. PumpPortal: as mensagens de trades das copiadas custam 0,01 SOL a cada 10 mil. " +
-      "Desde o início = desde a última atualização do sistema; No mês = guardado no banco. Helius, créditos do mês com ≥: as requisições de antes de 04/11 não tinham os créditos separados, então conta pelo menos 1 por requisição.</p>";
+      "1 h a 24 h = guardados no banco a cada 5 min (não zeram na atualização); Desde o início = desde a última atualização do sistema; No mês = guardado no banco. Helius, créditos do mês com ≥: as requisições de antes de 04/11 não tinham os créditos separados, então conta pelo menos 1 por requisição.</p>";
   }
   const RPC_T = { falha: "Falhas de leitura", atrasado: "Atrasados (+2 min na fila)", nao_trade: "Não eram trade", trade: "Viraram trade" };
   const RPC_HELP = {

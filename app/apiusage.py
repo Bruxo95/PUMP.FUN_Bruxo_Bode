@@ -205,6 +205,8 @@ class Usage:
         lim = {nome: (mm, rr) for _s, nome, mm, rr in APIS}
         up_min = max(1.0, (now - self.started) / 60)
         out = []
+        for k in self.SERVICOS:
+            self.win.setdefault(k, {})
         for (api, tipo), b in sorted(self.win.items()):
             if api in BNB_APIS:
                 continue
@@ -257,6 +259,44 @@ class Usage:
             req = {h: sum(x["janelas"][h] for x in L if x["tipo"] in ("requisições", "trades das copiadas") or x["tipo"].startswith("WebSocket")) for h in ("1", "6", "12", "24")}
             out.append({"aba": o, "servicos": L, "total": req})
         return sorted(out, key=lambda x: -x["total"]["24"])
+
+    # 0.32.190 (pedido do dono): as janelas de 24 h sobrevivem à atualização do sistema (blocos de 10 min no banco)
+    SERVICOS = (("Helius (RPC da Solana)", "requisições"), ("Helius (RPC da Solana)", "créditos"), ("Solana Tracker", "requisições"),
+                ("DexScreener", "requisições"), ("Jupiter", "requisições"), ("PumpPortal", "requisições"),
+                ("Helius (RPC da Solana)", "WebSocket: mensagens recebidas"), ("PumpPortal", "WebSocket: tokens novos e outros"),
+                ("PumpPortal", PP_PAID))
+
+    def dump_win(self, now: float | None = None) -> dict:
+        now = time.time() if now is None else now
+        lim = int(now // 60) - 1440
+
+        def pack(b):
+            out: dict[str, int] = {}
+            for m, n in b.items():
+                if m > lim:
+                    k = str(m // 10 * 10)
+                    out[k] = out.get(k, 0) + n
+            return out
+        return {"win": {f"{api}|{tipo}": pack(b) for (api, tipo), b in self.win.items()},
+                "owin": {f"{o}|{api}|{tipo}": pack(b) for (o, api, tipo), b in self.owin.items()}}
+
+    def load_win(self, d: dict | None, now: float | None = None) -> None:
+        now = time.time() if now is None else now
+        lim = int(now // 60) - 1440
+        for k, b in ((d or {}).get("win") or {}).items():
+            api, _, tipo = k.partition("|")
+            t = self.win.setdefault((api, tipo), {})
+            for m, n in (b or {}).items():
+                if int(m) > lim:
+                    t[int(m)] = t.get(int(m), 0) + int(n)
+        for k, b in ((d or {}).get("owin") or {}).items():
+            parts = k.split("|")
+            if len(parts) != 3:
+                continue
+            t = self.owin.setdefault(tuple(parts), {})
+            for m, n in (b or {}).items():
+                if int(m) > lim:
+                    t[int(m)] = t.get(int(m), 0) + int(n)
 
     def dump(self) -> list[dict]:
         return [{"mes": m, "api": a, "chave": c or "", "n": n} for (m, a, c), n in self.month.items()]

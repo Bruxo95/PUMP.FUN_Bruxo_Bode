@@ -44,4 +44,26 @@ def test_bnb_is_another_project_and_is_not_counted():
         await run_as(apiusage.BNB_ORIGEM, bnb())
         u.count("bsc-rpc.publicnode.com", now=T0)                  # mesmo sem marca, RPC da BNB não aparece
     asyncio.run(go())
-    assert u.windows(now=T0) == [] and u.por_aba(now=T0) == [] and not u.month
+    W = u.windows(now=T0)
+    assert all(r["desde_inicio"] == 0 and r["api"] not in apiusage.BNB_APIS for r in W) and u.por_aba(now=T0) == [] and not u.month
+
+
+def test_windows_survive_a_restart_and_main_services_always_show():
+    u = Usage()
+
+    async def explorar():
+        u.count("data.solanatracker.io", now=T0 - 3 * 3600)
+        u.count("data.solanatracker.io", now=T0 - 30 * 3600)          # mais de 24 h: não volta
+
+    async def go():
+        await run_as("Explorar", explorar())
+    asyncio.run(go())
+    d = u.dump_win(now=T0)
+    v = Usage()
+    v.load_win(d, now=T0)
+    r = next(x for x in v.windows(now=T0) if x["api"] == "Solana Tracker" and x["tipo"] == "requisições")
+    assert r["janelas"]["6"]["n"] == 1 and r["janelas"]["1"]["n"] == 0 and r["janelas"]["24"]["n"] == 1
+    ex = {(s["api"], s["tipo"]): s["janelas"]["6"] for s in next(x for x in v.por_aba(now=T0) if x["aba"] == "Explorar")["servicos"]}
+    assert ex[("Solana Tracker", "requisições")] == 1
+    nomes = {(x["api"], x["tipo"]) for x in Usage().windows(now=T0)}
+    assert ("Helius (RPC da Solana)", "créditos") in nomes and ("Solana Tracker", "requisições") in nomes

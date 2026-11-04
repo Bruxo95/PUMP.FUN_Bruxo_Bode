@@ -275,8 +275,19 @@ class PumpHub:
             us.load(await self.db.select("api_usage", {"mes": _dt.now(timezone.utc).strftime("%Y-%m")}))
         except Exception as e:
             log.warning("uso das APIs não carregou: %s", str(e)[:120])
+        try:                                            # 0.32.190: janelas de 24 h guardadas (não zeram na atualização)
+            rows = await self.db.select("api_usage_janelas", {"k": "janelas"})
+            if rows:
+                us.load_win(rows[0].get("v"))
+        except Exception as e:
+            log.warning("janelas do uso não carregaram: %s", str(e)[:120])
         while True:
             await asyncio.sleep(300)
+            try:
+                await self.db.insert("api_usage_janelas", {"k": "janelas", "v": us.dump_win(), "atualizado_em": datetime.now(timezone.utc).isoformat()},
+                                     upsert=True, on_conflict="k")
+            except Exception as e:
+                log.warning("janelas do uso não gravaram: %s", str(e)[:120])
             if not us.dirty:
                 continue
             try:
