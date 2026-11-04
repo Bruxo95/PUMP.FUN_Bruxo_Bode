@@ -514,7 +514,7 @@
   // todas as telas. Em Configurações vira um quadro editável (os botões e campos são os mesmos data-toggle/data-cfg, então
   // salvar aqui é salvar lá); na Visão geral vira um resumo só de leitura, junto com "está copiando alguém?".
   let ALLCFG = null;
-  const ADMIN_VIEWS = ["usar", "admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo", "jev", "jevtrade"];
+  const ADMIN_VIEWS = ["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo", "jev", "jevtrade"];
   function cfgItems() {
     if (ALLCFG) return ALLCFG;
     const out = [], seen = new Set(), adm = !!(ME && ME.role === "admin");
@@ -2508,6 +2508,7 @@
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
     if (t.dataset.ct && t.closest("#cfgTabs")) { cfgTab(t.dataset.ct); return; }
+    if (t.dataset.usm) { US.rm = t.dataset.usm === "real"; try { localStorage.setItem("pf_usm", t.dataset.usm); } catch (e) { /* */ } loadUsar(); return; }
     if (t.dataset.lg && t.closest("#lgTabs")) { lgTab(t.dataset.lg); return; }
     if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
     if (t.dataset.bdadd) { bdAdd(t.dataset.bdadd); return; }
@@ -2744,7 +2745,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "abas", "logs", "calls", "bruxo", "usar"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "abas", "logs", "calls", "bruxo"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     document.querySelectorAll("#tabbar [data-tv]").forEach((a) => a.classList.toggle("on", a.dataset.tv === VIEW));
@@ -2759,6 +2760,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
+    if (VIEW === "usar") loadUsar(true);
     if (VIEW === "real") { walletLoad(true); loadMirror(); }
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
@@ -3197,6 +3199,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   function render() {
     if (!D) return;
     if (VIEW === "config") cfgTab();                  // 0.32.184: a aba aparece quando o cartão dela aparece
+    if (VIEW === "usar" && Date.now() - US.at > 60000) loadUsar();
     const fh = $("feeHint"); if (fh) fh.hidden = !!cfg().pump_swap_fee_official;
     const c = cfg(), R = D.real || {}, RP = D.rpc || {};
     const rm = realMode();
@@ -4567,7 +4570,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   // 0.32.184 (pedido do dono): Configurações em abas e menu Log geral (registro de segurança e logs do servidor saíram de
   // Configurações e da Administração). A aba escolhida fica neste navegador.
-  const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas"];
+  const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas",
+    "tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls", "tradercfg"];
   let CFT = "copia", LGT = "conta";
   try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; } catch (e) { /* */ }
   function cfgTab(t) {
@@ -4588,6 +4592,49 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (LGT === "conta") loadAudit();
     if (LGT === "contas") { if (!$("aAudUser").options.length || $("aAudUser").options.length < 2) loadUsers(); loadAAudit(); }
     if (LGT === "srv") { LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
+  }
+  // 0.32.186 (pedido do dono): cada quadrado do Usar ou descartar mostra o resultado das abas que ele compra em 1, 6, 12 e 24 h
+  // (FICTÍCIA ou REAL, botão no topo); quem dá lucro em 24 h fica em cima e mais verde, quem perde fica embaixo.
+  const USAR_ABAS = { estudo: ["Carteiras em estudo"], elite: ["Maiores traders", "Maiores traders (80%+)"], igual: ["Copiar igual"],
+    base: ["Base da pump.fun"], explorar: ["Explorar", "Explorar · barrados"], bruxo: ["Aba do Bruxo", "Lançamento sem trader"],
+    jevtrade: ["Jev Trade"], calls: ["Calls quentes"], tradershist: ["Top traders"], abas: "*" };
+  let US = { rm: null, at: 0, r: {} };
+  try { const x = localStorage.getItem("pf_usm"); if (x) US.rm = x === "real"; } catch (e) { /* */ }
+  async function loadUsar(force) {
+    if (US.rm == null) US.rm = realMode();
+    const rm = US.rm;
+    document.querySelectorAll("#usMode [data-usm]").forEach((b) => b.classList.toggle("on", (b.dataset.usm === "real") === rm));
+    document.querySelectorAll("#usGrid [data-adm]").forEach((c) => { c.hidden = !(ME && ME.role === "admin"); });
+    if (force || !US.r[rm] || Date.now() - US.at > 60000) {
+      let r; try { r = await BB.api("/api/pump/result-tabs?real=" + (rm ? 1 : 0), { quiet: true }); } catch (e) { r = null; }
+      if (US.rm !== rm) return;
+      if (r && !r.error) { US.r[rm] = r; US.at = Date.now(); }
+    }
+    drawUsar();
+  }
+  function usPer(abas, nome, h) {
+    let s = 0, inv = 0, n = 0;
+    (abas || []).forEach((a) => { if (nome === "*" || nome.includes(a.aba)) { const p = (a.periodos || []).find((q) => q.horas === h); if (p) { s += p.saldo_sol || 0; inv += p.investido_sol || 0; n += p.trades || 0; } } });
+    return { s, inv, n, pct: inv ? s / inv * 100 : null };
+  }
+  function drawUsar() {
+    const r = US.r[US.rm], abas = r && (r.abas || r.itens || r);
+    $("usSub").textContent = "resultado dos trades fechados de cada tela · carteira " + (US.rm ? "REAL" : "FICTÍCIA") + (r ? "" : " · carregando…");
+    const grid = $("usGrid"); if (!grid) return;
+    const L = [...grid.querySelectorAll(".uscard")].map((c) => {
+      const v = c.dataset.us, nome = USAR_ABAS[v], box = c.querySelector(".usg");
+      if (!nome) { box.innerHTML = '<div class="usno">esta tela não compra: sem resultado próprio</div>'; c.classList.remove("uspos", "usneg"); c.style.background = ""; return [c, 0, 1]; }
+      const P = [1, 6, 12, 24].map((h) => [h, usPer(Array.isArray(abas) ? abas : [], nome, h)]);
+      box.innerHTML = P.map(([h, p]) => "<div><small>" + h + " h</small><b>" + (p.n ? pc(p.pct) : "–") + "</b><em>" + (p.n ? sg(p.s, "") + " · " + p.n + " tr" : "sem trade") + "</em></div>").join("");
+      const d = P[3][1], sinal = d.n ? Math.sign(d.s) : 0;
+      c.classList.toggle("uspos", sinal > 0); c.classList.toggle("usneg", sinal < 0);
+      const k = Math.min(1, Math.abs(d.pct || 0) / 30);          // quanto mais lucro (até +30%), mais verde
+      c.style.background = sinal > 0 ? "linear-gradient(180deg,rgba(34,197,94," + (0.06 + 0.16 * k).toFixed(3) + "),var(--panel) 75%)"
+        : sinal < 0 ? "linear-gradient(180deg,rgba(239,68,68," + (0.04 + 0.08 * k).toFixed(3) + "),var(--panel) 75%)" : "";
+      return [c, sinal, sinal > 0 ? -d.s : sinal < 0 ? -d.s : 0];
+    });
+    // lucro em cima (maior primeiro), telas sem resultado no meio, prejuízo embaixo (o pior por último)
+    L.sort((a, b) => (b[1] - a[1]) || (a[2] - b[2])).forEach(([c]) => grid.appendChild(c));
   }
   async function loadAudit() {
     const L = await BB.api("/api/audit"); if (!Array.isArray(L)) return;
@@ -4903,9 +4950,9 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     $("realB").onclick = realToggle;
     $("navAdmin").hidden = ME.role !== "admin";
     $("navNov").hidden = ME.role !== "admin";
-    $("navGrp").hidden = ME.role !== "admin";
-    $("navExp").hidden = ME.role !== "admin";
-    $("navBaseG").hidden = ME.role !== "admin";
+    $("navGrp").hidden = false;                    // 0.32.186: abre para todos; os quadrados só do admin ficam escondidos
+    if ($("navExp")) $("navExp").hidden = ME.role !== "admin";            // 0.32.186: foi para o Usar ou descartar
+    if ($("navBaseG")) $("navBaseG").hidden = ME.role !== "admin";
     if ($("navAbas")) $("navAbas").hidden = ME.role !== "admin";
     if ($("navLogs")) $("navLogs").hidden = ME.role !== "admin";
     if ($("navCalls")) $("navCalls").hidden = ME.role !== "admin";

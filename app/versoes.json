@@ -1685,6 +1685,11 @@
    "versao": "0.32.185",
    "inicio": "2026-11-04T14:27:24+00:00",
    "titulo": "uso de cada serviço em 1, 6, 12 e 24 h no Status do sistema"
+  },
+  {
+   "versao": "0.32.186",
+   "inicio": "2026-11-04T14:30:12+00:00",
+   "titulo": "Usar ou descartar com todas as telas novas e o ganho de cada uma"
   }
  ]
 }

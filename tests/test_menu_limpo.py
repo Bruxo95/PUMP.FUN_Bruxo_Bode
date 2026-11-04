@@ -33,3 +33,12 @@ def test_usar_ou_descartar_is_one_link_and_a_page_of_squares():
         assert f'href="#{v}"' not in nav
         assert f'class="uscard" href="#{v}"' in _sec("usar")
     assert "navGrpH" not in JS and '"usar"' in JS
+
+
+def test_new_screens_moved_into_usar_with_room_for_results():
+    nav = H[H.index('<nav class="nav"'):H.index("</nav>")]
+    usar = _sec("usar")
+    for v in ("tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls", "tradercfg"):
+        assert f'href="#{v}"' not in nav and f'data-usg="{v}"' in usar
+    assert 'href="#tradershist" data-us="tradershist">' in usar and 'href="#tradercfg" data-us="tradercfg">' in usar   # de todos
+    assert 'data-us="explorar" data-adm' in usar and 'id="usMode"' in usar and "result-tabs?real=" in JS
