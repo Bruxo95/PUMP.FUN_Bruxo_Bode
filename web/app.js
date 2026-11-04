@@ -3126,7 +3126,36 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       row(open("Viraram trade", "trade"), "", f(RP.parsed || 0, 0)) + row(open("Não eram trade", "nao_trade"), "", f(RP.not_trade || 0, 0)) +
       row(open("Atrasados (+2 min na fila)", "atrasado"), late >= 20 ? '<span class="down">' + late + "%</span>" : late + "%", f(RP.stale || 0, 0) + (RP.stale_hi ? " · das copiadas " + f(RP.stale_hi, 0) : "")) +
       row(open("Falhas de leitura", "falha"), (RP.tx_errors || 0) > (RP.parsed || 0) ? '<span class="down">mais falhas que trades</span>' : "", f(RP.tx_errors || 0, 0)) + (RP.dropped ? row("Fila cheia", "", f(RP.dropped, 0)) : "") + (RP.limited || RP.skipped_bot ? row("Pulados de propósito", "", f(RP.limited || 0, 0) + " acima de 6/min de carteira não copiada" + (RP.skipped_bot ? " · " + f(RP.skipped_bot, 0) + " de robôs não copiados" : "")) : "") + row("Reconexões", "", f(RP.reconnects || 0, 0)) +
-      "</tbody></table></div><p class=\"muted\" style=\"margin-top:8px\">Clique numa linha com › para ver as últimas 300 de cada tipo (motivo, carteira, transação).</p>";
+      "</tbody></table></div><p class=\"muted\" style=\"margin-top:8px\">Clique numa linha com › para ver as últimas 300 de cada tipo (motivo, carteira, transação).</p>" + useHtml();
+  }
+  // 0.32.185 (pedido do dono): quanto cada serviço usou em 1, 6, 12 e 24 h, desde o início e no mês (requisições, créditos do
+  // Helius e mensagens das conexões ao vivo), com a % do limite grátis. Só admin (rota /api/admin/api-usage).
+  let USE = null, USE_AT = 0;
+  async function loadUse() {
+    if (!(ME && ME.role === "admin") || Date.now() - USE_AT < 20000) return;
+    USE_AT = Date.now();
+    try { USE = await BB.api("/api/admin/api-usage", { quiet: true }); } catch (e) { USE = { error: String(e) }; }
+    if (!$("sysM").hidden && !SYS_SUB && SYS_HTML) $("sysMB").innerHTML = SYS_HTML();
+  }
+  function useHtml() {
+    if (!(ME && ME.role === "admin")) return "";
+    if (!USE) return '<h3 style="margin:16px 0 6px;font-size:13px">Uso de cada serviço</h3><p class="muted">carregando…</p>';
+    if (USE.error) return '<h3 style="margin:16px 0 6px;font-size:13px">Uso de cada serviço</h3><p class="down">' + esc(USE.error) + "</p>";
+    const L = USE.janelas || [];
+    const cel = (x) => !x ? "–" : f(x.n, 0) + (x.pct != null ? ' <small class="' + (x.pct >= 80 ? "down" : "muted") + '">' + f(x.pct, x.pct < 1 ? 3 : 1) + "%</small>" : "");
+    const lim = (r) => r.limite_mes ? f(r.limite_mes, 0) + (r.tipo === "créditos" ? " créditos" : "") + "/mês" : r.limite_min ? f(r.limite_min, 0) + "/min" : "sem limite publicado";
+    const H = ["Serviço", "O quê", "1 h", "6 h", "12 h", "24 h", "Desde o início", "No mês", "Limite grátis"];
+    const rows = L.map((r) => ["<b>" + esc(r.api) + "</b>", esc(r.tipo) + (r.custo_sol ? ' <small class="muted">≈ ' + r.custo_sol["24"] + " SOL em 24 h</small>" : ""),
+      cel(r.janelas["1"]), cel(r.janelas["6"]), cel(r.janelas["12"]), cel(r.janelas["24"]), f(r.desde_inicio || 0, 0),
+      r.mes == null ? "–" : f(r.mes, 0) + (r.pct_mes != null ? ' <small class="muted">' + f(r.pct_mes, r.pct_mes < 1 ? 3 : 1) + "%</small>" : ""), lim(r)]);
+    return '<h3 style="margin:16px 0 6px;font-size:13px">Uso de cada serviço</h3>' +
+      '<div class="tbl-wrap"><table class="systbl usetbl"><thead><tr>' + H.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
+      (rows.length ? rows.map((r) => "<tr>" + r.map((c, i) => '<td data-l="' + H[i] + '">' + c + "</td>").join("") + "</tr>").join("") : '<tr><td colspan="9" class="empty">Nada contado ainda desde o início.</td></tr>') +
+      "</tbody></table></div>" +
+      '<p class="muted" style="margin-top:8px">A % ao lado de cada número: com limite por mês (Solana Tracker 10 mil consultas; Helius 1 milhão de créditos), é quanto do mês aquele período gastou; com limite por minuto, é o uso médio desse limite no período. ' +
+      "Helius: a chamada comum gasta 1 crédito e a getProgramAccounts (contagem de detentores) gasta 10 (helius.dev/pricing, conferido em 04/11). " +
+      "Mensagens do WebSocket não têm preço publicado, então aparecem só em quantidade. PumpPortal: as mensagens de trades das copiadas custam 0,01 SOL a cada 10 mil. " +
+      "Desde o início = desde a última atualização do sistema; No mês = guardado no banco.</p>";
   }
   const RPC_T = { falha: "Falhas de leitura", atrasado: "Atrasados (+2 min na fila)", nao_trade: "Não eram trade", trade: "Viraram trade" };
   const RPC_HELP = {
@@ -3163,6 +3192,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     $("sysMS").textContent = "contando desde " + ((D && D.started_at) || "–") + " · os números zeram a cada atualização do sistema";
     $("sysMB").innerHTML = SYS_HTML();
     if ($("sysM").hidden) { $("sysM").hidden = false; $("sysMX").focus(); }
+    loadUse();
   }
   function render() {
     if (!D) return;

@@ -1578,7 +1578,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/admin/api-usage")
     async def admin_api_usage(u: dict = Depends(admin_only)):
         """0.31.76: uso de cada API externa no mês e por minuto, em % do limite grátis."""
-        return {"apis": hub.api_usage_view()}
+        us = getattr(hub, "usage", None)
+        return {"apis": hub.api_usage_view(), "janelas": us.windows() if us else [],      # 0.32.185: 1/6/12/24 h e total
+                "desde": us.started if us else None}
 
     @app.get("/api/admin/logs")
     async def admin_logs(after: int = 0, level: str = "INFO", q: str = "", limit: int = 400,

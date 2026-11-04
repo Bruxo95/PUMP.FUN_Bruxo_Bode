@@ -159,6 +159,8 @@ class SharedMonitor:
                     url = sys_rpc.replace("https://", "wss://").replace("http://", "ws://")
                 else:
                     url = str(self.hub.cfg.defaults.get("pump_rpc_ws") or "wss://api.mainnet-beta.solana.com")
+                from .apiusage import classify as _cls
+                prov = _cls(url.split("//")[-1].split("/")[0].split("?")[0].split(":")[0]) or "RPC da Solana"
                 async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
                     connected_time = time.time()
                     if st.get("connected_at"):          # 0.32.3 (Bruxo): quantas vezes a conexão caiu e voltou
@@ -178,6 +180,7 @@ class SharedMonitor:
                             pending[nid] = w
                             await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsSubscribe",
                                                       "params": [{"mentions": [w]}, {"commitment": "confirmed"}]}))
+                            self._use(prov, "WebSocket: pedidos enviados")
                             await asyncio.sleep(0.05)  # Throttle subscrições para evitar rate limit (1013)
                         for sid, w in list(self._subs.items()):
                             if w not in want:
@@ -191,6 +194,7 @@ class SharedMonitor:
                             raw = await asyncio.wait_for(ws.recv(), 2.0)
                         except asyncio.TimeoutError:
                             continue
+                        self._use(prov, "WebSocket: mensagens recebidas")
                         try:
                             msg = json.loads(raw)
                         except ValueError:
@@ -211,6 +215,11 @@ class SharedMonitor:
                 log.warning("Monitor compartilhado caiu (%s) — reconectando em %.0f s", str(e)[:100], backoff)
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
+
+    def _use(self, api: str, tipo: str) -> None:
+        us = getattr(self.hub, "usage", None)
+        if us is not None:
+            us.ws(api, tipo)
 
     def on_notification(self, msg: dict) -> None:
         """Atualiza atividade e lê trades de carteiras copiadas ou em estudo."""
@@ -455,6 +464,9 @@ class SharedMonitor:
                             ev = json.loads(raw)
                         except ValueError:
                             continue
+                        # 0.32.185: mensagens da PumpPortal por tipo (as das copiadas são pagas: 0,01 SOL a cada 10 mil)
+                        paid = isinstance(ev, dict) and ev.get("txType") in ("buy", "sell") and ev.get("traderPublicKey") in self._pp_subs
+                        self._use("PumpPortal", "trades das copiadas" if paid else "WebSocket: tokens novos e outros")
                         if isinstance(ev, dict) and not ev.get("txType") and (ev.get("errors") or ev.get("error") or ev.get("message")):
                             # 0.32.106: sem isto, um aviso de saldo ou de chave da PumpPortal sumia sem ninguém ver
                             txt = str(ev.get("errors") or ev.get("error") or ev.get("message"))[:200]
