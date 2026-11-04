@@ -4,6 +4,8 @@ import time
 
 import pytest
 
+from tests.test_api import env  # noqa: F401  (fixture env)
+
 from app import bnb, bnbhist, bnbpancake as pc
 from tests.test_bnb import TOK, W1, W2, _Resp, _a, _log, _w
 
@@ -89,3 +91,19 @@ def test_key_never_appears_in_errors_or_status():
 def test_without_key_waits():
     w = bnb.BnbWatch(_NR([]), None, rpcs=["https://x"])
     assert w.state()["historico"]["chave"] is False and w.state()["historico"]["fase"] == "esperando a chave"
+
+
+def test_nodereal_key_lives_only_in_the_bnb_panel(env):
+    from tests.test_api import UA, UB, tok
+    c, hub = env["c"], env["hub"]
+    hub.bnb = bnb.BnbWatch(_NR([]), None, rpcs=["https://x"])
+    assert c.get("/api/pump/bnb/nodereal", headers=tok(UB, "b@x.com")).status_code == 403
+    assert c.get("/api/pump/bnb/nodereal", headers=tok(UA)).json()["configurada"] is False
+    assert c.post("/api/pump/bnb/nodereal", json={"value": "curta"}, headers=tok(UA)).json()["error"]
+    r = c.post("/api/pump/bnb/nodereal", json={"value": "https://bsc-mainnet.nodereal.io/v1/" + KEY}, headers=tok(UA))
+    assert r.json()["ok"] and KEY not in r.text
+    v = c.get("/api/pump/bnb/nodereal", headers=tok(UA))
+    assert v.json()["configurada"] is True and KEY not in v.text and hub.system_keys["nodereal_bnb_key"] == KEY
+    assert "nodereal_bnb_key" not in c.get("/api/admin/keys", headers=tok(UA)).json()["keys"]          # fora do painel da Solana
+    assert c.post("/api/pump/bnb/nodereal/remover", json={}, headers=tok(UA)).json()["configurada"] is False
+    assert not hub.system_keys.get("nodereal_bnb_key")

@@ -8,7 +8,7 @@ from .db import audit
 OFF = {"ligado": False, "motivo": "leitura da BNB desligada no servidor (BNB_ON=false)"}
 
 
-def add_routes(app, get_watch, admin_only, db, user=None) -> None:
+def add_routes(app, get_watch, admin_only, db, user=None, hub=None) -> None:
     # 0.32.173 (pedido do dono, 03/11): Administração da BNB com "Visualizar tela" de cada usuário, como no painel da pump.fun.
     # Na visualização (cabeçalho X-View-As, que só o admin manda e só vale para GET) a conta é a do usuário vista; estas
     # duas leituras aceitam essa conta mesmo quando ela não é admin. Nada é gravado para quem é visto.
@@ -104,6 +104,35 @@ def add_routes(app, get_watch, admin_only, db, user=None) -> None:
             return {"error": "não consegui salvar no banco agora"}
         await audit(db, u["id"], "BNB: salvar chave da carteira", addr)          # só o endereço público, nunca a chave
         return {"ok": True, "endereco": addr}
+
+    # 0.32.180: chave do sistema da NodeReal (histórico dos traders), só no painel da BNB. O valor nunca volta.
+    @app.get("/api/pump/bnb/nodereal")
+    async def bnb_nodereal(u: dict = Depends(admin_only)):
+        w = get_watch()
+        on = bool(hub and (getattr(hub, "system_keys", None) or {}).get("nodereal_bnb_key"))
+        return {"configurada": on, "historico": w.hist.status() if w is not None else None}
+
+    @app.post("/api/pump/bnb/nodereal")
+    async def bnb_nodereal_save(body: dict, u: dict = Depends(admin_only)):
+        from .bnbhist import clean_key
+        if hub is None:
+            return {"error": "servidor sem o cofre de chaves"}
+        try:
+            value = clean_key(str((body or {}).get("value") or ""))
+        except ValueError as e:
+            return {"error": str(e)}
+        try:
+            await hub.set_system_key(u["id"], "nodereal_bnb_key", value)       # grava no audit_log (nome, nunca o valor)
+        except Exception:
+            return {"error": "não consegui salvar no banco agora"}
+        return {"ok": True, "configurada": True}
+
+    @app.post("/api/pump/bnb/nodereal/remover")
+    async def bnb_nodereal_remove(u: dict = Depends(admin_only)):
+        if hub is None:
+            return {"error": "servidor sem o cofre de chaves"}
+        await hub.remove_system_key(u["id"], "nodereal_bnb_key")
+        return {"ok": True, "configurada": False}
 
     @app.post("/api/pump/bnb/chave/remover")
     async def bnb_chave_remover(u: dict = Depends(admin_only)):

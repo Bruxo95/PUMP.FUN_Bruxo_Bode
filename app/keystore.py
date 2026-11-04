@@ -30,8 +30,10 @@ SYSTEM_NAMES = {
     "jupiter_api_key": "Chave da Jupiter (opcional)",
     "rpc_url": "RPC próprio (Helius etc.)",
     "jev_api_key": "Chave do Jev (TypeSafe AI) — modo sombra",
-    "nodereal_bnb_key": "Chave da NodeReal (BNB) — histórico dos traders",
 }
+# 0.32.180 (pedido do dono: "tudo o que for BNB fica separado da rede Solana"): chaves do sistema da BNB. Ficam na mesma
+# tabela app_secrets (criptografadas), mas só aparecem e só são salvas no painel da BNB (/bnb → Administração).
+BNB_SYSTEM_NAMES = {"nodereal_bnb_key": "Chave da NodeReal (BNB) — histórico dos traders"}
 SYSTEM_OWNER = "__sistema__"                        # "dono" usado na criptografia das chaves do sistema
 
 # onde cada pessoa cria a própria chave (mostrado em Configurações)

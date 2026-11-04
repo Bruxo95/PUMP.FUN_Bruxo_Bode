@@ -4427,8 +4427,7 @@
     wallet_private_key: "Chave privada (base58 da Phantom/Solflare ou os 64 números do id.json) de uma carteira NOVA só para o bot. Fica criptografada e só é usada no servidor para assinar.",
     rpc_url: "Opcional. Endereço https:// de um RPC próprio (Helius, QuickNode…) — mais rápido e sem limite do público.",
     jupiter_api_key: "Opcional. Aumenta o limite de cotações da Jupiter para a sua carteira.",
-    jev_api_key: "Chave da API do Jev (TypeSafe AI). Só opina nos sinais da Aba do Bruxo (modo sombra, nunca compra). Veja a aba JEV.",
-    nodereal_bnb_key: "Grátis em nodereal.io (MegaNode) → API Key da BNB Smart Chain. Cole a chave ou o endereço https://bsc-mainnet.nodereal.io/v1/… Usada só para buscar o histórico dos traders da BNB (Four.Meme e PancakeSwap)." };
+    jev_api_key: "Chave da API do Jev (TypeSafe AI). Só opina nos sinais da Aba do Bruxo (modo sombra, nunca compra). Veja a aba JEV." };
   // 0.31.25: passo a passo de cada chave, para quem nunca fez (pedido do dono em 2026-10-27: "muito usuário sem
   // experiência"). Os nomes dos botões nos sites de fora podem mudar; por isso o texto diz o que procurar.
   const KEY_HOW = {

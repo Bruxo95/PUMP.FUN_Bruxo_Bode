@@ -247,7 +247,7 @@
     const hi = R.historico || {};
     const FASE = { curva: ["Curva", "buscando a Four.Meme"], pancake: ["Pancake", "buscando a PancakeSwap"], pronto: ["Pronto", "histórico completo"], "esperando a chave": ["Sem chave", "esperando a chave"] };
     const fz = FASE[hi.fase] || [hi.fase || "—", ""];
-    $("bnHiSub").textContent = !hi.chave ? "cole a chave grátis da NodeReal em Administração → Chaves do sistema (painel da pump.fun) para buscar os últimos " + (hi.dias || 14) + " dias"
+    $("bnHiSub").textContent = !hi.chave ? "cole a chave grátis da NodeReal em BNB → Administração para buscar os últimos " + (hi.dias || 14) + " dias"
       : "últimos " + (hi.dias || 14) + " dias da Four.Meme e depois da PancakeSwap · não copia nada, só monta o ranking";
     kpis("bnHiK", [["Situação", esc(fz[0]) + (hi.chave && /curva|pancake/.test(hi.fase || "") ? " " + num(hi.pct || 0, 0) + "%" : ""), esc(fz[1]), hi.fase === "pronto" ? "up" : ""],
       ["Trades do passado", num((hi.trades_curva || 0) + (hi.trades_pancake || 0), 0), num(hi.trades_curva || 0, 0) + " na curva · " + num(hi.trades_pancake || 0, 0) + " na Pancake"],
@@ -402,7 +402,24 @@
     const r = await BB.api("/api/pump/bnb/usuarios", { quiet: true });
     if (r && r.users) { USERS = r; drawUsers(); }
   }
+  // 0.32.180 (pedido do dono: tudo da BNB fica no painel da BNB): chave da NodeReal em Administração
+  let NR = null, NR_AT = 0;
+  async function loadNodeReal(force) {
+    if (!force && Date.now() - NR_AT < 30000) return;
+    NR_AT = Date.now();
+    const r = await BB.api("/api/pump/bnb/nodereal", { quiet: true });
+    if (r && !r.error) { NR = r; drawNodeReal(); }
+  }
+  function drawNodeReal() {
+    const el = $("nrSt"); if (!el || !NR) return;
+    const h = NR.historico || {};
+    el.className = "decbox " + (NR.configurada ? "ok" : "");
+    el.innerHTML = NR.configurada ? "Chave: <b>configurada</b> · histórico: <b>" + esc(h.fase || "—") + "</b>" + (/curva|pancake/.test(h.fase || "") ? " (" + num(h.pct || 0, 0) + "%)" : "") +
+      " · " + num((h.trades_curva || 0) + (h.trades_pancake || 0), 0) + " trades do passado · acompanhe em <a href=\"#traders\">Top traders → Ranking</a>"
+      : "Chave: <b>não configurada</b>. Sem ela o ranking só vê o que foi lido desde que a leitura foi ligada.";
+  }
   function drawAdmin() {
+    loadNodeReal();
     if (!R || !R.ligado) return;
     const s = R.status || {};
     const st = $("bnSt");
@@ -612,6 +629,22 @@
       if (r && r.error) { alert(r.error); return; }
       alert("Chave salva. Carteira: " + r.endereco);
       await load();
+      return;
+    }
+    if (t.closest("#nrSave")) {
+      const v = ($("nrKey").value || "").trim();
+      if (!v) { alert("Cole a API key da NodeReal."); return; }
+      const r = await BB.api("/api/pump/bnb/nodereal", { body: { value: v } });
+      $("nrKey").value = "";
+      if (r && r.error) { alert(r.error); return; }
+      alert("Chave da NodeReal salva. O histórico começa em até 30 s.");
+      await loadNodeReal(true);
+      return;
+    }
+    if (t.closest("#nrDel")) {
+      if (!confirm("Remover a chave da NodeReal? O histórico para de buscar (o que já veio fica).")) return;
+      await BB.api("/api/pump/bnb/nodereal/remover", { body: {} });
+      await loadNodeReal(true);
       return;
     }
     if (t.closest("#rlKeyDel")) {

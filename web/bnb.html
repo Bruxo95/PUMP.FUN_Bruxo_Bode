@@ -208,6 +208,12 @@
         <div class="card" id="bnUCard"><header><div><h2>Usuários</h2><div class="sub">o que cada conta tem na BNB · Visualizar tela abre o painel da BNB como a pessoa vê, só leitura</div></div><div class="sp"></div>
             <input class="in" id="bnUQ" placeholder="Filtrar por nome ou e-mail" style="width:220px;max-width:100%"></header>
           <div class="tbl-wrap"><table id="bnU"></table></div></div>
+        <div class="card" data-novo-ate="2026-11-18"><header><div><h2>Chave da NodeReal</h2><div class="sub">histórico dos traders da BNB (Four.Meme e PancakeSwap) · chave do sistema, só da BNB · o valor nunca volta para a tela</div></div></header>
+          <div class="decbox" id="nrSt">—</div>
+          <div class="field" style="margin-top:12px"><label for="nrKey">API key da NodeReal (BNB Smart Chain)</label>
+            <div class="bnkey"><input class="in" id="nrKey" type="password" autocomplete="off" spellcheck="false" placeholder="cole a API key ou https://bsc-mainnet.nodereal.io/v1/…">
+              <button class="btn primary" id="nrSave" type="button">Salvar chave</button><button class="btn sm" id="nrDel" type="button">Remover</button></div>
+            <div class="muted" style="margin-top:6px">Grátis em <a href="https://nodereal.io/meganode" target="_blank" rel="noopener">nodereal.io → MegaNode</a>: crie a conta, escolha a BNB Smart Chain e copie a API key. Fica criptografada no servidor. Usada só para buscar o passado (últimos 14 dias), nunca na leitura ao vivo nem para comprar.</div></div></div>
         <div class="card"><header><div><h2>Leitura da rede</h2><div class="sub">RPC grátis, consultas e gravação no banco</div></div></header>
           <div class="decbox" id="bnSt"></div></div>
         <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">agora fica em Top traders → Ajustes</div></div><div class="sp"></div><a class="btn sm" href="#traders" data-gotr="aj">Abrir Ajustes</a></header></div>

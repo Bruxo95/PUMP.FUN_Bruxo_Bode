@@ -1655,6 +1655,11 @@
    "versao": "0.32.179",
    "inicio": "2026-11-04T06:22:07+00:00",
    "titulo": "histórico dos traders da BNB pela NodeReal"
+  },
+  {
+   "versao": "0.32.180",
+   "inicio": "2026-11-04T06:30:17+00:00",
+   "titulo": "chave da NodeReal no painel da BNB"
   }
  ]
 }
