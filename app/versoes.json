@@ -1650,6 +1650,11 @@
    "versao": "0.32.178",
    "inicio": "2026-11-04T06:05:00+00:00",
    "titulo": "BNB lê a PancakeSwap dos tokens graduados"
+  },
+  {
+   "versao": "0.32.179",
+   "inicio": "2026-11-04T06:22:07+00:00",
+   "titulo": "histórico dos traders da BNB pela NodeReal"
   }
  ]
 }

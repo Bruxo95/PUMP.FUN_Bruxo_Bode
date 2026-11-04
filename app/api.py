@@ -1249,6 +1249,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 value = check_rpc_url(value)
             except ValueError as e:
                 return {"error": str(e)}
+        elif name == "nodereal_bnb_key":
+            from .bnbhist import clean_key
+            try:
+                value = clean_key(value)
+            except ValueError as e:
+                return {"error": str(e)}
         elif len(value) < 16:
             return {"error": "chave inválida (curta demais)"}
         try:

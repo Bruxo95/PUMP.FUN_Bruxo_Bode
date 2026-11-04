@@ -243,6 +243,17 @@
     table("bnRk", ["#", "Carteira", "Lucro realizado", "Acerto", "Trades", "Tokens", "Saldo", "Último trade", "Por que não"],
       rows.map((r, i) => line(r, i).concat([r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="muted">apto, mas offline ou fora das vagas</span>' : esc((r.flags || []).join(" · "))])),
       "Ainda sem trades lidos.");
+    // 0.32.179 (pedido do dono): histórico pela NodeReal
+    const hi = R.historico || {};
+    const FASE = { curva: ["Curva", "buscando a Four.Meme"], pancake: ["Pancake", "buscando a PancakeSwap"], pronto: ["Pronto", "histórico completo"], "esperando a chave": ["Sem chave", "esperando a chave"] };
+    const fz = FASE[hi.fase] || [hi.fase || "—", ""];
+    $("bnHiSub").textContent = !hi.chave ? "cole a chave grátis da NodeReal em Administração → Chaves do sistema (painel da pump.fun) para buscar os últimos " + (hi.dias || 14) + " dias"
+      : "últimos " + (hi.dias || 14) + " dias da Four.Meme e depois da PancakeSwap · não copia nada, só monta o ranking";
+    kpis("bnHiK", [["Situação", esc(fz[0]) + (hi.chave && /curva|pancake/.test(hi.fase || "") ? " " + num(hi.pct || 0, 0) + "%" : ""), esc(fz[1]), hi.fase === "pronto" ? "up" : ""],
+      ["Trades do passado", num((hi.trades_curva || 0) + (hi.trades_pancake || 0), 0), num(hi.trades_curva || 0, 0) + " na curva · " + num(hi.trades_pancake || 0, 0) + " na Pancake"],
+      ["Tokens conferidos", num(hi.tokens_conferidos || 0, 0), num(hi.pares || 0, 0) + " pares da PancakeSwap"],
+      ["Consultas hoje", num(hi.chamadas_hoje || 0, 0), "limite " + num(hi.limite_dia || 0, 0) + " por dia"],
+      ["Falhas", num(hi.erros || 0, 0), hi.ultimo_erro ? esc(hi.ultimo_erro).slice(0, 90) : "nenhuma", hi.erros ? "down" : ""]]);
     // 0.32.178 (pedido do dono): tokens que graduaram para a PancakeSwap e quem ganha com eles
     const gr = rk.graduados || [];
     table("bnGr", ["Carteira", "Lucro nos graduados", "Acerto nos graduados", "Tokens graduados", "Trades na Pancake", "Lucro total", "Situação"],

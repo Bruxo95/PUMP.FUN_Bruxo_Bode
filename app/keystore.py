@@ -30,6 +30,7 @@ SYSTEM_NAMES = {
     "jupiter_api_key": "Chave da Jupiter (opcional)",
     "rpc_url": "RPC próprio (Helius etc.)",
     "jev_api_key": "Chave do Jev (TypeSafe AI) — modo sombra",
+    "nodereal_bnb_key": "Chave da NodeReal (BNB) — histórico dos traders",
 }
 SYSTEM_OWNER = "__sistema__"                        # "dono" usado na criptografia das chaves do sistema
 
@@ -40,6 +41,7 @@ KEY_LINKS = {
     "jupiter_api_key": "https://developers.jup.ag/portal",
     "rpc_url": "https://dashboard.helius.dev",
     "jev_api_key": "https://typesafe.ai",
+    "nodereal_bnb_key": "https://nodereal.io/meganode",
     "wallet_private_key": "https://phantom.com",
     "telegram_bot_token": "https://t.me/BotFather",
     "telegram_chat_id": "https://t.me/userinfobot",

@@ -98,7 +98,7 @@ def test_rank_marks_bot_and_ignores_old_trades():
 
 def test_clean_cfg_limits():
     c = bnb.clean_cfg({"days": 99, "top_n": "3", "min_winrate": "abc", "outra": 1})
-    assert c["days"] == 7 and c["top_n"] == 3 and c["min_winrate"] == 50 and "outra" not in c
+    assert c["days"] == 14 and c["top_n"] == 3 and c["min_winrate"] == 50 and "outra" not in c
 
 
 class _Resp:

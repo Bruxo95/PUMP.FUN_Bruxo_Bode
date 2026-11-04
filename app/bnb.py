@@ -23,7 +23,7 @@ import os
 import time
 from collections import deque
 
-from . import bnbcopy, bnbpancake, bnbreal, bnbsafe, evm
+from . import bnbcopy, bnbhist, bnbpancake, bnbreal, bnbsafe, evm
 
 log = logging.getLogger("bnb")
 
@@ -48,16 +48,16 @@ RPCS = [u.strip() for u in os.environ.get("BNB_RPCS", "https://bsc-rpc.publicnod
 SPAN = {"https://bsc-rpc.publicnode.com": 400, "https://bsc.blockrazor.xyz": 25}   # blocos por consulta (medido)
 POLL_S = 3.0
 BLOCK_S = 0.45            # medido em 02/11/2026: 5.000 blocos em 2.250 s; corrigido sozinho a cada leitura
-KEEP_S = 7 * 86400        # memória do ranking (a tabela guarda 14 dias)
+KEEP_S = 14 * 86400       # memória do ranking = o que a tabela guarda (0.32.179: era 7 dias)
 DB_KEEP_S = 14 * 86400
 CATCHUP_S = 6 * 3600      # depois de reiniciar, recupera no máximo 6 h
-MAX_MEM = 200_000
+MAX_MEM = 300_000
 
 # Mesma regra do Top traders (pumpfun.refresh_followed/_lb_judge), com valores próprios desta aba.
 # min_trades começa em 20 (não 1.000 como na Solana): a Four.Meme tem cerca de 3 compras por minuto (medido em 02/11).
 CFG_DEFAULT = {"days": 7, "min_trades": 20, "min_winrate": 50.0, "min_closed": 3, "min_wallet_usd": 5000.0,
                "online_min": 10.0, "top_n": 10, "bot_per_day": 400}
-CFG_LIMITS = {"days": (1, 7), "min_trades": (0, 100000), "min_winrate": (0, 100), "min_closed": (1, 1000),
+CFG_LIMITS = {"days": (1, 14), "min_trades": (0, 100000), "min_winrate": (0, 100), "min_closed": (1, 1000),
               "min_wallet_usd": (0, 10_000_000), "online_min": (1, 1440), "top_n": (1, 50), "bot_per_day": (10, 100000)}
 
 
@@ -276,6 +276,9 @@ class BnbWatch:
         self._gq: deque = deque()
         self._pairs_dirty = False
         self.pstat = {"trades": 0, "erros": 0, "ultimo_erro": None, "graduados_achados": 0}
+        # 0.32.179: histórico dos últimos dias pela NodeReal (chave do sistema; main.py liga key_fn)
+        self.key_fn = lambda: ""
+        self.hist = bnbhist.Backfill(self, lambda: self.key_fn())
 
     # ------------------------------------------------------------------ RPC
     async def rpc(self, method: str, params: list):
@@ -310,8 +313,8 @@ class BnbWatch:
         if r0 and r1:
             self.bnb_usd, self._bnb_at = r0 / r1, time.time()
 
-    async def token_info(self, token: str) -> None:
-        h = await self._call(HELPER3, SEL_TOKEN_INFO + token[2:].rjust(64, "0"))
+    async def token_info(self, token: str, call=None) -> None:
+        h = await (call or self._call)(HELPER3, SEL_TOKEN_INFO + token[2:].rjust(64, "0"))
         if len(h) < 2 + 64 * 12:
             self.quotes[token] = "?"
             return
@@ -433,6 +436,24 @@ class BnbWatch:
                         log.info("BNB: %s… graduou, par PancakeSwap %s…", tk[:10], pair[:10])
             except Exception:
                 pass
+
+    def add_old(self, trs: list[dict]) -> None:
+        """Trades antigos (histórico): entram na memória em ordem de hora e vão para o banco, sem cópia e sem mexer no
+        que cada trader segura agora."""
+        new = [t for t in trs if t["id"] not in self.seen]
+        if not new:
+            return
+        allt = sorted(list(self.trades) + new, key=lambda x: x["t"])[-MAX_MEM:]
+        self.trades = deque(allt, maxlen=MAX_MEM)
+        self.seen = {t["id"] for t in self.trades}
+        for t in new:
+            if t.get("quote") and t["token"] not in self.quotes:
+                self.quotes[t["token"]] = t["quote"]
+            px = price_bnb(t, t.get("quote"), self.bnb_usd)
+            if px and (t["token"] not in self.px or t["t"] >= self.px[t["token"]][1]):
+                self.px[t["token"]] = (px, t["t"])
+        self.pending.extend(new)
+        self._rank_cache = None
 
     def _add(self, tr: dict, save: bool = False) -> None:
         if tr["id"] in self.seen:
@@ -998,6 +1019,8 @@ class BnbWatch:
                     self.cfg = clean_cfg(r["v"])
                 elif r.get("k") == "cursor" and isinstance(r.get("v"), dict):
                     self.cursor = int(r["v"].get("block") or 0) or None
+                elif r.get("k") == "hist":
+                    self.hist.restore(r.get("v"))
                 elif r.get("k") == "pairs" and isinstance(r.get("v"), dict):
                     self.pairs = {k: v for k, v in r["v"].items() if isinstance(v, dict) and v.get("pair")}
                     self.graduated.update(self.pairs)
@@ -1018,16 +1041,26 @@ class BnbWatch:
             log.warning("BNB: dados guardados não carregaram: %s", str(e)[:160])
         self.loaded = True
 
+    async def _flush_rows(self, rows: list[dict]) -> bool:
+        try:
+            await self.db.insert("bnb_fm_trades", [{**{k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side",
+                                                                            "price", "amount", "value", "fee", "t", "quote")},
+                                                   "venue": r.get("venue") or "fourmeme"} for r in rows], upsert=True, on_conflict="id")
+            return True
+        except Exception as e:
+            self.pending = rows + self.pending                 # não perde: tenta de novo na próxima
+            log.warning("BNB: não gravou %d trades: %s", len(rows), str(e)[:160])
+            return False
+
     async def flush(self) -> None:
         if self.db is None:
             self.pending.clear()
             return
-        rows, self.pending = self.pending[:1000], self.pending[1000:]
+        for _ in range(20 if len(self.pending) > 1000 else 1):   # 0.32.179: o histórico grava em lotes
+            rows, self.pending = self.pending[:1000], self.pending[1000:]
+            if not rows or not await self._flush_rows(rows):
+                break
         try:
-            if rows:
-                await self.db.insert("bnb_fm_trades", [{**{k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side",
-                                                                                "price", "amount", "value", "fee", "t", "quote")},
-                                                       "venue": r.get("venue") or "fourmeme"} for r in rows], upsert=True, on_conflict="id")
             if self._pairs_dirty:
                 self._pairs_dirty = False
                 await self.db.insert("bnb_state", {"k": "pairs", "v": self.pairs}, upsert=True, on_conflict="k")
@@ -1035,8 +1068,7 @@ class BnbWatch:
                 await self.db.insert("bnb_state", {"k": "cursor", "v": {"block": self.cursor, "t": time.time()}},
                                      upsert=True, on_conflict="k")
         except Exception as e:
-            self.pending = rows + self.pending                 # não perde: tenta de novo na próxima
-            log.warning("BNB: não gravou %d trades: %s", len(rows), str(e)[:160])
+            log.warning("BNB: não gravou o estado: %s", str(e)[:160])
         if time.time() - self._trim_at > 86400:
             self._trim_at = time.time()
             try:
@@ -1054,6 +1086,7 @@ class BnbWatch:
     # ------------------------------------------------------------------ laço
     async def run(self) -> None:
         await self.load()
+        self._spawn(self.hist.run())                       # 0.32.179: histórico pela NodeReal (espera a chave)
         while True:
             try:
                 await self.poll()
@@ -1098,5 +1131,6 @@ class BnbWatch:
                            "desde": self.stat["desde"], "a_gravar": len(self.pending), "carregados": self.stat["carregados"],
                            "bloco_s": self.block_s},
                 "ranking": rk, "recentes": recent,
+                "historico": self.hist.status(),
                 "pancake": {**self.pstat, "pares": len(self.pairs), "lendo": len(self._active_pairs()),
                             "tokens": bnbpancake.graduated_list(self.trades, self.pairs, now, to_bnb, self.quotes, self.bnb_usd)[:60]}}
