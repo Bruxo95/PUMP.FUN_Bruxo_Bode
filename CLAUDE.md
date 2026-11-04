@@ -1625,3 +1625,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   depois de um 429. Trades só na memória (24 h; o volume pesaria no banco); banco só `hood_state` (cursor e regra; migração
   `20261104000005`); depois de reiniciar relê até 30 min. Próximo: etapa 2 = cópia FICTÍCIA em ETH com checagem de token golpe; REAL só com OK do dono.
 - 0.32.209 (pedido do dono): o login sempre abre `/entrar` para o admin: `landing.js` apaga `pf_hub` antes de ir ao `/app`, e `app.js` apaga quando volta do Google (`FRESH_LOGIN`, lido no começo do script porque o login limpa o `?code=`).
+- 0.32.210 (pedido do dono no chat): migração `20261104000006` põe em `study_wallets` do dono as 12 carteiras que o kibo100x (CUK1…WU2e) segue (lista lida em pump.fun/profile, aba Following, sem login, em 04/11), apelido `kibo100x · nome`, até o limite de 30.

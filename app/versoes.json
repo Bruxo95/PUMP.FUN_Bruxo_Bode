@@ -1805,6 +1805,11 @@
    "versao": "0.32.209",
    "inicio": "2026-11-04T22:18:43+00:00",
    "titulo": "Login sempre abre a escolha da rede"
+  },
+  {
+   "versao": "0.32.210",
+   "inicio": "2026-11-04T22:37:10+00:00",
+   "titulo": "12 carteiras do kibo100x em estudo"
   }
  ]
 }
