@@ -86,3 +86,16 @@ def test_usar_squares_have_the_buy_switch():
     assert 'class="ustg"' in JS and 'ABAS_TR.filter((a) => nomes.includes(a[0]))' in JS
     assert '".uscard [data-toggle]")) e.preventDefault()' in JS and 'data-clone="1" aria-label' in JS
 
+
+def test_both_wallet_screens_start_the_same():
+    """0.32.197 (pedido do dono): FICTÍCIA e REAL começam iguais; o que é de uma só fica embaixo, explicado."""
+    cart = _sec("carteiras")
+    sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
+    real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
+    labels = lambda s: re.findall(r"<label>(.*?)</label>", s[:s.index("<h2>Só na")])
+    assert labels(sim) == labels(real) and len(labels(sim)) == 4
+    assert "<h2>Só na FICTÍCIA</h2>" in sim and "<h2>Só na REAL</h2>" in real
+    so = lambda s: s[s.index("<h2>Só na"):]
+    assert "pump_sim_balance_sol" in so(sim) and "pump_real_daily_loss_sol" in so(real) and "Só aqui:" in so(sim) and "Só aqui:" in so(real)
+    assert real.index('id="wKpis"') < real.index("<h2>Carteira REAL") < real.index("Use uma carteira")
+

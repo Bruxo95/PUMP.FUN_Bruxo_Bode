@@ -664,7 +664,7 @@
     }).catch(() => {});
     document.querySelectorAll('[data-view="carteiras"] .card').forEach((card) => {
       const h = card.querySelector("header");
-      if (!h || card.closest('[data-wp="real"]') || card.id === "secretsCard" || card.id === "cfShare" || card.id === "allCfgCard" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
+      if (!h || card.hasAttribute("data-noshare") || card.id === "secretsCard" || card.id === "cfShare" || card.id === "allCfgCard" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
       if (!h.querySelector(".sp")) { const sp = document.createElement("div"); sp.className = "sp"; h.appendChild(sp); }
       const b = document.createElement("button"); b.className = "btn sm"; b.dataset.cfsh = "card"; b.textContent = "Compartilhar"; h.appendChild(b);
     });
@@ -4514,6 +4514,9 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       ["USDC na carteira", "0 SOL", "a carteira fictícia só usa SOL", "pnl"],
       ["Compras possíveis", sol ? String(Math.max(0, Math.floor(cash / (sol * 1.02 + (+c.pump_priority_sol || 0))))) : "–", "de " + s4(sol) + " SOL", "pos"],
       ["Resultado fictício", sg(w.pnl_sol, ""), (w.count || 0) + " trades · " + (w.open || 0) + " abertas", "tr"]]);
+    $("simInfo").innerHTML = '<div class="cfgs" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">' +
+      [["Carteira", '<span class="up">fictícia</span>'], ["Saldo inicial", s4(c.pump_sim_balance_sol) + " SOL"], ["Em posições", s4(w.open_value_sol || 0) + " SOL"], ["Posições abertas", w.open || 0], ["Trades fechados", w.count || 0]]
+        .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + x[1] + "</span></div>").join("") + "</div>";
   }
 
   // ------------------------------------------------------------------ execução real
@@ -4527,7 +4530,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       ["USDC na carteira", w.usdc_in_sol == null ? "–" : s4(w.usdc_in_sol) + " SOL", "$" + f(w.usdc || 0, 2) + " USDC — troque por SOL para usar", "pnl"],
       ["Compras possíveis", w.sol == null || !c.pump_real_max_sol ? "–" : String(Math.max(0, Math.floor((w.sol - (w.reserve_sol || 0.02)) / (c.pump_real_max_sol * 1.02 + 0.0006)))), "de " + s4(c.pump_real_max_sol) + " SOL (guarda 0,02 SOL p/ taxas)", "pos"],
       ["Resultado real", sg(Rw.pnl_sol, ""), (Rw.count || 0) + " trades · " + (Rw.open || 0) + " abertas", "tr"]]
-      : [["Carteira do bot", "não configurada", "cole a chave em Carteiras → Chaves", "wallet"], ["Resultado real", sg(Rw.pnl_sol, ""), (Rw.count || 0) + " trades", "tr"]]);
+      : [["Saldo da carteira", "–", "cole a chave em Valem para as duas → Chaves", "wallet"], ["USDC na carteira", "–", "carteira não configurada", "pnl"], ["Compras possíveis", "–", "de " + s4(c.pump_real_max_sol) + " SOL", "pos"],
+        ["Resultado real", sg(Rw.pnl_sol, ""), (Rw.count || 0) + " trades · " + (Rw.open || 0) + " abertas", "tr"]]);
     const b = $("realB"); b.textContent = R.enabled ? "Ligado" : "Desligado"; b.title = R.enabled ? "Clique para desligar" : "Clique para ligar"; b.className = "btn tgl sw " + (R.enabled ? "on" : "off"); b.setAttribute("aria-checked", String(!!R.enabled));
     $("realSub").textContent = R.enabled ? "LIGADA — compras de verdade com até " + s4(c.pump_real_max_sol) + " SOL cada" : "desligada";
     $("realInfo").innerHTML = '<div class="cfgs" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">' +

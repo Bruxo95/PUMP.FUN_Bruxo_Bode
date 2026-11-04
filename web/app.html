@@ -858,31 +858,32 @@
         <div class="seg ctabs" id="walTabs"><button data-wm="sim">FICTÍCIA</button><button data-wm="real">REAL</button><button data-wm="ambas">Valem para as duas</button><button data-wm="espelho">Real × fictícia</button></div>
         <div data-wp="sim">
         <div class="kpis" id="wKpisS"></div>
-        <div class="card" data-nosanf><header><div><h2>Carteira FICTÍCIA <span class="tag sim">FICTÍCIA</span></h2><div class="sub">dinheiro de mentira, para medir sem risco · cada mudança vale na hora e fica salva só para você</div></div></header>
-          <div class="form">
+        <div class="card" data-nosanf>
+          <header><div><h2>Carteira FICTÍCIA <span class="tag sim">FICTÍCIA</span></h2><div class="sub">sempre ligada · dinheiro de mentira, para medir sem risco</div></div></header>
+          <div class="realbox">
+            <span class="tag win" title="A fictícia não tem chave geral. O que liga e desliga são as compras de cada aba.">Sempre ligada</span>
+            <div style="flex:1;min-width:220px" id="simInfo"></div>
+          </div>
+          <p class="muted small" style="margin:6px 0 0">Stops, alvos e filtros são os mesmos nas duas carteiras e ficam em <b>Valem para as duas → Regras</b>.</p>
+          <div class="form" style="margin-top:18px">
             <div class="field"><label>Cópia de traders</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_enabled">…</button></div><div class="hint">Desligada, nenhuma cópia de trader abre, nem na FICTÍCIA nem na REAL. As outras telas que compram (Explorar, Base…) têm a chave própria em Abas de trades.</div></div>
-            <div class="field"><label>SOL por compra (valor de cada cópia fictícia)</label><div class="row"><input class="in w100" type="number" min="0.01" step="0.01" data-cfg="pump_copy_sol">
-              <button class="btn sm" data-set="pump_copy_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.5">0,5</button></div></div>
-            <div class="field"><label>Posições fictícias ao mesmo tempo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_max_open"></div></div>
+            <div class="field"><label>SOL por compra</label><div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_copy_sol"><span class="muted">SOL</span><button class="btn sm" data-set="pump_copy_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.5">0,5</button></div><div class="hint">Cada cópia fictícia usa este valor.</div></div>
+            <div class="field"><label>Posições ao mesmo tempo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_max_open"></div></div>
             <div class="field"><label>Copiar também fora da pump.fun (Raydium, Meteora, Orca… via Jupiter)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other">…</button>
-              <span class="muted">pool mín. $</span><input class="in w100" type="number" min="0" step="1000" data-cfg="pump_other_min_liq_usd"></div></div>
-            <div class="field"><label>Saldo inicial da carteira fictícia</label><div class="row"><input class="in w100" type="number" min="0.1" step="0.5" data-cfg="pump_sim_balance_sol"><span class="muted">SOL</span><button class="btn sm" data-act="reset">Zerar carteira fictícia</button></div></div>
-          </div></div>
-        <div data-nosanf class="card">
-          <header><div><h2>Custos simulados</h2><div class="sub">o que a conta fictícia desconta de cada trade, para o resultado ficar perto do real</div></div></header>
-          <div class="form">
-            <div class="field"><label>Slippage simulado (você entra depois do trader)</label><div class="row"><input class="in w80" type="number" min="0" step="0.5" data-cfg="pump_extra_slip_pct"><span class="muted">%</span></div></div>
-            <div class="field"><label>pump.fun na curva / PumpSwap</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_fee_pct"><span class="muted">% /</span><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_swap_fee_pct"><span class="muted">%</span></div></div>
-            <div class="field" data-novo-ate="2026-11-11"><label>PumpSwap: usar a tabela oficial da pump.fun</label><div class="row"><button class="btn sm tgl" data-toggle="pump_swap_fee_official">…</button></div><p class="small" id="feeHint" hidden style="color:var(--warn)">Sugestão: ligue esta opção. O campo padrão de 0,30% fica abaixo da taxa de tokens graduados pequenos, então a fictícia parece melhor do que é. Vale só para a fictícia; você decide.</p>
-              <div class="muted small">Ligado: depois que o token gradua, a taxa segue a tabela oficial pelo valor de mercado (1,25% até 420 SOL, 1,20% até 1.470, 1,15% até 2.460… e 0,30% só acima de 98 mil SOL). Desligado: usa o valor fixo do campo acima. Muda o resultado mostrado e a hora em que stop e alvo disparam (eles olham o valor já sem taxas). Só tokens cotados em SOL e <b>só na carteira fictícia</b> (desde a 0.32.0; a real paga a taxa de verdade).</div></div>
+              <span class="muted">pool mín. $</span><input class="in w100" type="number" min="0" step="1000" data-cfg="pump_other_min_liq_usd"></div><div class="hint">Na REAL esta opção tem a chave própria. O pool mínimo é o mesmo nas duas.</div></div>
           </div>
         </div>
+        <div data-nosanf class="card"><header><div><h2>Só na FICTÍCIA</h2><div class="sub">a REAL não tem estas opções, porque nela o dinheiro e os custos são de verdade</div></div></header>
+          <div class="form">
+            <div class="field"><label>Saldo inicial da carteira fictícia</label><div class="row"><input class="in w100" type="number" min="0.1" step="0.5" data-cfg="pump_sim_balance_sol"><span class="muted">SOL</span><button class="btn sm" data-act="reset">Zerar carteira fictícia</button></div><div class="hint"><b>Só aqui:</b> o dinheiro é de mentira, então você escolhe quanto começa. Na REAL o saldo é o que está na carteira.</div></div>
+            <div class="field"><label>Slippage simulado (você entra depois do trader)</label><div class="row"><input class="in w80" type="number" min="0" step="0.5" data-cfg="pump_extra_slip_pct"><span class="muted">%</span></div><div class="hint"><b>Só aqui:</b> simula que você entra depois do trader. Na REAL é o preço que a rede dá.</div></div>
+            <div class="field"><label>pump.fun na curva / PumpSwap</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_fee_pct"><span class="muted">% /</span><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_swap_fee_pct"><span class="muted">%</span></div><div class="hint"><b>Só aqui:</b> na REAL quem cobra é a rede; aqui é só a conta.</div></div>
+            <div class="field" data-novo-ate="2026-11-11"><label>PumpSwap: usar a tabela oficial da pump.fun</label><div class="row"><button class="btn sm tgl" data-toggle="pump_swap_fee_official">…</button></div><p class="small" id="feeHint" hidden style="color:var(--warn)">Sugestão: ligue esta opção. O campo padrão de 0,30% fica abaixo da taxa de tokens graduados pequenos, então a fictícia parece melhor do que é. Vale só para a fictícia; você decide.</p>
+              <div class="muted small">Ligado: depois que o token gradua, a taxa segue a tabela oficial pelo valor de mercado (1,25% até 420 SOL, 1,20% até 1.470, 1,15% até 2.460… e 0,30% só acima de 98 mil SOL). Desligado: usa o valor fixo do campo acima. Muda o resultado mostrado e a hora em que stop e alvo disparam (eles olham o valor já sem taxas). Só tokens cotados em SOL e <b>só na carteira fictícia</b> (desde a 0.32.0; a real paga a taxa de verdade).</div><div class="hint"><b>Só aqui:</b> muda só a conta da fictícia.</div></div>
+          </div></div>
         </div>
         <div data-wp="real" hidden>
-        <div class="alert red">Use uma carteira <b>nova, só para o bot, com pouco saldo</b>. Quem tem a chave privada tem todo o dinheiro dela.
-          A execução real começa DESLIGADA. Depois de ligada, continua ligada (mesmo se o servidor reiniciar ou você trocar de navegador) até você desligar.</div>
         <div class="alert red" id="rwAlert" hidden></div>
-        <p class="small muted" id="rwGuard" data-novo-ate="2026-11-15"></p>
         <div class="kpis" id="wKpis"></div>
         <div class="card" data-nosanf>
           <header><div><h2>Carteira REAL <span class="tag real">REAL</span></h2><div class="sub" id="realSub"></div></div></header>
@@ -890,36 +891,35 @@
             <button class="btn tgl sw off" id="realB" role="switch" aria-label="Execução real em todas as abas">Desligado</button>
             <div style="flex:1;min-width:220px" id="realInfo"></div>
           </div>
-          <p class="muted small" style="margin:6px 0 0">A chave da carteira fica em <b>Valem para as duas → Chaves</b>. Stops, alvos e filtros são os mesmos nas duas carteiras e ficam em <b>Valem para as duas → Regras</b>.</p><div class="form" style="margin-top:18px">
-            <div class="field"><label>Cópia de traders</label><div class="row"><button class="btn sm tgl" data-clone="1" data-toggle="pump_copy_enabled">…</button></div><div class="hint">É a mesma chave da aba FICTÍCIA. A chave de cima liga a carteira REAL; esta liga as cópias de trader nas duas.</div></div>
-            <div class="field"><label>SOL por compra (máximo de cada trade real)</label>
-              <div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_real_max_sol"><span class="muted">SOL</span>
-                <button class="btn sm" data-set="pump_real_max_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.1">0,1</button></div>
-              <div class="hint" id="rMaxN"></div></div>
-            <div class="field"><label>Posições reais ao mesmo tempo</label>
-              <div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_real_max_open"></div></div>
+          <p class="muted small" style="margin:6px 0 0">Stops, alvos e filtros são os mesmos nas duas carteiras e ficam em <b>Valem para as duas → Regras</b>.</p>
+          <div class="form" style="margin-top:18px">
+            <div class="field"><label>Cópia de traders</label><div class="row"><button class="btn sm tgl" data-clone="1" data-toggle="pump_copy_enabled">…</button></div><div class="hint">Desligada, nenhuma cópia de trader abre, nem na FICTÍCIA nem na REAL. As outras telas que compram (Explorar, Base…) têm a chave própria em Abas de trades.</div></div>
+            <div class="field"><label>SOL por compra</label><div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_real_max_sol"><span class="muted">SOL</span><button class="btn sm" data-set="pump_real_max_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.5">0,5</button></div><div class="hint" id="rMaxN"></div></div>
+            <div class="field"><label>Posições ao mesmo tempo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_real_max_open"></div></div>
             <div class="field"><label>Copiar também fora da pump.fun (Raydium, Meteora, Orca… via Jupiter)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other_real" data-confirm="Copiar também NO REAL os trades fora da pump.fun (compra/venda pela Jupiter)?">…</button><span class="muted">pool mín. $</span><input class="in w100" type="number" min="0" step="1000" data-clone="1" data-cfg="pump_other_min_liq_usd"></div><div class="hint">Precisa também da opção ligada na aba FICTÍCIA. O pool mínimo é o mesmo nas duas.</div></div>
+          </div>
+        </div>
+        <div class="card" data-nosanf data-noshare><header><div><h2>Só na REAL</h2><div class="sub">a FICTÍCIA não tem estas opções, porque ela não manda nada para a rede</div></div></header>
+          <div class="alert red">Use uma carteira <b>nova, só para o bot, com pouco saldo</b>. Quem tem a chave privada tem todo o dinheiro dela.
+          A execução real começa DESLIGADA. Depois de ligada, continua ligada (mesmo se o servidor reiniciar ou você trocar de navegador) até você desligar.</div>
+          <p class="small muted" id="rwGuard" data-novo-ate="2026-11-15"></p>
+          <p class="muted small" style="margin:6px 0 0">A chave da carteira fica em <b>Valem para as duas → Chaves</b>.</p>
+          <div class="form" style="margin-top:12px">
             <div class="field"><label>Parar no dia se perder</label>
-              <div class="row"><input class="in w100" type="number" min="0" step="0.05" data-cfg="pump_real_daily_loss_sol"><span class="muted">SOL</span><span class="muted" id="rLossU"></span></div></div>
+              <div class="row"><input class="in w100" type="number" min="0" step="0.05" data-cfg="pump_real_daily_loss_sol"><span class="muted">SOL</span><span class="muted" id="rLossU"></span></div><div class="hint"><b>Só aqui:</b> protege o dinheiro de verdade. Quando a perda do dia chega nesse valor, a REAL para de comprar; as vendas continuam. A fictícia não para, para continuar medindo.</div></div>
             <div class="field" data-novo-ate="2026-11-10"><label>Espelhar 100% a carteira fictícia</label>
               <div class="row"><button class="btn sm tgl" data-toggle="pump_real_mirror" data-confirm="Copiar NO REAL todos os trades da carteira fictícia (cópias, Explorar, Base, Maiores traders e botão Comprar), com o valor e os limites da carteira real?">…</button></div>
-              <div class="hint">Com a Execução real ligada, tudo que a fictícia compra também é comprado aqui, e quando a fictícia vende a real vende junto. O valor de cada compra é o "SOL por compra" acima (nunca o da fictícia) e valem os limites desta tela.</div></div>
+              <div class="hint">Com a Execução real ligada, tudo que a fictícia compra também é comprado aqui, e quando a fictícia vende a real vende junto. O valor de cada compra é o "SOL por compra" acima (nunca o da fictícia) e valem os limites desta tela.</div><div class="hint"><b>Só aqui:</b> diz como a REAL segue a fictícia; na fictícia não há o que espelhar.</div></div>
             <div class="field" data-novo-ate="2026-11-16"><label>Cópia exata: a REAL manda, a fictícia acompanha</label>
               <div class="row"><button class="btn sm tgl" data-toggle="pump_real_exact" data-confirm="Ligar a cópia exata? Com a real e a fictícia ligadas, a fictícia passa a ter o mesmo valor e o mesmo preço de entrada da real, sai junto com ela e é desfeita quando a real não compra.">…</button></div>
-              <div class="hint">Precisa do "Espelhar 100%" ligado. A fictícia vira a cópia da real: mesmo valor em SOL, mesmo preço de entrada (o da real), e quando a real sai (stop dela, venda manual) a fictícia sai junto. Se a real não compra (limite, perda do dia, falha), a fictícia é desfeita e o dinheiro volta. Assim os resultados das duas ficam iguais, só com a diferença das taxas estimadas.</div></div>
-          </div>
-        </div>
-        <div class="card" data-nosanf>
-          <header><div><h2>Custos e envio</h2><div class="sub">o que vai de verdade em cada transação · a rede cobra, não é simulado</div></div></header>
-          <div class="form">
+              <div class="hint">Precisa do "Espelhar 100%" ligado. A fictícia vira a cópia da real: mesmo valor em SOL, mesmo preço de entrada (o da real), e quando a real sai (stop dela, venda manual) a fictícia sai junto. Se a real não compra (limite, perda do dia, falha), a fictícia é desfeita e o dinheiro volta. Assim os resultados das duas ficam iguais, só com a diferença das taxas estimadas.</div><div class="hint"><b>Só aqui:</b> é a REAL que manda; a fictícia só acompanha.</div></div>
             <div class="field" data-novo-ate="2026-11-12"><label>Slippage máximo (o preço pode andar até)</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_real_slippage_pct"><span class="muted">%</span>
               <button class="btn sm" data-set="pump_real_slippage_pct" data-val="5">5%</button><button class="btn sm" data-set="pump_real_slippage_pct" data-val="15">15%</button></div>
-              <div class="hint">Tolerância de preço da carteira real. Mais alto = mais compras passam, mas mais risco de sanduíche (Bitquery, 10/2026: 87 ataques a cada 10 mil swaps com 10–20%, 8 com 1–3%).</div></div>
-            <div class="field"><label>PumpPortal / taxa de prioridade</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_portal_fee_pct"><span class="muted">% /</span><input class="in w100" type="number" min="0" step="0.0001" data-cfg="pump_priority_sol"><span class="muted">SOL</span></div><div class="hint">A prioridade é a que vai na transação REAL. As duas também entram na conta de custo da FICTÍCIA.</div></div>
+              <div class="hint">Tolerância de preço da carteira real. Mais alto = mais compras passam, mas mais risco de sanduíche (Bitquery, 10/2026: 87 ataques a cada 10 mil swaps com 10–20%, 8 com 1–3%).</div><div class="hint"><b>Só aqui:</b> na fictícia não há rede para recusar a compra; ela usa o slippage simulado.</div></div>
+            <div class="field"><label>PumpPortal / taxa de prioridade</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_portal_fee_pct"><span class="muted">% /</span><input class="in w100" type="number" min="0" step="0.0001" data-cfg="pump_priority_sol"><span class="muted">SOL</span></div><div class="hint"><b>Só aqui:</b> a prioridade vai de verdade na transação. A fictícia só usa estes dois valores na conta de custo.</div></div>
             <div class="field" data-novo-ate="2026-11-12"><label>Gorjeta Jito / envio anti-MEV (REAL)</label><div class="row"><input class="in w80" type="number" min="0" max="0.1" step="0.0005" data-cfg="pump_real_jito_tip_sol"><span class="muted">SOL</span><span class="tag neutral">envio Jito desligado</span></div>
-              <div class="hint">O valor fica guardado, mas a real ainda não manda por Jito: será ligado só depois de testar com carteira nova e pouco saldo (decisão do dono, 28/10).</div></div>
-          </div>
-        </div>
+              <div class="hint">O valor fica guardado, mas a real ainda não manda por Jito: será ligado só depois de testar com carteira nova e pouco saldo (decisão do dono, 28/10).</div><div class="hint"><b>Só aqui:</b> a gorjeta só existe em transação de verdade.</div></div>
+          </div></div>
         <div class="card" data-nosanf>
           <header><div><h2>Conversor e troca USDC → SOL</h2><div class="sub">a carteira paga as compras em SOL</div></div></header>
           <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">

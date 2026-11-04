@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.196 · 2026-11-04 · chave de compra nos quadrados do Usar ou descartar"
+VERSION = "0.32.197 · 2026-11-04 · FICTÍCIA e REAL começam iguais e o que é de uma só fica embaixo"

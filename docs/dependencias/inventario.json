@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-04",
     "timezone": "Europe/Dublin",
-    "repository_reference": "d5f03078ea0afe7e44a776513db985e03f1ee493",
-    "application_version": "0.32.196 · 2026-11-04 · chave de compra nos quadrados do Usar ou descartar",
+    "repository_reference": "91d87fa893d71aa73427234dc4b7064f04dc12ee",
+    "application_version": "0.32.197 · 2026-11-04 · FICTÍCIA e REAL começam iguais e o que é de uma só fica embaixo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "6ed01d42e4c4e4975f43299aaa064fabd8a48ab45853e18d62463dd08c6c0da8",
+      "app/version.py": "6d5c10e7930eb8793f2e890ac72aaa4496bf8d2fd974e22e78c2f706b13e5978",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "89e3fcf0ea1354b65e89f8c270b53e05cfd3ff1985a89467d8bbe2d8f59dbd55",
+      "web/app.html": "4cd339b5737eed714d1e3767ce6f2347909ae7a2875d52a92078ea2efdca46c8",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "80aa9a07d0cb5fec47a57c23bdd5ce65a0039ab2c68a28292f5948be113e9dd9"
+  "pdf_sha256": "2c17eec663d519c289871f0afc2fb99c73bbaed628083d067cd47aff96281d26"
 }
