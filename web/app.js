@@ -3200,8 +3200,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       return [html, sinal, d && d.n ? -d.s : 0];
     }).sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]));
     const resto = (USE.por_aba || []).filter((x) => !usados.has(x.aba));
-    return '<h3 style="margin:0 0 8px;font-size:13px">Todos os serviços (soma)</h3>' + useHtml() +
-      '<h3 style="margin:18px 0 8px;font-size:13px">Cada tela</h3><div class="usgrid sysaba">' + cards.map((x) => x[0]).join("") + "</div>" +
+    // 0.32.191 (pedido do dono): a tabela geral fica só em "Uso de cada serviço"; aqui, só as telas
+    return '<div class="usgrid sysaba">' + cards.map((x) => x[0]).join("") + "</div>" +
       (resto.length ? '<h3 style="margin:18px 0 8px;font-size:13px">Outras partes do robô (não são telas)</h3>' + resto.map((x) => '<div class="card sysrest"><b>' + esc(x.aba) + "</b>" + usoTabela(x.servicos) + "</div>").join("") : "") +
       '<p class="muted" style="margin-top:8px">Cada parte do robô que roda sozinha conta os pedidos que fez; a tela soma as partes dela. "Telas do painel" = pedidos feitos quando alguém abre ou clica numa tela. ' +
       "O painel da BNB é outro projeto e não entra nesta conta. As janelas de 1 a 24 h ficam guardadas a partir de 04/11 16 h (a separação por tela começou nesse dia).</p>";

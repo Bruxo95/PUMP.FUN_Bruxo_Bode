@@ -1710,6 +1710,11 @@
    "versao": "0.32.190",
    "inicio": "2026-11-04T15:02:57+00:00",
    "titulo": "janelas de 24 h do uso guardadas e todos os serviços em cada tela"
+  },
+  {
+   "versao": "0.32.191",
+   "inicio": "2026-11-04T16:25:49+00:00",
+   "titulo": "Uso por aba sem repetir a tabela geral"
   }
  ]
 }
