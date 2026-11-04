@@ -1700,6 +1700,11 @@
    "versao": "0.32.188",
    "inicio": "2026-11-04T14:46:53+00:00",
    "titulo": "Uso por aba: quanto cada aba gasta de cada serviço e o lucro dela"
+  },
+  {
+   "versao": "0.32.189",
+   "inicio": "2026-11-04T14:55:45+00:00",
+   "titulo": "Uso por aba com os quadrados das telas e sem a BNB"
   }
  ]
 }

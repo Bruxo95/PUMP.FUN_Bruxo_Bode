@@ -31,3 +31,17 @@ def test_every_background_loop_is_tagged():
     src = inspect.getsource(hubmod.PumpHub.start) if hasattr(hubmod.PumpHub, "start") else ""
     assert src.count("run_as(") >= 20 and "asyncio.create_task(self." not in src
     assert inspect.getsource(monitor.SharedMonitor.start).count("run_as") >= 3
+
+
+def test_bnb_is_another_project_and_is_not_counted():
+    u = Usage()
+
+    async def bnb():
+        u.count("api.dexscreener.com", now=T0)
+        u.count("bsc-rpc.publicnode.com", now=T0)
+
+    async def go():
+        await run_as(apiusage.BNB_ORIGEM, bnb())
+        u.count("bsc-rpc.publicnode.com", now=T0)                  # mesmo sem marca, RPC da BNB não aparece
+    asyncio.run(go())
+    assert u.windows(now=T0) == [] and u.por_aba(now=T0) == [] and not u.month

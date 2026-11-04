@@ -41,6 +41,10 @@ H_WIN = (1, 6, 12, 24)
 # (hub.bg e monitor.start); o pedido HTTP feito dentro dele herda a marca. Sem marca = clique numa tela do painel.
 ORIGIN: contextvars.ContextVar = contextvars.ContextVar("pf_origem", default=None)
 SEM_ORIGEM = "Telas do painel (cliques)"
+# 0.32.189 (pedido do dono: "a BNB não tem nada a ver, foca só neste projeto"): o painel /bnb é outro projeto; o que ele pede
+# não entra no uso do PUMP FUN COPY, e as linhas só dele (RPC da BNB, NodeReal, GoPlus) não aparecem.
+BNB_ORIGEM = "BNB (Four.Meme)"
+BNB_APIS = {"RPC da BNB (publicnode)", "RPC da BNB (blockrazor)", "NodeReal (BNB)", "GoPlus (segurança BNB)"}
 
 
 def run_as(nome: str, coro):
@@ -98,6 +102,8 @@ class Usage:
         self.ototal: dict[tuple, int] = {}
 
     def _tick(self, api: str, tipo: str, n: int, now: float) -> None:
+        if ORIGIN.get() == BNB_ORIGEM:
+            return
         k = (api, tipo)
         b = self.win.setdefault(k, {})
         m = int(now // 60)
@@ -123,7 +129,7 @@ class Usage:
 
     def count(self, host: str, key: str | None = None, now: float | None = None, body=None) -> None:
         api = classify(host)
-        if api is None:
+        if api is None or ORIGIN.get() == BNB_ORIGEM:
             return
         now = time.time() if now is None else now
         self._tick(api, "requisições", 1, now)
@@ -134,6 +140,8 @@ class Usage:
             self.month[ck] = self.month.get(ck, 0) + cr
         d = datetime.fromtimestamp(now, timezone.utc)
         k = (d.strftime("%Y-%m"), api, key_tag(key) if api == "Solana Tracker" else None)
+        if api in BNB_APIS:
+            return
         self.month[k] = self.month.get(k, 0) + 1
         q = self.recent.setdefault(api, deque())
         q.append(now)
@@ -198,6 +206,8 @@ class Usage:
         up_min = max(1.0, (now - self.started) / 60)
         out = []
         for (api, tipo), b in sorted(self.win.items()):
+            if api in BNB_APIS:
+                continue
             mm, rr = lim.get(api, (None, None))
             if tipo == "requisições" and api in CREDITS:
                 mm = None                                # no Helius o limite do mês é em créditos (linha própria)
@@ -237,6 +247,8 @@ class Usage:
         m_now = int(now // 60)
         g: dict[str, list] = {}
         for (o, api, tipo), b in self.owin.items():
+            if o == BNB_ORIGEM or api in BNB_APIS:
+                continue
             per = {str(h): sum(v for k, v in b.items() if k > m_now - h * 60) for h in H_WIN}
             g.setdefault(o, []).append({"api": api, "tipo": tipo, "janelas": per, "desde_inicio": self.ototal.get((o, api, tipo), 0)})
         out = []

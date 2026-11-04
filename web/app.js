@@ -3142,9 +3142,16 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "sistema" && $("sysUse")) $("sysUse").innerHTML = useHtml();
     if (VIEW === "sistema" && $("sysAba")) $("sysAba").innerHTML = abaUseHtml();
   }
-  // 0.32.188 (pedido do dono): o gasto de cada aba (Helius, Solana Tracker…) ao lado do lucro dela em 1, 6, 12 e 24 h
-  const ABA_LUCRO = { "Explorar": "explorar", "Aba do Bruxo": "bruxo", "Jev Trade": "jevtrade", "Base da pump.fun": "base", "Calls quentes": "calls",
-    "Carteiras em estudo": "estudo", "Copiar igual": "igual", "Cópia de traders": "tradershist" };
+  // 0.32.188/0.32.189 (pedido do dono): Uso por aba = os mesmos quadrados do Usar ou descartar, cada um com o lucro de 1/6/12/24 h e o
+  // que gastou de cada serviço (soma dos laços do servidor que trabalham para aquela tela). Em cima, a tabela geral (laranja/vermelho).
+  const USAR_ORIG = { tradershist: ["Cópia de traders", "Ranking (Top traders)", "Top traders (laboratório)"],
+    explorar: ["Explorar", "Explorar (sombras)", "Explorar (carteiras novas)"], basegeral: ["Base geral", "Ajuste automático"],
+    logs: ["Logs dos robôs"], bruxo: ["Aba do Bruxo"], jevtrade: ["Jev Trade"], jev: ["JEV (sombra)"], calls: ["Calls quentes"],
+    estudo: ["Carteiras em estudo"], relatorios: ["Relatórios", "Relatório do dia"], aprendizado: ["Aprendizado diário"],
+    fantasma: ["Estratégias fantasma"], igual: ["Copiar igual"], base: ["Base da pump.fun", "Boost e dados das carteiras"] };
+  // Abas de trades = todas as telas que compram
+  USAR_ORIG.abas = [...new Set([].concat(USAR_ORIG.tradershist, USAR_ORIG.explorar, USAR_ORIG.bruxo, USAR_ORIG.jevtrade, USAR_ORIG.calls,
+    USAR_ORIG.estudo, USAR_ORIG.igual, USAR_ORIG.base, ["Execução real"]))];
   let SAM = null;
   async function loadAbaLucro() {
     if (SAM == null) SAM = realMode();
@@ -3156,24 +3163,44 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     }
     if ($("sysAba") && SAM === rm) $("sysAba").innerHTML = abaUseHtml();
   }
+  function usoSoma(orig) {
+    const g = {};
+    (USE.por_aba || []).filter((x) => orig.includes(x.aba)).forEach((x) => x.servicos.forEach((s) => {
+      const k = s.api + "|" + s.tipo, d = g[k] || (g[k] = { api: s.api, tipo: s.tipo, janelas: { 1: 0, 6: 0, 12: 0, 24: 0 }, desde_inicio: 0 });
+      ["1", "6", "12", "24"].forEach((h) => { d.janelas[h] += s.janelas[h] || 0; }); d.desde_inicio += s.desde_inicio || 0;
+    }));
+    return Object.values(g).sort((a, b) => b.janelas["24"] - a.janelas["24"]);
+  }
+  function usoTabela(L) {
+    const HS = ["Serviço", "O quê", "1 h", "6 h", "12 h", "24 h", "Desde o início"];
+    if (!L.length) return '<p class="muted small" style="margin:6px 0 0">Nenhum pedido próprio desde a última atualização do sistema.</p>';
+    return '<div class="tbl-wrap"><table class="systbl"><thead><tr>' + HS.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
+      L.map((s) => "<tr>" + [esc(s.api), esc(s.tipo), f(s.janelas["1"], 0), f(s.janelas["6"], 0), f(s.janelas["12"], 0), f(s.janelas["24"], 0), f(s.desde_inicio, 0)]
+        .map((c, i) => '<td data-l="' + HS[i] + '">' + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
+  }
   function abaUseHtml() {
     if (!(ME && ME.role === "admin")) return "";
     if (!USE) return '<p class="muted">carregando…</p>';
     if (USE.error) return '<p class="down">' + esc(USE.error) + "</p>";
-    const L = USE.por_aba || [], rm = !!SAM, R = US.r[rm], abas = R && (R.abas || []);
-    if (!L.length) return '<p class="muted">Nada contado ainda desde a última atualização do sistema.</p>';
-    const HS = ["Serviço", "O quê", "1 h", "6 h", "12 h", "24 h", "Desde o início"];
-    return '<div class="usgrid sysaba">' + L.map((x) => {
-      const key = ABA_LUCRO[x.aba], nome = key && USAR_ABAS[key];
-      const luc = nome ? '<div class="usg">' + [1, 6, 12, 24].map((h) => { const p = usPer(abas || [], nome, h); return "<div><small>" + h + " h</small><b>" + (p.n ? pc(p.pct) : "–") + "</b><em>" + (p.n ? sg(p.s, "") + " · " + p.n + " tr" : "sem trade") + "</em></div>"; }).join("") + "</div>"
-        : '<div class="usg"><div class="usno">esta parte não compra: sem lucro próprio</div></div>';
-      const t = '<div class="tbl-wrap"><table class="systbl"><thead><tr>' + HS.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
-        x.servicos.map((s) => "<tr>" + [esc(s.api), esc(s.tipo), f(s.janelas["1"], 0), f(s.janelas["6"], 0), f(s.janelas["12"], 0), f(s.janelas["24"], 0), f(s.desde_inicio, 0)]
-          .map((c, i) => '<td data-l="' + HS[i] + '">' + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
-      return '<div class="uscard sysabac"><b>' + esc(x.aba) + '</b><small>' + f(x.total["24"], 0) + " requisições e mensagens em 24 h · lucro da aba (" + (rm ? "REAL" : "FICTÍCIA") + "):</small>" + luc + t + "</div>";
-    }).join("") + "</div>" +
-      '<p class="muted" style="margin-top:8px">Cada parte do robô que roda sozinha conta os pedidos que fez. "Telas do painel" = pedidos feitos quando alguém abre ou clica numa tela. ' +
-      "Os créditos do Helius aparecem na linha \"créditos\" (1 por chamada, 10 na contagem de detentores). Os números zeram a cada atualização do sistema.</p>";
+    const rm = !!SAM, R = US.r[rm], abas = (R && R.abas) || [];
+    const usados = new Set();
+    const cards = [...document.querySelectorAll("#usGrid .uscard")].map((c) => {
+      const v = c.dataset.us, orig = USAR_ORIG[v] || [], nome = USAR_ABAS[v];
+      orig.forEach((o) => usados.add(o));
+      const P = nome ? [1, 6, 12, 24].map((h) => [h, usPer(abas, nome, h)]) : null, d = P && P[3][1], sinal = d && d.n ? Math.sign(d.s) : 0;
+      const luc = P ? '<div class="usg">' + P.map(([h, p]) => "<div><small>" + h + " h</small><b>" + (p.n ? pc(p.pct) : "–") + "</b><em>" + (p.n ? sg(p.s, "") + " · " + p.n + " tr" : "sem trade") + "</em></div>").join("") + "</div>"
+        : '<div class="usg"><div class="usno">esta tela não compra: sem lucro próprio</div></div>';
+      const gasto = orig.length ? usoTabela(usoSoma(orig)) : '<p class="muted small" style="margin:6px 0 0">Sem laço próprio no servidor: só gasta quando você abre a tela (conta em Telas do painel).</p>';
+      const html = '<div class="uscard sysabac' + (sinal > 0 ? " uspos" : sinal < 0 ? " usneg" : "") + '"><span class="usic">' + ((c.querySelector(".usic") || {}).innerHTML || "") + "</span><b>" +
+        esc((c.querySelector("b") || {}).textContent || v) + '</b><small>lucro da tela (' + (rm ? "REAL" : "FICTÍCIA") + ")</small>" + luc + '<small style="margin-top:6px">o que gastou</small>' + gasto + "</div>";
+      return [html, sinal, d && d.n ? -d.s : 0];
+    }).sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]));
+    const resto = (USE.por_aba || []).filter((x) => !usados.has(x.aba));
+    return '<h3 style="margin:0 0 8px;font-size:13px">Todos os serviços (soma)</h3>' + useHtml() +
+      '<h3 style="margin:18px 0 8px;font-size:13px">Cada tela</h3><div class="usgrid sysaba">' + cards.map((x) => x[0]).join("") + "</div>" +
+      (resto.length ? '<h3 style="margin:18px 0 8px;font-size:13px">Outras partes do robô (não são telas)</h3>' + resto.map((x) => '<div class="card sysrest"><b>' + esc(x.aba) + "</b>" + usoTabela(x.servicos) + "</div>").join("") : "") +
+      '<p class="muted" style="margin-top:8px">Cada parte do robô que roda sozinha conta os pedidos que fez; a tela soma as partes dela. "Telas do painel" = pedidos feitos quando alguém abre ou clica numa tela. ' +
+      "O painel da BNB é outro projeto e não entra nesta conta. Os números zeram a cada atualização do sistema.</p>";
   }
   function useHtml() {
     if (!(ME && ME.role === "admin")) return "";
