@@ -47,6 +47,8 @@ RPCS = [u.strip() for u in os.environ.get("BNB_RPCS", "https://bsc-rpc.publicnod
         if u.strip()]
 SPAN = {"https://bsc-rpc.publicnode.com": 400, "https://bsc.blockrazor.xyz": 25}   # blocos por consulta (medido)
 POLL_S = 3.0
+POLL_MAX_S = 25.0         # 0.32.183: uma volta lê no máximo 25 s de blocos; o resto fica para a próxima (o bloco e a gravação andam)
+STEP_MAX_S = 90.0         # prazo da leitura numa volta (inclui as consultas que esperam o RPC)
 BLOCK_S = 0.45            # medido em 02/11/2026: 5.000 blocos em 2.250 s; corrigido sozinho a cada leitura
 KEEP_S = 14 * 86400       # memória do ranking = o que a tabela guarda (0.32.179: era 7 dias)
 DB_KEEP_S = 14 * 86400
@@ -276,12 +278,16 @@ class BnbWatch:
         self._gq: deque = deque()
         self._pairs_dirty = False
         self.pstat = {"trades": 0, "erros": 0, "ultimo_erro": None, "graduados_achados": 0}
+        self._pk_off_until = 0.0
+        self.etapa, self.volta_t = None, None            # 0.32.183: onde o laço está e quando terminou a última volta
         # 0.32.179: histórico dos últimos dias pela NodeReal (chave do sistema; main.py liga key_fn)
         self.key_fn = lambda: ""
         self.hist = bnbhist.Backfill(self, lambda: self.key_fn())
 
     # ------------------------------------------------------------------ RPC
-    async def rpc(self, method: str, params: list):
+    async def rpc(self, method: str, params: list, side: bool = False):
+        """side=True: consulta extra (PancakeSwap). Não encolhe o trecho de leitura da curva nem troca o RPC principal
+        (0.32.183: as recusas dela encolhiam o trecho da curva e o monitor parou em 04/11)."""
         last = None
         for k in range(len(self.rpcs)):
             url = self.rpcs[(self.rpc_i + k) % len(self.rpcs)]
@@ -292,11 +298,12 @@ class BnbWatch:
                 js = r.json()
                 if js.get("error"):
                     msg = str(js["error"].get("message") or js["error"])[:160]
-                    if method == "eth_getLogs" and ("range" in msg or "limit" in msg or "exceed" in msg):
+                    if not side and method == "eth_getLogs" and ("range" in msg or "limit" in msg or "exceed" in msg):
                         self.span[url] = max(5, self.span.get(url, 25) // 2)
                     raise RpcError(msg)
-                self.rpc_i = (self.rpc_i + k) % len(self.rpcs)
-                self.stat["rpc"] = url
+                if not side:
+                    self.rpc_i = (self.rpc_i + k) % len(self.rpcs)
+                    self.stat["rpc"] = url
                 return js.get("result")
             except Exception as e:
                 last = f"{url.split('//')[-1]}: {type(e).__name__} {str(e)[:120]}"
@@ -341,6 +348,7 @@ class BnbWatch:
             self.cursor = head - int(60 / self.block_s)        # sem cursor (ou muito velho): começa 1 min atrás
         n = 0
         url = self.rpcs[self.rpc_i]
+        t0 = time.monotonic()
         while self.cursor < head:
             a = self.cursor + 1
             b = min(head, a + self.span.get(url, 25) - 1)
@@ -372,7 +380,7 @@ class BnbWatch:
                 n += 1
             self.stat["logs"] += len(logs)
             self.cursor = b
-            if n > 2000:
+            if n > 2000 or time.monotonic() - t0 > POLL_MAX_S:
                 break                                          # recuperação longa: continua na próxima volta
         self.stat["polls"] += 1
         return n
@@ -385,23 +393,34 @@ class BnbWatch:
     async def _pancake_logs(self, a: int, b: int) -> list[dict]:
         """Compras e vendas nos pares da PancakeSwap dos tokens graduados, no mesmo trecho de blocos da curva."""
         pairs = self._active_pairs()
-        if not pairs:
+        if not pairs or time.time() < self._pk_off_until:
             return []
         try:
             rng = {"fromBlock": hex(a), "toBlock": hex(b)}
-            pt = [bnbpancake.topic_addr(x) for x in pairs]
-            toks = list({p["token"] for p in pairs.values()})
-            swaps = await self.rpc("eth_getLogs", [{**rng, "address": list(pairs), "topics": [bnbpancake.T_SWAP]}]) or []
+            B = bnbpancake.ADDR_MAX
+            plist = list(pairs)
+            swaps: list[dict] = []
+            for i in range(0, len(plist), B):
+                swaps += await self.rpc("eth_getLogs", [{**rng, "address": plist[i:i + B], "topics": [bnbpancake.T_SWAP]}],
+                                        side=True) or []
             if not swaps:
                 return []
-            tin = await self.rpc("eth_getLogs", [{**rng, "address": toks, "topics": [bnbpancake.T_TRANSFER, None, pt]}]) or []
-            tout = await self.rpc("eth_getLogs", [{**rng, "address": toks, "topics": [bnbpancake.T_TRANSFER, pt]}]) or []
-            out = bnbpancake.decode(swaps, tin + tout, pairs)
+            hit = {(s.get("address") or "").lower() for s in swaps}
+            hp = [x for x in plist if x.lower() in hit]               # transferências só dos pares que tiveram troca
+            tr: list[dict] = []
+            for i in range(0, len(hp), B):
+                part = hp[i:i + B]
+                pt = [bnbpancake.topic_addr(x) for x in part]
+                toks = list({pairs[x]["token"] for x in part})
+                tr += await self.rpc("eth_getLogs", [{**rng, "address": toks, "topics": [bnbpancake.T_TRANSFER, None, pt]}], side=True) or []
+                tr += await self.rpc("eth_getLogs", [{**rng, "address": toks, "topics": [bnbpancake.T_TRANSFER, pt]}], side=True) or []
+            out = bnbpancake.decode(swaps, tr, pairs)
             self.pstat["trades"] += len(out)
             return out
         except Exception as e:                                  # a PancakeSwap nunca para a leitura da curva
             self.pstat["erros"] += 1
             self.pstat["ultimo_erro"] = str(e)[:160]
+            self._pk_off_until = time.time() + bnbpancake.PAUSE_S
             return []
 
     async def grad_tick(self) -> None:
@@ -1088,21 +1107,28 @@ class BnbWatch:
         await self.load()
         self._spawn(self.hist.run())                       # 0.32.179: histórico pela NodeReal (espera a chave)
         while True:
-            try:
-                await self.poll()
-                await self.refresh_bnb_usd()
-                await self.balances_tick([r["wallet"] for r in self.ranking()["rows"][:30]])
-                await self.positions_tick()
-                await self.grad_tick()
-                await self.real_tick()
-            except Exception as e:
-                self.stat["erros"] += 1
-                self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = str(e)[:200], time.time()
+            # 0.32.183 (monitor parado em 04/11, sem erro): cada etapa tem prazo; se uma travar, vira erro e a volta segue
+            steps = [("leitura", self.poll, STEP_MAX_S), ("preço do BNB", self.refresh_bnb_usd, 60),
+                     ("saldos", lambda: self.balances_tick([r["wallet"] for r in self.ranking()["rows"][:30]]), 60),
+                     ("posições", self.positions_tick, 60), ("graduados", self.grad_tick, 60), ("carteira REAL", self.real_tick, 60)]
             if time.time() - self._flush_at > 30:
                 self._flush_at = time.time()
-                await self.flush()
-                await self.flush_books()
+                steps += [("gravação", self.flush, 120), ("gravação das carteiras", self.flush_books, 120)]
+            for nome, fn, lim in steps:
+                self.etapa = nome
+                try:
+                    await asyncio.wait_for(fn(), lim)
+                except asyncio.TimeoutError:
+                    self._erro(f"{nome}: passou de {lim:.0f} s e foi interrompida")
+                except Exception as e:
+                    self._erro(f"{nome}: {str(e)[:180]}")
+            self.etapa, self.volta_t = None, time.time()
             await asyncio.sleep(POLL_S)
+
+    def _erro(self, msg: str) -> None:
+        self.stat["erros"] += 1
+        self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = msg[:200], time.time()
+        log.warning("BNB: %s", msg[:200])
 
     def state(self, now: float | None = None) -> dict:
         now = now or time.time()
@@ -1129,7 +1155,8 @@ class BnbWatch:
                            "erros": self.stat["erros"], "ultimo_erro": self.stat["ultimo_erro"],
                            "ultimo_erro_t": self.stat["ultimo_erro_t"], "chamadas": self.stat["chamadas"],
                            "desde": self.stat["desde"], "a_gravar": len(self.pending), "carregados": self.stat["carregados"],
-                           "bloco_s": self.block_s},
+                           "bloco_s": self.block_s, "volta_t": self.volta_t, "etapa": self.etapa,
+                           "pancake_pausa_s": max(0, round(self._pk_off_until - now)) or None},
                 "ranking": rk, "recentes": recent,
                 "historico": self.hist.status(),
                 "pancake": {**self.pstat, "pares": len(self.pairs), "lendo": len(self._active_pairs()),

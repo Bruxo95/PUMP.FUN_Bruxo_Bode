@@ -26,6 +26,10 @@ SEL_PAIR = "0xe6a43905"                                      # getPair(address,a
 T_SWAP = "0x" + evm.keccak256(b"Swap(address,uint256,uint256,uint256,uint256,address)").hex()
 T_TRANSFER = "0x" + evm.keccak256(b"Transfer(address,address,uint256)").hex()
 PAIRS_MAX = 150              # pares lidos ao mesmo tempo (os que graduaram por último)
+# 0.32.183 (monitor da BNB parado em 04/11): o publicnode responde HTTP 403 a eth_getLogs com mais de 10 endereços
+# (medido em 04/11: 10 passa, 20 recusa) e o blockrazor responde "exceed max addresses". As consultas vão em lotes.
+ADDR_MAX = 10
+PAUSE_S = 300                # depois de uma recusa, a PancakeSwap fica de fora 5 min (a curva nunca para)
 GRAD_EVERY_S = 180           # confere de novo se um token da curva graduou a cada 3 min
 GRAD_PER_MIN = 30            # consultas de "graduou?" por minuto
 GRAD_LOOK_S = 3 * 3600       # só tokens que negociaram na curva nas últimas 3 h

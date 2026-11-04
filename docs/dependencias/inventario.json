@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-04",
     "timezone": "Europe/Dublin",
-    "repository_reference": "6598b792f273f1d871a7ec702fd7ea0dda6e68cf",
-    "application_version": "0.32.182 · 2026-11-04 · venda REAL com erro 6063 tenta PumpSwap e Jupiter",
+    "repository_reference": "70f28bbdca4207b65575ff70f6d7c15cdea6486c",
+    "application_version": "0.32.183 · 2026-11-04 · monitor da BNB não para mais com a PancakeSwap",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "3d77f44226c5c35e5996499d6787132f10712fbb9ed9ede3d07b56ad23ea4403",
+      "app/version.py": "14bc552b0c4469e5d5deab97e4b63ede71921a24de311516edac33dc6ad9a471",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "cf64de3495c251d1ac1f2a8d8bd6987380c142262af743ba51a336667ece6ab7"
+  "pdf_sha256": "464632ce5dbc00fb8d611869bc38e31beff10aea97e85d9ff89803b4a2a562ec"
 }

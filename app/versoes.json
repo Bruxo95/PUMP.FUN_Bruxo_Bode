@@ -1670,6 +1670,11 @@
    "versao": "0.32.182",
    "inicio": "2026-11-04T08:18:08+00:00",
    "titulo": "venda REAL com erro 6063 tenta PumpSwap e Jupiter"
+  },
+  {
+   "versao": "0.32.183",
+   "inicio": "2026-11-04T13:58:25+00:00",
+   "titulo": "monitor da BNB não para mais com a PancakeSwap"
   }
  ]
 }

@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-04**; revisão documental **2.0**.
-Aplicação: **0.32.182 · 2026-11-04 · venda REAL com erro 6063 tenta PumpSwap e Jupiter**.
-Referência Git na emissão: `6598b792f273f1d871a7ec702fd7ea0dda6e68cf`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.183 · 2026-11-04 · monitor da BNB não para mais com a PancakeSwap**.
+Referência Git na emissão: `70f28bbdca4207b65575ff70f6d7c15cdea6486c`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

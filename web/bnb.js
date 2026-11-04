@@ -112,6 +112,8 @@
       ["BNB em dólar", s.bnb_usd ? "US$ " + num(s.bnb_usd, 2) : "—"],
       ["Gravação", num(s.trades_memoria, 0) + " trades na memória · " + num(s.a_gravar, 0) + " esperando gravar"],
       ["Erros", num(s.erros, 0) + (s.ultimo_erro ? " · último há " + ago(s.ultimo_erro_t) + ": " + esc(s.ultimo_erro) : "")],
+      ["Última volta da leitura", s.volta_t ? "há " + ago(s.volta_t) + (s.etapa ? " · agora em: " + esc(s.etapa) : "") : (s.etapa ? "em andamento: " + esc(s.etapa) : "—")],
+      ["PancakeSwap", R && R.pancake ? num(R.pancake.lendo || 0, 0) + " pares lidos · " + num(R.pancake.erros || 0, 0) + " falhas" + (R.pancake.ultimo_erro ? " · última: " + esc(R.pancake.ultimo_erro).slice(0, 90) : "") + (s.pancake_pausa_s ? " · pausada por " + num(s.pancake_pausa_s, 0) + " s" : "") : "—"],
       ["Carteira REAL", RS().ligada ? '<span class="up">ligada</span> desde ' + hora(RS().desde) : "desligada"],
     ];
     $("sysMB").innerHTML = '<div class="tbl-wrap"><table class="systbl nocard"><tbody>' + rows.map((r) => "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>").join("") + "</tbody></table></div>";
