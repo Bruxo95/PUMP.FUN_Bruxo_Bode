@@ -243,6 +243,21 @@
     table("bnRk", ["#", "Carteira", "Lucro realizado", "Acerto", "Trades", "Tokens", "Saldo", "Último trade", "Por que não"],
       rows.map((r, i) => line(r, i).concat([r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="muted">apto, mas offline ou fora das vagas</span>' : esc((r.flags || []).join(" · "))])),
       "Ainda sem trades lidos.");
+    // 0.32.178 (pedido do dono): tokens que graduaram para a PancakeSwap e quem ganha com eles
+    const gr = rk.graduados || [];
+    table("bnGr", ["Carteira", "Lucro nos graduados", "Acerto nos graduados", "Tokens graduados", "Trades na Pancake", "Lucro total", "Situação"],
+      gr.map((r) => [wal(r.wallet), bnb(r.grad_realized_bnb), r.grad_winrate == null ? "—" : num(r.grad_winrate, 0) + "% de " + r.grad_closed,
+        num(r.grad_tokens, 0), num(r.pancake_trades, 0), bnb(r.realized_bnb),
+        r.copiaria ? '<span class="tag win">copiando</span>' : r.bot ? '<span class="muted">robô: ' + num(r.per_day, 0) + " trades/dia</span>" : r.no_top ? '<span class="muted">no ranking</span>' : '<span class="muted">fora dos 50 do ranking</span>']),
+      "Ainda ninguém lucrou com tokens graduados (os trades na PancakeSwap começam a ser lidos nesta versão).");
+    const pk = R.pancake || {}, toks = pk.tokens || [];
+    kpis("bnPcK", [["Graduados achados", num(pk.pares, 0), "lendo " + num(pk.lendo, 0) + " pares"], ["Trades lidos na Pancake", num(pk.trades, 0), "desde que o servidor subiu"],
+      ["Com trades em 24 h", num(toks.filter((x) => x.trades_24h).length, 0), "tokens"], ["Falhas da leitura", num(pk.erros, 0), pk.ultimo_erro ? esc(pk.ultimo_erro).slice(0, 80) : "nenhuma", pk.erros ? "down" : ""]]);
+    table("bnPc", ["Token", "Graduou", "Trades 24 h", "Compradores · vendedores 24 h", "Volume 24 h", "Preço desde o 1º trade lido na Pancake", "Último trade"],
+      toks.map((x) => [tok(x.token) + ' <a class="muted" href="https://pancakeswap.finance/swap?outputCurrency=' + esc(x.token) + '&chain=bsc" target="_blank" rel="noopener">Pancake</a>',
+        x.graduou_t ? "há " + ago(x.graduou_t) : "—", num(x.trades_24h, 0), num(x.compradores_24h, 0) + " · " + num(x.vendedores_24h, 0),
+        num(x.vol_24h_bnb, 3) + " BNB", pct(x.desde_pct), x.ultimo_t ? "há " + ago(x.ultimo_t) : "—"]),
+      "Nenhum token graduado achado ainda. O robô confere a cada 3 min os tokens que negociaram na curva nas últimas 3 h.");
   }
   function drawAjustes() {
     if (R && R.ligado && !DIRTY.rk) form("bnCfg", RK_INFO, R.cfg, R.padrao, "bnc_");

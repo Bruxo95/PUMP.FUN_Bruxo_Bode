@@ -23,7 +23,7 @@ import os
 import time
 from collections import deque
 
-from . import bnbcopy, bnbreal, bnbsafe, evm
+from . import bnbcopy, bnbpancake, bnbreal, bnbsafe, evm
 
 log = logging.getLogger("bnb")
 
@@ -141,8 +141,9 @@ def rank(trades, now: float, cfg: dict, quotes: dict, bnb_usd: float | None, bal
         if b is None:
             fora += 1
             continue
-        w = W.setdefault(t["wallet"], {"n": 0, "tk": {}, "first": t["t"], "last": t["t"], "days": set(), "vol": 0.0})
+        w = W.setdefault(t["wallet"], {"n": 0, "tk": {}, "first": t["t"], "last": t["t"], "days": set(), "vol": 0.0, "pc": 0})
         w["n"] += 1
+        w["pc"] += 1 if t.get("venue") == "pancake" else 0
         w["first"], w["last"] = min(w["first"], t["t"]), max(w["last"], t["t"])
         w["days"].add(int(t["t"] // 86400))
         w["vol"] += b
@@ -156,12 +157,20 @@ def rank(trades, now: float, cfg: dict, quotes: dict, bnb_usd: float | None, bal
     rows = []
     for wal, w in W.items():
         realized, win, closed, opened, grad_open = 0.0, 0, 0, 0, 0
+        g_real, g_tok, g_win, g_closed = 0.0, 0, 0, 0
         for tok, k in w["tk"].items():
             if k["got"] <= 0:
                 continue                                   # vendeu o que comprou antes da janela: sem custo conhecido
             frac = min(1.0, k["out"] / k["got"])
             if frac > 0:
                 realized += k["sell"] - k["buy"] * frac
+            if tok in graduated:                           # 0.32.178: o que ganhou nos tokens que foram para a PancakeSwap
+                g_tok += 1
+                if frac > 0:
+                    g_real += k["sell"] - k["buy"] * frac
+                if frac >= 0.9:
+                    g_closed += 1
+                    g_win += 1 if k["sell"] > k["buy"] * frac else 0
             if frac >= 0.9:
                 closed += 1
                 win += 1 if k["sell"] > k["buy"] * frac else 0
@@ -172,8 +181,11 @@ def rank(trades, now: float, cfg: dict, quotes: dict, bnb_usd: float | None, bal
         rows.append({"wallet": wal, "trades": w["n"], "realized_bnb": round(realized, 6), "vol_bnb": round(w["vol"], 4),
                      "tokens": len(w["tk"]), "closed": closed, "open": opened, "grad_open": grad_open,
                      "winrate": round(100 * win / closed, 1) if closed else None, "last_t": w["last"],
-                     "days_active": len(w["days"]), "per_day": round(w["n"] / span_d, 1)})
+                     "days_active": len(w["days"]), "per_day": round(w["n"] / span_d, 1),
+                     "grad_realized_bnb": round(g_real, 6), "grad_tokens": g_tok, "grad_closed": g_closed,
+                     "grad_winrate": round(100 * g_win / g_closed, 1) if g_closed else None, "pancake_trades": w["pc"]})
     rows.sort(key=lambda r: r["realized_bnb"], reverse=True)
+    grad_rows = sorted([r for r in rows if r["grad_realized_bnb"] > 0], key=lambda r: r["grad_realized_bnb"], reverse=True)[:30]
     top = rows[:50]
     win_s = cfg["online_min"] * 60
     for r in top:
@@ -198,7 +210,11 @@ def rank(trades, now: float, cfg: dict, quotes: dict, bnb_usd: float | None, bal
     chosen = [r["wallet"] for r in top if r["eligible"] and r["online"]][:cfg["top_n"]]
     for r in top:
         r["copiaria"] = r["wallet"] in chosen
-    return {"rows": top, "copiaria": chosen, "carteiras": len(rows), "fora_moeda": fora,
+    for r in grad_rows:
+        r["no_top"] = r in top
+        r["copiaria"] = r["wallet"] in chosen
+        r.setdefault("bot", r["per_day"] > cfg["bot_per_day"])
+    return {"rows": top, "copiaria": chosen, "carteiras": len(rows), "fora_moeda": fora, "graduados": grad_rows,
             "aptos": sum(1 for r in top if r["eligible"]), "aptos_online": sum(1 for r in top if r["eligible"] and r["online"])}
 
 
@@ -254,6 +270,12 @@ class BnbWatch:
         self._rbal_at = 0.0
         # 0.32.177: segurança do token antes de toda compra (fictícia e REAL): honeypot, congelar, taxa alta… (bnbsafe)
         self.safe = bnbsafe.Safety(self._call, http)
+        # 0.32.178: tokens que foram para a PancakeSwap (par V2) e as compras/vendas lá (bnbpancake)
+        self.pairs: dict[str, dict] = {}          # token → pair_info (+ t = quando achamos o par)
+        self._gchk: dict[str, float] = {}         # token → última conferência de "graduou?" / "qual o par?"
+        self._gq: deque = deque()
+        self._pairs_dirty = False
+        self.pstat = {"trades": 0, "erros": 0, "ultimo_erro": None, "graduados_achados": 0}
 
     # ------------------------------------------------------------------ RPC
     async def rpc(self, method: str, params: list):
@@ -328,14 +350,19 @@ class BnbWatch:
                     continue
                 tr["t"] = round(ht - (head - tr["block"]) * self.block_s, 1)
                 new.append(tr)
+            for tr in await self._pancake_logs(a, b):
+                if tr["id"] not in self.seen:
+                    tr["t"] = round(ht - (head - tr["block"]) * self.block_s, 1)
+                    new.append(tr)
+            new.sort(key=lambda x: (x["block"], x["id"]))
             cop = set(self.ranking()["copiaria"]) if new and self.books else set()
             for tr in new:
-                if tr["token"] not in self.quotes:
+                if tr["token"] not in self.quotes and tr.get("venue") != "pancake":
                     try:
                         await self.token_info(tr["token"])
                     except RpcError:
                         pass                                   # tenta de novo na próxima vez que o token negociar
-                tr["quote"] = self.quotes.get(tr["token"])
+                tr["quote"] = self.quotes.get(tr["token"]) or tr.get("quote")
                 before = self.hold.get((tr["wallet"], tr["token"]), 0.0)
                 self._add(tr, save=True)
                 self._copy(tr, before, cop)
@@ -346,6 +373,66 @@ class BnbWatch:
                 break                                          # recuperação longa: continua na próxima volta
         self.stat["polls"] += 1
         return n
+
+    # ------------------------------------------------------------------ PancakeSwap (0.32.178)
+    def _active_pairs(self) -> dict[str, dict]:
+        top = sorted(self.pairs.values(), key=lambda x: x.get("t") or 0, reverse=True)[:bnbpancake.PAIRS_MAX]
+        return {p["pair"]: p for p in top}
+
+    async def _pancake_logs(self, a: int, b: int) -> list[dict]:
+        """Compras e vendas nos pares da PancakeSwap dos tokens graduados, no mesmo trecho de blocos da curva."""
+        pairs = self._active_pairs()
+        if not pairs:
+            return []
+        try:
+            rng = {"fromBlock": hex(a), "toBlock": hex(b)}
+            pt = [bnbpancake.topic_addr(x) for x in pairs]
+            toks = list({p["token"] for p in pairs.values()})
+            swaps = await self.rpc("eth_getLogs", [{**rng, "address": list(pairs), "topics": [bnbpancake.T_SWAP]}]) or []
+            if not swaps:
+                return []
+            tin = await self.rpc("eth_getLogs", [{**rng, "address": toks, "topics": [bnbpancake.T_TRANSFER, None, pt]}]) or []
+            tout = await self.rpc("eth_getLogs", [{**rng, "address": toks, "topics": [bnbpancake.T_TRANSFER, pt]}]) or []
+            out = bnbpancake.decode(swaps, tin + tout, pairs)
+            self.pstat["trades"] += len(out)
+            return out
+        except Exception as e:                                  # a PancakeSwap nunca para a leitura da curva
+            self.pstat["erros"] += 1
+            self.pstat["ultimo_erro"] = str(e)[:160]
+            return []
+
+    async def grad_tick(self) -> None:
+        """Descobre os tokens da curva que graduaram e o par V2 de cada um (limite de consultas por minuto)."""
+        now = time.time()
+        while self._gq and now - self._gq[0] > 60:
+            self._gq.popleft()
+        recent: dict[str, float] = {}
+        for t in reversed(self.trades):
+            if now - t["t"] > bnbpancake.GRAD_LOOK_S:
+                break
+            if t.get("venue") != "pancake":
+                recent.setdefault(t["token"], t["t"])
+        want = [tk for tk in self.graduated if tk not in self.pairs and now - self._gchk.get(tk, 0) > 300]
+        want += [tk for tk, _ in sorted(recent.items(), key=lambda x: -x[1])
+                 if tk not in self.graduated and now - self._gchk.get(tk, 0) > bnbpancake.GRAD_EVERY_S]
+        for tk in want:
+            if len(self._gq) >= bnbpancake.GRAD_PER_MIN:
+                break
+            self._gq.append(now)
+            self._gchk[tk] = now
+            try:
+                if tk not in self.graduated:
+                    await self.token_info(tk)
+                if tk in self.graduated and tk not in self.pairs:
+                    self._gq.append(now)
+                    pair = await bnbpancake.find_pair(self._call, tk, self.quotes.get(tk) or ZERO)
+                    if pair:
+                        self.pairs[tk] = {**bnbpancake.pair_info(tk, self.quotes.get(tk) or ZERO, pair), "t": now}
+                        self._pairs_dirty = True
+                        self.pstat["graduados_achados"] += 1
+                        log.info("BNB: %s… graduou, par PancakeSwap %s…", tk[:10], pair[:10])
+            except Exception:
+                pass
 
     def _add(self, tr: dict, save: bool = False) -> None:
         if tr["id"] in self.seen:
@@ -911,6 +998,9 @@ class BnbWatch:
                     self.cfg = clean_cfg(r["v"])
                 elif r.get("k") == "cursor" and isinstance(r.get("v"), dict):
                     self.cursor = int(r["v"].get("block") or 0) or None
+                elif r.get("k") == "pairs" and isinstance(r.get("v"), dict):
+                    self.pairs = {k: v for k, v in r["v"].items() if isinstance(v, dict) and v.get("pair")}
+                    self.graduated.update(self.pairs)
             since = time.time() - KEEP_S
             off = 0
             while True:
@@ -918,7 +1008,7 @@ class BnbWatch:
                                             gte={"t": since}) or []
                 for r in rows:
                     self._add({k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side", "price", "amount",
-                                                     "value", "fee", "t", "quote")})
+                                                     "value", "fee", "t", "quote", "venue")})
                 off += len(rows)
                 if len(rows) < 5000 or off >= MAX_MEM:
                     break
@@ -935,9 +1025,12 @@ class BnbWatch:
         rows, self.pending = self.pending[:1000], self.pending[1000:]
         try:
             if rows:
-                await self.db.insert("bnb_fm_trades", [{k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side",
-                                                                             "price", "amount", "value", "fee", "t", "quote")}
-                                                      for r in rows], upsert=True, on_conflict="id")
+                await self.db.insert("bnb_fm_trades", [{**{k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side",
+                                                                                "price", "amount", "value", "fee", "t", "quote")},
+                                                       "venue": r.get("venue") or "fourmeme"} for r in rows], upsert=True, on_conflict="id")
+            if self._pairs_dirty:
+                self._pairs_dirty = False
+                await self.db.insert("bnb_state", {"k": "pairs", "v": self.pairs}, upsert=True, on_conflict="k")
             if self.cursor:
                 await self.db.insert("bnb_state", {"k": "cursor", "v": {"block": self.cursor, "t": time.time()}},
                                      upsert=True, on_conflict="k")
@@ -967,6 +1060,7 @@ class BnbWatch:
                 await self.refresh_bnb_usd()
                 await self.balances_tick([r["wallet"] for r in self.ranking()["rows"][:30]])
                 await self.positions_tick()
+                await self.grad_tick()
                 await self.real_tick()
             except Exception as e:
                 self.stat["erros"] += 1
@@ -988,7 +1082,7 @@ class BnbWatch:
             q[nm] = q.get(nm, 0) + 1
         recent = []
         for t in list(self.trades)[-60:][::-1]:
-            recent.append({**{k: t.get(k) for k in ("t", "tx", "token", "wallet", "side", "amount")},
+            recent.append({**{k: t.get(k) for k in ("t", "tx", "token", "wallet", "side", "amount", "venue")},
                            "bnb": (lambda b: round(b, 5) if b is not None else None)(to_bnb(t, t.get("quote"), self.bnb_usd)),
                            "moeda": "BNB" if (t.get("quote") or ZERO) == ZERO else STABLES.get(t.get("quote") or "", "outra")})
         return {"ligado": True, "carregado": self.loaded, "cfg": self.cfg, "padrao": CFG_DEFAULT,
@@ -1003,4 +1097,6 @@ class BnbWatch:
                            "ultimo_erro_t": self.stat["ultimo_erro_t"], "chamadas": self.stat["chamadas"],
                            "desde": self.stat["desde"], "a_gravar": len(self.pending), "carregados": self.stat["carregados"],
                            "bloco_s": self.block_s},
-                "ranking": rk, "recentes": recent}
+                "ranking": rk, "recentes": recent,
+                "pancake": {**self.pstat, "pares": len(self.pairs), "lendo": len(self._active_pairs()),
+                            "tokens": bnbpancake.graduated_list(self.trades, self.pairs, now, to_bnb, self.quotes, self.bnb_usd)[:60]}}

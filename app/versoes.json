@@ -1645,6 +1645,11 @@
    "versao": "0.32.177",
    "inicio": "2026-11-04T05:45:53+00:00",
    "titulo": "segurança do token na BNB antes de comprar"
+  },
+  {
+   "versao": "0.32.178",
+   "inicio": "2026-11-04T06:05:00+00:00",
+   "titulo": "BNB lê a PancakeSwap dos tokens graduados"
   }
  ]
 }
