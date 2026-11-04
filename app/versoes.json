@@ -1760,6 +1760,11 @@
    "versao": "0.32.200",
    "inicio": "2026-11-04T20:01:09+00:00",
    "titulo": "Voltar só as abas escolhidas"
+  },
+  {
+   "versao": "0.32.201",
+   "inicio": "2026-11-04T20:06:19+00:00",
+   "titulo": "Ganho geral e taxas pagas no Histórico"
   }
  ]
 }

@@ -2877,8 +2877,12 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const m = /fechou (\S+) copiado|compra (?:automática|manual)[^:]*: (\S+)|copiou [^:]+: compra (\S+)|\] (\S+): (?:vendendo|trader saiu|saída)|compra (\S+) NÃO feita/i.exec(msg || "");
     return m ? (m[1] || m[2] || m[3] || m[4] || m[5]) : null;
   }
+  // 0.32.201 (pedido do dono): ganho antes das taxas, taxas pagas e líquido de cada trade. Trade antigo sem taxa guardada fica "–"
+  const hGross = (t) => (t.gross_sol != null ? t.gross_sol : t.fees_sol != null ? (t.pnl_sol || 0) + t.fees_sol : null);
+  const hFees = (g, fee, net) => '<div class="abc-n hc-f"><div><small>' + (g != null && g < 0 ? "Perda geral" : "Ganho geral") + "</small><b>" + (g == null ? "–" : sg(g, "")) + "</b></div><div><small>Taxas pagas</small><b>" + (fee == null ? "–" : s4(fee)) + "</b></div><div><small>Líquido</small><b>" + sg(net, "") + "</b></div></div>";
   function openTradeDet(t) {
-    const row = (k, v) => "<tr><td><b>" + k + "</b></td><td>" + v + "</td></tr>";
+    const row = (k, v) => "<tr><td><b>" + k + "</b></td><td>" + v + "</td></tr>", gross = hGross(t), fp = t.fee_parts || {};
+    const partes = [["plataforma", fp.platform], ["PumpPortal", fp.portal], ["rede", fp.network]].filter((x) => x[1] > 0).map((x) => x[0] + " " + s4(x[1])).join(" · ");
     $("posMT").innerHTML = (t.real ? '<span class="tag real">REAL</span> ' : '<span class="tag sim">FICTÍCIA</span> ') + esc(t.symbol || "") + " · fechada " +
       '<span class="tag ' + ((t.pnl_sol || 0) > 0 ? "win" : "loss") + '">' + ((t.pnl_sol || 0) > 0 ? "LUCRO +" : "PREJUÍZO ") + s4(t.pnl_sol) + " SOL · investiu " + s4(t.sol_in) + " SOL</span>";
     $("posMS").textContent = "abriu " + dt(t.opened_at) + " · fechou " + dt(t.closed_at) + " · origem: " + whoLabel(t);
@@ -2892,7 +2896,10 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       row("Origem", pfW(t.wallet, t) + thBtn(t, "Ver resultados deste trader")) +
       row("Preço de entrada → saída", ex(t.price_in) + " → " + ex(t.price_out)) +
       row("Melhor e pior momento", (t.best_pct == null ? "–" : pc(t.best_pct)) + " · " + (t.worst_pct == null ? "–" : pc(t.worst_pct))) +
-      row("Taxas", t.fees_sol == null ? "–" : s4(t.fees_sol) + " SOL") +
+      row(gross != null && gross < 0 ? "Perda geral (antes das taxas)" : "Ganho geral (antes das taxas)", gross == null ? "–" : sg(gross)) +
+      row("Taxas pagas", t.fees_sol == null ? "–" : s4(t.fees_sol) + " SOL" + (partes ? " · " + partes : "") + (t.real ? '<br><span class="muted small">estimativa pelas porcentagens de cada taxa; o líquido é a diferença real de SOL na carteira</span>' : "")) +
+      (fp.slippage > 0 ? row("Slippage simulado", s4(fp.slippage) + ' SOL <span class="muted small">já está no preço, fora das taxas</span>') : "") +
+      row("Líquido", sg(t.pnl_sol)) +
       row("Atraso da entrada", t.lag_s == null ? "–" : f(t.lag_s, 1) + " s") +
       row("Vendas", (t.sells || []).length ? (t.sells || []).map((s) => dt(s.at) + " · " + f((s.frac || 0) * 100, 0) + "% · " + s4(s.sol) + " SOL" + (s.why ? " · " + esc(s.why) : "")).join("<br>") : "–") +
       "</tbody></table></div>" + '<p class="muted small" style="margin-top:8px">No Histórico ficam todas as fechadas; em Base geral → Aprendizado das posições, se saiu cedo ou na hora certa (1 h depois de fechar).</p>';
@@ -4466,9 +4473,9 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const g = T.filter((t) => t.pnl_sol > 0), p = T.filter((t) => !(t.pnl_sol > 0)), soma = (L) => L.reduce((x, t) => x + (t.pnl_sol || 0), 0), inv = soma0(T);
     const PS = []; (D.positions || []).filter((x) => !!x.real === rm).forEach((x) => (x.sells || []).forEach((y) => PS.push([dt(y.at), pfM(x.mint, x.symbol), pfW(x.wallet, x), f((y.frac || 0) * 100, 0) + "%", s4(y.sol) + " SOL",
       '<span class="wrapcell">' + esc(y.why || "") + "</span>", y.signature ? '<a href="https://solscan.io/tx/' + encodeURIComponent(y.signature) + '" target="_blank" rel="noopener">ver ↗</a>' : "–"])));
-    const by = {}; A.forEach((t) => { const key = t.wallet === "manual" ? "manual:" + whoLabel(t) : t.wallet, b = (by[key] = by[key] || { t, n: 0, w: 0, p: 0, inv: 0 }); b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol || 0; b.inv += t.sol_in || 0; });
+    const by = {}; A.forEach((t) => { const key = t.wallet === "manual" ? "manual:" + whoLabel(t) : t.wallet, b = (by[key] = by[key] || { t, n: 0, w: 0, p: 0, inv: 0, g: 0, gn: 0, fee: 0, fn: 0 }), gr = hGross(t); b.n++; b.w += t.pnl_sol > 0; b.p += t.pnl_sol || 0; b.inv += t.sol_in || 0; if (gr != null) { b.g += gr; b.gn++; } if (t.fees_sol != null) { b.fee += t.fees_sol; b.fn++; } });
     const BY = Object.values(by).sort((x, y) => y.p - x.p), abas = [...new Set(A.map((t) => t.aba).filter(Boolean))].sort(), errs = (D.feed || []).filter((e) => ERR_ACT.test(String(e.action || ""))).length;
-    hSet("hSum", "<b>" + T.length + " trades</b> · ganhou " + sg(soma(g), "") + " · perdeu " + sg(soma(p), "") + " · resultado " + sg(soma(T), "") + " SOL" + (inv ? " · " + pc(soma(T) / inv * 100) : "") + (A.length < (W.count || 0) ? ' <span class="muted">· últimos ' + A.length + " de " + W.count + "</span>" : ""));
+    hSet("hSum", "<b>" + T.length + " trades</b> · ganhou " + sg(soma(g), "") + " · perdeu " + sg(soma(p), "") + " · resultado " + sg(soma(T), "") + " SOL" + (inv ? " · " + pc(soma(T) / inv * 100) : "") + (T.some((t) => t.fees_sol != null) ? " · <b>antes das taxas</b> " + sg(T.reduce((x, t) => x + (hGross(t) ?? (t.pnl_sol || 0)), 0), "") + " · <b>taxas pagas</b> " + s4(T.reduce((x, t) => x + (t.fees_sol || 0), 0)) + " SOL" : "") + (A.length < (W.count || 0) ? ' <span class="muted">· últimos ' + A.length + " de " + W.count + "</span>" : ""));
     const abaPct = (L) => (soma0(L) ? pc(soma(L) / soma0(L) * 100) : "–");       // mesma base do resumo: os trades carregados no painel
     const ch = (attr, v, on, txt) => '<button class="btn sm chip' + (on ? " on" : "") + '" ' + attr + '="' + esc(v) + '">' + txt + "</button>";
     hSet("hTabs", [["tr", "Trades", A.length], ["by", "Por trader", BY.length], ["mov", "Movimentos", (D.live || []).length], ["par", "Vendas parciais", PS.length], ["feed", "Feed ao vivo", (D.feed || []).length], ["err", "Erros", errs]].map((x) => ch("data-htab", x[0], HIST.tab === x[0], x[1] + " · " + x[2])).join(""));
@@ -4483,9 +4490,9 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<div class="hrep-s">Todo o tempo</div><div class="hreps">' + (rp(TR.todo) || '<span class="muted small">Nenhum trader com 2 trades ou mais.</span>') + '</div><div class="hrep-s">Últimas 24 h</div><div class="hreps">' + (rp(TR.h24) || '<span class="muted small">Nenhum trader com 2 trades ou mais nas últimas 24 h.</span>') + "</div>");
     HIST_C = NW; HIST_L = V;
     hSet("hCards", V.map((t, i) => '<div class="abc hc" data-htrade="' + i + '" role="button" tabindex="0"><div class="abc-t"><b>' + esc(t.symbol || "?") + '</b><span class="sp"></span><b class="hc-r">' + sg(t.pnl_sol, "") + "</b></div>" +
-      '<div class="hc-a">' + abaTag(t) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + '</b></div></div><div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">' + (HIST.w ? "Os trades deste trader são mais antigos que os " + A.length + " carregados no painel." : "Nenhum trade com esse filtro.") + "</p>");
+      '<div class="hc-a">' + abaTag(t) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + "</b></div></div>" + hFees(hGross(t), t.fees_sol, t.pnl_sol) + '<div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">' + (HIST.w ? "Os trades deste trader são mais antigos que os " + A.length + " carregados no painel." : "Nenhum trade com esse filtro.") + "</p>");
     $("hMore").hidden = T.length <= V.length; $("hMore").textContent = "Ver mais (" + (T.length - V.length) + " restantes)";
-    hSet("hByC", BY.map((b) => '<div class="abc"><div class="abc-t"><div class="hc-w">' + abaTag(b.t) + hWho(b.t) + '</div><span class="sp"></span><b class="hc-r">' + sg(b.p, "") + '</b></div><div class="abc-n"><div><small>%</small><b>' + (b.inv ? pc(b.p / b.inv * 100) : "–") + "</b></div><div><small>Trades</small><b>" + b.n + "</b></div><div><small>Acerto</small><b>" + f((b.w / b.n) * 100, 0) + "%</b></div></div></div>").join("") || '<p class="muted">Sem trades fechados ainda.</p>');
+    hSet("hByC", BY.map((b) => '<div class="abc"><div class="abc-t"><div class="hc-w">' + abaTag(b.t) + hWho(b.t) + '</div><span class="sp"></span><b class="hc-r">' + sg(b.p, "") + '</b></div><div class="abc-n"><div><small>%</small><b>' + (b.inv ? pc(b.p / b.inv * 100) : "–") + "</b></div><div><small>Trades</small><b>" + b.n + "</b></div><div><small>Acerto</small><b>" + f((b.w / b.n) * 100, 0) + "%</b></div></div>" + hFees(b.gn ? b.g : null, b.fn ? b.fee : null, b.p) + "</div>").join("") || '<p class="muted">Sem trades fechados ainda.</p>');
     if ($("tPart")) table("tPart", ["Quando", "Token", "Trader", "Vendeu", "Recebeu", "Motivo", "Transação"], PS, "Nenhuma venda parcial em posição aberta.");
   }
   // 0.31.55 (pedido do dono): no Histórico também aparecem os erros e desistências (compra real recusada, preço suspeito…)
