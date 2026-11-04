@@ -23,7 +23,7 @@ import os
 import time
 from collections import deque
 
-from . import bnbcopy, bnbreal, evm
+from . import bnbcopy, bnbreal, bnbsafe, evm
 
 log = logging.getLogger("bnb")
 
@@ -252,6 +252,8 @@ class BnbWatch:
         self._keys: dict[str, tuple] = {}
         self._tasks: set = set()
         self._rbal_at = 0.0
+        # 0.32.177: segurança do token antes de toda compra (fictícia e REAL): honeypot, congelar, taxa alta… (bnbsafe)
+        self.safe = bnbsafe.Safety(self._call, http)
 
     # ------------------------------------------------------------------ RPC
     async def rpc(self, method: str, params: list):
@@ -372,16 +374,13 @@ class BnbWatch:
         return b
 
     def _copy(self, tr: dict, before: float, cop: set) -> None:
-        """Trade novo lido: o trader do ranking comprou → a fictícia compra; quem tem posição copiada vendeu → vende a
-        mesma parte. Também atualiza o preço das posições abertas do token."""
+        """Trade novo lido: o trader do ranking comprou → confere a segurança do token e a fictícia (e a REAL ligada)
+        compra; quem tem posição copiada vendeu → vende a mesma parte. Também atualiza o preço das posições abertas."""
         px = self.px.get(tr["token"], (None,))[0]
         for b in self.books.values():
             if px:
                 b.on_price(tr["token"], px, tr["t"])
-            if tr["side"] == "buy" and tr["wallet"] in cop and time.time() - tr["t"] <= 60:   # recuperação após reinício não copia
-                tr["bnb"] = to_bnb(tr, tr.get("quote"), self.bnb_usd)
-                b.buy(tr, px, time.time())
-            elif tr["side"] == "sell":
+            if tr["side"] == "sell":
                 frac = min(1.0, (tr["amount"] or 0) / before) if before > 0 else 1.0
                 for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     b.sell(p, frac, px, time.time(), f"trader vendeu {frac * 100:.0f}%")
@@ -394,10 +393,48 @@ class BnbWatch:
                 for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     p["retry_frac"] = frac
                     self._spawn(self._real_sell(uid, p, frac, f"trader vendeu {frac * 100:.0f}%"))
-        if tr["side"] == "buy" and tr["wallet"] in cop and time.time() - tr["t"] <= 60:
+        if tr["side"] == "buy" and tr["wallet"] in cop and time.time() - tr["t"] <= 60:   # recuperação após reinício não copia
+            tr["bnb"] = to_bnb(tr, tr.get("quote"), self.bnb_usd)
+            v = self.safe.cached(tr["token"])
+            if v is not None:
+                self._buy_all(tr, v)
+            else:
+                self._spawn(self._safe_buy(tr))
+
+    async def _try_buy(self, token: str, funds: int) -> list[int]:
+        return evm.words(await self._call(bnbreal.HELPER3, evm.call_data(bnbreal.SEL["try_buy"], token, 0, funds)))
+
+    async def _try_sell(self, token: str, amount: int) -> list[int]:
+        return evm.words(await self._call(bnbreal.HELPER3, evm.call_data(bnbreal.SEL["try_sell"], token, amount)))
+
+    async def _safe_buy(self, tr: dict) -> None:
+        tk = tr["token"]
+        try:
+            v = await self.safe.check(tk, tk in self.graduated, (self.quotes.get(tk) or ZERO) not in ("", ZERO, "?"),
+                                      self.bnb_usd, self._try_buy, self._try_sell)
+        except Exception as e:                                     # nunca compra sem conferir
+            v = self.safe.mark(tk, False, "falha na conferência (" + type(e).__name__ + ")", erro=True)
+        self._buy_all(tr, v)
+
+    def _buy_all(self, tr: dict, v: dict) -> None:
+        """Compra (ou registra por que não comprou) em toda carteira fictícia e REAL ligada, depois da conferência."""
+        now = time.time()
+        px = self.px.get(tr["token"], (None,))[0]
+        if not v["ok"]:
+            why = "token barrado pela segurança: " + v["why"]
+            for b in self.books.values():
+                if b.cfg.get("on"):
+                    b._ev(now, tr["wallet"], tr["token"], "não copiou", why)
             for uid, rc in list(self.real_cfg.items()):
                 if rc.get("real_on"):
-                    self._spawn(self._real_buy(uid, tr, px))
+                    self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
+            log.info("BNB: não copiou %s… (%s)", tr["token"][:10], v["why"][:120])
+            return
+        for b in self.books.values():
+            b.buy(tr, px, now)
+        for uid, rc in list(self.real_cfg.items()):
+            if rc.get("real_on"):
+                self._spawn(self._real_buy(uid, tr, px))
 
     # ------------------------------------------------------------------ carteira REAL (0.32.172)
     def rbook(self, uid: str) -> bnbreal.RealBook:
@@ -482,6 +519,9 @@ class BnbWatch:
         now = time.time()
         key, addr = await self.get_key(uid)
         why = "sem a chave da carteira BNB" if not key else self.real_why_not(uid, tr, rb, rc)
+        sv = self.safe.cached(tr["token"])
+        if not why and not (sv and sv["ok"]):                       # 0.32.177: a REAL nunca compra token sem conferência boa
+            why = "token sem conferência de segurança aprovada" + (": " + sv["why"] if sv and sv.get("why") else "")
         if why:
             rb.ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
             return
@@ -715,7 +755,8 @@ class BnbWatch:
                           "fechadas": len(b.trades), "periodos": bnbcopy.periods(b.trades, now),
                           "resultado": round(sum(x["pnl_bnb"] for x in b.trades), 6)}],
                 "copiaria": self.ranking(now)["copiaria"], "real_cfg": self.real_cfg.get(uid) or bnbreal.clean(None), "cfg_sim": b.cfg, "real_padrao": bnbreal.REAL_DEFAULT,
-                "real_status": self.real_status(uid), "leitura_ok": self.reading_ok(now)}
+                "real_status": self.real_status(uid), "leitura_ok": self.reading_ok(now),
+                "seguranca": self.safe.summary(now)}
 
     def reading_ok(self, now: float | None = None) -> bool:
         now = now or time.time()
@@ -741,7 +782,8 @@ class BnbWatch:
                           "fechadas": len(rb.trades), "periodos": bnbcopy.periods(rb.trades, now),
                           "resultado": round(sum(x["pnl_bnb"] for x in rb.trades), 6)}],
                 "copiaria": self.ranking(now)["copiaria"], "real_cfg": rc, "cfg_sim": b.cfg, "real_padrao": bnbreal.REAL_DEFAULT,
-                "real_status": self.real_status(uid), "leitura_ok": self.reading_ok(now)}
+                "real_status": self.real_status(uid), "leitura_ok": self.reading_ok(now),
+                "seguranca": self.safe.summary(now)}
 
     async def save_book_cfg(self, uid: str, raw: dict) -> dict:
         b = self.book(uid)

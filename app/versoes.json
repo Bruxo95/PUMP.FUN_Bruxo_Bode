@@ -1640,6 +1640,11 @@
    "versao": "0.32.176",
    "inicio": "2026-11-03T22:41:40+00:00",
    "titulo": "aba Cópia com FICTÍCIA e REAL lado a lado"
+  },
+  {
+   "versao": "0.32.177",
+   "inicio": "2026-11-04T05:45:53+00:00",
+   "titulo": "segurança do token na BNB antes de comprar"
   }
  ]
 }

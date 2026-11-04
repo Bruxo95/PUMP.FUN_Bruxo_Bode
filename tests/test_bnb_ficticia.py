@@ -57,6 +57,7 @@ def test_watch_copies_ranked_trader_and_follows_sale():
     now = time.time()
     buy = {"id": "a:0", "tx": "a", "block": 1, "token": TOK, "wallet": W1, "side": "buy", "price": 0.001, "amount": 1000,
            "value": 1.0, "fee": 0.01, "t": now, "quote": bnb.ZERO}
+    w.safe.mark(TOK, True)                       # 0.32.177: token já conferido pela segurança (bnbsafe)
     w._add(buy)
     w._copy(buy, 0.0, {W1})
     assert len(b.pos) == 1

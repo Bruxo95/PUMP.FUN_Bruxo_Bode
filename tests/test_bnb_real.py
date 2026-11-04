@@ -53,6 +53,7 @@ def _watch(on=True, chain=None):
     w.chain = chain or _Chain()
     w.book(U)
     w.quotes[TOK] = bnb.ZERO
+    w.safe.mark(TOK, True)                       # 0.32.177: token já aprovado pela segurança
     if on:
         w.rcfg(U)["real_on"] = True
     return w

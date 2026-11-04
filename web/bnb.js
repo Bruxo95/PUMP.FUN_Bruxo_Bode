@@ -329,6 +329,21 @@
   }
   function drawConfig() {
     if (!P) return;
+    // 0.32.177 (pedido do dono): segurança do token antes de comprar
+    const sf = P.seguranca;
+    if (sf) {
+      const rg = sf.regras || {}, st = sf.stat || {};
+      $("sfRules").innerHTML = "<p>Antes de comprar, o robô confere o token e <b>não compra</b> quando:</p><ul>" +
+        "<li>a GoPlus aponta <b>honeypot</b> (não deixa vender), <b>não deixa vender tudo</b>, o dono pode <b>pausar as transferências</b> (congelar), tem <b>lista negra</b>, espera obrigatória entre trades, o dono pode mudar saldo ou taxa, taxa diferente por carteira ou dono escondido;</li>" +
+        "<li>a taxa da Four.Meme na compra ou na venda passa de <b>" + num(rg.max_taxa_curva_pct, 0) + "%</b> (o normal é 1%; mais que isso é o modo anti-sniper ou token com taxa) — conferido na rede, simulando compra e venda;</li>" +
+        "<li>a taxa do próprio token (compra ou venda) passa de <b>" + num(rg.max_taxa_token_pct, 0) + "%</b>;</li>" +
+        "<li>o token já foi para a PancakeSwap e a GoPlus ainda não tem dados dele, ou a conferência falhou (nunca compra sem conferir).</li></ul>" +
+        '<p class="muted">Token barrado fica fora por ' + num(rg.barrado_h, 0) + " h. A conferência não vende posições que já estão abertas.</p>";
+      kpis("sfK", [["Conferidos", num(st.conferidos, 0), "desde que o servidor subiu"], ["Barrados", num(st.barrados, 0), "não comprou", st.barrados ? "down" : ""],
+        ["GoPlus", num(st.goplus, 0), (st.goplus_sem_dados || 0) + " ainda sem dados"], ["Falhas", num(st.erros, 0), "tenta de novo em 1 min"]]);
+      table("sfT", ["Hora", "Token", "Por que não comprou", "Taxa compra · venda"], (sf.barrados || []).map((x) => [hora(x.t), tok(x.token), esc(x.why),
+        x.taxa_compra == null ? "—" : num(x.taxa_compra, 1) + "% · " + num(x.taxa_venda, 1) + "%"]), "Nenhum token barrado nas últimas 24 h.");
+    }
     const rs = RS(), el = $("rlSt");
     el.className = "decbox " + (rs.ligada ? "ok" : "");
     el.innerHTML = (!rs.permitido ? "<b>Trava geral do servidor fechada</b> (PUMP_REAL_ALLOWED=false): a REAL não liga nem envia nada.<br>" : "") +
