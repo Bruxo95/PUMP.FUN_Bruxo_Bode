@@ -61,7 +61,8 @@ def test_carteiras_is_the_only_place_to_run_the_wallets():
     assert 'data-wm="sim"' in cart and 'data-wm="real"' in cart and 'data-wm="ambas"' in cart
     sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
     assert 'data-toggle="pump_copy_enabled"' in sim and 'data-cfg="pump_copy_sol"' in sim and 'data-cfg="pump_sim_balance_sol"' in sim
-    real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="ambas"')]
+    real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
+    assert 'id="rmT"' in cart[cart.index('<div data-wp="espelho"'):cart.index('<div data-wp="ambas"')] and 'id="rmT"' not in real
     assert 'id="wKpisS"' in sim and 'id="cfgTabs"' not in real and 'Conversor' in real
     for k in ("pump_copy_enabled", "pump_other_min_liq_usd"):                                 # a REAL mostra a mesma opção (cópia)
         assert f'data-clone="1" data-{"toggle" if k.endswith("enabled") else "cfg"}="{k}"' in real

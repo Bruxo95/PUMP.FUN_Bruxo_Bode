@@ -2508,7 +2508,7 @@
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
     if (t.dataset.ct && t.closest("#cfgTabs")) { cfgTab(t.dataset.ct); return; }
-    if (t.dataset.wm && t.closest("#walTabs")) { walTab(t.dataset.wm); return; }
+    if (t.dataset.wm && t.closest("#walTabs")) { walTab(t.dataset.wm); if (t.dataset.wm === "espelho") loadMirror(); return; }
     if (t.dataset.usm) { US.rm = t.dataset.usm === "real"; try { localStorage.setItem("pf_usm", t.dataset.usm); } catch (e) { /* */ } loadUsar(); return; }
     if (t.dataset.lg && t.closest("#lgTabs")) { lgTab(t.dataset.lg); return; }
     if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
@@ -4675,7 +4675,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas",
     "tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls"];
   let CFT = "copia", LGT = "conta", WALT = "sim";
-  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = ["real", "ambas"].includes(localStorage.getItem("pf_walt")) ? localStorage.getItem("pf_walt") : "sim"; } catch (e) { /* */ }
+  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = ["real", "ambas", "espelho"].includes(localStorage.getItem("pf_walt")) ? localStorage.getItem("pf_walt") : "sim"; } catch (e) { /* */ }
   function cfgTab(t) {
     if (t) { CFT = t; try { localStorage.setItem("pf_cfgtab", t); } catch (e) { /* */ } }
     const sec = document.querySelector('section[data-view="carteiras"]'); if (!sec) return;

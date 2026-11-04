@@ -1730,6 +1730,11 @@
    "versao": "0.32.194",
    "inicio": "2026-11-04T18:30:31+00:00",
    "titulo": "Carteiras com as duas abas iguais e Valem para as duas no topo"
+  },
+  {
+   "versao": "0.32.195",
+   "inicio": "2026-11-04T18:46:06+00:00",
+   "titulo": "Real × fictícia virou aba em Carteiras"
   }
  ]
 }
