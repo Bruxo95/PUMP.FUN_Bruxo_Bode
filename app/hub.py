@@ -926,21 +926,39 @@ class PumpHub:
             off += len(rows)
 
     async def jev_bt_load(self) -> None:
-        """Casos já analisados (guardados em jev_backtest) voltam para a memória no início; se o estudo estava ligado, continua."""
+        """No início só lê se o estudo estava ligado. 0.32.192 (banco fora do ar em 04/11): os 120 mil casos guardados em
+        jev_backtest eram relidos inteiros a cada reinício (115 MB); agora só quando a tela do JEV pede o passado ou quando
+        o estudo volta a rodar (`jev_bt_cases`)."""
         bt = self._bt()
         try:
-            async for rows in self._bt_pages("jev_backtest", "id,fonte,data", "em.asc"):
-                for r in rows:
-                    if r.get("fonte") == "_estado":
-                        bt["want_on"] = bool((r.get("data") or {}).get("on"))
-                    elif isinstance(r.get("data"), dict):
-                        bt["cases"][r["id"]] = dict(r["data"], fonte=r["fonte"])
+            for r in await self.db.select("jev_backtest", {"id": "_run"}, columns="id,fonte,data") or []:
+                bt["want_on"] = bool((r.get("data") or {}).get("on"))
         except Exception as e:
             log.warning("estudo do passado do Jev não carregou: %s", str(e)[:120])
-        for c in bt["cases"].values():
-            bt["feitos"][c["fonte"]] = bt["feitos"].get(c["fonte"], 0) + 1
         if bt.get("want_on") and self.system_keys.get("jev_api_key"):
             self.jev_bt_set(True, quiet=True)
+
+    async def jev_bt_cases(self) -> None:
+        """Carrega os casos guardados uma vez (sob demanda)."""
+        bt = self._bt()
+        if bt.get("loaded"):
+            return
+        lock = bt.setdefault("lock", asyncio.Lock())
+        async with lock:
+            if bt.get("loaded"):
+                return
+            try:
+                async for rows in self._bt_pages("jev_backtest", "id,fonte,data", "em.asc"):
+                    for r in rows:
+                        if r.get("fonte") != "_estado" and isinstance(r.get("data"), dict):
+                            bt["cases"].setdefault(r["id"], dict(r["data"], fonte=r["fonte"]))
+            except Exception as e:
+                log.warning("estudo do passado do Jev não carregou: %s", str(e)[:120])
+                return
+            bt["feitos"] = {}
+            for c in bt["cases"].values():
+                bt["feitos"][c["fonte"]] = bt["feitos"].get(c["fonte"], 0) + 1
+            bt["loaded"] = True
 
     def jev_bt_set(self, on: bool, quiet: bool = False) -> dict:
         bt = self._bt()
@@ -989,6 +1007,7 @@ class PumpHub:
         ORIGIN.set("JEV (sombra)")
         bt = self._bt()
         gap = jev.BT_GAP_S if gap_s is None else gap_s
+        await self.jev_bt_cases()                          # 0.32.192: casos guardados só agora (não no início)
         while bt["on"]:
             for fonte in jev.BT_SOURCES:
                 bt["fase"], bt["msg"] = fonte, "lendo os casos guardados"
@@ -1062,6 +1081,13 @@ class PumpHub:
 
     def jev_bt_view(self, fonte: str, hours: float, saida: str) -> dict:
         bt = self._bt()
+        if not bt.get("loaded") and fonte != "ao_vivo":        # 0.32.192: carrega na primeira vez que a tela pede
+            t = bt.get("load_task")
+            if not t or t.done():
+                try:
+                    bt["load_task"] = asyncio.get_running_loop().create_task(self.jev_bt_cases())
+                except RuntimeError:
+                    pass
         now = time.time()
         rows = [c for c in bt["cases"].values() if (fonte == "todos" or c.get("fonte") == fonte)
                 and (not hours or now - float(c.get("t") or 0) <= hours * 3600)]
@@ -1075,7 +1101,7 @@ class PumpHub:
     def jev_bt_status(self) -> dict:
         bt = self._bt()
         return {k: bt.get(k) for k in ("on", "fase", "msg", "feitos", "total", "calls_dia", "erros", "ultimo", "ultimo_erro", "tokens_dia")} | {
-            "limite_dia": jev.BT_DAY_MAX, "fontes": jev.BT_SOURCES}
+            "limite_dia": jev.BT_DAY_MAX, "fontes": jev.BT_SOURCES, "carregado": bool(bt.get("loaded"))}
 
     async def hold_market(self, D: dict) -> None:
         """0.32.103 (pedido do dono): volume, compras × vendas e valor de mercado de agora nas linhas dos detentores.

@@ -1043,7 +1043,9 @@ class BnbWatch:
                 elif r.get("k") == "pairs" and isinstance(r.get("v"), dict):
                     self.pairs = {k: v for k, v in r["v"].items() if isinstance(v, dict) and v.get("pair")}
                     self.graduated.update(self.pairs)
-            since = time.time() - KEEP_S
+            # 0.32.192 (banco fora do ar em 04/11): só os dias que o ranking usa (padrão 7), não os 14 guardados
+            since = time.time() - min(KEEP_S, max(1, int(self.cfg.get("days") or 7)) * 86400 + 3600)
+            self._loaded_since = since
             off = 0
             while True:
                 rows = await self.db.select("bnb_fm_trades", None, order="t.asc", limit=5000, offset=off,
@@ -1095,9 +1097,32 @@ class BnbWatch:
             except Exception as e:
                 log.warning("BNB: limpeza dos trades antigos: %s", str(e)[:120])
 
+    async def _load_older(self, since: float, until: float) -> None:
+        """Traz do banco os trades de [since, until) quando o ranking passa a olhar mais dias."""
+        self._loaded_since = since
+        off, out = 0, []
+        try:
+            while True:
+                rows = await self.db.select("bnb_fm_trades", None, order="t.asc", limit=5000, offset=off,
+                                            gte={"t": since}, lte={"t": until}) or []
+                out += [{k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side", "price", "amount",
+                                               "value", "fee", "t", "quote", "venue")} for r in rows]
+                off += len(rows)
+                if len(rows) < 5000 or off >= MAX_MEM:
+                    break
+        except Exception as e:
+            log.warning("BNB: dias antigos não carregaram: %s", str(e)[:160])
+        if out:
+            self.add_old(out)
+            ids = {x["id"] for x in out}
+            self.pending = [t for t in self.pending if t["id"] not in ids]      # já estão no banco
+
     async def save_cfg(self, raw: dict) -> dict:
         self.cfg = clean_cfg({**self.cfg, **(raw or {})})
         self._rank_cache = None
+        want = time.time() - min(KEEP_S, int(self.cfg["days"]) * 86400 + 3600)
+        if self.db is not None and want < getattr(self, "_loaded_since", want):
+            self._spawn(self._load_older(want, self._loaded_since))         # 0.32.192: dias a mais só quando pedidos
         if self.db is not None:
             await self.db.insert("bnb_state", {"k": "cfg", "v": self.cfg}, upsert=True, on_conflict="k")
         return self.cfg

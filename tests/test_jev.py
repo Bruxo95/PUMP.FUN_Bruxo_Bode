@@ -2,6 +2,7 @@
 com o que o token fez. Nunca compra. Sem internet."""
 import asyncio
 import json
+import time
 
 import httpx
 
@@ -278,3 +279,27 @@ def test_jev_trade_token_opens_pump_fun_and_shows_holders_start_to_now():
     assert "pfM(x.mint, x.symbol)" in tk and "data-jt" in tk
     ev = js.split("const jtEv =", 1)[1].split("};", 1)[0]
     assert "x.h0" in ev and "x.h - x.h0" in ev
+
+
+def test_boot_reads_only_the_backtest_state_and_cases_load_on_demand():
+    """0.32.192 (banco fora do ar em 04/11): os 120 mil casos não são relidos a cada reinício."""
+    calls = []
+
+    class DB(_DB):
+        async def select(self, table, filters=None, order=None, limit=None, columns="*", offset=0, **kw):
+            calls.append((table, filters))
+            rows = [r for r in self.t.get(table, []) if not filters or all(r.get(k) == v for k, v in filters.items())]
+            return rows[offset:offset + (limit or len(rows))]
+    hub, e = _hub(lambda req: httpx.Response(500))
+    hub.system_keys = {}
+    case = {"t": time.time(), "jev": {"acao": "entrar"}, "res": {}}
+    hub.db = DB({"jev_backtest": [{"id": "_run", "fonte": "_estado", "data": {"on": False}},
+                                  {"id": "base:x", "fonte": "base", "data": case}]})
+    asyncio.run(hub.jev_bt_load())
+    assert calls == [("jev_backtest", {"id": "_run"})] and not hub.jev_bt["cases"]
+
+    async def view():
+        hub.jev_bt_view("todos", 0, "10")
+        await hub.jev_bt["load_task"]
+    asyncio.run(view())
+    assert hub.jev_bt["loaded"] and "base:x" in hub.jev_bt["cases"] and hub.jev_bt["feitos"] == {"base": 1}

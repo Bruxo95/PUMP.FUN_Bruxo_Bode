@@ -122,3 +122,27 @@ def test_check_key_needs_bsc_mainnet():
     assert "não é da BNB Smart Chain" in asyncio.run(bnbhist.check_key(Test([]), KEY))
     bad = asyncio.run(bnbhist.check_key(_NR([], err="invalid api key"), KEY))
     assert "recusou" in bad and KEY not in bad
+
+
+def test_boot_loads_only_ranking_days_and_more_on_demand():
+    """0.32.192: no início só os dias do ranking (padrão 7); pedir 14 traz o resto do banco."""
+    seen = []
+
+    class DB:
+        async def select(self, table, filters=None, order=None, limit=None, columns="*", offset=0, gte=None, lte=None, **kw):
+            seen.append((table, gte, lte))
+            return []
+
+        async def insert(self, *a, **k):
+            return None
+    w = bnb.BnbWatch(_NR([]), DB(), rpcs=["https://x"])
+    asyncio.run(w.load())
+    t0 = [g for (tb, g, _) in seen if tb == "bnb_fm_trades"][0]["t"]
+    assert abs((time.time() - t0) - (7 * 86400 + 3600)) < 60
+
+    async def more():
+        await w.save_cfg({"days": 14})
+        await asyncio.gather(*list(w._tasks))
+    asyncio.run(more())
+    g, l_ = [(g, l_) for (tb, g, l_) in seen if tb == "bnb_fm_trades"][-1]
+    assert abs((time.time() - g["t"]) - 14 * 86400) < 60 and l_["t"] == t0
