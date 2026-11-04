@@ -1189,7 +1189,8 @@ class PumpFun:
         if who in self.study_copy_wallets() or who in (getattr(self, "sim_only_list", None) or []):
             return True
         if who in self.study_lucro_wallets():
-            return True                                   # 0.32.211: "deram lucro" copia só na fictícia
+            # 0.32.211: "deram lucro" copia só na fictícia; 0.32.213 (pedido do dono): com pump_st_lucro_real, também na REAL
+            return not getattr(self.cfg, "pump_st_lucro_real", False)
         return who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False)
 
     def sim_only_why(self, who: str) -> str:
@@ -1199,7 +1200,7 @@ class PumpFun:
         if who in self.study_copy_wallets():
             return "carteira aprovada pelo estudo automático: cópia só na fictícia"
         if who in self.study_lucro_wallets():
-            return "carteira que deu lucro no estudo: cópia só na fictícia"
+            return "carteira que deu lucro no estudo: cópia só na fictícia (ligue \"Estudo · deram lucro na REAL\" para ir à real)"
         return "carteira em Carteiras em estudo: copia só na fictícia (para ir à real, ligue a REAL do estudo ou escolha 'fictícia e REAL' no Copiar)"
 
     def eq_wallets(self) -> list[str]:

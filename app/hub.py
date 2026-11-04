@@ -2876,6 +2876,7 @@ class PumpHub:
                    ("Calls quentes", "pump_calls_real", "compra automática", True), ("Aba do Bruxo", "pump_bx_real", "compra automática", True),
                    ("Jev Trade", "pump_jt_real", "compra do Jev", True), ("Copiar igual", "pump_eq_real", "cópia das carteiras da lista", True),
                    ("Carteiras em estudo", "pump_st_real", "cópia das carteiras estudadas", True),
+                   ("Estudo · deram lucro", "pump_st_lucro_real", "cópia das carteiras do estudo que deram lucro", True),
                    ("Tokens fora da pump.fun", "pump_copy_other_real", "cópia pela Jupiter", False))
 
     def real_places(self, pf: PumpFun) -> dict:

@@ -3461,9 +3461,9 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_real_mirror", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_copy_other_real"];
+  const TGL_REAL = ["pump_real_mirror", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
-    pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
+    pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
   function tglScope(k, c) {
     if (TGL_REAL.includes(k)) return ["REAL", "só a carteira REAL (dinheiro de verdade), e só com a Execução real ligada"];
@@ -3480,7 +3480,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     ["Base da pump.fun", "pump_auto_on", "pump_auto_real", "base"], ["Maiores traders", "pump_el_auto_on", "pump_el_real", "elite"], ["Maiores traders (80%+)", "pump_el_copy80", "pump_real_mirror", "elite"],
     ["Calls quentes", "pump_calls_auto_on", "pump_calls_real", "calls"], ["Aba do Bruxo", "pump_bx_on", "pump_bx_real", "bruxo"], ["Jev Trade", "pump_jt_wallet", "pump_jt_real", "jevtrade"],
     ["Copiar igual", "pump_eq_on", "pump_eq_real", "igual"], ["Carteiras em estudo", "pump_st_copy_on", "pump_st_real", "estudo"],
-    ["Estudo · deram lucro", "pump_st_lucro_on", "pump_st_real", "estudo"]];
+    ["Estudo · deram lucro", "pump_st_lucro_on", "pump_st_lucro_real", "estudo"]];
   const ABAS_MEM = "pf_abas_antes";
   // 0.32.129 (pedido do dono): as regras de cada aba aqui dentro. São cópias dos campos das outras telas (mesma opção); as opções REAL ficam fora
   const ABAS_TOPX = ["pump_copy_sol", "pump_extra_slip_pct", "pump_portal_fee_pct", "pump_priority_sol", "pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
@@ -3661,7 +3661,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     "Base da pump.fun": "Compra sozinha tokens novos da Base com Boost ou chance alta.", "Maiores traders": "Compra quando os maiores traders entram no mesmo token.", "Maiores traders (80%+)": "Copia as carteiras sugeridas com 80% ou mais de acerto.",
     "Calls quentes": "Compra a partir das calls com nota alta.", "Aba do Bruxo": "Entra quando um top trader compra um token novo.", "Lançamento sem trader": "Tokens novos com ritmo forte, sem trader por trás.",
     "Jev Trade": "Observa os detentores do token e entra pela regra do Bruxo.", "Top traders": "Copia os traders do ranking e da sua lista.", "Copiar igual": "Copia as carteiras escolhidas, sem filtros.",
-    "Carteiras em estudo": "Copia as carteiras em estudo liberadas.", "Estudo · deram lucro": "Copia (só FICTÍCIA) as carteiras do estudo que deram lucro.", "Botão Comprar": "Compras feitas por você no botão.", "Copiar trades de usuário": "Repete as operações de outra conta." };
+    "Carteiras em estudo": "Copia as carteiras em estudo liberadas.", "Estudo · deram lucro": "Copia as carteiras do estudo que deram lucro (REAL só com a chave dela ligada).", "Botão Comprar": "Compras feitas por você no botão.", "Copiar trades de usuário": "Repete as operações de outra conta." };
   const ovPer = (h) => (h === 1 ? "Última hora" : "Últimas " + h + " h");
   // 0.32.125 (pedido do dono): a conta na ordem de quem lê: investi 1, ganhei 0,20, perdi 0,10, fiquei com 1,10
   const OV_CONTA = ["Investido", "Ganhou", "Perdeu", "Resultado total", "%"];
@@ -5000,7 +5000,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   // 0.32.186 (pedido do dono): cada quadrado do Usar ou descartar mostra o resultado das abas que ele compra em 1, 6, 12 e 24 h
   // (FICTÍCIA ou REAL, botão no topo); quem dá lucro em 24 h fica em cima e mais verde, quem perde fica embaixo.
-  const US_SO_FICT = ["Estudo · deram lucro"];          // 0.32.212: abas que nunca compram na REAL
+  const US_SO_FICT = [];          // 0.32.212: abas que nunca compram na REAL (0.32.213: Estudo · deram lucro ganhou chave REAL)
   const USAR_ABAS = { estudo: ["Carteiras em estudo"], estudolucro: ["Estudo · deram lucro"], elite: ["Maiores traders", "Maiores traders (80%+)"], igual: ["Copiar igual"],
     base: ["Base da pump.fun"], explorar: ["Explorar", "Explorar · barrados"], bruxo: ["Aba do Bruxo", "Lançamento sem trader"],
     jevtrade: ["Jev Trade"], calls: ["Calls quentes"], tradershist: ["Top traders"], abas: "*" };

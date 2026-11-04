@@ -22,3 +22,16 @@ def test_profit_wallets_are_copied_only_with_the_switch_and_only_in_the_sim(tmp_
     assert pf.tab_off(W1) is None or "desligada" in pf.tab_off(W1)
     pf.refresh_followed(force=True)
     assert W1 not in pf.followed
+
+
+def test_profit_wallets_go_to_the_real_only_with_their_own_real_switch(tmp_path):
+    """0.32.213 (pedido do dono): chave "Estudo · deram lucro na REAL" (começa desligada)."""
+    from app.settings import USER_KEYS
+    assert USER_KEYS["pump_st_lucro_real"][1] is False
+    pf = _pump(tmp_path, paid=False, pump_only_online=False)
+    pf.study = [W1]
+    pf.study_lucro = [W1]
+    pf.cfg.pump_st_lucro_on = True
+    assert pf.sim_only(W1)
+    pf.cfg.pump_st_lucro_real = True
+    assert not pf.sim_only(W1)

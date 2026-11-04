@@ -223,7 +223,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_sim_on": (bool, True, 0, 1),                  # 0.32.198: chave geral da carteira FICTÍCIA (desligada = não abre compra nova)
     "pump_top_on": (bool, True, 0, 1),                  # 0.32.127: compras da aba Top traders (ligado = como sempre foi)
     "pump_st_copy_on": (bool, True, 0, 1),              # 0.32.127: compras das Carteiras em estudo copiadas (ligado = como sempre foi)
-    "pump_st_lucro_on": (bool, False, 0, 1),            # 0.32.211: copia (só FICTÍCIA) as carteiras do estudo que deram lucro
+    "pump_st_lucro_on": (bool, False, 0, 1),            # 0.32.211: copia as carteiras do estudo que deram lucro
+    "pump_st_lucro_real": (bool, False, 0, 1),          # 0.32.213: as que deram lucro também na REAL (começa desligada)
     "pump_sim_balance_sol": (float, 5.0, 0.01, 100000.0),
     "pump_copy_sol": (float, 0.1, 0.001, 100.0),
     "pump_copy_delay_s": (float, 0.0, 0.0, 3600.0),
