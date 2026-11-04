@@ -358,6 +358,8 @@ class SharedMonitor:
         await self.handle_ev(w, sig, t0, ev, cop)
 
     async def _bruxo(self, w: str, ev: dict) -> None:
+        from .apiusage import ORIGIN
+        ORIGIN.set("Aba do Bruxo")                       # 0.32.188: gasto por aba
         try:
             await self.hub.bruxo_on_trade(w, ev)
         except Exception as e:
@@ -1067,12 +1069,16 @@ class SharedMonitor:
     # ------------------------------------------------------------------ início
     def start(self) -> None:
         loop = asyncio.get_running_loop()
-        self._tasks = [loop.create_task(c) for c in (self.rpc_run(), self.pumpportal_run(), self.price_loop(),
-                                                     self.trail_loop(), self.tick_loop(), self.lb_loop(),
-                                                     self.lab_loop(), self.boost_loop(), self.explore_loop(),
-                                                     self.fresh_loop())]
-        self._tasks += [loop.create_task(self.tx_worker()) for _ in range(4)]
-        self._tasks += [loop.create_task(self.tx_worker(hi=True)) for _ in range(4)]     # 0.32.4: só as copiadas
+        from .apiusage import run_as
+        # 0.32.188 (pedido do dono): cada laço nasce marcado com a aba que serve, para o Status mostrar o gasto de cada uma
+        self._tasks = [run_as(nome, c) for nome, c in (
+            ("Cópia de traders", self.rpc_run()), ("PumpPortal ao vivo", self.pumpportal_run()),
+            ("Preços e stops das posições", self.price_loop()), ("Preços e stops das posições", self.trail_loop()),
+            ("Preços e stops das posições", self.tick_loop()), ("Ranking (Top traders)", self.lb_loop()),
+            ("Base da pump.fun", self.lab_loop()), ("Boost e dados das carteiras", self.boost_loop()),
+            ("Explorar", self.explore_loop()), ("Explorar (carteiras novas)", self.fresh_loop()))]
+        self._tasks += [run_as("Cópia de traders", self.tx_worker()) for _ in range(4)]
+        self._tasks += [run_as("Cópia de traders", self.tx_worker(hi=True)) for _ in range(4)]     # 0.32.4: só as copiadas
 
     def stop(self) -> None:
         for t in self._tasks:

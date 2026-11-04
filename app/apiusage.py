@@ -17,6 +17,7 @@ das conexões ao vivo (WebSocket do RPC da Solana e da PumpPortal), em `windows`
 """
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import time
 from collections import deque
@@ -36,6 +37,20 @@ MORE = [("publicnode.com", "RPC da BNB (publicnode)"), ("blockrazor.xyz", "RPC d
 CREDITS = {"Helius (RPC da Solana)": {"getProgramAccounts": 10}}      # o resto = 1 crédito por chamada
 CRED = " · créditos"                                                   # sufixo da linha de créditos no mês (guardada no banco)
 H_WIN = (1, 6, 12, 24)
+# 0.32.188 (pedido do dono: "quanto gasta cada aba"): cada laço do servidor nasce marcado com a aba que ele serve
+# (hub.bg e monitor.start); o pedido HTTP feito dentro dele herda a marca. Sem marca = clique numa tela do painel.
+ORIGIN: contextvars.ContextVar = contextvars.ContextVar("pf_origem", default=None)
+SEM_ORIGEM = "Telas do painel (cliques)"
+
+
+def run_as(nome: str, coro):
+    """Tarefa em segundo plano com a marca da aba (os pedidos dela contam para essa aba)."""
+    import asyncio
+    ctx = contextvars.copy_context()
+    ctx.run(ORIGIN.set, nome)
+    return asyncio.get_running_loop().create_task(coro, context=ctx)
+
+
 PP_PAID = "trades das copiadas"                                        # PumpPortal: 0,01 SOL a cada 10 mil mensagens destas
 
 
@@ -79,6 +94,8 @@ class Usage:
         self.started = time.time()
         self.win: dict[tuple, dict] = {}             # (api, tipo) -> {minuto: n} das últimas 24 h
         self.total: dict[tuple, int] = {}            # (api, tipo) -> desde que o servidor subiu
+        self.owin: dict[tuple, dict] = {}            # (aba, api, tipo) -> {minuto: n} das últimas 24 h (0.32.188)
+        self.ototal: dict[tuple, int] = {}
 
     def _tick(self, api: str, tipo: str, n: int, now: float) -> None:
         k = (api, tipo)
@@ -89,6 +106,13 @@ class Usage:
             for old in [x for x in b if x <= m - 1440]:
                 del b[old]
         self.total[k] = self.total.get(k, 0) + n
+        o = (ORIGIN.get() or SEM_ORIGEM, api, tipo)
+        ob = self.owin.setdefault(o, {})
+        ob[m] = ob.get(m, 0) + n
+        if len(ob) > 1450:
+            for old in [x for x in ob if x <= m - 1440]:
+                del ob[old]
+        self.ototal[o] = self.ototal.get(o, 0) + n
 
     def ws(self, api: str, tipo: str, n: int = 1, now: float | None = None) -> None:
         """Mensagem de uma conexão ao vivo (WebSocket). Nunca falha."""
@@ -206,6 +230,21 @@ class Usage:
                 row["custo_sol"] = {h: round(per[h]["n"] / 10_000 * 0.01, 5) for h in per}
             out.append(row)
         return out
+
+    def por_aba(self, now: float | None = None) -> list[dict]:
+        """0.32.188: quanto cada aba (laço do servidor) gastou de cada serviço em 1/6/12/24 h e desde o início."""
+        now = time.time() if now is None else now
+        m_now = int(now // 60)
+        g: dict[str, list] = {}
+        for (o, api, tipo), b in self.owin.items():
+            per = {str(h): sum(v for k, v in b.items() if k > m_now - h * 60) for h in H_WIN}
+            g.setdefault(o, []).append({"api": api, "tipo": tipo, "janelas": per, "desde_inicio": self.ototal.get((o, api, tipo), 0)})
+        out = []
+        for o, L in g.items():
+            L.sort(key=lambda x: (-x["janelas"]["24"], x["api"], x["tipo"]))
+            req = {h: sum(x["janelas"][h] for x in L if x["tipo"] in ("requisições", "trades das copiadas") or x["tipo"].startswith("WebSocket")) for h in ("1", "6", "12", "24")}
+            out.append({"aba": o, "servicos": L, "total": req})
+        return sorted(out, key=lambda x: -x["total"]["24"])
 
     def dump(self) -> list[dict]:
         return [{"mes": m, "api": a, "chave": c or "", "n": n} for (m, a, c), n in self.month.items()]

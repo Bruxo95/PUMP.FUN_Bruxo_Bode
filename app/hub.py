@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 
 from . import detentores, jev, jevtrade, stkeys
+from .apiusage import ORIGIN, run_as
 from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
 from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
@@ -205,7 +206,7 @@ class PumpHub:
     def _start_engine(self, pf: PumpFun) -> None:
         """Fila de execução REAL própria do usuário (uma de cada vez, espera a confirmação na blockchain)."""
         if getattr(pf, "_real_task", None) is None:
-            pf._real_task = asyncio.get_running_loop().create_task(pf.real_loop())
+            pf._real_task = run_as("Execução real", pf.real_loop())         # 0.32.188: gasto por aba
 
     def _wire_wallet(self, pf: PumpFun) -> None:
         """(Re)monta carteira, Jupiter e execução real do usuário a partir das chaves dele."""
@@ -815,6 +816,7 @@ class PumpHub:
         return True
 
     async def _jev_run(self, s: dict, state: dict) -> None:
+        ORIGIN.set("JEV (sombra)")                      # 0.32.188: gasto por aba
         st = self.jev_stats
         key = self.system_keys.get("jev_api_key") or ""
         out: dict = {}
@@ -973,6 +975,7 @@ class PumpHub:
     async def _jev_bt_run(self, gap_s: float | None = None, rest_s: float = 6 * 3600) -> None:
         """Pergunta ao Jev caso a caso (meio segundo entre perguntas, até jev.BT_DAY_MAX por dia), grava em jev_backtest e
         repete a cada 6 h para pegar os casos novos. Nunca compra nada."""
+        ORIGIN.set("JEV (sombra)")
         bt = self._bt()
         gap = jev.BT_GAP_S if gap_s is None else gap_s
         while bt["on"]:
@@ -4393,30 +4396,30 @@ class PumpHub:
         self.running = True
         for pf in list(self.engines.values()):
             self._start_engine(pf)
-        self._tasks.append(asyncio.create_task(self.flush_loop()))
-        self._tasks.append(asyncio.create_task(self.learning_loop()))
-        self._tasks.append(asyncio.create_task(self.ghosts_loop()))
-        self._tasks.append(asyncio.create_task(self.daily_loop()))
-        self._tasks.append(asyncio.create_task(self.study_auto_loop()))
-        self._tasks.append(asyncio.create_task(self.tune_loop()))
-        self._tasks.append(asyncio.create_task(self.base_loop()))           # 0.31.71: base geral
-        self._tasks.append(asyncio.create_task(self.shadow_loop()))         # 0.31.72: entradas sombra
-        self._tasks.append(asyncio.create_task(self.top_loop()))            # 0.32.124: compras barradas do Top traders
-        self._tasks.append(asyncio.create_task(self.tr_loop()))             # 0.32.140: relatório dos traders
-        self._tasks.append(asyncio.create_task(self.week_loop()))           # 0.32.161: semana × fim de semana guardados
-        self._tasks.append(asyncio.create_task(self.th_loop()))             # 0.32.163: histórico de cada trader guardado
-        self._tasks.append(asyncio.create_task(self.xray_loop()))           # 0.31.86: Raio-X do token
-        self._tasks.append(asyncio.create_task(self.rlog_loop()))           # 0.31.89: log de análise dos robôs
-        self._tasks.append(asyncio.create_task(self.calls_loop()))          # 0.31.94: calls quentes
-        self._tasks.append(asyncio.create_task(self.bruxo_loop()))
-        self._tasks.append(asyncio.create_task(self.jt_loop()))             # 0.32.87: Jev Trade
-        self._tasks.append(asyncio.create_task(self.bx_report_loop()))      # 0.32.80: relatórios da Aba do Bruxo (30 min e 1 dia)          # 0.32.41: Aba do Bruxo
-        self._tasks.append(asyncio.create_task(self.tab_report_loop()))
-        self._tasks.append(asyncio.create_task(self.wallet_guard_loop()))   # 0.32.116: alerta de saída da carteira real
-        self._tasks.append(asyncio.create_task(self.result_loop()))         # 0.32.114: estudo do Resultado (dias fechados)
-        self._tasks.append(asyncio.create_task(self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
-        self._tasks.append(asyncio.create_task(self.usage_loop()))          # 0.31.76: uso das APIs
-        self._tasks.append(asyncio.create_task(self.config_watch_loop()))
+        self._tasks.append(run_as("Gravação no banco", self.flush_loop()))
+        self._tasks.append(run_as("Aprendizado diário", self.learning_loop()))
+        self._tasks.append(run_as("Estratégias fantasma", self.ghosts_loop()))
+        self._tasks.append(run_as("Relatório do dia", self.daily_loop()))
+        self._tasks.append(run_as("Carteiras em estudo", self.study_auto_loop()))
+        self._tasks.append(run_as("Ajuste automático", self.tune_loop()))
+        self._tasks.append(run_as("Base geral", self.base_loop()))           # 0.31.71: base geral
+        self._tasks.append(run_as("Explorar (sombras)", self.shadow_loop()))         # 0.31.72: entradas sombra
+        self._tasks.append(run_as("Top traders (laboratório)", self.top_loop()))            # 0.32.124: compras barradas do Top traders
+        self._tasks.append(run_as("Relatórios", self.tr_loop()))             # 0.32.140: relatório dos traders
+        self._tasks.append(run_as("Relatórios", self.week_loop()))           # 0.32.161: semana × fim de semana guardados
+        self._tasks.append(run_as("Relatórios", self.th_loop()))             # 0.32.163: histórico de cada trader guardado
+        self._tasks.append(run_as("Raio-X do token", self.xray_loop()))           # 0.31.86: Raio-X do token
+        self._tasks.append(run_as("Logs dos robôs", self.rlog_loop()))           # 0.31.89: log de análise dos robôs
+        self._tasks.append(run_as("Calls quentes", self.calls_loop()))          # 0.31.94: calls quentes
+        self._tasks.append(run_as("Aba do Bruxo", self.bruxo_loop()))
+        self._tasks.append(run_as("Jev Trade", self.jt_loop()))             # 0.32.87: Jev Trade
+        self._tasks.append(run_as("Aba do Bruxo", self.bx_report_loop()))      # 0.32.80: relatórios da Aba do Bruxo (30 min e 1 dia)          # 0.32.41: Aba do Bruxo
+        self._tasks.append(run_as("Relatórios", self.tab_report_loop()))
+        self._tasks.append(run_as("Execução real", self.wallet_guard_loop()))   # 0.32.116: alerta de saída da carteira real
+        self._tasks.append(run_as("Relatórios", self.result_loop()))         # 0.32.114: estudo do Resultado (dias fechados)
+        self._tasks.append(run_as("Copiar igual", self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
+        self._tasks.append(run_as("Sistema", self.usage_loop()))          # 0.31.76: uso das APIs
+        self._tasks.append(run_as("Sistema", self.config_watch_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
         self.monitor.start()

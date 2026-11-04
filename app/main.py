@@ -53,8 +53,10 @@ def build_app():
         log.info("PUMP FUN COPY %s iniciando — execução real DESLIGADA para todos", VERSION)
         # 0.32.121: em 01/11/2026 o site ficou em 404 sem dar para saber em que ponto a subida parava. A porta abre primeiro,
         # os dados carregam em segundo plano e o /health mostra a etapa e o erro, sem precisar do Portainer.
-        boot = asyncio.create_task(hub.boot())
-        bnb = asyncio.create_task(hub.bnb.run()) if hub.bnb is not None else None
+        from .apiusage import run_as
+        boot = run_as("Subida do servidor", hub.boot())
+        from .apiusage import run_as
+        bnb = run_as("BNB (Four.Meme)", hub.bnb.run()) if hub.bnb is not None else None
         yield
         boot.cancel()
         if bnb is not None:

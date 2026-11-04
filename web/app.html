@@ -141,8 +141,9 @@
         <div id="cfgDiffB"></div></div></div>
       <!-- ========================================================= STATUS DO SISTEMA (0.32.187: era um modal; agora é página com abas) -->
       <section class="view" data-view="sistema" id="sysM" hidden>
-        <div class="seg ctabs" id="sysTabs" data-novo-ate="2026-11-18"><button data-syt="status">Status do sistema</button><button data-syt="uso" data-adm>Uso de cada serviço</button></div>
+        <div class="seg ctabs" id="sysTabs" data-novo-ate="2026-11-18"><button data-syt="status">Status do sistema</button><button data-syt="uso" data-adm>Uso de cada serviço</button><button data-syt="aba" data-adm data-novo-ate="2026-11-18">Uso por aba</button></div>
         <div class="card" data-sytp="status"><header><div><h2 id="sysMT">Status do sistema</h2><div class="sub" id="sysMS"></div></div></header><div id="sysMB"></div></div>
+        <div class="card" data-sytp="aba" hidden><header><div><h2>Uso por aba</h2><div class="sub" id="sysAS"></div></div><div class="sp"></div><div class="seg" id="sysAM"><button data-sam="sim">FICTÍCIA</button><button data-sam="real">REAL</button></div></header><div id="sysAba"></div></div>
         <div class="card" data-sytp="uso" hidden><header><div><h2>Uso de cada serviço</h2><div class="sub" id="sysUS"></div></div></header><div id="sysUse"></div></div>
       </section>
 

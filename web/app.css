@@ -979,3 +979,7 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .usebad{color:var(--down,#ef4444)!important;font-weight:700}.usewarn{color:#f59e0b!important;font-weight:600}
 .usetbl tr.userow-bad td{background:rgba(239,68,68,.08)}.usetbl tr.userow-warn td{background:rgba(245,158,11,.06)}
 .usealert{margin:0 0 12px;border-color:rgba(239,68,68,.5)}
+
+/* 0.32.188: Uso por aba (Status do sistema) */
+.sysaba{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))}.sysabac{min-height:0;cursor:default}.sysabac:hover{border-color:var(--line)}
+@media (max-width:860px){.sysaba{grid-template-columns:1fr}}

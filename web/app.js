@@ -2550,6 +2550,7 @@
     }
     if (t.closest && t.closest("#sysBox")) { openSys(); return; }
     if (t.dataset.syt && t.closest("#sysTabs")) { sysTab(t.dataset.syt); return; }
+    if (t.dataset.sam) { SAM = t.dataset.sam === "real"; loadAbaLucro(); return; }
     // 0.32.19: Configuração do Trader
     if (t.id === "tcSave") { await poll(true); toast("Configurações gravadas (cada campo já grava ao mudar)."); return; }
     if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão
@@ -3139,6 +3140,40 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     USE_AT = Date.now();
     try { USE = await BB.api("/api/admin/api-usage", { quiet: true }); } catch (e) { USE = { error: String(e) }; }
     if (VIEW === "sistema" && $("sysUse")) $("sysUse").innerHTML = useHtml();
+    if (VIEW === "sistema" && $("sysAba")) $("sysAba").innerHTML = abaUseHtml();
+  }
+  // 0.32.188 (pedido do dono): o gasto de cada aba (Helius, Solana Tracker…) ao lado do lucro dela em 1, 6, 12 e 24 h
+  const ABA_LUCRO = { "Explorar": "explorar", "Aba do Bruxo": "bruxo", "Jev Trade": "jevtrade", "Base da pump.fun": "base", "Calls quentes": "calls",
+    "Carteiras em estudo": "estudo", "Copiar igual": "igual", "Cópia de traders": "tradershist" };
+  let SAM = null;
+  async function loadAbaLucro() {
+    if (SAM == null) SAM = realMode();
+    document.querySelectorAll("#sysAM [data-sam]").forEach((b) => b.classList.toggle("on", (b.dataset.sam === "real") === SAM));
+    const rm = SAM;
+    if (!US.r[rm] || Date.now() - US.at > 60000) {
+      let r; try { r = await BB.api("/api/pump/result-tabs?real=" + (rm ? 1 : 0), { quiet: true }); } catch (e) { r = null; }
+      if (r && !r.error) { US.r[rm] = r; US.at = Date.now(); }
+    }
+    if ($("sysAba") && SAM === rm) $("sysAba").innerHTML = abaUseHtml();
+  }
+  function abaUseHtml() {
+    if (!(ME && ME.role === "admin")) return "";
+    if (!USE) return '<p class="muted">carregando…</p>';
+    if (USE.error) return '<p class="down">' + esc(USE.error) + "</p>";
+    const L = USE.por_aba || [], rm = !!SAM, R = US.r[rm], abas = R && (R.abas || []);
+    if (!L.length) return '<p class="muted">Nada contado ainda desde a última atualização do sistema.</p>';
+    const HS = ["Serviço", "O quê", "1 h", "6 h", "12 h", "24 h", "Desde o início"];
+    return '<div class="usgrid sysaba">' + L.map((x) => {
+      const key = ABA_LUCRO[x.aba], nome = key && USAR_ABAS[key];
+      const luc = nome ? '<div class="usg">' + [1, 6, 12, 24].map((h) => { const p = usPer(abas || [], nome, h); return "<div><small>" + h + " h</small><b>" + (p.n ? pc(p.pct) : "–") + "</b><em>" + (p.n ? sg(p.s, "") + " · " + p.n + " tr" : "sem trade") + "</em></div>"; }).join("") + "</div>"
+        : '<div class="usg"><div class="usno">esta parte não compra: sem lucro próprio</div></div>';
+      const t = '<div class="tbl-wrap"><table class="systbl"><thead><tr>' + HS.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
+        x.servicos.map((s) => "<tr>" + [esc(s.api), esc(s.tipo), f(s.janelas["1"], 0), f(s.janelas["6"], 0), f(s.janelas["12"], 0), f(s.janelas["24"], 0), f(s.desde_inicio, 0)]
+          .map((c, i) => '<td data-l="' + HS[i] + '">' + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
+      return '<div class="uscard sysabac"><b>' + esc(x.aba) + '</b><small>' + f(x.total["24"], 0) + " requisições e mensagens em 24 h · lucro da aba (" + (rm ? "REAL" : "FICTÍCIA") + "):</small>" + luc + t + "</div>";
+    }).join("") + "</div>" +
+      '<p class="muted" style="margin-top:8px">Cada parte do robô que roda sozinha conta os pedidos que fez. "Telas do painel" = pedidos feitos quando alguém abre ou clica numa tela. ' +
+      "Os créditos do Helius aparecem na linha \"créditos\" (1 por chamada, 10 na contagem de detentores). Os números zeram a cada atualização do sistema.</p>";
   }
   function useHtml() {
     if (!(ME && ME.role === "admin")) return "";
@@ -3203,6 +3238,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (!adm) SYT = "status";
     document.querySelectorAll("#sysTabs [data-syt]").forEach((b) => { b.hidden = b.hasAttribute("data-adm") && !adm; b.classList.toggle("on", b.dataset.syt === SYT); });
     document.querySelectorAll("[data-sytp]").forEach((p) => { p.hidden = p.dataset.sytp !== SYT; });
+    if (SYT === "aba") { $("sysAS").textContent = "quanto cada aba gastou de cada serviço e quanto ela deu de lucro · contando desde " + ((D && D.started_at) || "–"); USE_AT = 0; loadUse(); loadAbaLucro(); }
     if (SYT === "uso") { if ($("sysUse") && !$("sysUse").innerHTML) $("sysUse").innerHTML = useHtml(); $("sysUS").textContent = "requisições, créditos e mensagens ao vivo · contando desde " + ((D && D.started_at) || "–"); USE_AT = 0; loadUse(); }
   }
   function openSys() {

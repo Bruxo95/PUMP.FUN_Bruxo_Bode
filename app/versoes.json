@@ -1695,6 +1695,11 @@
    "versao": "0.32.187",
    "inicio": "2026-11-04T14:38:06+00:00",
    "titulo": "Status do sistema em página com abas e vermelho no que estourou"
+  },
+  {
+   "versao": "0.32.188",
+   "inicio": "2026-11-04T14:46:53+00:00",
+   "titulo": "Uso por aba: quanto cada aba gasta de cada serviço e o lucro dela"
   }
  ]
 }
