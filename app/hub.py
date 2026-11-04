@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 
 from . import detentores, jev, jevtrade, stkeys
+from . import cfghist
 from .apiusage import ORIGIN, run_as
 from .db import SupabaseStore, Vault, audit
 from .jupiter import JupiterQuoter, JupiterWallet
@@ -193,6 +194,7 @@ class PumpHub:
             await audit(self.db, uid, "execução real religada após reinício", f"máx. {pf.cfg.pump_real_max_sol} SOL por compra")
         # 0.32.33: ajustes pendentes do dono (settings_overrides) — no fim, com tudo da conta já carregado, para o salvar não
         # perder nada (study_copy, copy_equal, _real_on…)
+        await self.cfg_hist_load(pf)               # 0.32.199: antes dos ajustes, para eles entrarem como versão
         await self._apply_overrides(pf)
         await self._reassert_overrides(pf)
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
@@ -2702,6 +2704,7 @@ class PumpHub:
             return
         applied, _err = pf.cfg.apply(diff)
         if applied:
+            pf._cfg_why = "ajuste pedido no chat"
             await self.save_settings(pf)
             log.info("ajuste do dono reposto (o servidor antigo tinha gravado por cima): %s", ", ".join(applied))
 
@@ -2717,6 +2720,7 @@ class PumpHub:
             try:
                 applied, _err = pf.cfg.apply(dict(r.get("settings") or {}))
                 self._ov_recent.setdefault(pf.user_id, []).append((time.time(), dict(r.get("settings") or {})))
+                pf._cfg_why = "ajuste pedido no chat"
                 await self.save_settings(pf)
                 await self.db.update("settings_overrides", {"id": r["id"]}, {"aplicado_em": datetime.now(timezone.utc).isoformat()})
                 pf._emit(f"Configuração ajustada a pedido do dono: {', '.join(applied)}")
@@ -2910,6 +2914,91 @@ class PumpHub:
             s["_brain_freeze"] = pf.brain_freeze       # 0.31.85: evolução para a qual o dono voltou
         await self.db.update("user_settings", {"user_id": pf.user_id},
                              {"settings": s, "atualizado_em": datetime.now(timezone.utc).isoformat()})
+        await self.cfg_hist_note(pf)
+
+    # ------------------------------------------------------------------ histórico de configuração (0.32.199)
+    async def cfg_hist_load(self, pf: PumpFun) -> None:
+        pf._cfg_last, pf._cfg_row = None, {"n": 0}
+        try:
+            rows = await self.db.select("config_versions", {"user_id": pf.user_id}, order="n.desc", limit=1)
+            cur = cfghist.snap(pf.cfg.user_dict())
+            if rows:
+                pf._cfg_row = {"n": rows[0]["n"], "origem": rows[0].get("origem"), "t": 0, "base": None}
+                pf._cfg_last = rows[0].get("settings") or {}
+                if pf._cfg_last != cur:
+                    pf._cfg_why = "mudou enquanto o histórico não estava olhando"
+                    await self.cfg_hist_note(pf)
+            else:
+                pf._cfg_last = cur
+                pf._cfg_row = {"n": 1, "origem": "início", "t": 0, "base": None}
+                await self.db.insert("config_versions", {"user_id": pf.user_id, "n": 1, "origem": "início do histórico", "settings": cur, "mudou": []})
+        except Exception as e:
+            log.warning("histórico de configuração não carregou (%s…): %s", pf.user_id[:8], str(e)[:160])
+
+    async def cfg_hist_note(self, pf: PumpFun) -> None:
+        """Toda configuração salva passa aqui: se mudou alguma opção, guarda a versão nova. Falha não atrapalha quem salvou."""
+        last = getattr(pf, "_cfg_last", None)
+        if last is None:
+            return
+        cur = cfghist.snap(pf.cfg.user_dict())
+        why = pf.__dict__.pop("_cfg_why", None) or "mudança do sistema"
+        mud = cfghist.diff(last, cur)
+        if not mud:
+            return
+        pf._cfg_last = cur
+        row, now = pf._cfg_row, time.time()
+        try:
+            if why == cfghist.TELA and row.get("origem") == why and row.get("base") is not None and now - row.get("t", 0) < cfghist.JUNTA_S:
+                row["t"] = now
+                await self.db.update("config_versions", {"user_id": pf.user_id, "n": row["n"]}, {"settings": cur, "mudou": cfghist.diff(row["base"], cur)})
+            else:
+                n = row.get("n", 0) + 1
+                pf._cfg_row = {"n": n, "origem": why, "t": now, "base": last}
+                await self.db.insert("config_versions", {"user_id": pf.user_id, "n": n, "origem": why, "settings": cur, "mudou": mud})
+        except Exception as e:
+            log.warning("histórico de configuração não gravou (%s…): %s", pf.user_id[:8], str(e)[:160])
+
+    async def cfg_hist_list(self, pf: PumpFun) -> dict:
+        rows = await self.db.select("config_versions", {"user_id": pf.user_id}, order="n.desc", limit=200, columns="n,em,origem,mudou")
+        aceitas = [{"id": o["id"], "de": o["de"], "parte": o["parte"], "em": o["em"], "n": len([k for k in (o.get("antes") or {}) if not k.startswith("_")])}
+                   for o in await self.config_applied(pf.user_id)]
+        return {"versoes": rows, "atual": pf._cfg_row.get("n") if getattr(pf, "_cfg_row", None) else None, "aceitas": [a for a in aceitas if a["n"]]}
+
+    async def _cfg_hist_target(self, pf: PumpFun, n=None, offer=None) -> tuple[dict | None, str]:
+        if offer is not None:
+            r = await self.db.select("config_offers", {"id": int(offer), "para_user": pf.user_id, "status": "aceita"})
+            if not r:
+                return None, ""
+            return {k: v for k, v in (r[0].get("antes") or {}).items() if not k.startswith("_")}, f"antes de aceitar a configuração de {r[0].get('de_nome') or 'outra conta'}"
+        r = await self.db.select("config_versions", {"user_id": pf.user_id, "n": int(n)})
+        return (r[0].get("settings") or {}, f"versão {int(n)}") if r else (None, "")
+
+    async def cfg_hist_diff(self, pf: PumpFun, n=None, offer=None) -> dict:
+        vals, nome = await self._cfg_hist_target(pf, n, offer)
+        if vals is None:
+            return {"error": "versão não encontrada"}
+        cur = pf.cfg.user_dict()
+        ok = set(self.share_filter(list(vals), getattr(pf, "role", "user") == "admin"))
+        d = [x for x in cfghist.diff({k: cur.get(k) for k in vals}, vals)]
+        return {"nome": nome, "mudaria": [x for x in d if x["k"] in ok], "fora": [x for x in d if x["k"] not in ok]}
+
+    async def cfg_hist_back(self, pf: PumpFun, n=None, offer=None) -> dict:
+        """Volta as opções para a versão escolhida. Nunca mexe na REAL (valores e chaves), no Telegram nem na chave da FICTÍCIA."""
+        d = await self.cfg_hist_diff(pf, n, offer)
+        if d.get("error"):
+            return d
+        vals = {x["k"]: x["para"] for x in d["mudaria"]}
+        if not vals:
+            return {"ok": True, "nome": d["nome"], "mudou": 0}
+        applied, errors = pf.cfg.apply(vals)
+        ov = pf.__dict__.setdefault("_ov_user", {})      # um ajuste antigo pedido no chat não volta a mexer nestas opções
+        for k in applied:
+            ov[k] = datetime.now(timezone.utc).isoformat()
+        pf._cfg_why = f"você voltou para: {d['nome']}"
+        await self.save_settings(pf)
+        pf.refresh_followed(force=True)
+        await audit(self.db, pf.user_id, "configuração: voltou para outra versão", f"{d['nome']} · {len(applied)} opções")
+        return {"ok": True, "nome": d["nome"], "mudou": len(applied), "erros": errors}
 
     async def set_secret(self, pf: PumpFun, name: str, value: str) -> None:
         await self.vault.save(pf.user_id, name, value)
@@ -3695,6 +3784,7 @@ class PumpHub:
             ov = pf.__dict__.setdefault("_ov_user", {})        # foi a pessoa que clicou: ajuste antigo do chat não volta por cima
             for key in applied:
                 ov[key] = quando
+            pf._cfg_why = "ajuste automático que você aplicou"
             await self.save_settings(pf)
             if sug["acao"] == "aplicou":
                 det.update(antes=sug["antes"], depois=vals)
@@ -3739,6 +3829,7 @@ class PumpHub:
                 else:
                     if ev[0] == "desfez":
                         pf.cfg.apply(det.get("antes") or {})
+                        pf._cfg_why = "ajuste automático"
                         await self.save_settings(pf)
                         undone = det.get("variante")
                     await note(tipo, ev[0], f"{det.get('nome', det.get('variante'))}: {ev[1]}",
@@ -3757,6 +3848,7 @@ class PumpHub:
                 antes = {k: getattr(pf.cfg, k) for k in keys}
                 if any(antes.get(k) != v for k, v in new.items()):
                     pf.cfg.apply(new)
+                    pf._cfg_why = "ajuste automático"
                     await self.save_settings(pf)
                     alvo = "automáticas do Explorar" if tipo == "saida_auto" else "cópias"
                     await note(tipo, "aplicou", f"{alvo} · {pick['nome']}: {pick['avg']:+.5f} SOL/trade nos fantasmas "
@@ -4344,6 +4436,7 @@ class PumpHub:
                     if k in self.share_filter([k], getattr(pf, "role", "user") == "admin")}
             antes = {k: getattr(pf.cfg, k, None) for k in vals}       # 0.31.31: para "ver o que mudou"
             applied, _ = pf.cfg.apply(vals)
+            pf._cfg_why = f"aplicou a configuração de {r.get('de_nome') or 'outra conta'}"
             await self.save_settings(pf)
             pf._emit(f"Configuração de {r.get('de_nome')} aplicada: {r.get('parte')} ({len(applied)} opções)")
         upd = {"status": "aceita" if accept else "recusada", "respondido_em": datetime.now(timezone.utc).isoformat()}

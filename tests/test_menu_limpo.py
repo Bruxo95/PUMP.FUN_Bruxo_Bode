@@ -108,3 +108,8 @@ def test_wallet_switches_on_top_with_ligar_modal():
     assert sim.index('id="simB"') < sim.index('id="wKpisS"') and real.index('id="realB"') < real.index('id="wKpis"')
     assert 'id="ligM"' in H and "prompt(" not in JS[JS.index("async function realToggle"):JS.index("async function realToggle") + 500]
 
+
+def test_config_history_tab():
+    cart = _sec("carteiras")
+    assert 'data-wm="hist"' in cart and 'data-wp="hist"' in cart and 'id="chT"' in cart and "loadCfgHist" in JS and "data-chgo" in JS
+

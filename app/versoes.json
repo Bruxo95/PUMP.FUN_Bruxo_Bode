@@ -1750,6 +1750,11 @@
    "versao": "0.32.198",
    "inicio": "2026-11-04T18:55:33+00:00",
    "titulo": "chave de ligar no topo de cada carteira"
+  },
+  {
+   "versao": "0.32.199",
+   "inicio": "2026-11-04T19:24:57+00:00",
+   "titulo": "Histórico de config com Voltar"
   }
  ]
 }

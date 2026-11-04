@@ -2508,7 +2508,7 @@
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
     if (t.dataset.ct && t.closest("#cfgTabs")) { cfgTab(t.dataset.ct); return; }
-    if (t.dataset.wm && t.closest("#walTabs")) { walTab(t.dataset.wm); if (t.dataset.wm === "espelho") loadMirror(); return; }
+    if (t.dataset.wm && t.closest("#walTabs")) { walTab(t.dataset.wm); if (t.dataset.wm === "espelho") loadMirror(); if (t.dataset.wm === "hist") loadCfgHist(); return; }
     if (t.dataset.usm) { US.rm = t.dataset.usm === "real"; try { localStorage.setItem("pf_usm", t.dataset.usm); } catch (e) { /* */ } loadUsar(); return; }
     if (t.dataset.lg && t.closest("#lgTabs")) { lgTab(t.dataset.lg); return; }
     if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
@@ -2771,7 +2771,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "carteiras") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); walTab(); walletLoad(true); loadMirror(); }
+    if (VIEW === "carteiras") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
     if (VIEW === "sistema") { sysTab(); openSys(); }
@@ -4559,6 +4559,38 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     else $("swN").textContent = "Não trocou: " + (r.error || r.reason || r.status || "erro");
     walletLoad(true);
   }
+  // 0.32.199 (pedido do dono): histórico da configuração, com Voltar para uma versão
+  const chVal = (v) => (v === true ? "Ligado" : v === false ? "Desligado" : v == null ? "–" : esc(String(v).replace(".", ",")));
+  const chItem = (x) => esc(cfgLabel(x.k) || x.k) + ": " + chVal(x.de) + " → " + chVal(x.para);
+  async function loadCfgHist() {
+    const r = await BB.api("/api/pump/config/historico"); if (!r || r.error) { if ($("chT")) table("chT", ["Versão"], [], (r && r.error) || "Não consegui carregar."); return; }
+    table("chT", ["Versão", "Quando", "O que aconteceu", "O que mudou", ""], (r.versoes || []).map((v) => {
+      const M = v.mudou || [], atual = v.n === r.atual;
+      return ["<b>" + v.n + "</b>" + (atual ? ' <span class="tag win">atual</span>' : ""), dt(v.em), esc(v.origem || "–"),
+        M.length ? '<span class="wrapcell">' + M.slice(0, 4).map(chItem).join(" · ") + (M.length > 4 ? " · e mais " + (M.length - 4) : "") + "</span>" : "–",
+        atual ? "" : '<button type="button" class="btn sm" data-chback="' + v.n + '">Voltar para esta</button>'];
+    }), "Nenhuma versão guardada ainda. A primeira aparece assim que o servidor carregar a sua conta.");
+    const A = r.aceitas || [];
+    $("chACard").hidden = !A.length;
+    table("chA", ["Quando", "Configuração aceita", "Opções", ""], A.map((a) => [dt(a.em), esc((a.de || "outra conta") + (a.parte ? " · " + a.parte : "")), String(a.n), '<button type="button" class="btn sm" data-choffer="' + a.id + '">Voltar para antes</button>']));
+  }
+  async function chAsk(q, body) {
+    const d = await BB.api("/api/pump/config/historico/diff?" + q); if (!d || d.error) { toast((d && d.error) || "Não consegui comparar."); return; }
+    const M = d.mudaria || [], F = d.fora || [];
+    ovShow("Voltar: " + d.nome, M.length ? M.length + " opções vão mudar" : "nenhuma opção muda", (M.length ? '<ul class="chlist">' + M.map((x) => "<li>" + chItem({ k: x.k, de: x.de, para: x.para }) + "</li>").join("") + "</ul>" : '<p class="muted">Esta versão já é igual à configuração de agora.</p>') +
+      (F.length ? '<p class="muted small">' + F.length + " opção(ões) ficam como estão: valores e chaves da REAL, Telegram e a chave da FICTÍCIA nunca voltam por aqui.</p>" : "") +
+      (M.length ? '<div class="row" style="margin-top:12px"><button type="button" class="btn primary" data-chgo="' + esc(JSON.stringify(body)) + '">Voltar para esta configuração</button></div>' : ""));
+  }
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest && e.target.closest("[data-chback],[data-choffer],[data-chgo]"); if (!t) return;
+    if (t.dataset.chback) return chAsk("n=" + encodeURIComponent(t.dataset.chback), { n: +t.dataset.chback });
+    if (t.dataset.choffer) return chAsk("offer=" + encodeURIComponent(t.dataset.choffer), { offer: +t.dataset.choffer });
+    t.disabled = true;
+    const r = await BB.api("/api/pump/config/historico/voltar", { body: JSON.parse(t.dataset.chgo) });
+    $("jtM").hidden = true;
+    toast(r.error || "Configuração voltou: " + r.nome + " (" + r.mudou + " opções).");
+    await poll(true); loadCfgHist(); if (typeof loadApplied === "function") loadApplied();
+  });
   // 0.32.198 (pedido do dono): janela para digitar LIGAR, no lugar da caixinha do navegador
   let LIG = null;
   function askLigar(titulo, html) {
@@ -4705,7 +4737,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas",
     "tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls"];
   let CFT = "copia", LGT = "conta", WALT = "sim";
-  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = ["real", "ambas", "espelho"].includes(localStorage.getItem("pf_walt")) ? localStorage.getItem("pf_walt") : "sim"; } catch (e) { /* */ }
+  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = ["real", "ambas", "espelho", "hist"].includes(localStorage.getItem("pf_walt")) ? localStorage.getItem("pf_walt") : "sim"; } catch (e) { /* */ }
   function cfgTab(t) {
     if (t) { CFT = t; try { localStorage.setItem("pf_cfgtab", t); } catch (e) { /* */ } }
     const sec = document.querySelector('section[data-view="carteiras"]'); if (!sec) return;

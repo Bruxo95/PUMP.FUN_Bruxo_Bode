@@ -181,6 +181,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             ov = pf.__dict__.setdefault("_ov_user", {})
             for key in applied:
                 ov[key] = datetime.now(timezone.utc).isoformat()
+            pf._cfg_why = "você mudou na tela"
             await hub.save_settings(pf)
             # 0.32.58 (barrados voltavam a comprar depois de desligados): quem liga/desliga uma compra automática fica registrado,
             # com o navegador que mandou, para achar uma aba antiga do painel que grava a opção por cima
@@ -926,6 +927,23 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/config/users")
     async def config_users(u: dict = Depends(user)):
         return {"users": await hub.config_users(u["id"])}
+
+    # 0.32.199 (pedido do dono): histórico da configuração, com Voltar para uma versão
+    @app.get("/api/pump/config/historico")
+    async def cfg_hist(pf=Depends(engine)):
+        return await hub.cfg_hist_list(pf)
+
+    @app.get("/api/pump/config/historico/diff")
+    async def cfg_hist_diff(n: int | None = None, offer: int | None = None, pf=Depends(engine)):
+        return await hub.cfg_hist_diff(pf, n, offer)
+
+    @app.post("/api/pump/config/historico/voltar")
+    async def cfg_hist_back(body: dict, u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        n, offer = (body or {}).get("n"), (body or {}).get("offer")
+        if not isinstance(n, int) and not isinstance(offer, int):
+            return {"error": "versão inválida"}
+        return await hub.cfg_hist_back(pf, n if isinstance(n, int) else None, offer if isinstance(offer, int) else None)
 
     @app.get("/api/pump/config/applied")
     async def config_applied(u: dict = Depends(user)):
