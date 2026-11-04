@@ -2549,6 +2549,9 @@
     if (t.dataset.bdadd) { bdAdd(t.dataset.bdadd); return; }
     if (t.dataset.bdundo) { bdUndo(t.dataset.bdundo); return; }
     if (t.dataset.rsync) { if (t.dataset.rsync === "ver") openRealSync(); else applyRealSync(); return; }
+    if (t.dataset.rsundo) { rsUndo(+t.dataset.rsundo); return; }
+    if (t.dataset.rshist) { e.preventDefault(); CHF = "carteiras"; walTab("hist"); loadCfgHist(); return; }
+    if (t.dataset.chf && t.closest("#chF")) { CHF = t.dataset.chf; loadCfgHist(); return; }
     if (t.dataset.trt && t.closest("#trTabs")) { trTab(t.dataset.trt); return; }
     if (t.dataset.bdres) { bdAdd(t.dataset.bdres, true); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
@@ -4589,10 +4592,13 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const el = $("rSync"); if (!el || !D) return;
     const L = realSyncDiff(), dif = L.filter((x) => !x.same);
     el.className = "rsync " + (dif.length ? "diff" : "same");
+    const RK = SIM2REAL.map((x) => x[1]), ap = CHV.versoes.find((v) => v.origem === "aplicou a configuração da FICTÍCIA na REAL");
+    const last = ap ? '<div class="rs-v muted small">Aplicada na <b>versão ' + ap.n + "</b> · " + esc(dt(ap.em)) + ' <button class="btn sm" data-rsundo="' + ap.n + '">Desfazer esta aplicação</button>' + ' <a href="#carteiras" data-rshist="1">Histórico de config</a></div>' : "";
     el.innerHTML = '<div class="rs-t">' + (dif.length ? "<b>Sua configuração REAL está diferente da FICTÍCIA</b> em " + dif.length + (dif.length === 1 ? " opção: " : " opções: ") + dif.map((x) => esc(x.nm)).join(", ") + "."
       : "<b>Sua configuração REAL está igual à FICTÍCIA.</b> Stops, alvos e filtros são os mesmos nas duas (Valem para as duas).") + "</div>" +
       '<div class="rs-b">' + (dif.length ? '<button class="btn sm" data-rsync="ver">Ver o que está diferente</button>' : "") +
-      '<button class="btn sm' + (dif.length ? " primary" : "") + '" data-rsync="aplicar"' + (dif.length ? "" : " disabled") + ">Aplicar a configuração da fictícia</button></div>";
+      '<button class="btn sm' + (dif.length ? " primary" : "") + '" data-rsync="aplicar"' + (dif.length ? "" : " disabled") + ">Aplicar a configuração da fictícia</button></div>" + last;
+    el.dataset.rk = RK.join(",");
   }
   function openRealSync() {
     const L = realSyncDiff();
@@ -4602,12 +4608,22 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     table("rsT", ["Opção", "FICTÍCIA", "REAL (agora)", ""], L.map((x) => [esc(x.nm), esc(x.fa), esc(x.fb), x.same ? '<span class="tag win">igual</span>' : '<span class="tag pause">diferente</span>']), "–");
     $("jtM").hidden = false;
   }
+  async function rsUndo(n) {
+    const v = CHV.versoes.find((x) => x.n === n), M = ((v && v.mudou) || []).filter((m) => SIM2REAL.some((s) => s[1] === m.k));
+    if (!confirm("Desfazer a aplicação da versão " + n + "? A REAL volta aos valores de antes:\n\n" + (M.map((m) => (cfgLabel(m.k) || m.k) + ": " + chVal(m.para) + " → " + chVal(m.de)).join("\n") || "–") +
+      "\n\nA carteira REAL continua como está (ligada ou desligada).")) return;
+    const r = await BB.api("/api/pump/config/real-da-ficticia/desfazer", { body: { n } });
+    toast(r.error || (r.mudou ? "Desfeito: a REAL voltou aos valores de antes da versão " + n : "Nada para desfazer: a REAL já tem esses valores"));
+    await poll(true); CHV.sig = null; CHV.t = 0; await loadCfgHist(); renderRealSync();
+  }
   async function applyRealSync() {
     const dif = realSyncDiff().filter((x) => !x.same); if (!dif.length) return;
     if (!confirm("Aplicar na carteira REAL os valores da FICTÍCIA?\n\n" + dif.map((x) => x.nm + ": " + x.fb + " → " + x.fa).join("\n") +
-      "\n\nA carteira REAL continua como está (ligada ou desligada).")) return;
-    const body = {}; dif.forEach((x) => { body[x.r] = x.t === "b" ? !!x.a : x.a; });
-    await setCfg(body);
+      "\n\nA carteira REAL continua como está (ligada ou desligada). Fica salvo no Histórico de config e dá para voltar.")) return;
+    const r = await BB.api("/api/pump/config/real-da-ficticia", { body: {} });
+    const errs = Object.entries(r.erros || {});
+    toast(r.error || (errs.length ? "Não aplicado: " + errs.map((e) => e[0].replace("pump_", "") + " (" + e[1] + ")").join(", ") : "REAL igual à FICTÍCIA" + (r.versao ? ": salvo como versão " + r.versao + " (dá para voltar)" : "")));
+    await poll(true); CHV.sig = null; CHV.t = 0; await loadCfgHist(); renderRealSync();
     if (!$("jtM").hidden && $("jtMT").textContent === "REAL × FICTÍCIA") $("jtM").hidden = true;
   }
   function renderSimW() {
@@ -4693,15 +4709,21 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
     });
   }
+  // 0.32.206 (pedido do dono): filtro "Carteiras (REAL × FICTÍCIA)" = versões que mexeram nas opções que existem nas duas carteiras
+  let CHF = "tudo";
+  const CHF_KEYS = new Set(["pump_copy_sol", "pump_real_max_sol", "pump_max_open", "pump_real_max_open", "pump_copy_other", "pump_copy_other_real", "pump_copy_enabled", "pump_other_min_liq_usd"]);
   async function loadCfgHist() {
     const r = await BB.api("/api/pump/config/historico", { quiet: true }); if (!r || r.error) { if ($("chT")) table("chT", ["Versão"], [], (r && r.error) || "Não consegui carregar."); return; }
     CHV.versoes = r.versoes || [];
-    table("chT", ["Versão", "Quando", "O que aconteceu", "Abas e o que mudou", ""], (r.versoes || []).map((v) => {
+    document.querySelectorAll("#chF [data-chf]").forEach((b) => b.classList.toggle("on", b.dataset.chf === CHF));
+    const VV = CHF === "carteiras" ? (r.versoes || []).filter((v) => v.origem === "aplicou a configuração da FICTÍCIA na REAL" || (v.mudou || []).some((m) => CHF_KEYS.has(m.k))) : (r.versoes || []);
+    table("chT", ["Versão", "Quando", "O que aconteceu", "Abas e o que mudou", ""], VV.map((v) => {
       const M = v.mudou || [], atual = v.n === r.atual;
       return ["<b>" + v.n + "</b>" + (atual ? ' <span class="tag win">atual</span>' : ""), dt(v.em), esc(v.origem || "–"),
         M.length ? chWhat(M) : "–",
-        atual ? "" : '<button type="button" class="btn sm" data-chback="' + v.n + '">Voltar para esta</button>'];
-    }), "Nenhuma versão guardada ainda. A primeira aparece assim que o servidor carregar a sua conta.");
+        (v.origem === "aplicou a configuração da FICTÍCIA na REAL" ? '<button type="button" class="btn sm" data-rsundo="' + v.n + '">Desfazer esta aplicação</button> ' : "") +
+        (atual ? "" : '<button type="button" class="btn sm" data-chback="' + v.n + '">Voltar para esta</button>')];
+    }), CHF === "carteiras" ? "Nenhuma mudança nas opções das carteiras FICTÍCIA e REAL ainda." : "Nenhuma versão guardada ainda. A primeira aparece assim que o servidor carregar a sua conta.");
     const A = r.aceitas || [];
     $("chACard").hidden = !A.length;
     table("chA", ["Quando", "Configuração aceita", "Abas", ""], A.map((a) => [dt(a.em), esc((a.de || "outra conta") + (a.parte ? " · " + a.parte : "")), '<span class="wrapcell">' + esc(chGroups((a.keys || []).map((k) => ({ k }))).map((g) => g.aba).join(" · ") || "–") + " (" + a.n + (a.n === 1 ? " opção" : " opções") + ")</span>", '<button type="button" class="btn sm" data-choffer="' + a.id + '">Voltar para antes</button>']));

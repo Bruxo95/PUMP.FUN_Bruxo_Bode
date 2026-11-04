@@ -67,3 +67,26 @@ def test_list_says_which_changes_can_go_back(env):
     c.post("/api/pump/settings", json={"pump_real_max_sol": 0.2}, headers=A)
     m = c.get("/api/pump/config/historico", headers=A).json()["versoes"][0]["mudou"]
     assert m[0]["k"] == "pump_real_max_sol" and m[0]["volta"] is False
+
+
+def test_real_takes_the_sim_values_as_a_version_and_can_undo(env):
+    """0.32.206 (pedido do dono): aplicar a configuração da FICTÍCIA na REAL vira versão; Desfazer devolve só esses valores."""
+    c, hub, db = env["c"], env["hub"], env["db"]
+    A = tok(UA)
+    c.post("/api/pump/settings", json={"pump_copy_sol": 0.1, "pump_max_open": 20, "pump_copy_other": True,
+                                        "pump_real_max_sol": 0.05, "pump_real_max_open": 5, "pump_copy_other_real": False}, headers=A)
+    pf = hub.engines[UA]
+    pf._cfg_row["t"] = 0
+    r = c.post("/api/pump/config/real-da-ficticia", json={}, headers=A).json()
+    assert r["ok"] and r["mudou"] == 3 and r["versao"]
+    assert pf.cfg.pump_real_max_sol == 0.1 and pf.cfg.pump_real_max_open == 20 and pf.cfg.pump_copy_other_real is True
+    assert not pf.cfg.pump_real_enabled                                           # nunca liga a REAL
+    v = c.get("/api/pump/config/historico", headers=A).json()["versoes"][0]
+    assert v["n"] == r["versao"] and v["origem"] == cfghist.REAL_DA_FICTICIA
+    assert c.post("/api/pump/config/real-da-ficticia", json={}, headers=A).json()["mudou"] == 0     # já igual
+    u = c.post("/api/pump/config/real-da-ficticia/desfazer", json={"n": r["versao"]}, headers=A).json()
+    assert u["ok"] and u["mudou"] == 3 and pf.cfg.pump_real_max_sol == 0.05 and pf.cfg.pump_real_max_open == 5 and pf.cfg.pump_copy_other_real is False
+    assert pf.cfg.pump_copy_sol == 0.1                                            # a FICTÍCIA fica como está
+    assert any(a["acao"] == "configuração: desfez REAL igual à FICTÍCIA" for a in db.tables["audit_log"])
+    assert c.post("/api/pump/config/real-da-ficticia/desfazer", json={"n": 1}, headers=A).json().get("error")   # versão de outra origem
+    assert c.post("/api/pump/config/real-da-ficticia/desfazer", json={"n": "x"}, headers=A).json()["error"]

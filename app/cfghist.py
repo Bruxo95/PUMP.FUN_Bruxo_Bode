@@ -4,6 +4,11 @@ from __future__ import annotations
 
 SKIP = {"pump_real_enabled"}       # ligar a REAL nunca entra no histórico: só a chave da tela liga
 TELA = "você mudou na tela"
+# 0.32.206 (pedido do dono): aplicar a configuração da FICTÍCIA na REAL vira uma versão, e dá para voltar.
+# Só estas opções da REAL têm par na FICTÍCIA; desfazer (hub.real_from_sim_undo) mexe só nesses valores, nunca liga a REAL.
+REAL_DA_FICTICIA = "aplicou a configuração da FICTÍCIA na REAL"
+SIM2REAL = (("pump_copy_sol", "pump_real_max_sol"), ("pump_max_open", "pump_real_max_open"), ("pump_copy_other", "pump_copy_other_real"))
+VOLTA_REAL = frozenset(r for _, r in SIM2REAL)
 JUNTA_S = 600                      # mudanças seguidas na tela, em até 10 min, viram uma versão só
 
 

@@ -1785,6 +1785,11 @@
    "versao": "0.32.205",
    "inicio": "2026-11-04T21:31:30+00:00",
    "titulo": "REAL avisa quando difere da fictícia e aplica a config dela"
+  },
+  {
+   "versao": "0.32.206",
+   "inicio": "2026-11-04T21:47:10+00:00",
+   "titulo": "Aplicar a fictícia na REAL vira versão com Desfazer"
   }
  ]
 }

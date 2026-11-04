@@ -937,6 +937,21 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def cfg_hist_diff(n: int | None = None, offer: int | None = None, pf=Depends(engine)):
         return await hub.cfg_hist_diff(pf, n, offer)
 
+    @app.post("/api/pump/config/real-da-ficticia")
+    async def cfg_real_from_sim(u: dict = Depends(user)):
+        pf = await hub.engine(u["id"])
+        hub.check_active(u["id"], pf)
+        return await hub.real_from_sim(pf)
+
+    @app.post("/api/pump/config/real-da-ficticia/desfazer")
+    async def cfg_real_from_sim_undo(body: dict, u: dict = Depends(user)):
+        n = (body or {}).get("n")
+        if not isinstance(n, int):
+            return {"error": "versão inválida"}
+        pf = await hub.engine(u["id"])
+        hub.check_active(u["id"], pf)
+        return await hub.real_from_sim_undo(pf, n)
+
     @app.post("/api/pump/config/historico/voltar")
     async def cfg_hist_back(body: dict, u: dict = Depends(user)):
         pf = await hub.engine(u["id"])

@@ -2987,8 +2987,50 @@ class PumpHub:
         d = [x for x in cfghist.diff({k: cur.get(k) for k in vals}, vals)]
         return {"nome": nome, "mudaria": [x for x in d if x["k"] in ok], "fora": [x for x in d if x["k"] not in ok]}
 
+    async def real_from_sim(self, pf: PumpFun) -> dict:
+        """0.32.206 (pedido do dono): copia para a REAL os valores da FICTÍCIA que existem nas duas carteiras. Fica salvo como
+        versão no histórico de config (dá para voltar). Não liga nem desliga a carteira REAL."""
+        c = pf.cfg.user_dict()
+        vals = {r: c.get(s) for s, r in cfghist.SIM2REAL if c.get(s) is not None and c.get(s) != c.get(r)}
+        if not vals:
+            return {"ok": True, "mudou": 0}
+        antes = {k: c.get(k) for k in vals}
+        applied, errors = pf.cfg.apply(vals)
+        if applied:
+            ov = pf.__dict__.setdefault("_ov_user", {})
+            for k in applied:
+                ov[k] = datetime.now(timezone.utc).isoformat()
+            pf._cfg_why = cfghist.REAL_DA_FICTICIA
+            await self.save_settings(pf)
+            await audit(self.db, pf.user_id, "configuração: REAL igual à FICTÍCIA",
+                        " · ".join(f"{k}: {antes[k]} → {applied[k]}" for k in applied)[:500])
+        row = getattr(pf, "_cfg_row", None) or {}
+        return {"ok": not errors, "mudou": len(applied), "erros": errors, "versao": row.get("n")}
+
+    async def real_from_sim_undo(self, pf: PumpFun, n: int) -> dict:
+        """0.32.206: desfaz UMA aplicação da FICTÍCIA na REAL (versão n): volta os valores da REAL que ela trocou. Só as opções
+        de cfghist.VOLTA_REAL e só se a versão for dessa origem. Não liga nem desliga a carteira REAL."""
+        r = await self.db.select("config_versions", {"user_id": pf.user_id, "n": int(n)})
+        if not r or r[0].get("origem") != cfghist.REAL_DA_FICTICIA:
+            return {"error": "essa versão não é uma aplicação da FICTÍCIA na REAL"}
+        vals = {x["k"]: x.get("de") for x in (r[0].get("mudou") or []) if x.get("k") in cfghist.VOLTA_REAL and x.get("de") is not None}
+        cur = pf.cfg.user_dict()
+        vals = {k: v for k, v in vals.items() if cur.get(k) != v}
+        if not vals:
+            return {"ok": True, "mudou": 0}
+        applied, errors = pf.cfg.apply(vals)
+        if applied:
+            ov = pf.__dict__.setdefault("_ov_user", {})
+            for k in applied:
+                ov[k] = datetime.now(timezone.utc).isoformat()
+            pf._cfg_why = f"desfez a aplicação da FICTÍCIA na REAL (versão {int(n)})"
+            await self.save_settings(pf)
+            await audit(self.db, pf.user_id, "configuração: desfez REAL igual à FICTÍCIA", f"versão {int(n)} · {len(applied)} opções")
+        return {"ok": not errors, "mudou": len(applied), "erros": errors}
+
     async def cfg_hist_back(self, pf: PumpFun, n=None, offer=None, keys=None) -> dict:
         """Volta as opções para a versão escolhida. Nunca mexe na REAL (valores e chaves), no Telegram nem na chave da FICTÍCIA.
+        Para desfazer um "aplicar a configuração da FICTÍCIA na REAL" existe real_from_sim_undo.
         keys (0.32.200, pedido do dono): volta só estas opções, as das abas que a pessoa marcou; sem keys, volta tudo."""
         d = await self.cfg_hist_diff(pf, n, offer)
         if d.get("error"):
