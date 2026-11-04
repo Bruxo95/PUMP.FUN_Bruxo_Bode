@@ -1720,6 +1720,11 @@
    "versao": "0.32.192",
    "inicio": "2026-11-04T17:34:04+00:00",
    "titulo": "reinício mais leve para o banco"
+  },
+  {
+   "versao": "0.32.193",
+   "inicio": "2026-11-04T18:21:24+00:00",
+   "titulo": "menu Carteiras com FICTÍCIA e REAL num lugar só"
   }
  ]
 }

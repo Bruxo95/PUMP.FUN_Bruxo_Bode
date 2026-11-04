@@ -48,12 +48,9 @@
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M4.5 15A8 8 0 1 0 6 6.5L4 10"/><path d="M12 8v4l3 2"/></svg>Histórico</a>
       <a href="#semanas" data-v="semanas" data-novo-ate="2026-11-16"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M15 15h3v3h-3z"/></svg>Semana × fim de semana</a>
       <a href="#usar" data-v="usar" id="navGrp" hidden data-novo-ate="2026-11-18"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Usar ou descartar</a>
-      <a href="#feed" data-v="feed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg>Feed ao vivo</a>
-      <a href="#real" data-v="real"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Execução real<b class="nb" id="nbReal"></b></a>
-      <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configurações</a>
+      <a href="#carteiras" data-v="carteiras" data-novo-ate="2026-11-18"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="14.5" r="1"/></svg>Carteiras<b class="nb" id="nbReal"></b></a>
       <a href="#loggeral" data-v="loggeral" data-novo-ate="2026-11-18"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/></svg>Log geral</a>
       <a href="#admin" data-v="admin" id="navAdmin" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 16a3.5 3.5 0 0 1 7 0"/></svg>Administração<b class="nb" id="nbAdm"></b></a>
-      <a href="#novidades" data-v="novidades" id="navNov" hidden data-novo-ate="2026-11-08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9 5.6-.8z"/></svg>Changelog</a>
       <a href="#ajuda" data-v="ajuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg>Como funciona</a>
     </nav>
     <div class="sp"></div>
@@ -246,7 +243,7 @@
             <button class="btn sm" id="trShBtn" style="margin-right:8px" data-novo-ate="2026-11-11">Compartilhar minha lista</button>
             <div class="seg" id="lbDays"><button data-d="1">24 h</button><button data-d="7">7 dias</button><button data-d="30">30 dias</button><button data-d="90">90 dias</button></div></header>
           <div id="lbKey" class="alert" hidden style="margin-bottom:12px">Para puxar o ranking oficial do app da pump.fun, cole uma chave <b>grátis</b> da Solana Tracker
-            (solanatracker.io → Data API → plano Free) em <a href="#config">Configurações → Chaves</a>. Sem chave, o bot usa o ranking próprio lá embaixo.</div>
+            (solanatracker.io → Data API → plano Free) em <a href="#config">Carteiras → Chaves</a>. Sem chave, o bot usa o ranking próprio lá embaixo.</div>
           <div class="row" id="lbAct" style="gap:6px;flex-wrap:wrap;margin-bottom:10px" data-novo-ate="2026-11-12"></div>
           <div class="tbl-wrap tall"><table id="tLb"></table></div>
           <div class="sub" id="lbNote" style="margin-top:10px;color:var(--muted);font-size:12.5px"></div>
@@ -351,7 +348,7 @@
           <div class="tbl-wrap"><table id="rdWaves" class="daytbl"></table></div></div>
         <div class="card radar-intro" data-novo-ate="2026-11-08">
           <header><div><h2>Compras em conjunto</h2><div class="sub">várias carteiras da sua lista entrando no mesmo token em poucos minutos</div></div><div class="sp"></div>
-            <button class="btn tgl off" id="radarToggle" type="button" aria-pressed="false" disabled>Radar: OFF</button></header>
+            <button class="btn tgl sw off" id="radarToggle" role="switch" type="button" aria-pressed="false" disabled>Radar: OFF</button></header>
           <p class="muted">O radar observa as carteiras que você adicionou em <a href="#estudo">Carteiras em estudo</a>. A lista não identifica influencers automaticamente nem confirma que uma carteira pertence a um KOL.</p>
           <form class="radar-form" id="radarForm">
             <div class="field"><label for="radarMin">Mínimo de carteiras distintas</label><input class="in" id="radarMin" type="number" min="2" max="30" step="1" value="2" required disabled></div>
@@ -770,6 +767,11 @@
         <div data-hp="tr"><div class="posabas abtabs" id="hFil"></div><div id="hRep"></div><div class="abgrid" id="hCards"></div><button class="btn sm abmore" id="hMore" hidden>Ver mais</button>
           <details class="origleg"><summary>O que quer dizer a coluna Trader quando não é uma carteira?</summary><p><b>Explorar (automática):</b> o robô comprou sozinho um token da lista <b>Quase graduando</b> do menu Explorar, porque o veredito era <b>chance alta</b> e o token passou em todos os seus filtros e proteções (pressão de compra, holders, curva, risco, variação em 5 min e o que a IA aprendeu com os erros). Não copia ninguém: quem escolhe é o próprio robô.</p><p><b>Base (automática):</b> compra automática da tela Base da pump.fun (ex.: token com Boost ON). <b>Maiores traders (automática):</b> compra feita quando vários dos maiores traders entraram no mesmo token. <b>botão Comprar (você):</b> você clicou em Comprar. <b>copiou a conta X:</b> veio da cópia de trades de outra conta.</p><p>Quando aparece um endereço (ex.: 8ZN7…86FP), a compra foi <b>cópia de um trader</b> da lista Top traders; o link abre o perfil dele na pump.fun.</p></details></div>
         <div data-hp="by" hidden><div class="abgrid" id="hByC"></div></div>
+        <div data-hp="feed" hidden>
+        <div class="card"><header><div><h2>O que os traders copiados fizeram</h2><div class="sub" id="feedSub">compras, vendas e o que o bot fez com cada uma</div></div><div class="sp"></div>
+          <div class="seg" id="feedSeg" data-novo-ate="2026-11-11"><button data-feedf="traders" class="on">Só traders</button><button data-feedf="all">Tudo (também automáticas)</button></div></header>
+          <div class="tbl-wrap tall"><table id="tFeed"></table></div></div>
+        </div>
         <div data-hp="mov" hidden>
         <div class="card" data-novo-ate="2026-11-13"><header><div><h2>Movimentos dos traders copiados</h2><div class="sub" id="hMonSub">o que cada trader copiado comprou e vendeu · os últimos 200 vistos pelo monitor</div></div><div class="sp"></div>
             <div class="seg" id="hMonSeg"><button data-hf="all" class="on">Tudo</button><button data-hf="buy">Entradas</button><button data-hf="sell">Saídas</button></div></header>
@@ -783,123 +785,17 @@
       </section>
 
       <!-- ========================================================= FEED -->
-      <section class="view" data-view="feed" hidden>
-        <div class="card"><header><div><h2>O que os traders copiados fizeram</h2><div class="sub" id="feedSub">compras, vendas e o que o bot fez com cada uma</div></div><div class="sp"></div>
-          <div class="seg" id="feedSeg" data-novo-ate="2026-11-11"><button data-feedf="traders" class="on">Só traders</button><button data-feedf="all">Tudo (também automáticas)</button></div></header>
-          <div class="tbl-wrap tall"><table id="tFeed"></table></div></div>
-      </section>
 
       <!-- ========================================================= EXECUÇÃO REAL -->
-      <section class="view" data-view="real" hidden>
-        <div class="alert red">Use uma carteira <b>nova, só para o bot, com pouco saldo</b>. Quem tem a chave privada tem todo o dinheiro dela.
-          A execução real começa DESLIGADA. Depois de ligada, continua ligada (mesmo se o servidor reiniciar ou você trocar de navegador) até você desligar.</div>
-        <div class="alert red" id="rwAlert" hidden></div>
-        <p class="small muted" id="rwGuard" data-novo-ate="2026-11-15"></p>
-        <div class="kpis" id="wKpis"></div>
-        <div class="card">
-          <header><div><h2>Execução real <span class="tag real">REAL</span></h2><div class="sub" id="realSub"></div></div></header>
-          <div class="realbox">
-            <button class="btn tgl off big" id="realB">REAL: OFF</button>
-            <div style="flex:1;min-width:220px" id="realInfo"></div>
-          </div>
-          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form" style="margin-top:18px">
-            <div class="field"><label>Parar no dia se perder</label>
-              <div class="row"><input class="in w100" type="number" min="0" step="0.05" data-cfg="pump_real_daily_loss_sol"><span class="muted">SOL</span><span class="muted" id="rLossU"></span></div></div>
-            <div class="field"><label>Posições reais ao mesmo tempo</label>
-              <div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_real_max_open"></div></div>
-            <div class="field" data-novo-ate="2026-11-10"><label>Espelhar 100% a carteira fictícia</label>
-              <div class="row"><button class="btn sm tgl" data-toggle="pump_real_mirror" data-confirm="Copiar NO REAL todos os trades da carteira fictícia (cópias, Explorar, Base, Maiores traders e botão Comprar), com o valor e os limites da carteira real?">…</button></div>
-              <div class="hint">Com a Execução real ligada, tudo que a fictícia compra também é comprado aqui, e quando a fictícia vende a real vende junto. O valor de cada compra é o "SOL por compra" acima (nunca o da fictícia) e valem os limites desta tela.</div></div>
-            <div class="field" data-novo-ate="2026-11-16"><label>Cópia exata: a REAL manda, a fictícia acompanha</label>
-              <div class="row"><button class="btn sm tgl" data-toggle="pump_real_exact" data-confirm="Ligar a cópia exata? Com a real e a fictícia ligadas, a fictícia passa a ter o mesmo valor e o mesmo preço de entrada da real, sai junto com ela e é desfeita quando a real não compra.">…</button></div>
-              <div class="hint">Precisa do "Espelhar 100%" ligado. A fictícia vira a cópia da real: mesmo valor em SOL, mesmo preço de entrada (o da real), e quando a real sai (stop dela, venda manual) a fictícia sai junto. Se a real não compra (limite, perda do dia, falha), a fictícia é desfeita e o dinheiro volta. Assim os resultados das duas ficam iguais, só com a diferença das taxas estimadas.</div></div>
-            <div class="field"><label>Copiar no real também fora da pump.fun (Jupiter)</label>
-              <div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other_real" data-confirm="Copiar também NO REAL os trades fora da pump.fun (compra/venda pela Jupiter)?">…</button></div></div>
-          </div>
-        </div>
-        <div class="card">
-          <header><div><h2>Conversor e troca USDC → SOL</h2><div class="sub">a carteira paga as compras em SOL</div></div></header>
-          <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input class="in w120" id="cvU" type="number" min="0" step="1" placeholder="USDC"><span class="muted">USDC =</span>
-            <input class="in w120" id="cvS" type="number" min="0" step="0.01" placeholder="SOL"><span class="muted">SOL</span>
-            <button class="btn sm" data-act="swapmax">Usar todo o USDC</button><button class="btn sm primary" data-act="swap">Trocar USDC → SOL</button></div>
-          <div class="hint muted" id="cvN" style="margin-top:8px;font-size:12.5px"></div>
-          <div class="hint" id="swN" style="margin-top:4px;font-size:12.5px"></div>
-        </div>
-        <div class="card" data-novo-ate="2026-11-10"><header><div><h2>Real × fictícia (espelho)</h2><div class="sub">cada trade real ao lado do trade fictício que ele copiou · mostra quanto do resultado simulado sobra no dinheiro de verdade (atraso, slippage e taxas)</div></div></header>
-          <div class="kpis" id="rmG" data-novo-ate="2026-11-14"></div><p class="small" id="rmGL"></p>
-          <h3 class="h3s" data-novo-ate="2026-11-14">Tentativas de venda real</h3><div class="tbl-wrap"><table id="rmV" class="daytbl"></table></div>
-          <h3 class="h3s">Trade por trade</h3>
-          <div class="kpis" id="rmK"></div><div class="tbl-wrap"><table id="rmT" class="daytbl"></table></div>
-          <h3 class="h3s" data-novo-ate="2026-11-10">Trades da fictícia que NÃO foram para a real (48 h)</h3><div class="auto-readiness warn" id="rmMissS" hidden></div>
-          <div class="tbl-wrap"><table id="rmMissR" class="daytbl"></table></div>
-          <div class="tbl-wrap" style="margin-top:8px"><table id="rmMiss" class="daytbl"></table></div></div>
-      </section>
 
       <!-- ========================================================= CONFIGURAÇÃO DO TRADER (0.32.19, pedido do dono) -->
-      <section class="view" data-view="tradercfg" hidden>
-        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>Configuração do Trader</h2><div class="sub">todas as regras de compra e venda das CÓPIAS (Top traders, Carteiras em estudo, Copiar igual) num lugar só · cada mudança vale na hora e fica salva só para você</div></div>
-          <div class="sp"></div><button class="btn sm primary" id="tcSave">Salvar Configurações</button> <button class="btn sm" id="tcReset">Restaurar Padrões Pump.fun</button></header>
-          <div class="help"><p><b>Onde vale:</b> nas cópias de traders, na carteira FICTÍCIA e na REAL (quando a execução real está ligada). O Explorar, a Base e o botão Comprar têm regras próprias, nas telas deles. Salvar não é obrigatório: cada campo já grava ao mudar; o botão só confirma que está tudo gravado.</p></div></div>
-        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>A. Entrada e execução</h2><div class="sub">FICTÍCIA e REAL</div></div></header>
-          <div class="form">
-            <div class="field"><label>Valor de cada cópia (SOL fictícios)</label><div class="row"><input class="in w100" type="number" min="0.01" step="0.01" data-cfg="pump_copy_sol">
-              <button class="btn sm" data-set="pump_copy_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.5">0,5</button></div></div>
-            <div class="field"><label>SOL por compra (máximo de cada trade real)</label>
-              <div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_real_max_sol"><span class="muted">SOL</span>
-                <button class="btn sm" data-set="pump_real_max_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.1">0,1</button></div>
-              <div class="hint" id="rMaxN"></div></div>
-            <div class="field" data-novo-ate="2026-11-12"><label>Slippage máximo da compra REAL</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_real_slippage_pct"><span class="muted">%</span>
-              <button class="btn sm" data-set="pump_real_slippage_pct" data-val="5">5%</button><button class="btn sm" data-set="pump_real_slippage_pct" data-val="15">15%</button></div>
-              <div class="hint">Tolerância de preço da carteira real. Mais alto = mais compras passam, mas mais risco de sanduíche (Bitquery, 10/2026: 87 ataques a cada 10 mil swaps com 10–20%, 8 com 1–3%).</div></div>
-            <div class="field"><label>Slippage extra (você entra depois do trader)</label><div class="row"><input class="in w80" type="number" min="0" step="0.5" data-cfg="pump_extra_slip_pct"><span class="muted">%</span></div></div>
-            <div class="field"><label>PumpPortal / taxa de prioridade</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_portal_fee_pct"><span class="muted">% /</span><input class="in w100" type="number" min="0" step="0.0001" data-cfg="pump_priority_sol"><span class="muted">SOL</span></div></div>
-            <div class="field" data-novo-ate="2026-11-12"><label>Gorjeta Jito / envio anti-MEV (REAL)</label><div class="row"><input class="in w80" type="number" min="0" max="0.1" step="0.0005" data-cfg="pump_real_jito_tip_sol"><span class="muted">SOL</span><span class="tag neutral">envio Jito desligado</span></div>
-              <div class="hint">O valor fica guardado, mas a real ainda não manda por Jito: será ligado só depois de testar com carteira nova e pouco saldo (decisão do dono, 28/10).</div></div>
-          </div></div>
-        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>B. Risco e stops</h2></div></header>
-          <div class="form">
-            <div class="field"><label>Stop de perda</label><div class="row"><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_stop_pct"><span class="muted">%</span></div></div>
-            <div class="field"><label>Stop móvel (quando estiver ganhando)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_trail_enabled">…</button>
-              <span class="muted">liga em +</span><input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_start_pct"><span class="muted">% · sai se cair</span>
-              <input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_dist_pct"><span class="muted">pontos</span></div><div class="hint" id="trailN"></div></div>
-            <div class="field" data-novo-ate="2026-11-12"><label>Stop por tempo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_timestop_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="10" step="10" data-cfg="pump_timestop_s"><span class="muted">s, se não passou de +</span><input class="in w80" type="number" min="-100" step="1" data-cfg="pump_timestop_gain_pct"><span class="muted">% líquido, vende</span></div>
-              <div class="hint">Ex.: 180 s e 0% = se em 3 minutos a posição nunca ficou positiva (depois das taxas), vende tudo.</div></div>
-            <div class="field"><label>Tempo máximo na posição</label><div class="row"><input class="in w80" type="number" min="0.1" step="0.5" data-cfg="pump_max_hold_h"><span class="muted">h</span></div></div>
-            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a posição fica parada</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_stale_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="5" max="1440" step="5" data-cfg="pump_exit_stale_min"><span class="muted">min, se estiver entre −</span><input class="in w80" type="number" min="0.5" max="50" step="0.5" data-cfg="pump_exit_stale_band"><span class="muted">% e +esse %</span></div>
-              <div class="hint">As perdas de 26/10 vieram de posições paradas até o tempo máximo de 6 h. Antes de ligar, veja em Estratégias fantasma a variante "Sai se ficar parado 45 min".</div></div>
-          </div></div>
-        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>C. Lucro em partes</h2></div></header>
-          <div class="form">
-            <div class="field" data-novo-ate="2026-11-08"><label>Venda em partes</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tp1_on">…</button><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp1_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp1_frac_pct"><span class="muted">%</span></div>
-              <div class="hint">Realiza parte do lucro cedo e deixa o resto no stop móvel. Já vem com a sugestão para testar (+30% vende 50%); ligue no ON.</div></div>
-            <div class="field" data-novo-ate="2026-11-12"><label>2º alvo</label><div class="row"><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="10" data-cfg="pump_tp2_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp2_frac_pct"><span class="muted">% da posição original</span></div>
-              <div class="hint">0 = desligado. Só depois do 1º alvo. O que sobra (moonbag) segue no stop móvel até sair.</div></div>
-            <div class="field" data-novo-ate="2026-11-12"><label>Moonbag (fica no token)</label><div class="row"><b id="tcMoon">–</b></div><div class="hint">100% − o que o 1º e o 2º alvo vendem.</div></div>
-            <div class="field"><label>Alvo fixo de lucro (0 = sem alvo)</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp_pct"><span class="muted">%</span></div></div>
-          </div></div>
-        <div class="card" data-novo-ate="2026-11-12"><header><div><h2>D. Segurança da pump.fun</h2></div></header>
-          <div class="form">
-            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o dev vende</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_dev_sell">…</button></div>
-              <div class="hint">Se o criador do token vender depois da sua entrada, vende a posição na hora. Só funciona quando o monitor viu a criação do token.</div></div>
-            <div class="field" data-novo-ate="2026-11-12"><label>Market cap máximo para entrar</label><div class="row"><input class="in w100" type="number" min="0" step="10" data-cfg="pump_max_mcap_sol"><span class="muted">SOL (0 = sem limite)</span></div></div>
-            <div class="field" data-novo-ate="2026-11-13"><label>Filtro contra despejo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_dump_on" aria-label="Filtro contra despejo nas cópias">…</button><span class="muted">10 maiores ≤</span><input class="in w80" type="number" min="5" max="100" step="5" data-cfg="pump_dump_top10_max" aria-label="Máximo dos 10 maiores detentores (%)"><span class="muted">% · criador ≤</span><input class="in w80" type="number" min="0" max="100" step="1" data-cfg="pump_dump_dev_max" aria-label="Máximo do criador (%)"><span class="muted">% · carteiras novas ≤</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_dump_fresh_max" aria-label="Máximo de carteiras novas (%)"><span class="muted">%</span></div>
-              <div class="hint">Não copia token com cara de despejo (as perdas de −54% a −101% com stop de −30%). Lê os maiores detentores na hora da compra do trader (atrasa a cópia em até 3 s).</div></div>
-            <div class="field" data-novo-ate="2026-11-12"><label>Faixa da curva para entrar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_entry_curve_on">…</button><span class="muted">de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_min"><span class="muted">% a</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_max"><span class="muted">%</span></div>
-              <div class="hint">Só copia tokens ainda na curva da pump.fun dentro dessa faixa de preenchimento.</div></div>
-            <div class="field" data-novo-ate="2026-11-13"><label>Saída antes da graduação só nas cópias</label><div class="row"><button class="btn sm tgl" data-toggle="pump_cx_copies_only" aria-label="Saída antes da graduação só nas cópias">…</button></div>
-              <div class="hint">Ligado = a saída abaixo vale só para as cópias de traders (o Explorar, os barrados e o botão Comprar seguem as regras deles).</div></div>
-            <div class="field" data-novo-ate="2026-11-08"><label>Sair antes da graduação</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_exit_on">…</button><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_curve_exit_pct"><span class="muted">%</span></div>
-              <div class="hint">Na pesquisa, 92% dos tokens tiveram derrubada forte e vender antes de graduar rendeu mais. Já vem com a sugestão (85%); ligue no ON.</div></div>
-          </div></div>
-      </section>
       <!-- ========================================================= CONFIGURAÇÕES -->
       <!-- ========================================================= OPÇÕES NOVAS DE CÓPIA (0.17.2: saíram de Configurações para o menu "Usar ou descartar") -->
       <section class="view" data-view="novas" hidden>
         <div class="card"><header><div><h2>Opções novas de cópia</h2><div class="sub">em teste: ligue (verde = ON) para usar ou deixe vermelho (OFF) para descartar · cada mudança vale na hora e fica salva só para você</div></div></header></div>
         <div class="card">
           <header><div><h2>Proteções novas</h2></div></header>
-          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança ficam em <a href="#carteiras"><b>Carteiras</b></a>.</p><div class="form">
           </div>
         </div>
         <div class="card">
@@ -922,7 +818,7 @@
         </div>
         <div class="card" data-novo-ate="2026-11-09">
           <header><div><h2>Saídas inteligentes</h2><div class="sub">vendem tudo sem esperar o preço · teste antes em Estratégias fantasma (variantes "dev" e "gradua")</div></div></header>
-          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
+          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança ficam em <a href="#carteiras"><b>Carteiras</b></a>.</p><div class="form">
             <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o token gradua</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_migrate">…</button></div>
               <div class="hint">Comprou ainda na curva e o token foi para a PumpSwap: vende. Depois da graduação a derrubada é comum.</div></div>
             <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a pressão de compra vira</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_pressure_on">…</button><span class="muted">compras abaixo de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_exit_pressure_pct"><span class="muted">%</span></div>
@@ -950,53 +846,131 @@
             <div class="field" data-novo-ate="2026-11-09"><label>Não copiar quem está na lista negra</label><div class="row"><button class="btn sm tgl" data-toggle="pump_blacklist_on">…</button><a class="btn sm" href="#listanegra">Ver a lista</a></div>
               <div class="hint">A lista é de todos: entra sozinho o criador de token que deu rug ou que vendeu e deixou uma cópia no prejuízo, e o admin pode adicionar ou tirar endereços.</div></div>
             <div class="field" data-novo-ate="2026-11-09"><label>Avisos no Telegram</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tg_on">…</button><span class="muted">tudo</span><button class="btn sm tgl" data-toggle="pump_tg_all">…</button><button class="btn sm" id="tgTest">Enviar teste</button></div>
-              <div class="hint">Cole o token do bot (crie com o @BotFather) e o ID do seu chat (pegue com o @userinfobot) em Configurações → Chaves pessoais e mande /start para o seu bot. Com "tudo" OFF chegam só os importantes: HOT callout, stop de perda, dev vendeu, trader ou robô pausado, graduou e modo real.</div></div>
+              <div class="hint">Cole o token do bot (crie com o @BotFather) e o ID do seu chat (pegue com o @userinfobot) em Carteiras → Chaves pessoais e mande /start para o seu bot. Com "tudo" OFF chegam só os importantes: HOT callout, stop de perda, dev vendeu, trader ou robô pausado, graduou e modo real.</div></div>
           </div>
         </div>
       </section>
 
-      <section class="view" data-view="config" hidden>
-        <div class="seg ctabs" id="cfgTabs" data-novo-ate="2026-11-18"><button data-ct="copia">Cópia e filtros</button><button data-ct="chaves">Chaves</button><button data-ct="share">Compartilhar</button><button data-ct="todas">Todas as telas</button></div>
-        <div data-ct="share" class="card cfgusers" data-cfgusers hidden data-novo-ate="2026-11-10"><header><div><h2 data-cfgu-t>Usuários usando a sua configuração</h2><div class="sub" data-cfgu-s></div></div><div class="sp"></div><button class="btn sm" data-cfgu-ver>Ver usuários</button></header>
-          <div data-cfgu-list hidden></div></div>
-        <div data-ct="share" class="card" id="followCard" data-novo-ate="2026-11-11" hidden><header><div><h2>Copiar os trades de outro usuário</h2><div class="sub" id="flSub">a sua conta abre e fecha os mesmos trades da conta escolhida, na hora</div></div></header>
-          <div class="help"><p><b>Como funciona:</b> quando a conta escolhida abre uma posição (Explorar, Base, Maiores traders, botão Comprar ou cópia de trader), a sua abre a <b>mesma</b> na fictícia: mesmo token, mesmo valor e mesmas regras de saída; quando ela fecha, a sua fecha junto. Se a sua Execução real estiver ligada com o espelho, a sua real compra também, com o valor e os limites da <b>sua</b> carteira real. É diferente de copiar a configuração: aqui são os trades.</p></div>
-          <div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="flSel" aria-label="Conta para copiar os trades"></select><button class="btn sm primary" id="flOn">Copiar os trades dessa conta</button><button class="btn sm" id="flOff">Parar de copiar</button></div>
-          <p id="flState" style="margin-top:8px"></p>
-        </div>
-        <div data-ct="todas" class="card" id="allCfgCard" data-novo-ate="2026-11-10" data-sanf><header><div><h2>Configurações de todas as outras telas</h2><div class="sub">as mesmas opções do Explorar, Execução real, Opções novas, Maiores traders, Base… mudou aqui, mudou lá (é a mesma configuração)</div></div></header>
-          <div id="allCfgCopy"></div>
-          <div id="allCfg"></div>
-        </div>
-        <div data-ct="share" class="card shtop" id="cfShareTop" hidden data-novo-ate="2026-11-10"><header><div><h2>Compartilhar todas as configurações</h2><div class="sub">escolha a pessoa e envie tudo de uma vez · ela recebe um convite no topo do painel e escolhe aceitar ou não · nunca vai nada da carteira real, chaves ou Telegram</div></div></header>
-          <div class="row"><select class="in" id="cfAllU" style="flex:1;min-width:220px" aria-label="Para quem enviar"><option value="">carregando usuários…</option></select>
-            <button class="btn sm primary" id="cfAllGo">Compartilhar todas</button><button class="btn sm" data-cfsh="all">Escolher seções…</button></div></div>
-        <div data-ct="share" class="card" id="cfShare" hidden><header><div><h2 id="cfShT">Compartilhar</h2><div class="sub">a pessoa recebe um convite no topo do painel e decide se aceita e aplica · nunca vai nada da carteira real, chaves ou Telegram</div></div><div class="sp"></div><button class="btn sm" id="cfShX">Fechar</button></header>
-          <div class="row" id="cfShSecs" style="margin:4px 0 10px;gap:14px;flex-wrap:wrap;display:flex"></div>
-          <div class="form"><div class="field full"><div class="row">
-            <select class="in" id="cfShU" style="flex:1;min-width:240px"></select>
-            <button class="btn sm primary" id="cfShGo">Enviar convite</button></div></div></div></div>
-        <div data-ct="copia" class="card">
-          <header><div><h2>Cópia</h2><div class="sub">cada mudança vale na hora e fica salva só para você</div></div></header>
-          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
-            <div class="field"><label>Cópia automática</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_enabled">…</button><button class="btn sm" data-act="reset">Zerar carteira fictícia</button></div></div>
+
+      <!-- ========================================================= USAR OU DESCARTAR (0.32.184: página de quadrados, pedido do dono) -->
+      <!-- ========================================================= CARTEIRAS (0.32.193, pedido do dono: um lugar só para ligar, desligar e dizer quanto entrar) -->
+      <section class="view" data-view="carteiras" hidden>
+        <div class="seg ctabs" id="walTabs"><button data-wm="sim">FICTÍCIA</button><button data-wm="real">REAL</button></div>
+        <div data-wp="sim">
+        <div class="card" data-nosanf><header><div><h2>Carteira FICTÍCIA <span class="tag sim">FICTÍCIA</span></h2><div class="sub">dinheiro de mentira, para medir sem risco · cada mudança vale na hora e fica salva só para você</div></div></header>
+          <div class="form">
+            <div class="field"><label>Cópia de traders</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_enabled">…</button><button class="btn sm" data-act="reset">Zerar carteira fictícia</button></div><div class="hint">Desligada, nenhuma cópia de trader abre, nem na FICTÍCIA nem na REAL. As outras telas que compram (Explorar, Base…) têm a chave própria em Abas de trades.</div></div>
+            <div class="field"><label>Valor de cada cópia (SOL fictícios)</label><div class="row"><input class="in w100" type="number" min="0.01" step="0.01" data-cfg="pump_copy_sol">
+              <button class="btn sm" data-set="pump_copy_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.1">0,1</button><button class="btn sm" data-set="pump_copy_sol" data-val="0.5">0,5</button></div></div>
+            <div class="field"><label>Posições fictícias ao mesmo tempo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_max_open"></div></div>
             <div class="field"><label>Saldo inicial da carteira fictícia</label><div class="row"><input class="in w100" type="number" min="0.1" step="0.5" data-cfg="pump_sim_balance_sol"><span class="muted">SOL</span></div></div>
+            <div class="field"><label>Fora da pump.fun (Raydium, Meteora, Orca… via Jupiter) — fictício</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other">…</button>
+              <span class="muted">pool mín. $</span><input class="in w100" type="number" min="0" step="1000" data-cfg="pump_other_min_liq_usd"></div></div>
+          </div></div>
+        <div data-nosanf class="card">
+          <header><div><h2>Custos simulados</h2><div class="sub">as mesmas que o modo real paga</div></div></header>
+          <div class="form">
+            <div class="field"><label>Slippage extra (você entra depois do trader)</label><div class="row"><input class="in w80" type="number" min="0" step="0.5" data-cfg="pump_extra_slip_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>pump.fun na curva / PumpSwap</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_fee_pct"><span class="muted">% /</span><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_swap_fee_pct"><span class="muted">%</span></div></div>
+            <div class="field" data-novo-ate="2026-11-11"><label>PumpSwap: usar a tabela oficial da pump.fun</label><div class="row"><button class="btn sm tgl" data-toggle="pump_swap_fee_official">…</button></div><p class="small" id="feeHint" hidden style="color:var(--warn)">Sugestão: ligue esta opção. O campo padrão de 0,30% fica abaixo da taxa de tokens graduados pequenos, então a fictícia parece melhor do que é. Vale só para a fictícia; você decide.</p>
+              <div class="muted small">Ligado: depois que o token gradua, a taxa segue a tabela oficial pelo valor de mercado (1,25% até 420 SOL, 1,20% até 1.470, 1,15% até 2.460… e 0,30% só acima de 98 mil SOL). Desligado: usa o valor fixo do campo acima. Muda o resultado mostrado e a hora em que stop e alvo disparam (eles olham o valor já sem taxas). Só tokens cotados em SOL e <b>só na carteira fictícia</b> (desde a 0.32.0; a real paga a taxa de verdade).</div></div>
+          </div>
+        </div>
+        </div>
+        <div data-wp="real" hidden>
+        <div class="alert red">Use uma carteira <b>nova, só para o bot, com pouco saldo</b>. Quem tem a chave privada tem todo o dinheiro dela.
+          A execução real começa DESLIGADA. Depois de ligada, continua ligada (mesmo se o servidor reiniciar ou você trocar de navegador) até você desligar.</div>
+        <div class="alert red" id="rwAlert" hidden></div>
+        <p class="small muted" id="rwGuard" data-novo-ate="2026-11-15"></p>
+        <div class="kpis" id="wKpis"></div>
+        <div class="card" data-nosanf>
+          <header><div><h2>Carteira REAL <span class="tag real">REAL</span></h2><div class="sub" id="realSub"></div></div></header>
+          <div class="realbox">
+            <button class="btn tgl sw off" id="realB" role="switch" aria-label="Execução real em todas as abas">Desligado</button>
+            <div style="flex:1;min-width:220px" id="realInfo"></div>
+          </div>
+          <p class="muted small" style="margin:6px 0 0">A chave da carteira fica na aba <b>Chaves</b>, logo abaixo. Stops, alvos e filtros valem para as duas carteiras e também ficam aqui embaixo, em <b>Regras</b>.</p><div class="form" style="margin-top:18px">
+            <div class="field"><label>SOL por compra (máximo de cada trade real)</label>
+              <div class="row"><input class="in w100" type="number" min="0.001" step="0.01" data-cfg="pump_real_max_sol"><span class="muted">SOL</span>
+                <button class="btn sm" data-set="pump_real_max_sol" data-val="0.02">0,02</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.05">0,05</button><button class="btn sm" data-set="pump_real_max_sol" data-val="0.1">0,1</button></div>
+              <div class="hint" id="rMaxN"></div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Slippage máximo da compra REAL</label><div class="row"><input class="in w80" type="number" min="1" max="50" step="1" data-cfg="pump_real_slippage_pct"><span class="muted">%</span>
+              <button class="btn sm" data-set="pump_real_slippage_pct" data-val="5">5%</button><button class="btn sm" data-set="pump_real_slippage_pct" data-val="15">15%</button></div>
+              <div class="hint">Tolerância de preço da carteira real. Mais alto = mais compras passam, mas mais risco de sanduíche (Bitquery, 10/2026: 87 ataques a cada 10 mil swaps com 10–20%, 8 com 1–3%).</div></div>
+            <div class="field"><label>PumpPortal / taxa de prioridade</label><div class="row"><input class="in w80" type="number" min="0" step="0.1" data-cfg="pump_portal_fee_pct"><span class="muted">% /</span><input class="in w100" type="number" min="0" step="0.0001" data-cfg="pump_priority_sol"><span class="muted">SOL</span></div><div class="hint">A prioridade é a que vai na transação REAL. As duas também entram na conta de custo da FICTÍCIA.</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Gorjeta Jito / envio anti-MEV (REAL)</label><div class="row"><input class="in w80" type="number" min="0" max="0.1" step="0.0005" data-cfg="pump_real_jito_tip_sol"><span class="muted">SOL</span><span class="tag neutral">envio Jito desligado</span></div>
+              <div class="hint">O valor fica guardado, mas a real ainda não manda por Jito: será ligado só depois de testar com carteira nova e pouco saldo (decisão do dono, 28/10).</div></div>
+            <div class="field"><label>Parar no dia se perder</label>
+              <div class="row"><input class="in w100" type="number" min="0" step="0.05" data-cfg="pump_real_daily_loss_sol"><span class="muted">SOL</span><span class="muted" id="rLossU"></span></div></div>
+            <div class="field"><label>Posições reais ao mesmo tempo</label>
+              <div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_real_max_open"></div></div>
+            <div class="field" data-novo-ate="2026-11-10"><label>Espelhar 100% a carteira fictícia</label>
+              <div class="row"><button class="btn sm tgl" data-toggle="pump_real_mirror" data-confirm="Copiar NO REAL todos os trades da carteira fictícia (cópias, Explorar, Base, Maiores traders e botão Comprar), com o valor e os limites da carteira real?">…</button></div>
+              <div class="hint">Com a Execução real ligada, tudo que a fictícia compra também é comprado aqui, e quando a fictícia vende a real vende junto. O valor de cada compra é o "SOL por compra" acima (nunca o da fictícia) e valem os limites desta tela.</div></div>
+            <div class="field" data-novo-ate="2026-11-16"><label>Cópia exata: a REAL manda, a fictícia acompanha</label>
+              <div class="row"><button class="btn sm tgl" data-toggle="pump_real_exact" data-confirm="Ligar a cópia exata? Com a real e a fictícia ligadas, a fictícia passa a ter o mesmo valor e o mesmo preço de entrada da real, sai junto com ela e é desfeita quando a real não compra.">…</button></div>
+              <div class="hint">Precisa do "Espelhar 100%" ligado. A fictícia vira a cópia da real: mesmo valor em SOL, mesmo preço de entrada (o da real), e quando a real sai (stop dela, venda manual) a fictícia sai junto. Se a real não compra (limite, perda do dia, falha), a fictícia é desfeita e o dinheiro volta. Assim os resultados das duas ficam iguais, só com a diferença das taxas estimadas.</div></div>
+            <div class="field"><label>Copiar no real também fora da pump.fun (Jupiter)</label>
+              <div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other_real" data-confirm="Copiar também NO REAL os trades fora da pump.fun (compra/venda pela Jupiter)?">…</button></div></div>
+          </div>
+        </div>
+        </div>
+        <h3 class="h3s walcomm">Valem para as duas carteiras</h3>
+        <div class="seg ctabs" id="cfgTabs" data-novo-ate="2026-11-18"><button data-ct="copia">Regras</button><button data-ct="chaves">Chaves</button><button data-ct="share">Compartilhar</button><button data-ct="todas">Todas as telas</button></div>
+        <div data-ct="copia" class="card">
+          <header><div><h2>Como copiar</h2><div class="sub">vale para as duas carteiras · cada mudança vale na hora e fica salva só para você</div></div></header>
+          <div class="form">
             <div class="field"><label>Esperar antes de copiar</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_copy_delay_s"><span class="muted">s</span>
               <button class="btn sm" data-set="pump_copy_delay_s" data-val="0">0</button><button class="btn sm" data-set="pump_copy_delay_s" data-val="30">30 s</button><button class="btn sm" data-set="pump_copy_delay_s" data-val="60">60 s</button></div>
               <div class="hint" id="delayN"></div></div>
-            <div class="field"><label>Fora da pump.fun (Raydium, Meteora, Orca… via Jupiter) — fictício</label><div class="row"><button class="btn sm tgl" data-toggle="pump_copy_other">…</button>
-              <span class="muted">pool mín. $</span><input class="in w100" type="number" min="0" step="1000" data-cfg="pump_other_min_liq_usd"></div></div>
             <div class="field"><label>Trader saiu e estou no prejuízo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_hold_until_profit">…</button></div>
               <div class="hint">ON: segura até o líquido (depois de todas as taxas) ficar positivo. OFF: vende junto com o trader. O stop de perda continua valendo enquanto segura.</div></div>
             <div class="field" data-novo-ate="2026-11-11"><label for="holdMinPct">Ao segurar, só vender quando estiver em</label><div class="row"><span class="muted">+</span><input id="holdMinPct" class="in w80" type="number" min="0" max="1000" step="1" data-cfg="pump_hold_min_profit_pct"><span class="muted">% líquido</span>
               <button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="0">0%</button><button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="5">5%</button><button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="10">10%</button><button class="btn sm" data-set="pump_hold_min_profit_pct" data-val="20">20%</button></div>
               <div class="hint">0% = vende assim que cobrir todas as taxas. Ex.: 10% = depois que o trader saiu, espera a posição chegar a +10% líquido para vender. Vale só para cópias de trader; o stop de perda continua protegendo.</div></div>
-            <div class="field"><label>Posições fictícias ao mesmo tempo</label><div class="row"><input class="in w80" type="number" min="1" step="1" data-cfg="pump_max_open"></div></div>
           </div>
         </div>
+        <div data-ct="copia" data-tc data-nosanf class="card" data-novo-ate="2026-11-12"><header><div><h2>Regras de saída e segurança</h2><div class="sub">stops, alvos e segurança das cópias, nas duas carteiras · cada mudança vale na hora e fica salva só para você</div></div>
+          <div class="sp"></div><button class="btn sm primary" id="tcSave">Salvar Configurações</button> <button class="btn sm" id="tcReset">Restaurar Padrões Pump.fun</button></header>
+          <div class="help"><p><b>Onde vale:</b> nas cópias de traders, na carteira FICTÍCIA e na REAL (quando a execução real está ligada). O Explorar, a Base e o botão Comprar têm regras próprias, nas telas deles. Salvar não é obrigatório: cada campo já grava ao mudar; o botão só confirma que está tudo gravado.</p></div></div>
+        <div data-ct="copia" data-tc class="card" data-novo-ate="2026-11-12"><header><div><h2>B. Risco e stops</h2></div></header>
+          <div class="form">
+            <div class="field"><label>Stop de perda</label><div class="row"><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_stop_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>Stop móvel (quando estiver ganhando)</label><div class="row"><button class="btn sm tgl" data-toggle="pump_trail_enabled">…</button>
+              <span class="muted">liga em +</span><input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_start_pct"><span class="muted">% · sai se cair</span>
+              <input class="in w80" type="number" min="1" step="5" data-cfg="pump_trail_dist_pct"><span class="muted">pontos</span></div><div class="hint" id="trailN"></div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Stop por tempo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_timestop_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="10" step="10" data-cfg="pump_timestop_s"><span class="muted">s, se não passou de +</span><input class="in w80" type="number" min="-100" step="1" data-cfg="pump_timestop_gain_pct"><span class="muted">% líquido, vende</span></div>
+              <div class="hint">Ex.: 180 s e 0% = se em 3 minutos a posição nunca ficou positiva (depois das taxas), vende tudo.</div></div>
+            <div class="field"><label>Tempo máximo na posição</label><div class="row"><input class="in w80" type="number" min="0.1" step="0.5" data-cfg="pump_max_hold_h"><span class="muted">h</span></div></div>
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando a posição fica parada</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_stale_on">…</button><span class="muted">depois de</span><input class="in w80" type="number" min="5" max="1440" step="5" data-cfg="pump_exit_stale_min"><span class="muted">min, se estiver entre −</span><input class="in w80" type="number" min="0.5" max="50" step="0.5" data-cfg="pump_exit_stale_band"><span class="muted">% e +esse %</span></div>
+              <div class="hint">As perdas de 26/10 vieram de posições paradas até o tempo máximo de 6 h. Antes de ligar, veja em Estratégias fantasma a variante "Sai se ficar parado 45 min".</div></div>
+          </div></div>
+        <div data-ct="copia" data-tc class="card" data-novo-ate="2026-11-12"><header><div><h2>C. Lucro em partes</h2></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-08"><label>Venda em partes</label><div class="row"><button class="btn sm tgl" data-toggle="pump_tp1_on">…</button><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp1_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp1_frac_pct"><span class="muted">%</span></div>
+              <div class="hint">Realiza parte do lucro cedo e deixa o resto no stop móvel. Já vem com a sugestão para testar (+30% vende 50%); ligue no ON.</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>2º alvo</label><div class="row"><span class="muted">ao chegar em +</span><input class="in w80" type="number" min="0" step="10" data-cfg="pump_tp2_pct"><span class="muted">% vende</span><input class="in w80" type="number" min="1" max="99" step="5" data-cfg="pump_tp2_frac_pct"><span class="muted">% da posição original</span></div>
+              <div class="hint">0 = desligado. Só depois do 1º alvo. O que sobra (moonbag) segue no stop móvel até sair.</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Moonbag (fica no token)</label><div class="row"><b id="tcMoon">–</b></div><div class="hint">100% − o que o 1º e o 2º alvo vendem.</div></div>
+            <div class="field"><label>Alvo fixo de lucro (0 = sem alvo)</label><div class="row"><input class="in w80" type="number" min="0" step="5" data-cfg="pump_tp_pct"><span class="muted">%</span></div></div>
+          </div></div>
+        <div data-ct="copia" data-tc class="card" data-novo-ate="2026-11-12"><header><div><h2>D. Segurança da pump.fun</h2></div></header>
+          <div class="form">
+            <div class="field" data-novo-ate="2026-11-09"><label>Sair quando o dev vende</label><div class="row"><button class="btn sm tgl" data-toggle="pump_exit_dev_sell">…</button></div>
+              <div class="hint">Se o criador do token vender depois da sua entrada, vende a posição na hora. Só funciona quando o monitor viu a criação do token.</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Market cap máximo para entrar</label><div class="row"><input class="in w100" type="number" min="0" step="10" data-cfg="pump_max_mcap_sol"><span class="muted">SOL (0 = sem limite)</span></div></div>
+            <div class="field" data-novo-ate="2026-11-13"><label>Filtro contra despejo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_dump_on" aria-label="Filtro contra despejo nas cópias">…</button><span class="muted">10 maiores ≤</span><input class="in w80" type="number" min="5" max="100" step="5" data-cfg="pump_dump_top10_max" aria-label="Máximo dos 10 maiores detentores (%)"><span class="muted">% · criador ≤</span><input class="in w80" type="number" min="0" max="100" step="1" data-cfg="pump_dump_dev_max" aria-label="Máximo do criador (%)"><span class="muted">% · carteiras novas ≤</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_dump_fresh_max" aria-label="Máximo de carteiras novas (%)"><span class="muted">%</span></div>
+              <div class="hint">Não copia token com cara de despejo (as perdas de −54% a −101% com stop de −30%). Lê os maiores detentores na hora da compra do trader (atrasa a cópia em até 3 s).</div></div>
+            <div class="field" data-novo-ate="2026-11-12"><label>Faixa da curva para entrar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_entry_curve_on">…</button><span class="muted">de</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_min"><span class="muted">% a</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_entry_curve_max"><span class="muted">%</span></div>
+              <div class="hint">Só copia tokens ainda na curva da pump.fun dentro dessa faixa de preenchimento.</div></div>
+            <div class="field" data-novo-ate="2026-11-13"><label>Saída antes da graduação só nas cópias</label><div class="row"><button class="btn sm tgl" data-toggle="pump_cx_copies_only" aria-label="Saída antes da graduação só nas cópias">…</button></div>
+              <div class="hint">Ligado = a saída abaixo vale só para as cópias de traders (o Explorar, os barrados e o botão Comprar seguem as regras deles).</div></div>
+            <div class="field" data-novo-ate="2026-11-08"><label>Sair antes da graduação</label><div class="row"><button class="btn sm tgl" data-toggle="pump_curve_exit_on">…</button><span class="muted">vende tudo com a curva em</span><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_curve_exit_pct"><span class="muted">%</span></div>
+              <div class="hint">Na pesquisa, 92% dos tokens tiveram derrubada forte e vender antes de graduar rendeu mais. Já vem com a sugestão (85%); ligue no ON.</div></div>
+          </div></div>
         <div data-ct="copia" class="card">
           <header><div><h2>Proteções</h2></div></header>
-          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
+          <div class="form">
             <div class="field"><label>Pausa automática do trader</label><div class="row"><input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_stops"><span class="muted">stops em 24 h → pausa</span>
               <input class="in w80" type="number" min="0" step="1" data-cfg="pump_autopause_hours"><span class="muted">h</span></div></div>
           </div>
@@ -1020,22 +994,53 @@
             <div class="field"><label>10 maiores carteiras do token (máx.)</label><div class="row"><input class="in w80" type="number" min="0" max="100" step="5" data-cfg="pump_max_top10_pct"><span class="muted">%</span></div></div>
           </div>
         </div>
-        <div data-ct="copia" class="card">
-          <header><div><h2>Taxas usadas na simulação</h2><div class="sub">as mesmas que o modo real paga</div></div></header>
-          <p class="muted small" style="margin:6px 0 0">Valor por compra, slippage, stops, alvos e saídas de segurança agora ficam em <a href="#tradercfg"><b>Configuração do Trader</b></a>.</p><div class="form">
-            <div class="field"><label>pump.fun na curva / PumpSwap</label><div class="row"><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_fee_pct"><span class="muted">% /</span><input class="in w80" type="number" min="0" step="0.05" data-cfg="pump_swap_fee_pct"><span class="muted">%</span></div></div>
-            <div class="field" data-novo-ate="2026-11-11"><label>PumpSwap: usar a tabela oficial da pump.fun</label><div class="row"><button class="btn sm tgl" data-toggle="pump_swap_fee_official">…</button></div><p class="small" id="feeHint" hidden style="color:var(--warn)">Sugestão: ligue esta opção. O campo padrão de 0,30% fica abaixo da taxa de tokens graduados pequenos, então a fictícia parece melhor do que é. Vale só para a fictícia; você decide.</p>
-              <div class="muted small">Ligado: depois que o token gradua, a taxa segue a tabela oficial pelo valor de mercado (1,25% até 420 SOL, 1,20% até 1.470, 1,15% até 2.460… e 0,30% só acima de 98 mil SOL). Desligado: usa o valor fixo do campo acima. Muda o resultado mostrado e a hora em que stop e alvo disparam (eles olham o valor já sem taxas). Só tokens cotados em SOL e <b>só na carteira fictícia</b> (desde a 0.32.0; a real paga a taxa de verdade).</div></div>
-          </div>
+        <div data-ct="share" class="card cfgusers" data-cfgusers hidden data-novo-ate="2026-11-10"><header><div><h2 data-cfgu-t>Usuários usando a sua configuração</h2><div class="sub" data-cfgu-s></div></div><div class="sp"></div><button class="btn sm" data-cfgu-ver>Ver usuários</button></header>
+          <div data-cfgu-list hidden></div></div>
+        <div data-ct="share" class="card" id="followCard" data-novo-ate="2026-11-11" hidden><header><div><h2>Copiar os trades de outro usuário</h2><div class="sub" id="flSub">a sua conta abre e fecha os mesmos trades da conta escolhida, na hora</div></div></header>
+          <div class="help"><p><b>Como funciona:</b> quando a conta escolhida abre uma posição (Explorar, Base, Maiores traders, botão Comprar ou cópia de trader), a sua abre a <b>mesma</b> na fictícia: mesmo token, mesmo valor e mesmas regras de saída; quando ela fecha, a sua fecha junto. Se a sua Execução real estiver ligada com o espelho, a sua real compra também, com o valor e os limites da <b>sua</b> carteira real. É diferente de copiar a configuração: aqui são os trades.</p></div>
+          <div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="flSel" aria-label="Conta para copiar os trades"></select><button class="btn sm primary" id="flOn">Copiar os trades dessa conta</button><button class="btn sm" id="flOff">Parar de copiar</button></div>
+          <p id="flState" style="margin-top:8px"></p>
         </div>
+        <div data-ct="todas" class="card" id="allCfgCard" data-novo-ate="2026-11-10" data-sanf><header><div><h2>Configurações de todas as outras telas</h2><div class="sub">as mesmas opções do Explorar, Opções novas, Maiores traders, Base… mudou aqui, mudou lá (é a mesma configuração)</div></div></header>
+          <div id="allCfgCopy"></div>
+          <div id="allCfg"></div>
+        </div>
+        <div data-ct="share" class="card shtop" id="cfShareTop" hidden data-novo-ate="2026-11-10"><header><div><h2>Compartilhar todas as configurações</h2><div class="sub">escolha a pessoa e envie tudo de uma vez · ela recebe um convite no topo do painel e escolhe aceitar ou não · nunca vai nada da carteira real, chaves ou Telegram</div></div></header>
+          <div class="row"><select class="in" id="cfAllU" style="flex:1;min-width:220px" aria-label="Para quem enviar"><option value="">carregando usuários…</option></select>
+            <button class="btn sm primary" id="cfAllGo">Compartilhar todas</button><button class="btn sm" data-cfsh="all">Escolher seções…</button></div></div>
+        <div data-ct="share" class="card" id="cfShare" hidden><header><div><h2 id="cfShT">Compartilhar</h2><div class="sub">a pessoa recebe um convite no topo do painel e decide se aceita e aplica · nunca vai nada da carteira real, chaves ou Telegram</div></div><div class="sp"></div><button class="btn sm" id="cfShX">Fechar</button></header>
+          <div class="row" id="cfShSecs" style="margin:4px 0 10px;gap:14px;flex-wrap:wrap;display:flex"></div>
+          <div class="form"><div class="field full"><div class="row">
+            <select class="in" id="cfShU" style="flex:1;min-width:240px"></select>
+            <button class="btn sm primary" id="cfShGo">Enviar convite</button></div></div></div></div>
         <div data-ct="chaves" class="card" id="secretsCard">
           <header><div><h2>Chaves pessoais</h2><div class="sub">guardadas criptografadas · nunca voltam para a tela · enquanto você não põe a sua, a ferramenta usa a chave do sistema só para visualização</div></div></header>
           <div id="secretsSum"></div>
           <div id="secrets"></div>
         </div>
+      
+        <div data-wp="real" hidden>
+        <div class="card" data-nosanf>
+          <header><div><h2>Conversor e troca USDC → SOL</h2><div class="sub">a carteira paga as compras em SOL</div></div></header>
+          <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input class="in w120" id="cvU" type="number" min="0" step="1" placeholder="USDC"><span class="muted">USDC =</span>
+            <input class="in w120" id="cvS" type="number" min="0" step="0.01" placeholder="SOL"><span class="muted">SOL</span>
+            <button class="btn sm" data-act="swapmax">Usar todo o USDC</button><button class="btn sm primary" data-act="swap">Trocar USDC → SOL</button></div>
+          <div class="hint muted" id="cvN" style="margin-top:8px;font-size:12.5px"></div>
+          <div class="hint" id="swN" style="margin-top:4px;font-size:12.5px"></div>
+        </div>
+        <div class="card" data-nosanf data-novo-ate="2026-11-10"><header><div><h2>Real × fictícia (espelho)</h2><div class="sub">cada trade real ao lado do trade fictício que ele copiou · mostra quanto do resultado simulado sobra no dinheiro de verdade (atraso, slippage e taxas)</div></div></header>
+          <div class="kpis" id="rmG" data-novo-ate="2026-11-14"></div><p class="small" id="rmGL"></p>
+          <h3 class="h3s" data-novo-ate="2026-11-14">Tentativas de venda real</h3><div class="tbl-wrap"><table id="rmV" class="daytbl"></table></div>
+          <h3 class="h3s">Trade por trade</h3>
+          <div class="kpis" id="rmK"></div><div class="tbl-wrap"><table id="rmT" class="daytbl"></table></div>
+          <h3 class="h3s" data-novo-ate="2026-11-10">Trades da fictícia que NÃO foram para a real (48 h)</h3><div class="auto-readiness warn" id="rmMissS" hidden></div>
+          <div class="tbl-wrap"><table id="rmMissR" class="daytbl"></table></div>
+          <div class="tbl-wrap" style="margin-top:8px"><table id="rmMiss" class="daytbl"></table></div></div>
+      
+        </div>
       </section>
 
-      <!-- ========================================================= USAR OU DESCARTAR (0.32.184: página de quadrados, pedido do dono) -->
       <section class="view" data-view="usar" hidden>
         <div class="ushead" data-novo-ate="2026-11-18"><div class="seg" id="usMode"><button data-usm="sim">FICTÍCIA</button><button data-usm="real">REAL</button></div><span class="muted small" id="usSub"></span></div>
         <p class="muted small" style="margin:0 0 12px">Telas novas que ainda estão em teste. Abra cada uma e decida se fica ou sai. As que estão dando lucro nas últimas 24 h ficam em cima e mais verdes; as negativas ficam embaixo.</p>
@@ -1049,7 +1054,6 @@
           <a class="uscard" href="#jevtrade" data-us="jevtrade" data-adm><span class="usic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span><b>Jev Trade</b><small>o Jev faz o trade inteiro, em simulação</small><div class="usg" data-usg="jevtrade"></div><i>Abrir →</i></a>
           <a class="uscard" href="#jev" data-us="jev" data-adm><span class="usic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></span><b>JEV (sombra)</b><small>o que o Jev decidiu em cada token, em modo sombra</small><div class="usg" data-usg="jev"></div><i>Abrir →</i></a>
           <a class="uscard" href="#calls" data-us="calls" data-adm><span class="usic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></svg></span><b>Calls e Radar</b><small>calls quentes pela blockchain e o Radar de KOLs</small><div class="usg" data-usg="calls"></div><i>Abrir →</i></a>
-          <a class="uscard" href="#tradercfg" data-us="tradercfg"><span class="usic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span><b>Configuração do Trader</b><small>valor, stops, alvos e saídas de segurança das cópias</small><div class="usg" data-usg="tradercfg"></div><i>Abrir →</i></a>
           <a class="uscard" href="#estudo" data-us="estudo" data-adm><span class="usic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3M8.5 11h5M11 8.5v5"/></svg></span><b>Carteiras em estudo</b><small>carteiras observadas, nota de cada uma e o estudo automático</small><div class="usg" data-usg="estudo"></div><i>Abrir →</i></a>
           <a class="uscard" href="#relatorios" data-us="relatorios" data-adm><span class="usic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6M20 16v-9"/></svg></span><b>Relatórios</b><small>o que está dando certo e errado nas cópias, por dia e por versão</small><div class="usg" data-usg="relatorios"></div><i>Abrir →</i></a>
           <a class="uscard" href="#aprendizado" data-us="aprendizado" data-adm><span class="usic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg></span><b>Aprendizado diário</b><small>o que os top traders fazem e o que dá para ajustar</small><div class="usg" data-usg="aprendizado"></div><i>Abrir →</i></a>
@@ -1065,7 +1069,7 @@
 
       <!-- ========================================================= LOG GERAL (0.32.184, pedido do dono) -->
       <section class="view" data-view="loggeral" hidden>
-        <div class="seg ctabs" id="lgTabs"><button data-lg="conta">Registro de segurança</button><button data-lg="contas" data-adm>Todas as contas</button><button data-lg="srv" data-adm>Log do servidor</button></div>
+        <div class="seg ctabs" id="lgTabs"><button data-lg="conta">Registro de segurança</button><button data-lg="contas" data-adm>Todas as contas</button><button data-lg="srv" data-adm>Log do servidor</button><button data-lg="chg" data-adm>Changelog</button></div>
         <div data-lgp="conta">
         <div class="card">
           <header><div><h2>Registro de segurança</h2><div class="sub">últimas ações sensíveis da sua conta</div></div></header>
@@ -1084,8 +1088,16 @@
           <header><div><h2>Logs do servidor</h2><div class="sub" id="logSub">em tempo real · chaves mascaradas</div></div><div class="sp"></div>
             <div class="seg" id="logLv"><button data-lv="INFO">Tudo</button><button data-lv="WARNING">Avisos</button><button data-lv="ERROR">Erros</button></div>
             <input class="in" id="logQ" placeholder="Buscar no log" style="width:180px">
-            <button class="btn sm tgl on" id="logLive">Ao vivo: ON</button></header>
+            <button class="btn sm tgl sw on" id="logLive" role="switch" aria-label="Log ao vivo">Ao vivo</button></header>
           <div class="logs" id="logs"></div>
+        </div>
+        </div>
+        <div data-lgp="chg" hidden>
+        <div class="card">
+          <header><div><h2>O que foi implementado</h2><div class="sub">versão, onde fica no menu e o que faz · as mais novas em cima</div></div><div class="sp"></div>
+            <div class="seg" id="novTipo"><button data-t="" class="on">Tudo</button><button data-t="novo">Novo</button><button data-t="melhoria">Melhoria</button><button data-t="segurança">Segurança</button><button data-t="correção">Correção</button></div></header>
+          <div class="tbl-wrap"><table id="tNov"></table></div>
+          <div class="hint muted" style="margin-top:12px">Log geral do que está acontecendo agora: <a href="#feed">Feed ao vivo</a> (compras e vendas dos traders e o que o bot fez com cada uma) e, para o admin, Administração → Logs do servidor.</div>
         </div>
         </div>
       </section>
@@ -1108,7 +1120,7 @@
         </div>
         <div class="card">
           <header><div><h2>Uso das APIs</h2><div class="sub" id="apiUSub">chamadas deste mês e pico por minuto hoje, em % do limite grátis · desde a versão 0.31.76</div></div><div class="sp"></div><button class="btn sm" id="apiURef">Atualizar</button></header>
-          <div class="help"><p>Quando uma API passar de <b>80%</b>, o certo é diminuir as consultas ou subir de plano. Criar várias contas grátis do mesmo serviço para somar limites costuma ser proibido pelos termos e pode bloquear a chave. Cada pessoa pode usar a própria chave (Configurações → Chaves), que conta separado.</p></div>
+          <div class="help"><p>Quando uma API passar de <b>80%</b>, o certo é diminuir as consultas ou subir de plano. Criar várias contas grátis do mesmo serviço para somar limites costuma ser proibido pelos termos e pode bloquear a chave. Cada pessoa pode usar a própria chave (Carteiras → Chaves), que conta separado.</p></div>
           <div class="tbl-wrap"><table id="apiU" class="daytbl"></table></div>
         </div>
       </section>
@@ -1412,14 +1424,6 @@
         <div class="card">
           <header><div><h2>Análises salvas</h2><div class="sub">guardadas no banco com os ganhos e perdas de cada lado e o texto pronto para uma IA estudar</div></div></header>
           <div class="tbl-wrap"><table id="cmpSaved"></table></div>
-        </div>
-      </section>
-      <section class="view" data-view="novidades" hidden>
-        <div class="card">
-          <header><div><h2>O que foi implementado</h2><div class="sub">versão, onde fica no menu e o que faz · as mais novas em cima</div></div><div class="sp"></div>
-            <div class="seg" id="novTipo"><button data-t="" class="on">Tudo</button><button data-t="novo">Novo</button><button data-t="melhoria">Melhoria</button><button data-t="segurança">Segurança</button><button data-t="correção">Correção</button></div></header>
-          <div class="tbl-wrap"><table id="tNov"></table></div>
-          <div class="hint muted" style="margin-top:12px">Log geral do que está acontecendo agora: <a href="#feed">Feed ao vivo</a> (compras e vendas dos traders e o que o bot fez com cada uma) e, para o admin, Administração → Logs do servidor.</div>
         </div>
       </section>
 

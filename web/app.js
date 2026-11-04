@@ -343,7 +343,7 @@
     return [null, []];
   }
   function renderApplied() {
-    document.querySelectorAll('[data-view="config"] .card, [data-view="explorar"] .card').forEach((card, i) => {
+    document.querySelectorAll('[data-view="carteiras"] .card, [data-view="explorar"] .card').forEach((card, i) => {
       const h = card.querySelector(":scope > header > div"); if (!h || card.id === "allCfgCard") return;
       let el = h.querySelector(".cfgfrom");
       const [o, ks] = APPLIED.length ? appliedFor(cardKeys(card)) : [null, []];
@@ -359,7 +359,7 @@
   }
   function openCfgDiff(id, idx) {
     const o = APPLIED.find((x) => String(x.id) === String(id)); if (!o) return;
-    const card = [...document.querySelectorAll('[data-view="config"] .card, [data-view="explorar"] .card')][+idx];
+    const card = [...document.querySelectorAll('[data-view="carteiras"] .card, [data-view="explorar"] .card')][+idx];
     const keys = card ? cardKeys(card) : Object.keys(o.valores), ks = keys.filter((k) => Object.prototype.hasOwnProperty.call(o.valores, k));
     const fora = keys.filter((k) => !ks.includes(k)), quem = o.de || "outro usuário", antes = o.antes || {};
     const rows = ks.map((k) => {
@@ -489,7 +489,7 @@
       : '<div class="hint">Nenhuma opção muda: os valores enviados são iguais aos seus.</div>') +
       (iguais && muda.length ? '<div class="hint muted">Mais ' + iguais + " " + (iguais === 1 ? "opção igual à sua" : "opções iguais às suas") + " (não muda nada).</div>" : "");
   }
-  const cfgShareCards = () => [...document.querySelectorAll('[data-view="config"] .card')].filter((c) => c.id !== "cfShareTop" && c.querySelector("[data-cfsh]"));
+  const cfgShareCards = () => [...document.querySelectorAll('[data-view="carteiras"] .card')].filter((c) => c.id !== "cfShareTop" && c.querySelector("[data-cfsh]"));
   // sanfona (0.31.20): quadro com 3+ opções (ou as chaves pessoais) começa fechado; clique no título abre/fecha e a
   // escolha fica lembrada neste navegador. Execução real e relatórios ficam sempre abertos.
   function sanfona() {
@@ -525,7 +525,7 @@
         const ct = ((card.querySelector("h2") || {}).textContent || "").trim();
         card.querySelectorAll("[data-toggle],[data-cfg],[data-hcfg]").forEach((el) => {
           const k = el.dataset.toggle || el.dataset.cfg || el.dataset.hcfg; if (!k || seen.has(k) || el.dataset.clone) return; seen.add(k);
-          out.push({ v, vt: TITLES[v][0], ct, k, tog: !!el.dataset.toggle, label: cfgLabel(k), unit: el.dataset.hcfg ? "min" : el.dataset.cfg ? cfgUnit(k) : "",
+          out.push({ v, vt: TITLES[v][0], ct, tc: card.hasAttribute("data-tc"), k, tog: !!el.dataset.toggle, label: cfgLabel(k), unit: el.dataset.hcfg ? "min" : el.dataset.cfg ? cfgUnit(k) : "",
             min: el.dataset.hcfg ? "1" : el.getAttribute("min"), max: el.dataset.hcfg ? "1440" : el.getAttribute("max"), step: el.dataset.hcfg ? "1" : el.getAttribute("step"), confirm: el.dataset.confirm || "" });
         });
       });
@@ -536,7 +536,7 @@
     : '<input class="in w100" type="number" data-clone="1" data-cfg="' + esc(x.k) + '"' + (x.min != null ? ' min="' + esc(x.min) + '"' : "") + (x.max != null ? ' max="' + esc(x.max) + '"' : "") + (x.step != null ? ' step="' + esc(x.step) + '"' : "") + ' aria-label="' + esc(x.label) + '">' + (x.unit ? ' <span class="muted">' + esc(x.unit) + "</span>" : "");
   function buildAllCfg() {
     if (!ME || !$("allCfg") || $("allCfg").dataset.ok) return;
-    const items = cfgItems().filter((x) => x.v !== "config"), by = {};
+    const items = cfgItems().filter((x) => x.v !== "carteiras"), by = {};
     items.forEach((x) => { (by[x.v] = by[x.v] || []).push(x); });
     $("allCfg").innerHTML = Object.keys(by).map((v) => {
       let last = "";
@@ -662,9 +662,9 @@
         : '<option value="">Nenhum outro usuário cadastrado</option>';
       $("cfAllGo").disabled = !us.length;
     }).catch(() => {});
-    document.querySelectorAll('[data-view="config"] .card').forEach((card) => {
+    document.querySelectorAll('[data-view="carteiras"] .card').forEach((card) => {
       const h = card.querySelector("header");
-      if (!h || card.id === "secretsCard" || card.id === "cfShare" || card.id === "allCfgCard" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
+      if (!h || card.closest('[data-wp="real"]') || card.id === "secretsCard" || card.id === "cfShare" || card.id === "allCfgCard" || h.querySelector("[data-cfsh]") || !card.querySelector("[data-cfg],[data-toggle]")) return;
       if (!h.querySelector(".sp")) { const sp = document.createElement("div"); sp.className = "sp"; h.appendChild(sp); }
       const b = document.createElement("button"); b.className = "btn sm"; b.dataset.cfsh = "card"; b.textContent = "Compartilhar"; h.appendChild(b);
     });
@@ -865,7 +865,7 @@
     const r = await BB.api("/api/pump/elite");
     if (r.error) { toast(r.error); return; }
     const st = r.study || {}, a = st.all || {}, au = r.auto || {}, per = (au.summary || {}).period || {}, pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + f(v, 0) + "%");
-    $("elSub").textContent = (r.traders || []).length ? (r.traders || []).length + " maiores traders seguidos · atualiza a cada 20 s" : (r.has_key ? "esperando o ranking da Solana Tracker carregar" : "sem chave da Solana Tracker: cole a sua em Configurações → Chaves (ou o admin configura a do sistema)");
+    $("elSub").textContent = (r.traders || []).length ? (r.traders || []).length + " maiores traders seguidos · atualiza a cada 20 s" : (r.has_key ? "esperando o ranking da Solana Tracker carregar" : "sem chave da Solana Tracker: cole a sua em Carteiras → Chaves (ou o admin configura a do sistema)");
     kpis("elKpis", [["Traders seguidos", String((r.traders || []).length), "os maiores por lucro realizado", "usr"], ["Sinais abertos", String((r.open || []).length), "acompanhados por 60 min", "mon"],
       ["Sinais estudados", String(st.signals || 0), a.n ? "pico médio " + pct(a.avg_peak) + " · fim " + pct(a.avg_60) : "aparecem depois de 60 min", "tr"],
       ["Compra automática", r.settings_on ? "ligada" : "desligada", "resultado: " + s4(per.pnl_sol || 0) + " SOL", "pnl"]]);
@@ -2188,8 +2188,8 @@
     const r = RADAR.data, disabled = !r || RADAR.saving;
     ["radarToggle", "radarMin", "radarWindow", "radarSave"].forEach((id) => { $(id).disabled = disabled; });
     const b = $("radarToggle"), on = !!(r && r.enabled);
-    b.textContent = RADAR.saving ? "Salvando…" : "Radar: " + (on ? "ON" : "OFF");
-    b.className = "btn tgl " + (on ? "on" : "off"); b.setAttribute("aria-pressed", String(on));
+    b.textContent = RADAR.saving ? "Salvando…" : on ? "Ligado" : "Desligado";
+    b.className = "btn tgl sw " + (on ? "on" : "off"); b.setAttribute("aria-checked", String(on));
     if (r && !RADAR.dirty && !RADAR.saving) { $("radarMin").value = r.min_wallets; $("radarWindow").value = r.window_min; }
     $("radarDraft").hidden = !RADAR.dirty;
   }
@@ -2441,7 +2441,7 @@
       $("cfShU").innerHTML = us.length ? us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "") + (u.admin ? " · admin" : "")) + "</option>").join("")
         : '<option value="">Nenhum outro usuário cadastrado</option>';
       $("cfShGo").disabled = !us.length; $("cfShare").hidden = false;
-      if (VIEW === "config") cfgTab("share");          // 0.32.184: o painel fica na aba Compartilhar
+      if (VIEW === "carteiras") cfgTab("share");          // 0.32.184: o painel fica na aba Compartilhar
       $("cfShare").scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -2508,6 +2508,7 @@
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
     if (t.dataset.ct && t.closest("#cfgTabs")) { cfgTab(t.dataset.ct); return; }
+    if (t.dataset.wm && t.closest("#walTabs")) { walTab(t.dataset.wm); return; }
     if (t.dataset.usm) { US.rm = t.dataset.usm === "real"; try { localStorage.setItem("pf_usm", t.dataset.usm); } catch (e) { /* */ } loadUsar(); return; }
     if (t.dataset.lg && t.closest("#lgTabs")) { lgTab(t.dataset.lg); return; }
     if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
@@ -2737,13 +2738,24 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    tradershist: ["Traders copiados", "todo o histórico de cada trader que você copiou: ganhos, perdas e cada trade"], semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
-    tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], sistema: ["Status do sistema", "conexões, funil das transações e quanto cada serviço usou"], loggeral: ["Log geral", "registro de segurança da sua conta e, para o admin, de todas as contas e o log do servidor"],
+    tradershist: ["Traders copiados", "todo o histórico de cada trader que você copiou: ganhos, perdas e cada trade"], semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"],
+    carteiras: ["Carteiras", "ligar, desligar e quanto entrar na FICTÍCIA e na REAL; as regras das duas ficam num lugar só"], sistema: ["Status do sistema", "conexões, funil das transações e quanto cada serviço usou"], loggeral: ["Log geral", "registro de segurança da sua conta e, para o admin, de todas as contas e o log do servidor"],
 usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fica"], admin: ["Administração", "usuários, sistema e logs"],
-    novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
+    comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
   function route() {
-    const v = (location.hash || "#visao").slice(1);
+    let v = (location.hash || "#visao").slice(1);
+    // 0.32.193 (pedido do dono): Execução real, Configurações e Configuração do Trader viraram Carteiras; Feed foi para o
+    // Histórico e Changelog para o Log geral. Os links antigos continuam levando ao lugar novo.
+    const MOVED = { real: "carteiras", config: "carteiras", tradercfg: "carteiras", feed: "historico", novidades: "loggeral" };
+    if (MOVED[v]) {
+      if (v === "real") WALT = "real";
+      if (v === "tradercfg") CFT = "copia";
+      if (v === "feed") HIST.tab = "feed";
+      if (v === "novidades") LGT = "chg";
+      v = MOVED[v];
+      try { history.replaceState(null, "", "#" + v); } catch (e) { /* */ }
+    }
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
     if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "abas", "logs", "calls", "bruxo"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
@@ -2758,13 +2770,11 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); }
+    if (VIEW === "carteiras") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); walTab(); walletLoad(true); loadMirror(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
     if (VIEW === "sistema") { sysTab(); openSys(); }
     if (VIEW === "usar") loadUsar(true);
-    if (VIEW === "real") { walletLoad(true); loadMirror(); }
-    if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
     if (VIEW === "fantasma") loadGhosts();
     if (VIEW === "listanegra") loadBlacklist();
@@ -3095,7 +3105,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     table("rmMissR", ["Motivo (o que mais aconteceu)", "Vezes", "Resultado na fictícia", "O que fazer"], (M.por_motivo || []).map((g) => [esc(g.motivo), String(g.n), sg(g.sim_sol), esc(g.dica || "")]), "Nenhum: tudo o que a fictícia fez foi para a real.");
     table("rmMiss", ["Fechou", "Token", "Origem", "Fictícia", "Por que não foi para a real"], (M.lista || []).map((x) => [esc(dt(x.fechou)), pfM(x.mint || "", x.token), esc(x.origem), sg(x.sim_sol) + "<small>" + pc(x.sim_pct) + "</small>", '<b style="color:var(--warn)">' + esc(x.motivo) + "</b>" + (x.dica ? "<small>" + esc(x.dica) + "</small>" : "")]), "Nada para mostrar.");
   }
-  async function walletLoad(force) { try { W = await BB.api("/api/pump/wallet" + (force ? "?force=1" : "")); if (VIEW === "real") renderReal(); } catch (e) { /* */ } }
+  async function walletLoad(force) { try { W = await BB.api("/api/pump/wallet" + (force ? "?force=1" : "")); if (VIEW === "carteiras") renderReal(); } catch (e) { /* */ } }
 
   async function setCfg(body) {
     if (Object.keys(body).every(isAutoCfg)) return saveAutoCfg(body);
@@ -3282,7 +3292,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   function render() {
     if (!D) return;
-    if (VIEW === "config") cfgTab();                  // 0.32.184: a aba aparece quando o cartão dela aparece
+    if (VIEW === "carteiras") cfgTab();                  // 0.32.184: a aba aparece quando o cartão dela aparece
     if (VIEW === "usar" && Date.now() - US.at > 60000) loadUsar();
     const fh = $("feeHint"); if (fh) fh.hidden = !!cfg().pump_swap_fee_official;
     const c = cfg(), R = D.real || {}, RP = D.rpc || {};
@@ -3317,7 +3327,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       if (el.id === "exAutoHold" && v != null) $("exAutoHoldN").textContent = "= " + f(v, 0) + " min · máximo 24 h"; });
     abasSync(); keysSync();
     document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); const sc = tglScope(b.dataset.toggle, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.title = sc[1]; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
-    if (APPLIED.length && (VIEW === "config" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
+    if (APPLIED.length && (VIEW === "carteiras" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
     if ($("tcMoon")) { const a = c.pump_tp1_on ? +c.pump_tp1_frac_pct || 0 : 0, b = c.pump_tp1_on && +c.pump_tp2_pct ? +c.pump_tp2_frac_pct || 0 : 0;
@@ -3326,7 +3336,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if ($("exRealDiag") && VIEW === "explorar") {
       const R = D.real || {}, why = [];
       if (!R.wallet_configured) why.push('<span class="down">carteira real não configurada</span>');
-      if (!R.enabled) why.push('<span class="down">Execução real desligada</span> (<a href="#real">Execução real</a>)');
+      if (!R.enabled) why.push('<span class="down">Execução real desligada</span> (<a href="#real">Carteiras → REAL</a>)');
       if (!c.pump_ex_real_on) why.push('<span class="down">"Também na carteira REAL" desligado</span>');
       if (c.pump_real_mirror === false && !c.pump_auto_real) why.push('<span class="down">espelho da real desligado</span>');
       const amtR = +c.pump_ar_real_sol > 0 ? Math.min(+c.pump_ar_real_sol, +c.pump_real_max_sol) : +c.pump_real_max_sol;
@@ -3341,16 +3351,14 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "semanas") loadWk();
     if (VIEW === "tradershist") loadTH();
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
-    if (VIEW === "config") renderAllCfgCopy();
+    if (VIEW === "carteiras") { renderAllCfgCopy(); renderReal(); }
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
-    else if (VIEW === "historico") { renderHistory(); renderErrs(); renderHMon(); }
+    else if (VIEW === "historico") { renderHistory(); renderErrs(); renderHMon(); renderFeed(); }
     else if (VIEW === "relatorios" && (Date.now() - REP_AT > 30000 || REP_MODE !== realMode())) loadReports();
     else if (VIEW === "aprendizado" && (Date.now() - AP_AT > 60000 || AP_MODE !== realMode())) loadLearning();
     else if (VIEW === "radar") loadRadar(false);
     else if (VIEW === "explorar") { renderAutoState(); loadAutoTrades(false); }
-    else if (VIEW === "feed") renderFeed();
-    else if (VIEW === "real") renderReal();
   }
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
@@ -3376,8 +3384,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     ["Copiar igual", "pump_eq_on", "pump_eq_real", "igual"], ["Carteiras em estudo", "pump_st_copy_on", "pump_st_real", "estudo"]];
   const ABAS_MEM = "pf_abas_antes";
   // 0.32.129 (pedido do dono): as regras de cada aba aqui dentro. São cópias dos campos das outras telas (mesma opção); as opções REAL ficam fora
-  const ABAS_TOPX = ["pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
-  const ABAS_OPT = { "Top traders": (x) => x.v === "tradercfg" || ABAS_TOPX.includes(x.k), "Explorar": (x) => x.v === "explorar" && !/^pump_bar_/.test(x.k), "Explorar · barrados": (x) => /^pump_bar_/.test(x.k), "Base da pump.fun": (x) => x.v === "base",
+  const ABAS_TOPX = ["pump_copy_sol", "pump_extra_slip_pct", "pump_portal_fee_pct", "pump_priority_sol", "pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
+  const ABAS_OPT = { "Top traders": (x) => x.tc || ABAS_TOPX.includes(x.k), "Explorar": (x) => x.v === "explorar" && !/^pump_bar_/.test(x.k), "Explorar · barrados": (x) => /^pump_bar_/.test(x.k), "Base da pump.fun": (x) => x.v === "base",
     "Maiores traders": (x) => x.v === "elite", "Calls quentes": (x) => x.v === "calls", "Aba do Bruxo": (x) => x.v === "bruxo", "Jev Trade": (x) => x.v === "jevtrade", "Copiar igual": (x) => x.v === "igual", "Carteiras em estudo": (x) => x.v === "estudo" };
   const abasKeys = () => ABAS_TR.map((a) => a[1]);
   function abasBackup() { const c = cfg(), b = {}; abasKeys().forEach((k) => { b[k] = !!(isAutoCfg(k) ? autoValue(k, c) : c[k]); }); try { localStorage.setItem(ABAS_MEM, JSON.stringify(b)); } catch (e) { /* sem navegador guardando, só não dá para voltar */ } }
@@ -4461,7 +4469,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     hSet("hSum", "<b>" + T.length + " trades</b> · ganhou " + sg(soma(g), "") + " · perdeu " + sg(soma(p), "") + " · resultado " + sg(soma(T), "") + " SOL" + (inv ? " · " + pc(soma(T) / inv * 100) : "") + (A.length < (W.count || 0) ? ' <span class="muted">· últimos ' + A.length + " de " + W.count + "</span>" : ""));
     const abaPct = (L) => (soma0(L) ? pc(soma(L) / soma0(L) * 100) : "–");       // mesma base do resumo: os trades carregados no painel
     const ch = (attr, v, on, txt) => '<button class="btn sm chip' + (on ? " on" : "") + '" ' + attr + '="' + esc(v) + '">' + txt + "</button>";
-    hSet("hTabs", [["tr", "Trades", A.length], ["by", "Por trader", BY.length], ["mov", "Movimentos", (D.live || []).length], ["par", "Vendas parciais", PS.length], ["err", "Erros", errs]].map((x) => ch("data-htab", x[0], HIST.tab === x[0], x[1] + " · " + x[2])).join(""));
+    hSet("hTabs", [["tr", "Trades", A.length], ["by", "Por trader", BY.length], ["mov", "Movimentos", (D.live || []).length], ["par", "Vendas parciais", PS.length], ["feed", "Feed ao vivo", (D.feed || []).length], ["err", "Erros", errs]].map((x) => ch("data-htab", x[0], HIST.tab === x[0], x[1] + " · " + x[2])).join(""));
     document.querySelectorAll("[data-hp]").forEach((e) => { e.hidden = e.dataset.hp !== HIST.tab; });
     hSet("hFil", [["all", "Todos"], ["win", "Ganhos"], ["loss", "Perdas"]].map((x) => ch("data-hres", x[0], HIST.res === x[0], x[1])).join("") + '<span class="hsep"></span>' + ch("data-haba", "", !HIST.aba, "Todas as abas " + abaPct(A)) + abas.map((x) => ch("data-haba", x, HIST.aba === x, esc(x) + " " + abaPct(A.filter((t) => t.aba === x)))).join(""));
     // 0.32.140 (pedido do dono): traders repetidos em todo o tempo e, abaixo, nas últimas 24 h; a conta vem do servidor, com todos os trades
@@ -4509,8 +4517,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       ["USDC na carteira", w.usdc_in_sol == null ? "–" : s4(w.usdc_in_sol) + " SOL", "$" + f(w.usdc || 0, 2) + " USDC — troque por SOL para usar", "pnl"],
       ["Compras possíveis", w.sol == null || !c.pump_real_max_sol ? "–" : String(Math.max(0, Math.floor((w.sol - (w.reserve_sol || 0.02)) / (c.pump_real_max_sol * 1.02 + 0.0006)))), "de " + s4(c.pump_real_max_sol) + " SOL (guarda 0,02 SOL p/ taxas)", "pos"],
       ["Resultado real", sg(Rw.pnl_sol, ""), (Rw.count || 0) + " trades · " + (Rw.open || 0) + " abertas", "tr"]]
-      : [["Carteira do bot", "não configurada", "cole a chave em Configurações → Chaves", "wallet"], ["Resultado real", sg(Rw.pnl_sol, ""), (Rw.count || 0) + " trades", "tr"]]);
-    const b = $("realB"); b.textContent = R.enabled ? "REAL: ON — clique para desligar" : "REAL: OFF — clique para ligar"; b.className = "btn tgl big " + (R.enabled ? "on" : "off");
+      : [["Carteira do bot", "não configurada", "cole a chave em Carteiras → Chaves", "wallet"], ["Resultado real", sg(Rw.pnl_sol, ""), (Rw.count || 0) + " trades", "tr"]]);
+    const b = $("realB"); b.textContent = R.enabled ? "Ligado" : "Desligado"; b.title = R.enabled ? "Clique para desligar" : "Clique para ligar"; b.className = "btn tgl sw " + (R.enabled ? "on" : "off"); b.setAttribute("aria-checked", String(!!R.enabled));
     $("realSub").textContent = R.enabled ? "LIGADA — compras de verdade com até " + s4(c.pump_real_max_sol) + " SOL cada" : "desligada";
     $("realInfo").innerHTML = '<div class="cfgs" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">' +
       [["Carteira do bot", R.wallet_configured ? '<span class="up">configurada</span>' : '<span class="down">não configurada</span>'], ["Endereço", R.address ? '<a href="https://solscan.io/account/' + encodeURIComponent(R.address) + '" target="_blank" rel="noopener">' + esc(shortW(R.address)) + "</a>" : "–"],
@@ -4655,17 +4663,23 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.184 (pedido do dono): Configurações em abas e menu Log geral (registro de segurança e logs do servidor saíram de
   // Configurações e da Administração). A aba escolhida fica neste navegador.
   const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas",
-    "tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls", "tradercfg"];
-  let CFT = "copia", LGT = "conta";
-  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; } catch (e) { /* */ }
+    "tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls"];
+  let CFT = "copia", LGT = "conta", WALT = "sim";
+  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = localStorage.getItem("pf_walt") === "real" ? "real" : "sim"; } catch (e) { /* */ }
   function cfgTab(t) {
     if (t) { CFT = t; try { localStorage.setItem("pf_cfgtab", t); } catch (e) { /* */ } }
-    const sec = document.querySelector('section[data-view="config"]'); if (!sec) return;
+    const sec = document.querySelector('section[data-view="carteiras"]'); if (!sec) return;
     const vis = (k) => [...sec.querySelectorAll('.card[data-ct="' + k + '"]')].some((c) => !c.hidden);
     document.querySelectorAll("#cfgTabs [data-ct]").forEach((b) => { b.hidden = !vis(b.dataset.ct); });
     if (!vis(CFT)) CFT = "copia";
     document.querySelectorAll("#cfgTabs [data-ct]").forEach((b) => b.classList.toggle("on", b.dataset.ct === CFT));
     sec.querySelectorAll('.card[data-ct]').forEach((c) => c.classList.toggle("ctoff", c.dataset.ct !== CFT));
+  }
+  // 0.32.193: FICTÍCIA ou REAL dentro de Carteiras (só escolhe o que mostrar; quem vale é o botão Fictícia/Real do topo)
+  function walTab(t) {
+    if (t) { WALT = t; try { localStorage.setItem("pf_walt", t); } catch (e) { /* */ } }
+    document.querySelectorAll("#walTabs [data-wm]").forEach((b) => b.classList.toggle("on", b.dataset.wm === WALT));
+    document.querySelectorAll("[data-wp]").forEach((p) => { p.hidden = p.dataset.wp !== WALT; });
   }
   function lgTab(t) {
     if (t) { LGT = t; try { localStorage.setItem("pf_lgtab", t); } catch (e) { /* */ } }
@@ -4676,6 +4690,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (LGT === "conta") loadAudit();
     if (LGT === "contas") { if (!$("aAudUser").options.length || $("aAudUser").options.length < 2) loadUsers(); loadAAudit(); }
     if (LGT === "srv") { LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
+    if (LGT === "chg") loadNovidades();
   }
   // 0.32.186 (pedido do dono): cada quadrado do Usar ou descartar mostra o resultado das abas que ele compra em 1, 6, 12 e 24 h
   // (FICTÍCIA ou REAL, botão no topo); quem dá lucro em 24 h fica em cima e mais verde, quem perde fica embaixo.
@@ -5033,7 +5048,6 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     ntfBtn();
     $("realB").onclick = realToggle;
     $("navAdmin").hidden = ME.role !== "admin";
-    $("navNov").hidden = ME.role !== "admin";
     $("navGrp").hidden = false;                    // 0.32.186: abre para todos; os quadrados só do admin ficam escondidos
     if ($("navExp")) $("navExp").hidden = ME.role !== "admin";            // 0.32.186: foi para o Usar ou descartar
     if ($("navBaseG")) $("navBaseG").hidden = ME.role !== "admin";
@@ -5047,7 +5061,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     $("aFind").oninput = renderUsers;
     $("logQ").oninput = () => { clearTimeout(window.__lq); window.__lq = setTimeout(logsReset, 400); };
     $("logLv").onclick = (e) => { const b = e.target.closest("button[data-lv]"); if (b) { LOG_LV = b.dataset.lv; logsReset(); } };
-    $("logLive").onclick = () => { LOG_LIVE = !LOG_LIVE; $("logLive").textContent = "Ao vivo: " + (LOG_LIVE ? "ON" : "OFF"); $("logLive").className = "btn sm tgl " + (LOG_LIVE ? "on" : "off"); };
+    $("logLive").onclick = () => { LOG_LIVE = !LOG_LIVE; $("logLive").className = "btn sm tgl sw " + (LOG_LIVE ? "on" : "off"); $("logLive").setAttribute("aria-checked", String(LOG_LIVE)); };
     $("cvU").oninput = () => conv("u"); $("cvS").oninput = () => conv("s");
     $("searchBtn").onclick = ckOpen; $("searchBtn").onkeydown = (e) => { if (e.key === "Enter") ckOpen(); };
     $("cmdk").onclick = (e) => { if (e.target.id === "cmdk") ckClose(); const li = e.target.closest("li[data-i]"); if (li) ckGo(+li.dataset.i); };

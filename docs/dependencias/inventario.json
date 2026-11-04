@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-04",
     "timezone": "Europe/Dublin",
-    "repository_reference": "6300b3a11869443ae831ab6faabfe13f12eb42b8",
-    "application_version": "0.32.192 · 2026-11-04 · reinício mais leve para o banco",
+    "repository_reference": "820e0412b00d0a6ed746bae9e39f751ab3a411d0",
+    "application_version": "0.32.193 · 2026-11-04 · menu Carteiras com FICTÍCIA e REAL num lugar só",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "f87d97b1f8b594f6e2771a7242e0d3fd0e199a40337bddd96cedec4cbd3cf28e",
+      "app/version.py": "f91c8598bd4ad2407798b0746a626747c8da4181f4ae3c3dc3b532a1c0687f4b",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "124ba02ef08918006f79980e94ff7c9a780b7e15655cc57aeb9c284bbcadd18e",
+      "web/app.html": "b8a28be0f2570b933bb0ab68e04a9c1c45ea2fa3db6091550b18ae3154c903bb",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "8aa0b1ae33407a606d7abab0e0097423e755b0d7946c0cc52398276c2fd49a38"
+  "pdf_sha256": "40f8047ce4bcd3c141abf3730b400e2056a83e61eb0834f6d8687da4b45ef2d9"
 }

@@ -984,3 +984,5 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .sysaba{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))}.sysabac{min-height:0;cursor:default}.sysabac:hover{border-color:var(--line)}
 @media (max-width:860px){.sysaba{grid-template-columns:1fr}}
 .sysrest{margin:0 0 10px;padding:12px 14px}.sysrest b{display:block;margin-bottom:4px}
+/* 0.32.193: Carteiras: abas FICTÍCIA/REAL em destaque e o título do que vale para as duas */
+#walTabs{margin-bottom:14px}#walTabs button{min-width:110px;font-weight:600}.walcomm{margin:22px 0 10px}
