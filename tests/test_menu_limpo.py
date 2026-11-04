@@ -80,3 +80,9 @@ def test_on_off_buttons_are_switches():
     assert 'class="btn tgl sw off" id="realB"' in H and 'class="btn sm tgl sw on" id="logLive"' in H and 'class="btn tgl sw off" id="radarToggle"' in H
     assert '"REAL: ON' not in JS and '"Radar: " +' not in JS
 
+
+def test_usar_squares_have_the_buy_switch():
+    """0.32.196 (pedido do dono): a chave de compra de cada aba direto no quadrado, sem abrir a tela ao clicar nela."""
+    assert 'class="ustg"' in JS and 'ABAS_TR.filter((a) => nomes.includes(a[0]))' in JS
+    assert '".uscard [data-toggle]")) e.preventDefault()' in JS and 'data-clone="1" aria-label' in JS
+

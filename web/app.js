@@ -4709,6 +4709,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     jevtrade: ["Jev Trade"], calls: ["Calls quentes"], tradershist: ["Top traders"], abas: "*" };
   let US = { rm: null, at: 0, r: {} };
   try { const x = localStorage.getItem("pf_usm"); if (x) US.rm = x === "real"; } catch (e) { /* */ }
+  // a chave fica dentro do link do quadrado: clicar nela liga ou desliga, sem abrir a tela
+  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest(".uscard [data-toggle]")) e.preventDefault(); }, true);
   async function loadUsar(force) {
     if (US.rm == null) US.rm = realMode();
     const rm = US.rm;
@@ -4730,6 +4732,15 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const r = US.r[US.rm], abas = r && (r.abas || r.itens || r);
     $("usSub").textContent = "resultado dos trades fechados de cada tela · carteira " + (US.rm ? "REAL" : "FICTÍCIA") + (r ? "" : " · carregando…");
     const grid = $("usGrid"); if (!grid) return;
+    // 0.32.196 (pedido do dono): liga e desliga a compra direto no quadrado. É a mesma chave de Abas de trades (cópia data-clone); a chave REAL de cada aba não muda
+    let novas = false;
+    grid.querySelectorAll(".uscard").forEach((c) => {
+      const nomes = USAR_ABAS[c.dataset.us];
+      if (!Array.isArray(nomes) || c.querySelector(".ustg")) return;
+      const h = ABAS_TR.filter((a) => nomes.includes(a[0])).map((a) => '<div class="ustg"><span>' + esc(a[0]) + '</span><button type="button" class="btn sm tgl sw" data-toggle="' + esc(a[1]) + '" data-clone="1" aria-label="' + esc(a[0]) + '">…</button></div>').join("");
+      if (h) { c.querySelector(".usg").insertAdjacentHTML("afterend", h); novas = true; }
+    });
+    if (novas && D) render();
     const L = [...grid.querySelectorAll(".uscard")].map((c) => {
       const v = c.dataset.us, nome = USAR_ABAS[v], box = c.querySelector(".usg");
       if (!nome) { box.innerHTML = '<div class="usno">esta tela não compra: sem resultado próprio</div>'; c.classList.remove("uspos", "usneg"); c.style.background = ""; return [c, 0, 1]; }

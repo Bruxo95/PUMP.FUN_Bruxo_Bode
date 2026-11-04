@@ -986,3 +986,5 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .sysrest{margin:0 0 10px;padding:12px 14px}.sysrest b{display:block;margin-bottom:4px}
 /* 0.32.193: Carteiras: abas FICTÍCIA/REAL em destaque e o título do que vale para as duas */
 #walTabs{margin-bottom:14px}#walTabs button{min-width:96px;font-weight:600}[data-wp="sim"]>.kpis,[data-wp="real"]>.kpis{margin-bottom:14px}
+/* 0.32.196: chave de compra dentro do quadrado do Usar ou descartar */
+.ustg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;font-size:12.5px;color:var(--muted)}.ustg .btn.tgl.sw{font-size:12px}
