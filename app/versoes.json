@@ -1790,6 +1790,11 @@
    "versao": "0.32.206",
    "inicio": "2026-11-04T21:47:10+00:00",
    "titulo": "Aplicar a fictícia na REAL vira versão com Desfazer"
+  },
+  {
+   "versao": "0.32.207",
+   "inicio": "2026-11-04T21:54:11+00:00",
+   "titulo": "Trava contra preço absurdo"
   }
  ]
 }

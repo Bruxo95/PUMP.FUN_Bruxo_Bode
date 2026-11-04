@@ -363,6 +363,45 @@ class PumpFun:
         self.refresh_followed(force=True)
         return {"ok": True}
 
+    # ------------------------------------------------------------------ trava de preço
+    # 0.32.207 (ZEC, 04/11: preço de 133.500 SOL por ZEC, ~10.000× o real de ~13,7; a cópia em "segurar até ficar positivo"
+    # vendeu nele e marcou +1.017 SOL falsos na FICTÍCIA). Um preço novo que salta 20× ou mais (para cima ou para baixo)
+    # em relação ao anterior fica ESPERANDO: só vale quando outra fonte (ex.: DexScreener depois de um trade visto) ou
+    # 3 leituras seguidas em 30 s+ confirmarem um valor parecido. Até lá o preço anterior continua e nenhuma saída usa o
+    # salto. A curva da pump.fun (lida direto da blockchain) não passa por aqui.
+    PX_JUMP_X = 20.0
+    PX_HOLD_S = 180.0
+
+    def _px_ok(self, mint: str, tk: dict, px: float, t: float, src: str) -> bool:
+        old = float(tk.get("price") or 0)
+        if not old or not px or px <= 0 or t - float(tk.get("last_t") or 0) > 1800:
+            tk.pop("px_hold", None)
+            return True
+        r = px / old
+        if 1 / self.PX_JUMP_X < r < self.PX_JUMP_X:
+            tk.pop("px_hold", None)
+            return True
+        h = tk.get("px_hold")
+        if h and t - h["t0"] <= self.PX_HOLD_S and 1 / 3 <= px / h["px"] <= 3:
+            h["n"] += 1
+            h["srcs"] = sorted(set(h["srcs"]) | {src})
+            if len(h["srcs"]) >= 2 or (h["n"] >= 3 and t - h["t0"] >= 30):
+                tk.pop("px_hold", None)
+                log.info("preço de %s confirmado depois de salto de %.0f×: %s (%s)", mint[:8], max(r, 1 / r), px, " + ".join(h["srcs"]))
+                return True
+            return False
+        tk["px_hold"] = {"px": px, "t0": t, "n": 1, "srcs": [src], "old": old}
+        tk["px_jumps"] = int(tk.get("px_jumps") or 0) + 1
+        log.warning("preço de %s recusado: %s → %s (%.0f×, %s); espera outra leitura confirmar", mint[:8], old, px, max(r, 1 / r), src)
+        return False
+
+    def _ev_px(self, ev: dict, tk: dict) -> float | None:
+        """Preço do trade, a não ser que a trava acabou de recusá-lo (aí a cópia usa o último preço confiável)."""
+        px, h = self.price_of(ev), tk.get("px_hold")
+        if px and h and tk.get("price") and abs(px / h["px"] - 1) < 1e-6:
+            return None
+        return px
+
     # ------------------------------------------------------------------ eventos
     @staticmethod
     def price_of(ev: dict) -> float | None:
@@ -395,7 +434,7 @@ class PumpFun:
             return None
         px = self.price_of(ev)
         tk = self.tokens.setdefault(mint, {"created_t": t})
-        if px:
+        if px and self._px_ok(mint, tk, px, t, "trade " + str(ev.get("source") or "pumpportal")):
             tk["price"] = px
         if ev.get("marketCapSol") is not None:
             tk["mcap_sol"] = float(ev["marketCapSol"])
@@ -1171,7 +1210,7 @@ class PumpFun:
         c = self.cfg
         tk = self.tokens.get(mint) or {}
         sym = tk.get("symbol") or ev.get("symbol") or short(mint)
-        px = self.price_of(ev) or tk.get("price")
+        px = self._ev_px(ev, tk) or tk.get("price")
         allpos = self.positions()
         base = {"wallet": who, "short": short(who), "mint": mint, "symbol": sym, "kind": kind, "sol": round(sol, 4),
                 "mcap_sol": tk.get("mcap_sol"), "signature": ev.get("signature")}
@@ -1247,7 +1286,7 @@ class PumpFun:
             return self._copy_eq(who, mint, kind, sol, tok, ev, before, t)
         tk = self.tokens.get(mint) or {}
         sym = tk.get("symbol") or ev.get("symbol") or short(mint)
-        px = (tk.get("price") if ev.get("_delayed") and tk.get("price") else None) or self.price_of(ev) or tk.get("price")
+        px = (tk.get("price") if ev.get("_delayed") and tk.get("price") else None) or self._ev_px(ev, tk) or tk.get("price")
         allpos = self.positions()
         mine = [p for p in allpos if p["mint"] == mint]
         base = {"wallet": who, "short": short(who), "mint": mint, "symbol": sym, "kind": kind, "sol": round(sol, 4),
@@ -3969,7 +4008,7 @@ class PumpFun:
                 if m in vols:
                     tk["vol"] = {k_: round(v_, 2) if isinstance(v_, float) else v_ for k_, v_ in vols[m].items()}
                     tk["vol_t"] = now
-                if px and (set_price or not tk.get("price") or now - (tk.get("last_t") or 0) > 30):
+                if px and (set_price or not tk.get("price") or now - (tk.get("last_t") or 0) > 30) and self._px_ok(m, tk, px, now, "DexScreener"):
                     tk["price"] = px
                     tk["last_t"] = now
                 sym = (p.get("baseToken") or {}).get("symbol")
@@ -4080,7 +4119,10 @@ class PumpFun:
                 continue
             fee = self._fee_rates(m)["venue"]
             tk = self.tokens.setdefault(m, {"created_t": now})
-            tk["price"] = out / q_tok / max(1e-9, 1 - fee)        # tira a taxa da pool (o cálculo de saída aplica de novo)
+            px_j = out / q_tok / max(1e-9, 1 - fee)
+            if not self._px_ok(m, tk, px_j, now, "Jupiter"):
+                continue
+            tk["price"] = px_j                                     # tira a taxa da pool (o cálculo de saída aplica de novo)
             tk["last_t"], tk["price_src"] = now, "cotação Jupiter (venda da posição)"
         return rest
 
