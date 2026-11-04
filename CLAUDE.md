@@ -1624,3 +1624,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - O RPC grátis devolve 429 pelo tamanho das respostas: janelas de 300 blocos, 3 eth_getLogs por janela com 1 s entre eles, pausa de 60 s
   depois de um 429. Trades só na memória (24 h; o volume pesaria no banco); banco só `hood_state` (cursor e regra; migração
   `20261104000005`); depois de reiniciar relê até 30 min. Próximo: etapa 2 = cópia FICTÍCIA em ETH com checagem de token golpe; REAL só com OK do dono.
+- 0.32.209 (pedido do dono): o login sempre abre `/entrar` para o admin: `landing.js` apaga `pf_hub` antes de ir ao `/app`, e `app.js` apaga quando volta do Google (`FRESH_LOGIN`, lido no começo do script porque o login limpa o `?code=`).

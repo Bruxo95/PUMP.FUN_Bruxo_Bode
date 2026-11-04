@@ -13,6 +13,8 @@
   let logged = false;
   document.querySelectorAll("[data-login]").forEach((b) =>
     b.addEventListener("click", async () => {
+      // 0.32.209 (pedido do dono): entrar pela página inicial sempre abre a escolha da rede (a escolha antiga da aba é esquecida)
+      try { sessionStorage.removeItem("pf_hub"); } catch (e) { /* */ }
       if (logged) { location.href = "/app"; return; }
       try { b.disabled = true; await BB.login(); } catch (e) { show(e.message || String(e)); b.disabled = false; }
     })

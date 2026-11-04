@@ -1800,6 +1800,11 @@
    "versao": "0.32.208",
    "inicio": "2026-11-04T22:15:19+00:00",
    "titulo": "Robinhood Chain, etapa 1 (só leitura)"
+  },
+  {
+   "versao": "0.32.209",
+   "inicio": "2026-11-04T22:18:43+00:00",
+   "titulo": "Login sempre abre a escolha da rede"
   }
  ]
 }

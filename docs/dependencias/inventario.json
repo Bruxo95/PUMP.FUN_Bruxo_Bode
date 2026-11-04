@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-04",
     "timezone": "Europe/Dublin",
-    "repository_reference": "aae033827a6a165c33572f472c0ad7233d54300b",
-    "application_version": "0.32.208 · 2026-11-04 · Robinhood Chain, etapa 1 (só leitura)",
+    "repository_reference": "51d28902a7859a80c60dc0dc015ba53a1cc56848",
+    "application_version": "0.32.209 · 2026-11-04 · Login sempre abre a escolha da rede",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "a96e1490d39c9aa49f41318fa57177118d004b037427d162a23ccee5e654d220",
+      "app/version.py": "2f0a576515061e99bd0f5e8eded667ffb1f333b6206fdb381cb7ff81bb3df922",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "021b10952a06135b98b5844898595c84f5aa20f95a5a19c6302f96b784f285da"
+  "pdf_sha256": "ea138c49e4e62b7190e77a376265e8cb6ac9bf0d3c25935638efcb07a2d7cbca"
 }

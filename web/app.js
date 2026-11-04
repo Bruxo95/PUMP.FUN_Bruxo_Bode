@@ -3,6 +3,7 @@
    feed, execução real, configurações (com chaves pessoais) e como funciona. Sem handlers inline (CSP). */
 (function () {
   "use strict";
+  const FRESH_LOGIN = /[?&]code=/.test(location.search);   // 0.32.209: lido antes do login limpar o endereço
   const $ = (id) => document.getElementById(id);
   const esc = BB.esc;
   let D = null, W = null, ME = null, EV = -1, BUSY = false, RANGE = 1, MONF = "all", MODE = null, ADMIN = null;
@@ -5249,6 +5250,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     let s;
     try { s = await BB.session(); } catch (e) { bootFail(e.message || String(e)); return; }
     if (!s) { location.href = "/"; return; }
+    // 0.32.209 (pedido do dono): voltando do login do Google (?code=…), o admin sempre vê a escolha da rede
+    if (FRESH_LOGIN) { try { sessionStorage.removeItem("pf_hub"); } catch (e) { /* */ } }
     if (location.search) history.replaceState(null, "", location.pathname + location.hash);
     ME = await BB.api("/api/me");
     if (ME.error) { bootFail(ME.error); return; }
