@@ -1770,6 +1770,11 @@
    "versao": "0.32.202",
    "inicio": "2026-11-04T21:11:35+00:00",
    "titulo": "Top traders em abas e Desfazer no Copiar também"
+  },
+  {
+   "versao": "0.32.203",
+   "inicio": "2026-11-04T21:19:34+00:00",
+   "titulo": "Copiar todos também retoma os pausados"
   }
  ]
 }

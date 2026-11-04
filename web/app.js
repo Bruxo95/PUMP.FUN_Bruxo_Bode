@@ -1608,7 +1608,8 @@
       .concat((r.traders_so_eu || []).map((x) => [who(x.wallet), '<span class="tag neutral">só você</span>', '<span class="wrapcell">' + esc(x.fonte) + "</span>", '<span class="wrapcell">' + nm + ": " + esc(x.por_que_nao) + "</span>", "–"]));
     table("bdTr", ["Trader", "Quem copia", "Por que copia", "Por que a outra não copia", ""], tr, "As duas contas copiam os mesmos traders agora.");
     bdMineDraw();
-    const nAdd = (r.traders_so_outro || []).filter((x) => !/^(pausado|banido)/.test(x.por_que_nao)).length;
+    // 0.32.203 (pedido do dono): Copiar todos também retoma os pausados (banidos continuam fora)
+    const nAdd = (r.traders_so_outro || []).filter((x) => !/^banido/.test(x.por_que_nao)).length;
     $("bdBS").innerHTML = "Moedas que só " + nm + " comprou" + (nAdd > 1 ? ' <button class="btn sm" data-bdadd="*" style="margin-left:8px">Copiar também os ' + nAdd + " traders dele</button>" : "");
     const row = (x) => [dt(x.t), "<b>" + esc(x.symbol) + "</b>", esc(x.aba), who(x.wallet), res(x), '<span class="wrapcell">' + esc(x.por_que_nao) + "</span>"];
     table("bdB", ["Hora", "Moeda", "Aba", "Trader", "Resultado de " + nm, "Por que você não comprou"], (r.so_outro || []).map(row), "Nenhuma moeda só de " + nm + " neste período.");
@@ -1619,33 +1620,39 @@
   // "você está copiando", com Desfazer (tira da SUA lista manual; só os que entraram por este botão).
   function bdAddedGet() { try { return JSON.parse(localStorage.getItem("pf_bdadd") || "{}") || {}; } catch (e) { return {}; } }
   function bdAddedSet(o) { try { localStorage.setItem("pf_bdadd", JSON.stringify(o)); } catch (e) { /* */ } }
-  async function bdAdd(w) {
-    const ws = w === "*" ? (BD.r.traders_so_outro || []).filter((x) => !/^(pausado|banido)/.test(x.por_que_nao)).map((x) => x.wallet) : [w];
-    if (w === "*" && !confirm("Pôr " + ws.length + " traders na SUA lista de cópia? Eles passam pelos seus filtros normais.")) return;
+  async function bdAdd(w, resumeOnly) {
+    const L = w === "*" ? (BD.r.traders_so_outro || []).filter((x) => !/^banido/.test(x.por_que_nao)) : (BD.r.traders_so_outro || []).filter((x) => x.wallet === w);
+    const ws = L.length ? L : [{ wallet: w, por_que_nao: resumeOnly ? "pausado" : "" }];
+    const nP = ws.filter((x) => /^pausado/.test(x.por_que_nao)).length;
+    if (w === "*" && !confirm("Copiar os " + ws.length + " traders na SUA conta?" + (nP ? " " + nP + " estão pausados e serão retomados." : "") + " Eles passam pelos seus filtros normais.")) return;
     const A = bdAddedGet(), nm = (BD.r && BD.r.outro) || "a outra conta", names = (BD.r && BD.r.nomes) || {};
-    for (const x of ws) { const r = await BB.api("/api/pump/wallets", { body: { wallet: x, action: "add" } }); if (!r.error) A[x] = { t: Date.now(), de: nm, nome: names[x] || "" }; }
+    for (const x of ws) {
+      const pa = /^pausado/.test(x.por_que_nao);
+      const r = await BB.api("/api/pump/wallets", { body: { wallet: x.wallet, action: pa ? "resume" : "add" } });
+      if (!r.error) A[x.wallet] = { t: Date.now(), de: nm, nome: names[x.wallet] || "", retomado: pa };
+    }
     bdAddedSet(A);
-    toast(ws.length + (ws.length === 1 ? " trader adicionado" : " traders adicionados") + " à sua lista: agora você copia igual a " + nm);
+    toast(ws.length + (ws.length === 1 ? " trader copiado" : " traders copiados") + (nP ? " (" + nP + " retomado" + (nP > 1 ? "s" : "") + ")" : "") + ": agora você copia igual a " + nm);
     await poll(true); loadBuyDiff();
   }
   async function bdUndo(w) {
     const A = bdAddedGet(), ws = w === "*" ? Object.keys(A) : [w];
-    if (!ws.length || !confirm(ws.length === 1 ? "Parar de copiar este trader? Ele sai da SUA lista manual." : "Parar de copiar os " + ws.length + " traders? Eles saem da SUA lista manual.")) return;
-    for (const x of ws) { await BB.api("/api/pump/wallets", { body: { wallet: x, action: "remove" } }); delete A[x]; }
-    bdAddedSet(A); toast(ws.length === 1 ? "Desfeito: trader fora da sua lista" : "Desfeito: " + ws.length + " traders fora da sua lista");
+    if (!ws.length || !confirm(ws.length === 1 ? "Parar de copiar este trader? Se foi adicionado, sai da SUA lista manual; se foi retomado, volta a ficar pausado." : "Parar de copiar os " + ws.length + " traders? Os adicionados saem da SUA lista manual e os retomados voltam a ficar pausados.")) return;
+    for (const x of ws) { await BB.api("/api/pump/wallets", { body: { wallet: x, action: (A[x] || {}).retomado ? "pause" : "remove" } }); delete A[x]; }
+    bdAddedSet(A); toast(ws.length === 1 ? "Desfeito" : "Desfeito: " + ws.length + " traders");
     await poll(true); loadBuyDiff();
   }
   function bdMineDraw() {
     if (!$("bdMineBox")) return;
     const A = bdAddedGet(), man = new Set(((D && D.manual) || []).map(String));
-    if (D && D.manual) Object.keys(A).forEach((w) => { if (!man.has(w)) delete A[w]; });
+    if (D && D.manual) Object.keys(A).forEach((w) => { if (!A[w].retomado && !man.has(w)) delete A[w]; });
     bdAddedSet(A);
     const L = Object.entries(A).sort((a, b) => b[1].t - a[1].t);
     $("bdMineBox").hidden = !L.length;
     if (!L.length) return;
     $("bdMineS").innerHTML = "Traders que você passou a copiar pelo Copiar também (" + L.length + ")" + (L.length > 1 ? ' <button class="btn sm" data-bdundo="*" style="margin-left:8px">Desfazer todos</button>' : "");
     table("bdMine", ["Trader", "Situação", "Desde", ""], L.map(([w, x]) => [pfW0(w, { wallet: w }) + (x.nome ? ' <span class="muted small">' + esc(x.nome) + "</span>" : ""),
-      '<span class="tag win">= igual</span> <span class="wrapcell">você está copiando este trader de ' + esc(x.de) + "</span>", dt(x.t),
+      '<span class="tag win">= igual</span> <span class="wrapcell">você está copiando este trader de ' + esc(x.de) + (x.retomado ? " (estava pausado: retomado)" : "") + "</span>", dt(x.t),
       '<button class="btn sm" data-bdundo="' + esc(w) + '">Desfazer</button>']), "–");
   }
   async function loadCopyDiag() {
@@ -2542,7 +2549,7 @@
     if (t.dataset.bdadd) { bdAdd(t.dataset.bdadd); return; }
     if (t.dataset.bdundo) { bdUndo(t.dataset.bdundo); return; }
     if (t.dataset.trt && t.closest("#trTabs")) { trTab(t.dataset.trt); return; }
-    if (t.dataset.bdres) { BB.api("/api/pump/wallets", { body: { wallet: t.dataset.bdres, action: "resume" } }).then(() => { toast("Trader retomado na sua conta"); poll(true).then(loadBuyDiff); }); return; }
+    if (t.dataset.bdres) { bdAdd(t.dataset.bdres, true); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
     const ltb = t.closest && t.closest("[data-logtab]"); if (ltb) { LOGTAB = ltb.dataset.logtab; if (VIEW === "logs") { e.preventDefault(); showLogTab(LOGTAB); } return; }
     if (t.dataset.rlh) { const [md, hh] = t.dataset.rlh.split(":"); RLH[md] = +hh; loadRobotLog(md); return; }
