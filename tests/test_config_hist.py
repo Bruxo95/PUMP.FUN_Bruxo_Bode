@@ -1,6 +1,4 @@
 """0.32.199 (pedido do dono): histórico da configuração e Voltar para uma versão. Sem internet."""
-import asyncio
-
 from app import cfghist
 from tests.test_api import UA, env, tok  # noqa: F401  (fixture env)
 
@@ -15,7 +13,7 @@ def test_changes_become_versions_and_can_go_back(env):
     A = tok(UA)
     c.get("/api/me", headers=A)
     c.post("/api/pump/settings", json={"pump_stop_pct": 30, "pump_real_max_sol": 0.05}, headers=A)
-    pf = asyncio.run(hub.engine(UA))
+    pf = hub.engines[UA]
     v1 = c.get("/api/pump/config/historico", headers=A).json()
     n1 = v1["atual"]
     pf._cfg_row["t"] = 0                                     # passou o tempo de juntar
