@@ -42,3 +42,9 @@ def test_new_screens_moved_into_usar_with_room_for_results():
         assert f'href="#{v}"' not in nav and f'data-usg="{v}"' in usar
     assert 'href="#tradershist" data-us="tradershist">' in usar and 'href="#tradercfg" data-us="tradercfg">' in usar   # de todos
     assert 'data-us="explorar" data-adm' in usar and 'id="usMode"' in usar and "result-tabs?real=" in JS
+
+
+def test_status_do_sistema_is_a_page_with_two_tabs():
+    sis = _sec("sistema")
+    assert 'id="sysM"' in sis and 'data-syt="status"' in sis and 'data-syt="uso" data-adm' in sis and 'id="sysUse"' in sis
+    assert 'class="modal" id="sysM"' not in H and 'location.hash = "#sistema"' in JS and "usebad" in JS

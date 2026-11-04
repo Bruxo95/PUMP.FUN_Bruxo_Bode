@@ -1690,6 +1690,11 @@
    "versao": "0.32.186",
    "inicio": "2026-11-04T14:30:12+00:00",
    "titulo": "Usar ou descartar com todas as telas novas e o ganho de cada uma"
+  },
+  {
+   "versao": "0.32.187",
+   "inicio": "2026-11-04T14:38:06+00:00",
+   "titulo": "Status do sistema em página com abas e vermelho no que estourou"
   }
  ]
 }

@@ -50,3 +50,12 @@ def test_old_month_rows_get_the_new_names():
     u.load([{"mes": "2027-01", "api": "RPC próprio / outros (mainnet.helius-rpc.com)", "chave": "", "n": 50},
             {"mes": "2027-01", "api": "RPC próprio / outros (bsc-rpc.publicnode.com)", "chave": "", "n": 7}])
     assert ("2027-01", "Helius (RPC da Solana)", None) in u.month and ("2027-01", "RPC da BNB (publicnode)", None) in u.month
+
+
+def test_month_credits_count_at_least_the_month_requests():
+    u = _u()
+    u.load([{"mes": "2027-01", "api": "RPC próprio / outros (mainnet.helius-rpc.com)", "chave": "", "n": 987_150}])
+    t = T0                                                # 15/01/2027 (UTC)
+    u.count("mainnet.helius-rpc.com", body=b'{"method":"getSlot"}', now=t)
+    r = next(x for x in u.windows(now=t) if x["api"] == "Helius (RPC da Solana)" and x["tipo"] == "créditos")
+    assert r["mes"] == 987_151 and r["mes_minimo"] is True and r["pct_mes"] == 98.715

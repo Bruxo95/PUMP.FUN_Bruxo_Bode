@@ -136,12 +136,16 @@
       <div class="modal" id="chaM" hidden role="dialog" aria-modal="true" aria-labelledby="chaMT"><div class="modal-box">
         <header><div><h2 id="chaMT">Chance alta</h2><div class="sub" id="chaMS"></div></div><div class="sp"></div><button class="btn sm" id="chaMX">Fechar</button></header>
         <div id="chaMB"></div></div></div>
-      <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
-        <header><div><h2 id="sysMT">Status do sistema</h2><div class="sub" id="sysMS"></div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
-        <div id="sysMB"></div></div></div>
       <div class="modal" id="cfgDiff" hidden role="dialog" aria-modal="true" aria-labelledby="cfgDiffT"><div class="modal-box">
         <header><div><h2 id="cfgDiffT">O que mudou</h2><div class="sub" id="cfgDiffS"></div></div><div class="sp"></div><button class="btn sm" id="cfgDiffX">Fechar</button></header>
         <div id="cfgDiffB"></div></div></div>
+      <!-- ========================================================= STATUS DO SISTEMA (0.32.187: era um modal; agora é página com abas) -->
+      <section class="view" data-view="sistema" id="sysM" hidden>
+        <div class="seg ctabs" id="sysTabs" data-novo-ate="2026-11-18"><button data-syt="status">Status do sistema</button><button data-syt="uso" data-adm>Uso de cada serviço</button></div>
+        <div class="card" data-sytp="status"><header><div><h2 id="sysMT">Status do sistema</h2><div class="sub" id="sysMS"></div></div></header><div id="sysMB"></div></div>
+        <div class="card" data-sytp="uso" hidden><header><div><h2>Uso de cada serviço</h2><div class="sub" id="sysUS"></div></div></header><div id="sysUse"></div></div>
+      </section>
+
       <!-- ========================================================= VISÃO GERAL -->
       <section class="view" data-view="visao">
         <div class="kpirow">

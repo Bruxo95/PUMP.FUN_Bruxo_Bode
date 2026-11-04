@@ -189,15 +189,19 @@ class Usage:
                 else:
                     pct = None
                 per[str(h)] = {"n": n, "pct": pct}
+            minimo = False
             if tipo == "créditos":
-                mes_n = self.month.get((mes, api + CRED, None))
+                # 0.32.187: antes de 04/11 os créditos não eram separados; cada requisição gasta pelo menos 1 crédito
+                cred = self.month.get((mes, api + CRED, None)) or 0
+                req = sum(n for (m, a, _c), n in self.month.items() if m == mes and a == api)
+                mes_n, minimo = max(cred, req) or None, req > cred
             elif tipo == "requisições":
                 mes_n = sum(n for (m, a, _c), n in self.month.items() if m == mes and a == api) or None
             else:
                 mes_n = None
             row = {"api": api, "tipo": tipo, "janelas": per, "desde_inicio": self.total.get((api, tipo), 0),
                    "mes": mes_n, "limite_mes": mm, "limite_min": rr,
-                   "pct_mes": round(mes_n / mm * 100, 3) if mm and mes_n else None}
+                   "pct_mes": round(mes_n / mm * 100, 3) if mm and mes_n else None, "mes_minimo": minimo}
             if api == "PumpPortal" and tipo == PP_PAID:
                 row["custo_sol"] = {h: round(per[h]["n"] / 10_000 * 0.01, 5) for h in per}
             out.append(row)

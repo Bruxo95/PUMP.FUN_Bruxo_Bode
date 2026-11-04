@@ -974,3 +974,8 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .usg small{display:block;color:var(--muted);font-size:10.5px}.usg b{display:block;font-size:12.5px}.usg em{display:block;font-style:normal;font-size:10.5px;color:var(--muted);overflow-wrap:anywhere}
 .usg .usno{grid-column:1/-1;color:var(--muted);font-size:11.5px;background:none;padding:2px 0}
 .uscard.uspos{border-color:rgba(34,197,94,.45)}.uscard.usneg{border-color:rgba(239,68,68,.35)}
+
+/* 0.32.187 (pedido do dono): uso de cada serviço com vermelho no que passou do limite e laranja perto dele */
+.usebad{color:var(--down,#ef4444)!important;font-weight:700}.usewarn{color:#f59e0b!important;font-weight:600}
+.usetbl tr.userow-bad td{background:rgba(239,68,68,.08)}.usetbl tr.userow-warn td{background:rgba(245,158,11,.06)}
+.usealert{margin:0 0 12px;border-color:rgba(239,68,68,.5)}

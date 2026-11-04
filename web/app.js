@@ -2549,7 +2549,7 @@
       $("eqList").blur(); loadEq(); return;
     }
     if (t.closest && t.closest("#sysBox")) { openSys(); return; }
-    if (t.id === "sysMX") { $("sysM").hidden = true; SYS_SUB = null; return; }
+    if (t.dataset.syt && t.closest("#sysTabs")) { sysTab(t.dataset.syt); return; }
     // 0.32.19: Configuração do Trader
     if (t.id === "tcSave") { await poll(true); toast("Configurações gravadas (cada campo já grava ao mudar)."); return; }
     if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão
@@ -2572,7 +2572,7 @@
     if (t.dataset.gomine) { e.preventDefault(); $("saM").hidden = true; const c = $("stMineCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (t.id === "saMX") { $("saM").hidden = true; return; }
     if (t.dataset.rpclog) { openRpcLog(t.dataset.rpclog); return; }
-    if (t.dataset.rpcback) { openSys(); return; }
+    if (t.dataset.rpcback) { sysTab("status"); openSys(); return; }
     if (t.id === "flOn" || t.id === "flOff") {
       const uid = t.id === "flOn" ? $("flSel").value : "";
       if (t.id === "flOn" && !uid) { toast("Escolha a conta primeiro."); return; }
@@ -2737,7 +2737,7 @@
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
     tradershist: ["Traders copiados", "todo o histórico de cada trader que você copiou: ganhos, perdas e cada trade"], semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
-    tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], loggeral: ["Log geral", "registro de segurança da sua conta e, para o admin, de todas as contas e o log do servidor"],
+    tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], sistema: ["Status do sistema", "conexões, funil das transações e quanto cada serviço usou"], loggeral: ["Log geral", "registro de segurança da sua conta e, para o admin, de todas as contas e o log do servidor"],
 usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fica"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
@@ -2760,6 +2760,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
+    if (VIEW === "sistema") { sysTab(); openSys(); }
     if (VIEW === "usar") loadUsar(true);
     if (VIEW === "real") { walletLoad(true); loadMirror(); }
     if (VIEW === "novidades") loadNovidades();
@@ -3128,7 +3129,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       row(open("Viraram trade", "trade"), "", f(RP.parsed || 0, 0)) + row(open("Não eram trade", "nao_trade"), "", f(RP.not_trade || 0, 0)) +
       row(open("Atrasados (+2 min na fila)", "atrasado"), late >= 20 ? '<span class="down">' + late + "%</span>" : late + "%", f(RP.stale || 0, 0) + (RP.stale_hi ? " · das copiadas " + f(RP.stale_hi, 0) : "")) +
       row(open("Falhas de leitura", "falha"), (RP.tx_errors || 0) > (RP.parsed || 0) ? '<span class="down">mais falhas que trades</span>' : "", f(RP.tx_errors || 0, 0)) + (RP.dropped ? row("Fila cheia", "", f(RP.dropped, 0)) : "") + (RP.limited || RP.skipped_bot ? row("Pulados de propósito", "", f(RP.limited || 0, 0) + " acima de 6/min de carteira não copiada" + (RP.skipped_bot ? " · " + f(RP.skipped_bot, 0) + " de robôs não copiados" : "")) : "") + row("Reconexões", "", f(RP.reconnects || 0, 0)) +
-      "</tbody></table></div><p class=\"muted\" style=\"margin-top:8px\">Clique numa linha com › para ver as últimas 300 de cada tipo (motivo, carteira, transação).</p>" + useHtml();
+      "</tbody></table></div><p class=\"muted\" style=\"margin-top:8px\">Clique numa linha com › para ver as últimas 300 de cada tipo (motivo, carteira, transação).</p>";
   }
   // 0.32.185 (pedido do dono): quanto cada serviço usou em 1, 6, 12 e 24 h, desde o início e no mês (requisições, créditos do
   // Helius e mensagens das conexões ao vivo), com a % do limite grátis. Só admin (rota /api/admin/api-usage).
@@ -3137,27 +3138,31 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (!(ME && ME.role === "admin") || Date.now() - USE_AT < 20000) return;
     USE_AT = Date.now();
     try { USE = await BB.api("/api/admin/api-usage", { quiet: true }); } catch (e) { USE = { error: String(e) }; }
-    if (!$("sysM").hidden && !SYS_SUB && SYS_HTML) $("sysMB").innerHTML = SYS_HTML();
+    if (VIEW === "sistema" && $("sysUse")) $("sysUse").innerHTML = useHtml();
   }
   function useHtml() {
     if (!(ME && ME.role === "admin")) return "";
-    if (!USE) return '<h3 style="margin:16px 0 6px;font-size:13px">Uso de cada serviço</h3><p class="muted">carregando…</p>';
-    if (USE.error) return '<h3 style="margin:16px 0 6px;font-size:13px">Uso de cada serviço</h3><p class="down">' + esc(USE.error) + "</p>";
+    if (!USE) return '<p class="muted">carregando…</p>';
+    if (USE.error) return '<p class="down">' + esc(USE.error) + "</p>";
     const L = USE.janelas || [];
-    const cel = (x) => !x ? "–" : f(x.n, 0) + (x.pct != null ? ' <small class="' + (x.pct >= 80 ? "down" : "muted") + '">' + f(x.pct, x.pct < 1 ? 3 : 1) + "%</small>" : "");
+    // 0.32.187 (pedido do dono): o que passou do limite fica em vermelho; perto dele (80%+), em laranja
+    const tom = (p) => p == null ? "muted" : p >= 100 ? "usebad" : p >= 80 ? "usewarn" : "muted";
+    const cel = (x) => !x ? "–" : f(x.n, 0) + (x.pct != null ? ' <small class="' + tom(x.pct) + '">' + f(x.pct, x.pct < 1 ? 3 : 1) + "%</small>" : "");
+    const pior = (r) => Math.max(r.pct_mes || 0, ...["1", "6", "12", "24"].map((k) => (r.janelas[k] || {}).pct || 0));
     const lim = (r) => r.limite_mes ? f(r.limite_mes, 0) + (r.tipo === "créditos" ? " créditos" : "") + "/mês" : r.limite_min ? f(r.limite_min, 0) + "/min" : "sem limite publicado";
     const H = ["Serviço", "O quê", "1 h", "6 h", "12 h", "24 h", "Desde o início", "No mês", "Limite grátis"];
-    const rows = L.map((r) => ["<b>" + esc(r.api) + "</b>", esc(r.tipo) + (r.custo_sol ? ' <small class="muted">≈ ' + r.custo_sol["24"] + " SOL em 24 h</small>" : ""),
+    const rows = L.map((r) => ["<b>" + esc(r.api) + "</b>" + (pior(r) >= 100 ? ' <span class="tag loss">estourou</span>' : pior(r) >= 80 ? ' <span class="tag pause">perto do limite</span>' : ""), esc(r.tipo) + (r.custo_sol ? ' <small class="muted">≈ ' + r.custo_sol["24"] + " SOL em 24 h</small>" : ""),
       cel(r.janelas["1"]), cel(r.janelas["6"]), cel(r.janelas["12"]), cel(r.janelas["24"]), f(r.desde_inicio || 0, 0),
-      r.mes == null ? "–" : f(r.mes, 0) + (r.pct_mes != null ? ' <small class="muted">' + f(r.pct_mes, r.pct_mes < 1 ? 3 : 1) + "%</small>" : ""), lim(r)]);
-    return '<h3 style="margin:16px 0 6px;font-size:13px">Uso de cada serviço</h3>' +
+      r.mes == null ? "–" : (r.mes_minimo ? "≥ " : "") + f(r.mes, 0) + (r.pct_mes != null ? ' <small class="' + tom(r.pct_mes) + '">' + f(r.pct_mes, r.pct_mes < 1 ? 3 : 1) + "%</small>" : ""), lim(r), pior(r)]);
+    const bad = L.filter((r) => pior(r) >= 100).map((r) => r.api + " (" + r.tipo + ")");
+    return (bad.length ? '<div class="alert usealert"><b>Passou do limite grátis:</b> ' + esc(bad.join(" · ")) + ". Quando passa, o serviço pode recusar pedidos (erro 429 ou \"sem créditos\") até virar o mês ou até trocar de plano.</div>" : '<p class="up" style="margin:0 0 10px">Nenhum serviço passou do limite grátis.</p>') +
       '<div class="tbl-wrap"><table class="systbl usetbl"><thead><tr>' + H.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
-      (rows.length ? rows.map((r) => "<tr>" + r.map((c, i) => '<td data-l="' + H[i] + '">' + c + "</td>").join("") + "</tr>").join("") : '<tr><td colspan="9" class="empty">Nada contado ainda desde o início.</td></tr>') +
+      (rows.length ? rows.map((r) => '<tr class="' + (r[9] >= 100 ? "userow-bad" : r[9] >= 80 ? "userow-warn" : "") + '">' + r.slice(0, 9).map((c, i) => '<td data-l="' + H[i] + '">' + c + "</td>").join("") + "</tr>").join("") : '<tr><td colspan="9" class="empty">Nada contado ainda desde o início.</td></tr>') +
       "</tbody></table></div>" +
       '<p class="muted" style="margin-top:8px">A % ao lado de cada número: com limite por mês (Solana Tracker 10 mil consultas; Helius 1 milhão de créditos), é quanto do mês aquele período gastou; com limite por minuto, é o uso médio desse limite no período. ' +
       "Helius: a chamada comum gasta 1 crédito e a getProgramAccounts (contagem de detentores) gasta 10 (helius.dev/pricing, conferido em 04/11). " +
       "Mensagens do WebSocket não têm preço publicado, então aparecem só em quantidade. PumpPortal: as mensagens de trades das copiadas custam 0,01 SOL a cada 10 mil. " +
-      "Desde o início = desde a última atualização do sistema; No mês = guardado no banco.</p>";
+      "Desde o início = desde a última atualização do sistema; No mês = guardado no banco. Helius, créditos do mês com ≥: as requisições de antes de 04/11 não tinham os créditos separados, então conta pelo menos 1 por requisição.</p>";
   }
   const RPC_T = { falha: "Falhas de leitura", atrasado: "Atrasados (+2 min na fila)", nao_trade: "Não eram trade", trade: "Viraram trade" };
   const RPC_HELP = {
@@ -3168,6 +3173,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   let SYS_SUB = null;
   async function openRpcLog(tipo) {
     SYS_SUB = tipo;
+    if (SYT !== "status") sysTab("status");
     $("sysMT").textContent = RPC_T[tipo] || tipo;
     $("sysMB").innerHTML = '<p class="muted">' + BB.loader("Carregando o status do sistema") + "</p>";
     let r; try { r = await BB.api("/api/pump/monitor/leituras?tipo=" + encodeURIComponent(tipo)); } catch (e) { r = { error: String(e) }; }
@@ -3188,12 +3194,23 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     table("rlL", ["Hora", "Carteira", "Copiada", "Motivo", "Detalhe", "Transação"], r.linhas.map((x) => [tm(x.t), pfW(x.wallet), x.copiada ? "sim" : "não",
       '<span class="wrapcell">' + esc(x.motivo) + "</span>", '<span class="wrapcell">' + esc(x.extra || "") + "</span>", sol(x.sig)]), "Nada registrado ainda.");
   }
+  // 0.32.187 (pedido do dono): o status do sistema é uma página (#sistema) com duas abas, não mais um modal
+  let SYT = "status";
+  try { SYT = localStorage.getItem("pf_syt") || "status"; } catch (e) { /* */ }
+  function sysTab(t) {
+    if (t) { SYT = t; try { localStorage.setItem("pf_syt", t); } catch (e) { /* */ } }
+    const adm = !!(ME && ME.role === "admin");
+    if (!adm) SYT = "status";
+    document.querySelectorAll("#sysTabs [data-syt]").forEach((b) => { b.hidden = b.hasAttribute("data-adm") && !adm; b.classList.toggle("on", b.dataset.syt === SYT); });
+    document.querySelectorAll("[data-sytp]").forEach((p) => { p.hidden = p.dataset.sytp !== SYT; });
+    if (SYT === "uso") { if ($("sysUse") && !$("sysUse").innerHTML) $("sysUse").innerHTML = useHtml(); $("sysUS").textContent = "requisições, créditos e mensagens ao vivo · contando desde " + ((D && D.started_at) || "–"); USE_AT = 0; loadUse(); }
+  }
   function openSys() {
+    if (VIEW !== "sistema") { location.hash = "#sistema"; return; }
     if (!SYS_HTML) return;
     SYS_SUB = null; $("sysMT").textContent = "Status do sistema";
     $("sysMS").textContent = "contando desde " + ((D && D.started_at) || "–") + " · os números zeram a cada atualização do sistema";
     $("sysMB").innerHTML = SYS_HTML();
-    if ($("sysM").hidden) { $("sysM").hidden = false; $("sysMX").focus(); }
     loadUse();
   }
   function render() {
@@ -3224,7 +3241,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     $("sysS").innerHTML = (RP.ws ? (RP.subs || 0) + " carteiras · " : "") + (probs.length ? '<span class="down">' + probs.length + " com problema</span>" : '<span class="up">tudo ok</span>') + " · detalhes";
     $("sysBox").title = probs.length ? "Com problema: " + probs.join(", ") : "Tudo ok · clique para ver o status completo";
     SYS_HTML = () => sysDetail(D, RP, PPs, A, RL, up, perH, okb, ago);
-    if (!$("sysM").hidden && !SYS_SUB) openSys();
+    if (VIEW === "sistema" && !SYS_SUB) openSys();
     // controles de configuração (inputs, liga/desliga)
     document.querySelectorAll("[data-cfg]").forEach((el) => { if (document.activeElement !== el) el.value = (isAutoCfg(el.dataset.cfg) ? autoValue(el.dataset.cfg, c) : c[el.dataset.cfg]) ?? ""; });
     // 0.31.70 (pedido do dono): campo em HORAS para uma opção guardada em minutos (ex.: tempo máximo das automáticas)
