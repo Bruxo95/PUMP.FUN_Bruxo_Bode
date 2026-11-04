@@ -121,6 +121,12 @@ def add_routes(app, get_watch, admin_only, db, user=None, hub=None) -> None:
             value = clean_key(str((body or {}).get("value") or ""))
         except ValueError as e:
             return {"error": str(e)}
+        w = get_watch()
+        if w is not None:                                  # testa na rede antes de salvar (0.32.181)
+            from .bnbhist import check_key
+            bad = await check_key(w.http, value)
+            if bad:
+                return {"error": bad}
         try:
             await hub.set_system_key(u["id"], "nodereal_bnb_key", value)       # grava no audit_log (nome, nunca o valor)
         except Exception:

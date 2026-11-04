@@ -26,6 +26,8 @@ class _NR:
             return _Resp({"error": {"message": self.err + " " + url}})
         if m == "eth_blockNumber":
             return _Resp({"result": hex(10_000)})
+        if m == "eth_chainId":
+            return _Resp({"result": "0x38"})
         if m == "eth_getBlockByNumber":
             return _Resp({"result": {"timestamp": hex(int(1_700_000_000 + int(p[0], 16) * 0.45))}})
         if m == "eth_getLogs":
@@ -48,6 +50,8 @@ def test_clean_key_accepts_key_or_url():
     assert bnbhist.clean_key("https://bsc-mainnet.nodereal.io/v1/" + KEY + "/") == KEY
     with pytest.raises(ValueError):
         bnbhist.clean_key("curta")
+    with pytest.raises(ValueError):                  # endereço do painel da NodeReal (Greenfield testnet), não o da BNB
+        bnbhist.clean_key("https://open-platform.nodereal.io/8a189c1adc9d4f78b/greenfieldbilling-testnet/")
 
 
 def test_backfill_reads_old_curve_trades_finds_pair_and_never_copies():
@@ -107,3 +111,14 @@ def test_nodereal_key_lives_only_in_the_bnb_panel(env):
     assert "nodereal_bnb_key" not in c.get("/api/admin/keys", headers=tok(UA)).json()["keys"]          # fora do painel da Solana
     assert c.post("/api/pump/bnb/nodereal/remover", json={}, headers=tok(UA)).json()["configurada"] is False
     assert not hub.system_keys.get("nodereal_bnb_key")
+
+
+def test_check_key_needs_bsc_mainnet():
+    assert asyncio.run(bnbhist.check_key(_NR([]), KEY)) is None
+
+    class Test(_NR):
+        async def post(self, url, json=None, timeout=None):
+            return _Resp({"result": "0x61"})                                     # testnet
+    assert "não é da BNB Smart Chain" in asyncio.run(bnbhist.check_key(Test([]), KEY))
+    bad = asyncio.run(bnbhist.check_key(_NR([], err="invalid api key"), KEY))
+    assert "recusou" in bad and KEY not in bad

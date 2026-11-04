@@ -1660,6 +1660,11 @@
    "versao": "0.32.180",
    "inicio": "2026-11-04T06:30:17+00:00",
    "titulo": "chave da NodeReal no painel da BNB"
+  },
+  {
+   "versao": "0.32.181",
+   "inicio": "2026-11-04T06:37:50+00:00",
+   "titulo": "chave da NodeReal testada antes de salvar"
   }
  ]
 }

@@ -31,17 +31,37 @@ DAY_CALLS = 40_000           # limite próprio de consultas por dia
 MERGE_EVERY = 20_000         # junta na memória a cada N trades
 PAIRS_PER_CALL = 100
 PANCAKE_MAX = 200_000        # trava de espaço no banco: para a fase da PancakeSwap depois de tantos trades
-KEY_RE = re.compile(r"^[A-Za-z0-9_-]{16,80}$")
+KEY_RE = re.compile(r"^[A-Za-z0-9]{24,64}$")
+URL_RE = re.compile(r"^https://bsc-mainnet\.nodereal\.io/v1/([A-Za-z0-9]{24,64})/?$")
 
 
 def clean_key(value: str) -> str:
     """Aceita a chave ou o endereço inteiro (https://bsc-mainnet.nodereal.io/v1/<chave>)."""
     v = (value or "").strip()
     if v.startswith("http"):
-        v = v.rstrip("/").split("/")[-1]
+        m = URL_RE.match(v)
+        if not m:                                   # ex.: o endereço do painel (open-platform…/greenfieldbilling-testnet)
+            raise ValueError("esse endereço não é o da BNB Smart Chain: no painel da NodeReal escolha BNB Smart Chain → "
+                             "Mainnet e copie o endereço https://bsc-mainnet.nodereal.io/v1/… (ou só a API key)")
+        v = m.group(1)
     if not KEY_RE.match(v):
-        raise ValueError("chave da NodeReal inválida: cole a API key (ou o endereço https://bsc-mainnet.nodereal.io/v1/…)")
+        raise ValueError("chave da NodeReal inválida: cole a API key (só letras e números) ou o endereço "
+                         "https://bsc-mainnet.nodereal.io/v1/…")
     return v
+
+
+async def check_key(http, key: str) -> str | None:
+    """Testa a chave na rede antes de salvar: tem que responder e ser a BNB Smart Chain (chainId 56). None = ok."""
+    try:
+        r = await http.post(URL + key, json={"jsonrpc": "2.0", "id": 1, "method": "eth_chainId", "params": []}, timeout=10)
+        js = r.json()
+    except Exception as e:
+        return f"a NodeReal não respondeu ({type(e).__name__}); confira a chave e tente de novo"
+    if js.get("error"):
+        return "a NodeReal recusou a chave: " + str(js["error"].get("message") or js["error"])[:120].replace(key, "…")
+    if str(js.get("result") or "").lower() != "0x38":
+        return "a chave respondeu, mas não é da BNB Smart Chain mainnet (rede " + str(js.get("result"))[:12] + ")"
+    return None
 
 
 class HistError(Exception):
