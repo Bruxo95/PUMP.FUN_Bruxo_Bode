@@ -1780,6 +1780,11 @@
    "versao": "0.32.204",
    "inicio": "2026-11-04T21:27:39+00:00",
    "titulo": "Aba Copiados manualmente no Top traders"
+  },
+  {
+   "versao": "0.32.205",
+   "inicio": "2026-11-04T21:31:30+00:00",
+   "titulo": "REAL avisa quando difere da fictícia e aplica a config dela"
   }
  ]
 }

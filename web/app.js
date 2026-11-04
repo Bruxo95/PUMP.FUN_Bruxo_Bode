@@ -2548,6 +2548,7 @@
     if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
     if (t.dataset.bdadd) { bdAdd(t.dataset.bdadd); return; }
     if (t.dataset.bdundo) { bdUndo(t.dataset.bdundo); return; }
+    if (t.dataset.rsync) { if (t.dataset.rsync === "ver") openRealSync(); else applyRealSync(); return; }
     if (t.dataset.trt && t.closest("#trTabs")) { trTab(t.dataset.trt); return; }
     if (t.dataset.bdres) { bdAdd(t.dataset.bdres, true); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
@@ -3396,7 +3397,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "semanas") loadWk();
     if (VIEW === "tradershist") loadTH();
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
-    if (VIEW === "carteiras") { renderAllCfgCopy(); renderReal(); renderSimW(); }
+    if (VIEW === "carteiras") { renderAllCfgCopy(); renderReal(); renderSimW(); renderRealSync(); }
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
     else if (VIEW === "historico") { renderHistory(); renderErrs(); renderHMon(); renderFeed(); }
@@ -4574,6 +4575,41 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
 
   // 0.32.194 (pedido do dono): os mesmos quadrados da REAL na aba FICTÍCIA
+  // 0.32.205 (pedido do dono): a carteira REAL avisa quando está diferente da FICTÍCIA e aplica a configuração da fictícia
+  // num clique. Só as opções que existem nas duas com nomes diferentes; o resto (stops, alvos, filtros) já é o mesmo.
+  // Aplicar nunca liga a carteira REAL: só copia os valores.
+  const SIM2REAL = [["pump_copy_sol", "pump_real_max_sol", "SOL por compra", "n"], ["pump_max_open", "pump_real_max_open", "Posições ao mesmo tempo", "n"],
+    ["pump_copy_other", "pump_copy_other_real", "Copiar também fora da pump.fun", "b"]];
+  function realSyncDiff() {
+    const c = cfg(), fmt = (v, t) => t === "b" ? (v ? "Ligado" : "Desligado") : v == null ? "–" : String(v).replace(".", ",");
+    return SIM2REAL.map(([s, r, nm, t]) => { const a = c[s], b = c[r], same = t === "b" ? !!a === !!b : Number(a) === Number(b);
+      return { s, r, nm, t, a, b, same, fa: fmt(a, t), fb: fmt(b, t) }; });
+  }
+  function renderRealSync() {
+    const el = $("rSync"); if (!el || !D) return;
+    const L = realSyncDiff(), dif = L.filter((x) => !x.same);
+    el.className = "rsync " + (dif.length ? "diff" : "same");
+    el.innerHTML = '<div class="rs-t">' + (dif.length ? "<b>Sua configuração REAL está diferente da FICTÍCIA</b> em " + dif.length + (dif.length === 1 ? " opção: " : " opções: ") + dif.map((x) => esc(x.nm)).join(", ") + "."
+      : "<b>Sua configuração REAL está igual à FICTÍCIA.</b> Stops, alvos e filtros são os mesmos nas duas (Valem para as duas).") + "</div>" +
+      '<div class="rs-b">' + (dif.length ? '<button class="btn sm" data-rsync="ver">Ver o que está diferente</button>' : "") +
+      '<button class="btn sm' + (dif.length ? " primary" : "") + '" data-rsync="aplicar"' + (dif.length ? "" : " disabled") + ">Aplicar a configuração da fictícia</button></div>";
+  }
+  function openRealSync() {
+    const L = realSyncDiff();
+    $("jtMT").textContent = "REAL × FICTÍCIA"; $("jtMS").textContent = L.filter((x) => !x.same).length + " de " + L.length + " opções diferentes";
+    $("jtMB").innerHTML = '<div class="tbl-wrap"><table id="rsT" class="daytbl"></table></div><p class="muted small" style="margin:10px 0 0">Stops, alvos, filtros e o resto das regras ficam em Valem para as duas: já são os mesmos nas duas carteiras. Aplicar copia só os valores da FICTÍCIA para a REAL; não liga a carteira REAL.</p>' +
+      '<div class="row" style="margin-top:12px"><button class="btn sm primary" data-rsync="aplicar">Aplicar a configuração da fictícia</button></div>';
+    table("rsT", ["Opção", "FICTÍCIA", "REAL (agora)", ""], L.map((x) => [esc(x.nm), esc(x.fa), esc(x.fb), x.same ? '<span class="tag win">igual</span>' : '<span class="tag pause">diferente</span>']), "–");
+    $("jtM").hidden = false;
+  }
+  async function applyRealSync() {
+    const dif = realSyncDiff().filter((x) => !x.same); if (!dif.length) return;
+    if (!confirm("Aplicar na carteira REAL os valores da FICTÍCIA?\n\n" + dif.map((x) => x.nm + ": " + x.fb + " → " + x.fa).join("\n") +
+      "\n\nA carteira REAL continua como está (ligada ou desligada).")) return;
+    const body = {}; dif.forEach((x) => { body[x.r] = x.t === "b" ? !!x.a : x.a; });
+    await setCfg(body);
+    if (!$("jtM").hidden && $("jtMT").textContent === "REAL × FICTÍCIA") $("jtM").hidden = true;
+  }
   function renderSimW() {
     const c = cfg(), w = (D && D.wallet) || {}, p = (D && D.sol_usd) || 0, cash = +w.cash_sol || 0, sol = +c.pump_copy_sol || 0;
     const on = c.pump_sim_on !== false, sb = $("simB");

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-04",
     "timezone": "Europe/Dublin",
-    "repository_reference": "06d4fff759adf1afa487a3f2c2ce052033d3df8d",
-    "application_version": "0.32.204 · 2026-11-04 · Aba Copiados manualmente no Top traders",
+    "repository_reference": "7c8f1e41b84af023bee079bf80be1d392d01973e",
+    "application_version": "0.32.205 · 2026-11-04 · REAL avisa quando difere da fictícia e aplica a config dela",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "1ecff65d2f5be5890c1a90faedc1185969405ac7ffa6313e375c744b61e59703",
+      "app/version.py": "133751e80337a41ea01277539d89a859f07ab6c57130b3f3f0a501953c928529",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "6ca8476c70252e9dc95c040377accb7a5584fed1d8020d83c53fd5ad64b4ca56",
+      "web/app.html": "40374ef5787758aba0f0c7e38e8e129803289c62fda4094e5af71ed66252e22b",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "9d01df3cd8fcb29cd1bf0122b500769e32f1d3e27df92033c27fb90c9db8ea10"
+  "pdf_sha256": "f2e891bd6f04adb31a8309eb87e1ea0261f0252ce1775775f03419325d11b8b6"
 }
