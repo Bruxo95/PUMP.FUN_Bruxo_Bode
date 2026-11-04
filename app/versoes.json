@@ -1675,6 +1675,11 @@
    "versao": "0.32.183",
    "inicio": "2026-11-04T13:58:25+00:00",
    "titulo": "monitor da BNB não para mais com a PancakeSwap"
+  },
+  {
+   "versao": "0.32.184",
+   "inicio": "2026-11-04T14:17:58+00:00",
+   "titulo": "Configurações em abas, menu Log geral e Usar ou descartar em quadrados"
   }
  ]
 }

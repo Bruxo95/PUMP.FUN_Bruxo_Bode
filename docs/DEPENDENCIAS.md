@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-04**; revisão documental **2.0**.
-Aplicação: **0.32.183 · 2026-11-04 · monitor da BNB não para mais com a PancakeSwap**.
-Referência Git na emissão: `70f28bbdca4207b65575ff70f6d7c15cdea6486c`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.184 · 2026-11-04 · Configurações em abas, menu Log geral e Usar ou descartar em quadrados**.
+Referência Git na emissão: `0fe243b03941df6c3f542d5d0313ea024919d963`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

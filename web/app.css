@@ -956,3 +956,14 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 
 /* 0.32.174: erro longo sem espaço (ex.: resposta do RPC) quebra dentro do cartão */
 .pc-err,.pc-why,.pc-list li{overflow-wrap:anywhere}
+
+/* 0.32.184 (pedido do dono): abas de Configurações e do Log geral; página de quadrados do Usar ou descartar */
+.ctabs{display:flex;flex-wrap:wrap;margin-bottom:14px;max-width:100%}.ctabs button{height:32px;padding:0 14px}
+.ctoff{display:none!important}
+.usgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.uscard{display:flex;flex-direction:column;gap:6px;min-height:150px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text);text-decoration:none}
+.uscard:hover{border-color:var(--sim)}.uscard b{font-size:15px}.uscard small{color:var(--muted);font-size:12.5px;line-height:1.4;flex:1}
+.uscard i{font-style:normal;color:var(--sim);font-weight:600;font-size:12.5px}.usic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(154,164,255,.12);color:var(--sim)}
+.usic svg{width:20px;height:20px}
+@media (max-width:860px){.usgrid{grid-template-columns:1fr 1fr}.uscard{min-height:130px;padding:12px}}
+@media (max-width:420px){.usgrid{grid-template-columns:1fr}}

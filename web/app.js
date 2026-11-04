@@ -514,7 +514,7 @@
   // todas as telas. Em Configurações vira um quadro editável (os botões e campos são os mesmos data-toggle/data-cfg, então
   // salvar aqui é salvar lá); na Visão geral vira um resumo só de leitura, junto com "está copiando alguém?".
   let ALLCFG = null;
-  const ADMIN_VIEWS = ["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo", "jev", "jevtrade"];
+  const ADMIN_VIEWS = ["usar", "admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo", "jev", "jevtrade"];
   function cfgItems() {
     if (ALLCFG) return ALLCFG;
     const out = [], seen = new Set(), adm = !!(ME && ME.role === "admin");
@@ -2441,6 +2441,7 @@
       $("cfShU").innerHTML = us.length ? us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "") + (u.admin ? " · admin" : "")) + "</option>").join("")
         : '<option value="">Nenhum outro usuário cadastrado</option>';
       $("cfShGo").disabled = !us.length; $("cfShare").hidden = false;
+      if (VIEW === "config") cfgTab("share");          // 0.32.184: o painel fica na aba Compartilhar
       $("cfShare").scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -2506,6 +2507,8 @@
     if (t.dataset.copydiff) { openCopyDiff(t.dataset.copydiff); return; }
     if (t.id === "apiURef") { loadApiUsage(); return; }
     if (t.id === "cdRef") { loadCopyDiag(); return; }
+    if (t.dataset.ct && t.closest("#cfgTabs")) { cfgTab(t.dataset.ct); return; }
+    if (t.dataset.lg && t.closest("#lgTabs")) { lgTab(t.dataset.lg); return; }
     if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
     if (t.dataset.bdadd) { bdAdd(t.dataset.bdadd); return; }
     if (t.dataset.bdres) { BB.api("/api/pump/wallets", { body: { wallet: t.dataset.bdres, action: "resume" } }).then(() => { toast("Trader retomado na sua conta"); poll(true).then(loadBuyDiff); }); return; }
@@ -2733,26 +2736,29 @@
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
     tradershist: ["Traders copiados", "todo o histórico de cada trader que você copiou: ganhos, perdas e cada trade"], semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"], feed: ["Feed ao vivo", "cada movimento dos traders copiados"], real: ["Execução real", "carteira de verdade · começa desligada"],
-    tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], admin: ["Administração", "usuários, sistema e logs"],
+    tradercfg: ["Configuração do Trader", "compra, stops, alvos e segurança das cópias, fictícia e real"], config: ["Configurações", "regras de cópia, proteções e chaves"], loggeral: ["Log geral", "registro de segurança da sua conta e, para o admin, de todas as contas e o log do servidor"],
+usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fica"], admin: ["Administração", "usuários, sistema e logs"],
     novidades: ["Changelog", "o que foi implementado, onde fica e o que faz"], comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
   let VIEW = "visao";
   function route() {
     const v = (location.hash || "#visao").slice(1);
     VIEW = TITLES[v] ? v : "visao";
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
-    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "abas", "logs", "calls", "bruxo"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
+    if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "abas", "logs", "calls", "bruxo", "usar"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
     document.querySelectorAll("#tabbar [data-tv]").forEach((a) => a.classList.toggle("on", a.dataset.tv === VIEW));
     if ($("tbMenu")) $("tbMenu").classList.toggle("on", !["visao", "traders", "posicoes", "historico"].includes(VIEW));
-    if (document.querySelector("#navSub a.on")) { $("navGrp").classList.remove("fechado"); $("navGrpH").setAttribute("aria-expanded", "true"); }
+    // 0.32.184: as telas do Usar ou descartar acendem o link dele no menu
+    if (USAR_V.includes(VIEW) && $("navGrp")) $("navGrp").classList.add("on");
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadAudit(); loadApplied(); loadConfigUsers(); }
-    if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); loadAAudit(); LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
+    if (VIEW === "config") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); }
+    if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
+    if (VIEW === "loggeral") lgTab();
     if (VIEW === "real") { walletLoad(true); loadMirror(); }
     if (VIEW === "novidades") loadNovidades();
     if (VIEW === "relatorios") loadReports();
@@ -3160,6 +3166,7 @@
   }
   function render() {
     if (!D) return;
+    if (VIEW === "config") cfgTab();                  // 0.32.184: a aba aparece quando o cartão dela aparece
     const fh = $("feeHint"); if (fh) fh.hidden = !!cfg().pump_swap_fee_official;
     const c = cfg(), R = D.real || {}, RP = D.rpc || {};
     const rm = realMode();
@@ -4528,6 +4535,30 @@
       '<div class="row"><input class="in" type="password" autocomplete="new-password" spellcheck="false" data-syskey="' + k + '" placeholder="' + (v.configured ? "colar nova para trocar" : "colar aqui") + '">' +
       btn("Salvar", "syskey-save", { k: k }, "primary") + (v.configured ? btn("Remover", "syskey-del", { k: k }, "tgl off") : "") + "</div></div>").join("");
   }
+  // 0.32.184 (pedido do dono): Configurações em abas e menu Log geral (registro de segurança e logs do servidor saíram de
+  // Configurações e da Administração). A aba escolhida fica neste navegador.
+  const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas"];
+  let CFT = "copia", LGT = "conta";
+  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; } catch (e) { /* */ }
+  function cfgTab(t) {
+    if (t) { CFT = t; try { localStorage.setItem("pf_cfgtab", t); } catch (e) { /* */ } }
+    const sec = document.querySelector('section[data-view="config"]'); if (!sec) return;
+    const vis = (k) => [...sec.querySelectorAll('.card[data-ct="' + k + '"]')].some((c) => !c.hidden);
+    document.querySelectorAll("#cfgTabs [data-ct]").forEach((b) => { b.hidden = !vis(b.dataset.ct); });
+    if (!vis(CFT)) CFT = "copia";
+    document.querySelectorAll("#cfgTabs [data-ct]").forEach((b) => b.classList.toggle("on", b.dataset.ct === CFT));
+    sec.querySelectorAll('.card[data-ct]').forEach((c) => c.classList.toggle("ctoff", c.dataset.ct !== CFT));
+  }
+  function lgTab(t) {
+    if (t) { LGT = t; try { localStorage.setItem("pf_lgtab", t); } catch (e) { /* */ } }
+    const adm = !!(ME && ME.role === "admin");
+    if (!adm) LGT = "conta";
+    document.querySelectorAll("#lgTabs [data-lg]").forEach((b) => { b.hidden = b.hasAttribute("data-adm") && !adm; b.classList.toggle("on", b.dataset.lg === LGT); });
+    document.querySelectorAll("[data-lgp]").forEach((p) => { p.hidden = p.dataset.lgp !== LGT; });
+    if (LGT === "conta") loadAudit();
+    if (LGT === "contas") { if (!$("aAudUser").options.length || $("aAudUser").options.length < 2) loadUsers(); loadAAudit(); }
+    if (LGT === "srv") { LOG_AFTER = 0; $("logs").innerHTML = ""; loadLogs(); }
+  }
   async function loadAudit() {
     const L = await BB.api("/api/audit"); if (!Array.isArray(L)) return;
     table("tAudit", ["Quando", "Ação", "Detalhe"], L.map((a) => [dt(a.at), esc(a.acao), '<span style="white-space:normal">' + esc(a.detalhe || "") + "</span>"]), "Nenhuma ação registrada ainda.");
@@ -4719,7 +4750,7 @@
       return;
     }
     if (a === "u-trades") return openUserTrades(t.dataset.uid, "win");
-    if (a === "u-audit") { $("aAudUser").value = t.dataset.uid; loadAAudit(); $("tAAudit").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    if (a === "u-audit") { $("aAudUser").value = t.dataset.uid; LGT = "contas"; location.hash = "#loggeral"; return; }
     if (a === "addw") return wallet("add", $("addW").value);
     if (a === "close") {
       const fr = +(t.dataset.frac || 1), pct = Math.round(fr * 100), real = t.dataset.real === "1";
@@ -4866,9 +4897,6 @@
       if (e.key === "Escape") ckClose(); else if (e.key === "ArrowDown") { CKI = Math.min(CK.length - 1, CKI + 1); ckDraw(); e.preventDefault(); } else if (e.key === "ArrowUp") { CKI = Math.max(0, CKI - 1); ckDraw(); e.preventDefault(); } else if (e.key === "Enter") ckGo(CKI);
     });
   // menu "Usar ou descartar" (0.17.2): agrupa o que é novo e ainda em teste; abre/fecha e lembra a escolha
-  const grpOpen = (on) => { $("navGrp").classList.toggle("fechado", !on); $("navGrpH").setAttribute("aria-expanded", on ? "true" : "false"); };
-  try { grpOpen(localStorage.getItem("pf_menu_grp") !== "0"); } catch (e) { /* */ }
-  $("navGrpH").addEventListener("click", () => { const on = $("navGrp").classList.contains("fechado"); grpOpen(on); try { localStorage.setItem("pf_menu_grp", on ? "1" : "0"); } catch (e) { /* */ } });
     $("addW").onkeydown = (e) => { if (e.key === "Enter") wallet("add", $("addW").value); };
     window.addEventListener("hashchange", route);
     window.addEventListener("resize", () => { if (VIEW === "visao" && D) renderOverview(); });
@@ -4881,7 +4909,7 @@
     setInterval(loadOffers, 30000);
     setInterval(() => poll(false), 2000);
     setInterval(() => walletLoad(false), 20000);
-    setInterval(() => { if (VIEW === "admin" && LOG_LIVE) loadLogs(); }, 4000);
+    setInterval(() => { if (VIEW === "loggeral" && LGT === "srv" && LOG_LIVE) loadLogs(); }, 4000);
     setInterval(() => { if (VIEW === "admin") { loadUsers(); loadAdmin(); } }, 30000);
   }
   boot();
