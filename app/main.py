@@ -45,6 +45,11 @@ def build_app():
         hub.bnb.vault = hub.vault                     # 0.32.172: chave da carteira BNB (cofre criptografado)
         hub.bnb.real_allowed = hub.real_allowed       # mesma trava geral da Solana (PUMP_REAL_ALLOWED)
         hub.bnb.key_fn = lambda: (getattr(hub, "system_keys", None) or {}).get("nodereal_bnb_key", "")   # 0.32.179
+    # 0.32.208: leitura da Robinhood Chain, isolada: laço próprio, RPC grátis próprio e tabela hood_state; HOOD_ON=false desliga
+    hub.hood = None
+    if os.environ.get("HOOD_ON", "true").lower() not in ("0", "false", "no", "off"):
+        from .hood import HoodWatch
+        hub.hood = HoodWatch(http, db)
     auth = Auth(cfg.supabase_url, cfg.supabase_anon_key, http, cfg.supabase_jwt_secret)
     app = create_app(hub, auth, cfg)
 
@@ -57,7 +62,10 @@ def build_app():
         boot = run_as("Subida do servidor", hub.boot())
         from .apiusage import run_as
         bnb = run_as("BNB (Four.Meme)", hub.bnb.run()) if hub.bnb is not None else None
+        hood = run_as("Robinhood Chain", hub.hood.run()) if hub.hood is not None else None
         yield
+        if hood is not None:
+            hood.cancel()
         boot.cancel()
         if bnb is not None:
             bnb.cancel()

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Robinhood Chain — PUMP FUN COPY</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FUN COPY">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/fun-copy-180.png?v=__V__">
+<link rel="manifest" href="/static/manifest.json?v=__V__">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/fun-copy-192.png?v=__V__">
+<link rel="stylesheet" href="/static/app.css?v=__V__">
+<style>
+  /* 0.32.208: painel da Robinhood Chain no mesmo padrão do painel da pump.fun (app.css), com um verde-limão no destaque */
+  .hdmark{width:28px;height:28px;flex:0 0 28px}
+  .side-top .logo{gap:9px}
+  .nav a.on{box-shadow:inset 2px 0 0 #c3f53c}
+  .hdnote{border:1px dashed #c3f53c;border-radius:12px;padding:14px 16px;color:var(--muted);margin-bottom:16px}
+  .hdnote b{color:var(--text)}
+  .hubbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}.hubbtn svg{width:14px;height:14px}
+  @media (max-width:860px){.hubbtn span{display:none}}
+  .hdsub{margin-bottom:14px}
+  .hdaddr{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="loading" id="boot" data-ll="Carregando">Carregando…</div>
+<div class="shell" id="shell" hidden>
+  <aside class="side" id="side">
+    <div class="side-top">
+      <a class="logo" href="#visao"><svg class="hdmark" viewBox="0 0 126 126" aria-hidden="true"><path d="M63 12l44 25v52l-44 25-44-25V37z" fill="none" stroke="#c3f53c" stroke-width="9" stroke-linejoin="round"/><path d="M63 40l20 11.5v23L63 86 43 74.5v-23z" fill="#c3f53c"/></svg>ROBINHOOD</a>
+    </div>
+    <div class="lbl">Painel</div>
+    <nav class="nav" id="nav">
+      <a href="#visao" data-v="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>Visão geral</a>
+      <a href="#traders" data-v="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Top traders</a>
+    </nav>
+    <div class="sp"></div>
+    <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver a leitura da rede"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
+    <div class="ver" id="ver"></div>
+  </aside>
+  <nav class="tabbar" id="tabbar" aria-label="Atalhos">
+    <a href="#visao" data-tv="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Início</span></a>
+    <a href="#traders" data-tv="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Traders</span></a>
+    <button type="button" id="tbMenu" aria-label="Abrir o menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+  </nav>
+  <div class="scrim" id="scrim"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-left">
+        <button class="burger" id="burger" aria-label="Abrir menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div style="min-width:0"><h1 id="pgTitle">Visão geral</h1><div class="sub" id="pgSub"></div></div>
+      </div>
+      <div class="tb-right">
+        <span class="netload" id="netLoad" hidden aria-live="polite"></span>
+        <a class="btn sm hubbtn" href="/entrar" title="Escolher outra rede"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-3-3M17 17H4l3 3"/></svg><span>Trocar rede</span></a>
+        <button class="btn sm" id="hdOut" type="button">Sair</button>
+      </div>
+    </header>
+    <main class="page">
+      <div class="hdnote"><b>Etapa 1 · só leitura.</b> Este painel lê as compras e vendas de memecoins da Robinhood Chain (pools da Uniswap V4, pagos em ETH, WETH ou USDG) e monta o ranking dos traders pela regra do Top traders. <b>Não compra nem vende nada.</b> É separado da pump.fun e da BNB.</div>
+      <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
+        <header><div><h2 id="sysMT">Monitor da Robinhood Chain</h2><div class="sub">leitura da rede pelo RPC grátis oficial</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
+        <div id="sysMB"></div></div></div>
+      <section class="view" data-view="visao" hidden>
+        <div class="kpis" id="ovK"></div>
+        <div class="grid2e vgtop" style="margin-top:16px">
+          <div class="card"><header><div><h2>Tokens mais negociados</h2><div class="sub">na última hora · compras e vendas vistas</div></div></header>
+            <div class="tbl-wrap"><table id="ovTk"></table></div></div>
+          <div class="card"><header><div><h2>Trades ao vivo</h2><div class="sub">os últimos vistos na rede · mais novos primeiro</div></div></header>
+            <div class="tbl-wrap tall"><table id="ovTr"></table></div></div>
+        </div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Status da leitura</h2><div class="sub">o que o robô está lendo e o que fica de fora</div></div></header>
+          <div class="decbox" id="ovSt"></div>
+          <div class="help"><p><b>Como lê:</b> toda troca da Uniswap V4 da rede passa pelo mesmo contrato (o PoolManager). O robô lê essas trocas e as transferências de token da mesma transação: o memecoin é o token que entra ou sai do pool (que não é WETH nem USDG), e o trader é quem recebe ou envia esse token. Transações que passam por vários pools de uma vez ainda ficam de fora.</p>
+          <p><b>Memória:</b> nesta etapa o ranking usa as últimas 24 h, guardadas só na memória do servidor (a rede tem mais de 100 vezes o volume da Four.Meme). Depois de uma atualização do sistema, o robô relê até 30 min direto da rede; o ranking volta a encher com as horas.</p></div></div>
+      </section>
+      <section class="view" data-view="traders" hidden>
+        <div class="seg hdsub" id="trTab"><button data-trt="rank">Ranking</button><button data-trt="aj">Regra do ranking</button></div>
+        <div id="trRank">
+          <div class="card"><header><div><h2>Copiaria agora</h2><div class="sub" id="hdSelSub">os melhores aptos que negociaram nos últimos minutos, pela mesma regra do Top traders · só leitura, nada é copiado</div></div></header>
+            <div class="tbl-wrap"><table id="hdSel"></table></div></div>
+          <div class="card"><header><div><h2>Ranking dos traders</h2><div class="sub" id="hdRkSub">os 50 que mais lucraram nas últimas 24 h</div></div></header>
+            <div class="tbl-wrap"><table id="hdRk"></table></div>
+            <div class="help"><p><b>Como escolhe (igual ao Top traders):</b> pega os 50 que mais lucraram nas últimas 24 h (lucro realizado, em ETH). Apto = trades mínimos no período, acerto acima do mínimo (tokens vendidos com lucro), carteira com saldo mínimo (ETH, WETH e USDG) e não ser robô. Copiaria os mais bem colocados entre os aptos que negociaram nos últimos minutos.</p></div></div>
+        </div>
+        <div id="trAj" hidden>
+          <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">quem entra na lista · vale para todos os admins</div></div></header>
+            <div class="form" id="hdCfg"></div>
+            <div class="row" style="margin-top:10px"><button class="btn primary" id="hdSave">Salvar regra</button><button class="btn sm" id="hdReset">Voltar ao padrão</button></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="/static/common.js?v=__V__"></script>
+<script src="/static/hood.js?v=__V__"></script>
+</body>
+</html>

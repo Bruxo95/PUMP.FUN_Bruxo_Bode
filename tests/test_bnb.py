@@ -195,7 +195,7 @@ def test_bnb_has_own_page_and_is_out_of_the_pump_panel(env):
     """0.32.169 (pedido do dono): depois do login o admin escolhe o projeto; a BNB não fica dentro do painel da pump.fun."""
     c = env["c"]
     app_html = c.get("/app").text
-    assert 'data-view="bnb"' not in app_html and "bnb.js" not in app_html and 'id="menuHub" href="/bnb"' in app_html
+    assert 'data-view="bnb"' not in app_html and "bnb.js" not in app_html and 'id="menuHub" href="/entrar"' in app_html
     hub = c.get("/entrar")
     assert hub.status_code == 200 and 'href="/app"' in hub.text and 'href="/bnb"' in hub.text and "entrar.js" in hub.text
     page = c.get("/bnb")

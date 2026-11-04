@@ -45,6 +45,9 @@ SEM_ORIGEM = "Telas do painel (cliques)"
 # não entra no uso do PUMP FUN COPY, e as linhas só dele (RPC da BNB, NodeReal, GoPlus) não aparecem.
 BNB_ORIGEM = "BNB (Four.Meme)"
 BNB_APIS = {"RPC da BNB (publicnode)", "RPC da BNB (blockrazor)", "NodeReal (BNB)", "GoPlus (segurança BNB)"}
+# 0.32.208: a Robinhood Chain também é outro projeto: o que o laço dela pede não entra no uso do PUMP FUN COPY
+HOOD_ORIGEM = "Robinhood Chain"
+OUTROS = frozenset({BNB_ORIGEM, HOOD_ORIGEM})
 
 
 def run_as(nome: str, coro):
@@ -102,7 +105,7 @@ class Usage:
         self.ototal: dict[tuple, int] = {}
 
     def _tick(self, api: str, tipo: str, n: int, now: float) -> None:
-        if ORIGIN.get() == BNB_ORIGEM:
+        if ORIGIN.get() in OUTROS:
             return
         k = (api, tipo)
         b = self.win.setdefault(k, {})
@@ -129,7 +132,7 @@ class Usage:
 
     def count(self, host: str, key: str | None = None, now: float | None = None, body=None) -> None:
         api = classify(host)
-        if api is None or ORIGIN.get() == BNB_ORIGEM:
+        if api is None or ORIGIN.get() in OUTROS:
             return
         now = time.time() if now is None else now
         self._tick(api, "requisições", 1, now)
@@ -249,7 +252,7 @@ class Usage:
         m_now = int(now // 60)
         g: dict[str, list] = {}
         for (o, api, tipo), b in self.owin.items():
-            if o == BNB_ORIGEM or api in BNB_APIS:
+            if o in OUTROS or api in BNB_APIS:
                 continue
             per = {str(h): sum(v for k, v in b.items() if k > m_now - h * 60) for h in H_WIN}
             g.setdefault(o, []).append({"api": api, "tipo": tipo, "janelas": per, "desde_inicio": self.ototal.get((o, api, tipo), 0)})

@@ -1609,3 +1609,18 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.205 (pedido do dono): `#rSync` na REAL (`SIM2REAL`, `realSyncDiff`, `renderRealSync`, `openRealSync` no `#jtM`, `applyRealSync` via `setCfg`; `data-rsync`). Opção nova que exista nas duas carteiras com nomes diferentes = linha em `SIM2REAL`. Aplicar nunca mexe em `pump_real_enabled`.
 - 0.32.206 (pedido do dono): `hub.real_from_sim` + `POST /api/pump/config/real-da-ficticia` (origem `cfghist.REAL_DA_FICTICIA`, mapa `cfghist.SIM2REAL`) e `hub.real_from_sim_undo` + `/real-da-ficticia/desfazer` (só `cfghist.VOLTA_REAL` e só versão dessa origem). O Voltar geral continua sem mexer na REAL. Tela: `rsUndo`, `data-rsundo`, filtro `#chF` (`CHF`, `CHF_KEYS`). `tests/test_config_hist.py`.
 - 0.32.207 (caso ZEC do dono): `PumpFun._px_ok` (`PX_JUMP_X`=20, `PX_HOLD_S`=180; `tk[px_hold]`, `tk[px_jumps]`) no `ingest`, em `_fetch_prices` (DexScreener) e em `_pumpswap_prices` (Jupiter); a curva não passa. `_ev_px`: a cópia usa o último preço confiável quando o do trade foi recusado. Fonte nova de preço = chamar `_px_ok` antes de gravar `tk[price]`. Relatório `app/relatorios_ia/2026-11-04-0.32.207.md`. `tests/test_trava_preco.py`.
+
+## Robinhood Chain, etapa 1 só leitura (2026-11-04, versão 0.32.208)
+- Pedido do dono: mais um projeto como a BNB, **tudo isolado** (módulo, rota, página, tabela e configuração próprios; nada do motor da
+  Solana nem da BNB). **Regra: tela, chave ou opção da Robinhood vai no painel `/hood`, nunca no `/app` nem no `/bnb`.** `app/hood.py`
+  (`decode`, `legs_of`, `rank`, `clean_cfg`, `HoodWatch`), `app/hood_api.py` (`GET /api/hood`, `POST /api/hood/cfg`, só admin, audit),
+  `web/hood.html` + `hood.js` (Visão geral, Top traders com Ranking | Regra, monitor), cartão ROBINHOOD em `/entrar`. `HOOD_ON=false` desliga.
+  O botão Trocar rede do `/app` (`#menuHub`) e do `/bnb` abre `/entrar`. O uso das APIs dela fica fora deste projeto (`apiusage.OUTROS`).
+- Conferido na rede em 04/11: chain id 4663, RPC grátis oficial `rpc.mainnet.chain.robinhood.com` (precisa de User-Agent; o urllib padrão
+  leva 403), ~10 blocos/s, memecoins quase todos na Uniswap V4 (PoolManager `0x8366…0951`, ~470 trocas/min, ~3 pools novos/min). WETH
+  `0x0bd7…ad73` (18 casas), USDG `0x5fc5…d168` (6). O Blockscout fica atrás da Cloudflare. Os nomes dos launchpads (hood.fun, Clanker…) não
+  foram confirmados. Trader e memecoin saem das transferências da mesma transação (o Swap da V4 só tem o roteador); rota com várias trocas
+  fica de fora (~28%). Amostra de 2 min: 1.343 trocas → 754 trades, 387 carteiras.
+- O RPC grátis devolve 429 pelo tamanho das respostas: janelas de 300 blocos, 3 eth_getLogs por janela com 1 s entre eles, pausa de 60 s
+  depois de um 429. Trades só na memória (24 h; o volume pesaria no banco); banco só `hood_state` (cursor e regra; migração
+  `20261104000005`); depois de reiniciar relê até 30 min. Próximo: etapa 2 = cópia FICTÍCIA em ETH com checagem de token golpe; REAL só com OK do dono.

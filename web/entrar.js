@@ -1,4 +1,5 @@
-/* 0.32.169 (pedido do dono, 03/11): depois do login o admin escolhe o projeto. PUMP FUN (Solana) e BNB · Four.Meme
+/* 0.32.208: a Robinhood Chain (/hood) é o terceiro projeto, também separado.
+   0.32.169 (pedido do dono, 03/11): depois do login o admin escolhe o projeto. PUMP FUN (Solana) e BNB · Four.Meme
    ficam em páginas separadas (/app e /bnb), sem misturar. Usuário comum vai direto ao painel da pump.fun. */
 (function () {
   "use strict";
