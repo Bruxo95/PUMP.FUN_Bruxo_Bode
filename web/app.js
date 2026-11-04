@@ -4226,6 +4226,27 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (a.status === "sem atividade" && last) { const s = (Date.now() - last) / 1000; return (s < 600 ? ST.online : s < 86400 ? ST.inativo : ST["sem atividade"]) + "<small>último trade há " + hms(s) + "</small>"; }
     return (ST[a.status] || "–") + (a.bot_reason ? "<small>" + esc(a.bot_reason) + "</small>" : a.last ? "<small>tx há " + agoT(a.last) + (a.pump_last ? " · pump há " + agoT(a.pump_last) : "") + "</small>" : "");
   }
+  // 0.32.204 (pedido do dono): aba "Copiados manualmente" = toda a lista manual da conta, com a origem de cada carteira
+  function renderManual() {
+    if (!$("tMan")) return;
+    const M = ((D && D.manual) || []).map(String), A = bdAddedGet(), names = D.wallet_names || {};
+    const fol = {}; (D.followed || []).forEach((r) => { fol[r.wallet] = r; });
+    const pau = {}; (D.paused || []).forEach((r) => { pau[r.wallet] = r; });
+    const n = { on: 0, off: 0, p: 0 };
+    const rows = M.map((w) => {
+      const r = fol[w] || {}, a = r.act || {}, p = pau[w], cp = r.copied, lbn = (r.lb || {}).name || names[w];
+      const orig = A[w] ? '<span class="tag neutral">de ' + esc(A[w].de) + "</span><small>Copiar também · " + dt(A[w].t) + "</small>"
+        : r.ia_sim ? '<span class="tag pause">IA · estudo</span><small>só fictícia</small>' : '<span class="tag neutral">você</span>';
+      const on = a.status === "online";
+      const st = p ? '<span class="tag pause">⏸ Pausado</span><small>' + esc(p.reason || "") + "</small>" : on ? '<span class="tag win">Copiando · ativo</span>' : '<span class="tag neutral">Copiando · inativo</span>';
+      if (p) n.p++; else if (on) n.on++; else n.off++;
+      return [pfW(w, r) + (lbn ? "<small>" + esc(lbn) + "</small>" : ""), orig, st, a.last ? "há " + agoT(a.last) : '<span class="dim">nenhuma desde a conexão</span>',
+        cp ? sg(cp.pnl_sol) + "<small>" + cp.n + " trades</small>" : '<span class="dim">–</span>',
+        (p ? btn("Retomar", "w", { a: "resume", w: w }, "tgl on") : btn("Pausar", "w", { a: "pause", w: w })) + " " + btn("Tirar", "w", { a: "remove", w: w })];
+    });
+    $("manSub").textContent = M.length + " carteiras · " + n.on + " ativas agora · " + n.off + " inativas · " + n.p + " pausadas";
+    table("tMan", ["Carteira", "Origem", "Situação", "Última transação", "Copiado", "Ações"], rows, "Nenhuma carteira na sua lista manual. Cole o endereço acima e clique em Adicionar carteira.");
+  }
   let LBOFF = "copiados";            // quadro "Traders inativos": copiados (padrão) ou todos do ranking
   function renderTraders() {
     const c = cfg(), L = D.leaderboard || [], ls = D.lb_status || {};
@@ -4266,6 +4287,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
         (r.manual ? btn("Tirar", "w", { a: "remove", w: r.wallet }) + " " : "") + btn("Pausar", "w", { a: "pause", w: r.wallet }) + " " + btn("Banir", "w", { a: "ban", w: r.wallet }, "tgl off")]; })
         .concat((D.paused || []).map((r) => { const a = r.act || {}, lb = r.lb || {}, cp = r.copied; return ["–", pfW(r.wallet, r), '<span class="tag pause">⏸ Pausado</span>', ST[a.status] || "–", esc(r.reason || "") + "<small>" + (r.until ? "volta em " + hms(r.until - Date.now() / 1000) : "até você retomar") + "</small>", "–", "–", lb.realized_usd != null ? usdS(lb.realized_usd) : "–", cp ? sg(cp.pnl_sol) : "–", btn("Retomar", "w", { a: "resume", w: r.wallet }, "tgl on")]; })),
       fOff.length ? "Nenhuma carteira copiada está ativa agora. As " + fOff.length + " copiadas inativas estão no quadro Traders inativos, logo abaixo." : "Nenhum trader copiado ainda — salve a chave da Solana Tracker ou adicione uma carteira manual.");
+    renderManual();
     // monitor
     document.querySelectorAll("#monSeg button").forEach((b) => b.classList.toggle("on", b.dataset.f === MONF));
     const RP = D.rpc || {}, Lv = (D.live || []).filter((e) => MONF === "all" || e.kind === MONF);
@@ -5050,7 +5072,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (a === "ban" && !confirm("Banir " + shortW(w) + "? Ele nunca será copiado (até você liberar).")) return;
     const r = await BB.api("/api/pump/wallets", { body: { wallet: w, action: a, hours: hours } });
     toast(r.error || { add: "Carteira adicionada à cópia.", remove: "Carteira manual removida.", ban: "Carteira banida.", unban: "Carteira liberada.", pause: "Trader PAUSADO (entra o próximo do top).", resume: "Trader retomado." }[a]);
-    if (a === "add" && !r.error) $("addW").value = "";
+    if (a === "add" && !r.error) { $("addW").value = ""; if ($("manW")) $("manW").value = ""; }
     poll(true);
   }
   document.addEventListener("click", async (ev) => {
@@ -5115,6 +5137,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (a === "u-trades") return openUserTrades(t.dataset.uid, "win");
     if (a === "u-audit") { $("aAudUser").value = t.dataset.uid; LGT = "contas"; location.hash = "#loggeral"; return; }
     if (a === "addw") return wallet("add", $("addW").value);
+    if (a === "addman") return wallet("add", $("manW").value);
     if (a === "close") {
       const fr = +(t.dataset.frac || 1), pct = Math.round(fr * 100), real = t.dataset.real === "1";
       const q = fr >= 1 ? (real ? "VENDER de verdade esta posição REAL agora (100%)?" : "Fechar esta posição fictícia agora no preço atual?")
@@ -5261,6 +5284,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     });
   // menu "Usar ou descartar" (0.17.2): agrupa o que é novo e ainda em teste; abre/fecha e lembra a escolha
     $("addW").onkeydown = (e) => { if (e.key === "Enter") wallet("add", $("addW").value); };
+    if ($("manW")) $("manW").onkeydown = (e) => { if (e.key === "Enter") wallet("add", $("manW").value); };
     window.addEventListener("hashchange", route);
     window.addEventListener("resize", () => { if (VIEW === "visao" && D) renderOverview(); });
     route();

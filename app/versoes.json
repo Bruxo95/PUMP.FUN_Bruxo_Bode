@@ -1775,6 +1775,11 @@
    "versao": "0.32.203",
    "inicio": "2026-11-04T21:19:34+00:00",
    "titulo": "Copiar todos também retoma os pausados"
+  },
+  {
+   "versao": "0.32.204",
+   "inicio": "2026-11-04T21:27:39+00:00",
+   "titulo": "Aba Copiados manualmente no Top traders"
   }
  ]
 }
