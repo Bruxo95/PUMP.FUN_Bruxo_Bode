@@ -58,13 +58,16 @@ def test_carteiras_is_the_only_place_to_run_the_wallets():
     for v in ("real", "config", "tradercfg", "feed", "novidades"):
         assert f'href="#{v}" data-v' not in nav and f'<section class="view" data-view="{v}"' not in H
         assert f'{v}: "' in JS[JS.index("const MOVED"):JS.index("const MOVED") + 140]     # link antigo continua funcionando
-    assert 'data-wm="sim"' in cart and 'data-wm="real"' in cart
+    assert 'data-wm="sim"' in cart and 'data-wm="real"' in cart and 'data-wm="ambas"' in cart
     sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
     assert 'data-toggle="pump_copy_enabled"' in sim and 'data-cfg="pump_copy_sol"' in sim and 'data-cfg="pump_sim_balance_sol"' in sim
-    real = cart[cart.index('<div data-wp="real"'):cart.index('class="h3s walcomm"')]
+    real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="ambas"')]
+    assert 'id="wKpisS"' in sim and 'id="cfgTabs"' not in real and 'Conversor' in real
+    for k in ("pump_copy_enabled", "pump_other_min_liq_usd"):                                 # a REAL mostra a mesma opção (cópia)
+        assert f'data-clone="1" data-{"toggle" if k.endswith("enabled") else "cfg"}="{k}"' in real
     assert 'id="realB"' in real and 'data-cfg="pump_real_max_sol"' in real and 'data-toggle="pump_real_mirror"' in real
     for k in ("pump_stop_pct", "pump_tp1_pct", "pump_min_winrate", "pump_copy_delay_s"):      # valem para as duas: uma vez só
-        assert H.count(f'data-cfg="{k}"') == 1 and f'data-cfg="{k}"' in cart[cart.index("walcomm"):]
+        assert H.count(f'data-cfg="{k}"') == 1 and f'data-cfg="{k}"' in cart[cart.index('<div data-wp="ambas"'):]
 
 
 def test_feed_and_changelog_moved_into_tabs():

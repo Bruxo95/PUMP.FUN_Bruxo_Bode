@@ -2441,7 +2441,7 @@
       $("cfShU").innerHTML = us.length ? us.map((u) => '<option value="' + esc(u.user_id) + '">' + esc((u.nome || "sem nome") + (u.email ? " · " + u.email : "") + (u.admin ? " · admin" : "")) + "</option>").join("")
         : '<option value="">Nenhum outro usuário cadastrado</option>';
       $("cfShGo").disabled = !us.length; $("cfShare").hidden = false;
-      if (VIEW === "carteiras") cfgTab("share");          // 0.32.184: o painel fica na aba Compartilhar
+      if (VIEW === "carteiras") { walTab("ambas"); cfgTab("share"); }          // 0.32.184: o painel fica na aba Compartilhar
       $("cfShare").scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -2750,7 +2750,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const MOVED = { real: "carteiras", config: "carteiras", tradercfg: "carteiras", feed: "historico", novidades: "loggeral" };
     if (MOVED[v]) {
       if (v === "real") WALT = "real";
-      if (v === "tradercfg") CFT = "copia";
+      if (v === "tradercfg") { WALT = "ambas"; CFT = "copia"; }
+      if (v === "config") { WALT = "ambas"; CFT = "chaves"; }
       if (v === "feed") HIST.tab = "feed";
       if (v === "novidades") LGT = "chg";
       v = MOVED[v];
@@ -3351,7 +3352,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "semanas") loadWk();
     if (VIEW === "tradershist") loadTH();
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
-    if (VIEW === "carteiras") { renderAllCfgCopy(); renderReal(); }
+    if (VIEW === "carteiras") { renderAllCfgCopy(); renderReal(); renderSimW(); }
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
     else if (VIEW === "historico") { renderHistory(); renderErrs(); renderHMon(); renderFeed(); }
@@ -4506,6 +4507,15 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<span style="white-space:normal;display:block;max-width:420px" class="' + (e.action === "não copiou" ? "dim" : "") + '"><b>' + esc(e.action) + "</b>: " + esc(e.reason) + "</span>"]), "O feed enche quando os traders copiados fizerem algo.");
   }
 
+  // 0.32.194 (pedido do dono): os mesmos quadrados da REAL na aba FICTÍCIA
+  function renderSimW() {
+    const c = cfg(), w = (D && D.wallet) || {}, p = (D && D.sol_usd) || 0, cash = +w.cash_sol || 0, sol = +c.pump_copy_sol || 0;
+    kpis("wKpisS", [["Saldo da carteira", s4(cash) + " SOL", p ? "≈ $" + f(cash * p, 2) : "", "wallet"],
+      ["USDC na carteira", "0 SOL", "a carteira fictícia só usa SOL", "pnl"],
+      ["Compras possíveis", sol ? String(Math.max(0, Math.floor(cash / (sol * 1.02 + (+c.pump_priority_sol || 0))))) : "–", "de " + s4(sol) + " SOL", "pos"],
+      ["Resultado fictício", sg(w.pnl_sol, ""), (w.count || 0) + " trades · " + (w.open || 0) + " abertas", "tr"]]);
+  }
+
   // ------------------------------------------------------------------ execução real
   function renderReal() {
     const c = cfg(), R = D ? D.real || {} : {}, w = W || {}, p = w.sol_usd || (D && D.sol_usd) || 0, Rw = (D && D.real_wallet) || {};
@@ -4665,7 +4675,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas",
     "tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls"];
   let CFT = "copia", LGT = "conta", WALT = "sim";
-  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = localStorage.getItem("pf_walt") === "real" ? "real" : "sim"; } catch (e) { /* */ }
+  try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = ["real", "ambas"].includes(localStorage.getItem("pf_walt")) ? localStorage.getItem("pf_walt") : "sim"; } catch (e) { /* */ }
   function cfgTab(t) {
     if (t) { CFT = t; try { localStorage.setItem("pf_cfgtab", t); } catch (e) { /* */ } }
     const sec = document.querySelector('section[data-view="carteiras"]'); if (!sec) return;
