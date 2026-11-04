@@ -990,4 +990,13 @@ td .btn,td .tag,td .chip{white-space:nowrap}
 .ustg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;font-size:12.5px;color:var(--muted)}.ustg .btn.tgl.sw{font-size:12px}
 /* 0.32.198: chave de ligar a carteira no topo de cada aba de Carteiras */
 .walbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;margin-bottom:14px;border:1px solid var(--line2);border-radius:12px;background:var(--panel)}.walbar b{display:block;font-size:15px}.walbar small{color:var(--muted);font-size:12.5px}.walbar>div{flex:1;min-width:200px}
-.chlist{margin:0;padding-left:18px;font-size:13px;line-height:1.7}
+.chlist{margin:0 0 10px;padding-left:18px;font-size:13px;line-height:1.7}
+/* 0.32.200: abas no Histórico de config e versão no topo de cada quadro */
+.chg{margin:0 0 8px}.chg:last-child{margin-bottom:0}
+.chg b{display:block;font-size:12.5px;color:var(--text,#fff)}
+.chgrp{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 4px;font-size:13.5px}
+label.chgrp{cursor:pointer}
+.chgrp input{width:18px;height:18px;flex:none;margin:0}
+.cfgver{margin-top:6px;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.cfgver b{color:var(--text,#fff);font-weight:600}
+.cfgver .btn{margin-left:4px}

@@ -943,7 +943,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
         n, offer = (body or {}).get("n"), (body or {}).get("offer")
         if not isinstance(n, int) and not isinstance(offer, int):
             return {"error": "versão inválida"}
-        return await hub.cfg_hist_back(pf, n if isinstance(n, int) else None, offer if isinstance(offer, int) else None)
+        keys = (body or {}).get("keys")                 # 0.32.200: só as abas marcadas; sem keys volta tudo
+        if keys is not None and not (isinstance(keys, list) and len(keys) <= 1000 and all(isinstance(k, str) for k in keys)):
+            return {"error": "opções inválidas"}
+        return await hub.cfg_hist_back(pf, n if isinstance(n, int) else None, offer if isinstance(offer, int) else None, set(keys) if keys is not None else None)
 
     @app.get("/api/pump/config/applied")
     async def config_applied(u: dict = Depends(user)):

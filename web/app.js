@@ -3329,6 +3329,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     abasSync(); keysSync();
     document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); const sc = tglScope(b.dataset.toggle, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.title = sc[1]; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "carteiras" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
+    if (VIEW === "carteiras" || VIEW === "explorar") { try { renderCfgVer(); } catch (e) { /* nunca derruba o painel */ } }
     $("delayN").textContent = (c.pump_copy_delay_s > 0 ? "só copia se o trader ainda estiver no token depois de " + c.pump_copy_delay_s + " s (entra no preço de então)" : "copia na hora") + ((D.pending || []).length ? " · " + D.pending.length + " aguardando" : "");
     $("trailN").textContent = "ex.: chegou a +" + c.pump_trail_start_pct + "% líquido → stop móvel ligado; subiu até +50% → sai se voltar a +" + Math.max(50 - c.pump_trail_dist_pct, c.pump_trail_min_lock_pct || 0) + "% (nunca abaixo de +" + (c.pump_trail_min_lock_pct || 0) + "%)";
     if ($("tcMoon")) { const a = c.pump_tp1_on ? +c.pump_tp1_frac_pct || 0 : 0, b = c.pump_tp1_on && +c.pump_tp2_pct ? +c.pump_tp2_frac_pct || 0 : 0;
@@ -4562,34 +4563,80 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.199 (pedido do dono): histórico da configuração, com Voltar para uma versão
   const chVal = (v) => (v === true ? "Ligado" : v === false ? "Desligado" : v == null ? "–" : esc(String(v).replace(".", ",")));
   const chItem = (x) => esc(cfgLabel(x.k) || x.k) + ": " + chVal(x.de) + " → " + chVal(x.para);
+  // 0.32.200 (pedido do dono): cada versão diz quais abas mudaram, e dá para voltar só as abas escolhidas ou tudo
+  let CHMAP = null, CHM = null;
+  const CHV = { versoes: [], sig: null, t: 0 };
+  function chAba(k) {
+    if (!CHMAP && ME) { CHMAP = {}; cfgItems().forEach((x) => { const ct = (x.ct || "").replace(/\s+/g, " ").replace(/(REAL|FICTÍCIA) \1$/, "$1"); CHMAP[x.k] = x.v === "carteiras" ? (ct || x.vt) : x.vt + (ct ? " · " + ct : ""); }); }
+    return (CHMAP && CHMAP[k]) || "Outras opções";
+  }
+  function chGroups(L) {
+    const by = {};
+    L.forEach((x) => { const a = chAba(x.k); (by[a] = by[a] || []).push(x); });
+    return Object.keys(by).sort((a, b) => (a === "Outras opções") - (b === "Outras opções") || a.localeCompare(b, "pt-BR")).map((aba) => ({ aba, items: by[aba], keys: by[aba].map((x) => x.k) }));
+  }
+  const chWhat = (M) => chGroups(M).map((g) => '<div class="chg"><b>' + esc(g.aba) + '</b><span class="wrapcell">' + g.items.slice(0, 3).map(chItem).join(" · ") + (g.items.length > 3 ? " · e mais " + (g.items.length - 3) : "") + "</span></div>").join("");
+  const chKeysOf = (card) => [...new Set([...card.querySelectorAll("[data-cfg]:not([data-clone]),[data-toggle]:not([data-clone]),[data-hcfg]")].map((e) => e.dataset.cfg || e.dataset.toggle || e.dataset.hcfg))];
+  // No topo de cada quadro: em que versão ele mudou por último e o botão de voltar só ele para a versão de antes
+  function renderCfgVer() {
+    const sig = JSON.stringify(cfg());
+    if (sig !== CHV.sig && Date.now() - CHV.t > 5000) { CHV.sig = sig; CHV.t = Date.now(); loadCfgHist(); }
+    const has = new Set(CHV.versoes.map((v) => v.n)), view = document.body.classList.contains("viewas");
+    document.querySelectorAll('[data-view="carteiras"] .card, [data-view="explorar"] .card').forEach((card) => {
+      const h = card.querySelector(":scope > header > div"); if (!h || card.id === "allCfgCard") return;
+      let el = h.querySelector(".cfgver");
+      const ks = view ? [] : chKeysOf(card), v = ks.length ? CHV.versoes.find((x) => (x.mudou || []).some((m) => m.volta !== false && ks.includes(m.k))) : null;
+      if (!v || !has.has(v.n - 1)) { if (el) el.remove(); return; }
+      const html = "Esta aba mudou na <b>versão " + v.n + "</b> · " + esc(dt(v.em)) + ' <button type="button" class="btn sm" data-chver="' + (v.n - 1) + '">Voltar para a versão ' + (v.n - 1) + "</button>";
+      if (!el) { el = document.createElement("div"); el.className = "cfgver"; h.appendChild(el); }
+      if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+    });
+  }
   async function loadCfgHist() {
-    const r = await BB.api("/api/pump/config/historico"); if (!r || r.error) { if ($("chT")) table("chT", ["Versão"], [], (r && r.error) || "Não consegui carregar."); return; }
-    table("chT", ["Versão", "Quando", "O que aconteceu", "O que mudou", ""], (r.versoes || []).map((v) => {
+    const r = await BB.api("/api/pump/config/historico", { quiet: true }); if (!r || r.error) { if ($("chT")) table("chT", ["Versão"], [], (r && r.error) || "Não consegui carregar."); return; }
+    CHV.versoes = r.versoes || [];
+    table("chT", ["Versão", "Quando", "O que aconteceu", "Abas e o que mudou", ""], (r.versoes || []).map((v) => {
       const M = v.mudou || [], atual = v.n === r.atual;
       return ["<b>" + v.n + "</b>" + (atual ? ' <span class="tag win">atual</span>' : ""), dt(v.em), esc(v.origem || "–"),
-        M.length ? '<span class="wrapcell">' + M.slice(0, 4).map(chItem).join(" · ") + (M.length > 4 ? " · e mais " + (M.length - 4) : "") + "</span>" : "–",
+        M.length ? chWhat(M) : "–",
         atual ? "" : '<button type="button" class="btn sm" data-chback="' + v.n + '">Voltar para esta</button>'];
     }), "Nenhuma versão guardada ainda. A primeira aparece assim que o servidor carregar a sua conta.");
     const A = r.aceitas || [];
     $("chACard").hidden = !A.length;
-    table("chA", ["Quando", "Configuração aceita", "Opções", ""], A.map((a) => [dt(a.em), esc((a.de || "outra conta") + (a.parte ? " · " + a.parte : "")), String(a.n), '<button type="button" class="btn sm" data-choffer="' + a.id + '">Voltar para antes</button>']));
+    table("chA", ["Quando", "Configuração aceita", "Abas", ""], A.map((a) => [dt(a.em), esc((a.de || "outra conta") + (a.parte ? " · " + a.parte : "")), '<span class="wrapcell">' + esc(chGroups((a.keys || []).map((k) => ({ k }))).map((g) => g.aba).join(" · ") || "–") + " (" + a.n + (a.n === 1 ? " opção" : " opções") + ")</span>", '<button type="button" class="btn sm" data-choffer="' + a.id + '">Voltar para antes</button>']));
   }
-  async function chAsk(q, body) {
+  const chOpts = (n) => n + (n === 1 ? " opção" : " opções");
+  async function chAsk(q, body, only) {
     const d = await BB.api("/api/pump/config/historico/diff?" + q); if (!d || d.error) { toast((d && d.error) || "Não consegui comparar."); return; }
-    const M = d.mudaria || [], F = d.fora || [];
-    ovShow("Voltar: " + d.nome, M.length ? M.length + " opções vão mudar" : "nenhuma opção muda", (M.length ? '<ul class="chlist">' + M.map((x) => "<li>" + chItem({ k: x.k, de: x.de, para: x.para }) + "</li>").join("") + "</ul>" : '<p class="muted">Esta versão já é igual à configuração de agora.</p>') +
+    const inOnly = (x) => !only || only.includes(x.k), M = (d.mudaria || []).filter(inOnly), F = (d.fora || []).filter(inOnly), G = chGroups(M), marcar = !only && G.length > 1;
+    CHM = { body, G, only: !!only };
+    const grupo = (g, i) => (marcar ? '<label class="chgrp"><input type="checkbox" data-chsel="' + i + '"> <b>' + esc(g.aba) + '</b> <span class="muted">' + chOpts(g.items.length) + "</span></label>" : '<div class="chgrp"><b>' + esc(g.aba) + '</b> <span class="muted">' + chOpts(g.items.length) + "</span></div>") +
+      '<ul class="chlist">' + g.items.map((x) => "<li>" + chItem(x) + "</li>").join("") + "</ul>";
+    const botoes = !M.length ? "" : only ? '<button type="button" class="btn primary" data-chgo="only">Voltar esta aba</button>'
+      : (marcar ? '<button type="button" class="btn primary" data-chgo="sel" id="chSel" disabled>Marque as abas para voltar</button> ' : "") + '<button type="button" class="btn' + (marcar ? "" : " primary") + '" data-chgo="all">Voltar tudo (' + chOpts(M.length) + ")</button>";
+    ovShow("Voltar: " + d.nome, !M.length ? "nenhuma opção muda" : only ? "só esta aba · " + chOpts(M.length) : chOpts(M.length) + " em " + G.length + (G.length === 1 ? " aba" : " abas") + (marcar ? " · escolha quais voltar ou volte tudo" : ""),
+      (M.length ? G.map(grupo).join("") : '<p class="muted">' + (only ? "Esta aba já está igual a essa versão." : "Esta versão já é igual à configuração de agora.") + "</p>") +
       (F.length ? '<p class="muted small">' + F.length + " opção(ões) ficam como estão: valores e chaves da REAL, Telegram e a chave da FICTÍCIA nunca voltam por aqui.</p>" : "") +
-      (M.length ? '<div class="row" style="margin-top:12px"><button type="button" class="btn primary" data-chgo="' + esc(JSON.stringify(body)) + '">Voltar para esta configuração</button></div>' : ""));
+      (botoes ? '<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">' + botoes + "</div>" : ""));
   }
+  const chChecked = () => [...document.querySelectorAll("[data-chsel]:checked")].flatMap((c) => CHM.G[+c.dataset.chsel].keys);
+  document.addEventListener("change", (e) => {
+    if (!e.target.dataset || e.target.dataset.chsel === undefined || !$("chSel")) return;
+    const n = chChecked().length;
+    $("chSel").disabled = !n; $("chSel").textContent = n ? "Voltar as abas marcadas (" + chOpts(n) + ")" : "Marque as abas para voltar";
+  });
   document.addEventListener("click", async (e) => {
-    const t = e.target.closest && e.target.closest("[data-chback],[data-choffer],[data-chgo]"); if (!t) return;
+    const t = e.target.closest && e.target.closest("[data-chback],[data-choffer],[data-chver],[data-chgo]"); if (!t) return;
     if (t.dataset.chback) return chAsk("n=" + encodeURIComponent(t.dataset.chback), { n: +t.dataset.chback });
     if (t.dataset.choffer) return chAsk("offer=" + encodeURIComponent(t.dataset.choffer), { offer: +t.dataset.choffer });
+    if (t.dataset.chver) return chAsk("n=" + encodeURIComponent(t.dataset.chver), { n: +t.dataset.chver }, chKeysOf(t.closest(".card")));
+    const modo = t.dataset.chgo, keys = modo === "sel" ? chChecked() : modo === "only" ? CHM.G.flatMap((g) => g.keys) : null;
+    if (keys && !keys.length) return;
     t.disabled = true;
-    const r = await BB.api("/api/pump/config/historico/voltar", { body: JSON.parse(t.dataset.chgo) });
+    const r = await BB.api("/api/pump/config/historico/voltar", { body: Object.assign({}, CHM.body, keys ? { keys } : {}) });
     $("jtM").hidden = true;
-    toast(r.error || "Configuração voltou: " + r.nome + " (" + r.mudou + " opções).");
-    await poll(true); loadCfgHist(); if (typeof loadApplied === "function") loadApplied();
+    toast(r.error || "Configuração voltou: " + r.nome + " (" + chOpts(r.mudou) + ").");
+    await poll(true); CHV.sig = null; CHV.t = 0; loadCfgHist(); if (typeof loadApplied === "function") loadApplied();
   });
   // 0.32.198 (pedido do dono): janela para digitar LIGAR, no lugar da caixinha do navegador
   let LIG = null;

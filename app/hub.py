@@ -2960,8 +2960,13 @@ class PumpHub:
 
     async def cfg_hist_list(self, pf: PumpFun) -> dict:
         rows = await self.db.select("config_versions", {"user_id": pf.user_id}, order="n.desc", limit=200, columns="n,em,origem,mudou")
-        aceitas = [{"id": o["id"], "de": o["de"], "parte": o["parte"], "em": o["em"], "n": len([k for k in (o.get("antes") or {}) if not k.startswith("_")])}
+        aceitas = [{"id": o["id"], "de": o["de"], "parte": o["parte"], "em": o["em"], "keys": [k for k in (o.get("antes") or {}) if not k.startswith("_")]}
                    for o in await self.config_applied(pf.user_id)]
+        for a in aceitas:
+            a["n"] = len(a["keys"])
+        # 0.32.200: a tela só oferece Voltar no quadro quando a opção pode voltar (REAL e Telegram nunca voltam)
+        volta = set(self.share_filter(list({x.get("k") for r in rows for x in (r.get("mudou") or [])}), getattr(pf, "role", "user") == "admin"))
+        rows = [{**r, "mudou": [{**x, "volta": x.get("k") in volta} for x in (r.get("mudou") or [])]} for r in rows]
         return {"versoes": rows, "atual": pf._cfg_row.get("n") if getattr(pf, "_cfg_row", None) else None, "aceitas": [a for a in aceitas if a["n"]]}
 
     async def _cfg_hist_target(self, pf: PumpFun, n=None, offer=None) -> tuple[dict | None, str]:
@@ -2982,19 +2987,20 @@ class PumpHub:
         d = [x for x in cfghist.diff({k: cur.get(k) for k in vals}, vals)]
         return {"nome": nome, "mudaria": [x for x in d if x["k"] in ok], "fora": [x for x in d if x["k"] not in ok]}
 
-    async def cfg_hist_back(self, pf: PumpFun, n=None, offer=None) -> dict:
-        """Volta as opções para a versão escolhida. Nunca mexe na REAL (valores e chaves), no Telegram nem na chave da FICTÍCIA."""
+    async def cfg_hist_back(self, pf: PumpFun, n=None, offer=None, keys=None) -> dict:
+        """Volta as opções para a versão escolhida. Nunca mexe na REAL (valores e chaves), no Telegram nem na chave da FICTÍCIA.
+        keys (0.32.200, pedido do dono): volta só estas opções, as das abas que a pessoa marcou; sem keys, volta tudo."""
         d = await self.cfg_hist_diff(pf, n, offer)
         if d.get("error"):
             return d
-        vals = {x["k"]: x["para"] for x in d["mudaria"]}
+        vals = {x["k"]: x["para"] for x in d["mudaria"] if keys is None or x["k"] in keys}
         if not vals:
             return {"ok": True, "nome": d["nome"], "mudou": 0}
         applied, errors = pf.cfg.apply(vals)
         ov = pf.__dict__.setdefault("_ov_user", {})      # um ajuste antigo pedido no chat não volta a mexer nestas opções
         for k in applied:
             ov[k] = datetime.now(timezone.utc).isoformat()
-        pf._cfg_why = f"você voltou para: {d['nome']}"
+        pf._cfg_why = f"você voltou para: {d['nome']}" + ("" if keys is None else " · só as abas escolhidas")
         await self.save_settings(pf)
         pf.refresh_followed(force=True)
         await audit(self.db, pf.user_id, "configuração: voltou para outra versão", f"{d['nome']} · {len(applied)} opções")

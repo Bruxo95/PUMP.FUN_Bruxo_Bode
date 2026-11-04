@@ -1755,6 +1755,11 @@
    "versao": "0.32.199",
    "inicio": "2026-11-04T19:24:57+00:00",
    "titulo": "Histórico de config com Voltar"
+  },
+  {
+   "versao": "0.32.200",
+   "inicio": "2026-11-04T20:01:09+00:00",
+   "titulo": "Voltar só as abas escolhidas"
   }
  ]
 }
