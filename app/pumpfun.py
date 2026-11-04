@@ -1195,6 +1195,8 @@ class PumpFun:
         eqpos = [p for p in allpos if p.get("eq") and not p.get("real")]
         if not getattr(c, "pump_copy_enabled", True):
             why = "cópia desligada"
+        elif not getattr(c, "pump_sim_on", True):
+            why = "carteira FICTÍCIA desligada"
         elif not px:
             why = "sem preço do token"
         elif any(p["mint"] == mint and p["wallet"] == who and p.get("eq") and not p.get("real") for p in allpos):
@@ -1311,8 +1313,10 @@ class PumpFun:
             # 0.32.3 — sugestão do Bruxo (áudio de 28/10, SPCX): com o espelho, a real só entrava quando a FICTÍCIA abria; se a
             # fictícia já tinha o token, a real ficava de fora ("já tem posição copiada"). Agora as duas carteiras têm posições
             # separadas: a fictícia já ter o token não impede a real de comprar (ela segue as vendas do trader e os stops).
+            # 0.32.198 (pedido do dono): com a chave da FICTÍCIA desligada, a cópia de trader vai só para a REAL (se ligada), pelo mesmo caminho
+            sim_off = not getattr(c, "pump_sim_on", True)
             alone = (self.real is not None and getattr(c, "pump_real_enabled", False) and getattr(c, "pump_real_mirror", True)
-                     and any(not p.get("real") for p in mine))
+                     and (sim_off or any(not p.get("real") for p in mine)))
             if self.sim_only(who) and self.real is not None and getattr(c, "pump_real_enabled", False):
                 self._feed(**base, action="REAL não copiou", reason=self.sim_only_why(who))
             elif self.real is not None and getattr(c, "pump_real_enabled", False) and (alone or not getattr(c, "pump_real_mirror", True)):
@@ -1335,8 +1339,12 @@ class PumpFun:
                                           "trader_price": self.price_of(ev) or px, "mcap_in": tk.get("mcap_sol"), "t": t,
                                           "block_t": ev.get("blockTime")}))
                     self._feed(**base, action="REAL: comprando", reason=f"enviando compra de {float(self._c('pump_real_max_sol', 0.05)):.3f} SOL"
-                               + (" · a fictícia já tinha este token; a real entra separada" if alone else ""))
-            # FICTÍCIO (sempre roda, para comparar)
+                               + (" · fictícia desligada; só a real entra" if sim_off else " · a fictícia já tinha este token; a real entra separada" if alone else ""))
+            if sim_off:
+                self._feed(**base, action="não copiou", reason="carteira FICTÍCIA desligada")
+                self._copy_note(who, "carteira FICTÍCIA desligada", t, mint)
+                return msgs
+            # FICTÍCIO (roda com a chave da fictícia ligada, para comparar)
             smine = [p for p in mine if not p.get("real")]
             mult, mwhy = self.trust_mult(who)
             if getattr(c, "pump_size_by_score", False):
@@ -3098,8 +3106,11 @@ class PumpFun:
             elif self.wallet()["cash_sol"] < amt + fr["prio"]:
                 over = "saldo fictício insuficiente"
         # 0.32.21 (pedido do dono): o botão Comprar escolhe a carteira — "sim" (só fictícia), "real" (só real) ou "both"
+        sim_off = not getattr(self.cfg, "pump_sim_on", True)     # 0.32.198: chave geral da FICTÍCIA
         if target == "real":
             out["sim"] = "não pedida (só real)"
+        elif sim_off:
+            out["sim"] = "carteira FICTÍCIA desligada"
         elif any(p["mint"] == mint and not p.get("real") for p in allpos):
             out["sim"] = "já tem posição fictícia neste token"
         elif not exact and len([p for p in allpos if not p.get("real") and self._slot(p.get("origem")) == self._slot(origem)]) >= (
@@ -3147,6 +3158,8 @@ class PumpFun:
             sim_has = out["sim"] == "já tem posição fictícia neste token"
             if own_auto and not out.get("auto_id") and not sim_has:
                 return out                              # uma falha fictícia não dispara compra real automática
+            if sim_off and auto:
+                return out                              # 0.32.198: as telas automáticas seguem a fictícia; sem ela, não compram sozinhas na real
             bar_real = origem == "barrado" and getattr(self.cfg, "pump_bar_real", False)    # 0.32.33: botão "Também na REAL"
             bx_real = origem == "bruxo" and getattr(self.cfg, "pump_bx_real", False)       # 0.32.41: Aba do Bruxo, REAL só se ligar
             if origem == "bruxo" and not bx_real:

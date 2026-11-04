@@ -4510,12 +4510,15 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.194 (pedido do dono): os mesmos quadrados da REAL na aba FICTÍCIA
   function renderSimW() {
     const c = cfg(), w = (D && D.wallet) || {}, p = (D && D.sol_usd) || 0, cash = +w.cash_sol || 0, sol = +c.pump_copy_sol || 0;
+    const on = c.pump_sim_on !== false, sb = $("simB");
+    sb.textContent = on ? "Ligado" : "Desligado"; sb.className = "btn tgl sw " + (on ? "on" : "off"); sb.setAttribute("aria-checked", String(on));
+    $("simBarS").textContent = on ? "ligada · dinheiro de mentira, para medir sem risco" : "desligada · não abre compra nova; as abertas seguem até sair. As telas automáticas (Explorar, Base…) também não compram na REAL; a cópia de traders continua na REAL, se ela estiver ligada";
     kpis("wKpisS", [["Saldo da carteira", s4(cash) + " SOL", p ? "≈ $" + f(cash * p, 2) : "", "wallet"],
       ["USDC na carteira", "0 SOL", "a carteira fictícia só usa SOL", "pnl"],
       ["Compras possíveis", sol ? String(Math.max(0, Math.floor(cash / (sol * 1.02 + (+c.pump_priority_sol || 0))))) : "–", "de " + s4(sol) + " SOL", "pos"],
       ["Resultado fictício", sg(w.pnl_sol, ""), (w.count || 0) + " trades · " + (w.open || 0) + " abertas", "tr"]]);
     $("simInfo").innerHTML = '<div class="cfgs" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">' +
-      [["Carteira", '<span class="up">fictícia</span>'], ["Saldo inicial", s4(c.pump_sim_balance_sol) + " SOL"], ["Em posições", s4(w.open_value_sol || 0) + " SOL"], ["Posições abertas", w.open || 0], ["Trades fechados", w.count || 0]]
+      [["Carteira", on ? '<span class="up">ligada</span>' : '<span class="down">desligada</span>'], ["Saldo inicial", s4(c.pump_sim_balance_sol) + " SOL"], ["Em posições", s4(w.open_value_sol || 0) + " SOL"], ["Posições abertas", w.open || 0], ["Trades fechados", w.count || 0]]
         .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + x[1] + "</span></div>").join("") + "</div>";
   }
 
@@ -4556,12 +4559,35 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     else $("swN").textContent = "Não trocou: " + (r.error || r.reason || r.status || "erro");
     walletLoad(true);
   }
+  // 0.32.198 (pedido do dono): janela para digitar LIGAR, no lugar da caixinha do navegador
+  let LIG = null;
+  function askLigar(titulo, html) {
+    if (LIG) LIG(false);
+    $("ligMT").textContent = titulo; $("ligB").innerHTML = html; $("ligI").value = ""; $("ligGo").disabled = true; $("ligGo").textContent = titulo;
+    $("ligM").hidden = false; setTimeout(() => $("ligI").focus(), 30);
+    return new Promise((res) => { LIG = (v) => { LIG = null; $("ligM").hidden = true; res(v); }; });
+  }
+  const ligOk = () => ($("ligI").value || "").trim().toUpperCase() === "LIGAR";
+  document.addEventListener("input", (e) => { if (e.target.id === "ligI") $("ligGo").disabled = !ligOk(); });
+  document.addEventListener("keydown", (e) => { if (e.target.id === "ligI" && e.key === "Enter" && ligOk() && LIG) LIG(true); if (e.key === "Escape" && LIG) LIG(false); });
+  document.addEventListener("click", (e) => { if (!LIG) return; if (e.target.id === "ligGo") LIG(true); else if (e.target.id === "ligX" || e.target.id === "ligM") LIG(false); });
+  async function simToggle() {
+    const c = cfg();
+    if (c.pump_sim_on === false) {
+      const ok = await askLigar("Ligar a carteira FICTÍCIA", "<p>Ela volta a abrir compras novas de <b>" + esc(s4(c.pump_copy_sol)) + " SOL</b> fictícios, nas abas que estiverem ligadas. Não gasta dinheiro de verdade.</p>");
+      if (!ok) { toast("Carteira FICTÍCIA continua desligada."); return; }
+      await setCfg({ pump_sim_on: true }); toast("Carteira FICTÍCIA ligada.");
+    } else {
+      await setCfg({ pump_sim_on: false }); toast("Carteira FICTÍCIA desligada: não abre compra nova. As posições abertas seguem até sair.");
+    }
+    poll(true);
+  }
   async function realToggle() {
     const R = (D && D.real) || {}, c = cfg();
     if (!R.enabled) {
-      const t = prompt("Ligar a cópia com DINHEIRO REAL?\n\nCada compra usa até " + c.pump_real_max_sol + " SOL. Para confirmar, digite LIGAR:");
-      if ((t || "").trim().toUpperCase() !== "LIGAR") { toast("Execução real continua DESLIGADA."); return; }
-      const r = await BB.api("/api/pump/real", { body: { enabled: true, confirm: "LIGAR" } }); toast(r.error || "Execução REAL LIGADA.");
+      const ok = await askLigar("Ligar a carteira REAL", "<p>As compras passam a usar <b>dinheiro de verdade</b>: até <b>" + esc(s4(c.pump_real_max_sol)) + " SOL</b> cada, até " + esc(c.pump_real_max_open) + " posições. Continua ligada até você desligar, mesmo se o servidor reiniciar.</p>");
+      if (!ok) { toast("Carteira REAL continua desligada."); return; }
+      const r = await BB.api("/api/pump/real", { body: { enabled: true, confirm: "LIGAR" } }); toast(r.error || "Carteira REAL ligada.");
     } else { const r = await BB.api("/api/pump/real", { body: { enabled: false } }); toast(r.error || "Execução real desligada."); }
     poll(true);
   }
@@ -5072,6 +5098,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     $("ntfS").onclick = () => { NTF = !NTF; try { localStorage.setItem("ntf", NTF ? "1" : "0"); } catch (e) { /* */ } ntfBtn(); if (NTF) { play("buy", 0.4); try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* */ } } toast("Notificações " + (NTF ? "LIGADAS" : "DESLIGADAS")); };
     ntfBtn();
     $("realB").onclick = realToggle;
+    $("simB").onclick = simToggle;
     $("navAdmin").hidden = ME.role !== "admin";
     $("navGrp").hidden = false;                    // 0.32.186: abre para todos; os quadrados só do admin ficam escondidos
     if ($("navExp")) $("navExp").hidden = ME.role !== "admin";            // 0.32.186: foi para o Usar ou descartar

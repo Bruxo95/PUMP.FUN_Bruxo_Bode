@@ -220,6 +220,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_tg_on": (bool, False, 0, 1),                  # avisos no Telegram (token do bot e chat em Chaves pessoais)
     "pump_tg_all": (bool, False, 0, 1),                 # OFF = só os importantes; ON = toda notificação
     "pump_copy_enabled": (bool, True, 0, 1),
+    "pump_sim_on": (bool, True, 0, 1),                  # 0.32.198: chave geral da carteira FICTÍCIA (desligada = não abre compra nova)
     "pump_top_on": (bool, True, 0, 1),                  # 0.32.127: compras da aba Top traders (ligado = como sempre foi)
     "pump_st_copy_on": (bool, True, 0, 1),              # 0.32.127: compras das Carteiras em estudo copiadas (ligado = como sempre foi)
     "pump_sim_balance_sol": (float, 5.0, 0.01, 100000.0),

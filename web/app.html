@@ -120,6 +120,12 @@
       <div class="modal" id="posM" hidden role="dialog" aria-modal="true" aria-labelledby="posMT"><div class="modal-box">
         <header><div><h2 id="posMT">Posição</h2><div class="sub" id="posMS"></div></div><div class="sp"></div><button class="btn sm" id="posMX">Fechar</button></header>
         <div id="posMB"></div></div></div>
+      <div class="modal" id="ligM" hidden role="dialog" aria-modal="true" aria-labelledby="ligMT"><div class="modal-box" style="max-width:480px">
+        <header><div><h2 id="ligMT">Ligar</h2></div><div class="sp"></div><button class="btn sm" id="ligX">Fechar</button></header>
+        <div id="ligB"></div>
+        <label for="ligI" style="display:block;margin-top:12px">Para confirmar, digite <b>LIGAR</b></label>
+        <input class="in" id="ligI" type="text" autocomplete="off" spellcheck="false" style="width:100%;margin-top:6px">
+        <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="ligGo" disabled>Ligar</button></div></div></div>
       <div class="modal" id="buyM" hidden role="dialog" aria-modal="true" aria-labelledby="buyMT"><div class="modal-box" style="max-width:520px">
         <header><div><h2 id="buyMT">Comprar</h2><div class="sub" id="buyMS"></div></div><div class="sp"></div><button class="btn sm" id="buyMX">Fechar</button></header>
         <div id="buyMB"></div>
@@ -857,11 +863,11 @@
       <section class="view" data-view="carteiras" hidden>
         <div class="seg ctabs" id="walTabs"><button data-wm="sim">FICTÍCIA</button><button data-wm="real">REAL</button><button data-wm="ambas">Valem para as duas</button><button data-wm="espelho">Real × fictícia</button></div>
         <div data-wp="sim">
+        <div class="walbar"><div><b>Carteira FICTÍCIA</b><small id="simBarS">dinheiro de mentira, para medir sem risco</small></div><button type="button" class="btn tgl sw on" id="simB" role="switch" aria-label="Ligar a carteira FICTÍCIA">Ligado</button></div>
         <div class="kpis" id="wKpisS"></div>
         <div class="card" data-nosanf>
-          <header><div><h2>Carteira FICTÍCIA <span class="tag sim">FICTÍCIA</span></h2><div class="sub">sempre ligada · dinheiro de mentira, para medir sem risco</div></div></header>
+          <header><div><h2>Carteira FICTÍCIA <span class="tag sim">FICTÍCIA</span></h2><div class="sub">dinheiro de mentira, para medir sem risco</div></div></header>
           <div class="realbox">
-            <span class="tag win" title="A fictícia não tem chave geral. O que liga e desliga são as compras de cada aba.">Sempre ligada</span>
             <div style="flex:1;min-width:220px" id="simInfo"></div>
           </div>
           <p class="muted small" style="margin:6px 0 0">Stops, alvos e filtros são os mesmos nas duas carteiras e ficam em <b>Valem para as duas → Regras</b>.</p>
@@ -883,12 +889,12 @@
           </div></div>
         </div>
         <div data-wp="real" hidden>
+        <div class="walbar"><div><b>Carteira REAL</b><small id="realSub"></small></div><button class="btn tgl sw off" id="realB" role="switch" aria-label="Ligar a carteira REAL">Desligado</button></div>
         <div class="alert red" id="rwAlert" hidden></div>
         <div class="kpis" id="wKpis"></div>
         <div class="card" data-nosanf>
-          <header><div><h2>Carteira REAL <span class="tag real">REAL</span></h2><div class="sub" id="realSub"></div></div></header>
+          <header><div><h2>Carteira REAL <span class="tag real">REAL</span></h2><div class="sub">dinheiro de verdade, da carteira do bot</div></div></header>
           <div class="realbox">
-            <button class="btn tgl sw off" id="realB" role="switch" aria-label="Execução real em todas as abas">Desligado</button>
             <div style="flex:1;min-width:220px" id="realInfo"></div>
           </div>
           <p class="muted small" style="margin:6px 0 0">Stops, alvos e filtros são os mesmos nas duas carteiras e ficam em <b>Valem para as duas → Regras</b>.</p>

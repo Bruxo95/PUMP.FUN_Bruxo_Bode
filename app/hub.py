@@ -4008,7 +4008,7 @@ class PumpHub:
 
     def share_filter(self, keys, admin: bool) -> list[str]:
         from .settings import USER_KEYS
-        out = [k for k in keys if k in USER_KEYS and not any(b in k for b in self.SHARE_BLOCK)]
+        out = [k for k in keys if k in USER_KEYS and k != "pump_sim_on" and not any(b in k for b in self.SHARE_BLOCK)]   # ligar a carteira é de cada um
         if not admin:                               # quem não é admin não usa as opções do "Usar ou descartar"
             out = [k for k in out if not k.startswith(("pump_ex_auto_", "pump_ar_"))]
         return out

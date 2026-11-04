@@ -99,3 +99,12 @@ def test_both_wallet_screens_start_the_same():
     assert "pump_sim_balance_sol" in so(sim) and "pump_real_daily_loss_sol" in so(real) and "Só aqui:" in so(sim) and "Só aqui:" in so(real)
     assert real.index('id="wKpis"') < real.index("<h2>Carteira REAL") < real.index("Use uma carteira")
 
+
+def test_wallet_switches_on_top_with_ligar_modal():
+    """0.32.198 (pedido do dono): chave no topo de cada carteira e janela para digitar LIGAR, sem a caixinha do navegador."""
+    cart = _sec("carteiras")
+    sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
+    real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
+    assert sim.index('id="simB"') < sim.index('id="wKpisS"') and real.index('id="realB"') < real.index('id="wKpis"')
+    assert 'id="ligM"' in H and "prompt(" not in JS[JS.index("async function realToggle"):JS.index("async function realToggle") + 500]
+
