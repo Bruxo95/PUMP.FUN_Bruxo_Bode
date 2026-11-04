@@ -4833,7 +4833,8 @@ class PumpFun:
             return self.ABA_ORIGEM["base"]
         if x.get("manual") or w == "manual":
             return "Botão Comprar"
-        if w in self.study_lucro_wallets() and w not in self.manual:
+        lu = getattr(self, "study_lucro", None) or []
+        if lu and w in lu and getattr(getattr(self, "cfg", None), "pump_st_lucro_on", False) and w not in (getattr(self, "manual", None) or []):
             return "Estudo · deram lucro"                # 0.32.211: copiadas pela chave do quadro novo
         if w in (getattr(self, "study", None) or []) or w in (getattr(self, "study_copy", None) or []):
             return "Carteiras em estudo"
