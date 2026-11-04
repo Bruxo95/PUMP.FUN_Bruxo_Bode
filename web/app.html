@@ -220,18 +220,20 @@
       <!-- ========================================================= TOP TRADERS -->
       <section class="view" data-view="traders" hidden>
         <a class="thgo" href="#tradershist" data-novo-ate="2026-11-16"><b>Traders copiados</b><span>o histórico guardado de cada carteira que você copiou: ganhos, perdas e cada trade, com o botão Resultados do trader</span><i>Abrir →</i></a>
-        <div class="card" id="bdCard" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>Por que compramos diferente</h2><div class="sub" id="bdSub">mesma configuração, compras diferentes: moeda a moeda, o motivo · carteira FICTÍCIA</div></div><div class="sp"></div>
+        <div class="seg ctabs" id="trTabs" data-novo-ate="2026-11-18"><button data-trt="top">Top traders da pump.fun</button><button data-trt="copiados">Copiados agora</button><button data-trt="monitor">Monitor ao vivo</button><button data-trt="inativos">Inativos</button><button data-trt="porque">Por que não copiou</button><button data-trt="dif" data-adm>Por que compramos diferente</button><button data-trt="lab" data-adm>Laboratório</button><button data-trt="ranking">Ranking próprio</button></div>
+        <div class="card" data-trt="dif" id="bdCard" data-novo-ate="2026-11-16" data-nosanf><header><div><h2>Por que compramos diferente</h2><div class="sub" id="bdSub">mesma configuração, compras diferentes: moeda a moeda, o motivo · carteira FICTÍCIA</div></div><div class="sp"></div>
             <div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="bdU" aria-label="Comparar com o usuário"></select><div class="seg" id="bdH"><button data-bdh="6">6 h</button><button data-bdh="24">24 h</button><button data-bdh="72">3 dias</button></div></div></header>
           <div class="help"><p>A configuração igual não inclui a <b>lista de traders</b>. Cada conta tem a sua: carteiras manuais, as aprovadas pelo estudo automático, as pausadas (também pelo ajuste automático) e as banidas. Por isso duas contas iguais compram moedas diferentes. Aqui cada moeda que só uma conta comprou mostra o motivo da outra. Só mostra: o botão <b>Copiar também</b> põe o trader na <b>sua</b> lista e não mexe na conta da outra pessoa.</p></div>
           <div class="kpis" id="bdK"></div>
           <div class="sub" style="margin-top:14px">Traders que só uma das contas copia agora</div>
           <div class="tbl-wrap"><table id="bdTr" class="daytbl"></table></div>
+          <div id="bdMineBox" hidden><div class="sub" style="margin-top:14px" id="bdMineS"></div><div class="tbl-wrap"><table id="bdMine" class="daytbl"></table></div></div>
           <div class="sub" style="margin-top:14px" id="bdBS">Moedas que só a outra conta comprou</div>
           <div class="tbl-wrap"><table id="bdB" class="daytbl"></table></div>
           <div class="sub" style="margin-top:14px">Moedas que só você comprou</div>
           <div class="tbl-wrap"><table id="bdA" class="daytbl"></table></div>
           <p class="muted small" id="bdNote" style="margin:10px 0 0"></p></div>
-        <div class="card" data-novo-ate="2026-11-15" data-nosanf><header><div><h2>Laboratório do Top traders</h2><div class="sub" id="tlSub">mede se o resultado desta aba é método ou sorte · carteira FICTÍCIA</div></div></header>
+        <div class="card" data-trt="lab" data-novo-ate="2026-11-15" data-nosanf><header><div><h2>Laboratório do Top traders</h2><div class="sub" id="tlSub">mede se o resultado desta aba é método ou sorte · carteira FICTÍCIA</div></div></header>
           <div class="help"><p>Só mede: <b>nada aqui compra, vende ou muda opção</b>. Um resultado só é provado com pelo menos 5 dias de trades e a faixa de confiança inteira acima de zero.</p></div>
           <div class="kpis" id="tlK"></div><p class="small" id="tlR" style="margin:10px 0 0"></p>
           <div class="sub" style="margin-top:14px">Quem faz o resultado</div><div class="tbl-wrap"><table id="tlT" class="daytbl"></table></div>
@@ -243,8 +245,8 @@
           <div class="muted small" id="tlBS"></div><div class="tbl-wrap"><table id="tlB" class="daytbl"></table></div>
           <div class="sub" style="margin-top:14px">Regras de saída testadas nas mesmas cópias</div>
           <div class="muted small" id="tlGS"></div><div class="tbl-wrap"><table id="tlG" class="daytbl"></table></div></div>
-        <div class="card" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="copia"><b>Logs dos robôs → Cópia de traders</b></a>.</p></div>
-        <div class="card">
+        <div class="card" data-trt="porque" data-novo-ate="2026-11-11"><p style="margin:0">O log de análise deste robô (o que analisou, o que fez e por que não, a cada 5 min, guardado sem prazo) fica no menu <a href="#logs" data-logtab="copia"><b>Logs dos robôs → Cópia de traders</b></a>.</p></div>
+        <div class="card" data-trt="top">
           <header><div><h2>Top traders da pump.fun</h2><div class="sub" id="lbSub"></div><div id="trShBox" hidden style="margin-top:8px"><div class="row" style="gap:8px;flex-wrap:wrap"><select class="in" id="trShU" aria-label="Para quem enviar"></select><button class="btn sm primary" id="trShGo">Enviar convite</button></div><div class="hint" id="trShN"></div></div></div><div class="sp"></div>
             <button class="btn sm" id="trShBtn" style="margin-right:8px" data-novo-ate="2026-11-11">Compartilhar minha lista</button>
             <div class="seg" id="lbDays"><button data-d="1">24 h</button><button data-d="7">7 dias</button><button data-d="30">30 dias</button><button data-d="90">90 dias</button></div></header>
@@ -254,26 +256,26 @@
           <div class="tbl-wrap tall"><table id="tLb"></table></div>
           <div class="sub" id="lbNote" style="margin-top:10px;color:var(--muted);font-size:12.5px"></div>
         </div>
-        <div class="card" data-novo-ate="2026-11-11"><header><div><h2>Por que não copiou (últimas 24 h)</h2><div class="sub" id="cdSub">compras dos traders copiados que o robô viu e o que fez com cada uma</div></div><div class="sp"></div><button class="btn sm" id="cdRef">Atualizar</button></header>
+        <div class="card" data-trt="porque" data-novo-ate="2026-11-11"><header><div><h2>Por que não copiou (últimas 24 h)</h2><div class="sub" id="cdSub">compras dos traders copiados que o robô viu e o que fez com cada uma</div></div><div class="sp"></div><button class="btn sm" id="cdRef">Atualizar</button></header>
           <div class="kpis" id="cdK"></div>
           <div class="grid2"><div><div class="tbl-wrap"><table id="cdM" class="daytbl"></table></div></div><div><div class="tbl-wrap"><table id="cdT" class="daytbl"></table></div></div></div>
         </div>
-        <div class="card">
+        <div class="card" data-trt="copiados">
           <header><div><h2>Traders copiados agora</h2><div class="sub" id="folSub"></div></div><div class="sp"></div></header>
           <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><input class="in" id="addW" style="flex:1;min-width:220px" placeholder="Adicionar carteira manual (endereço Solana do trader)"><button class="btn sm primary" data-act="addw">Adicionar</button></div>
           <div class="tbl-wrap"><table id="tFol"></table></div>
         </div>
-        <div class="card" id="lbOffCard" data-novo-ate="2026-11-12"><header><div><h2>Traders inativos</h2><div class="sub" id="lbOffSub"></div></div><div class="sp"></div>
+        <div class="card" data-trt="inativos" id="lbOffCard" data-novo-ate="2026-11-12"><header><div><h2>Traders inativos</h2><div class="sub" id="lbOffSub"></div></div><div class="sp"></div>
             <div class="seg" id="lbOffSeg"><button data-off="copiados">Copiados inativos</button><button data-off="todos">Todos os inativos do ranking</button></div></header>
           <div class="tbl-wrap tall"><table id="tLbOff"></table></div></div>
-        <div class="card">
+        <div class="card" data-trt="monitor">
           <header><div><h2>Monitor ao vivo — traders copiados</h2><div class="sub" id="monSub"></div></div><div class="sp"></div>
             <div class="seg" id="monSeg"><button data-f="all">Tudo</button><button data-f="buy">Entradas</button><button data-f="sell">Saídas</button></div></header>
           <div class="tbl-wrap tall"><table id="tMon"></table></div>
           <h3 style="font-size:14px;margin:18px 0 10px">Posições abertas deles agora</h3>
           <div class="tbl-wrap tall"><table id="tTP"></table></div>
         </div>
-        <div class="card">
+        <div class="card" data-trt="ranking">
           <header><div><h2>Ranking próprio (visto pelo bot)</h2><div class="sub" id="rkSub"></div></div></header>
           <div class="tbl-wrap"><table id="tRk"></table></div>
           <div class="sub" id="rkNote" style="margin-top:10px;color:var(--muted);font-size:12.5px"></div>

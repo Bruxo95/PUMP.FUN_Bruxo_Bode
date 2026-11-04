@@ -1765,6 +1765,11 @@
    "versao": "0.32.201",
    "inicio": "2026-11-04T20:06:19+00:00",
    "titulo": "Ganho geral e taxas pagas no Histórico"
+  },
+  {
+   "versao": "0.32.202",
+   "inicio": "2026-11-04T21:11:35+00:00",
+   "titulo": "Top traders em abas e Desfazer no Copiar também"
   }
  ]
 }
