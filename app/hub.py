@@ -3923,6 +3923,27 @@ class PumpHub:
                     log.warning("ajuste automático (%s…): %s", pf.user_id[:8], str(e)[:160])
             await asyncio.sleep(6 * 3600)
 
+    LUCRO_MIN_TOKENS = 3
+
+    async def study_lucro_sync(self, pf) -> list[str]:
+        """0.32.211 (pedido do dono): "deram lucro" = carteiras em estudo com resultado positivo na cópia simulada de 30 dias
+        (com atraso e taxas; o mesmo cálculo do Ranking: quem compensa copiar) e pelo menos 3 tokens fechados. Só calcula com a
+        chave do quadro ligada; o motor copia essas carteiras só na FICTÍCIA."""
+        if not getattr(pf.cfg, "pump_st_lucro_on", False):
+            pf.study_lucro = []
+            return []
+        from .study import copy_params, summary
+        prm = copy_params(pf)
+        out = []
+        for r in await self.db.select("study_wallets", {"user_id": pf.user_id}, order="criado_em.asc"):
+            p = await self.study_profile(r["wallet"], prm)
+            cp = (summary(p) if not p.get("error") else {}).get("copy") or {}
+            if (cp.get("n_30d") or 0) >= self.LUCRO_MIN_TOKENS and (cp.get("pnl_30d") or 0) > 0:
+                out.append(r["wallet"])
+        pf.study_lucro = out
+        pf.refresh_followed(force=True)
+        return out
+
     async def study_auto_loop(self) -> None:
         await asyncio.sleep(120)
         while True:
@@ -3931,6 +3952,10 @@ class PumpHub:
                     await self.study_auto(pf)
                 except Exception as e:
                     log.warning("estudo automático (%s…): %s", pf.user_id[:8], str(e)[:160])
+                try:
+                    await self.study_lucro_sync(pf)
+                except Exception as e:
+                    log.warning("estudo · deram lucro (%s…): %s", pf.user_id[:8], str(e)[:160])
             await asyncio.sleep(1800)
 
     async def learning_loop(self) -> None:

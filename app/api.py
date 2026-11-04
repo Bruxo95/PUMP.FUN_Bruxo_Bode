@@ -166,7 +166,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
     AUTO_SWITCHES = {"pump_sim_on", "pump_bar_auto_on", "pump_bar_real", "pump_bx_on", "pump_bx_real", "pump_ex_auto_on", "pump_calls_auto_on",
                      "pump_el_auto_on", "pump_auto_on", "pump_st_auto_copy", "pump_eq_on", "pump_guard_on", "pump_nc_on",
                      "pump_lanc_on", "pump_jt_real", "pump_calls_real", "pump_el_real", "pump_auto_real", "pump_st_real", "pump_eq_real",
-                     "pump_ex_real_on", "pump_radar_enabled", "pump_top_on", "pump_st_copy_on", "pump_jt_wallet", "pump_el_copy80"}
+                     "pump_ex_real_on", "pump_radar_enabled", "pump_top_on", "pump_st_copy_on", "pump_jt_wallet", "pump_el_copy80",
+                     "pump_st_lucro_on"}
 
     @app.post("/api/pump/settings")
     async def pump_settings(body: dict, request: Request, pf=Depends(engine), u: dict = Depends(user)):
@@ -183,6 +184,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 ov[key] = datetime.now(timezone.utc).isoformat()
             pf._cfg_why = "você mudou na tela"
             await hub.save_settings(pf)
+            if "pump_st_lucro_on" in applied:                # 0.32.211: a lista das que deram lucro sai na hora
+                import asyncio as _aio
+                _aio.get_running_loop().create_task(hub.study_lucro_sync(pf))
             # 0.32.58 (barrados voltavam a comprar depois de desligados): quem liga/desliga uma compra automática fica registrado,
             # com o navegador que mandou, para achar uma aba antiga do painel que grava a opção por cima
             for key in sorted(set(applied) & AUTO_SWITCHES):
@@ -708,7 +712,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return {"wallets": out, "ranking": [{"wallet": x["wallet"], "apelido": x["apelido"], "followed": x["followed"],
                                              **x["summary"]["copy"]} for x in ranked],
                 "limit": MAX_WALLETS, "key": bool(hub._study_key()), "params": prm,
-                "mine": study_my_results(pf, out), "auto": await study_auto_info(pf, {x["wallet"]: x for x in out}, prm)}
+                "mine": study_my_results(pf, out), "auto": await study_auto_info(pf, {x["wallet"]: x for x in out}, prm),
+                "lucro": {"on": bool(getattr(pf.cfg, "pump_st_lucro_on", False)), "copiando": pf.study_lucro_wallets(),
+                          "min_tokens": hub.LUCRO_MIN_TOKENS}}
 
     async def _log_rows(rows: list, known: dict, prm: dict | None) -> list:
         """0.32.10: cada decisão da IA leva o resumo da carteira (tokens que acertou/errou, pump.fun, última operação)."""

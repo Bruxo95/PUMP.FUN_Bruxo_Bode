@@ -617,13 +617,14 @@ class PumpFun:
         bots = {w for w, a in self.activity.items() if a.get("bot_until", 0) > now}
         bots |= set(self.paused())                       # pausados também ficam fora (entra o próximo do top)
         if getattr(self.cfg, "pump_nc_on", False):       # 0.32.57: lançador de token / alta frequência nunca é copiado
-            cand = set(man) | set(self.study_copy_wallets()) | {r.get("wallet") for r in self.leaderboard} | {r.get("wallet") for r in self.ranking_cache}
+            cand = set(man) | set(self.study_copy_wallets()) | set(self.study_lucro_wallets()) | {r.get("wallet") for r in self.leaderboard} | {r.get("wallet") for r in self.ranking_cache}
             bots |= {w for w in cand if w and self.uncopiable(w)}
         man = [w for w in man if w not in bots]
         # 0.32.4: "Copiar igual" — entram sempre (sem filtro de robô/pausa) enquanto o modo estiver ligado
         man += [w for w in self.eq_wallets() if w not in banned and w not in man]
         # 0.32.11: aprovadas pelo estudo automático (só fictícia; passam pelos filtros normais de cópia)
         man += [w for w in self.study_copy_wallets() if w not in banned and w not in man and w not in bots]
+        man += [w for w in self.study_lucro_wallets() if w not in banned and w not in man and w not in bots]
         self.leaderboard = [self._lb_judge(r) for r in self.leaderboard]
         lb = [r["wallet"] for r in self.leaderboard if r["eligible"] and r["wallet"] not in man
               and r["wallet"] not in banned and r["wallet"] not in bots]
@@ -691,6 +692,8 @@ class PumpFun:
                 por = "sugerido dos Maiores traders (80%+)"
             elif w in self.study_copy_wallets():
                 por = "aprovado pelo estudo automático (IA)"
+            elif w in self.study_lucro_wallets():
+                por = "deu lucro no estudo (Estudo · deram lucro)"
             elif w in (getattr(self, "top_active", None) or []):
                 por = "Top traders (entre os ativos do ranking)"
             else:
@@ -1165,6 +1168,11 @@ class PumpFun:
                 "motivos": sorted(({"motivo": ex[k], "n": n} for k, n in motivos.items()), key=lambda m: -m["n"])[:12],
                 "traders": sorted(por.values(), key=lambda p: -p["vistas"])[:30]}
 
+    def study_lucro_wallets(self) -> list[str]:
+        """0.32.211 (pedido do dono): carteiras do estudo que deram lucro na cópia simulada de 30 dias (lista refeita pelo hub a
+        cada 30 min e quando a chave muda). Copiadas só na FICTÍCIA, com os filtros normais, enquanto pump_st_lucro_on estiver ligada."""
+        return list(getattr(self, "study_lucro", None) or []) if getattr(self.cfg, "pump_st_lucro_on", False) else []
+
     def study_copy_wallets(self) -> list[str]:
         """0.32.11: carteiras aprovadas pelo estudo automático que esta conta copia (só fictícia)."""
         return list(getattr(self, "study_copy", None) or []) if getattr(self.cfg, "pump_st_auto_copy", False) else []
@@ -1180,6 +1188,8 @@ class PumpFun:
             return False                                  # 0.32.38: o dono escolheu "fictícia e REAL" no Copiar do estudo
         if who in self.study_copy_wallets() or who in (getattr(self, "sim_only_list", None) or []):
             return True
+        if who in self.study_lucro_wallets():
+            return True                                   # 0.32.211: "deram lucro" copia só na fictícia
         return who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False)
 
     def sim_only_why(self, who: str) -> str:
@@ -1188,6 +1198,8 @@ class PumpFun:
             return "você escolheu 'só fictícia' no Copiar desta carteira (Carteiras em estudo)"
         if who in self.study_copy_wallets():
             return "carteira aprovada pelo estudo automático: cópia só na fictícia"
+        if who in self.study_lucro_wallets():
+            return "carteira que deu lucro no estudo: cópia só na fictícia"
         return "carteira em Carteiras em estudo: copia só na fictícia (para ir à real, ligue a REAL do estudo ou escolha 'fictícia e REAL' no Copiar)"
 
     def eq_wallets(self) -> list[str]:
@@ -1742,7 +1754,7 @@ class PumpFun:
             self._save_pos(p)
 
     # 0.32.127 (pedido do dono: focar em uma aba): a chave geral da cópia também para o Copiar igual, então estas duas abas ganharam chave própria
-    TAB_SWITCH = {"Top traders": "pump_top_on", "Carteiras em estudo": "pump_st_copy_on"}
+    TAB_SWITCH = {"Top traders": "pump_top_on", "Carteiras em estudo": "pump_st_copy_on", "Estudo · deram lucro": "pump_st_lucro_on"}
 
     def tab_off(self, who: str) -> str | None:
         aba = self.aba_of({"wallet": who})
@@ -4821,6 +4833,8 @@ class PumpFun:
             return self.ABA_ORIGEM["base"]
         if x.get("manual") or w == "manual":
             return "Botão Comprar"
+        if w in self.study_lucro_wallets() and w not in self.manual:
+            return "Estudo · deram lucro"                # 0.32.211: copiadas pela chave do quadro novo
         if w in (getattr(self, "study", None) or []) or w in (getattr(self, "study_copy", None) or []):
             return "Carteiras em estudo"
         if w in (getattr(self, "elite_follow", None) or []):

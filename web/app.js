@@ -2348,8 +2348,59 @@
   // ------------------------------------------------------------------ carteiras em estudo (/api/pump/study)
   const money = (v, u) => (v == null ? "–" : (u === "US$" ? (v < 0 ? "−$" : "$") + f(Math.abs(v), Math.abs(v) < 10 ? 2 : 0) : s4(v) + " SOL"));
   const mny = (v, u) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + money(v, u) + "</span>");
+  // 0.32.211 (pedido do dono: "muito scroll"): a tela de estudo em abas; Decisões da IA com sub-abas por decisão
+  let STT = "ia", SA_F = "", ST_R = null;
+  try { STT = localStorage.getItem("pf_stt") || "ia"; SA_F = localStorage.getItem("pf_saf") || ""; } catch (e) { /* */ }
+  function stTab(t) {
+    if (t) { STT = t; try { localStorage.setItem("pf_stt", t); } catch (e) { /* */ } }
+    document.querySelectorAll("#stTabs [data-stt]").forEach((b) => b.classList.toggle("on", b.dataset.stt === STT));
+    document.querySelectorAll('section[data-view="estudo"] .card[data-stt]').forEach((c) => c.classList.toggle("ctoff", c.dataset.stt !== STT));
+  }
+  function drawLucro(r) {
+    if (!$("stLu")) return;
+    const lu = r.lucro || {}, cop = new Set(lu.copiando || []), mine = {};
+    ((r.mine || {}).rows || []).filter((x) => !x.real).forEach((x) => { mine[x.wallet] = x; });
+    const sim = {}; (r.ranking || []).forEach((x) => { sim[x.wallet] = x; });
+    const ws = (r.wallets || []).filter((x) => ((sim[x.wallet] || {}).pnl_30d || 0) > 0 || ((mine[x.wallet] || {}).pnl_sol || 0) > 0);
+    ws.sort((a, b) => ((sim[b.wallet] || {}).pnl_30d || 0) - ((sim[a.wallet] || {}).pnl_30d || 0));
+    const tot = ws.reduce((s, x) => s + ((mine[x.wallet] || {}).pnl_sol || 0), 0);
+    kpis("stLuK", [["Deram lucro", String(ws.length), "de " + (r.wallets || []).length + " carteiras em estudo", "hit"],
+      ["Copiando pela chave", String(cop.size), lu.on ? "só na FICTÍCIA · lista refeita a cada 30 min" : "chave desligada", "usr"],
+      ["Seu resultado com elas", sg(tot), "cópias de verdade (fictícia), desde que começou", "pnl"]]);
+    table("stLu", ["Carteira", "Simulação 30 d", "Por dia (7 d)", "Acerto copiando", "Sua cópia (fictícia)", "Situação", ""], ws.map((x) => { const s = sim[x.wallet] || {}, m = mine[x.wallet];
+      const st = cop.has(x.wallet) ? '<span class="tag win">copiando pela chave</span>' : x.followed ? '<span class="tag win">copiando</span>'
+        : (s.n_30d || 0) < (lu.min_tokens || 3) ? '<span class="tag neutral">poucos tokens (' + (s.n_30d || 0) + ")</span>" : '<span class="tag neutral">fora da cópia</span>';
+      return [pfW(x.wallet, x) + (x.apelido ? " <b>" + esc(x.apelido) + "</b>" : ""), s.pnl_30d == null ? "–" : "<b>" + sg(s.pnl_30d) + "</b><small>" + (s.n_30d || 0) + " tokens</small>",
+        s.per_day_7d == null ? "–" : sg(s.per_day_7d), s.win_rate == null ? "–" : f(s.win_rate * 100, 0) + "%",
+        m ? sg(m.pnl_sol) + "<small>" + m.trades + " trades</small>" : '<span class="dim">–</span>', st,
+        '<button class="btn sm" data-stp="' + esc(x.wallet) + '">Perfil</button>']; }),
+      "Nenhuma carteira do estudo deu lucro ainda (simulação de 30 dias ou cópia de verdade).");
+  }
+  const SA_AC = { adicionou: "neutral", aprovou: "win", descartou: "loss", parou_de_copiar: "loss", sugere_parar: "pause", copiou_lucro: "win" };
+  function drawSaLog() {
+    if (!$("saLog")) return;
+    const AC = SA_AC, base = ["descartou", "adicionou", "aprovou", "copiou_lucro"];
+    document.querySelectorAll("#saF [data-saf]").forEach((b) => {
+      const n = SA_LOG.filter((x) => !b.dataset.saf || (b.dataset.saf === "outras" ? !base.includes(x.acao) : x.acao === b.dataset.saf)).length;
+      b.classList.toggle("on", b.dataset.saf === SA_F); b.textContent = b.textContent.replace(/ \(\d+\)$/, "") + " (" + n + ")"; });
+    const keep = (x) => !SA_F || (SA_F === "outras" ? !base.includes(x.acao) : x.acao === SA_F);
+    table("saLog", ["Quando", "Carteira", "Decisão", "Nota", "Resumo", "Última operação", "Saldo (US$)", ""], SA_LOG.map((x, i) => [x, i]).filter((p) => keep(p[0])).map(([x, i]) => { const d = x.digest || {}, fx = x.facts || {};
+      const copying = copyState(x.wallet);
+      return [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", scoreTag(d),
+        x.digest ? '<span class="nowrap">' + (d.n_acertos || 0) + " acertos · " + (d.n_erros || 0) + " erros" + (d.pump_pct == null ? "" : " · " + d.pump_pct + "% pump.fun") + "</span>" : '<span class="muted">sem histórico ainda</span>',
+        d.ultima_op ? hms(Math.max(0, Date.now() / 1000 - d.ultima_op)) + " atrás" : "–", fx.usd == null ? "–" : "$" + f(fx.usd, 0),
+        '<span class="nowrap"><button class="btn sm" data-sadet="' + i + '">Ver tudo</button>' + (x.acao === "aprovou" && x.no_estudo ? (copying ? " " + copyTag(copying) : ' <button class="btn sm" data-stc="' + esc(x.wallet) + '" title="Aprovou = continua no estudo. Este botão passa a copiar.">Copiar</button>') : "") + "</span>"]; }),
+      "Nenhuma decisão ainda. Clique em Rodar agora ou espere a próxima volta.");
+  }
+  // o quadrado "Estudo · deram lucro" do Usar ou descartar abre a tela de estudo já na aba Deram lucro
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest(".uscard[data-stgo]");
+    if (a && !e.target.closest("[data-toggle]")) { STT = a.dataset.stgo; try { localStorage.setItem("pf_stt", STT); } catch (x) { /* */ } }
+  }, true);
   async function loadStudy() {
+    stTab();
     const r = await BB.api("/api/pump/study");
+    ST_R = r;
     if (r.error && !(r.wallets || []).length) { $("stList").innerHTML = '<tbody><tr><td class="muted">' + esc(r.error) + "</td></tr></tbody>"; return; }
     const VD = { "compensa copiar": "win", "não compensa": "loss", "no limite": "pause", "poucos dados": "neutral" };
     const pr = r.params || {};
@@ -2371,20 +2422,15 @@
     kpis("saK", [["Adicionadas", String(sc.adicionou || 0), "pela IA, desde o início", "pos"], ["Aprovadas", String(sc.aprovou || 0), "compensa copiar", "hit"], ["Descartadas", String(sc.descartou || 0), "não compensa ou paradas", "mon"]]);
     // 0.32.15 (pedido do dono): clicar no cartão abre a lista das carteiras com a nota
     ["adicionou", "aprovou", "descartou"].forEach((a, i) => { const k = $("saK").children[i]; if (k) { k.dataset.saact = a; k.classList.add("clickable"); k.title = "Clique para ver as carteiras"; } });
-    const AC = { adicionou: "neutral", aprovou: "win", descartou: "loss", parou_de_copiar: "loss", sugere_parar: "pause", copiou_lucro: "win" };
     table("saRates", ["Característica", "Aprovadas", "Julgadas", "Chance de compensar (aprendida)"], (sa.rates || []).map((x) => ['<button class="linkbtn" data-sarate="' + esc(x.valor) + '" title="Ver as carteiras com esta característica">' + esc(x.valor) + " ›</button>", String(x.aprovadas), String(x.julgadas), f(x.taxa * 100, 0) + "%"]),
       "Ainda sem carteiras julgadas: a primeira decisão sai quando uma carteira tiver 5 tokens fechados.");
     // 0.32.12 (pedido do dono: "está muito espremida"): uma linha por decisão; o resto abre em "Ver tudo"
     // 0.32.14 (pedido do dono): ordem pela nota (maior primeiro; sem nota no fim, depois a mais recente)
     SA_LOG = (sa.log || []).slice().sort((a, b) => ((b.digest || {}).score ?? -1) - ((a.digest || {}).score ?? -1) || String(b.em).localeCompare(String(a.em)));
-    table("saLog", ["Quando", "Carteira", "Decisão", "Nota", "Resumo", "Última operação", "Saldo (US$)", ""], SA_LOG.map((x, i) => { const d = x.digest || {}, fx = x.facts || {};
-      const copying = copyState(x.wallet);
-      return [dt(x.em), pfW(x.wallet, x), '<span class="tag ' + (AC[x.acao] || "neutral") + '">' + esc(x.acao) + "</span>", scoreTag(d),
-        x.digest ? '<span class="nowrap">' + (d.n_acertos || 0) + " acertos · " + (d.n_erros || 0) + " erros" + (d.pump_pct == null ? "" : " · " + d.pump_pct + "% pump.fun") + "</span>" : '<span class="muted">sem histórico ainda</span>',
-        d.ultima_op ? hms(Math.max(0, Date.now() / 1000 - d.ultima_op)) + " atrás" : "–", fx.usd == null ? "–" : "$" + f(fx.usd, 0),
-        '<span class="nowrap"><button class="btn sm" data-sadet="' + i + '">Ver tudo</button>' + (x.acao === "aprovou" && x.no_estudo ? (copying ? " " + copyTag(copying) : ' <button class="btn sm" data-stc="' + esc(x.wallet) + '" title="Aprovou = continua no estudo. Este botão passa a copiar.">Copiar</button>') : "") + "</span>"]; }),
-      "Nenhuma decisão ainda. Clique em Rodar agora ou espere a próxima volta.");
+    drawSaLog(sa);
+    drawLucro(r);
     const mi = r.mine || {}, tt = mi.total || {}, ts = tt.sim || {}, tr = tt.real || {};
+
     const roi = (v) => (v == null ? "–" : '<span class="' + (v >= 0 ? "up" : "down") + '">' + (v > 0 ? "+" : "") + f(v, 1) + "%</span>");
     kpis("stMineK", [["Fictícia: seu resultado", sg(ts.pnl_sol), (ts.trades || 0) + " trades · acerto " + (ts.win_rate == null ? "–" : f(ts.win_rate * 100, 0) + "%"), "pnl"],
       ["Fictícia: retorno", roi(ts.roi_pct), "sobre o valor investido", "tr"],
@@ -2549,6 +2595,8 @@
     if (t.dataset.bdh) { BD.h = +t.dataset.bdh; try { localStorage.setItem("pf_bdh", BD.h); } catch (e) { /* */ } loadBuyDiff(); return; }
     if (t.dataset.bdadd) { bdAdd(t.dataset.bdadd); return; }
     if (t.dataset.bdundo) { bdUndo(t.dataset.bdundo); return; }
+    if (t.dataset.stt && t.closest("#stTabs")) { stTab(t.dataset.stt); return; }
+    if (t.dataset.saf !== undefined && t.closest("#saF")) { SA_F = t.dataset.saf; try { localStorage.setItem("pf_saf", SA_F); } catch (x) { /* */ } drawSaLog(); return; }
     if (t.dataset.rsync) { if (t.dataset.rsync === "ver") openRealSync(); else applyRealSync(); return; }
     if (t.dataset.rsundo) { rsUndo(+t.dataset.rsundo); return; }
     if (t.dataset.rshist) { e.preventDefault(); CHF = "carteiras"; walTab("hist"); loadCfgHist(); return; }
@@ -3415,7 +3463,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const NL2 = String.fromCharCode(10, 10);
   const TGL_REAL = ["pump_real_mirror", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_copy_other_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
-    pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
+    pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
   function tglScope(k, c) {
     if (TGL_REAL.includes(k)) return ["REAL", "só a carteira REAL (dinheiro de verdade), e só com a Execução real ligada"];
@@ -3431,7 +3479,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const ABAS_TR = [["Top traders", "pump_top_on", "pump_real_mirror", "traders"], ["Explorar", "pump_ex_auto_on", "pump_ex_real_on", "explorar"], ["Explorar · barrados", "pump_bar_auto_on", "pump_bar_real", "explorar"],
     ["Base da pump.fun", "pump_auto_on", "pump_auto_real", "base"], ["Maiores traders", "pump_el_auto_on", "pump_el_real", "elite"], ["Maiores traders (80%+)", "pump_el_copy80", "pump_real_mirror", "elite"],
     ["Calls quentes", "pump_calls_auto_on", "pump_calls_real", "calls"], ["Aba do Bruxo", "pump_bx_on", "pump_bx_real", "bruxo"], ["Jev Trade", "pump_jt_wallet", "pump_jt_real", "jevtrade"],
-    ["Copiar igual", "pump_eq_on", "pump_eq_real", "igual"], ["Carteiras em estudo", "pump_st_copy_on", "pump_st_real", "estudo"]];
+    ["Copiar igual", "pump_eq_on", "pump_eq_real", "igual"], ["Carteiras em estudo", "pump_st_copy_on", "pump_st_real", "estudo"],
+    ["Estudo · deram lucro", "pump_st_lucro_on", "pump_st_real", "estudo"]];
   const ABAS_MEM = "pf_abas_antes";
   // 0.32.129 (pedido do dono): as regras de cada aba aqui dentro. São cópias dos campos das outras telas (mesma opção); as opções REAL ficam fora
   const ABAS_TOPX = ["pump_copy_sol", "pump_extra_slip_pct", "pump_portal_fee_pct", "pump_priority_sol", "pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
@@ -3612,7 +3661,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     "Base da pump.fun": "Compra sozinha tokens novos da Base com Boost ou chance alta.", "Maiores traders": "Compra quando os maiores traders entram no mesmo token.", "Maiores traders (80%+)": "Copia as carteiras sugeridas com 80% ou mais de acerto.",
     "Calls quentes": "Compra a partir das calls com nota alta.", "Aba do Bruxo": "Entra quando um top trader compra um token novo.", "Lançamento sem trader": "Tokens novos com ritmo forte, sem trader por trás.",
     "Jev Trade": "Observa os detentores do token e entra pela regra do Bruxo.", "Top traders": "Copia os traders do ranking e da sua lista.", "Copiar igual": "Copia as carteiras escolhidas, sem filtros.",
-    "Carteiras em estudo": "Copia as carteiras em estudo liberadas.", "Botão Comprar": "Compras feitas por você no botão.", "Copiar trades de usuário": "Repete as operações de outra conta." };
+    "Carteiras em estudo": "Copia as carteiras em estudo liberadas.", "Estudo · deram lucro": "Copia (só FICTÍCIA) as carteiras do estudo que deram lucro.", "Botão Comprar": "Compras feitas por você no botão.", "Copiar trades de usuário": "Repete as operações de outra conta." };
   const ovPer = (h) => (h === 1 ? "Última hora" : "Últimas " + h + " h");
   // 0.32.125 (pedido do dono): a conta na ordem de quem lê: investi 1, ganhei 0,20, perdi 0,10, fiquei com 1,10
   const OV_CONTA = ["Investido", "Ganhou", "Perdeu", "Resultado total", "%"];
@@ -4951,7 +5000,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   // 0.32.186 (pedido do dono): cada quadrado do Usar ou descartar mostra o resultado das abas que ele compra em 1, 6, 12 e 24 h
   // (FICTÍCIA ou REAL, botão no topo); quem dá lucro em 24 h fica em cima e mais verde, quem perde fica embaixo.
-  const USAR_ABAS = { estudo: ["Carteiras em estudo"], elite: ["Maiores traders", "Maiores traders (80%+)"], igual: ["Copiar igual"],
+  const USAR_ABAS = { estudo: ["Carteiras em estudo"], estudolucro: ["Estudo · deram lucro"], elite: ["Maiores traders", "Maiores traders (80%+)"], igual: ["Copiar igual"],
     base: ["Base da pump.fun"], explorar: ["Explorar", "Explorar · barrados"], bruxo: ["Aba do Bruxo", "Lançamento sem trader"],
     jevtrade: ["Jev Trade"], calls: ["Calls quentes"], tradershist: ["Top traders"], abas: "*" };
   let US = { rm: null, at: 0, r: {} };

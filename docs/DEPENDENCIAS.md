@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-04**; revisão documental **2.0**.
-Aplicação: **0.32.210 · 2026-11-04 · 12 carteiras do kibo100x em estudo**.
-Referência Git na emissão: `05ed86d630f35d55b86a1b516d8cf1f3d58baada`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.211 · 2026-11-04 · Carteiras em estudo em abas e Estudo · deram lucro**.
+Referência Git na emissão: `6f9cc773bf8d29cb0bd23c7f1231f5d657613ab1`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
