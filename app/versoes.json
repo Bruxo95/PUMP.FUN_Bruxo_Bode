@@ -1665,6 +1665,11 @@
    "versao": "0.32.181",
    "inicio": "2026-11-04T06:37:50+00:00",
    "titulo": "chave da NodeReal testada antes de salvar"
+  },
+  {
+   "versao": "0.32.182",
+   "inicio": "2026-11-04T08:18:08+00:00",
+   "titulo": "venda REAL com erro 6063 tenta PumpSwap e Jupiter"
   }
  ]
 }

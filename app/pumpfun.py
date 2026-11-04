@@ -4623,6 +4623,11 @@ class PumpFun:
         p.pop("sell_retry_at", None)
         p.pop("sell_fails", None)
         got, left = res["sol_received"], res["tokens_left"]
+        if res.get("reason") == "sem saldo do token":
+            # 0.32.182: o token já não estava na carteira (vendido no app da carteira, por exemplo). O robô não sabe quanto
+            # SOL entrou nessa venda: o resultado fica −100% no histórico, mas o motivo diz isso para não parecer perda.
+            why = why + " · o token já não estava na carteira (vendido fora do robô?): o SOL dessa venda não entra na conta"
+            p["fora_do_robo"] = True
         fr = self._fee_rates(p["mint"], True)
         sold = max(0.0, p["tokens_left"] - left)
         p["proceeds"] = p.get("proceeds", 0.0) + got
@@ -4654,6 +4659,7 @@ class PumpFun:
             tr["sim_id"] = p.get("sim_id")                 # 0.31.38: par na fictícia (espelho)
             tr["lat"] = p.get("lat")                       # 0.31.51: tempo da compra real (montar, confirmar, total)
             tr["sell_tries"] = p.get("sell_tries")         # 0.32.107: cada tentativa de venda
+            tr["fora_do_robo"] = bool(p.get("fora_do_robo"))   # 0.32.182: vendido fora do robô (sem o SOL na conta)
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
@@ -5280,6 +5286,13 @@ class PumpReal:
                 return {"ok": False, "status": "pendente", "signature": last.get("signature"), "attempts": tried, "tentativas": tries,
                         "reason": "venda sem confirmação — não reenvia até conferir a assinatura"}
             why = str(last.get("reason") or "")
+            if via == "pp" and self.other_quote(why) and not any(p_[0] == "jupiter" for p_ in plan):
+                # 0.32.182 (STARMIND do dono, 04/11: +445% e 19 vendas recusadas com 6063 seguidas): subir o slippage na
+                # PumpPortal não resolve esse erro (não é preço). Troca o resto da escada por PumpSwap direto e Jupiter
+                # (que acha outra rota para o mesmo token) e não repete PumpPortal "auto".
+                plan = plan[:k] + ([("pp", "pump-amm", max(30.0, base_slip))] if (pool or "auto") != "pump-amm" else []) + \
+                    [("jupiter", None, 10.0), ("jupiter", None, 25.0)]
+                continue
             if via == "pp" and "0x1775" in why and pool_override is None:
                 pool_override = "pump-amm"                 # graduou: as próximas tentativas vão na PumpSwap
             if via == "pp" and ("HTTP" in why or "0x1774" in why) and not any(p_[0] == "jupiter" for p_ in plan):

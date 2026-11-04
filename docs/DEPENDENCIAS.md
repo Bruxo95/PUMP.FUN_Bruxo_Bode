@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-04**; revisão documental **2.0**.
-Aplicação: **0.32.181 · 2026-11-04 · chave da NodeReal testada antes de salvar**.
-Referência Git na emissão: `00a9afd763bd78a776c9b025e052dba86fceb165`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.182 · 2026-11-04 · venda REAL com erro 6063 tenta PumpSwap e Jupiter**.
+Referência Git na emissão: `6598b792f273f1d871a7ec702fd7ea0dda6e68cf`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
