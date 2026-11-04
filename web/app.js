@@ -5000,6 +5000,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   // 0.32.186 (pedido do dono): cada quadrado do Usar ou descartar mostra o resultado das abas que ele compra em 1, 6, 12 e 24 h
   // (FICTÍCIA ou REAL, botão no topo); quem dá lucro em 24 h fica em cima e mais verde, quem perde fica embaixo.
+  const US_SO_FICT = ["Estudo · deram lucro"];          // 0.32.212: abas que nunca compram na REAL
   const USAR_ABAS = { estudo: ["Carteiras em estudo"], estudolucro: ["Estudo · deram lucro"], elite: ["Maiores traders", "Maiores traders (80%+)"], igual: ["Copiar igual"],
     base: ["Base da pump.fun"], explorar: ["Explorar", "Explorar · barrados"], bruxo: ["Aba do Bruxo", "Lançamento sem trader"],
     jevtrade: ["Jev Trade"], calls: ["Calls quentes"], tradershist: ["Top traders"], abas: "*" };
@@ -5033,10 +5034,27 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     grid.querySelectorAll(".uscard").forEach((c) => {
       const nomes = USAR_ABAS[c.dataset.us];
       if (!Array.isArray(nomes) || c.querySelector(".ustg")) return;
-      const h = ABAS_TR.filter((a) => nomes.includes(a[0])).map((a) => '<div class="ustg"><span>' + esc(a[0]) + '</span><button type="button" class="btn sm tgl sw" data-toggle="' + esc(a[1]) + '" data-clone="1" aria-label="' + esc(a[0]) + '">…</button></div>').join("");
+      const tr = ABAS_TR.filter((a) => nomes.includes(a[0]));
+      let h = tr.map((a) => '<div class="ustg"><span>' + esc(a[0]) + '</span><button type="button" class="btn sm tgl sw" data-toggle="' + esc(a[1]) + '" data-clone="1" aria-label="' + esc(a[0]) + '">…</button></div>').join("");
+      // 0.32.212 (pedido do dono): no modo REAL o quadro mostra também a chave REAL de cada aba (a mesma de Carteiras → REAL e da tela da aba)
+      const vistos = new Set();
+      h += tr.map((a) => {
+        if (US_SO_FICT.includes(a[0])) return '<div class="ustg ustr" hidden><span>' + esc(a[0]) + ' na REAL</span><span class="muted small">só FICTÍCIA: esta aba nunca compra na REAL</span></div>';
+        if (!a[2] || vistos.has(a[2])) return "";
+        vistos.add(a[2]);
+        const nm = a[2] === "pump_real_mirror" ? "Espelho na REAL (Top traders e 80%+)" : a[0] + " na REAL";
+        return '<div class="ustg ustr" hidden><span>' + esc(nm) + '</span><button type="button" class="btn sm tgl sw" data-toggle="' + esc(a[2]) + '" data-clone="1" data-usreal="' + esc(nm) + '" aria-label="' + esc(nm) + '">…</button></div>';
+      }).join("");
       if (h) { c.querySelector(".usg").insertAdjacentHTML("afterend", h); novas = true; }
     });
     if (novas && D) render();
+    const realOn = !!(D && D.real && D.real.enabled);
+    grid.querySelectorAll(".ustr").forEach((e) => { e.hidden = !US.rm; });
+    grid.querySelectorAll(".uscard").forEach((c) => {
+      let n = c.querySelector(".usrnote");
+      if (!US.rm || realOn || !c.querySelector(".ustr button")) { if (n) n.remove(); return; }
+      if (!n) { n = document.createElement("div"); n.className = "usrnote muted small"; n.textContent = "A carteira REAL está desligada: as chaves REAL só compram quando ela estiver ligada (Carteiras → REAL)."; c.querySelector("i").before(n); }
+    });
     const L = [...grid.querySelectorAll(".uscard")].map((c) => {
       const v = c.dataset.us, nome = USAR_ABAS[v], box = c.querySelector(".usg");
       if (!nome) { box.innerHTML = '<div class="usno">esta tela não compra: sem resultado próprio</div>'; c.classList.remove("uspos", "usneg"); c.style.background = ""; return [c, 0, 1]; }
@@ -5190,6 +5208,14 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       if (+t.dataset.autoDays === EX_AUTO.days) return;
       EX_AUTO.days = +t.dataset.autoDays; EX_AUTO.revision++; EX_AUTO.data = null; EX_AUTO.error = "";
       renderAutoTrades(); loadAutoTrades(true); return;
+    }
+    if (t.dataset.toggle && t.dataset.usreal && !cfg()[t.dataset.toggle]) {
+      // 0.32.212: ligar a REAL de uma aba pelo quadro do Usar ou descartar pede LIGAR, como a carteira REAL
+      const c = cfg(), real = !!(D && D.real && D.real.enabled);
+      const ok = await askLigar("Ligar " + t.dataset.usreal, "<p>Esta aba passa a comprar também com <b>dinheiro de verdade</b>, com os valores e limites da carteira REAL (até <b>" + esc(s4(c.pump_real_max_sol)) + " SOL</b> por compra, até " + esc(c.pump_real_max_open) + " posições).</p>" +
+        (real ? "<p>A carteira REAL está <b>ligada</b>: as compras começam na hora.</p>" : "<p>A carteira REAL está <b>desligada</b>: nada é comprado até você ligá-la em Carteiras → REAL.</p>"));
+      if (!ok) return;
+      setCfg({ [t.dataset.toggle]: true }); toast("Ligado · " + t.dataset.usreal); return;
     }
     if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k], sc = tglScope(k, cfg()); if (on && t.dataset.confirm && !confirm("VALE PARA: " + sc[1] + NL2 + t.dataset.confirm)) return; setCfg({ [k]: on }); toast((on ? "Ligado" : "Desligado") + " · " + sc[1]); if (k === "pump_base_hide_trash") setTimeout(loadBase, 700); return; }
     if (t.dataset.set) { setCfg({ [t.dataset.set]: +t.dataset.val }); return; }

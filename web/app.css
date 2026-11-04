@@ -1002,3 +1002,4 @@ label.chgrp{cursor:pointer}
 .cfgver b{color:var(--text,#fff);font-weight:600}
 .cfgver .btn{margin-left:4px}
 .rsync{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}.rsync.diff{border-color:#b7791f;background:rgba(183,121,31,.10)}.rsync.same{border-color:rgba(34,197,94,.35)}.rsync .rs-t{flex:1;min-width:220px}.rsync .rs-b{display:flex;flex-wrap:wrap;gap:8px}
+.ustr span:first-child{color:#f59e0b}.usrnote{margin:6px 0 2px;line-height:1.35}
