@@ -2866,7 +2866,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "carteiras") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
+    if (VIEW === "carteiras") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
     if (VIEW === "sistema") { sysTab(); openSys(); }
@@ -3661,6 +3661,102 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       toast(r.error || "Convite enviado (" + r.opcoes + " opções). A pessoa aceita ou recusa no topo do painel.");
     }
   });
+  // 0.32.218 (pedido do dono: "o Bruxo parece diferente e não recebo aviso nenhum"): toda a configuração comparada com a de
+  // outro usuário (padrão: de quem você copiou por último, senão o Bruxo), em Carteiras → Regras de todas → Comparar, e um
+  // aviso no topo quando houver diferença. Só leitura até você clicar em Deixar igual (o Histórico de config guarda a versão).
+  const CXA = { users: null, peer: null, r: null, t: 0 };
+  async function cxaUsers() {
+    if (!CXA.users) { try { CXA.users = ((await BB.api("/api/pump/config/share-targets", { quiet: true })) || {}).users || []; } catch (e) { CXA.users = []; } }
+    return CXA.users;
+  }
+  function cxaPick(users) {
+    let pick = ""; try { pick = localStorage.getItem("pf_abcmp") || ""; } catch (e) { /* */ }
+    const ids = users.map((u) => u.user_id), ap = (APPLIED || []).find((a) => a.de_user && ids.includes(a.de_user));
+    if (!ids.includes(pick)) pick = (ap && ap.de_user) || (users.find((u) => /bruxo/i.test((u.nome || "") + " " + (u.email || ""))) || users[0] || {}).user_id || "";
+    return pick;
+  }
+  async function cxaFetch(uid) {
+    const L = cfgItems(); if (!L.length || !uid) return null;
+    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, keys: L.map((x) => x.k) }, quiet: true });
+    if (!r || r.error) { CXA.r = r; return r; }
+    const V = r.valores || {};
+    r.L = L.filter((x) => x.k in V); r.dif = r.L.filter((x) => !abcSame(cfgNow(x.k), V[x.k]));
+    r.sig = r.user_id + ":" + r.dif.map((x) => x.k + "=" + JSON.stringify(V[x.k]) + "/" + JSON.stringify(cfgNow(x.k))).join("|");
+    CXA.peer = uid; CXA.r = r; CXA.t = Date.now();
+    return r;
+  }
+  const cxaGroups = (dif) => { const g = {}; dif.forEach((x) => { const n = x.vt + (x.ct ? " · " + x.ct : ""); (g[n] = g[n] || []).push(x); }); return g; };
+  async function loadCmpAll(force) {
+    const card = $("cmpAllCard"); if (!card) return;
+    const adm = !!(ME && ME.role === "admin" && !ME.view_by); card.hidden = !adm; if (!adm) return;
+    const users = await cxaUsers(), pick = CXA.peer || cxaPick(users);
+    const opts = users.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === pick ? " selected" : "") + ">" + esc(u.nome || u.email) + "</option>").join("");
+    if (!$("cxaU")) $("cxAll").innerHTML = '<div class="abcmp-h"><b>Comparar com</b><select class="in" id="cxaU" aria-label="Comparar com o usuário"></select><span class="sp"></span><button class="btn sm" data-cxa="reload">Comparar de novo</button></div><div id="cxaR" class="small"></div>';
+    $("cxaU").innerHTML = opts || '<option value="">ninguém</option>';
+    if (!pick) { $("cxaR").textContent = "Nenhum outro usuário para comparar."; return; }
+    if (force || !CXA.r || CXA.peer !== pick || Date.now() - CXA.t > 60000) { $("cxaR").textContent = "comparando…"; await cxaFetch(pick); }
+    cxaDraw();
+  }
+  function cxaDraw() {
+    const r = CXA.r; if (!$("cxaR") || !r) return;
+    if (r.error) { $("cxaR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
+    const V = r.valores || {}, nm = esc(r.nome), g = cxaGroups(r.dif);
+    let undo = null; try { undo = JSON.parse(localStorage.getItem("pf_cxundo") || "null"); } catch (e) { undo = null; }
+    const un = undo && undo.vals && Object.keys(undo.vals).length ? '<div class="abcmp-undo">Última troca daqui: ' + dt(undo.t) + " (igual à de " + esc(undo.de || "?") + ") · " + Object.keys(undo.vals).length + ' opções <button class="btn sm" data-cxa="undo">Desfazer · voltar como estava</button></div>' : "";
+    $("cxaR").innerHTML = un + (!r.dif.length ? '<div class="abcmp-ok">✓ Idêntica à de <b>' + nm + "</b> · " + r.L.length + " opções conferidas</div>"
+      : '<div class="abcmp-dif"><b>' + r.dif.length + " diferente" + (r.dif.length > 1 ? "s" : "") + "</b> da de " + nm + " (" + (r.L.length - r.dif.length) + ' iguais) <button class="btn sm primary" data-cxa="all">Deixar tudo igual à de ' + nm + "</button></div>" +
+        Object.keys(g).map((n, i) => '<details class="cxa-g" open><summary><b>' + esc(n) + '</b> <span class="muted">' + g[n].length + " diferente" + (g[n].length > 1 ? "s" : "") + '</span> <button class="btn sm" data-cxa="grp" data-i="' + i + '">Deixar igual só aqui</button> <a class="btn sm ghost" href="#' + esc(g[n][0].v) + '">abrir a tela</a></summary>' +
+          '<div class="tbl-wrap"><table class="daytbl"><thead><tr><th>Opção</th><th>Sua</th><th>De ' + nm + "</th></tr></thead><tbody>" +
+          g[n].map((x) => "<tr><td>" + esc(x.label) + "</td><td>" + abcFv(cfgNow(x.k), x) + "</td><td><b>" + abcFv(V[x.k], x) + "</b></td></tr>").join("") + "</tbody></table></div></details>").join("")) +
+      '<p class="muted small">Ficam fora da comparação: carteira REAL, chaves e Telegram. Os botões ON/OFF dentro de cada posição valem só para aquela posição e também não entram aqui.</p>';
+  }
+  async function cxaSet(vals) {
+    const auto = Object.fromEntries(Object.entries(vals).filter(([k]) => isAutoCfg(k))), norm = Object.fromEntries(Object.entries(vals).filter(([k]) => !isAutoCfg(k)));
+    if (Object.keys(norm).length) await setCfg(norm);
+    if (Object.keys(auto).length) await setCfg(auto);
+  }
+  async function cxaApply(rows, titulo) {
+    const V = (CXA.r && CXA.r.valores) || {}; if (!rows.length) return;
+    if (!confirm(titulo + "\n\nVai mudar " + rows.length + " opç" + (rows.length > 1 ? "ões" : "ão") + ":\n" + rows.slice(0, 25).map((x) => "• " + x.label + ": " + String(cfgNow(x.k)) + " → " + String(V[x.k])).join("\n") + (rows.length > 25 ? "\n…" : "") + "\n\nDá para voltar no Desfazer ou no Histórico de config.")) return;
+    const antes = Object.fromEntries(rows.map((x) => [x.k, cfgNow(x.k)])), vals = Object.fromEntries(rows.map((x) => [x.k, V[x.k]]));
+    await cxaSet(vals);
+    try { localStorage.setItem("pf_cxundo", JSON.stringify({ t: Date.now(), de: CXA.r.nome, vals: antes })); } catch (e) { /* */ }
+    setTimeout(() => { loadCmpAll(true); checkCmpBar(true); }, 1500);
+  }
+  document.addEventListener("change", (e) => { if (e.target && e.target.id === "cxaU") { try { localStorage.setItem("pf_abcmp", e.target.value); } catch (er) { /* */ } CXA.peer = e.target.value; loadCmpAll(true).then(() => checkCmpBar(true)); } });
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest && e.target.closest("[data-cxa]"); if (!t) return;
+    const a = t.dataset.cxa;
+    if (a === "reload") { loadCmpAll(true); return; }
+    if (a === "go") { e.preventDefault(); WALT = "ambas"; CFT = "cmp"; if (location.hash !== "#carteiras") location.hash = "#carteiras"; walTab("ambas"); cfgTab("cmp"); loadCmpAll(true); return; }
+    if (a === "ok") { try { localStorage.setItem("pf_cxok", (CXA.r && CXA.r.sig) || ""); } catch (er) { /* */ } $("cmpBar").hidden = true; return; }
+    if (a === "undo") {
+      let u = null; try { u = JSON.parse(localStorage.getItem("pf_cxundo") || "null"); } catch (er) { u = null; }
+      if (!u || !confirm("Voltar " + Object.keys(u.vals).length + " opções como estavam antes da troca de " + dt(u.t) + "?")) return;
+      await cxaSet(u.vals);
+      try { localStorage.removeItem("pf_cxundo"); } catch (er) { /* */ }
+      setTimeout(() => { loadCmpAll(true); checkCmpBar(true); }, 1500); return;
+    }
+    e.preventDefault();
+    if (!CXA.r || !CXA.r.dif) return;
+    if (a === "all") cxaApply(CXA.r.dif, "Deixar tudo igual à de " + CXA.r.nome);
+    if (a === "grp") { const g = cxaGroups(CXA.r.dif), n = Object.keys(g)[+t.dataset.i]; if (n) cxaApply(g[n], "Deixar igual à de " + CXA.r.nome + ": " + n); }
+  });
+  async function checkCmpBar(force) {
+    const bar = $("cmpBar"); if (!bar) return;
+    if (!ME || ME.role !== "admin" || ME.view_by) { bar.hidden = true; return; }
+    try {
+      if (force || !CXA.r || Date.now() - CXA.t > 240000) { const users = await cxaUsers(); await cxaFetch(CXA.peer || cxaPick(users)); }
+    } catch (e) { return; }
+    const r = CXA.r; let ok = ""; try { ok = localStorage.getItem("pf_cxok") || ""; } catch (e) { /* */ }
+    if (!r || r.error || !r.dif || !r.dif.length || ok === r.sig) { bar.hidden = true; return; }
+    const g = cxaGroups(r.dif), telas = {};
+    r.dif.forEach((x) => { telas[x.vt] = (telas[x.vt] || 0) + 1; });
+    const partes = Object.keys(telas).slice(0, 4).map((n) => esc(n) + " " + telas[n]).join(", ");
+    bar.innerHTML = '<div class="cmpbar"><span>⚠ Sua configuração está <b>diferente da de ' + esc(r.nome) + "</b> em " + r.dif.length + " opç" + (r.dif.length > 1 ? "ões" : "ão") + (partes ? ' <small class="muted">(' + partes + (Object.keys(telas).length > 4 ? ", …" : "") + ")</small>" : "") + '</span><a class="btn sm primary" href="#carteiras" data-cxa="go">Ver diferenças</a><button class="btn sm ghost" data-cxa="ok" title="esconde até mudar alguma coisa">Ok, sei</button></div>';
+    bar.hidden = false;
+    if ($("cxaR") && VIEW === "carteiras") cxaDraw();
+  }
   // 0.32.123 (pedido do dono): resultado por aba. Vem do servidor porque o painel só recebe os últimos 300 trades
   let OV_ABAS = [];
   const ABA_INFO = { "Explorar": "Compra sozinha tokens quase graduando que passam nos filtros do Explorar.", "Explorar · barrados": "Tokens que o Explorar barrou e continuaram subindo.",
@@ -4390,6 +4486,11 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const trS = p.trail_start != null ? p.trail_start : c.pump_trail_start_pct, trD = p.trail_dist != null ? p.trail_dist : c.pump_trail_dist_pct;
     const tp1 = p.tp1_pct != null ? p.tp1_pct : (c.pump_tp1_on ? c.pump_tp1_pct : null), tp1F = p.tp1_frac != null ? (p.tp1_frac <= 1 ? p.tp1_frac * 100 : p.tp1_frac) : c.pump_tp1_frac_pct;
     const tpV = p.tp_pct != null ? p.tp_pct : c.pump_tp_pct;
+    // 0.32.218 (pedido do dono: "onde esses botões são configurados?"): diz de onde vem cada regra e se o OFF é só desta posição
+    const own = p.stop_pct != null || p.trail_on != null || p.tp1_pct != null || p.trail_start != null;
+    const abaR = ABAS_TR.find((a) => a[0] === p.aba), srcTela = own ? (abaR ? abaR[3] : p.aba === "Botão Comprar" ? "base" : "carteiras") : "carteiras";
+    const srcNome = own ? "regras da aba " + (p.aba || "de origem") + " (gravadas na posição quando ela abriu)" : "Carteiras → Regras (configuração de cópia)";
+    const offWhy = (soPos) => soPos ? "desligado só nesta posição" : "desligado na configuração · " + (own ? "aba " + (p.aba || "de origem") : "Carteiras → Regras");
     // faixa: stop (esquerda) … 0 … alvo (direita), com o agora e o pico
     const lo = stopOff ? Math.min(-50, (p.worst_pct || 0) * 1.1) : -stopV;
     const hi = Math.max(tpV || 0, tp1 || 0, trS || 0, (p.best_pct || 0) * 1.1, (chg || 0) * 1.1, 30);
@@ -4423,10 +4524,10 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       st("Mcap", (p.mcap_in ? f(p.mcap_in, 0) : "–") + " → " + (p.mcap_now ? f(p.mcap_now, 0) : "–") + " SOL") + st("Volume 1 h", v.h1 == null ? "–" : uk(v.h1) + ' <span class="dim">' + (v.buys_h1 || 0) + "c/" + (v.sells_h1 || 0) + "v</span>") + "</dl>" +
       '<div class="pc-sec"><div><small>Sai por tempo em</small>' + leftTxt + (h != null && h < 3e8 ? '<small class="dim">limite ' + hms(h) + "</small>" : "") + "</div>" +
       (p.selling ? "" : '<div class="pc-chips">' + btn("+30 min", "hold", { id: p.id, add: 30 }, "chip") + btn("+1 h", "hold", { id: p.id, add: 60 }, "chip") + btn("Sem limite", "hold", { id: p.id, add: "none" }, "chip") + "</div>") + "</div>" +
-      (p.selling ? "" : '<div class="pc-rules">' +
-        rule("Stop de perda", stopOff ? "desligado nesta posição" : "sai em −" + f(stopV, 0) + "%" + (p.be_after ? " · vira 0% depois de +" + f(p.be_after, 0) + "%" : ""), sw("stop", stopOff)) +
-        rule("Stop móvel", !trOn ? "desligado nesta posição" : p.trail_peak != null ? "armado · pico " + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + "%" : "liga em +" + f(trS, 0) + "% · sai " + (p.trail_rel ? f(p.trail_rel, 0) + "% abaixo do pico do preço" : f(trD, 0) + " pts abaixo do pico"), sw("trail", !trOn)) +
-        rule("Venda em partes", p.tp1_done ? "já vendeu " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : tp1 ? "vende " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : "sem venda em partes", p.tp1_done ? '<span class="tag win">feita</span>' : sw("tp1", !!p.off_tp1 || !tp1)) + "</div>") +
+      (p.selling ? "" : '<div class="pc-rules"><div class="pc-src">Regras vêm de: <a href="#' + srcTela + '">' + esc(srcNome) + '</a> · o ON/OFF abaixo muda só esta posição</div>' +
+        rule("Stop de perda", stopOff ? offWhy(!!p.off_stop) : "sai em −" + f(stopV, 0) + "%" + (p.be_after ? " · vira 0% depois de +" + f(p.be_after, 0) + "%" : ""), sw("stop", stopOff)) +
+        rule("Stop móvel", !trOn ? offWhy(!!p.off_trail) : p.trail_peak != null ? "armado · pico " + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + "%" : "liga em +" + f(trS, 0) + "% · sai " + (p.trail_rel ? f(p.trail_rel, 0) + "% abaixo do pico do preço" : f(trD, 0) + " pts abaixo do pico"), sw("trail", !trOn)) +
+        rule("Venda em partes", p.tp1_done ? "já vendeu " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : tp1 ? (p.off_tp1 ? offWhy(true) : "vende " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%") : offWhy(false), p.tp1_done ? '<span class="tag win">feita</span>' : sw("tp1", !!p.off_tp1 || !tp1)) + "</div>") +
       (p.selling ? "" : '<div class="pc-act">' + btn("Vender 25%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 0.25 }, "pill") + btn("Vender 50%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 0.5 }, "pill") +
         btn(p.real ? "Vender tudo" : "Fechar 100%", "close", { id: p.id, real: p.real ? 1 : 0, frac: 1 }, "pill no") + "</div>") +
       (p.sell_error ? '<div class="pc-err down">' + esc(p.sell_error) + "</div>" : "") +
@@ -5442,6 +5543,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     sanfona();
     loadOffers();
     setInterval(loadOffers, 30000);
+    setTimeout(() => checkCmpBar(true), 4000);
+    setInterval(() => checkCmpBar(false), 60000);
     setInterval(() => poll(false), 2000);
     setInterval(() => walletLoad(false), 20000);
     setInterval(() => { if (VIEW === "loggeral" && LGT === "srv" && LOG_LIVE) loadLogs(); }, 4000);

@@ -907,7 +907,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def config_peer(body: dict, u: dict = Depends(admin_only)):
         """0.32.151: opções de outro usuário para comparar na janela Ajustes de Abas de trades (só leitura)."""
         try:
-            return await hub.config_peer(u["id"], str(body.get("user") or ""), [str(k) for k in (body.get("keys") or [])][:300])
+            return await hub.config_peer(u["id"], str(body.get("user") or ""), [str(k) for k in (body.get("keys") or [])][:1000])
         except Exception as e:
             log.warning("comparar configuração: %s", str(e)[:120])
             return {"error": "não consegui ler a configuração agora"}

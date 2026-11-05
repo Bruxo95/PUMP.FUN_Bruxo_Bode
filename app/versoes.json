@@ -1845,6 +1845,11 @@
    "versao": "0.32.217",
    "inicio": "2026-11-05T11:45:11+00:00",
    "titulo": "Trocar rede abre o menu das redes"
+  },
+  {
+   "versao": "0.32.218",
+   "inicio": "2026-11-05T12:16:16+00:00",
+   "titulo": "Comparar toda a configuração e aviso de diferença"
   }
  ]
 }

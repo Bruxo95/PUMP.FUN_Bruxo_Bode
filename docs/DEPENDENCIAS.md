@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-05**; revisão documental **2.0**.
-Aplicação: **0.32.217 · 2026-11-05 · Trocar rede abre o menu das redes**.
-Referência Git na emissão: `7e73f232b0d8adbc02e708fad10a6b16d6742fee`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.218 · 2026-11-05 · Comparar toda a configuração e aviso de diferença**.
+Referência Git na emissão: `43f4eb7f3f3ff24f14dfaa86123d1450be97654a`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

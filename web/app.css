@@ -1017,3 +1017,9 @@ label.chgrp{cursor:pointer}
 .netpop b{font-size:13.5px}.netpop small{font-size:11px;color:var(--nc)}.netpop i{font-style:normal;font-size:10.5px;color:var(--muted);white-space:nowrap}
 @keyframes netpop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.netpop{animation:none}}
+
+/* 0.32.218 (pedido do dono): de onde vêm as regras da posição; comparar toda a configuração e aviso no topo */
+.pc-src{font-size:11.5px;color:var(--muted);padding:2px 0 6px;border-bottom:1px dashed var(--line);overflow-wrap:anywhere}.pc-src a{color:var(--sim)}
+.cmpbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px;border:1px solid #f59e0b;border-radius:12px;background:rgba(245,158,11,.08)}
+.cmpbar>span:first-child{flex:1 1 260px;min-width:0}
+.cxa-g{margin:10px 0;border:1px solid var(--line);border-radius:10px;padding:6px 10px}.cxa-g summary{cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
