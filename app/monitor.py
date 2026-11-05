@@ -161,6 +161,8 @@ class SharedMonitor:
                     url = str(self.hub.cfg.defaults.get("pump_rpc_ws") or "wss://api.mainnet-beta.solana.com")
                 from .apiusage import classify as _cls
                 prov = _cls(url.split("//")[-1].split("/")[0].split("?")[0].split(":")[0]) or "RPC da Solana"
+                # 0.32.223 (pedido do dono): o Status do sistema diz qual RPC está em uso e onde se troca (sem mostrar a chave)
+                st.update(prov=prov, fonte="chave do sistema (Administração → Chaves do sistema)" if sys_rpc else "variável do servidor (Portainer)")
                 async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
                     connected_time = time.time()
                     if st.get("connected_at"):          # 0.32.3 (Bruxo): quantas vezes a conexão caiu e voltou

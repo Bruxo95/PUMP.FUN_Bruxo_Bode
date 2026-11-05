@@ -3238,21 +3238,51 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // ------------------------------------------------------------------ render geral
   let SYS_HTML = null;
+  // 0.32.223 (pedido do dono: "se não estiver ok, um botão para eu clicar e corrigir"): leva até o lugar onde se troca a chave
+  // ou o RPC daquele serviço. O Solana RPC NÃO é a Solana Tracker: é o RPC (Helius etc.) do monitor compartilhado.
+  const SYS_FIX = {
+    rpc: { adm: true, key: "rpc_url", txt: "Trocar o RPC" },
+    pp: { adm: true, key: "pumpportal_api_key", txt: "Trocar a chave" },
+    st: { adm: false, key: "solanatracker_api_key", txt: "Trocar a chave" },
+    jup: { adm: false, key: "jupiter_api_key", txt: "Trocar a chave" },
+  };
+  const fixBtn = (k) => { const x = SYS_FIX[k]; if (!x || (x.adm && !(ME && ME.role === "admin"))) return ""; return ' <button class="btn sm primary sysfix" data-sysfix="' + k + '">Corrigir · ' + x.txt + "</button>"; };
+  const rpcWhy = (e) => /429/.test(String(e || "")) ? '<br><span class="muted small">429 = o provedor do RPC recusou por excesso de pedidos (plano grátis no limite ou chave sem créditos). Cole outra URL de RPC (ex.: uma conta nova na Helius) em Chaves do sistema → RPC próprio; o monitor reconecta sozinho com ela.</span>' : "";
+  async function sysFix(k) {
+    const x = SYS_FIX[k]; if (!x) return;
+    if (x.adm) {
+      location.hash = "#admin";
+      await new Promise((r) => setTimeout(r, 400));
+      await loadSysKeys();
+    } else {
+      location.hash = "#carteiras"; WALT = "ambas"; walTab("ambas"); cfgTab("chaves");
+      await new Promise((r) => setTimeout(r, 400));
+      const ed = document.querySelector('[data-act="secret-edit"][data-k="' + x.key + '"]'); if (ed) ed.click();
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    const inp = document.querySelector((x.adm ? '[data-syskey="' : '[data-secret="') + x.key + '"]');
+    const box = inp && (inp.closest(".secret") || inp.closest(".card"));
+    if (box) { box.scrollIntoView({ block: "center", behavior: "smooth" }); box.classList.add("flashfix"); setTimeout(() => box.classList.remove("flashfix"), 3000); }
+    if (inp) setTimeout(() => inp.focus(), 500);
+    toast(x.adm ? "Cole a nova URL/chave e clique em Salvar. Vale para todo o robô." : "Cole a sua chave nova e clique em Salvar.");
+  }
+  document.addEventListener("click", (e) => { const t = e.target.closest && e.target.closest("[data-sysfix]"); if (t) { e.preventDefault(); sysFix(t.dataset.sysfix); } });
   function sysDetail(D, RP, PPs, A, RL, up, perH, okb, ago) {
     const row = (k, st, v) => "<tr><td><b>" + k + "</b></td><td>" + st + "</td><td>" + v + "</td></tr>";
     // 0.32.7 (pedido do dono): cada linha do funil abre a lista do que aconteceu
     const open = (k, tipo) => '<button class="linkbtn" data-rpclog="' + tipo + '">' + k + " ›</button>";
     const late = RP.queued ? Math.round((RP.stale || 0) / RP.queued * 100) : 0;
     return '<div class="tbl-wrap"><table class="systbl"><thead><tr><th>Serviço</th><th>Situação</th><th>Detalhe</th></tr></thead><tbody>' +
-      row("Solana RPC", okb(RP.ws, RP.error), RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado")) +
-      row("PumpPortal", okb(PPs.ws, PPs.error), PPs.ws ? "tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado")) +
+      row("Solana RPC", okb(RP.ws, RP.error) + (RP.ws ? "" : fixBtn("rpc")), (RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado") + rpcWhy(RP.error)) +
+        (RP.prov ? '<br><span class="muted small">usando: <b>' + esc(RP.prov) + "</b> · " + esc(RP.fonte || "") + "</span>" : "")) +
+      row("PumpPortal", okb(PPs.ws, PPs.error) + (PPs.ws ? "" : fixBtn("pp")), PPs.ws ? "tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado")) +
       // 0.32.18 (pedido do dono): trades das copiadas pela PumpPortal paga (0,01 SOL a cada 10 mil trades, na carteira da chave do sistema)
       row("Trades das copiadas pela PumpPortal", '<button class="btn sm tgl" data-toggle="pump_pp_copy" data-confirm="O que faz: sem isto, o robô recebe um aviso da carteira e ainda precisa pedir a transação ao RPC, que pode atrasar ou falhar. Com isto, a PumpPortal entrega a compra ou venda já pronta (só pump.fun e PumpSwap). Benefício: cópia mais rápida, menos trades perdidos e menos créditos de RPC. Se a PumpPortal parar de entregar, o robô volta sozinho para o RPC em até 2 min. Custo em SOL de verdade: 0,01 SOL a cada 10 mil trades, cerca de 0,005 SOL por dia com 200 trades por hora, da carteira ligada à chave PumpPortal do sistema, que precisa ter saldo. Vale para todas as contas. Ligar?">…</button>',
         (PPs.acct_subs ? PPs.acct_subs + " carteiras assinadas · " + f(PPs.acct_trades || 0, 0) + " trades recebidos (≈ " + ((PPs.acct_trades || 0) / 1e6).toFixed(4) + " SOL)" + (PPs.acct_last ? " · último " + ago(PPs.acct_last) : "") + (RP.pp_skip ? " · " + f(RP.pp_skip, 0) + " leituras do RPC economizadas" : "") + (!cfg().pump_pp_copy ? " · ligado por outro admin" : "") + (PPs.acct_trades ? "" : " · nenhum trade entregue ainda: confira se a carteira da chave tem pelo menos 0,02 SOL; enquanto isso o robô lê pelo RPC") + (PPs.pp_msg ? " · última mensagem da PumpPortal (" + ago(PPs.pp_msg_t) + "): " + esc(PPs.pp_msg) : "")
           : "desligado · ligado, as compras e vendas das carteiras copiadas chegam prontas, sem gastar o RPC (só pump.fun/PumpSwap; cobra 0,01 SOL a cada 10 mil trades da carteira da chave PumpPortal do sistema)")) +
       row("Preços", okb(!RP.price_error, RP.price_error), esc(RP.price_error || "–")) +
-      row("Jupiter", okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error), esc((A.jupiter || {}).error || "–")) +
-      row("Solana Tracker", okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave"), ((A.solana_tracker || {}).fonte ? "<b>usando: " + esc(A.solana_tracker.fonte) + "</b> · " : "") + esc((A.solana_tracker || {}).error || "–")) +
+      row("Jupiter", okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error) + ((A.jupiter || {}).ok === false ? fixBtn("jup") : ""), esc((A.jupiter || {}).error || "–")) +
+      row("Solana Tracker", okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave") + ((A.solana_tracker || {}).ok ? "" : fixBtn("st")), ((A.solana_tracker || {}).fonte ? "<b>usando: " + esc(A.solana_tracker.fonte) + "</b> · " : "") + esc((A.solana_tracker || {}).error || "–")) +
       row("Banco", okb((A.banco || {}).ok !== false, (A.banco || {}).error), esc((A.banco || {}).error || "–")) +
       row("Carteira real", RL.wallet_configured ? '<span class="up">configurada</span>' : '<span class="down">não configurada</span>', "execução " + (RL.enabled ? "ON" : "OFF")) +
       "</tbody></table></div>" +

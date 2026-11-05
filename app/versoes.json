@@ -1870,6 +1870,11 @@
    "versao": "0.32.222",
    "inicio": "2026-11-05T16:10:07+00:00",
    "titulo": "Carteira manual não é barrada pela chave do estudo"
+  },
+  {
+   "versao": "0.32.223",
+   "inicio": "2026-11-05T16:16:44+00:00",
+   "titulo": "Botão Corrigir no Status do sistema"
   }
  ]
 }

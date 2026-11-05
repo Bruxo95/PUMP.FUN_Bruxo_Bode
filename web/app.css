@@ -1032,3 +1032,7 @@ label.chgrp{cursor:pointer}
 .cxm-h{font-size:13.5px;margin:14px 0 6px;color:var(--text)}.cxm td:first-child{width:46%}.cxm-new{font-weight:700;color:var(--up,#22c55e)}
 .cxm-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 @media (max-width:860px){.cxm{font-size:12.5px}.cxm td:first-child{width:40%}.cxm th,.cxm td{padding:6px 5px}}
+
+/* 0.32.223: botão Corrigir no Status do sistema e destaque do campo onde se troca */
+.sysfix{margin-left:8px;padding:2px 10px;font-size:12px}
+.flashfix{outline:2px solid #f59e0b;outline-offset:4px;border-radius:10px;transition:outline-color .4s}
