@@ -38,6 +38,14 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
         w.refresh_now()
         return {"ok": True}
 
+    @app.get("/api/dormant/moeda")
+    async def dormant_coin(key: str = "", u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        r = await w.detail(key[:200])
+        return r if r is not None else {"error": "moeda não está na lista"}
+
     # 0.32.228 (pedido do dono): adicionar moedas na tela, guardando o nome de quem adicionou
     @app.get("/api/dormant/buscar")
     async def dormant_search(q: str = "", u: dict = Depends(admin_only)):

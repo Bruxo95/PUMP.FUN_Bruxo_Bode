@@ -1915,6 +1915,11 @@
    "versao": "0.32.231",
    "inicio": "2026-11-05T22:04:11+00:00",
    "titulo": "Dormant: ordenar clicando no título da coluna"
+  },
+  {
+   "versao": "0.32.232",
+   "inicio": "2026-11-05T22:16:39+00:00",
+   "titulo": "Dormant: janela da moeda e ordenar na Visão geral"
   }
  ]
 }

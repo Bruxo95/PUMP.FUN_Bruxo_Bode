@@ -40,7 +40,7 @@
   // ------------------------------------------------------------------ formatos
   const num = (v, d) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: d == null ? 2 : d }));
   const cls = (v) => (v > 0 ? "up" : v < 0 ? "down" : "");
-  const pc = (v) => (v == null ? "—" : Math.abs(v) < 0.05 ? "0%" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : "") + num(v, 1) + "%</span>");
+  const pc = (v) => (v == null ? "—" : Math.abs(v) < 0.05 ? "0%" : '<span class="dmpc ' + cls(v) + '">' + (v > 0 ? "+" : "") + num(v, 1) + "%</span>");
   function usd(v) {
     if (v == null) return "—";
     const a = Math.abs(v);
@@ -65,7 +65,7 @@
   const tag = (st) => '<span class="dmst ' + esc(st || "normal") + '">' + esc(ST[st] || "—") + "</span>";
   function coin(m) {
     const cg = m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "";
-    return '<div class="dmcoin">' + (m.img ? '<img src="' + esc(m.img) + '" alt="" loading="lazy">' : "") + "<div><b>" + esc(m.nome) + "</b> <small>" + esc(m.simbolo || "") +
+    return '<div class="dmcoin">' + (m.img ? '<img src="' + esc(m.img) + '" alt="" loading="lazy" data-dmcoin="' + esc(m.cmc) + '">' : "") + '<div><b data-dmcoin="' + esc(m.cmc) + '" title="abrir a moeda">' + esc(m.nome) + "</b> <small>" + esc(m.simbolo || "") +
       (m.rank ? " · #" + m.rank : "") + (m.chain_nome ? '<span class="dmch" title="' + esc((m.chains || []).join(", ")) + '">' + esc(m.chain_nome) + "</span>" : "") + "</small>" +
       '<div class="dmlinks">' + cg + (m.extra ? "" : '<a href="https://coinmarketcap.com/currencies/' + esc(m.cmc) + '/" target="_blank" rel="noopener">CoinMarketCap</a>') +
       (m.extra ? '<a href="#" data-dmdel="' + esc(m.cmc) + '">tirar da lista</a>' : "") + "</div>" +
@@ -79,13 +79,31 @@
     const c = p[p.length - 1] >= p[0] ? "#22c55e" : "#ef4444";
     return '<svg class="dmspark" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-label="gráfico de 7 dias"><polyline fill="none" stroke="' + c + '" stroke-width="1.6" points="' + pts + '"/></svg>';
   }
+  // 0.32.232 (pedido do dono): célula {h: html, v: valor} deixa a coluna ordenável clicando no título (de novo inverte)
+  const TS = {};
   function table(id, head, rows, empty) {
     const el = $(id); if (!el) return;
     if (!rows.length) { el.innerHTML = '<tr><td class="empty" colspan="' + head.length + '">' + esc(empty || "Nada por aqui ainda.") + "</td></tr>"; return; }
     const lab = head.map((h) => esc(String(h).replace(/<[^>]*>/g, "")));
-    el.innerHTML = "<thead><tr>" + head.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
-      rows.map((r) => "<tr>" + r.map((c, i) => '<td data-l="' + lab[i] + '">' + (c == null ? "" : c) + "</td>").join("") + "</tr>").join("") + "</tbody>";
+    const sortable = head.map((_, i) => rows[0][i] != null && typeof rows[0][i] === "object" && "v" in rows[0][i]);
+    el.innerHTML = "<thead><tr>" + head.map((h, i) => "<th" + (sortable[i] ? ' data-tsi="' + i + '" title="clique para ordenar; de novo para inverter"' : "") + ">" + h + "</th>").join("") + "</tr></thead><tbody>" +
+      rows.map((r) => "<tr>" + r.map((c, i) => { const o = c != null && typeof c === "object"; const v = o ? c.v : null;
+        return '<td data-l="' + lab[i] + '"' + (o ? ' data-v="' + esc(v == null ? "" : v) + '"' : "") + ">" + ((o ? c.h : c) == null ? "" : (o ? c.h : c)) + "</td>"; }).join("") + "</tr>").join("") + "</tbody>";
+    tsApply(id);
   }
+  function tsApply(id) {
+    const el = $(id), s = TS[id]; if (!el || !s) return;
+    const tb = el.tBodies[0]; if (!tb) return;
+    const val = (tr) => { const d = tr.children[s.i] && tr.children[s.i].dataset.v; return d === "" || d == null ? null : isNaN(+d) ? d.toLowerCase() : +d; };
+    const rows = [...tb.rows].sort((a, b) => { const x = val(a), y = val(b);
+      if (x == null || y == null) return (x == null) - (y == null);
+      const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y));
+      return s.asc ? c : -c; });
+    rows.forEach((r) => tb.appendChild(r));
+    el.querySelectorAll("th[data-tsi]").forEach((th) => { th.classList.toggle("on", +th.dataset.tsi === s.i); th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (+th.dataset.tsi === s.i ? (s.asc ? " ▲" : " ▼") : ""); });
+  }
+  const V = (h, v) => ({ h, v });
+  const stV = (st) => { const i = ST_ORD.indexOf(st); return i < 0 ? 99 : i; };
 
   // ------------------------------------------------------------------ monitor
   function sysInfo() {
@@ -128,24 +146,108 @@
       { acordando: "saindo do sono agora", pump: "alta forte em 1 h ou 24 h", dump: "queda forte em 1 h ou 24 h", dormindo: "preço parado, faixa estreita", normal: "mexendo sem exagero", parada: "quase sem negócio", morta: "sem preço na CoinMarketCap" }[k] + "</div></div>").join("");
     const ex = M().filter((m) => m.extra).length;
     $("ovAddN").textContent = num(M().length, 0) + " moedas vigiadas" + (ex ? " · " + ex + " adicionadas na tela" : "");
-    table("ovAl", ["Quando", "Moeda", "Virou", "1 h", "24 h", "Por quê"], ((R && R.alertas) || []).slice(0, 50).map((a) => [hora(a.t),
-      "<b>" + esc(a.nome || a.cmc) + "</b> <small class=\"muted\">" + esc(a.simbolo || "") + "</small>", tag(a.para) + ' <small class="muted">era ' + esc(ST[a.de] || a.de) + "</small>", pc(a.h1), pc(a.h24),
+    table("ovAl", ["Quando", "Moeda", "Virou", "1 h", "24 h", "Por quê"], ((R && R.alertas) || []).slice(0, 50).map((a) => [V(hora(a.t), a.t),
+      V('<span class="dmcoin"><b data-dmcoin="' + esc(a.cmc) + '">' + esc(a.nome || a.cmc) + "</b></span> <small class=\"muted\">" + esc(a.simbolo || "") + "</small>", a.nome || a.cmc),
+      V(tag(a.para) + ' <small class="muted">era ' + esc(ST[a.de] || a.de) + "</small>", a.para), V(pc(a.h1), a.h1), V(pc(a.h24), a.h24),
       '<small class="muted">' + esc((a.por || []).join(" · ")) + "</small>"]), "Nenhum alerta ainda. Eles aparecem quando uma moeda muda para pump, dump ou acordando.");
     const vivas = M().filter((m) => m.h24 != null && m.status !== "parada");
     const up = vivas.slice().sort((a, b) => b.h24 - a.h24).slice(0, 8), dn = vivas.slice().sort((a, b) => a.h24 - b.h24).slice(0, 8);
-    table("ovMv", ["Moeda", "24 h", "7 dias", "Situação"], up.concat(dn).map((m) => [coin(m), pc(m.h24), pc(m.d7), tag(m.status)]), "A primeira leitura ainda não terminou.");
+    table("ovMv", ["Moeda", "24 h", "7 dias", "Situação"], up.concat(dn).map((m) => [V(coin(m), m.nome), V(pc(m.h24), m.h24), V(pc(m.d7), m.d7), V(tag(m.status), stV(m.status))]), "A primeira leitura ainda não terminou.");
     const ev = [];
     M().forEach((m) => ((m.bc && m.bc.last3) || []).forEach((x) => ev.push([x, m])));
     ev.sort((a, b) => b[0].t - a[0].t);
     const bs = (R && R.blockchain) || {};
     $("ovBcSub").textContent = "as negociações mais recentes das moedas da lista, lidas direto da blockchain (GeckoTerminal) · " + num(bs.lidas || 0, 0) + " de " + num(bs.vigiadas || 0, 0) +
       " moedas já lidas · cada uma é lida de novo a cada " + num(bs.a_cada_min || 30, 0) + " min · " + num(bs.paradas_24h || 0, 0) + " paradas há mais de 24 h";
-    table("ovBc", ["Quando", "Moeda", "Ação", "Valor", "Rede", "Transação"], ev.slice(0, 30).map(([x, m]) => ["há " + ago(x.t), "<b>" + esc(m.nome) + '</b> <small class="muted">' + esc(m.simbolo) + "</small>",
-      '<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", "US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), esc(m.chain_nome || ""),
+    table("ovBc", ["Quando", "Moeda", "Ação", "Valor", "Rede", "Transação"], ev.slice(0, 30).map(([x, m]) => [V("há " + ago(x.t), x.t), V('<span class="dmcoin"><b data-dmcoin="' + esc(m.cmc) + '">' + esc(m.nome) + '</b></span> <small class="muted">' + esc(m.simbolo) + "</small>", m.nome),
+      V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd), V(esc(m.chain_nome || ""), m.chain_nome || ""),
       x.tx && EXPL[m.bc.net] ? '<a href="' + EXPL[m.bc.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver na blockchain</a>' : "—"]), "A leitura da blockchain começa logo depois da primeira leitura da CoinGecko (1 moeda a cada 6 s).");
     const dorm = M().filter((m) => m.status === "dormindo").sort((a, b) => Math.abs(a.d30 || 0) - Math.abs(b.d30 || 0)).slice(0, 15);
-    table("ovDm", ["Moeda", "Preço", "7 dias", "30 dias", "Volume 24 h", "Gráfico 7 dias", "Por quê"], dorm.map((m) => [coin(m), price(m.preco), pc(m.d7), pc(m.d30), usd(m.vol), spark(m.spark),
+    table("ovDm", ["Moeda", "Preço", "7 dias", "30 dias", "Volume 24 h", "Gráfico 7 dias", "Por quê"], dorm.map((m) => [V(coin(m), m.nome), V(price(m.preco), m.preco), V(pc(m.d7), m.d7), V(pc(m.d30), m.d30), V(usd(m.vol), m.vol), spark(m.spark),
       '<small class="muted">' + esc((m.por || []).join(" · ")) + "</small>"]), "Nenhuma moeda dormindo agora.");
+  }
+  // 0.32.232 (pedido do dono): janela da moeda — gráfico de 30 dias, porcentagens, blockchain e as últimas negociações
+  let CM = null;
+  async function openCoin(key) {
+    const m = M().find((x) => x.cmc === key); if (!m) return;
+    CM = { key, r: null, rng: CM && CM.rng || 30 };
+    $("coinMH").innerHTML = (m.img ? '<img src="' + esc(m.img) + '" alt="">' : "") + '<div style="min-width:0"><h2 id="coinMT">' + esc(m.nome) + ' <small class="muted">' + esc(m.simbolo || "") + "</small></h2>" +
+      '<div class="sub">' + tag(m.status) + (m.chain_nome ? ' <span class="dmch">' + esc(m.chain_nome) + "</span>" : "") + (m.rank ? " · #" + m.rank + " em valor de mercado" : "") + "</div></div>";
+    $("coinMB").innerHTML = coinBody(m, null);
+    $("coinM").hidden = false;
+    const r = await BB.api("/api/dormant/moeda?key=" + encodeURIComponent(key), { quiet: true });
+    if (!CM || CM.key !== key) return;
+    CM.r = r;
+    $("coinMB").innerHTML = coinBody((r && r.moeda) || m, r);
+    drawCoinChart();
+  }
+  function coinBody(m, r) {
+    const k = (l, v, s) => "<div><small>" + l + "</small><b>" + v + "</b>" + (s ? "<small>" + s + "</small>" : "") + "</div>";
+    let h = '<div class="cmgrid">' + k("Preço", price(m.preco)) + k("1 h", pc(m.h1)) + k("24 h", pc(m.h24)) + k("7 dias", pc(m.d7)) + k("30 dias", pc(m.d30)) +
+      k("Volume 24 h", usd(m.vol), m.vol_x ? num(m.vol_x, 1) + "× o normal" : "") + k("Valor de mercado", usd(m.mcap)) +
+      k("Máxima histórica", price(m.ath), m.ath_pct != null ? pc(m.ath_pct) + " dela" : "") + k("Mínima histórica", price(m.atl)) + "</div>";
+    h += (m.por && m.por.length ? '<div class="decbox"><b>Por que está ' + esc((ST[m.status] || "").toLowerCase()) + ":</b> " + esc(m.por.join(" · ")) + "</div>" : "");
+    h += '<div class="card" style="margin-top:12px"><header><div><h2>Gráfico</h2><div class="sub">preço em dólar (CoinGecko) · passe o mouse ou o dedo para ver cada ponto</div></div><div class="sp"></div>' +
+      '<div class="seg" id="cmRng"><button data-cmr="1">24 h</button><button data-cmr="7">7 dias</button><button data-cmr="30">30 dias</button></div></header>' +
+      '<div class="cmchart" id="cmChart">' + (r ? "" : '<span class="muted">carregando…</span>') + '</div></div>';
+    const n = r && r.negocios;
+    h += '<div class="card"><header><div><h2>Últimas negociações na blockchain</h2><div class="sub">' +
+      (m.rede_propria ? "moeda da própria rede: não tem pool de negociação para ler" : n && !n.erro ? num(n.n24 >= 300 ? 300 : n.n24, 0) + (n.n24 >= 300 ? "+" : "") + " negócios nas últimas 24 h · lidas direto da blockchain (GeckoTerminal)" + (r.pool && r.pool.nome ? " · pool " + esc(r.pool.nome) : "")
+        : n && n.erro ? '<span class="down">' + esc(n.erro) + "</span>" : r ? "a moeda ainda não foi lida na blockchain (fila de 1 a cada 6 s)" : "carregando…") + "</div></div></header>" +
+      '<div class="tbl-wrap"><table id="cmTr"></table></div></div>';
+    const ct = (r && r.contratos) || [], cats = (r && r.info && r.info.cats) || m.cats || [];
+    h += '<div class="card"><header><div><h2>Sobre a moeda</h2></div></header><div class="help">' +
+      "<p><b>Blockchain:</b> " + esc(m.chain_nome || "?") + (m.chains && m.chains.length > 1 ? " · também em " + esc(m.chains.join(", ")) : "") + "</p>" +
+      (ct.length ? "<p><b>Contratos:</b></p>" + ct.map((c) => '<div class="cmaddr">' + esc(c.rede) + ": " + esc(c.endereco) + "</div>").join("") : "") +
+      (cats.length ? '<p><b>Categorias:</b></p><div class="dmcats">' + cats.map((c) => "<span>" + esc(c) + "</span>").join("") + "</div>" : "") +
+      "<p><b>Na lista desde:</b> " + (m.extra ? "adicionada por " + esc(m.add_por) + " em " + hora(m.add_t) : "watchlist da CoinMarketCap (05/11/2026)") + "</p>" +
+      '<p class="dmlinks">' + (m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "") +
+      (m.extra ? "" : '<a href="https://coinmarketcap.com/currencies/' + esc(m.cmc) + '/" target="_blank" rel="noopener">CoinMarketCap</a>') +
+      (r && r.pool && r.pool.pool ? '<a href="https://www.geckoterminal.com/' + esc(r.pool.net) + "/pools/" + esc(r.pool.pool) + '" target="_blank" rel="noopener">GeckoTerminal (pool)</a>' : "") + "</p></div></div>";
+    setTimeout(() => {
+      const L = (n && n.lista) || [];
+      table("cmTr", ["Quando", "Ação", "Valor", "Carteira", "Transação"], L.map((x) => [V(hora(x.t) + ' <small class="muted">há ' + ago(x.t) + "</small>", x.t),
+        V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd),
+        V('<span class="cmaddr">' + esc((x.wallet || "").slice(0, 6) + "…" + (x.wallet || "").slice(-4)) + "</span>", x.wallet || ""),
+        x.tx && EXPL[n.net] ? '<a href="' + EXPL[n.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—"]), r ? "Sem negociações para mostrar." : "carregando…");
+    }, 0);
+    return h;
+  }
+  function drawCoinChart() {
+    const box = $("cmChart"); if (!box || !CM || !CM.r) return;
+    document.querySelectorAll("#cmRng button").forEach((b) => b.classList.toggle("on", +b.dataset.cmr === CM.rng));
+    const g = CM.r.grafico || {};
+    if (g.erro) { box.innerHTML = '<span class="down">' + esc(g.erro) + "</span>"; return; }
+    const lim = Date.now() / 1000 - CM.rng * 86400;
+    const P = (g.precos || []).filter((p) => p[0] >= lim), Vv = (g.volumes || []).filter((p) => p[0] >= lim);
+    if (P.length < 2) { box.innerHTML = '<span class="muted">sem pontos suficientes neste período</span>'; return; }
+    const W = 900, H = 220, top = 10, ph = 150, vh = 50;
+    const lo = Math.min(...P.map((p) => p[1])), hi = Math.max(...P.map((p) => p[1])), sp = hi - lo || hi || 1;
+    const t0 = P[0][0], t1 = P[P.length - 1][0], tw = t1 - t0 || 1, vmax = Math.max(1, ...Vv.map((v) => v[1]));
+    const X = (t) => ((t - t0) / tw) * W, Y = (v) => top + ph - ((v - lo) / sp) * ph;
+    const up = P[P.length - 1][1] >= P[0][1], cor = up ? "#22c55e" : "#ef4444";
+    const line = P.map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ");
+    const bw = Math.max(1, W / Math.max(1, Vv.length) - 1);
+    const bars = Vv.map((v) => '<rect x="' + X(v[0]).toFixed(1) + '" y="' + (H - (v[1] / vmax) * vh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + ((v[1] / vmax) * vh).toFixed(1) + '" fill="rgba(167,139,250,.35)"/>').join("");
+    box.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' + bars +
+      '<polygon points="0,' + (top + ph) + " " + line + " " + W + "," + (top + ph) + '" fill="' + cor + '" fill-opacity=".08"/>' +
+      '<polyline points="' + line + '" fill="none" stroke="' + cor + '" stroke-width="2" vector-effect="non-scaling-stroke"/>' +
+      '<line id="cmCur" x1="0" x2="0" y1="0" y2="' + H + '" stroke="var(--muted)" stroke-dasharray="3 3" visibility="hidden"/></svg>' +
+      '<div class="cmtip" id="cmTip"></div><div class="sub" style="display:flex;justify-content:space-between"><span>' + hora(t0) + "</span><span>mín " + price(lo) + " · máx " + price(hi) +
+      " · " + pc((P[P.length - 1][1] / P[0][1] - 1) * 100) + "</span><span>" + hora(t1) + "</span></div>";
+    const svg = box.querySelector("svg");
+    const move = (ev) => {
+      const r = svg.getBoundingClientRect(), cx = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width;
+      const t = t0 + cx * tw; let best = P[0]; for (const p of P) if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p;
+      const cur = $("cmCur"), tip = $("cmTip"); if (!cur || !tip) return;
+      cur.setAttribute("x1", X(best[0])); cur.setAttribute("x2", X(best[0])); cur.setAttribute("visibility", "visible");
+      const vol = Vv.reduce((a, v) => (Math.abs(v[0] - best[0]) < Math.abs(a[0] - best[0]) ? v : a), Vv[0] || [0, null]);
+      tip.innerHTML = hora(best[0]) + " · <b>" + price(best[1]) + "</b>" + (vol && vol[1] != null ? " · vol. " + usd(vol[1]) : "");
+      tip.style.display = "block";
+      tip.style.left = Math.min(r.width - tip.offsetWidth, Math.max(0, cx * r.width - tip.offsetWidth / 2)) + "px"; tip.style.top = "0px";
+    };
+    svg.addEventListener("mousemove", move); svg.addEventListener("touchmove", move, { passive: true });
+    svg.addEventListener("mouseleave", () => { const t = $("cmTip"), c = $("cmCur"); if (t) t.style.display = "none"; if (c) c.setAttribute("visibility", "hidden"); });
   }
   function drawMoedas() {
     const c = (R && R.contagem) || {};
@@ -266,6 +368,11 @@
   document.addEventListener("click", async (e) => {
     const k = e.target.closest && e.target.closest("[data-dmst]");
     if (k) { F.st = k.dataset.dmst; saveF(); location.hash = "#moedas"; return; }
+    const th = e.target.closest && e.target.closest("th[data-tsi]");
+    if (th) { const tbl = th.closest("table"), i = +th.dataset.tsi, s = TS[tbl.id];
+      TS[tbl.id] = s && s.i === i ? { i, asc: !s.asc } : { i, asc: false }; tsApply(tbl.id); return; }
+    const cc = e.target.closest && e.target.closest("[data-dmcoin]");
+    if (cc && !e.target.closest("a")) { e.preventDefault(); openCoin(cc.dataset.dmcoin); return; }
     const g = e.target.closest && e.target.closest("tr[data-dmch],tr[data-dmcat]");
     if (g) { F.st = ""; F.ch = g.dataset.dmch || ""; F.cat = g.dataset.dmcat || ""; saveF(); location.hash = "#moedas"; return; }
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
@@ -273,6 +380,8 @@
     if (t.dataset.dmsort) { const key = t.dataset.dmsort; F.sort = F.sort === key ? "-" + key : key; saveF(); drawMoedas(); return; }
     if (t.dataset.dmadd) { addOpen(); return; }
     if (t.id === "addMX") { $("addM").hidden = true; return; }
+    if (t.id === "coinMX") { $("coinM").hidden = true; CM = null; return; }
+    if (t.dataset.cmr) { if (CM) { CM.rng = +t.dataset.cmr; drawCoinChart(); } return; }
     if (t.id === "addGo") { addSearch(); return; }
     if (t.dataset.dmaddid) {
       t.disabled = true;
@@ -310,11 +419,12 @@
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { $("sysM").hidden = true; $("addM").hidden = true; }
+    if (e.key === "Escape") { $("sysM").hidden = true; $("addM").hidden = true; $("coinM").hidden = true; CM = null; }
     if ((e.key === "Enter" || e.key === " ") && e.target && e.target.dataset && e.target.dataset.dmst) { e.preventDefault(); e.target.click(); }
   });
   $("sysM").addEventListener("click", (e) => { if (e.target === $("sysM")) $("sysM").hidden = true; });
   $("addM").addEventListener("click", (e) => { if (e.target === $("addM")) $("addM").hidden = true; });
+  $("coinM").addEventListener("click", (e) => { if (e.target === $("coinM")) { $("coinM").hidden = true; CM = null; } });
 
   async function boot() {
     $("boot").innerHTML = BB.loader("Carregando", { grid: 4, pattern: "sweep", font: 15, cell: 7, glow: true });

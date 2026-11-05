@@ -602,17 +602,14 @@ class DormantWatch:
         self._next = 0.0
 
     # ------------------------------------------------------------------ tela
-    def state(self) -> dict:
-        moedas, cont = [], {k: 0 for k in STATUS}
-        cont["morta"] = 0
-        for m in self.todas():
+    def item(self, m: dict) -> dict:
+        """Uma moeda como a tela mostra (lista e janela da moeda)."""
+        if True:
             cid = self.pick.get(m["cmc"])
             row = self.rows.get(cid) if cid else None
             st, why = self.status.get(m["cmc"]) or (("sem_cg", []) if self.stat["leitura_t"] and not cid else ("", []))
             if not row and m.get("morta_cmc"):
                 st = "morta"
-            if st:
-                cont[st] = cont.get(st, 0) + 1
             ch = self.chain_of(cid)
             ex = m.get("extra") or {}
             it = {"cmc": m["cmc"], "nome": m["nome"], "simbolo": m.get("simbolo") or "", "status": st, "por": why,
@@ -628,6 +625,62 @@ class DormantWatch:
                           d30=row.get("price_change_percentage_30d_in_currency"), ath=row.get("ath"),
                           ath_pct=row.get("ath_change_percentage"), atl=row.get("atl"), spark=spark((row.get("sparkline_in_7d") or {}).get("price")),
                           vol_x=round(row.get("total_volume") / v, 2) if (v := self.vol_med(cid)) and row.get("total_volume") else None)
+            return it
+
+    # 0.32.232 (pedido do dono): janela da moeda, com gráfico de 30 dias e as últimas negociações na blockchain (só quando abre)
+    async def detail(self, key: str) -> dict | None:
+        m = next((x for x in self.todas() if x["cmc"] == key), None)
+        if m is None:
+            return None
+        it = self.item(m)
+        cid, now = it.get("cg"), time.time()
+        cache = self.__dict__.setdefault("_det", {})
+        out = {"moeda": it, "contratos": [{"rede": chain_name(k), "endereco": v} for k, v in (self.addr.get(cid) or {}).items()][:8],
+               "info": self.info.get(cid) or {}, "pool": self.gtpool.get(cid) or {}}
+        if not cid:
+            return out
+        c = cache.get(("chart", cid))
+        if not c or now - c[0] > 600:
+            try:
+                r = await self.get(f"/coins/{cid}/market_chart", {"vs_currency": "usd", "days": "30"})
+                c = (now, {"precos": [[int(p[0] / 1000), p[1]] for p in (r.get("prices") or []) if p and p[1] is not None],
+                           "volumes": [[int(p[0] / 1000), p[1]] for p in (r.get("total_volumes") or []) if p and p[1] is not None]})
+                cache[("chart", cid)] = c
+            except Exception as e:
+                c = (now, {"erro": str(e)[:160]})
+        out["grafico"] = c[1]
+        tg = self.target(cid)
+        pool = (self.gtpool.get(cid) or {}).get("pool")
+        if tg and pool:
+            t = cache.get(("trades", cid))
+            if not t or now - t[0] > 300:
+                try:
+                    r = await self.gt_get(f"/networks/{tg[1]}/pools/{pool}/trades")
+                    lst = []
+                    for x in (r or {}).get("data") or []:
+                        a = x.get("attributes") or {}
+                        ts = self._ts(a.get("block_timestamp"))
+                        if ts:
+                            lst.append({"t": ts, "kind": "compra" if a.get("kind") == "buy" else "venda", "usd": round(float(a.get("volume_in_usd") or 0), 2),
+                                        "wallet": a.get("tx_from_address"), "tx": a.get("tx_hash")})
+                    lst.sort(key=lambda z: -z["t"])
+                    t = (now, {"lista": lst[:40], "n24": sum(1 for z in lst if z["t"] >= now - 86400), "net": tg[1]})
+                    cache[("trades", cid)] = t
+                except Exception as e:
+                    t = (now, {"erro": str(e)[:160]})
+            out["negocios"] = t[1]
+        if len(cache) > 200:
+            for k in sorted(cache, key=lambda k: cache[k][0])[:100]:
+                del cache[k]
+        return out
+
+    def state(self) -> dict:
+        moedas, cont = [], {k: 0 for k in STATUS}
+        cont["morta"] = 0
+        for m in self.todas():
+            it = self.item(m)
+            if it["status"]:
+                cont[it["status"]] = cont.get(it["status"], 0) + 1
             moedas.append(it)
         return {"ligado": True, "carregado": self.loaded, "cfg": self.cfg, "padrao": CFG_DEFAULT, "nomes": STATUS,
                 "grupos": grupos(moedas),

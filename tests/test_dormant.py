@@ -188,3 +188,30 @@ def test_last_three_actions_come_from_the_blockchain_and_waking_alerts():
     bonk = [m for m in st["moedas"] if m["cmc"] == "bonk"][0]
     assert bonk["bc"]["last3"][0]["kind"] == "compra" and st["blockchain"]["lidas"] == 1
     assert [m for m in st["moedas"] if m["cmc"] == "bitcoin"][0]["rede_propria"]
+
+
+def test_coin_window_brings_chart_and_trades_once_and_caches():
+    """0.32.232 (pedido do dono): clicar na moeda abre gráfico de 30 dias (CoinGecko) e as últimas negociações (blockchain)."""
+    calls = []
+
+    def handler(req):
+        calls.append(req.url.path)
+        p = req.url.path
+        if p.endswith("/market_chart"):
+            return httpx.Response(200, json={"prices": [[1_700_000_000_000 + i * 3_600_000, 1 + i / 100] for i in range(48)],
+                                             "total_volumes": [[1_700_000_000_000 + i * 3_600_000, 1000] for i in range(48)]})
+        if req.url.host == "api.geckoterminal.com":
+            return httpx.Response(200, json={"data": [{"attributes": {"block_timestamp": "2026-11-05T21:00:00Z", "kind": "sell", "volume_in_usd": "50",
+                                                                      "tx_from_address": "W", "tx_hash": "T"}}]})
+        return httpx.Response(404)
+    w = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(handler)), None)
+    w.lista = [{"cmc": "bonk", "nome": "Bonk"}]
+    w.pick = {"bonk": "bonk"}
+    w.rows = {"bonk": _row("bonk")}
+    w.plat, w.addr = {"bonk": ["solana"]}, {"bonk": {"solana": "So1"}}
+    w.gtpool = {"bonk": {"net": "solana", "pool": "P1", "t": 1e12}}
+    d = asyncio.run(w.detail("bonk"))
+    assert len(d["grafico"]["precos"]) == 48 and d["negocios"]["lista"][0]["kind"] == "venda" and d["contratos"][0]["rede"] == "Solana"
+    n = len(calls)
+    asyncio.run(w.detail("bonk"))                     # segunda vez em seguida: vem do cache, sem consultar de novo
+    assert len(calls) == n and asyncio.run(w.detail("nao-existe")) is None
