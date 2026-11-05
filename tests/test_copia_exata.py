@@ -143,3 +143,38 @@ def test_button_buy_sim_limit_does_not_block_and_sim_is_undone_when_real_is_bloc
     pf.cfg.pump_real_max_open = 1                                       # a real está no limite (a compra de A na fila)
     r = pf.manual_buy(B)
     assert r["sim"].startswith("desfeita") and not [p for p in pf.positions() if p["mint"] == B]
+
+
+def test_exact_fixes_sim_price_even_when_far_from_real(tmp_path):
+    """0.32.214 (MEOWTH): a fictícia entrou num preço 300× errado; na cópia exata vale o preço que a REAL pagou."""
+    pf = _exact(tmp_path)
+    m = "Exa9".ljust(40, "1") + "pump"
+    pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7))
+    kind, it = pf._rq.get_nowait()
+    sim = [p for p in pf.positions() if not p.get("real")][0]
+    sim["best_pct"] = 7000.0
+    px_real = sim["sol_in"] / sim["tokens"] * 300
+
+    async def buy(mint, amt, other=False):
+        return {"ok": True, "signature": "B", "sol_spent": 0.02, "tokens": 0.02 / px_real}
+    pf.real.buy = buy
+    asyncio.run(pf._real_buy(it))
+    real = [p for p in pf.positions() if p.get("real")][0]
+    sim = [p for p in pf.positions() if not p.get("real")][0]
+    assert abs(sim["sol_in"] / sim["tokens"] - real["sol_in"] / real["tokens"]) < 1e-12
+    assert "best_pct" not in sim and any(f["action"] == "preço corrigido" for f in pf.feed)
+
+
+def test_exact_real_does_not_open_a_separate_position_when_sim_already_holds(tmp_path):
+    """0.32.214 (clippy): a fictícia tinha o token de antes (REAL desligada); depois de ligar, a REAL não entra separada."""
+    pf = _exact(tmp_path)
+    m = "ExaA".ljust(40, "1") + "pump"
+    pf.cfg.pump_real_enabled = False
+    pf.on_message(_ev("buy", _W, m, 1.0, 1e6, 30, 3e7))
+    assert [p["real"] for p in pf.positions()] == [False]
+    pf.cfg.pump_real_enabled = True
+    while pf._rq is not None and not pf._rq.empty():
+        pf._rq.get_nowait()
+    pf.on_message(_ev("buy", _W, m, 0.5, 4e5, 31, 3e7))
+    assert pf._rq is None or pf._rq.empty()
+    assert any(f["action"] == "REAL não copiou" and "cópia exata" in f["reason"] for f in pf.feed)

@@ -2688,6 +2688,7 @@
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
     if (t.dataset.htab) { HIST.tab = t.dataset.htab; renderHistory(); return; }
     if (t.dataset.hres) { HIST.res = t.dataset.hres; HIST.n = 24; renderHistory(); return; }
+    if (t.dataset.hh !== undefined && t.closest("#hPer")) { HIST.h = +t.dataset.hh; HIST.n = 24; renderHistory(); return; }
     if (t.dataset.haba != null) { HIST.aba = t.dataset.haba; HIST.w = ""; HIST.n = 24; renderHistory(); return; }
     if (t.dataset.hw) { HIST.w = HIST.w === t.dataset.hw ? "" : t.dataset.hw; HIST.n = 24; renderHistory(); return; }
     if (t.dataset.hrel) { t.disabled = true; const r = await BB.api("/api/pump/trader-report", { body: { aba: HIST.aba, real: realMode() } }); t.disabled = false; if (r.error) { toast(r.error); return; } toast("Relatório salvo na Base geral"); openTrRep(r, null); return; }
@@ -4518,7 +4519,10 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]), "Nenhuma posição fechou nas últimas 3 h.");
   }
   // redesenho do Histórico (pedido do dono): resumo em cima, um assunto por vez e trades em quadrados, como a tela Abas de trades
-  const HIST = { tab: "tr", res: "all", aba: "", w: "", n: 24 }, HIST_H = {};
+  const HIST = { tab: "tr", res: "all", aba: "", w: "", n: 24, h: 0 }, HIST_H = {};
+  // 0.32.214 (pedido do dono): ganhos da última 1, 6, 12 e 24 h no Histórico; clicar mostra só as moedas daquele período
+  const H_PER = [1, 6, 12, 24];
+  const hAge = (t) => (Date.now() - (Date.parse(t.closed_at || "") || 0)) / 3600000;
   let HIST_L = [], HIST_C = {};
   const HIST_T = { key: "", at: 0, data: null, busy: false };
   async function histTr(rm) {
@@ -4581,7 +4585,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   function renderHistory() {
     const rm = realMode(), W = (rm ? D.real_wallet : D.wallet) || {}, A = (D.trades || []).filter((t) => !!t.real === rm);
     const res = (t) => HIST.res === "all" || (HIST.res === "win") === (t.pnl_sol > 0);
-    const T = A.filter((t) => res(t) && (!HIST.aba || t.aba === HIST.aba) && (!HIST.w || t.wallet === HIST.w)), V = T.slice(0, HIST.n);
+    const inH = (t) => !HIST.h || hAge(t) <= HIST.h;
+    const T = A.filter((t) => res(t) && inH(t) && (!HIST.aba || t.aba === HIST.aba) && (!HIST.w || t.wallet === HIST.w)), V = T.slice(0, HIST.n);
     const g = T.filter((t) => t.pnl_sol > 0), p = T.filter((t) => !(t.pnl_sol > 0)), soma = (L) => L.reduce((x, t) => x + (t.pnl_sol || 0), 0), inv = soma0(T);
     const PS = []; (D.positions || []).filter((x) => !!x.real === rm).forEach((x) => (x.sells || []).forEach((y) => PS.push([dt(y.at), pfM(x.mint, x.symbol), pfW(x.wallet, x), f((y.frac || 0) * 100, 0) + "%", s4(y.sol) + " SOL",
       '<span class="wrapcell">' + esc(y.why || "") + "</span>", y.signature ? '<a href="https://solscan.io/tx/' + encodeURIComponent(y.signature) + '" target="_blank" rel="noopener">ver ↗</a>' : "–"])));
@@ -4592,6 +4597,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const ch = (attr, v, on, txt) => '<button class="btn sm chip' + (on ? " on" : "") + '" ' + attr + '="' + esc(v) + '">' + txt + "</button>";
     hSet("hTabs", [["tr", "Trades", A.length], ["by", "Por trader", BY.length], ["mov", "Movimentos", (D.live || []).length], ["par", "Vendas parciais", PS.length], ["feed", "Feed ao vivo", (D.feed || []).length], ["err", "Erros", errs]].map((x) => ch("data-htab", x[0], HIST.tab === x[0], x[1] + " · " + x[2])).join(""));
     document.querySelectorAll("[data-hp]").forEach((e) => { e.hidden = e.dataset.hp !== HIST.tab; });
+    const perTxt = (h) => { const L = A.filter((t) => hAge(t) <= h && (!HIST.aba || t.aba === HIST.aba)); return h + " h " + (L.length ? sg(soma(L), "") + " · " + abaPct(L) : "<span class=\"muted\">sem trade</span>"); };
+    hSet("hPer", ch("data-hh", "0", !HIST.h, "Todo o período") + H_PER.map((h) => ch("data-hh", String(h), HIST.h === h, perTxt(h))).join(""));
     hSet("hFil", [["all", "Todos"], ["win", "Ganhos"], ["loss", "Perdas"]].map((x) => ch("data-hres", x[0], HIST.res === x[0], x[1])).join("") + '<span class="hsep"></span>' + ch("data-haba", "", !HIST.aba, "Todas as abas " + abaPct(A)) + abas.map((x) => ch("data-haba", x, HIST.aba === x, esc(x) + " " + abaPct(A.filter((t) => t.aba === x)))).join(""));
     // 0.32.140 (pedido do dono): traders repetidos em todo o tempo e, abaixo, nas últimas 24 h; a conta vem do servidor, com todos os trades
     histTr(rm);

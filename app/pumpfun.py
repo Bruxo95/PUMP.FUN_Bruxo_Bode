@@ -1367,10 +1367,17 @@ class PumpFun:
             # separadas: a fictícia já ter o token não impede a real de comprar (ela segue as vendas do trader e os stops).
             # 0.32.198 (pedido do dono): com a chave da FICTÍCIA desligada, a cópia de trader vai só para a REAL (se ligada), pelo mesmo caminho
             sim_off = not getattr(c, "pump_sim_on", True)
+            hold_sim = any(not p.get("real") for p in mine)
+            # 0.32.214 (clippy do dono, 04/11): na CÓPIA EXATA as duas carteiras têm as mesmas posições. Se a fictícia já tinha o
+            # token (comprado quando a REAL estava desligada), a REAL não abre uma posição separada, em outro preço e outra hora.
+            exact_hold = (hold_sim and not sim_off and self.exact_on() and self.real is not None
+                          and getattr(c, "pump_real_enabled", False) and not any(p.get("real") for p in mine))
             alone = (self.real is not None and getattr(c, "pump_real_enabled", False) and getattr(c, "pump_real_mirror", True)
-                     and (sim_off or any(not p.get("real") for p in mine)))
+                     and (sim_off or (hold_sim and not self.exact_on())))
             if self.sim_only(who) and self.real is not None and getattr(c, "pump_real_enabled", False):
                 self._feed(**base, action="REAL não copiou", reason=self.sim_only_why(who))
+            elif exact_hold:
+                self._feed(**base, action="REAL não copiou", reason="cópia exata: a fictícia já tinha este token de antes (a REAL não abre posição separada, em outro preço)")
             elif self.real is not None and getattr(c, "pump_real_enabled", False) and (alone or not getattr(c, "pump_real_mirror", True)):
                 rwhy = None
                 if not self.is_pump(mint) and not getattr(c, "pump_copy_other_real", False):
@@ -1694,8 +1701,17 @@ class PumpFun:
             return
         sim_eff, real_eff = sim["sol_in"] / sim["tokens"], real["sol_in"] / real["tokens"]
         k = real_eff / sim_eff if sim_eff else 0
-        if not 0.2 <= k <= 5:                     # leitura estranha da real: não mexe na fictícia
+        if not k or (not 0.2 <= k <= 5 and not self.exact_on()):   # leitura estranha da real: não mexe na fictícia
             return
+        if not 0.2 <= k <= 5:
+            # 0.32.214 (MEOWTH do dono, 05/11: fictícia entrou a 1,19e-9 e a REAL a 3,9e-7, 328×; a fictícia "ganhou" +7.027%):
+            # na cópia exata o preço que a REAL pagou é a verdade, então a fictícia é corrigida mesmo com diferença grande, e o
+            # pico/stop móvel calculados com o preço errado são apagados
+            for k_ in ("trail_peak", "trail_exit", "trail_since", "best_pct", "worst_pct", "_chk", "sus_noted"):
+                sim.pop(k_, None)
+            self._feed(wallet=sim.get("wallet") or "manual", short=short(sim.get("wallet") or "manual"), mint=sim["mint"],
+                       symbol=sim.get("symbol"), kind="buy", action="preço corrigido",
+                       reason=f"a fictícia tinha entrado num preço {max(k, 1 / k):.0f}× diferente do que a REAL pagou; ficou o preço da REAL")
         sim.setdefault("sim_entry", {"open_t": sim.get("open_t"), "opened_at": sim.get("opened_at"), "price_in": sim.get("price_in")})
         sim["tokens"] = sim["tokens"] / k
         sim["tokens_left"] = sim["tokens_left"] / k
