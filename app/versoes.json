@@ -1920,6 +1920,11 @@
    "versao": "0.32.232",
    "inicio": "2026-11-05T22:16:39+00:00",
    "titulo": "Dormant: janela da moeda e ordenar na Visão geral"
+  },
+  {
+   "versao": "0.32.233",
+   "inicio": "2026-11-05T22:27:49+00:00",
+   "titulo": "Dormant: data da máxima e mínima, blockchains com cor e ícone"
   }
  ]
 }

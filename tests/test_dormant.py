@@ -215,3 +215,14 @@ def test_coin_window_brings_chart_and_trades_once_and_caches():
     n = len(calls)
     asyncio.run(w.detail("bonk"))                     # segunda vez em seguida: vem do cache, sem consultar de novo
     assert len(calls) == n and asyncio.run(w.detail("nao-existe")) is None
+
+
+def test_coin_has_ath_and_atl_dates():
+    """0.32.233 (pedido do dono): data da máxima e da mínima histórica na janela da moeda."""
+    w = dormant.DormantWatch(None, None)
+    w.lista = [{"cmc": "bonk", "nome": "Bonk"}]
+    w.pick = {"bonk": "bonk"}
+    w.rows = {"bonk": {**_row("bonk"), "ath": 2.0, "ath_date": "2024-12-09T00:00:00.000Z", "atl": 0.1, "atl_date": "2023-04-17T00:00:00.000Z",
+                       "atl_change_percentage": 900.0}}
+    it = w.state()["moedas"][0]
+    assert it["ath_t"] and it["atl_t"] and it["ath_t"] > it["atl_t"] and it["atl_pct"] == 900.0

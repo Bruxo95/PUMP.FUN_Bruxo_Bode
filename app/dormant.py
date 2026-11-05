@@ -623,7 +623,8 @@ class DormantWatch:
                           vol=row.get("total_volume"), h1=row.get("price_change_percentage_1h_in_currency"),
                           h24=row.get("price_change_percentage_24h_in_currency"), d7=row.get("price_change_percentage_7d_in_currency"),
                           d30=row.get("price_change_percentage_30d_in_currency"), ath=row.get("ath"),
-                          ath_pct=row.get("ath_change_percentage"), atl=row.get("atl"), spark=spark((row.get("sparkline_in_7d") or {}).get("price")),
+                          ath_pct=row.get("ath_change_percentage"), atl=row.get("atl"),
+                          ath_t=self._ts(row.get("ath_date")), atl_t=self._ts(row.get("atl_date")), atl_pct=row.get("atl_change_percentage"), spark=spark((row.get("sparkline_in_7d") or {}).get("price")),
                           vol_x=round(row.get("total_volume") / v, 2) if (v := self.vol_med(cid)) and row.get("total_volume") else None)
             return it
 

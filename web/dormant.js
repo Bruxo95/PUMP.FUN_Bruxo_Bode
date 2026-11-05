@@ -14,6 +14,32 @@
   const EXPL = { eth: "https://etherscan.io/tx/", bsc: "https://bscscan.com/tx/", solana: "https://solscan.io/tx/", base: "https://basescan.org/tx/",
     arbitrum: "https://arbiscan.io/tx/", polygon_pos: "https://polygonscan.com/tx/", avax: "https://snowtrace.io/tx/", tron: "https://tronscan.org/#/transaction/",
     optimism: "https://optimistic.etherscan.io/tx/", ton: "https://tonviewer.com/transaction/", "sui-network": "https://suiscan.xyz/mainnet/tx/" };
+  // 0.32.233 (pedido do dono): cada blockchain com a sua cor e um ícone simples (desenhado aqui, só para reconhecer a rede)
+  const CHI = {
+    eth: '<path d="M8 1l4.5 7.3L8 11 3.5 8.3z" fill="currentColor"/><path d="M8 12l4.5-2.7L8 15l-4.5-5.7z" fill="currentColor" opacity=".6"/>',
+    sol: '<path d="M4 3.5h9l-2 2H2zM2 7h9l2 2H4zM4 10.5h9l-2 2H2z" fill="currentColor"/>',
+    bnb: '<path d="M8 2l2 2-2 2-2-2zM4 6l2 2-2 2-2-2zM12 6l2 2-2 2-2-2zM8 6l2 2-2 2-2-2zM8 10l2 2-2 2-2-2z" fill="currentColor"/>',
+    base: '<circle cx="8" cy="8" r="6.5" fill="currentColor"/><path d="M8 4.5a3.5 3.5 0 1 1-3.4 4.3h5.6V7.2H4.6A3.5 3.5 0 0 1 8 4.5z" fill="#0a0a0a"/>',
+    arb: '<path d="M8 1.5l5.6 3.2v6.6L8 14.5l-5.6-3.2V4.7z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 10.5l2.5-6 1.4.8-2.2 5.2z" fill="currentColor"/>',
+    poly: '<path d="M5 4.5l3-1.7 3 1.7v3.4l-3 1.7-3-1.7zM2 8.6l3-1.7M11 7.9l3 1.7v3.4l-3 1.7-3-1.7" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    avax: '<path d="M8 2.5l6 10.5H2z" fill="currentColor"/><path d="M8 7.5l2.2 3.8H5.8z" fill="#0a0a0a"/>',
+    tron: '<path d="M2 3l12 2.5L8.5 14z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 3l6.5 11M14 5.5L6 7" stroke="currentColor" stroke-width="1.2"/>',
+    op: '<circle cx="8" cy="8" r="6.5" fill="currentColor"/><path d="M5.2 9.8a1.6 1.8 0 1 0 0-3.6 1.6 1.8 0 1 0 0 3.6zM8.6 6.2h1.6a1 1 0 0 1 0 2.2H9.3l-.3 1.4" fill="none" stroke="#0a0a0a" stroke-width="1.1"/>',
+    ton: '<path d="M2.5 4h11L8 14z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 4v10" stroke="currentColor" stroke-width="1.4"/>',
+    propria: '<path d="M6.5 9.5l3-3M5 7.5l-1.3 1.3a2.1 2.1 0 0 0 3 3L8 10.5M11 8.5l1.3-1.3a2.1 2.1 0 0 0-3-3L8 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    dot: '<circle cx="8" cy="8" r="5" fill="currentColor"/>',
+  };
+  const CHS = { "Ethereum": ["#8a9cf0", "eth"], "Solana": ["#14F195", "sol"], "BNB Chain": ["#F0B90B", "bnb"], "Base": ["#3b82f6", "base"],
+    "Arbitrum": ["#28A0F0", "arb"], "Polygon": ["#a47bf0", "poly"], "Avalanche": ["#E84142", "avax"], "TRON": ["#ff3b3f", "tron"],
+    "Optimism": ["#FF0420", "op"], "TON": ["#0098EA", "ton"], "Blockchain própria": ["#9ca3af", "propria"], "Cronos": ["#5b8def", "dot"],
+    "Sui": ["#4DA2FF", "dot"], "Fantom": ["#1969FF", "dot"], "Kaia": ["#BFF009", "dot"], "Chiliz": ["#ff4d6d", "dot"], "Cardano": ["#3468d1", "dot"],
+    "Linea": ["#61DFFF", "dot"], "Mantle": ["#65b3ae", "dot"], "Sonic": ["#fe9a4c", "dot"], "Osmosis": ["#a855f7", "dot"], "Cosmos": ["#6f7390", "dot"],
+    "Robinhood Chain": ["#c3f53c", "dot"], "Gnosis": ["#3e6957", "dot"], "Celo": ["#FCFF52", "dot"], "Near": ["#00ec97", "dot"], "NEAR": ["#00ec97", "dot"] };
+  function chainTag(nome, extra) {
+    if (!nome) return "";
+    const c = CHS[nome] || ["#9ca3af", "dot"];
+    return '<span class="dmch dmchc" style="--cc:' + c[0] + '"' + (extra ? ' title="' + esc(extra) + '"' : "") + '><svg viewBox="0 0 16 16" aria-hidden="true">' + CHI[c[1]] + "</svg>" + esc(nome) + "</span>";
+  }
   const n24 = (b) => (b.n24 >= 300 ? "300+" : String(b.n24 || 0));
   function bcCell(m, full) {
     const b = m.bc;
@@ -56,17 +82,20 @@
     const s = v.toExponential(3).split("e-"), z = Number(s[1]) - 1;
     return "US$ 0,0<sub>" + z + "</sub>" + s[0].replace(".", "").slice(0, 4);
   }
+  const dia = (t) => (t ? new Date(t * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—");
   const hora = (t) => (t ? new Date(t * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
   function ago(t) {
     if (!t) return "—";
     const s = Math.max(0, Date.now() / 1000 - t);
-    return s < 60 ? Math.round(s) + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1).replace(".", ",") + " h" : (s / 86400).toFixed(1).replace(".", ",") + " dias";
+    const d = s / 86400;
+    return s < 60 ? Math.round(s) + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1).replace(".", ",") + " h"
+      : d < 60 ? (d < 10 ? d.toFixed(1).replace(".", ",") : Math.round(d)) + " dias" : d < 365 ? Math.round(d / 30.4) + " meses" : (d / 365).toFixed(1).replace(".", ",") + " anos";
   }
   const tag = (st) => '<span class="dmst ' + esc(st || "normal") + '">' + esc(ST[st] || "—") + "</span>";
   function coin(m) {
     const cg = m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "";
     return '<div class="dmcoin">' + (m.img ? '<img src="' + esc(m.img) + '" alt="" loading="lazy" data-dmcoin="' + esc(m.cmc) + '">' : "") + '<div><b data-dmcoin="' + esc(m.cmc) + '" title="abrir a moeda">' + esc(m.nome) + "</b> <small>" + esc(m.simbolo || "") +
-      (m.rank ? " · #" + m.rank : "") + (m.chain_nome ? '<span class="dmch" title="' + esc((m.chains || []).join(", ")) + '">' + esc(m.chain_nome) + "</span>" : "") + "</small>" +
+      (m.rank ? " · #" + m.rank : "") + (m.chain_nome ? chainTag(m.chain_nome, (m.chains || []).join(", ")) : "") + "</small>" +
       '<div class="dmlinks">' + cg + (m.extra ? "" : '<a href="https://coinmarketcap.com/currencies/' + esc(m.cmc) + '/" target="_blank" rel="noopener">CoinMarketCap</a>') +
       (m.extra ? '<a href="#" data-dmdel="' + esc(m.cmc) + '">tirar da lista</a>' : "") + "</div>" +
       (m.extra ? '<span class="dmby">adicionada por <b>' + esc(m.add_por) + "</b> · " + hora(m.add_t) + "</span>" : "") +
@@ -160,7 +189,7 @@
     $("ovBcSub").textContent = "as negociações mais recentes das moedas da lista, lidas direto da blockchain (GeckoTerminal) · " + num(bs.lidas || 0, 0) + " de " + num(bs.vigiadas || 0, 0) +
       " moedas já lidas · cada uma é lida de novo a cada " + num(bs.a_cada_min || 30, 0) + " min · " + num(bs.paradas_24h || 0, 0) + " paradas há mais de 24 h";
     table("ovBc", ["Quando", "Moeda", "Ação", "Valor", "Rede", "Transação"], ev.slice(0, 30).map(([x, m]) => [V("há " + ago(x.t), x.t), V('<span class="dmcoin"><b data-dmcoin="' + esc(m.cmc) + '">' + esc(m.nome) + '</b></span> <small class="muted">' + esc(m.simbolo) + "</small>", m.nome),
-      V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd), V(esc(m.chain_nome || ""), m.chain_nome || ""),
+      V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd), V(chainTag(m.chain_nome), m.chain_nome || ""),
       x.tx && EXPL[m.bc.net] ? '<a href="' + EXPL[m.bc.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver na blockchain</a>' : "—"]), "A leitura da blockchain começa logo depois da primeira leitura da CoinGecko (1 moeda a cada 6 s).");
     const dorm = M().filter((m) => m.status === "dormindo").sort((a, b) => Math.abs(a.d30 || 0) - Math.abs(b.d30 || 0)).slice(0, 15);
     table("ovDm", ["Moeda", "Preço", "7 dias", "30 dias", "Volume 24 h", "Gráfico 7 dias", "Por quê"], dorm.map((m) => [V(coin(m), m.nome), V(price(m.preco), m.preco), V(pc(m.d7), m.d7), V(pc(m.d30), m.d30), V(usd(m.vol), m.vol), spark(m.spark),
@@ -172,7 +201,7 @@
     const m = M().find((x) => x.cmc === key); if (!m) return;
     CM = { key, r: null, rng: CM && CM.rng || 30 };
     $("coinMH").innerHTML = (m.img ? '<img src="' + esc(m.img) + '" alt="">' : "") + '<div style="min-width:0"><h2 id="coinMT">' + esc(m.nome) + ' <small class="muted">' + esc(m.simbolo || "") + "</small></h2>" +
-      '<div class="sub">' + tag(m.status) + (m.chain_nome ? ' <span class="dmch">' + esc(m.chain_nome) + "</span>" : "") + (m.rank ? " · #" + m.rank + " em valor de mercado" : "") + "</div></div>";
+      '<div class="sub">' + tag(m.status) + (m.chain_nome ? " " + chainTag(m.chain_nome) : "") + (m.rank ? " · #" + m.rank + " em valor de mercado" : "") + "</div></div>";
     $("coinMB").innerHTML = coinBody(m, null);
     $("coinM").hidden = false;
     const r = await BB.api("/api/dormant/moeda?key=" + encodeURIComponent(key), { quiet: true });
@@ -185,7 +214,8 @@
     const k = (l, v, s) => "<div><small>" + l + "</small><b>" + v + "</b>" + (s ? "<small>" + s + "</small>" : "") + "</div>";
     let h = '<div class="cmgrid">' + k("Preço", price(m.preco)) + k("1 h", pc(m.h1)) + k("24 h", pc(m.h24)) + k("7 dias", pc(m.d7)) + k("30 dias", pc(m.d30)) +
       k("Volume 24 h", usd(m.vol), m.vol_x ? num(m.vol_x, 1) + "× o normal" : "") + k("Valor de mercado", usd(m.mcap)) +
-      k("Máxima histórica", price(m.ath), m.ath_pct != null ? pc(m.ath_pct) + " dela" : "") + k("Mínima histórica", price(m.atl)) + "</div>";
+      k("Máxima histórica", price(m.ath), (m.ath_t ? "em " + dia(m.ath_t) + " (há " + ago(m.ath_t) + ")<br>" : "") + (m.ath_pct != null ? pc(m.ath_pct) + " dela" : "")) +
+      k("Mínima histórica", price(m.atl), (m.atl_t ? "em " + dia(m.atl_t) + " (há " + ago(m.atl_t) + ")<br>" : "") + (m.atl_pct != null ? pc(m.atl_pct) + " acima dela" : "")) + "</div>";
     h += (m.por && m.por.length ? '<div class="decbox"><b>Por que está ' + esc((ST[m.status] || "").toLowerCase()) + ":</b> " + esc(m.por.join(" · ")) + "</div>" : "");
     h += '<div class="card" style="margin-top:12px"><header><div><h2>Gráfico</h2><div class="sub">preço em dólar (CoinGecko) · passe o mouse ou o dedo para ver cada ponto</div></div><div class="sp"></div>' +
       '<div class="seg" id="cmRng"><button data-cmr="1">24 h</button><button data-cmr="7">7 dias</button><button data-cmr="30">30 dias</button></div></header>' +
@@ -197,8 +227,8 @@
       '<div class="tbl-wrap"><table id="cmTr"></table></div></div>';
     const ct = (r && r.contratos) || [], cats = (r && r.info && r.info.cats) || m.cats || [];
     h += '<div class="card"><header><div><h2>Sobre a moeda</h2></div></header><div class="help">' +
-      "<p><b>Blockchain:</b> " + esc(m.chain_nome || "?") + (m.chains && m.chains.length > 1 ? " · também em " + esc(m.chains.join(", ")) : "") + "</p>" +
-      (ct.length ? "<p><b>Contratos:</b></p>" + ct.map((c) => '<div class="cmaddr">' + esc(c.rede) + ": " + esc(c.endereco) + "</div>").join("") : "") +
+      "<p><b>Blockchain:</b> " + (chainTag(m.chain_nome) || "?") + (m.chains && m.chains.length > 1 ? " · também em " + m.chains.filter((c) => c !== m.chain_nome).map((c) => chainTag(c)).join(" ") : "") + "</p>" +
+      (ct.length ? "<p><b>Contratos:</b></p>" + ct.map((c) => '<div class="cmaddr" style="margin:4px 0">' + chainTag(c.rede) + " " + esc(c.endereco) + "</div>").join("") : "") +
       (cats.length ? '<p><b>Categorias:</b></p><div class="dmcats">' + cats.map((c) => "<span>" + esc(c) + "</span>").join("") + "</div>" : "") +
       "<p><b>Na lista desde:</b> " + (m.extra ? "adicionada por " + esc(m.add_por) + " em " + hora(m.add_t) : "watchlist da CoinMarketCap (05/11/2026)") + "</p>" +
       '<p class="dmlinks">' + (m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "") +
@@ -281,7 +311,7 @@
   }
   function drawGrupos() {
     const g = (R && R.grupos) || {}, s = (R && R.status) || {};
-    const row = (x, tipo) => ['<b>' + esc(x.nome) + "</b>", num(x.n, 0),
+    const row = (x, tipo) => [tipo === "ch" ? chainTag(x.nome) : '<b>' + esc(x.nome) + "</b>", num(x.n, 0),
       ["acordando", "pump", "dump", "dormindo"].map((k) => x.st[k] ? tag(k) + " " + x.st[k] : "").filter(Boolean).join(" ") || '<span class="muted">—</span>',
       pc(x.h24), pc(x.d7), x.top ? esc(x.top.simbolo || x.top.nome) + " " + pc(x.top.h24) : "—", x.fundo ? esc(x.fundo.simbolo || x.fundo.nome) + " " + pc(x.fundo.h24) : "—"];
     const H = ["Grupo", "Moedas", "Acordando, pump, dump, dormindo", "Mediana 24 h", "Mediana 7 dias", "Maior alta 24 h", "Maior queda 24 h"];
@@ -359,7 +389,7 @@
     if (r && r.error) { $("addR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
     const L = (r && r.itens) || [];
     $("addR").innerHTML = L.length ? L.map((x) => '<div class="r">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" width="22" height="22" style="border-radius:50%">' : "") +
-      "<div><b>" + esc(x.nome) + "</b> <small class=\"muted\">" + esc(x.simbolo) + '</small><div class="dmcats">' + (x.blockchains || []).map((b) => "<span>" + esc(b) + "</span>").join("") + "</div></div>" +
+      "<div><b>" + esc(x.nome) + "</b> <small class=\"muted\">" + esc(x.simbolo) + '</small><div class="dmcats">' + (x.blockchains || []).map((b) => chainTag(b)).join(" ") + "</div></div>" +
       '<span class="sp"></span><small class="muted">' + price(x.preco) + " · " + usd(x.mcap) + "</small>" +
       (x.ja_tem ? '<span class="tag neutral">já está na lista</span>' : '<button class="btn sm primary" data-dmaddid="' + esc(x.id) + '">Adicionar</button>') + "</div>").join("")
       : '<span class="muted">Nada encontrado. Tente o símbolo (ex.: PEPE) ou cole o link da moeda na CoinGecko.</span>';
