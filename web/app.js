@@ -2820,7 +2820,12 @@
     NOV_TIPO = b.dataset.t; document.querySelectorAll("#novTipo button").forEach((x) => x.classList.toggle("on", x === b)); loadNovidades();
   });
 
-  function toast(m) { const d = document.createElement("div"); d.textContent = m; $("toasts").prepend(d); setTimeout(() => d.remove(), 8000); }
+  function toast(m) {
+    const d = document.createElement("div"); d.textContent = m;
+    // 0.32.216 (pedido do dono): o "Salvo." de quando muda a configuração aparece verde e maior, com entrada e saída suaves
+    if (/^Salvo\.?$/.test(String(m))) { d.className = "tsaved"; d.textContent = "✓ Salvo"; $("toasts").prepend(d); setTimeout(() => d.remove(), 2600); return; }
+    $("toasts").prepend(d); setTimeout(() => d.remove(), 8000);
+  }
   const cfg = () => (D && D.cfg) || {};
   const realMode = () => (MODE ? MODE === "real" : !!(D && D.real && D.real.enabled));
 

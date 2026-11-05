@@ -1003,3 +1003,6 @@ label.chgrp{cursor:pointer}
 .cfgver .btn{margin-left:4px}
 .rsync{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}.rsync.diff{border-color:#b7791f;background:rgba(183,121,31,.10)}.rsync.same{border-color:rgba(34,197,94,.35)}.rsync .rs-t{flex:1;min-width:220px}.rsync .rs-b{display:flex;flex-wrap:wrap;gap:8px}
 .ustr span:first-child{color:#f59e0b}.usrnote{margin:6px 0 2px;line-height:1.35}
+.toasts div.tsaved{background:#14532d;border-color:#22c55e;color:#dcfce7;font-size:17px;font-weight:700;padding:14px 22px;box-shadow:0 10px 40px rgba(34,197,94,.25);animation:tsaved 2.6s ease forwards}
+@keyframes tsaved{0%{opacity:0;transform:translateY(10px)}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.toasts div.tsaved{animation:none}}

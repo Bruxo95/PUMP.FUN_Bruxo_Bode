@@ -1835,6 +1835,11 @@
    "versao": "0.32.215",
    "inicio": "2026-11-05T08:06:30+00:00",
    "titulo": "REAL devolve o aluguel da conta do token"
+  },
+  {
+   "versao": "0.32.216",
+   "inicio": "2026-11-05T09:20:00+00:00",
+   "titulo": "Aviso Salvo verde e maior"
   }
  ]
 }
