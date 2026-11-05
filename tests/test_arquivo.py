@@ -88,3 +88,18 @@ def test_from_env_needs_url_and_long_secret(monkeypatch):
     a = A.Arquivo.from_env(None)
     tok = a.rest._h["Authorization"].split()[1]
     assert jwt.decode(tok, sec, algorithms=["HS256"])["role"] == "pump_arquivo" and a.rest.base == "http://pump_arquivo_api:3000"
+
+
+def test_keeps_only_90_days_once_a_day():
+    calls = []
+
+    class R:
+        async def _req(self, method, table, params=None, body=None, prefer=None):
+            calls.append((method, table, params))
+            return []
+    arq = _Arq()
+    arq.rest = R()
+    now = 2_000_000_000.0
+    asyncio.run(arq.limpa(now))
+    asyncio.run(arq.limpa(now + 3600))                         # no mesmo dia: não repete
+    assert calls == [("DELETE", "arquivo", {"t": f"lt.{now - 90 * 86400}"})] and A.GUARDA_DIAS == 90

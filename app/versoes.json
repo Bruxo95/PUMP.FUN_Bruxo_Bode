@@ -1885,6 +1885,11 @@
    "versao": "0.32.225",
    "inicio": "2026-11-05T20:50:17+00:00",
    "titulo": "histórico no Postgres da VPS"
+  },
+  {
+   "versao": "0.32.226",
+   "inicio": "2026-11-05T20:55:54+00:00",
+   "titulo": "arquivo guarda 90 dias"
   }
  ]
 }

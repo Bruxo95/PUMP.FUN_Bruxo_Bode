@@ -9,6 +9,7 @@ Como funciona
 - Na frente dele roda um PostgREST (mesmo protocolo do Supabase), então o servidor fala com o arquivo pelo mesmo
   cliente (`SupaREST`), sem biblioteca nova. O PostgREST só aceita pedido com um token assinado com ARQUIVO_JWT_SECRET
   e não tem porta aberta para a internet.
+- Guarda GUARDA_DIAS (90) dias: uma vez por dia o que passou disso é apagado do arquivo (`limpa`).
 - `mover`: a cada volta copia para o arquivo as linhas que passaram de `dias` no Supabase, confere que entraram e só
   então apaga do Supabase, em lotes pequenos. Se o arquivo não responde, nada é apagado.
 - Sem ARQUIVO_URL e ARQUIVO_JWT_SECRET no stack, nada disso liga e tudo funciona como antes.
@@ -35,6 +36,7 @@ SPECS = [
 LOTE = 500                    # linhas por lote
 LOTES_POR_VOLTA = 20          # até 10 mil linhas por tabela a cada volta (não pesa no Supabase)
 VOLTA_S = 30 * 60
+GUARDA_DIAS = 90              # 0.32.226 (pedido do dono): o arquivo guarda 90 dias; o resto é apagado uma vez por dia
 
 
 def _epoch(v, tipo: str) -> float | None:
@@ -137,8 +139,21 @@ class Arquivo:
                 break                                      # algo não conferiu, ou acabou: para por esta volta
         return moved
 
+    async def limpa(self, now: float | None = None) -> None:
+        """Apaga do arquivo o que passou de GUARDA_DIAS (uma vez por dia)."""
+        now = now or time.time()
+        if now - self.st.get("limpou_em", 0) < 86400:
+            return
+        await self.rest._req("DELETE", "arquivo", {"t": f"lt.{now - GUARDA_DIAS * 86400}"}, None, "return=minimal")
+        self.st["limpou_em"] = now
+
     async def volta(self, db) -> dict:
         self.st["volta"] = time.time()
+        try:
+            await self.limpa()
+        except Exception as e:
+            self.st["ultimo_erro"] = f"limpeza dos {GUARDA_DIAS} dias: {type(e).__name__}: {str(e)[:120]}"
+            log.warning("arquivo: %s", self.st["ultimo_erro"])
         for spec in SPECS:
             try:
                 n = await self.mover(db, spec)
@@ -151,7 +166,8 @@ class Arquivo:
         return self.st
 
     def status(self) -> dict:
-        return {**self.st, "regras": [{"tabela": s["tabela"], "dias_no_supabase": s["dias"]} for s in SPECS]}
+        return {**self.st, "guarda_dias": GUARDA_DIAS,
+                "regras": [{"tabela": s["tabela"], "dias_no_supabase": s["dias"]} for s in SPECS]}
 
 
 async def _delete_in(db, table: str, col: str, values: list[str]) -> None:
