@@ -38,6 +38,41 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
         w.refresh_now()
         return {"ok": True}
 
+    # 0.32.228 (pedido do dono): adicionar moedas na tela, guardando o nome de quem adicionou
+    @app.get("/api/dormant/buscar")
+    async def dormant_search(q: str = "", u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        try:
+            return {"itens": await w.search(q[:120])}
+        except RuntimeError as e:
+            return {"error": str(e)}
+
+    @app.post("/api/dormant/adicionar")
+    async def dormant_add(body: dict, u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        nome = u.get("nome") or (u.get("email") or "").split("@")[0] or "admin"
+        try:
+            e = await w.add(str((body or {}).get("id") or ""), nome, u["id"])
+        except (ValueError, RuntimeError) as ex:
+            return {"error": str(ex)}
+        await audit(db, u["id"], "Dormant: moeda adicionada", f"{e['nome']} ({e['cg']})")
+        return {"ok": True, "moeda": e}
+
+    @app.post("/api/dormant/remover")
+    async def dormant_remove(body: dict, u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        key = str((body or {}).get("key") or "")
+        if not await w.remove(key):
+            return {"error": "só dá para tirar moedas adicionadas na tela"}
+        await audit(db, u["id"], "Dormant: moeda removida", key)
+        return {"ok": True}
+
     # chave Demo da CoinGecko: chave do sistema (cofre criptografado), só neste painel; o valor nunca volta para a tela
     @app.post("/api/dormant/chave")
     async def dormant_key(body: dict, u: dict = Depends(admin_only)):

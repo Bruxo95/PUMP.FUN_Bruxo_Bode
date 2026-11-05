@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-05**; revisão documental **2.0**.
-Aplicação: **0.32.227 · 2026-11-05 · Dormant: vigia a watchlist da CoinMarketCap**.
-Referência Git na emissão: `bc929bd00c4b2c327cedf0a408aa649a150a9c6a`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.228 · 2026-11-05 · Dormant: adicionar moeda, blockchain e categoria**.
+Referência Git na emissão: `5298bf53bd98d3f275959cf536c516141a610933`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

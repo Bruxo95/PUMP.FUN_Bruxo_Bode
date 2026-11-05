@@ -42,6 +42,24 @@ CFG_DEFAULT = {
 STATUS = {"pump": "pump", "dump": "dump", "acordando": "acordando", "dormindo": "dormindo", "normal": "normal",
           "parada": "parada (sem negócio)", "sem_cg": "não achada na CoinGecko"}
 ALERT_ON = ("pump", "dump", "acordando")
+INFO_EVERY_S = 20                      # 0.32.228: categoria e blockchain principal, 1 moeda a cada 20 s (≈ 3 h a lista toda)…
+INFO_KEEP_S = 30 * 86400               # …refeita uma vez por mês (≈ 700 consultas por mês)
+PROPRIA = "propria"                    # moeda da própria blockchain (Bitcoin, Solana, Dogecoin…)
+CHAIN_NAMES = {PROPRIA: "Blockchain própria", "ethereum": "Ethereum", "binance-smart-chain": "BNB Chain", "solana": "Solana",
+               "polygon-pos": "Polygon", "arbitrum-one": "Arbitrum", "base": "Base", "avalanche": "Avalanche", "tron": "TRON",
+               "optimistic-ethereum": "Optimism", "fantom": "Fantom", "cronos": "Cronos", "klay-token": "Kaia", "near-protocol": "NEAR",
+               "cosmos": "Cosmos", "osmosis": "Osmosis", "xdai": "Gnosis", "harmony-shard-0": "Harmony", "moonriver": "Moonriver",
+               "moonbeam": "Moonbeam", "huobi-token": "HECO", "okex-chain": "OKC", "aurora": "Aurora", "energi": "Energi", "sora": "SORA",
+               "polkadot": "Polkadot", "kusama": "Kusama", "stellar": "Stellar", "waves": "Waves", "algorand": "Algorand",
+               "hedera-hashgraph": "Hedera", "the-open-network": "TON", "sui": "Sui", "aptos": "Aptos", "robinhood": "Robinhood Chain",
+               "hyperevm": "HyperEVM", "sonic": "Sonic", "cardano": "Cardano", "zksync": "zkSync", "linea": "Linea", "mantle": "Mantle"}
+CG_URL = re.compile(r"coingecko\.com/(?:[a-z-]+/)?coins/([a-z0-9-]+)", re.I)
+
+
+def chain_name(k: str | None) -> str:
+    if not k:
+        return "?"
+    return CHAIN_NAMES.get(k) or k.replace("-", " ").title()
 
 
 def norm(s: str) -> str:
@@ -139,6 +157,11 @@ class DormantWatch:
         self.http, self.db = http, db
         self.key_fn = key_fn or (lambda: "")
         self.lista = self._lista()
+        self.extras: list[dict] = []                 # 0.32.228: moedas que um admin adicionou na tela ({cg, nome, simbolo, por, t})
+        self.plat: dict[str, list[str]] = {}         # id → blockchains onde o token existe (da lista da CoinGecko)
+        self.info: dict[str, dict] = {}              # id → {"cats": categorias, "plat": blockchain principal, "t": quando}
+        self.cgnames: dict[str, tuple] = {}          # última lista da CoinGecko (só memória, para a busca)
+        self._info_at = 0.0
         self.cfg = dict(CFG_DEFAULT)
         self.map: dict[str, list[str]] = {}
         self.map_t = 0.0
@@ -181,14 +204,127 @@ class DormantWatch:
             raise RuntimeError(f"CoinGecko respondeu HTTP {r.status_code}")
         return r.json()
 
-    async def refresh_map(self) -> None:
-        cg = await self.get("/coins/list")
+    def todas(self) -> list[dict]:
+        """A watchlist + as moedas adicionadas na tela (chave "cg:<id>")."""
+        return self.lista + [{"cmc": "cg:" + e["cg"], "nome": e.get("nome") or e["cg"], "simbolo": e.get("simbolo") or "",
+                              "morta_cmc": False, "extra": e} for e in self.extras]
+
+    async def _cglist(self) -> list[dict]:
+        cg = await self.get("/coins/list", {"include_platform": "true"})
         if not isinstance(cg, list) or not cg:
             raise RuntimeError("lista da CoinGecko veio vazia")
+        self.cgnames = {c["id"]: (c.get("name") or "", c.get("symbol") or "", [k for k in (c.get("platforms") or {}) if k])
+                        for c in cg if c.get("id")}
+        return cg
+
+    async def refresh_map(self) -> None:
+        cg = await self._cglist()
         self.map = match(self.lista, cg)
+        for e in self.extras:
+            self.map["cg:" + e["cg"]] = [e["cg"]]
+        self.plat = {i: list(self.cgnames.get(i, ("", "", []))[2]) for c in self.map.values() for i in c}
         self.map_t = time.time()
         self.stat["mapa_t"] = self.map_t
         await self._put("map", {"t": self.map_t, "m": self.map})
+        await self._put("plat", {"p": self.plat})
+
+    # ------------------------------------------------------------------ blockchain e categoria (0.32.228)
+    def chain_of(self, cid: str | None) -> str | None:
+        inf = self.info.get(cid or "")
+        if inf and "plat" in inf:
+            return inf["plat"] or PROPRIA
+        if cid in self.plat:
+            return (self.plat[cid] or [PROPRIA])[0]
+        return None
+
+    async def info_step(self, now: float) -> None:
+        """Uma moeda por vez: categorias e blockchain principal (/coins/{id}). Nunca atrapalha a leitura dos preços."""
+        if now - self._info_at < INFO_EVERY_S:
+            return
+        falta = [c for c in dict.fromkeys(self.pick.values()) if now - float((self.info.get(c) or {}).get("t") or 0) > INFO_KEEP_S]
+        if not falta:
+            return
+        self._info_at = now
+        cid = falta[0]
+        try:
+            r = await self.get("/coins/" + cid, {"localization": "false", "tickers": "false", "market_data": "false",
+                                                 "community_data": "false", "developer_data": "false", "sparkline": "false"})
+            self.info[cid] = {"cats": [c for c in (r.get("categories") or []) if c][:8], "plat": r.get("asset_platform_id") or None, "t": now}
+        except RuntimeError:
+            raise
+        except Exception as e:
+            self.info[cid] = {"cats": [], "t": now - INFO_KEEP_S + 86400, "erro": str(e)[:80]}   # tenta de novo amanhã
+        self._info_n = getattr(self, "_info_n", 0) + 1
+        if len(falta) == 1 or self._info_n % 10 == 0:                # grava a cada 10 moedas (e na última)
+            await self._put("info", {"i": self.info})
+
+    # ------------------------------------------------------------------ adicionar moedas (0.32.228)
+    async def search(self, q: str) -> list[dict]:
+        q = (q or "").strip()
+        if not q:
+            return []
+        if not self.cgnames:
+            await self._cglist()
+        m = CG_URL.search(q)
+        if m:
+            ids = [m.group(1).lower()] if m.group(1).lower() in self.cgnames else []
+        else:
+            n, ql = norm(q), q.lower()
+            score = []
+            for cid, (name, sym, _) in self.cgnames.items():
+                s = 0 if cid == ql else 1 if sym.lower() == ql or norm(name) == n else 2 if norm(name).startswith(n) else 3 if n and n in norm(name) else None
+                if s is not None:
+                    score.append((s, len(name), cid))
+            ids = [c for _, _, c in sorted(score)[:12]]
+        if not ids:
+            return []
+        rows = {}
+        try:
+            for r in await self.get("/coins/markets", {"vs_currency": "usd", "ids": ",".join(ids), "per_page": 50, "page": 1}) or []:
+                rows[r["id"]] = r
+        except RuntimeError:
+            pass
+        have = {e["cg"] for e in self.extras} | set(self.pick.values())
+        out = []
+        for cid in ids:
+            name, sym, plats = self.cgnames.get(cid, ("", "", []))
+            r = rows.get(cid) or {}
+            out.append({"id": cid, "nome": name, "simbolo": sym.upper(), "blockchains": [chain_name(p) for p in plats[:4]] or [chain_name(PROPRIA)],
+                        "preco": r.get("current_price"), "mcap": r.get("market_cap"), "vol": r.get("total_volume"), "img": r.get("image"),
+                        "ja_tem": cid in have})
+        out.sort(key=lambda x: -(x["mcap"] or 0))
+        return out
+
+    async def add(self, cid: str, por: str, por_id: str) -> dict:
+        cid = (cid or "").strip().lower()
+        if not re.fullmatch(r"[a-z0-9-]{1,100}", cid):
+            raise ValueError("id da CoinGecko inválido")
+        if not self.cgnames:
+            await self._cglist()
+        if cid not in self.cgnames:
+            raise ValueError("não achei essa moeda na CoinGecko")
+        if cid in {e["cg"] for e in self.extras} or cid in set(self.pick.values()):
+            raise ValueError("essa moeda já está na lista")
+        name, sym, plats = self.cgnames[cid]
+        e = {"cg": cid, "nome": name, "simbolo": sym.upper(), "por": por or "admin", "por_id": por_id, "t": time.time()}
+        self.extras.append(e)
+        self.map["cg:" + cid] = [cid]
+        self.plat[cid] = list(plats)
+        await self._put("extras", {"e": self.extras})
+        self.refresh_now()
+        return e
+
+    async def remove(self, key: str) -> bool:
+        cid = key[3:] if key.startswith("cg:") else key
+        before = len(self.extras)
+        self.extras = [e for e in self.extras if e["cg"] != cid]
+        if len(self.extras) == before:
+            return False
+        self.map.pop("cg:" + cid, None)
+        self.pick.pop("cg:" + cid, None)
+        self.status.pop("cg:" + cid, None)
+        await self._put("extras", {"e": self.extras})
+        return True
 
     async def refresh_markets(self) -> None:
         ids = sorted({i for c in self.map.values() for i in c})
@@ -275,6 +411,12 @@ class DormantWatch:
                         self.stat["mapa_t"] = self.map_t
                     elif r.get("k") == "alertas":
                         self.alertas = list(v.get("a") or [])
+                    elif r.get("k") == "extras":
+                        self.extras = [e for e in (v.get("e") or []) if isinstance(e, dict) and e.get("cg")]
+                    elif r.get("k") == "plat":
+                        self.plat = dict(v.get("p") or {})
+                    elif r.get("k") == "info":
+                        self.info = dict(v.get("i") or {})
                 since = datetime.fromtimestamp(time.time() - 8 * 86400, timezone.utc).isoformat()
                 rows = await self.db.select("dormant_snap", None, order="t.asc", limit=24 * 8 + 5, gte={"t": since}) or []
                 self.snaps = [{"t": int(datetime.fromisoformat(str(r["t"]).replace("Z", "+00:00")).timestamp()), "d": r.get("dados") or {}} for r in rows]
@@ -298,6 +440,8 @@ class DormantWatch:
         if now >= self._next:
             await self.refresh_markets()
             self._next = now + EVERY_S
+        else:
+            await self.info_step(now)
 
     async def run(self) -> None:
         await self.load()
@@ -320,7 +464,7 @@ class DormantWatch:
     def state(self) -> dict:
         moedas, cont = [], {k: 0 for k in STATUS}
         cont["morta"] = 0
-        for m in self.lista:
+        for m in self.todas():
             cid = self.pick.get(m["cmc"])
             row = self.rows.get(cid) if cid else None
             st, why = self.status.get(m["cmc"]) or (("sem_cg", []) if self.stat["leitura_t"] and not cid else ("", []))
@@ -328,8 +472,12 @@ class DormantWatch:
                 st = "morta"
             if st:
                 cont[st] = cont.get(st, 0) + 1
+            ch = self.chain_of(cid)
+            ex = m.get("extra") or {}
             it = {"cmc": m["cmc"], "nome": m["nome"], "simbolo": m.get("simbolo") or "", "status": st, "por": why,
-                  "morta_cmc": bool(m.get("morta_cmc")), "cg": cid}
+                  "morta_cmc": bool(m.get("morta_cmc")), "cg": cid, "chain": ch, "chain_nome": chain_name(ch) if ch else None,
+                  "chains": [chain_name(p) for p in (self.plat.get(cid) or [])[:6]], "cats": (self.info.get(cid) or {}).get("cats") or [],
+                  "add_por": ex.get("por") or "watchlist da CoinMarketCap", "add_t": ex.get("t"), "extra": bool(ex)}
             if row:
                 it.update(nome=row.get("name") or m["nome"], simbolo=(row.get("symbol") or "").upper(), img=row.get("image"),
                           preco=row.get("current_price"), mcap=row.get("market_cap"), rank=row.get("market_cap_rank"),
@@ -340,7 +488,38 @@ class DormantWatch:
                           vol_x=round(row.get("total_volume") / v, 2) if (v := self.vol_med(cid)) and row.get("total_volume") else None)
             moedas.append(it)
         return {"ligado": True, "carregado": self.loaded, "cfg": self.cfg, "padrao": CFG_DEFAULT, "nomes": STATUS,
-                "status": {**self.stat, "moedas": len(self.lista), "achadas": len(self.pick), "fotos": len(self.snaps),
+                "grupos": grupos(moedas),
+                "status": {**self.stat, "moedas": len(self.lista) + len(self.extras), "achadas": len(self.pick), "fotos": len(self.snaps),
+                           "com_info": sum(1 for c in set(self.pick.values()) if c in self.info),
                            "pausa_s": max(0, round(self._pause_until - time.time())), "proxima_s": max(0, round(self._next - time.time())),
                            "a_cada_min": EVERY_S // 60},
                 "contagem": cont, "moedas": moedas, "alertas": self.alertas[:100]}
+
+
+def grupos(moedas: list[dict]) -> dict:
+    """0.32.228 (pedido do dono): as moedas por blockchain e por categoria, com a situação de cada grupo."""
+    def agg(key):
+        g: dict[str, dict] = {}
+        for m in moedas:
+            if m.get("preco") is None:
+                continue
+            for k in key(m):
+                x = g.setdefault(k, {"nome": k, "n": 0, "st": {}, "h24": [], "d7": [], "top": None, "fundo": None})
+                x["n"] += 1
+                x["st"][m["status"]] = x["st"].get(m["status"], 0) + 1
+                if m.get("h24") is not None and m["status"] != "parada":
+                    x["h24"].append(m["h24"])
+                    if x["top"] is None or m["h24"] > x["top"]["h24"]:
+                        x["top"] = {"nome": m["nome"], "simbolo": m["simbolo"], "h24": m["h24"]}
+                    if x["fundo"] is None or m["h24"] < x["fundo"]["h24"]:
+                        x["fundo"] = {"nome": m["nome"], "simbolo": m["simbolo"], "h24": m["h24"]}
+                if m.get("d7") is not None:
+                    x["d7"].append(m["d7"])
+        out = []
+        for x in g.values():
+            x["h24"] = round(statistics.median(x["h24"]), 2) if x["h24"] else None
+            x["d7"] = round(statistics.median(x["d7"]), 2) if x["d7"] else None
+            out.append(x)
+        return sorted(out, key=lambda x: -x["n"])
+    return {"blockchain": agg(lambda m: [m["chain_nome"]] if m.get("chain_nome") else ["?"]),
+            "categoria": [x for x in agg(lambda m: m.get("cats") or []) if x["n"] >= 2][:40]}

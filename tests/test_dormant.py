@@ -87,3 +87,56 @@ def test_dormant_page_and_admin_only_routes(env):
 def test_seed_list_is_the_owner_watchlist():
     lista = dormant.DormantWatch._lista()
     assert len(lista) == 661 and sum(1 for m in lista if m["morta_cmc"]) == 286 and lista[0]["cmc"] == "bitcoin"
+
+
+def _cg_handler(calls):
+    def handler(req):
+        calls.append(req.url.path)
+        p = req.url.path
+        if p.endswith("/coins/list"):
+            return httpx.Response(200, json=[{"id": "bitcoin", "name": "Bitcoin", "symbol": "btc", "platforms": {}},
+                                             {"id": "pepe", "name": "Pepe", "symbol": "pepe", "platforms": {"ethereum": "0x1", "base": "0x2"}},
+                                             {"id": "bonk", "name": "Bonk", "symbol": "bonk", "platforms": {"solana": "So1"}}])
+        if p.endswith("/coins/markets"):
+            ids = req.url.params["ids"].split(",")
+            return httpx.Response(200, json=[_row(i, h24=2.0) for i in ids])
+        if "/coins/" in p:
+            return httpx.Response(200, json={"categories": ["Meme", "Solana Ecosystem"], "asset_platform_id": "solana"})
+        return httpx.Response(404)
+    return handler
+
+
+def test_add_search_and_remove_keep_who_added():
+    calls = []
+    w = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(_cg_handler(calls))), None)
+    w.lista = [{"cmc": "bitcoin", "nome": "Bitcoin"}]
+    asyncio.run(w.tick())
+    res = asyncio.run(w.search("BONK"))
+    assert res[0]["id"] == "bonk" and res[0]["blockchains"] == ["Solana"] and not res[0]["ja_tem"]
+    assert asyncio.run(w.search("https://www.coingecko.com/en/coins/pepe"))[0]["id"] == "pepe"
+    e = asyncio.run(w.add("bonk", "Douglas", "u1"))
+    assert e["por"] == "Douglas"
+    try:
+        asyncio.run(w.add("bonk", "Outro", "u2"))
+        raise AssertionError("aceitou repetida")
+    except ValueError:
+        pass
+    w._next = 0
+    asyncio.run(w.tick())
+    st = w.state()
+    bonk = [m for m in st["moedas"] if m["cmc"] == "cg:bonk"][0]
+    assert bonk["add_por"] == "Douglas" and bonk["extra"] and bonk["chain_nome"] == "Solana" and bonk["preco"] is not None
+    assert [m for m in st["moedas"] if m["cmc"] == "bitcoin"][0]["chain_nome"] == "Blockchain própria"
+    assert asyncio.run(w.remove("cg:bonk")) and not asyncio.run(w.remove("bitcoin"))
+
+
+def test_categories_come_one_coin_at_a_time_and_group():
+    calls = []
+    w = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(_cg_handler(calls))), None)
+    w.lista = [{"cmc": "bitcoin", "nome": "Bitcoin"}, {"cmc": "bonk", "nome": "Bonk"}]
+    asyncio.run(w.tick())                      # lista + preços
+    asyncio.run(w.info_step(1e10))             # 1 moeda
+    asyncio.run(w.info_step(1e10 + 30))        # a outra
+    assert len(w.info) == 2 and all(v["cats"] == ["Meme", "Solana Ecosystem"] for v in w.info.values())
+    g = w.state()["grupos"]
+    assert g["blockchain"][0]["nome"] == "Solana" and g["categoria"][0]["nome"] in ("Meme", "Solana Ecosystem")

@@ -6,6 +6,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => BB.esc(s);
   const TITLES = { visao: ["Visão geral", "o que acordou, o que deu pump ou dump e o que está dormindo"], moedas: ["Moedas", "todas as moedas da lista com a situação de cada uma"],
+    grupos: ["Por blockchain e categoria", "as moedas da lista divididas por rede e por categoria"],
     config: ["Lista e regras", "chave da CoinGecko, regras e as moedas da lista"] };
   const ST = { pump: "Pump", dump: "Dump", acordando: "Acordando", dormindo: "Dormindo", normal: "Normal", parada: "Parada", morta: "Morta", sem_cg: "Sem par" };
   const ST_ORD = ["acordando", "pump", "dump", "dormindo", "normal", "parada", "sem_cg", "morta"];
@@ -15,7 +16,7 @@
     ["acorda_rompe", "Acordando: passou o topo da faixa em", "%"], ["acorda_vol_x", "Acordando: ou volume X vezes a mediana de 7 dias", "×"],
     ["acorda_24h", "Acordando: com alta mínima em 24 h de", "%"], ["vol_min_usd", "Parada: negociou menos que (24 h)", "US$"]];
   let VIEW = "visao", R = null, BUSY = false, READY = false, DIRTY = false;
-  const F = { st: "", q: "", sort: "h24" };
+  const F = { st: "", q: "", sort: "h24", ch: "", cat: "" };
   try { Object.assign(F, JSON.parse(localStorage.getItem("dm_f") || "{}")); } catch (e) { /* */ }
   const saveF = () => { try { localStorage.setItem("dm_f", JSON.stringify(F)); } catch (e) { /* */ } };
 
@@ -48,7 +49,11 @@
   function coin(m) {
     const cg = m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "";
     return '<div class="dmcoin">' + (m.img ? '<img src="' + esc(m.img) + '" alt="" loading="lazy">' : "") + "<div><b>" + esc(m.nome) + "</b> <small>" + esc(m.simbolo || "") +
-      (m.rank ? " · #" + m.rank : "") + '</small><div class="dmlinks">' + cg + '<a href="https://coinmarketcap.com/currencies/' + esc(m.cmc) + '/" target="_blank" rel="noopener">CoinMarketCap</a></div></div></div>';
+      (m.rank ? " · #" + m.rank : "") + (m.chain_nome ? '<span class="dmch" title="' + esc((m.chains || []).join(", ")) + '">' + esc(m.chain_nome) + "</span>" : "") + "</small>" +
+      '<div class="dmlinks">' + cg + (m.extra ? "" : '<a href="https://coinmarketcap.com/currencies/' + esc(m.cmc) + '/" target="_blank" rel="noopener">CoinMarketCap</a>') +
+      (m.extra ? '<a href="#" data-dmdel="' + esc(m.cmc) + '">tirar da lista</a>' : "") + "</div>" +
+      (m.extra ? '<span class="dmby">adicionada por <b>' + esc(m.add_por) + "</b> · " + hora(m.add_t) + "</span>" : "") +
+      ((m.cats || []).length ? '<div class="dmcats">' + m.cats.slice(0, 3).map((c) => "<span>" + esc(c) + "</span>").join("") + "</div>" : "") + "</div></div>";
   }
   function spark(p) {
     if (!p || p.length < 2) return "—";
@@ -102,6 +107,8 @@
     $("ovK").innerHTML = ["acordando", "pump", "dump", "dormindo", "normal", "parada", "morta"].map((k) =>
       '<div class="kpi dmk" data-dmst="' + k + '" role="button" tabindex="0"><div class="k"><span>' + esc(ST[k]) + '</span></div><div class="v">' + num(c[k] || 0, 0) + '</div><div class="d">' +
       { acordando: "saindo do sono agora", pump: "alta forte em 1 h ou 24 h", dump: "queda forte em 1 h ou 24 h", dormindo: "preço parado, faixa estreita", normal: "mexendo sem exagero", parada: "quase sem negócio", morta: "sem preço na CoinMarketCap" }[k] + "</div></div>").join("");
+    const ex = M().filter((m) => m.extra).length;
+    $("ovAddN").textContent = num(M().length, 0) + " moedas vigiadas" + (ex ? " · " + ex + " adicionadas na tela" : "");
     table("ovAl", ["Quando", "Moeda", "Virou", "1 h", "24 h", "Por quê"], ((R && R.alertas) || []).slice(0, 50).map((a) => [hora(a.t),
       "<b>" + esc(a.nome || a.cmc) + "</b> <small class=\"muted\">" + esc(a.simbolo || "") + "</small>", tag(a.para) + ' <small class="muted">era ' + esc(ST[a.de] || a.de) + "</small>", pc(a.h1), pc(a.h24),
       '<small class="muted">' + esc((a.por || []).join(" · ")) + "</small>"]), "Nenhum alerta ainda. Eles aparecem quando uma moeda muda para pump, dump ou acordando.");
@@ -119,13 +126,31 @@
     if ($("mQ").value !== F.q && document.activeElement !== $("mQ")) $("mQ").value = F.q;
     $("mSort").value = F.sort;
     const q = F.q.trim().toLowerCase();
-    let L = M().filter((m) => (!F.st || m.status === F.st) && (!q || (m.nome + " " + m.simbolo + " " + m.cmc).toLowerCase().includes(q)));
+    const chs = {}, cats = {};
+    M().forEach((m) => { if (m.chain_nome) chs[m.chain_nome] = (chs[m.chain_nome] || 0) + 1; (m.cats || []).forEach((c) => { cats[c] = (cats[c] || 0) + 1; }); });
+    $("mChain").innerHTML = '<option value="">Todas as blockchains</option>' + Object.entries(chs).sort((a, b) => b[1] - a[1]).map((x) => '<option value="' + esc(x[0]) + '"' + (F.ch === x[0] ? " selected" : "") + ">" + esc(x[0]) + " · " + x[1] + "</option>").join("");
+    $("mCat").innerHTML = '<option value="">Todas as categorias</option>' + Object.entries(cats).sort((a, b) => b[1] - a[1]).map((x) => '<option value="' + esc(x[0]) + '"' + (F.cat === x[0] ? " selected" : "") + ">" + esc(x[0]) + " · " + x[1] + "</option>").join("");
+    let L = M().filter((m) => (!F.st || m.status === F.st) && (!F.ch || m.chain_nome === F.ch) && (!F.cat || (m.cats || []).includes(F.cat)) &&
+      (!q || (m.nome + " " + m.simbolo + " " + m.cmc + " " + (m.chain_nome || "") + " " + (m.cats || []).join(" ")).toLowerCase().includes(q)));
     const k = F.sort.replace("-", ""), dir = F.sort.startsWith("-") ? 1 : -1;
     L = L.slice().sort((a, b) => k === "nome" ? String(a.nome).localeCompare(String(b.nome)) : ((a[k] == null) - (b[k] == null)) || dir * ((a[k] || 0) - (b[k] || 0)));
     table("mT", ["Moeda", "Situação", "Preço", "1 h", "24 h", "7 dias", "30 dias", "Volume 24 h", "Valor de mercado", "Gráfico 7 dias"], L.slice(0, 400).map((m) => [coin(m),
       tag(m.status) + (m.por && m.por.length ? '<span class="dmwhy">' + esc(m.por.join(" · ")) + "</span>" : ""), price(m.preco), pc(m.h1), pc(m.h24), pc(m.d7), pc(m.d30),
       usd(m.vol) + (m.vol_x ? '<span class="dmwhy">' + num(m.vol_x, 1) + "× o normal</span>" : ""), usd(m.mcap), spark(m.spark)]), "Nenhuma moeda com esse filtro.");
     $("mSub").textContent = num(L.length, 0) + " moedas" + (L.length > 400 ? " · mostrando as 400 primeiras" : "") + " · gráfico = últimos 7 dias (CoinGecko)";
+  }
+  function drawGrupos() {
+    const g = (R && R.grupos) || {}, s = (R && R.status) || {};
+    const row = (x, tipo) => ['<b>' + esc(x.nome) + "</b>", num(x.n, 0),
+      ["acordando", "pump", "dump", "dormindo"].map((k) => x.st[k] ? tag(k) + " " + x.st[k] : "").filter(Boolean).join(" ") || '<span class="muted">—</span>',
+      pc(x.h24), pc(x.d7), x.top ? esc(x.top.simbolo || x.top.nome) + " " + pc(x.top.h24) : "—", x.fundo ? esc(x.fundo.simbolo || x.fundo.nome) + " " + pc(x.fundo.h24) : "—"];
+    const H = ["Grupo", "Moedas", "Acordando, pump, dump, dormindo", "Mediana 24 h", "Mediana 7 dias", "Maior alta 24 h", "Maior queda 24 h"];
+    table("gCh", H, (g.blockchain || []).map((x) => row(x, "ch")), "A primeira leitura ainda não terminou.");
+    table("gCat", H, (g.categoria || []).map((x) => row(x, "cat")), "As categorias chegam aos poucos (uma moeda a cada 20 s).");
+    document.querySelectorAll("#gCh tbody tr").forEach((tr, i) => { const x = (g.blockchain || [])[i]; if (x) { tr.className = "dmgo"; tr.dataset.dmch = x.nome; } });
+    document.querySelectorAll("#gCat tbody tr").forEach((tr, i) => { const x = (g.categoria || [])[i]; if (x) { tr.className = "dmgo"; tr.dataset.dmcat = x.nome; } });
+    $("gCatSub").textContent = "categorias da CoinGecko (uma moeda pode estar em várias) · " + num(s.com_info || 0, 0) + " de " + num(s.achadas || 0, 0) +
+      " moedas já com categoria (chegam aos poucos, uma a cada 20 s) · clique numa linha para ver as moedas";
   }
   function drawConfig() {
     $("kSt").innerHTML = R && R.chave ? '<span class="up">Chave Demo configurada.</span> As consultas usam a sua cota grátis (10 mil por mês).' : "Sem chave: usando a API pública da CoinGecko. Funciona, mas é mais lenta e pode pedir para esperar.";
@@ -136,16 +161,17 @@
         '" type="number" step="any" value="' + esc(c[x[0]]) + '"><span class="muted">' + esc(x[2]) + (p[x[0]] !== c[x[0]] ? " · padrão " + esc(p[x[0]]) : "") + "</span></div></div>").join("");
     }
     const ord = { sem_cg: 0, morta: 1, parada: 2 };
-    const L = M().filter((m) => m.status in ord || !m.status).sort((a, b) => (ord[a.status] ?? 3) - (ord[b.status] ?? 3));
+    const L = M().filter((m) => m.extra || m.status in ord || !m.status).sort((a, b) => (b.extra - a.extra) || ((ord[a.status] ?? 3) - (ord[b.status] ?? 3)));
     $("lSub").textContent = "a watchlist da CoinMarketCap lida em 05/11/2026 · " + num(M().length, 0) + " moedas · abaixo as que não têm leitura útil";
     table("lT", ["Moeda", "Situação", "O que quer dizer"], L.map((m) => [coin(m), tag(m.status || "sem_cg"),
-      m.status === "morta" ? "sem preço na CoinMarketCap e não achada com negócio na CoinGecko: projeto parado ou tirado das corretoras"
+      m.extra ? "adicionada na tela por " + esc(m.add_por) + " em " + hora(m.add_t) : m.status === "morta" ? "sem preço na CoinMarketCap e não achada com negócio na CoinGecko: projeto parado ou tirado das corretoras"
         : m.status === "parada" ? "existe, mas quase ninguém negocia (menos que o mínimo de volume em 24 h)" : "não achei a mesma moeda na CoinGecko pelo nome"]), "Todas as moedas da lista têm leitura.");
   }
   function draw() {
     drawSys();
     if (VIEW === "visao") drawVisao();
     if (VIEW === "moedas") drawMoedas();
+    if (VIEW === "grupos") drawGrupos();
     if (VIEW === "config") drawConfig();
   }
 
@@ -178,12 +204,51 @@
     if (e.target && e.target.closest && e.target.closest("#rCfg")) DIRTY = true;
     if (e.target && e.target.id === "mQ") { F.q = e.target.value; saveF(); drawMoedas(); }
   });
-  document.addEventListener("change", (e) => { if (e.target && e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); } });
+  document.addEventListener("change", (e) => {
+    if (!e.target) return;
+    if (e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); }
+    if (e.target.id === "mChain") { F.ch = e.target.value; saveF(); drawMoedas(); }
+    if (e.target.id === "mCat") { F.cat = e.target.value; saveF(); drawMoedas(); }
+  });
+  // 0.32.228 (pedido do dono): adicionar moeda pela busca da CoinGecko; fica o nome de quem adicionou
+  function addOpen() { $("addM").hidden = false; $("addR").innerHTML = ""; $("addQ").value = ""; setTimeout(() => $("addQ").focus(), 50); }
+  async function addSearch() {
+    const q = $("addQ").value.trim(); if (!q) return;
+    $("addR").innerHTML = '<span class="muted">buscando…</span>';
+    const r = await BB.api("/api/dormant/buscar?q=" + encodeURIComponent(q), { quiet: true });
+    if (r && r.error) { $("addR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
+    const L = (r && r.itens) || [];
+    $("addR").innerHTML = L.length ? L.map((x) => '<div class="r">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" width="22" height="22" style="border-radius:50%">' : "") +
+      "<div><b>" + esc(x.nome) + "</b> <small class=\"muted\">" + esc(x.simbolo) + '</small><div class="dmcats">' + (x.blockchains || []).map((b) => "<span>" + esc(b) + "</span>").join("") + "</div></div>" +
+      '<span class="sp"></span><small class="muted">' + price(x.preco) + " · " + usd(x.mcap) + "</small>" +
+      (x.ja_tem ? '<span class="tag neutral">já está na lista</span>' : '<button class="btn sm primary" data-dmaddid="' + esc(x.id) + '">Adicionar</button>') + "</div>").join("")
+      : '<span class="muted">Nada encontrado. Tente o símbolo (ex.: PEPE) ou cole o link da moeda na CoinGecko.</span>';
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target && e.target.id === "addQ") { e.preventDefault(); addSearch(); } });
   document.addEventListener("click", async (e) => {
     const k = e.target.closest && e.target.closest("[data-dmst]");
     if (k) { F.st = k.dataset.dmst; saveF(); location.hash = "#moedas"; return; }
+    const g = e.target.closest && e.target.closest("tr[data-dmch],tr[data-dmcat]");
+    if (g) { F.st = ""; F.ch = g.dataset.dmch || ""; F.cat = g.dataset.dmcat || ""; saveF(); location.hash = "#moedas"; return; }
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
     if (t.dataset.dmf != null) { F.st = t.dataset.dmf; saveF(); drawMoedas(); return; }
+    if (t.dataset.dmadd) { addOpen(); return; }
+    if (t.id === "addMX") { $("addM").hidden = true; return; }
+    if (t.id === "addGo") { addSearch(); return; }
+    if (t.dataset.dmaddid) {
+      t.disabled = true;
+      const r = await BB.api("/api/dormant/adicionar", { body: { id: t.dataset.dmaddid } });
+      if (r && r.error) { t.disabled = false; alert(r.error); return; }
+      t.outerHTML = '<span class="tag win">adicionada</span>';
+      await load(); return;
+    }
+    if (t.dataset.dmdel) {
+      e.preventDefault();
+      if (!confirm("Tirar esta moeda da lista do Dormant?")) return;
+      const r = await BB.api("/api/dormant/remover", { body: { key: t.dataset.dmdel } });
+      if (r && r.error) { alert(r.error); return; }
+      await load(); return;
+    }
     if (t.id === "sysBox") { $("sysM").hidden = false; drawSysModal(); return; }
     if (t.id === "sysMX") { $("sysM").hidden = true; return; }
     if (t.id === "kSave") {
@@ -206,10 +271,11 @@
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") $("sysM").hidden = true;
+    if (e.key === "Escape") { $("sysM").hidden = true; $("addM").hidden = true; }
     if ((e.key === "Enter" || e.key === " ") && e.target && e.target.dataset && e.target.dataset.dmst) { e.preventDefault(); e.target.click(); }
   });
   $("sysM").addEventListener("click", (e) => { if (e.target === $("sysM")) $("sysM").hidden = true; });
+  $("addM").addEventListener("click", (e) => { if (e.target === $("addM")) $("addM").hidden = true; });
 
   async function boot() {
     $("boot").innerHTML = BB.loader("Carregando", { grid: 4, pattern: "sweep", font: 15, cell: 7, glow: true });
