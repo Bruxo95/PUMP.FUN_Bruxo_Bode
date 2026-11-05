@@ -2686,7 +2686,7 @@
     if (t.id === "cfgDiffX" || t.id === "cfgDiff") { $("cfgDiff").hidden = true; return; }
     if (t.dataset.autoFilt) { EX_AUTO.filt = t.dataset.autoFilt; renderAutoTrades(); return; }
     if (t.dataset.realFilt) { EX_AUTO.rfilt = t.dataset.realFilt; renderAutoTrades(); return; }
-    if (t.dataset.htab) { HIST.tab = t.dataset.htab; renderHistory(); return; }
+    if (t.dataset.htab) { HIST.tab = t.dataset.htab; renderHistory(); navFeedMark(); return; }
     if (t.dataset.hres) { HIST.res = t.dataset.hres; HIST.n = 24; renderHistory(); return; }
     if (t.dataset.hh !== undefined && t.closest("#hPer")) { HIST.h = +t.dataset.hh; HIST.n = 24; renderHistory(); return; }
     if (t.dataset.haba != null) { HIST.aba = t.dataset.haba; HIST.w = ""; HIST.n = 24; renderHistory(); return; }
@@ -2837,6 +2837,12 @@
     carteiras: ["Carteiras", "ligar, desligar e quanto entrar na FICTÍCIA e na REAL; as regras das duas ficam num lugar só"], sistema: ["Status do sistema", "conexões, funil das transações e quanto cada serviço usou"], loggeral: ["Log geral", "registro de segurança da sua conta e, para o admin, de todas as contas e o log do servidor"],
 usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fica"], admin: ["Administração", "usuários, sistema e logs"],
     comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
+  // 0.32.219 (pedido do dono): Feed ao vivo no menu, abaixo de Posições; abre o Histórico na aba Feed
+  function navFeedMark() {
+    const f = VIEW === "historico" && HIST.tab === "feed";
+    document.querySelectorAll('#nav a[data-v="feed"]').forEach((a) => a.classList.toggle("on", f));
+    if (f) document.querySelectorAll('#nav a[data-v="historico"]').forEach((a) => a.classList.remove("on"));
+  }
   let VIEW = "visao";
   function route() {
     let v = (location.hash || "#visao").slice(1);
@@ -2847,7 +2853,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       if (v === "real") WALT = "real";
       if (v === "tradercfg") { WALT = "ambas"; CFT = "copia"; }
       if (v === "config") { WALT = "ambas"; CFT = "chaves"; }
-      if (v === "feed") HIST.tab = "feed";
+      if (v === "feed") { HIST.tab = "feed"; setTimeout(navFeedMark, 0); }
       if (v === "novidades") LGT = "chg";
       v = MOVED[v];
       try { history.replaceState(null, "", "#" + v); } catch (e) { /* */ }
@@ -2856,7 +2862,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     // Administração e o menu "Usar ou descartar" (0.17.3, pedido do dono em 2026-10-25) são só do admin
     if (["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "igual", "comparar", "basegeral", "abas", "logs", "calls", "bruxo"].includes(VIEW) && !(ME && ME.role === "admin")) VIEW = "visao";
     document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== VIEW));
-    document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW));
+    document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.v === VIEW)); navFeedMark();
     document.querySelectorAll("#tabbar [data-tv]").forEach((a) => a.classList.toggle("on", a.dataset.tv === VIEW));
     if ($("tbMenu")) $("tbMenu").classList.toggle("on", !["visao", "traders", "posicoes", "historico"].includes(VIEW));
     // 0.32.184: as telas do Usar ou descartar acendem o link dele no menu

@@ -55,8 +55,9 @@ def test_carteiras_is_the_only_place_to_run_the_wallets():
     nav = H[H.index('<nav class="nav"'):H.index("</nav>")]
     cart = _sec("carteiras")
     assert 'href="#carteiras"' in nav
+    assert 'href="#feed" data-v="feed"' in nav                                    # 0.32.219: Feed ao vivo voltou ao menu (abre o Histórico)
     for v in ("real", "config", "tradercfg", "feed", "novidades"):
-        assert f'href="#{v}" data-v' not in nav and f'<section class="view" data-view="{v}"' not in H
+        assert (v == "feed" or f'href="#{v}" data-v' not in nav) and f'<section class="view" data-view="{v}"' not in H
         assert f'{v}: "' in JS[JS.index("const MOVED"):JS.index("const MOVED") + 140]     # link antigo continua funcionando
     assert 'data-wm="sim"' in cart and 'data-wm="real"' in cart and 'data-wm="ambas"' in cart
     sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
@@ -68,7 +69,7 @@ def test_carteiras_is_the_only_place_to_run_the_wallets():
         assert f'data-clone="1" data-{"toggle" if k.endswith("enabled") else "cfg"}="{k}"' in real
     assert 'id="realB"' in real and 'data-cfg="pump_real_max_sol"' in real and 'data-toggle="pump_real_mirror"' in real
     for k in ("pump_stop_pct", "pump_tp1_pct", "pump_min_winrate", "pump_copy_delay_s"):      # valem para as duas: uma vez só
-        assert H.count(f'data-cfg="{k}"') == 1 and f'data-cfg="{k}"' in cart[cart.index('<div data-wp="ambas"'):]
+        assert H.count(f' data-cfg="{k}"') - H.count(f'data-clone="1" data-cfg="{k}"') == 1 and f'data-cfg="{k}"' in cart[cart.index('<div data-wp="ambas"'):]
 
 
 def test_feed_and_changelog_moved_into_tabs():
@@ -93,7 +94,7 @@ def test_both_wallet_screens_start_the_same():
     sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
     real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
     labels = lambda s: re.findall(r"<label>(.*?)</label>", s[:s.index("<h2>Só na")])
-    assert labels(sim) == labels(real) and len(labels(sim)) == 4
+    assert labels(sim) == labels(real) and len(labels(sim)) == 5
     assert "<h2>Só na FICTÍCIA</h2>" in sim and "<h2>Só na REAL</h2>" in real
     so = lambda s: s[s.index("<h2>Só na"):]
     assert "pump_sim_balance_sol" in so(sim) and "pump_real_daily_loss_sol" in so(real) and "Só aqui:" in so(sim) and "Só aqui:" in so(real)
