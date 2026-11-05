@@ -4724,6 +4724,20 @@ class PumpFun:
                                           "signature": res.get("signature")})
         p["selling"] = False
         if left <= p["tokens"] * 0.005 or frac >= 1.0:
+            # 0.32.215: venda total sem sobra → fecha a conta do token e o aluguel (~0,002 SOL) volta para a carteira e para o trade
+            back = 0.0
+            if left <= 0 and not any(x.get("real") and x["mint"] == p["mint"] and x["id"] != p["id"] for x in self.positions()):
+                fn = getattr(self.real, "close_empty", None)
+                back = (await fn(p["mint"])) if fn else 0.0
+            if back > 0:
+                p["proceeds"] += back
+                fp = p.setdefault("fee_parts", {})
+                fp["network"] = max(0.0, float(fp.get("network") or 0) - back)
+                p["fees_sol"] = max(0.0, float(p.get("fees_sol") or 0) - back)
+                p["conta_devolvida_sol"] = round(back, 6)
+                self._feed(wallet=p.get("wallet") or "manual", short=short(p.get("wallet") or "manual"), mint=p["mint"],
+                           symbol=p.get("symbol"), kind="sell", action="conta do token fechada", real=True,
+                           reason=f"{back:.5f} SOL de aluguel devolvidos para a carteira")
             pnl = p["proceeds"] - p["sol_in"]          # diferença REAL de SOL na carteira: já com todas as taxas
             tr = {"opened_at": p["opened_at"], "closed_at": now_iso(), "wallet": p["wallet"], "mint": p["mint"],
                   "symbol": p["symbol"], "sol_in": p["sol_in"], "sol_out": round(p["proceeds"], 6),
@@ -4744,6 +4758,7 @@ class PumpFun:
             tr["lat"] = p.get("lat")                       # 0.31.51: tempo da compra real (montar, confirmar, total)
             tr["sell_tries"] = p.get("sell_tries")         # 0.32.107: cada tentativa de venda
             tr["fora_do_robo"] = bool(p.get("fora_do_robo"))   # 0.32.182: vendido fora do robô (sem o SOL na conta)
+            tr["conta_devolvida_sol"] = p.get("conta_devolvida_sol")   # 0.32.215: aluguel da conta do token devolvido
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
@@ -5246,6 +5261,48 @@ class PumpReal:
         r = await self.jup._dex_swap(inp, out, amount, slip_bps=slip_bps, prio="high")
         return {"status": r.get("status") or ("confirmada" if r.get("ok") else "falhou"), "signature": r.get("signature"),
                 "reason": r.get("reason"), "ok": bool(r.get("ok"))}
+
+    TOKEN_PROGRAMS = ("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")
+    CLOSE_FEE_SOL = 0.000005                     # taxa base de uma transação com 1 assinatura
+
+    async def close_empty(self, mint: str) -> float:
+        """0.32.215 (dono, 05/11: a compra REAL de 0,001 SOL gastou 0,0073 SOL): cada token novo cria uma conta na carteira
+        (~0,002 SOL de aluguel) e o robô não fechava essa conta depois de vender, então o valor ficava preso. Fecha as contas
+        deste token com saldo ZERO (a rede recusa fechar conta com saldo) e devolve o SOL para a carteira.
+        Devolve o SOL recuperado (já sem a taxa); 0 se não havia conta vazia ou se algo falhou (a venda não é afetada)."""
+        if not self.wallet or not getattr(self.wallet, "keypair", None):
+            return 0.0
+        try:
+            res = await self._rpc_retry("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},
+                                                                    {"encoding": "jsonParsed", "commitment": "confirmed"}])
+            vazias = []
+            for a in (res or {}).get("value") or []:
+                acc = a.get("account") or {}
+                info = (((acc.get("data") or {}).get("parsed") or {}).get("info") or {})
+                amount = int(((info.get("tokenAmount") or {}).get("amount")) or 0)
+                if amount == 0 and acc.get("owner") in self.TOKEN_PROGRAMS and info.get("owner") == self.wallet.address:
+                    vazias.append((a["pubkey"], acc["owner"], int(acc.get("lamports") or 0)))
+            if not vazias:
+                return 0.0
+            from solders.hash import Hash
+            from solders.instruction import AccountMeta, Instruction
+            from solders.message import Message
+            from solders.pubkey import Pubkey
+            from solders.transaction import Transaction
+            dono = Pubkey.from_string(self.wallet.address)
+            ixs = [Instruction(Pubkey.from_string(prog), bytes([9]),        # 9 = CloseAccount (Token e Token-2022)
+                               [AccountMeta(Pubkey.from_string(conta), False, True), AccountMeta(dono, False, True),
+                                AccountMeta(dono, True, False)]) for conta, prog, _ in vazias[:8]]
+            bh = Hash.from_string((await self._rpc_retry("getLatestBlockhash", [{"commitment": "confirmed"}]))["value"]["blockhash"])
+            tx = Transaction([self.wallet.keypair], Message.new_with_blockhash(ixs, dono, bh), bh)
+            sig, st, err = await self._send_confirm(base64.b64encode(bytes(tx)).decode())
+            if st != "confirmada":
+                log.info("conta do token %s não fechou: %s %s", mint[:6], st, err)
+                return 0.0
+            return max(0.0, sum(lam for _, _, lam in vazias[:8]) / 1e9 - self.CLOSE_FEE_SOL)
+        except Exception as e:
+            log.info("conta do token %s não fechou: %s", mint[:6], str(e)[:160])
+            return 0.0
 
     async def _raw_tok(self, mint: str) -> tuple[int, int]:
         res = await self._rpc_retry("getTokenAccountsByOwner", [self.wallet.address, {"mint": mint},

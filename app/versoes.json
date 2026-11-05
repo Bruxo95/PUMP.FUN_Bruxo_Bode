@@ -1830,6 +1830,11 @@
    "versao": "0.32.214",
    "inicio": "2026-11-05T07:58:24+00:00",
    "titulo": "Cópia exata: preço da REAL vale e sem REAL separada"
+  },
+  {
+   "versao": "0.32.215",
+   "inicio": "2026-11-05T08:06:30+00:00",
+   "titulo": "REAL devolve o aluguel da conta do token"
   }
  ]
 }
