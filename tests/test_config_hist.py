@@ -104,3 +104,14 @@ def test_compare_apply_is_its_own_version_and_can_go_back(env):
     assert h["atual"] == n0 + 1 and h["versoes"][0]["origem"] == "você deixou igual à de Bruxo (Comparar)"
     c.post("/api/pump/config/historico/voltar", json={"n": n0, "keys": ["pump_stop_pct"]}, headers=A)
     assert env["hub"].engines[UA].cfg.pump_stop_pct == 31
+
+
+def test_adding_by_hand_takes_the_wallet_from_the_ia(env):
+    """0.32.224 (dono, dmuX 05/11): adicionar à mão uma carteira que a IA do estudo tinha posto deixa de ser "da IA"."""
+    from tests.test_api import W
+    c, hub = env["c"], env["hub"]
+    c.get("/api/pump", headers=tok(UA))
+    pf = hub.engines[UA]
+    pf.ia_added = [W]
+    r = c.post("/api/pump/wallets", json={"wallet": W, "action": "add"}, headers=tok(UA)).json()
+    assert r.get("ok") and W in pf.manual and W not in pf.ia_added

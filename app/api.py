@@ -1132,7 +1132,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
             if not 0 < hrs <= 720:
                 return {"error": "horas inválidas"}
             return pf.pause(w, hrs)
-        return fn(w)
+        r = fn(w)
+        # 0.32.224 (dono, dmuX 05/11): quem adiciona à mão passa a ser o dono da carteira na lista manual; se a IA do estudo
+        # tinha posto antes, ela deixa de ser "da IA" (e a chave do estudo desligada não barra mais a cópia, ver tab_off)
+        if act == "add" and not r.get("error") and w in (getattr(pf, "ia_added", None) or []):
+            pf.ia_added = [x for x in pf.ia_added if x != w]
+            await hub.save_settings(pf)
+        return r
 
     @app.post("/api/pump/close")
     async def pump_close(body: dict, u: dict = Depends(user)):

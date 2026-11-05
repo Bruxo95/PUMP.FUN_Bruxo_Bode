@@ -178,3 +178,4 @@ def test_study_switch_off_does_not_stop_a_wallet_you_put_in_the_manual_list():
     assert PumpFun.tab_off(o, "I") == "aba Carteiras em estudo desligada"                 # a IA que pôs: segue a chave do estudo
     o.cfg.pump_top_on = False
     assert PumpFun.tab_off(o, "M") == "aba Carteiras em estudo desligada"
+
