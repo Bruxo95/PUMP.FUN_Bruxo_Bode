@@ -61,7 +61,9 @@ def create_app(hub, auth, cfg) -> FastAPI:
             "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
             f"img-src 'self' data: https:; connect-src 'self' {sb} {sb.replace('https://', 'wss://')}; "
-            "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+            "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            # 0.32.234: só a página do Dormant mostra o gráfico da DEX (GeckoTerminal e DexScreener) dentro da janela da moeda
+            + ("; frame-src https://www.geckoterminal.com https://dexscreener.com" if request.url.path == "/dormant" else ""))
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
         elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant") or request.url.path.startswith("/static/"):

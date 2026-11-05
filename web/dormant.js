@@ -195,6 +195,31 @@
     table("ovDm", ["Moeda", "Preço", "7 dias", "30 dias", "Volume 24 h", "Gráfico 7 dias", "Por quê"], dorm.map((m) => [V(coin(m), m.nome), V(price(m.preco), m.preco), V(pc(m.d7), m.d7), V(pc(m.d30), m.d30), V(usd(m.vol), m.vol), spark(m.spark),
       '<small class="muted">' + esc((m.por || []).join(" · ")) + "</small>"]), "Nenhuma moeda dormindo agora.");
   }
+  // 0.32.234 (pedido do dono): gráfico da DEX dentro da janela da moeda e botões para abrir a moeda nos sites de DEX
+  const DS = { eth: "ethereum", bsc: "bsc", solana: "solana", base: "base", arbitrum: "arbitrum", polygon_pos: "polygon", avax: "avalanche", tron: "tron",
+    optimism: "optimism", ton: "ton", "sui-network": "sui", cro: "cronos", ftm: "fantom", sonic: "sonic", mantle: "mantle", linea: "linea" };
+  const DT = { eth: "ether", bsc: "bnb", solana: "solana", base: "base", arbitrum: "arbitrum", polygon_pos: "polygon", avax: "avalanche", tron: "tron", optimism: "optimism" };
+  function dexLinks(m, r) {
+    const p = (r && r.pool) || {}, a = (r && r.alvo) || {}, net = p.net || a.net, pool = p.pool;
+    const L = [];
+    if (net && pool) L.push(["GeckoTerminal", "https://www.geckoterminal.com/" + net + "/pools/" + pool]);
+    if (net && pool && DS[net]) L.push(["DexScreener", "https://dexscreener.com/" + DS[net] + "/" + pool]);
+    else L.push(["DexScreener", "https://dexscreener.com/search?q=" + encodeURIComponent(a.contrato || m.simbolo || m.nome)]);
+    if (net && pool && DT[net]) L.push(["DEXTools", "https://www.dextools.io/app/en/" + DT[net] + "/pair-explorer/" + pool]);
+    if (net === "solana" && a.contrato) L.push(["Birdeye", "https://birdeye.so/token/" + a.contrato + "?chain=solana"]);
+    if (m.cg) L.push(["CoinGecko", "https://www.coingecko.com/en/coins/" + m.cg]);
+    return '<div class="cmdex">' + L.map((x) => '<a class="btn sm" href="' + esc(x[1]) + '" target="_blank" rel="noopener">' + esc(x[0]) + " ↗</a>").join("") + "</div>";
+  }
+  function dexEmbed(src) {
+    const r = CM && CM.r, p = (r && r.pool) || {}, box = $("cmDex"); if (!box) return;
+    document.querySelectorAll("#cmSrc button").forEach((b) => b.classList.toggle("on", b.dataset.cms === src));
+    $("cmChart").hidden = src !== "cg"; box.hidden = src === "cg";
+    if (src === "cg") return;
+    if (!p.pool || !p.net) { box.innerHTML = '<span class="muted">' + (r && r.moeda && r.moeda.rede_propria ? "moeda da própria rede: não tem pool de DEX" : "pool da DEX não achado para esta moeda") + "</span>"; return; }
+    const url = src === "gt" ? "https://www.geckoterminal.com/" + p.net + "/pools/" + p.pool + "?embed=1&info=0&swaps=0&light_chart=0"
+      : DS[p.net] ? "https://dexscreener.com/" + DS[p.net] + "/" + p.pool + "?embed=1&theme=dark&info=0&trades=0" : null;
+    box.innerHTML = url ? '<iframe src="' + esc(url) + '" title="gráfico da DEX" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>' : '<span class="muted">a DexScreener não tem esta rede</span>';
+  }
   // 0.32.232 (pedido do dono): janela da moeda — gráfico de 30 dias, porcentagens, blockchain e as últimas negociações
   let CM = null;
   async function openCoin(key) {
@@ -217,9 +242,13 @@
       k("Máxima histórica", price(m.ath), (m.ath_t ? "em " + dia(m.ath_t) + " (há " + ago(m.ath_t) + ")<br>" : "") + (m.ath_pct != null ? pc(m.ath_pct) + " dela" : "")) +
       k("Mínima histórica", price(m.atl), (m.atl_t ? "em " + dia(m.atl_t) + " (há " + ago(m.atl_t) + ")<br>" : "") + (m.atl_pct != null ? pc(m.atl_pct) + " acima dela" : "")) + "</div>";
     h += (m.por && m.por.length ? '<div class="decbox"><b>Por que está ' + esc((ST[m.status] || "").toLowerCase()) + ":</b> " + esc(m.por.join(" · ")) + "</div>" : "");
-    h += '<div class="card" style="margin-top:12px"><header><div><h2>Gráfico</h2><div class="sub">preço em dólar (CoinGecko) · passe o mouse ou o dedo para ver cada ponto</div></div><div class="sp"></div>' +
+    const fonte = (r && r.grafico && r.grafico.fonte) || "CoinGecko";
+    h += '<div class="card" style="margin-top:12px"><header><div><h2>Gráfico</h2><div class="sub">' + esc(fonte === "CoinGecko" ? "preço em dólar (CoinGecko)" : "preço em dólar do pool da DEX (" + fonte + "), porque a CoinGecko pediu para esperar") +
+      ' · passe o mouse ou o dedo para ver cada ponto</div></div><div class="sp"></div>' +
+      '<div class="seg" id="cmSrc"><button data-cms="cg" class="on">Preço</button><button data-cms="gt">DEX · GeckoTerminal</button><button data-cms="ds">DEX · DexScreener</button></div>' +
       '<div class="seg" id="cmRng"><button data-cmr="1">24 h</button><button data-cmr="7">7 dias</button><button data-cmr="30">30 dias</button></div></header>' +
-      '<div class="cmchart" id="cmChart">' + (r ? "" : '<span class="muted">carregando…</span>') + '</div></div>';
+      '<div class="cmchart" id="cmChart">' + (r ? "" : '<span class="muted">carregando…</span>') + '</div><div class="cmdexbox" id="cmDex" hidden></div>' +
+      (r ? '<div style="margin-top:10px"><small class="muted">Ver esta moeda nos gráficos de DEX:</small>' + dexLinks(m, r) + "</div>" : "") + "</div>";
     const n = r && r.negocios;
     h += '<div class="card"><header><div><h2>Últimas negociações na blockchain</h2><div class="sub">' +
       (m.rede_propria ? "moeda da própria rede: não tem pool de negociação para ler" : n && !n.erro ? num(n.n24 >= 300 ? 300 : n.n24, 0) + (n.n24 >= 300 ? "+" : "") + " negócios nas últimas 24 h · lidas direto da blockchain (GeckoTerminal)" + (r.pool && r.pool.nome ? " · pool " + esc(r.pool.nome) : "")
@@ -411,7 +440,8 @@
     if (t.dataset.dmadd) { addOpen(); return; }
     if (t.id === "addMX") { $("addM").hidden = true; return; }
     if (t.id === "coinMX") { $("coinM").hidden = true; CM = null; return; }
-    if (t.dataset.cmr) { if (CM) { CM.rng = +t.dataset.cmr; drawCoinChart(); } return; }
+    if (t.dataset.cmr) { if (CM) { CM.rng = +t.dataset.cmr; dexEmbed("cg"); drawCoinChart(); } return; }
+    if (t.dataset.cms) { dexEmbed(t.dataset.cms); return; }
     if (t.id === "addGo") { addSearch(); return; }
     if (t.dataset.dmaddid) {
       t.disabled = true;

@@ -1925,6 +1925,11 @@
    "versao": "0.32.233",
    "inicio": "2026-11-05T22:27:49+00:00",
    "titulo": "Dormant: data da máxima e mínima, blockchains com cor e ícone"
+  },
+  {
+   "versao": "0.32.234",
+   "inicio": "2026-11-05T22:36:01+00:00",
+   "titulo": "Dormant: gráfico da DEX na janela da moeda"
   }
  ]
 }

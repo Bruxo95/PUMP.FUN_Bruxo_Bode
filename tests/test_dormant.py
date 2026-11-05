@@ -226,3 +226,32 @@ def test_coin_has_ath_and_atl_dates():
                        "atl_change_percentage": 900.0}}
     it = w.state()["moedas"][0]
     assert it["ath_t"] and it["atl_t"] and it["ath_t"] > it["atl_t"] and it["atl_pct"] == 900.0
+
+
+def test_coin_window_uses_the_dex_chart_when_coingecko_asks_to_wait():
+    """0.32.234 (pedido do dono): sem a CoinGecko (429), o gráfico vem do pool da DEX; o pool é achado na hora se faltar."""
+    def handler(req):
+        p = req.url.path
+        if p.endswith("/market_chart"):
+            return httpx.Response(429, json={})
+        if p.endswith("/pools") and "/tokens/" in p:
+            return httpx.Response(200, json={"data": [{"attributes": {"address": "P9", "name": "BONK / SOL"}}]})
+        if "/ohlcv/hour" in p:
+            return httpx.Response(200, json={"data": {"attributes": {"ohlcv_list": [[1_700_003_600, 1, 2, 0.5, 1.5, 900], [1_700_000_000, 1, 1, 1, 1, 100]]}}})
+        if p.endswith("/trades"):
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(404)
+    w = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(handler)), None)
+    w.lista = [{"cmc": "bonk", "nome": "Bonk"}]
+    w.pick, w.rows = {"bonk": "bonk"}, {"bonk": _row("bonk")}
+    w.plat, w.addr = {"bonk": ["solana"]}, {"bonk": {"solana": "So1"}}
+    d = asyncio.run(w.detail("bonk"))
+    g = d["grafico"]
+    assert d["pool"]["pool"] == "P9" and g["fonte"].startswith("DEX") and g["precos"] == [[1_700_000_000, 1], [1_700_003_600, 1.5]]
+    assert d["alvo"]["net"] == "solana" and w._pause_until > 0
+
+
+def test_only_the_dormant_page_can_show_the_dex_chart(env):
+    c = env["c"]
+    assert "frame-src https://www.geckoterminal.com https://dexscreener.com" in c.get("/dormant").headers["Content-Security-Policy"]
+    assert "frame-src" not in c.get("/app").headers["Content-Security-Policy"]

@@ -649,9 +649,36 @@ class DormantWatch:
                 cache[("chart", cid)] = c
             except Exception as e:
                 c = (now, {"erro": str(e)[:160]})
-        out["grafico"] = c[1]
         tg = self.target(cid)
+        # 0.32.234 (pedido do dono): o pool da DEX também quando a moeda ainda não foi lida (para o gráfico da DEX e os links)
+        if tg and not (self.gtpool.get(cid) or {}).get("pool") and now - float((self.gtpool.get(cid) or {}).get("t") or 0) > 600:
+            try:
+                r = await self.gt_get(f"/networks/{tg[1]}/tokens/{tg[2]}/pools?page=1")
+                ps = (r or {}).get("data") or []
+                self.gtpool[cid] = {"net": tg[1], "pool": ((ps[0].get("attributes") or {}).get("address") if ps else None), "t": now,
+                                    "nome": ((ps[0].get("attributes") or {}).get("name") if ps else None)}
+                await self._put("gtpool", {"p": self.gtpool})
+            except Exception:
+                pass
         pool = (self.gtpool.get(cid) or {}).get("pool")
+        out["pool"] = self.gtpool.get(cid) or {}
+        out["alvo"] = {"rede": tg[0], "net": tg[1], "contrato": tg[2]} if tg else None
+        # sem a CoinGecko (ex.: pediu para esperar), o gráfico vem do próprio pool da DEX (velas de 1 h, 30 dias)
+        if "erro" in c[1] and tg and pool:
+            dx = cache.get(("dexchart", cid))
+            if not dx or now - dx[0] > 600:
+                try:
+                    r = await self.gt_get(f"/networks/{tg[1]}/pools/{pool}/ohlcv/hour?limit=720")
+                    lst = sorted(((r or {}).get("data") or {}).get("attributes", {}).get("ohlcv_list") or [], key=lambda v: v[0])
+                    dx = (now, {"precos": [[int(v[0]), v[4]] for v in lst if v and v[4] is not None],
+                                "volumes": [[int(v[0]), v[5]] for v in lst if v and v[5] is not None], "fonte": "DEX (GeckoTerminal)",
+                                "aviso": c[1]["erro"]})
+                    cache[("dexchart", cid)] = dx
+                except Exception as e:
+                    dx = (now, {"erro": c[1]["erro"] + " · gráfico da DEX: " + str(e)[:80]})
+            out["grafico"] = dx[1]
+        else:
+            out["grafico"] = c[1]
         if tg and pool:
             t = cache.get(("trades", cid))
             if not t or now - t[0] > 300:
