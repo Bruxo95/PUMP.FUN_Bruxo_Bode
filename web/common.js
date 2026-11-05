@@ -152,4 +152,40 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => BB.loaderScan()); else setTimeout(() => BB.loaderScan(), 0);
 
   BB.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // 0.32.217 (pedido do dono): o botão Trocar rede abre um menu logo abaixo com as redes, sem passar pela página /entrar.
+  const NETS = [
+    ["pump", "/app", "#5fd38d", "Solana", "PUMP FUN", '<svg viewBox="0 0 126 126" aria-hidden="true"><g transform="rotate(-45 63 63)"><rect x="16" y="42" width="94" height="42" rx="21" fill="#f4f4f5"/><path d="M37 42h26v42H37a21 21 0 0 1 0-42z" fill="#5fd38d"/><rect x="16" y="42" width="94" height="42" rx="21" fill="none" stroke="#0a0a0a" stroke-width="6"/><path d="M63 42v42" stroke="#0a0a0a" stroke-width="6"/></g></svg>'],
+    ["bnb", "/bnb", "#f0b90b", "BNB Chain", "BNB · FOUR.MEME", '<svg viewBox="0 0 126 126" aria-hidden="true"><g fill="#f0b90b"><path d="M63 14l35 35-9.5 9.5L63 33 37.5 58.5 28 49z"/><path d="M63 112l35-35-9.5-9.5L63 93 37.5 67.5 28 77z"/><path d="M16 63l12-12 12 12-12 12z"/><path d="M86 63l12-12 12 12-12 12z"/><path d="M51 63l12-12 12 12-12 12z"/></g></svg>'],
+    ["hood", "/hood", "#c3f53c", "Robinhood Chain", "ROBINHOOD", '<svg viewBox="0 0 126 126" aria-hidden="true"><path d="M63 12l44 25v52l-44 25-44-25V37z" fill="none" stroke="#c3f53c" stroke-width="9" stroke-linejoin="round"/><path d="M63 40l20 11.5v23L63 86 43 74.5v-23z" fill="#c3f53c"/></svg>'],
+  ];
+  let netPop = null;
+  const netClose = () => { if (netPop) { netPop.remove(); netPop = null; } };
+  function netOpen(btn) {
+    netClose();
+    const here = location.pathname.replace(/\/+$/, "") || "/app";
+    const d = document.createElement("div");
+    d.className = "netpop"; d.setAttribute("role", "menu");
+    d.innerHTML = '<div class="netpop-h">Trocar rede</div>' + NETS.map(([k, href, cor, chain, nome, svg]) => {
+      const on = here === href;
+      return '<a role="menuitem" href="' + href + '" data-net="' + k + '" class="' + (on ? "on" : "") + '" style="--nc:' + cor + '">' + svg +
+        '<span><b>' + nome + '</b><small>' + chain + '</small></span>' + (on ? '<i>você está aqui</i>' : '') + '</a>';
+    }).join("");
+    document.body.appendChild(d);
+    const r = btn.getBoundingClientRect(), w = d.offsetWidth, vw = document.documentElement.clientWidth;
+    d.style.top = Math.round(r.bottom + 6) + "px";
+    d.style.left = Math.round(Math.max(8, Math.min(r.left, vw - w - 8))) + "px";
+    d.querySelectorAll("[data-net]").forEach((a) => a.addEventListener("click", (e) => {
+      if (a.classList.contains("on")) { e.preventDefault(); netClose(); return; }
+      try { sessionStorage.setItem("pf_hub", a.dataset.net); } catch (err) { /* segue */ }
+    }));
+    netPop = d;
+  }
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest && e.target.closest(".hubbtn");
+    if (btn) { e.preventDefault(); if (netPop) netClose(); else netOpen(btn); return; }
+    if (netPop && !netPop.contains(e.target)) netClose();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") netClose(); });
+  window.addEventListener("resize", netClose);
+  window.addEventListener("scroll", netClose, true);
 })();
