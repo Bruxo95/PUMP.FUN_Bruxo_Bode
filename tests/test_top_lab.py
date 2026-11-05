@@ -163,3 +163,18 @@ def test_switched_off_tab_is_not_a_barred_buy():
 def test_new_switches_exist_and_start_on():
     from app.settings import USER_KEYS
     assert USER_KEYS["pump_top_on"][1] is True and USER_KEYS["pump_st_copy_on"][1] is True
+
+
+def test_study_switch_off_does_not_stop_a_wallet_you_put_in_the_manual_list():
+    """0.32.222 (dono, PODCAT 05/11): carteira na sua lista manual (ou no top ativo) e também em estudo segue a chave do Top traders."""
+    t = _tab(pump_st_copy_on=False)
+    import types
+    from app.pumpfun import PumpFun
+    o = types.SimpleNamespace(cfg=types.SimpleNamespace(pump_st_copy_on=False), ABA_ORIGEM=PumpFun.ABA_ORIGEM, TAB_SWITCH=PumpFun.TAB_SWITCH,
+                              study=["S", "M", "I", "T"], study_copy=[], elite_follow=[], manual=["M", "I"], ia_added=["I"], top_active=["T"])
+    o.aba_of = lambda x: PumpFun.aba_of(o, x)
+    assert t("S") == "aba Carteiras em estudo desligada"
+    assert PumpFun.tab_off(o, "M") is None and PumpFun.tab_off(o, "T") is None          # você pôs na lista / está no top
+    assert PumpFun.tab_off(o, "I") == "aba Carteiras em estudo desligada"                 # a IA que pôs: segue a chave do estudo
+    o.cfg.pump_top_on = False
+    assert PumpFun.tab_off(o, "M") == "aba Carteiras em estudo desligada"

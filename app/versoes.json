@@ -1865,6 +1865,11 @@
    "versao": "0.32.221",
    "inicio": "2026-11-05T14:21:40+00:00",
    "titulo": "Comparar abre janela com o seu e o do Bruxo"
+  },
+  {
+   "versao": "0.32.222",
+   "inicio": "2026-11-05T16:10:07+00:00",
+   "titulo": "Carteira manual não é barrada pela chave do estudo"
   }
  ]
 }

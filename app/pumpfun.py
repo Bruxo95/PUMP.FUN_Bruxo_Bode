@@ -1784,7 +1784,14 @@ class PumpFun:
     def tab_off(self, who: str) -> str | None:
         aba = self.aba_of({"wallet": who})
         key = self.TAB_SWITCH.get(aba)
-        return f"aba {aba} desligada" if key and not getattr(self.cfg, key, True) else None
+        if not key or getattr(self.cfg, key, True):
+            return None
+        # 0.32.222 (dono, PODCAT 05/11: o Bruxo copiou e ele não): carteira que você mesmo pôs na lista manual, ou que está no top
+        # ativo, também estava em Carteiras em estudo; a chave do estudo desligada barrava a cópia. Agora vale a chave do Top traders.
+        if aba != "Top traders" and getattr(self.cfg, "pump_top_on", True) and (
+                who in (getattr(self, "top_active", None) or []) or (who in (getattr(self, "manual", None) or []) and who not in (getattr(self, "ia_added", None) or []))):
+            return None
+        return f"aba {aba} desligada"
 
     def _top_barred(self, who: str, mint: str, why: str, t: float) -> None:
         if self.top_hook is not None and why and not why.startswith(("já tem posição", "aba ", "cópia desligada")):
