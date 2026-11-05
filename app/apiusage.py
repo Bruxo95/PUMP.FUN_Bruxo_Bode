@@ -30,6 +30,7 @@ APIS = [  # (host termina com, nome, limite mensal, limite por minuto)
     ("api.mainnet-beta.solana.com", "RPC público da Solana", None, 600),
     ("jup.ag", "Jupiter", None, None),
     ("pumpportal.fun", "PumpPortal", None, None),
+    ("coingecko.com", "CoinGecko", 10_000, 100),                       # 0.32.227: Dormant (plano Demo grátis)
 ]
 SKIP = ("supabase.co", "supabase.in", "api.telegram.org", "github.com")
 MORE = [("publicnode.com", "RPC da BNB (publicnode)"), ("blockrazor.xyz", "RPC da BNB (blockrazor)"),

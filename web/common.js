@@ -157,6 +157,7 @@
     ["pump", "/app", "#5fd38d", "Solana", "PUMP FUN", '<svg viewBox="0 0 126 126" aria-hidden="true"><g transform="rotate(-45 63 63)"><rect x="16" y="42" width="94" height="42" rx="21" fill="#f4f4f5"/><path d="M37 42h26v42H37a21 21 0 0 1 0-42z" fill="#5fd38d"/><rect x="16" y="42" width="94" height="42" rx="21" fill="none" stroke="#0a0a0a" stroke-width="6"/><path d="M63 42v42" stroke="#0a0a0a" stroke-width="6"/></g></svg>'],
     ["bnb", "/bnb", "#f0b90b", "BNB Chain", "BNB · FOUR.MEME", '<svg viewBox="0 0 126 126" aria-hidden="true"><g fill="#f0b90b"><path d="M63 14l35 35-9.5 9.5L63 33 37.5 58.5 28 49z"/><path d="M63 112l35-35-9.5-9.5L63 93 37.5 67.5 28 77z"/><path d="M16 63l12-12 12 12-12 12z"/><path d="M86 63l12-12 12 12-12 12z"/><path d="M51 63l12-12 12 12-12 12z"/></g></svg>'],
     ["hood", "/hood", "#c3f53c", "Robinhood Chain", "ROBINHOOD", '<svg viewBox="0 0 126 126" aria-hidden="true"><path d="M63 12l44 25v52l-44 25-44-25V37z" fill="none" stroke="#c3f53c" stroke-width="9" stroke-linejoin="round"/><path d="M63 40l20 11.5v23L63 86 43 74.5v-23z" fill="#c3f53c"/></svg>'],
+    ["dormant", "/dormant", "#a78bfa", "Watchlist", "DORMANT", '<svg viewBox="0 0 126 126" aria-hidden="true"><path d="M86 22a46 46 0 1 0 18 62 38 38 0 0 1-18-62z" fill="#a78bfa"/><circle cx="92" cy="30" r="5" fill="#a78bfa"/></svg>'],
   ];
   let netPop = null;
   const netClose = () => { if (netPop) { netPop.remove(); netPop = null; } };

@@ -34,7 +34,8 @@
   .hub-pump{--hc:#5fd38d}
   .hub-bnb{--hc:#f0b90b}
   .hub-hood{--hc:#c3f53c}
-  @media (min-width:900px){.hub-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .hub-dormant{--hc:#a78bfa}
+  /* 0.32.227: 4 projetos = 2 x 2 */
   .hub-foot{margin-top:28px;display:flex;gap:18px;color:var(--muted);font-size:13px}
   .hub-foot button{background:none;border:0;color:var(--muted);cursor:pointer;font:inherit;text-decoration:underline}
   @media (max-width:600px){.hub-grid{grid-template-columns:1fr}.hub-card{aspect-ratio:auto;min-height:200px;flex-direction:row;justify-content:flex-start;text-align:left;gap:18px}
@@ -63,6 +64,10 @@
     <a class="hub-card hub-hood" href="/hood" data-hub="hood">
       <svg viewBox="0 0 126 126" aria-hidden="true"><path d="M63 12l44 25v52l-44 25-44-25V37z" fill="none" stroke="#c3f53c" stroke-width="9" stroke-linejoin="round"/><path d="M63 40l20 11.5v23L63 86 43 74.5v-23z" fill="#c3f53c"/></svg>
       <span class="txt"><span class="chain">Robinhood Chain</span><b>ROBINHOOD</b><small>lê os memecoins da Robinhood Chain e monta o ranking dos traders · etapa 1, só leitura</small></span>
+    </a>
+    <a class="hub-card hub-dormant" href="/dormant" data-hub="dormant">
+      <svg viewBox="0 0 126 126" aria-hidden="true"><path d="M86 22a46 46 0 1 0 18 62 38 38 0 0 1-18-62z" fill="#a78bfa"/><circle cx="92" cy="30" r="5" fill="#a78bfa"/><circle cx="106" cy="50" r="3.5" fill="#a78bfa"/></svg>
+      <span class="txt"><span class="chain">Watchlist</span><b>DORMANT</b><small>vigia a sua lista da CoinMarketCap: o que está dormindo, acordando, num pump ou num dump · só observa</small></span>
     </a>
   </div>
   <div class="hub-foot"><span id="ver"></span><button id="out" type="button">Sair</button></div>

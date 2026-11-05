@@ -254,7 +254,7 @@ def test_migration_allows_every_system_key():
     """A chave do Jev não salvava: o banco só aceitava 4 nomes. Toda chave do sistema precisa estar na última regra."""
     import glob
     import re
-    from app.keystore import BNB_SYSTEM_NAMES, SYSTEM_NAMES
+    from app.keystore import BNB_SYSTEM_NAMES, DORMANT_SYSTEM_NAMES, SYSTEM_NAMES
     last = ""
     for f in sorted(glob.glob("supabase/migrations/*.sql")):
         txt = open(f, encoding="utf-8").read()
@@ -262,7 +262,7 @@ def test_migration_allows_every_system_key():
         if m:
             last = m[-1]
     assert last, "não achei a regra app_secrets_nome_check"
-    for k in {**SYSTEM_NAMES, **BNB_SYSTEM_NAMES}:
+    for k in {**SYSTEM_NAMES, **BNB_SYSTEM_NAMES, **DORMANT_SYSTEM_NAMES}:
         assert "'" + k + "'" in last, k + " falta na regra app_secrets_nome_check"
 
 

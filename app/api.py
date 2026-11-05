@@ -64,7 +64,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
-        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood") or request.url.path.startswith("/static/"):
+        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant") or request.url.path.startswith("/static/"):
             resp.headers["Cache-Control"] = "no-cache"          # o navegador sempre confere se há versão nova
         return resp
 
@@ -1654,7 +1654,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     VTAG = hashlib.sha256(VERSION.encode()).hexdigest()[:10]
     PAGES = {n: open(os.path.join(WEB, n), encoding="utf-8").read().replace("__V__", VTAG)
              .replace("__BASE__", (cfg.public_base_url or "").rstrip("/"))
-             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html")}
+             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html", "dormant.html")}
 
     @app.get("/")
     def landing():
@@ -1680,6 +1680,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
 
     from .hood_api import add_routes as hood_routes
     hood_routes(app, lambda: getattr(hub, "hood", None), admin_only, hub.db)
+
+    # 0.32.227 (pedido do dono): Dormant, painel próprio (/dormant) para a watchlist da CoinMarketCap; só observa
+    @app.get("/dormant")
+    def dormant_panel():
+        return HTMLResponse(PAGES["dormant.html"])
+
+    from .dormant_api import add_routes as dormant_routes
+    dormant_routes(app, lambda: getattr(hub, "dormant", None), admin_only, hub.db, hub=hub)
 
     # 0.32.168: aba BNB (Four.Meme) isolada em bnb.py/bnb_api.py; sem a leitura ligada as rotas só dizem "desligada"
     from .bnb_api import add_routes as bnb_routes

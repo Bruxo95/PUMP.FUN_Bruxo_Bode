@@ -53,6 +53,11 @@ def build_app():
     if os.environ.get("HOOD_ON", "true").lower() not in ("0", "false", "no", "off"):
         from .hood import HoodWatch
         hub.hood = HoodWatch(http, db)
+    # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
+    hub.dormant = None
+    if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):
+        from .dormant import DormantWatch
+        hub.dormant = DormantWatch(http, db, key_fn=lambda: (getattr(hub, "system_keys", None) or {}).get("coingecko_key", ""))
     auth = Auth(cfg.supabase_url, cfg.supabase_anon_key, http, cfg.supabase_jwt_secret)
     app = create_app(hub, auth, cfg)
 
@@ -66,7 +71,10 @@ def build_app():
         from .apiusage import run_as
         bnb = run_as("BNB (Four.Meme)", hub.bnb.run()) if hub.bnb is not None else None
         hood = run_as("Robinhood Chain", hub.hood.run()) if hub.hood is not None else None
+        dormant = run_as("Dormant", hub.dormant.run()) if hub.dormant is not None else None
         yield
+        if dormant is not None:
+            dormant.cancel()
         if hood is not None:
             hood.cancel()
         boot.cancel()

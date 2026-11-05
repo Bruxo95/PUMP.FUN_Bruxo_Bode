@@ -1,0 +1,3971 @@
+{
+"fonte": "watchlist pública da CoinMarketCap do dono, lida em 05/11/2026",
+"moedas": [
+{
+"cmc": "bitcoin",
+"nome": "Bitcoin",
+"simbolo": "BTC",
+"morta_cmc": false
+},
+{
+"cmc": "ethereum",
+"nome": "Ethereum",
+"simbolo": "ETH",
+"morta_cmc": false
+},
+{
+"cmc": "bnb",
+"nome": "BNB",
+"simbolo": "BNB",
+"morta_cmc": false
+},
+{
+"cmc": "solana",
+"nome": "Solana",
+"simbolo": "SOL",
+"morta_cmc": false
+},
+{
+"cmc": "tron",
+"nome": "TRON",
+"simbolo": "TRX",
+"morta_cmc": false
+},
+{
+"cmc": "zcash",
+"nome": "Zcash",
+"simbolo": "ZEC",
+"morta_cmc": false
+},
+{
+"cmc": "dogecoin",
+"nome": "Dogecoin",
+"simbolo": "DOGE",
+"morta_cmc": false
+},
+{
+"cmc": "chainlink",
+"nome": "Chainlink",
+"simbolo": "LINK",
+"morta_cmc": false
+},
+{
+"cmc": "cardano",
+"nome": "Cardano",
+"simbolo": "ADA",
+"morta_cmc": false
+},
+{
+"cmc": "bitcoin-cash",
+"nome": "Bitcoin Cash",
+"simbolo": "BCH",
+"morta_cmc": false
+},
+{
+"cmc": "stellar",
+"nome": "Stellar",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "near-protocol",
+"nome": "NEAR Protocol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "uniswap",
+"nome": "Uniswap",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "litecoin",
+"nome": "Litecoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "avalanche",
+"nome": "Avalanche",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "hedera",
+"nome": "Hedera",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "shiba-inu",
+"nome": "Shiba Inu",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "cronos",
+"nome": "Cronos",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "aave",
+"nome": "Aave",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "polkadot-new",
+"nome": "Polkadot",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "internet-computer",
+"nome": "Internet Computer",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ethereum-classic",
+"nome": "Ethereum Classic",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "algorand",
+"nome": "Algorand",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "injective",
+"nome": "Injective",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "cosmos",
+"nome": "Cosmos",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "filecoin",
+"nome": "Filecoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "xdc-network",
+"nome": "XDC Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "pancakeswap",
+"nome": "PancakeSwap",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dash",
+"nome": "Dash",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "flare",
+"nome": "Flare",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vechain",
+"nome": "VeChain",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "raydium",
+"nome": "Raydium",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "artificial-superintelligence-alliance",
+"nome": "Artificial Superintelligence Alliance",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bittorrent-new",
+"nome": "BitTorrent [New]",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bitcoin-sv",
+"nome": "Bitcoin SV",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "sun-token",
+"nome": "Sun [New]",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "tezos",
+"nome": "Tezos",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "lido-dao",
+"nome": "Lido DAO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "optimism-ethereum",
+"nome": "Optimism",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "immutable-x",
+"nome": "Immutable",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "apenft",
+"nome": "AINFT",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "terra-luna",
+"nome": "Terra Classic",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "decred",
+"nome": "Decred",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "the-graph",
+"nome": "The Graph",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "floki-inu",
+"nome": "FLOKI",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "arweave",
+"nome": "Arweave",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "thorchain",
+"nome": "THORChain",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "compound",
+"nome": "Compound",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "basic-attention-token",
+"nome": "Basic Attention Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "akash-network",
+"nome": "Akash Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "convex-finance",
+"nome": "Convex Finance",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "iota",
+"nome": "IOTA",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "jasmy",
+"nome": "JasmyCoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "axie-infinity",
+"nome": "Axie Infinity",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "theta-network",
+"nome": "Theta Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "decentraland",
+"nome": "Decentraland",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "onyxcoin",
+"nome": "Onyxcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "neo",
+"nome": "Neo",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "the-sandbox",
+"nome": "The Sandbox",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "telcoin",
+"nome": "Telcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "chiliz",
+"nome": "Chiliz",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ecash",
+"nome": "eCash",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "1inch",
+"nome": "1inch",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "aioz-network",
+"nome": "AIOZ Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "apecoin-ape",
+"nome": "ApeCoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "safepal",
+"nome": "SafePal",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "multiversx-egld",
+"nome": "MultiversX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "orca",
+"nome": "Orca",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "gala",
+"nome": "Gala",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "qtum",
+"nome": "Qtum",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "kava",
+"nome": "Kava",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "swissborg",
+"nome": "SwissBorg",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "coinex-token",
+"nome": "CoinEx Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ftx-token",
+"nome": "FTX Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "mina",
+"nome": "Mina",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "holo",
+"nome": "Holo",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "livepeer",
+"nome": "Livepeer",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "wemix",
+"nome": "WEMIX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "wink",
+"nome": "WINkLink",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "kusama",
+"nome": "Kusama",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "amp",
+"nome": "Amp",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "synthetix",
+"nome": "Synthetix",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "proton",
+"nome": "XPR Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "helium",
+"nome": "Helium",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "baby-doge-coin",
+"nome": "Baby Doge Coin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vethor-token",
+"nome": "VeThor Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "digibyte",
+"nome": "DigiByte",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "centrifuge",
+"nome": "Centrifuge",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nervos-network",
+"nome": "Nervos Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "sushiswap",
+"nome": "SushiSwap",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "enjin-coin",
+"nome": "Enjin Coin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "oasis-network",
+"nome": "Oasis",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "creditcoin",
+"nome": "Creditcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "astar",
+"nome": "Astar",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "tellor",
+"nome": "Tellor",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nano",
+"nome": "Nano",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "celo",
+"nome": "Celo",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "xyo",
+"nome": "XYO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ankr",
+"nome": "Ankr",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "rlc",
+"nome": "iExec RLC",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "lcx",
+"nome": "LCX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "mango-markets",
+"nome": "Mango",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "casper",
+"nome": "Casper",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "flow",
+"nome": "Flow",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "zilliqa",
+"nome": "Zilliqa",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "band-protocol",
+"nome": "Band",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "aurora-near",
+"nome": "Aurora",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "phala-network",
+"nome": "Phala Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "osmosis",
+"nome": "Osmosis",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "torn",
+"nome": "Tornado Cash",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "uma",
+"nome": "UMA",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "iotex",
+"nome": "IoTeX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "coti",
+"nome": "COTI",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bifrost",
+"nome": "Bifrost",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "steem",
+"nome": "Steem",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "terra-luna-v2",
+"nome": "Terra",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "hive-blockchain",
+"nome": "Hive",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "neiro",
+"nome": "Neiro",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dogelon",
+"nome": "Dogelon Mars",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "iostoken",
+"nome": "IOST",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bora",
+"nome": "BORA",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "pundix-new",
+"nome": "Pundi X (New)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "cartesi",
+"nome": "Cartesi",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "metal",
+"nome": "Metal DAO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "skale-network",
+"nome": "SKALE",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nym",
+"nome": "NYM",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ardor",
+"nome": "Ardor",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "illuvium",
+"nome": "Illuvium",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ravencoin",
+"nome": "Ravencoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "namecoin",
+"nome": "Namecoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "api3",
+"nome": "Api3",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "wax",
+"nome": "WAX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "gitcoin",
+"nome": "Gitcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "smooth-love-potion",
+"nome": "Smooth Love Potion",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "symbol",
+"nome": "Symbol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "chia-network",
+"nome": "Chia",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dia",
+"nome": "DIA",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "medibloc",
+"nome": "MediBloc",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dogs",
+"nome": "DOGS",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bonfida-sns",
+"nome": "Bonfida",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "firo",
+"nome": "Firo",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "shentu",
+"nome": "Shentu",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "braintrust",
+"nome": "Braintrust",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "moonriver",
+"nome": "Moonriver",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "joe",
+"nome": "JOE",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "constellation",
+"nome": "Constellation",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "benqi",
+"nome": "BENQI",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "myneighboralice",
+"nome": "MyNeighborAlice",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bitcoin-diamond",
+"nome": "Bitcoin Diamond",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "wibx",
+"nome": "Wibx",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "elastos",
+"nome": "Elastos",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "loopring",
+"nome": "Loopring",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "boba-network",
+"nome": "Boba Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "gods-unchained",
+"nome": "Gods Unchained",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "moonbeam",
+"nome": "Moonbeam",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "aergo",
+"nome": "Aergo",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "groestlcoin",
+"nome": "Groestlcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "utrust",
+"nome": "Utrust",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "deso",
+"nome": "Decentralized Social",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "storj",
+"nome": "Storj",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "balancer",
+"nome": "Balancer",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "adx-net",
+"nome": "heyAura",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "orchid",
+"nome": "Orchid",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "alien-worlds",
+"nome": "Alien Worlds",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "komodo",
+"nome": "Komodo",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "galatasaray-fan-token",
+"nome": "Galatasaray Fan Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "quickswap",
+"nome": "QuickSwap [Old]",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "wazirx",
+"nome": "WazirX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bitcoin-gold",
+"nome": "Bitcoin Gold",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "santos-fc-fan-token",
+"nome": "Santos FC Fan Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "paris-saint-germain-fan-token",
+"nome": "Paris Saint-Germain Fan Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "pangolin",
+"nome": "Pangolin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "kishu-inu",
+"nome": "Kishu Inu",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "polkastarter",
+"nome": "Polkastarter",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bytecoin-bcn",
+"nome": "Bytecoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "beefy-finance",
+"nome": "Beefy",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "klever",
+"nome": "Klever Coin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "pivx",
+"nome": "PIVX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "radio-caca",
+"nome": "RACA",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "oraichain-token",
+"nome": "Oraichain",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dextools",
+"nome": "DEXTools",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bitrise-token",
+"nome": "Bitgert",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "juventus-fan-token",
+"nome": "Juventus Fan Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dydx-ethdydx",
+"nome": "dYdX (ethDYDX)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nimiq",
+"nome": "Nimiq",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "monacoin",
+"nome": "MonaCoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nkn",
+"nome": "NKN",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bigone-token",
+"nome": "BigONE Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "diamond",
+"nome": "Diamond",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "zclassic",
+"nome": "ZClassic",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "fox-token",
+"nome": "Shapeshift FOX Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "wirex-token",
+"nome": "Wirex Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "grin",
+"nome": "Grin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "suku",
+"nome": "Suku",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "altura",
+"nome": "Altura",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "secret",
+"nome": "Secret",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "star-atlas",
+"nome": "Star Atlas",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vertcoin",
+"nome": "Vertcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nem",
+"nome": "NEM",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "aavegotchi",
+"nome": "Aavegotchi",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "cult-dao",
+"nome": "Cult DAO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "radix-protocol",
+"nome": "Radix",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "pornrocket",
+"nome": "PornRocket",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "star-atlas-polis",
+"nome": "Star Atlas DAO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bitshares",
+"nome": "BitShares",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "kadena",
+"nome": "Kadena",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ethereum-swarm",
+"nome": "Swarm",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "green-satoshi-token",
+"nome": "Green Satoshi Token (SOL)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "metahero",
+"nome": "Metahero",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "loom-network",
+"nome": "Loom Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "rarible",
+"nome": "Rarible",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "hathor",
+"nome": "Hathor",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "pluton",
+"nome": "Pluton",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "clover",
+"nome": "CLV",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ren",
+"nome": "Ren",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "unstable-coin-sol",
+"nome": "Unstable Coin (usduc.io)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ampleforth-governance-token",
+"nome": "Ampleforth Governance Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "handshake",
+"nome": "Handshake",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "kin",
+"nome": "Kin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "aleph-zero",
+"nome": "Aleph Zero",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "sentinel",
+"nome": "Sentinel",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "everscale",
+"nome": "Everscale",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "reef",
+"nome": "Reef",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "crpt",
+"nome": "Crypterium",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ovr",
+"nome": "OVR",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "serum",
+"nome": "Serum",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "perpetual-protocol",
+"nome": "Perpetual Protocol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "beam",
+"nome": "Beam",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "shiba-predator",
+"nome": "Shiba Predator",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ufo-gaming",
+"nome": "UFO Gaming",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "cheqd",
+"nome": "cheqd",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "yooshi",
+"nome": "YooShi",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "guild-of-guardians",
+"nome": "Guild of Guardians",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ultra",
+"nome": "Ultra",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "banano",
+"nome": "Banano",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "streamr",
+"nome": "Streamr",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "voxies",
+"nome": "Voxies",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "temco",
+"nome": "TEMCO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "saito",
+"nome": "Saito",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ichi",
+"nome": "ICHI",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "persistence",
+"nome": "Persistence One",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "juggernaut",
+"nome": "Juggernaut",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "verasity",
+"nome": "Verasity",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "garlicoin",
+"nome": "Garlicoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bifrost-bnc",
+"nome": "Bifrost",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "velas",
+"nome": "Velas",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "xaya",
+"nome": "Xaya",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "alpha-finance-lab",
+"nome": "Stella",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nuls",
+"nome": "NULS",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "matrix-ai-network",
+"nome": "Matrix AI Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "solanium",
+"nome": "Solanium",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "atomic-wallet-coin",
+"nome": "Atomic Wallet Coin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "gamezone",
+"nome": "GameZone",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "orbit-chain",
+"nome": "Orbit Chain",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "flamengo-fan-token",
+"nome": "Flamengo Fan Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "acala",
+"nome": "Acala Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "somesing",
+"nome": "SOMESING",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "akita-inu",
+"nome": "Akita Inu [Old]",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "xdai",
+"nome": "STAKE",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "biswap",
+"nome": "Biswap",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "hamster",
+"nome": "Hamster",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "free-coin",
+"nome": "FREEdom Coin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "unifi-protocol-dao",
+"nome": "Unifi Protocol DAO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "karura",
+"nome": "Karura",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "stafi",
+"nome": "StaFi",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "feathercoin",
+"nome": "Feathercoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "idex",
+"nome": "IDEX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "radix",
+"nome": "e-Radix",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dotmoovs",
+"nome": "Dotmoovs",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "gameswap",
+"nome": "Gameswap",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "only1",
+"nome": "LIKE",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vodra",
+"nome": "Vodra",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "presearch",
+"nome": "Presearch",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "maps",
+"nome": "MAPS",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "crustnetwork",
+"nome": "Crust Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "rally",
+"nome": "Rally",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "polkamarkets",
+"nome": "Polkamarkets",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "niftyx-protocol",
+"nome": "Niftyx Protocol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "revv",
+"nome": "REVV",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "muse",
+"nome": "Muse",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "rmrk",
+"nome": "RMRK",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "step",
+"nome": "Step®",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "wall-street-games",
+"nome": "Wall Street Games (old)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "burger-cities",
+"nome": "BurgerCities",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "e-money-coin",
+"nome": "e-Money",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "plantvsundead",
+"nome": "Plant Vs Undead",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "clube-atletico-mineiro-fan-token",
+"nome": "Clube Atlético Mineiro Fan Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "taboo-token",
+"nome": "TABOO TOKEN",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "sc-corinthians-fan-token",
+"nome": "S.C. Corinthians Fan Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "defi-land",
+"nome": "DeFi Land",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "cryowar",
+"nome": "Cryowar",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "refereum",
+"nome": "Refereum",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "mirror-protocol",
+"nome": "Mirror Protocol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ageofgods",
+"nome": "AgeOfGods",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vgx-token",
+"nome": "VGX Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "circuits-of-value",
+"nome": "Circuits of Value",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ferrum-network",
+"nome": "Ferrum Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "the-force-protocol",
+"nome": "ForTube",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "step-finance",
+"nome": "Step Finance",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "oxygen",
+"nome": "Oxygen",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "thorstarter",
+"nome": "Thorstarter",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "unstable-tether",
+"nome": "Unstable Tether",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "solrise-finance",
+"nome": "Solrise Finance",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nftb",
+"nome": "PixelRealm",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "unilayer",
+"nome": "UniLayer",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "theforce-trade",
+"nome": "TheForce Trade",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "airnfts",
+"nome": "AirNFTs",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "dexlab",
+"nome": "Dexlab Classic",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "goldcoin",
+"nome": "Goldcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "hertz-network",
+"nome": "Hertz Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "snowball-finance",
+"nome": "Snowball",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "keyfi",
+"nome": "KeyFi",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "flamingo",
+"nome": "Flamingo",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "irisnet",
+"nome": "IRISnet",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "htx-token",
+"nome": "Huobi Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "ocean-protocol",
+"nome": "Ocean Protocol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "caw",
+"nome": "CAW(A Hunters Dream)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "avalaunch",
+"nome": "Avalaunch",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "maker",
+"nome": "Maker",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "hex",
+"nome": "HEX",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "chain-games",
+"nome": "Chain Games",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "songbird",
+"nome": "Songbird",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "litentry",
+"nome": "Litentry",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "marscoin",
+"nome": "Marscoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "redd",
+"nome": "ReddCoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "keep-network",
+"nome": "Keep Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "stargaze",
+"nome": "Stargaze",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "juno",
+"nome": "JUNO",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "klaytn",
+"nome": "Klaytn",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "radioshack",
+"nome": "RadioShack",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vindax-coin",
+"nome": "VinDax Coin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "casinocoin",
+"nome": "CasinoCoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "waggle-network",
+"nome": "Waggle Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bitbook",
+"nome": "BitBook",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "alpaca-city",
+"nome": "Alpaca City",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "shibadoge",
+"nome": "ShibaDoge",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "mantra",
+"nome": "MANTRA (old)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "spacepi",
+"nome": "SpacePi",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "saber",
+"nome": "Saber",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "elk-finance",
+"nome": "Elk Finance",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "sirin-labs-token",
+"nome": "SIRIN LABS Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "parrot-protocol",
+"nome": "Parrot Protocol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "pundi-x",
+"nome": "Pundi X (Old)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "monolith",
+"nome": "Monolith",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "safemoon-v2",
+"nome": "SafeMoon V2",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "potcoin",
+"nome": "PotCoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "auroracoin",
+"nome": "Auroracoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bean-cash",
+"nome": "Bean Cash",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "skycoin",
+"nome": "Skycoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "achain",
+"nome": "Achain",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "united-bitcoin",
+"nome": "United Bitcoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "metronome",
+"nome": "Metronome",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "likecoin",
+"nome": "LikeCoin",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "bittorrent",
+"nome": "BitTorrent",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "sxp",
+"nome": "Solar",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "nucypher",
+"nome": "NuCypher",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "mandala-exchange-token",
+"nome": "Mandala Exchange Token",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "moss-carbon-credit",
+"nome": "Moss Carbon Credit",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "alchemist",
+"nome": "Alchemist",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "occamfi",
+"nome": "Occam.Fi",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vira-lata-finance",
+"nome": "Vira-lata Finance",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "media-network",
+"nome": "Media Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "human",
+"nome": "Human",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "babylons",
+"nome": "Babylons",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "lydia-finance",
+"nome": "Lydia Finance",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "boring-protocol",
+"nome": "Boring Protocol",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "zoo",
+"nome": "CryptoZoo (new)",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "regen-network",
+"nome": "Regen Network",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "evereth",
+"nome": "EverETH Reflect",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "matrixetf",
+"nome": "MatrixETF",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "allbridge",
+"nome": "Allbridge",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "snowbank",
+"nome": "Snowbank",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "vlaunch",
+"nome": "VLaunch",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "trisolaris",
+"nome": "Trisolaris",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "catcoin-token",
+"nome": "CATCOIN",
+"simbolo": "",
+"morta_cmc": false
+},
+{
+"cmc": "name-change-token",
+"nome": "Name Change Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "yfst-protocol",
+"nome": "YFST.Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "chi-gastoken",
+"nome": "Chi Gastoken",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "centric-swap",
+"nome": "Centric Swap (old)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "amc-entertainment-holdings-tokenized-stock-ftx",
+"nome": "AMC Entertainment Holdings tokenized stock FTX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "dock",
+"nome": "Dock",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "edgeware",
+"nome": "Edgeware",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "chainx",
+"nome": "ChainX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "razor-network",
+"nome": "Razor Network",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "askobar-network",
+"nome": "ASKOBAR",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "unistake",
+"nome": "Unistake",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sashimi",
+"nome": "Sashimi",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "dracula-token",
+"nome": "Dracula Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "akoin",
+"nome": "Akoin",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "minereum",
+"nome": "Minereum",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "switcheo",
+"nome": "Carbon Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "akropolis",
+"nome": "Legacy KAON",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "quark",
+"nome": "Quark",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "tesla-tokenized-stock-bittrex",
+"nome": "Tesla tokenized stock Bittrex",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "polkabridge",
+"nome": "PolkaBridge",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "oxen",
+"nome": "Oxen",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "exmo-coin",
+"nome": "EXMO Coin",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "polypux",
+"nome": "PolypuX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "bilaxy-token",
+"nome": "Bilaxy Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "bao-finance",
+"nome": "Bao Finance (old)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "exeedme",
+"nome": "Exeedme",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hempcoin",
+"nome": "HempCoin",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "okcash",
+"nome": "Okcash",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "stealth",
+"nome": "Stealth",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "suterusu",
+"nome": "suterusu",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "egretia",
+"nome": "Egretia",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "microstrategy-tokenized-stock-ftx",
+"nome": "MicroStrategy tokenized stock FTX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "fedoracoin",
+"nome": "FedoraCoin",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "apollon-limassol",
+"nome": "Apollon Limassol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "club-atletico-independiente",
+"nome": "Club Atletico Independiente",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "young-boys-fan-token",
+"nome": "Young Boys Fan Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "selfkey",
+"nome": "SelfKey",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "astrotools",
+"nome": "AstroTools",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "haven-protocol",
+"nome": "Haven Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "elevate",
+"nome": "Elevate",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "morpheus-labs",
+"nome": "Morpheus Labs",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "powertrade-fuel",
+"nome": "PowerTrade Fuel",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "daoventures",
+"nome": "DAOventures",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "apy-finance",
+"nome": "APY.Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "mywish",
+"nome": "MyWish",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "digex",
+"nome": "Digex",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "clintex-cti",
+"nome": "ClinTex CTi",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "gamestop-tokenized-stock-ftx",
+"nome": "GameStop tokenized stock FTX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "lua-token",
+"nome": "LuaSwap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "fractal",
+"nome": "Fractal ID",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "nftx",
+"nome": "NFTX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "lukso",
+"nome": "LUKSO [Old]",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "nft",
+"nome": "NFT",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "fantom",
+"nome": "Fantom (Migrated to Sonic)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "zkbase",
+"nome": "ZKBase",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ecomi",
+"nome": "ECOMI",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "release-project",
+"nome": "Release Project",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "octofi",
+"nome": "OctoFi",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "deus-finance",
+"nome": "DEUS Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "murall",
+"nome": "MurAll",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "omni",
+"nome": "Omni",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "blockpass",
+"nome": "Blockpass",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sota-finance",
+"nome": "SOTA Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "blockzerolabs",
+"nome": "Blockzero Labs",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "polkacity",
+"nome": "Polkacity",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "font",
+"nome": "Font",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shadows",
+"nome": "Shadows",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "public-mint",
+"nome": "Public Mint",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "siren",
+"nome": "Siren",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sifchain",
+"nome": "SifChain",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "axion",
+"nome": "Axion",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "freeway-token",
+"nome": "Freeway Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "trendering",
+"nome": "Trendering",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "pixel",
+"nome": "PIXEL",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sklay",
+"nome": "sKLAY",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "project-with",
+"nome": "Project WITH",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "insureum",
+"nome": "Insureum",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "blue-baikal",
+"nome": "Blue Baikal",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "answer-governance",
+"nome": "ANSWER Governance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "redi",
+"nome": "redi",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "klayswap-protocol",
+"nome": "KLAYswap Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "kylin",
+"nome": "Kylin",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "nftl-token",
+"nome": "NFTL Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cybertime-finance-token",
+"nome": "CyberTime Finance Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "qiswap",
+"nome": "QiSwap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "energo",
+"nome": "Energo",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "nftlootbox",
+"nome": "LootBox.io",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "polygon",
+"nome": "Polygon (Old)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "plasma-finance",
+"nome": "Plasma Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cargo-gems",
+"nome": "Cargo Gems",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sentivate",
+"nome": "Sentivate",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "everest",
+"nome": "Everest",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "unitrade",
+"nome": "Unitrade",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "covalent",
+"nome": "Covalent",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "coinbase-pre-ipo-tokenized-stock-ftx",
+"nome": "Coinbase tokenized stock FTX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "safemoon",
+"nome": "SafeMoon",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cope",
+"nome": "Cope",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "raven-x",
+"nome": "Raven X",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "eclipse-ecp",
+"nome": "Eclipse",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "callisto-network",
+"nome": "Callisto Network",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "polkaswap",
+"nome": "Polkaswap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "visor-finance",
+"nome": "Visor.Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "method-finance",
+"nome": "Method Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "etho-protocol",
+"nome": "Etho Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cortex",
+"nome": "Cortex",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hokkaido-inu",
+"nome": "HOKK Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "coshi-inu",
+"nome": "CoShi Inu",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ravencoin-classic",
+"nome": "Ravencoin Classic",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "kick-token",
+"nome": "KickToken [old]",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "mercurial-finance",
+"nome": "Mercurial Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "card-starter",
+"nome": "CardStarter",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "defire",
+"nome": "DeFIRE",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "justliquidity-binance",
+"nome": "JustLiquidity Binance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "vegaprotocol",
+"nome": "Vega Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "efinity",
+"nome": "Efinity Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "optionroom",
+"nome": "OptionRoom",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "qredo",
+"nome": "Open Custody Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "vention",
+"nome": "Vention",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "minifootball",
+"nome": "Minifootball",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "republic-of-dogs",
+"nome": "Republic of Dogs",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "orica",
+"nome": "Orica",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "kalata",
+"nome": "Kalata",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "babyeth",
+"nome": "BabyEth",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "binapet",
+"nome": "Binapet",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "synthetify",
+"nome": "Synthetify",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "microshiba",
+"nome": "MicroSHIBA",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "kiltprotocol-old",
+"nome": "KILT Protocol [Old]",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "fusion",
+"nome": "Fusion",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "babyusdt",
+"nome": "BabyUSDT",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "paid-network",
+"nome": "PAID",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "unifty",
+"nome": "Unifty",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shiden-network",
+"nome": "Shiden Network",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "revain",
+"nome": "Revain",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sunny-aggregator",
+"nome": "Sunny Aggregator",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "solanax",
+"nome": "Solanax",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "get-protocol",
+"nome": "GET Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "pfizer-tokenized-stock-bittrex",
+"nome": "Pfizer tokenized stock Bittrex",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "anchor-protocol",
+"nome": "Anchor Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hydra",
+"nome": "Hydra",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "pylon-protocol",
+"nome": "Pylon Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "spectrum-token",
+"nome": "Spectrum Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "starterra",
+"nome": "StarTerra",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "gochain",
+"nome": "GoChain",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "gravitoken",
+"nome": "Gravitoken",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "starname",
+"nome": "Starname",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "adax",
+"nome": "ADAX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "kirobo",
+"nome": "Kirobo",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "charli3",
+"nome": "Charli3",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "blizzard-network",
+"nome": "Blizzard Network",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "flokinomics",
+"nome": "Flokinomics",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ryoshis-vision",
+"nome": "Ryoshis Vision",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "altair",
+"nome": "Altair",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "beyond-protocol",
+"nome": "Beyond Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "fomobaby",
+"nome": "FOMO BABY",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "lynx",
+"nome": "Lynx",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "doge-dash",
+"nome": "Doge Dash",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "baby-floki-billionaire",
+"nome": "Baby Floki Billionaire",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "rockstar-doge",
+"nome": "ROCKSTAR DOGE",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hyperchain-x",
+"nome": "Hyperchain Classic",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "princefloki",
+"nome": "PrinceFloki",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shibavax",
+"nome": "SHIBAVAX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "trustpad",
+"nome": "Trustpad (Old)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "bscstarter",
+"nome": "BSCStarter",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "nftpad",
+"nome": "NFTPad",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "snook",
+"nome": "Snook",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "citadel-one",
+"nome": "Citadel.one",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ether-kingdoms-token",
+"nome": "Ether Kingdoms Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "unilend",
+"nome": "UniLend",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "galaxy-heroes-coin",
+"nome": "Galaxy Heroes Coin (old)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ryoshi-token",
+"nome": "Ryoshi Token (OLD)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "waves-ducks",
+"nome": "Arkimals",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "squid-game",
+"nome": "Squid Game (squidgametoken.vip)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "elemon",
+"nome": "Elemon",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "gods-and-legends",
+"nome": "Gods and Legends",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "my-defi-pet",
+"nome": "My DeFi Pet",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shiboki",
+"nome": "Shiboki",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "luckypig",
+"nome": "LuckyPig",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "miniflokiada",
+"nome": "MiniFlokiADA",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shibarmy",
+"nome": "ShibArmy",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "oogi",
+"nome": "OOGI",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "loop-finance",
+"nome": "Loop Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "valkyrie-protocol",
+"nome": "Valkyrie Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "tractor-joe",
+"nome": "Tractor Joe",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "avaterra",
+"nome": "Avaterra",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "swift-finance",
+"nome": "Swift Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "bogged-finance",
+"nome": "Bogged",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "earnx",
+"nome": "EarnX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "dogemoon",
+"nome": "DogeMoon",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "marsrise",
+"nome": "MarsRise",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "freemoon",
+"nome": "FREEMOON",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shibx",
+"nome": "ShibX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shibazilla",
+"nome": "ShibaZilla",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "wagyuswap",
+"nome": "WagyuSwap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "velaspad",
+"nome": "VelasPad",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "elonballs",
+"nome": "ELONBALLS",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "phoenix-global",
+"nome": "Phoenix Global [Old]",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cyber-network-token",
+"nome": "Cyber Network Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "bonussquidgame",
+"nome": "BonusSquidGame",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "dogs-of-elon",
+"nome": "Dogs Of Elon",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cyclos",
+"nome": "Cykura",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cropperfinance",
+"nome": "CropperFinance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "goosefx",
+"nome": "GooseFX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "axienomics",
+"nome": "Axienomics",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "lucky-irish-inu",
+"nome": "Lucky Irish Inu",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ape-in",
+"nome": "Ape In",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hecofi",
+"nome": "HecoFi",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sonm-bep20",
+"nome": "SONM (BEP-20)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "kava-swap",
+"nome": "Kava Swap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hard-protocol",
+"nome": "Kava Lend",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ki-foundation",
+"nome": "Ki",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "everrise-old",
+"nome": "EverRise [old]",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hydration",
+"nome": "Hydration",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "moonshot",
+"nome": "Moonshot",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "saitama-inu",
+"nome": "Saitama V1",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "curate",
+"nome": "Curate",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "combo-network",
+"nome": "COMBO",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "genshinshibinu",
+"nome": "GenshinShibInu",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "solrazr",
+"nome": "RazrFi",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "velhalla",
+"nome": "ScarQuest",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cardswap",
+"nome": "CardSwap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sether",
+"nome": "Sether",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "secret-finance",
+"nome": "Secret Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "everestcoin",
+"nome": "EverestCoin",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "chronic-token",
+"nome": "Chronic Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "parallel-finance",
+"nome": "Parallel Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "my-universe",
+"nome": "MY UNIVERSE",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "1nft",
+"nome": "1NFT",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "jade-protocol",
+"nome": "Jade Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "ignis",
+"nome": "Ignis",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "coalculus",
+"nome": "Coalculus",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "infinitecoin",
+"nome": "Infinitecoin",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "micropets",
+"nome": "MicroPets (OLD)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "chad",
+"nome": "CHAD",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sora-synthetic-usd",
+"nome": "SORA Synthetic USD",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "counos-x",
+"nome": "CCX",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "alien-shiba-inu",
+"nome": "Alien Shiba Inu",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "birds-token",
+"nome": "Birds Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shiba-inu-pay",
+"nome": "Shiba Inu Pay",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hector-dao",
+"nome": "Hector Network",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shiba-hunter",
+"nome": "Shiba Hunter",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "pappay",
+"nome": "PAPPAY",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "javascript-token",
+"nome": "JavaScript Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "vidulum",
+"nome": "Vidulum",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "sphynx-eth",
+"nome": "Sphynx ETH",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "spooky-shiba",
+"nome": "SpookyShiba [OLD]",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "gamingshiba",
+"nome": "GamingShiba",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "latoken",
+"nome": "LATOKEN",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "patron",
+"nome": "Patron",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "noshit",
+"nome": "NOSHIT",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cheems-inu",
+"nome": "Cheems Inu (old)",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "bluefi",
+"nome": "BleuFi",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "defi-degen-land",
+"nome": "DeFi Degen Land",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "marsflkinu",
+"nome": "Mars Floki Inu",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "byakko",
+"nome": "Byakko",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "spacefalcon",
+"nome": "SpaceFalcon",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "wolfi",
+"nome": "WOLFI",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "decentr",
+"nome": "Decentr",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "pstake-finance",
+"nome": "pSTAKE Finance",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "teddydoge",
+"nome": "Teddy Doge",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "nexus-protocol",
+"nome": "Nexus Protocol",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "terra-world-token",
+"nome": "Terra World Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "glow-token",
+"nome": "Glow Token",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "zilswap",
+"nome": "ZilSwap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "carb",
+"nome": "Carbon",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "wallstreetbets-token",
+"nome": "Wallstreetbets.com",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "animal-concerts",
+"nome": "Animal Concerts",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hyperdao",
+"nome": "HyperDAO",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "meta-ruffy",
+"nome": "MetaRuffy",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "chronicle",
+"nome": "Chronicle",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "wannaswap",
+"nome": "WannaSwap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "beamswap",
+"nome": "BeamSwap",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "hedron",
+"nome": "Hedron",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "bitcoin-private",
+"nome": "Bitcoin Private",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "safe-haven",
+"nome": "Safe Haven",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "moonbeans",
+"nome": "Moonbeans",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "zebec-protocol",
+"nome": "Zebec",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "casperpad",
+"nome": "CasperPad",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "minidoge",
+"nome": "MiniDOGE",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "codex",
+"nome": "Codex",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "html-coin",
+"nome": "HTMLCOIN",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "desmos",
+"nome": "Desmos",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "muu-inu",
+"nome": "Muu Inu",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "cloudname",
+"nome": "Cloudname",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "shimmer",
+"nome": "Shimmer",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "stelia",
+"nome": "Stelia",
+"simbolo": "",
+"morta_cmc": true
+},
+{
+"cmc": "nxt",
+"nome": "Nxt",
+"simbolo": "",
+"morta_cmc": true
+}
+]
+}

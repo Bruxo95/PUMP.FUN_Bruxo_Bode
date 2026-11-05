@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dormant — PUMP FUN COPY</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FUN COPY">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/fun-copy-180.png?v=__V__">
+<link rel="manifest" href="/static/manifest.json?v=__V__">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/fun-copy-192.png?v=__V__">
+<link rel="stylesheet" href="/static/app.css?v=__V__">
+<style>
+  /* 0.32.227: painel do Dormant no mesmo padrão do painel da pump.fun (app.css), com lilás no destaque */
+  .dmmark{width:28px;height:28px;flex:0 0 28px}
+  .side-top .logo{gap:9px}
+  .nav a.on{box-shadow:inset 2px 0 0 #a78bfa}
+  .dmnote{border:1px dashed #a78bfa;border-radius:12px;padding:14px 16px;color:var(--muted);margin-bottom:16px}
+  .dmnote b{color:var(--text)}
+  .hubbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}.hubbtn svg{width:14px;height:14px}
+  @media (max-width:860px){.hubbtn span{display:none}}
+  .dmbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .dmbar .seg{flex-wrap:wrap}
+  .dmbar input{flex:1 1 200px;min-width:0}
+  .dmcoin{display:flex;align-items:center;gap:8px;min-width:0}
+  .dmcoin img{width:20px;height:20px;border-radius:50%;flex:0 0 20px}
+  .dmcoin b{font-size:13px}.dmcoin small{color:var(--muted);font-size:11px}
+  .dmcoin a{color:var(--text);text-decoration:none}.dmcoin a:hover{text-decoration:underline}
+  .dmspark{display:block;width:120px;height:32px}
+  .dmst{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:6px;padding:2px 7px;border:1px solid}
+  .dmst.pump{color:#22c55e;border-color:#22c55e;background:rgba(34,197,94,.08)}
+  .dmst.dump{color:#ef4444;border-color:#ef4444;background:rgba(239,68,68,.08)}
+  .dmst.acordando{color:#f59e0b;border-color:#f59e0b;background:rgba(245,158,11,.08)}
+  .dmst.dormindo{color:#a78bfa;border-color:#a78bfa;background:rgba(167,139,250,.08)}
+  .dmst.normal{color:var(--muted);border-color:var(--line)}
+  .dmst.parada,.dmst.morta,.dmst.sem_cg{color:#6b7280;border-color:#374151}
+  .dmwhy{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+  .kpi.dmk{cursor:pointer}.kpi.dmk:hover{border-color:#a78bfa}
+  .dmlinks a{font-size:11px;color:var(--muted);margin-right:8px}
+</style>
+</head>
+<body>
+<div class="loading" id="boot" data-ll="Carregando">Carregando…</div>
+<div class="shell" id="shell" hidden>
+  <aside class="side" id="side">
+    <div class="side-top">
+      <a class="logo" href="#visao"><svg class="dmmark" viewBox="0 0 126 126" aria-hidden="true"><path d="M86 22a46 46 0 1 0 18 62 38 38 0 0 1-18-62z" fill="#a78bfa"/><circle cx="92" cy="30" r="5" fill="#a78bfa"/><circle cx="106" cy="50" r="3.5" fill="#a78bfa"/></svg>DORMANT</a>
+    </div>
+    <div class="lbl">Painel</div>
+    <nav class="nav" id="nav">
+      <a href="#visao" data-v="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>Visão geral</a>
+      <a href="#moedas" data-v="moedas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>Moedas</a>
+      <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Lista e regras</a>
+    </nav>
+    <div class="sp"></div>
+    <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver a leitura da CoinGecko"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
+    <div class="ver" id="ver"></div>
+  </aside>
+  <nav class="tabbar" id="tabbar" aria-label="Atalhos">
+    <a href="#visao" data-tv="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Início</span></a>
+    <a href="#moedas" data-tv="moedas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8"/></svg><span>Moedas</span></a>
+    <a href="#config" data-tv="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Lista</span></a>
+    <button type="button" id="tbMenu" aria-label="Abrir o menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+  </nav>
+  <div class="scrim" id="scrim"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-left">
+        <button class="burger" id="burger" aria-label="Abrir menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div style="min-width:0"><h1 id="pgTitle">Visão geral</h1><div class="sub" id="pgSub"></div></div>
+      </div>
+      <div class="tb-right">
+        <span class="netload" id="netLoad" hidden aria-live="polite"></span>
+        <a class="btn sm hubbtn" href="/entrar" title="Escolher outra rede"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-3-3M17 17H4l3 3"/></svg><span>Trocar rede</span></a>
+        <button class="btn sm" id="dmOut" type="button">Sair</button>
+      </div>
+    </header>
+    <main class="page">
+      <div class="dmnote"><b>Etapa 1 · só observa.</b> Vigia as moedas da sua watchlist da CoinMarketCap pela CoinGecko a cada 20 min e diz quais estão <b>dormindo</b>, <b>acordando</b>, num <b>pump</b> ou num <b>dump</b>. <b>Não compra nem vende nada.</b> Dados: <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>.</div>
+      <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
+        <header><div><h2 id="sysMT">Leitura da CoinGecko</h2><div class="sub">de onde vêm os números</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
+        <div id="sysMB"></div></div></div>
+      <section class="view" data-view="visao" hidden>
+        <div class="kpis" id="ovK"></div>
+        <div class="grid2e vgtop" style="margin-top:16px">
+          <div class="card"><header><div><h2>Alertas</h2><div class="sub">quando uma moeda muda para pump, dump ou acordando · mais novos primeiro</div></div></header>
+            <div class="tbl-wrap tall"><table id="ovAl"></table></div></div>
+          <div class="card"><header><div><h2>Mais se mexeram em 24 h</h2><div class="sub">as que mais subiram e mais caíram (com negócio de verdade)</div></div></header>
+            <div class="tbl-wrap tall"><table id="ovMv"></table></div></div>
+        </div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Dormindo há mais tempo</h2><div class="sub">preço preso numa faixa estreita · as que podem acordar</div></div></header>
+          <div class="tbl-wrap"><table id="ovDm"></table></div></div>
+      </section>
+      <section class="view" data-view="moedas" hidden>
+        <div class="dmbar"><div class="seg" id="mFilt"></div><input class="in" id="mQ" type="search" placeholder="Buscar moeda" aria-label="Buscar moeda">
+          <select class="in" id="mSort" aria-label="Ordenar"><option value="h24">Maior alta em 24 h</option><option value="-h24">Maior queda em 24 h</option><option value="h1">Maior alta em 1 h</option><option value="d7">Maior alta em 7 dias</option><option value="d30">Maior alta em 30 dias</option><option value="vol_x">Volume acima do normal</option><option value="mcap">Valor de mercado</option><option value="nome">Nome</option></select></div>
+        <div class="card"><div class="tbl-wrap"><table id="mT"></table></div><div class="sub" id="mSub" style="margin-top:8px"></div></div>
+      </section>
+      <section class="view" data-view="config" hidden>
+        <div class="card"><header><div><h2>Chave da CoinGecko</h2><div class="sub">opcional · sem chave usa a API pública (mais lenta) · com a chave Demo grátis: 10 mil consultas por mês</div></div></header>
+          <div class="decbox" id="kSt"></div>
+          <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><input class="in" id="kVal" type="password" autocomplete="new-password" spellcheck="false" placeholder="cole a chave Demo aqui" style="flex:1 1 240px;min-width:0"><button class="btn primary" id="kSave">Salvar</button><button class="btn sm tgl off" id="kDel" hidden>Remover</button></div>
+          <details class="keyhow" style="margin-top:10px"><summary>Como criar a chave grátis</summary><ol><li>Abra <a href="https://www.coingecko.com/en/api/pricing" target="_blank" rel="noopener">coingecko.com/en/api/pricing</a> e escolha o plano <b>Demo</b> (grátis).</li><li>Crie a conta e entre no <b>Developer Dashboard</b>.</li><li>Clique em <b>+ Add New Key</b>, copie a chave e cole aqui.</li></ol></details></div>
+        <div class="card"><header><div><h2>Regras</h2><div class="sub">como cada moeda é classificada · vale para todos os admins</div></div></header>
+          <div class="form" id="rCfg"></div>
+          <div class="row" style="margin-top:10px"><button class="btn primary" id="rSave">Salvar regras</button><button class="btn sm" id="rReset">Voltar ao padrão</button></div></div>
+        <div class="card"><header><div><h2>A lista</h2><div class="sub" id="lSub">a watchlist da CoinMarketCap lida em 05/11/2026</div></div></header>
+          <div class="tbl-wrap"><table id="lT"></table></div></div>
+      </section>
+    </main>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="/static/common.js?v=__V__"></script>
+<script src="/static/dormant.js?v=__V__"></script>
+</body>
+</html>

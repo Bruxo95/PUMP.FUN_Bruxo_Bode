@@ -9,7 +9,7 @@ import copy
 import itertools
 from datetime import datetime, timezone
 
-PKS = {"api_usage_janelas": ("k",), "hood_state": ("k",), "profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": ("user_id", "nome"),
+PKS = {"api_usage_janelas": ("k",), "hood_state": ("k",), "dormant_state": ("k",), "dormant_snap": ("t",), "profiles": ("user_id",), "user_settings": ("user_id",), "user_secrets": ("user_id", "nome"),
        "pump_positions": ("id",), "pump_trades": ("id",), "pump_lists": ("user_id", "tipo", "wallet"),
        "pump_feed": ("id",), "audit_log": ("id",), "app_secrets": ("nome",),
        "learning_daily": ("user_id", "dia"), "study_wallets": ("user_id", "wallet"),
