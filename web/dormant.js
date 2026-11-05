@@ -152,7 +152,7 @@
     $("mFilt").innerHTML = '<button data-dmf=""' + (F.st ? "" : ' class="on"') + ">Todas · " + num(M().length, 0) + "</button>" +
       ST_ORD.filter((k) => c[k]).map((k) => '<button data-dmf="' + k + '"' + (F.st === k ? ' class="on"' : "") + ">" + esc(ST[k]) + " · " + num(c[k], 0) + "</button>").join("");
     if ($("mQ").value !== F.q && document.activeElement !== $("mQ")) $("mQ").value = F.q;
-    $("mSort").value = F.sort;
+    $("mSort").value = [...$("mSort").options].some((o) => o.value === F.sort) ? F.sort : "";
     const q = F.q.trim().toLowerCase();
     const chs = {}, cats = {};
     M().forEach((m) => { if (m.chain_nome) chs[m.chain_nome] = (chs[m.chain_nome] || 0) + 1; (m.cats || []).forEach((c) => { cats[c] = (cats[c] || 0) + 1; }); });
@@ -161,9 +161,18 @@
     let L = M().filter((m) => (!F.st || m.status === F.st) && (!F.ch || m.chain_nome === F.ch) && (!F.cat || (m.cats || []).includes(F.cat)) &&
       (!q || (m.nome + " " + m.simbolo + " " + m.cmc + " " + (m.chain_nome || "") + " " + (m.cats || []).join(" ")).toLowerCase().includes(q)));
     L.forEach((m) => { m.bc_t = m.bc && m.bc.t && !m.bc.sem_pool ? (m.bc.ultima_t || 1) : null; });
-    const k = F.sort.replace("-", "") === "bc" ? "bc_t" : F.sort.replace("-", ""), dir = F.sort.startsWith("-") ? 1 : -1;
-    L = L.slice().sort((a, b) => k === "nome" ? String(a.nome).localeCompare(String(b.nome)) : ((a[k] == null) - (b[k] == null)) || dir * ((a[k] || 0) - (b[k] || 0)));
-    table("mT", ["Moeda", "Situação", "Últimas 3 ações na blockchain", "Preço", "1 h", "24 h", "7 dias", "30 dias", "Volume 24 h", "Valor de mercado", "Gráfico 7 dias"], L.slice(0, 400).map((m) => [coin(m),
+    // 0.32.231 (pedido do dono): clicar no título da coluna ordena; clicar de novo inverte (maior → menor / menor → maior)
+    const sk = F.sort.replace("-", ""), asc = F.sort.startsWith("-");
+    const k = sk === "bc" ? "bc_t" : sk, stI = (m) => { const i = ST_ORD.indexOf(m.status); return i < 0 ? 99 : i; };
+    L = L.slice().sort((a, b) => {
+      if (k === "nome") return (asc ? -1 : 1) * String(a.nome).localeCompare(String(b.nome));
+      if (k === "status") return (asc ? -1 : 1) * (stI(a) - stI(b));
+      return ((a[k] == null) - (b[k] == null)) || (asc ? 1 : -1) * ((a[k] || 0) - (b[k] || 0));
+    });
+    const th = (nome, key) => '<button type="button" class="dmth' + (sk === key ? " on" : "") + '" data-dmsort="' + key + '" title="clique para ordenar; de novo para inverter">' + nome +
+      (sk === key ? ((asc !== (key === "nome" || key === "status")) ? " ▲" : " ▼") : "") + "</button>";
+    table("mT", [th("Moeda", "nome"), th("Situação", "status"), th("Últimas 3 ações na blockchain", "bc"), th("Preço", "preco"), th("1 h", "h1"), th("24 h", "h24"), th("7 dias", "d7"),
+      th("30 dias", "d30"), th("Volume 24 h", "vol"), th("Valor de mercado", "mcap"), "Gráfico 7 dias"], L.slice(0, 400).map((m) => [coin(m),
       tag(m.status) + (m.por && m.por.length ? '<span class="dmwhy">' + esc(m.por.join(" · ")) + "</span>" : ""), bcCell(m), price(m.preco), pc(m.h1), pc(m.h24), pc(m.d7), pc(m.d30),
       usd(m.vol) + (m.vol_x ? '<span class="dmwhy">' + num(m.vol_x, 1) + "× o normal</span>" : ""), usd(m.mcap), spark(m.spark)]), "Nenhuma moeda com esse filtro.");
     $("mSub").textContent = num(L.length, 0) + " moedas" + (L.length > 400 ? " · mostrando as 400 primeiras" : "") + " · gráfico = últimos 7 dias (CoinGecko)";
@@ -261,6 +270,7 @@
     if (g) { F.st = ""; F.ch = g.dataset.dmch || ""; F.cat = g.dataset.dmcat || ""; saveF(); location.hash = "#moedas"; return; }
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
     if (t.dataset.dmf != null) { F.st = t.dataset.dmf; saveF(); drawMoedas(); return; }
+    if (t.dataset.dmsort) { const key = t.dataset.dmsort; F.sort = F.sort === key ? "-" + key : key; saveF(); drawMoedas(); return; }
     if (t.dataset.dmadd) { addOpen(); return; }
     if (t.id === "addMX") { $("addM").hidden = true; return; }
     if (t.id === "addGo") { addSearch(); return; }

@@ -51,6 +51,7 @@
   .dmcats{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}.dmcats span{font-size:10px;color:var(--muted);background:rgba(255,255,255,.04);border-radius:4px;padding:0 5px}
   .dmst.acordou_chain{color:#f59e0b;border-color:#f59e0b;background:rgba(245,158,11,.12)}.dmst.parada_chain{color:#6b7280;border-color:#374151}
   .dmbc{font-size:11.5px;line-height:1.45}.dmbc b{font-size:12px}.dmbc .c{color:#22c55e}.dmbc .v{color:#ef4444}.dmbc a{color:var(--muted)}
+  .dmth{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer;white-space:normal}.dmth:hover,.dmth.on{color:#a78bfa}
   tr.dmgo{cursor:pointer}tr.dmgo:hover td{background:rgba(167,139,250,.06)}
 </style>
 </head>
@@ -113,7 +114,7 @@
       <section class="view" data-view="moedas" hidden>
         <div class="dmbar"><button class="btn primary sm" type="button" data-dmadd="1">+ Adicionar moeda</button><select class="in" id="mChain" aria-label="Blockchain"></select><select class="in" id="mCat" aria-label="Categoria"></select></div>
         <div class="dmbar"><div class="seg" id="mFilt"></div><input class="in" id="mQ" type="search" placeholder="Buscar moeda" aria-label="Buscar moeda">
-          <select class="in" id="mSort" aria-label="Ordenar"><option value="h24">Maior alta em 24 h</option><option value="-h24">Maior queda em 24 h</option><option value="h1">Maior alta em 1 h</option><option value="d7">Maior alta em 7 dias</option><option value="d30">Maior alta em 30 dias</option><option value="vol_x">Volume acima do normal</option><option value="bc">Negociou por último na blockchain</option><option value="-bc">Mais tempo parada na blockchain</option><option value="mcap">Valor de mercado</option><option value="nome">Nome</option></select></div>
+          <select class="in" id="mSort" aria-label="Ordenar"><option value="" hidden>Ordenado pela coluna</option><option value="h24">Maior alta em 24 h</option><option value="-h24">Maior queda em 24 h</option><option value="h1">Maior alta em 1 h</option><option value="d7">Maior alta em 7 dias</option><option value="d30">Maior alta em 30 dias</option><option value="vol_x">Volume acima do normal</option><option value="bc">Negociou por último na blockchain</option><option value="-bc">Mais tempo parada na blockchain</option><option value="mcap">Valor de mercado</option><option value="nome">Nome</option></select></div>
         <div class="card"><div class="tbl-wrap"><table id="mT"></table></div><div class="sub" id="mSub" style="margin-top:8px"></div></div>
       </section>
       <section class="view" data-view="grupos" hidden>

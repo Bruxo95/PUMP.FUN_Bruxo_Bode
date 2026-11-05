@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-05",
     "timezone": "Europe/Dublin",
-    "repository_reference": "4dd81844e2fc8f4ff1c9a793632369e98ff3672c",
-    "application_version": "0.32.230 · 2026-11-05 · Dormant: últimas 3 ações direto da blockchain",
+    "repository_reference": "97a9e46c32599b7d37be4d5ae5b340e55f107197",
+    "application_version": "0.32.231 · 2026-11-05 · Dormant: ordenar clicando no título da coluna",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "19908c6de33af44260c154dcd5e69bcad94b4fea81092101f7fca55dafb50001",
+      "app/version.py": "8ac221dd3be2133a27667a8b05604206fbd6f4c4c9dddea184886e2617cdbf0e",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "ed785ce3e6c42105f0e6e96fe57da8a48aaa7ca60eddb9b1ca8bac7d998c1e33"
+  "pdf_sha256": "843c5771583e1374d04173f38ebe09787274e0655f33518c57e664f2dd3b6d6e"
 }
