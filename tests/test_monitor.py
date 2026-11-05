@@ -55,6 +55,7 @@ def setup(monkeypatch):
     net = Net()
     http = httpx.AsyncClient(transport=httpx.MockTransport(net))
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    hub.PROFILE_TTL = 0  # 0.32.229: testes mudam o perfil direto no banco falso
 
     async def load():
         a, b = await hub.engine(UA), await hub.engine(UB)

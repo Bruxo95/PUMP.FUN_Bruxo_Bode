@@ -73,17 +73,27 @@ class PumpHub:
         self.started_at = time.time()
         self.errors: list[dict] = []
         self._touched: dict[str, float] = {}
+        # 0.32.229: perfil lido a cada pedido do painel era o 2º maior volume de leituras do Supabase (~2.500/h).
+        # Guarda por PROFILE_TTL s; mudança de categoria/bloqueio pelo admin limpa na hora (admin_update_user).
+        self._prof_cache: dict[str, tuple[float, dict]] = {}
+        self._rlog_vazio: set[str] = set()                 # 0.32.229: dias fechados já vistos sem registro
         # trava geral da execução real (no .env): enquanto false, ninguém liga o real
         self.monitor = None                        # SharedMonitor (ligado em start)
         self.running = False
         self.real_allowed = os.environ.get("PUMP_REAL_ALLOWED", "false").strip().lower() in ("1", "true", "sim", "yes")
 
     # ------------------------------------------------------------------ perfis
+    PROFILE_TTL = 30
+
     async def ensure_profile(self, claims: dict) -> dict:
         uid = claims["sub"]
+        now = time.time()
+        hit = self._prof_cache.get(uid)
+        if hit and now - hit[0] < self.PROFILE_TTL:
+            return hit[1]
         rows = await self.db.select("profiles", {"user_id": uid})
         if rows:
-            now = time.time()
+            self._prof_cache[uid] = (now, rows[0])
             if now - self._touched.get(uid, 0) > 300:          # último acesso (no máx. 1 gravação a cada 5 min)
                 self._touched[uid] = now
                 try:
@@ -270,15 +280,15 @@ class PumpHub:
         return us.view(labels)
 
     async def arquivo_loop(self) -> None:
-        """0.32.225: a cada 30 min passa para o Postgres da VPS o que já não precisa ficar no Supabase (app/arquivo.py)."""
-        from .arquivo import VOLTA_S
+        """0.32.225: a cada 30 min passa para o Postgres da VPS o que já não precisa ficar no Supabase (app/arquivo.py).
+        0.32.229: enquanto há fila, a cada 5 min."""
         await asyncio.sleep(120)                           # deixa a subida terminar antes
         while True:
             try:
                 await self.arquivo.volta(self.db)
             except Exception as e:
                 log.warning("arquivo: volta falhou: %s", str(e)[:120])
-            await asyncio.sleep(VOLTA_S)
+            await asyncio.sleep(self.arquivo.espera())
 
     async def usage_loop(self) -> None:
         from .apiusage import Usage
@@ -2290,7 +2300,7 @@ class PumpHub:
                 for back in range(1, max_days + 1):
                     dia = today - timedelta(days=back)
                     rid = f"{pf.user_id}:{mod}:{dia.isoformat()}"
-                    if rid in have:
+                    if rid in have or rid in self._rlog_vazio:
                         continue
                     ini = datetime(dia.year, dia.month, dia.day, tzinfo=timezone.utc)
                     rng = {"gte": {"em": ini.isoformat()}, "lte": {"em": (ini + timedelta(days=1) - timedelta(seconds=1)).isoformat()}}
@@ -2299,6 +2309,10 @@ class PumpHub:
                     else:
                         rows = await self.db.select("robot_log", {"user_id": pf.user_id, "modulo": mod}, limit=2000, **rng)
                     if not rows:
+                        # 0.32.229: dia fechado sem registro não ganha registro depois; antes era consultado de novo
+                        # toda hora (60 dias × robôs × contas = o maior volume de leituras do Supabase, ~2.600/h).
+                        if back >= 2:
+                            self._rlog_vazio.add(rid)
                         continue
                     await self.db.insert("robot_daily", {"id": rid, "user_id": pf.user_id, "modulo": mod, "dia": dia.isoformat(),
                                                          "data": rollup([r.get("data") or {} for r in rows])}, upsert=True, on_conflict="id")
@@ -4719,6 +4733,7 @@ class PumpHub:
         if not rows:
             return {"error": "usuário não encontrado"}
         prof, done = rows[0], []
+        self._prof_cache.pop(uid, None)
         who = prof.get("email") or uid[:8]
         if "role" in body:
             role = body["role"]

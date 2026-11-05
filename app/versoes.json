@@ -1900,6 +1900,11 @@
    "versao": "0.32.228",
    "inicio": "2026-11-05T21:32:04+00:00",
    "titulo": "Dormant: adicionar moeda, blockchain e categoria"
+  },
+  {
+   "versao": "0.32.229",
+   "inicio": "2026-11-05T21:38:10+00:00",
+   "titulo": "menos leituras no Supabase e arquivo mais rápido"
   }
  ]
 }

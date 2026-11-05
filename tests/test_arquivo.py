@@ -103,3 +103,18 @@ def test_keeps_only_90_days_once_a_day():
     asyncio.run(arq.limpa(now))
     asyncio.run(arq.limpa(now + 3600))                         # no mesmo dia: não repete
     assert calls == [("DELETE", "arquivo", {"t": f"lt.{now - 90 * 86400}"})] and A.GUARDA_DIAS == 90
+
+
+def test_fila_acelera_a_proxima_volta(monkeypatch):
+    """0.32.229: enquanto uma tabela enche a volta (há fila no Supabase), a próxima vem em 5 min."""
+    monkeypatch.setattr(A, "LOTE", 2)
+    monkeypatch.setattr(A, "LOTES_POR_VOLTA", 2)
+    old = time.time() - 30 * 86400
+    arq = _Arq()
+    arq.st["limpou_em"] = time.time()
+    db = _Supa([{"id": str(i), "t": old + i} for i in range(9)])
+    monkeypatch.setattr(A, "SPECS", [{"tabela": "bnb_fm_trades", "pk": "id", "t": "t", "tipo": "epoch", "dias": 7}])
+    asyncio.run(arq.volta(db))
+    assert arq.st["fila"] and arq.espera() == A.VOLTA_RAPIDA_S
+    asyncio.run(arq.volta(db)); asyncio.run(arq.volta(db))
+    assert not db.rows and not arq.st["fila"] and arq.espera() == A.VOLTA_S

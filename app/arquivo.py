@@ -36,6 +36,7 @@ SPECS = [
 LOTE = 500                    # linhas por lote
 LOTES_POR_VOLTA = 20          # até 10 mil linhas por tabela a cada volta (não pesa no Supabase)
 VOLTA_S = 30 * 60
+VOLTA_RAPIDA_S = 5 * 60       # 0.32.229: enquanto há fila (uma tabela encheu a volta), a próxima vem em 5 min
 GUARDA_DIAS = 90              # 0.32.226 (pedido do dono): o arquivo guarda 90 dias; o resto é apagado uma vez por dia
 
 
@@ -149,6 +150,7 @@ class Arquivo:
 
     async def volta(self, db) -> dict:
         self.st["volta"] = time.time()
+        self.st["fila"] = False
         try:
             await self.limpa()
         except Exception as e:
@@ -157,6 +159,8 @@ class Arquivo:
         for spec in SPECS:
             try:
                 n = await self.mover(db, spec)
+                if n >= LOTE * LOTES_POR_VOLTA:
+                    self.st["fila"] = True
                 self.st["movidas"][spec["tabela"]] = self.st["movidas"].get(spec["tabela"], 0) + n
                 self.st["ok"], self.st["ultimo_erro"] = True, None
             except Exception as e:
@@ -164,6 +168,10 @@ class Arquivo:
                 self.st["ultimo_erro"] = f"{spec['tabela']}: {type(e).__name__}: {str(e)[:140]}"
                 log.warning("arquivo: %s", self.st["ultimo_erro"])
         return self.st
+
+    def espera(self) -> int:
+        """Segundos até a próxima volta: rápido enquanto ainda há fila no Supabase."""
+        return VOLTA_RAPIDA_S if self.st.get("fila") else VOLTA_S
 
     def status(self) -> dict:
         return {**self.st, "guarda_dias": GUARDA_DIAS,

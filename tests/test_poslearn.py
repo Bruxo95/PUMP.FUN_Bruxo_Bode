@@ -62,6 +62,7 @@ def test_pending_override_is_applied_once_on_load(monkeypatch):
                                             "aplicado_em": None})
     http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    hub.PROFILE_TTL = 0  # 0.32.229: testes mudam o perfil direto no banco falso
     pf = asyncio.run(hub.engine(UA))
     assert pf.cfg.pump_bar_max_h == 20 and db.tables["settings_overrides"][0]["aplicado_em"]
     assert db.tables["user_settings"][0]["settings"]["pump_bar_max_h"] == 20
@@ -91,6 +92,7 @@ def test_override_reasserted_after_old_server_writes_over(monkeypatch):
     db.tables["user_settings"][0]["settings"] = {"pump_bar_auto_on": True}                                 # o antigo gravou por cima
     http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    hub.PROFILE_TTL = 0  # 0.32.229: testes mudam o perfil direto no banco falso
     pf = asyncio.run(hub.engine(UA))
     assert pf.cfg.pump_bar_auto_on is False
 
@@ -121,5 +123,6 @@ def test_override_sticks_until_user_changes_it(monkeypatch):
     db.tables["user_settings"][1]["settings"] = {"pump_bar_auto_on": True, "_ov_user": {"pump_bar_auto_on": "2026-10-29T09:00:00+00:00"}}
     http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    hub.PROFILE_TTL = 0  # 0.32.229: testes mudam o perfil direto no banco falso
     assert asyncio.run(hub.engine(UA)).cfg.pump_bar_auto_on is False        # servidor antigo gravou por cima: volta
     assert asyncio.run(hub.engine(UB)).cfg.pump_bar_auto_on is True         # a pessoa ligou na tela depois: respeita

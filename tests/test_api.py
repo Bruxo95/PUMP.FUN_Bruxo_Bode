@@ -66,6 +66,7 @@ def env(monkeypatch):
     db.add_user(UB, "b@x.com")
     http = httpx.AsyncClient(transport=httpx.MockTransport(net_handler))
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
+    hub.PROFILE_TTL = 0  # 0.32.229: testes mudam o perfil direto no banco falso
     auth = Auth(SB, cfg.supabase_anon_key, http, SECRET)
     app = create_app(hub, auth, cfg)
     return {"c": TestClient(app), "hub": hub, "db": db, "cfg": cfg, "app": app}
