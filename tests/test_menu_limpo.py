@@ -23,7 +23,7 @@ def test_every_config_card_has_a_tab():
     cfg = _sec("carteiras")
     cards = re.findall(r'<div data-ct="(\w+)"', cfg)
     assert cards and set(cards) <= {"copia", "chaves", "share", "todas", "cmp"}
-    assert set(re.findall(r'data-ct="(\w+)">', cfg)) == {"copia", "chaves", "share", "todas"}
+    assert set(re.findall(r'data-ct="(\w+)">', cfg)) == {"copia", "chaves", "share", "todas", "cmp"}
 
 
 def test_usar_ou_descartar_is_one_link_and_a_page_of_squares():
