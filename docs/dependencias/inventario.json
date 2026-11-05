@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-05",
     "timezone": "Europe/Dublin",
-    "repository_reference": "084f38a12ad7fcabf8c1f3982b4b2961688f776d",
-    "application_version": "0.32.219 · 2026-11-05 · Espera do trader nas carteiras e Feed no menu",
+    "repository_reference": "8166ddc416f6527daab7c62d9c24fbdcfbd6d0f1",
+    "application_version": "0.32.220 · 2026-11-05 · Requisições de API por posição",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "d2975262cd3aa24fb7575abdaff7d46df5edbbf03b1bc31083620922f0760282",
+      "app/version.py": "e9dec57073f1d281538f79c3c4a213c6459167e86a0064b25d3d2550010f6c5b",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "40ca66f9594dbe60805812d10bb3cd7d46b92c9bf6711dfebda936c222289a33"
+  "pdf_sha256": "4e579ebe07afb3cd2004e0f822f13f64dedb03fcb16667ea1ed83084e59d8af9"
 }

@@ -50,6 +50,67 @@ HOOD_ORIGEM = "Robinhood Chain"
 OUTROS = frozenset({BNB_ORIGEM, HOOD_ORIGEM})
 
 
+# 0.32.220 (pedido do dono: "quantas requisições essa posição gasta e de qual API"): o pedido feito para um grupo de
+# moedas (preço da curva, DexScreener, Jupiter, compra e venda REAL) é dividido igualmente entre elas. Ex.: 1 consulta da
+# curva para 40 moedas = 1/40 para cada. Só na memória: zera quando o servidor reinicia (BOOT muda).
+MINTS: contextvars.ContextVar = contextvars.ContextVar("pf_mints", default=None)
+MINT_USE: dict[str, dict] = {}                       # moeda -> {"t": último uso, "u": {(api, tipo): n}}
+BOOT = int(time.time())
+MINT_MAX = 6000
+
+
+def _mint_add(api: str, tipo: str, n: float, now: float) -> None:
+    ms = MINTS.get()
+    if not ms:
+        return
+    share = n / len(ms)
+    for m in ms:
+        d = MINT_USE.get(m)
+        if d is None:
+            if len(MINT_USE) >= MINT_MAX:              # tira as que não foram usadas há mais tempo
+                for old in sorted(MINT_USE, key=lambda k: MINT_USE[k]["t"])[:MINT_MAX // 5]:
+                    del MINT_USE[old]
+            d = MINT_USE[m] = {"t": now, "u": {}}
+        d["t"] = now
+        k = api + "|" + tipo
+        d["u"][k] = d["u"].get(k, 0.0) + share
+
+
+def mint_snapshot(mint: str) -> dict:
+    return dict((MINT_USE.get(mint) or {}).get("u") or {})
+
+
+def mint_used(mint: str, base: dict | None, base_boot: int | None) -> dict:
+    """Gasto desta moeda desde `base` (foto tirada quando a posição abriu). Se o servidor reiniciou depois, conta só
+    desde o reinício e marca `parcial`. Devolve {"apis": [{api, requisicoes, creditos}], "parcial": bool}."""
+    now = mint_snapshot(mint)
+    parcial = bool(base_boot) and base_boot != BOOT
+    b = {} if parcial else (base or {})
+    by: dict[str, dict] = {}
+    for k, v in now.items():
+        api, tipo = k.split("|", 1)
+        x = max(0.0, v - float(b.get(k) or 0))
+        if x <= 0:
+            continue
+        r = by.setdefault(api, {"api": api, "requisicoes": 0.0, "creditos": 0.0})
+        r["requisicoes" if tipo == "requisições" else "creditos"] += x
+    out = sorted(by.values(), key=lambda r: -r["requisicoes"])
+    for r in out:
+        r["requisicoes"], r["creditos"] = round(r["requisicoes"], 2), round(r["creditos"], 2)
+    return {"apis": out, "parcial": parcial or base is None}
+
+
+def for_mints(mints, coro):
+    """Roda `coro` com o gasto das APIs dividido entre `mints`."""
+    async def run():
+        tok = MINTS.set(tuple(dict.fromkeys(m for m in mints if m)) or None)
+        try:
+            return await coro
+        finally:
+            MINTS.reset(tok)
+    return run()
+
+
 def run_as(nome: str, coro):
     """Tarefa em segundo plano com a marca da aba (os pedidos dela contam para essa aba)."""
     import asyncio
@@ -122,6 +183,7 @@ class Usage:
             for old in [x for x in ob if x <= m - 1440]:
                 del ob[old]
         self.ototal[o] = self.ototal.get(o, 0) + n
+        _mint_add(api, tipo, n, now)
 
     def ws(self, api: str, tipo: str, n: int = 1, now: float | None = None) -> None:
         """Mensagem de uma conexão ao vivo (WebSocket). Nunca falha."""

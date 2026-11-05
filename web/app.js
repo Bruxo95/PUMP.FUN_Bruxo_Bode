@@ -78,6 +78,16 @@
     $("staiMT").textContent = "Relatório " + r.id + " · " + (r.carteiras || []).length + " carteira(s)"; $("staiMS").textContent = r.status_txt;
     $("staiAn").hidden = !r.analise; $("staiAnT").textContent = r.analise || ""; $("staiM").hidden = false; loadStudyAi();
   }
+  // 0.32.220 (pedido do dono): quantas requisições de cada API esta moeda gastou desde que a posição abriu
+  const nreq = (v) => v >= 100 ? f(v, 0) : v >= 10 ? f(v, 1) : f(v, 2);
+  function apiUsedHtml(u, fechada) {
+    const L = (u && u.apis) || [];
+    if (!L.length) return '<span class="muted">nenhuma consulta contada ainda' + (u && u.parcial ? " (o servidor reiniciou depois que abriu)" : "") + "</span>";
+    const tot = L.reduce((s, x) => s + (x.requisicoes || 0), 0);
+    return '<div class="apiuse"><b>' + nreq(tot) + " requisições" + (fechada ? " no total" : " até agora") + "</b>" +
+      L.map((x) => '<div class="apiuse-r"><span>' + esc(x.api) + "</span><span><b>" + nreq(x.requisicoes) + "</b> req." + (x.creditos ? " · " + nreq(x.creditos) + " créditos" : "") + "</span></div>").join("") +
+      '<small class="muted">Uma consulta que olha várias moedas juntas (ex.: o preço da curva de 40 moedas de uma vez) conta só a parte desta moeda. Entra preço a cada ~1 s, mercado (DexScreener), cotação (Jupiter), detentores, risco e a compra e venda REAL.' + (u.parcial ? " O servidor reiniciou depois que abriu: conta só desde o reinício." : "") + "</small></div>";
+  }
   function openPosDet(id, refresh) {
     const P = POS_DET && POS_DET.list.find((p) => String(p.id) === String(id));
     if (!P) { if (!refresh) toast("Essa posição já fechou."); $("posM").hidden = true; POS_ID = null; return; }
@@ -104,6 +114,7 @@
       row("Stop móvel", p.trail_peak != null ? "ligado · pico " + pc(p.trail_peak) + " · sai em +" + f(p.trail_exit, 1) + "%" : "ainda não ligou") +
       row("Tempo de saída e regras desta posição", POS_DET.left(p)) +
       row("Antes da entrada (15 min)", p.antes ? "entrou a " + f(p.antes.pos_pct, 0) + "% da faixa (0% = fundo, 100% = topo) · tinha subido " + (p.antes.subiu_antes_pct == null ? "–" : pc(p.antes.subiu_antes_pct)) + " desde o mínimo" : "sem dado (o token não era acompanhado antes da compra)") +
+      row("Consultas às APIs", apiUsedHtml(p.api, false)) +
       row("Fotos a cada 15 min", (p.snaps || []).length ? (p.snaps || []).map((x) => x.min + " min: " + (x.chg == null ? "–" : (x.chg > 0 ? "+" : "") + f(x.chg, 1) + "%") + (x.best != null ? " (pico " + f(x.best, 0) + "%)" : "")).join(" · ") : "a primeira foto sai com 15 min de posição") +
       "</tbody></table></div>";
     if ($("posM").hidden) { $("posM").hidden = false; $("posMX").focus(); }
@@ -3002,6 +3013,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       (fp.slippage > 0 ? row("Slippage simulado", s4(fp.slippage) + ' SOL <span class="muted small">já está no preço, fora das taxas</span>') : "") +
       row("Líquido", sg(t.pnl_sol)) +
       row("Atraso da entrada", t.lag_s == null ? "–" : f(t.lag_s, 1) + " s") +
+      row("Consultas às APIs", t.api ? apiUsedHtml(t.api, true) : '<span class="muted">não guardado (trade fechado antes da versão 0.32.220)</span>') +
       row("Vendas", (t.sells || []).length ? (t.sells || []).map((s) => dt(s.at) + " · " + f((s.frac || 0) * 100, 0) + "% · " + s4(s.sol) + " SOL" + (s.why ? " · " + esc(s.why) : "")).join("<br>") : "–") +
       "</tbody></table></div>" + '<p class="muted small" style="margin-top:8px">No Histórico ficam todas as fechadas; em Base geral → Aprendizado das posições, se saiu cedo ou na hora certa (1 h depois de fechar).</p>';
     POS_ID = null; $("posM").hidden = false; $("posMX").focus();
@@ -4527,7 +4539,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<div class="pc-var"><small>Variação</small><b>' + pc(chg) + "</b>" + posSpark(p) + "</div></div>" + range +
       '<dl class="pc-grid">' + st("Investido", s4(p.sol_in) + " SOL") + st("Vale agora", p.value_sol == null ? "–" : s4(p.value_sol) + " SOL") +
       st("Já vendido", s4(p.proceeds || 0) + " SOL") + st("Melhor / pior", pc(p.best_pct) + " / " + pc(p.worst_pct)) +
-      st("Mcap", (p.mcap_in ? f(p.mcap_in, 0) : "–") + " → " + (p.mcap_now ? f(p.mcap_now, 0) : "–") + " SOL") + st("Volume 1 h", v.h1 == null ? "–" : uk(v.h1) + ' <span class="dim">' + (v.buys_h1 || 0) + "c/" + (v.sells_h1 || 0) + "v</span>") + "</dl>" +
+      st("Mcap", (p.mcap_in ? f(p.mcap_in, 0) : "–") + " → " + (p.mcap_now ? f(p.mcap_now, 0) : "–") + " SOL") + st("Volume 1 h", v.h1 == null ? "–" : uk(v.h1) + ' <span class="dim">' + (v.buys_h1 || 0) + "c/" + (v.sells_h1 || 0) + "v</span>") +
+      st("Requisições de API", (p.api && p.api.apis && p.api.apis.length) ? '<button class="linkbtn" data-posdet="' + esc(id) + '" title="' + esc(p.api.apis.map((x) => x.api + ": " + nreq(x.requisicoes)).join(" · ")) + '">' + nreq(p.api.apis.reduce((a, x) => a + (x.requisicoes || 0), 0)) + " req.</button> <span class=\"dim\">" + esc(p.api.apis.slice(0, 2).map((x) => x.api.split(" ")[0]).join(", ")) + "</span>" : "–") + "</dl>" +
       '<div class="pc-sec"><div><small>Sai por tempo em</small>' + leftTxt + (h != null && h < 3e8 ? '<small class="dim">limite ' + hms(h) + "</small>" : "") + "</div>" +
       (p.selling ? "" : '<div class="pc-chips">' + btn("+30 min", "hold", { id: p.id, add: 30 }, "chip") + btn("+1 h", "hold", { id: p.id, add: 60 }, "chip") + btn("Sem limite", "hold", { id: p.id, add: "none" }, "chip") + "</div>") + "</div>" +
       (p.selling ? "" : '<div class="pc-rules"><div class="pc-src">Regras vêm de: <a href="#' + srcTela + '">' + esc(srcNome) + '</a> · o ON/OFF abaixo muda só esta posição</div>' +

@@ -37,7 +37,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 
-from . import stkeys, txguard
+from . import apiusage, stkeys, txguard
 from .settings import USER_KEYS
 
 log = logging.getLogger("pumpfun")
@@ -988,6 +988,8 @@ class PumpFun:
         return self.store.positions()
 
     def _save_pos(self, p: dict) -> None:
+        if "api0" not in p and p.get("mint"):          # 0.32.220: foto do gasto das APIs desta moeda na abertura
+            p["api0"], p["api0_boot"] = apiusage.mint_snapshot(p["mint"]), apiusage.BOOT
         self.store.save_pos(p)
         self._auto_record(p, closed=False)
 
@@ -996,6 +998,11 @@ class PumpFun:
 
     def trades(self, limit: int = 1000) -> list[dict]:
         return self.store.trades(limit)
+
+    @staticmethod
+    def api_used(p: dict) -> dict:
+        """0.32.220 (pedido do dono): requisições de cada API gastas com esta posição desde que abriu."""
+        return apiusage.mint_used(p.get("mint") or "", p.get("api0"), p.get("api0_boot"))
 
     def _save_trade(self, t: dict) -> None:
         self.store.save_trade(t)
@@ -1665,6 +1672,7 @@ class PumpFun:
             if p.get("eq"):
                 tr["eq"] = True                            # 0.32.4: Copiar igual
             self._post_open(p, tr, px, t)                  # 0.32.33: segue o preço 15/30/60 min depois da saída
+            tr["api"] = self.api_used(p)                  # 0.32.220: gasto das APIs com esta moeda
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -3734,6 +3742,9 @@ class PumpFun:
         return None
 
     async def risk_check(self, mint: str, key: str) -> None:
+        return await apiusage.for_mints([mint], self._risk_check_run(mint, key))     # 0.32.220
+
+    async def _risk_check_run(self, mint: str, key: str) -> None:
         """Busca a nota de risco do token (cache de 10 min; falha tenta de novo em 1 min). Só com chave."""
         tk = self.tokens.setdefault(mint, {"created_t": time.time()})
         if not key or time.time() < (tk.get("risk_next") or 0):
@@ -3761,6 +3772,9 @@ class PumpFun:
             self.blacklist_add(tk["creator"], "dev", f"token {tk.get('symbol') or short(mint)} deu rug (Solana Tracker)")
 
     async def holders_check(self, mint: str) -> None:
+        return await apiusage.for_mints([mint], self._holders_check_run(mint))       # 0.32.220
+
+    async def _holders_check_run(self, mint: str) -> None:
         """% do token nas 10 maiores carteiras (sem contar a curva/pool) — RPC grátis, cache de 60 s."""
         tk = self.tokens.setdefault(mint, {"created_t": time.time()})
         if time.time() - (tk.get("top10_t") or 0) < 60:
@@ -3964,6 +3978,10 @@ class PumpFun:
                 log.warning("Pump.fun: transação %s: %s", sig[:12], e)
 
     async def _fetch_prices(self, mints: list[str], set_price: bool = True) -> None:
+        # 0.32.220: o gasto das APIs desta consulta fica dividido entre as moedas consultadas
+        return await apiusage.for_mints(mints, self._fetch_prices_run(mints, set_price))
+
+    async def _fetch_prices_run(self, mints: list[str], set_price: bool = True) -> None:
         """Preço (em SOL), símbolo, market cap e VOLUME pela DexScreener (até 30 tokens por consulta, grátis).
         set_price=False: só os dados de mercado (o preço vem da curva on-chain, mais rápido)."""
         sol_usd = self.sol_usd or 0
@@ -4115,6 +4133,10 @@ class PumpFun:
         return dec
 
     async def _pumpswap_prices(self, mints: list[str], public_first: bool = False, qty: dict | None = None) -> list[str]:
+        # 0.32.220: o gasto das APIs desta consulta fica dividido entre as moedas consultadas
+        return await apiusage.for_mints(mints, self._pumpswap_prices_run(mints, public_first, qty))
+
+    async def _pumpswap_prices_run(self, mints: list[str], public_first: bool = False, qty: dict | None = None) -> list[str]:
         """Preço AO VIVO de tokens já graduados (PumpSwap/outras DEXs): cotação da Jupiter para VENDER a quantidade
         que o bot segura (preço executável de verdade, com impacto). Obs.: o saldo dos cofres do pool NÃO dá o preço
         certo (testado: ~9% de diferença), por isso a cotação. Devolve os que não deu para cotar.
@@ -4182,6 +4204,10 @@ class PumpFun:
             await asyncio.sleep(max(0.3, dt) if dt > 0 else 5)
 
     async def _curve_prices(self, mints: list[str], public_first: bool = False) -> list[str]:
+        # 0.32.220: o gasto das APIs desta consulta fica dividido entre as moedas consultadas
+        return await apiusage.for_mints(mints, self._curve_prices_run(mints, public_first))
+
+    async def _curve_prices_run(self, mints: list[str], public_first: bool = False) -> list[str]:
         """Preço AO VIVO direto da curva da pump.fun (conta on-chain: reservas virtuais) — 1 consulta para até 100
         tokens, grátis. Devolve os tokens que já graduaram (curva completa) ou que não são da curva."""
         pdas = {m: self.curve_pda(m) for m in mints}
@@ -4585,6 +4611,9 @@ class PumpFun:
                 self._save_pos(p)
 
     async def _real_buy(self, it: dict) -> None:
+        return await apiusage.for_mints([it.get("mint")], self._real_buy_run(it))     # 0.32.220: gasto da compra REAL na moeda
+
+    async def _real_buy_run(self, it: dict) -> None:
         mint, sym = it["mint"], it["symbol"]
         # 0.31.43 (sugestão do Bruxo + aprendizagem do bot: "a real não replica a fictícia"): toda desistência da compra
         # real fica no feed com o motivo e o par fictício (sim_id). A tela Real × fictícia junta isso e diz o que ajustar.
@@ -4675,6 +4704,10 @@ class PumpFun:
                 self._release_sim_exit(it["sim_id"])
 
     async def _real_do_sell(self, it: dict) -> None:
+        pm = next((x for x in self.positions() if x["id"] == it["id"]), None)
+        return await apiusage.for_mints([(pm or {}).get("mint")], self._real_do_sell_run(it))   # 0.32.220
+
+    async def _real_do_sell_run(self, it: dict) -> None:
         p = next((x for x in self.positions() if x["id"] == it["id"]), None)
         if not p:
             return
@@ -4765,6 +4798,7 @@ class PumpFun:
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
                           closed_t=closed, closed_at=datetime.fromtimestamp(closed, timezone.utc).isoformat(),
                           exit_price=p.get("price_now"))
+            tr["api"] = self.api_used(p)                  # 0.32.220: gasto das APIs com esta moeda
             self._save_trade(tr)
             self._del_pos(p)
             self._after_close(tr)
@@ -4908,6 +4942,7 @@ class PumpFun:
                 # 0.32.28 (pedido do dono: "o ganho real do momento"): o que já vendeu + o que vale agora − o que investiu
                 p["pnl_now_sol"] = round(float(p.get("proceeds") or 0) + val - p["sol_in"], 6)
                 p["pnl_now_pct"] = round(p["pnl_now_sol"] / p["sol_in"] * 100, 2) if p["sol_in"] else None
+            p["api"] = self.api_used(p)                    # 0.32.220: gasto das APIs com esta moeda até agora
             tkp = self.tokens.get(p["mint"]) or {}
             # 0.31.69 (sugestão do Bruxo): tempo máximo desta posição e de onde ele vem, para a coluna "Tempo de saída"
             own = self._auto_num(p.get("max_hold_s"))
