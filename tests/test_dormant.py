@@ -140,3 +140,51 @@ def test_categories_come_one_coin_at_a_time_and_group():
     assert len(w.info) == 2 and all(v["cats"] == ["Meme", "Solana Ecosystem"] for v in w.info.values())
     g = w.state()["grupos"]
     assert g["blockchain"][0]["nome"] == "Solana" and g["categoria"][0]["nome"] in ("Meme", "Solana Ecosystem")
+
+
+def test_last_three_actions_come_from_the_blockchain_and_waking_alerts():
+    """0.32.229 (áudio do Bruxo): a CoinGecko só diz a rede e o contrato; as últimas ações vêm da blockchain (GeckoTerminal)."""
+    import time as _t
+    now = _t.time()
+    trades = {"lista": []}
+
+    def iso(ts):
+        from datetime import datetime, timezone
+        return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def handler(req):
+        p = req.url.path
+        if req.url.host == "api.geckoterminal.com":
+            if p.endswith("/pools"):
+                assert "/networks/solana/tokens/So1/" in p
+                return httpx.Response(200, json={"data": [{"attributes": {"address": "POOL1", "name": "BONK / SOL"}}]})
+            assert p.endswith("/networks/solana/pools/POOL1/trades")
+            return httpx.Response(200, json={"data": [{"attributes": {"block_timestamp": iso(t), "kind": k, "volume_in_usd": "120.5",
+                                                                      "tx_from_address": "W", "tx_hash": "TX%d" % i}} for i, (t, k) in enumerate(trades["lista"])]})
+        if p.endswith("/coins/list"):
+            return httpx.Response(200, json=[{"id": "bonk", "name": "Bonk", "symbol": "bonk", "platforms": {"solana": "So1"}},
+                                             {"id": "bitcoin", "name": "Bitcoin", "symbol": "btc", "platforms": {}}])
+        if p.endswith("/coins/markets"):
+            return httpx.Response(200, json=[_row(i) for i in req.url.params["ids"].split(",")])
+        return httpx.Response(404)
+    w = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(handler)), None)
+    w.lista = [{"cmc": "bonk", "nome": "Bonk"}, {"cmc": "bitcoin", "nome": "Bitcoin"}]
+    asyncio.run(w.tick())
+    assert w.target("bonk") == ("solana", "solana", "So1") and w.target("bitcoin") is None      # rede própria não tem pool para ler
+    trades["lista"] = [(now - 90000, "buy")]                                                       # só negócio de mais de 24 h
+    import app.dormant as dm
+    dm.GT_EVERY_S, old = 0, dm.GT_EVERY_S
+    try:
+        assert asyncio.run(w.gt_step(now)) == "bonk"
+        b = w.chain["bonk"]
+        assert b["n24"] == 0 and b["pool"] == "POOL1" and len(b["last3"]) == 1 and not w.alertas
+        trades["lista"] = [(now - 60, "buy"), (now - 90000, "buy")]                                  # negociou agora depois de 25 h parada
+        assert asyncio.run(w.gt_step(now + dm.GT_AGAIN_S + 1)) == "bonk"
+    finally:
+        dm.GT_EVERY_S = old
+    a = w.alertas[0]
+    assert a["para"] == "acordou_chain" and "Solana" in a["por"][0] and w.chain["bonk"]["n24"] == 1
+    st = w.state()
+    bonk = [m for m in st["moedas"] if m["cmc"] == "bonk"][0]
+    assert bonk["bc"]["last3"][0]["kind"] == "compra" and st["blockchain"]["lidas"] == 1
+    assert [m for m in st["moedas"] if m["cmc"] == "bitcoin"][0]["rede_propria"]

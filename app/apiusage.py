@@ -31,6 +31,7 @@ APIS = [  # (host termina com, nome, limite mensal, limite por minuto)
     ("jup.ag", "Jupiter", None, None),
     ("pumpportal.fun", "PumpPortal", None, None),
     ("coingecko.com", "CoinGecko", 10_000, 100),                       # 0.32.227: Dormant (plano Demo grátis)
+    ("geckoterminal.com", "GeckoTerminal", None, 30),                   # 0.32.229: Dormant, últimas ações na blockchain
 ]
 SKIP = ("supabase.co", "supabase.in", "api.telegram.org", "github.com")
 MORE = [("publicnode.com", "RPC da BNB (publicnode)"), ("blockrazor.xyz", "RPC da BNB (blockrazor)"),

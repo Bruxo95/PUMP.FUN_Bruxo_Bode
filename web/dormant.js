@@ -8,7 +8,24 @@
   const TITLES = { visao: ["Visão geral", "o que acordou, o que deu pump ou dump e o que está dormindo"], moedas: ["Moedas", "todas as moedas da lista com a situação de cada uma"],
     grupos: ["Por blockchain e categoria", "as moedas da lista divididas por rede e por categoria"],
     config: ["Lista e regras", "chave da CoinGecko, regras e as moedas da lista"] };
-  const ST = { pump: "Pump", dump: "Dump", acordando: "Acordando", dormindo: "Dormindo", normal: "Normal", parada: "Parada", morta: "Morta", sem_cg: "Sem par" };
+  const ST = { pump: "Pump", dump: "Dump", acordando: "Acordando", dormindo: "Dormindo", normal: "Normal", parada: "Parada", morta: "Morta", sem_cg: "Sem par",
+    acordou_chain: "Acordou na blockchain", parada_chain: "Parada na blockchain" };
+  // 0.32.229 (áudio do Bruxo): as últimas 3 ações de cada moeda, lidas na blockchain (GeckoTerminal); link para o explorador da rede
+  const EXPL = { eth: "https://etherscan.io/tx/", bsc: "https://bscscan.com/tx/", solana: "https://solscan.io/tx/", base: "https://basescan.org/tx/",
+    arbitrum: "https://arbiscan.io/tx/", polygon_pos: "https://polygonscan.com/tx/", avax: "https://snowtrace.io/tx/", tron: "https://tronscan.org/#/transaction/",
+    optimism: "https://optimistic.etherscan.io/tx/", ton: "https://tonviewer.com/transaction/", "sui-network": "https://suiscan.xyz/mainnet/tx/" };
+  const n24 = (b) => (b.n24 >= 300 ? "300+" : String(b.n24 || 0));
+  function bcCell(m, full) {
+    const b = m.bc;
+    if (m.rede_propria) return '<span class="muted small">rede própria · sem pool para ler (usa a CoinGecko)</span>';
+    if (!m.bc_alvo) return '<span class="muted small">sem contrato conhecido</span>';
+    if (!b || !b.t) return '<span class="muted small">na fila para ler</span>';
+    if (b.sem_pool) return '<span class="muted small">sem pool de negociação achado</span>';
+    const L = (b.last3 || []).map((x) => '<div><span class="' + (x.kind === "compra" ? "c" : "v") + '">' + esc(x.kind) + "</span> US$ " + num(x.usd, x.usd >= 100 ? 0 : 2) + " · há " + ago(x.t) +
+      (x.tx && EXPL[b.net] ? ' · <a href="' + EXPL[b.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver</a>' : "") + "</div>").join("");
+    return '<div class="dmbc"><b>' + (b.ultima_t ? "última há " + ago(b.ultima_t) : "parada há mais de 24 h") + "</b>" +
+      ' <span class="muted">· ' + n24(b) + " negócios em 24 h</span>" + (full === false ? "" : L) + "</div>";
+  }
   const ST_ORD = ["acordando", "pump", "dump", "dormindo", "normal", "parada", "sem_cg", "morta"];
   const RG = [["pump_1h", "Pump: alta em 1 h de pelo menos", "%"], ["pump_24h", "Pump: ou alta em 24 h de pelo menos", "%"],
     ["dump_1h", "Dump: queda em 1 h de", "%"], ["dump_24h", "Dump: ou queda em 24 h de", "%"],
@@ -95,6 +112,8 @@
       ["Ligação com a CoinGecko", s.mapa_t ? "feita " + hora(s.mapa_t) + " (refeita toda semana)" : "ainda não"],
       ["Consultas", num(s.consultas, 0) + " desde " + hora(s.desde) + (s.limite_429 ? " · " + num(s.limite_429, 0) + " vezes pediu para esperar" : "")],
       ["Fotos guardadas", num(s.fotos, 0) + " de hora em hora (o volume “acima do normal” precisa de 24)"],
+      ["Blockchain (GeckoTerminal)", (() => { const b = (R && R.blockchain) || {}; return num(b.lidas || 0, 0) + " de " + num(b.vigiadas || 0, 0) + " moedas lidas · " + num(b.consultas || 0, 0) + " consultas" +
+        (b.limite_429 ? " · pediu para esperar " + num(b.limite_429, 0) + " vezes" : "") + (b.ultimo_erro ? " · último erro há " + ago(b.ultimo_erro_t) + ": " + esc(b.ultimo_erro) : ""); })()],
       ["Erros", num(s.erros, 0) + (s.ultimo_erro ? " · último há " + ago(s.ultimo_erro_t) + ": " + esc(s.ultimo_erro) : "")],
     ];
     $("sysMB").innerHTML = '<div class="tbl-wrap"><table class="systbl nocard"><tbody>' + rows.map((r) => "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>").join("") + "</tbody></table></div>";
@@ -115,6 +134,15 @@
     const vivas = M().filter((m) => m.h24 != null && m.status !== "parada");
     const up = vivas.slice().sort((a, b) => b.h24 - a.h24).slice(0, 8), dn = vivas.slice().sort((a, b) => a.h24 - b.h24).slice(0, 8);
     table("ovMv", ["Moeda", "24 h", "7 dias", "Situação"], up.concat(dn).map((m) => [coin(m), pc(m.h24), pc(m.d7), tag(m.status)]), "A primeira leitura ainda não terminou.");
+    const ev = [];
+    M().forEach((m) => ((m.bc && m.bc.last3) || []).forEach((x) => ev.push([x, m])));
+    ev.sort((a, b) => b[0].t - a[0].t);
+    const bs = (R && R.blockchain) || {};
+    $("ovBcSub").textContent = "as negociações mais recentes das moedas da lista, lidas direto da blockchain (GeckoTerminal) · " + num(bs.lidas || 0, 0) + " de " + num(bs.vigiadas || 0, 0) +
+      " moedas já lidas · cada uma é lida de novo a cada " + num(bs.a_cada_min || 30, 0) + " min · " + num(bs.paradas_24h || 0, 0) + " paradas há mais de 24 h";
+    table("ovBc", ["Quando", "Moeda", "Ação", "Valor", "Rede", "Transação"], ev.slice(0, 30).map(([x, m]) => ["há " + ago(x.t), "<b>" + esc(m.nome) + '</b> <small class="muted">' + esc(m.simbolo) + "</small>",
+      '<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", "US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), esc(m.chain_nome || ""),
+      x.tx && EXPL[m.bc.net] ? '<a href="' + EXPL[m.bc.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver na blockchain</a>' : "—"]), "A leitura da blockchain começa logo depois da primeira leitura da CoinGecko (1 moeda a cada 6 s).");
     const dorm = M().filter((m) => m.status === "dormindo").sort((a, b) => Math.abs(a.d30 || 0) - Math.abs(b.d30 || 0)).slice(0, 15);
     table("ovDm", ["Moeda", "Preço", "7 dias", "30 dias", "Volume 24 h", "Gráfico 7 dias", "Por quê"], dorm.map((m) => [coin(m), price(m.preco), pc(m.d7), pc(m.d30), usd(m.vol), spark(m.spark),
       '<small class="muted">' + esc((m.por || []).join(" · ")) + "</small>"]), "Nenhuma moeda dormindo agora.");
@@ -132,10 +160,11 @@
     $("mCat").innerHTML = '<option value="">Todas as categorias</option>' + Object.entries(cats).sort((a, b) => b[1] - a[1]).map((x) => '<option value="' + esc(x[0]) + '"' + (F.cat === x[0] ? " selected" : "") + ">" + esc(x[0]) + " · " + x[1] + "</option>").join("");
     let L = M().filter((m) => (!F.st || m.status === F.st) && (!F.ch || m.chain_nome === F.ch) && (!F.cat || (m.cats || []).includes(F.cat)) &&
       (!q || (m.nome + " " + m.simbolo + " " + m.cmc + " " + (m.chain_nome || "") + " " + (m.cats || []).join(" ")).toLowerCase().includes(q)));
-    const k = F.sort.replace("-", ""), dir = F.sort.startsWith("-") ? 1 : -1;
+    L.forEach((m) => { m.bc_t = m.bc && m.bc.t && !m.bc.sem_pool ? (m.bc.ultima_t || 1) : null; });
+    const k = F.sort.replace("-", "") === "bc" ? "bc_t" : F.sort.replace("-", ""), dir = F.sort.startsWith("-") ? 1 : -1;
     L = L.slice().sort((a, b) => k === "nome" ? String(a.nome).localeCompare(String(b.nome)) : ((a[k] == null) - (b[k] == null)) || dir * ((a[k] || 0) - (b[k] || 0)));
-    table("mT", ["Moeda", "Situação", "Preço", "1 h", "24 h", "7 dias", "30 dias", "Volume 24 h", "Valor de mercado", "Gráfico 7 dias"], L.slice(0, 400).map((m) => [coin(m),
-      tag(m.status) + (m.por && m.por.length ? '<span class="dmwhy">' + esc(m.por.join(" · ")) + "</span>" : ""), price(m.preco), pc(m.h1), pc(m.h24), pc(m.d7), pc(m.d30),
+    table("mT", ["Moeda", "Situação", "Últimas 3 ações na blockchain", "Preço", "1 h", "24 h", "7 dias", "30 dias", "Volume 24 h", "Valor de mercado", "Gráfico 7 dias"], L.slice(0, 400).map((m) => [coin(m),
+      tag(m.status) + (m.por && m.por.length ? '<span class="dmwhy">' + esc(m.por.join(" · ")) + "</span>" : ""), bcCell(m), price(m.preco), pc(m.h1), pc(m.h24), pc(m.d7), pc(m.d30),
       usd(m.vol) + (m.vol_x ? '<span class="dmwhy">' + num(m.vol_x, 1) + "× o normal</span>" : ""), usd(m.mcap), spark(m.spark)]), "Nenhuma moeda com esse filtro.");
     $("mSub").textContent = num(L.length, 0) + " moedas" + (L.length > 400 ? " · mostrando as 400 primeiras" : "") + " · gráfico = últimos 7 dias (CoinGecko)";
   }

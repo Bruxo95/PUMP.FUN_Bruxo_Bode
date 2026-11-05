@@ -49,6 +49,8 @@
   .dmres .r{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
   .dmres .r .sp{flex:1}
   .dmcats{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}.dmcats span{font-size:10px;color:var(--muted);background:rgba(255,255,255,.04);border-radius:4px;padding:0 5px}
+  .dmst.acordou_chain{color:#f59e0b;border-color:#f59e0b;background:rgba(245,158,11,.12)}.dmst.parada_chain{color:#6b7280;border-color:#374151}
+  .dmbc{font-size:11.5px;line-height:1.45}.dmbc b{font-size:12px}.dmbc .c{color:#22c55e}.dmbc .v{color:#ef4444}.dmbc a{color:var(--muted)}
   tr.dmgo{cursor:pointer}tr.dmgo:hover td{background:rgba(167,139,250,.06)}
 </style>
 </head>
@@ -90,7 +92,7 @@
       </div>
     </header>
     <main class="page">
-      <div class="dmnote"><b>Etapa 1 · só observa.</b> Vigia as moedas da sua watchlist da CoinMarketCap pela CoinGecko a cada 20 min e diz quais estão <b>dormindo</b>, <b>acordando</b>, num <b>pump</b> ou num <b>dump</b>. <b>Não compra nem vende nada.</b> Dados: <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>.</div>
+      <div class="dmnote"><b>Etapa 1 · só observa.</b> A CoinGecko diz em qual blockchain cada moeda está; as <b>últimas ações</b> (compras e vendas) vêm direto da blockchain. Vigia as moedas da sua watchlist a cada 20 min e diz quais estão <b>dormindo</b>, <b>acordando</b>, num <b>pump</b> ou num <b>dump</b>. <b>Não compra nem vende nada.</b> Dados: <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>.</div>
       <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
         <header><div><h2 id="sysMT">Leitura da CoinGecko</h2><div class="sub">de onde vêm os números</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
         <div id="sysMB"></div></div></div>
@@ -103,13 +105,15 @@
           <div class="card"><header><div><h2>Mais se mexeram em 24 h</h2><div class="sub">as que mais subiram e mais caíram (com negócio de verdade)</div></div></header>
             <div class="tbl-wrap tall"><table id="ovMv"></table></div></div>
         </div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Últimas ações na blockchain</h2><div class="sub" id="ovBcSub">as negociações mais recentes das moedas da lista, lidas direto da blockchain (GeckoTerminal)</div></div></header>
+          <div class="tbl-wrap tall"><table id="ovBc"></table></div></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Dormindo há mais tempo</h2><div class="sub">preço preso numa faixa estreita · as que podem acordar</div></div></header>
           <div class="tbl-wrap"><table id="ovDm"></table></div></div>
       </section>
       <section class="view" data-view="moedas" hidden>
         <div class="dmbar"><button class="btn primary sm" type="button" data-dmadd="1">+ Adicionar moeda</button><select class="in" id="mChain" aria-label="Blockchain"></select><select class="in" id="mCat" aria-label="Categoria"></select></div>
         <div class="dmbar"><div class="seg" id="mFilt"></div><input class="in" id="mQ" type="search" placeholder="Buscar moeda" aria-label="Buscar moeda">
-          <select class="in" id="mSort" aria-label="Ordenar"><option value="h24">Maior alta em 24 h</option><option value="-h24">Maior queda em 24 h</option><option value="h1">Maior alta em 1 h</option><option value="d7">Maior alta em 7 dias</option><option value="d30">Maior alta em 30 dias</option><option value="vol_x">Volume acima do normal</option><option value="mcap">Valor de mercado</option><option value="nome">Nome</option></select></div>
+          <select class="in" id="mSort" aria-label="Ordenar"><option value="h24">Maior alta em 24 h</option><option value="-h24">Maior queda em 24 h</option><option value="h1">Maior alta em 1 h</option><option value="d7">Maior alta em 7 dias</option><option value="d30">Maior alta em 30 dias</option><option value="vol_x">Volume acima do normal</option><option value="bc">Negociou por último na blockchain</option><option value="-bc">Mais tempo parada na blockchain</option><option value="mcap">Valor de mercado</option><option value="nome">Nome</option></select></div>
         <div class="card"><div class="tbl-wrap"><table id="mT"></table></div><div class="sub" id="mSub" style="margin-top:8px"></div></div>
       </section>
       <section class="view" data-view="grupos" hidden>

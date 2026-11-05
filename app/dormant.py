@@ -53,6 +53,22 @@ CHAIN_NAMES = {PROPRIA: "Blockchain própria", "ethereum": "Ethereum", "binance-
                "polkadot": "Polkadot", "kusama": "Kusama", "stellar": "Stellar", "waves": "Waves", "algorand": "Algorand",
                "hedera-hashgraph": "Hedera", "the-open-network": "TON", "sui": "Sui", "aptos": "Aptos", "robinhood": "Robinhood Chain",
                "hyperevm": "HyperEVM", "sonic": "Sonic", "cardano": "Cardano", "zksync": "zkSync", "linea": "Linea", "mantle": "Mantle"}
+# 0.32.229 (áudio do Bruxo, 05/11: "a CoinGecko só serve para saber a blockchain; tem que entrar na blockchain e ver as
+# últimas 3 ações"): as negociações vêm da GeckoTerminal, que lê os pools direto de cada blockchain (grátis, sem chave,
+# 30 consultas por minuto; conferido em 05/11/2026 com o PEPE na Ethereum). Rede da CoinGecko → rede da GeckoTerminal:
+GT = "https://api.geckoterminal.com/api/v2"
+GT_NET = {"ethereum": "eth", "binance-smart-chain": "bsc", "solana": "solana", "base": "base", "arbitrum-one": "arbitrum",
+          "polygon-pos": "polygon_pos", "avalanche": "avax", "tron": "tron", "optimistic-ethereum": "optimism",
+          "the-open-network": "ton", "sui": "sui-network", "cronos": "cro", "fantom": "ftm", "sonic": "sonic", "mantle": "mantle",
+          "linea": "linea", "robinhood": "robinhood", "chiliz": "chiliz-chain", "klay-token": "kaia", "xdai": "xdai",
+          "near-protocol": "near", "hyperevm": "hyperevm", "energi": "nrg", "harmony-shard-0": "one", "moonbeam": "glmr",
+          "moonriver": "movr", "aurora": "aurora", "celo": "celo", "kava": "kava", "stellar": "stellar", "cardano": "cardano",
+          "aptos": "aptos"}
+GT_EVERY_S = 6.0                       # 10 por minuto: o limite grátis anunciado é 30, mas em 05/11 já pediu para esperar antes disso
+GT_AGAIN_S = 30 * 60                   # cada moeda é olhada de novo a cada ~30 min
+POOL_KEEP_S = 7 * 86400                # o pool principal do token é procurado de novo toda semana
+GT_PAUSE_S = 120
+ACORDOU_GAP_S = 6 * 3600               # acordou na blockchain: negociou agora depois de 6 h ou mais parada
 CG_URL = re.compile(r"coingecko\.com/(?:[a-z-]+/)?coins/([a-z0-9-]+)", re.I)
 
 
@@ -161,6 +177,12 @@ class DormantWatch:
         self.plat: dict[str, list[str]] = {}         # id → blockchains onde o token existe (da lista da CoinGecko)
         self.info: dict[str, dict] = {}              # id → {"cats": categorias, "plat": blockchain principal, "t": quando}
         self.cgnames: dict[str, tuple] = {}          # última lista da CoinGecko (só memória, para a busca)
+        self.addr: dict[str, dict] = {}              # 0.32.229: id → {blockchain: contrato}
+        self.gtpool: dict[str, dict] = {}            # id → {"net", "pool", "t"} (pool principal na GeckoTerminal)
+        self.chain: dict[str, dict] = {}             # id → últimas ações na blockchain ({"last3", "n24", "ultima_t", "t", …})
+        self.gstat = {"consultas": 0, "erros": 0, "ultimo_erro": None, "ultimo_erro_t": None, "limite_429": 0, "ultima_t": None}
+        self._gt_pause = 0.0
+        self._gt_n = 0
         self._info_at = 0.0
         self.cfg = dict(CFG_DEFAULT)
         self.map: dict[str, list[str]] = {}
@@ -213,7 +235,8 @@ class DormantWatch:
         cg = await self.get("/coins/list", {"include_platform": "true"})
         if not isinstance(cg, list) or not cg:
             raise RuntimeError("lista da CoinGecko veio vazia")
-        self.cgnames = {c["id"]: (c.get("name") or "", c.get("symbol") or "", [k for k in (c.get("platforms") or {}) if k])
+        self.cgnames = {c["id"]: (c.get("name") or "", c.get("symbol") or "", [k for k in (c.get("platforms") or {}) if k],
+                                  {k: v for k, v in (c.get("platforms") or {}).items() if k and v})
                         for c in cg if c.get("id")}
         return cg
 
@@ -223,6 +246,8 @@ class DormantWatch:
         for e in self.extras:
             self.map["cg:" + e["cg"]] = [e["cg"]]
         self.plat = {i: list(self.cgnames.get(i, ("", "", []))[2]) for c in self.map.values() for i in c}
+        self.addr = {i: dict(self.cgnames.get(i, ("", "", [], {}))[3]) for c in self.map.values() for i in c}
+        await self._put("addr", {"a": self.addr})
         self.map_t = time.time()
         self.stat["mapa_t"] = self.map_t
         await self._put("map", {"t": self.map_t, "m": self.map})
@@ -271,7 +296,7 @@ class DormantWatch:
         else:
             n, ql = norm(q), q.lower()
             score = []
-            for cid, (name, sym, _) in self.cgnames.items():
+            for cid, (name, sym, *_) in self.cgnames.items():
                 s = 0 if cid == ql else 1 if sym.lower() == ql or norm(name) == n else 2 if norm(name).startswith(n) else 3 if n and n in norm(name) else None
                 if s is not None:
                     score.append((s, len(name), cid))
@@ -287,7 +312,7 @@ class DormantWatch:
         have = {e["cg"] for e in self.extras} | set(self.pick.values())
         out = []
         for cid in ids:
-            name, sym, plats = self.cgnames.get(cid, ("", "", []))
+            name, sym, plats = self.cgnames.get(cid, ("", "", [], {}))[:3]
             r = rows.get(cid) or {}
             out.append({"id": cid, "nome": name, "simbolo": sym.upper(), "blockchains": [chain_name(p) for p in plats[:4]] or [chain_name(PROPRIA)],
                         "preco": r.get("current_price"), "mcap": r.get("market_cap"), "vol": r.get("total_volume"), "img": r.get("image"),
@@ -305,11 +330,12 @@ class DormantWatch:
             raise ValueError("não achei essa moeda na CoinGecko")
         if cid in {e["cg"] for e in self.extras} or cid in set(self.pick.values()):
             raise ValueError("essa moeda já está na lista")
-        name, sym, plats = self.cgnames[cid]
+        name, sym, plats, adr = self.cgnames[cid]
         e = {"cg": cid, "nome": name, "simbolo": sym.upper(), "por": por or "admin", "por_id": por_id, "t": time.time()}
         self.extras.append(e)
         self.map["cg:" + cid] = [cid]
         self.plat[cid] = list(plats)
+        self.addr[cid] = dict(adr)
         await self._put("extras", {"e": self.extras})
         self.refresh_now()
         return e
@@ -417,6 +443,12 @@ class DormantWatch:
                         self.plat = dict(v.get("p") or {})
                     elif r.get("k") == "info":
                         self.info = dict(v.get("i") or {})
+                    elif r.get("k") == "addr":
+                        self.addr = dict(v.get("a") or {})
+                    elif r.get("k") == "gtpool":
+                        self.gtpool = dict(v.get("p") or {})
+                    elif r.get("k") == "chain":
+                        self.chain = dict(v.get("c") or {})
                 since = datetime.fromtimestamp(time.time() - 8 * 86400, timezone.utc).isoformat()
                 rows = await self.db.select("dormant_snap", None, order="t.asc", limit=24 * 8 + 5, gte={"t": since}) or []
                 self.snaps = [{"t": int(datetime.fromisoformat(str(r["t"]).replace("Z", "+00:00")).timestamp()), "d": r.get("dados") or {}} for r in rows]
@@ -435,7 +467,7 @@ class DormantWatch:
         now = time.time()
         if now < self._pause_until:
             return
-        if not self.map or now - self.map_t > MAP_EVERY_S:
+        if not self.map or now - self.map_t > MAP_EVERY_S or (self.map and not self.addr):   # 0.32.229: precisa dos contratos
             await self.refresh_map()
         if now >= self._next:
             await self.refresh_markets()
@@ -443,19 +475,128 @@ class DormantWatch:
         else:
             await self.info_step(now)
 
-    async def run(self) -> None:
-        await self.load()
+    # ------------------------------------------------------------------ últimas ações na blockchain (0.32.229)
+    def target(self, cid: str) -> tuple[str, str, str] | None:
+        """(blockchain da CoinGecko, rede da GeckoTerminal, contrato) da moeda; None = rede própria ou sem contrato."""
+        ch = self.chain_of(cid)
+        adr = self.addr.get(cid) or {}
+        if not ch or ch == PROPRIA:
+            return None
+        if ch in GT_NET and adr.get(ch):
+            return ch, GT_NET[ch], adr[ch]
+        for k, v in adr.items():                    # a principal sem pool conhecido: tenta outra rede onde ele existe
+            if k in GT_NET and v:
+                return k, GT_NET[k], v
+        return None
+
+    async def gt_get(self, path: str):
+        self.gstat["consultas"] += 1
+        r = await self.http.get(GT + path, headers={"accept": "application/json", "User-Agent": "pump-fun-copy/1.0"}, timeout=30)
+        if r.status_code == 429:
+            self.gstat["limite_429"] += 1
+            self._gt_pause = time.time() + GT_PAUSE_S
+            raise RuntimeError("a GeckoTerminal pediu para esperar")
+        if r.status_code == 404:
+            return None
+        if r.status_code != 200:
+            raise RuntimeError(f"GeckoTerminal respondeu HTTP {r.status_code}")
+        return r.json()
+
+    def gt_next(self, now: float) -> str | None:
+        ids = [c for c in dict.fromkeys(self.pick.values()) if self.target(c)]
+        due = [c for c in ids if now - float((self.chain.get(c) or {}).get("t") or 0) >= GT_AGAIN_S]
+        return min(due, key=lambda c: float((self.chain.get(c) or {}).get("t") or 0)) if due else None
+
+    @staticmethod
+    def _ts(s) -> float | None:
+        try:
+            return datetime.fromisoformat(str(s).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return None
+
+    async def gt_step(self, now: float | None = None) -> str | None:
+        now = now or time.time()
+        if now < self._gt_pause:
+            return None
+        cid = self.gt_next(now)
+        if not cid:
+            return None
+        ch, net, adr = self.target(cid)
+        old = self.chain.get(cid) or {}
+        pool = self.gtpool.get(cid) or {}
+        if not pool or pool.get("net") != net or now - float(pool.get("t") or 0) > POOL_KEEP_S:
+            r = await self.gt_get(f"/networks/{net}/tokens/{adr}/pools?page=1")
+            ps = (r or {}).get("data") or []
+            pool = {"net": net, "pool": ((ps[0].get("attributes") or {}).get("address") if ps else None), "t": now,
+                    "nome": ((ps[0].get("attributes") or {}).get("name") if ps else None)}
+            self.gtpool[cid] = pool
+            await self._put("gtpool", {"p": self.gtpool})
+            if not pool["pool"]:
+                self.chain[cid] = {"t": now, "net": net, "sem_pool": True}
+                return cid
+            await asyncio.sleep(GT_EVERY_S)
+        r = await self.gt_get(f"/networks/{net}/pools/{pool['pool']}/trades")
+        tr = []
+        for t in (r or {}).get("data") or []:
+            a = t.get("attributes") or {}
+            ts = self._ts(a.get("block_timestamp"))
+            if ts:
+                tr.append({"t": ts, "kind": "compra" if a.get("kind") == "buy" else "venda",
+                           "usd": round(float(a.get("volume_in_usd") or 0), 2), "wallet": a.get("tx_from_address"), "tx": a.get("tx_hash")})
+        tr.sort(key=lambda x: -x["t"])
+        dia = [x for x in tr if x["t"] >= now - 86400]
+        novo = {"t": now, "net": net, "rede": ch, "pool": pool["pool"], "pool_nome": pool.get("nome"), "last3": tr[:3],
+                "n24": len(dia), "compras24": sum(1 for x in dia if x["kind"] == "compra"),
+                "usd24": round(sum(x["usd"] for x in dia), 2), "ultima_t": tr[0]["t"] if tr else old.get("ultima_t")}
+        # acordou: estava parado (sem negócio em 24 h, ou 6 h+ entre a última e a anterior) e negociou agora há pouco
+        parado_antes = (old.get("t") and not old.get("n24")) or (len(tr) >= 2 and tr[0]["t"] - tr[1]["t"] >= ACORDOU_GAP_S)
+        if tr and parado_antes and now - tr[0]["t"] <= 3600 and old.get("ultima_t") != tr[0]["t"]:
+            gap = tr[0]["t"] - (tr[1]["t"] if len(tr) >= 2 else float(old.get("ultima_t") or 0))
+            row = self.rows.get(cid) or {}
+            cmc = next((k for k, v in self.pick.items() if v == cid), cid)
+            self.alertas.insert(0, {"t": now, "cmc": cmc, "id": cid, "nome": row.get("name") or cid, "simbolo": (row.get("symbol") or "").upper(),
+                                    "de": "parada_chain", "para": "acordou_chain", "chain": True,
+                                    "por": [f"{tr[0]['kind']} de US$ {tr[0]['usd']:,.0f} na {chain_name(ch)}".replace(",", ".") +
+                                            (f" depois de {gap / 3600:.0f} h sem negócio" if gap and gap < 400 * 86400 else " depois de mais de 24 h sem negócio")],
+                                    "preco": row.get("current_price"), "h1": row.get("price_change_percentage_1h_in_currency"),
+                                    "h24": row.get("price_change_percentage_24h_in_currency")})
+            del self.alertas[300:]
+            await self._put("alertas", {"a": self.alertas[:300]})
+        self.chain[cid] = novo
+        self.gstat["ultima_t"] = now
+        self._gt_n += 1
+        if self._gt_n % 20 == 0:
+            await self._put("chain", {"c": self.chain})
+        return cid
+
+    async def gt_loop(self) -> None:
         while True:
             try:
-                await asyncio.wait_for(self.tick(), 120)
+                await asyncio.wait_for(self.gt_step(), 90)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                self.stat["erros"] += 1
-                self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = str(e)[:200], time.time()
-                self._next = time.time() + 120          # erro: tenta de novo em 2 min, não a cada volta
-                log.info("Dormant: %s", str(e)[:200])
-            await asyncio.sleep(20)
+                self.gstat["erros"] += 1
+                self.gstat["ultimo_erro"], self.gstat["ultimo_erro_t"] = str(e)[:200], time.time()
+            await asyncio.sleep(GT_EVERY_S)
+
+    async def run(self) -> None:
+        await self.load()
+        gt = asyncio.get_running_loop().create_task(self.gt_loop())   # mesma marca de uso (contextvar copiada)
+        try:
+            while True:
+                try:
+                    await asyncio.wait_for(self.tick(), 120)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    self.stat["erros"] += 1
+                    self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = str(e)[:200], time.time()
+                    self._next = time.time() + 120          # erro: tenta de novo em 2 min, não a cada volta
+                    log.info("Dormant: %s", str(e)[:200])
+                await asyncio.sleep(20)
+        finally:
+            gt.cancel()
 
     def refresh_now(self) -> None:
         self._next = 0.0
@@ -477,7 +618,8 @@ class DormantWatch:
             it = {"cmc": m["cmc"], "nome": m["nome"], "simbolo": m.get("simbolo") or "", "status": st, "por": why,
                   "morta_cmc": bool(m.get("morta_cmc")), "cg": cid, "chain": ch, "chain_nome": chain_name(ch) if ch else None,
                   "chains": [chain_name(p) for p in (self.plat.get(cid) or [])[:6]], "cats": (self.info.get(cid) or {}).get("cats") or [],
-                  "add_por": ex.get("por") or "watchlist da CoinMarketCap", "add_t": ex.get("t"), "extra": bool(ex)}
+                  "add_por": ex.get("por") or "watchlist da CoinMarketCap", "add_t": ex.get("t"), "extra": bool(ex),
+                  "bc": self.chain.get(cid) if cid else None, "bc_alvo": bool(cid and self.target(cid)), "rede_propria": ch == PROPRIA}
             if row:
                 it.update(nome=row.get("name") or m["nome"], simbolo=(row.get("symbol") or "").upper(), img=row.get("image"),
                           preco=row.get("current_price"), mcap=row.get("market_cap"), rank=row.get("market_cap_rank"),
@@ -489,6 +631,11 @@ class DormantWatch:
             moedas.append(it)
         return {"ligado": True, "carregado": self.loaded, "cfg": self.cfg, "padrao": CFG_DEFAULT, "nomes": STATUS,
                 "grupos": grupos(moedas),
+                "blockchain": {**self.gstat, "vigiadas": sum(1 for m in moedas if m.get("bc_alvo")),
+                               "lidas": sum(1 for m in moedas if m.get("bc") and m["bc"].get("t")),
+                               "paradas_24h": sum(1 for m in moedas if m.get("bc") and m["bc"].get("t") and not m["bc"].get("n24") and not m["bc"].get("sem_pool")),
+                               "sem_pool": sum(1 for m in moedas if m.get("bc") and m["bc"].get("sem_pool")),
+                               "pausa_s": max(0, round(self._gt_pause - time.time())), "a_cada_min": GT_AGAIN_S // 60},
                 "status": {**self.stat, "moedas": len(self.lista) + len(self.extras), "achadas": len(self.pick), "fotos": len(self.snaps),
                            "com_info": sum(1 for c in set(self.pick.values()) if c in self.info),
                            "pausa_s": max(0, round(self._pause_until - time.time())), "proxima_s": max(0, round(self._next - time.time())),
