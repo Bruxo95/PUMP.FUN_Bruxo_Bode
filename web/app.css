@@ -1027,3 +1027,8 @@ label.chgrp{cursor:pointer}
 /* 0.32.220 (pedido do dono): requisições das APIs gastas com cada posição */
 .apiuse{display:flex;flex-direction:column;gap:3px}.apiuse-r{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding:2px 0}
 .apiuse-r span:first-child{color:var(--muted)}.apiuse small{margin-top:4px;line-height:1.4}
+
+/* 0.32.221: janela do Comparar (o seu × o do outro) */
+.cxm-h{font-size:13.5px;margin:14px 0 6px;color:var(--text)}.cxm td:first-child{width:46%}.cxm-new{font-weight:700;color:var(--up,#22c55e)}
+.cxm-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+@media (max-width:860px){.cxm{font-size:12.5px}.cxm td:first-child{width:40%}.cxm th,.cxm td{padding:6px 5px}}

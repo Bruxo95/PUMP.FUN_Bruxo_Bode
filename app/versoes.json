@@ -1860,6 +1860,11 @@
    "versao": "0.32.220",
    "inicio": "2026-11-05T14:03:22+00:00",
    "titulo": "Requisições de API por posição"
+  },
+  {
+   "versao": "0.32.221",
+   "inicio": "2026-11-05T14:21:40+00:00",
+   "titulo": "Comparar abre janela com o seu e o do Bruxo"
   }
  ]
 }

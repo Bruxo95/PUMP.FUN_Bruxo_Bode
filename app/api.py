@@ -175,14 +175,16 @@ def create_app(hub, auth, cfg) -> FastAPI:
             raise HTTPException(403, "só o admin pode configurar as novas entradas automáticas")
         radar_keys = ("pump_radar_enabled", "pump_radar_min_wallets", "pump_radar_window_min")
         radar_before = {key: getattr(pf.cfg, key) for key in radar_keys}
-        applied, errors = pf.cfg.apply(body or {})
+        body = dict(body or {})
+        why = str(body.pop("_why", "") or "").strip()[:120]   # 0.32.221: de onde veio a troca (aparece no Histórico de config)
+        applied, errors = pf.cfg.apply(body)
         if applied:
             # 0.32.56: a pessoa mudou na tela — um ajuste antigo pedido no chat não volta a mexer nessas opções
             from datetime import datetime, timezone
             ov = pf.__dict__.setdefault("_ov_user", {})
             for key in applied:
                 ov[key] = datetime.now(timezone.utc).isoformat()
-            pf._cfg_why = "você mudou na tela"
+            pf._cfg_why = ("você " + why) if why else "você mudou na tela"
             await hub.save_settings(pf)
             if "pump_st_lucro_on" in applied:                # 0.32.211: a lista das que deram lucro sai na hora
                 import asyncio as _aio

@@ -90,3 +90,17 @@ def test_real_takes_the_sim_values_as_a_version_and_can_undo(env):
     assert any(a["acao"] == "configuração: desfez REAL igual à FICTÍCIA" for a in db.tables["audit_log"])
     assert c.post("/api/pump/config/real-da-ficticia/desfazer", json={"n": 1}, headers=A).json().get("error")   # versão de outra origem
     assert c.post("/api/pump/config/real-da-ficticia/desfazer", json={"n": "x"}, headers=A).json()["error"]
+
+
+def test_compare_apply_is_its_own_version_and_can_go_back(env):
+    """0.32.221 (pedido do dono): "deixar igual" do Comparar vira uma versão própria (com o nome de quem) e volta pelo histórico."""
+    c = env["c"]
+    A = tok(UA)
+    c.post("/api/pump/settings", json={"pump_stop_pct": 31}, headers=A)
+    n0 = c.get("/api/pump/config/historico", headers=A).json()["atual"]
+    r = c.post("/api/pump/settings", json={"pump_stop_pct": 25, "_why": "deixou igual à de Bruxo (Comparar)"}, headers=A).json()
+    assert not r.get("errors")
+    h = c.get("/api/pump/config/historico", headers=A).json()
+    assert h["atual"] == n0 + 1 and h["versoes"][0]["origem"] == "você deixou igual à de Bruxo (Comparar)"
+    c.post("/api/pump/config/historico/voltar", json={"n": n0, "keys": ["pump_stop_pct"]}, headers=A)
+    assert env["hub"].engines[UA].cfg.pump_stop_pct == 31

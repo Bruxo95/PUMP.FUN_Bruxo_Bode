@@ -3720,25 +3720,62 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (r.error) { $("cxaR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
     const V = r.valores || {}, nm = esc(r.nome), g = cxaGroups(r.dif);
     let undo = null; try { undo = JSON.parse(localStorage.getItem("pf_cxundo") || "null"); } catch (e) { undo = null; }
-    const un = undo && undo.vals && Object.keys(undo.vals).length ? '<div class="abcmp-undo">Última troca daqui: ' + dt(undo.t) + " (igual à de " + esc(undo.de || "?") + ") · " + Object.keys(undo.vals).length + ' opções <button class="btn sm" data-cxa="undo">Desfazer · voltar como estava</button></div>' : "";
+    const un = undo && undo.vals && Object.keys(undo.vals).length ? '<div class="abcmp-undo">Última troca daqui: ' + dt(undo.t) + " (igual à de " + esc(undo.de || "?") + ") · " + Object.keys(undo.vals).length + ' opções <button class="btn sm" data-cxa="undo">Desfazer · voltar como estava</button> <a class="btn sm ghost" href="#carteiras" data-cxa="hist">ver no Histórico de config</a></div>' : "";
     $("cxaR").innerHTML = un + (!r.dif.length ? '<div class="abcmp-ok">✓ Idêntica à de <b>' + nm + "</b> · " + r.L.length + " opções conferidas</div>"
       : '<div class="abcmp-dif"><b>' + r.dif.length + " diferente" + (r.dif.length > 1 ? "s" : "") + "</b> da de " + nm + " (" + (r.L.length - r.dif.length) + ' iguais) <button class="btn sm primary" data-cxa="all">Deixar tudo igual à de ' + nm + "</button></div>" +
         Object.keys(g).map((n, i) => '<details class="cxa-g" open><summary><b>' + esc(n) + '</b> <span class="muted">' + g[n].length + " diferente" + (g[n].length > 1 ? "s" : "") + '</span> <button class="btn sm" data-cxa="grp" data-i="' + i + '">Deixar igual só aqui</button> <a class="btn sm ghost" href="#' + esc(g[n][0].v) + '">abrir a tela</a></summary>' +
           '<div class="tbl-wrap"><table class="daytbl"><thead><tr><th>Opção</th><th>Sua</th><th>De ' + nm + "</th></tr></thead><tbody>" +
-          g[n].map((x) => "<tr><td>" + esc(x.label) + "</td><td>" + abcFv(cfgNow(x.k), x) + "</td><td><b>" + abcFv(V[x.k], x) + "</b></td></tr>").join("") + "</tbody></table></div></details>").join("")) +
+          g[n].map((x) => "<tr><td>" + esc(cxLabel(x)) + "</td><td>" + cxVal(x, cfgNow(x.k)) + "</td><td><b>" + cxVal(x, V[x.k]) + "</b></td></tr>").join("") + "</tbody></table></div></details>").join("")) +
       '<p class="muted small">Ficam fora da comparação: carteira REAL, chaves e Telegram. Os botões ON/OFF dentro de cada posição valem só para aquela posição e também não entram aqui.</p>';
   }
-  async function cxaSet(vals) {
-    const auto = Object.fromEntries(Object.entries(vals).filter(([k]) => isAutoCfg(k))), norm = Object.fromEntries(Object.entries(vals).filter(([k]) => !isAutoCfg(k)));
-    if (Object.keys(norm).length) await setCfg(norm);
-    if (Object.keys(auto).length) await setCfg(auto);
+  // 0.32.221 (pedido do dono: "abrir o modal como todas fazem, ver o meu e o do Bruxo antes"): a troca abre a janela com
+  // o seu × o dele, por tela e com o que cada valor quer dizer. Aplicar grava uma versão no Histórico de config; o Desfazer
+  // volta para a versão de antes pelo próprio histórico (o servidor guarda), não só pelo navegador.
+  const CX_NOME = { pump_ex_min_age_min: "Idade MÍNIMA do token para o Explorar entrar", pump_ex_max_age_min: "Idade MÁXIMA do token para o Explorar entrar" };
+  const cxLabel = (x) => CX_NOME[x.k] || x.label;
+  function cxVal(x, v) {
+    if (x.k === "pump_ex_min_age_min" && +v < 0) return "usa a mínima geral";
+    if (x.k === "pump_ex_max_age_min" && +v === 0) return "sem limite";
+    if (v === true) return '<span class="tag win">ligado</span>';
+    if (v === false) return '<span class="tag loss">desligado</span>';
+    return abcFv(v, x);
   }
-  async function cxaApply(rows, titulo) {
+  function cxaModal(pend) {
+    CXA.pend = pend;
+    const g = cxaGroups(pend.rows), nm = esc(pend.de), undo = pend.tipo === "undo";
+    $("cfgDiffT").textContent = undo ? "Voltar como estava" : pend.titulo;
+    $("cfgDiffS").textContent = pend.rows.length + " opç" + (pend.rows.length > 1 ? "ões vão" : "ão vai") + " mudar · o resto da sua configuração não muda";
+    $("cfgDiffB").innerHTML = '<div class="decbox">' + (undo ? "Estas opções voltam ao valor que tinham antes da troca de " + dt(pend.t) + "."
+        : "À esquerda o valor que <b>você</b> usa hoje; à direita o de <b>" + nm + "</b>, que passa a valer se você aplicar.") +
+      " Antes de mudar, a sua configuração atual fica salva no <b>Histórico de config</b> (Carteiras → Histórico de config) e dá para voltar a qualquer hora.</div>" +
+      Object.keys(g).map((n) => '<h3 class="cxm-h">' + esc(n) + "</h3>" + '<div class="tbl-wrap"><table class="daytbl nocard cxm"><thead><tr><th>Opção</th><th>' + (undo ? "Agora" : "O seu (agora)") + "</th><th>" + (undo ? "Volta para" : "O de " + nm) + "</th></tr></thead><tbody>" +
+        g[n].map((x) => "<tr><td>" + esc(cxLabel(x)) + "</td><td>" + cxVal(x, cfgNow(x.k)) + '</td><td class="cxm-new">' + cxVal(x, pend.vals[x.k]) + "</td></tr>").join("") + "</tbody></table></div>").join("") +
+      '<p class="cxm-act"><button class="btn primary" data-cxa="apply">' + (undo ? "Voltar como estava" : "Aplicar o de " + nm + " no meu") + '</button> <button class="btn" data-cxa="cancel">' + (undo ? "Cancelar" : "Não, deixar o meu") + "</button></p>";
+    $("cfgDiff").hidden = false; $("cfgDiffX").focus();
+  }
+  function cxaApply(rows, titulo) {
     const V = (CXA.r && CXA.r.valores) || {}; if (!rows.length) return;
-    if (!confirm(titulo + "\n\nVai mudar " + rows.length + " opç" + (rows.length > 1 ? "ões" : "ão") + ":\n" + rows.slice(0, 25).map((x) => "• " + x.label + ": " + String(cfgNow(x.k)) + " → " + String(V[x.k])).join("\n") + (rows.length > 25 ? "\n…" : "") + "\n\nDá para voltar no Desfazer ou no Histórico de config.")) return;
-    const antes = Object.fromEntries(rows.map((x) => [x.k, cfgNow(x.k)])), vals = Object.fromEntries(rows.map((x) => [x.k, V[x.k]]));
-    await cxaSet(vals);
-    try { localStorage.setItem("pf_cxundo", JSON.stringify({ t: Date.now(), de: CXA.r.nome, vals: antes })); } catch (e) { /* */ }
+    cxaModal({ tipo: "igual", titulo, de: CXA.r.nome, rows, vals: Object.fromEntries(rows.map((x) => [x.k, V[x.k]])) });
+  }
+  async function cxaDo() {
+    const pd = CXA.pend; if (!pd) return;
+    CXA.pend = null; $("cfgDiff").hidden = true;
+    const antes = Object.fromEntries(pd.rows.map((x) => [x.k, cfgNow(x.k)]));
+    let r;
+    if (pd.tipo === "undo" && pd.n > 1) {
+      r = await BB.api("/api/pump/config/historico/voltar", { body: { n: pd.n - 1, keys: Object.keys(pd.vals) } });
+      toast(r.error || "Voltou como estava (" + (r.mudou || 0) + " opções).");
+    } else {
+      r = await BB.api("/api/pump/settings", { body: { ...pd.vals, _why: pd.tipo === "undo" ? "desfez a troca do Comparar" : "deixou igual à de " + pd.de + " (Comparar)" } });
+      const errs = Object.entries(r.errors || {});
+      toast(r.error || (errs.length ? "Não aplicado: " + errs.map((e) => e[0].replace("pump_", "") + " (" + e[1] + ")").join(", ") : "Salvo."));
+    }
+    if (!r.error && pd.tipo !== "undo") {
+      let n = null;
+      try { const h = await BB.api("/api/pump/config/historico", { quiet: true }); n = (h && h.atual) || null; } catch (e) { /* */ }
+      try { localStorage.setItem("pf_cxundo", JSON.stringify({ t: Date.now(), de: pd.de, vals: antes, n })); } catch (e) { /* */ }
+    } else if (!r.error) { try { localStorage.removeItem("pf_cxundo"); } catch (e) { /* */ } }
+    poll(true);
     setTimeout(() => { loadCmpAll(true); checkCmpBar(true); }, 1500);
   }
   document.addEventListener("change", (e) => { if (e.target && e.target.id === "cxaU") { try { localStorage.setItem("pf_abcmp", e.target.value); } catch (er) { /* */ } CXA.peer = e.target.value; loadCmpAll(true).then(() => checkCmpBar(true)); } });
@@ -3750,11 +3787,13 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (a === "ok") { try { localStorage.setItem("pf_cxok", (CXA.r && CXA.r.sig) || ""); } catch (er) { /* */ } $("cmpBar").hidden = true; return; }
     if (a === "undo") {
       let u = null; try { u = JSON.parse(localStorage.getItem("pf_cxundo") || "null"); } catch (er) { u = null; }
-      if (!u || !confirm("Voltar " + Object.keys(u.vals).length + " opções como estavam antes da troca de " + dt(u.t) + "?")) return;
-      await cxaSet(u.vals);
-      try { localStorage.removeItem("pf_cxundo"); } catch (er) { /* */ }
-      setTimeout(() => { loadCmpAll(true); checkCmpBar(true); }, 1500); return;
+      if (!u || !u.vals) return;
+      const L = cfgItems(), rows = Object.keys(u.vals).map((k) => L.find((x) => x.k === k) || { k, label: cfgLabel(k), vt: "Outras", ct: "", unit: "" });
+      cxaModal({ tipo: "undo", titulo: "Voltar como estava", de: u.de, t: u.t, n: u.n, rows, vals: u.vals }); return;
     }
+    if (a === "apply") { cxaDo(); return; }
+    if (a === "hist") { e.preventDefault(); WALT = "hist"; walTab("hist"); if (typeof loadCfgHist === "function") loadCfgHist(); return; }
+    if (a === "cancel") { CXA.pend = null; $("cfgDiff").hidden = true; return; }
     e.preventDefault();
     if (!CXA.r || !CXA.r.dif) return;
     if (a === "all") cxaApply(CXA.r.dif, "Deixar tudo igual à de " + CXA.r.nome);
