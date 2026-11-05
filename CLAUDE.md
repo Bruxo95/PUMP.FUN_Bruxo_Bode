@@ -16,6 +16,7 @@ Futuros, Spot, Solana DEX, DEX-CEX, Relógio, Macro, Hermes/Jev e Gate.io ficara
 de onde está em `docs/ORIGEM.md`.
 Guia completo para usuários e desenvolvedores (uso, chaves, como as transações chegam à Solana e o papel de
 cada API): `docs/GUIA-DO-PROJETO.md`.
+**Arquitetura e divisão do banco (Supabase × Postgres da VPS), com diagramas:** `docs/ARQUITETURA.md`.
 
 - Produção: **https://pump.rachar.app.br** · versão no ar: `/health` (também no rodapé do painel)
 - Repositório: `github.com/Bruxo95/PUMP.FUN_Bruxo_Bode` (privado), branch `main`
