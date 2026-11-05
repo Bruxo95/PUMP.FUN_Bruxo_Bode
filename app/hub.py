@@ -269,6 +269,17 @@ class PumpHub:
                 labels[key_tag(k)] = "chave pessoal de " + (getattr(e, "_nome_cache", None) or e.user_id[:8])
         return us.view(labels)
 
+    async def arquivo_loop(self) -> None:
+        """0.32.225: a cada 30 min passa para o Postgres da VPS o que já não precisa ficar no Supabase (app/arquivo.py)."""
+        from .arquivo import VOLTA_S
+        await asyncio.sleep(120)                           # deixa a subida terminar antes
+        while True:
+            try:
+                await self.arquivo.volta(self.db)
+            except Exception as e:
+                log.warning("arquivo: volta falhou: %s", str(e)[:120])
+            await asyncio.sleep(VOLTA_S)
+
     async def usage_loop(self) -> None:
         from .apiusage import Usage
         us = self.__dict__.setdefault("usage", Usage())
@@ -954,6 +965,12 @@ class PumpHub:
                     for r in rows:
                         if r.get("fonte") != "_estado" and isinstance(r.get("data"), dict):
                             bt["cases"].setdefault(r["id"], dict(r["data"], fonte=r["fonte"]))
+                arq = getattr(self, "arquivo", None)
+                if arq is not None:                        # 0.32.225: os casos antigos ficam no Postgres da VPS
+                    async for rows in arq.pages("jev_backtest"):
+                        for r in rows:
+                            if r.get("fonte") != "_estado" and isinstance(r.get("data"), dict):
+                                bt["cases"].setdefault(r["id"], dict(r["data"], fonte=r["fonte"]))
             except Exception as e:
                 log.warning("estudo do passado do Jev não carregou: %s", str(e)[:120])
                 return
@@ -997,6 +1014,13 @@ class PumpHub:
                     if c:
                         yield c
         elif fonte == "base":
+            arq = getattr(self, "arquivo", None)
+            if arq is not None:                            # 0.32.225: tokens com mais de 7 dias ficam no Postgres da VPS
+                async for rows in arq.pages("token_life"):
+                    for r in rows:
+                        c = jev.case_base(r["mint"], r.get("data") or {}, r.get("criado_em")) if isinstance(r.get("data"), dict) else None
+                        if c:
+                            yield c
             async for rows in self._bt_pages("token_life", "mint,data,criado_em", "criado_em.asc"):
                 for r in rows:
                     c = jev.case_base(r["mint"], r.get("data") or {}, r.get("criado_em")) if isinstance(r.get("data"), dict) else None
@@ -3381,7 +3405,7 @@ class PumpHub:
             for i in range(0, len(crs), 500):
                 await self.db.insert("creator_stats", crs[i:i + 500], upsert=True, on_conflict="creator")
             await self.db.insert("lab_state", {"id": "live", "data": self.lab.dump_live()}, upsert=True, on_conflict="id")
-            if trim:                                     # guarda 14 dias de tokens (todos, para estudar; 0.24.0)
+            if trim and getattr(self, "arquivo", None) is None:   # 14 dias (0.24.0); com o arquivo ligado, ele move (0.32.225)
                 await self.db.rpc("trim_token_life", {"p_days": 14})
         except Exception:
             self.lab.new_rows = [dict(r["data"], mint=r["mint"], creator=r["creator"], label=r["label"]) for r in tl] + self.lab.new_rows
@@ -4623,6 +4647,8 @@ class PumpHub:
         self._tasks.append(run_as("Relatórios", self.result_loop()))         # 0.32.114: estudo do Resultado (dias fechados)
         self._tasks.append(run_as("Copiar igual", self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(run_as("Sistema", self.usage_loop()))          # 0.31.76: uso das APIs
+        if getattr(self, "arquivo", None) is not None:                     # 0.32.225: histórico no Postgres da VPS
+            self._tasks.append(run_as("Sistema", self.arquivo_loop()))
         self._tasks.append(run_as("Sistema", self.config_watch_loop()))
         from .monitor import SharedMonitor
         self.monitor = SharedMonitor(self)
@@ -4755,5 +4781,6 @@ class PumpHub:
                             "tokens": len(m.tokens), "wallets_seen": len(m.wallets)},
                 "shared_st_key": bool(self.shared_st_key),
                 "system_keys": {k: bool(self.system_keys.get(k)) for k in SYSTEM_NAMES},
+                "arquivo": self.arquivo.status() if getattr(self, "arquivo", None) is not None else {"ligado": False},
                 "db_errors": [{"user": uid[:8] + "…", "error": p.store.last_error, "queued": len(p.store._q)}
                               for uid, p in self.engines.items() if p.store.last_error or len(p.store._q) > 50]}

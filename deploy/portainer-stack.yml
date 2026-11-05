@@ -7,6 +7,9 @@
 ##   PUMP_REAL_ALLOWED          true = carteira REAL liberada; sem a variável = false (travada para todos)
 ##   SOLANA_RPC_PUBLIC          RPC próprio https (ex.: Helius); sem a variável = RPC público da Solana
 ##   PUMP_RPC_WS                o mesmo RPC em wss:// (WebSocket do monitor); sem a variável = público
+##   ARQUIVO_DB_PASSWORD        senha do usuário pump_arquivo_auth no Postgres da VPS (deploy/arquivo.sql)  [0.32.225]
+##   ARQUIVO_JWT_SECRET         segredo do PostgREST do arquivo (40+ letras e números, inventado por você)    [0.32.225]
+##   Sem as duas, o arquivo fica desligado e tudo funciona como antes (histórico só no Supabase).
 ## Nunca coloque os valores das chaves neste arquivo.
 version: "3.7"
 services:
@@ -30,6 +33,8 @@ services:
       - SOLANA_RPC_PUBLIC=${SOLANA_RPC_PUBLIC:-https://api.mainnet-beta.solana.com}
       - PUMP_RPC_WS=${PUMP_RPC_WS:-wss://api.mainnet-beta.solana.com}
       - PUMP_REAL_ALLOWED=${PUMP_REAL_ALLOWED:-false}
+      - ARQUIVO_URL=http://pump_arquivo_api:3000
+      - ARQUIVO_JWT_SECRET=${ARQUIVO_JWT_SECRET:-}
 
     # logs do container com limite (30 MB no máximo): o disco cheio de 01/11/2026 derrubou o site
     logging:
@@ -58,6 +63,37 @@ services:
         - traefik.http.routers.pump_bruxo_bode.service=pump_bruxo_bode
         - traefik.http.services.pump_bruxo_bode.loadbalancer.server.port=8080
         - traefik.http.services.pump_bruxo_bode.loadbalancer.passHostHeader=true
+
+  # 0.32.225: PostgREST na frente do banco pump_arquivo do Postgres da VPS (stack "postgres"). Sem porta e sem Traefik:
+  # só a rede interna; só aceita pedido com token assinado com ARQUIVO_JWT_SECRET (sem papel anônimo).
+  pump_arquivo_api:
+    image: postgrest/postgrest:v12.2.3
+
+    networks:
+      - vpsrachar
+
+    environment:
+      - PGRST_DB_URI=postgres://pump_arquivo_auth:${ARQUIVO_DB_PASSWORD:-sem_senha}@postgres:5432/pump_arquivo
+      - PGRST_DB_SCHEMAS=public
+      - PGRST_JWT_SECRET=${ARQUIVO_JWT_SECRET:-}
+      - PGRST_DB_POOL=5
+      - PGRST_DB_MAX_ROWS=5000
+      - PGRST_LOG_LEVEL=warn
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 10s
+      placement:
+        constraints:
+          - node.role == manager
 
 ## --------------------------- PUMP.FUN BRUXO BODE --------------------------- ##
 

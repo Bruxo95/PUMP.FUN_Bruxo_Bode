@@ -1036,3 +1036,7 @@ label.chgrp{cursor:pointer}
 /* 0.32.223: botão Corrigir no Status do sistema e destaque do campo onde se troca */
 .sysfix{margin-left:8px;padding:2px 10px;font-size:12px}
 .flashfix{outline:2px solid #f59e0b;outline-offset:4px;border-radius:10px;transition:outline-color .4s}
+
+/* 0.32.225: valor longo no Status geral (ex.: erro do arquivo) quebra linha em vez de sair do quadro */
+.cfgs .v{min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;justify-content:flex-end}
+.cfgs .k{flex-shrink:0;max-width:55%}

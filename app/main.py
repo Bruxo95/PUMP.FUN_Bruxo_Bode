@@ -37,6 +37,8 @@ def build_app():
     db = SupaREST(cfg.supabase_url, cfg.supabase_service_key, http)
     hub = PumpHub(cfg, http, db, SecretBox(cfg.encryption_key))
     hub.usage = usage
+    from .arquivo import Arquivo
+    hub.arquivo = Arquivo.from_env(http)               # 0.32.225: histórico no Postgres da VPS (ARQUIVO_URL + ARQUIVO_JWT_SECRET)
     # 0.32.168: leitura da BNB (Four.Meme), isolada: laço próprio, RPC grátis próprio e tabelas bnb_*; BNB_ON=false desliga
     hub.bnb = None
     if os.environ.get("BNB_ON", "true").lower() not in ("0", "false", "no", "off"):
@@ -45,6 +47,7 @@ def build_app():
         hub.bnb.vault = hub.vault                     # 0.32.172: chave da carteira BNB (cofre criptografado)
         hub.bnb.real_allowed = hub.real_allowed       # mesma trava geral da Solana (PUMP_REAL_ALLOWED)
         hub.bnb.key_fn = lambda: (getattr(hub, "system_keys", None) or {}).get("nodereal_bnb_key", "")   # 0.32.179
+        hub.bnb.arquivo = hub.arquivo
     # 0.32.208: leitura da Robinhood Chain, isolada: laço próprio, RPC grátis próprio e tabela hood_state; HOOD_ON=false desliga
     hub.hood = None
     if os.environ.get("HOOD_ON", "true").lower() not in ("0", "false", "no", "off"):

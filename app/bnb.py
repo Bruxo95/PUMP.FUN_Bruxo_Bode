@@ -1090,7 +1090,7 @@ class BnbWatch:
                                      upsert=True, on_conflict="k")
         except Exception as e:
             log.warning("BNB: não gravou o estado: %s", str(e)[:160])
-        if time.time() - self._trim_at > 86400:
+        if time.time() - self._trim_at > 86400 and getattr(self, "arquivo", None) is None:   # 0.32.225: com o arquivo, ele move
             self._trim_at = time.time()
             try:
                 await self.db.rpc("bnb_trim", {"antes": time.time() - DB_KEEP_S})
@@ -1110,6 +1110,13 @@ class BnbWatch:
                 off += len(rows)
                 if len(rows) < 5000 or off >= MAX_MEM:
                     break
+            arq = getattr(self, "arquivo", None)
+            if arq is not None:                            # 0.32.225: o que passou de 7 dias está no Postgres da VPS
+                async for rows in arq.pages("bnb_fm_trades", since, until):
+                    out += [{k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side", "price", "amount",
+                                                   "value", "fee", "t", "quote", "venue")} for r in rows]
+                    if len(out) >= MAX_MEM:
+                        break
         except Exception as e:
             log.warning("BNB: dias antigos não carregaram: %s", str(e)[:160])
         if out:

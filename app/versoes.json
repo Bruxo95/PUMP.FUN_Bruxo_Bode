@@ -1880,6 +1880,11 @@
    "versao": "0.32.224",
    "inicio": "2026-11-05T16:21:21+00:00",
    "titulo": "Carteira adicionada à mão passa a ser sua"
+  },
+  {
+   "versao": "0.32.225",
+   "inicio": "2026-11-05T20:50:17+00:00",
+   "titulo": "histórico no Postgres da VPS"
   }
  ]
 }

@@ -5281,7 +5281,10 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     $("adminS").innerHTML = [["Usuários cadastrados", A.users_total], ["Motores carregados", A.users_loaded], ["Com execução real ON", A.real_on], ["Trava do real (.env)", A.real_allowed ? "liberado" : "travado"],
       ["Monitor Solana", rpc.ws ? "conectado · " + (rpc.subs || 0) + " carteiras" : rpc.error || "desconectado"], ["Trades lidos / erros", (rpc.parsed || 0) + " / " + (rpc.tx_errors || 0)], ["PumpPortal (tokens novos)", pp.ws ? "conectado · " + (pp.new_tokens || 0) : pp.error || "desconectado"],
       ["Jupiter", j && j.on ? "ok " + (j.latency_ms || "") + " ms" : (j && j.error) || "–"], ["Preço do SOL", m.sol_usd ? "$" + f(m.sol_usd, 2) : "–"], ["Chaves do sistema", Object.entries(A.system_keys || {}).filter((x) => x[1]).map((x) => ({ solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", jupiter_api_key: "Jupiter", rpc_url: "RPC próprio", jev_api_key: "Jev" }[x[0]])).join(", ") || "nenhuma"], ["No ar há", hms(A.uptime_s)],
-      ["Erros de gravação no banco", (A.db_errors || []).length ? A.db_errors.map((e) => e.user + ": " + (e.error || e.queued + " gravações na fila")).join(" · ") : "nenhum"]]
+      ["Erros de gravação no banco", (A.db_errors || []).length ? A.db_errors.map((e) => e.user + ": " + (e.error || e.queued + " gravações na fila")).join(" · ") : "nenhum"],
+      // 0.32.225: histórico no Postgres da VPS (erro completo em Administração → Logs)
+      ["Arquivo (Postgres da VPS)", !(A.arquivo && A.arquivo.ligado) ? "desligado" : A.arquivo.ok === false ? "falhou (veja os Logs)" : A.arquivo.ok ? "ok" : "esperando a 1ª volta"],
+      ["Movidas para o arquivo", Object.values((A.arquivo || {}).movidas || {}).reduce((a, b) => a + b, 0).toLocaleString("pt-BR") + " linhas"]]
       .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + esc(x[1]) + "</span></div>").join("");
   }
 
