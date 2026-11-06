@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException
 
 from .db import DBError, audit
 from .dormant_buy import Buyer, BuyError
+from .dormant_cex import CexBuyer
 from .dormant_gas import GasFiller
 
 log = logging.getLogger("pump.dormant.compra")
@@ -242,6 +243,48 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             r = await GasFiller(buyer()).fill(u["id"], str(b.get("quote_id") or ""), b.get("senha"), str(b.get("confirmar") or ""))
             await audit(db, u["id"], "Dormant: abastecer gás", f"{r.get('origem_nome')} → {r.get('destino_nome')} · US$ {float(r.get('usd') or 0):.2f} · {r.get('status')} · {r.get('tx')}")
             return {"ok": True, "gas": r}
+        return await run(go())
+
+    # 0.32.247: comprar em exchange pela API. O par vem da CoinGecko e da exchange, nunca do navegador
+    @app.get("/api/dormant/cex")
+    async def cex_state(u: dict = Depends(own)):
+        return await run(CexBuyer(buyer()).state(u["id"]))
+
+    @app.get("/api/dormant/cex/moeda")
+    async def cex_offers(key: str = "", u: dict = Depends(own)):
+        return await run(CexBuyer(buyer()).offers(key[:200]))
+
+    @app.post("/api/dormant/cex/chave")
+    async def cex_save(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            ex = str(b.get("exchange") or "")
+            r = await CexBuyer(buyer()).save_key(u["id"], ex, b.get("api_key"), b.get("secret"), b.get("frase"), b.get("senha"), b.get("sem_saque") is True)
+            await audit(db, u["id"], "Dormant: chave de exchange salva", f"{ex} · {r['rotulo']}")     # nunca o segredo
+            return {"ok": True, **r}
+        return await run(go())
+
+    @app.post("/api/dormant/cex/chave/remover")
+    async def cex_del(body: dict, u: dict = Depends(own)):
+        async def go():
+            ex = str((body or {}).get("exchange") or "")
+            await CexBuyer(buyer()).remove_key(u["id"], ex)
+            await audit(db, u["id"], "Dormant: chave de exchange removida", ex)
+            return {"ok": True}
+        return await run(go())
+
+    @app.post("/api/dormant/cex/cotar")
+    async def cex_quote(body: dict, u: dict = Depends(own)):
+        b = body if isinstance(body, dict) else {}
+        return await run(CexBuyer(buyer()).preview(u["id"], str(b.get("key") or "")[:200], str(b.get("exchange") or ""), b.get("usd"), b.get("senha")))
+
+    @app.post("/api/dormant/cex/confirmar")
+    async def cex_go(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            r = await CexBuyer(buyer()).buy(u["id"], str(b.get("quote_id") or ""), b.get("senha"), str(b.get("confirmar") or ""))
+            await audit(db, u["id"], "Dormant: compra em exchange", f"{r.get('dex')} · {r.get('simbolo')} · ${float(r.get('usd_in') or 0):.2f} · {r.get('status')}")
+            return {"ok": True, "compra": r}
         return await run(go())
 
     @app.get("/api/dormant/compras")

@@ -9,6 +9,7 @@
     grupos: ["Por blockchain e categoria", "as moedas da lista divididas por rede e por categoria"],
     config: ["Lista e regras", "chave da CoinGecko, regras e as moedas da lista"],
     carteiras: ["Carteiras e compra", "as carteiras de cada blockchain, a senha de compra e os limites"],
+    exchanges: ["API exchanges", "as chaves de API das exchanges, para comprar sem precisar entrar no site"],
     compras: ["Minhas compras", "o que você comprou e vendeu, e quanto está ganhando em 1 h, 12 h, 24 h, 7 dias e no total"] };
   const ST = { pump: "Pump", dump: "Dump", acordando: "Acordando", dormindo: "Dormindo", normal: "Normal", parada: "Parada", morta: "Morta", sem_cg: "Sem par",
     acordou_chain: "Acordou na blockchain", parada_chain: "Parada na blockchain" };
@@ -104,7 +105,7 @@
       (m.extra ? '<a href="#" data-dmdel="' + esc(m.cmc) + '">tirar da lista</a>' : "") + "</div>" +
       (m.extra ? '<span class="dmby">adicionada por <b>' + esc(m.add_por) + "</b> · " + hora(m.add_t) + "</span>" : "") +
       ((m.cats || []).length ? '<div class="dmcats">' + m.cats.slice(0, 3).map((c) => "<span>" + esc(c) + "</span>").join("") + "</div>" : "") +
-      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button>' : "") + "</div></div>";
+      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button> ' : "") + (m.cg ? '<button type="button" class="btn sm dmbuy" data-dmcex="' + esc(m.cmc) + '">Exchanges</button>' : "") + "</div></div>";
   }
   function spark(p) {
     if (!p || p.length < 2) return "—";
@@ -232,7 +233,7 @@
     CM = { key, r: null, rng: CM && CM.rng || 30 };
     $("coinMH").innerHTML = (m.img ? '<img src="' + esc(m.img) + '" alt="">' : "") + '<div style="min-width:0"><h2 id="coinMT">' + esc(m.nome) + ' <small class="muted">' + esc(m.simbolo || "") + "</small></h2>" +
       '<div class="sub">' + tag(m.status) + (m.chain_nome ? " " + chainTag(m.chain_nome) : "") + (m.rank ? " · #" + esc(m.rank) + " em valor de mercado" : "") + "</div>" +
-      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button>' : "") + "</div>";
+      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button> ' : "") + (m.cg ? '<button type="button" class="btn sm dmbuy" data-dmcex="' + esc(m.cmc) + '">Exchanges</button>' : "") + "</div>";
     $("coinMB").innerHTML = coinBody(m, null);
     $("coinM").hidden = false;
     const r = await BB.api("/api/dormant/moeda?key=" + encodeURIComponent(key), { quiet: true });
@@ -379,9 +380,10 @@
   const REDE = { solana: "Solana", ethereum: "Ethereum", "binance-smart-chain": "BNB Chain", base: "Base", "polygon-pos": "Polygon", avalanche: "Avalanche", "arbitrum-one": "Arbitrum" };
   const MOEDA = { solana: "SOL", ethereum: "ETH", "binance-smart-chain": "BNB", base: "ETH", "polygon-pos": "POL", avalanche: "AVAX", "arbitrum-one": "ETH" };
   const LIM = [["max_usd", "Compras: máximo por compra", "$"], ["dia_usd", "Compras: máximo em 24 h", "$"], ["slip_pct", "Folga de preço (slippage)", "%"],
-    ["gas_max_usd", "Gás: máximo por abastecimento", "$"], ["gas_dia_usd", "Gás: máximo em 24 h", "$"]];
+    ["gas_max_usd", "Gás: máximo por abastecimento", "$"], ["gas_dia_usd", "Gás: máximo em 24 h", "$"],
+    ["cex_max_usd", "Exchange: máximo por compra", "$"], ["cex_dia_usd", "Exchange: máximo em 24 h", "$"]];
   let WAL = null;
-  const clearPass = () => ["wPass", "wPass2", "wPassN", "wPassN2", "buySenha", "buyOk", "askSenha", "askOk"].forEach((id) => { if ($(id)) $(id).value = ""; });
+  const clearPass = () => ["wPass", "wPass2", "wPassN", "wPassN2", "buySenha", "buyOk", "askSenha", "askOk", "xPass"].forEach((id) => { if ($(id)) $(id).value = ""; });
   async function loadWal() {
     const r = await BB.api("/api/dormant/carteiras", { quiet: true });
     if (!r || r.error) { $("wList").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler as carteiras") + "</span>"; return; }
@@ -673,11 +675,97 @@
       : '<div class="buywarn"><b>' + esc(c.status === "pendente" ? "Enviada, ainda sem confirmação." : "Confira esta venda.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>");
     drawCompras();
   }
+  // 0.32.247 (pedido do dono): comprar em exchange pela API
+  async function loadEx() {
+    const r = await BB.api("/api/dormant/cex", { quiet: true });
+    if (!r || r.error) { $("xList").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler as exchanges") + "</span>"; return; }
+    $("xIp").textContent = r.ip || "não consegui ler";
+    $("xSub").textContent = "nas que dizem pela API, chave com saque é recusada · nas últimas 24 h já foram $" + num(r.gasto_dia_usd, 2) + " de $" + num(r.cfg.cex_dia_usd, 2) + " · depois: " + r.depois.join(", ");
+    $("xList").innerHTML = r.exchanges.map((x) => '<div class="dmwal"><div class="h"><b>' + esc(x.nome) + '</b> <a class="small" href="' + esc(x.doc) + '" target="_blank" rel="noopener">criar a chave no site ↗</a><span class="sp"></span>' +
+      (x.rotulo ? '<span class="tag win">conectada</span> <button type="button" class="btn sm tgl off" data-xdel="' + esc(x.id) + '">Remover</button>' : '<span class="tag neutral">sem chave</span>') + "</div>" +
+      (x.rotulo ? '<div class="ad">' + esc(x.rotulo) + (x.info && x.info.saque_conferido ? ' · <span class="up">conferido: sem saque</span>' : ' · <span class="muted">saque não conferido pela API</span>') + (x.info && x.info.ip ? ' · <span class="up">IP limitado</span>' : "") + "</div>" : "") +
+      '<div class="f"><input class="in" id="xk_' + esc(x.id) + '" type="password" autocomplete="off" spellcheck="false" placeholder="API key" aria-label="API key da ' + esc(x.nome) + '">' +
+      '<input class="in" id="xs_' + esc(x.id) + '" type="password" autocomplete="off" spellcheck="false" placeholder="Secret" aria-label="Secret da ' + esc(x.nome) + '">' +
+      (x.frase ? '<input class="in" id="xf_' + esc(x.id) + '" type="password" autocomplete="off" spellcheck="false" placeholder="Passphrase" aria-label="Passphrase da ' + esc(x.nome) + '">' : "") +
+      (x.confere_saque ? "" : '<label class="small muted"><input type="checkbox" id="xc_' + esc(x.id) + '"> criei SEM permissão de saque (esta exchange não deixa o painel conferir)</label>') +
+      '<button type="button" class="btn primary sm" data-xsave="' + esc(x.id) + '">Salvar</button></div></div>').join("");
+  }
+  async function openCex(key) {
+    const m = M().find((x) => x.cmc === key); if (!m) return;
+    BUY = { cex: key };
+    $("buyMT").textContent = "Comprar " + (m.simbolo || m.nome) + " em exchange";
+    $("buyMS").innerHTML = esc(m.nome) + " · preço na CoinGecko: " + price(m.preco);
+    $("buyMB").innerHTML = '<div class="muted" style="margin-top:10px">lendo as exchanges…</div>';
+    $("buyM").hidden = false;
+    const [r, st] = await Promise.all([BB.api("/api/dormant/cex/moeda?key=" + encodeURIComponent(key), { quiet: true }), BB.api("/api/dormant/cex", { quiet: true })]);
+    if (!BUY || BUY.cex !== key) return;
+    if (!r || r.error) { $("buyMB").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui ler as exchanges") + "</div>"; return; }
+    const tem = {}; ((st && st.exchanges) || []).forEach((x) => { tem[x.id] = !!x.rotulo; });
+    const rows = r.lista.map((x) => '<div class="dmwal"><div class="h"><b>' + esc(x.nome) + '</b> <span class="muted small">' + esc(x.base + "/" + x.alvo) + '</span><span class="sp"></span>' +
+      (x.ex && tem[x.ex] ? '<button type="button" class="btn sm primary" data-xgo="' + esc(x.ex) + '" data-xn="' + esc(x.nome) + '">Comprar</button>' : x.ex ? '<a class="btn sm" href="#exchanges" id="buyHist">Cadastrar chave</a>' : x.url ? '<a class="btn sm" href="' + esc(x.url) + '" target="_blank" rel="noopener">Abrir no site ↗</a>' : '<span class="muted small">' + esc(x.alvo === "USDT" ? "ainda sem conexão" : "só em " + x.alvo) + "</span>") + "</div>" +
+      '<div class="muted small">preço ' + price(x.px) + " · volume 24 h " + usd(x.vol) + (x.spread != null ? " · spread " + num(x.spread, 2) + "%" : "") + (x.antigo ? ' · <span class="down">dado antigo</span>' : "") + (x.anomalia ? ' · <span class="down">preço fora do normal</span>' : "") + "</div></div>").join("");
+    $("buyMB").innerHTML = (rows ? '<div class="dmwals" style="margin-top:10px">' + rows + "</div>" : '<div class="buybad">A CoinGecko não lista esta moeda em nenhuma exchange centralizada.</div>') + '<div id="buyPrev"></div>';
+  }
+  function openCexForm(ex, nome) {
+    if (!BUY) return;
+    BUY.ex = ex;
+    $("buyMB").innerHTML = '<div class="buyform"><div class="muted small">Comprando na <b>' + esc(nome) + '</b>, pagando em USDT.</div>' +
+      '<div><label for="cxUsd">Quanto gastar, em USDT</label><input class="in" id="cxUsd" type="number" step="any" min="0" inputmode="decimal"></div>' +
+      '<div><label for="buySenha">Senha de compra (para ler o saldo na exchange)</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+      '<div class="row dmact"><button class="btn primary" type="button" id="cxQuote">Ver cotação</button><span class="muted small">só mostra; nenhuma ordem é enviada neste passo</span></div></div><div id="buyPrev"></div>';
+  }
+  async function cxQuote() {
+    if (!BUY || !BUY.ex) return;
+    if (BUY.timer) clearInterval(BUY.timer);
+    $("buyPrev").innerHTML = '<div class="muted" style="margin-top:10px">lendo o saldo e o livro de ofertas…</div>';
+    const r = await BB.api("/api/dormant/cex/cotar", { body: { key: BUY.cex, exchange: BUY.ex, usd: Number($("cxUsd").value), senha: $("buySenha").value } });
+    if (!BUY) return;
+    if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
+    BUY.q = r;
+    const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
+    const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
+    const sim = esc((r.moeda || {}).simbolo || "");
+    let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
+      line("Saldo na " + esc(r.nome), "<b>" + num(r.saldo, 2) + " USDT</b>") + line("Par", esc(r.par)) + line("Você gasta, no máximo", "<b>$" + num(r.usd, 2) + "</b>") +
+      line("Recebe, mais ou menos", r.qty_estimada == null ? "—" : "<b>" + qtd(r.qty_estimada) + " " + sim + "</b>") +
+      line("Melhor preço agora", r.melhor == null ? "—" : price(r.melhor)) + line("Preço médio pelo livro", r.media == null ? "—" : price(r.media)) +
+      line("Preço máximo da ordem", r.maximo == null ? "—" : price(r.maximo) + " (folga de " + num(r.slip, 2) + "%)") +
+      line("Preço × CoinGecko", r.dif_cg == null ? "—" : '<span class="' + (r.dif_cg > 0 ? "down" : "up") + '">' + num(Math.abs(r.dif_cg), 1) + "% " + (r.dif_cg > 0 ? "mais caro" : "mais barato") + "</span>") + "</tbody></table></div>" +
+      list("buybad", "Não dá para comprar:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
+    if (r.quote_id) {
+      h += '<div class="buyform"><div><label for="buyOk">Digite COMPRAR para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
+        '<div class="row dmact"><button class="btn primary" type="button" id="cxGo">Comprar agora</button><span class="muted small" id="buyTime"></span></div></div>';
+    }
+    $("buyPrev").innerHTML = h;
+    if (r.quote_id) {
+      const fim = Date.now() + r.validade_s * 1000;
+      const tick = () => { const s = Math.round((fim - Date.now()) / 1000), el = $("buyTime"), go = $("cxGo"); if (!el || !go) return;
+        if (s <= 0) { go.disabled = true; el.textContent = "esta cotação venceu: clique em Ver cotação de novo"; clearInterval(BUY.timer); } else el.textContent = "cotação vale por mais " + s + " s"; };
+      tick(); BUY.timer = setInterval(tick, 1000);
+    }
+  }
+  async function cxGo(btn) {
+    if (!BUY || !BUY.q || !BUY.q.quote_id) return;
+    btn.disabled = true; btn.textContent = "Enviando…";
+    const r = await BB.api("/api/dormant/cex/confirmar", { body: { quote_id: BUY.q.quote_id, senha: $("buySenha").value, confirmar: $("buyOk").value.trim() } });
+    if (!BUY) return;
+    btn.disabled = false; btn.textContent = "Comprar agora";
+    if (!r || r.error) {
+      const old = $("buyErr"); if (old) old.remove();
+      btn.closest(".buyform").insertAdjacentHTML("beforebegin", '<div class="buybad" id="buyErr">' + esc((r && r.error) || "a compra não saiu") + "</div>");
+      return;
+    }
+    if (BUY.timer) clearInterval(BUY.timer);
+    $("buySenha").value = "";
+    const c = r.compra || {};
+    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Comprado.</b> ' + qtd(c.qty) + " " + esc(c.simbolo) + " por $" + num(c.usd_in, 2) + " na " + esc(c.dex) + ".</div>" : '<div class="buywarn"><b>' + esc(c.status === "falhou" ? "Nada comprado." : "Confira na exchange.") + "</b> " + esc(c.motivo || "") + "</div>") +
+      '<div class="row dmact" style="margin-top:10px"><a class="btn primary" href="#compras" id="buyHist">Ver em Minhas compras</a></div>';
+  }
   let CP_ITENS = [];
   async function drawCompras() {
     const r = await BB.api("/api/dormant/compras", { quiet: true });
     if (VIEW !== "compras") return;
-    if (!r || r.error) { $("cpT").innerHTML = '<tr><td class="empty down">' + esc((r && r.error) || "não consegui ler as compras") + "</td></tr>"; return; }
+    if (!r || r.error) { $("cpT").innerHTML = '<div class="cpempty down">' + esc((r && r.error) || "não consegui ler as compras") + "</div>"; return; }
     CP_ITENS = r.itens;
     const s = r.resumo, kp = (k, v, d) => '<div class="kpi"><div class="k"><span>' + esc(k) + '</span></div><div class="v">' + v + '</div><div class="d">' + esc(d) + "</div></div>";
     $("cpK").innerHTML = kp("Investido", "$" + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "$" + num(s.valor, 2), "o que ainda não vendeu, no preço da CoinGecko") + kp("Recebido", "$" + num(s.recebido, 2), "das vendas, já sem o gás") +
@@ -688,11 +776,16 @@
     const ok = r.itens.filter((x) => x.status === "confirmada"), fora = r.itens.filter((x) => x.status !== "confirmada");
     const tx = (x) => (x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—");
     const moeda = (x) => '<div class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<div><b>" + esc(x.nome) + "</b> <small>" + esc(x.simbolo || "") + "</small></div></div>";
-    table("cpT", ["Moeda", "Rede", "Quando", "Investido", "Quantidade", "Vendido", "Preço pago", "Agora", "1 h", "12 h", "24 h", "7 dias", "Total", "Ganho", "Transação", ""], ok.map((x) => [V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""),
-      V(hora(x.t), x.t), V("$" + num(x.custo, 2) + '<span class="dmwhy">' + num(x.nativo, 6) + " " + esc(x.moeda) + "</span>", x.custo), V(qtd(x.qty), x.qty), V(x.vendido ? qtd(x.vendido) + '<span class="dmwhy">recebeu $' + num(x.recebido, 2) + "</span>" : "—", x.vendido || 0), V(price(x.px_in), x.px_in), V(price(x.px_agora), x.px_agora),
-      V(pc(x.h1), x.h1), V(pc(x.h12), x.h12), V(pc(x.h24), x.h24), V(pc(x.h168), x.h168), V(pc(x.total), x.total), V(x.ganho == null ? "—" : '<span class="' + cls(x.ganho) + '">$' + num(x.ganho, 2) + "</span>", x.ganho), tx(x),
-      x.resto ? '<button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="muted small">vendida</span>']),
-      "Nenhuma compra ainda. Em Moedas, use o botão Comprar.");
+    const kv = (l, v) => "<div><small>" + l + "</small><b>" + v + "</b></div>";
+    $("cpT").innerHTML = ok.length ? ok.map((x) => '<div class="cpc"><div class="t"><b>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
+      '<div>' + chainTag(x.rede_nome) + "</div>" + '<div class="n">' + esc(x.nome) + " · " + esc(x.dex || "") + (x.rota ? " · " + esc(x.rota) : "") + "</div>" +
+      '<div class="g">' + kv("Total", pc(x.total)) + kv("Investido", "$" + num(x.custo, 2)) + kv("Valor agora", x.valor == null ? "—" : "$" + num(x.valor, 2)) +
+      kv("Quantidade", qtd(x.qty)) + kv("Preço pago", price(x.px_in)) + kv("Agora", price(x.px_agora)) + "</div>" +
+      (x.vendido ? '<div class="g">' + kv("Vendido", qtd(x.vendido)) + kv("Recebeu", "$" + num(x.recebido, 2)) + kv("Ainda tem", qtd(x.resto)) + "</div>" : "") +
+      '<div class="g q">' + kv("1 h", pc(x.h1)) + kv("12 h", pc(x.h12)) + kv("24 h", pc(x.h24)) + kv("7 dias", pc(x.h168)) + "</div>" +
+      '<div class="f"><span>' + hora(x.t) + "</span> " + tx(x) + '<span class="sp"></span>' +
+      (x.cex ? '<span class="small">vender na exchange</span>' : x.resto ? '<button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') + "</div></div>").join("")
+      : '<div class="cpempty">Nenhuma compra ainda. Em Moedas, use o botão Comprar.</div>';
     const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
     table("cpV", ["Quando", "Moeda", "Rede", "Vendeu", "Recebeu", "Gás", "Onde", "Situação", "Transação"], (r.vendas || []).map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V(qtd(x.qty), x.qty),
       V(x.usd_out == null ? "—" : "$" + num(x.usd_out, 2) + '<span class="dmwhy">' + num(x.nativo_out, 6) + " " + esc(x.moeda) + "</span>", x.usd_out), V(x.gas_usd == null ? "—" : "$" + num(x.gas_usd, 4), x.gas_usd), esc(x.dex || "—"),
@@ -728,6 +821,7 @@
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
     window.scrollTo(0, 0);
+    if (VIEW === "exchanges") loadEx();
     if (VIEW === "carteiras") loadWal();     // só ao abrir: redesenhar sozinho apagaria uma chave que está sendo colada
     draw();
     load();
@@ -767,6 +861,8 @@
   document.addEventListener("click", async (e) => {
     const bb = e.target.closest && e.target.closest("[data-dmbuy]");
     if (bb) { e.preventDefault(); e.stopPropagation(); openBuy(bb.dataset.dmbuy); return; }
+    const bx = e.target.closest && e.target.closest("[data-dmcex]");
+    if (bx) { e.preventDefault(); e.stopPropagation(); openCex(bx.dataset.dmcex); return; }
     const bs = e.target.closest && e.target.closest("[data-dmsell]");
     if (bs) { e.preventDefault(); openSell(bs.dataset.dmsell); return; }
     const k = e.target.closest && e.target.closest("[data-dmst]");
@@ -792,6 +888,24 @@
     if (t.dataset.wgas) { openGas(t.dataset.wgas); return; }
     if (t.id === "gasQuote") { gasQuote(); return; }
     if (t.id === "gasGo") { gasGo(t); return; }
+    if (t.dataset.xgo) { openCexForm(t.dataset.xgo, t.dataset.xn); return; }
+    if (t.id === "cxQuote") { cxQuote(); return; }
+    if (t.id === "cxGo") { cxGo(t); return; }
+    if (t.dataset.xsave) {
+      const x = t.dataset.xsave, k = $("xk_" + x), s = $("xs_" + x), f = $("xf_" + x), c = $("xc_" + x);
+      if (!k.value.trim() || !s.value.trim()) { alert("Cole a API key e o secret."); return; }
+      t.disabled = true;
+      const r = await BB.api("/api/dormant/cex/chave", { body: { exchange: x, api_key: k.value, secret: s.value, frase: f ? f.value : "", senha: $("xPass").value, sem_saque: !!(c && c.checked) } });
+      t.disabled = false; s.value = ""; if (f) f.value = ""; k.value = "";
+      if (r && r.error) { alert(r.error); return; }
+      $("xPass").value = ""; await loadEx(); return;
+    }
+    if (t.dataset.xdel) {
+      if (!confirm("Remover esta chave do sistema? Depois, apague a chave também no site da exchange.")) return;
+      const r = await BB.api("/api/dormant/cex/chave/remover", { body: { exchange: t.dataset.xdel } });
+      if (r && r.error) { alert(r.error); return; }
+      await loadEx(); return;
+    }
     if (t.id === "sellQuote") { sellQuote(); return; }
     if (t.id === "sellGo") { sellGo(t); return; }
     if (t.id === "buyHist") { closeBuy(); $("coinM").hidden = true; CM = null; return; }

@@ -91,6 +91,16 @@
   .buyok{border:1px solid #22c55e;background:rgba(34,197,94,.08);border-radius:10px;padding:10px 12px;margin:10px 0}
   #buyM .modal-box{max-width:620px;width:100%}#askM .modal-box{max-width:460px;width:100%}
   .buyform{display:flex;flex-direction:column;gap:10px;margin-top:10px}.buyform label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}.buyform input,.buyform select{width:100%}
+  /* 0.32.247: Minhas compras em cartões, no estilo do Histórico da pump.fun */
+  .cpcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+  .cpc{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .cpc .t{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.cpc .t b{font-size:17px;overflow-wrap:anywhere}.cpc .t span{font-family:var(--mono);font-size:16px;font-weight:600;white-space:nowrap}
+  .cpc .n{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+  .cpc .g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border-top:1px solid var(--line);padding-top:10px}
+  .cpc .g.q{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .cpc .g small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}.cpc .g b{font-family:var(--mono);font-size:13px;font-weight:600;overflow-wrap:anywhere}
+  .cpc .f{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}.cpc .f .sp{flex:1}.cpc .f .dmbuy{margin-top:0}
+  .cpempty{color:var(--muted);padding:10px 0}
   .buymax{display:flex;gap:8px;align-items:stretch}.buymax input{flex:1 1 auto;min-width:0}.buymax .btn{flex:0 0 auto}
   .buyusd{font-size:13px;margin-top:4px;min-height:18px}
   .dmbuy.sell{background:none;color:#ef4444;border-color:#ef4444}.dmbuy.sell:hover{background:rgba(239,68,68,.12)}
@@ -111,6 +121,7 @@
       <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Lista e regras</a>
       <a href="#carteiras" data-v="carteiras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="14" r="1.2"/></svg>Carteiras e compra</a>
       <a href="#compras" data-v="compras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-9"/><path d="M15 7h5v5"/></svg>Minhas compras</a>
+      <a href="#exchanges" data-v="exchanges"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg>API exchanges</a>
     </nav>
     <div class="sp"></div>
     <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver a leitura da CoinGecko"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
@@ -196,10 +207,19 @@
         <div class="card"><header><div><h2>Abastecimentos de gás</h2><div class="sub">pela ponte Relay, sempre para uma carteira sua · a taxa aparece antes, calculada com o preço da CoinGecko</div></div></header>
           <div class="tbl-wrap"><table id="wGasT"></table></div></div>
       </section>
+      <section class="view" data-view="exchanges" hidden>
+        <div class="card dmwarn"><header><div><h2>Crie a chave SEM permissão de saque</h2></div></header><div class="help">
+          <p>A chave de API deixa o painel comprar sem login. Marque só <b>negociar no spot</b>. <b>Nunca marque saque (withdraw).</b> Sem saque, quem pegar a chave pode negociar com o seu saldo, mas não tirar o dinheiro da exchange.</p>
+          <p>Se a exchange deixar, limite a chave ao IP do servidor: <b id="xIp">lendo…</b>. Deixe na exchange só o que aceita arriscar. Nesta tela a chave fica guardada com a sua senha de compra, e não volta para a tela.</p>
+          <p class="muted small">O painel compra em USDT, então a conta precisa ter USDT no spot. Só compra, por enquanto: a venda é na própria exchange. Limites em Carteiras e compra.</p></div></div>
+        <div class="card"><header><div><h2>Senha de compra</h2><div class="sub" id="xPassS">a mesma das carteiras · precisa dela para salvar uma chave</div></div></header>
+          <input class="in" id="xPass" type="password" autocomplete="new-password" spellcheck="false" placeholder="senha de compra" aria-label="Senha de compra" style="width:100%"></div>
+        <div class="card"><header><div><h2>Exchanges conectadas</h2><div class="sub" id="xSub"></div></div></header><div class="dmwals" id="xList"></div></div>
+      </section>
       <section class="view" data-view="compras" hidden>
         <div class="kpis" id="cpK"></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Compras</h2><div class="sub" id="cpSub"></div></div></header>
-          <div class="tbl-wrap"><table id="cpT"></table></div></div>
+          <div class="cpcards" id="cpT"></div></div>
         <div class="card"><header><div><h2>Vendas</h2><div class="sub">o que entrou na carteira em cada venda</div></div></header>
           <div class="tbl-wrap"><table id="cpV"></table></div></div>
         <div class="card"><header><div><h2>Compras em andamento ou sem sucesso</h2><div class="sub">compras que não terminaram ou não entraram · o limite do dia não conta as que falharam</div></div></header>

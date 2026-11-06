@@ -138,6 +138,7 @@ class GasFiller:
     async def preview(self, uid: str, destino: str, origem: str, usd) -> dict:
         b = self.b
         o, d = await self._wallets(uid, origem, destino)
+        await b.resolve_pending(uid)
         try:
             usd = float(usd)
         except (TypeError, ValueError):

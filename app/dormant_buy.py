@@ -58,8 +58,9 @@ CHAINS = {
     "ethereum": {"nome": "Ethereum", "tipo": "evm", "id": 1, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://etherscan.io/tx/",
                  "rpc": "https://ethereum-rpc.publicnode.com", "router": "0x7a250d5630b4cf539739df2c5dacb4c659f2488d",
                  "wrapped": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", "ponte": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "v3": True,
-                 # sem isto o robô de sandwich leva quase toda a folga de preço; o Flashbots Protect não põe na fila pública
-                 "envio": "https://rpc.flashbots.net"},
+                 # sem isto o robô de sandwich leva quase toda a folga de preço. 0.32.247: o modo padrão tenta por até 25 blocos (a compra do dono em
+                 # 06/11 passou de 90 s); o rápido manda para todos os construtores. Se não entrar em PUBLICO_APOS_S, _evm_send repete na fila pública
+                 "envio": "https://rpc.flashbots.net/fast", "gas_mult": 1.25},
     "binance-smart-chain": {"nome": "BNB Chain", "tipo": "evm", "id": 56, "moeda": "BNB", "cg": "binancecoin", "dec": 18, "dex": "PancakeSwap", "expl": "https://bscscan.com/tx/",
                             "rpc": "https://bsc-rpc.publicnode.com", "router": "0x10ed43c718714eb63d5aa57b78b54704e256024e",
                             "wrapped": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", "ponte": "0x55d398326f99059ff775485246999027b3197955"},
@@ -79,14 +80,16 @@ CHAINS = {
 EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 
 # 0.32.246 (dono, 06/11/2026: abasteceu US$ 7 de gás e ficou sem poder comprar): gás tem limite próprio e não conta no das compras
-CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0}
-CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0)}
+CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0, "cex_max_usd": 25.0, "cex_dia_usd": 100.0}
+CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0), "cex_max_usd": (1.0, 5000.0), "cex_dia_usd": (1.0, 20000.0)}
+CEX_NOMES = {"binance": "Binance", "bybit": "Bybit", "okx": "OKX", "kucoin": "KuCoin", "mexc": "MEXC"}
 QUOTE_TTL_S = 60                  # depois disso a cotação vale nada e o botão pede outra
 MAX_TRIES, LOCK_S = 5, 15 * 60    # 5 senhas erradas seguidas: compra e chaves travadas por 15 min (sobrevive ao reinício)
 PENDENTE_S = 15 * 60              # compra sem confirmação segura outra na mesma rede por 15 min (nonce, compra dobrada)
 EXPIRA_S = 6 * 3600               # sem nada depois disso: marca como não confirmada
 RECIBO_S = 90
 RECIBO_PASSO = 3
+PUBLICO_APOS_S = 30               # a MESMA transação assinada: mesmo hash, não compra duas vezes, e a folga de preço continua valendo
 PRECO_AVISO, PRECO_BLOQ = 10.0, 25.0     # % pagando acima da CoinGecko
 IMPACTO_AVISO, IMPACTO_BLOQ = 10.0, 25.0  # % que a própria compra move o preço (pool pequeno)
 TAXA_TOKEN_MAX = 10.0
@@ -228,6 +231,8 @@ def holdings(rows: list[dict], watch, now: float, janelas=(1, 12, 24, 168), sell
         d["t"] = _ts(r.get("em"))
         c = CHAINS.get(r.get("rede")) or {}
         d["rede_nome"], d["moeda"], d["expl"] = c.get("nome"), c.get("moeda"), c.get("expl")
+        if str(r.get("rede") or "").startswith("cex:"):      # 0.32.247: compra em exchange (não dá para vender daqui ainda)
+            d["rede_nome"], d["moeda"], d["cex"] = CEX_NOMES.get(r["rede"][4:], r["rede"][4:]), "USDT", True
         if r.get("status") == "confirmada" and r.get("qty"):
             row = watch.rows.get(r.get("cg")) or {}
             px = row.get("current_price")
@@ -356,7 +361,7 @@ class Buyer:
                     saldo, reserva = (await self.rpc(self.sol_rpc(), "getBalance", [wal["endereco"]]))["value"] / 1e9, c["reserva"]
                 else:
                     saldo = int(await self.rpc(c["rpc"], "eth_getBalance", [wal["endereco"], "latest"]) or "0x0", 16) / 1e18
-                    reserva = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16) * 1.1 * 300000 * 1.3 / 1e18   # o gás da própria compra
+                    reserva = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16) * c.get("gas_mult", 1.1) * 300000 * 1.3 / 1e18   # o gás da própria compra
             except (BuyError, KeyError, TypeError, ValueError):
                 saldo = None
         out = {"moeda": c["moeda"], "usd_n": usd_n, "tem_carteira": bool(wal), "saldo": saldo, "saldo_usd": saldo * usd_n if saldo is not None and usd_n else None, "reserva_gas": reserva,
@@ -414,6 +419,7 @@ class Buyer:
         if chain not in buyable(w, cid):
             raise BuyError("esta moeda não pode ser comprada nesta rede por aqui")
         c = CHAINS[chain]
+        await self.resolve_pending(uid)            # 0.32.247: a compra pode já ter confirmado; sem isto ficava bloqueado até abrir Minhas compras
         token = w.addr[cid][chain]
         token = token if c["tipo"] == "solana" else token.lower()
         try:
@@ -649,7 +655,7 @@ class Buyer:
         gp = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16)
         if q.get("gp") and gp > q["gp"] * 2:
             raise BuyError("o gás mais que dobrou desde a cotação: nada foi enviado, peça outra cotação")
-        gp = int(gp * 1.1)
+        gp = int(gp * c.get("gas_mult", 1.1))
         gas = int(est * 1.3) + 20000
         bal = int(await self.rpc(c["rpc"], "eth_getBalance", [addr, "latest"]) or "0x0", 16)
         if bal < q["value"] + gas * gp:
@@ -661,19 +667,32 @@ class Buyer:
         row = self._row(q, wal, h, rt["dex"], rt["rota"])
         await self.db.insert("dormant_buys", row)
         self.watch.held.add(q["cg"])
+        try:
+            rc = await self._evm_send(c, raw, h)
+        except BuyError as e:
+            await self._finish(row, status="falhou", motivo=str(e)[:160])
+            raise
+        if rc:
+            return self._public(await self._apply_evm(row, rc, gp))
+        await self._finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
+        return self._public(row)
+
+    async def _evm_send(self, c: dict, raw: str, h: str) -> dict | None:
+        """Envia e espera o recibo. Primeiro pelo caminho protegido, se a rede tiver; sem entrar a tempo, a mesma transação vai para a fila pública."""
+        priv = c.get("envio")
         sent, why = False, ""
-        for url in dict.fromkeys([c.get("envio") or c["rpc"], c["rpc"]]):
+        for url in dict.fromkeys([priv or c["rpc"], c["rpc"]]):
             try:
                 await self.rpc(url, "eth_sendRawTransaction", [raw])
                 sent = True
+                priv = priv if url == priv else None
                 break
             except BuyError as e:
                 why = str(e)
                 if "known" in why.lower() or "already" in why.lower():
-                    sent = True
+                    sent, priv = True, priv if url == priv else None
                     break
         if not sent:
-            await self._finish(row, status="falhou", motivo="envio recusado: " + why[:160])
             raise BuyError("a rede recusou o envio: " + why[:160])
         t0 = time.monotonic()
         while time.monotonic() - t0 < RECIBO_S:
@@ -683,9 +702,14 @@ class Buyer:
             except BuyError:
                 rc = None
             if rc:
-                return self._public(await self._apply_evm(row, rc, gp))
-        await self._finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
-        return self._public(row)
+                return rc
+            if priv and time.monotonic() - t0 >= PUBLICO_APOS_S:
+                priv = None
+                try:
+                    await self.rpc(c["rpc"], "eth_sendRawTransaction", [raw])
+                except BuyError:
+                    pass                           # "já conhecida" ou já entrou: o recibo é quem decide
+        return None
 
     async def _apply_evm(self, row: dict, rc: dict, gp: int | None = None) -> dict:
         c = CHAINS[row["rede"]]
@@ -828,6 +852,7 @@ class Buyer:
         if not 1 <= pct <= 100:
             raise BuyError("porcentagem inválida")
         c, bloq, avisos = CHAINS[chain], [], []
+        await self.resolve_pending(uid)
         if not self.allowed():
             bloq.append("a trava geral do servidor (PUMP_REAL_ALLOWED) está fechada")
         wal = await self.wallet_row(uid, chain)
@@ -1012,7 +1037,7 @@ class Buyer:
         gp = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16)
         if q.get("gp") and gp > q["gp"] * 2:
             raise BuyError("o gás mais que dobrou desde a cotação: nada foi enviado, peça outra cotação")
-        gp = int(gp * 1.1)
+        gp = int(gp * c.get("gas_mult", 1.1))
         spender = self._spender(q)
         allow = await self._erc20_word(c, q["token"], SEL_ALLOW + evm.w_addr(addr) + evm.w_addr(spender))
         if allow < q["amount"]:
@@ -1033,21 +1058,11 @@ class Buyer:
         rt = q["route"]
         row = self._sell_row(q, wal, h, rt["dex"], rt["rota"])
         await self.db.insert("dormant_sells", row)      # grava ANTES de enviar, como na compra
-        sent, why = False, ""
-        for url in dict.fromkeys([c.get("envio") or c["rpc"], c["rpc"]]):
-            try:
-                await self.rpc(url, "eth_sendRawTransaction", [raw])
-                sent = True
-                break
-            except BuyError as e:
-                why = str(e)
-                if "known" in why.lower() or "already" in why.lower():
-                    sent = True
-                    break
-        if not sent:
-            await self._sell_finish(row, status="falhou", motivo="envio recusado: " + why[:160])
-            raise BuyError("a rede recusou o envio: " + why[:160])
-        rc = await self._evm_receipt(c, h)
+        try:
+            rc = await self._evm_send(c, raw, h)
+        except BuyError as e:
+            await self._sell_finish(row, status="falhou", motivo=str(e)[:160])
+            raise
         if rc:
             return self._public_sell(await self._apply_sell_evm(row, rc, gp))
         await self._sell_finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
@@ -1159,7 +1174,7 @@ class Buyer:
                         if rc:
                             await self._apply_evm(r, rc)
                             continue
-                    elif r.get("tx"):
+                    elif r.get("tx") and r.get("rede") in CHAINS:
                         st = (await self.rpc(self.sol_rpc(), "getSignatureStatuses", [[r["tx"]], {"searchTransactionHistory": True}]))["value"][0]
                         if st and st.get("err"):
                             await self._finish(r, status="falhou", motivo=str(st["err"])[:160])
@@ -1199,8 +1214,8 @@ class Buyer:
 
     async def spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
-        rows = await self.db.select("dormant_buys", {"user_id": uid}, gte={"em": since}, columns="usd_in,status") or []
-        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada")), 4)
+        rows = await self.db.select("dormant_buys", {"user_id": uid}, gte={"em": since}, columns="usd_in,status,rede") or []
+        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada") and not str(r.get("rede") or "").startswith("cex:")), 4)   # exchange tem limite próprio
 
     async def gas_spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
@@ -1254,11 +1269,19 @@ class Buyer:
             await self._put_cfg(row)
         return secret
 
-    async def _check_senha(self, uid: str, senha: str) -> None:
-        """Confere a senha contra uma carteira já guardada. Sem carteira ainda: a senha nova vale como a primeira."""
+    async def _any_secret(self, uid: str) -> dict | None:
+        """Qualquer coisa já cifrada com a senha de compra (carteira ou chave de exchange), no formato que _open entende."""
         rows = await self.db.select("dormant_wallets", {"user_id": uid}, limit=1) or []
         if rows:
-            await self._open(uid, rows[0], senha)
+            return rows[0]
+        x = await self.db.select("dormant_cex_keys", {"user_id": uid}, limit=1) or []
+        return {"rede": "cex:" + x[0]["exchange"], "endereco": x[0]["rotulo"], "cifra": x[0]["cifra"]} if x else None
+
+    async def _check_senha(self, uid: str, senha: str) -> None:
+        """Confere a senha contra o que já está guardado. Sem nada ainda: a senha nova vale como a primeira."""
+        row = await self._any_secret(uid)
+        if row:
+            await self._open(uid, row, senha)
         else:
             why = vault.check_new_password(senha)
             if why:
@@ -1271,7 +1294,7 @@ class Buyer:
         ate = _ts(row.get("trava_ate")) if row.get("trava_ate") else 0
         return {"redes": [{"rede": k, "nome": c["nome"], "tipo": c["tipo"], "moeda": c["moeda"], "dex": c["dex"], "endereco": (rows.get(k) or {}).get("endereco"),
                            "em": _ts((rows.get(k) or {}).get("em")) or None} for k, c in CHAINS.items()],
-                "cfg": clean_cfg(None, row.get("cfg") or {}), "limites": CFG_LIMITS, "tem_senha": bool(rows), "trava_s": max(0, round(ate - time.time())),
+                "cfg": clean_cfg(None, row.get("cfg") or {}), "limites": CFG_LIMITS, "tem_senha": bool(rows) or bool(await self._any_secret(uid)), "trava_s": max(0, round(ate - time.time())),
                 "trava_geral": bool(self.allowed()), "senha_min": vault.SENHA_MIN}
 
     async def save_wallet(self, uid: str, chain: str, secret: str, senha: str, todas_evm: bool = False) -> dict:
@@ -1307,15 +1330,24 @@ class Buyer:
             raise BuyError(why)
         async with self.lock(uid):
             rows = await self.db.select("dormant_wallets", {"user_id": uid}) or []
-            if not rows:
-                raise BuyError("ainda não há carteira cadastrada")
-            novas = []
+            chaves = await self.db.select("dormant_cex_keys", {"user_id": uid}) or []
+            if not rows and not chaves:
+                raise BuyError("ainda não há carteira nem chave cadastrada")
+            novas, novas_cex = [], []
             for r in rows:                         # abre tudo antes de gravar qualquer coisa: ou troca todas, ou nenhuma
                 secret = await self._open(uid, r, atual)
                 novas.append({"user_id": uid, "rede": r["rede"], "endereco": r["endereco"], "em": r.get("em") or _iso(time.time()),
                               "cifra": await asyncio.to_thread(vault.seal, self.box, uid, r["rede"], r["endereco"], secret, nova)})
-            await self.db.insert("dormant_wallets", novas, upsert=True, on_conflict="user_id,rede")
-        return len(novas)
+            for r in chaves:
+                pseudo = {"rede": "cex:" + r["exchange"], "endereco": r["rotulo"], "cifra": r["cifra"]}
+                secret = await self._open(uid, pseudo, atual)
+                novas_cex.append({"user_id": uid, "exchange": r["exchange"], "rotulo": r["rotulo"], "info": r.get("info"), "em": r.get("em") or _iso(time.time()),
+                                  "cifra": await asyncio.to_thread(vault.seal, self.box, uid, pseudo["rede"], r["rotulo"], secret, nova)})
+            if novas:
+                await self.db.insert("dormant_wallets", novas, upsert=True, on_conflict="user_id,rede")
+            if novas_cex:
+                await self.db.insert("dormant_cex_keys", novas_cex, upsert=True, on_conflict="user_id,exchange")
+        return len(novas) + len(novas_cex)
 
     # ------------------------------------------------------------------ ligar e limites
     async def set_on(self, uid: str, on: bool, senha: str = "", confirmar: str = "") -> dict:
@@ -1324,11 +1356,11 @@ class Buyer:
         if on:
             if confirmar != "LIGAR":
                 raise BuyError("digite LIGAR para confirmar")
-            rows = await self.db.select("dormant_wallets", {"user_id": uid}, limit=1) or []
-            if not rows:
-                raise BuyError("cadastre uma carteira antes")
+            first = await self._any_secret(uid)
+            if not first:
+                raise BuyError("cadastre uma carteira ou chave de exchange antes")
             async with self.lock(uid):
-                await self._open(uid, rows[0], senha)
+                await self._open(uid, first, senha)
             row = await self._cfg_row(uid)
         c["on"] = bool(on)                         # desligar não pede nada: tem que ser fácil
         row["cfg"] = c
@@ -1336,13 +1368,13 @@ class Buyer:
         return c
 
     async def save_limits(self, uid: str, raw: dict, senha: str) -> dict:
-        rows = await self.db.select("dormant_wallets", {"user_id": uid}, limit=1) or []
+        first = await self._any_secret(uid)
         row = await self._cfg_row(uid)
         base = clean_cfg(None, row.get("cfg") or {})
         novo = clean_cfg(raw, base)
-        if rows and any(novo[k] > base[k] for k in CFG_LIMITS):   # só subir limite pede a senha; baixar é sempre livre
+        if first and any(novo[k] > base[k] for k in CFG_LIMITS):   # só subir limite pede a senha; baixar é sempre livre
             async with self.lock(uid):
-                await self._open(uid, rows[0], senha)
+                await self._open(uid, first, senha)
             row = await self._cfg_row(uid)
         row["cfg"] = novo
         await self._put_cfg(row)

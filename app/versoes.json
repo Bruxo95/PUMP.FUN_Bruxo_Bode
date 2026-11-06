@@ -1990,6 +1990,11 @@
    "versao": "0.32.246",
    "inicio": "2026-11-06T23:13:12+00:00",
    "titulo": "Dormant com valores no padrão da Uniswap e limite de gás separado do de compra"
+  },
+  {
+   "versao": "0.32.247",
+   "inicio": "2026-11-06T23:40:47+00:00",
+   "titulo": "Dormant: aba API exchanges, compra mais rápida e Minhas compras em cartões"
   }
  ]
 }

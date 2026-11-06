@@ -67,7 +67,7 @@ def test_sell_approves_exact_amount_on_fixed_router_then_sends_money_to_own_wall
     assert ap["to"] == TOKEN and ap["url"] == ETH["rpc"] and ap["value"] == 0
     w = evm.words("0x" + ap["data"][8:])
     assert "0x%040x" % w[0] == ETH["router"] and w[1] == SALDO // 2          # valor exato, nunca ilimitado
-    assert sw["to"] == ETH["router"] and sw["value"] == 0 and sw["url"] == "https://rpc.flashbots.net" and "0x" + sw["data"][:8] == db_.SEL_SELL_ETH
+    assert sw["to"] == ETH["router"] and sw["value"] == 0 and sw["url"] == "https://rpc.flashbots.net/fast" and "0x" + sw["data"][:8] == db_.SEL_SELL_ETH
     w = evm.words("0x" + sw["data"][8:])
     assert w[0] == SALDO // 2 and "0x%040x" % w[3] == ADDR                   # o dinheiro vai para a própria carteira
     assert KEY not in str(db.tables["dormant_sells"])

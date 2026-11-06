@@ -327,7 +327,7 @@ def test_buy_sends_only_to_the_fixed_router_with_own_wallet_as_receiver():
     assert p["minimo"] == 970                                       # folga padrão de 3%
     r = run(b.buy(UID, p["quote_id"], SENHA, "COMPRAR"))
     assert r["status"] == "confirmada" and r["qty"] == 1000 and abs(r["px_in"] - 0.02) < 1e-9
-    assert len(net.sent) == 1 and net.sent[0][0] == "https://rpc.flashbots.net"
+    assert len(net.sent) == 1 and net.sent[0][0] == "https://rpc.flashbots.net/fast"
     f = rlp_list(bytes.fromhex(net.sent[0][1][2:]))
     assert "0x" + f[3].hex() == ETH["router"] and int.from_bytes(f[4], "big") == 10 ** 16
     assert (int.from_bytes(f[6], "big") - 35) // 2 == 1             # chain id da Ethereum assinado
@@ -497,4 +497,38 @@ def test_limit_info_says_balance_and_the_tightest_limit():
         raise AssertionError
     except db_.BuyError:
         pass
+
+
+# ------------------------------------------------------------------ 0.32.247: compra de 06/11 que passou de 90 s e travou a próxima
+def test_slow_private_send_goes_public_with_same_tx_and_no_double_buy():
+    class Lenta(FakeNet):
+        def __init__(self):
+            super().__init__()
+            self.pedidos = 0
+
+        async def post(self, url, json=None, headers=None, timeout=None):
+            if json["method"] == "eth_getTransactionReceipt":
+                self.pedidos += 1
+                if self.pedidos < 3:
+                    return Resp({"result": None})
+            return await super().post(url, json=json, headers=headers, timeout=timeout)
+    b, net, _ = setup(Lenta())
+    p = good_quote(b)
+    antes = db_.PUBLICO_APOS_S
+    db_.PUBLICO_APOS_S = 0
+    try:
+        assert run(b.buy(UID, p["quote_id"], SENHA, "COMPRAR"))["status"] == "confirmada"
+    finally:
+        db_.PUBLICO_APOS_S = antes
+    assert [u for u, _ in net.sent] == ["https://rpc.flashbots.net/fast", ETH["rpc"]]
+    assert net.sent[0][1] == net.sent[1][1]                         # a mesma transação assinada
+
+
+def test_new_quote_sees_that_a_pending_buy_already_confirmed():
+    b, net, db = setup()
+    run(ready(b))
+    db.tables["dormant_buys"].append({"id": "p1", "user_id": UID, "rede": "ethereum", "em": db_._iso(time.time() - 120), "usd_in": 1.0, "status": "pendente", "tx": "0xabc", "token": TOKEN, "endereco": ADDR, "nativo_usd": 2000.0, "casas": 18})
+    p = run(b.preview(UID, "tok", "ethereum", 0.01))
+    assert p.get("quote_id"), p["bloqueia"]
+    assert db.tables["dormant_buys"][0]["status"] == "confirmada"
 
