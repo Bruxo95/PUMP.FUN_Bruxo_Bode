@@ -1960,6 +1960,11 @@
    "versao": "0.32.240",
    "inicio": "2026-11-06T06:37:17+00:00",
    "titulo": "Helius contado por chave e índice do jev_backtest"
+  },
+  {
+   "versao": "0.32.241",
+   "inicio": "2026-11-06T14:55:14+00:00",
+   "titulo": "Dormant com Alertas em tela cheia e blockchains em botões"
   }
  ]
 }

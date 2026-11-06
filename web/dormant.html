@@ -70,6 +70,13 @@
   .cmdexbox{margin-top:8px}.cmdexbox iframe{display:block;width:100%;height:460px;border:0;border-radius:10px;background:#0b0b0d}
   @media (max-width:860px){.cmdexbox iframe{height:380px}}
   tr.dmgo{cursor:pointer}tr.dmgo:hover td{background:rgba(167,139,250,.06)}
+  /* 0.32.241: blockchains como botões pequenos em Moedas, no lugar da lista suspensa */
+  .dmchips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+  .dmchip{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid transparent;border-radius:7px;padding:1px;color:var(--muted);font:inherit;font-size:10.5px;cursor:pointer}
+  .dmchip .dmch{margin-left:0}
+  .dmchip small{font-size:10.5px;padding-right:4px}
+  .dmchip:hover,.dmchip.on{border-color:#a78bfa}.dmchip.on{background:rgba(167,139,250,.14);color:var(--text)}
+  .dmchip.all{padding:1px 6px;font-weight:600;line-height:18px}
 </style>
 </head>
 <body>
@@ -117,19 +124,18 @@
       <section class="view" data-view="visao" hidden>
         <div class="dmadd"><button class="btn primary" type="button" data-dmadd="1">+ Adicionar moeda</button><span class="muted small" id="ovAddN"></span></div>
         <div class="kpis" id="ovK"></div>
-        <div class="grid2e vgtop" style="margin-top:16px">
-          <div class="card"><header><div><h2>Alertas</h2><div class="sub">quando uma moeda muda para pump, dump ou acordando · mais novos primeiro</div></div></header>
-            <div class="tbl-wrap tall"><table id="ovAl"></table></div></div>
-          <div class="card"><header><div><h2>Mais se mexeram em 24 h</h2><div class="sub">as que mais subiram e mais caíram (com negócio de verdade)</div></div></header>
-            <div class="tbl-wrap tall"><table id="ovMv"></table></div></div>
-        </div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Alertas</h2><div class="sub">quando uma moeda muda para pump, dump ou acordando · mais novos primeiro</div></div></header>
+          <div class="tbl-wrap tall"><table id="ovAl"></table></div></div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Mais se mexeram em 24 h</h2><div class="sub">as que mais subiram e mais caíram (com negócio de verdade)</div></div></header>
+          <div class="tbl-wrap tall"><table id="ovMv"></table></div></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Últimas ações na blockchain</h2><div class="sub" id="ovBcSub">as negociações mais recentes das moedas da lista, lidas direto da blockchain (GeckoTerminal)</div></div></header>
           <div class="tbl-wrap tall"><table id="ovBc"></table></div></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Dormindo há mais tempo</h2><div class="sub">preço preso numa faixa estreita · as que podem acordar</div></div></header>
           <div class="tbl-wrap"><table id="ovDm"></table></div></div>
       </section>
       <section class="view" data-view="moedas" hidden>
-        <div class="dmbar"><button class="btn primary sm" type="button" data-dmadd="1">+ Adicionar moeda</button><select class="in" id="mChain" aria-label="Blockchain"></select><select class="in" id="mCat" aria-label="Categoria"></select></div>
+        <div class="dmbar"><button class="btn primary sm" type="button" data-dmadd="1">+ Adicionar moeda</button><select class="in" id="mCat" aria-label="Categoria"></select></div>
+        <div class="dmchips" id="mChain" role="group" aria-label="Filtrar por blockchain"></div>
         <div class="dmbar"><div class="seg" id="mFilt"></div><input class="in" id="mQ" type="search" placeholder="Buscar moeda" aria-label="Buscar moeda">
           <select class="in" id="mSort" aria-label="Ordenar"><option value="" hidden>Ordenado pela coluna</option><option value="h24">Maior alta em 24 h</option><option value="-h24">Maior queda em 24 h</option><option value="h1">Maior alta em 1 h</option><option value="d7">Maior alta em 7 dias</option><option value="d30">Maior alta em 30 dias</option><option value="vol_x">Volume acima do normal</option><option value="bc">Negociou por último na blockchain</option><option value="-bc">Mais tempo parada na blockchain</option><option value="mcap">Valor de mercado</option><option value="nome">Nome</option></select></div>
         <div class="card"><div class="tbl-wrap"><table id="mT"></table></div><div class="sub" id="mSub" style="margin-top:8px"></div></div>

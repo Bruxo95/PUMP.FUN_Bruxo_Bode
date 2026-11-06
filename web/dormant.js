@@ -317,7 +317,9 @@
     const q = F.q.trim().toLowerCase();
     const chs = {}, cats = {};
     M().forEach((m) => { if (m.chain_nome) chs[m.chain_nome] = (chs[m.chain_nome] || 0) + 1; (m.cats || []).forEach((c) => { cats[c] = (cats[c] || 0) + 1; }); });
-    $("mChain").innerHTML = '<option value="">Todas as blockchains</option>' + Object.entries(chs).sort((a, b) => b[1] - a[1]).map((x) => '<option value="' + esc(x[0]) + '"' + (F.ch === x[0] ? " selected" : "") + ">" + esc(x[0]) + " · " + x[1] + "</option>").join("");
+    // 0.32.241 (pedido do dono): blockchains como botões pequenos; clicar abre a lista daquela rede, clicar de novo volta para todas
+    $("mChain").innerHTML = '<button type="button" class="dmchip all' + (F.ch ? "" : " on") + '" data-dmchf="" aria-pressed="' + !F.ch + '">Todas · ' + num(M().length, 0) + "</button>" +
+      Object.entries(chs).sort((a, b) => b[1] - a[1]).map((x) => '<button type="button" class="dmchip' + (F.ch === x[0] ? " on" : "") + '" data-dmchf="' + esc(x[0]) + '" aria-pressed="' + (F.ch === x[0]) + '">' + chainTag(x[0]) + "<small>" + x[1] + "</small></button>").join("");
     $("mCat").innerHTML = '<option value="">Todas as categorias</option>' + Object.entries(cats).sort((a, b) => b[1] - a[1]).map((x) => '<option value="' + esc(x[0]) + '"' + (F.cat === x[0] ? " selected" : "") + ">" + esc(x[0]) + " · " + x[1] + "</option>").join("");
     let L = M().filter((m) => (!F.st || m.status === F.st) && (!F.ch || m.chain_nome === F.ch) && (!F.cat || (m.cats || []).includes(F.cat)) &&
       (!q || (m.nome + " " + m.simbolo + " " + m.cmc + " " + (m.chain_nome || "") + " " + (m.cats || []).join(" ")).toLowerCase().includes(q)));
@@ -406,7 +408,6 @@
   document.addEventListener("change", (e) => {
     if (!e.target) return;
     if (e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); }
-    if (e.target.id === "mChain") { F.ch = e.target.value; saveF(); drawMoedas(); }
     if (e.target.id === "mCat") { F.cat = e.target.value; saveF(); drawMoedas(); }
   });
   // 0.32.228 (pedido do dono): adicionar moeda pela busca da CoinGecko; fica o nome de quem adicionou
@@ -436,6 +437,7 @@
     if (g) { F.st = ""; F.ch = g.dataset.dmch || ""; F.cat = g.dataset.dmcat || ""; saveF(); location.hash = "#moedas"; return; }
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
     if (t.dataset.dmf != null) { F.st = t.dataset.dmf; saveF(); drawMoedas(); return; }
+    if (t.dataset.dmchf != null) { F.ch = F.ch === t.dataset.dmchf ? "" : t.dataset.dmchf; saveF(); drawMoedas(); return; }
     if (t.dataset.dmsort) { const key = t.dataset.dmsort; F.sort = F.sort === key ? "-" + key : key; saveF(); drawMoedas(); return; }
     if (t.dataset.dmadd) { addOpen(); return; }
     if (t.id === "addMX") { $("addM").hidden = true; return; }
