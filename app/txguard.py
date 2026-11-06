@@ -163,6 +163,33 @@ def check(message, owner: str, *, max_spend_lamports: int, max_fee_lamports: int
             "needs_simulation": routed > 0}
 
 
+def token_atas(owner: str, mint: str) -> set[str]:
+    """Conta associada da carteira para o token, nos dois programas de token (não dá para saber qual sem ler a rede)."""
+    from solders.pubkey import Pubkey
+    out = set()
+    for prog in (TOKEN, TOKEN_2022):
+        addr, _ = Pubkey.find_program_address([bytes(Pubkey.from_string(owner)), bytes(Pubkey.from_string(prog)),
+                                               bytes(Pubkey.from_string(mint))], Pubkey.from_string(ATA))
+        out.add(str(addr))
+    return out
+
+
+def check_output(message, owner: str, mint: str) -> None:
+    """0.32.242 (compra do Dormant): check() confere quanto sai; aqui, para onde vai. A rota da Jupiter precisa ter como destino a
+    conta do token pedido DA PRÓPRIA CARTEIRA; sem isso uma rota podia mandar o token para outra conta ou trocar por outro token.
+    Conferido em 06/11/2026 numa transação real montada pela Jupiter (nada enviado): essa conta vem nas chaves fixas."""
+    keys = [str(k) for k in message.account_keys]
+    atas = token_atas(owner, mint)
+    for ix in message.instructions:
+        prog = keys[ix.program_id_index] if ix.program_id_index < len(keys) else None
+        if prog == JUPITER:
+            accs = {keys[i] for i in bytes(ix.accounts) if i < len(keys)}
+            if accs & atas:
+                return
+            raise TxRejected("a rota da Jupiter não entrega o token pedido na conta da carteira")
+    raise TxRejected("a transação não tem rota da Jupiter")
+
+
 # ---------------------------------------------------------------------------- SEC-04: transação sem confirmação
 async def signature_status(rpc, sig: str) -> tuple[str | None, str | None]:
     """("confirmada" | "falhou" | None, erro). Procura também no histórico (a transação pode ter entrado tarde)."""

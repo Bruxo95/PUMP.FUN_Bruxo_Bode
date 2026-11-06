@@ -77,6 +77,20 @@
   .dmchip small{font-size:10.5px;padding-right:4px}
   .dmchip:hover,.dmchip.on{border-color:#a78bfa}.dmchip.on{background:rgba(167,139,250,.14);color:var(--text)}
   .dmchip.all{padding:1px 6px;font-weight:600;line-height:18px}
+  /* 0.32.242: comprar na DEX, carteiras e histórico */
+  .dmbuy{margin-top:5px;padding:2px 10px;font-size:11.5px}
+  .dmact{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.dmact .btn{flex:0 0 auto}
+  .dmwarn{border-color:#f59e0b}
+  .dmwals{display:flex;flex-direction:column;gap:10px}
+  .dmwal{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .dmwal .h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.dmwal .h .sp{flex:1}
+  .dmwal .ad{font-family:var(--mono);font-size:11.5px;word-break:break-all;color:var(--muted);margin-top:4px}
+  .dmwal .f{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}.dmwal .f input[type=password]{flex:1 1 220px;min-width:0}
+  .buybad,.buywarn{border-radius:10px;padding:8px 12px;margin:10px 0;font-size:13px}.buybad ul,.buywarn ul{margin:4px 0 0;padding-left:18px}
+  .buybad{border:1px solid #ef4444;background:rgba(239,68,68,.08)}.buywarn{border:1px solid #f59e0b;background:rgba(245,158,11,.08)}
+  .buyok{border:1px solid #22c55e;background:rgba(34,197,94,.08);border-radius:10px;padding:10px 12px;margin:10px 0}
+  #buyM .modal-box{max-width:620px;width:100%}#askM .modal-box{max-width:460px;width:100%}
+  .buyform{display:flex;flex-direction:column;gap:10px;margin-top:10px}.buyform label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}.buyform input,.buyform select{width:100%}
 </style>
 </head>
 <body>
@@ -92,6 +106,8 @@
       <a href="#moedas" data-v="moedas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>Moedas</a>
       <a href="#grupos" data-v="grupos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>Por blockchain</a>
       <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Lista e regras</a>
+      <a href="#carteiras" data-v="carteiras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="14" r="1.2"/></svg>Carteiras e compra</a>
+      <a href="#compras" data-v="compras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-9"/><path d="M15 7h5v5"/></svg>Minhas compras</a>
     </nav>
     <div class="sp"></div>
     <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver a leitura da CoinGecko"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
@@ -117,7 +133,7 @@
       </div>
     </header>
     <main class="page">
-      <div class="dmnote"><b>Etapa 1 · só observa.</b> A CoinGecko diz em qual blockchain cada moeda está; as <b>últimas ações</b> (compras e vendas) vêm direto da blockchain. Vigia as moedas da sua watchlist a cada 20 min e diz quais estão <b>dormindo</b>, <b>acordando</b>, num <b>pump</b> ou num <b>dump</b>. <b>Não compra nem vende nada.</b> Dados: <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>.</div>
+      <div class="dmnote">A CoinGecko diz em qual blockchain cada moeda está; as <b>últimas ações</b> (compras e vendas) vêm direto da blockchain. Vigia as moedas da sua watchlist a cada 20 min e diz quais estão <b>dormindo</b>, <b>acordando</b>, num <b>pump</b> ou num <b>dump</b>. <b>Só compra quando você clica em Comprar, confere e digita a sua senha; nunca sozinho, e não vende.</b> Dados: <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>.</div>
       <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
         <header><div><h2 id="sysMT">Leitura da CoinGecko</h2><div class="sub">de onde vêm os números</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
         <div id="sysMB"></div></div></div>
@@ -153,6 +169,34 @@
         <header><div><h2 id="addMT">Adicionar moeda</h2><div class="sub">busca na CoinGecko pelo nome, símbolo ou link · fica registrado quem adicionou</div></div><div class="sp"></div><button class="btn sm" id="addMX">Fechar</button></header>
         <div class="row" style="gap:8px;flex-wrap:wrap"><input class="in" id="addQ" type="search" placeholder="ex.: pepe, BONK ou o link da CoinGecko" style="flex:1 1 220px;min-width:0"><button class="btn primary" id="addGo">Buscar</button></div>
         <div class="dmres" id="addR"></div></div></div>
+      <div class="modal" id="buyM" hidden role="dialog" aria-modal="true" aria-labelledby="buyMT"><div class="modal-box">
+        <header><div><h2 id="buyMT">Comprar</h2><div class="sub" id="buyMS"></div></div><div class="sp"></div><button class="btn sm" id="buyMX">Fechar</button></header>
+        <div id="buyMB"></div></div></div>
+      <div class="modal" id="askM" hidden role="dialog" aria-modal="true" aria-labelledby="askMT"><div class="modal-box">
+        <header><div><h2 id="askMT"></h2></div><div class="sp"></div><button class="btn sm" id="askMX">Fechar</button></header>
+        <div id="askMB"></div></div></div>
+      <section class="view" data-view="carteiras" hidden>
+        <div class="card dmwarn"><header><div><h2>Antes de colocar uma chave</h2></div></header><div class="help">
+          <p><b>Use só carteira nova, com o dinheiro que você aceita perder.</b> Nunca a sua carteira principal. Quem tem a chave privada tem todo o saldo dela, e nenhum sistema na internet é à prova de invasão.</p>
+          <p>Como a chave fica guardada: criptografada duas vezes, uma delas com a sua <b>senha de compra</b>, que o servidor não guarda. A tela nunca mostra a chave de volta, nem para você. Se esquecer a senha, não há como recuperar: tire a carteira e cadastre de novo.</p></div></div>
+        <div class="card"><header><div><h2>Compras</h2><div class="sub" id="wOnSub"></div></div><div class="sp"></div><button class="tgl sw off" id="wOn" type="button" role="switch" aria-checked="false">Desligado</button></header>
+          <div class="decbox" id="wWarn" hidden></div>
+          <div class="form" id="wLim"></div>
+          <div class="row dmact" style="margin-top:10px"><button class="btn primary" id="wLimSave" type="button">Salvar limites</button><span class="muted small">subir um limite pede a senha de compra; baixar, não</span></div></div>
+        <div class="card"><header><div><h2 id="wPassT">Senha de compra</h2><div class="sub" id="wPassS"></div></div></header>
+          <div class="row" style="gap:8px;flex-wrap:wrap"><input class="in" id="wPass" type="password" autocomplete="new-password" spellcheck="false" aria-label="Senha de compra" style="flex:1 1 220px;min-width:0"><input class="in" id="wPass2" type="password" autocomplete="new-password" spellcheck="false" placeholder="repita a senha" aria-label="Repita a senha" style="flex:1 1 220px;min-width:0" hidden></div>
+          <details class="keyhow" id="wPassCh" style="margin-top:10px" hidden><summary>Trocar a senha de compra</summary>
+            <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input class="in" id="wPassN" type="password" autocomplete="new-password" spellcheck="false" placeholder="senha nova" aria-label="Senha nova" style="flex:1 1 220px;min-width:0"><input class="in" id="wPassN2" type="password" autocomplete="new-password" spellcheck="false" placeholder="repita a senha nova" aria-label="Repita a senha nova" style="flex:1 1 220px;min-width:0"><button class="btn" id="wPassGo" type="button">Trocar</button></div></details></div>
+        <div class="card"><header><div><h2>Carteira de cada blockchain</h2><div class="sub">só estas redes têm compra aqui, pelas DEX mais seguras · o endereço do roteador é fixo no código, e a compra não dá autorização nenhuma sobre os seus tokens</div></div></header>
+          <div class="dmwals" id="wList"></div></div>
+      </section>
+      <section class="view" data-view="compras" hidden>
+        <div class="kpis" id="cpK"></div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Compras</h2><div class="sub" id="cpSub"></div></div></header>
+          <div class="tbl-wrap"><table id="cpT"></table></div></div>
+        <div class="card"><header><div><h2>Em andamento ou sem sucesso</h2><div class="sub">compras que não terminaram ou não entraram · o limite do dia não conta as que falharam</div></div></header>
+          <div class="tbl-wrap"><table id="cpF"></table></div></div>
+      </section>
       <section class="view" data-view="config" hidden>
         <div class="card"><header><div><h2>Chave da CoinGecko</h2><div class="sub">opcional · sem chave usa a API pública (mais lenta) · com a chave Demo grátis: 10 mil consultas por mês</div></div></header>
           <div class="decbox" id="kSt"></div>

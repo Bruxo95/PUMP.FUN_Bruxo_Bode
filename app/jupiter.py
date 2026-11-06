@@ -196,9 +196,10 @@ class JupiterWallet:
     async def best_quote(self, inp: str, out: str, amount: int):
         return await self.dex.best_quote(inp, out, amount)
 
-    async def _swap_tx(self, quote: dict, prio: str | None = None, amount: int | None = None) -> tuple[str, str]:
+    async def _swap_tx(self, quote: dict, prio: str | None = None, amount: int | None = None, out_mint: str | None = None) -> tuple[str, str]:
         """prio: None = taxa de prioridade fixa; 'high'/'veryHigh' = taxa dinâmica da Jupiter, com teto.
-        Devolve (transação assinada em base64, blockhash). amount: entrada máxima pedida (padrão: a da cotação)."""
+        Devolve (transação assinada em base64, blockhash). amount: entrada máxima pedida (padrão: a da cotação).
+        out_mint (0.32.242, compra do Dormant): o token precisa cair na conta da própria carteira."""
         if prio:
             fee = {"priorityLevelWithMaxLamports": {"maxLamports": int(MAX_PRIORITY_SOL * 1e9), "priorityLevel": prio}}
         else:
@@ -221,6 +222,8 @@ class JupiterWallet:
                       jupiter={"amount": int(amount if amount is not None else quote["inAmount"]),
                                "slip_bps": int(quote.get("slippageBps") or 0)},
                       max_priority_lamports=int(max(MAX_PRIORITY_SOL, self.priority_sol) * 1.5 * 1e9))
+        if out_mint:
+            txguard.check_output(tx.message, self.wallet.address, out_mint)
         signed = VersionedTransaction(tx.message, [self.wallet.keypair])
         return base64.b64encode(bytes(signed)).decode(), str(tx.message.recent_blockhash)
 

@@ -1,5 +1,5 @@
 """Dormant (0.32.227, pedido do dono em 05/11/2026): vigia uma lista de moedas (a watchlist da CoinMarketCap do dono) e
-diz quais estão dormindo, acordando, num pump ou num dump. Só observa: não compra nem vende nada.
+diz quais estão dormindo, acordando, num pump ou num dump. Este laço só observa; a compra à mão fica em dormant_buy.py (0.32.242).
 
 Isolado do resto (como a BNB e a Robinhood): laço próprio, tabelas `dormant_*`, rotas `/api/dormant*` e página `/dormant`.
 
@@ -18,6 +18,8 @@ import re
 import statistics
 import time
 from datetime import datetime, timezone
+
+from .dormant_buy import CHAINS, buyable
 
 log = logging.getLogger("pump.dormant")
 
@@ -197,6 +199,7 @@ class DormantWatch:
         self._pause_until = 0.0
         self._next = 0.0
         self.loaded = False
+        self.held: set[str] = set()                  # 0.32.242: moedas compradas continuam com preço mesmo se saírem da lista
 
     @staticmethod
     def _lista() -> list[dict]:
@@ -353,7 +356,7 @@ class DormantWatch:
         return True
 
     async def refresh_markets(self) -> None:
-        ids = sorted({i for c in self.map.values() for i in c})
+        ids = sorted({i for c in self.map.values() for i in c} | self.held | {c["cg"] for c in CHAINS.values()})   # 0.32.242: a moeda de cada rede, para os limites em dólar
         got: dict[str, dict] = {}
         for k in range(0, len(ids), 250):
             part = ids[k:k + 250]
@@ -452,6 +455,7 @@ class DormantWatch:
                 since = datetime.fromtimestamp(time.time() - 8 * 86400, timezone.utc).isoformat()
                 rows = await self.db.select("dormant_snap", None, order="t.asc", limit=24 * 8 + 5, gte={"t": since}) or []
                 self.snaps = [{"t": int(datetime.fromisoformat(str(r["t"]).replace("Z", "+00:00")).timestamp()), "d": r.get("dados") or {}} for r in rows]
+                self.held = {r["cg"] for r in await self.db.select("dormant_buys", {"status": "confirmada"}, columns="cg", limit=2000) or [] if r.get("cg")}
             except Exception as e:
                 log.warning("Dormant: estado guardado não carregou: %s", str(e)[:160])
         self.loaded = True
@@ -616,7 +620,8 @@ class DormantWatch:
                   "morta_cmc": bool(m.get("morta_cmc")), "cg": cid, "chain": ch, "chain_nome": chain_name(ch) if ch else None,
                   "chains": [chain_name(p) for p in (self.plat.get(cid) or [])[:6]], "cats": (self.info.get(cid) or {}).get("cats") or [],
                   "add_por": ex.get("por") or "watchlist da CoinMarketCap", "add_t": ex.get("t"), "extra": bool(ex),
-                  "bc": self.chain.get(cid) if cid else None, "bc_alvo": bool(cid and self.target(cid)), "rede_propria": ch == PROPRIA}
+                  "bc": self.chain.get(cid) if cid else None, "bc_alvo": bool(cid and self.target(cid)), "rede_propria": ch == PROPRIA,
+                  "comprar": buyable(self, cid)}
             if row:
                 it.update(nome=row.get("name") or m["nome"], simbolo=(row.get("symbol") or "").upper(), img=row.get("image"),
                           preco=row.get("current_price"), mcap=row.get("market_cap"), rank=row.get("market_cap_rank"),

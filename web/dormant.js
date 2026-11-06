@@ -7,7 +7,9 @@
   const esc = (s) => BB.esc(s);
   const TITLES = { visao: ["Visão geral", "o que acordou, o que deu pump ou dump e o que está dormindo"], moedas: ["Moedas", "todas as moedas da lista com a situação de cada uma"],
     grupos: ["Por blockchain e categoria", "as moedas da lista divididas por rede e por categoria"],
-    config: ["Lista e regras", "chave da CoinGecko, regras e as moedas da lista"] };
+    config: ["Lista e regras", "chave da CoinGecko, regras e as moedas da lista"],
+    carteiras: ["Carteiras e compra", "as carteiras de cada blockchain, a senha de compra e os limites"],
+    compras: ["Minhas compras", "o que você comprou e quanto está ganhando em 1 h, 12 h, 24 h, 7 dias e no total"] };
   const ST = { pump: "Pump", dump: "Dump", acordando: "Acordando", dormindo: "Dormindo", normal: "Normal", parada: "Parada", morta: "Morta", sem_cg: "Sem par",
     acordou_chain: "Acordou na blockchain", parada_chain: "Parada na blockchain" };
   // 0.32.229 (áudio do Bruxo): as últimas 3 ações de cada moeda, lidas na blockchain (GeckoTerminal); link para o explorador da rede
@@ -95,11 +97,12 @@
   function coin(m) {
     const cg = m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "";
     return '<div class="dmcoin">' + (m.img ? '<img src="' + esc(m.img) + '" alt="" loading="lazy" data-dmcoin="' + esc(m.cmc) + '">' : "") + '<div><b data-dmcoin="' + esc(m.cmc) + '" title="abrir a moeda">' + esc(m.nome) + "</b> <small>" + esc(m.simbolo || "") +
-      (m.rank ? " · #" + m.rank : "") + (m.chain_nome ? chainTag(m.chain_nome, (m.chains || []).join(", ")) : "") + "</small>" +
+      (m.rank ? " · #" + esc(m.rank) : "") + (m.chain_nome ? chainTag(m.chain_nome, (m.chains || []).join(", ")) : "") + "</small>" +
       '<div class="dmlinks">' + cg + (m.extra ? "" : '<a href="https://coinmarketcap.com/currencies/' + esc(m.cmc) + '/" target="_blank" rel="noopener">CoinMarketCap</a>') +
       (m.extra ? '<a href="#" data-dmdel="' + esc(m.cmc) + '">tirar da lista</a>' : "") + "</div>" +
       (m.extra ? '<span class="dmby">adicionada por <b>' + esc(m.add_por) + "</b> · " + hora(m.add_t) + "</span>" : "") +
-      ((m.cats || []).length ? '<div class="dmcats">' + m.cats.slice(0, 3).map((c) => "<span>" + esc(c) + "</span>").join("") + "</div>" : "") + "</div></div>";
+      ((m.cats || []).length ? '<div class="dmcats">' + m.cats.slice(0, 3).map((c) => "<span>" + esc(c) + "</span>").join("") + "</div>" : "") +
+      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button>' : "") + "</div></div>";
   }
   function spark(p) {
     if (!p || p.length < 2) return "—";
@@ -226,7 +229,8 @@
     const m = M().find((x) => x.cmc === key); if (!m) return;
     CM = { key, r: null, rng: CM && CM.rng || 30 };
     $("coinMH").innerHTML = (m.img ? '<img src="' + esc(m.img) + '" alt="">' : "") + '<div style="min-width:0"><h2 id="coinMT">' + esc(m.nome) + ' <small class="muted">' + esc(m.simbolo || "") + "</small></h2>" +
-      '<div class="sub">' + tag(m.status) + (m.chain_nome ? " " + chainTag(m.chain_nome) : "") + (m.rank ? " · #" + m.rank + " em valor de mercado" : "") + "</div></div>";
+      '<div class="sub">' + tag(m.status) + (m.chain_nome ? " " + chainTag(m.chain_nome) : "") + (m.rank ? " · #" + esc(m.rank) + " em valor de mercado" : "") + "</div>" +
+      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button>' : "") + "</div>";
     $("coinMB").innerHTML = coinBody(m, null);
     $("coinM").hidden = false;
     const r = await BB.api("/api/dormant/moeda?key=" + encodeURIComponent(key), { quiet: true });
@@ -368,12 +372,147 @@
       m.extra ? "adicionada na tela por " + esc(m.add_por) + " em " + hora(m.add_t) : m.status === "morta" ? "sem preço na CoinMarketCap e não achada com negócio na CoinGecko: projeto parado ou tirado das corretoras"
         : m.status === "parada" ? "existe, mas quase ninguém negocia (menos que o mínimo de volume em 24 h)" : "não achei a mesma moeda na CoinGecko pelo nome"]), "Todas as moedas da lista têm leitura.");
   }
+  // ------------------------------------------------------------------ 0.32.242: carteiras, compra e histórico
+  // Senha e chave ficam só nos campos, e os campos são limpos logo depois de cada ação; nada disso vai para localStorage ou variável.
+  const REDE = { solana: "Solana", ethereum: "Ethereum", "binance-smart-chain": "BNB Chain", base: "Base", "polygon-pos": "Polygon", avalanche: "Avalanche", "arbitrum-one": "Arbitrum" };
+  const MOEDA = { solana: "SOL", ethereum: "ETH", "binance-smart-chain": "BNB", base: "ETH", "polygon-pos": "POL", avalanche: "AVAX", "arbitrum-one": "ETH" };
+  const LIM = [["max_usd", "Máximo por compra", "US$"], ["dia_usd", "Máximo em 24 h", "US$"], ["slip_pct", "Folga de preço (slippage)", "%"]];
+  let WAL = null;
+  const clearPass = () => ["wPass", "wPass2", "wPassN", "wPassN2", "buySenha", "buyOk", "askSenha", "askOk"].forEach((id) => { if ($(id)) $(id).value = ""; });
+  async function loadWal() {
+    const r = await BB.api("/api/dormant/carteiras", { quiet: true });
+    if (!r || r.error) { $("wList").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler as carteiras") + "</span>"; return; }
+    WAL = r;
+    drawWal();
+    const b = await BB.api("/api/dormant/carteiras/saldos", { quiet: true });
+    if (b && !b.error) document.querySelectorAll("[data-wbal]").forEach((el) => { const v = b[el.dataset.wbal]; el.textContent = v == null ? "saldo não lido" : "saldo: " + num(v, 6) + " " + el.dataset.wm; });
+  }
+  function drawWal() {
+    const w = WAL, c = w.cfg;
+    const on = $("wOn");
+    on.className = "tgl sw " + (c.on ? "on" : "off"); on.textContent = c.on ? "Ligado" : "Desligado"; on.setAttribute("aria-checked", c.on ? "true" : "false");
+    $("wOnSub").textContent = c.on ? "o botão Comprar funciona, sempre com a sua confirmação e a senha" : "desligado: nenhuma compra sai, mesmo com a senha certa";
+    const avisos = [];
+    if (!w.trava_geral) avisos.push("A trava geral do servidor (PUMP_REAL_ALLOWED) está fechada: nenhuma compra sai enquanto ela não for aberta no Portainer.");
+    if (w.trava_s) avisos.push("Senha errada muitas vezes: compras e chaves travadas por mais " + Math.max(1, Math.round(w.trava_s / 60)) + " min.");
+    $("wWarn").hidden = !avisos.length; $("wWarn").textContent = avisos.join(" ");
+    $("wLim").innerHTML = LIM.map((x) => '<div class="field"><label for="wl_' + x[0] + '">' + esc(x[1]) + '</label><div class="row"><input class="in w100" id="wl_' + x[0] + '" type="number" step="any" min="' + esc(w.limites[x[0]][0]) + '" max="' + esc(w.limites[x[0]][1]) + '" value="' + esc(c[x[0]]) + '"><span class="muted">' + esc(x[2]) + "</span></div></div>").join("");
+    $("wPassT").textContent = w.tem_senha ? "Senha de compra" : "Crie a senha de compra";
+    $("wPassS").textContent = w.tem_senha ? "digite aqui para salvar uma carteira ou subir um limite" : "mínimo de " + w.senha_min + " caracteres · vale para todas as carteiras · não dá para recuperar, guarde num lugar seguro";
+    $("wPass").placeholder = w.tem_senha ? "senha de compra" : "senha nova"; $("wPass2").hidden = w.tem_senha; $("wPassCh").hidden = !w.tem_senha;
+    $("wList").innerHTML = w.redes.map((r) => '<div class="dmwal"><div class="h">' + chainTag(r.nome) + ' <small class="muted">compra por ' + esc(r.dex) + " · paga em " + esc(r.moeda) + '</small><span class="sp"></span>' +
+      (r.endereco ? '<span class="tag win">configurada</span> <button type="button" class="btn sm tgl off" data-wdel="' + esc(r.rede) + '">Remover</button>' : '<span class="tag neutral">sem carteira</span>') + "</div>" +
+      (r.endereco ? '<div class="ad">' + esc(r.endereco) + '</div><div class="muted small" data-wbal="' + esc(r.rede) + '" data-wm="' + esc(r.moeda) + '">lendo o saldo…</div>' : "") +
+      '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="Chave privada de ' + esc(r.nome) + '">' +
+      (r.tipo === "evm" ? '<label class="small muted"><input type="checkbox" id="we_' + esc(r.rede) + '"> usar nas 6 redes EVM</label>' : "") +
+      '<button type="button" class="btn primary sm" data-wsave="' + esc(r.rede) + '">Salvar</button></div></div>').join("");
+  }
+  let ASK = null;
+  function ask(titulo, html, onGo) {
+    $("askMT").textContent = titulo; $("askMB").innerHTML = html; $("askM").hidden = false; ASK = onGo;
+    const f = $("askMB").querySelector("input"); if (f) setTimeout(() => f.focus(), 50);
+  }
+  const closeAsk = () => { $("askM").hidden = true; $("askMB").innerHTML = ""; ASK = null; };
+  const askPass = (label) => '<div class="buyform"><div><label for="askSenha">' + esc(label) + '</label><input class="in" id="askSenha" type="password" autocomplete="off" spellcheck="false"></div>';
+  // compra: passo 1 valor, passo 2 confere e confirma, passo 3 resultado
+  let BUY = null;
+  function closeBuy() { clearPass(); if (BUY && BUY.timer) clearInterval(BUY.timer); BUY = null; $("buyM").hidden = true; $("buyMB").innerHTML = ""; }
+  function openBuy(key) {
+    const m = M().find((x) => x.cmc === key); if (!m || !(m.comprar || []).length) return;
+    BUY = { key, m };
+    $("buyMT").textContent = "Comprar " + (m.simbolo || m.nome);
+    $("buyMS").innerHTML = esc(m.nome) + " · preço na CoinGecko: " + price(m.preco);
+    $("buyMB").innerHTML = '<div class="buyform">' + '<div><label for="buyRede">Blockchain</label><select class="in" id="buyRede">' + m.comprar.map((k) => '<option value="' + esc(k) + '">' + esc(REDE[k] || k) + "</option>").join("") + "</select></div>" +
+      '<div><label for="buyVal" id="buyValL">Quanto gastar</label><input class="in" id="buyVal" type="number" step="any" min="0" inputmode="decimal" placeholder="valor na moeda da rede"></div>' +
+      '<div class="row dmact"><button class="btn primary" type="button" id="buyQuote">Ver cotação</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
+    buyUnit(); $("buyM").hidden = false; setTimeout(() => $("buyVal").focus(), 50);
+  }
+  const buyUnit = () => { const k = $("buyRede").value; $("buyValL").textContent = "Quanto gastar, em " + (MOEDA[k] || "moeda da rede"); $("buyVal").placeholder = "valor em " + (MOEDA[k] || "moeda da rede"); };
+  async function buyQuote() {
+    if (!BUY) return;
+    const valor = $("buyVal").value;
+    if (!(Number(valor) > 0)) { $("buyPrev").innerHTML = '<div class="buybad">Digite quanto quer gastar.</div>'; return; }
+    if (BUY.timer) clearInterval(BUY.timer);
+    $("buyPrev").innerHTML = '<div class="muted" style="margin-top:10px">cotando e conferindo o token…</div>';
+    const r = await BB.api("/api/dormant/compra/cotar", { body: { key: BUY.key, rede: $("buyRede").value, valor } });
+    if (!BUY) return;
+    if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
+    BUY.q = r;
+    const q = (v) => (v == null ? "—" : num(v, v >= 1000 ? 0 : v >= 1 ? 4 : 8));
+    const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
+    const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
+    let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
+      line("Você paga", "<b>" + num(r.valor, 8) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " (US$ " + num(r.usd, 2) + ")" : "")) +
+      line("Recebe, mais ou menos", "<b>" + q(r.recebe) + " " + esc(r.moeda.simbolo) + "</b>") +
+      line("Recebe no mínimo", q(r.minimo) + " " + esc(r.moeda.simbolo) + " (folga de " + num(r.slip, 2) + "%)") +
+      line("Onde", esc(r.dex || "—") + (r.rota ? " · " + esc(r.rota) : "")) +
+      line("Preço pago × CoinGecko", r.dif_cg == null ? "—" : pc(r.dif_cg)) +
+      line("Quanto a compra move o preço", r.impacto == null ? "—" : num(r.impacto, 2) + "%") +
+      line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "US$ " + num(r.gas_usd, 4)) +
+      line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") +
+      line("Contrato do token", '<span class="cmaddr">' + esc(r.token) + "</span>") + "</tbody></table></div>" +
+      list("buybad", "Não dá para comprar:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
+    if (r.quote_id) {
+      h += '<div class="buyform"><div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+        '<div><label for="buyOk">Digite COMPRAR para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
+        '<div class="row dmact"><button class="btn primary" type="button" id="buyGo">Comprar agora</button><span class="muted small" id="buyTime"></span></div></div>';
+    }
+    $("buyPrev").innerHTML = h;
+    if (r.quote_id) {
+      const fim = Date.now() + r.validade_s * 1000;
+      const tick = () => { const s = Math.round((fim - Date.now()) / 1000), el = $("buyTime"), go = $("buyGo"); if (!el || !go) return;
+        if (s <= 0) { go.disabled = true; el.textContent = "esta cotação venceu: clique em Ver cotação de novo"; clearInterval(BUY.timer); } else el.textContent = "cotação vale por mais " + s + " s"; };
+      tick(); BUY.timer = setInterval(tick, 1000);
+    }
+  }
+  async function buyGo(btn) {
+    if (!BUY || !BUY.q || !BUY.q.quote_id) return;
+    const senha = $("buySenha").value, confirmar = $("buyOk").value.trim();
+    btn.disabled = true; btn.textContent = "Enviando…";
+    const r = await BB.api("/api/dormant/compra/confirmar", { body: { quote_id: BUY.q.quote_id, senha, confirmar } });
+    if (!BUY) return;
+    btn.disabled = false; btn.textContent = "Comprar agora";
+    $("buySenha").value = "";
+    if (!r || r.error) {
+      const old = $("buyErr"); if (old) old.remove();
+      btn.closest(".buyform").insertAdjacentHTML("beforebegin", '<div class="buybad" id="buyErr">' + esc((r && r.error) || "a compra não saiu") + "</div>");
+      return;
+    }
+    if (BUY.timer) clearInterval(BUY.timer);
+    const c = r.compra || {};
+    const link = c.tx && c.expl ? '<a href="' + esc(c.expl + c.tx) + '" target="_blank" rel="noopener">ver a transação na blockchain</a>' : "";
+    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Comprado.</b> ' + num(c.qty, 6) + " " + esc(c.simbolo) + " por US$ " + num(c.usd_in, 2) + ". " + link + "</div>"
+      : '<div class="buywarn"><b>' + esc(c.status === "pendente" ? "Enviada, ainda sem confirmação." : "Confira esta compra.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>") +
+      '<div class="row dmact" style="margin-top:10px"><a class="btn primary" href="#compras" id="buyHist">Ver em Minhas compras</a></div>';
+  }
+  async function drawCompras() {
+    const r = await BB.api("/api/dormant/compras", { quiet: true });
+    if (VIEW !== "compras") return;
+    if (!r || r.error) { $("cpT").innerHTML = '<tr><td class="empty down">' + esc((r && r.error) || "não consegui ler as compras") + "</td></tr>"; return; }
+    const s = r.resumo, kp = (k, v, d) => '<div class="kpi"><div class="k"><span>' + esc(k) + '</span></div><div class="v">' + v + '</div><div class="d">' + esc(d) + "</div></div>";
+    $("cpK").innerHTML = kp("Investido", "US$ " + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "US$ " + num(s.valor, 2), "no preço da CoinGecko") +
+      kp("Ganho total", '<span class="' + cls(s.ganho) + '">US$ ' + num(s.ganho, 2) + "</span>", "valor agora − investido") + kp("Total", pc(s.total), "desde as compras") +
+      kp("1 h", pc(s.h1), "última hora") + kp("12 h", pc(s.h12), "últimas 12 horas") + kp("24 h", pc(s.h24), "últimas 24 horas") + kp("7 dias", pc(s.h168), "últimos 7 dias");
+    $("cpSub").textContent = "as porcentagens são do preço de cada moeda; quem foi comprada dentro do período conta desde a compra · preço da CoinGecko" + (r.leitura_t ? ", lido há " + ago(r.leitura_t) : "") +
+      " · não desconta a taxa de uma venda futura · para vender, use a sua carteira (o painel ainda não vende)";
+    const ok = r.itens.filter((x) => x.status === "confirmada"), fora = r.itens.filter((x) => x.status !== "confirmada");
+    const tx = (x) => (x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—");
+    const moeda = (x) => '<div class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<div><b>" + esc(x.nome) + "</b> <small>" + esc(x.simbolo || "") + "</small></div></div>";
+    table("cpT", ["Moeda", "Rede", "Quando", "Investido", "Quantidade", "Preço pago", "Agora", "1 h", "12 h", "24 h", "7 dias", "Total", "Ganho", "Transação"], ok.map((x) => [V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""),
+      V(hora(x.t), x.t), V("US$ " + num(x.custo, 2) + '<span class="dmwhy">' + num(x.nativo, 6) + " " + esc(x.moeda) + "</span>", x.custo), V(num(x.qty, 4), x.qty), V(price(x.px_in), x.px_in), V(price(x.px_agora), x.px_agora),
+      V(pc(x.h1), x.h1), V(pc(x.h12), x.h12), V(pc(x.h24), x.h24), V(pc(x.h168), x.h168), V(pc(x.total), x.total), V(x.ganho == null ? "—" : '<span class="' + cls(x.ganho) + '">US$ ' + num(x.ganho, 2) + "</span>", x.ganho), tx(x)]),
+      "Nenhuma compra ainda. Em Moedas, use o botão Comprar.");
+    const ST_C = { enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
+    table("cpF", ["Quando", "Moeda", "Rede", "Valor", "Situação", "Motivo", "Transação"], fora.map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V("US$ " + num(x.usd_in, 2), x.usd_in),
+      V('<span class="dmst ' + (x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_C[x.status] || x.status) + "</span>", x.status), '<small class="muted">' + esc(x.motivo || "") + "</small>", tx(x)]), "Nada aqui.");
+  }
   function draw() {
     drawSys();
     if (VIEW === "visao") drawVisao();
     if (VIEW === "moedas") drawMoedas();
     if (VIEW === "grupos") drawGrupos();
     if (VIEW === "config") drawConfig();
+    if (VIEW === "compras") drawCompras();
   }
 
   async function load() {
@@ -394,6 +533,7 @@
     $("pgTitle").textContent = TITLES[VIEW][0]; $("pgSub").textContent = TITLES[VIEW][1];
     closeDrawer();
     window.scrollTo(0, 0);
+    if (VIEW === "carteiras") loadWal();     // só ao abrir: redesenhar sozinho apagaria uma chave que está sendo colada
     draw();
     load();
   }
@@ -409,6 +549,7 @@
     if (!e.target) return;
     if (e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); }
     if (e.target.id === "mCat") { F.cat = e.target.value; saveF(); drawMoedas(); }
+    if (e.target.id === "buyRede") { buyUnit(); $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });
   // 0.32.228 (pedido do dono): adicionar moeda pela busca da CoinGecko; fica o nome de quem adicionou
   function addOpen() { $("addM").hidden = false; $("addR").innerHTML = ""; $("addQ").value = ""; setTimeout(() => $("addQ").focus(), 50); }
@@ -426,6 +567,8 @@
   }
   document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target && e.target.id === "addQ") { e.preventDefault(); addSearch(); } });
   document.addEventListener("click", async (e) => {
+    const bb = e.target.closest && e.target.closest("[data-dmbuy]");
+    if (bb) { e.preventDefault(); e.stopPropagation(); openBuy(bb.dataset.dmbuy); return; }
     const k = e.target.closest && e.target.closest("[data-dmst]");
     if (k) { F.st = k.dataset.dmst; saveF(); location.hash = "#moedas"; return; }
     const th = e.target.closest && e.target.closest("th[data-tsi]");
@@ -441,6 +584,52 @@
     if (t.dataset.dmsort) { const key = t.dataset.dmsort; F.sort = F.sort === key ? "-" + key : key; saveF(); drawMoedas(); return; }
     if (t.dataset.dmadd) { addOpen(); return; }
     if (t.id === "addMX") { $("addM").hidden = true; return; }
+    if (t.id === "buyMX") { closeBuy(); return; }
+    if (t.id === "buyQuote") { buyQuote(); return; }
+    if (t.id === "buyGo") { buyGo(t); return; }
+    if (t.id === "buyHist") { closeBuy(); $("coinM").hidden = true; CM = null; return; }
+    if (t.id === "askMX") { closeAsk(); return; }
+    if (t.id === "askGo") { if (ASK) await ASK(t); return; }
+    if (t.dataset.wsave) {
+      const rede = t.dataset.wsave, f = $("wk_" + rede), senha = $("wPass").value, e2 = $("we_" + rede);
+      if (!f.value.trim()) { alert("Cole a chave privada."); return; }
+      if (!WAL.tem_senha && senha !== $("wPass2").value) { alert("As duas senhas estão diferentes."); return; }
+      t.disabled = true;
+      const r = await BB.api("/api/dormant/carteiras/salvar", { body: { rede, chave: f.value, senha, todas_evm: !!(e2 && e2.checked) } });
+      t.disabled = false; f.value = "";
+      if (r && r.error) { alert(r.error); return; }
+      clearPass(); await loadWal(); return;
+    }
+    if (t.dataset.wdel) {
+      if (!confirm("Remover a chave desta carteira do sistema? O dinheiro continua na blockchain; a chave só precisa estar guardada com você.")) return;
+      const r = await BB.api("/api/dormant/carteiras/remover", { body: { rede: t.dataset.wdel } });
+      if (r && r.error) { alert(r.error); return; }
+      await loadWal(); return;
+    }
+    if (t.id === "wOn") {
+      if (!WAL) return;
+      if (WAL.cfg.on) { const r = await BB.api("/api/dormant/compra/ligar", { body: { on: false } }); if (r && r.error) alert(r.error); await loadWal(); return; }
+      ask("Ligar as compras", askPass("Senha de compra") + '<div><label for="askOk">Digite LIGAR para confirmar</label><input class="in" id="askOk" type="text" autocomplete="off" spellcheck="false"></div><div class="row dmact"><button class="btn primary" type="button" id="askGo">Ligar</button></div></div>', async (b) => {
+        b.disabled = true;
+        const r = await BB.api("/api/dormant/compra/ligar", { body: { on: true, senha: $("askSenha").value, confirmar: $("askOk").value.trim() } });
+        b.disabled = false; $("askSenha").value = "";
+        if (r && r.error) { alert(r.error); return; }
+        closeAsk(); await loadWal();
+      });
+      return;
+    }
+    if (t.id === "wLimSave") {
+      const body = { senha: $("wPass").value }; LIM.forEach((x) => { const el = $("wl_" + x[0]); if (el && el.value !== "") body[x[0]] = Number(el.value); });
+      t.disabled = true; const r = await BB.api("/api/dormant/compra/limites", { body }); t.disabled = false;
+      if (r && r.error) { alert(r.error); return; }
+      clearPass(); WAL.cfg = r.cfg; drawWal(); return;
+    }
+    if (t.id === "wPassGo") {
+      if ($("wPassN").value !== $("wPassN2").value) { alert("As duas senhas novas estão diferentes."); return; }
+      t.disabled = true; const r = await BB.api("/api/dormant/carteiras/senha", { body: { atual: $("wPass").value, nova: $("wPassN").value } }); t.disabled = false;
+      if (r && r.error) { alert(r.error); return; }
+      clearPass(); $("wPassCh").open = false; alert("Senha trocada em " + r.carteiras + " carteiras."); return;
+    }
     if (t.id === "coinMX") { $("coinM").hidden = true; CM = null; return; }
     if (t.dataset.cmr) { if (CM) { CM.rng = +t.dataset.cmr; dexEmbed("cg"); drawCoinChart(); } return; }
     if (t.dataset.cms) { dexEmbed(t.dataset.cms); return; }
@@ -481,11 +670,13 @@
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { $("sysM").hidden = true; $("addM").hidden = true; $("coinM").hidden = true; CM = null; }
+    if (e.key === "Escape") { $("sysM").hidden = true; $("addM").hidden = true; $("coinM").hidden = true; CM = null; closeBuy(); closeAsk(); }
     if ((e.key === "Enter" || e.key === " ") && e.target && e.target.dataset && e.target.dataset.dmst) { e.preventDefault(); e.target.click(); }
   });
   $("sysM").addEventListener("click", (e) => { if (e.target === $("sysM")) $("sysM").hidden = true; });
   $("addM").addEventListener("click", (e) => { if (e.target === $("addM")) $("addM").hidden = true; });
+  $("buyM").addEventListener("click", (e) => { if (e.target === $("buyM")) closeBuy(); });
+  $("askM").addEventListener("click", (e) => { if (e.target === $("askM")) closeAsk(); });
   $("coinM").addEventListener("click", (e) => { if (e.target === $("coinM")) { $("coinM").hidden = true; CM = null; } });
 
   async function boot() {

@@ -1965,6 +1965,11 @@
    "versao": "0.32.241",
    "inicio": "2026-11-06T14:55:14+00:00",
    "titulo": "Dormant com Alertas em tela cheia e blockchains em botões"
+  },
+  {
+   "versao": "0.32.242",
+   "inicio": "2026-11-06T16:48:22+00:00",
+   "titulo": "Dormant compra na DEX, com carteiras por blockchain e histórico de ganhos"
   }
  ]
 }

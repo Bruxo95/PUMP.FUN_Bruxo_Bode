@@ -64,6 +64,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
             # 0.32.234: só a página do Dormant mostra o gráfico da DEX (GeckoTerminal e DexScreener) dentro da janela da moeda
             + ("; frame-src https://www.geckoterminal.com https://dexscreener.com" if request.url.path == "/dormant" else ""))
+        if request.url.path == "/dormant":
+            # 0.32.242: esta página recebe chaves privadas e a senha de compra. O jsDelivr inteiro no script-src deixaria um
+            # script injetado baixar qualquer pacote de lá; aqui só o caminho exato do login
+            resp.headers["Content-Security-Policy"] = resp.headers["Content-Security-Policy"].replace(
+                "script-src 'self' https://cdn.jsdelivr.net;", "script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/;")
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
         elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant") or request.url.path.startswith("/static/"):
