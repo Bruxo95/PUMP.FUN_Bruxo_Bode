@@ -327,6 +327,7 @@ class PumpHub:
     async def usage_loop(self) -> None:
         from .apiusage import Usage
         us = self.__dict__.setdefault("usage", Usage())
+        us.st_tags = self.st_tags
         try:
             from datetime import datetime as _dt
             us.load(await self.db.select("api_usage", {"mes": _dt.now(timezone.utc).strftime("%Y-%m")}))
@@ -3166,6 +3167,17 @@ class PumpHub:
         if jk != getattr(self, "_jup_key_in_use", ""):
             self.market.jup = JupiterQuoter(self.http, jk) if jk else self.public_quoter
             self._jup_key_in_use = jk
+
+    def st_tags(self) -> set:
+        """0.32.237: marcas (hash) das chaves da Solana Tracker em uso agora: a do sistema e as pessoais das contas carregadas."""
+        from .apiusage import key_tag
+        ks = {(self.system_keys or {}).get("solanatracker_api_key") or ""}
+        for pf in list(self.engines.values()):
+            try:
+                ks.add(pf.keys.get("solanatracker_api_key") or "")
+            except Exception:
+                pass
+        return {key_tag(k) for k in ks if k}
 
     def key_changed(self, nome: str, antes: str, depois: str) -> None:
         """0.32.236 (pedido do dono: "o sistema tem que ver quando troco as chaves e zerar a contagem de uso"): chave de RPC

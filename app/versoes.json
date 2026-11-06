@@ -1940,6 +1940,11 @@
    "versao": "0.32.236",
    "inicio": "2026-11-06T06:03:31+00:00",
    "titulo": "Leitura pelo RPC novo e contagem zerada ao trocar chave"
+  },
+  {
+   "versao": "0.32.237",
+   "inicio": "2026-11-06T06:13:32+00:00",
+   "titulo": "Solana Tracker: mês por chave em uso"
   }
  ]
 }

@@ -57,3 +57,19 @@ def test_trocar_a_chave_do_sistema_zera_uso_e_recusas(env):
     assert "rpc_url" in hub.key_resets
     snap = c.get("/api/pump", headers=A).text
     assert "n" * 30 not in snap and "v" * 30 not in snap          # a chave nunca volta pela API
+
+
+def test_solana_tracker_conta_so_a_chave_em_uso():
+    """0.32.237: o limite de 10 mil é por chave; a chave trocada deixa de contar no mês e no "estourou"."""
+    from app.apiusage import key_tag
+    u = Usage()
+    now = time.time()
+    mes = time.strftime("%Y-%m", time.gmtime(now))
+    u.month[(mes, "Solana Tracker", key_tag("velha"))] = 10_432
+    u.month[(mes, "Solana Tracker", key_tag("nova"))] = 17
+    u.win[("Solana Tracker", "requisições")] = {int(now // 60): 17}
+    u.st_tags = lambda: {key_tag("velha"), key_tag("nova")}
+    assert "Solana Tracker" in u.estourou(now)
+    u.st_tags = lambda: {key_tag("nova")}
+    r = [x for x in u.windows(now) if x["api"] == "Solana Tracker" and x["tipo"] == "requisições"][0]
+    assert r["mes"] == 17 and "Solana Tracker" not in u.estourou(now)

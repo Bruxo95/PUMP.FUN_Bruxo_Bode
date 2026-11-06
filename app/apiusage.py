@@ -166,6 +166,7 @@ class Usage:
         self.total: dict[tuple, int] = {}            # (api, tipo) -> desde que o servidor subiu
         self.owin: dict[tuple, dict] = {}            # (aba, api, tipo) -> {minuto: n} das últimas 24 h (0.32.188)
         self.ototal: dict[tuple, int] = {}
+        self.st_tags = None                          # 0.32.237: função → marcas das chaves da Solana Tracker em uso
 
     def _tick(self, api: str, tipo: str, n: int, now: float) -> None:
         if ORIGIN.get() in OUTROS:
@@ -302,6 +303,15 @@ class Usage:
                 cred = self.month.get((mes, api + CRED, None)) or 0
                 req = sum(n for (m, a, _c), n in self.month.items() if m == mes and a == api)
                 mes_n, minimo = max(cred, req) or None, req > cred
+            elif tipo == "requisições" and api == "Solana Tracker" and self.st_tags is not None:
+                # 0.32.237 (dono: "troquei a chave da Solana Tracker e continua estourou"): o limite de 10 mil é POR CHAVE.
+                # O mês mostra a chave em uso que mais gastou; chave trocada/removida deixa de contar.
+                try:
+                    tags = set(self.st_tags())
+                except Exception:
+                    tags = set()
+                por = {c: n for (m, a, c), n in self.month.items() if m == mes and a == api and c in tags}
+                mes_n = max(por.values(), default=0) or None
             elif tipo == "requisições":
                 mes_n = sum(n for (m, a, _c), n in self.month.items() if m == mes and a == api) or None
             else:
@@ -321,7 +331,7 @@ class Usage:
         for k in list(self.month):
             if k[1] in (api, api + CRED) and (tag is None or k[2] == tag):
                 self.month[k] = 0
-        if tag is None:
+        if True:                                     # 0.32.237: as janelas de 1–24 h também recomeçam
             for d in (self.win, self.total):
                 for k in [k for k in d if k[0] == api]:
                     d.pop(k, None)
