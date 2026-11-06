@@ -9,7 +9,7 @@
     grupos: ["Por blockchain e categoria", "as moedas da lista divididas por rede e por categoria"],
     config: ["Lista e regras", "chave da CoinGecko, regras e as moedas da lista"],
     carteiras: ["Carteiras e compra", "as carteiras de cada blockchain, a senha de compra e os limites"],
-    compras: ["Minhas compras", "o que você comprou e quanto está ganhando em 1 h, 12 h, 24 h, 7 dias e no total"] };
+    compras: ["Minhas compras", "o que você comprou e vendeu, e quanto está ganhando em 1 h, 12 h, 24 h, 7 dias e no total"] };
   const ST = { pump: "Pump", dump: "Dump", acordando: "Acordando", dormindo: "Dormindo", normal: "Normal", parada: "Parada", morta: "Morta", sem_cg: "Sem par",
     acordou_chain: "Acordou na blockchain", parada_chain: "Parada na blockchain" };
   // 0.32.229 (áudio do Bruxo): as últimas 3 ações de cada moeda, lidas na blockchain (GeckoTerminal); link para o explorador da rede
@@ -485,23 +485,95 @@
       : '<div class="buywarn"><b>' + esc(c.status === "pendente" ? "Enviada, ainda sem confirmação." : "Confira esta compra.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>") +
       '<div class="row dmact" style="margin-top:10px"><a class="btn primary" href="#compras" id="buyHist">Ver em Minhas compras</a></div>';
   }
+  // venda: passo 1 quanto, passo 2 confere e confirma, passo 3 resultado (usa a mesma janela da compra)
+  function openSell(id) {
+    const x = (CP_ITENS || []).find((i) => i.id === id); if (!x) return;
+    BUY = { sell: id };
+    $("buyMT").textContent = "Vender " + (x.simbolo || x.nome);
+    $("buyMS").innerHTML = esc(x.nome) + " · " + esc(x.rede_nome || "") + " · preço na CoinGecko: " + price(x.px_agora);
+    $("buyMB").innerHTML = '<div class="buyform"><div><label for="sellPct">Quanto do saldo do token na carteira</label><select class="in" id="sellPct"><option value="100">100% (tudo)</option><option value="75">75%</option><option value="50">50%</option><option value="25">25%</option></select></div>' +
+      '<div class="row dmact"><button class="btn primary" type="button" id="sellQuote">Ver cotação</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
+    $("buyM").hidden = false;
+  }
+  async function sellQuote() {
+    if (!BUY || !BUY.sell) return;
+    if (BUY.timer) clearInterval(BUY.timer);
+    $("buyPrev").innerHTML = '<div class="muted" style="margin-top:10px">cotando e lendo o saldo…</div>';
+    const r = await BB.api("/api/dormant/venda/cotar", { body: { compra: BUY.sell, pct: Number($("sellPct").value) } });
+    if (!BUY) return;
+    if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
+    BUY.q = r;
+    const q = (v) => (v == null ? "—" : num(v, v >= 1000 ? 0 : v >= 1 ? 4 : 8));
+    const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
+    const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
+    let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
+      line("Saldo na carteira", q(r.saldo) + " " + esc(r.moeda.simbolo)) +
+      line("Você vende", "<b>" + q(r.vende) + " " + esc(r.moeda.simbolo) + "</b> (" + num(r.pct, 0) + "%)") +
+      line("Recebe, mais ou menos", "<b>" + q(r.recebe) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " (US$ " + num(r.usd, 2) + ")" : "")) +
+      line("Recebe no mínimo", q(r.minimo) + " " + esc(r.moeda_rede) + " (folga de " + num(r.slip, 2) + "%)") +
+      line("Onde", esc(r.dex || "—") + (r.rota ? " · " + esc(r.rota) : "")) +
+      line("Recebido × CoinGecko", r.dif_cg == null ? "—" : pc(r.dif_cg)) +
+      line("Quanto a venda move o preço", r.impacto == null ? "—" : num(r.impacto, 2) + "%") +
+      line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "US$ " + num(r.gas_usd, 4)) +
+      line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") + "</tbody></table></div>" +
+      list("buybad", "Não dá para vender:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
+    if (r.quote_id) {
+      h += '<div class="buyform"><div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+        '<div><label for="buyOk">Digite VENDER para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
+        '<div class="row dmact"><button class="btn primary" type="button" id="sellGo">Vender agora</button><span class="muted small" id="buyTime"></span></div></div>';
+    }
+    $("buyPrev").innerHTML = h;
+    if (r.quote_id) {
+      const fim = Date.now() + r.validade_s * 1000;
+      const tick = () => { const s = Math.round((fim - Date.now()) / 1000), el = $("buyTime"), go = $("sellGo"); if (!el || !go) return;
+        if (s <= 0) { go.disabled = true; el.textContent = "esta cotação venceu: clique em Ver cotação de novo"; clearInterval(BUY.timer); } else el.textContent = "cotação vale por mais " + s + " s"; };
+      tick(); BUY.timer = setInterval(tick, 1000);
+    }
+  }
+  async function sellGo(btn) {
+    if (!BUY || !BUY.q || !BUY.q.quote_id) return;
+    const senha = $("buySenha").value, confirmar = $("buyOk").value.trim();
+    btn.disabled = true; btn.textContent = "Enviando…";
+    const r = await BB.api("/api/dormant/venda/confirmar", { body: { quote_id: BUY.q.quote_id, senha, confirmar } });
+    if (!BUY) return;
+    btn.disabled = false; btn.textContent = "Vender agora";
+    $("buySenha").value = "";
+    if (!r || r.error) {
+      const old = $("buyErr"); if (old) old.remove();
+      btn.closest(".buyform").insertAdjacentHTML("beforebegin", '<div class="buybad" id="buyErr">' + esc((r && r.error) || "a venda não saiu") + "</div>");
+      return;
+    }
+    if (BUY.timer) clearInterval(BUY.timer);
+    const c = r.venda || {};
+    const link = c.tx && c.expl ? '<a href="' + esc(c.expl + c.tx) + '" target="_blank" rel="noopener">ver a transação na blockchain</a>' : "";
+    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Vendido.</b> Entraram ' + num(c.nativo_out, 6) + " " + esc(c.moeda) + " (US$ " + num(c.usd_out, 2) + "). " + link + "</div>"
+      : '<div class="buywarn"><b>' + esc(c.status === "pendente" ? "Enviada, ainda sem confirmação." : "Confira esta venda.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>");
+    drawCompras();
+  }
+  let CP_ITENS = [];
   async function drawCompras() {
     const r = await BB.api("/api/dormant/compras", { quiet: true });
     if (VIEW !== "compras") return;
     if (!r || r.error) { $("cpT").innerHTML = '<tr><td class="empty down">' + esc((r && r.error) || "não consegui ler as compras") + "</td></tr>"; return; }
+    CP_ITENS = r.itens;
     const s = r.resumo, kp = (k, v, d) => '<div class="kpi"><div class="k"><span>' + esc(k) + '</span></div><div class="v">' + v + '</div><div class="d">' + esc(d) + "</div></div>";
-    $("cpK").innerHTML = kp("Investido", "US$ " + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "US$ " + num(s.valor, 2), "no preço da CoinGecko") +
-      kp("Ganho total", '<span class="' + cls(s.ganho) + '">US$ ' + num(s.ganho, 2) + "</span>", "valor agora − investido") + kp("Total", pc(s.total), "desde as compras") +
+    $("cpK").innerHTML = kp("Investido", "US$ " + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "US$ " + num(s.valor, 2), "o que ainda não vendeu, no preço da CoinGecko") + kp("Recebido", "US$ " + num(s.recebido, 2), "das vendas, já sem o gás") +
+      kp("Ganho total", '<span class="' + cls(s.ganho) + '">US$ ' + num(s.ganho, 2) + "</span>", "valor agora + recebido − investido") + kp("Total", pc(s.total), "desde as compras") +
       kp("1 h", pc(s.h1), "última hora") + kp("12 h", pc(s.h12), "últimas 12 horas") + kp("24 h", pc(s.h24), "últimas 24 horas") + kp("7 dias", pc(s.h168), "últimos 7 dias");
     $("cpSub").textContent = "as porcentagens são do preço de cada moeda; quem foi comprada dentro do período conta desde a compra · preço da CoinGecko" + (r.leitura_t ? ", lido há " + ago(r.leitura_t) : "") +
-      " · não desconta a taxa de uma venda futura · para vender, use a sua carteira (o painel ainda não vende)";
+      " · o valor agora não desconta a taxa de uma venda futura · vender vende o saldo do token na carteira, e as vendas abatem as compras mais antigas";
     const ok = r.itens.filter((x) => x.status === "confirmada"), fora = r.itens.filter((x) => x.status !== "confirmada");
     const tx = (x) => (x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—");
     const moeda = (x) => '<div class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<div><b>" + esc(x.nome) + "</b> <small>" + esc(x.simbolo || "") + "</small></div></div>";
-    table("cpT", ["Moeda", "Rede", "Quando", "Investido", "Quantidade", "Preço pago", "Agora", "1 h", "12 h", "24 h", "7 dias", "Total", "Ganho", "Transação"], ok.map((x) => [V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""),
-      V(hora(x.t), x.t), V("US$ " + num(x.custo, 2) + '<span class="dmwhy">' + num(x.nativo, 6) + " " + esc(x.moeda) + "</span>", x.custo), V(num(x.qty, 4), x.qty), V(price(x.px_in), x.px_in), V(price(x.px_agora), x.px_agora),
-      V(pc(x.h1), x.h1), V(pc(x.h12), x.h12), V(pc(x.h24), x.h24), V(pc(x.h168), x.h168), V(pc(x.total), x.total), V(x.ganho == null ? "—" : '<span class="' + cls(x.ganho) + '">US$ ' + num(x.ganho, 2) + "</span>", x.ganho), tx(x)]),
+    table("cpT", ["Moeda", "Rede", "Quando", "Investido", "Quantidade", "Vendido", "Preço pago", "Agora", "1 h", "12 h", "24 h", "7 dias", "Total", "Ganho", "Transação", ""], ok.map((x) => [V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""),
+      V(hora(x.t), x.t), V("US$ " + num(x.custo, 2) + '<span class="dmwhy">' + num(x.nativo, 6) + " " + esc(x.moeda) + "</span>", x.custo), V(num(x.qty, 4), x.qty), V(x.vendido ? num(x.vendido, 4) + '<span class="dmwhy">recebeu US$ ' + num(x.recebido, 2) + "</span>" : "—", x.vendido || 0), V(price(x.px_in), x.px_in), V(price(x.px_agora), x.px_agora),
+      V(pc(x.h1), x.h1), V(pc(x.h12), x.h12), V(pc(x.h24), x.h24), V(pc(x.h168), x.h168), V(pc(x.total), x.total), V(x.ganho == null ? "—" : '<span class="' + cls(x.ganho) + '">US$ ' + num(x.ganho, 2) + "</span>", x.ganho), tx(x),
+      x.resto ? '<button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="muted small">vendida</span>']),
       "Nenhuma compra ainda. Em Moedas, use o botão Comprar.");
+    const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
+    table("cpV", ["Quando", "Moeda", "Rede", "Vendeu", "Recebeu", "Gás", "Onde", "Situação", "Transação"], (r.vendas || []).map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V(num(x.qty, 4), x.qty),
+      V(x.usd_out == null ? "—" : "US$ " + num(x.usd_out, 2) + '<span class="dmwhy">' + num(x.nativo_out, 6) + " " + esc(x.moeda) + "</span>", x.usd_out), V(x.gas_usd == null ? "—" : "US$ " + num(x.gas_usd, 4), x.gas_usd), esc(x.dex || "—"),
+      V('<span class="dmst ' + (x.status === "confirmada" ? "pump" : x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_V[x.status] || x.status) + "</span>" + (x.motivo ? '<span class="dmwhy">' + esc(x.motivo) + "</span>" : ""), x.status), tx(x)]), "Nenhuma venda ainda.");
     const ST_C = { enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
     table("cpF", ["Quando", "Moeda", "Rede", "Valor", "Situação", "Motivo", "Transação"], fora.map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V("US$ " + num(x.usd_in, 2), x.usd_in),
       V('<span class="dmst ' + (x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_C[x.status] || x.status) + "</span>", x.status), '<small class="muted">' + esc(x.motivo || "") + "</small>", tx(x)]), "Nada aqui.");
@@ -549,6 +621,7 @@
     if (!e.target) return;
     if (e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); }
     if (e.target.id === "mCat") { F.cat = e.target.value; saveF(); drawMoedas(); }
+    if (e.target.id === "sellPct") { $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
     if (e.target.id === "buyRede") { buyUnit(); $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });
   // 0.32.228 (pedido do dono): adicionar moeda pela busca da CoinGecko; fica o nome de quem adicionou
@@ -569,6 +642,8 @@
   document.addEventListener("click", async (e) => {
     const bb = e.target.closest && e.target.closest("[data-dmbuy]");
     if (bb) { e.preventDefault(); e.stopPropagation(); openBuy(bb.dataset.dmbuy); return; }
+    const bs = e.target.closest && e.target.closest("[data-dmsell]");
+    if (bs) { e.preventDefault(); openSell(bs.dataset.dmsell); return; }
     const k = e.target.closest && e.target.closest("[data-dmst]");
     if (k) { F.st = k.dataset.dmst; saveF(); location.hash = "#moedas"; return; }
     const th = e.target.closest && e.target.closest("th[data-tsi]");
@@ -587,6 +662,8 @@
     if (t.id === "buyMX") { closeBuy(); return; }
     if (t.id === "buyQuote") { buyQuote(); return; }
     if (t.id === "buyGo") { buyGo(t); return; }
+    if (t.id === "sellQuote") { sellQuote(); return; }
+    if (t.id === "sellGo") { sellGo(t); return; }
     if (t.id === "buyHist") { closeBuy(); $("coinM").hidden = true; CM = null; return; }
     if (t.id === "askMX") { closeAsk(); return; }
     if (t.id === "askGo") { if (ASK) await ASK(t); return; }

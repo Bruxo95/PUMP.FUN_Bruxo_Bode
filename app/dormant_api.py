@@ -206,6 +206,21 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"ok": True, "compra": r}
         return await run(go())
 
+    # 0.32.243: venda. Só o id da compra e a porcentagem vêm do navegador; token, carteira e preço são do servidor
+    @app.post("/api/dormant/venda/cotar")
+    async def sell_quote(body: dict, u: dict = Depends(own)):
+        b = body if isinstance(body, dict) else {}
+        return await run(buyer().preview_sell(u["id"], str(b.get("compra") or "")[:64], b.get("pct")))
+
+    @app.post("/api/dormant/venda/confirmar")
+    async def sell_go(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            r = await buyer().sell(u["id"], str(b.get("quote_id") or ""), b.get("senha"), str(b.get("confirmar") or ""))
+            await audit(db, u["id"], "Dormant: venda", f"{r.get('simbolo')} · US$ {float(r.get('usd_out') or 0):.2f} · {r.get('status')} · {r.get('tx')}")
+            return {"ok": True, "venda": r}
+        return await run(go())
+
     @app.get("/api/dormant/compras")
     async def buy_hist(u: dict = Depends(own)):
         return await run(buyer().history(u["id"]))

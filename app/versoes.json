@@ -1970,6 +1970,11 @@
    "versao": "0.32.242",
    "inicio": "2026-11-06T16:48:22+00:00",
    "titulo": "Dormant compra na DEX, com carteiras por blockchain e histórico de ganhos"
+  },
+  {
+   "versao": "0.32.243",
+   "inicio": "2026-11-06T17:01:53+00:00",
+   "titulo": "Dormant também vende: botão Vender em Minhas compras"
   }
  ]
 }

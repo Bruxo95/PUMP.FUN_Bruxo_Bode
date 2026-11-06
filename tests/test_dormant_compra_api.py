@@ -8,7 +8,7 @@ from tests.test_api import UA, UB, env, tok  # noqa: F401  (fixture env)
 KEY = "0x" + "0" * 63 + "1"
 SENHA = "cavalo-azul-77"
 ROTAS_POST = ["/api/dormant/carteiras/salvar", "/api/dormant/carteiras/remover", "/api/dormant/carteiras/senha", "/api/dormant/compra/ligar",
-              "/api/dormant/compra/limites", "/api/dormant/compra/cotar", "/api/dormant/compra/confirmar"]
+              "/api/dormant/compra/limites", "/api/dormant/compra/cotar", "/api/dormant/compra/confirmar", "/api/dormant/venda/cotar", "/api/dormant/venda/confirmar"]
 ROTAS_GET = ["/api/dormant/carteiras", "/api/dormant/carteiras/saldos", "/api/dormant/compras"]
 
 
