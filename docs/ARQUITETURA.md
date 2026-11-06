@@ -1,6 +1,6 @@
 # PUMP FUN COPY — arquitetura e bancos de dados
 
-Atualizado em 05/11/2026 (versão 0.32.227). Visão geral de onde cada parte roda, por onde os dados passam e onde ficam
+Atualizado em 06/11/2026 (versão 0.32.240). Visão geral de onde cada parte roda, por onde os dados passam e onde ficam
 guardados. Detalhes de cada arquivo e as regras de trabalho estão no `CLAUDE.md`; o uso do painel, no `GUIA-DO-PROJETO.md`.
 
 ## 1. Visão geral
@@ -83,6 +83,47 @@ Regras:
 | Acompanhar | Painel → Administração → Status geral | Linhas "Arquivo (Postgres da VPS)" e "Movidas para o arquivo" |
 
 Pendente: backup diário do banco `pump_arquivo` (hoje fica só no disco da VPS).
+
+## 2.1 Esquema de bancos — regras para projetos novos e alterações
+
+Vale para qualquer tela, robô ou projeto novo dentro do PUMP FUN COPY (Solana, BNB, Robinhood, Dormant…).
+
+**Onde guardar cada dado**
+
+| O dado é… | Vai para | Como |
+|---|---|---|
+| De um usuário (perfil, configuração, chave, posição, trade, feed, audit_log) | Supabase, sempre | Tabela com `user_id`, RLS ligado, leitura só da própria linha; o servidor sempre filtra por `user_id` |
+| Chave/segredo | Supabase (`user_secrets` ou `app_secrets`) | Cifrado (AES-256-GCM, `APP_ENCRYPTION_KEY`); chave do sistema nova = acrescentar o nome na regra `app_secrets_nome_check` numa migração |
+| Público e de consulta rápida (últimos dias) | Supabase | Tabela só do backend (RLS sem política para o navegador) |
+| Público e histórico (mais de 7 dias) | Postgres da VPS (`pump_arquivo`, tabela `arquivo`) | Entra em `arquivo.SPECS`; o servidor move sozinho |
+| Estado em memória que pode se perder | Nenhum banco | Só memória, recomeça no reinício |
+
+**Tabela nova pública que cresce sem parar** (trades, sinais, fotos de tokens, logs):
+1. Criar no Supabase por migração nova (`supabase/migrations/AAAAMMDDHHMMSS_nome.sql`, nunca editar uma aplicada), com RLS ligado.
+2. Ter uma coluna de hora (`timestamptz` ou epoch) **com índice nela** (sem índice a cópia para o arquivo ordena a tabela
+   inteira e cai no limite de tempo do Supabase, erro 57014 — foi o caso do `jev_backtest` até a 0.32.240).
+3. Acrescentar em `app/arquivo.py` → `SPECS`: `{"tabela", "pk", "t", "tipo": "iso"|"epoch", "dias"}` (`dias` = quanto fica no
+   Supabase; `fica` = chaves que nunca saem). O laço move a cada 30 min (5 min enquanto houver fila).
+4. Leitura do passado: `hub.arquivo.pages(tabela, since, until)` junto com a leitura do Supabase. Nunca reler a tabela
+   inteira no reinício: carregar só a janela usada; o resto sob demanda.
+5. Não guardar nada de usuário no arquivo (lá não há RLS).
+
+**Cuidados com o Supabase (plano grátis: 500 MB de banco, 1 GB de logs por mês)**
+- Apagar linhas não diminui o tamanho: depois de mover muita coisa, rodar `VACUUM FULL <tabela>` (trava a tabela por alguns
+  segundos). Em 05/11/2026 o banco caiu de 546 para 309 MB assim.
+- Cada consulta conta nos logs: laço que roda sozinho não deve repetir consulta que já sabe a resposta (ex.: dias vazios do
+  `rlog_daily` lembrados, perfil guardado 30 s).
+- Muitos deploys seguidos = muitas cargas iniciais (incidente de 04/11/2026).
+
+**Postgres da VPS**
+- O servidor fala com ele pelo PostgREST `pump_arquivo_api` (stack `pump_bruxo_bode`, rede `vpsrachar`, sem porta pública).
+- Erro `ConnectError: Name or service not known` no log `arquivo` = o serviço `pump_arquivo_api` não está rodando (ver
+  Portainer → Services → `pump_bruxo_bode_pump_arquivo_api` → Logs). Enquanto isso nada é apagado do Supabase e o robô segue.
+- Senha do usuário `pump_arquivo_auth` = `ARQUIVO_DB_PASSWORD` do stack; segredo do token = `ARQUIVO_JWT_SECRET`.
+
+**APIs externas e o banco**: o uso de cada API é contado em `api_usage` (mês, por chave na Solana Tracker e no Helius)
+e `api_usage_janelas` (1–24 h). Dado "bom de ter" (saldo, idade de carteira, carteiras novas) usa o RPC público grátis;
+o Helius fica para leitura das carteiras copiadas, preços e execução.
 
 ## 3. Caminho de uma cópia de trade (Solana)
 

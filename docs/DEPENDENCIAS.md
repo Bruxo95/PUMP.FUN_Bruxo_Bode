@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-06**; revisão documental **2.0**.
-Aplicação: **0.32.239 · 2026-11-06 · Explorar e carteiras novas só com admin usando**.
-Referência Git na emissão: `0c254bb94e6dbf0c14afdacf0d8adf2dd1f2351b`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.240 · 2026-11-06 · Helius contado por chave e índice do jev_backtest**.
+Referência Git na emissão: `286cdea019e46070a6f92e1d71e195bd03192023`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

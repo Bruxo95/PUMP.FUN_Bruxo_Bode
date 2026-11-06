@@ -73,3 +73,24 @@ def test_solana_tracker_conta_so_a_chave_em_uso():
     u.st_tags = lambda: {key_tag("nova")}
     r = [x for x in u.windows(now) if x["api"] == "Solana Tracker" and x["tipo"] == "requisições"][0]
     assert r["mes"] == 17 and "Solana Tracker" not in u.estourou(now)
+
+
+def test_helius_conta_o_mes_por_chave_em_uso():
+    """0.32.240 (dono: "no Helius o uso está 1.724 e o painel mostra 988 mil"): o mês do Helius é da chave em uso."""
+    from app.apiusage import key_tag
+    u = Usage()
+    now = time.time()
+    mes = time.strftime("%Y-%m", time.gmtime(now))
+    u.month[(mes, H, None)] = 988_000                      # contado antes de separar por chave (a chave velha)
+    u.month[(mes, H + " · créditos", None)] = 988_000
+
+    class Req:
+        def __init__(self, url):
+            self.url = httpx.URL(url)
+            self.headers = {}
+            self.content = b'{"method":"getTransaction"}'
+    for _ in range(3):
+        asyncio.run(u.hook(Req(NOVO)))
+    u.rpc_tags = lambda: {key_tag("n" * 30)}
+    r = [x for x in u.windows(now) if x["api"] == H and x["tipo"] == "créditos"][0]
+    assert r["mes"] == 3 and H not in u.estourou(now)

@@ -37,6 +37,7 @@ SKIP = ("supabase.co", "supabase.in", "api.telegram.org", "github.com")
 MORE = [("publicnode.com", "RPC da BNB (publicnode)"), ("blockrazor.xyz", "RPC da BNB (blockrazor)"),
         ("nodereal.io", "NodeReal (BNB)"), ("typesafe.ai", "Jev (TypeSafe)"), ("gopluslabs.io", "GoPlus (segurança BNB)")]
 CREDITS = {"Helius (RPC da Solana)": {"getProgramAccounts": 10}}      # o resto = 1 crédito por chamada
+PER_KEY = {"Solana Tracker", "Helius (RPC da Solana)"}                  # 0.32.240: mês contado por chave
 CRED = " · créditos"                                                   # sufixo da linha de créditos no mês (guardada no banco)
 H_WIN = (1, 6, 12, 24)
 # 0.32.188 (pedido do dono: "quanto gasta cada aba"): cada laço do servidor nasce marcado com a aba que ele serve
@@ -167,6 +168,7 @@ class Usage:
         self.owin: dict[tuple, dict] = {}            # (aba, api, tipo) -> {minuto: n} das últimas 24 h (0.32.188)
         self.ototal: dict[tuple, int] = {}
         self.st_tags = None                          # 0.32.237: função → marcas das chaves da Solana Tracker em uso
+        self.rpc_tags = None                         # 0.32.240: função → marcas das chaves do Helius em uso
 
     def _tick(self, api: str, tipo: str, n: int, now: float) -> None:
         if ORIGIN.get() in OUTROS:
@@ -204,10 +206,10 @@ class Usage:
         cr = credits_of(api, body)
         if cr:
             self._tick(api, "créditos", cr, now)
-            ck = (datetime.fromtimestamp(now, timezone.utc).strftime("%Y-%m"), api + CRED, None)
+            ck = (datetime.fromtimestamp(now, timezone.utc).strftime("%Y-%m"), api + CRED, key_tag(key) if api in PER_KEY else None)
             self.month[ck] = self.month.get(ck, 0) + cr
         d = datetime.fromtimestamp(now, timezone.utc)
-        k = (d.strftime("%Y-%m"), api, key_tag(key) if api == "Solana Tracker" else None)
+        k = (d.strftime("%Y-%m"), api, key_tag(key) if api in PER_KEY else None)
         if api in BNB_APIS:
             return
         self.month[k] = self.month.get(k, 0) + 1
@@ -223,8 +225,11 @@ class Usage:
         """Gancho do httpx: conta a requisição (nunca bloqueia nem falha a chamada)."""
         try:
             host = request.url.host
-            body = request.content if any(host.endswith(s) for s in ("helius-rpc.com",)) else None
-            self.count(host, request.headers.get("x-api-key"), body=body)
+            helius = host.endswith("helius-rpc.com")
+            body = request.content if helius else None
+            # 0.32.240: no Helius a chave vai no endereço (?api-key=); conta o mês por chave, como na Solana Tracker
+            key = request.url.params.get("api-key") if helius else request.headers.get("x-api-key")
+            self.count(host, key, body=body)
         except Exception:
             pass
 
@@ -298,18 +303,25 @@ class Usage:
                     pct = None
                 per[str(h)] = {"n": n, "pct": pct}
             minimo = False
-            if tipo == "créditos":
+            tags = self._tags(api)
+            if tipo == "créditos" and tags is not None:
+                # 0.32.240 (dono: "o Helius mostra 1.724 e o painel 988 mil"): o limite é POR CHAVE. O mês mostra a chave em
+                # uso que mais gastou; a chave trocada (e o que foi contado antes de separar por chave) não conta mais.
+                por = {}
+                for (m, a, c), n in self.month.items():
+                    if m == mes and c in tags and a in (api, api + CRED):
+                        cr, rq = por.get(c, (0, 0))
+                        por[c] = (cr + n, rq) if a.endswith(CRED) else (cr, rq + n)
+                best = max(por.values(), key=lambda x: max(x), default=(0, 0))
+                mes_n, minimo = max(best) or None, best[1] > best[0]
+            elif tipo == "créditos":
                 # 0.32.187: antes de 04/11 os créditos não eram separados; cada requisição gasta pelo menos 1 crédito
                 cred = self.month.get((mes, api + CRED, None)) or 0
                 req = sum(n for (m, a, _c), n in self.month.items() if m == mes and a == api)
                 mes_n, minimo = max(cred, req) or None, req > cred
-            elif tipo == "requisições" and api == "Solana Tracker" and self.st_tags is not None:
+            elif tipo == "requisições" and tags is not None:
                 # 0.32.237 (dono: "troquei a chave da Solana Tracker e continua estourou"): o limite de 10 mil é POR CHAVE.
                 # O mês mostra a chave em uso que mais gastou; chave trocada/removida deixa de contar.
-                try:
-                    tags = set(self.st_tags())
-                except Exception:
-                    tags = set()
                 por = {c: n for (m, a, c), n in self.month.items() if m == mes and a == api and c in tags}
                 mes_n = max(por.values(), default=0) or None
             elif tipo == "requisições":
@@ -323,6 +335,16 @@ class Usage:
                 row["custo_sol"] = {h: round(per[h]["n"] / 10_000 * 0.01, 5) for h in per}
             out.append(row)
         return out
+
+    def _tags(self, api: str) -> set | None:
+        """Marcas (hash) das chaves em uso agora daquela API; None = não separa por chave."""
+        fn = self.st_tags if api == "Solana Tracker" else self.rpc_tags if api in PER_KEY else None
+        if fn is None:
+            return None
+        try:
+            return set(fn())
+        except Exception:
+            return set()
 
     def zerar(self, api: str, chave: str | None = None) -> None:
         """0.32.236 (pedido do dono: "quando troco as chaves, zerar a contagem de uso"): apaga a contagem daquela API (mês,

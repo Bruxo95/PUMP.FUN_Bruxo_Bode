@@ -1955,6 +1955,11 @@
    "versao": "0.32.239",
    "inicio": "2026-11-06T06:28:16+00:00",
    "titulo": "Explorar e carteiras novas só com admin usando"
+  },
+  {
+   "versao": "0.32.240",
+   "inicio": "2026-11-06T06:37:17+00:00",
+   "titulo": "Helius contado por chave e índice do jev_backtest"
   }
  ]
 }

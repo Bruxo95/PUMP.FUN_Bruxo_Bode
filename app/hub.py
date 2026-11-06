@@ -328,6 +328,7 @@ class PumpHub:
         from .apiusage import Usage
         us = self.__dict__.setdefault("usage", Usage())
         us.st_tags = self.st_tags
+        us.rpc_tags = self.rpc_tags
         try:
             from datetime import datetime as _dt
             us.load(await self.db.select("api_usage", {"mes": _dt.now(timezone.utc).strftime("%Y-%m")}))
@@ -3178,6 +3179,24 @@ class PumpHub:
             except Exception:
                 pass
         return {key_tag(k) for k in ks if k}
+
+    def rpc_tags(self) -> set:
+        """0.32.240: marcas das chaves do Helius em uso (chave do sistema, variável do Portainer e RPC pessoal das contas)."""
+        from urllib.parse import parse_qs, urlparse
+        from .apiusage import key_tag
+        urls = {(self.system_keys or {}).get("rpc_url") or "", str(self.cfg.defaults.get("pump_rpc_http") or ""),
+                str(self.cfg.defaults.get("pump_rpc_ws") or ""), getattr(self.cfg, "solana_rpc_public", "") or ""}
+        for pf in list(self.engines.values()):
+            try:
+                urls.add(pf.keys.get("rpc_url") or "")
+            except Exception:
+                pass
+        out = set()
+        for u in urls:
+            k = (parse_qs(urlparse(u).query).get("api-key") or [""])[0] if u else ""
+            if k:
+                out.add(key_tag(k))
+        return out
 
     def key_changed(self, nome: str, antes: str, depois: str) -> None:
         """0.32.236 (pedido do dono: "o sistema tem que ver quando troco as chaves e zerar a contagem de uso"): chave de RPC
