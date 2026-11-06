@@ -1950,6 +1950,11 @@
    "versao": "0.32.238",
    "inicio": "2026-11-06T06:24:09+00:00",
    "titulo": "Menos consumo do Helius e da Solana Tracker"
+  },
+  {
+   "versao": "0.32.239",
+   "inicio": "2026-11-06T06:28:16+00:00",
+   "titulo": "Explorar e carteiras novas só com admin usando"
   }
  ]
 }

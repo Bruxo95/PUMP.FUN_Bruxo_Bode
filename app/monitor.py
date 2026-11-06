@@ -637,9 +637,9 @@ class SharedMonitor:
         if ex is None:
             return False
         # 0.32.238 (dono: "só o Top traders ligado e gasta muito"): a lista do Explorar (1 consulta da Solana Tracker a
-        # cada 5 min, ~290/dia) só é buscada se alguma conta tem a compra automática do Explorar ligada ou se alguém
+        # cada 5 min, ~290/dia) só é buscada se algum ADMIN (a compra do Explorar é só de admin) a tem ligada ou se alguém
         # abriu a tela do Explorar nos últimos 30 min.
-        if not (any(getattr(e.cfg, "pump_ex_auto_on", False) for e in self.engines())
+        if not (any(getattr(e, "role", "") == "admin" and getattr(e.cfg, "pump_ex_auto_on", False) for e in self.engines())
                 or time.time() - float(getattr(self.hub, "explore_seen", 0) or 0) < 1800):
             ex.error = ex.error or None
             return False
@@ -743,8 +743,8 @@ class SharedMonitor:
         veredito lixo. No máx. `limit` tokens por volta (cada um custa ~22 consultas no RPC público).
         0.32.238 (dono: "só o Top traders ligado e gasta muito"): só roda se alguma conta usa a checagem numa compra
         automática ligada (Base ou Explorar)."""
-        if not any(getattr(e.cfg, "pump_ar_fresh_on", False) and (getattr(e.cfg, "pump_auto_on", False) or getattr(e.cfg, "pump_ex_auto_on", False))
-                   for e in self.engines()):
+        if not any(getattr(e, "role", "") == "admin" and getattr(e.cfg, "pump_ar_fresh_on", False)
+                   and (getattr(e.cfg, "pump_auto_on", False) or getattr(e.cfg, "pump_ex_auto_on", False)) for e in self.engines()):
             return 0
         want = []
         lab = getattr(self.hub, "lab", None)

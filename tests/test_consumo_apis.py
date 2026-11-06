@@ -35,9 +35,12 @@ def test_carteiras_novas_so_com_compra_automatica_ligada(env):
     mon.svc.fresh_check = fc
     hub.explore.lists = {"graduating": [{"mint": "M" * 44}]}
     pf = hub.engines[UA]
+    pf.role = "admin"
     pf.cfg.pump_ar_fresh_on, pf.cfg.pump_ex_auto_on, pf.cfg.pump_auto_on = True, False, False
     assert asyncio.run(mon.fresh_once()) == 0 and not called
-    pf.cfg.pump_ex_auto_on = True
+    pf.cfg.pump_ex_auto_on, pf.role = True, "user"            # usuário comum não tem compra do Explorar
+    assert asyncio.run(mon.fresh_once()) == 0 and not called
+    pf.role = "admin"
     assert asyncio.run(mon.fresh_once()) == 1 and called
 
 
