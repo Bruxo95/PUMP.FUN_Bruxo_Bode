@@ -189,7 +189,10 @@
           <details class="keyhow" id="wPassCh" style="margin-top:10px" hidden><summary>Trocar a senha de compra</summary>
             <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input class="in" id="wPassN" type="password" autocomplete="new-password" spellcheck="false" placeholder="senha nova" aria-label="Senha nova" style="flex:1 1 220px;min-width:0"><input class="in" id="wPassN2" type="password" autocomplete="new-password" spellcheck="false" placeholder="repita a senha nova" aria-label="Repita a senha nova" style="flex:1 1 220px;min-width:0"><button class="btn" id="wPassGo" type="button">Trocar</button></div></details></div>
         <div class="card"><header><div><h2>Carteira de cada blockchain</h2><div class="sub">só estas redes têm compra aqui, pelas DEX mais seguras · o endereço do roteador é fixo no código, e a compra não dá autorização nenhuma sobre os seus tokens</div></div></header>
+          <div class="buybad" id="wGasAl" hidden></div>
           <div class="dmwals" id="wList"></div></div>
+        <div class="card"><header><div><h2>Abastecimentos de gás</h2><div class="sub">pela ponte Relay, sempre para uma carteira sua · a taxa aparece antes, calculada com o preço da CoinGecko</div></div></header>
+          <div class="tbl-wrap"><table id="wGasT"></table></div></div>
       </section>
       <section class="view" data-view="compras" hidden>
         <div class="kpis" id="cpK"></div>

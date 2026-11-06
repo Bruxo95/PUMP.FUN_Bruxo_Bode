@@ -481,7 +481,7 @@ class Buyer:
                     bloq.append("a rede recusou na simulação: " + str(e))
             gas_nat = gas * gp / 1e18
             if bal < q["value"] + int(gas * 1.3) * gp and bal >= q["value"]:
-                bloq.append(f"falta {c['moeda']} para pagar o gás")
+                bloq.append(f"falta {c['moeda']} para pagar o gás: use Abastecer em Carteiras e compra")
         gas_usd = (gas_nat if gas_nat is not None else gas * gp / 1e18) * (q["usd_n"] or 0)
         if q["usd_in"] and gas_usd > q["usd_in"] * 0.25:
             avisos.append(f"o gás (US$ {gas_usd:.2f}) passa de 25% do valor da compra")
@@ -546,7 +546,7 @@ class Buyer:
             try:
                 bal = (await self.rpc(self.sol_rpc(), "getBalance", [wal["endereco"]]))["value"]
                 if bal < q["value"] + int(CHAINS["solana"]["reserva"] * 1e9):
-                    bloq.append(f"saldo insuficiente: a carteira tem {bal / 1e9:.4f} SOL (fica {CHAINS['solana']['reserva']:g} SOL para as taxas)")
+                    bloq.append(f"saldo insuficiente: a carteira tem {bal / 1e9:.4f} SOL (fica {CHAINS['solana']['reserva']:g} SOL para as taxas); use Abastecer em Carteiras e compra")
             except (BuyError, KeyError, TypeError):
                 bloq.append("não consegui ler o saldo da carteira")
         labels = [((r.get("swapInfo") or {}).get("label") or "?") for r in (jq.get("routePlan") or [])]
@@ -570,7 +570,7 @@ class Buyer:
         async with self.lock(uid):                 # uma compra por vez por conta: sem compra dobrada nem nonce repetido
             self._prune()
             q = self.quotes.get(str(quote_id or ""))
-            if not q or q["uid"] != uid or q.get("lado") == "venda":
+            if not q or q["uid"] != uid or q.get("lado"):
                 raise BuyError("esta cotação venceu: peça outra")
             cfg = await self.cfg(uid)
             if not self.allowed():
@@ -876,7 +876,7 @@ class Buyer:
                 bloq.append("a rede recusou na simulação: " + str(e))
         bal = int(await self.rpc(c["rpc"], "eth_getBalance", [addr, "latest"]) or "0x0", 16)
         if bal < int(gas * 1.3) * gp:
-            bloq.append(f"falta {c['moeda']} para pagar o gás da venda: a carteira tem {bal / 1e18:.6f}")
+            bloq.append(f"falta {c['moeda']} para pagar o gás da venda: a carteira tem {bal / 1e18:.6f}; use Abastecer em Carteiras e compra")
         if aprovar:
             avisos.append("vai sair uma autorização antes da venda: só no valor exato desta venda, só para o roteador oficial (paga gás)")
         return {"dex": rt["dex"], "rota": rt["rota"], "saldo": saldo / 10 ** dec, "vende": amount / 10 ** dec, "recebe": rt["out"] / 1e18, "minimo": min_out / 1e18,
@@ -895,7 +895,7 @@ class Buyer:
             bloq.append("a carteira não tem este token")
             return {"dex": "Jupiter", "saldo": 0}
         if sol < 3_000_000:
-            bloq.append(f"falta SOL para pagar a taxa da venda: a carteira tem {sol / 1e9:.5f}")
+            bloq.append(f"falta SOL para pagar a taxa da venda: a carteira tem {sol / 1e9:.5f}; use Abastecer em Carteiras e compra")
         amount = saldo if q["pct"] == 100 else saldo * q["pct"] // 100
         q.update(amount=amount, dec=dec)
         jq = await self._jup_quote(q, q["token"], WSOL, amount)
@@ -1169,12 +1169,14 @@ class Buyer:
     async def spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
         rows = await self.db.select("dormant_buys", {"user_id": uid}, gte={"em": since}, columns="usd_in,status") or []
-        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada")), 4)
+        rows += await self.db.select("dormant_gas", {"user_id": uid}, gte={"em": since}, columns="usd_in,status") or []   # abastecer também conta
+        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada", "devolvida")), 4)
 
     async def pending_on(self, uid: str, chain: str) -> bool:
         since = _iso(time.time() - PENDENTE_S)
         rows = await self.db.select("dormant_buys", {"user_id": uid, "rede": chain}, gte={"em": since}, columns="status") or []
         rows += await self.db.select("dormant_sells", {"user_id": uid, "rede": chain}, gte={"em": since}, columns="status") or []
+        rows += await self.db.select("dormant_gas", {"user_id": uid, "rede": chain}, gte={"em": since}, columns="status") or []
         return any(r.get("status") in ("enviando", "pendente") for r in rows)
 
     async def wallet_row(self, uid: str, chain: str) -> dict | None:
@@ -1236,21 +1238,6 @@ class Buyer:
                            "em": _ts((rows.get(k) or {}).get("em")) or None} for k, c in CHAINS.items()],
                 "cfg": clean_cfg(None, row.get("cfg") or {}), "limites": CFG_LIMITS, "tem_senha": bool(rows), "trava_s": max(0, round(ate - time.time())),
                 "trava_geral": bool(self.allowed()), "senha_min": vault.SENHA_MIN}
-
-    async def balances(self, uid: str) -> dict:
-        rows = await self.db.select("dormant_wallets", {"user_id": uid}, columns="rede,endereco") or []
-
-        async def one(r):
-            c = CHAINS.get(r["rede"])
-            if not c:
-                return r["rede"], None
-            try:
-                if c["tipo"] == "solana":
-                    return r["rede"], (await self.rpc(self.sol_rpc(), "getBalance", [r["endereco"]]))["value"] / 1e9
-                return r["rede"], int(await self.rpc(c["rpc"], "eth_getBalance", [r["endereco"], "latest"]) or "0x0", 16) / 1e18
-            except (BuyError, KeyError, TypeError, ValueError):
-                return r["rede"], None
-        return dict(await asyncio.gather(*[one(r) for r in rows]))
 
     async def save_wallet(self, uid: str, chain: str, secret: str, senha: str, todas_evm: bool = False) -> dict:
         if chain not in CHAINS:

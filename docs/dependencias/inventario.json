@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-06",
     "timezone": "Europe/Dublin",
-    "repository_reference": "d416a5862bdca2e59a8bec1cef5643c0eb33b830",
-    "application_version": "0.32.243 · 2026-11-06 · Dormant também vende: botão Vender em Minhas compras",
+    "repository_reference": "591d10cc5f33720afb0b54813151d32ea95872f5",
+    "application_version": "0.32.244 · 2026-11-06 · Dormant mostra a carteira sem gás e abastece a partir de outra rede",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "5ea3d3beb83840d0d995716ff139e44c6415a418cea5238f90b9de95fdcf9c47",
+      "app/version.py": "946c2f6909d42b52042e779eb343ddb9a07836b6965b9f9842c83c62af206bb2",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "96d9047a7f10785fedcdd744ecac8aeaa402d09ff33526ad941ff281662a9274"
+  "pdf_sha256": "213bec3e014bcd4fff442b3c6ffb5074fcb56e2f2f2f4140025adba8399f935c"
 }

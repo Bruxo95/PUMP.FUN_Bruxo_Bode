@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException
 
 from .db import DBError, audit
 from .dormant_buy import Buyer, BuyError
+from .dormant_gas import GasFiller
 
 log = logging.getLogger("pump.dormant.compra")
 KEY_NAME = "coingecko_key"
@@ -142,10 +143,6 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
     async def wal_list(u: dict = Depends(own)):
         return await run(buyer().wallets(u["id"]))
 
-    @app.get("/api/dormant/carteiras/saldos")
-    async def wal_bal(u: dict = Depends(own)):
-        return await run(buyer().balances(u["id"]))
-
     @app.post("/api/dormant/carteiras/salvar")
     async def wal_save(body: dict, u: dict = Depends(own)):
         async def go():
@@ -219,6 +216,28 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             r = await buyer().sell(u["id"], str(b.get("quote_id") or ""), b.get("senha"), str(b.get("confirmar") or ""))
             await audit(db, u["id"], "Dormant: venda", f"{r.get('simbolo')} · US$ {float(r.get('usd_out') or 0):.2f} · {r.get('status')} · {r.get('tx')}")
             return {"ok": True, "venda": r}
+        return await run(go())
+
+    # 0.32.244: abastecer de gás a partir de outra rede. O navegador só manda o nome das redes e o valor: nunca um endereço
+    @app.get("/api/dormant/gas")
+    async def gas_status(u: dict = Depends(own)):
+        async def go():
+            f = GasFiller(buyer())
+            return {**await f.status(u["id"]), "historico": await f.history(u["id"])}
+        return await run(go())
+
+    @app.post("/api/dormant/gas/cotar")
+    async def gas_quote(body: dict, u: dict = Depends(own)):
+        b = body if isinstance(body, dict) else {}
+        return await run(GasFiller(buyer()).preview(u["id"], str(b.get("destino") or ""), str(b.get("origem") or ""), b.get("usd")))
+
+    @app.post("/api/dormant/gas/confirmar")
+    async def gas_go(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            r = await GasFiller(buyer()).fill(u["id"], str(b.get("quote_id") or ""), b.get("senha"), str(b.get("confirmar") or ""))
+            await audit(db, u["id"], "Dormant: abastecer gás", f"{r.get('origem_nome')} → {r.get('destino_nome')} · US$ {float(r.get('usd') or 0):.2f} · {r.get('status')} · {r.get('tx')}")
+            return {"ok": True, "gas": r}
         return await run(go())
 
     @app.get("/api/dormant/compras")

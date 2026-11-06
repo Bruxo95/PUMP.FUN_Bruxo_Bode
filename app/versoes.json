@@ -1975,6 +1975,11 @@
    "versao": "0.32.243",
    "inicio": "2026-11-06T17:01:53+00:00",
    "titulo": "Dormant também vende: botão Vender em Minhas compras"
+  },
+  {
+   "versao": "0.32.244",
+   "inicio": "2026-11-06T17:13:30+00:00",
+   "titulo": "Dormant mostra a carteira sem gás e abastece a partir de outra rede"
   }
  ]
 }

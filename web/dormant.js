@@ -384,8 +384,95 @@
     if (!r || r.error) { $("wList").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler as carteiras") + "</span>"; return; }
     WAL = r;
     drawWal();
-    const b = await BB.api("/api/dormant/carteiras/saldos", { quiet: true });
-    if (b && !b.error) document.querySelectorAll("[data-wbal]").forEach((el) => { const v = b[el.dataset.wbal]; el.textContent = v == null ? "saldo não lido" : "saldo: " + num(v, 6) + " " + el.dataset.wm; });
+    // 0.32.244 (pedido do dono): diz qual carteira está sem gás e oferece abastecer a partir de outra rede
+    const g = await BB.api("/api/dormant/gas", { quiet: true });
+    if (!g || g.error) { document.querySelectorAll("[data-wbal]").forEach((el) => { el.textContent = "saldo não lido"; }); return; }
+    GAS = g;
+    const temOrigem = Object.values(g.redes).some((x) => x && x.pode_origem);
+    document.querySelectorAll("[data-wbal]").forEach((el) => {
+      const k = el.dataset.wbal, v = g.redes[k];
+      if (!v || v.saldo == null) { el.textContent = "saldo não lido"; return; }
+      const tagg = v.estado === "sem" ? '<span class="dmst dump">sem gás</span>' : v.estado === "pouco" ? '<span class="dmst acordando">pouco gás</span>' : '<span class="dmst pump">gás ok</span>';
+      el.innerHTML = "saldo: " + num(v.saldo, 6) + " " + esc(v.moeda) + (v.usd != null ? " (US$ " + num(v.usd, 2) + ")" : "") + " " + tagg + (v.ops != null ? ' <span class="muted">dá para ~' + num(Math.floor(v.ops), 0) + " operações</span>" : "") +
+        (v.estado !== "ok" ? ' <button type="button" class="btn sm primary dmbuy" data-wgas="' + esc(k) + '"' + (temOrigem ? "" : ' disabled title="nenhuma carteira tem saldo em Ethereum, BNB Chain, Base ou Arbitrum para servir de origem"') + ">Abastecer</button>" : "");
+    });
+    const sem = w => w.redes.filter((x) => x.endereco && g.redes[x.rede] && g.redes[x.rede].estado === "sem").map((x) => x.nome);
+    const L = sem(WAL);
+    $("wGasAl").hidden = !L.length;
+    $("wGasAl").textContent = L.length ? "Sem gás: " + L.join(", ") + ". Sem gás a carteira não compra nem vende. Quer abastecer? Use o botão Abastecer na rede." : "";
+    table("wGasT", ["Quando", "De", "Para", "Pagou", "Recebe", "Gás da origem", "Situação", "Transação"], (g.historico || []).map((x) => [V(hora(x.t), x.t), V(chainTag(x.origem_nome), x.origem_nome), V(chainTag(x.destino_nome), x.destino_nome),
+      V("US$ " + num(x.usd, 2) + '<span class="dmwhy">' + num(x.paga, 6) + " " + esc(x.moeda_origem) + "</span>", x.usd), V(num(x.recebe, 6) + " " + esc(x.moeda_destino), x.recebe), x.gas_usd == null ? "—" : "US$ " + num(x.gas_usd, 4),
+      V('<span class="dmst ' + (x.status === "confirmada" ? "pump" : x.status === "falhou" ? "dump" : "acordando") + '">' + esc(GAS_ST[x.status] || x.status) + "</span>" + (x.motivo ? '<span class="dmwhy">' + esc(x.motivo) + "</span>" : ""), x.status),
+      x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—"]), "Nenhum abastecimento ainda.");
+  }
+  let GAS = null;
+  const GAS_ST = { confirmada: "entregue", devolvida: "devolvida", enviando: "enviando", pendente: "esperando a entrega", falhou: "falhou" };
+  function openGas(destino) {
+    if (!GAS || !WAL) return;
+    const nome = (k) => (WAL.redes.find((x) => x.rede === k) || {}).nome || k;
+    const orig = Object.entries(GAS.redes).filter(([k, v]) => v && v.pode_origem && k !== destino);
+    const d = GAS.redes[destino] || {};
+    BUY = { gas: destino };
+    $("buyMT").textContent = "Abastecer " + nome(destino);
+    $("buyMS").textContent = "manda um pouco de " + (d.moeda || "moeda") + " para a sua carteira nesta rede, a partir de outra rede sua";
+    if (!orig.length) { $("buyMB").innerHTML = '<div class="buybad">Nenhuma outra carteira sua tem saldo em Ethereum, BNB Chain, Base ou Arbitrum. Mande um pouco para uma delas, ou envie ' + esc(d.moeda || "a moeda") + " direto para esta carteira.</div>"; $("buyM").hidden = false; return; }
+    $("buyMB").innerHTML = '<div class="buyform"><div><label for="gasOrig">Pagar com a carteira de</label><select class="in" id="gasOrig">' +
+      orig.map(([k, v]) => '<option value="' + esc(k) + '">' + esc(nome(k)) + " · " + num(v.saldo, 5) + " " + esc(v.moeda) + "</option>").join("") + "</select></div>" +
+      '<div><label for="gasUsd">Quanto mandar, em dólar (máx. ' + num(GAS.teto_usd, 0) + ')</label><input class="in" id="gasUsd" type="number" step="any" min="0" inputmode="decimal" value="' + esc(d.sugestao_usd || 2) + '"></div>' +
+      '<div class="row dmact"><button class="btn primary" type="button" id="gasQuote">Ver taxa</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
+    $("buyM").hidden = false;
+  }
+  async function gasQuote() {
+    if (!BUY || !BUY.gas) return;
+    if (BUY.timer) clearInterval(BUY.timer);
+    $("buyPrev").innerHTML = '<div class="muted" style="margin-top:10px">cotando e conferindo a transação…</div>';
+    const r = await BB.api("/api/dormant/gas/cotar", { body: { destino: BUY.gas, origem: $("gasOrig").value, usd: Number($("gasUsd").value) } });
+    if (!BUY) return;
+    if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
+    BUY.q = r;
+    const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
+    const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
+    let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
+      line("Você paga em " + esc(r.origem_nome), "<b>" + num(r.paga, 8) + " " + esc(r.moeda_origem) + "</b> (US$ " + num(r.usd, 2) + ")") +
+      line("Chega em " + esc(r.destino_nome), "<b>" + num(r.recebe, 8) + " " + esc(r.moeda_destino) + "</b> (US$ " + num(r.usd_recebe, 2) + ")") +
+      line("Taxa da ponte", "<b>" + num(r.taxa_pct, 2) + "%</b> · pelo preço da CoinGecko") +
+      line("Gás na origem, perto de", "US$ " + num(r.gas_usd, 4)) +
+      line("Ponte", esc(r.ponte) + (r.tempo_s != null ? " · cerca de " + num(r.tempo_s, 0) + " s" : "")) +
+      line("Sai da carteira", '<span class="cmaddr">' + esc(r.carteira) + "</span>") +
+      line("Chega na carteira", '<span class="cmaddr">' + esc(r.recebedor) + "</span>") + "</tbody></table></div>" +
+      list("buybad", "Não dá para abastecer:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
+    if (r.quote_id) {
+      h += '<div class="buyform"><div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+        '<div><label for="buyOk">Digite ABASTECER para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
+        '<div class="row dmact"><button class="btn primary" type="button" id="gasGo">Abastecer agora</button><span class="muted small" id="buyTime"></span></div></div>';
+    }
+    $("buyPrev").innerHTML = h;
+    if (r.quote_id) {
+      const fim = Date.now() + r.validade_s * 1000;
+      const tick = () => { const s = Math.round((fim - Date.now()) / 1000), el = $("buyTime"), go = $("gasGo"); if (!el || !go) return;
+        if (s <= 0) { go.disabled = true; el.textContent = "esta cotação venceu: clique em Ver taxa de novo"; clearInterval(BUY.timer); } else el.textContent = "cotação vale por mais " + s + " s"; };
+      tick(); BUY.timer = setInterval(tick, 1000);
+    }
+  }
+  async function gasGo(btn) {
+    if (!BUY || !BUY.q || !BUY.q.quote_id) return;
+    const senha = $("buySenha").value, confirmar = $("buyOk").value.trim();
+    btn.disabled = true; btn.textContent = "Enviando…";
+    const r = await BB.api("/api/dormant/gas/confirmar", { body: { quote_id: BUY.q.quote_id, senha, confirmar } });
+    if (!BUY) return;
+    btn.disabled = false; btn.textContent = "Abastecer agora";
+    $("buySenha").value = "";
+    if (!r || r.error) {
+      const old = $("buyErr"); if (old) old.remove();
+      btn.closest(".buyform").insertAdjacentHTML("beforebegin", '<div class="buybad" id="buyErr">' + esc((r && r.error) || "não saiu") + "</div>");
+      return;
+    }
+    if (BUY.timer) clearInterval(BUY.timer);
+    const c = r.gas || {};
+    const link = c.tx && c.expl ? '<a href="' + esc(c.expl + c.tx) + '" target="_blank" rel="noopener">ver o depósito na blockchain</a>' : "";
+    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Entregue.</b> ' + num(c.recebe, 6) + " " + esc(c.moeda_destino) + " em " + esc(c.destino_nome) + ". " + link + "</div>"
+      : '<div class="buywarn"><b>' + esc(GAS_ST[c.status] || c.status) + ".</b> " + esc(c.motivo || "") + " " + link + "</div>");
+    loadWal();
   }
   function drawWal() {
     const w = WAL, c = w.cfg;
@@ -621,6 +708,7 @@
     if (!e.target) return;
     if (e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); }
     if (e.target.id === "mCat") { F.cat = e.target.value; saveF(); drawMoedas(); }
+    if (e.target.id === "gasOrig" || e.target.id === "gasUsd") { if ($("buyPrev")) $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
     if (e.target.id === "sellPct") { $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
     if (e.target.id === "buyRede") { buyUnit(); $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });
@@ -662,6 +750,9 @@
     if (t.id === "buyMX") { closeBuy(); return; }
     if (t.id === "buyQuote") { buyQuote(); return; }
     if (t.id === "buyGo") { buyGo(t); return; }
+    if (t.dataset.wgas) { openGas(t.dataset.wgas); return; }
+    if (t.id === "gasQuote") { gasQuote(); return; }
+    if (t.id === "gasGo") { gasGo(t); return; }
     if (t.id === "sellQuote") { sellQuote(); return; }
     if (t.id === "sellGo") { sellGo(t); return; }
     if (t.id === "buyHist") { closeBuy(); $("coinM").hidden = true; CM = null; return; }
