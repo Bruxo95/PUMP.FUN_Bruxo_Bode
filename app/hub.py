@@ -4181,6 +4181,8 @@ class PumpHub:
         own = [e.keys.get("solanatracker_api_key") for e in self.engines.values() if e.lb_key_own()]
         return stkeys.pick(list(prefer) + own + [getattr(self, "shared_st_key", "")])
 
+    STUDY_EVERY_S = 6 * 3600
+
     async def refresh_study_wallet(self, wallet: str, force: bool = False) -> str | None:
         """Histórico por token da Solana Tracker (até 200 posições dos últimos 30 dias) → study_positions."""
         from .pumpfun import ST_PNL
@@ -4188,7 +4190,9 @@ class PumpHub:
         key = self._study_key()
         if not key:
             return "sem chave da Solana Tracker (histórico só pelo monitor, a partir de agora)"
-        if not force and time.time() - self._study_at.get(wallet, 0) < 1500:
+        # 0.32.238 (dono: "gasta muita Solana Tracker"): o histórico de 30 dias de cada carteira em estudo era buscado a cada
+        # 30 min (~1.450 consultas/dia com 30 carteiras); agora a cada 6 h. O monitor segue registrando ao vivo.
+        if not force and time.time() - self._study_at.get(wallet, 0) < self.STUDY_EVERY_S:
             return None
         self._study_at[wallet] = time.time()
         try:

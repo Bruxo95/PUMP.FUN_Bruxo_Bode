@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-06**; revisão documental **2.0**.
-Aplicação: **0.32.237 · 2026-11-06 · Solana Tracker: mês por chave em uso**.
-Referência Git na emissão: `fc636b30cf46d53a29409ccfb55867721303a3c0`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.238 · 2026-11-06 · Menos consumo do Helius e da Solana Tracker**.
+Referência Git na emissão: `bec86b883db68d31c711de6cec4d67c4250f59cb`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

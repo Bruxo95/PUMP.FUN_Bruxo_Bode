@@ -383,6 +383,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/explore")
     async def pump_explore(pf=Depends(admin_engine)):
         """Explorar (0.28.0): novos, quase graduando, graduados e os que mais sobem, com veredito e o que aprendeu."""
+        # 0.32.238: a lista só é buscada enquanto alguém usa o Explorar; ao abrir a tela parada, busca na hora
+        parada = time.time() - float(getattr(hub, "explore_seen", 0) or 0) > 1800
+        hub.explore_seen = time.time()
+        if parada and hub.monitor is not None and time.time() - float(getattr(hub.explore, "at", 0) or 0) > 300:
+            asyncio.get_running_loop().create_task(hub.monitor.explore_once())
         out = hub.explore.snapshot(hub.market.blacklist, hub.market.creator_stats, pf.boost_info)
         for rows in list(out.get("lists", {}).values()) + [out.get("movers") or []]:
             for x in rows:

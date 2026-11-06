@@ -905,12 +905,9 @@ class PumpFun:
             self.lb_status.update(error=f"{type(e).__name__}: {str(e)[:120].replace(key, '***')}")
 
     async def wallet_value(self, w: str) -> dict | None:
-        """Saldo da carteira do trader: SOL + USDC + USDT (RPC grátis), em US$."""
-        urls = []
-        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
-        if own:
-            urls.append(own)
-        urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
+        """Saldo da carteira do trader: SOL + USDC + USDT (RPC grátis), em US$.
+        0.32.238: só no RPC público grátis (antes ia para o Helius do Portainer e gastava créditos com dado não urgente)."""
+        urls = [SOL_HTTP]
         for u in urls:
             try:
                 b = (await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": "getBalance", "params": [w]},
@@ -930,8 +927,9 @@ class PumpFun:
 
     async def wallet_age(self, w: str, pages: int = 4) -> dict | None:
         """Idade da carteira (0.31.3): hora da transação mais antiga, lendo até `pages` páginas de 1.000 assinaturas no
-        RPC grátis. Carteira muito ativa passa disso: aí a idade é "pelo menos" (more=True)."""
-        url = str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP)
+        RPC grátis. Carteira muito ativa passa disso: aí a idade é "pelo menos" (more=True).
+        0.32.238: só no RPC público grátis (antes o Helius do Portainer: até 4 consultas por carteira)."""
+        url = SOL_HTTP
         before, oldest, n = None, None, 0               # n (0.32.9): transações contadas (até pages × 1.000)
         for _ in range(pages):
             opts = {"limit": 1000, **({"before": before} if before else {})}
@@ -2272,6 +2270,10 @@ class PumpFun:
         env_rpc = str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP)
         if env_rpc not in urls:
             urls.append(env_rpc)
+        if low:
+            # 0.32.238 (dono: "só o Top traders ligado e gasta muito"): carteira que ninguém copia (estudo, Maiores traders,
+            # Calls) é lida só no RPC público grátis; os créditos do Helius ficam para as carteiras copiadas.
+            urls = [SOL_HTTP]
         # 0.32.236: transação versão 1 (nova na Solana, set/2026; Helius e Ankr já entregam) só vem com
         # maxSupportedTransactionVersion 1; com 0 o RPC responde -32015 "Transaction version (1) is not supported".
         opts = {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 1, "commitment": "confirmed"}
@@ -3864,11 +3866,7 @@ class PumpFun:
         owners = list(tk.get("holder_owners") or [])[:20]
         if not owners:
             return None
-        urls = []
-        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
-        if own:
-            urls.append(own)
-        urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
+        urls = [SOL_HTTP]                          # 0.32.238: RPC público grátis (antes o Helius: ~20 consultas por token)
         fresh = checked = 0
         for w in owners:
             sigs = None

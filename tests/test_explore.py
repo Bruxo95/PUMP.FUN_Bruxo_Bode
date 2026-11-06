@@ -54,6 +54,8 @@ def test_monitor_reads_solana_tracker_and_route_is_admin_only(env):
     from app.monitor import SharedMonitor
     c, hub = env["c"], env["hub"]
     mon = SharedMonitor(hub)
+    assert asyncio.run(mon.explore_once()) is False and not hub.explore.error   # 0.32.238: ninguém usa o Explorar = não busca
+    hub.explore_seen = time.time()                                              # alguém abriu a tela
     assert asyncio.run(mon.explore_once()) is False and "sem chave" in hub.explore.error
     seen = []
 
