@@ -3122,7 +3122,10 @@ class PumpHub:
         return {"ok": True, "nome": d["nome"], "mudou": len(applied), "erros": errors}
 
     async def set_secret(self, pf: PumpFun, name: str, value: str) -> None:
+        antes = pf.keys.get(name) if hasattr(pf.keys, "get") else ""
         await self.vault.save(pf.user_id, name, value)
+        if name in ("rpc_url", "solanatracker_api_key") and (antes or "") != value:
+            self.key_changed(name, antes or "", value)      # 0.32.236: chave pessoal trocada também zera a contagem
         pf.keys.set(name, value)
         self._wire_wallet(pf)
         await audit(self.db, pf.user_id, "salvar chave", name)
@@ -3148,7 +3151,14 @@ class PumpHub:
                     add_secret(keys[r["nome"]])
                 except Exception:
                     log.warning("Chave do sistema %s não abriu (APP_ENCRYPTION_KEY trocada?)", r["nome"])
+            old = dict(getattr(self, "system_keys", None) or {})
             self.system_keys = keys
+            self.market.sys_rpc = keys.get("rpc_url") or ""      # 0.32.236: as leituras de transação usam esta chave
+            if old != keys and getattr(self, "_keys_loaded", False):
+                for nome in ("rpc_url", "solanatracker_api_key"):
+                    if (old.get(nome) or "") != (keys.get(nome) or ""):
+                        self.key_changed(nome, old.get(nome) or "", keys.get(nome) or "")
+            self._keys_loaded = True
         except Exception as e:
             log.warning("Chaves do sistema: %s", str(e)[:120])
         self.shared_st_key = self.system_keys.get("solanatracker_api_key", "")
@@ -3156,6 +3166,32 @@ class PumpHub:
         if jk != getattr(self, "_jup_key_in_use", ""):
             self.market.jup = JupiterQuoter(self.http, jk) if jk else self.public_quoter
             self._jup_key_in_use = jk
+
+    def key_changed(self, nome: str, antes: str, depois: str) -> None:
+        """0.32.236 (pedido do dono: "o sistema tem que ver quando troco as chaves e zerar a contagem de uso"): chave de RPC
+        ou da Solana Tracker trocada = zera a contagem daquela API e as marcas de recusa/falha do RPC (o Status recomeça)."""
+        from urllib.parse import urlparse
+        from .apiusage import classify
+        us = self.__dict__.get("usage")
+        if nome == "rpc_url":
+            mk = self.market
+            for a in ("rpc_429_at", "rpc_ok_at", "rpc_fail_at", "rpc_cool_until"):
+                setattr(mk, a, 0.0)
+            mk.rpc_429_streak, mk.rpc_fail_msg = 0, ""
+            st = getattr(mk, "rpc_status", None)
+            if isinstance(st, dict):
+                for k in ("tx_errors", "stale", "stale_hi", "queued", "queued_hi", "parsed", "not_trade", "dropped"):
+                    if k in st:
+                        st[k] = 0
+            if us is not None:
+                for u in {antes, depois} - {""}:
+                    api = classify(urlparse(u).hostname or "")
+                    if api:
+                        us.zerar(api)
+        elif nome in ("solanatracker_api_key",) and us is not None:
+            us.zerar("Solana Tracker", antes or None)
+        log.info("Chave %s trocada: contagem de uso zerada", nome)
+        self.__dict__.setdefault("key_resets", {})[nome] = time.time()
 
     async def system_keys_view(self) -> dict:
         rows = {r["nome"]: r for r in await self.db.select("app_secrets", None, columns="nome,atualizado_em")}

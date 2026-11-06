@@ -2264,8 +2264,17 @@ class PumpFun:
         own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
         if own and "api.mainnet-beta.solana.com" not in own:
             urls.append(own)                       # RPC da carteira (ex.: Helius) primeiro: o público dá 429 rápido
-        urls.append(str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP))
-        opts = {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0, "commitment": "confirmed"}
+        # 0.32.236 (dono: "troquei as chaves e ainda não lê"): as leituras usavam só o RPC do Portainer (SOLANA_RPC_PUBLIC);
+        # a chave do sistema (Administração → Chaves do sistema → RPC próprio) servia só ao WebSocket. Agora ela vem antes.
+        sys_rpc = getattr(mk, "sys_rpc", "") or ""
+        if sys_rpc and sys_rpc not in urls:
+            urls.append(sys_rpc)
+        env_rpc = str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP)
+        if env_rpc not in urls:
+            urls.append(env_rpc)
+        # 0.32.236: transação versão 1 (nova na Solana, set/2026; Helius e Ankr já entregam) só vem com
+        # maxSupportedTransactionVersion 1; com 0 o RPC responde -32015 "Transaction version (1) is not supported".
+        opts = {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 1, "commitment": "confirmed"}
         body = {"jsonrpc": "2.0", "id": 1, "method": "getTransaction", "params": [sig, opts]}
         tries = 2 if low else 4
         for attempt in range(tries):
@@ -5370,7 +5379,7 @@ class PumpReal:
             tx = None
             for k in range(4):                         # 0.32.101: a transação recém-confirmada pode demorar a aparecer; RPC
                 tx = await self._rpc_retry("getTransaction", [sig, {"encoding": "json", "commitment": "confirmed",   # com
-                                                                    "maxSupportedTransactionVersion": 0}])           # reserva
+                                                                    "maxSupportedTransactionVersion": 1}])           # reserva
                 if tx:
                     break
                 await asyncio.sleep(1.0)

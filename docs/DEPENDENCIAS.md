@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-06**; revisão documental **2.0**.
-Aplicação: **0.32.235 · 2026-11-06 · Status: RPC estourado fica vermelho**.
-Referência Git na emissão: `f768839d152993312c9cb6cc019ada0007d8ad60`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.236 · 2026-11-06 · Leitura pelo RPC novo e contagem zerada ao trocar chave**.
+Referência Git na emissão: `d9fd41fc2fbbe9f6f1cb6cbf09977d3bd930cabf`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -1935,6 +1935,11 @@
    "versao": "0.32.235",
    "inicio": "2026-11-06T05:48:19+00:00",
    "titulo": "Status: RPC estourado fica vermelho"
+  },
+  {
+   "versao": "0.32.236",
+   "inicio": "2026-11-06T06:03:31+00:00",
+   "titulo": "Leitura pelo RPC novo e contagem zerada ao trocar chave"
   }
  ]
 }

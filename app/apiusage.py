@@ -314,6 +314,25 @@ class Usage:
             out.append(row)
         return out
 
+    def zerar(self, api: str, chave: str | None = None) -> None:
+        """0.32.236 (pedido do dono: "quando troco as chaves, zerar a contagem de uso"): apaga a contagem daquela API (mês,
+        créditos, janelas de 1–24 h, desde o início, por aba e picos). Com `chave` (Solana Tracker), só o mês daquela chave."""
+        tag = key_tag(chave) if chave else None
+        for k in list(self.month):
+            if k[1] in (api, api + CRED) and (tag is None or k[2] == tag):
+                self.month[k] = 0
+        if tag is None:
+            for d in (self.win, self.total):
+                for k in [k for k in d if k[0] == api]:
+                    d.pop(k, None)
+            for d in (self.owin, self.ototal):
+                for k in [k for k in d if k[1] == api]:
+                    d.pop(k, None)
+            for k in [k for k in self.peak if k[1] == api]:
+                self.peak.pop(k, None)
+            self.recent.pop(api, None)
+        self.dirty = True
+
     def estourou(self, now: float | None = None) -> dict:
         """0.32.235 (pedido do dono: "o RPC estourou e o status ficou ok"): serviços que passaram do limite grátis, pelo mesmo
         cálculo da tabela "Uso de cada serviço": {api: {"tipo", "pct", "mes", "limite_mes"}} com a pior % de cada um."""

@@ -171,6 +171,11 @@ class SharedMonitor:
                     log.info("Monitor compartilhado conectado à Solana")
                     self._subs, pending, nid = {}, {}, 100
                     while True:
+                        # 0.32.236 (dono: "troquei as chaves e ainda não lê"): RPC do sistema trocado = reconecta com o novo
+                        if (self.hub.system_keys.get("rpc_url") or "") != sys_rpc:
+                            log.info("Monitor compartilhado: RPC do sistema trocado, reconectando")
+                            st.update(ws=False, error="reconectando com o RPC novo")
+                            break
                         # Reset do backoff se a conexão permaneceu estável por mais de 30s
                         if time.time() - connected_time > 30.0:
                             backoff = 2.0
