@@ -66,7 +66,9 @@ def test_deposit_is_exactly_the_fixed_contract_with_own_wallet():
     assert (int.from_bytes(t[6], "big") - 35) // 2 == 8453              # assinada para a rede de origem
     assert t[5].hex()[:8] == g.SEL_DEPOSIT[2:] and "095ea7b3" not in t[5].hex()
     assert KEY not in str(db.tables["dormant_gas"]) and SENHA not in str(db.tables["dormant_gas"])
-    assert run(b.spent_today(UID)) == 5.0                                # conta no limite do dia
+    assert run(b.gas_spent_today(UID)) == 5.0 and run(b.spent_today(UID)) == 0    # 0.32.246: gás não consome o limite de compra
+    run(b.save_limits(UID, {"dia_usd": 5, "max_usd": 5}, SENHA))
+    assert not any("limite" in x for x in run(b.preview(UID, "tok", "ethereum", 0.002))["bloqueia"])      # continua podendo comprar
 
 
 def test_any_tampering_by_the_api_is_refused_and_nothing_is_signed():
@@ -138,6 +140,13 @@ def test_limits_and_expensive_fee_block():
     f, b, net, _ = ready(net)
     p = run(f.preview(UID, "binance-smart-chain", "base", 30))
     assert not p.get("quote_id") and any("teto" in x for x in p["bloqueia"])
+    run(b.save_limits(UID, {"gas_max_usd": 3}, SENHA))
+    p = run(f.preview(UID, "binance-smart-chain", "base", 5))
+    assert not p.get("quote_id") and any("limite por abastecimento" in x for x in p["bloqueia"])
+    run(b.save_limits(UID, {"gas_max_usd": 25, "gas_dia_usd": 4}, SENHA))
+    p = run(f.preview(UID, "binance-smart-chain", "base", 5))
+    assert not p.get("quote_id") and any("limite de gás em 24 h" in x for x in p["bloqueia"])
+    run(b.save_limits(UID, {"gas_dia_usd": 50}, SENHA))
     net.saida = 0.008                          # US$ 4 por US$ 5 = 20%
     p = run(f.preview(UID, "binance-smart-chain", "base", 5))
     assert not p.get("quote_id") and any("cara demais" in x for x in p["bloqueia"])

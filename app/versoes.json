@@ -1985,6 +1985,11 @@
    "versao": "0.32.245",
    "inicio": "2026-11-06T23:02:48+00:00",
    "titulo": "Comprar mostra saldo, máximo e o valor em dólar enquanto digita"
+  },
+  {
+   "versao": "0.32.246",
+   "inicio": "2026-11-06T23:13:12+00:00",
+   "titulo": "Dormant com valores no padrão da Uniswap e limite de gás separado do de compra"
   }
  ]
 }

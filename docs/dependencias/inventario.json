@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-06",
     "timezone": "Europe/Dublin",
-    "repository_reference": "064430903b28e9366586802e477f1ee09167506e",
-    "application_version": "0.32.245 · 2026-11-06 · Comprar mostra saldo, máximo e o valor em dólar enquanto digita",
+    "repository_reference": "72dbf538953a13c023a5524c4f16417f38554486",
+    "application_version": "0.32.246 · 2026-11-06 · Dormant com valores no padrão da Uniswap e limite de gás separado do de compra",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "a2cc1b324587d54570b0c2c3d40d95cc9f3c44e5a14d5c336203a5e66acf308a",
+      "app/version.py": "311123a3b5e020381feefca259bb807fcf014b4c411bee670957a375328fd540",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "747c7a8916e693110d1a91f34c8ecd04280e4f3d2c3388e91a6c23e4476f8397"
+  "pdf_sha256": "4389a4c0504fe107d122a22048cecca1a3075cf6332764bfb4d473ec7314397f"
 }

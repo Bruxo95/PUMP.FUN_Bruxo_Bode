@@ -78,8 +78,9 @@ CHAINS = {
 }
 EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 
-CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0}
-CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0)}
+# 0.32.246 (dono, 06/11/2026: abasteceu US$ 7 de gás e ficou sem poder comprar): gás tem limite próprio e não conta no das compras
+CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0}
+CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0)}
 QUOTE_TTL_S = 60                  # depois disso a cotação vale nada e o botão pede outra
 MAX_TRIES, LOCK_S = 5, 15 * 60    # 5 senhas erradas seguidas: compra e chaves travadas por 15 min (sobrevive ao reinício)
 PENDENTE_S = 15 * 60              # compra sem confirmação segura outra na mesma rede por 15 min (nonce, compra dobrada)
@@ -440,10 +441,10 @@ class Buyer:
             bloq.append(f"sem a cotação de {c['moeda']} em dólar: sem ela os limites não valem")
         else:
             if usd_in > cfg["max_usd"]:
-                bloq.append(f"passa do seu limite por compra (US$ {cfg['max_usd']:g})")
+                bloq.append(f"passa do seu limite por compra (${cfg['max_usd']:g})")
             gasto = await self.spent_today(uid)
             if gasto + usd_in > cfg["dia_usd"]:
-                bloq.append(f"passa do seu limite por dia (US$ {cfg['dia_usd']:g}; já foram US$ {gasto:.2f} nas últimas 24 h)")
+                bloq.append(f"passa do seu limite por dia (${cfg['dia_usd']:g}; já foram ${gasto:.2f} nas últimas 24 h)")
         if await self.pending_on(uid, chain):
             bloq.append("há uma compra sem confirmação nesta rede: espere ela terminar (veja Minhas compras)")
         gb, ga = judge_goplus(chain, await self.goplus(chain, token))
@@ -514,7 +515,7 @@ class Buyer:
                 bloq.append(f"falta {c['moeda']} para pagar o gás: use Abastecer em Carteiras e compra")
         gas_usd = (gas_nat if gas_nat is not None else gas * gp / 1e18) * (q["usd_n"] or 0)
         if q["usd_in"] and gas_usd > q["usd_in"] * 0.25:
-            avisos.append(f"o gás (US$ {gas_usd:.2f}) passa de 25% do valor da compra")
+            avisos.append(f"o gás (${gas_usd:.2f}) passa de 25% do valor da compra")
         return {"dex": rt["dex"], "rota": rt["rota"], "recebe": rt["out"] / 10 ** dec, "qty": rt["out"] / 10 ** dec, "minimo": min_out / 10 ** dec,
                 "impacto": impacto, "gas_usd": round(gas_usd, 4)}
 
@@ -1199,7 +1200,11 @@ class Buyer:
     async def spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
         rows = await self.db.select("dormant_buys", {"user_id": uid}, gte={"em": since}, columns="usd_in,status") or []
-        rows += await self.db.select("dormant_gas", {"user_id": uid}, gte={"em": since}, columns="usd_in,status") or []   # abastecer também conta
+        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada")), 4)
+
+    async def gas_spent_today(self, uid: str) -> float:
+        since = _iso(time.time() - 86400)
+        rows = await self.db.select("dormant_gas", {"user_id": uid}, gte={"em": since}, columns="usd_in,status") or []
         return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada", "devolvida")), 4)
 
     async def pending_on(self, uid: str, chain: str) -> bool:

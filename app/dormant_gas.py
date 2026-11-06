@@ -1,6 +1,6 @@
 """Dormant: abastecer de gás uma carteira a partir de outra rede (0.32.244, pedido do dono em 06/11/2026). Isolado em /dormant.
 
-Ponte: Relay. Em 06/11/2026 foi a mais barata das que deram cotação (cerca de 1% ou menos em US$ 5 nas rotas para Base, Arbitrum, BNB,
+Ponte: Relay. Em 06/11/2026 foi a mais barata das que deram cotação (cerca de 1% ou menos em $5 nas rotas para Base, Arbitrum, BNB,
 Polygon, Avalanche e Solana; mais caro para Ethereum) e cobre as 7 redes. A API do Gas.zip e a da Across não devolveram cotação utilizável
 nos testes daquele dia. O dono sempre vê a taxa antes, e a taxa é calculada aqui com o preço da CoinGecko, não com o número da Relay.
 
@@ -9,7 +9,7 @@ O que protege, porque a transação é montada pela API deles:
   Polygon e Avalanche usam outro contrato, que não consegui validar: recebem gás, mas não servem de origem;
 - destino SÓ uma carteira cadastrada desta conta: o navegador manda o nome da rede, nunca um endereço;
 - o contrato, o seletor, o valor, a rede e o depositante da transação são conferidos antes de assinar, e nunca há approve;
-- teto por abastecimento e limite do dia (o mesmo das compras).
+- teto por abastecimento e limite de 24 h próprios do gás (separados dos limites de compra desde a 0.32.246).
 O que NÃO dá para conferir na rede: o "id" do depósito é opaco, então quem garante que o gás vai para o recebedor pedido é a Relay. Por isso o
 teto é baixo. Se a Relay não entregar, ela devolve (segundo a documentação, o solver reembolsa). Solana só recebe: sair da Solana exigiria
 liberar o programa deles na conferência de transações, e isso não dá para validar sem enviar.
@@ -31,7 +31,7 @@ ORIGENS = ("ethereum", "binance-smart-chain", "base", "arbitrum-one")
 RELAY_ID = {"solana": 792703809, **{k: CHAINS[k]["id"] for k in EVM_CHAINS}}
 SOL_NATIVE = "11111111111111111111111111111111"
 ZERO = "0x" + "0" * 40
-GAS_MAX_USD = 25.0                # teto por abastecimento: é só para gás, e o destino não é verificável na rede
+GAS_MAX_USD = 25.0                # teto fixo por abastecimento: é só para gás, e o destino não é verificável na rede
 TAXA_AVISO, TAXA_BLOQ = 3.0, 15.0
 GAS_OP = 400000                   # gás de uma compra ou venda (com a autorização), perto do que as simulações mediram
 SOL_OP = 0.003                    # taxa + aluguel da conta de um token novo
@@ -86,6 +86,9 @@ class GasFiller:
         """Saldo de cada carteira e para quantas operações o gás dá."""
         b = self.b
         rows = await b.db.select("dormant_wallets", {"user_id": uid}, columns="rede,endereco") or []
+        cfg = await b.cfg(uid)
+        gasto = await b.gas_spent_today(uid)
+        teto = min(GAS_MAX_USD, cfg["gas_max_usd"])
 
         async def one(r):
             k = r["rede"]
@@ -106,8 +109,8 @@ class GasFiller:
             alvo = max(MIN_SUGESTAO, op * OPS_ALVO * usd) if usd else MIN_SUGESTAO
             return k, {"saldo": saldo, "moeda": c["moeda"], "usd": saldo * usd if usd else None, "ops": ops,
                        "estado": "sem" if ops is not None and ops < 1 else "pouco" if ops is not None and ops < OPS_POUCO else "ok",
-                       "sugestao_usd": round(min(GAS_MAX_USD, alvo), 2), "pode_origem": k in ORIGENS and bool(usd) and saldo * usd >= MIN_SUGESTAO}
-        return {"redes": {k: v for k, v in await asyncio.gather(*[one(r) for r in rows])}, "teto_usd": GAS_MAX_USD}
+                       "sugestao_usd": round(min(teto, alvo), 2), "pode_origem": k in ORIGENS and bool(usd) and saldo * usd >= MIN_SUGESTAO}
+        return {"redes": {k: v for k, v in await asyncio.gather(*[one(r) for r in rows])}, "teto_usd": teto, "gasto_dia_usd": gasto, "limite_dia_usd": cfg["gas_dia_usd"], "resta_dia_usd": round(max(0.0, cfg["gas_dia_usd"] - gasto), 2)}
 
     async def _relay_quote(self, origem: str, destino: str, addr: str, recebedor: str, value: int) -> dict:
         moeda_out = SOL_NATIVE if CHAINS[destino]["tipo"] == "solana" else ZERO
@@ -150,12 +153,12 @@ class GasFiller:
         if not cfg["on"]:
             bloq.append("as compras estão desligadas: ligue em Compras, nesta tela")
         if usd > GAS_MAX_USD:
-            bloq.append(f"o teto por abastecimento é US$ {GAS_MAX_USD:g}: isto é só para gás")
-        if usd > cfg["max_usd"]:
-            bloq.append(f"passa do seu limite por compra (US$ {cfg['max_usd']:g})")
-        gasto = await b.spent_today(uid)
-        if gasto + usd > cfg["dia_usd"]:
-            bloq.append(f"passa do seu limite por dia (US$ {cfg['dia_usd']:g}; já foram US$ {gasto:.2f} hoje)")
+            bloq.append(f"o teto por abastecimento é ${GAS_MAX_USD:g}: isto é só para gás")
+        elif usd > cfg["gas_max_usd"]:
+            bloq.append(f"passa do seu limite por abastecimento (${cfg['gas_max_usd']:g})")
+        gasto = await b.gas_spent_today(uid)
+        if gasto + usd > cfg["gas_dia_usd"]:
+            bloq.append(f"passa do seu limite de gás em 24 h (${cfg['gas_dia_usd']:g}; já foram ${gasto:.2f})")
         if await b.pending_on(uid, origem):
             bloq.append("há uma operação sem confirmação nesta rede: espere ela terminar")
         un, ud = await b.native_usd(origem), await b.native_usd(destino)
@@ -211,9 +214,9 @@ class GasFiller:
                 raise BuyError("uma das carteiras mudou: peça outra cotação")
             secret = await b._open(uid, o, senha)
             b.quotes.pop(quote_id, None)
-            gasto = await b.spent_today(uid)
-            if q["usd"] > min(GAS_MAX_USD, cfg["max_usd"]) or gasto + q["usd"] > cfg["dia_usd"]:
-                raise BuyError("passa dos seus limites em dólar")
+            gasto = await b.gas_spent_today(uid)
+            if q["usd"] > min(GAS_MAX_USD, cfg["gas_max_usd"]) or gasto + q["usd"] > cfg["gas_dia_usd"]:
+                raise BuyError("passa dos seus limites de gás")
             if await b.pending_on(uid, q["origem"]):
                 raise BuyError("há uma operação sem confirmação nesta rede: espere ela terminar")
             c = CHAINS[q["origem"]]

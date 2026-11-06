@@ -143,7 +143,7 @@ def classify(row: dict, cfg: dict, vol_med: float | None = None) -> tuple[str, l
     h24 = row.get("price_change_percentage_24h_in_currency")
     d30 = row.get("price_change_percentage_30d_in_currency")
     if not px or vol < c["vol_min_usd"]:
-        return "parada", [f"negociou só US$ {vol:,.0f} em 24 h".replace(",", ".")]
+        return "parada", [f"negociou só ${vol:.0f} em 24 h"]
     if (h1 is not None and h1 >= c["pump_1h"]) or (h24 is not None and h24 >= c["pump_24h"]):
         return "pump", [f"subiu {h1:+.1f}% em 1 h" if h1 is not None and h1 >= c["pump_1h"] else f"subiu {h24:+.1f}% em 24 h"]
     if (h1 is not None and h1 <= c["dump_1h"]) or (h24 is not None and h24 <= c["dump_24h"]):
@@ -560,7 +560,7 @@ class DormantWatch:
             cmc = next((k for k, v in self.pick.items() if v == cid), cid)
             self.alertas.insert(0, {"t": now, "cmc": cmc, "id": cid, "nome": row.get("name") or cid, "simbolo": (row.get("symbol") or "").upper(),
                                     "de": "parada_chain", "para": "acordou_chain", "chain": True,
-                                    "por": [f"{tr[0]['kind']} de US$ {tr[0]['usd']:,.0f} na {chain_name(ch)}".replace(",", ".") +
+                                    "por": [f"{tr[0]['kind']} de ${tr[0]['usd']:.0f} na {chain_name(ch)}" +
                                             (f" depois de {gap / 3600:.0f} h sem negócio" if gap and gap < 400 * 86400 else " depois de mais de 24 h sem negócio")],
                                     "preco": row.get("current_price"), "h1": row.get("price_change_percentage_1h_in_currency"),
                                     "h24": row.get("price_change_percentage_24h_in_currency")})

@@ -49,7 +49,7 @@
     if (!m.bc_alvo) return '<span class="muted small">sem contrato conhecido</span>';
     if (!b || !b.t) return '<span class="muted small">na fila para ler</span>';
     if (b.sem_pool) return '<span class="muted small">sem pool de negociação achado</span>';
-    const L = (b.last3 || []).map((x) => '<div><span class="' + (x.kind === "compra" ? "c" : "v") + '">' + esc(x.kind) + "</span> US$ " + num(x.usd, x.usd >= 100 ? 0 : 2) + " · há " + ago(x.t) +
+    const L = (b.last3 || []).map((x) => '<div><span class="' + (x.kind === "compra" ? "c" : "v") + '">' + esc(x.kind) + "</span> $" + num(x.usd, x.usd >= 100 ? 0 : 2) + " · há " + ago(x.t) +
       (x.tx && EXPL[b.net] ? ' · <a href="' + EXPL[b.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver</a>' : "") + "</div>").join("");
     return '<div class="dmbc"><b>' + (b.ultima_t ? "última há " + ago(b.ultima_t) : "parada há mais de 24 h") + "</b>" +
       ' <span class="muted">· ' + n24(b) + " negócios em 24 h</span>" + (full === false ? "" : L) + "</div>";
@@ -59,30 +59,32 @@
     ["dump_1h", "Dump: queda em 1 h de", "%"], ["dump_24h", "Dump: ou queda em 24 h de", "%"],
     ["sono_faixa_7d", "Dormindo: preço numa faixa menor que (7 dias)", "%"], ["sono_30d", "Dormindo: e o mês variou menos que", "%"],
     ["acorda_rompe", "Acordando: passou o topo da faixa em", "%"], ["acorda_vol_x", "Acordando: ou volume X vezes a mediana de 7 dias", "×"],
-    ["acorda_24h", "Acordando: com alta mínima em 24 h de", "%"], ["vol_min_usd", "Parada: negociou menos que (24 h)", "US$"]];
+    ["acorda_24h", "Acordando: com alta mínima em 24 h de", "%"], ["vol_min_usd", "Parada: negociou menos que (24 h)", "$"]];
   let VIEW = "visao", R = null, BUSY = false, READY = false, DIRTY = false;
   const F = { st: "", q: "", sort: "h24", ch: "", cat: "" };
   try { Object.assign(F, JSON.parse(localStorage.getItem("dm_f") || "{}")); } catch (e) { /* */ }
   const saveF = () => { try { localStorage.setItem("dm_f", JSON.stringify(F)); } catch (e) { /* */ } };
 
   // ------------------------------------------------------------------ formatos
-  const num = (v, d) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: d == null ? 2 : d }));
+  // 0.32.246 (pedido do dono): padrão da Uniswap em todo o Dormant, ponto no decimal e sem separar milhar. "6.319" parecia seis e era seis mil
+  const num = (v, d) => (v == null ? "—" : Number(v).toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: d == null ? 2 : d }));
   const cls = (v) => (v > 0 ? "up" : v < 0 ? "down" : "");
   const pc = (v) => (v == null ? "—" : Math.abs(v) < 0.05 ? "0%" : '<span class="dmpc ' + cls(v) + '">' + (v > 0 ? "+" : "") + num(v, 1) + "%</span>");
   function usd(v) {
     if (v == null) return "—";
     const a = Math.abs(v);
-    if (a >= 1e9) return "US$ " + num(v / 1e9, 2) + " bi";
-    if (a >= 1e6) return "US$ " + num(v / 1e6, 2) + " mi";
-    if (a >= 1e3) return "US$ " + num(v / 1e3, 1) + " mil";
-    return "US$ " + num(v, 0);
+    if (a >= 1e9) return "$" + num(v / 1e9, 2) + " bi";
+    if (a >= 1e6) return "$" + num(v / 1e6, 2) + " mi";
+    if (a >= 1e3) return "$" + num(v / 1e3, 1) + " mil";
+    return "$" + num(v, 0);
   }
   function price(v) {
     if (v == null) return "—";
-    if (v >= 1) return "US$ " + num(v, 2);
-    if (v >= 0.01) return "US$ " + num(v, 4);
+    if (v >= 1) return "$" + num(v, 2);
+    if (v >= 0.01) return "$" + num(v, 4);
     const s = v.toExponential(3).split("e-"), z = Number(s[1]) - 1;
-    return "US$ 0,0<sub>" + z + "</sub>" + s[0].replace(".", "").slice(0, 4);
+    if (z < 6) return "$" + v.toFixed(z + 4);
+    return "$0.0<sub>" + z + "</sub>" + s[0].replace(".", "").slice(0, 4);
   }
   const dia = (t) => (t ? new Date(t * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—");
   const hora = (t) => (t ? new Date(t * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
@@ -90,8 +92,8 @@
     if (!t) return "—";
     const s = Math.max(0, Date.now() / 1000 - t);
     const d = s / 86400;
-    return s < 60 ? Math.round(s) + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1).replace(".", ",") + " h"
-      : d < 60 ? (d < 10 ? d.toFixed(1).replace(".", ",") : Math.round(d)) + " dias" : d < 365 ? Math.round(d / 30.4) + " meses" : (d / 365).toFixed(1).replace(".", ",") + " anos";
+    return s < 60 ? Math.round(s) + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1) + " h"
+      : d < 60 ? (d < 10 ? d.toFixed(1) : Math.round(d)) + " dias" : d < 365 ? Math.round(d / 30.4) + " meses" : (d / 365).toFixed(1) + " anos";
   }
   const tag = (st) => '<span class="dmst ' + esc(st || "normal") + '">' + esc(ST[st] || "—") + "</span>";
   function coin(m) {
@@ -192,7 +194,7 @@
     $("ovBcSub").textContent = "as negociações mais recentes das moedas da lista, lidas direto da blockchain (GeckoTerminal) · " + num(bs.lidas || 0, 0) + " de " + num(bs.vigiadas || 0, 0) +
       " moedas já lidas · cada uma é lida de novo a cada " + num(bs.a_cada_min || 30, 0) + " min · " + num(bs.paradas_24h || 0, 0) + " paradas há mais de 24 h";
     table("ovBc", ["Quando", "Moeda", "Ação", "Valor", "Rede", "Transação"], ev.slice(0, 30).map(([x, m]) => [V("há " + ago(x.t), x.t), V('<span class="dmcoin"><b data-dmcoin="' + esc(m.cmc) + '">' + esc(m.nome) + '</b></span> <small class="muted">' + esc(m.simbolo) + "</small>", m.nome),
-      V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd), V(chainTag(m.chain_nome), m.chain_nome || ""),
+      V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("$" + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd), V(chainTag(m.chain_nome), m.chain_nome || ""),
       x.tx && EXPL[m.bc.net] ? '<a href="' + EXPL[m.bc.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver na blockchain</a>' : "—"]), "A leitura da blockchain começa logo depois da primeira leitura da CoinGecko (1 moeda a cada 6 s).");
     const dorm = M().filter((m) => m.status === "dormindo").sort((a, b) => Math.abs(a.d30 || 0) - Math.abs(b.d30 || 0)).slice(0, 15);
     table("ovDm", ["Moeda", "Preço", "7 dias", "30 dias", "Volume 24 h", "Gráfico 7 dias", "Por quê"], dorm.map((m) => [V(coin(m), m.nome), V(price(m.preco), m.preco), V(pc(m.d7), m.d7), V(pc(m.d30), m.d30), V(usd(m.vol), m.vol), spark(m.spark),
@@ -270,7 +272,7 @@
     setTimeout(() => {
       const L = (n && n.lista) || [];
       table("cmTr", ["Quando", "Ação", "Valor", "Carteira", "Transação"], L.map((x) => [V(hora(x.t) + ' <small class="muted">há ' + ago(x.t) + "</small>", x.t),
-        V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("US$ " + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd),
+        V('<span class="' + (x.kind === "compra" ? "up" : "down") + '">' + esc(x.kind) + "</span>", x.kind), V("$" + num(x.usd, x.usd >= 100 ? 0 : 2), x.usd),
         V('<span class="cmaddr">' + esc((x.wallet || "").slice(0, 6) + "…" + (x.wallet || "").slice(-4)) + "</span>", x.wallet || ""),
         x.tx && EXPL[n.net] ? '<a href="' + EXPL[n.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—"]), r ? "Sem negociações para mostrar." : "carregando…");
     }, 0);
@@ -376,7 +378,8 @@
   // Senha e chave ficam só nos campos, e os campos são limpos logo depois de cada ação; nada disso vai para localStorage ou variável.
   const REDE = { solana: "Solana", ethereum: "Ethereum", "binance-smart-chain": "BNB Chain", base: "Base", "polygon-pos": "Polygon", avalanche: "Avalanche", "arbitrum-one": "Arbitrum" };
   const MOEDA = { solana: "SOL", ethereum: "ETH", "binance-smart-chain": "BNB", base: "ETH", "polygon-pos": "POL", avalanche: "AVAX", "arbitrum-one": "ETH" };
-  const LIM = [["max_usd", "Máximo por compra", "US$"], ["dia_usd", "Máximo em 24 h", "US$"], ["slip_pct", "Folga de preço (slippage)", "%"]];
+  const LIM = [["max_usd", "Compras: máximo por compra", "$"], ["dia_usd", "Compras: máximo em 24 h", "$"], ["slip_pct", "Folga de preço (slippage)", "%"],
+    ["gas_max_usd", "Gás: máximo por abastecimento", "$"], ["gas_dia_usd", "Gás: máximo em 24 h", "$"]];
   let WAL = null;
   const clearPass = () => ["wPass", "wPass2", "wPassN", "wPassN2", "buySenha", "buyOk", "askSenha", "askOk"].forEach((id) => { if ($(id)) $(id).value = ""; });
   async function loadWal() {
@@ -393,7 +396,7 @@
       const k = el.dataset.wbal, v = g.redes[k];
       if (!v || v.saldo == null) { el.textContent = "saldo não lido"; return; }
       const tagg = v.estado === "sem" ? '<span class="dmst dump">sem gás</span>' : v.estado === "pouco" ? '<span class="dmst acordando">pouco gás</span>' : '<span class="dmst pump">gás ok</span>';
-      el.innerHTML = "saldo: " + num(v.saldo, 6) + " " + esc(v.moeda) + (v.usd != null ? " (US$ " + num(v.usd, 2) + ")" : "") + " " + tagg + (v.ops != null ? ' <span class="muted">dá para ~' + num(Math.floor(v.ops), 0) + " operações</span>" : "") +
+      el.innerHTML = "saldo: " + num(v.saldo, 6) + " " + esc(v.moeda) + (v.usd != null ? " ($" + num(v.usd, 2) + ")" : "") + " " + tagg + (v.ops != null ? ' <span class="muted">dá para ~' + num(Math.floor(v.ops), 0) + " operações</span>" : "") +
         (v.estado !== "ok" ? ' <button type="button" class="btn sm primary dmbuy" data-wgas="' + esc(k) + '"' + (temOrigem ? "" : ' disabled title="nenhuma carteira tem saldo em Ethereum, BNB Chain, Base ou Arbitrum para servir de origem"') + ">Abastecer</button>" : "");
     });
     const sem = w => w.redes.filter((x) => x.endereco && g.redes[x.rede] && g.redes[x.rede].estado === "sem").map((x) => x.nome);
@@ -401,7 +404,7 @@
     $("wGasAl").hidden = !L.length;
     $("wGasAl").textContent = L.length ? "Sem gás: " + L.join(", ") + ". Sem gás a carteira não compra nem vende. Quer abastecer? Use o botão Abastecer na rede." : "";
     table("wGasT", ["Quando", "De", "Para", "Pagou", "Recebe", "Gás da origem", "Situação", "Transação"], (g.historico || []).map((x) => [V(hora(x.t), x.t), V(chainTag(x.origem_nome), x.origem_nome), V(chainTag(x.destino_nome), x.destino_nome),
-      V("US$ " + num(x.usd, 2) + '<span class="dmwhy">' + num(x.paga, 6) + " " + esc(x.moeda_origem) + "</span>", x.usd), V(num(x.recebe, 6) + " " + esc(x.moeda_destino), x.recebe), x.gas_usd == null ? "—" : "US$ " + num(x.gas_usd, 4),
+      V("$" + num(x.usd, 2) + '<span class="dmwhy">' + num(x.paga, 6) + " " + esc(x.moeda_origem) + "</span>", x.usd), V(num(x.recebe, 6) + " " + esc(x.moeda_destino), x.recebe), x.gas_usd == null ? "—" : "$" + num(x.gas_usd, 4),
       V('<span class="dmst ' + (x.status === "confirmada" ? "pump" : x.status === "falhou" ? "dump" : "acordando") + '">' + esc(GAS_ST[x.status] || x.status) + "</span>" + (x.motivo ? '<span class="dmwhy">' + esc(x.motivo) + "</span>" : ""), x.status),
       x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—"]), "Nenhum abastecimento ainda.");
   }
@@ -418,7 +421,7 @@
     if (!orig.length) { $("buyMB").innerHTML = '<div class="buybad">Nenhuma outra carteira sua tem saldo em Ethereum, BNB Chain, Base ou Arbitrum. Mande um pouco para uma delas, ou envie ' + esc(d.moeda || "a moeda") + " direto para esta carteira.</div>"; $("buyM").hidden = false; return; }
     $("buyMB").innerHTML = '<div class="buyform"><div><label for="gasOrig">Pagar com a carteira de</label><select class="in" id="gasOrig">' +
       orig.map(([k, v]) => '<option value="' + esc(k) + '">' + esc(nome(k)) + " · " + num(v.saldo, 5) + " " + esc(v.moeda) + "</option>").join("") + "</select></div>" +
-      '<div><label for="gasUsd">Quanto mandar, em dólar (máx. ' + num(GAS.teto_usd, 0) + ')</label><input class="in" id="gasUsd" type="number" step="any" min="0" inputmode="decimal" value="' + esc(d.sugestao_usd || 2) + '"></div>' +
+      '<div><label for="gasUsd">Quanto mandar, em dólar (máx. por vez: ' + num(GAS.teto_usd, 2) + ' · sobram ' + num(GAS.resta_dia_usd, 2) + " de " + num(GAS.limite_dia_usd, 2) + ' em 24 h)</label><input class="in" id="gasUsd" type="number" step="any" min="0" inputmode="decimal" value="' + esc(d.sugestao_usd || 2) + '"></div>' +
       '<div class="row dmact"><button class="btn primary" type="button" id="gasQuote">Ver taxa</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
     $("buyM").hidden = false;
   }
@@ -433,10 +436,10 @@
     const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
     const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
     let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
-      line("Você paga em " + esc(r.origem_nome), "<b>" + num(r.paga, 8) + " " + esc(r.moeda_origem) + "</b> (US$ " + num(r.usd, 2) + ")") +
-      line("Chega em " + esc(r.destino_nome), "<b>" + num(r.recebe, 8) + " " + esc(r.moeda_destino) + "</b> (US$ " + num(r.usd_recebe, 2) + ")") +
+      line("Você paga em " + esc(r.origem_nome), "<b>" + num(r.paga, 8) + " " + esc(r.moeda_origem) + "</b> ($" + num(r.usd, 2) + ")") +
+      line("Chega em " + esc(r.destino_nome), "<b>" + num(r.recebe, 8) + " " + esc(r.moeda_destino) + "</b> ($" + num(r.usd_recebe, 2) + ")") +
       line("Taxa da ponte", "<b>" + num(r.taxa_pct, 2) + "%</b> · pelo preço da CoinGecko") +
-      line("Gás na origem, perto de", "US$ " + num(r.gas_usd, 4)) +
+      line("Gás na origem, perto de", "$" + num(r.gas_usd, 4)) +
       line("Ponte", esc(r.ponte) + (r.tempo_s != null ? " · cerca de " + num(r.tempo_s, 0) + " s" : "")) +
       line("Sai da carteira", '<span class="cmaddr">' + esc(r.carteira) + "</span>") +
       line("Chega na carteira", '<span class="cmaddr">' + esc(r.recebedor) + "</span>") + "</tbody></table></div>" +
@@ -528,10 +531,10 @@
     BUY.lim = r;
     const m = esc(r.moeda);
     const saldo = !r.tem_carteira ? 'sem carteira nesta rede: cadastre em <a href="#carteiras" id="buyGoW">Carteiras e compra</a>'
-      : r.saldo == null ? "saldo não lido" : "<b>" + num(r.saldo, 8) + " " + m + "</b>" + (r.saldo_usd != null ? " (US$ " + num(r.saldo_usd, 2) + ")" : "");
-    const max = r.max_nativo == null ? "sem cotação em dólar agora" : "<b>" + num(r.max_nativo, 8) + " " + m + "</b> (US$ " + num(r.max_usd, 2) + ") · limitado por " + esc(r.limitado_por);
+      : r.saldo == null ? "saldo não lido" : "<b>" + num(r.saldo, 8) + " " + m + "</b>" + (r.saldo_usd != null ? " ($" + num(r.saldo_usd, 2) + ")" : "");
+    const max = r.max_nativo == null ? "sem cotação em dólar agora" : "<b>" + num(r.max_nativo, 8) + " " + m + "</b> ($" + num(r.max_usd, 2) + ") · limitado por " + esc(r.limitado_por);
     $("buyInfo").innerHTML = "<div>Na carteira: " + saldo + "</div><div>Máximo agora: " + max + "</div>" +
-      '<div class="muted small">limite por compra US$ ' + num(r.limite_compra_usd, 2) + " · nas últimas 24 h já foram US$ " + num(r.gasto_dia_usd, 2) + " de US$ " + num(r.limite_dia_usd, 2) + (r.ligado ? "" : " · as compras estão desligadas") + "</div>";
+      '<div class="muted small">limite por compra $' + num(r.limite_compra_usd, 2) + " · nas últimas 24 h já foram $" + num(r.gasto_dia_usd, 2) + " de $" + num(r.limite_dia_usd, 2) + (r.ligado ? "" : " · as compras estão desligadas") + "</div>";
     buyUsdDraw();
   }
   function buyUsdDraw() {
@@ -540,15 +543,14 @@
     if (!(v > 0)) { el.textContent = ""; return; }
     if (!L || !L.usd_n) { el.textContent = "sem cotação em dólar agora"; return; }
     const pass = L.max_nativo != null && v > L.max_nativo;
-    el.innerHTML = "isso vale <b>US$ " + num(v * L.usd_n, 2) + "</b>" + (pass ? ' <span class="down">· acima do máximo agora (US$ ' + num(L.max_usd, 2) + ")</span>" : "");
+    el.innerHTML = "isso vale <b>$" + num(v * L.usd_n, 2) + "</b>" + (pass ? ' <span class="down">· acima do máximo agora ($' + num(L.max_usd, 2) + ")</span>" : "");
   }
-  // 0.32.245: "6.323" em português é seis mil, mas parece seis (o dono comparou com a Uniswap e achou errado): diz por extenso
   function qtd(v) {
     if (v == null) return "—";
-    const a = Math.abs(v), ext = a >= 1e9 ? num(v / 1e9, 2) + " bilhões" : a >= 1e6 ? num(v / 1e6, 2) + " milhões" : a >= 1e3 ? num(v / 1e3, 2) + " mil" : "";
-    return ext ? ext + ' <small class="muted">(' + num(v, 0) + ")</small>" : num(v, a >= 1 ? 4 : 8);
+    const a = Math.abs(v);
+    return num(v, a >= 1000 ? 2 : a >= 1 ? 4 : 8);
   }
-  const emUsd = (qt, px) => (qt != null && px ? " · US$ " + num(qt * px, 2) : "");
+  const emUsd = (qt, px) => (qt != null && px ? " · $" + num(qt * px, 2) : "");
   async function buyQuote() {
     if (!BUY) return;
     const valor = $("buyVal").value;
@@ -563,13 +565,13 @@
     const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
     const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
     let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
-      line("Você paga", "<b>" + num(r.valor, 8) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " (US$ " + num(r.usd, 2) + ")" : "")) +
+      line("Você paga", "<b>" + num(r.valor, 8) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " ($" + num(r.usd, 2) + ")" : "")) +
       line("Recebe, mais ou menos", "<b>" + qtd(r.recebe) + " " + esc(r.moeda.simbolo) + "</b>" + emUsd(r.recebe, r.px_cg)) +
       line("Recebe no mínimo", qtd(r.minimo) + " " + esc(r.moeda.simbolo) + emUsd(r.minimo, r.px_cg) + " (folga de " + num(r.slip, 2) + "%)") +
       line("Onde", esc(r.dex || "—") + (r.rota ? " · " + esc(r.rota) : "")) +
       line("Preço pago × CoinGecko", r.dif_cg == null ? "—" : Math.abs(r.dif_cg) < 0.05 ? "igual" : '<span class="' + (r.dif_cg > 0 ? "down" : "up") + '">' + num(Math.abs(r.dif_cg), 1) + "% " + (r.dif_cg > 0 ? "mais caro" : "mais barato") + "</span>") +
       line("Quanto a compra move o preço", r.impacto == null ? "—" : num(r.impacto, 2) + "%") +
-      line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "US$ " + num(r.gas_usd, 4)) +
+      line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "$" + num(r.gas_usd, 4)) +
       line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") +
       line("Contrato do token", '<span class="cmaddr">' + esc(r.token) + "</span>") + "</tbody></table></div>" +
       list("buybad", "Não dá para comprar:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
@@ -602,7 +604,7 @@
     if (BUY.timer) clearInterval(BUY.timer);
     const c = r.compra || {};
     const link = c.tx && c.expl ? '<a href="' + esc(c.expl + c.tx) + '" target="_blank" rel="noopener">ver a transação na blockchain</a>' : "";
-    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Comprado.</b> ' + num(c.qty, 6) + " " + esc(c.simbolo) + " por US$ " + num(c.usd_in, 2) + ". " + link + "</div>"
+    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Comprado.</b> ' + qtd(c.qty) + " " + esc(c.simbolo) + " por $" + num(c.usd_in, 2) + ". " + link + "</div>"
       : '<div class="buywarn"><b>' + esc(c.status === "pendente" ? "Enviada, ainda sem confirmação." : "Confira esta compra.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>") +
       '<div class="row dmact" style="margin-top:10px"><a class="btn primary" href="#compras" id="buyHist">Ver em Minhas compras</a></div>';
   }
@@ -624,18 +626,18 @@
     if (!BUY) return;
     if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
     BUY.q = r;
-    const q = (v) => (v == null ? "—" : num(v, v >= 1000 ? 0 : v >= 1 ? 4 : 8));
+    const q = qtd;
     const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
     const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
     let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
       line("Saldo na carteira", qtd(r.saldo) + " " + esc(r.moeda.simbolo)) +
       line("Você vende", "<b>" + qtd(r.vende) + " " + esc(r.moeda.simbolo) + "</b> (" + num(r.pct, 0) + "%)") +
-      line("Recebe, mais ou menos", "<b>" + q(r.recebe) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " (US$ " + num(r.usd, 2) + ")" : "")) +
+      line("Recebe, mais ou menos", "<b>" + q(r.recebe) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " ($" + num(r.usd, 2) + ")" : "")) +
       line("Recebe no mínimo", q(r.minimo) + " " + esc(r.moeda_rede) + " (folga de " + num(r.slip, 2) + "%)") +
       line("Onde", esc(r.dex || "—") + (r.rota ? " · " + esc(r.rota) : "")) +
       line("Recebido × CoinGecko", r.dif_cg == null ? "—" : pc(r.dif_cg)) +
       line("Quanto a venda move o preço", r.impacto == null ? "—" : num(r.impacto, 2) + "%") +
-      line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "US$ " + num(r.gas_usd, 4)) +
+      line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "$" + num(r.gas_usd, 4)) +
       line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") + "</tbody></table></div>" +
       list("buybad", "Não dá para vender:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
     if (r.quote_id) {
@@ -667,7 +669,7 @@
     if (BUY.timer) clearInterval(BUY.timer);
     const c = r.venda || {};
     const link = c.tx && c.expl ? '<a href="' + esc(c.expl + c.tx) + '" target="_blank" rel="noopener">ver a transação na blockchain</a>' : "";
-    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Vendido.</b> Entraram ' + num(c.nativo_out, 6) + " " + esc(c.moeda) + " (US$ " + num(c.usd_out, 2) + "). " + link + "</div>"
+    $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Vendido.</b> Entraram ' + num(c.nativo_out, 6) + " " + esc(c.moeda) + " ($" + num(c.usd_out, 2) + "). " + link + "</div>"
       : '<div class="buywarn"><b>' + esc(c.status === "pendente" ? "Enviada, ainda sem confirmação." : "Confira esta venda.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>");
     drawCompras();
   }
@@ -678,8 +680,8 @@
     if (!r || r.error) { $("cpT").innerHTML = '<tr><td class="empty down">' + esc((r && r.error) || "não consegui ler as compras") + "</td></tr>"; return; }
     CP_ITENS = r.itens;
     const s = r.resumo, kp = (k, v, d) => '<div class="kpi"><div class="k"><span>' + esc(k) + '</span></div><div class="v">' + v + '</div><div class="d">' + esc(d) + "</div></div>";
-    $("cpK").innerHTML = kp("Investido", "US$ " + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "US$ " + num(s.valor, 2), "o que ainda não vendeu, no preço da CoinGecko") + kp("Recebido", "US$ " + num(s.recebido, 2), "das vendas, já sem o gás") +
-      kp("Ganho total", '<span class="' + cls(s.ganho) + '">US$ ' + num(s.ganho, 2) + "</span>", "valor agora + recebido − investido") + kp("Total", pc(s.total), "desde as compras") +
+    $("cpK").innerHTML = kp("Investido", "$" + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "$" + num(s.valor, 2), "o que ainda não vendeu, no preço da CoinGecko") + kp("Recebido", "$" + num(s.recebido, 2), "das vendas, já sem o gás") +
+      kp("Ganho total", '<span class="' + cls(s.ganho) + '">$' + num(s.ganho, 2) + "</span>", "valor agora + recebido − investido") + kp("Total", pc(s.total), "desde as compras") +
       kp("1 h", pc(s.h1), "última hora") + kp("12 h", pc(s.h12), "últimas 12 horas") + kp("24 h", pc(s.h24), "últimas 24 horas") + kp("7 dias", pc(s.h168), "últimos 7 dias");
     $("cpSub").textContent = "as porcentagens são do preço de cada moeda; quem foi comprada dentro do período conta desde a compra · preço da CoinGecko" + (r.leitura_t ? ", lido há " + ago(r.leitura_t) : "") +
       " · o valor agora não desconta a taxa de uma venda futura · vender vende o saldo do token na carteira, e as vendas abatem as compras mais antigas";
@@ -687,16 +689,16 @@
     const tx = (x) => (x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—");
     const moeda = (x) => '<div class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<div><b>" + esc(x.nome) + "</b> <small>" + esc(x.simbolo || "") + "</small></div></div>";
     table("cpT", ["Moeda", "Rede", "Quando", "Investido", "Quantidade", "Vendido", "Preço pago", "Agora", "1 h", "12 h", "24 h", "7 dias", "Total", "Ganho", "Transação", ""], ok.map((x) => [V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""),
-      V(hora(x.t), x.t), V("US$ " + num(x.custo, 2) + '<span class="dmwhy">' + num(x.nativo, 6) + " " + esc(x.moeda) + "</span>", x.custo), V(num(x.qty, 4), x.qty), V(x.vendido ? num(x.vendido, 4) + '<span class="dmwhy">recebeu US$ ' + num(x.recebido, 2) + "</span>" : "—", x.vendido || 0), V(price(x.px_in), x.px_in), V(price(x.px_agora), x.px_agora),
-      V(pc(x.h1), x.h1), V(pc(x.h12), x.h12), V(pc(x.h24), x.h24), V(pc(x.h168), x.h168), V(pc(x.total), x.total), V(x.ganho == null ? "—" : '<span class="' + cls(x.ganho) + '">US$ ' + num(x.ganho, 2) + "</span>", x.ganho), tx(x),
+      V(hora(x.t), x.t), V("$" + num(x.custo, 2) + '<span class="dmwhy">' + num(x.nativo, 6) + " " + esc(x.moeda) + "</span>", x.custo), V(qtd(x.qty), x.qty), V(x.vendido ? qtd(x.vendido) + '<span class="dmwhy">recebeu $' + num(x.recebido, 2) + "</span>" : "—", x.vendido || 0), V(price(x.px_in), x.px_in), V(price(x.px_agora), x.px_agora),
+      V(pc(x.h1), x.h1), V(pc(x.h12), x.h12), V(pc(x.h24), x.h24), V(pc(x.h168), x.h168), V(pc(x.total), x.total), V(x.ganho == null ? "—" : '<span class="' + cls(x.ganho) + '">$' + num(x.ganho, 2) + "</span>", x.ganho), tx(x),
       x.resto ? '<button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="muted small">vendida</span>']),
       "Nenhuma compra ainda. Em Moedas, use o botão Comprar.");
     const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
-    table("cpV", ["Quando", "Moeda", "Rede", "Vendeu", "Recebeu", "Gás", "Onde", "Situação", "Transação"], (r.vendas || []).map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V(num(x.qty, 4), x.qty),
-      V(x.usd_out == null ? "—" : "US$ " + num(x.usd_out, 2) + '<span class="dmwhy">' + num(x.nativo_out, 6) + " " + esc(x.moeda) + "</span>", x.usd_out), V(x.gas_usd == null ? "—" : "US$ " + num(x.gas_usd, 4), x.gas_usd), esc(x.dex || "—"),
+    table("cpV", ["Quando", "Moeda", "Rede", "Vendeu", "Recebeu", "Gás", "Onde", "Situação", "Transação"], (r.vendas || []).map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V(qtd(x.qty), x.qty),
+      V(x.usd_out == null ? "—" : "$" + num(x.usd_out, 2) + '<span class="dmwhy">' + num(x.nativo_out, 6) + " " + esc(x.moeda) + "</span>", x.usd_out), V(x.gas_usd == null ? "—" : "$" + num(x.gas_usd, 4), x.gas_usd), esc(x.dex || "—"),
       V('<span class="dmst ' + (x.status === "confirmada" ? "pump" : x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_V[x.status] || x.status) + "</span>" + (x.motivo ? '<span class="dmwhy">' + esc(x.motivo) + "</span>" : ""), x.status), tx(x)]), "Nenhuma venda ainda.");
     const ST_C = { enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
-    table("cpF", ["Quando", "Moeda", "Rede", "Valor", "Situação", "Motivo", "Transação"], fora.map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V("US$ " + num(x.usd_in, 2), x.usd_in),
+    table("cpF", ["Quando", "Moeda", "Rede", "Valor", "Situação", "Motivo", "Transação"], fora.map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V("$" + num(x.usd_in, 2), x.usd_in),
       V('<span class="dmst ' + (x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_C[x.status] || x.status) + "</span>", x.status), '<small class="muted">' + esc(x.motivo || "") + "</small>", tx(x)]), "Nada aqui.");
   }
   function draw() {
