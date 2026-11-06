@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-11-05",
+    "generated_date": "2026-11-06",
     "timezone": "Europe/Dublin",
-    "repository_reference": "07866e9ab75873af37aefa2ae86aa48cec969fa5",
-    "application_version": "0.32.234 · 2026-11-05 · Dormant: gráfico da DEX na janela da moeda",
+    "repository_reference": "f768839d152993312c9cb6cc019ada0007d8ad60",
+    "application_version": "0.32.235 · 2026-11-06 · Status: RPC estourado fica vermelho",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "8ca612adbcf2b117b05d38118ed9cd6237cb6d7d6ed99975ccef5f7427be2c52",
+      "app/version.py": "1edf0187462620095aa2f69673d7873007ae2010592d38946dac28947e67696f",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "0814542102a12fe2d06e8af72d9e6d2b728c906f27e603806fe86c31b8883e22"
+  "pdf_sha256": "7c8fa488566360b11b7fa2cf9bfa9dcdeeb53586dfb4a35503130725d67cc0e8"
 }

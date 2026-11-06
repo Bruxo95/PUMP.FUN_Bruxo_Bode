@@ -160,9 +160,15 @@ def create_app(hub, auth, cfg) -> FastAPI:
                                            "error": (pf.lb_status or {}).get("error"), "at": (pf.lb_status or {}).get("at"),
                                            # 0.32.62 (dono: "tenho crédito ainda"): qual chave esta conta usa — nunca a chave em si
                                            "fonte": pf.lb_key_src()},
+                        "solana_tracker_cota": None,
+                        # 0.32.235: estourou o limite grátis / RPC recusando / nenhuma leitura vira trade
+                        "rpc": (al := hub.health_alerts())["rpc"],
                         "banco": {"ok": not getattr(pf.store, "last_error", None),
                                   "error": (str(getattr(pf.store, "last_error", "") or "")[:120]) or None,
                                   "fila": len(getattr(pf.store, "_q", []) or [])}}
+        snap["apis"]["solana_tracker_cota"] = al["solana_tracker"]
+        if al["solana_tracker"].get("estourou"):
+            snap["apis"]["solana_tracker"]["ok"] = False
         return snap
 
     AUTO_SWITCHES = {"pump_sim_on", "pump_bar_auto_on", "pump_bar_real", "pump_bx_on", "pump_bx_real", "pump_ex_auto_on", "pump_calls_auto_on",

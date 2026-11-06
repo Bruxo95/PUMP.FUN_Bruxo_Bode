@@ -283,12 +283,16 @@ class Usage:
             if tipo not in ("requisições", "créditos"):
                 mm = rr = None                           # mensagens de WebSocket: sem limite publicado
             per = {}
+            # 0.32.235: as janelas voltam do banco depois do reinício (load_win); dividir pelo tempo desde o reinício dava
+            # 172% em 24 h com uso real de 51%. A média por minuto usa os minutos que a janela realmente cobre.
+            first = min((k for k, v in b.items() if v), default=m_now)
+            cob = max(1.0, m_now - first + 1, min(up_min, 24 * 60))
             for h in H_WIN:
                 n = sum(v for k, v in b.items() if k > m_now - h * 60)
                 if mm:
                     pct = round(n / mm * 100, 3)
                 elif rr:
-                    pct = round(n / (min(h * 60, up_min) * rr) * 100, 2)
+                    pct = round(n / (min(h * 60, cob) * rr) * 100, 2)
                 else:
                     pct = None
                 per[str(h)] = {"n": n, "pct": pct}
@@ -308,6 +312,19 @@ class Usage:
             if api == "PumpPortal" and tipo == PP_PAID:
                 row["custo_sol"] = {h: round(per[h]["n"] / 10_000 * 0.01, 5) for h in per}
             out.append(row)
+        return out
+
+    def estourou(self, now: float | None = None) -> dict:
+        """0.32.235 (pedido do dono: "o RPC estourou e o status ficou ok"): serviços que passaram do limite grátis, pelo mesmo
+        cálculo da tabela "Uso de cada serviço": {api: {"tipo", "pct", "mes", "limite_mes"}} com a pior % de cada um."""
+        out: dict[str, dict] = {}
+        for r in self.windows(now):
+            if not (r.get("limite_mes") or r.get("limite_min")):
+                continue
+            pior = max([r.get("pct_mes") or 0] + [(r["janelas"].get(h) or {}).get("pct") or 0 for h in ("1", "6", "12", "24")])
+            if pior >= 100 and pior > (out.get(r["api"]) or {}).get("pct", 0):
+                out[r["api"]] = {"tipo": r["tipo"], "pct": round(pior, 1), "mes": r.get("mes"), "limite_mes": r.get("limite_mes"),
+                                 "limite_min": r.get("limite_min")}
         return out
 
     def por_aba(self, now: float | None = None) -> list[dict]:

@@ -279,6 +279,40 @@ class PumpHub:
                 labels[key_tag(k)] = "chave pessoal de " + (getattr(e, "_nome_cache", None) or e.user_id[:8])
         return us.view(labels)
 
+    def health_alerts(self, now: float | None = None) -> dict:
+        """0.32.235 (pedido do dono: "o RPC estourou e o status ficou ok"): o Status do sistema só dizia se a conexão estava de
+        pé. Agora o Solana RPC e a Solana Tracker ficam "não ok" quando o serviço passou do limite grátis (mesma conta da
+        tabela "Uso de cada serviço"), quando o RPC recusou leituras nos últimos 10 min ou quando nenhuma leitura vira trade."""
+        now = time.time() if now is None else now
+        mk, st = self.market, (getattr(self.market, "rpc_status", None) or {})
+        us = self.__dict__.get("usage")
+        try:
+            cota = us.estourou(now) if us else {}
+        except Exception:
+            cota = {}
+        rpc: list[str] = []
+        prov = st.get("prov")
+        c = cota.get(prov) if prov else None
+        if c:
+            rpc.append(f"{prov} passou do limite grátis ({c['pct']:.0f}% {'dos créditos do mês' if c['tipo'] == 'créditos' else 'das ' + c['tipo']}): "
+                       "pode recusar leituras até virar o mês ou até trocar de plano/chave")
+        t429, tok = getattr(mk, "rpc_429_at", 0.0) or 0.0, getattr(mk, "rpc_ok_at", 0.0) or 0.0
+        if now - t429 < 600 and t429 > tok:
+            rpc.append(f"o RPC está recusando as leituras (HTTP 429) — última recusa há {int(now - t429) // 60} min, "
+                       + ("sem nenhuma leitura boa desde então" if tok else "nenhuma leitura boa desde o reinício"))
+        tf = getattr(mk, "rpc_fail_at", 0.0) or 0.0
+        if now - tf < 600 and tf > tok and now - t429 >= 600:
+            rpc.append(f"o RPC respondeu erro nas leituras ({getattr(mk, 'rpc_fail_msg', '') or 'erro'}) há {int(now - tf) // 60} min")
+        up = now - self.started_at
+        if st.get("ws") and up > 1800 and (st.get("queued") or 0) >= 50 and not (st.get("parsed") or 0):
+            rpc.append(f"{st.get('queued')} transações foram para leitura desde o reinício e nenhuma virou trade: as cópias não estão chegando")
+        stc = cota.get("Solana Tracker")
+        return {"rpc": {"ok": not rpc, "estourou": bool(c), "motivos": rpc},
+                "solana_tracker": ({"estourou": True, "motivo": f"passou do limite grátis ({stc['pct']:.0f}% {'do mês' if stc.get('limite_mes') else 'por minuto'}"
+                                    f"{', ' + format(stc['mes'] or 0, ',d').replace(',', '.') + ' de ' + format(stc['limite_mes'], ',d').replace(',', '.') + ' no mês' if stc.get('limite_mes') and stc.get('mes') else ''}"
+                                    "): pode responder \"sem créditos\" até virar o mês"} if stc else {"estourou": False}),
+                "cota": cota}
+
     async def arquivo_loop(self) -> None:
         """0.32.225: a cada 30 min passa para o Postgres da VPS o que já não precisa ficar no Supabase (app/arquivo.py).
         0.32.229: enquanto há fila, a cada 5 min."""

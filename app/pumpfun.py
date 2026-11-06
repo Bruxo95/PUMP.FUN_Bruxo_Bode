@@ -2279,6 +2279,7 @@ class PumpFun:
                 try:
                     r = await self.http.post(u, json=body, timeout=10)
                     if r.status_code == 429:
+                        mk.rpc_429_at = time.time()                # 0.32.235: o Status mostra "recusando" (antes ficava "ok")
                         if why is not None:
                             why.append("HTTP 429 (limite do RPC)")
                         n = getattr(mk, "rpc_429_streak", 0) + 1
@@ -2286,6 +2287,7 @@ class PumpFun:
                         mk.rpc_cool_until = max(getattr(mk, "rpc_cool_until", 0.0), time.time() + min(8.0, 0.5 * 2 ** min(n, 4)))
                         continue
                     if r.status_code >= 400:
+                        mk.rpc_fail_at, mk.rpc_fail_msg = time.time(), f"HTTP {r.status_code}"
                         if why is not None:
                             why.append(f"HTTP {r.status_code}")
                         continue
@@ -2293,8 +2295,11 @@ class PumpFun:
                     res = js.get("result")
                     if res:
                         mk.rpc_429_streak = 0
+                        mk.rpc_ok_at = time.time()
                         return res
                     err = js.get("error") or {}
+                    if err and "maxSupportedTransactionVersion" not in str(err.get("message") or ""):
+                        mk.rpc_fail_at, mk.rpc_fail_msg = time.time(), str(err.get("message") or err)[:120]
                     if err and "maxSupportedTransactionVersion" in str(err.get("message") or "") and opts["maxSupportedTransactionVersion"] == 0:
                         opts["maxSupportedTransactionVersion"] = 1        # 0.32.8: transação no formato novo (versão 1)
                         r = await self.http.post(u, json=body, timeout=10)

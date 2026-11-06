@@ -3272,8 +3272,13 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     // 0.32.7 (pedido do dono): cada linha do funil abre a lista do que aconteceu
     const open = (k, tipo) => '<button class="linkbtn" data-rpclog="' + tipo + '">' + k + " ›</button>";
     const late = RP.queued ? Math.round((RP.stale || 0) / RP.queued * 100) : 0;
+    const AR = A.rpc || {}, STC = A.solana_tracker_cota || {};
     return '<div class="tbl-wrap"><table class="systbl"><thead><tr><th>Serviço</th><th>Situação</th><th>Detalhe</th></tr></thead><tbody>' +
-      row("Solana RPC", okb(RP.ws, RP.error) + (RP.ws ? "" : fixBtn("rpc")), (RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado") + rpcWhy(RP.error)) +
+      // 0.32.235 (pedido do dono: "o RPC estourou e o status ficou ok"): conectado não basta; estourou o limite grátis, recusando
+      // leituras ou nenhuma leitura virando trade = vermelho, com o motivo
+      row("Solana RPC", (!RP.ws ? okb(false, RP.error) : AR.ok === false ? '<span class="down">' + (AR.estourou ? "estourou" : "não ok") + "</span>" : okb(true)) + (RP.ws && AR.ok !== false ? "" : fixBtn("rpc")),
+        (RP.ws ? (RP.subs || 0) + " carteiras · " + (RP.parsed || 0) + " trades" + perH(RP.parsed) + " · último " + ago(RP.last_event) : esc(RP.error || "aguardando o monitor compartilhado") + rpcWhy(RP.error)) +
+        (AR.motivos || []).map((m) => '<br><span class="down">⚠ ' + esc(m) + "</span>").join("") +
         (RP.prov ? '<br><span class="muted small">usando: <b>' + esc(RP.prov) + "</b> · " + esc(RP.fonte || "") + "</span>" : "")) +
       row("PumpPortal", okb(PPs.ws, PPs.error) + (PPs.ws ? "" : fixBtn("pp")), PPs.ws ? "tokens novos " + (PPs.new_tokens || 0) + perH(PPs.new_tokens) + " · último " + ago(PPs.last_event) : esc(PPs.error || "desconectado")) +
       // 0.32.18 (pedido do dono): trades das copiadas pela PumpPortal paga (0,01 SOL a cada 10 mil trades, na carteira da chave do sistema)
@@ -3282,7 +3287,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
           : "desligado · ligado, as compras e vendas das carteiras copiadas chegam prontas, sem gastar o RPC (só pump.fun/PumpSwap; cobra 0,01 SOL a cada 10 mil trades da carteira da chave PumpPortal do sistema)")) +
       row("Preços", okb(!RP.price_error, RP.price_error), esc(RP.price_error || "–")) +
       row("Jupiter", okb((A.jupiter || {}).ok !== false, (A.jupiter || {}).error) + ((A.jupiter || {}).ok === false ? fixBtn("jup") : ""), esc((A.jupiter || {}).error || "–")) +
-      row("Solana Tracker", okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave") + ((A.solana_tracker || {}).ok ? "" : fixBtn("st")), ((A.solana_tracker || {}).fonte ? "<b>usando: " + esc(A.solana_tracker.fonte) + "</b> · " : "") + esc((A.solana_tracker || {}).error || "–")) +
+      row("Solana Tracker", (STC.estourou ? '<span class="down">estourou</span>' : okb((A.solana_tracker || {}).ok, (A.solana_tracker || {}).error || "sem chave")) + ((A.solana_tracker || {}).ok ? "" : fixBtn("st")), ((A.solana_tracker || {}).fonte ? "<b>usando: " + esc(A.solana_tracker.fonte) + "</b> · " : "") + esc((A.solana_tracker || {}).error || "–") +
+        (STC.estourou ? '<br><span class="down">⚠ ' + esc(STC.motivo) + "</span>" : "")) +
       row("Banco", okb((A.banco || {}).ok !== false, (A.banco || {}).error), esc((A.banco || {}).error || "–")) +
       row("Carteira real", RL.wallet_configured ? '<span class="up">configurada</span>' : '<span class="down">não configurada</span>', "execução " + (RL.enabled ? "ON" : "OFF")) +
       "</tbody></table></div>" +
@@ -3464,7 +3470,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const okb = (ok, why) => (ok ? '<span class="up">ok</span>' : '<span class="down" title="' + esc(why || "") + '">não ok</span>');
     const A = D.apis || {}, RL = D.real || {};
     // 0.32.4 (pedido do dono: "está horrível ali"): no menu fica só uma linha; o status completo abre numa janela
-    const probs = [["Solana RPC", RP.ws], ["PumpPortal", PPs.ws], ["Preços", !RP.price_error], ["Jupiter", (A.jupiter || {}).ok !== false],
+    const probs = [["Solana RPC", RP.ws && (A.rpc || {}).ok !== false], ["PumpPortal", PPs.ws], ["Preços", !RP.price_error], ["Jupiter", (A.jupiter || {}).ok !== false],
       ["Solana Tracker", (A.solana_tracker || {}).ok], ["Banco", (A.banco || {}).ok !== false]].filter((x) => !x[1]).map((x) => x[0]);
     $("sysS").innerHTML = (RP.ws ? (RP.subs || 0) + " carteiras · " : "") + (probs.length ? '<span class="down">' + probs.length + " com problema</span>" : '<span class="up">tudo ok</span>') + " · detalhes";
     $("sysBox").title = probs.length ? "Com problema: " + probs.join(", ") : "Tudo ok · clique para ver o status completo";
