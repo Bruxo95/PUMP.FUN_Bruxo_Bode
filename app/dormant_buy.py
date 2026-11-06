@@ -338,6 +338,36 @@ class Buyer:
             self._gp.clear()
         return d
 
+    # ------------------------------------------------------------------ 0.32.245: saldo e máximo de compra, antes de digitar o valor
+    async def limit_info(self, uid: str, chain: str) -> dict:
+        c = CHAINS.get(chain)
+        if not c:
+            raise BuyError("rede inválida")
+        cfg = await self.cfg(uid)
+        wal = await self.wallet_row(uid, chain)
+        usd_n = await self.native_usd(chain)
+        gasto = await self.spent_today(uid)
+        resta = max(0.0, cfg["dia_usd"] - gasto)
+        saldo, reserva = None, 0.0
+        if wal:
+            try:
+                if c["tipo"] == "solana":
+                    saldo, reserva = (await self.rpc(self.sol_rpc(), "getBalance", [wal["endereco"]]))["value"] / 1e9, c["reserva"]
+                else:
+                    saldo = int(await self.rpc(c["rpc"], "eth_getBalance", [wal["endereco"], "latest"]) or "0x0", 16) / 1e18
+                    reserva = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16) * 1.1 * 300000 * 1.3 / 1e18   # o gás da própria compra
+            except (BuyError, KeyError, TypeError, ValueError):
+                saldo = None
+        out = {"moeda": c["moeda"], "usd_n": usd_n, "tem_carteira": bool(wal), "saldo": saldo, "saldo_usd": saldo * usd_n if saldo is not None and usd_n else None, "reserva_gas": reserva,
+               "limite_compra_usd": cfg["max_usd"], "limite_dia_usd": cfg["dia_usd"], "gasto_dia_usd": gasto, "resta_dia_usd": round(resta, 2), "ligado": cfg["on"], "max_nativo": None, "max_usd": None, "limitado_por": None}
+        if usd_n:
+            caps = [(cfg["max_usd"], "seu limite por compra"), (resta, "o que sobra do seu limite de 24 h")]
+            if saldo is not None:
+                caps.append((max(0.0, saldo - reserva) * usd_n, "o saldo da carteira (fica o gás da compra)"))
+            m, por = min(caps, key=lambda x: x[0])
+            out.update(max_nativo=math.floor(m / usd_n * 1e8) / 1e8, max_usd=round(m, 2), limitado_por=por)
+        return out
+
     # ------------------------------------------------------------------ cotação EVM
     async def _call(self, c: dict, to: str, data: str) -> str | None:
         try:
@@ -413,7 +443,7 @@ class Buyer:
                 bloq.append(f"passa do seu limite por compra (US$ {cfg['max_usd']:g})")
             gasto = await self.spent_today(uid)
             if gasto + usd_in > cfg["dia_usd"]:
-                bloq.append(f"passa do seu limite por dia (US$ {cfg['dia_usd']:g}; já comprou US$ {gasto:.2f} hoje)")
+                bloq.append(f"passa do seu limite por dia (US$ {cfg['dia_usd']:g}; já foram US$ {gasto:.2f} nas últimas 24 h)")
         if await self.pending_on(uid, chain):
             bloq.append("há uma compra sem confirmação nesta rede: espere ela terminar (veja Minhas compras)")
         gb, ga = judge_goplus(chain, await self.goplus(chain, token))

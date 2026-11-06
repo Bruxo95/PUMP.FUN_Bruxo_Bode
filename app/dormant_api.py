@@ -189,6 +189,10 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"ok": True, "cfg": c}
         return await run(go())
 
+    @app.get("/api/dormant/compra/limite")
+    async def buy_limit(rede: str = "", u: dict = Depends(own)):
+        return await run(buyer().limit_info(u["id"], rede[:40]))
+
     @app.post("/api/dormant/compra/cotar")
     async def buy_quote(body: dict, u: dict = Depends(own)):
         b = body if isinstance(body, dict) else {}

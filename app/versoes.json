@@ -1980,6 +1980,11 @@
    "versao": "0.32.244",
    "inicio": "2026-11-06T17:13:30+00:00",
    "titulo": "Dormant mostra a carteira sem gás e abastece a partir de outra rede"
+  },
+  {
+   "versao": "0.32.245",
+   "inicio": "2026-11-06T23:02:48+00:00",
+   "titulo": "Comprar mostra saldo, máximo e o valor em dólar enquanto digita"
   }
  ]
 }

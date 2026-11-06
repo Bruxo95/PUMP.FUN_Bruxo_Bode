@@ -9,7 +9,7 @@ KEY = "0x" + "0" * 63 + "1"
 SENHA = "cavalo-azul-77"
 ROTAS_POST = ["/api/dormant/carteiras/salvar", "/api/dormant/carteiras/remover", "/api/dormant/carteiras/senha", "/api/dormant/compra/ligar",
               "/api/dormant/compra/limites", "/api/dormant/compra/cotar", "/api/dormant/compra/confirmar", "/api/dormant/venda/cotar", "/api/dormant/venda/confirmar", "/api/dormant/gas/cotar", "/api/dormant/gas/confirmar"]
-ROTAS_GET = ["/api/dormant/carteiras", "/api/dormant/compras", "/api/dormant/gas"]
+ROTAS_GET = ["/api/dormant/carteiras", "/api/dormant/compras", "/api/dormant/gas", "/api/dormant/compra/limite"]
 
 
 def _watch(env):

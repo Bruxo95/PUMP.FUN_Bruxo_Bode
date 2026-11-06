@@ -510,11 +510,45 @@
     $("buyMT").textContent = "Comprar " + (m.simbolo || m.nome);
     $("buyMS").innerHTML = esc(m.nome) + " · preço na CoinGecko: " + price(m.preco);
     $("buyMB").innerHTML = '<div class="buyform">' + '<div><label for="buyRede">Blockchain</label><select class="in" id="buyRede">' + m.comprar.map((k) => '<option value="' + esc(k) + '">' + esc(REDE[k] || k) + "</option>").join("") + "</select></div>" +
-      '<div><label for="buyVal" id="buyValL">Quanto gastar</label><input class="in" id="buyVal" type="number" step="any" min="0" inputmode="decimal" placeholder="valor na moeda da rede"></div>' +
+      '<div class="decbox" id="buyInfo">lendo a carteira…</div>' +
+      '<div><label for="buyVal" id="buyValL">Quanto gastar</label><div class="buymax"><input class="in" id="buyVal" type="number" step="any" min="0" inputmode="decimal" placeholder="valor na moeda da rede"><button class="btn" type="button" id="buyMax">Máx</button></div><div class="buyusd" id="buyUsd"></div></div>' +
       '<div class="row dmact"><button class="btn primary" type="button" id="buyQuote">Ver cotação</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
     buyUnit(); $("buyM").hidden = false; setTimeout(() => $("buyVal").focus(), 50);
   }
-  const buyUnit = () => { const k = $("buyRede").value; $("buyValL").textContent = "Quanto gastar, em " + (MOEDA[k] || "moeda da rede"); $("buyVal").placeholder = "valor em " + (MOEDA[k] || "moeda da rede"); };
+  const buyUnit = () => { const k = $("buyRede").value; $("buyValL").textContent = "Quanto gastar, em " + (MOEDA[k] || "moeda da rede"); $("buyVal").placeholder = "valor em " + (MOEDA[k] || "moeda da rede"); buyLimit(); };
+  // 0.32.245 (pedido do dono): sempre mostra quanto a carteira tem e o máximo de compra, e o valor digitado em dólar
+  async function buyLimit() {
+    if (!BUY || !$("buyInfo")) return;
+    const k = $("buyRede").value;
+    BUY.lim = null;
+    $("buyInfo").textContent = "lendo a carteira…"; buyUsdDraw();
+    const r = await BB.api("/api/dormant/compra/limite?rede=" + encodeURIComponent(k), { quiet: true });
+    if (!BUY || !$("buyRede") || $("buyRede").value !== k) return;
+    if (!r || r.error) { $("buyInfo").textContent = (r && r.error) || "não consegui ler a carteira"; return; }
+    BUY.lim = r;
+    const m = esc(r.moeda);
+    const saldo = !r.tem_carteira ? 'sem carteira nesta rede: cadastre em <a href="#carteiras" id="buyGoW">Carteiras e compra</a>'
+      : r.saldo == null ? "saldo não lido" : "<b>" + num(r.saldo, 8) + " " + m + "</b>" + (r.saldo_usd != null ? " (US$ " + num(r.saldo_usd, 2) + ")" : "");
+    const max = r.max_nativo == null ? "sem cotação em dólar agora" : "<b>" + num(r.max_nativo, 8) + " " + m + "</b> (US$ " + num(r.max_usd, 2) + ") · limitado por " + esc(r.limitado_por);
+    $("buyInfo").innerHTML = "<div>Na carteira: " + saldo + "</div><div>Máximo agora: " + max + "</div>" +
+      '<div class="muted small">limite por compra US$ ' + num(r.limite_compra_usd, 2) + " · nas últimas 24 h já foram US$ " + num(r.gasto_dia_usd, 2) + " de US$ " + num(r.limite_dia_usd, 2) + (r.ligado ? "" : " · as compras estão desligadas") + "</div>";
+    buyUsdDraw();
+  }
+  function buyUsdDraw() {
+    const el = $("buyUsd"); if (!el || !BUY) return;
+    const L = BUY.lim, v = Number($("buyVal").value);
+    if (!(v > 0)) { el.textContent = ""; return; }
+    if (!L || !L.usd_n) { el.textContent = "sem cotação em dólar agora"; return; }
+    const pass = L.max_nativo != null && v > L.max_nativo;
+    el.innerHTML = "isso vale <b>US$ " + num(v * L.usd_n, 2) + "</b>" + (pass ? ' <span class="down">· acima do máximo agora (US$ ' + num(L.max_usd, 2) + ")</span>" : "");
+  }
+  // 0.32.245: "6.323" em português é seis mil, mas parece seis (o dono comparou com a Uniswap e achou errado): diz por extenso
+  function qtd(v) {
+    if (v == null) return "—";
+    const a = Math.abs(v), ext = a >= 1e9 ? num(v / 1e9, 2) + " bilhões" : a >= 1e6 ? num(v / 1e6, 2) + " milhões" : a >= 1e3 ? num(v / 1e3, 2) + " mil" : "";
+    return ext ? ext + ' <small class="muted">(' + num(v, 0) + ")</small>" : num(v, a >= 1 ? 4 : 8);
+  }
+  const emUsd = (qt, px) => (qt != null && px ? " · US$ " + num(qt * px, 2) : "");
   async function buyQuote() {
     if (!BUY) return;
     const valor = $("buyVal").value;
@@ -530,10 +564,10 @@
     const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
     let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
       line("Você paga", "<b>" + num(r.valor, 8) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " (US$ " + num(r.usd, 2) + ")" : "")) +
-      line("Recebe, mais ou menos", "<b>" + q(r.recebe) + " " + esc(r.moeda.simbolo) + "</b>") +
-      line("Recebe no mínimo", q(r.minimo) + " " + esc(r.moeda.simbolo) + " (folga de " + num(r.slip, 2) + "%)") +
+      line("Recebe, mais ou menos", "<b>" + qtd(r.recebe) + " " + esc(r.moeda.simbolo) + "</b>" + emUsd(r.recebe, r.px_cg)) +
+      line("Recebe no mínimo", qtd(r.minimo) + " " + esc(r.moeda.simbolo) + emUsd(r.minimo, r.px_cg) + " (folga de " + num(r.slip, 2) + "%)") +
       line("Onde", esc(r.dex || "—") + (r.rota ? " · " + esc(r.rota) : "")) +
-      line("Preço pago × CoinGecko", r.dif_cg == null ? "—" : pc(r.dif_cg)) +
+      line("Preço pago × CoinGecko", r.dif_cg == null ? "—" : Math.abs(r.dif_cg) < 0.05 ? "igual" : '<span class="' + (r.dif_cg > 0 ? "down" : "up") + '">' + num(Math.abs(r.dif_cg), 1) + "% " + (r.dif_cg > 0 ? "mais caro" : "mais barato") + "</span>") +
       line("Quanto a compra move o preço", r.impacto == null ? "—" : num(r.impacto, 2) + "%") +
       line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "US$ " + num(r.gas_usd, 4)) +
       line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") +
@@ -594,8 +628,8 @@
     const line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
     const list = (cl, tt, L) => (L.length ? '<div class="' + cl + '"><b>' + esc(tt) + "</b><ul>" + L.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" : "");
     let h = '<div class="tbl-wrap" style="margin-top:12px"><table class="systbl nocard"><tbody>' +
-      line("Saldo na carteira", q(r.saldo) + " " + esc(r.moeda.simbolo)) +
-      line("Você vende", "<b>" + q(r.vende) + " " + esc(r.moeda.simbolo) + "</b> (" + num(r.pct, 0) + "%)") +
+      line("Saldo na carteira", qtd(r.saldo) + " " + esc(r.moeda.simbolo)) +
+      line("Você vende", "<b>" + qtd(r.vende) + " " + esc(r.moeda.simbolo) + "</b> (" + num(r.pct, 0) + "%)") +
       line("Recebe, mais ou menos", "<b>" + q(r.recebe) + " " + esc(r.moeda_rede) + "</b>" + (r.usd != null ? " (US$ " + num(r.usd, 2) + ")" : "")) +
       line("Recebe no mínimo", q(r.minimo) + " " + esc(r.moeda_rede) + " (folga de " + num(r.slip, 2) + "%)") +
       line("Onde", esc(r.dex || "—") + (r.rota ? " · " + esc(r.rota) : "")) +
@@ -703,6 +737,7 @@
   document.addEventListener("input", (e) => {
     if (e.target && e.target.closest && e.target.closest("#rCfg")) DIRTY = true;
     if (e.target && e.target.id === "mQ") { F.q = e.target.value; saveF(); drawMoedas(); }
+    if (e.target && e.target.id === "buyVal") { buyUsdDraw(); if ($("buyPrev")) $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });
   document.addEventListener("change", (e) => {
     if (!e.target) return;
@@ -749,6 +784,8 @@
     if (t.id === "addMX") { $("addM").hidden = true; return; }
     if (t.id === "buyMX") { closeBuy(); return; }
     if (t.id === "buyQuote") { buyQuote(); return; }
+    if (t.id === "buyMax") { if (BUY && BUY.lim && BUY.lim.max_nativo != null) { $("buyVal").value = BUY.lim.max_nativo.toFixed(8).replace(/0+$/, "").replace(/\.$/, "") || "0"; buyUsdDraw(); $("buyPrev").innerHTML = ""; if (BUY.timer) clearInterval(BUY.timer); } return; }
+    if (t.id === "buyGoW") { closeBuy(); $("coinM").hidden = true; CM = null; return; }
     if (t.id === "buyGo") { buyGo(t); return; }
     if (t.dataset.wgas) { openGas(t.dataset.wgas); return; }
     if (t.id === "gasQuote") { gasQuote(); return; }

@@ -473,3 +473,28 @@ def test_no_log_call_receives_secret_or_password():
         if "log." in line or "audit(" in line:
             for bad in ("secret", 'get("senha"', 'get("chave"', "{senha", "{chave"):
                 assert bad not in line, line
+
+
+# ------------------------------------------------------------------ 0.32.245: saldo e máximo de compra
+def test_limit_info_says_balance_and_the_tightest_limit():
+    b, net, db = setup()
+    r = run(b.limit_info(UID, "ethereum"))
+    assert r["tem_carteira"] is False and r["saldo"] is None and r["max_usd"] == 50 and r["limitado_por"] == "seu limite por compra" and r["usd_n"] == 2000
+    run(ready(b))
+    net.bal = 10 ** 18
+    r = run(b.limit_info(UID, "ethereum"))
+    assert r["saldo"] == 1 and r["saldo_usd"] == 2000 and r["max_usd"] == 50 and r["max_nativo"] == 0.025 and KEY not in str(r)
+    net.bal = 5 * 10 ** 15                     # 0,005 ETH = US$ 10; desconta o gás da compra (~0,00043 ETH)
+    r = run(b.limit_info(UID, "ethereum"))
+    assert r["limitado_por"].startswith("o saldo") and 0.004 < r["max_nativo"] < 0.005 and r["max_usd"] < 10
+    db.tables["dormant_buys"].append({"id": "x", "user_id": UID, "rede": "base", "em": db_._iso(time.time()), "usd_in": 195.0, "status": "confirmada"})
+    r = run(b.limit_info(UID, "ethereum"))
+    assert r["resta_dia_usd"] == 5 and r["max_usd"] == 5 and r["limitado_por"].startswith("o que sobra")
+    db.tables["dormant_buys"][-1]["usd_in"] = 200.0
+    assert run(b.limit_info(UID, "ethereum"))["max_nativo"] == 0
+    try:
+        run(b.limit_info(UID, "tron"))
+        raise AssertionError
+    except db_.BuyError:
+        pass
+
