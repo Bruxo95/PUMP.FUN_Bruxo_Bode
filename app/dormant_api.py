@@ -153,6 +153,15 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"ok": True, **r}
         return await run(go())
 
+    @app.post("/api/dormant/carteiras/copiar")
+    async def wal_copy(body: dict, u: dict = Depends(own)):
+        async def go():
+            r = await buyer().copy_evm(u["id"], (body if isinstance(body, dict) else {}).get("senha"))
+            if r["redes"]:
+                await audit(db, u["id"], "Dormant: carteira copiada para redes EVM", f"{', '.join(r['redes'])} · {r['endereco']}")   # nunca a chave
+            return {"ok": True, **r}
+        return await run(go())
+
     @app.post("/api/dormant/carteiras/remover")
     async def wal_del(body: dict, u: dict = Depends(own)):
         async def go():

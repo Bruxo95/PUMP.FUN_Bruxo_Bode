@@ -2040,6 +2040,11 @@
    "versao": "0.32.256",
    "inicio": "2026-11-07T22:42:32+00:00",
    "titulo": "Dormant: compra na Robinhood e em mais 6 L2 da Ethereum"
+  },
+  {
+   "versao": "0.32.257",
+   "inicio": "2026-11-07T23:01:26+00:00",
+   "titulo": "Dormant: compra pela Uniswap V4 e Pons na Robinhood e chave copiada para as redes novas"
   }
  ]
 }

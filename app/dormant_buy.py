@@ -50,6 +50,18 @@ SEL_SELL_ETH = evm.selector("swapExactTokensForETHSupportingFeeOnTransferTokens(
 SEL_SELL_AVAX = evm.selector("swapExactTokensForAVAXSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)")
 SEL_MULTI = evm.selector("multicall(bytes[])")
 SEL_UNWRAP = evm.selector("unwrapWETH9(uint256,address)")
+SEL_V4_QUOTE = evm.selector("quoteExactInputSingle(((address,address,uint24,int24,address),bool,uint128,bytes))")
+SEL_UR_EXEC = evm.selector("execute(bytes,bytes[],uint256)")
+T_V4_INIT = "0x" + evm.keccak256(b"Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)").hex()
+# 0.32.257 (pedido do dono, 07/11/2026: "faz a V4"): na Robinhood quase todo memecoin está na Uniswap V4 (a Pons é um pool V4 com contrato
+# extra, o hook). Endereços da lista oficial (developers.uniswap.org/docs/protocols/v4/deployments, Robinhood Chain 4663), conferidos na rede
+# em 07/11: o Universal Router é o mesmo que a compra real de GLC usou. Só pools que pagam com ETH (currency0 = 0); a chave do pool vem do
+# evento Initialize do PoolManager e só vale se o keccak dela der o id do pool. Só compra: a venda pela V4 (Permit2) não foi feita.
+V4 = {"robinhood": {"pm": "0x8366a39cc670b4001a1121b8f6a443a643e40951", "quoter": "0x8dc178efb8111bb0973dd9d722ebeff267c98f94",
+                    "ur": "0x8876789976decbfcbbbe364623c63652db8c0904", "gt": "robinhood"}}
+GT_API = "https://api.geckoterminal.com/api/v2"
+V4_DEX = {"pons-v2-dex": "Pons (Uniswap V4)", "uniswap-v4-robinhood": "Uniswap V4"}
+V4_POOLS_MAX, V4_TTL_S, V4_LOG_SPAN = 4, 600, 400_000
 
 # chave = id da rede na CoinGecko. Tudo conferido em 06/11/2026 (chain id, código do contrato, fábrica, moeda embrulhada, ponte).
 CHAINS = {
@@ -199,6 +211,63 @@ def v3_sell_data(tok_in: str, wrapped: str, fee: int, addr: str, deadline: int, 
     return SEL_MULTI + evm.w_int(32) + evm.w_int(2) + evm.w_int(64) + evm.w_int(64 + len(ea) // 2) + ea + eb
 
 
+def _i24(v: int) -> str:
+    return (int(v) % (1 << 256)).to_bytes(32, "big").hex()
+
+
+def _bytes_enc(h: str) -> str:
+    return evm.w_int(len(h) // 2) + h + "0" * ((64 - len(h) % 64) % 64)
+
+
+def _arr_bytes(items: list[str]) -> str:
+    heads, tails, off = [], [], 32 * len(items)
+    for h in items:
+        t = _bytes_enc(h)
+        heads.append(evm.w_int(off))
+        tails.append(t)
+        off += len(t) // 2
+    return evm.w_int(len(items)) + "".join(heads) + "".join(tails)
+
+
+def v4_key_enc(key: list) -> str:
+    """PoolKey (currency0, currency1, fee, tickSpacing, hooks) em 5 palavras."""
+    c0, c1, fee, ts, hooks = key
+    return evm.w_addr(c0) + evm.w_addr(c1) + evm.w_int(fee) + _i24(ts) + evm.w_addr(hooks)
+
+
+def v4_pool_id(key: list) -> str:
+    return "0x" + evm.keccak256(bytes.fromhex(v4_key_enc(key))).hex()
+
+
+def v4_quote_data(key: list, amount: int) -> str:
+    return SEL_V4_QUOTE + evm.w_int(32) + v4_key_enc(key) + evm.w_int(1) + evm.w_int(amount) + evm.w_int(32 * 8) + evm.w_int(0)
+
+
+def v4_data(key: list, amount: int, min_out: int, deadline: int) -> str:
+    """Universal Router execute(0x10 = V4_SWAP, [SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL]) pagando com ETH (currency0 = 0).
+    Mesmo formato da compra de GLC na Pons de 07/11/2026 (tx 0x7d5bf818…, decodificada e reproduzida byte a byte no teste).
+    O token cai em quem chamou (TAKE_ALL paga o msg.sender = a própria carteira); menos que min_out e a transação é recusada."""
+    p0 = (evm.w_int(32) + v4_key_enc(key) + evm.w_int(1) + evm.w_int(amount) + evm.w_int(min_out) + evm.w_int(0)
+          + evm.w_int(32 * 10) + evm.w_int(0))
+    p1 = evm.w_addr(key[0]) + evm.w_int(amount)
+    p2 = evm.w_addr(key[1]) + evm.w_int(min_out)
+    acts = _bytes_enc("060c0f")
+    inp = evm.w_int(64) + evm.w_int(64 + len(acts) // 2) + acts + _arr_bytes([p0, p1, p2])
+    cmds = _bytes_enc("10")
+    return SEL_UR_EXEC + evm.w_int(96) + evm.w_int(96 + len(cmds) // 2) + evm.w_int(deadline) + cmds + _arr_bytes([inp])
+
+
+def v4_key_from_log(log: dict) -> list | None:
+    """Evento Initialize do PoolManager → PoolKey. None se o formato não bater."""
+    try:
+        t, d = log["topics"], bytes.fromhex(log["data"][2:])
+        ts = int.from_bytes(d[32:64], "big")
+        return ["0x" + t[2][-40:].lower(), "0x" + t[3][-40:].lower(), int.from_bytes(d[0:32], "big"),
+                ts - (1 << 256) if ts >> 255 else ts, "0x" + d[76:96].hex()]
+    except (KeyError, IndexError, ValueError, TypeError):
+        return None
+
+
 def judge_goplus(chain: str, d: dict | None) -> tuple[list[str], list[str]]:
     """(bloqueia, avisos) da resposta da GoPlus."""
     if d is None:
@@ -316,6 +385,8 @@ class Buyer:
         self._gp: dict[tuple, tuple] = {}
         self._px: dict[str, tuple] = {}
         self._jq = None
+        self._v4keys: dict[str, list | None] = {}           # id do pool → PoolKey conferida (não muda nunca)
+        self._v4tok: dict[tuple, tuple] = {}                # (rede, token) → (quando, pools com ETH da GeckoTerminal)
 
     def lock(self, uid: str) -> asyncio.Lock:
         return self._locks.setdefault(uid, asyncio.Lock())
@@ -435,8 +506,71 @@ class Buyer:
         w = evm.words(await self._call(c, V3_QUOTER, data) or "0x")
         return w[0] if w else 0
 
+    async def _v4_out(self, c: dict, value: int, key: list, chain: str) -> int:
+        w = evm.words(await self._call(c, V4[chain]["quoter"], v4_quote_data(key, value)) or "0x")
+        return w[0] if w else 0
+
     async def _route_out(self, c: dict, rt: dict, value: int, token: str) -> int:
+        if rt["tipo"] == "v4":
+            return await self._v4_out(c, value, rt["key"], rt["rede"])
         return await (self._v3_out(c, value, token, rt["fee"]) if rt["tipo"] == "v3" else self._v2_out(c, value, rt["path"]))
+
+    async def _v4_block_at(self, c: dict, ts: float) -> int:
+        """Bloco perto de uma hora (busca binária, ~25 leituras). A rede só aceita eth_getLogs em trechos de até 10 milhões de blocos."""
+        lo, hi = 0, int(await self.rpc(c["rpc"], "eth_blockNumber", []) or "0x0", 16)
+        while hi - lo > 2000:
+            mid = (lo + hi) // 2
+            b = await self.rpc(c["rpc"], "eth_getBlockByNumber", [hex(mid), False]) or {}
+            lo, hi = (mid, hi) if int(b.get("timestamp") or "0x0", 16) < ts else (lo, mid)
+        return lo
+
+    async def _v4_key(self, chain: str, pid: str, created: str | None, token: str) -> list | None:
+        if pid in self._v4keys:
+            return self._v4keys[pid]
+        c, key = CHAINS[chain], None
+        try:
+            ts = datetime.fromisoformat(str(created).replace("Z", "+00:00")).timestamp()
+            b = await self._v4_block_at(c, ts)
+            logs = await self.rpc(c["rpc"], "eth_getLogs", [{"address": V4[chain]["pm"], "topics": [T_V4_INIT, pid],
+                                                             "fromBlock": hex(max(0, b - V4_LOG_SPAN)), "toBlock": hex(b + V4_LOG_SPAN)}]) or []
+            for lg in logs:
+                k = v4_key_from_log(lg)
+                if k and v4_pool_id(k) == pid and k[0] == ZERO and k[1] == token:
+                    key = k
+                    break
+        except (BuyError, ValueError, TypeError):
+            return None                              # falha de leitura: tenta de novo na próxima cotação
+        self._v4keys[pid] = key
+        return key
+
+    async def _v4_pools(self, chain: str, token: str) -> list[dict]:
+        """Pools V4 do token que pagam com ETH, os de mais dinheiro primeiro (GeckoTerminal só aponta; tudo é conferido na rede)."""
+        now = time.time()
+        hit = self._v4tok.get((chain, token))
+        if hit and now - hit[0] < V4_TTL_S:
+            pools = hit[1]
+        else:
+            pools = []
+            try:
+                r = await self.http.get(f"{GT_API}/networks/{V4[chain]['gt']}/tokens/{token}/pools", headers={"accept": "application/json"}, timeout=15)
+                for p in (r.json() or {}).get("data") or []:
+                    a, rel = p.get("attributes") or {}, p.get("relationships") or {}
+                    pid = str(a.get("address") or "").lower()
+                    lados = {str(((rel.get(x) or {}).get("data") or {}).get("id") or "").split("_")[-1].lower() for x in ("base_token", "quote_token")}
+                    if re.fullmatch(r"0x[0-9a-f]{64}", pid) and lados == {ZERO, token}:
+                        pools.append({"pid": pid, "criado": a.get("pool_created_at"), "usd": float(a.get("reserve_in_usd") or 0),
+                                      "dex": ((rel.get("dex") or {}).get("data") or {}).get("id") or ""})
+            except Exception:                        # GeckoTerminal fora: fica sem V4 nesta cotação
+                pools = []
+            pools = sorted(pools, key=lambda x: -x["usd"])[:V4_POOLS_MAX]
+            self._v4tok[(chain, token)] = (now, pools)
+        out = []
+        for p in pools:
+            key = await self._v4_key(chain, p["pid"], p["criado"], token)
+            if key:
+                out.append({"tipo": "v4", "rede": chain, "key": key, "dex": V4_DEX.get(p["dex"], "Uniswap V4"),
+                            "rota": "pool V4" + (" com contrato extra (hook)" if key[4] != ZERO else ""), "hook": key[4] != ZERO})
+        return out
 
     async def evm_best(self, chain: str, token: str, value: int) -> dict | None:
         c = CHAINS[chain]
@@ -445,6 +579,8 @@ class Buyer:
             cands.append({"tipo": "v2", "path": [c["wrapped"], c["ponte"], token], "dex": c["dex"].split(" e ")[0], "rota": "passando por dólar"})
         if c.get("v3"):
             cands += [{"tipo": "v3", "fee": f, "dex": "Uniswap V3", "rota": f"pool de {f / 10000:g}%"} for f in V3_FEES]
+        if chain in V4:
+            cands += await self._v4_pools(chain, token)
         outs = await asyncio.gather(*[self._route_out(c, rt, value, token) for rt in cands])
         best, out = None, 0
         for rt, o in zip(cands, outs):
@@ -546,6 +682,11 @@ class Buyer:
             return {"dex": rt["dex"], "rota": rt["rota"]}
         min_out = rt["out"] * (10000 - int(q["slip"] * 100)) // 10000
         q.update(route={k: v for k, v in rt.items() if k != "out"}, min_out=min_out, dec=dec)
+        if rt.get("hook"):
+            avisos.append(f"o pool tem um contrato extra (hook {rt['key'][4][:8]}…) que roda em cada troca: o valor mostrado vem da simulação "
+                          "dele, e a compra é recusada pela rede se receber menos que o mínimo. A venda deste token ainda não é feita por aqui.")
+        elif rt["tipo"] == "v4":
+            avisos.append("pool da Uniswap V4: a venda deste token ainda não é feita por aqui (use o app da Uniswap para vender).")
         small = await self._route_out(c, rt, max(q["value"] // 50, 1), q["token"])
         impacto = round(max(0.0, (1 - rt["out"] / (small * 50)) * 100), 2) if small else None
         gp = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16)
@@ -576,6 +717,11 @@ class Buyer:
         dl = int(time.time()) + 300
         if rt["tipo"] == "v3":
             return V3_ROUTER, v3_data(c["wrapped"], q["token"], rt["fee"], addr, dl, q["value"], min_out)
+        if rt["tipo"] == "v4":                       # o recebedor é quem assina (TAKE_ALL paga o msg.sender): nada a passar
+            key = rt["key"]
+            if q["rede"] not in V4 or key[0] != ZERO or key[1] != q["token"] or self._v4keys.get(v4_pool_id(key)) != key:
+                raise BuyError("pool V4 não conferido: nada foi enviado")
+            return V4[q["rede"]]["ur"], v4_data(key, q["value"], min_out, dl)
         return c["router"], v2_data(c, min_out, rt["path"], addr, dl)
 
     # ------------------------------------------------------------------ cotação Solana
@@ -1370,6 +1516,29 @@ class Buyer:
                 await self.db.insert("dormant_wallets", {"user_id": uid, "rede": k, "endereco": addr, "cifra": cifra, "em": _iso(time.time())},
                                      upsert=True, on_conflict="user_id,rede")
         return {"endereco": addr, "redes": alvo}
+
+    async def copy_evm(self, uid: str, senha: str) -> dict:
+        """0.32.257 (pedido do dono, 07/11/2026): a mesma chave EVM nas redes EVM que ainda estão sem carteira, sem colar de novo. Abre a chave
+        já guardada com a senha de compra (conta tentativa errada) e cifra de novo para cada rede nova; as que já têm carteira não mudam."""
+        async with self.lock(uid):
+            rows = [r for r in await self.db.select("dormant_wallets", {"user_id": uid}) or [] if (CHAINS.get(r.get("rede")) or {}).get("tipo") == "evm"]
+            if not rows:
+                raise BuyError("cadastre a chave em uma rede EVM primeiro")
+            cont: dict[str, int] = {}
+            for r in rows:
+                cont[r["endereco"]] = cont.get(r["endereco"], 0) + 1
+            addr = max(cont, key=lambda a: cont[a])
+            src = next((r for r in rows if r["endereco"] == addr and r["rede"] == "ethereum"), None) or next(r for r in rows if r["endereco"] == addr)
+            secret = await self._open(uid, src, senha)
+            if key_address(src["rede"], secret) != addr:
+                raise BuyError("a chave guardada não bate com o endereço: nada foi copiado")
+            tem = {r["rede"] for r in rows}
+            novas = [k for k in EVM_CHAINS if k not in tem]
+            for k in novas:
+                cifra = await asyncio.to_thread(vault.seal, self.box, uid, k, addr, secret, senha)
+                await self.db.insert("dormant_wallets", {"user_id": uid, "rede": k, "endereco": addr, "cifra": cifra, "em": _iso(time.time())},
+                                     upsert=True, on_conflict="user_id,rede")
+        return {"endereco": addr, "redes": novas}
 
     async def remove_wallet(self, uid: str, chain: str) -> None:
         # sem senha, de propósito: quem esqueceu a senha precisa conseguir tirar a chave. Só apaga; não dá acesso a nada.

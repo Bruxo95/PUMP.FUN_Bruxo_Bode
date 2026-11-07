@@ -579,7 +579,13 @@
     $("wPassT").textContent = w.tem_senha ? "Senha de compra" : "Crie a senha de compra";
     $("wPassS").textContent = w.tem_senha ? "digite aqui para salvar uma carteira ou subir um limite" : "mínimo de " + w.senha_min + " caracteres · vale para todas as carteiras · não dá para recuperar, guarde num lugar seguro";
     $("wPass").placeholder = w.tem_senha ? "senha de compra" : "senha nova"; $("wPass2").hidden = w.tem_senha; $("wPassCh").hidden = !w.tem_senha;
-    $("wList").innerHTML = w.redes.map((r) => '<div class="dmwal"><div class="h">' + chainTag(r.nome) + ' <small class="muted">compra por ' + esc(r.dex) + " · paga em " + esc(r.moeda) + '</small><span class="sp"></span>' +
+    // 0.32.257 (pedido do dono): a chave EVM já guardada vale para as redes EVM sem carteira, sem colar de novo (a senha de compra abre)
+    const evmCom = w.redes.filter((x) => x.tipo === "evm" && x.endereco), evmSem = w.redes.filter((x) => x.tipo === "evm" && !x.endereco);
+    const cp = evmCom.length && evmSem.length ? '<div class="dmwal dmcopy"><div class="h"><b>Usar a mesma chave nas redes novas</b></div>' +
+      '<div class="muted small">A carteira ' + esc(evmCom[0].endereco.slice(0, 6) + "…" + evmCom[0].endereco.slice(-4)) + " já está salva em " + evmCom.length + (evmCom.length === 1 ? " rede EVM" : " redes EVM") + ". Falta em: " +
+      esc(evmSem.map((x) => x.nome).join(", ")) + ". Digite a senha de compra acima e clique: a chave não é mostrada nem sai do servidor.</div>" +
+      '<div class="f"><button type="button" class="btn primary sm" data-wcopy="1">Usar nas ' + evmSem.length + " redes sem carteira</button></div></div>" : "";
+    $("wList").innerHTML = cp + w.redes.map((r) => '<div class="dmwal"><div class="h">' + chainTag(r.nome) + ' <small class="muted">compra por ' + esc(r.dex) + " · paga em " + esc(r.moeda) + '</small><span class="sp"></span>' +
       (r.endereco ? '<span class="tag win">configurada</span> <button type="button" class="btn sm tgl off" data-wdel="' + esc(r.rede) + '">Remover</button>' : '<span class="tag neutral">sem carteira</span>') + "</div>" +
       (r.endereco ? '<div class="ad">' + esc(r.endereco) + '</div><div class="muted small" data-wbal="' + esc(r.rede) + '" data-wm="' + esc(r.moeda) + '">lendo o saldo…</div>' : "") +
       '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="Chave privada de ' + esc(r.nome) + '">' +
@@ -1027,6 +1033,17 @@
       t.disabled = false; f.value = "";
       if (r && r.error) { alert(r.error); return; }
       clearPass(); await loadWal(); return;
+    }
+    if (t.dataset.wcopy) {
+      const senha = $("wPass").value;
+      if (!senha) { alert("Digite a senha de compra no campo acima."); $("wPass").focus(); return; }
+      t.disabled = true;
+      const r = await BB.api("/api/dormant/carteiras/copiar", { body: { senha } });
+      t.disabled = false;
+      if (r && r.error) { alert(r.error); return; }
+      clearPass(); await loadWal();
+      alert("Pronto: a mesma carteira agora está em " + ((r && r.redes) || []).length + " redes novas. Para comprar nelas, a carteira precisa de ETH (ou xDAI na Gnosis) em cada rede: use Abastecer.");
+      return;
     }
     if (t.dataset.wdel) {
       if (!confirm("Remover a chave desta carteira do sistema? O dinheiro continua na blockchain; a chave só precisa estar guardada com você.")) return;
