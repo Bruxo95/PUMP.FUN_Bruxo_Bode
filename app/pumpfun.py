@@ -4695,6 +4695,47 @@ class PumpFun:
                 p["selling"] = False
                 self._save_pos(p)
 
+    async def token_age_min(self, mint: str, need_min: float) -> float | None:
+        """0.32.254: idade do token em minutos (None = não deu para saber). Usa a hora da criação vista pelo monitor; senão a
+        transação mais antiga do token no RPC (até 3 páginas de 1.000). Resposta guardada no token (`born_t`)."""
+        tk = self.tokens.setdefault(mint, {"created_t": time.time()})
+        now = time.time()
+        if tk.get("born_t"):
+            return (now - float(tk["born_t"])) / 60
+        if tk.get("creator") and tk.get("created_t"):
+            return (now - float(tk["created_t"])) / 60
+        urls = []
+        own = getattr(self.sol_wallet, "rpc_url", None) if self.sol_wallet is not None else None
+        for u in (own, getattr(self.market, "sys_rpc", "") or "", str(self._c("pump_rpc_http", SOL_HTTP) or SOL_HTTP), SOL_HTTP):
+            if u and u not in urls:
+                urls.append(u)
+        before, oldest = None, None
+        for _ in range(3):
+            opts = {"limit": 1000, **({"before": before} if before else {})}
+            res = None
+            for u in urls:
+                try:
+                    js = (await self.http.post(u, json={"jsonrpc": "2.0", "id": 1, "method": "getSignaturesForAddress",
+                                                        "params": [mint, opts]}, timeout=8)).json()
+                    if isinstance(js.get("result"), list):
+                        res = js["result"]
+                        break
+                except Exception:
+                    continue
+            if res is None:
+                return None
+            bt = [float(x["blockTime"]) for x in res if x.get("blockTime")]
+            if bt:
+                oldest = min(bt + ([oldest] if oldest else []))
+            if oldest and (now - oldest) / 60 >= need_min:
+                return (now - oldest) / 60                    # já passou do mínimo: não precisa achar a criação
+            if len(res) < 1000:
+                if oldest:
+                    tk["born_t"] = oldest                     # achou a primeira transação: é a criação
+                return (now - oldest) / 60 if oldest else None
+            before = res[-1].get("signature")
+        return (now - oldest) / 60 if oldest else None        # 3 mil transações sem passar do mínimo: novo e agitado
+
     async def _real_buy(self, it: dict) -> None:
         return await apiusage.for_mints([it.get("mint")], self._real_buy_run(it))     # 0.32.220: gasto da compra REAL na moeda
 
@@ -4731,6 +4772,16 @@ class PumpFun:
             if lim and self.real.today_loss(self.trades(2000)) >= lim:
                 miss(f"perda do dia chegou a {lim} SOL")
                 return
+            # 0.32.254 (pedido do dono): a REAL só compra token com pelo menos N min de vida (padrão 10; 0 = desliga)
+            min_age = float(self._c("pump_real_min_age_min", 10) or 0)
+            if min_age > 0:
+                age = await self.token_age_min(mint, min_age)
+                if age is None:
+                    miss(f"não deu para conferir a idade do token (mínimo da REAL: {min_age:.0f} min)")
+                    return
+                if age < min_age:
+                    miss(f"token com {age:.1f} min de vida (a REAL só compra com {min_age:.0f} min ou mais)")
+                    return
             mult, mwhy = self.trust_mult(it["wallet"])
             amt = float(self._c("pump_real_max_sol", 0.05)) * min(1.0, mult)
             ar_real = float(self._c("pump_ar_real_sol", 0) or 0)

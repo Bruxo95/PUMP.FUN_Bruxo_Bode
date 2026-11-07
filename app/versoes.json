@@ -2025,6 +2025,11 @@
    "versao": "0.32.253",
    "inicio": "2026-11-07T17:46:15+00:00",
    "titulo": "Traders copiados: botões Voltar a copiar e Pausar"
+  },
+  {
+   "versao": "0.32.254",
+   "inicio": "2026-11-07T17:48:37+00:00",
+   "titulo": "REAL: idade mínima do token (10 min)"
   }
  ]
 }
