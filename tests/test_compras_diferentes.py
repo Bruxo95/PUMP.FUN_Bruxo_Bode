@@ -59,6 +59,27 @@ def test_copy_now_says_if_the_wallet_is_copied_in_each_wallet(tmp_path):
     assert p.copy_now(_W)["estado"] == "nao"
 
 
+def test_copy_again_really_copies(tmp_path):
+    """0.32.253: tirar a pausa de quem saiu do ranking não bastava; nesse caso a carteira entra na lista manual."""
+    p = _pump(tmp_path / "a", paid=False)
+    p.pause(_W, 48, "2 stops de perda em 24 h")
+    assert p.copy_now(_W)["estado"] == "nao"
+    assert p.copy_again(_W) == {"ok": True, "manual": [_W], "added": True}
+    assert not p.is_paused(_W) and _W in p.followed and p.copy_now(_W)["estado"] == "sim"
+    p.pause(_W)                                                  # pausa manual: sem prazo
+    assert p.paused()[_W]["until"] is None and p.copy_now(_W)["estado"] == "nao" and _W not in p.followed
+    assert p.copy_again(_W) == {"ok": True, "added": False}      # já estava na lista: só tira a pausa
+    assert _W in p.followed
+
+
+def test_copiar_igual_ignores_pause_and_says_so(tmp_path):
+    p = _pump(tmp_path / "a", paid=False)
+    p.cfg.pump_eq_on, p.copy_equal, p.eq_mode = True, [_W], {_W: "sim"}
+    p.pause(_W)
+    a = p.copy_now(_W)
+    assert a["estado"] == "sim" and a["por"] == "Copiar igual" and a["eq"] is True
+
+
 def test_module_only_reads():
     src = inspect.getsource(buydiff)
     for proibido in ("manual_buy", "save_settings", ".pause(", "_sell(", "add_manual", "_meta_set"):

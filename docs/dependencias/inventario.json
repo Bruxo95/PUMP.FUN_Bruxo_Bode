@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-07",
     "timezone": "Europe/Dublin",
-    "repository_reference": "975a88fa77d856c7f37dfd93271bfe50f8c766e8",
-    "application_version": "0.32.252 · 2026-11-07 · REAL só depois de lucro na fictícia (traders novos)",
+    "repository_reference": "a50849bf5464af8eb08da91fd0709f6e38ba2530",
+    "application_version": "0.32.253 · 2026-11-07 · Traders copiados: botões Voltar a copiar e Pausar",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "fbb2ceb7b22b7a73a154cca8a7129160e0c6023380f82a39a9ea88cda5e2d4e9",
+      "app/version.py": "09d511bc4f0cf3ca4d6e8c21a463e52abe26bdbbf1847c8c99e5968888791cac",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "a83c7b0004d610e59cf932cd00b99a8e26fd92c2944c97e85cfe177bf394d4d3"
+  "pdf_sha256": "510ad62f156327053c04a33144daf32a167170df0aa6c36f119106736f6b59a0"
 }

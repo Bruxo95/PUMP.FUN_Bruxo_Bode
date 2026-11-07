@@ -1141,7 +1141,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def pump_wallets(body: dict, pf=Depends(engine)):
         w, act = str(body.get("wallet") or "").strip(), body.get("action") or "add"
         fn = {"add": pf.add_manual, "remove": pf.remove_manual, "ban": pf.ban, "unban": pf.unban,
-              "pause": pf.pause, "resume": pf.resume}.get(act)
+              "pause": pf.pause, "resume": pf.resume, "copy": pf.copy_again}.get(act)
         if not fn:
             return {"error": "ação inválida"}
         if not pf.valid_addr(w):
@@ -1157,9 +1157,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
         r = fn(w)
         # 0.32.224 (dono, dmuX 05/11): quem adiciona à mão passa a ser o dono da carteira na lista manual; se a IA do estudo
         # tinha posto antes, ela deixa de ser "da IA" (e a chave do estudo desligada não barra mais a cópia, ver tab_off)
-        if act == "add" and not r.get("error") and w in (getattr(pf, "ia_added", None) or []):
+        if (act == "add" or r.get("added")) and not r.get("error") and w in (getattr(pf, "ia_added", None) or []):
             pf.ia_added = [x for x in pf.ia_added if x != w]
             await hub.save_settings(pf)
+        if act in ("copy", "pause") and not r.get("error"):      # 0.32.253: a tela diz o que ficou valendo, não o que se pediu
+            r = {**r, "agora": {"ficticia": pf.copy_now(w, False), "real": pf.copy_now(w, True)}}
         return r
 
     @app.post("/api/pump/close")

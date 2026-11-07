@@ -2020,6 +2020,11 @@
    "versao": "0.32.252",
    "inicio": "2026-11-07T17:02:26+00:00",
    "titulo": "REAL só depois de lucro na fictícia (traders novos)"
+  },
+  {
+   "versao": "0.32.253",
+   "inicio": "2026-11-07T17:46:15+00:00",
+   "titulo": "Traders copiados: botões Voltar a copiar e Pausar"
   }
  ]
 }

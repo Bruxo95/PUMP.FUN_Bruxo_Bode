@@ -4074,6 +4074,19 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.251 (pedido do dono): se a carteira está sendo copiada agora, na carteira do botão FICTÍCIA/REAL, e o motivo
   const TH_NOW = { sim: ["win", "Copiando"], so_ficticia: ["pause", "Só na FICTÍCIA"], parado: ["pause", "Parado"], nao: ["neutral", "Não copia"] };
   const thNow = (a) => { const s = TH_NOW[(a || {}).estado]; return s ? '<span class="tag ' + s[0] + '">' + s[1] + "</span><small>" + esc(a.por || "") + "</small>" : "–"; };
+  // 0.32.253 (pedido do dono): voltar a copiar ou pausar direto da lista. Copiar igual ignora a pausa: quem desliga é a tela dele.
+  const thAct = (w, a) => { if (!a || a.eq) return ""; const off = a.estado === "nao";
+    return '<button type="button" class="btn sm ' + (off ? "primary" : "ghost") + ' thact" data-thact="' + (off ? "copy" : "pause") + '" data-w="' + esc(w) + '">' + (off ? "Voltar a copiar" : "Pausar") + "</button>"; };
+  async function thDo(act, w) {
+    if (act === "copy" && D && D.real && D.real.enabled && !confirm("A carteira REAL está ligada. " + shortW(w) + " pode voltar a ser copiada também na REAL, com dinheiro de verdade. Continuar?")) return;
+    const r = await BB.api("/api/pump/wallets", { body: { wallet: w, action: act } });
+    if (!r || r.error) { toast((r && r.error) || "Não consegui salvar."); return; }
+    const a = r.agora || {}, on = [["ficticia", "FICTÍCIA"], ["real", "REAL"]].filter(([k]) => (a[k] || {}).estado === "sim").map((x) => x[1]);
+    toast(act === "pause" ? "Pausado até você voltar a copiar. As posições abertas dele seguem até fechar."
+      : on.length ? "Voltou a copiar: " + on.join(" e ") + "." : "Ainda não está copiando: " + ((a.ficticia || {}).por || "confira a coluna Copiando agora") + ".");
+    poll(true); await loadTH(true);
+    if (TH.one && TH.one.wallet === w && !$("jtM").hidden) { TH.one.agora = a; drawTH(); }
+  }
   function renderTH() {
     const r = TH.r; if (!r || !$("thT")) return;
     const q = (($("thQ") || {}).value || "").trim().toLowerCase(), sort = ($("thSort") || {}).value || "saldo";
@@ -4091,7 +4104,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       ["Resultado somado", sg(tot.sol, ""), "copiando todos eles, já com taxas", "pnl"],
       ["Melhor trader", best ? sg(best.saldo_sol, "") : "–", best ? esc(best.nome || shortW(best.wallet)) + " · " + best.trades + " trades" : "", "hit"]]);
     table("thT", ["Trader", "Copiando agora", "Trades", "Acerto", "Resultado", "%", "Último", "Abas", "Ranking", ""], L.map((x) => [thName(x) + (x.guardado ? ' <span class="tag neutral" title="só no guardado (os trades não estão mais na carteira)">guardado</span>' : ""),
-      thNow(x.agora), String(x.trades || 0) + (x.falsos ? '<small class="dim">+' + x.falsos + " falso(s)</small>" : ""), x.acerto != null ? x.acerto + "%" : "–", sg(x.saldo_sol || 0, ""), pc(x.pct),
+      thNow(x.agora) + thAct(x.wallet, x.agora), String(x.trades || 0) + (x.falsos ? '<small class="dim">+' + x.falsos + " falso(s)</small>" : ""), x.acerto != null ? x.acerto + "%" : "–", sg(x.saldo_sol || 0, ""), pc(x.pct),
       x.ultimo ? "há " + hms(Date.now() / 1000 - x.ultimo) : "–", esc(Object.keys(x.abas || {}).slice(0, 2).join(", ")), thRank(x.ranking),
       '<button type="button" class="btn sm thbtn" data-th="' + esc(x.wallet) + '" data-thc="' + (realMode() ? "real" : "ficticia") + '">Resultados do trader</button>']), "Nenhum trader copiado com trade fechado ainda.");
   }
@@ -4110,7 +4123,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     ovShow(r.nome || shortW(r.wallet), "tudo o que você copiou desta carteira",
       '<p class="small">' + solW(r.wallet, "Abrir a carteira no Solscan") + ' · <a href="https://pump.fun/profile/' + encodeURIComponent(r.wallet) + '" target="_blank" rel="noopener">perfil na pump.fun</a> · Ranking: ' + thRank(r.ranking) +
         ' · <a href="#tradershist" data-jtclose="1"><b>Ver todos os traders copiados →</b></a></p>' +
-      '<p class="small">Copiando agora (' + (TH.aba === "real" ? "REAL" : "FICTÍCIA") + "): " + thNow((r.agora || {})[TH.aba]).replace("<small>", " ").replace("</small>", "") + "</p>" +
+      '<p class="small">Copiando agora (' + (TH.aba === "real" ? "REAL" : "FICTÍCIA") + "): " + thNow((r.agora || {})[TH.aba]).replace("<small>", " ").replace("</small>", "") + thAct(r.wallet, (r.agora || {})[TH.aba]) + "</p>" +
       '<div class="posabas">' + tabs + '</div><div class="kpis" id="ovK"></div>' +
       ((b.abertas || []).length ? '<h3 class="small">Abertas agora</h3>' + tb("ovTHo") : "") +
       '<h3 class="small">Todos os trades</h3>' + tb("ovTHt") +
@@ -4129,9 +4142,10 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (dias.length) table("ovTHr", ["Dia", "Posição", "Acerto", "Lucro realizado", "Trades"], dias.map(([d, k]) => [esc(d.split("-").reverse().join("/")), "#" + (k.rank || "–"), k.winrate != null ? f(k.winrate, 0) + "%" : "–", k.realized_usd != null ? usd(k.realized_usd, 0) : "–", String(k.trades ?? "–")]), "");
   }
   document.addEventListener("click", (e) => {
-    const t = e.target.closest && e.target.closest("[data-th],[data-thab],[data-thall]"); if (!t) return;
+    const t = e.target.closest && e.target.closest("[data-th],[data-thab],[data-thall],[data-thact]"); if (!t) return;
     e.preventDefault(); e.stopPropagation();
-    if (t.dataset.th) openTH(t.dataset.th, t.dataset.thc);
+    if (t.dataset.thact) thDo(t.dataset.thact, t.dataset.w);
+    else if (t.dataset.th) openTH(t.dataset.th, t.dataset.thc);
     else if (t.dataset.thab) { TH.aba = t.dataset.thab; TH.all = false; drawTH(); }
     else { TH.all = true; drawTH(); }
   }, true);

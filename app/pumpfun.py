@@ -720,11 +720,24 @@ class PumpFun:
     def copy_now(self, w: str, real: bool = False) -> dict:
         """0.32.251 (pedido do dono, 07/11: "essas carteiras estão sendo copiadas?"): a resposta para UMA carteira (FICTÍCIA ou REAL).
         Estar na lista não basta: chave da aba, cópia de traders ou a própria carteira desligada também param a cópia."""
-        f = self.follow_info(w)
+        c = self.cfg
+        eq = self.is_eq(w) and w not in self.banned              # 0.32.253: o Copiar igual ignora pausa (ver refresh_followed e _copy)
+        f = {"segue": True, "por": "Copiar igual"} if eq else self.follow_info(w)
         if not f["segue"]:
             return {"estado": "nao", "por": f["por"]}
+        r = self._copy_now(w, f, eq, real)
+        return {**r, "eq": True} if eq else r
+
+    def copy_again(self, w: str) -> dict:
+        """0.32.253 (pedido do dono, 07/11): "voltar a copiar" tem que resultar em cópia. Tirar a pausa de quem saiu do ranking
+        não bastava: nesse caso a carteira entra na lista manual (e aí deixa de esperar a prova da fictícia, ver needs_proof)."""
+        self.resume(w)
+        if self.follow_info(w)["segue"]:
+            return {"ok": True, "added": False}
+        return {**self.add_manual(w), "added": True}
+
+    def _copy_now(self, w: str, f: dict, eq: bool, real: bool) -> dict:
         c = self.cfg
-        eq = self.is_eq(w)
         if not getattr(c, "pump_copy_enabled", True):
             return {"estado": "parado", "por": "na lista, mas a Cópia de traders está desligada"}
         off = None if eq else self.tab_off(w)                    # o Copiar igual vem antes da chave da aba (_copy → _copy_eq)
