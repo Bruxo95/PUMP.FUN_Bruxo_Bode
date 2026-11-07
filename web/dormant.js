@@ -247,9 +247,25 @@
     $("coinMB").innerHTML = coinBody((r && r.moeda) || m, r);
     drawCoinChart();
   }
+  // 0.32.249 (pedido do dono): copiar o contrato do token sem precisar selecionar o texto
+  const copyBtn = (end) => '<button type="button" class="btn sm" data-dmcopy="' + esc(end) + '">Copiar</button>';
+  async function copyText(t, btn) {
+    let ok = false;
+    try { await navigator.clipboard.writeText(t); ok = true; } catch (e) {
+      const a = document.createElement("textarea"); a.value = t; a.setAttribute("readonly", ""); a.style.position = "fixed"; a.style.opacity = "0";
+      btn.parentNode.appendChild(a); a.select();
+      try { ok = document.execCommand("copy"); } catch (x) { ok = false; }
+      a.remove();
+    }
+    btn.textContent = ok ? "Copiado ✓" : "Não copiou: selecione o texto";
+    setTimeout(() => { btn.textContent = "Copiar"; }, 2000);
+  }
   function coinBody(m, r) {
     const k = (l, v, s) => "<div><small>" + l + "</small><b>" + v + "</b>" + (s ? "<small>" + s + "</small>" : "") + "</div>";
-    let h = '<div class="cmgrid">' + k("Preço", price(m.preco)) + k("1 h", pc(m.h1)) + k("24 h", pc(m.h24)) + k("7 dias", pc(m.d7)) + k("30 dias", pc(m.d30)) +
+    const cts = (r && r.contratos) || [], alvo = r && r.alvo && r.alvo.contrato;
+    const main = cts.find((c) => c.endereco === alvo) || cts.find((c) => c.rede === m.chain_nome) || cts[0];
+    let h = (main ? '<div class="cmct">' + chainTag(main.rede) + ' <span class="cmaddr">' + esc(main.endereco) + "</span>" + copyBtn(main.endereco) + (cts.length > 1 ? '<small class="muted">também em ' + (cts.length - 1) + (cts.length === 2 ? " outra rede" : " outras redes") + ": veja em Sobre a moeda</small>" : "") + "</div>" : "") +
+      '<div class="cmgrid">' + k("Preço", price(m.preco)) + k("1 h", pc(m.h1)) + k("24 h", pc(m.h24)) + k("7 dias", pc(m.d7)) + k("30 dias", pc(m.d30)) +
       k("Volume 24 h", usd(m.vol), m.vol_x ? num(m.vol_x, 1) + "× o normal" : "") + k("Valor de mercado", usd(m.mcap)) +
       k("Máxima histórica", price(m.ath), (m.ath_t ? "em " + dia(m.ath_t) + " (há " + ago(m.ath_t) + ")<br>" : "") + (m.ath_pct != null ? pc(m.ath_pct) + " dela" : "")) +
       k("Mínima histórica", price(m.atl), (m.atl_t ? "em " + dia(m.atl_t) + " (há " + ago(m.atl_t) + ")<br>" : "") + (m.atl_pct != null ? pc(m.atl_pct) + " acima dela" : "")) + "</div>";
@@ -269,7 +285,7 @@
     const ct = (r && r.contratos) || [], cats = (r && r.info && r.info.cats) || m.cats || [];
     h += '<div class="card"><header><div><h2>Sobre a moeda</h2></div></header><div class="help">' +
       "<p><b>Blockchain:</b> " + (chainTag(m.chain_nome) || "?") + (m.chains && m.chains.length > 1 ? " · também em " + m.chains.filter((c) => c !== m.chain_nome).map((c) => chainTag(c)).join(" ") : "") + "</p>" +
-      (ct.length ? "<p><b>Contratos:</b></p>" + ct.map((c) => '<div class="cmaddr" style="margin:4px 0">' + chainTag(c.rede) + " " + esc(c.endereco) + "</div>").join("") : "") +
+      (ct.length ? "<p><b>Contratos:</b></p>" + ct.map((c) => '<div class="cmaddr cmctl">' + chainTag(c.rede) + " <span>" + esc(c.endereco) + "</span>" + copyBtn(c.endereco) + "</div>").join("") : "") +
       (cats.length ? '<p><b>Categorias:</b></p><div class="dmcats">' + cats.map((c) => "<span>" + esc(c) + "</span>").join("") + "</div>" : "") +
       "<p><b>Na lista desde:</b> " + (m.extra ? "adicionada por " + esc(m.add_por) + " em " + hora(m.add_t) : "watchlist da CoinMarketCap (05/11/2026)") + "</p>" +
       '<p class="dmlinks">' + (m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "") +
@@ -962,6 +978,7 @@
     if (t.dataset.dmsort) { const key = t.dataset.dmsort; F.sort = F.sort === key ? "-" + key : key; saveF(); drawMoedas(); return; }
     if (t.dataset.dmadd) { addOpen(); return; }
     if (t.id === "addMX") { $("addM").hidden = true; return; }
+    if (t.dataset.dmcopy) { copyText(t.dataset.dmcopy, t); return; }
     if (t.id === "buyMX") { closeBuy(); return; }
     if (t.id === "buyQuote") { buyQuote(); return; }
     if (t.id === "buyMax") { if (BUY && BUY.lim && BUY.lim.max_nativo != null) { $("buyVal").value = BUY.lim.max_nativo.toFixed(8).replace(/0+$/, "").replace(/\.$/, "") || "0"; buyUsdDraw(); $("buyPrev").innerHTML = ""; if (BUY.timer) clearInterval(BUY.timer); } return; }
