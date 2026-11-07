@@ -2015,6 +2015,11 @@
    "versao": "0.32.251",
    "inicio": "2026-11-07T16:59:13+00:00",
    "titulo": "Traders copiados: coluna Copiando agora"
+  },
+  {
+   "versao": "0.32.252",
+   "inicio": "2026-11-07T17:02:26+00:00",
+   "titulo": "REAL só depois de lucro na fictícia (traders novos)"
   }
  ]
 }

@@ -1222,9 +1222,36 @@ class PumpFun:
         if who in self.study_lucro_wallets():
             # 0.32.211: "deram lucro" copia só na fictícia; 0.32.213 (pedido do dono): com pump_st_lucro_real, também na REAL
             return not getattr(self.cfg, "pump_st_lucro_real", False)
-        return who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False)
+        if who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False):
+            return True
+        return self.needs_proof(who)
+
+    def proven_wallets(self) -> set:
+        """0.32.251: carteiras com pelo menos uma cópia FICTÍCIA fechada com lucro (depois das taxas). Recalculado só quando
+        muda o número de trades guardados."""
+        tr = self.store.trades(100000)
+        key = (len(tr), tr[0].get("id") if tr else None)
+        if getattr(self, "_proven_key", None) != key:
+            self._proven = {t.get("wallet") for t in tr if not t.get("real") and not t.get("follow_of")
+                            and float(t.get("pnl_sol") or 0) > 0 and t.get("wallet")}
+            self._proven_key = key
+        return self._proven
+
+    def needs_proof(self, who: str) -> bool:
+        """0.32.251 (pedido do dono, caso Fvgs…pTkL: carteira com 59 SOL fez uma compra de 0,01 SOL e se esvaziou logo depois):
+        trader do Top traders que nunca deu lucro copiado vai SÓ para a fictícia; a partir da cópia seguinte a uma cópia
+        fictícia fechada com lucro, vai também para a REAL. Fica fora quem você pôs na lista manual."""
+        if not getattr(self.cfg, "pump_real_need_win", True) or not who or len(who) < 32:
+            return False
+        if who in (getattr(self, "manual", None) or []):
+            return False
+        return who not in self.proven_wallets()
 
     def sim_only_why(self, who: str) -> str:
+        if self.needs_proof(who) and not (who in (getattr(self, "study", None) or []) or who in self.study_copy_wallets()
+                                          or who in (getattr(self, "sim_only_list", None) or []) or who in self.study_lucro_wallets()):
+            return ("trader novo: a cópia fica só na fictícia até uma cópia fictícia dele fechar com lucro "
+                    "(Execução real → \"REAL só depois de lucro na fictícia\")")
         """0.32.162: por que esta carteira copia só na fictícia (o texto aparece no feed e nas Operações recentes do modo REAL)."""
         if who in (getattr(self, "sim_only_list", None) or []):
             return "você escolheu 'só fictícia' no Copiar desta carteira (Carteiras em estudo)"
@@ -4970,7 +4997,7 @@ class PumpFun:
         for w in self.followed:
             r = stats_by_w.get(w) or {"wallet": w, "short": short(w)}
             lbr = lbmap.get(w)
-            followed.append({**r, "manual": w in man, "ia_sim": self.sim_only(w), "copied": copied.get(w), "lb": lbr,
+            followed.append({**r, "manual": w in man, "ia_sim": self.sim_only(w), "prova": self.needs_proof(w), "copied": copied.get(w), "lb": lbr,
                              "ignored": (self.rpc_status.get("ignored_by") or {}).get(w, 0),
                              "other_copied": (self.rpc_status.get("other_by") or {}).get(w, 0),
                              "act": self.activity_view(w),
