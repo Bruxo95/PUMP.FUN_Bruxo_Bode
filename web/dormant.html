@@ -71,6 +71,7 @@
   @media (max-width:860px){.cmdexbox iframe{height:380px}}
   tr.dmgo{cursor:pointer}tr.dmgo:hover td{background:rgba(167,139,250,.06)}
   /* 0.32.241: blockchains como botões pequenos em Moedas, no lugar da lista suspensa */
+  .dmact{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid #a78bfa;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:13px;min-width:0;overflow-wrap:anywhere}.dmact[hidden]{display:none}
   .dmchips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
   .dmchip{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid transparent;border-radius:7px;padding:1px;color:var(--muted);font:inherit;font-size:10.5px;cursor:pointer}
   .dmchip .dmch{margin-left:0}
@@ -178,6 +179,7 @@
         <div class="dmchips" id="mChain" role="group" aria-label="Filtrar por blockchain"></div>
         <div class="dmbar"><div class="seg" id="mFilt"></div><input class="in" id="mQ" type="search" placeholder="Buscar moeda" aria-label="Buscar moeda">
           <select class="in" id="mSort" aria-label="Ordenar"><option value="" hidden>Ordenado pela coluna</option><option value="h24">Maior alta em 24 h</option><option value="-h24">Maior queda em 24 h</option><option value="h1">Maior alta em 1 h</option><option value="d7">Maior alta em 7 dias</option><option value="d30">Maior alta em 30 dias</option><option value="vol_x">Volume acima do normal</option><option value="bc">Negociou por último na blockchain</option><option value="-bc">Mais tempo parada na blockchain</option><option value="mcap">Valor de mercado</option><option value="nome">Nome</option></select></div>
+        <div class="dmact" id="mAct" hidden></div>
         <div class="card"><div class="tbl-wrap"><table id="mT"></table></div><div class="sub" id="mSub" style="margin-top:8px"></div></div>
       </section>
       <section class="view" data-view="grupos" hidden>

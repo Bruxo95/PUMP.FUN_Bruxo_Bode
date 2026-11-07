@@ -337,20 +337,27 @@
     svg.addEventListener("mouseleave", () => { const t = $("cmTip"), c = $("cmCur"); if (t) t.style.display = "none"; if (c) c.setAttribute("visibility", "hidden"); });
   }
   function drawMoedas() {
-    const c = (R && R.contagem) || {};
-    $("mFilt").innerHTML = '<button data-dmf=""' + (F.st ? "" : ' class="on"') + ">Todas · " + num(M().length, 0) + "</button>" +
-      ST_ORD.filter((k) => c[k]).map((k) => '<button data-dmf="' + k + '"' + (F.st === k ? ' class="on"' : "") + ">" + esc(ST[k]) + " · " + num(c[k], 0) + "</button>").join("");
     if ($("mQ").value !== F.q && document.activeElement !== $("mQ")) $("mQ").value = F.q;
     $("mSort").value = [...$("mSort").options].some((o) => o.value === F.sort) ? F.sort : "";
     const q = F.q.trim().toLowerCase();
     const chs = {}, cats = {};
     M().forEach((m) => { if (m.chain_nome) chs[m.chain_nome] = (chs[m.chain_nome] || 0) + 1; (m.cats || []).forEach((c) => { cats[c] = (cats[c] || 0) + 1; }); });
+    // 0.32.250 (caso do dono, 07/11): filtro guardado no navegador de rede ou categoria que não está mais na lista filtrava tudo sem aparecer em lugar nenhum
+    if (M().length && ((F.ch && !chs[F.ch]) || (F.cat && !cats[F.cat]))) { if (!chs[F.ch]) F.ch = ""; if (!cats[F.cat]) F.cat = ""; saveF(); }
     // 0.32.241 (pedido do dono): blockchains como botões pequenos; clicar abre a lista daquela rede, clicar de novo volta para todas
     $("mChain").innerHTML = '<button type="button" class="dmchip all' + (F.ch ? "" : " on") + '" data-dmchf="" aria-pressed="' + !F.ch + '">Todas · ' + num(M().length, 0) + "</button>" +
       Object.entries(chs).sort((a, b) => b[1] - a[1]).map((x) => '<button type="button" class="dmchip' + (F.ch === x[0] ? " on" : "") + '" data-dmchf="' + esc(x[0]) + '" aria-pressed="' + (F.ch === x[0]) + '">' + chainTag(x[0]) + "<small>" + x[1] + "</small></button>").join("");
     $("mCat").innerHTML = '<option value="">Todas as categorias</option>' + Object.entries(cats).sort((a, b) => b[1] - a[1]).map((x) => '<option value="' + esc(x[0]) + '"' + (F.cat === x[0] ? " selected" : "") + ">" + esc(x[0]) + " · " + x[1] + "</option>").join("");
-    let L = M().filter((m) => (!F.st || m.status === F.st) && (!F.ch || m.chain_nome === F.ch) && (!F.cat || (m.cats || []).includes(F.cat)) &&
+    const B = M().filter((m) => (!F.ch || m.chain_nome === F.ch) && (!F.cat || (m.cats || []).includes(F.cat)) &&
       (!q || (m.nome + " " + m.simbolo + " " + m.cmc + " " + (m.chain_nome || "") + " " + (m.cats || []).join(" ")).toLowerCase().includes(q)));
+    // 0.32.250: o número de cada situação conta os outros filtros: "Dormindo · 39" com lista vazia parecia erro
+    const c = {}; B.forEach((m) => { c[m.status] = (c[m.status] || 0) + 1; });
+    $("mFilt").innerHTML = '<button data-dmf=""' + (F.st ? "" : ' class="on"') + ">Todas · " + num(B.length, 0) + "</button>" +
+      ST_ORD.filter((k) => c[k] || F.st === k).map((k) => '<button data-dmf="' + k + '"' + (F.st === k ? ' class="on"' : "") + ">" + esc(ST[k]) + " · " + num(c[k] || 0, 0) + "</button>").join("");
+    const act = [F.ch && "blockchain " + F.ch, F.cat && "categoria " + F.cat, F.q.trim() && "busca “" + F.q.trim() + "”"].filter(Boolean);
+    $("mAct").hidden = !act.length;
+    $("mAct").innerHTML = act.length ? "<span>Filtrando por " + esc(act.join(" · ")) + '</span> <button type="button" class="btn sm" data-dmclear="1">Limpar filtros</button>' : "";
+    let L = B.filter((m) => !F.st || m.status === F.st);
     L.forEach((m) => { m.bc_t = m.bc && m.bc.t && !m.bc.sem_pool ? (m.bc.ultima_t || 1) : null; });
     // 0.32.231 (pedido do dono): clicar no título da coluna ordena; clicar de novo inverte (maior → menor / menor → maior)
     const sk = F.sort.replace("-", ""), asc = F.sort.startsWith("-");
@@ -964,15 +971,16 @@
     const bs = e.target.closest && e.target.closest("[data-dmsell]");
     if (bs) { e.preventDefault(); openSell(bs.dataset.dmsell); return; }
     const k = e.target.closest && e.target.closest("[data-dmst]");
-    if (k) { F.st = k.dataset.dmst; saveF(); location.hash = "#moedas"; return; }
+    if (k) { F.st = k.dataset.dmst; F.ch = ""; F.cat = ""; F.q = ""; saveF(); location.hash = "#moedas"; return; }
     const th = e.target.closest && e.target.closest("th[data-tsi]");
     if (th) { const tbl = th.closest("table"), i = +th.dataset.tsi, s = TS[tbl.id];
       TS[tbl.id] = s && s.i === i ? { i, asc: !s.asc } : { i, asc: false }; tsApply(tbl.id); return; }
     const cc = e.target.closest && e.target.closest("[data-dmcoin]");
     if (cc && !e.target.closest("a")) { e.preventDefault(); openCoin(cc.dataset.dmcoin); return; }
     const g = e.target.closest && e.target.closest("tr[data-dmch],tr[data-dmcat]");
-    if (g) { F.st = ""; F.ch = g.dataset.dmch || ""; F.cat = g.dataset.dmcat || ""; saveF(); location.hash = "#moedas"; return; }
+    if (g) { F.st = ""; F.q = ""; F.ch = g.dataset.dmch || ""; F.cat = g.dataset.dmcat || ""; saveF(); location.hash = "#moedas"; return; }
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
+    if (t.dataset.dmclear) { F.ch = ""; F.cat = ""; F.q = ""; saveF(); drawMoedas(); return; }
     if (t.dataset.dmf != null) { F.st = t.dataset.dmf; saveF(); drawMoedas(); return; }
     if (t.dataset.dmchf != null) { F.ch = F.ch === t.dataset.dmchf ? "" : t.dataset.dmchf; saveF(); drawMoedas(); return; }
     if (t.dataset.dmsort) { const key = t.dataset.dmsort; F.sort = F.sort === key ? "-" + key : key; saveF(); drawMoedas(); return; }

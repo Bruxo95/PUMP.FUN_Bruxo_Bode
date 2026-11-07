@@ -2005,6 +2005,11 @@
    "versao": "0.32.249",
    "inicio": "2026-11-07T09:58:38+00:00",
    "titulo": "Dormant: copiar o contrato do token na janela da moeda"
+  },
+  {
+   "versao": "0.32.250",
+   "inicio": "2026-11-07T14:56:41+00:00",
+   "titulo": "Dormant: botões da Visão geral abrem as moedas"
   }
  ]
 }
