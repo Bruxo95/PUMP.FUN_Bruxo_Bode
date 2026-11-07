@@ -4071,21 +4071,27 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   const thName = (x) => (x.nome ? solW(x.wallet, esc(x.nome)) + "<small>" + esc(shortW(x.wallet)) + "</small>" : solW(x.wallet, esc(shortW(x.wallet))));
   const thRank = (k) => k ? "#" + (k.rank || "–") + (k.winrate != null ? " · acerto " + f(k.winrate, 0) + "%" : "") + (k.realized_usd != null ? " · lucro " + usd(k.realized_usd, 0) : "") : '<span class="dim">fora do ranking</span>';
+  // 0.32.251 (pedido do dono): se a carteira está sendo copiada agora, na carteira do botão FICTÍCIA/REAL, e o motivo
+  const TH_NOW = { sim: ["win", "Copiando"], so_ficticia: ["pause", "Só na FICTÍCIA"], parado: ["pause", "Parado"], nao: ["neutral", "Não copia"] };
+  const thNow = (a) => { const s = TH_NOW[(a || {}).estado]; return s ? '<span class="tag ' + s[0] + '">' + s[1] + "</span><small>" + esc(a.por || "") + "</small>" : "–"; };
   function renderTH() {
     const r = TH.r; if (!r || !$("thT")) return;
     const q = (($("thQ") || {}).value || "").trim().toLowerCase(), sort = ($("thSort") || {}).value || "saldo";
     let L = (r.traders || []).concat((r.guardados || []).map((g) => Object.assign({}, g, { guardado: true })));
     if (q) L = L.filter((x) => (x.wallet + " " + (x.nome || "")).toLowerCase().includes(q));
     const key = { saldo: (x) => -(x.saldo_sol || 0), perda: (x) => x.saldo_sol || 0, trades: (x) => -(x.trades || 0), acerto: (x) => -(x.acerto ?? -1), ultimo: (x) => -(x.ultimo || 0) }[sort];
-    L.sort((a, b) => key(a) - key(b));
+    const NOW_O = { sim: 0, so_ficticia: 1, parado: 2, nao: 3 };
+    L.sort(sort === "agora" ? (a, b) => (NOW_O[(a.agora || {}).estado] ?? 4) - (NOW_O[(b.agora || {}).estado] ?? 4) || (b.saldo_sol || 0) - (a.saldo_sol || 0) : (a, b) => key(a) - key(b));
+    const nNow = (r.traders || []).concat(r.guardados || []).filter((x) => (x.agora || {}).estado === "sim").length;
     const tot = (r.traders || []).reduce((s, x) => ({ n: s.n + (x.trades || 0), sol: s.sol + (x.saldo_sol || 0), g: s.g + (x.ganhos || 0), pos: s.pos + ((x.saldo_sol || 0) > 0 ? 1 : 0) }), { n: 0, sol: 0, g: 0, pos: 0 });
     const best = (r.traders || [])[0];
     kpis("thK", [["Traders copiados", String((r.traders || []).length), tot.pos + " no lucro · " + ((r.traders || []).length - tot.pos) + " no prejuízo", "usr"],
+      ["Copiando agora", String(nNow), "desta lista, na carteira " + (realMode() ? "REAL" : "FICTÍCIA"), "usr"],
       ["Trades", String(tot.n), tot.n ? f(tot.g / tot.n * 100, 0) + "% de acerto" : "–", "tr"],
       ["Resultado somado", sg(tot.sol, ""), "copiando todos eles, já com taxas", "pnl"],
       ["Melhor trader", best ? sg(best.saldo_sol, "") : "–", best ? esc(best.nome || shortW(best.wallet)) + " · " + best.trades + " trades" : "", "hit"]]);
-    table("thT", ["Trader", "Trades", "Acerto", "Resultado", "%", "Último", "Abas", "Ranking", ""], L.map((x) => [thName(x) + (x.guardado ? ' <span class="tag neutral" title="só no guardado (os trades não estão mais na carteira)">guardado</span>' : ""),
-      String(x.trades || 0) + (x.falsos ? '<small class="dim">+' + x.falsos + " falso(s)</small>" : ""), x.acerto != null ? x.acerto + "%" : "–", sg(x.saldo_sol || 0, ""), pc(x.pct),
+    table("thT", ["Trader", "Copiando agora", "Trades", "Acerto", "Resultado", "%", "Último", "Abas", "Ranking", ""], L.map((x) => [thName(x) + (x.guardado ? ' <span class="tag neutral" title="só no guardado (os trades não estão mais na carteira)">guardado</span>' : ""),
+      thNow(x.agora), String(x.trades || 0) + (x.falsos ? '<small class="dim">+' + x.falsos + " falso(s)</small>" : ""), x.acerto != null ? x.acerto + "%" : "–", sg(x.saldo_sol || 0, ""), pc(x.pct),
       x.ultimo ? "há " + hms(Date.now() / 1000 - x.ultimo) : "–", esc(Object.keys(x.abas || {}).slice(0, 2).join(", ")), thRank(x.ranking),
       '<button type="button" class="btn sm thbtn" data-th="' + esc(x.wallet) + '" data-thc="' + (realMode() ? "real" : "ficticia") + '">Resultados do trader</button>']), "Nenhum trader copiado com trade fechado ainda.");
   }
@@ -4104,6 +4110,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     ovShow(r.nome || shortW(r.wallet), "tudo o que você copiou desta carteira",
       '<p class="small">' + solW(r.wallet, "Abrir a carteira no Solscan") + ' · <a href="https://pump.fun/profile/' + encodeURIComponent(r.wallet) + '" target="_blank" rel="noopener">perfil na pump.fun</a> · Ranking: ' + thRank(r.ranking) +
         ' · <a href="#tradershist" data-jtclose="1"><b>Ver todos os traders copiados →</b></a></p>' +
+      '<p class="small">Copiando agora (' + (TH.aba === "real" ? "REAL" : "FICTÍCIA") + "): " + thNow((r.agora || {})[TH.aba]).replace("<small>", " ").replace("</small>", "") + "</p>" +
       '<div class="posabas">' + tabs + '</div><div class="kpis" id="ovK"></div>' +
       ((b.abertas || []).length ? '<h3 class="small">Abertas agora</h3>' + tb("ovTHo") : "") +
       '<h3 class="small">Todos os trades</h3>' + tb("ovTHt") +

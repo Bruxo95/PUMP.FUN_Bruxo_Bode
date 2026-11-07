@@ -717,6 +717,32 @@ class PumpFun:
             return {"segue": False, "por": "fora do ar" + (f" (último trade há {int((time.time() - ls) // 60)} min)" if ls else "")}
         return {"segue": False, "por": f"apto no ranking, mas fora dos {int(self._c('pump_top_n', 10))} melhores ativos desta conta"}
 
+    def copy_now(self, w: str, real: bool = False) -> dict:
+        """0.32.251 (pedido do dono, 07/11: "essas carteiras estão sendo copiadas?"): a resposta para UMA carteira (FICTÍCIA ou REAL).
+        Estar na lista não basta: chave da aba, cópia de traders ou a própria carteira desligada também param a cópia."""
+        f = self.follow_info(w)
+        if not f["segue"]:
+            return {"estado": "nao", "por": f["por"]}
+        c = self.cfg
+        eq = self.is_eq(w)
+        if not getattr(c, "pump_copy_enabled", True):
+            return {"estado": "parado", "por": "na lista, mas a Cópia de traders está desligada"}
+        off = None if eq else self.tab_off(w)                    # o Copiar igual vem antes da chave da aba (_copy → _copy_eq)
+        if off:
+            return {"estado": "parado", "por": "na lista, mas " + off.replace("aba ", "a aba ", 1).replace(" desligada", " está desligada")}
+        if not real:
+            if not getattr(c, "pump_sim_on", True):
+                return {"estado": "parado", "por": "na lista, mas a carteira FICTÍCIA está desligada"}
+            return {"estado": "sim", "por": f["por"]}
+        if self.real is None or not getattr(c, "pump_real_enabled", False):
+            return {"estado": "parado", "por": "na lista, mas a carteira REAL está desligada"}
+        if eq:
+            if not getattr(c, "pump_eq_real", False) and (getattr(self, "eq_mode", None) or {}).get(w) != "both":
+                return {"estado": "so_ficticia", "por": "Copiar igual desta carteira está só na FICTÍCIA"}
+        elif self.sim_only(w):
+            return {"estado": "so_ficticia", "por": self.sim_only_why(w)}
+        return {"estado": "sim", "por": f["por"]}
+
     def is_online(self, w: str) -> bool:
         ls = self.last_seen(w)
         return bool(ls and time.time() - ls <= float(self._c("pump_online_min", 10)) * 60)

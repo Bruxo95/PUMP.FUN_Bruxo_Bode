@@ -37,6 +37,28 @@ def test_pause_shows_as_the_reason(tmp_path):
     assert a.follow_info(_W)["segue"] is True
 
 
+def test_copy_now_says_if_the_wallet_is_copied_in_each_wallet(tmp_path):
+    """0.32.251: estar na lista não basta; a chave desligada e a carteira só fictícia aparecem como tal."""
+    p = _pump(tmp_path / "a", paid=False)
+    assert p.copy_now(W2) == {"estado": "nao", "por": p.follow_info(W2)["por"]}
+    p.add_manual(_W)
+    assert p.copy_now(_W)["estado"] == "sim" and "lista manual" in p.copy_now(_W)["por"]
+    assert p.copy_now(_W, real=True) == {"estado": "parado", "por": "na lista, mas a carteira REAL está desligada"}
+    p.cfg.pump_real_enabled, p.real = True, object()
+    assert p.copy_now(_W, real=True)["estado"] == "sim"
+    p.sim_only_list = [_W]
+    assert p.copy_now(_W, real=True) == {"estado": "so_ficticia", "por": p.sim_only_why(_W)}
+    assert p.copy_now(_W)["estado"] == "sim"                     # na fictícia continua copiando
+    p.cfg.pump_sim_on = False
+    assert p.copy_now(_W)["estado"] == "parado"
+    p.cfg.pump_sim_on, p.cfg.pump_copy_enabled = True, False
+    assert "Cópia de traders" in p.copy_now(_W)["por"] and p.copy_now(_W)["estado"] == "parado"
+    p.cfg.pump_copy_enabled, p.cfg.pump_top_on = True, False
+    assert p.copy_now(_W) == {"estado": "parado", "por": "na lista, mas a aba Top traders está desligada"}
+    p.pause(_W, 48, "teste")
+    assert p.copy_now(_W)["estado"] == "nao"
+
+
 def test_module_only_reads():
     src = inspect.getsource(buydiff)
     for proibido in ("manual_buy", "save_settings", ".pause(", "_sell(", "add_manual", "_meta_set"):

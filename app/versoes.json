@@ -2010,6 +2010,11 @@
    "versao": "0.32.250",
    "inicio": "2026-11-07T14:56:41+00:00",
    "titulo": "Dormant: botões da Visão geral abrem as moedas"
+  },
+  {
+   "versao": "0.32.251",
+   "inicio": "2026-11-07T16:59:13+00:00",
+   "titulo": "Traders copiados: coluna Copiando agora"
   }
  ]
 }

@@ -282,7 +282,10 @@ def create_app(hub, auth, cfg) -> FastAPI:
         L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
         rows = traderhist.resumo(L, pf.aba_of, hub.tr_names(), traderhist.lb_map(getattr(pf, "leaderboard", None)))
         live = {r["wallet"] for r in rows}
-        return {"traders": rows, "guardados": [g for g in await hub.th_saved(pf, bool(real)) if g.get("wallet") not in live]}
+        guardados = [g for g in await hub.th_saved(pf, bool(real)) if g.get("wallet") not in live]
+        # 0.32.251: se copia AGORA é calculado a cada pedido; `agora` nunca entra no que `hub.th_save` guarda
+        return {"traders": [{**r, "agora": pf.copy_now(r["wallet"], bool(real))} for r in rows],
+                "guardados": [{**g, "agora": pf.copy_now(g.get("wallet"), bool(real))} for g in guardados]}
 
     @app.get("/api/pump/trader-hist/w/{wallet}")
     async def trader_hist_one(wallet: str, pf=Depends(engine)):
@@ -297,6 +300,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         r["ranking_dias"] = g.get("ranking_dias") or {}
         if not r.get("ranking"):
             r["ranking"] = g.get("ranking")
+        r["agora"] = {"ficticia": pf.copy_now(wallet, False), "real": pf.copy_now(wallet, True)}
         return r
 
     @app.get("/api/pump/real/why")
