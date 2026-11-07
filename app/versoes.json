@@ -2030,6 +2030,11 @@
    "versao": "0.32.254",
    "inicio": "2026-11-07T17:48:37+00:00",
    "titulo": "REAL: idade mínima do token (10 min)"
+  },
+  {
+   "versao": "0.32.255",
+   "inicio": "2026-11-07T18:50:15+00:00",
+   "titulo": "Limite de posições: de qual carteira é"
   }
  ]
 }

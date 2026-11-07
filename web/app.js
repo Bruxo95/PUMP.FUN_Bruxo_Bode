@@ -4939,6 +4939,14 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
         .map((x) => '<div><span class="k">' + x[0] + '</span><span class="v">' + x[1] + "</span></div>").join("") + "</div>";
     $("rMaxN").textContent = "Cada cópia real compra no máximo este valor (+ taxa da pump.fun, 0,5% da PumpPortal e taxa de rede)." + (p && c.pump_real_max_sol ? " ≈ $" + f(c.pump_real_max_sol * p, 2) : "");
     $("rLossU").textContent = p && c.pump_real_daily_loss_sol ? "≈ $" + f(c.pump_real_daily_loss_sol * p, 2) : "";
+    // 0.32.255 (dono: "limita em 20 sendo que configurei 40"): o 40 era da REAL e o 20 da FICTÍCIA; com o espelho, a REAL
+    // só abre quando a fictícia abre, então o menor dos dois manda
+    const rmh = $("rMaxHint");
+    if (rmh) {
+      const fo = +c.pump_max_open || 0, ro = +c.pump_real_max_open || 0;
+      rmh.innerHTML = "Só a carteira REAL. A FICTÍCIA tem o limite próprio (hoje <b>" + fo + "</b>) na aba FICTÍCIA." +
+        (c.pump_real_mirror !== false && fo < ro ? ' <span class="down">Com "Espelhar 100%" ligado a REAL só abre quando a fictícia abre: na prática o limite é ' + fo + ". Suba o da FICTÍCIA para " + ro + " ou mais.</span>" : "");
+    }
     $("cvN").textContent = p ? "1 SOL = $" + f(p, 2) + " · 1 USDC = " + s4(1 / p) + " SOL" : "aguardando preço do SOL";
   }
   function conv(src) { const p = (W && W.sol_usd) || (D && D.sol_usd) || 0; if (!p) return; if (src === "u") { const u = +$("cvU").value || 0; $("cvS").value = u ? (u / p).toFixed(4) : ""; } else { const x = +$("cvS").value || 0; $("cvU").value = x ? (x * p).toFixed(2) : ""; } }

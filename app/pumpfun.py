@@ -1264,7 +1264,7 @@ class PumpFun:
         if self.needs_proof(who) and not (who in (getattr(self, "study", None) or []) or who in self.study_copy_wallets()
                                           or who in (getattr(self, "sim_only_list", None) or []) or who in self.study_lucro_wallets()):
             return ("trader novo: a cópia fica só na fictícia até uma cópia fictícia dele fechar com lucro "
-                    "(Execução real → \"REAL só depois de lucro na fictícia\")")
+                    "(Carteiras → REAL → \"REAL só depois de lucro na fictícia\")")
         """0.32.162: por que esta carteira copia só na fictícia (o texto aparece no feed e nas Operações recentes do modo REAL)."""
         if who in (getattr(self, "sim_only_list", None) or []):
             return "você escolheu 'só fictícia' no Copiar desta carteira (Carteiras em estudo)"
@@ -1494,7 +1494,9 @@ class PumpFun:
             if smine:
                 swhy = "já tem posição copiada neste token (fictícia)"
             elif not follow_real and len([p for p in allpos if not p.get("real") and not p.get("eq") and p.get("origem") != "barrado"]) >= int(self._c("pump_max_open", 10)):
-                swhy = f"limite de {int(self._c('pump_max_open', 10))} posições abertas"
+                # 0.32.255 (dono: "por que limita em 20 se configurei 40?"): o 40 era o da REAL; este é o da FICTÍCIA
+                swhy = (f"limite de {int(self._c('pump_max_open', 10))} posições abertas na FICTÍCIA (Carteira FICTÍCIA → "
+                        f"Posições ao mesmo tempo; a REAL tem o limite próprio: {int(self._c('pump_real_max_open', 5))})")
             elif not follow_real and self.wallet()["cash_sol"] < amt + float(self._c("pump_priority_sol", 0.0005)):
                 swhy = "saldo fictício insuficiente"
             if swhy:
@@ -3282,7 +3284,7 @@ class PumpFun:
                 int(self._c(self.OWN_SLOTS[self._slot(origem)][0], self.OWN_SLOTS[self._slot(origem)][1]))
                 if self._slot(origem) else int(self._c("pump_max_open", 10))):
             # 0.32.31: os barrados têm vagas próprias (pump_bar_max_open) e não tiram vaga das cópias; 0.32.41: a Aba do Bruxo também
-            out["sim"] = "limite de posições abertas" + (self.OWN_SLOTS[self._slot(origem)][2] if self._slot(origem) else f" ({int(self._c('pump_max_open', 10))})")
+            out["sim"] = "limite de posições abertas na FICTÍCIA" + (self.OWN_SLOTS[self._slot(origem)][2] if self._slot(origem) else f" ({int(self._c('pump_max_open', 10))})")
         elif not exact and self.wallet()["cash_sol"] < amt + fr["prio"]:
             out["sim"] = "saldo fictício insuficiente"
         else:
@@ -4463,7 +4465,7 @@ class PumpFun:
 
     MISS_TIPS = (("outra moeda", "Token de 'par personalizado' (a curva é cotada em SPCX, ZEC, USDC…, não em SOL). A PumpPortal só compra com SOL; desde a 0.31.83 a real tenta pela Jupiter. Se a Jupiter também não tiver rota, a fictícia compra e a real não."),
                  ("não deu para simular", "O RPC não respondeu à simulação nem depois de 3 tentativas. Um RPC próprio (Configurações → Chaves, ex.: Helius) evita o limite do RPC público."),
-                 ("limite de", "Aumente \"Posições reais ao mesmo tempo\" na Execução real, ou confira se há posição real antiga presa aberta."),
+                 ("limite de", "Aumente \"Posições ao mesmo tempo\" em Carteiras → REAL, ou confira se há posição real antiga presa aberta."),
                  ("perda do dia", "A real parou no limite \"Parar no dia se perder\"; volta sozinha no dia seguinte (UTC)."),
                  ("já tem posição real", "A real já estava nesse token (de outra cópia); normal."),
                  ("desligad", "A execução real ou a entrada automática estava desligada nessa hora."),
@@ -4496,7 +4498,7 @@ class PumpFun:
             agora.append("a carteira real não está configurada (Configurações → Chaves pessoais)")
         if len(ro) + len(self._real_buying) >= lim_open:
             agora.append(f"limite de {lim_open} posições reais ao mesmo tempo ({len(ro)} abertas"
-                         + (f", {len(self._real_buying)} comprando" if self._real_buying else "") + ") — Execução real → Posições reais ao mesmo tempo")
+                         + (f", {len(self._real_buying)} comprando" if self._real_buying else "") + ") — Carteiras → REAL → Posições ao mesmo tempo")
         if lim_loss and loss >= lim_loss:
             agora.append(f"a perda de hoje na real ({loss:.4f} SOL) chegou ao limite de {lim_loss:g} SOL — volta a comprar às 00:00 UTC")
         ini = now - hours * 3600
@@ -4770,7 +4772,7 @@ class PumpFun:
                     self._auto_blocked(guard, mint, (it.get("pos_cfg") or {}).get("origem", "explorar"), time.time())
                     return
             if lim and self.real.today_loss(self.trades(2000)) >= lim:
-                miss(f"perda do dia chegou a {lim} SOL")
+                miss(f"perda do dia da REAL chegou a {lim} SOL (Carteiras → REAL → Parar no dia se perder)")
                 return
             # 0.32.254 (pedido do dono): a REAL só compra token com pelo menos N min de vida (padrão 10; 0 = desliga)
             min_age = float(self._c("pump_real_min_age_min", 10) or 0)
