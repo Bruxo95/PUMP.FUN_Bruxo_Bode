@@ -54,7 +54,8 @@ CHAIN_NAMES = {PROPRIA: "Blockchain própria", "ethereum": "Ethereum", "binance-
                "moonbeam": "Moonbeam", "huobi-token": "HECO", "okex-chain": "OKC", "aurora": "Aurora", "energi": "Energi", "sora": "SORA",
                "polkadot": "Polkadot", "kusama": "Kusama", "stellar": "Stellar", "waves": "Waves", "algorand": "Algorand",
                "hedera-hashgraph": "Hedera", "the-open-network": "TON", "sui": "Sui", "aptos": "Aptos", "robinhood": "Robinhood Chain",
-               "hyperevm": "HyperEVM", "sonic": "Sonic", "cardano": "Cardano", "zksync": "zkSync", "linea": "Linea", "mantle": "Mantle"}
+               "hyperevm": "HyperEVM", "sonic": "Sonic", "cardano": "Cardano", "zksync": "zkSync", "linea": "Linea", "mantle": "Mantle",
+               "world-chain": "World Chain", "unichain": "Unichain"}
 # 0.32.229 (áudio do Bruxo, 05/11: "a CoinGecko só serve para saber a blockchain; tem que entrar na blockchain e ver as
 # últimas 3 ações"): as negociações vêm da GeckoTerminal, que lê os pools direto de cada blockchain (grátis, sem chave,
 # 30 consultas por minuto; conferido em 05/11/2026 com o PEPE na Ethereum). Rede da CoinGecko → rede da GeckoTerminal:
@@ -65,7 +66,7 @@ GT_NET = {"ethereum": "eth", "binance-smart-chain": "bsc", "solana": "solana", "
           "linea": "linea", "robinhood": "robinhood", "chiliz": "chiliz-chain", "klay-token": "kaia", "xdai": "xdai",
           "near-protocol": "near", "hyperevm": "hyperevm", "energi": "nrg", "harmony-shard-0": "one", "moonbeam": "glmr",
           "moonriver": "movr", "aurora": "aurora", "celo": "celo", "kava": "kava", "stellar": "stellar", "cardano": "cardano",
-          "aptos": "aptos"}
+          "aptos": "aptos", "world-chain": "world-chain", "unichain": "unichain", "zksync": "zksync"}   # 0.32.256: as 3 conferidas na GeckoTerminal
 GT_EVERY_S = 6.0                       # 10 por minuto: o limite grátis anunciado é 30, mas em 05/11 já pediu para esperar antes disso
 GT_AGAIN_S = 30 * 60                   # cada moeda é olhada de novo a cada ~30 min
 POOL_KEEP_S = 7 * 86400                # o pool principal do token é procurado de novo toda semana

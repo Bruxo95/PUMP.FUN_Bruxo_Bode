@@ -39,7 +39,7 @@
     "Optimism": ["#FF0420", "op"], "TON": ["#0098EA", "ton"], "Blockchain própria": ["#9ca3af", "propria"], "Cronos": ["#5b8def", "dot"],
     "Sui": ["#4DA2FF", "dot"], "Fantom": ["#1969FF", "dot"], "Kaia": ["#BFF009", "dot"], "Chiliz": ["#ff4d6d", "dot"], "Cardano": ["#3468d1", "dot"],
     "Linea": ["#61DFFF", "dot"], "Mantle": ["#65b3ae", "dot"], "Sonic": ["#fe9a4c", "dot"], "Osmosis": ["#a855f7", "dot"], "Cosmos": ["#6f7390", "dot"],
-    "Robinhood Chain": ["#c3f53c", "dot"], "Gnosis": ["#3e6957", "dot"], "Celo": ["#FCFF52", "dot"], "Near": ["#00ec97", "dot"], "NEAR": ["#00ec97", "dot"] };
+    "Robinhood Chain": ["#c3f53c", "dot"], "World Chain": ["#d4d4d8", "dot"], "Unichain": ["#f50db4", "dot"], "zkSync": ["#8c8dfc", "dot"], "Gnosis": ["#3e6957", "dot"], "Celo": ["#FCFF52", "dot"], "Near": ["#00ec97", "dot"], "NEAR": ["#00ec97", "dot"] };
   function chainTag(nome, extra) {
     if (!nome) return "";
     const c = CHS[nome] || ["#9ca3af", "dot"];
@@ -583,7 +583,7 @@
       (r.endereco ? '<span class="tag win">configurada</span> <button type="button" class="btn sm tgl off" data-wdel="' + esc(r.rede) + '">Remover</button>' : '<span class="tag neutral">sem carteira</span>') + "</div>" +
       (r.endereco ? '<div class="ad">' + esc(r.endereco) + '</div><div class="muted small" data-wbal="' + esc(r.rede) + '" data-wm="' + esc(r.moeda) + '">lendo o saldo…</div>' : "") +
       '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="Chave privada de ' + esc(r.nome) + '">' +
-      (r.tipo === "evm" ? '<label class="small muted"><input type="checkbox" id="we_' + esc(r.rede) + '"> usar nas 6 redes EVM</label>' : "") +
+      (r.tipo === "evm" ? '<label class="small muted"><input type="checkbox" id="we_' + esc(r.rede) + '"> usar nas ' + w.redes.filter((x) => x.tipo === "evm").length + ' redes EVM</label>' : "") +
       '<button type="button" class="btn primary sm" data-wsave="' + esc(r.rede) + '">Salvar</button></div></div>').join("");
   }
   let ASK = null;

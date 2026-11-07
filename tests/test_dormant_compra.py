@@ -181,7 +181,21 @@ def test_second_wallet_needs_same_password_and_all_evm_option():
     except db_.BuyError as e:
         assert "errada" in str(e)
     r = run(b.save_wallet(UID, "ethereum", KEY, SENHA, todas_evm=True))
-    assert set(r["redes"]) == set(db_.EVM_CHAINS) and len(db.tables["dormant_wallets"]) == 6
+    assert set(r["redes"]) == set(db_.EVM_CHAINS) and len(db.tables["dormant_wallets"]) == len(db_.EVM_CHAINS)
+
+
+def test_new_l2_chains_are_complete_and_unique():
+    """0.32.256: Robinhood e as L2 conferidas na rede em 07/11/2026 (roteador oficial, fábrica, moeda embrulhada, dólar)."""
+    novas = ["robinhood", "optimistic-ethereum", "linea", "world-chain", "xdai", "zksync", "unichain"]
+    assert all(k in db_.EVM_CHAINS for k in novas) and len(db_.EVM_CHAINS) == 13
+    ids = [db_.CHAINS[k]["id"] for k in db_.EVM_CHAINS]
+    assert len(ids) == len(set(ids))
+    for k in novas:
+        c = db_.CHAINS[k]
+        assert c["rpc"].startswith("https://") and c["expl"].startswith("https://") and c["expl"].endswith("/tx/")
+        assert all(db_.ADDR_EVM.match(c[x]) for x in ("router", "wrapped", "ponte"))
+    assert db_.CHAINS["robinhood"]["router"] == "0x89e5db8b5aa49aa85ac63f691524311aeb649eba"   # Uniswap V2 oficial (developers.uniswap.org)
+    assert "mantle" not in db_.CHAINS and "celo" not in db_.CHAINS                            # sem roteador V2 oficial conferido
 
 
 def test_wallets_are_per_account():
@@ -225,7 +239,7 @@ def test_change_password_reencrypts_all_or_nothing():
     except db_.BuyError:
         pass
     assert str(db.tables["dormant_wallets"]) == antes
-    assert run(b.change_password(UID, SENHA, "senha-nova-123")) == 6
+    assert run(b.change_password(UID, SENHA, "senha-nova-123")) == len(db_.EVM_CHAINS)
     assert run(b._open(UID, run(b.wallet_row(UID, "base")), "senha-nova-123")) == KEY
 
 

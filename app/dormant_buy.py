@@ -76,6 +76,34 @@ CHAINS = {
     "arbitrum-one": {"nome": "Arbitrum", "tipo": "evm", "id": 42161, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://arbiscan.io/tx/",
                      "rpc": "https://arbitrum-one-rpc.publicnode.com", "router": "0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24",
                      "wrapped": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1", "ponte": "0xaf88d065e77c8cc2239327c5edb3a432268e5831", "v3": True},
+    # 0.32.256 (pedido do dono, 07/11/2026: "adiciona a Robinhood e as top 12 L2 da Ethereum"). Lista da L2BEAT de 07/11 (layer2 por valor guardado):
+    # Base, Arbitrum, Polygon PoS, Robinhood, OP Mainnet, Mantle, Lighter, Whitechain, Ink, Starknet, Linea, World Chain, Celo, Gnosis, ZKsync Era.
+    # Entram só as que têm roteador V2 OFICIAL publicado pela própria DEX: Uniswap (developers.uniswap.org, v2 deployments) e PancakeSwap
+    # (developer.pancakeswap.finance, v2 addresses), mais o Honeyswap no Gnosis. Em 07/11, na rede: código no endereço, factory() = a fábrica publicada,
+    # WETH() = moeda embrulhada, par moeda embrulhada/dólar existente, getAmountsOut cotando e a compra simulada por eth_call passando.
+    # Ficaram de fora: Mantle e Ink (sem roteador V2 oficial publicado: o principal do Mantle tem outra interface), Celo (a moeda da rede já é um token,
+    # não há WETH()), Lighter e Starknet (não são EVM com DEX), Whitechain (sem DEX conferida). Uniswap V3 só onde está o mesmo SwapRouter das outras.
+    "robinhood": {"nome": "Robinhood Chain", "tipo": "evm", "id": 4663, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://robinhoodchain.blockscout.com/tx/",
+                  "rpc": "https://rpc.mainnet.chain.robinhood.com", "router": "0x89e5db8b5aa49aa85ac63f691524311aeb649eba",
+                  "wrapped": "0x0bd7d308f8e1639fab988df18a8011f41eacad73", "ponte": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"},
+    "optimistic-ethereum": {"nome": "Optimism", "tipo": "evm", "id": 10, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://optimistic.etherscan.io/tx/",
+                            "rpc": "https://optimism-rpc.publicnode.com", "router": "0x4a7b5da61326a6379179b40d00f57e5bbdc962c2",
+                            "wrapped": "0x4200000000000000000000000000000000000006", "ponte": "0x0b2c639c533813f4aa9d7837caf62653d097ff85", "v3": True},
+    "linea": {"nome": "Linea", "tipo": "evm", "id": 59144, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "PancakeSwap", "expl": "https://lineascan.build/tx/",
+              "rpc": "https://linea-rpc.publicnode.com", "router": "0x8cfe327cec66d1c090dd72bd0ff11d690c33a2eb",
+              "wrapped": "0xe5d7c2a44ffddf6b295a15c148167daaaf5cf34f", "ponte": "0x176211869ca2b568f2a7d4ee941e073a821ee1ff"},
+    "world-chain": {"nome": "World Chain", "tipo": "evm", "id": 480, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://worldscan.org/tx/",
+                    "rpc": "https://worldchain-mainnet.g.alchemy.com/public", "router": "0x541ab7c31a119441ef3575f6973277de0ef460bd",
+                    "wrapped": "0x4200000000000000000000000000000000000006", "ponte": "0x79a02482a880bce3f13e09da970dc34db4cd24d1"},
+    "xdai": {"nome": "Gnosis", "tipo": "evm", "id": 100, "moeda": "xDAI", "cg": "xdai", "dec": 18, "dex": "Honeyswap", "expl": "https://gnosisscan.io/tx/",
+             "rpc": "https://gnosis-rpc.publicnode.com", "router": "0x1c232f01118cb8b424793ae03f870aa7d0ac7f77",
+             "wrapped": "0xe91d153e0b41518a2ce8dd3d7944fa863463a97d", "ponte": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a83"},
+    "zksync": {"nome": "zkSync", "tipo": "evm", "id": 324, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "PancakeSwap", "expl": "https://explorer.zksync.io/tx/",
+               "rpc": "https://mainnet.era.zksync.io", "router": "0x5aeaf2883fbf30f3d62471154eda3c0c1b05942d",
+               "wrapped": "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91", "ponte": "0x1d17cbcf0d6d143135ae902365d2e5e2a16538d4"},
+    "unichain": {"nome": "Unichain", "tipo": "evm", "id": 130, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://uniscan.xyz/tx/",
+                 "rpc": "https://mainnet.unichain.org", "router": "0x284f11109359a7e1306c3e447ef14d38400063ff",
+                 "wrapped": "0x4200000000000000000000000000000000000006", "ponte": "0x078d782b760474a361dda0af3839290b0ef57ad6"},
 }
 EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 

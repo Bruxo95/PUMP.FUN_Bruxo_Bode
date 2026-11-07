@@ -2035,6 +2035,11 @@
    "versao": "0.32.255",
    "inicio": "2026-11-07T18:50:15+00:00",
    "titulo": "Limite de posições: de qual carteira é"
+  },
+  {
+   "versao": "0.32.256",
+   "inicio": "2026-11-07T22:42:32+00:00",
+   "titulo": "Dormant: compra na Robinhood e em mais 6 L2 da Ethereum"
   }
  ]
 }
