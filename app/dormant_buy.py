@@ -59,6 +59,14 @@ T_V4_INIT = "0x" + evm.keccak256(b"Initialize(bytes32,address,address,uint24,int
 # evento Initialize do PoolManager e só vale se o keccak dela der o id do pool. Só compra: a venda pela V4 (Permit2) não foi feita.
 V4 = {"robinhood": {"pm": "0x8366a39cc670b4001a1121b8f6a443a643e40951", "quoter": "0x8dc178efb8111bb0973dd9d722ebeff267c98f94",
                     "ur": "0x8876789976decbfcbbbe364623c63652db8c0904", "gt": "robinhood"}}
+# 0.32.258 (pedido do dono, 07/11/2026: "faz a venda"): na V4 o Universal Router puxa o token pelo Permit2 (mesmo endereço em todas as redes,
+# da lista oficial da Uniswap; código conferido na Robinhood em 07/11). Antes da venda: o token autoriza o Permit2 e o Permit2 autoriza o
+# roteador, os dois só no valor exato da venda, o do Permit2 vencendo em 30 min. O roteador só puxa de quem chama: sobra não tem o que roubar.
+PERMIT2 = "0x000000000022d473030f116ddee9f6b43ac78ba3"
+SEL_P2_APPROVE = evm.selector("approve(address,address,uint160,uint48)")
+SEL_P2_ALLOW = evm.selector("allowance(address,address,address)")
+T_V4_SWAP = "0x" + evm.keccak256(b"Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)").hex()
+P2_VALIDADE_S = 30 * 60
 GT_API = "https://api.geckoterminal.com/api/v2"
 V4_DEX = {"pons-v2-dex": "Pons (Uniswap V4)", "uniswap-v4-robinhood": "Uniswap V4"}
 V4_POOLS_MAX, V4_TTL_S, V4_LOG_SPAN = 4, 600, 400_000
@@ -239,22 +247,39 @@ def v4_pool_id(key: list) -> str:
     return "0x" + evm.keccak256(bytes.fromhex(v4_key_enc(key))).hex()
 
 
-def v4_quote_data(key: list, amount: int) -> str:
-    return SEL_V4_QUOTE + evm.w_int(32) + v4_key_enc(key) + evm.w_int(1) + evm.w_int(amount) + evm.w_int(32 * 8) + evm.w_int(0)
+def v4_quote_data(key: list, amount: int, zero_for_one: bool = True) -> str:
+    return SEL_V4_QUOTE + evm.w_int(32) + v4_key_enc(key) + evm.w_int(1 if zero_for_one else 0) + evm.w_int(amount) + evm.w_int(32 * 8) + evm.w_int(0)
 
 
-def v4_data(key: list, amount: int, min_out: int, deadline: int) -> str:
-    """Universal Router execute(0x10 = V4_SWAP, [SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL]) pagando com ETH (currency0 = 0).
-    Mesmo formato da compra de GLC na Pons de 07/11/2026 (tx 0x7d5bf818…, decodificada e reproduzida byte a byte no teste).
-    O token cai em quem chamou (TAKE_ALL paga o msg.sender = a própria carteira); menos que min_out e a transação é recusada."""
-    p0 = (evm.w_int(32) + v4_key_enc(key) + evm.w_int(1) + evm.w_int(amount) + evm.w_int(min_out) + evm.w_int(0)
+def v4_data(key: list, amount: int, min_out: int, deadline: int, sell: bool = False) -> str:
+    """Universal Router execute(0x10 = V4_SWAP, [SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL]). Compra: paga ETH (currency0 = 0) e recebe o
+    token. Venda (0.32.258): paga o token (o roteador puxa pelo Permit2) e recebe ETH. Mesmo formato da compra e da venda de GLC na Pons de
+    07/11/2026 (tx 0x7d5bf818… e 0x93c2bfdb…, decodificadas e reproduzidas byte a byte no teste). O que sai cai em quem chamou (TAKE_ALL paga
+    o msg.sender = a própria carteira); menos que min_out e a transação é recusada."""
+    p0 = (evm.w_int(32) + v4_key_enc(key) + evm.w_int(0 if sell else 1) + evm.w_int(amount) + evm.w_int(min_out) + evm.w_int(0)
           + evm.w_int(32 * 10) + evm.w_int(0))
-    p1 = evm.w_addr(key[0]) + evm.w_int(amount)
-    p2 = evm.w_addr(key[1]) + evm.w_int(min_out)
+    paga, recebe = (key[1], key[0]) if sell else (key[0], key[1])
+    p1 = evm.w_addr(paga) + evm.w_int(amount)
+    p2 = evm.w_addr(recebe) + evm.w_int(min_out)
     acts = _bytes_enc("060c0f")
     inp = evm.w_int(64) + evm.w_int(64 + len(acts) // 2) + acts + _arr_bytes([p0, p1, p2])
     cmds = _bytes_enc("10")
     return SEL_UR_EXEC + evm.w_int(96) + evm.w_int(96 + len(cmds) // 2) + evm.w_int(deadline) + cmds + _arr_bytes([inp])
+
+
+def v4_swap_eth(logs: list, pm: str) -> int:
+    """ETH que a venda tirou do pool, pelo evento Swap do PoolManager (amount0 em int128; na venda os dois lados têm sinais opostos)."""
+    def s(w: int) -> int:
+        return w - (1 << 256) if w >> 255 else w
+    for lg in logs:
+        tp = lg.get("topics") or []
+        if (lg.get("address") or "").lower() == pm and tp and tp[0] == T_V4_SWAP:
+            w = evm.words(lg.get("data") or "0x")
+            if len(w) >= 2:
+                a0, a1 = s(w[0]), s(w[1])
+                if a0 and a1 and (a0 > 0) != (a1 > 0):
+                    return abs(a0)
+    return 0
 
 
 def v4_key_from_log(log: dict) -> list | None:
@@ -506,8 +531,8 @@ class Buyer:
         w = evm.words(await self._call(c, V3_QUOTER, data) or "0x")
         return w[0] if w else 0
 
-    async def _v4_out(self, c: dict, value: int, key: list, chain: str) -> int:
-        w = evm.words(await self._call(c, V4[chain]["quoter"], v4_quote_data(key, value)) or "0x")
+    async def _v4_out(self, c: dict, value: int, key: list, chain: str, zero_for_one: bool = True) -> int:
+        w = evm.words(await self._call(c, V4[chain]["quoter"], v4_quote_data(key, value, zero_for_one)) or "0x")
         return w[0] if w else 0
 
     async def _route_out(self, c: dict, rt: dict, value: int, token: str) -> int:
@@ -684,9 +709,7 @@ class Buyer:
         q.update(route={k: v for k, v in rt.items() if k != "out"}, min_out=min_out, dec=dec)
         if rt.get("hook"):
             avisos.append(f"o pool tem um contrato extra (hook {rt['key'][4][:8]}…) que roda em cada troca: o valor mostrado vem da simulação "
-                          "dele, e a compra é recusada pela rede se receber menos que o mínimo. A venda deste token ainda não é feita por aqui.")
-        elif rt["tipo"] == "v4":
-            avisos.append("pool da Uniswap V4: a venda deste token ainda não é feita por aqui (use o app da Uniswap para vender).")
+                          "dele, e a compra é recusada pela rede se receber menos que o mínimo.")
         small = await self._route_out(c, rt, max(q["value"] // 50, 1), q["token"])
         impacto = round(max(0.0, (1 - rt["out"] / (small * 50)) * 100), 2) if small else None
         gp = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16)
@@ -718,10 +741,7 @@ class Buyer:
         if rt["tipo"] == "v3":
             return V3_ROUTER, v3_data(c["wrapped"], q["token"], rt["fee"], addr, dl, q["value"], min_out)
         if rt["tipo"] == "v4":                       # o recebedor é quem assina (TAKE_ALL paga o msg.sender): nada a passar
-            key = rt["key"]
-            if q["rede"] not in V4 or key[0] != ZERO or key[1] != q["token"] or self._v4keys.get(v4_pool_id(key)) != key:
-                raise BuyError("pool V4 não conferido: nada foi enviado")
-            return V4[q["rede"]]["ur"], v4_data(key, q["value"], min_out, dl)
+            return self._v4_checked(q), v4_data(rt["key"], q["value"], min_out, dl)
         return c["router"], v2_data(c, min_out, rt["path"], addr, dl)
 
     # ------------------------------------------------------------------ cotação Solana
@@ -1006,6 +1026,8 @@ class Buyer:
             cands.append({"tipo": "v2", "path": [token, c["ponte"], c["wrapped"]], "dex": c["dex"].split(" e ")[0], "rota": "passando por dólar"})
         if c.get("v3"):
             cands += [{"tipo": "v3", "fee": f, "dex": "Uniswap V3", "rota": f"pool de {f / 10000:g}%"} for f in V3_FEES]
+        if chain in V4:
+            cands += await self._v4_pools(chain, token)
         outs = await asyncio.gather(*[self._sell_out(c, rt, amount, token) for rt in cands])
         best, out = None, 0
         for rt, o in zip(cands, outs):
@@ -1014,6 +1036,8 @@ class Buyer:
         return {**best, "out": out} if best else None
 
     async def _sell_out(self, c: dict, rt: dict, amount: int, token: str) -> int:
+        if rt["tipo"] == "v4":
+            return await self._v4_out(c, amount, rt["key"], rt["rede"], zero_for_one=False)
         if rt["tipo"] == "v2":
             return await self._v2_out(c, amount, rt["path"])
         data = SEL_V3_QUOTE + evm.w_addr(token) + evm.w_addr(c["wrapped"]) + evm.w_int(amount) + evm.w_int(rt["fee"]) + evm.w_int(0)
@@ -1026,11 +1050,27 @@ class Buyer:
         dl = int(time.time()) + 300
         if rt["tipo"] == "v3":
             return V3_ROUTER, v3_sell_data(q["token"], c["wrapped"], rt["fee"], addr, dl, q["amount"], min_out)
+        if rt["tipo"] == "v4":
+            return self._v4_checked(q), v4_data(rt["key"], q["amount"], min_out, dl, sell=True)
         return c["router"], evm.call_data(c.get("sell_sel") or SEL_SELL_ETH, q["amount"], min_out, rt["path"], addr, dl)
+
+    def _v4_checked(self, q: dict) -> str:
+        """Universal Router da rede, só se a chave do pool passou pela conferência na rede (keccak = id do pool) e é o par ETH/este token."""
+        key = q["route"].get("key") or []
+        if q["rede"] not in V4 or len(key) != 5 or key[0] != ZERO or key[1] != q["token"] or self._v4keys.get(v4_pool_id(key)) != key:
+            raise BuyError("pool V4 não conferido: nada foi enviado")
+        return V4[q["rede"]]["ur"]
 
     @staticmethod
     def _spender(q: dict) -> str:
-        return V3_ROUTER if q["route"]["tipo"] == "v3" else CHAINS[q["rede"]]["router"]
+        """Quem o token autoriza: o roteador fixo, ou o Permit2 na V4 (que por sua vez autoriza só o Universal Router)."""
+        t = q["route"]["tipo"]
+        return PERMIT2 if t == "v4" else V3_ROUTER if t == "v3" else CHAINS[q["rede"]]["router"]
+
+    async def _p2_ok(self, c: dict, q: dict, addr: str) -> bool:
+        """Permit2 já deixa o Universal Router puxar este valor por mais 2 min?"""
+        w = evm.words(await self._call(c, PERMIT2, SEL_P2_ALLOW + evm.w_addr(addr) + evm.w_addr(q["token"]) + evm.w_addr(V4[q["rede"]]["ur"])) or "0x")
+        return len(w) >= 2 and w[0] >= q["amount"] and w[1] > time.time() + 120
 
     async def preview_sell(self, uid: str, compra_id: str, pct) -> dict:
         rows = await self.db.select("dormant_buys", {"id": str(compra_id or ""), "user_id": uid}, limit=1) or []
@@ -1117,8 +1157,10 @@ class Buyer:
         gp = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16)
         q["gp"] = gp
         allow = await self._erc20_word(c, q["token"], SEL_ALLOW + evm.w_addr(addr) + evm.w_addr(self._spender(q)))
-        aprovar = allow < amount
-        gas = 300000 + (70000 if aprovar else 0)
+        v4 = rt["tipo"] == "v4"
+        p2_falta = v4 and not await self._p2_ok(c, q, addr)
+        aprovar = allow < amount or p2_falta
+        gas = 300000 + (70000 if allow < amount else 0) + (70000 if p2_falta else 0)
         if not aprovar:
             try:
                 to, data = self._sell_tx(q, min_out, addr)
@@ -1128,8 +1170,14 @@ class Buyer:
         bal = int(await self.rpc(c["rpc"], "eth_getBalance", [addr, "latest"]) or "0x0", 16)
         if bal < int(gas * 1.3) * gp:
             bloq.append(f"falta {c['moeda']} para pagar o gás da venda: a carteira tem {bal / 1e18:.6f}; use Abastecer em Carteiras e compra")
-        if aprovar:
+        if aprovar and v4:
+            n = (allow < amount) + p2_falta
+            avisos.append(("vão sair duas autorizações" if n == 2 else "vai sair uma autorização") + " antes da venda (Uniswap V4: o token autoriza o "
+                          "Permit2 e o Permit2 autoriza o roteador oficial), só no valor exato desta venda e vencendo em 30 min (cada uma paga gás)")
+        elif aprovar:
             avisos.append("vai sair uma autorização antes da venda: só no valor exato desta venda, só para o roteador oficial (paga gás)")
+        if rt.get("hook"):
+            avisos.append(f"o pool tem um contrato extra (hook {rt['key'][4][:8]}…): o valor vem da simulação dele, e a venda é recusada pela rede se receber menos que o mínimo")
         return {"dex": rt["dex"], "rota": rt["rota"], "saldo": saldo / 10 ** dec, "vende": amount / 10 ** dec, "recebe": rt["out"] / 1e18, "minimo": min_out / 1e18,
                 "impacto": impacto, "gas_usd": round(gas * gp / 1e18 * (q["usd_n"] or 0), 4), "aprovar": aprovar}
 
@@ -1205,15 +1253,22 @@ class Buyer:
         return None
 
     async def _evm_approve(self, c: dict, key: int, addr: str, token: str, spender: str, amount: int, gp: int) -> None:
-        """Autoriza SÓ o valor desta venda, SÓ para o roteador fixo. Não vai pelo envio privado: autorização não tem o que roubar."""
-        data = SEL_APPROVE + evm.w_addr(spender) + evm.w_int(amount)
-        est = int(await self.rpc(c["rpc"], "eth_estimateGas", [{"from": addr, "to": token, "data": data, "value": "0x0"}]), 16)
+        """Autoriza SÓ o valor desta venda, SÓ para o roteador fixo (ou o Permit2). Não vai pelo envio privado: autorização não tem o que roubar."""
+        await self._evm_auth_tx(c, key, addr, token, SEL_APPROVE + evm.w_addr(spender) + evm.w_int(amount), gp)
+
+    async def _evm_auth_tx(self, c: dict, key: int, addr: str, to: str, data: str, gp: int) -> None:
+        est = int(await self.rpc(c["rpc"], "eth_estimateGas", [{"from": addr, "to": to, "data": data, "value": "0x0"}]), 16)
         nonce = int(await self.rpc(c["rpc"], "eth_getTransactionCount", [addr, "pending"]), 16)
-        raw, h = evm.sign_tx(key, nonce, gp, int(est * 1.3) + 10000, token, 0, data, c["id"])
+        raw, h = evm.sign_tx(key, nonce, gp, int(est * 1.3) + 10000, to, 0, data, c["id"])
         await self.rpc(c["rpc"], "eth_sendRawTransaction", [raw])
         rc = await self._evm_receipt(c, h)
         if not rc or int(rc.get("status") or "0x0", 16) != 1:
             raise BuyError("a autorização não confirmou: a venda não foi enviada, tente de novo (" + h + ")")
+
+    async def _p2_approve(self, c: dict, key: int, addr: str, q: dict, gp: int) -> None:
+        """Permit2 → Universal Router: só o valor desta venda, vencendo em 30 min."""
+        data = SEL_P2_APPROVE + evm.w_addr(q["token"]) + evm.w_addr(V4[q["rede"]]["ur"]) + evm.w_int(q["amount"]) + evm.w_int(int(time.time()) + P2_VALIDADE_S)
+        await self._evm_auth_tx(c, key, addr, PERMIT2, data, gp)
 
     async def _sell_evm(self, q: dict, wal: dict, secret: str) -> dict:
         c = CHAINS[q["rede"]]
@@ -1234,11 +1289,20 @@ class Buyer:
             raise BuyError("o gás mais que dobrou desde a cotação: nada foi enviado, peça outra cotação")
         gp = int(gp * c.get("gas_mult", 1.1))
         spender = self._spender(q)
+        v4 = q["route"]["tipo"] == "v4"
+        if v4:
+            self._v4_checked(q)                    # antes de qualquer autorização: pool conferido e roteador oficial
         allow = await self._erc20_word(c, q["token"], SEL_ALLOW + evm.w_addr(addr) + evm.w_addr(spender))
+        autorizou = False
         if allow < q["amount"]:
             if allow > 0:                          # USDT e parecidos recusam trocar autorização que não está em zero
                 await self._evm_approve(c, key, addr, q["token"], spender, 0, gp)
             await self._evm_approve(c, key, addr, q["token"], spender, q["amount"], gp)
+            autorizou = True
+        if v4 and not await self._p2_ok(c, q, addr):
+            await self._p2_approve(c, key, addr, q, gp)
+            autorizou = True
+        if autorizou:
             out = await self._sell_out(c, q["route"], q["amount"], q["token"])
             if out < q["min_out"]:                 # sobra autorização no roteador oficial, que só puxa de quem chama: nada a limpar
                 raise BuyError("o preço piorou durante a autorização: a venda não foi enviada, peça outra cotação")
@@ -1260,14 +1324,15 @@ class Buyer:
                 await self._sell_finish(row, status="falhou", motivo=str(e)[:160])
                 raise
             if rc:
-                return self._public_sell(await self._apply_sell_evm(row, rc, gp))
+                return self._public_sell(await self._apply_sell_evm(row, rc, gp, bal0=bal if v4 else None))
             await self._sell_finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
             return self._public_sell(row)
         return await self._early(rest()) or self._public_sell(row)
 
-    async def _apply_sell_evm(self, row: dict, rc: dict, gp: int | None = None) -> dict:
+    async def _apply_sell_evm(self, row: dict, rc: dict, gp: int | None = None, bal0: int | None = None) -> dict:
         c = CHAINS[row["rede"]]
-        gas = int(rc.get("gasUsed") or "0x0", 16) * int(rc.get("effectiveGasPrice") or hex(gp or 0), 16) / 1e18
+        gas_wei = int(rc.get("gasUsed") or "0x0", 16) * int(rc.get("effectiveGasPrice") or hex(gp or 0), 16)
+        gas = gas_wei / 1e18
         usd_n = float(row.get("nativo_usd") or 0)
         gas_usd = round(gas * usd_n, 4)
         if int(rc.get("status") or "0x0", 16) != 1:
@@ -1279,6 +1344,17 @@ class Buyer:
                 got += int(lg.get("data") or "0x0", 16)
             elif adr == row["token"] and len(tp) >= 3 and tp[0] == T_TRANSFER and tp[1][-40:].lower() == end:
                 sold += int(lg.get("data") or "0x0", 16)
+        if got <= 0 and row["rede"] in V4:
+            # 0.32.258: na V4 o ETH sai do PoolManager direto para a carteira, sem evento. A rede não guarda saldo antigo, então: saldo depois −
+            # saldo de antes do envio + gás (lido aqui mesmo); sem o saldo de antes (venda conferida depois), o valor do evento Swap do pool.
+            if bal0 is not None:
+                try:
+                    depois = int(await self.rpc(c["rpc"], "eth_getBalance", [row["endereco"], "latest"]) or "0x0", 16)
+                    got = max(0, depois - bal0 + gas_wei)
+                except BuyError:
+                    got = 0
+            if got <= 0:
+                got = v4_swap_eth(rc.get("logs") or [], V4[row["rede"]]["pm"])
         if got <= 0:
             return await self._sell_finish(row, status="confira", motivo=f"confirmada, mas o valor recebido não apareceu no recibo: confira em {c['nome']}", gas_usd=gas_usd)
         qty = sold / 10 ** int(row.get("casas") or 18) if sold else row.get("qty")

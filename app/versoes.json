@@ -2045,6 +2045,11 @@
    "versao": "0.32.257",
    "inicio": "2026-11-07T23:01:26+00:00",
    "titulo": "Dormant: compra pela Uniswap V4 e Pons na Robinhood e chave copiada para as redes novas"
+  },
+  {
+   "versao": "0.32.258",
+   "inicio": "2026-11-07T23:15:16+00:00",
+   "titulo": "Dormant: venda pela Uniswap V4 e Pons na Robinhood"
   }
  ]
 }
