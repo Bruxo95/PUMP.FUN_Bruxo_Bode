@@ -71,6 +71,14 @@ GT_AGAIN_S = 30 * 60                   # cada moeda é olhada de novo a cada ~30
 POOL_KEEP_S = 7 * 86400                # o pool principal do token é procurado de novo toda semana
 GT_PAUSE_S = 120
 ACORDOU_GAP_S = 6 * 3600               # acordou na blockchain: negociou agora depois de 6 h ou mais parada
+# 0.32.248 (pedido do dono): quanto movimentou em cada período. Conferido em 07/11/2026: a CoinGecko só dá 24 h (todas as corretoras); a
+# GeckoTerminal dá 1 h, 6 h e 24 h do pool, sem 12 h, e lê vários pools numa consulta. 12 h = 6 h de agora + 6 h de 6 h atrás. 7 e 30 dias = volume de 24 h
+# de cada dia (market_chart da CoinGecko, uma vez por moeda; depois a leitura de 20 min mantém o dia de hoje). Volume é compra + venda: não é dinheiro novo.
+PV_EVERY_S = 30                        # 1 consulta de lote a cada 30 s…
+PV_AGAIN_S = 600                       # …cada pool lido de novo a cada 10 min
+PV_LOTE = 20
+VD_EVERY_S = 30                        # histórico de 30 dias: 1 moeda a cada 30 s, uma vez só (≈ 660 consultas no total)
+VD_DIAS = 31
 CG_URL = re.compile(r"coingecko\.com/(?:[a-z-]+/)?coins/([a-z0-9-]+)", re.I)
 
 
@@ -200,6 +208,11 @@ class DormantWatch:
         self._next = 0.0
         self.loaded = False
         self.held: set[str] = set()                  # 0.32.242: moedas compradas continuam com preço mesmo se saírem da lista
+        self.pvol: dict[str, dict] = {}              # 0.32.248: id → volume do pool principal (1 h, 6 h, 24 h, negócios, fotos de 6 h)
+        self.voldays: dict[str, dict] = {}           # id → {dia: volume de 24 h}
+        self.volback: set[str] = set()               # moedas que já buscaram os 30 dias
+        self._pv_at = self._vd_at = 0.0
+        self._pv_n = self._vd_n = 0
 
     @staticmethod
     def _lista() -> list[dict]:
@@ -369,6 +382,10 @@ class DormantWatch:
                 await asyncio.sleep(2)
         now = time.time()
         self.rows.update(got)
+        dia = datetime.fromtimestamp(now, timezone.utc).strftime("%Y-%m-%d")
+        for cid, r in got.items():
+            if r.get("total_volume") is not None:
+                self.voldays.setdefault(cid, {})[dia] = r["total_volume"]
         self.pick = {}
         for cmc, cand in self.map.items():           # várias com o mesmo nome: vale a de maior valor de mercado
             ok = [c for c in cand if c in self.rows]
@@ -397,6 +414,7 @@ class DormantWatch:
             if st in ALERT_ON and old and old != st:
                 self.alertas.insert(0, {"t": now, "cmc": cmc, "id": cid, "nome": row.get("name"), "simbolo": (row.get("symbol") or "").upper(),
                                         "de": old, "para": st, "por": why, "preco": row.get("current_price"),
+                                        "vol24": row.get("total_volume"), "v1": (self.pvol.get(cid) or {}).get("h1"),
                                         "h1": row.get("price_change_percentage_1h_in_currency"),
                                         "h24": row.get("price_change_percentage_24h_in_currency")})
         del self.alertas[300:]
@@ -452,6 +470,10 @@ class DormantWatch:
                         self.gtpool = dict(v.get("p") or {})
                     elif r.get("k") == "chain":
                         self.chain = dict(v.get("c") or {})
+                    elif r.get("k") == "pvol":
+                        self.pvol = dict(v.get("p") or {})
+                    elif r.get("k") == "voldays":
+                        self.voldays, self.volback = dict(v.get("d") or {}), set(v.get("b") or [])
                 since = datetime.fromtimestamp(time.time() - 8 * 86400, timezone.utc).isoformat()
                 rows = await self.db.select("dormant_snap", None, order="t.asc", limit=24 * 8 + 5, gte={"t": since}) or []
                 self.snaps = [{"t": int(datetime.fromisoformat(str(r["t"]).replace("Z", "+00:00")).timestamp()), "d": r.get("dados") or {}} for r in rows]
@@ -478,6 +500,94 @@ class DormantWatch:
             self._next = now + EVERY_S
         else:
             await self.info_step(now)
+            await self.vol_step(now)
+
+    # ------------------------------------------------------------------ volume por período (0.32.248)
+    async def vol_step(self, now: float) -> None:
+        """Uma moeda por vez: volume de cada um dos últimos 30 dias, só na primeira vez."""
+        if now - self._vd_at < VD_EVERY_S:
+            return
+        cid = next((c for c in dict.fromkeys(self.pick.values()) if c not in self.volback), None)
+        if not cid:
+            return
+        self._vd_at = now
+        try:
+            r = await self.get(f"/coins/{cid}/market_chart", {"vs_currency": "usd", "days": "30"})
+        except RuntimeError:
+            raise                                  # pediu para esperar: tenta de novo depois, sem marcar
+        except Exception:
+            r = {}
+        d = self.voldays.setdefault(cid, {})
+        hoje = datetime.fromtimestamp(now, timezone.utc).strftime("%Y-%m-%d")
+        for p in (r.get("total_volumes") or []) if isinstance(r, dict) else []:
+            if p and p[1] is not None:
+                dia = datetime.fromtimestamp(p[0] / 1000, timezone.utc).strftime("%Y-%m-%d")
+                if dia != hoje or dia not in d:    # o mais novo de cada dia ganha; o de hoje é o da leitura de 20 min
+                    d[dia] = p[1]
+        for k in sorted(d)[:-VD_DIAS]:
+            del d[k]
+        self.volback.add(cid)
+        self._vd_n += 1
+        if self._vd_n % 20 == 0:
+            await self._put("voldays", {"d": self.voldays, "b": sorted(self.volback)})
+
+    async def pool_vol_step(self, now: float | None = None) -> int:
+        """Um lote de pools de uma rede. Devolve quantos leu."""
+        now = now or time.time()
+        if now < self._gt_pause:
+            return 0
+        due = [(float((self.pvol.get(c) or {}).get("t") or 0), c, g) for c, g in self.gtpool.items()
+               if g.get("pool") and now - float((self.pvol.get(c) or {}).get("t") or 0) >= PV_AGAIN_S]
+        if not due:
+            return 0
+        due.sort(key=lambda x: x[0])
+        net = due[0][2]["net"]
+        lote = [(c, g["pool"]) for _, c, g in due if g["net"] == net][:PV_LOTE]
+        r = await self.gt_get(f"/networks/{net}/pools/multi/" + ",".join(p for _, p in lote))
+        por = {}
+        for x in (r or {}).get("data") or []:
+            a = x.get("attributes") or {}
+            if a.get("address"):
+                por[str(a["address"]).lower()] = a
+
+        def num(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+        for cid, pool in lote:
+            a = por.get(str(pool).lower())
+            old = self.pvol.get(cid) or {}
+            if not a:
+                self.pvol[cid] = {**old, "t": now}  # sem resposta: não insiste antes da próxima volta
+                continue
+            v, tx = a.get("volume_usd") or {}, a.get("transactions") or {}
+            fotos = [f for f in old.get("s6") or [] if now - f[0] <= 7 * 3600]
+            h6 = num(v.get("h6"))
+            if h6 is not None and (not fotos or now - fotos[-1][0] >= 3600):
+                fotos.append([now, h6])
+            self.pvol[cid] = {"t": now, "h1": num(v.get("h1")), "h6": h6, "h24": num(v.get("h24")), "s6": fotos, "liq": num(a.get("reserve_in_usd")),
+                              "tx1": [(tx.get("h1") or {}).get("buys"), (tx.get("h1") or {}).get("sells")], "tx24": [(tx.get("h24") or {}).get("buys"), (tx.get("h24") or {}).get("sells")]}
+        self._pv_n += 1
+        if self._pv_n % 60 == 0:                   # ~30 min
+            await self._put("pvol", {"p": self.pvol})
+        return len(lote)
+
+    @staticmethod
+    def v12(p: dict, now: float) -> float | None:
+        """12 h = 6 h de agora + a foto de 6 h tirada há cerca de 6 h (entre 5 h 20 e 6 h 40). Sem essa foto ainda, não inventa."""
+        if p.get("h6") is None:
+            return None
+        velhas = [f for f in p.get("s6") or [] if 19200 <= now - f[0] <= 24000]
+        if not velhas:
+            return None
+        return p["h6"] + min(velhas, key=lambda f: abs(now - f[0] - 21600))[1]
+
+    def vols(self, cid: str | None, now: float) -> dict:
+        p, d = self.pvol.get(cid) or {}, self.voldays.get(cid) or {}
+        dias = [d[k] for k in sorted(d)]
+        return {"v1": p.get("h1"), "v6": p.get("h6"), "v12": self.v12(p, now), "pv24": p.get("h24"), "tx1": p.get("tx1"), "tx24": p.get("tx24"), "liq": p.get("liq"), "pv_t": p.get("t"),
+                "v7d": round(sum(dias[-7:]), 2) if len(dias) >= 7 else None, "v30d": round(sum(dias[-30:]), 2) if len(dias) >= 25 else None}
 
     # ------------------------------------------------------------------ últimas ações na blockchain (0.32.229)
     def target(self, cid: str) -> tuple[str, str, str] | None:
@@ -563,7 +673,7 @@ class DormantWatch:
                                     "por": [f"{tr[0]['kind']} de ${tr[0]['usd']:.0f} na {chain_name(ch)}" +
                                             (f" depois de {gap / 3600:.0f} h sem negócio" if gap and gap < 400 * 86400 else " depois de mais de 24 h sem negócio")],
                                     "preco": row.get("current_price"), "h1": row.get("price_change_percentage_1h_in_currency"),
-                                    "h24": row.get("price_change_percentage_24h_in_currency")})
+                                    "h24": row.get("price_change_percentage_24h_in_currency"), "vol24": row.get("total_volume"), "v1": (self.pvol.get(cid) or {}).get("h1")})
             del self.alertas[300:]
             await self._put("alertas", {"a": self.alertas[:300]})
         self.chain[cid] = novo
@@ -576,7 +686,11 @@ class DormantWatch:
     async def gt_loop(self) -> None:
         while True:
             try:
-                await asyncio.wait_for(self.gt_step(), 90)
+                if time.time() - self._pv_at >= PV_EVERY_S:
+                    self._pv_at = time.time()
+                    await asyncio.wait_for(self.pool_vol_step(), 60)
+                else:
+                    await asyncio.wait_for(self.gt_step(), 90)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
@@ -621,7 +735,7 @@ class DormantWatch:
                   "chains": [chain_name(p) for p in (self.plat.get(cid) or [])[:6]], "cats": (self.info.get(cid) or {}).get("cats") or [],
                   "add_por": ex.get("por") or "watchlist da CoinMarketCap", "add_t": ex.get("t"), "extra": bool(ex),
                   "bc": self.chain.get(cid) if cid else None, "bc_alvo": bool(cid and self.target(cid)), "rede_propria": ch == PROPRIA,
-                  "comprar": buyable(self, cid)}
+                  "comprar": buyable(self, cid), **self.vols(cid, time.time())}
             if row:
                 it.update(nome=row.get("name") or m["nome"], simbolo=(row.get("symbol") or "").upper(), img=row.get("image"),
                           preco=row.get("current_price"), mcap=row.get("market_cap"), rank=row.get("market_cap_rank"),
@@ -726,6 +840,7 @@ class DormantWatch:
                            "com_info": sum(1 for c in set(self.pick.values()) if c in self.info),
                            "pausa_s": max(0, round(self._pause_until - time.time())), "proxima_s": max(0, round(self._next - time.time())),
                            "a_cada_min": EVERY_S // 60},
+                "volume": {"pools": sum(1 for m in moedas if m.get("pv_t")), "dias_ok": sum(1 for m in moedas if m.get("v30d") is not None), "a_cada_min": PV_AGAIN_S // 60},
                 "contagem": cont, "moedas": moedas, "alertas": self.alertas[:100]}
 
 

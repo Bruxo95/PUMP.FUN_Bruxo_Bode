@@ -1995,6 +1995,11 @@
    "versao": "0.32.247",
    "inicio": "2026-11-06T23:40:47+00:00",
    "titulo": "Dormant: aba API exchanges, compra mais rápida e Minhas compras em cartões"
+  },
+  {
+   "versao": "0.32.248",
+   "inicio": "2026-11-07T09:43:47+00:00",
+   "titulo": "Dormant: Live volume, Favoritas e aviso de transação enviada"
   }
  ]
 }

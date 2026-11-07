@@ -161,7 +161,7 @@ class GasFiller:
         if gasto + usd > cfg["gas_dia_usd"]:
             bloq.append(f"passa do seu limite de gás em 24 h (${cfg['gas_dia_usd']:g}; já foram ${gasto:.2f})")
         if await b.pending_on(uid, origem):
-            bloq.append("há uma operação sem confirmação nesta rede: espere ela terminar")
+            bloq.append("há uma operação sem confirmação nesta rede: espere ela terminar (veja Abastecimentos de gás, nesta tela)")
         un, ud = await b.native_usd(origem), await b.native_usd(destino)
         if not un or not ud:
             raise BuyError("sem a cotação em dólar das duas moedas agora: tente de novo em instantes")
@@ -243,34 +243,37 @@ class GasFiller:
             row = {"id": uuid.uuid4().hex, "user_id": uid, "em": _iso(time.time()), "rede": q["origem"], "destino": q["destino"], "endereco": addr, "recebedor": q["rec"], "nativo": q["value"] / 1e18,
                    "nativo_usd": q["usd_n"], "usd_in": q["usd"], "saida": nova["saida"], "saida_usd": q["ud"], "request_id": nova["request_id"], "tx": h, "status": "enviando"}
             await b.db.insert("dormant_gas", row)      # grava ANTES de enviar, como na compra
-            try:
-                await b.rpc(c["rpc"], "eth_sendRawTransaction", [raw])
-            except BuyError as e:
-                if "known" not in str(e).lower() and "already" not in str(e).lower():
-                    await self._finish(row, status="falhou", motivo="envio recusado: " + str(e)[:160])
-                    raise
-            from .dormant_buy import RECIBO_S
-            t0, rc = time.monotonic(), None
-            while time.monotonic() - t0 < RECIBO_S and not rc:
-                await asyncio.sleep(ENTREGA_PASSO)
+
+            async def rest():
                 try:
-                    rc = await b.rpc(c["rpc"], "eth_getTransactionReceipt", [h])
-                except BuyError:
-                    rc = None
-            if not rc:
-                await self._finish(row, status="pendente", motivo="depósito sem confirmação em 90 s")
+                    await b.rpc(c["rpc"], "eth_sendRawTransaction", [raw])
+                except BuyError as e:
+                    if "known" not in str(e).lower() and "already" not in str(e).lower():
+                        await self._finish(row, status="falhou", motivo="envio recusado: " + str(e)[:160])
+                        raise
+                from .dormant_buy import RECIBO_S
+                t0, rc = time.monotonic(), None
+                while time.monotonic() - t0 < RECIBO_S and not rc:
+                    await asyncio.sleep(ENTREGA_PASSO)
+                    try:
+                        rc = await b.rpc(c["rpc"], "eth_getTransactionReceipt", [h])
+                    except BuyError:
+                        rc = None
+                if not rc:
+                    await self._finish(row, status="pendente", motivo="depósito sem confirmação em 90 s")
+                    return self._public(row)
+                g = int(rc.get("gasUsed") or "0x0", 16) * int(rc.get("effectiveGasPrice") or hex(gp), 16) / 1e18
+                if int(rc.get("status") or "0x0", 16) != 1:
+                    await self._finish(row, status="falhou", motivo="o depósito falhou na rede (só o gás foi gasto)", gas_usd=round(g * q["usd_n"], 4))
+                    return self._public(row)
+                await self._finish(row, status="pendente", motivo="depositado: esperando a entrega", gas_usd=round(g * q["usd_n"], 4))
+                t0 = time.monotonic()
+                while time.monotonic() - t0 < ENTREGA_S:
+                    await asyncio.sleep(ENTREGA_PASSO)
+                    if await self._check_delivery(row):
+                        break
                 return self._public(row)
-            g = int(rc.get("gasUsed") or "0x0", 16) * int(rc.get("effectiveGasPrice") or hex(gp), 16) / 1e18
-            if int(rc.get("status") or "0x0", 16) != 1:
-                await self._finish(row, status="falhou", motivo="o depósito falhou na rede (só o gás foi gasto)", gas_usd=round(g * q["usd_n"], 4))
-                return self._public(row)
-            await self._finish(row, status="pendente", motivo="depositado: esperando a entrega", gas_usd=round(g * q["usd_n"], 4))
-            t0 = time.monotonic()
-            while time.monotonic() - t0 < ENTREGA_S:
-                await asyncio.sleep(ENTREGA_PASSO)
-                if await self._check_delivery(row):
-                    break
-            return self._public(row)
+            return await b._early(rest()) or self._public(row)
 
     async def _check_delivery(self, row: dict) -> bool:
         """Pergunta à Relay como está. True quando acabou (entregue, devolvido ou falhou)."""

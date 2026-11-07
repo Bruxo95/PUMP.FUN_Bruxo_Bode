@@ -89,6 +89,7 @@ PENDENTE_S = 15 * 60              # compra sem confirmação segura outra na mes
 EXPIRA_S = 6 * 3600               # sem nada depois disso: marca como não confirmada
 RECIBO_S = 90
 RECIBO_PASSO = 3
+RESPOSTA_S = 8                    # 0.32.248: a tela recebe "enviada" depois disto; a confirmação segue por trás e a tela acompanha (o dono achou que tinha falhado)
 PUBLICO_APOS_S = 30               # a MESMA transação assinada: mesmo hash, não compra duas vezes, e a folga de preço continua valendo
 PRECO_AVISO, PRECO_BLOQ = 10.0, 25.0     # % pagando acima da CoinGecko
 IMPACTO_AVISO, IMPACTO_BLOQ = 10.0, 25.0  # % que a própria compra move o preço (pool pequeno)
@@ -290,6 +291,22 @@ class Buyer:
 
     def lock(self, uid: str) -> asyncio.Lock:
         return self._locks.setdefault(uid, asyncio.Lock())
+
+    async def _early(self, coro):
+        """Devolve o resultado se ficar pronto em RESPOSTA_S; senão None, e o trabalho continua até terminar (a linha no banco é atualizada)."""
+        task = asyncio.ensure_future(coro)
+        bg = self.__dict__.setdefault("_bg", set())
+        bg.add(task)
+
+        def done(t):
+            bg.discard(t)
+            if not t.cancelled() and t.exception() is not None and not isinstance(t.exception(), BuyError):
+                log.error("Dormant: acompanhamento da transação parou: %s", type(t.exception()).__name__)
+        task.add_done_callback(done)
+        try:
+            return await asyncio.wait_for(asyncio.shield(task), RESPOSTA_S)
+        except asyncio.TimeoutError:
+            return None
 
     # ------------------------------------------------------------------ rede
     async def rpc(self, url: str, method: str, params: list):
@@ -667,15 +684,17 @@ class Buyer:
         row = self._row(q, wal, h, rt["dex"], rt["rota"])
         await self.db.insert("dormant_buys", row)
         self.watch.held.add(q["cg"])
-        try:
-            rc = await self._evm_send(c, raw, h)
-        except BuyError as e:
-            await self._finish(row, status="falhou", motivo=str(e)[:160])
-            raise
-        if rc:
-            return self._public(await self._apply_evm(row, rc, gp))
-        await self._finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
-        return self._public(row)
+        async def rest():
+            try:
+                rc = await self._evm_send(c, raw, h)
+            except BuyError as e:
+                await self._finish(row, status="falhou", motivo=str(e)[:160])
+                raise
+            if rc:
+                return self._public(await self._apply_evm(row, rc, gp))
+            await self._finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
+            return self._public(row)
+        return await self._early(rest()) or self._public(row)
 
     async def _evm_send(self, c: dict, raw: str, h: str) -> dict | None:
         """Envia e espera o recibo. Primeiro pelo caminho protegido, se a rede tiver; sem entrar a tempo, a mesma transação vai para a fila pública."""
@@ -755,16 +774,18 @@ class Buyer:
         row = self._row(q, wal, sig, "Jupiter", " → ".join(labels[:4]))
         await self.db.insert("dormant_buys", row)
         self.watch.held.add(q["cg"])
-        s, st, err = await jw._send_and_confirm(raw)
-        if st == "pendente":
-            st, err = await txguard.reconcile(jw._rpc, s or sig, blockhash)
-        if st == "confirmada":
-            return self._public(await self._apply_sol(row))
-        if st == "pendente":
-            await self._finish(row, status="pendente", motivo=(err or "")[:160])
-            return self._public(row)
-        await self._finish(row, status="falhou", motivo=(err or st)[:160])
-        raise BuyError("a compra não entrou: " + (err or st)[:160])
+        async def rest():
+            s, st, err = await jw._send_and_confirm(raw)
+            if st == "pendente":
+                st, err = await txguard.reconcile(jw._rpc, s or sig, blockhash)
+            if st == "confirmada":
+                return self._public(await self._apply_sol(row))
+            if st == "pendente":
+                await self._finish(row, status="pendente", motivo=(err or "")[:160])
+                return self._public(row)
+            await self._finish(row, status="falhou", motivo=(err or st)[:160])
+            raise BuyError("a compra não entrou: " + (err or st)[:160])
+        return await self._early(rest()) or self._public(row)
 
     async def _apply_sol(self, row: dict) -> dict:
         tx = None
@@ -1058,15 +1079,17 @@ class Buyer:
         rt = q["route"]
         row = self._sell_row(q, wal, h, rt["dex"], rt["rota"])
         await self.db.insert("dormant_sells", row)      # grava ANTES de enviar, como na compra
-        try:
-            rc = await self._evm_send(c, raw, h)
-        except BuyError as e:
-            await self._sell_finish(row, status="falhou", motivo=str(e)[:160])
-            raise
-        if rc:
-            return self._public_sell(await self._apply_sell_evm(row, rc, gp))
-        await self._sell_finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
-        return self._public_sell(row)
+        async def rest():
+            try:
+                rc = await self._evm_send(c, raw, h)
+            except BuyError as e:
+                await self._sell_finish(row, status="falhou", motivo=str(e)[:160])
+                raise
+            if rc:
+                return self._public_sell(await self._apply_sell_evm(row, rc, gp))
+            await self._sell_finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
+            return self._public_sell(row)
+        return await self._early(rest()) or self._public_sell(row)
 
     async def _apply_sell_evm(self, row: dict, rc: dict, gp: int | None = None) -> dict:
         c = CHAINS[row["rede"]]
@@ -1114,16 +1137,18 @@ class Buyer:
         labels = [((x.get("swapInfo") or {}).get("label") or "?") for x in (jq.get("routePlan") or [])]
         row = self._sell_row(q, wal, sig, "Jupiter", " → ".join(labels[:4]))
         await self.db.insert("dormant_sells", row)
-        s, st, err = await jw._send_and_confirm(raw)
-        if st == "pendente":
-            st, err = await txguard.reconcile(jw._rpc, s or sig, blockhash)
-        if st == "confirmada":
-            return self._public_sell(await self._apply_sell_sol(row))
-        if st == "pendente":
-            await self._sell_finish(row, status="pendente", motivo=(err or "")[:160])
-            return self._public_sell(row)
-        await self._sell_finish(row, status="falhou", motivo=(err or st)[:160])
-        raise BuyError("a venda não entrou: " + (err or st)[:160])
+        async def rest():
+            s, st, err = await jw._send_and_confirm(raw)
+            if st == "pendente":
+                st, err = await txguard.reconcile(jw._rpc, s or sig, blockhash)
+            if st == "confirmada":
+                return self._public_sell(await self._apply_sell_sol(row))
+            if st == "pendente":
+                await self._sell_finish(row, status="pendente", motivo=(err or "")[:160])
+                return self._public_sell(row)
+            await self._sell_finish(row, status="falhou", motivo=(err or st)[:160])
+            raise BuyError("a venda não entrou: " + (err or st)[:160])
+        return await self._early(rest()) or self._public_sell(row)
 
     async def _apply_sell_sol(self, row: dict) -> dict:
         tx = None

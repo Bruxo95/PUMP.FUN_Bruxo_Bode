@@ -101,6 +101,10 @@
   .cpc .g small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}.cpc .g b{font-family:var(--mono);font-size:13px;font-weight:600;overflow-wrap:anywhere}
   .cpc .f{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}.cpc .f .sp{flex:1}.cpc .f .dmbuy{margin-top:0}
   .cpempty{color:var(--muted);padding:10px 0}
+  /* 0.32.248: estrela de favorita */
+  .dmstar{background:none;border:0;padding:0 2px;margin:0;cursor:pointer;color:var(--muted);font-size:17px;line-height:1;flex:0 0 auto}
+  .dmstar:hover{color:#facc15}.dmstar.on{color:#facc15}
+  .dmvsel{color:#a78bfa;font-weight:700}
   .buymax{display:flex;gap:8px;align-items:stretch}.buymax input{flex:1 1 auto;min-width:0}.buymax .btn{flex:0 0 auto}
   .buyusd{font-size:13px;margin-top:4px;min-height:18px}
   .dmbuy.sell{background:none;color:#ef4444;border-color:#ef4444}.dmbuy.sell:hover{background:rgba(239,68,68,.12)}
@@ -119,6 +123,8 @@
       <a href="#moedas" data-v="moedas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>Moedas</a>
       <a href="#grupos" data-v="grupos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>Por blockchain</a>
       <a href="#config" data-v="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Lista e regras</a>
+      <a href="#volume" data-v="volume"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Live volume</a>
+      <a href="#favoritas" data-v="favoritas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.3-5.5-3-5.5 3 1-6.3L3 9.700l6.200-.9z"/></svg>Favoritas</a>
       <a href="#carteiras" data-v="carteiras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="14" r="1.2"/></svg>Carteiras e compra</a>
       <a href="#compras" data-v="compras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-9"/><path d="M15 7h5v5"/></svg>Minhas compras</a>
       <a href="#exchanges" data-v="exchanges"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg>API exchanges</a>
@@ -206,6 +212,19 @@
           <div class="dmwals" id="wList"></div></div>
         <div class="card"><header><div><h2>Abastecimentos de gás</h2><div class="sub">pela ponte Relay, sempre para uma carteira sua · a taxa aparece antes, calculada com o preço da CoinGecko</div></div></header>
           <div class="tbl-wrap"><table id="wGasT"></table></div></div>
+      </section>
+      <section class="view" data-view="volume" hidden>
+        <div class="dmbar"><div class="seg" id="vPer"></div><input class="in" id="vQ" type="search" placeholder="Buscar moeda" aria-label="Buscar moeda"></div>
+        <div class="card"><header><div><h2 id="vH">Mais movimentadas</h2><div class="sub" id="vSub"></div></div></header>
+          <div class="tbl-wrap"><table id="vT"></table></div>
+          <details class="keyhow" style="margin-top:10px"><summary>De onde vem cada número</summary><div class="help">
+            <p><b>Volume é tudo o que foi negociado, compras e vendas somadas.</b> Não é dinheiro novo entrando: se alguém vende $1 mil e outro compra, o volume sobe $1 mil e nada entrou. Por isso a coluna Negócios mostra quantas compras e vendas houve.</p>
+            <p><b>1 h e 6 h:</b> só o pool principal da moeda na DEX (GeckoTerminal), lido a cada 10 min. Moeda que é a própria rede ou que só existe em exchange fica sem esse número.</p>
+            <p><b>12 h:</b> nenhuma fonte grátis entrega pronto. É o volume de 6 h de agora somado ao de 6 h atrás, então só aparece depois de 6 h de coleta.</p>
+            <p><b>24 h, 7 e 30 dias:</b> todas as corretoras e DEXs (CoinGecko), por isso costuma ser maior que a soma do pool. O valor pequeno embaixo do de 24 h é só o pool principal.</p></div></details></div>
+      </section>
+      <section class="view" data-view="favoritas" hidden>
+        <div class="card"><header><div><h2>Favoritas</h2><div class="sub" id="fvSub"></div></div></header><div class="tbl-wrap"><table id="fvT"></table></div></div>
       </section>
       <section class="view" data-view="exchanges" hidden>
         <div class="card dmwarn"><header><div><h2>Crie a chave SEM permissão de saque</h2></div></header><div class="help">

@@ -287,6 +287,38 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"ok": True, "compra": r}
         return await run(go())
 
+    @app.get("/api/dormant/gas/historico")
+    async def gas_hist(u: dict = Depends(own)):
+        async def go():
+            return {"historico": await GasFiller(buyer()).history(u["id"])}
+        return await run(go())
+
+    # 0.32.248: moedas favoritas de cada conta
+    @app.get("/api/dormant/favoritas")
+    async def favs(u: dict = Depends(own)):
+        async def go():
+            rows = await db.select("dormant_favs", {"user_id": u["id"]}, columns="cmc", limit=1000) or []
+            return {"favoritas": [r["cmc"] for r in rows]}
+        return await run(go())
+
+    @app.post("/api/dormant/favoritas")
+    async def fav_set(body: dict, u: dict = Depends(own)):
+        async def go():
+            w = get_watch()
+            b = body if isinstance(body, dict) else {}
+            key = str(b.get("key") or "")[:200]
+            if b.get("on") is True:
+                if w is None or not any(x["cmc"] == key for x in w.todas()):
+                    raise BuyError("esta moeda não está na lista")
+                n = await db.select("dormant_favs", {"user_id": u["id"]}, columns="cmc", limit=1000) or []
+                if len(n) >= 500:
+                    raise BuyError("limite de 500 favoritas")
+                await db.insert("dormant_favs", {"user_id": u["id"], "cmc": key}, upsert=True, on_conflict="user_id,cmc")
+            else:
+                await db.delete("dormant_favs", {"user_id": u["id"], "cmc": key})
+            return {"ok": True}
+        return await run(go())
+
     @app.get("/api/dormant/compras")
     async def buy_hist(u: dict = Depends(own)):
         return await run(buyer().history(u["id"]))
