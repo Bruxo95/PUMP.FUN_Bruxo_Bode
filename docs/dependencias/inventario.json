@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-08",
     "timezone": "Europe/Dublin",
-    "repository_reference": "b43ad7ea7734f42132576bd4648e76a871d34271",
-    "application_version": "0.32.259 · 2026-11-08 · Dormant: Alertas mostram o 24 h da hora do alerta e o de agora",
+    "repository_reference": "e276b3597aed24f0084ac46769517c1bd884b217",
+    "application_version": "0.32.260 · 2026-11-08 · Dormant: Alertas com uma linha por moeda e números de agora",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "beb3ddc332aa9ba5a5d944b4a966239a596d7e1b7a34874df758b9880573dd7f",
+      "app/version.py": "9c5dc4c2dc5536ca2bcfc8af9f9ed1756d6f5bdfe1c8923e18c716cc1b6449f3",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "72ac76b5b7be9877c4e139124d75cd62f5ba64981092025ec2d4a294e7ca4ad8"
+  "pdf_sha256": "3590e21ff11b023c3ad69073c7ab94c8d42b775ee1f2d65252f10465663cf3e8"
 }

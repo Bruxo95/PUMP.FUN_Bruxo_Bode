@@ -186,12 +186,19 @@
     const ex = M().filter((m) => m.extra).length;
     $("ovAddN").textContent = num(M().length, 0) + " moedas vigiadas" + (ex ? " · " + ex + " adicionadas na tela" : "");
     const byKey = {}; M().forEach((m) => { byKey[m.cmc] = m; });
-    // 0.32.259 (caso DGB do dono, 08/11/2026): 1 h e 24 h são os números da hora do alerta (DGB +18.2% às 03:02, conferido no gráfico da
-    // CoinGecko); a página da CoinGecko mostra o de agora (+7.2%). Sem dizer isso parecia erro, então a coluna diz e "24 h agora" fica ao lado.
-    table("ovAl", ["Quando", "Moeda", "Virou", "1 h no alerta", "24 h no alerta", "24 h agora", "Movimentou 1 h", "Movimentou 24 h", "Por quê"], ((R && R.alertas) || []).slice(0, 50).map((a) => { const m = byKey[a.cmc] || {}, v1 = a.v1 != null ? a.v1 : m.v1, v24 = a.vol24 != null ? a.vol24 : m.vol; return [V(hora(a.t), a.t),
-      V('<span class="dmcoin">' + star(a.cmc) + '<b data-dmcoin="' + esc(a.cmc) + '">' + esc(a.nome || a.cmc) + "</b></span> <small class=\"muted\">" + esc(a.simbolo || "") + "</small>", a.nome || a.cmc),
-      V(tag(a.para) + ' <small class="muted">era ' + esc(ST[a.de] || a.de) + "</small>", a.para), V(pc(a.h1), a.h1), V(pc(a.h24), a.h24), V(pc(m.h24), m.h24), V(usd(v1), v1), V(usd(v24), v24),
-      '<small class="muted">' + esc((a.por || []).join(" · ")) + "</small>"]; }), "Nenhum alerta ainda. Eles aparecem quando uma moeda muda para pump, dump ou acordando.");
+    // 0.32.260 (pedido do dono, 08/11/2026): uma linha por moeda e 1 h / 24 h de AGORA (iguais à CoinGecko). Antes cada alerta era uma linha
+    // com o número da hora dele (DGB +18.2% às 03:02, +7.2% agora): a mesma moeda aparecia 3×, com pump e dump ao mesmo tempo. O que ela teve
+    // fica em "O que aconteceu" (hora, para o que virou e quanto mexia naquela hora).
+    const grp = {}, ord = [];
+    ((R && R.alertas) || []).forEach((a) => { if (!grp[a.cmc]) { grp[a.cmc] = []; ord.push(a.cmc); } grp[a.cmc].push(a); });
+    const hev = (a) => tag(a.para) + ' <small class="muted">' + esc(hora(a.t)) + (a.h1 != null ? " · " + pc(a.h1) + " em 1 h" : "") + (a.h24 != null ? " · " + pc(a.h24) + " em 24 h" : "") + "</small>";
+    table("ovAl", ["Último alerta", "Moeda", "Agora", "1 h agora", "24 h agora", "Movimentou 1 h", "Movimentou 24 h", "O que aconteceu"], ord.slice(0, 50).map((k) => {
+      const L = grp[k], a = L[0], m = byKey[k] || {}, v1 = m.v1 != null ? m.v1 : a.v1, v24 = m.vol != null ? m.vol : a.vol24, st = m.status || a.para;
+      return [V(hora(a.t), a.t),
+        V('<span class="dmcoin">' + star(k) + '<b data-dmcoin="' + esc(k) + '">' + esc(m.nome || a.nome || k) + "</b></span> <small class=\"muted\">" + esc(m.simbolo || a.simbolo || "") + "</small>", m.nome || a.nome || k),
+        V(tag(st), stV(st)), V(pc(m.h1), m.h1), V(pc(m.h24), m.h24), V(usd(v1), v1), V(usd(v24), v24),
+        '<div class="dmhist">' + L.slice(0, 4).map((x) => "<div>" + hev(x) + "</div>").join("") + (L.length > 4 ? '<small class="muted">+' + (L.length - 4) + " alertas antes</small>" : "") +
+          (a.por && a.por.length ? '<small class="muted">' + esc(a.por.join(" · ")) + "</small>" : "") + "</div>"]; }), "Nenhum alerta ainda. Eles aparecem quando uma moeda muda para pump, dump ou acordando.");
     const vivas = M().filter((m) => m.h24 != null && m.status !== "parada");
     const up = vivas.slice().sort((a, b) => b.h24 - a.h24).slice(0, 8), dn = vivas.slice().sort((a, b) => a.h24 - b.h24).slice(0, 8);
     table("ovMv", ["Moeda", "24 h", "7 dias", "Situação"], up.concat(dn).map((m) => [V(coin(m), m.nome), V(pc(m.h24), m.h24), V(pc(m.d7), m.d7), V(tag(m.status), stV(m.status))]), "A primeira leitura ainda não terminou.");

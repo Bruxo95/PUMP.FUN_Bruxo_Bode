@@ -2055,6 +2055,11 @@
    "versao": "0.32.259",
    "inicio": "2026-11-08T07:36:04+00:00",
    "titulo": "Dormant: Alertas mostram o 24 h da hora do alerta e o de agora"
+  },
+  {
+   "versao": "0.32.260",
+   "inicio": "2026-11-08T07:52:43+00:00",
+   "titulo": "Dormant: Alertas com uma linha por moeda e números de agora"
   }
  ]
 }
