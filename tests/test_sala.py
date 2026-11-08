@@ -18,7 +18,10 @@ def test_pagina_sala_abre_sem_script_inline(env):
 def test_botao_sala_ao_lado_de_trocar_rede():
     html = open(os.path.join(WEB, "app.html"), encoding="utf-8").read()
     i = html.index('id="menuHub"')
-    assert 'id="menuSala" href="/sala"' in html[i:i + 1200]
+    assert 'id="menuSala" data-link href="/sala"' in html[i:i + 1200]
+    # 0.32.267: o menu de redes (common.js) abre em todo .hubbtn; o Sala tem data-link para ficar de fora
+    cjs = open(os.path.join(WEB, "common.js"), encoding="utf-8").read()
+    assert '.hubbtn:not([data-link])' in cjs
 
 
 def test_sala_so_le_os_dados_e_nao_manda_ordem():

@@ -182,7 +182,8 @@
     netPop = d;
   }
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest && e.target.closest(".hubbtn");
+    // 0.32.267: o botão Sala usa o mesmo visual (.hubbtn) mas é só um link para /sala; não abre o menu de redes
+    const btn = e.target.closest && e.target.closest(".hubbtn:not([data-link])");
     if (btn) { e.preventDefault(); if (netPop) netClose(); else netOpen(btn); return; }
     if (netPop && !netPop.contains(e.target)) netClose();
   });

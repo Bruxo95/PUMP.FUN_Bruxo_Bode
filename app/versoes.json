@@ -2090,6 +2090,11 @@
    "versao": "0.32.266",
    "inicio": "2026-11-08T19:59:18+00:00",
    "titulo": "Sala ao vivo (trader em pixel art)"
+  },
+  {
+   "versao": "0.32.267",
+   "inicio": "2026-11-08T20:09:31+00:00",
+   "titulo": "Botão Sala abre a Sala"
   }
  ]
 }
