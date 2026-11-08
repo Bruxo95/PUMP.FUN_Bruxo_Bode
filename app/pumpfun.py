@@ -1239,31 +1239,43 @@ class PumpFun:
             return True
         return self.needs_proof(who)
 
+    PROOF_WINDOW_S = 24 * 3600
+
     def proven_wallets(self) -> set:
-        """0.32.251: carteiras com pelo menos uma cópia FICTÍCIA fechada com lucro (depois das taxas). Recalculado só quando
-        muda o número de trades guardados."""
+        """0.32.251: carteiras com uma cópia FICTÍCIA fechada com lucro (depois das taxas).
+        0.32.265 (pedido do dono): só valem as fechadas nas últimas 24 h — a cada 24 h a prova recomeça. Recalculado quando muda
+        o número de trades guardados ou a cada minuto."""
         tr = self.store.trades(100000)
-        key = (len(tr), tr[0].get("id") if tr else None)
+        now = time.time()
+        key = (len(tr), tr[0].get("id") if tr else None, int(now // 60))
         if getattr(self, "_proven_key", None) != key:
-            self._proven = {t.get("wallet") for t in tr if not t.get("real") and not t.get("follow_of")
-                            and float(t.get("pnl_sol") or 0) > 0 and t.get("wallet")}
-            self._proven_key = key
+            cut = now - self.PROOF_WINDOW_S
+            out = set()
+            for t in tr:
+                if t.get("real") or t.get("follow_of") or not t.get("wallet") or float(t.get("pnl_sol") or 0) <= 0:
+                    continue
+                try:
+                    ct = datetime.fromisoformat(str(t.get("closed_at")).replace("Z", "+00:00")).timestamp()
+                except ValueError:
+                    continue
+                if ct >= cut:
+                    out.add(t["wallet"])
+            self._proven, self._proven_key = out, key
         return self._proven
 
     def needs_proof(self, who: str) -> bool:
         """0.32.251 (pedido do dono, caso Fvgs…pTkL: carteira com 59 SOL fez uma compra de 0,01 SOL e se esvaziou logo depois):
-        trader do Top traders que nunca deu lucro copiado vai SÓ para a fictícia; a partir da cópia seguinte a uma cópia
-        fictícia fechada com lucro, vai também para a REAL. Fica fora quem você pôs na lista manual."""
+        trader sem cópia fictícia com lucro vai SÓ para a fictícia; depois de uma cópia fictícia fechada com lucro, as seguintes
+        vão também para a REAL. 0.32.265 (pedido do dono): o lucro tem que ser das últimas 24 h, e a regra vale também para
+        os traders da lista manual."""
         if not getattr(self.cfg, "pump_real_need_win", True) or not who or len(who) < 32:
-            return False
-        if who in (getattr(self, "manual", None) or []):
             return False
         return who not in self.proven_wallets()
 
     def sim_only_why(self, who: str) -> str:
         if self.needs_proof(who) and not (who in (getattr(self, "study", None) or []) or who in self.study_copy_wallets()
                                           or who in (getattr(self, "sim_only_list", None) or []) or who in self.study_lucro_wallets()):
-            return ("trader novo: a cópia fica só na fictícia até uma cópia fictícia dele fechar com lucro "
+            return ("sem cópia fictícia com lucro nas últimas 24 h: fica só na fictícia até uma fechar com lucro "
                     "(Carteiras → REAL → \"REAL só depois de lucro na fictícia\")")
         """0.32.162: por que esta carteira copia só na fictícia (o texto aparece no feed e nas Operações recentes do modo REAL)."""
         if who in (getattr(self, "sim_only_list", None) or []):

@@ -2080,6 +2080,11 @@
    "versao": "0.32.264",
    "inicio": "2026-11-08T10:13:03+00:00",
    "titulo": "Dormant: compra sem o campo Digite COMPRAR"
+  },
+  {
+   "versao": "0.32.265",
+   "inicio": "2026-11-08T10:44:32+00:00",
+   "titulo": "Prova da REAL: lucro nas últimas 24 h, também para manuais"
   }
  ]
 }

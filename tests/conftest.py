@@ -20,3 +20,15 @@ def _real_sem_idade_minima(monkeypatch, request):
     from app import settings
     monkeypatch.setitem(settings.USER_KEYS, "pump_real_min_age_min", (float, 0.0, 0.0, 10080.0))
     yield
+
+
+@pytest.fixture(autouse=True)
+def _real_sem_prova(monkeypatch, request):
+    """0.32.265: a prova "REAL só depois de lucro na fictícia" vale também para a lista manual; os testes antigos da REAL
+    usam carteiras manuais sem histórico, então nela a prova fica desligada. O teste da regra usa o padrão."""
+    if "test_real_prova" in request.node.nodeid:
+        yield
+        return
+    from app import settings
+    monkeypatch.setitem(settings.USER_KEYS, "pump_real_need_win", (bool, False, 0, 1))
+    yield

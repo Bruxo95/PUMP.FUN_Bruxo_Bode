@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.264 · 2026-11-08 · Dormant: compra sem o campo Digite COMPRAR"
+VERSION = "0.32.265 · 2026-11-08 · Prova da REAL: lucro nas últimas 24 h, também para manuais"
