@@ -2075,6 +2075,11 @@
    "versao": "0.32.263",
    "inicio": "2026-11-08T10:04:03+00:00",
    "titulo": "Dormant: dono que muda o saldo vira aviso com confirmação extra"
+  },
+  {
+   "versao": "0.32.264",
+   "inicio": "2026-11-08T10:13:03+00:00",
+   "titulo": "Dormant: compra sem o campo Digite COMPRAR"
   }
  ]
 }
