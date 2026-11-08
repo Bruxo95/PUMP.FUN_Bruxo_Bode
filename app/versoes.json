@@ -2085,6 +2085,11 @@
    "versao": "0.32.265",
    "inicio": "2026-11-08T10:44:32+00:00",
    "titulo": "Prova da REAL: lucro nas últimas 24 h, também para manuais"
+  },
+  {
+   "versao": "0.32.266",
+   "inicio": "2026-11-08T19:59:18+00:00",
+   "titulo": "Sala ao vivo (trader em pixel art)"
   }
  ]
 }

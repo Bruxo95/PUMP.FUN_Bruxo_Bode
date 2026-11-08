@@ -71,7 +71,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 "script-src 'self' https://cdn.jsdelivr.net;", "script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/;")
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
-        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant") or request.url.path.startswith("/static/"):
+        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant", "/sala") or request.url.path.startswith("/static/"):
             resp.headers["Cache-Control"] = "no-cache"          # o navegador sempre confere se há versão nova
         return resp
 
@@ -1678,7 +1678,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     VTAG = hashlib.sha256(VERSION.encode()).hexdigest()[:10]
     PAGES = {n: open(os.path.join(WEB, n), encoding="utf-8").read().replace("__V__", VTAG)
              .replace("__BASE__", (cfg.public_base_url or "").rstrip("/"))
-             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html", "dormant.html")}
+             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html", "dormant.html", "sala.html")}
 
     @app.get("/")
     def landing():
@@ -1692,6 +1692,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/entrar")
     def hub_pick():
         return HTMLResponse(PAGES["entrar.html"])
+
+    # 0.32.266 (pedido do dono): Sala ao vivo — trader em pixel art que reage às compras e vendas da conta, para lives
+    @app.get("/sala")
+    def sala_page():
+        return HTMLResponse(PAGES["sala.html"])
 
     @app.get("/bnb")
     def bnb_panel():
