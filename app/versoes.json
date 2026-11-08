@@ -2065,6 +2065,11 @@
    "versao": "0.32.261",
    "inicio": "2026-11-08T08:00:37+00:00",
    "titulo": "Dormant: Alertas mostram a blockchain embaixo do nome"
+  },
+  {
+   "versao": "0.32.262",
+   "inicio": "2026-11-08T09:57:06+00:00",
+   "titulo": "Fictícia não entra mais barato que o trader"
   }
  ]
 }

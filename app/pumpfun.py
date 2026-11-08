@@ -1371,6 +1371,13 @@ class PumpFun:
         tk = self.tokens.get(mint) or {}
         sym = tk.get("symbol") or ev.get("symbol") or short(mint)
         px = (tk.get("price") if ev.get("_delayed") and tk.get("price") else None) or self._ev_px(ev, tk) or tk.get("price")
+        # 0.32.262 (dono, caso yarl: a fictícia deu +18% e a REAL −23% no mesmo trade): na cópia com espera a fictícia usava o
+        # último preço guardado do token, que no PumpSwap pode estar ANTES da compra do trader (1,28e-6 contra 1,82e-6 que
+        # ele pagou). Quem copia nunca compra mais barato que o trader que acabou de empurrar o preço: usa o maior dos dois.
+        if kind == "buy" and ev.get("_delayed") and px:
+            tpx = self.price_of(ev)
+            if tpx and px < tpx:
+                px = tpx
         allpos = self.positions()
         mine = [p for p in allpos if p["mint"] == mint]
         base = {"wallet": who, "short": short(who), "mint": mint, "symbol": sym, "kind": kind, "sol": round(sol, 4),
