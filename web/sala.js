@@ -38,12 +38,20 @@
     R(54, 10, 40, 22, "#3a1d5e"); R(56, 12, 36, 18, "#1a0d33"); TXT("HODL", 58, 16, "#ffd23f", 8);
     // relógio
     R(104, 12, 16, 16, "#2a3c6b"); R(106, 14, 12, 12, "#e8f0ff"); R(111, 16, 2, 5, "#111"); R(111, 20, 4, 1, "#111");
-    // monitor lateral com velas
+    // monitor lateral: velas; no dump vira o terminal do conserto; no pump toca uma playlist lo-fi
     R(8, 74, 50, 36, "#2b2f3a"); R(10, 76, 46, 30, "#04121f");
-    for (let i = 0; i < 7; i++) {
-      const up = (i + Math.floor(f / 6)) % 3 !== 0;
-      const h = 4 + ((i * 7 + Math.floor(f / 6)) % 13);
-      R(13 + i * 6, 100 - h, 3, h, up ? "#3ee66b" : "#ff4d5e");
+    if (S.base === "dump") {
+      for (let i = 0; i < 5; i++) { const w = 6 + ((i * 11 + f) % 30); R(12, 78 + i * 4, w, 2, i % 2 ? "#3ee66b" : "#3df2c4"); }
+      const pr = (f % 60) / 60; R(12, 100, 42, 4, "#1d3a4f"); R(12, 100, Math.round(42 * pr), 4, "#ffd23f");
+    } else if (S.base === "pump") {
+      TXT("LOFI", 14, 79, "#c084fc", 8);
+      for (let i = 0; i < 8; i++) { const h = 2 + ((i * 5 + f) % 9); R(13 + i * 5, 104 - h, 3, h, "#c084fc"); }
+    } else {
+      for (let i = 0; i < 7; i++) {
+        const up = (i + Math.floor(f / 6)) % 3 !== 0;
+        const h = 4 + ((i * 7 + Math.floor(f / 6)) % 13);
+        R(13 + i * 6, 100 - h, 3, h, up ? "#3ee66b" : "#ff4d5e");
+      }
     }
     R(30, 110, 6, 8, "#2b2f3a");
   }
@@ -111,9 +119,12 @@
     for (let x = 0; x < W; x += 16) R(x, 136, 1, 44, "#3e2717");
     R(104, 122, 64, 7, "#3a3f4d"); for (let i = 0; i < 9; i++) R(107 + i * 7, 124, 5, 2, (S.base === "idle" && (i + f) % 4 === 0) ? "#9fb3ff" : "#5d6475");
     R(172, 124, 8, 5, "#3a3f4d");
-    // copo gigante de café
-    R(70, 98, 20, 30, "#e8e8f0"); R(70, 104, 20, 6, "#ff4d5e"); R(90, 106, 4, 12, "#e8e8f0");
-    for (let i = 0; i < 3; i++) { const sy = 92 - ((f * 2 + i * 7) % 18); R(74 + i * 6, sy, 2, 4, "rgba(220,230,255,.5)"); }
+    // copo gigante de café (no pump ele está na mão do trader); no dump, pilha de papéis do conserto
+    if (S.base !== "pump" || (S.action && Date.now() < S.actionUntil)) {
+      R(70, 98, 20, 30, "#e8e8f0"); R(70, 104, 20, 6, "#ff4d5e"); R(90, 106, 4, 12, "#e8e8f0");
+      for (let i = 0; i < 3; i++) { const sy = 92 - ((f * 2 + i * 7) % 18); R(74 + i * 6, sy, 2, 4, "rgba(220,230,255,.5)"); }
+    } else { R(72, 124, 16, 4, "#9aa3b5"); }
+    if (S.base === "dump") { for (let i = 0; i < 4; i++) R(232 + i, 126 - i * 3, 22, 3, i % 2 ? "#e8e8f0" : "#cfd6e6"); }
     // botão gigante
     const act = S.action && Date.now() < S.actionUntil;
     const buy = act && S.action === "buy";
@@ -122,32 +133,50 @@
     TXT(act ? (buy ? "PUMP" : "DUMP") : "PUMP", 197, 126, act ? col : "#ff4d5e", 8);
   }
 
+  // 0.32.269 (pedido do dono): no dump ele trabalha sem parar no computador para resolver; com o mercado bom, relaxa tomando café
+  const BUBBLE = { dump: ["DEBUG!", "FOCO!", "AJUSTA..", "CALMA..", "VAI DAR!"], pump: ["CAFEZIN", "RELAX", "HODL...", "TOP!"], idle: ["HMM...", "OLHANDO", "BORA?"] };
+  function bubble(f, st) {
+    const list = BUBBLE[st]; if (!list) return;
+    const k = Math.floor(f / 36) % list.length; if ((f % 36) > 28) return;
+    const t = list[k], w = t.length * 8 + 8;
+    R(44, 40, w, 14, "#e8f0ff"); R(45, 41, w - 2, 12, "#ffffff"); R(44 + w - 8, 54, 4, 3, "#e8f0ff"); R(44 + w - 4, 57, 3, 2, "#e8f0ff");
+    TXT(t, 48, 43, st === "dump" ? "#c81e3a" : st === "pump" ? "#14803c" : "#1d2433", 8);
+  }
   function trader(f) {
     const st = S.action && Date.now() < S.actionUntil ? "act" : S.base;
-    const bob = st === "pump" ? (f % 4 < 2 ? -2 : 0) : (st === "idle" ? (f % 16 < 8 ? 0 : 1) : 0);
-    const x = 112, y = 58 + bob;
+    const lean = st === "dump" ? 4 : st === "pump" ? -2 : 0;              // no conserto chega perto da tela; no café recosta
+    const bob = st === "dump" ? (f % 2) : st === "idle" ? (f % 16 < 8 ? 0 : 1) : (f % 24 < 12 ? 0 : 1);
+    const x = 112, y = 58 + bob + lean;
     R(104, 66, 52, 62, "#7a1d2b"); R(108, 70, 44, 54, "#962536");               // cadeira
     R(x, y + 36, 36, 34, "#3a4560"); R(x + 14, y + 36, 8, 6, "#2c3550");        // moletom
     R(x + 15, y + 42, 1, 6, "#cfd6e6"); R(x + 20, y + 42, 1, 6, "#cfd6e6");
     R(x + 6, y + 6, 24, 26, "#f2c28b"); R(x + 4, y + 16, 2, 6, "#e3ad73"); R(x + 30, y + 16, 2, 6, "#e3ad73"); // cabeça
     R(x + 4, y + 2, 28, 8, "#1d2433"); R(x + 2, y + 9, 34, 3, "#141a26"); R(x + 14, y + 3, 6, 3, "#3df2c4"); // boné
+    const look = st === "dump" ? 2 : 0;                                            // olhando para o telão
     R(x + 7, y + 14, 22, 6, "#000"); R(x + 18, y + 15, 1, 2, "#000");             // óculos
-    if (st === "pump") { // olhos de cifrão
-      ["#ffd23f"].forEach((c) => { R(x + 10, y + 15, 3, 1, c); R(x + 10, y + 17, 3, 1, c); R(x + 11, y + 14, 1, 6, c); R(x + 22, y + 15, 3, 1, c); R(x + 22, y + 17, 3, 1, c); R(x + 23, y + 14, 1, 6, c); });
-    } else { R(x + 9, y + 15, 3, 1, "#5b6b8f"); R(x + 21, y + 15, 3, 1, "#5b6b8f"); }
-    if (st === "dump") { R(x + 13, y + 26, 10, 2, "#7a2b2b"); R(x + 12, y + 27, 2, 2, "#7a2b2b"); R(x + 22, y + 27, 2, 2, "#7a2b2b"); }
-    else if (st === "pump" || st === "act") { R(x + 11, y + 24, 14, 4, "#5a1414"); R(x + 13, y + 24, 10, 1, "#fff"); }
+    if (st === "pump") { R(x + 9, y + 15, 4, 1, "#ffd23f"); R(x + 21, y + 15, 4, 1, "#ffd23f"); }              // brilho tranquilo
+    else { R(x + 9 + look, y + 15, 3, 1, "#5b6b8f"); R(x + 21 + look, y + 15, 3, 1, "#5b6b8f"); }
+    if (st === "dump") { R(x + 14, y + 25, 8, 2, "#7a2b2b"); R(x + 13, y + 24, 1, 1, "#7a2b2b"); R(x + 22, y + 24, 1, 1, "#7a2b2b"); } // concentrado
+    else if (st === "act") { R(x + 11, y + 24, 14, 4, "#5a1414"); R(x + 13, y + 24, 10, 1, "#fff"); }
+    else if (st === "pump") { R(x + 12, y + 25, 12, 2, "#9c5a3c"); R(x + 11, y + 24, 1, 1, "#9c5a3c"); R(x + 24, y + 24, 1, 1, "#9c5a3c"); }
     else { R(x + 13, y + 25, 10, 2, "#9c5a3c"); }
     R(x + 15, y + 30, 6, 4, "#f2c28b");                                             // pescoço
-    // braços
     const skin = "#f2c28b", sleeve = "#3a4560";
-    if (st === "pump") {
-      const a = f % 6 < 3 ? 0 : 3;
-      R(x - 6, y + 10 + a, 6, 30, sleeve); R(x - 6, y + 4 + a, 6, 6, skin);
-      R(x + 36, y + 13 - a, 6, 30, sleeve); R(x + 36, y + 7 - a, 6, 6, skin);
-    } else if (st === "dump") {
-      R(x - 2, y + 12, 8, 28, sleeve); R(x + 2, y + 2, 7, 7, skin);
-      R(x + 30, y + 12, 8, 28, sleeve); R(x + 27, y + 2, 7, 7, skin);
+    if (st === "dump") {                                                            // digitando rápido, as duas mãos
+      const a = f % 2 ? 0 : 3, b = f % 2 ? 3 : 0;
+      R(x - 4, y + 40, 6, 20, sleeve); R(x - 2, y + 56 + a, 9, 4, skin);
+      R(x + 34, y + 40, 6, 20, sleeve); R(x + 29, y + 56 + b, 9, 4, skin);
+      for (let i = 0; i < 2; i++) { const dy = (f * 2 + i * 9) % 18; R(x + 3 + i * 30, y + 8 + dy, 2, 3, "#6fd3ff"); } // suor
+      if (f % 6 < 3) { R(x + 34, y - 6, 2, 6, "#ffd23f"); R(x + 34, y + 1, 2, 2, "#ffd23f"); }                         // "!"
+    } else if (st === "pump") {                                                     // café na mão, a outra atrás da cabeça
+      const sip = f % 48 < 16;
+      R(x + 34, y + 6, 6, 32, sleeve); R(x + 30, y + 2, 8, 6, skin);               // braço atrás da cabeça
+      R(x - 6, y + 40, 6, 12, sleeve);
+      const cy = sip ? y + 22 : y + 32, cx = sip ? x + 2 : x - 10;
+      R(cx - 2, cy + 6, 8, 5, skin);                                                 // mão
+      R(cx, cy, 10, 12, "#e8e8f0"); R(cx, cy + 3, 10, 3, "#ff4d5e"); R(cx + 10, cy + 3, 3, 5, "#e8e8f0");
+      for (let i = 0; i < 2; i++) { const sy = cy - 4 - ((f + i * 6) % 10); R(cx + 2 + i * 4, sy, 2, 3, "rgba(220,230,255,.6)"); }
+      if (f % 30 < 20) { const ny = 40 - ((f % 30)); R(x + 44, y + ny, 2, 6, "#c084fc"); R(x + 44, y + ny + 5, 4, 2, "#c084fc"); R(x + 46, y + ny, 3, 2, "#c084fc"); } // nota musical
     } else if (st === "act") {
       R(x - 4, y + 40, 6, 22, sleeve); R(x - 4, y + 62, 6, 4, skin);
       R(x + 34, y + 44, 52, 6, sleeve); R(x + 84, y + 50 + (f % 4 < 2 ? 0 : 2), 8, 6, skin);
@@ -156,21 +185,21 @@
       R(x - 4, y + 40, 6, 22, sleeve); R(x - 2, y + 60 + k, 8, 4, skin);
       R(x + 34, y + 40, 6, 22, sleeve); R(x + 30, y + 62 - k, 8, 4, skin);
     }
-    if (st === "dump") {                                                            // suor e lágrimas
-      for (let i = 0; i < 2; i++) { const dy = (f * 2 + i * 9) % 22; R(x + 9 + i * 16, y + 20 + dy, 2, 3, "#6fd3ff"); }
-      R(x + 5, y + 4 + (f % 10), 2, 3, "#6fd3ff");
-    }
+    bubble(f, st);
   }
 
   function fx(f) {
     const now = Date.now();
-    if (S.base === "pump" && f % 3 === 0) S.parts.push({ x: 120 + Math.random() * 40, y: 60, vx: (Math.random() - .5) * 3, vy: -2 - Math.random() * 2, c: "#3ee66b", w: 6, h: 3, g: .18, life: 40 });
-    if (S.base === "dump" && f % 4 === 0) S.parts.push({ x: Math.random() * W, y: -8, vx: 0, vy: 2 + Math.random() * 2, c: "#ff4d5e", w: 3, h: 6 + Math.random() * 8, g: 0, life: 60 });
+    if (S.base === "pump" && f % 9 === 0) S.parts.push({ x: 120 + Math.random() * 40, y: 60, vx: (Math.random() - .5) * 2, vy: -1.5 - Math.random(), c: "#3ee66b", w: 6, h: 3, g: .12, life: 40 });
+    if (S.base === "dump" && f % 6 === 0) S.parts.push({ x: 150 + Math.random() * 20, y: 110, vx: 1 + Math.random() * 2, vy: -2 - Math.random() * 2, c: "#e8e8f0", w: 5, h: 4, g: .15, life: 40 });
+    if (S.base === "dump" && f % 8 === 0) S.parts.push({ x: Math.random() * W, y: -8, vx: 0, vy: 2 + Math.random() * 2, c: "#ff4d5e", w: 3, h: 6 + Math.random() * 8, g: 0, life: 60 });
     S.parts = S.parts.filter((p) => p.life-- > 0 && p.y < H + 10);
-    S.parts.forEach((p) => { p.vy += p.g; p.x += p.vx; p.y += p.vy; R(p.x, p.y, p.w, p.h, p.c); if (p.c === "#3ee66b" && p.w === 6) R(p.x + 2, p.y + 1, 2, 1, "#1b6e33"); });
-    if (S.base === "dump") {                                                        // mesa pegando fogo
-      for (let i = 0; i < 10; i++) { const h = 6 + ((i * 5 + f * 3) % 9); R(20 + i * 28, 128 - h, 8, h, (i + f) % 2 ? "#ff7b1c" : "#ffd23f"); }
-      if (f % 10 < 5) { R(0, 0, W, 2, "#ff4d5e"); R(0, H - 2, W, 2, "#ff4d5e"); }
+    S.parts.forEach((p) => { p.vy += p.g; p.x += p.vx; p.y += p.vy; R(p.x, p.y, p.w, p.h, p.c); if (p.c === "#3ee66b" && p.w === 6) R(p.x + 2, p.y + 1, 2, 1, "#1b6e33"); if (p.c === "#e8e8f0") R(p.x + 1, p.y + 1, 3, 1, "#8fa3d1"); });
+    if (S.base === "dump") {                                                        // giroflex no teto
+      const on = f % 8 < 4;
+      R(150, 0, 20, 6, "#5a1414"); R(152, 1, 16, 4, on ? "#ff4d5e" : "#7a1d2b");
+      if (on) { g.fillStyle = "rgba(255,77,94,.10)"; g.fillRect(0, 0, W, H); }
+      TXT("CONSERTANDO", 10, 132, f % 6 < 3 ? "#ffd23f" : "#ff7b1c", 8);
     }
     if (S.base === "pump") { TXT("TO THE MOON!", 10, 132, f % 6 < 3 ? "#3ee66b" : "#ffd23f", 8); }
     if (S.base === "idle") {                                                         // radar procurando gems
@@ -243,18 +272,6 @@
   const tid = (t) => t.id || ((t.pos_id || t.mint) + "|" + t.closed_at);
   const tms = (s) => { const v = Date.parse(s || ""); return isNaN(v) ? 0 : v; };
 
-  function spark(c, arr) {
-    const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
-    const w = c.width = 120, h = c.height = 28; x.clearRect(0, 0, w, h);
-    if (arr.length < 2) return;
-    const lo = Math.min(0, ...arr), hi = Math.max(0, ...arr), sp = hi - lo || 1;
-    const zy = h - 2 - Math.round((0 - lo) / sp * (h - 4)); x.fillStyle = "#2a3c6b"; x.fillRect(0, zy, w, 1);
-    arr.forEach((v, i) => {
-      const px = Math.round(i * (w - 2) / (arr.length - 1)), py = h - 2 - Math.round((v - lo) / sp * (h - 4));
-      x.fillStyle = v >= 0 ? "#3ee66b" : "#ff4d5e"; x.fillRect(px, py, 2, 2);
-    });
-  }
-
   function render() {
     const P = S.positions, w = S.wallet || {};
     let inv = 0, now = 0;
@@ -268,6 +285,7 @@
     if (S.openPct == null) hud.innerHTML = '<b class="flat">PROCURANDO GEMS…</b>';
     else if (S.openPct > 0) hud.innerHTML = 'PUMPING NOW! <b class="up">' + pct(S.openPct) + "</b>";
     else hud.innerHTML = 'DUMPING… <b class="down">' + pct(S.openPct) + "</b>";
+    hud.className = "hud pf " + (S.openPct == null ? "flat" : S.openPct > 0 ? "up" : "down");
     const res = +w.pnl_sol || 0;
     $("stats").innerHTML = [
       ["Carteira", (S.real ? "REAL" : "FICTÍCIA")],
@@ -276,13 +294,16 @@
       ["Trades", String(w.count || 0)], ["Abertas", String(P.length)],
     ].map(([k, v]) => '<div class="st"><small>' + k + "</small> " + v + "</div>").join("");
     $("posN").textContent = P.length ? "(" + P.length + ")" : "";
-    const box = $("pos");
+    // 0.32.269 (pedido do dono): lista compacta — moeda, valor de entrada e valor atual em dólares e o %
+    const box = $("pos"), usd = +w.sol_usd || 0;
+    const $v = (solv) => (usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(3) + " SOL");
     if (!P.length) { box.innerHTML = '<div class="empty">nenhuma posição aberta agora</div>'; }
     else {
       const sorted = P.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0));
-      box.innerHTML = sorted.map((p, i) => '<div class="pr"><span class="sy">' + sym(p) + '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) +
-        '</span><canvas class="px" data-i="' + i + '"></canvas><small>' + Number(p.sol_in || 0).toFixed(3) + " SOL · " + sol(p.pnl_now_sol) + "</small></div>").join("");
-      box.querySelectorAll("canvas").forEach((c) => spark(c, S.hist[pid(sorted[+c.dataset.i])] || []));
+      box.innerHTML = '<div class="ph"><span>Moeda</span><span>Entrada</span><span>Agora</span><span>%</span></div>' +
+        sorted.map((p) => { const ins = +p.sol_in || 0, nowv = ins + (+p.pnl_now_sol || 0);
+          return '<div class="pr"><span>' + sym(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
+            '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
     }
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">SELL ' + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
       .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">BUY ' + sym(p) + " " + Number(p.sol_in || 0).toFixed(3) + " SOL</span>" })))

@@ -30,9 +30,12 @@
   .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 16px}
   .stage{position:relative;border:3px solid var(--line);background:#000;aspect-ratio:16/9;overflow:hidden}
   .stage canvas{position:absolute;inset:0;width:100%;height:100%}
-  .hud{position:absolute;top:3%;left:3%;background:rgba(5,10,25,.85);border:3px solid var(--line);padding:10px 14px;font-size:clamp(10px,1.6vw,22px)}
+  .hud{background:#060c1c;border:2px solid var(--line);padding:7px 10px;font-size:12px;white-space:nowrap}
   .hud b.up{color:var(--green)}.hud b.down{color:var(--red)}.hud b.flat{color:var(--yellow)}
-  .alert{position:absolute;top:17%;left:3%;width:min(46%,320px);background:#2a0b12;border:3px solid var(--red);box-shadow:4px 4px 0 #000;transform:translateY(-30px);opacity:0;visibility:hidden;transition:transform .35s steps(5),opacity .35s steps(5),visibility 0s .35s}
+  .hud.up{border-color:var(--green)}.hud.flat{border-color:var(--yellow)}
+  .hud.down{border-color:var(--red);animation:alarm 1s steps(2) infinite}
+  @keyframes alarm{50%{background:#3a0d12}}
+  .alert{position:absolute;top:5%;left:3%;width:min(46%,320px);background:#2a0b12;border:3px solid var(--red);box-shadow:4px 4px 0 #000;transform:translateY(-30px);opacity:0;visibility:hidden;transition:transform .35s steps(5),opacity .35s steps(5),visibility 0s .35s}
   .alert.show{transform:none;opacity:1;visibility:visible;transition:transform .35s steps(5),opacity .35s steps(5)}
   .alert.win{background:#08240f;border-color:var(--green)}
   .alert .ah{display:flex;justify-content:space-between;background:var(--red);color:#fff;font-size:10px;padding:5px 7px}
@@ -53,12 +56,13 @@
   .msg{line-height:1.05;animation:up .35s steps(4)}
   .msg b{display:block;font-size:17px}
   @keyframes up{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
-  .pos{flex:1;min-height:0;overflow:auto;padding:6px 8px;display:flex;flex-direction:column;gap:6px}
-  .pr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:center;border:2px solid #1c2c57;padding:5px 7px;background:#0d1530}
-  .pr .sy{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .pr .pc{font-weight:bold}
-  .pr canvas{grid-column:1/-1;width:100%;height:28px}
-  .pr small{grid-column:1/-1;color:var(--muted);font-size:15px}
+  .pos{flex:1;min-height:0;overflow:auto;padding:4px 6px}
+  .ph,.pr{display:grid;grid-template-columns:minmax(0,1fr) 66px 74px 66px;gap:6px;align-items:center;padding:2px 4px}
+  .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:15px;border-bottom:2px solid #1c2c57}
+  .pr{border-bottom:1px solid #1a2850;font-size:19px;line-height:1.1}
+  .pr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ph span:not(:first-child),.pr span:not(:first-child){text-align:right}
+  .pr .pc{font-weight:bold;overflow:visible}
   .empty{color:var(--muted);padding:10px}
   .tick{margin:0 16px 14px;border:3px solid var(--line);background:#0c1428;display:flex;align-items:center;overflow:hidden;white-space:nowrap}
   .tick .lab{background:var(--line);padding:10px;font-size:11px;flex:0 0 auto}
@@ -68,7 +72,7 @@
   .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--yellow)}
   .err{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#3a0d12;border:3px solid var(--red);padding:10px 14px;z-index:9;max-width:92vw}
   @media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}.side .box{position:static;max-height:460px}}
-  @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:6px 8px}.alert .ab{font-size:13px}.st{font-size:12px}}
+  @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:5px 7px;order:3}.alert .ab{font-size:13px}.st{font-size:12px}}
   @media (prefers-reduced-motion:reduce){.tick .run{animation-duration:90s}}
 </style>
 </head>
@@ -76,6 +80,7 @@
 <div class="top">
   <div class="brand pf">PUMP FUN COPY · SALA</div>
   <span class="live pf"><i></i>AO VIVO</span>
+  <div class="hud pf" id="hud">PROCURANDO GEMS…</div>
   <div class="ctl" id="ctl">
     <button class="btn" id="mSim" type="button">FICTÍCIA</button>
     <button class="btn real" id="mReal" type="button">REAL</button>
@@ -88,7 +93,6 @@
   <div class="stage" id="stage">
     <canvas id="scene" width="320" height="180" aria-label="Trader em pixel art reagindo às operações"></canvas>
     <div class="flash" id="flash"></div>
-    <div class="hud pf" id="hud">PROCURANDO GEMS…</div>
     <div class="alert" id="alert"><div class="ah pf"><span id="aT">ALERTA!</span><span>X</span></div><div class="ab" id="aB"></div></div>
     <div class="stats" id="stats"></div>
   </div>
