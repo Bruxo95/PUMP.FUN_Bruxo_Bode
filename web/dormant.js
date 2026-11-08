@@ -186,9 +186,11 @@
     const ex = M().filter((m) => m.extra).length;
     $("ovAddN").textContent = num(M().length, 0) + " moedas vigiadas" + (ex ? " · " + ex + " adicionadas na tela" : "");
     const byKey = {}; M().forEach((m) => { byKey[m.cmc] = m; });
-    table("ovAl", ["Quando", "Moeda", "Virou", "1 h", "24 h", "Movimentou 1 h", "Movimentou 24 h", "Por quê"], ((R && R.alertas) || []).slice(0, 50).map((a) => { const m = byKey[a.cmc] || {}, v1 = a.v1 != null ? a.v1 : m.v1, v24 = a.vol24 != null ? a.vol24 : m.vol; return [V(hora(a.t), a.t),
+    // 0.32.259 (caso DGB do dono, 08/11/2026): 1 h e 24 h são os números da hora do alerta (DGB +18.2% às 03:02, conferido no gráfico da
+    // CoinGecko); a página da CoinGecko mostra o de agora (+7.2%). Sem dizer isso parecia erro, então a coluna diz e "24 h agora" fica ao lado.
+    table("ovAl", ["Quando", "Moeda", "Virou", "1 h no alerta", "24 h no alerta", "24 h agora", "Movimentou 1 h", "Movimentou 24 h", "Por quê"], ((R && R.alertas) || []).slice(0, 50).map((a) => { const m = byKey[a.cmc] || {}, v1 = a.v1 != null ? a.v1 : m.v1, v24 = a.vol24 != null ? a.vol24 : m.vol; return [V(hora(a.t), a.t),
       V('<span class="dmcoin">' + star(a.cmc) + '<b data-dmcoin="' + esc(a.cmc) + '">' + esc(a.nome || a.cmc) + "</b></span> <small class=\"muted\">" + esc(a.simbolo || "") + "</small>", a.nome || a.cmc),
-      V(tag(a.para) + ' <small class="muted">era ' + esc(ST[a.de] || a.de) + "</small>", a.para), V(pc(a.h1), a.h1), V(pc(a.h24), a.h24), V(usd(v1), v1), V(usd(v24), v24),
+      V(tag(a.para) + ' <small class="muted">era ' + esc(ST[a.de] || a.de) + "</small>", a.para), V(pc(a.h1), a.h1), V(pc(a.h24), a.h24), V(pc(m.h24), m.h24), V(usd(v1), v1), V(usd(v24), v24),
       '<small class="muted">' + esc((a.por || []).join(" · ")) + "</small>"]; }), "Nenhum alerta ainda. Eles aparecem quando uma moeda muda para pump, dump ou acordando.");
     const vivas = M().filter((m) => m.h24 != null && m.status !== "parada");
     const up = vivas.slice().sort((a, b) => b.h24 - a.h24).slice(0, 8), dn = vivas.slice().sort((a, b) => a.h24 - b.h24).slice(0, 8);
