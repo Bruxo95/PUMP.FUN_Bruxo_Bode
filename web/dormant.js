@@ -192,10 +192,15 @@
     const grp = {}, ord = [];
     ((R && R.alertas) || []).forEach((a) => { if (!grp[a.cmc]) { grp[a.cmc] = []; ord.push(a.cmc); } grp[a.cmc].push(a); });
     const hev = (a) => tag(a.para) + ' <small class="muted">' + esc(hora(a.t)) + (a.h1 != null ? " · " + pc(a.h1) + " em 1 h" : "") + (a.h24 != null ? " · " + pc(a.h24) + " em 24 h" : "") + "</small>";
+    // 0.32.261 (pedido do dono): blockchain embaixo do nome; safemoon e safemoon-v2 se chamam "SafeMoon" na CoinGecko e pareciam a mesma
+    // moeda repetida, então nome repetido mostra também a identificação da moeda.
+    const nm = (k) => (byKey[k] || {}).nome || grp[k][0].nome || k, rep = {};
+    ord.slice(0, 50).forEach((k) => { rep[nm(k)] = (rep[nm(k)] || 0) + 1; });
     table("ovAl", ["Último alerta", "Moeda", "Agora", "1 h agora", "24 h agora", "Movimentou 1 h", "Movimentou 24 h", "O que aconteceu"], ord.slice(0, 50).map((k) => {
       const L = grp[k], a = L[0], m = byKey[k] || {}, v1 = m.v1 != null ? m.v1 : a.v1, v24 = m.vol != null ? m.vol : a.vol24, st = m.status || a.para;
       return [V(hora(a.t), a.t),
-        V('<span class="dmcoin">' + star(k) + '<b data-dmcoin="' + esc(k) + '">' + esc(m.nome || a.nome || k) + "</b></span> <small class=\"muted\">" + esc(m.simbolo || a.simbolo || "") + "</small>", m.nome || a.nome || k),
+        V('<span class="dmcoin">' + star(k) + '<b data-dmcoin="' + esc(k) + '">' + esc(nm(k)) + "</b></span> <small class=\"muted\">" + esc(m.simbolo || a.simbolo || "") +
+          (rep[nm(k)] > 1 ? " · " + esc(m.cg || k) : "") + (m.chain_nome ? " " + chainTag(m.chain_nome, (m.chains || []).join(", ")) : "") + "</small>", nm(k)),
         V(tag(st), stV(st)), V(pc(m.h1), m.h1), V(pc(m.h24), m.h24), V(usd(v1), v1), V(usd(v24), v24),
         '<div class="dmhist">' + L.slice(0, 4).map((x) => "<div>" + hev(x) + "</div>").join("") + (L.length > 4 ? '<small class="muted">+' + (L.length - 4) + " alertas antes</small>" : "") +
           (a.por && a.por.length ? '<small class="muted">' + esc(a.por.join(" · ")) + "</small>" : "") + "</div>"]; }), "Nenhum alerta ainda. Eles aparecem quando uma moeda muda para pump, dump ou acordando.");

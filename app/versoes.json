@@ -2060,6 +2060,11 @@
    "versao": "0.32.260",
    "inicio": "2026-11-08T07:52:43+00:00",
    "titulo": "Dormant: Alertas com uma linha por moeda e números de agora"
+  },
+  {
+   "versao": "0.32.261",
+   "inicio": "2026-11-08T08:00:37+00:00",
+   "titulo": "Dormant: Alertas mostram a blockchain embaixo do nome"
   }
  ]
 }
