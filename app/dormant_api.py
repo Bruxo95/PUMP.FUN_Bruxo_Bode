@@ -212,7 +212,7 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
     async def buy_go(body: dict, u: dict = Depends(own)):
         async def go():
             b = body if isinstance(body, dict) else {}
-            r = await buyer().buy(u["id"], str(b.get("quote_id") or ""), b.get("senha"), str(b.get("confirmar") or ""))
+            r = await buyer().buy(u["id"], str(b.get("quote_id") or ""), b.get("senha"), str(b.get("confirmar") or ""), b.get("risco") is True)
             await audit(db, u["id"], "Dormant: compra", f"{r.get('simbolo')} · US$ {float(r.get('usd_in') or 0):.2f} · {r.get('status')} · {r.get('tx')}")
             return {"ok": True, "compra": r}
         return await run(go())

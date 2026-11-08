@@ -685,7 +685,9 @@
       line("Contrato do token", '<span class="cmaddr">' + esc(r.token) + "</span>") + "</tbody></table></div>" +
       list("buybad", "Não dá para comprar:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
     if (r.quote_id) {
-      h += '<div class="buyform"><div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+      // 0.32.263 (pedido do dono): "o dono pode mudar o saldo" não barra mais; a compra só sai marcando que entende o risco (o servidor confere)
+      h += '<div class="buyform">' + (r.risco ? '<label class="buyrisk"><input type="checkbox" id="buyRisk"> <span>Entendo o risco: quem controla este contrato pode apagar moedas da minha carteira. Quero comprar mesmo assim.</span></label>' : "") +
+        '<div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
         '<div><label for="buyOk">Digite COMPRAR para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
         '<div class="row dmact"><button class="btn primary" type="button" id="buyGo">Comprar agora</button><span class="muted small" id="buyTime"></span></div></div>';
     }
@@ -701,7 +703,8 @@
     if (!BUY || !BUY.q || !BUY.q.quote_id) return;
     const senha = $("buySenha").value, confirmar = $("buyOk").value.trim();
     sending(btn, "enviando a transação: não precisa clicar de novo");
-    const r = await BB.api("/api/dormant/compra/confirmar", { body: { quote_id: BUY.q.quote_id, senha, confirmar } });
+    const rk = $("buyRisk"), risco = !!(rk && rk.checked);
+    const r = await BB.api("/api/dormant/compra/confirmar", { body: { quote_id: BUY.q.quote_id, senha, confirmar, risco } });
     if (!BUY) return;
     btn.disabled = false; btn.textContent = "Comprar agora";
     $("buySenha").value = "";

@@ -546,3 +546,33 @@ def test_new_quote_sees_that_a_pending_buy_already_confirmed():
     assert p.get("quote_id"), p["bloqueia"]
     assert db.tables["dormant_buys"][0]["status"] == "confirmada"
 
+
+
+def test_owner_can_change_balance_is_a_warning_that_needs_the_risk_box():
+    """0.32.263 (caso BEAM): "o dono pode mudar o saldo" não barra mais; aparece sempre como aviso e a compra só sai com risco=True."""
+    net = FakeNet()
+    net.gp_data = {"is_honeypot": "0", "owner_change_balance": "1", "buy_tax": "0", "sell_tax": "0"}
+    b, net, _ = setup(net)
+    run(ready(b))
+    p = run(b.preview(UID, "tok", "ethereum", 0.01))
+    assert p.get("quote_id") and p["risco"] is True and db_.SALDO_TXT in p["avisos"] and not p["bloqueia"]
+    try:
+        run(b.buy(UID, p["quote_id"], SENHA, "COMPRAR"))                 # sem marcar o risco
+        raise AssertionError("comprou sem a confirmação do risco")
+    except db_.BuyError as e:
+        assert "risco" in str(e)
+    assert net.sent == []
+    assert run(b.buy(UID, p["quote_id"], SENHA, "COMPRAR", risco=True))["status"] == "confirmada"
+
+
+def test_token_without_the_balance_power_needs_no_risk_box():
+    b, _, _ = setup()
+    p = good_quote(b)
+    assert p["risco"] is False and db_.SALDO_TXT not in p["avisos"]
+
+
+def test_solana_balance_authority_is_a_warning_too():
+    gb, ga = db_.judge_goplus("solana", {"balance_mutable_authority": {"status": "1"}, "closable": {"status": "0"}})
+    assert gb == [] and db_.SALDO_TXT in ga
+    gb, _ = db_.judge_goplus("ethereum", {"owner_change_balance": "1", "is_honeypot": "1"})
+    assert gb == ["honeypot: não deixa vender"]                       # o resto das travas continua

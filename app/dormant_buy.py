@@ -145,12 +145,18 @@ TAXA_TOKEN_MAX = 10.0
 VENDA_BLOQ = 50.0                 # % abaixo da CoinGecko que barra a venda (dormente tem pool ruim: até aqui é só aviso)
 # campo da GoPlus → motivo. Bloqueia = não deixa vender ou o dono mexe no saldo. Aviso = aparece, a decisão é do dono.
 GP_BLOQ = {"is_honeypot": "honeypot: não deixa vender", "cannot_sell_all": "não deixa vender tudo", "cannot_buy": "não deixa comprar",
-           "owner_change_balance": "o dono pode mudar o saldo das carteiras", "selfdestruct": "o contrato pode se autodestruir"}
+           "selfdestruct": "o contrato pode se autodestruir"}
+# 0.32.263 (pedido do dono, caso BEAM 08/11/2026): "o dono pode mudar o saldo" deixou de barrar e virou aviso em qualquer moeda. No BEAM
+# o poder é um burn(carteira, valor) nas mãos de um cofre 5 de 9 (Gnosis Safe), token da Binance e da Coinbase. O aviso aparece sempre e a
+# compra só sai com a confirmação extra (risco=True), conferida também no servidor.
+SALDO_TXT = "o dono pode mudar o saldo das carteiras: quem controla o contrato consegue apagar moedas da sua carteira"
+GP_RISCO = {"owner_change_balance": SALDO_TXT}
+SOL_RISCO = {"balance_mutable_authority": SALDO_TXT}
 GP_AVISO = {"transfer_pausable": "o dono pode pausar as transferências", "is_blacklisted": "tem lista negra de carteiras",
             "hidden_owner": "dono escondido", "slippage_modifiable": "o dono pode mudar a taxa de venda",
             "trading_cooldown": "espera obrigatória entre compra e venda", "is_mintable": "o dono pode criar mais moedas",
             "is_proxy": "o contrato pode ser trocado pelo dono", "can_take_back_ownership": "o dono pode voltar a mandar no contrato"}
-SOL_BLOQ = {"balance_mutable_authority": "o dono pode mudar o saldo das carteiras", "closable": "o dono pode fechar o token",
+SOL_BLOQ = {"closable": "o dono pode fechar o token",
             "non_transferable": "o token não pode ser transferido"}
 SOL_AVISO = {"freezable": "o dono pode congelar carteiras", "mintable": "o dono pode criar mais moedas",
              "metadata_mutable": "o dono pode mudar os dados do token", "transfer_hook": "o token roda um programa a cada transferência"}
@@ -301,9 +307,9 @@ def judge_goplus(chain: str, d: dict | None) -> tuple[list[str], list[str]]:
         return [], ["a GoPlus não tem dados de segurança deste token"]
     if CHAINS[chain]["tipo"] == "solana":
         st = lambda k: str((d.get(k) or {}).get("status") if isinstance(d.get(k), dict) else d.get(k) or "").strip()  # noqa: E731
-        return [v for k, v in SOL_BLOQ.items() if st(k) == "1"], [v for k, v in SOL_AVISO.items() if st(k) == "1"]
+        return [v for k, v in SOL_BLOQ.items() if st(k) == "1"], [v for k, v in {**SOL_RISCO, **SOL_AVISO}.items() if st(k) == "1"]
     bloq = [v for k, v in GP_BLOQ.items() if str(d.get(k, "")).strip() == "1"]
-    avis = [v for k, v in GP_AVISO.items() if str(d.get(k, "")).strip() == "1"]
+    avis = [v for k, v in {**GP_RISCO, **GP_AVISO}.items() if str(d.get(k, "")).strip() == "1"]
     for k, nome in (("buy_tax", "compra"), ("sell_tax", "venda")):
         try:
             v = float(d.get(k)) * 100
@@ -663,7 +669,8 @@ class Buyer:
         bloq += gb
         avisos += ga
         q = {"uid": uid, "key": key, "cg": cid, "rede": chain, "token": token, "value": value, "amt": amt, "usd_n": usd_n, "usd_in": usd_in,
-             "nome": it.get("nome"), "simbolo": it.get("simbolo"), "t": time.time(), "slip": cfg["slip_pct"], "end": (wal or {}).get("endereco")}
+             "nome": it.get("nome"), "simbolo": it.get("simbolo"), "t": time.time(), "slip": cfg["slip_pct"], "end": (wal or {}).get("endereco"),
+             "risco": SALDO_TXT in ga}
         if c["tipo"] == "solana":
             det = await self._preview_sol(q, wal, bloq, avisos)
         else:
@@ -686,7 +693,7 @@ class Buyer:
             elif imp > IMPACTO_AVISO:
                 avisos.append(f"esta compra move o preço em {imp:.0f}%: pool pequeno para este valor")
         out = {"moeda": {"nome": q["nome"], "simbolo": q["simbolo"], "img": it.get("img")}, "rede": chain, "rede_nome": c["nome"], "token": token,
-               "moeda_rede": c["moeda"], "valor": amt, "usd": usd_in, "carteira": q["end"], "slip": cfg["slip_pct"], "bloqueia": bloq, "avisos": avisos, **det}
+               "moeda_rede": c["moeda"], "valor": amt, "usd": usd_in, "carteira": q["end"], "slip": cfg["slip_pct"], "bloqueia": bloq, "avisos": avisos, "risco": q["risco"], **det}
         if not bloq:
             self._prune()
             qid = uuid.uuid4().hex
@@ -812,9 +819,12 @@ class Buyer:
         for k in [k for k, v in self.quotes.items() if now - v["t"] > QUOTE_TTL_S]:
             del self.quotes[k]
 
-    async def buy(self, uid: str, quote_id: str, senha: str, confirmar: str) -> dict:
+    async def buy(self, uid: str, quote_id: str, senha: str, confirmar: str, risco: bool = False) -> dict:
         if confirmar != "COMPRAR":
             raise BuyError("digite COMPRAR para confirmar")
+        rq = self.quotes.get(str(quote_id or ""))
+        if rq and rq.get("risco") and risco is not True:
+            raise BuyError("o dono deste token pode mudar o saldo das carteiras: marque que você entende o risco")
         async with self.lock(uid):                 # uma compra por vez por conta: sem compra dobrada nem nonce repetido
             self._prune()
             q = self.quotes.get(str(quote_id or ""))

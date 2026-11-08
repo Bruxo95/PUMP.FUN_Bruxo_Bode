@@ -2070,6 +2070,11 @@
    "versao": "0.32.262",
    "inicio": "2026-11-08T09:57:06+00:00",
    "titulo": "Fictícia não entra mais barato que o trader"
+  },
+  {
+   "versao": "0.32.263",
+   "inicio": "2026-11-08T10:04:03+00:00",
+   "titulo": "Dormant: dono que muda o saldo vira aviso com confirmação extra"
   }
  ]
 }
