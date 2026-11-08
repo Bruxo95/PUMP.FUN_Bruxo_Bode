@@ -30,9 +30,9 @@
   .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 16px}
   .stage{position:relative;border:3px solid var(--line);background:#000;aspect-ratio:16/9;overflow:hidden}
   .stage canvas{position:absolute;inset:0;width:100%;height:100%}
-  .hud{position:absolute;top:3%;right:3%;background:rgba(5,10,25,.85);border:3px solid var(--line);padding:10px 14px;font-size:clamp(10px,1.6vw,22px)}
+  .hud{position:absolute;top:3%;left:3%;background:rgba(5,10,25,.85);border:3px solid var(--line);padding:10px 14px;font-size:clamp(10px,1.6vw,22px)}
   .hud b.up{color:var(--green)}.hud b.down{color:var(--red)}.hud b.flat{color:var(--yellow)}
-  .alert{position:absolute;top:5%;left:3%;width:min(46%,320px);background:#2a0b12;border:3px solid var(--red);box-shadow:4px 4px 0 #000;transform:translateY(-30px);opacity:0;visibility:hidden;transition:transform .35s steps(5),opacity .35s steps(5),visibility 0s .35s}
+  .alert{position:absolute;top:17%;left:3%;width:min(46%,320px);background:#2a0b12;border:3px solid var(--red);box-shadow:4px 4px 0 #000;transform:translateY(-30px);opacity:0;visibility:hidden;transition:transform .35s steps(5),opacity .35s steps(5),visibility 0s .35s}
   .alert.show{transform:none;opacity:1;visibility:visible;transition:transform .35s steps(5),opacity .35s steps(5)}
   .alert.win{background:#08240f;border-color:var(--green)}
   .alert .ah{display:flex;justify-content:space-between;background:var(--red);color:#fff;font-size:10px;padding:5px 7px}
@@ -44,7 +44,8 @@
   .stats{position:absolute;left:3%;bottom:4%;display:flex;gap:8px;flex-wrap:wrap;max-width:94%}
   .st{background:rgba(5,10,25,.85);border:2px solid var(--line);padding:4px 8px;font-size:clamp(13px,1.4vw,20px)}
   .st small{color:var(--muted)}
-  .side{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;min-height:0}
+  .side{position:relative;min-height:0}
+  .side .box{position:absolute;inset:0}
   .box{border:3px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
   .box h3{margin:0;padding:8px 10px;font-size:11px;border-bottom:3px solid var(--line);color:var(--neon)}
   .box h3 span{color:var(--muted);font-family:"VT323",monospace;font-size:16px;margin-left:6px}
@@ -52,7 +53,7 @@
   .msg{line-height:1.05;animation:up .35s steps(4)}
   .msg b{display:block;font-size:17px}
   @keyframes up{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
-  .pos{max-height:360px;overflow:auto;padding:6px 8px;display:flex;flex-direction:column;gap:6px}
+  .pos{flex:1;min-height:0;overflow:auto;padding:6px 8px;display:flex;flex-direction:column;gap:6px}
   .pr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:center;border:2px solid #1c2c57;padding:5px 7px;background:#0d1530}
   .pr .sy{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pr .pc{font-weight:bold}
@@ -66,7 +67,7 @@
   @keyframes run{to{transform:translateX(-100%)}}
   .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--yellow)}
   .err{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#3a0d12;border:3px solid var(--red);padding:10px 14px;z-index:9;max-width:92vw}
-  @media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}.chat{min-height:200px;max-height:260px}}
+  @media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}.side .box{position:static;max-height:460px}}
   @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:6px 8px}.alert .ab{font-size:13px}.st{font-size:12px}}
   @media (prefers-reduced-motion:reduce){.tick .run{animation-duration:90s}}
 </style>
@@ -92,7 +93,6 @@
     <div class="stats" id="stats"></div>
   </div>
   <div class="side">
-    <div class="box"><h3 class="pf">REAÇÕES DO ROBÔ<span>geradas pelo próprio robô</span></h3><div class="chat" id="chat"></div></div>
     <div class="box"><h3 class="pf">POSIÇÕES ABERTAS<span id="posN"></span></h3><div class="pos" id="pos"></div></div>
   </div>
 </div>

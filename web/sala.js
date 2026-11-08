@@ -1,7 +1,7 @@
 // 0.32.266 (pedido do dono, 08/11): Sala ao vivo. Um trader em pixel art, desenhado aqui mesmo (sem imagem de fora), reage às
 // compras e vendas da conta (FICTÍCIA ou REAL): procura gems parado, comemora no lucro, sua frio no prejuízo e aperta o botão
-// gigante a cada compra/venda. Em volta: gráfico da carteira no monitor, alertas, reações do robô, posições abertas e o
-// letreiro dos últimos trades. Feita para capturar a janela numa live (OBS). Só lê /api/pump; não manda ordem nenhuma.
+// gigante a cada compra/venda. Em volta: no telão a posição com o melhor e a com o pior resultado (0.32.268; sem posição, o
+// gráfico da carteira), alertas, posições abertas com o % ao vivo e o letreiro dos últimos trades. Feita para capturar a janela numa live (OBS). Só lê /api/pump; não manda ordem nenhuma.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -14,7 +14,7 @@
   const S = {
     real: false, base: "idle", action: null, actionUntil: 0, frame: 0, t0: Date.now(),
     curve: [], positions: [], trades: [], wallet: {}, seenPos: null, seenTr: null, hist: {}, parts: [], sound: false,
-    lastChat: 0, openPct: null, ok: false,
+    openPct: null, ok: false,
   };
   try {
     const q = new URLSearchParams(location.search).get("modo");
@@ -48,8 +48,38 @@
     R(30, 110, 6, 8, "#2b2f3a");
   }
 
+  // 0.32.268 (pedido do dono): no telão, a posição aberta com o melhor e a com o pior resultado agora, com o % ao vivo
+  function sparkPx(arr, x0, y0, w, h) {
+    if (!arr || arr.length < 2) return;
+    const lo = Math.min(0, ...arr), hi = Math.max(0, ...arr), sp = hi - lo || 1;
+    R(x0, y0 + h - Math.round((0 - lo) / sp * h), w, 1, "#1d3a4f");
+    let px = null, py = null;
+    arr.forEach((v, i) => {
+      const x = x0 + Math.round(i * (w - 1) / (arr.length - 1)), y = y0 + h - Math.round((v - lo) / sp * h);
+      const c = v >= 0 ? "#3ee66b" : "#ff4d5e";
+      if (px !== null) { const st = Math.max(Math.abs(x - px), Math.abs(y - py), 1); for (let k = 0; k <= st; k++) R(px + (x - px) * k / st, py + (y - py) * k / st, 1, 1, c); }
+      px = x; py = y;
+    });
+  }
+  function slot(p, label, y, col, f) {
+    const v = +p.pnl_now_pct || 0, t = (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+    R(176, y, 132, 41, "#06141f");
+    TXT(label, 179, y + 3, col, 8);
+    g.font = '8px "Press Start 2P", monospace';
+    const tw = g.measureText(t).width;
+    TXT(t, 305 - tw, y + 3, v >= 0 ? "#3ee66b" : "#ff4d5e", 8);
+    TXT(String(p.symbol || (p.mint || "").slice(0, 6)).slice(0, 12).toUpperCase(), 179, y + 14, f % 10 < 8 ? "#e8f0ff" : "#8fa3d1", 8);
+    sparkPx(S.hist[(p.id || (p.mint + "|" + p.opened_at))] || [], 179, y + 25, 126, 13);
+  }
   function bigMonitor(f) {
     R(172, 18, 140, 96, "#2b2f3a"); R(175, 21, 134, 86, "#030c16");
+    const P = S.positions.slice().sort((a, b) => (+b.pnl_now_pct || 0) - (+a.pnl_now_pct || 0));
+    if (P.length) {
+      if (P.length === 1) { slot(P[0], "ABERTA", 22, "#ffd23f", f); TXT("SO 1 POSICAO", 179, 72, "#8fa3d1", 8); }
+      else { slot(P[0], "MELHOR", 22, "#3ee66b", f); slot(P[P.length - 1], "PIOR", 65, "#ff4d5e", f); }
+      R(232, 114, 12, 10, "#2b2f3a");
+      return;
+    }
     TXT("CARTEIRA AO VIVO", 178, 24, "#3df2c4", 8);
     for (let x = 178; x < 307; x += 10) R(x, 33, 1, 72, "#0b2233");
     for (let y = 40; y < 105; y += 10) R(176, y, 132, 1, "#0b2233");
@@ -185,23 +215,6 @@
     const fl = $("flash"); fl.style.background = win ? "#3ee66b" : "#ff4d5e"; fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
     clearTimeout(alertT); alertT = setTimeout(() => $("alert").classList.remove("show"), 5000);
   }
-  const BOTS = [["Robô_Lua", "#3df2c4"], ["GemHunter", "#ffd23f"], ["Vela_Verde", "#3ee66b"], ["StopLoss_RIP", "#ff4d5e"],
-    ["Pixel_Degen", "#c084fc"], ["HODL_bot", "#60a5fa"], ["Baleia_bot", "#f472b6"], ["Fiscal_da_Curva", "#fb923c"]];
-  const LINES = {
-    idle: ["procurando gems… 📡", "radar ligado", "HODL! HODL! HODL!", "cadê a baleia?", "café nº 7 ☕", "esperando o trader certo"],
-    pump: ["BULL RUN IS HERE!", "velas verdes 🟢🟢", "WE ARE GOING TO THE MOON 🚀", "segura que vai!", "olho de cifrão $$"],
-    dump: ["segura o coração 😰", "alarme tocando 🚨", "BUY THE DIP?", "a mesa tá pegando fogo 🔥", "respira…"],
-  };
-  const pick = (a) => a[Math.floor(Math.random() * a.length)];
-  function chat(text, bot) {
-    const b = bot || pick(BOTS), el = document.createElement("div");
-    el.className = "msg"; el.innerHTML = '<b style="color:' + b[1] + '">' + esc(b[0]) + "</b>" + esc(text);
-    const box = $("chat"); box.appendChild(el);
-    while (box.children.length > 14) box.removeChild(box.firstChild);
-    S.lastChat = Date.now();
-  }
-  setInterval(() => { if (Date.now() - S.lastChat > 9000 && S.ok) chat(pick(LINES[S.base] || LINES.idle)); }, 3000);
-
   const sym = (x) => esc(x.symbol || (x.mint || "").slice(0, 6));
   const pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%");
   const sol = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(4) + " SOL");
@@ -212,7 +225,6 @@
   function onBuy(p) {
     act("buy"); SFX.buy();
     alertBox("COMPRA!", "PUMP IT! <b>" + sym(p) + "</b><br>" + Number(p.sol_in || 0).toFixed(3) + " SOL", true);
-    chat("COMPROU " + (p.symbol || "?") + "! PUMP IT 🚀"); chat(pick(["ALL IN 🚀🚀🚀", "entrada feita, segura!", "bora!"]));
   }
   function onSell(t) {
     act("sell");
@@ -220,11 +232,9 @@
     if (v > 0) {
       SFX.win();
       alertBox("VENDA COM LUCRO", "<b>" + sym(t) + "</b> " + pct(t.pnl_pct) + "<br>" + sol(v) + " · TO THE MOON 🚀", true);
-      chat("TO THE MOON! " + (t.symbol || "") + " " + pct(t.pnl_pct)); chat(pick(["lucro no bolso 💸", "vendeu no topo?", "GG!"]));
     } else {
       SFX.loss();
       alertBox("R.I.P. STOP LOSS", "<b>" + sym(t) + "</b> " + pct(t.pnl_pct) + "<br>" + sol(v) + " · vaga na lanchonete aberta 🍔", false);
-      chat("R.I.P. STOP LOSS 😭 " + (t.symbol || "")); chat(pick(["vaga na lanchonete aberta 🍔", "BUY THE DIP?", "faz parte…"]));
     }
   }
 
@@ -293,8 +303,8 @@
       }
       S.seenPos = new Set(P.map(pid)); S.seenTr = new Set(T.map(tid));
       P.forEach((p) => { const k = pid(p), a = (S.hist[k] = S.hist[k] || []); a.push(+p.pnl_now_pct || 0); if (a.length > 60) a.shift(); });
+      S.ok = true;
       S.positions = P; S.trades = T; S.wallet = real ? js.real_wallet : js.wallet; S.curve = (real ? js.real_curve : js.curve) || [];
-      if (!S.ok) { S.ok = true; chat("sala aberta · carteira " + (real ? "REAL" : "FICTÍCIA") + " 🎮", ["Robô_Lua", "#3df2c4"]); }
       $("sub").textContent = "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA") + " · atualizado " + new Date().toLocaleTimeString("pt-BR");
       $("err").hidden = true;
       render();
@@ -324,6 +334,6 @@
     if (!s) { location.href = "/"; return; }
     $("mSim").classList.toggle("on", !S.real); $("mReal").classList.toggle("on", S.real);
     await load();
-    setInterval(load, 3000);
+    setInterval(load, 2000);                         // 0.32.268: % das posições ao vivo
   })();
 })();
