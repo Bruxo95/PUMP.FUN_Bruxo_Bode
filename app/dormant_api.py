@@ -232,6 +232,17 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"ok": True, "venda": r}
         return await run(go())
 
+    # 0.32.273: cancelar ordem Cardano parada na Minswap (o preço saiu da folga). Só o tipo e o número da operação vêm do navegador
+    @app.post("/api/dormant/cardano/cancelar")
+    async def ada_cancel(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            tipo = "venda" if b.get("tipo") == "venda" else "compra"
+            r = await buyer().cancel_ada(u["id"], tipo, str(b.get("id") or "")[:64], b.get("senha"))
+            await audit(db, u["id"], "Dormant: ordem Cardano cancelada", f"{tipo} {str(b.get('id') or '')[:12]} · {r.get('tx')}")
+            return r
+        return await run(go())
+
     # 0.32.244: abastecer de gás a partir de outra rede. O navegador só manda o nome das redes e o valor: nunca um endereço
     @app.get("/api/dormant/gas")
     async def gas_status(u: dict = Depends(own)):

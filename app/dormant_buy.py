@@ -24,6 +24,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+from . import cardano
 from . import dormant_vault as vault
 from . import evm
 from .crypto import CryptoError
@@ -121,6 +122,11 @@ CHAINS = {
     "zksync": {"nome": "zkSync", "tipo": "evm", "id": 324, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "PancakeSwap", "expl": "https://explorer.zksync.io/tx/",
                "rpc": "https://mainnet.era.zksync.io", "router": "0x5aeaf2883fbf30f3d62471154eda3c0c1b05942d",
                "wrapped": "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91", "ponte": "0x1d17cbcf0d6d143135ae902365d2e5e2a16538d4"},
+    # 0.32.273 (pedido do dono, 09/11/2026): Cardano pela Minswap. A transação é montada pelo agregador oficial deles (agg-api.minswap.org,
+    # sem chave), conferida aqui (app/cardano.check_tx) e só então assinada. A ordem vai para o contrato da DEX e o token chega numa segunda
+    # transação, quando o executor da Minswap roda a ordem (segundos a minutos). Ordem fora da folga fica parada até ser cancelada.
+    "cardano": {"nome": "Cardano", "tipo": "cardano", "moeda": "ADA", "cg": "cardano", "dec": 6, "dex": "Minswap", "expl": "https://cardanoscan.io/transaction/",
+                "reserva": 3.0},
     "unichain": {"nome": "Unichain", "tipo": "evm", "id": 130, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://uniscan.xyz/tx/",
                  "rpc": "https://mainnet.unichain.org", "router": "0x284f11109359a7e1306c3e447ef14d38400063ff",
                  "wrapped": "0x4200000000000000000000000000000000000006", "ponte": "0x078d782b760474a361dda0af3839290b0ef57ad6"},
@@ -161,6 +167,10 @@ SOL_BLOQ = {"closable": "o dono pode fechar o token",
 SOL_AVISO = {"freezable": "o dono pode congelar carteiras", "mintable": "o dono pode criar mais moedas",
              "metadata_mutable": "o dono pode mudar os dados do token", "transfer_hook": "o token roda um programa a cada transferência"}
 ADDR_EVM = re.compile(r"^0x[0-9a-f]{40}$")
+ADA_UNIT = re.compile(r"^[0-9a-f]{56}(?:[0-9a-f]{2}){0,32}$")
+MINSWAP = "https://agg-api.minswap.org/aggregator"
+KOIOS = "https://api.koios.rest/api/v1"
+ADA_ORDEM_PARADA_S = 10 * 60          # ordem ainda na DEX depois disso: o preço saiu da folga, a tela oferece cancelar
 ADDR_SOL = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 
@@ -195,6 +205,8 @@ def valid_token(chain: str, adr: str) -> bool:
     c = CHAINS.get(chain)
     if not c or not isinstance(adr, str):
         return False
+    if c["tipo"] == "cardano":                      # policy (28 bytes) + nome (até 32 bytes), em hex, como a CoinGecko e a Minswap usam
+        return bool(ADA_UNIT.match(adr.lower()))
     return bool(ADDR_SOL.match(adr)) if c["tipo"] == "solana" else bool(ADDR_EVM.match(adr.lower())) and adr.lower() != ZERO
 
 
@@ -203,6 +215,8 @@ def key_address(chain: str, text: str) -> str:
     if CHAINS[chain]["tipo"] == "solana":
         from .solana_wallet import parse_keypair
         return str(parse_keypair(text).pubkey())
+    if CHAINS[chain]["tipo"] == "cardano":
+        return cardano.address_of(text)
     return evm.address_of(evm.parse_key(text))
 
 
@@ -478,6 +492,8 @@ class Buyer:
         if hit and time.time() - hit[0] < 300:
             return hit[1]
         c = CHAINS[chain]
+        if c["tipo"] == "cardano":                 # a GoPlus não cobre Cardano: aparece o aviso "sem dados de segurança"
+            return {}
         url = ("https://api.gopluslabs.io/api/v1/solana/token_security?contract_addresses=" + token if c["tipo"] == "solana"
                else f"https://api.gopluslabs.io/api/v1/token_security/{c['id']}?contract_addresses={token}")
         try:
@@ -506,6 +522,8 @@ class Buyer:
             try:
                 if c["tipo"] == "solana":
                     saldo, reserva = (await self.rpc(self.sol_rpc(), "getBalance", [wal["endereco"]]))["value"] / 1e9, c["reserva"]
+                elif c["tipo"] == "cardano":
+                    saldo, reserva = (await self._ada_wallet(wal["endereco"]))[0] / 1e6, c["reserva"] + 4.0   # depósito e taxas da DEX
                 else:
                     saldo = int(await self.rpc(c["rpc"], "eth_getBalance", [wal["endereco"], "latest"]) or "0x0", 16) / 1e18
                     reserva = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16) * c.get("gas_mult", 1.1) * 300000 * 1.3 / 1e18   # o gás da própria compra
@@ -673,6 +691,8 @@ class Buyer:
              "risco": SALDO_TXT in ga}
         if c["tipo"] == "solana":
             det = await self._preview_sol(q, wal, bloq, avisos)
+        elif c["tipo"] == "cardano":
+            det = await self._preview_ada(q, wal, bloq, avisos)
         else:
             det = await self._preview_evm(q, wal, bloq, avisos)
         px_cg = it.get("preco")
@@ -847,6 +867,8 @@ class Buyer:
                 raise BuyError("há uma compra sem confirmação nesta rede: espere ela terminar")
             if CHAINS[q["rede"]]["tipo"] == "solana":
                 return await self._buy_sol(q, wal, secret)
+            if CHAINS[q["rede"]]["tipo"] == "cardano":
+                return await self._buy_ada(q, wal, secret)
             return await self._buy_evm(q, wal, secret)
 
     def _row(self, q: dict, wal: dict, tx: str | None, dex: str | None, rota: str | None) -> dict:
@@ -1115,7 +1137,7 @@ class Buyer:
         cfg = await self.cfg(uid)
         q = {"lado": "venda", "uid": uid, "compra": r["id"], "key": r.get("cmc"), "cg": r.get("cg"), "rede": chain, "token": r["token"], "pct": pct, "usd_n": usd_n,
              "nome": r.get("nome"), "simbolo": r.get("simbolo"), "t": time.time(), "slip": cfg["slip_pct"], "end": r.get("endereco")}
-        det = await (self._sell_preview_sol(q, bloq, avisos) if c["tipo"] == "solana" else self._sell_preview_evm(q, bloq, avisos))
+        det = await ({"solana": self._sell_preview_sol, "cardano": self._sell_preview_ada}.get(c["tipo"], self._sell_preview_evm))(q, bloq, avisos)
         row = self.watch.rows.get(r.get("cg")) or {}
         px = row.get("current_price")
         usd_out = det.get("recebe") * usd_n if det.get("recebe") and usd_n else None
@@ -1239,6 +1261,8 @@ class Buyer:
                 raise BuyError("há uma operação sem confirmação nesta rede: espere ela terminar")
             if CHAINS[q["rede"]]["tipo"] == "solana":
                 return await self._sell_sol(q, wal, secret)
+            if CHAINS[q["rede"]]["tipo"] == "cardano":
+                return await self._sell_ada(q, wal, secret)
             return await self._sell_evm(q, wal, secret)
 
     def _sell_row(self, q: dict, wal: dict, tx: str | None, dex: str | None, rota: str | None) -> dict:
@@ -1442,6 +1466,255 @@ class Buyer:
         c = CHAINS.get(r.get("rede")) or {}
         return {k: r.get(k) for k in ("id", "status", "motivo", "tx", "qty", "nativo_out", "usd_out", "gas_usd", "nome", "simbolo", "dex", "rota")} | {"expl": c.get("expl"), "moeda": c.get("moeda")}
 
+    # ------------------------------------------------------------------ Cardano pela Minswap (0.32.273)
+    async def _mswap(self, path: str, body: dict | None = None, params: dict | None = None):
+        try:
+            h = {"User-Agent": "pump-fun-copy/1.0", "accept": "application/json"}
+            r = await (self.http.post(MINSWAP + path, json=body, headers=h, timeout=40) if body is not None
+                       else self.http.get(MINSWAP + path, params=params or {}, headers=h, timeout=30))
+            js = r.json()
+        except Exception as e:
+            raise BuyError(f"a Minswap não respondeu ({type(e).__name__})") from None
+        if r.status_code != 200 or not isinstance(js, dict):
+            msg = (js.get("message") or js.get("error")) if isinstance(js, dict) else None
+            raise BuyError(f"a Minswap recusou: {str(msg or r.status_code)[:160]}")
+        return js
+
+    async def _ada_wallet(self, addr: str, unit: str | None = None) -> tuple[int, int]:
+        """(lovelace, quantidade crua do token) na carteira, pela Minswap."""
+        js = await self._mswap("/wallet", params={"address": addr, "amount_in_decimal": "false"})
+        tok = 0
+        for b in js.get("balance") or []:
+            a = b.get("asset") or {}
+            if unit and a.get("token_id") == unit:
+                tok = int(float(b.get("amount") or 0))
+        return int(float(js.get("ada") or 0)), tok
+
+    def _ada_est(self, q: dict, token_in: str, token_out: str, amount: float, dec: int) -> dict:
+        return {"amount": f"{amount:.{max(0, min(dec, 12))}f}", "token_in": token_in, "token_out": token_out, "slippage": q["slip"], "amount_in_decimal": True}
+
+    @staticmethod
+    def _ada_fees(e: dict) -> tuple[float, float, float]:
+        f = lambda k: float(e.get(k) or 0)                      # noqa: E731
+        return f("aggregator_fee"), f("total_dex_fee"), f("deposits")
+
+    @staticmethod
+    def _ada_route(e: dict) -> str:
+        return " → ".join(dict.fromkeys(h.get("protocol") or "?" for p in (e.get("paths") or []) for h in p))[:80] or "?"
+
+    async def _preview_ada(self, q: dict, wal: dict | None, bloq: list, avisos: list) -> dict:
+        body = self._ada_est(q, "lovelace", q["token"], q["amt"], 6)
+        try:
+            e = await self._mswap("/estimate", body)
+        except BuyError as er:
+            bloq.append(str(er))
+            return {"dex": "Minswap"}
+        if not float(e.get("amount_out") or 0):
+            bloq.append("a Minswap não achou rota para este token")
+            return {"dex": "Minswap"}
+        dec = int(((e.get("tokens") or {}).get(q["token"]) or {}).get("decimals") or 0)
+        agg, dexf, dep = self._ada_fees(e)
+        out, mn = float(e["amount_out"]), float(e["min_amount_out"])
+        q.update(est=body, min_s=e["min_amount_out"], dec=dec, fees=agg + dexf, dep=dep, out_est=out)
+        if wal:
+            try:
+                lov = (await self._ada_wallet(wal["endereco"]))[0]
+                precisa = q["amt"] + agg + dexf + dep + CHAINS["cardano"]["reserva"]
+                if lov / 1e6 < precisa:
+                    bloq.append(f"saldo insuficiente: a carteira tem {lov / 1e6:.2f} ADA e esta compra precisa de {precisa:.2f} (valor + taxas + depósito que volta + troco mínimo)")
+            except BuyError:
+                bloq.append("não consegui ler o saldo da carteira")
+        avisos.append(f"taxas da Minswap: {agg:g} ADA do agregador + {dexf:g} ADA da DEX; {dep:g} ADA de depósito voltam quando a ordem executa")
+        imp = e.get("avg_price_impact")
+        return {"dex": "Minswap", "rota": self._ada_route(e), "recebe": out, "qty": out, "minimo": mn,
+                "impacto": round(float(imp), 2) if imp is not None else None, "gas_usd": round((agg + dexf + 0.25) * (q["usd_n"] or 0), 4)}
+
+    async def _ada_sign_submit(self, q: dict, wal: dict, secret: str, body: dict, min_s: str, cap: int, token_out: str | None, max_tok: int):
+        """Monta pela Minswap, confere, assina e envia. Devolve (hash, cbor, carteira, rota, taxas)."""
+        try:
+            w = await asyncio.to_thread(cardano.Wallet, secret)
+        except ValueError:
+            raise BuyError("a frase guardada não abriu") from None
+        if w.address != wal["endereco"]:
+            raise BuyError("a frase não bate com o endereço da carteira: nada foi enviado")
+        e = await self._mswap("/estimate", body)
+        if float(e.get("min_amount_out") or 0) < float(min_s) * 0.99:
+            raise BuyError("o preço piorou além da sua folga: nada foi enviado, peça outra cotação")
+        agg, dexf, dep = self._ada_fees(e)
+        fees_q = (q.get("fees") or 0) + (q.get("dep") or 0)
+        if agg + dexf + dep > fees_q * 1.5 + 0.5:
+            raise BuyError("as taxas da Minswap subiram desde a cotação: nada foi enviado, peça outra cotação")
+        b = await self._mswap("/build-tx", {"sender": w.address, "min_amount_out": min_s, "estimate": body, "amount_in_decimal": True})
+        cbor = str(b.get("cbor") or "")
+        try:
+            h, _ = cardano.check_tx(cbor, w, max_out_lovelace=cap + int((agg + dexf + dep) * 1e6), token_out=token_out, max_token_out=max_tok)
+        except (cardano.TxRejected, ValueError, IndexError, KeyError) as er:
+            raise BuyError("a transação não passou na conferência: " + str(er)[:160] + ": nada foi enviado") from None
+        wit = await asyncio.to_thread(w.witness_set, h)
+        return h.hex(), cbor, wit, w, self._ada_route(e), agg + dexf
+
+    async def _ada_submit(self, cbor: str, wit: str, h: str) -> None:
+        r = await self._mswap("/finalize-and-submit-tx", {"cbor": cbor, "witness_set": wit})
+        if r.get("tx_id") and str(r["tx_id"]).lower() != h:
+            log.warning("Dormant: a Minswap devolveu outro id de transação")
+
+    async def _buy_ada(self, q: dict, wal: dict, secret: str) -> dict:
+        h, cbor, wit, w, rota, fees = await self._ada_sign_submit(q, wal, secret, q["est"], q["min_s"], int(q["value"]) + 500_000, None, 0)
+        pre = (await self._ada_wallet(w.address, q["token"]))[1]
+        row = self._row(q, wal, h, "Minswap", rota)
+        row["qty"] = q["out_est"]                          # estimativa até a ordem executar (fica se o servidor reiniciar no meio)
+        await self.db.insert("dormant_buys", row)
+        self.watch.held.add(q["cg"])
+        self.__dict__.setdefault("_ada_pre", {})[row["id"]] = (pre, fees)
+        try:
+            await self._ada_submit(cbor, wit, h)
+        except BuyError as er:
+            await self._finish(row, status="falhou", motivo=str(er)[:160])
+            raise
+        await self._finish(row, status="pendente", motivo="ordem enviada à Minswap: o token chega quando a DEX executar (segundos a minutos)")
+        return await self._early(self._ada_follow(row, False)) or self._public(row)
+
+    async def _ada_follow(self, row: dict, venda: bool) -> dict:
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < RECIBO_S:
+            await asyncio.sleep(RECIBO_PASSO * 3)
+            r = await self._apply_ada(row, venda)
+            if r.get("status") != "pendente":
+                break
+        return self._public_sell(row) if venda else self._public(row)
+
+    async def _ada_confirmed(self, h: str) -> int | None:
+        """Confirmações da transação (Koios, pública). None = ainda não entrou."""
+        try:
+            r = await self.http.post(KOIOS + "/tx_status", json={"_tx_hashes": [h]}, headers={"User-Agent": "pump-fun-copy/1.0", "accept": "application/json"}, timeout=20)
+            js = r.json()
+            n = (js[0] if isinstance(js, list) and js else {}).get("num_confirmations")
+            return int(n) if n is not None else None
+        except Exception:
+            return None
+
+    async def _ada_order(self, addr: str, h: str) -> dict | None:
+        js = await self._mswap("/pending-orders", params={"owner_address": addr, "amount_in_decimal": "false"})
+        return next((o for o in js.get("orders") or [] if str(o.get("tx_in") or "").lower().startswith(h.lower())), None)
+
+    async def _apply_ada(self, row: dict, venda: bool) -> dict:
+        busy = self.__dict__.setdefault("_ada_busy", set())
+        if row["id"] in busy:                              # o acompanhamento e a tela não resolvem a mesma ordem ao mesmo tempo
+            return row
+        busy.add(row["id"])
+        try:
+            return await self._apply_ada_go(row, venda)
+        finally:
+            busy.discard(row["id"])
+
+    async def _apply_ada_go(self, row: dict, venda: bool) -> dict:
+        fin = self._sell_finish if venda else self._finish
+        idade = time.time() - _ts(row.get("em"))
+        conf = await self._ada_confirmed(row["tx"])
+        if conf is None:
+            if idade > ADA_ORDEM_PARADA_S:
+                return await fin(row, status="falhou", motivo="a transação não entrou na blockchain (nada saiu da carteira)")
+            return row
+        if await self._ada_order(row["endereco"], row["tx"]):
+            if idade > ADA_ORDEM_PARADA_S:
+                await fin(row, status="pendente", motivo="ordem parada na Minswap: o preço saiu da folga. Cancele em Minhas compras para o valor voltar")
+            return row
+        pre, fees = self.__dict__.setdefault("_ada_pre", {}).pop(row["id"], (None, None))
+        usd_n = float(row.get("nativo_usd") or 0)
+        gas = round(((fees or 0) + 0.25) * usd_n, 4)
+        dec = int(row.get("casas") or 0)
+        lov, tok = await self._ada_wallet(row["endereco"], row["token"])
+        if venda:
+            if pre is None:
+                return await fin(row, status="confirmada", motivo="ADA recebido pela cotação (não conferido na carteira)", gas_usd=gas)
+            got = (lov - pre) / 1e6
+            if got <= 0:
+                return await fin(row, status="confira", motivo="a ordem saiu da DEX sem o ADA aparecer: pode ter sido devolvida; confira no Cardanoscan", gas_usd=gas)
+            return await fin(row, status="confirmada", motivo=None, nativo_out=got, usd_out=round(got * usd_n, 4), gas_usd=gas)
+        if pre is None:
+            return await fin(row, status="confirmada", motivo="quantidade da cotação (não conferida na carteira)", gas_usd=gas,
+                             px_in=float(row["usd_in"]) / float(row["qty"]) if row.get("qty") else None)
+        qty = (tok - pre) / 10 ** dec
+        if qty <= 0:
+            return await fin(row, status="confira", motivo="a ordem saiu da DEX sem o token chegar: pode ter sido devolvida; confira no Cardanoscan", gas_usd=gas)
+        return await fin(row, status="confirmada", motivo=None, qty=qty, px_in=float(row["usd_in"]) / qty, gas_usd=gas)
+
+    async def _sell_preview_ada(self, q: dict, bloq: list, avisos: list) -> dict:
+        try:
+            lov, saldo = await self._ada_wallet(q["end"], q["token"])
+        except BuyError:
+            bloq.append("não consegui ler o saldo da carteira")
+            return {"dex": "Minswap"}
+        if saldo <= 0:
+            bloq.append("a carteira não tem este token")
+            return {"dex": "Minswap", "saldo": 0}
+        amount = saldo if q["pct"] == 100 else saldo * q["pct"] // 100
+        try:                                               # casas do token pela própria Minswap (a cotação de 1 unidade traz)
+            e0 = await self._mswap("/estimate", {"amount": "1", "token_in": q["token"], "token_out": "lovelace", "slippage": q["slip"], "amount_in_decimal": False})
+            dec = int(((e0.get("tokens") or {}).get(q["token"]) or {}).get("decimals") or 0)
+        except BuyError:
+            dec = 0
+        body = self._ada_est(q, q["token"], "lovelace", amount / 10 ** dec, dec)
+        try:
+            e = await self._mswap("/estimate", body)
+        except BuyError as er:
+            bloq.append(str(er))
+            return {"dex": "Minswap", "saldo": saldo / 10 ** dec, "vende": amount / 10 ** dec}
+        agg, dexf, dep = self._ada_fees(e)
+        if lov / 1e6 < agg + dexf + dep + CHAINS["cardano"]["reserva"]:
+            bloq.append(f"falta ADA para as taxas da venda: a carteira tem {lov / 1e6:.2f} ADA e precisa de {agg + dexf + dep + CHAINS['cardano']['reserva']:.2f}")
+        q.update(amount=amount, dec=dec, est=body, min_s=e.get("min_amount_out") or "0", fees=agg + dexf, dep=dep)
+        avisos.append(f"taxas da Minswap: {agg:g} ADA do agregador + {dexf:g} ADA da DEX; {dep:g} ADA de depósito voltam quando a ordem executa")
+        imp = e.get("avg_price_impact")
+        return {"dex": "Minswap", "rota": self._ada_route(e), "saldo": saldo / 10 ** dec, "vende": amount / 10 ** dec, "recebe": float(e.get("amount_out") or 0),
+                "minimo": float(e.get("min_amount_out") or 0), "impacto": round(float(imp), 2) if imp is not None else None,
+                "gas_usd": round((agg + dexf + 0.25) * (q["usd_n"] or 0), 4), "aprovar": False}
+
+    async def _sell_ada(self, q: dict, wal: dict, secret: str) -> dict:
+        h, cbor, wit, w, rota, fees = await self._ada_sign_submit(q, wal, secret, q["est"], q["min_s"], 500_000, q["token"], int(q["amount"]))
+        pre = (await self._ada_wallet(w.address))[0]
+        row = self._sell_row(q, wal, h, "Minswap", rota)
+        await self.db.insert("dormant_sells", row)
+        self.__dict__.setdefault("_ada_pre", {})[row["id"]] = (pre, fees)
+        try:
+            await self._ada_submit(cbor, wit, h)
+        except BuyError as er:
+            await self._sell_finish(row, status="falhou", motivo=str(er)[:160])
+            raise
+        await self._sell_finish(row, status="pendente", motivo="ordem enviada à Minswap: o ADA chega quando a DEX executar (segundos a minutos)")
+        return await self._early(self._ada_follow(row, True)) or self._public_sell(row)
+
+    async def cancel_ada(self, uid: str, tipo: str, op_id: str, senha: str) -> dict:
+        """Cancela uma ordem parada na Minswap: o valor volta para a carteira. Só a própria ordem, conferida antes de assinar."""
+        tabela = "dormant_sells" if tipo == "venda" else "dormant_buys"
+        async with self.lock(uid):
+            rows = await self.db.select(tabela, {"id": str(op_id or ""), "user_id": uid}, limit=1) or []
+            if not rows or rows[0].get("rede") != "cardano" or rows[0].get("status") != "pendente":
+                raise BuyError("não achei uma ordem Cardano pendente com esse número")
+            r = rows[0]
+            if not self.allowed():
+                raise BuyError("a trava geral do servidor (PUMP_REAL_ALLOWED) está fechada")
+            wal = await self.wallet_row(uid, "cardano")
+            if not wal or wal["endereco"] != r["endereco"]:
+                raise BuyError("a carteira Cardano foi trocada depois desta ordem")
+            secret = await self._open(uid, wal, senha)
+            o = await self._ada_order(r["endereco"], r["tx"])
+            if not o:
+                raise BuyError("a ordem não está mais na Minswap (já executou ou foi cancelada): atualize Minhas compras")
+            w = await asyncio.to_thread(cardano.Wallet, secret)
+            if w.address != wal["endereco"]:
+                raise BuyError("a frase não bate com o endereço da carteira: nada foi enviado")
+            b = await self._mswap("/cancel-tx", {"sender": w.address, "orders": [{"tx_in": o["tx_in"]}]})
+            cbor = str(b.get("cbor") or "")
+            try:                                           # cancelar só devolve: nada sai para fora além da taxa da rede
+                h, _ = cardano.check_tx(cbor, w, max_out_lovelace=0)
+            except (cardano.TxRejected, ValueError, IndexError, KeyError) as er:
+                raise BuyError("o cancelamento não passou na conferência: " + str(er)[:160] + ": nada foi enviado") from None
+            await self._ada_submit(cbor, await asyncio.to_thread(w.witness_set, h), h.hex())
+            fin = self._sell_finish if tipo == "venda" else self._finish
+            await fin(r, status="cancelada", motivo="ordem cancelada: o valor volta para a carteira", **({} if tipo == "venda" else {"qty": 0}))
+            return {"ok": True, "tx": h.hex(), "expl": CHAINS["cardano"]["expl"]}
+
     # ------------------------------------------------------------------ pendências
     async def resolve_pending(self, uid: str) -> None:
         now = time.time()
@@ -1459,6 +1732,9 @@ class Buyer:
                         if rc:
                             await self._apply_evm(r, rc)
                             continue
+                    elif CHAINS.get(r["rede"], {}).get("tipo") == "cardano":
+                        await self._apply_ada(r, venda=False)
+                        continue
                     elif r.get("tx") and r.get("rede") in CHAINS:
                         st = (await self.rpc(self.sol_rpc(), "getSignatureStatuses", [[r["tx"]], {"searchTransactionHistory": True}]))["value"][0]
                         if st and st.get("err"):
@@ -1480,6 +1756,9 @@ class Buyer:
                         if rc:
                             await self._apply_sell_evm(r, rc)
                             continue
+                    elif CHAINS.get(r["rede"], {}).get("tipo") == "cardano":
+                        await self._apply_ada(r, venda=True)
+                        continue
                     elif r.get("tx"):
                         st = (await self.rpc(self.sol_rpc(), "getSignatureStatuses", [[r["tx"]], {"searchTransactionHistory": True}]))["value"][0]
                         if st and st.get("err"):
@@ -1500,7 +1779,7 @@ class Buyer:
     async def spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
         rows = await self.db.select("dormant_buys", {"user_id": uid}, gte={"em": since}, columns="usd_in,status,rede") or []
-        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada") and not str(r.get("rede") or "").startswith("cex:")), 4)   # exchange tem limite próprio
+        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada", "cancelada") and not str(r.get("rede") or "").startswith("cex:")), 4)   # exchange tem limite próprio
 
     async def gas_spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
@@ -1586,8 +1865,10 @@ class Buyer:
         if chain not in CHAINS:
             raise BuyError("rede inválida")
         if not isinstance(secret, str) or not 40 <= len(secret.strip()) <= 800:
-            raise BuyError("isso não parece uma chave privada")
+            raise BuyError("isso não parece uma frase de recuperação" if CHAINS[chain]["tipo"] == "cardano" else "isso não parece uma chave privada")
         secret = secret.strip()
+        if CHAINS[chain]["tipo"] == "cardano":       # frase de recuperação: um espaço entre palavras, minúsculas
+            secret = " ".join(secret.lower().split())
         try:
             addr = key_address(chain, secret)
         except ValueError as e:

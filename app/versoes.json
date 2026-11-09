@@ -2120,6 +2120,11 @@
    "versao": "0.32.272",
    "inicio": "2026-11-09T16:55:00+00:00",
    "titulo": "Dormant: moeda adicionada não perde mais o par depois do reinício"
+  },
+  {
+   "versao": "0.32.273",
+   "inicio": "2026-11-09T17:37:20+00:00",
+   "titulo": "Dormant: carteira Cardano e compra pela Minswap"
   }
  ]
 }

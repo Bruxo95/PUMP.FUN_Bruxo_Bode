@@ -602,8 +602,10 @@
     $("wList").innerHTML = cp + w.redes.map((r) => '<div class="dmwal"><div class="h">' + chainTag(r.nome) + ' <small class="muted">compra por ' + esc(r.dex) + " · paga em " + esc(r.moeda) + '</small><span class="sp"></span>' +
       (r.endereco ? '<span class="tag win">configurada</span> <button type="button" class="btn sm tgl off" data-wdel="' + esc(r.rede) + '">Remover</button>' : '<span class="tag neutral">sem carteira</span>') + "</div>" +
       (r.endereco ? '<div class="ad">' + esc(r.endereco) + '</div><div class="muted small" data-wbal="' + esc(r.rede) + '" data-wm="' + esc(r.moeda) + '">lendo o saldo…</div>' : "") +
-      '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="Chave privada de ' + esc(r.nome) + '">' +
+      '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.tipo === "cardano" ? (r.endereco ? "trocar: cole a nova frase de recuperação" : "cole a frase de recuperação (12 a 24 palavras)") : r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="' + (r.tipo === "cardano" ? "Frase de recuperação de " : "Chave privada de ") + esc(r.nome) + '">' +
       (r.tipo === "evm" ? '<label class="small muted"><input type="checkbox" id="we_' + esc(r.rede) + '"> usar nas ' + w.redes.filter((x) => x.tipo === "evm").length + ' redes EVM</label>' : "") +
+      // 0.32.273: carteira Cardano (Eternl, Lace, Yoroi) exporta a frase, não uma chave. Usa o 1º endereço da conta 0: conferir que é o mesmo da carteira
+      (r.tipo === "cardano" ? '<span class="small muted">o endereço que aparecer depois de salvar tem que ser o mesmo da sua carteira (1º endereço da conta 0)</span>' : "") +
       '<button type="button" class="btn primary sm" data-wsave="' + esc(r.rede) + '">Salvar</button></div></div>').join("");
   }
   let ASK = null;
@@ -907,13 +909,15 @@
       '<div class="f"><span>' + hora(x.t) + "</span> " + tx(x) + '<span class="sp"></span>' +
       (x.cex ? '<span class="small">vender na exchange</span>' : x.resto ? '<button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') + "</div></div>").join("")
       : '<div class="cpempty">Nenhuma compra ainda. Em Moedas, use o botão Comprar.</div>';
-    const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
+    const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira", cancelada: "cancelada" };
+    // 0.32.273: ordem Cardano parada na Minswap (o preço saiu da folga) só volta cancelando
+    const adaX = (x, tipo) => x.rede === "cardano" && x.status === "pendente" ? ' <button type="button" class="btn sm" data-adacancel="' + tipo + ":" + esc(x.id) + '">Cancelar ordem</button>' : "";
     table("cpV", ["Quando", "Moeda", "Rede", "Vendeu", "Recebeu", "Gás", "Onde", "Situação", "Transação"], (r.vendas || []).map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V(qtd(x.qty), x.qty),
       V(x.usd_out == null ? "—" : "$" + num(x.usd_out, 2) + '<span class="dmwhy">' + num(x.nativo_out, 6) + " " + esc(x.moeda) + "</span>", x.usd_out), V(x.gas_usd == null ? "—" : "$" + num(x.gas_usd, 4), x.gas_usd), esc(x.dex || "—"),
-      V('<span class="dmst ' + (x.status === "confirmada" ? "pump" : x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_V[x.status] || x.status) + "</span>" + (x.motivo ? '<span class="dmwhy">' + esc(x.motivo) + "</span>" : ""), x.status), tx(x)]), "Nenhuma venda ainda.");
-    const ST_C = { enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira" };
+      V('<span class="dmst ' + (x.status === "confirmada" ? "pump" : x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_V[x.status] || x.status) + "</span>" + (x.motivo ? '<span class="dmwhy">' + esc(x.motivo) + "</span>" : "") + adaX(x, "venda"), x.status), tx(x)]), "Nenhuma venda ainda.");
+    const ST_C = { enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira", cancelada: "cancelada" };
     table("cpF", ["Quando", "Moeda", "Rede", "Valor", "Situação", "Motivo", "Transação"], fora.map((x) => [V(hora(x.t), x.t), V(moeda(x), x.nome), V(chainTag(x.rede_nome), x.rede_nome || ""), V("$" + num(x.usd_in, 2), x.usd_in),
-      V('<span class="dmst ' + (x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_C[x.status] || x.status) + "</span>", x.status), '<small class="muted">' + esc(x.motivo || "") + "</small>", tx(x)]), "Nada aqui.");
+      V('<span class="dmst ' + (x.status === "falhou" || x.status === "expirada" ? "dump" : "acordando") + '">' + esc(ST_C[x.status] || x.status) + "</span>", x.status), '<small class="muted">' + esc(x.motivo || "") + "</small>" + adaX(x, "compra"), tx(x)]), "Nada aqui.");
   }
   function draw() {
     drawSys();
@@ -1041,9 +1045,21 @@
     if (t.id === "buyHist") { closeBuy(); $("coinM").hidden = true; CM = null; return; }
     if (t.id === "askMX") { closeAsk(); return; }
     if (t.id === "askGo") { if (ASK) await ASK(t); return; }
+    if (t.dataset.adacancel) {
+      const [tipo, id] = t.dataset.adacancel.split(":");
+      ask("Cancelar a ordem na Minswap", '<p class="muted small">A ordem sai do contrato da DEX e o valor volta para a sua carteira Cardano. Paga só a taxa da rede (perto de 0.2 ADA).</p>' + askPass("Senha de compra") +
+        '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Cancelar ordem</button></div></div>', async (b) => {
+        b.disabled = true;
+        const r = await BB.api("/api/dormant/cardano/cancelar", { body: { tipo, id, senha: $("askSenha").value } });
+        b.disabled = false; $("askSenha").value = "";
+        if (!r || r.error) { alert((r && r.error) || "não cancelou"); return; }
+        closeAsk(); alert("Cancelamento enviado: o valor volta para a carteira Cardano em instantes."); drawCompras();
+      });
+      return;
+    }
     if (t.dataset.wsave) {
       const rede = t.dataset.wsave, f = $("wk_" + rede), senha = $("wPass").value, e2 = $("we_" + rede);
-      if (!f.value.trim()) { alert("Cole a chave privada."); return; }
+      if (!f.value.trim()) { alert(rede === "cardano" ? "Cole a frase de recuperação." : "Cole a chave privada."); return; }
       if (!WAL.tem_senha && senha !== $("wPass2").value) { alert("As duas senhas estão diferentes."); return; }
       t.disabled = true;
       const r = await BB.api("/api/dormant/carteiras/salvar", { body: { rede, chave: f.value, senha, todas_evm: !!(e2 && e2.checked) } });

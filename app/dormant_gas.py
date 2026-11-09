@@ -95,6 +95,13 @@ class GasFiller:
             c = CHAINS.get(k)
             if not c:
                 return k, None
+            if c["tipo"] == "cardano":                    # 0.32.273: só o saldo; a Relay não leva gás para a Cardano (sem Abastecer)
+                try:
+                    ada = (await b._ada_wallet(r["endereco"]))[0] / 1e6
+                except BuyError:
+                    return k, {"saldo": None, "moeda": "ADA", "estado": "nao_lido"}
+                usd = await b.native_usd(k)
+                return k, {"saldo": ada, "moeda": "ADA", "usd": ada * usd if usd else None, "ops": None, "estado": "ok", "sugestao_usd": None, "pode_origem": False}
             try:
                 if c["tipo"] == "solana":
                     saldo = (await b.rpc(b.sol_rpc(), "getBalance", [r["endereco"]]))["value"] / 1e9

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-09",
     "timezone": "Europe/Dublin",
-    "repository_reference": "92257b00ce22e9bb05f0ffecb5a108ca327104d8",
-    "application_version": "0.32.272 · 2026-11-09 · Dormant: moeda adicionada não perde mais o par depois do reinício",
+    "repository_reference": "3dc0faf2328262dc6d956b30c3f8bec04088b93c",
+    "application_version": "0.32.273 · 2026-11-09 · Dormant: carteira Cardano e compra pela Minswap",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "b80de56b855f3b0aeca1993df09104be33c03cc9e9d7cfebf1f9896651dde686",
+      "app/version.py": "d10b68469a819027d770953bdf2ca0fc2682e10c46370d938ea329d7f3f79ece",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "aeb431b4fc3b09597ca223b8c63a900abde2f5f4c624910582c0c8aa8883b2dd"
+  "pdf_sha256": "f0730705e463e97056e9c032e0a188638525a37e0c9dfd4e0c19367d9d89fe18"
 }
