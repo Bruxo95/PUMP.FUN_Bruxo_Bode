@@ -46,7 +46,7 @@ flowchart TB
 flowchart TB
     subgraph S["Supabase — rápido, com RLS"]
         U["Usuários, perfis, configurações<br/>chaves criptografadas (AES-256-GCM)<br/>posições, trades, feed, audit_log"]
-        R["Dados públicos dos últimos 7 dias<br/>bnb_fm_trades · token_life"]
+        R["Dados públicos recentes<br/>bnb_fm_trades (3 dias) · token_life (7 dias)"]
         J["jev_backtest: só a linha _run"]
     end
     subgraph L["Postgres da VPS — banco pump_arquivo"]
@@ -60,7 +60,7 @@ flowchart TB
 | Onde | O quê | Por quê |
 |---|---|---|
 | **Supabase** | Tudo que é de usuário (perfis, configurações, chaves, posições, trades, feed, audit_log) e os dados de consulta rápida dos últimos 7 dias | Tem RLS (cada usuário só vê o que é dele) e login Google |
-| **Postgres da VPS** (`pump_arquivo`) | Histórico **público**: trades da BNB e vida dos tokens com mais de 7 dias, estudo do passado do Jev | Tira peso do Supabase; guarda 90 dias |
+| **Postgres da VPS** (`pump_arquivo`) | Histórico **público**: trades da BNB com mais de 3 dias (desde a 0.32.270; a BNB grava ~33 mil por dia), vida dos tokens com mais de 7 dias, estudo do passado do Jev | Tira peso do Supabase; guarda 90 dias |
 
 Regras:
 - **Só dado público vai para o arquivo** (lá não existe RLS). Nada de usuário, chave ou posição.

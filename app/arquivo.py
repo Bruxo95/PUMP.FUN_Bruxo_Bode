@@ -30,7 +30,9 @@ log = logging.getLogger("arquivo")
 # tabela do Supabase → chave, coluna de hora, formato da hora, dias que ficam no Supabase
 SPECS = [
     {"tabela": "jev_backtest", "pk": "id", "t": "em", "tipo": "iso", "dias": 0, "fica": {"_run"}},
-    {"tabela": "bnb_fm_trades", "pk": "id", "t": "t", "tipo": "epoch", "dias": 7},
+    # 0.32.270 (dono: "o Supabase continua enchendo"): a BNB grava ~33 mil trades por dia (≈ 17 MB/dia); com 7 dias eram
+    # ~170 MB só dela. Fica 3 dias no Supabase; o resto vem do arquivo quando o servidor sobe ou o ranking pede mais dias.
+    {"tabela": "bnb_fm_trades", "pk": "id", "t": "t", "tipo": "epoch", "dias": 3},
     {"tabela": "token_life", "pk": "mint", "t": "criado_em", "tipo": "iso", "dias": 7},
 ]
 LOTE = 500                    # linhas por lote

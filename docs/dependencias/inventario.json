@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-11-08",
+    "generated_date": "2026-11-09",
     "timezone": "Europe/Dublin",
-    "repository_reference": "2b90c53912d06429eb27719ef54d56b38a7590e9",
-    "application_version": "0.32.269 · 2026-11-08 · Sala: lista em dólar, trader trabalha ou toma café",
+    "repository_reference": "e81ed0674a00abc7b9834f12de311a577c306014",
+    "application_version": "0.32.270 · 2026-11-09 · Supabase: BNB fica 3 dias, o resto no arquivo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "fbc502df0a8ca98f5d85d6528cf33860d386edf14da3b4b5cfbc9cafb0dbe09e",
+      "app/version.py": "3e7f5b1fa721df3fc67b8790e7a13078c509bc71f1b35375d1f0fb5f899bebcd",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "40f6f36287c42fe261f94049a176e3a0567f2d2183c64d2a6c3a9963bb8239a1"
+  "pdf_sha256": "42c759d1d428daabad4a31983181bee7c7cb6e7d12dfd1baae8f942bf207ad56"
 }

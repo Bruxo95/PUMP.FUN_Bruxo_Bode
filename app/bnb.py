@@ -1047,8 +1047,27 @@ class BnbWatch:
             since = time.time() - min(KEEP_S, max(1, int(self.cfg.get("days") or 7)) * 86400 + 3600)
             self._loaded_since = since
             off = 0
+            # 0.32.270: o Supabase guarda só os últimos dias da BNB (arquivo.SPECS); o que é mais velho que isso e ainda
+            # entra no ranking vem primeiro do Postgres da VPS, em ordem de hora
+            arq = getattr(self, "arquivo", None)
+            if arq is not None:
+                try:
+                    from .arquivo import SPECS
+                    supa_days = next((s["dias"] for s in SPECS if s["tabela"] == "bnb_fm_trades"), 7)
+                    cut = time.time() - supa_days * 86400
+                    if since < cut:
+                        async for rows in arq.pages("bnb_fm_trades", since, cut):
+                            for r in rows:
+                                self._add({k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side", "price", "amount",
+                                                                 "value", "fee", "t", "quote", "venue")})
+                            off += len(rows)
+                            if off >= MAX_MEM:
+                                break
+                except Exception as e:
+                    log.warning("BNB: dias antigos do arquivo não carregaram: %s", str(e)[:160])
+            arq_n = off
             while True:
-                rows = await self.db.select("bnb_fm_trades", None, order="t.asc", limit=5000, offset=off,
+                rows = await self.db.select("bnb_fm_trades", None, order="t.asc", limit=5000, offset=off - arq_n,
                                             gte={"t": since}) or []
                 for r in rows:
                     self._add({k: r.get(k) for k in ("id", "tx", "block", "token", "wallet", "side", "price", "amount",
@@ -1057,6 +1076,7 @@ class BnbWatch:
                 if len(rows) < 5000 or off >= MAX_MEM:
                     break
             self.stat["carregados"] = off
+            self.stat["do_arquivo"] = arq_n
             await self.load_books()
         except Exception as e:
             log.warning("BNB: dados guardados não carregaram: %s", str(e)[:160])

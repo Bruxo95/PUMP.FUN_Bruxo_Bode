@@ -2105,6 +2105,11 @@
    "versao": "0.32.269",
    "inicio": "2026-11-08T20:58:39+00:00",
    "titulo": "Sala: lista em dólar, trader trabalha ou toma café"
+  },
+  {
+   "versao": "0.32.270",
+   "inicio": "2026-11-09T08:44:11+00:00",
+   "titulo": "Supabase: BNB fica 3 dias, o resto no arquivo"
   }
  ]
 }
