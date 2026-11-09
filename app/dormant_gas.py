@@ -95,6 +95,13 @@ class GasFiller:
             c = CHAINS.get(k)
             if not c:
                 return k, None
+            if c["tipo"] == "cosmos":                     # 0.32.274: só o saldo de OSMO; a Relay não leva gás para a Osmosis (sem Abastecer)
+                try:
+                    osmo = await b._osmo_bal(r["endereco"], "uosmo") / 1e6
+                except BuyError:
+                    return k, {"saldo": None, "moeda": "OSMO", "estado": "nao_lido"}
+                usd = await b.native_usd(k)
+                return k, {"saldo": osmo, "moeda": "OSMO", "usd": osmo * usd if usd else None, "ops": None, "estado": "ok", "sugestao_usd": None, "pode_origem": False}
             if c["tipo"] == "cardano":                    # 0.32.273: só o saldo; a Relay não leva gás para a Cardano (sem Abastecer)
                 try:
                     ada = (await b._ada_wallet(r["endereco"]))[0] / 1e6

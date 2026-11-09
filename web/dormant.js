@@ -602,10 +602,12 @@
     $("wList").innerHTML = cp + w.redes.map((r) => '<div class="dmwal"><div class="h">' + chainTag(r.nome) + ' <small class="muted">compra por ' + esc(r.dex) + " · paga em " + esc(r.moeda) + '</small><span class="sp"></span>' +
       (r.endereco ? '<span class="tag win">configurada</span> <button type="button" class="btn sm tgl off" data-wdel="' + esc(r.rede) + '">Remover</button>' : '<span class="tag neutral">sem carteira</span>') + "</div>" +
       (r.endereco ? '<div class="ad">' + esc(r.endereco) + '</div><div class="muted small" data-wbal="' + esc(r.rede) + '" data-wm="' + esc(r.moeda) + '">lendo o saldo…</div>' : "") +
-      '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.tipo === "cardano" ? (r.endereco ? "trocar: cole a nova frase de recuperação" : "cole a frase de recuperação (12 a 24 palavras)") : r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="' + (r.tipo === "cardano" ? "Frase de recuperação de " : "Chave privada de ") + esc(r.nome) + '">' +
+      '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.tipo === "cardano" ? (r.endereco ? "trocar: cole a nova frase de recuperação" : "cole a frase de recuperação (12 a 24 palavras)") : r.tipo === "cosmos" ? (r.endereco ? "trocar: cole a nova frase ou chave privada" : "cole a frase de recuperação ou a chave privada da Keplr") : r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="' + (r.tipo === "cardano" || r.tipo === "cosmos" ? "Frase de recuperação de " : "Chave privada de ") + esc(r.nome) + '">' +
       (r.tipo === "evm" ? '<label class="small muted"><input type="checkbox" id="we_' + esc(r.rede) + '"> usar nas ' + w.redes.filter((x) => x.tipo === "evm").length + ' redes EVM</label>' : "") +
       // 0.32.273: carteira Cardano (Eternl, Lace, Yoroi) exporta a frase, não uma chave. Usa o 1º endereço da conta 0: conferir que é o mesmo da carteira
       (r.tipo === "cardano" ? '<span class="small muted">o endereço que aparecer depois de salvar tem que ser o mesmo da sua carteira (1º endereço da conta 0)</span>' : "") +
+      // 0.32.274: Osmosis (Cosmos). Keplr, Leap e Cosmostation usam a mesma frase; o endereço começa com osmo1
+      (r.tipo === "cosmos" ? '<span class="small muted">mesma frase da Keplr, Leap ou Cosmostation: o endereço osmo1 que aparecer tem que ser o mesmo da carteira (conta 0)</span>' : "") +
       '<button type="button" class="btn primary sm" data-wsave="' + esc(r.rede) + '">Salvar</button></div></div>').join("");
   }
   let ASK = null;
@@ -1059,7 +1061,7 @@
     }
     if (t.dataset.wsave) {
       const rede = t.dataset.wsave, f = $("wk_" + rede), senha = $("wPass").value, e2 = $("we_" + rede);
-      if (!f.value.trim()) { alert(rede === "cardano" ? "Cole a frase de recuperação." : "Cole a chave privada."); return; }
+      if (!f.value.trim()) { alert(rede === "cardano" ? "Cole a frase de recuperação." : rede === "osmosis" ? "Cole a frase de recuperação ou a chave privada." : "Cole a chave privada."); return; }
       if (!WAL.tem_senha && senha !== $("wPass2").value) { alert("As duas senhas estão diferentes."); return; }
       t.disabled = true;
       const r = await BB.api("/api/dormant/carteiras/salvar", { body: { rede, chave: f.value, senha, todas_evm: !!(e2 && e2.checked) } });

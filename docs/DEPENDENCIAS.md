@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-09**; revisão documental **2.0**.
-Aplicação: **0.32.273 · 2026-11-09 · Dormant: carteira Cardano e compra pela Minswap**.
-Referência Git na emissão: `3dc0faf2328262dc6d956b30c3f8bec04088b93c`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.274 · 2026-11-09 · Dormant: carteira da Osmosis (Cosmos) e compra pela DEX da Osmosis**.
+Referência Git na emissão: `b477a2c58af661618cc07241d82a85ad7d78e71d`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

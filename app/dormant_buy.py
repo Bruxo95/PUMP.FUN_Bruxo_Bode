@@ -25,6 +25,7 @@ import uuid
 from datetime import datetime, timezone
 
 from . import cardano
+from . import osmosis
 from . import dormant_vault as vault
 from . import evm
 from .crypto import CryptoError
@@ -127,6 +128,11 @@ CHAINS = {
     # transação, quando o executor da Minswap roda a ordem (segundos a minutos). Ordem fora da folga fica parada até ser cancelada.
     "cardano": {"nome": "Cardano", "tipo": "cardano", "moeda": "ADA", "cg": "cardano", "dec": 6, "dex": "Minswap", "expl": "https://cardanoscan.io/transaction/",
                 "reserva": 3.0},
+    # 0.32.274 (pedido do dono, 09/11/2026): Osmosis, a DEX da Cosmos, paga em OSMO. A transação é montada AQUI (app/osmosis.py: uma mensagem só,
+    # remetente = a própria carteira, mínimo a receber); o roteador oficial da Osmosis (SQS) só sugere as pools. Conferido em 09/11 na rede:
+    # nó osmosis-1 v32, simulação aceitando a mensagem de troca, chave pública derivada = a guardada na rede para a frase de teste pública.
+    "osmosis": {"nome": "Osmosis", "tipo": "cosmos", "moeda": "OSMO", "cg": "osmosis", "dec": 6, "dex": "Osmosis", "expl": "https://www.mintscan.io/osmosis/tx/",
+                "reserva": 0.3, "lcd": ["https://lcd.osmosis.zone", "https://osmosis-rest.publicnode.com"], "sqs": "https://sqs.osmosis.zone"},
     "unichain": {"nome": "Unichain", "tipo": "evm", "id": 130, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://uniscan.xyz/tx/",
                  "rpc": "https://mainnet.unichain.org", "router": "0x284f11109359a7e1306c3e447ef14d38400063ff",
                  "wrapped": "0x4200000000000000000000000000000000000006", "ponte": "0x078d782b760474a361dda0af3839290b0ef57ad6"},
@@ -167,6 +173,7 @@ SOL_BLOQ = {"closable": "o dono pode fechar o token",
 SOL_AVISO = {"freezable": "o dono pode congelar carteiras", "mintable": "o dono pode criar mais moedas",
              "metadata_mutable": "o dono pode mudar os dados do token", "transfer_hook": "o token roda um programa a cada transferência"}
 ADDR_EVM = re.compile(r"^0x[0-9a-f]{40}$")
+OSMO_DENOM = re.compile(r"^(ibc/[0-9A-F]{64}|factory/osmo1[02-9ac-hj-np-z]{38,58}/[A-Za-z0-9._-]{1,64}|u[a-z]{2,12})$")
 ADA_UNIT = re.compile(r"^[0-9a-f]{56}(?:[0-9a-f]{2}){0,32}$")
 MINSWAP = "https://agg-api.minswap.org/aggregator"
 KOIOS = "https://api.koios.rest/api/v1"
@@ -207,6 +214,8 @@ def valid_token(chain: str, adr: str) -> bool:
         return False
     if c["tipo"] == "cardano":                      # policy (28 bytes) + nome (até 32 bytes), em hex, como a CoinGecko e a Minswap usam
         return bool(ADA_UNIT.match(adr.lower()))
+    if c["tipo"] == "cosmos":                       # denominação da Osmosis: ibc/<hash>, factory/<criador>/<nome> ou nativa (u…)
+        return bool(OSMO_DENOM.match(adr)) and adr != osmosis.NATIVE
     return bool(ADDR_SOL.match(adr)) if c["tipo"] == "solana" else bool(ADDR_EVM.match(adr.lower())) and adr.lower() != ZERO
 
 
@@ -217,6 +226,8 @@ def key_address(chain: str, text: str) -> str:
         return str(parse_keypair(text).pubkey())
     if CHAINS[chain]["tipo"] == "cardano":
         return cardano.address_of(text)
+    if CHAINS[chain]["tipo"] == "cosmos":
+        return osmosis.address_of(text)
     return evm.address_of(evm.parse_key(text))
 
 
@@ -492,7 +503,7 @@ class Buyer:
         if hit and time.time() - hit[0] < 300:
             return hit[1]
         c = CHAINS[chain]
-        if c["tipo"] == "cardano":                 # a GoPlus não cobre Cardano: aparece o aviso "sem dados de segurança"
+        if c["tipo"] in ("cardano", "cosmos"):     # a GoPlus não cobre Cardano nem Osmosis: aparece o aviso "sem dados de segurança"
             return {}
         url = ("https://api.gopluslabs.io/api/v1/solana/token_security?contract_addresses=" + token if c["tipo"] == "solana"
                else f"https://api.gopluslabs.io/api/v1/token_security/{c['id']}?contract_addresses={token}")
@@ -524,6 +535,8 @@ class Buyer:
                     saldo, reserva = (await self.rpc(self.sol_rpc(), "getBalance", [wal["endereco"]]))["value"] / 1e9, c["reserva"]
                 elif c["tipo"] == "cardano":
                     saldo, reserva = (await self._ada_wallet(wal["endereco"]))[0] / 1e6, c["reserva"] + 4.0   # depósito e taxas da DEX
+                elif c["tipo"] == "cosmos":
+                    saldo, reserva = await self._osmo_bal(wal["endereco"], osmosis.NATIVE) / 1e6, c["reserva"]
                 else:
                     saldo = int(await self.rpc(c["rpc"], "eth_getBalance", [wal["endereco"], "latest"]) or "0x0", 16) / 1e18
                     reserva = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16) * c.get("gas_mult", 1.1) * 300000 * 1.3 / 1e18   # o gás da própria compra
@@ -651,7 +664,7 @@ class Buyer:
         c = CHAINS[chain]
         await self.resolve_pending(uid)            # 0.32.247: a compra pode já ter confirmado; sem isto ficava bloqueado até abrir Minhas compras
         token = w.addr[cid][chain]
-        token = token if c["tipo"] == "solana" else token.lower()
+        token = token if c["tipo"] in ("solana", "cosmos") else token.lower()      # denominação da Osmosis diferencia maiúsculas
         try:
             amt = float(amount)
         except (TypeError, ValueError):
@@ -693,6 +706,8 @@ class Buyer:
             det = await self._preview_sol(q, wal, bloq, avisos)
         elif c["tipo"] == "cardano":
             det = await self._preview_ada(q, wal, bloq, avisos)
+        elif c["tipo"] == "cosmos":
+            det = await self._preview_osmo(q, wal, bloq, avisos)
         else:
             det = await self._preview_evm(q, wal, bloq, avisos)
         px_cg = it.get("preco")
@@ -869,6 +884,8 @@ class Buyer:
                 return await self._buy_sol(q, wal, secret)
             if CHAINS[q["rede"]]["tipo"] == "cardano":
                 return await self._buy_ada(q, wal, secret)
+            if CHAINS[q["rede"]]["tipo"] == "cosmos":
+                return await self._buy_osmo(q, wal, secret)
             return await self._buy_evm(q, wal, secret)
 
     def _row(self, q: dict, wal: dict, tx: str | None, dex: str | None, rota: str | None) -> dict:
@@ -1137,7 +1154,7 @@ class Buyer:
         cfg = await self.cfg(uid)
         q = {"lado": "venda", "uid": uid, "compra": r["id"], "key": r.get("cmc"), "cg": r.get("cg"), "rede": chain, "token": r["token"], "pct": pct, "usd_n": usd_n,
              "nome": r.get("nome"), "simbolo": r.get("simbolo"), "t": time.time(), "slip": cfg["slip_pct"], "end": r.get("endereco")}
-        det = await ({"solana": self._sell_preview_sol, "cardano": self._sell_preview_ada}.get(c["tipo"], self._sell_preview_evm))(q, bloq, avisos)
+        det = await ({"solana": self._sell_preview_sol, "cardano": self._sell_preview_ada, "cosmos": self._sell_preview_osmo}.get(c["tipo"], self._sell_preview_evm))(q, bloq, avisos)
         row = self.watch.rows.get(r.get("cg")) or {}
         px = row.get("current_price")
         usd_out = det.get("recebe") * usd_n if det.get("recebe") and usd_n else None
@@ -1263,6 +1280,8 @@ class Buyer:
                 return await self._sell_sol(q, wal, secret)
             if CHAINS[q["rede"]]["tipo"] == "cardano":
                 return await self._sell_ada(q, wal, secret)
+            if CHAINS[q["rede"]]["tipo"] == "cosmos":
+                return await self._sell_osmo(q, wal, secret)
             return await self._sell_evm(q, wal, secret)
 
     def _sell_row(self, q: dict, wal: dict, tx: str | None, dex: str | None, rota: str | None) -> dict:
@@ -1715,6 +1734,259 @@ class Buyer:
             await fin(r, status="cancelada", motivo="ordem cancelada: o valor volta para a carteira", **({} if tipo == "venda" else {"qty": 0}))
             return {"ok": True, "tx": h.hex(), "expl": CHAINS["cardano"]["expl"]}
 
+    # ------------------------------------------------------------------ Osmosis (0.32.274)
+    async def _osmo(self, path: str, body: dict | None = None):
+        """Nó público da Osmosis (LCD). Tenta o próximo se um não responder."""
+        last = "sem resposta"
+        for base in CHAINS["osmosis"]["lcd"]:
+            try:
+                h = {"User-Agent": "pump-fun-copy/1.0", "accept": "application/json"}
+                r = await (self.http.post(base + path, json=body, headers=h, timeout=30) if body is not None else self.http.get(base + path, headers=h, timeout=20))
+                js = r.json()
+            except Exception as e:
+                last = type(e).__name__
+                continue
+            if r.status_code == 200 and isinstance(js, dict):
+                return js
+            if isinstance(js, dict) and (js.get("message") or js.get("code") is not None):
+                return {"_erro": str(js.get("message") or js.get("code"))[:300], "_status": r.status_code}
+            last = f"HTTP {r.status_code}"
+        raise BuyError(f"a rede Osmosis não respondeu ({last})")
+
+    async def _sqs(self, path: str) -> dict:
+        try:
+            r = await self.http.get(CHAINS["osmosis"]["sqs"] + path, headers={"User-Agent": "pump-fun-copy/1.0", "accept": "application/json"}, timeout=25)
+            js = r.json()
+        except Exception as e:
+            raise BuyError(f"o roteador da Osmosis não respondeu ({type(e).__name__})") from None
+        if r.status_code != 200 or not isinstance(js, dict):
+            raise BuyError("o roteador da Osmosis não achou rota" + (f": {str(js.get('message'))[:120]}" if isinstance(js, dict) and js.get("message") else ""))
+        return js
+
+    async def _osmo_bal(self, addr: str, denom: str) -> int:
+        from urllib.parse import quote
+        js = await self._osmo(f"/cosmos/bank/v1beta1/balances/{addr}/by_denom?denom={quote(denom, safe='')}")
+        if js.get("_erro"):
+            raise BuyError("não consegui ler o saldo: " + js["_erro"][:120])
+        return int(((js.get("balance") or {}).get("amount")) or 0)
+
+    async def _osmo_dec(self, denom: str) -> int | None:
+        from urllib.parse import quote
+        try:
+            js = await self._sqs("/tokens/metadata?denoms=" + quote(denom, safe=""))
+            return int((js.get(denom) or {}).get("decimals"))
+        except (BuyError, TypeError, ValueError):
+            return None
+
+    async def _osmo_quote(self, amount: int, denom_in: str, denom_out: str) -> tuple[int, list, dict]:
+        """(quanto sai, rotas [(pools [(id, denom)], quantia)], resposta). Confere: as rotas somam o valor e terminam no token pedido."""
+        from urllib.parse import quote
+        js = await self._sqs(f"/router/quote?tokenIn={amount}{quote(denom_in, safe='')}&tokenOutDenom={quote(denom_out, safe='')}&singleRoute=false")
+        routes, soma = [], 0
+        for rt in js.get("route") or []:
+            pools = [(int(p["id"]), str(p["token_out_denom"])) for p in rt.get("pools") or []]
+            amt = int(rt.get("in_amount") or 0)
+            if not pools or pools[-1][1] != denom_out or amt <= 0:
+                raise BuyError("o roteador da Osmosis devolveu uma rota que não termina no token pedido")
+            routes.append((pools, amt))
+            soma += amt
+        if not routes or soma != amount:
+            raise BuyError("as rotas do roteador não somam o valor pedido")
+        return int(js.get("amount_out") or 0), routes, js
+
+    @staticmethod
+    def _osmo_label(routes: list) -> str:
+        return " + ".join("pool " + " → ".join(str(p[0]) for p in pools) for pools, _ in routes)[:80]
+
+    async def _preview_osmo(self, q: dict, wal: dict | None, bloq: list, avisos: list) -> dict:
+        try:
+            out, routes, js = await self._osmo_quote(q["value"], osmosis.NATIVE, q["token"])
+        except BuyError as er:
+            bloq.append(str(er))
+            return {"dex": "Osmosis"}
+        dec = await self._osmo_dec(q["token"])
+        if dec is None or out <= 0:
+            bloq.append("não consegui ler as casas decimais do token" if dec is None else "o roteador não achou rota para este token")
+            return {"dex": "Osmosis"}
+        q.update(min_out=int(out * (1 - q["slip"] / 100)), dec=dec)
+        if wal:
+            try:
+                bal = await self._osmo_bal(wal["endereco"], osmosis.NATIVE)
+                if bal < q["value"] + int(CHAINS["osmosis"]["reserva"] * 1e6):
+                    bloq.append(f"saldo insuficiente: a carteira tem {bal / 1e6:.4f} OSMO (fica {CHAINS['osmosis']['reserva']:g} OSMO para a taxa)")
+            except BuyError:
+                bloq.append("não consegui ler o saldo da carteira")
+        try:
+            imp = round(abs(float(js.get("price_impact") or 0)) * 100, 2)
+        except (TypeError, ValueError):
+            imp = None
+        try:
+            tf = float(js.get("effective_fee") or 0) * 100
+            if tf:
+                avisos.append(f"taxa das pools da Osmosis: {tf:.2f}% (já descontada do que você recebe)")
+        except (TypeError, ValueError):
+            pass
+        return {"dex": "Osmosis", "rota": self._osmo_label(routes), "recebe": out / 10 ** dec, "qty": out / 10 ** dec, "minimo": q["min_out"] / 10 ** dec,
+                "impacto": imp, "gas_usd": round(0.02 * (q["usd_n"] or 0), 4)}
+
+    async def _osmo_send(self, w, msg: bytes) -> str:
+        """Simula (gás), cobra a taxa pelo preço mínimo da rede, assina e envia. Devolve o hash. A mensagem foi montada aqui."""
+        js = await self._osmo(f"/cosmos/auth/v1beta1/accounts/{w.address}")
+        acc = js.get("account") or {}
+        if js.get("_erro") or acc.get("address") != w.address:
+            raise BuyError("a conta não existe na Osmosis ainda: mande um pouco de OSMO para ela primeiro")
+        num, seq = int(acc.get("account_number") or 0), int(acc.get("sequence") or 0)
+        body = osmosis.body([msg])
+
+        def raw_for(fee: int, gas: int) -> bytes:
+            a = osmosis.auth_info(w.pub, seq, fee, gas)
+            return osmosis.tx_raw(body, a, osmosis.sign(w.key, osmosis.sign_doc(body, a, num)))
+        sim = await self._osmo("/cosmos/tx/v1beta1/simulate", {"tx_bytes": base64.b64encode(await asyncio.to_thread(raw_for, 0, 2_000_000)).decode()})
+        if sim.get("_erro"):
+            raise BuyError("a rede recusou na simulação: " + sim["_erro"][:200] + ": nada foi enviado")
+        used = int((sim.get("gas_info") or {}).get("gas_used") or 0)
+        if not 0 < used < 3_000_000:
+            raise BuyError("a simulação não devolveu o gás: nada foi enviado")
+        try:
+            base = float((await self._osmo("/osmosis/txfees/v1beta1/cur_eip_base_fee")).get("base_fee") or 0.025)
+        except (BuyError, TypeError, ValueError):
+            base = 0.025
+        gas = int(used * 1.4) + 20_000
+        fee = max(1, math.ceil(gas * max(base, 0.0025) * 1.3))
+        if fee > 1_000_000:                                # mais de 1 OSMO de taxa: algo está errado
+            raise BuyError("a taxa da rede saiu alta demais: nada foi enviado")
+        raw = await asyncio.to_thread(raw_for, fee, gas)
+        h = osmosis.tx_hash(raw)
+        r = await self._osmo("/cosmos/tx/v1beta1/txs", {"tx_bytes": base64.b64encode(raw).decode(), "mode": "BROADCAST_MODE_SYNC"})
+        tr = r.get("tx_response") or {}
+        if r.get("_erro") or int(tr.get("code") or 0) != 0:
+            raise BuyError("a rede recusou o envio: " + str(r.get("_erro") or tr.get("raw_log") or tr.get("code"))[:200])
+        return h
+
+    async def _osmo_tx(self, h: str) -> dict | None:
+        try:
+            js = await self._osmo(f"/cosmos/tx/v1beta1/txs/{h}")
+        except BuyError:
+            return None
+        return js.get("tx_response") if not js.get("_erro") else None
+
+    async def _osmo_wait(self, h: str) -> dict | None:
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < RECIBO_S:
+            await asyncio.sleep(RECIBO_PASSO)
+            tx = await self._osmo_tx(h)
+            if tx:
+                return tx
+        return None
+
+    @staticmethod
+    def _osmo_out(tx: dict, addr: str, denom: str) -> int:
+        """Quanto do token chegou na carteira, pelos eventos de transferência do banco na própria transação."""
+        got = 0
+        for ev in tx.get("events") or []:
+            if ev.get("type") != "transfer":
+                continue
+            at = {a.get("key"): a.get("value") for a in ev.get("attributes") or []}
+            if at.get("recipient") != addr:
+                continue
+            for part in str(at.get("amount") or "").split(","):
+                m = re.match(r"^(\d+)(.+)$", part.strip())
+                if m and m.group(2) == denom:
+                    got += int(m.group(1))
+        return got
+
+    async def _buy_osmo(self, q: dict, wal: dict, secret: str) -> dict:
+        try:
+            w = await asyncio.to_thread(osmosis.Wallet, secret)
+        except ValueError:
+            raise BuyError("a chave guardada não abriu") from None
+        if w.address != wal["endereco"]:
+            raise BuyError("a chave não bate com o endereço da carteira: nada foi enviado")
+        out, routes, _ = await self._osmo_quote(q["value"], osmosis.NATIVE, q["token"])
+        if out < q["min_out"]:
+            raise BuyError("o preço piorou além da sua folga: nada foi enviado, peça outra cotação")
+        msg = osmosis.swap_msg(w.address, routes, osmosis.NATIVE, q["min_out"])   # menos que min_out e a rede recusa a troca inteira
+        h = await self._osmo_send(w, msg)
+        row = self._row(q, wal, h, "Osmosis", self._osmo_label(routes))
+        await self.db.insert("dormant_buys", row)
+        self.watch.held.add(q["cg"])
+
+        async def rest():
+            tx = await self._osmo_wait(h)
+            if tx:
+                return self._public(await self._apply_osmo(row, tx, False))
+            await self._finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
+            return self._public(row)
+        return await self._early(rest()) or self._public(row)
+
+    async def _apply_osmo(self, row: dict, tx: dict, venda: bool) -> dict:
+        fin = self._sell_finish if venda else self._finish
+        usd_n = float(row.get("nativo_usd") or 0)
+        fee = sum(int(c.get("amount") or 0) for c in (((tx.get("tx") or {}).get("auth_info") or {}).get("fee") or {}).get("amount") or [] if c.get("denom") == osmosis.NATIVE)
+        gas = round(fee / 1e6 * usd_n, 4)
+        if int(tx.get("code") or 0) != 0:
+            return await fin(row, status="falhou", motivo="a troca falhou na rede (só a taxa foi paga): " + str(tx.get("raw_log") or "")[:120], gas_usd=gas)
+        if venda:
+            got = self._osmo_out(tx, row["endereco"], osmosis.NATIVE) / 1e6
+            if got <= 0:
+                return await fin(row, status="confira", motivo="confirmada, mas o OSMO não apareceu na transação: confira no Mintscan", gas_usd=gas)
+            return await fin(row, status="confirmada", motivo=None, nativo_out=got, usd_out=round(got * usd_n, 4), gas_usd=gas)
+        got = self._osmo_out(tx, row["endereco"], row["token"])
+        if got <= 0:
+            return await fin(row, status="confira", motivo="confirmada, mas o token não apareceu na transação: confira no Mintscan", gas_usd=gas)
+        qty = got / 10 ** int(row.get("casas") or 6)
+        return await fin(row, status="confirmada", motivo=None, qty=qty, px_in=float(row["usd_in"]) / qty, gas_usd=gas)
+
+    async def _sell_preview_osmo(self, q: dict, bloq: list, avisos: list) -> dict:
+        try:
+            saldo = await self._osmo_bal(q["end"], q["token"])
+            osmo = await self._osmo_bal(q["end"], osmosis.NATIVE)
+        except BuyError:
+            bloq.append("não consegui ler o saldo da carteira")
+            return {"dex": "Osmosis"}
+        if saldo <= 0:
+            bloq.append("a carteira não tem este token")
+            return {"dex": "Osmosis", "saldo": 0}
+        if osmo < int(CHAINS["osmosis"]["reserva"] * 1e6):
+            bloq.append(f"falta OSMO para a taxa da venda: a carteira tem {osmo / 1e6:.4f} OSMO")
+        dec = await self._osmo_dec(q["token"]) or 6
+        amount = saldo if q["pct"] == 100 else saldo * q["pct"] // 100
+        q.update(amount=amount, dec=dec)
+        try:
+            out, routes, js = await self._osmo_quote(amount, q["token"], osmosis.NATIVE)
+        except BuyError as er:
+            bloq.append(str(er))
+            return {"dex": "Osmosis", "saldo": saldo / 10 ** dec, "vende": amount / 10 ** dec}
+        q["min_out"] = int(out * (1 - q["slip"] / 100))
+        try:
+            imp = round(abs(float(js.get("price_impact") or 0)) * 100, 2)
+        except (TypeError, ValueError):
+            imp = None
+        return {"dex": "Osmosis", "rota": self._osmo_label(routes), "saldo": saldo / 10 ** dec, "vende": amount / 10 ** dec, "recebe": out / 1e6,
+                "minimo": q["min_out"] / 1e6, "impacto": imp, "gas_usd": round(0.02 * (q["usd_n"] or 0), 4), "aprovar": False}
+
+    async def _sell_osmo(self, q: dict, wal: dict, secret: str) -> dict:
+        try:
+            w = await asyncio.to_thread(osmosis.Wallet, secret)
+        except ValueError:
+            raise BuyError("a chave guardada não abriu") from None
+        if w.address != wal["endereco"]:
+            raise BuyError("a chave não bate com o endereço da carteira: nada foi enviado")
+        out, routes, _ = await self._osmo_quote(q["amount"], q["token"], osmosis.NATIVE)
+        if out < q["min_out"]:
+            raise BuyError("o preço piorou além da sua folga: nada foi enviado, peça outra cotação")
+        h = await self._osmo_send(w, osmosis.swap_msg(w.address, routes, q["token"], q["min_out"]))
+        row = self._sell_row(q, wal, h, "Osmosis", self._osmo_label(routes))
+        await self.db.insert("dormant_sells", row)
+
+        async def rest():
+            tx = await self._osmo_wait(h)
+            if tx:
+                return self._public_sell(await self._apply_osmo(row, tx, True))
+            await self._sell_finish(row, status="pendente", motivo="sem confirmação em 90 s: confira em Minhas compras")
+            return self._public_sell(row)
+        return await self._early(rest()) or self._public_sell(row)
+
     # ------------------------------------------------------------------ pendências
     async def resolve_pending(self, uid: str) -> None:
         now = time.time()
@@ -1735,6 +2007,11 @@ class Buyer:
                     elif CHAINS.get(r["rede"], {}).get("tipo") == "cardano":
                         await self._apply_ada(r, venda=False)
                         continue
+                    elif CHAINS.get(r["rede"], {}).get("tipo") == "cosmos":
+                        tx = await self._osmo_tx(r["tx"])
+                        if tx:
+                            await self._apply_osmo(r, tx, venda=False)
+                            continue
                     elif r.get("tx") and r.get("rede") in CHAINS:
                         st = (await self.rpc(self.sol_rpc(), "getSignatureStatuses", [[r["tx"]], {"searchTransactionHistory": True}]))["value"][0]
                         if st and st.get("err"):
@@ -1759,6 +2036,11 @@ class Buyer:
                     elif CHAINS.get(r["rede"], {}).get("tipo") == "cardano":
                         await self._apply_ada(r, venda=True)
                         continue
+                    elif CHAINS.get(r["rede"], {}).get("tipo") == "cosmos":
+                        tx = await self._osmo_tx(r["tx"])
+                        if tx:
+                            await self._apply_osmo(r, tx, venda=True)
+                            continue
                     elif r.get("tx"):
                         st = (await self.rpc(self.sol_rpc(), "getSignatureStatuses", [[r["tx"]], {"searchTransactionHistory": True}]))["value"][0]
                         if st and st.get("err"):
@@ -1865,9 +2147,9 @@ class Buyer:
         if chain not in CHAINS:
             raise BuyError("rede inválida")
         if not isinstance(secret, str) or not 40 <= len(secret.strip()) <= 800:
-            raise BuyError("isso não parece uma frase de recuperação" if CHAINS[chain]["tipo"] == "cardano" else "isso não parece uma chave privada")
+            raise BuyError({"cardano": "isso não parece uma frase de recuperação", "cosmos": "isso não parece uma frase de recuperação nem uma chave privada"}.get(CHAINS[chain]["tipo"], "isso não parece uma chave privada"))
         secret = secret.strip()
-        if CHAINS[chain]["tipo"] == "cardano":       # frase de recuperação: um espaço entre palavras, minúsculas
+        if CHAINS[chain]["tipo"] in ("cardano", "cosmos") and len(secret.split()) >= 12:   # frase: um espaço entre palavras, minúsculas
             secret = " ".join(secret.lower().split())
         try:
             addr = key_address(chain, secret)

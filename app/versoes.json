@@ -2125,6 +2125,11 @@
    "versao": "0.32.273",
    "inicio": "2026-11-09T17:37:20+00:00",
    "titulo": "Dormant: carteira Cardano e compra pela Minswap"
+  },
+  {
+   "versao": "0.32.274",
+   "inicio": "2026-11-09T17:48:24+00:00",
+   "titulo": "Dormant: carteira da Osmosis (Cosmos) e compra pela DEX da Osmosis"
   }
  ]
 }
