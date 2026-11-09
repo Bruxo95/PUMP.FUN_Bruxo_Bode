@@ -354,8 +354,16 @@ class DormantWatch:
         self.plat[cid] = list(plats)
         self.addr[cid] = dict(adr)
         await self._put("extras", {"e": self.extras})
+        await self._put_map()
         self.refresh_now()
         return e
+
+    async def _put_map(self) -> None:
+        """0.32.272 (caso SNEK do dono, 09/11/2026): moeda adicionada na tela só entrava no mapa da memória. No reinício o mapa salvo
+        (renovado 1×/semana) voltava sem ela, e ela ficava "sem par" na CoinGecko, sem preço, contrato nem blockchain."""
+        await self._put("map", {"t": self.map_t, "m": self.map})
+        await self._put("plat", {"p": self.plat})
+        await self._put("addr", {"a": self.addr})
 
     async def remove(self, key: str) -> bool:
         cid = key[3:] if key.startswith("cg:") else key
@@ -367,6 +375,7 @@ class DormantWatch:
         self.pick.pop("cg:" + cid, None)
         self.status.pop("cg:" + cid, None)
         await self._put("extras", {"e": self.extras})
+        await self._put("map", {"t": self.map_t, "m": self.map})
         return True
 
     async def refresh_markets(self) -> None:
@@ -481,6 +490,10 @@ class DormantWatch:
                 self.held = {r["cg"] for r in await self.db.select("dormant_buys", {"status": "confirmada"}, columns="cg", limit=2000) or [] if r.get("cg")}
             except Exception as e:
                 log.warning("Dormant: estado guardado não carregou: %s", str(e)[:160])
+        for e in self.extras:                        # 0.32.272: adicionada depois do último mapa salvo volta ao mapa
+            self.map.setdefault("cg:" + e["cg"], [e["cg"]])
+        if any(e["cg"] not in self.plat or e["cg"] not in self.addr for e in self.extras):
+            self.map_t = 0.0                         # falta blockchain/contrato dela: refaz o mapa na 1ª volta (1 consulta à CoinGecko)
         self.loaded = True
 
     async def save_cfg(self, raw: dict) -> dict:

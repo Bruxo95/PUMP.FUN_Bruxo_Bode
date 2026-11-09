@@ -2115,6 +2115,11 @@
    "versao": "0.32.271",
    "inicio": "2026-11-09T08:56:48+00:00",
    "titulo": "Supabase guarda pouco tempo; histórico no banco local"
+  },
+  {
+   "versao": "0.32.272",
+   "inicio": "2026-11-09T16:55:00+00:00",
+   "titulo": "Dormant: moeda adicionada não perde mais o par depois do reinício"
   }
  ]
 }

@@ -1,5 +1,6 @@
 """0.32.227 (pedido do dono): Dormant vigia a watchlist da CoinMarketCap pela CoinGecko. Sem internet: respostas falsas."""
 import asyncio
+import json
 
 import httpx
 
@@ -255,3 +256,47 @@ def test_only_the_dormant_page_can_show_the_dex_chart(env):
     c = env["c"]
     assert "frame-src https://www.geckoterminal.com https://dexscreener.com" in c.get("/dormant").headers["Content-Security-Policy"]
     assert "frame-src" not in c.get("/app").headers["Content-Security-Policy"]
+
+
+class _StateDB:
+    """Só a tabela dormant_state, como o servidor guarda entre reinícios."""
+    def __init__(self):
+        self.rows = {}
+
+    async def insert(self, table, row, upsert=False, on_conflict=None):
+        if table == "dormant_state":
+            self.rows[row["k"]] = json.loads(json.dumps(row))        # o banco guarda uma cópia, não o objeto da memória
+
+    async def select(self, table, filters=None, **kw):
+        return list(self.rows.values()) if table == "dormant_state" else []
+
+
+def test_added_coin_survives_a_restart_with_price_and_chain():
+    """0.32.272 (caso SNEK): moeda adicionada depois do mapa salvo voltava "sem par" (sem preço, contrato e blockchain) depois do reinício."""
+    calls, db = [], _StateDB()
+    w = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(_cg_handler(calls))), db)
+    w.lista = [{"cmc": "bitcoin", "nome": "Bitcoin"}]
+    asyncio.run(w.tick())                                        # mapa salvo sem a moeda
+    asyncio.run(w.add("bonk", "Douglas", "u1"))
+    w2 = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(_cg_handler(calls))), db)    # reinício
+    w2.lista = [{"cmc": "bitcoin", "nome": "Bitcoin"}]
+    asyncio.run(w2.load())
+    assert w2.map.get("cg:bonk") == ["bonk"] and w2.plat.get("bonk") == ["solana"]
+    asyncio.run(w2.tick())
+    bonk = [m for m in w2.state()["moedas"] if m["cmc"] == "cg:bonk"][0]
+    assert bonk["status"] != "sem_cg" and bonk["preco"] is not None and bonk["chain_nome"] == "Solana"
+
+
+def test_old_saved_map_without_the_added_coin_is_rebuilt():
+    """Estado já gravado antes da correção: mapa sem a moeda e sem a blockchain dela. A 1ª volta refaz o mapa."""
+    calls, db = [], _StateDB()
+    db.rows = {"map": {"k": "map", "v": {"t": 9e12, "m": {"bitcoin": ["bitcoin"]}}},
+               "extras": {"k": "extras", "v": {"e": [{"cg": "bonk", "nome": "Bonk", "simbolo": "BONK"}]}},
+               "plat": {"k": "plat", "v": {"p": {"bitcoin": []}}}, "addr": {"k": "addr", "v": {"a": {"bitcoin": {}}}}}
+    w = dormant.DormantWatch(httpx.AsyncClient(transport=httpx.MockTransport(_cg_handler(calls))), db)
+    w.lista = [{"cmc": "bitcoin", "nome": "Bitcoin"}]
+    asyncio.run(w.load())
+    assert w.map["cg:bonk"] == ["bonk"] and w.map_t == 0.0
+    asyncio.run(w.tick())
+    bonk = [m for m in w.state()["moedas"] if m["cmc"] == "cg:bonk"][0]
+    assert bonk["preco"] is not None and bonk["chain_nome"] == "Solana"
