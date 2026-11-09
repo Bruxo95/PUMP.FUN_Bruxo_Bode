@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-09**; revisão documental **2.0**.
-Aplicação: **0.32.270 · 2026-11-09 · Supabase: BNB fica 3 dias, o resto no arquivo**.
-Referência Git na emissão: `e81ed0674a00abc7b9834f12de311a577c306014`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.271 · 2026-11-09 · Supabase guarda pouco tempo; histórico no banco local**.
+Referência Git na emissão: `9ab1b5df7099905db3ec9a645c9a9eb3d72efa84`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

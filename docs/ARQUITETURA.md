@@ -1,6 +1,6 @@
 # PUMP FUN COPY — arquitetura e bancos de dados
 
-Atualizado em 06/11/2026 (versão 0.32.240). Visão geral de onde cada parte roda, por onde os dados passam e onde ficam
+Atualizado em 09/11/2026 (versão 0.32.271). Visão geral de onde cada parte roda, por onde os dados passam e onde ficam
 guardados. Detalhes de cada arquivo e as regras de trabalho estão no `CLAUDE.md`; o uso do painel, no `GUIA-DO-PROJETO.md`.
 
 ## 1. Visão geral
@@ -60,10 +60,12 @@ flowchart TB
 | Onde | O quê | Por quê |
 |---|---|---|
 | **Supabase** | Tudo que é de usuário (perfis, configurações, chaves, posições, trades, feed, audit_log) e os dados de consulta rápida dos últimos 7 dias | Tem RLS (cada usuário só vê o que é dele) e login Google |
-| **Postgres da VPS** (`pump_arquivo`) | Histórico **público**: trades da BNB com mais de 3 dias (desde a 0.32.270; a BNB grava ~33 mil por dia), vida dos tokens com mais de 7 dias, estudo do passado do Jev | Tira peso do Supabase; guarda 90 dias |
+| **Postgres da VPS** (`pump_arquivo`) | **Todo o histórico que cresce** (regra do dono, 09/11/2026: "tudo fica no Supabase por pouco tempo; quem guarda é o banco local"): trades da BNB com mais de 3 dias, vida dos tokens, calls, logs dos robôs (`robot_log`, `explore_cycles`), relatórios por aba (`tab_reports`), sinais da Aba do Bruxo, trades das carteiras em estudo (`wallet_trades`) com mais de 7 dias, estudo do passado do Jev | Tira peso do Supabase; guarda 90 dias |
 
 Regras:
-- **Só dado público vai para o arquivo** (lá não existe RLS). Nada de usuário, chave ou posição.
+- **Nunca vão para o arquivo:** chaves, perfis, configurações, posições, trades das contas e `audit_log` (o painel e os relatórios
+  leem o histórico inteiro deles e eles são pequenos). Logs e relatórios por conta podem ir: o arquivo não tem porta pública e
+  só o servidor lê, sempre filtrando por `user_id` (`hub.hist_select`).
 - O servidor **só apaga do Supabase depois de conferir** que a linha chegou ao arquivo. Arquivo fora do ar = nada é
   apagado, e o robô continua operando normal (só o histórico antigo fica indisponível).
 - O arquivo guarda **90 dias**: uma vez por dia o que passou disso é apagado.
@@ -106,7 +108,8 @@ Vale para qualquer tela, robô ou projeto novo dentro do PUMP FUN COPY (Solana, 
    Supabase; `fica` = chaves que nunca saem). O laço move a cada 30 min (5 min enquanto houver fila).
 4. Leitura do passado: `hub.arquivo.pages(tabela, since, until)` junto com a leitura do Supabase. Nunca reler a tabela
    inteira no reinício: carregar só a janela usada; o resto sob demanda.
-5. Não guardar nada de usuário no arquivo (lá não há RLS).
+5. Leitura que pode pedir mais dias que o Supabase guarda: `hub.hist_select(tabela, filtros, coluna_de_hora, limite, desde)`
+   (junta Supabase + arquivo, filtra o arquivo pelo conteúdo `dados->>campo`).
 
 **Cuidados com o Supabase (plano grátis: 500 MB de banco, 1 GB de logs por mês)**
 - Apagar linhas não diminui o tamanho: depois de mover muita coisa, rodar `VACUUM FULL <tabela>` (trava a tabela por alguns

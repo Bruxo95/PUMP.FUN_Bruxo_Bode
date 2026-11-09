@@ -34,7 +34,16 @@ SPECS = [
     # ~170 MB só dela. Fica 3 dias no Supabase; o resto vem do arquivo quando o servidor sobe ou o ranking pede mais dias.
     {"tabela": "bnb_fm_trades", "pk": "id", "t": "t", "tipo": "epoch", "dias": 3},
     {"tabela": "token_life", "pk": "mint", "t": "criado_em", "tipo": "iso", "dias": 7},
+    # 0.32.271 (dono: "tudo do sistema fica no Supabase por pouco tempo; quem guarda é o banco local"): logs e históricos
+    # que crescem sem parar. Quem lê mais dias que isso junta Supabase + arquivo (`hub.hist_select`, `_bt_cases`).
+    {"tabela": "calls", "pk": "id", "t": "em", "tipo": "iso", "dias": 7},
+    {"tabela": "robot_log", "pk": "id", "t": "em", "tipo": "iso", "dias": 7},
+    {"tabela": "explore_cycles", "pk": "id", "t": "em", "tipo": "iso", "dias": 7},
+    {"tabela": "tab_reports", "pk": "id", "t": "em", "tipo": "iso", "dias": 7},
+    {"tabela": "bruxo_signals", "pk": "id", "t": "em", "tipo": "iso", "dias": 7},
+    {"tabela": "wallet_trades", "pk": "signature", "t": "at", "tipo": "iso", "dias": 7},
 ]
+SPEC = {s["tabela"]: s for s in SPECS}
 LOTE = 500                    # linhas por lote
 LOTES_POR_VOLTA = 20          # até 10 mil linhas por tabela a cada volta (não pesa no Supabase)
 VOLTA_S = 30 * 60

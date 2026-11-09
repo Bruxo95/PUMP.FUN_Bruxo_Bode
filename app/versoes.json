@@ -2110,6 +2110,11 @@
    "versao": "0.32.270",
    "inicio": "2026-11-09T08:44:11+00:00",
    "titulo": "Supabase: BNB fica 3 dias, o resto no arquivo"
+  },
+  {
+   "versao": "0.32.271",
+   "inicio": "2026-11-09T08:56:48+00:00",
+   "titulo": "Supabase guarda pouco tempo; histórico no banco local"
   }
  ]
 }

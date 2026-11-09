@@ -973,6 +973,27 @@ class PumpHub:
         return self.__dict__.setdefault("jev_bt", {"on": False, "fase": "parado", "msg": "", "feitos": {}, "total": {},
                                                    "dia": "", "calls_dia": 0, "erros": 0, "cases": {}, "task": None})
 
+    async def hist_select(self, table: str, filters: dict | None, tcol: str, limit: int, since: str | None = None) -> list[dict]:
+        """0.32.271: linhas mais novas primeiro, juntando o Supabase (dias recentes) e o arquivo (Postgres da VPS) quando a
+        consulta pede mais dias do que o Supabase guarda (`arquivo.SPECS`). Arquivo fora do ar = só o Supabase."""
+        from .arquivo import SPEC, _epoch
+        rows = await self.db.select(table, filters, order=f"{tcol}.desc", limit=limit, gte={tcol: since} if since else None) or []
+        arq, spec = getattr(self, "arquivo", None), SPEC.get(table)
+        if arq is None or spec is None or len(rows) >= limit:
+            return rows
+        since_t = _epoch(since, "iso") if since else None
+        if since_t is not None and since_t >= time.time() - spec["dias"] * 86400:
+            return rows
+        try:
+            eq = {"tabela": table, **{f"dados->>{k}": v for k, v in (filters or {}).items()}}
+            extra = await arq.rest.select("arquivo", eq, order="t.desc", limit=limit - len(rows), columns="dados",
+                                          gte={"t": since_t} if since_t is not None else None) or []
+        except Exception as e:
+            log.warning("arquivo: leitura de %s: %s", table, str(e)[:120])
+            return rows
+        have = {r.get(spec["pk"]) for r in rows}
+        return rows + [x["dados"] for x in extra if isinstance(x.get("dados"), dict) and x["dados"].get(spec["pk"]) not in have]
+
     async def _bt_pages(self, table: str, columns: str, order: str, page: int = 1000):
         off = 0
         while True:
@@ -1048,6 +1069,13 @@ class PumpHub:
     async def _bt_cases(self, fonte: str):
         """Casos de cada fonte, do mais antigo para o mais novo (desde o início do que está guardado)."""
         if fonte == "bruxo":
+            arq = getattr(self, "arquivo", None)
+            if arq is not None:                            # 0.32.271: sinais com mais de 7 dias ficam no Postgres da VPS
+                async for rows in arq.pages("bruxo_signals"):
+                    for r in rows:
+                        c = jev.case_bruxo(r.get("data") or {}) if isinstance(r.get("data"), dict) else None
+                        if c:
+                            yield c
             async for rows in self._bt_pages("bruxo_signals", "id,data", "em.asc"):
                 for r in rows:
                     c = jev.case_bruxo(r.get("data") or {}) if isinstance(r.get("data"), dict) else None
@@ -2363,7 +2391,7 @@ class PumpHub:
     async def robot_log(self, pf: PumpFun, mod: str, hours: float = 24) -> dict:
         import re
         since = datetime.fromtimestamp(time.time() - hours * 3600, timezone.utc).isoformat()
-        rows = await self.db.select("robot_log", {"user_id": pf.user_id, "modulo": mod}, order="em.desc", limit=600, gte={"em": since})
+        rows = await self.hist_select("robot_log", {"user_id": pf.user_id, "modulo": mod}, "em", 600, since)
         blocos = [dict(r.get("data") or {}, em=r.get("em")) for r in rows]
         mot: dict[str, list] = {}
         for b in blocos:
@@ -2416,7 +2444,7 @@ class PumpHub:
         """Ciclos salvos desta conta + resumo das últimas `hours` + o que cada filtro barrou (sombras)."""
         from .basegeral import filters_study
         since = datetime.fromtimestamp(time.time() - hours * 3600, timezone.utc).isoformat()
-        rows = await self.db.select("explore_cycles", {"user_id": pf.user_id}, order="em.desc", limit=400, gte={"em": since})
+        rows = await self.hist_select("explore_cycles", {"user_id": pf.user_id}, "em", 400, since)
         cyc = [dict(r.get("data") or {}, em=r.get("em")) for r in rows]
         mot: dict[str, int] = {}
         ex: dict[str, str] = {}
@@ -2454,8 +2482,8 @@ class PumpHub:
                 r["first_t"] = min(r["first_t"] or t, t)
                 r["last_t"] = max(r["last_t"] or t, t)
         try:
-            rows = await self.db.select("explore_cycles", {"user_id": pf.user_id}, order="em.desc", limit=400,
-                                        gte={"em": datetime.fromtimestamp(since, timezone.utc).isoformat()})
+            rows = await self.hist_select("explore_cycles", {"user_id": pf.user_id}, "em", 400,
+                                          datetime.fromtimestamp(since, timezone.utc).isoformat())
         except Exception:
             rows = []
         for c in rows:
@@ -4688,7 +4716,7 @@ class PumpHub:
         from .study import profile
         try:
             pos = await self.db.select("study_positions", {"wallet": wallet}, limit=500)
-            trades = await self.db.select("wallet_trades", {"wallet": wallet}, order="at.desc", limit=2000)
+            trades = await self.hist_select("wallet_trades", {"wallet": wallet}, "at", 2000)
         except Exception as e:
             return {"error": "tabelas das carteiras em estudo ainda não criadas no banco", "detail": str(e)[:120]}
         return profile(wallet, pos, trades, prm=prm)

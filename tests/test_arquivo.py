@@ -5,6 +5,7 @@ import time
 import jwt
 
 from app import arquivo as A
+from tests.test_api import env  # noqa: F401  (fixture env, 0.32.271)
 
 
 class _Supa:
@@ -118,3 +119,33 @@ def test_fila_acelera_a_proxima_volta(monkeypatch):
     assert arq.st["fila"] and arq.espera() == A.VOLTA_RAPIDA_S
     asyncio.run(arq.volta(db)); asyncio.run(arq.volta(db))
     assert not db.rows and not arq.st["fila"] and arq.espera() == A.VOLTA_S
+
+
+def test_hist_select_junta_supabase_e_arquivo(env):
+    """0.32.271: consulta que pede mais dias que o Supabase guarda completa com o arquivo, filtrando pelo conteúdo."""
+    from datetime import datetime, timedelta, timezone
+    hub = env["hub"]
+    novo = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+
+    class _Sel:
+        def __init__(self, rows):
+            self.rows, self.calls = rows, []
+
+        async def select(self, table, eq=None, order=None, limit=None, columns="*", gte=None, **k):
+            self.calls.append((table, eq, gte))
+            return self.rows[:limit]
+
+    hub.db = _Sel([{"id": "a", "em": novo, "user_id": "u1"}])
+    arq = _Arq()
+    arq.rest = _Sel([{"dados": {"id": "b", "em": "2026-10-01T00:00:00+00:00", "user_id": "u1"}},
+                     {"dados": {"id": "a", "em": novo, "user_id": "u1"}}])
+    hub.arquivo = arq
+    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    rows = asyncio.run(hub.hist_select("robot_log", {"user_id": "u1"}, "em", 600, since))
+    assert [r["id"] for r in rows] == ["a", "b"]                                   # sem repetir o que já veio do Supabase
+    t, eq, gte = arq.rest.calls[0]
+    assert eq == {"tabela": "robot_log", "dados->>user_id": "u1"} and gte["t"] > 0
+    recente = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    arq.rest.calls.clear()
+    asyncio.run(hub.hist_select("robot_log", {"user_id": "u1"}, "em", 600, recente))
+    assert arq.rest.calls == []                                                    # dentro dos 7 dias: só o Supabase
