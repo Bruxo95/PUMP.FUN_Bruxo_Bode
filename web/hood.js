@@ -256,13 +256,59 @@
       x.ida_volta_pct == null ? "—" : num(x.ida_volta_pct, 1) + "% (máx. " + num(rg.ida_volta_max_pct, 0) + "%)", esc(x.goplus || "—")]),
     "Nenhum token conferido ainda: a conferência roda na primeira compra de um trader do \"Copiando agora\".");
   }
+  // ------------------------------------------------------------------ 0.32.286: saldo e abastecer de outra rede (Relay)
+  let GA = null, GA_AT = 0, GA_BUSY = false, GA_PICK = null, GA_Q = null;
+  async function loadGas(force) {
+    if (GA_BUSY || (!force && Date.now() - GA_AT < 30000)) return;
+    GA_BUSY = true;
+    try { const r = await BB.api("/api/hood/abastecer", { quiet: true }); if (r && !r.error) { GA = r; GA_AT = Date.now(); } } finally { GA_BUSY = false; drawGas(); }
+  }
+  function drawGas() {
+    const box = $("rlBal"), card = $("gaCard");
+    if (!box || !card) return;
+    if (!GA || !GA.chave) { box.hidden = true; card.hidden = true; return; }
+    box.hidden = false; card.hidden = false;
+    box.className = "hdbal " + (GA.precisa ? "low" : "ok");
+    box.innerHTML = '<small class="muted">Saldo na Robinhood Chain</small><b class="big">' + (GA.saldo == null ? "—" : num(GA.saldo, 6) + " ETH") + "</b>" +
+      (GA.saldo_usd != null ? "≈ US$ " + num(GA.saldo_usd, 2) + " · " : "") + "dá para " + num(GA.compras, 0) + " compras REAL de " + num(GA.por_compra, 4) + " ETH" +
+      (GA.precisa ? '<br><b class="down">Precisa abastecer:</b> faltam ≈ US$ ' + num(GA.falta_usd, 2) + " para " + 5 + " compras e o gás das vendas. Use \"Abastecer de outra rede\" logo abaixo."
+        : '<br><span class="up">Saldo suficiente para começar.</span>');
+    const rot = GA.rotas || [];
+    if (!GA_PICK || !rot.some((x) => x.origem === GA_PICK && x.ok)) GA_PICK = (rot.find((x) => x.ok) || {}).origem || null;
+    $("gaR").innerHTML = rot.map((x) => '<label class="garow"><input type="radio" name="gaO" value="' + esc(x.origem) + '"' + (x.ok ? "" : " disabled") + (x.origem === GA_PICK ? " checked" : "") + '>' +
+      '<span class="gn">' + esc(x.nome) + '</span><span class="gs">' + (x.saldo == null ? "—" : num(x.saldo, 6) + " " + esc(x.moeda) + (x.saldo_usd != null ? " (US$ " + num(x.saldo_usd, 2) + ")" : "")) + "</span>" +
+      (x.ok ? '<span class="up">taxa ≈ ' + num(x.taxa_pct, 1) + "% · ~" + num(x.tempo_s || 0, 0) + " s</span>" : '<span class="muted">' + esc(x.motivo || "") + "</span>") + "</label>").join("") +
+      (rot.some((x) => x.ok) ? "" : '<p class="muted">Nenhuma das suas outras redes tem saldo para mandar. Deposite ETH (Ethereum, Base, Arbitrum) ou BNB neste mesmo endereço: ' + addr(GA.endereco) + "</p>") +
+      '<p class="muted small">Limites: até US$ ' + num(GA.limites.por_vez_usd, 0) + " por vez e US$ " + num(GA.limites.dia_usd, 0) + " em 24 h (já foram US$ " + num(GA.limites.gasto_24h, 2) + ")" +
+      (GA.permitido ? "" : ' · <b class="down">trava geral do servidor fechada: só cotação</b>') + "</p>";
+    gaConv();
+    table("gaH", ["Hora", "De", "Pagou", "Chega", "Situação", "Transação"], (GA.historico || []).map((x) => [hora(x.t), esc(x.origem_nome),
+      num(x.paga, 6) + " " + esc(x.moeda) + '<br><small class="muted">US$ ' + num(x.usd, 2) + "</small>", num(x.recebe, 6) + " ETH",
+      (x.status === "confirmada" ? '<span class="tag win">entregue</span>' : x.status === "falhou" ? '<span class="tag loss">falhou</span>' : x.status === "devolvida" ? '<span class="tag neutral">devolvida</span>' : '<span class="tag buy">' + esc(x.status) + "</span>") +
+        (x.motivo ? '<br><small class="muted">' + esc(x.motivo) + "</small>" : ""),
+      x.tx && x.expl ? '<a class="hdaddr" href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">' + esc(x.tx.slice(0, 10)) + "…</a>" : "—"]), "Nenhum abastecimento ainda.");
+  }
+  function gaConv() {
+    const el = $("gaConv"); if (!el || !GA) return;
+    const r = (GA.rotas || []).find((x) => x.origem === GA_PICK), v = Number($("gaUsd").value || 0);
+    el.textContent = r && r.usd_moeda && v > 0 ? "≈ " + num(v / r.usd_moeda, 6) + " " + r.moeda + (r.max_usd ? " · máx. US$ " + num(r.max_usd, 2) + " nesta rede" : "") : "";
+  }
+  function drawQuote(q) {
+    const el = $("gaP"); el.hidden = false;
+    if (q.error) { el.innerHTML = '<span class="down">' + esc(q.error) + "</span>"; return; }
+    el.innerHTML = "Paga <b>" + num(q.paga, 6) + " " + esc(q.moeda) + "</b> em " + esc(q.origem_nome) + " (US$ " + num(q.usd, 2) + ") · chega <b>" + num(q.recebe, 6) + " ETH</b> na Robinhood (≈ US$ " + num(q.usd_recebe, 2) + ")" +
+      "<br>Taxa da ponte ≈ " + num(q.taxa_pct, 2) + "% · gás na origem ≈ US$ " + num(q.gas_usd, 3) + " · entrega em ~" + num(q.tempo_s || 0, 0) + " s" +
+      (q.avisos && q.avisos.length ? '<br><span class="warn">' + q.avisos.map(esc).join(" · ") + "</span>" : "") +
+      (q.bloqueia && q.bloqueia.length ? '<br><b class="down">Não dá para enviar: ' + q.bloqueia.map(esc).join(" · ") + "</b>"
+        : '<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px"><label for="gaW">Para enviar, digite ABASTECER</label><input class="in w120" id="gaW" autocomplete="off"><button class="btn primary" id="gaGo" type="button">Abastecer</button><small class="muted">cotação vale ' + num(q.validade_s, 0) + " s</small></div>");
+  }
   function draw() {
     drawSys();
     document.querySelectorAll("#modeSeg button").forEach((b) => b.classList.toggle("on", (b.dataset.mode === "real") === REAL));
     if (VIEW === "visao") { drawMy(); drawVisao(); }
     if (VIEW === "posicoes") drawPos();
     if (VIEW === "historico") drawHist();
-    if (VIEW === "carteira") drawCarteira();
+    if (VIEW === "carteira") { drawCarteira(); drawGas(); loadGas(false); }
     if (VIEW === "traders") drawTraders();
   }
 
@@ -292,8 +338,10 @@
   const closeDrawer = () => { $("side").classList.remove("open"); $("scrim").classList.remove("open"); };
 
   // ------------------------------------------------------------------ ações
+  document.addEventListener("change", (e) => { if (e.target && e.target.name === "gaO") { GA_PICK = e.target.value; gaConv(); $("gaP").hidden = true; } });
   document.addEventListener("input", (e) => {
     const t = e.target && e.target.closest ? e.target : null; if (!t) return;
+    if (t.id === "gaUsd") { gaConv(); $("gaP").hidden = true; }
     if (t.closest("#hdCfg")) DIRTY = true;
     if (t.closest("#cfF")) CF_DIRTY = true;
     if (t.closest("#rlF")) RL_DIRTY = true;
@@ -338,7 +386,24 @@
       const r = await post("/api/hood/chave", { value: v }, t);
       $("rlKey").value = "";
       if (r && r.error) alert(r.error); else toast("Chave salva · carteira " + short(r.endereco));
+      GA = null; drawGas(); loadGas(true);
       return load();
+    }
+    if (t.id === "gaRe") { $("gaP").hidden = true; return loadGas(true); }
+    if (t.id === "gaQ") {
+      if (!GA_PICK) { alert("Nenhuma rede de origem com saldo."); return; }
+      GA_Q = null;
+      const r = await post("/api/hood/abastecer/cotar", { origem: GA_PICK, usd: Number($("gaUsd").value) }, t);
+      if (r && r.quote_id) GA_Q = r.quote_id;
+      drawQuote(r || { error: "sem resposta" }); return;
+    }
+    if (t.id === "gaGo") {
+      const r = await post("/api/hood/abastecer/confirmar", { quote_id: GA_Q, confirmar: $("gaW").value }, t);
+      if (r && r.error) { drawQuote({ error: r.error }); return; }
+      $("gaP").innerHTML = '<span class="up">Enviado. A entrega costuma levar segundos; acompanhe no histórico abaixo.</span>';
+      toast("Abastecimento enviado.");
+      setTimeout(() => loadGas(true), 4000); setTimeout(() => loadGas(true), 15000); setTimeout(() => loadGas(true), 45000);
+      return loadGas(true);
     }
     if (t.id === "rlKeyDel") {
       if (!confirm("Remover a chave da carteira da Robinhood? A REAL desliga.")) return;

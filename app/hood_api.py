@@ -58,6 +58,38 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         await audit(db, u["id"], "Robinhood: " + ("copiar trader" if on else "parar de copiar trader"), w[:42])
         return {"ok": True, "manual": lst}
 
+    # 0.32.286 (pedido do dono): saldo da carteira, se precisa abastecer, e abastecer de outra rede pela Relay
+    @app.get("/api/hood/abastecer")
+    async def hood_gas(u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        return await c.gas.status(u["id"])
+
+    @app.post("/api/hood/abastecer/cotar")
+    async def hood_gas_quote(body: dict, u: dict = Depends(admin_only)):
+        from .hoodgas import FillError
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        try:
+            return await c.gas.preview(u["id"], str((body or {}).get("origem") or ""), (body or {}).get("usd"))
+        except FillError as e:
+            return {"error": str(e)}
+
+    @app.post("/api/hood/abastecer/confirmar")
+    async def hood_gas_fill(body: dict, u: dict = Depends(admin_only)):
+        from .hoodgas import FillError
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        try:
+            row = await c.gas.fill(u["id"], str((body or {}).get("quote_id") or ""), str((body or {}).get("confirmar") or ""))
+        except FillError as e:
+            return {"error": str(e)}
+        await audit(db, u["id"], "Robinhood: abastecer de outra rede", f"{row['origem_nome']} → Robinhood · US$ {row['usd']:.2f} · {row['tx']}")
+        return {"ok": True, "abastecimento": row}
+
     @app.post("/api/hood/fechar")
     async def hood_fechar(body: dict, u: dict = Depends(admin_only)):
         c = cp()

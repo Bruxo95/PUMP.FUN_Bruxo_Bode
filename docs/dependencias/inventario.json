@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-10",
     "timezone": "Europe/Dublin",
-    "repository_reference": "ca960c493211ecacfc231b2c8b23795b535cd3c2",
-    "application_version": "0.32.285 · 2026-11-10 · Robinhood: apelido e ícone de pixels em cada trader",
+    "repository_reference": "60dbb980486a6f2ffca814bc8729c81ae2af4f30",
+    "application_version": "0.32.286 · 2026-11-10 · Robinhood: saldo da carteira e abastecer de outra rede pela Relay",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "330ab7bb9bf0b6c85b7e60601850266a870ebc07c87d11b3b982c5f708fc713a",
+      "app/version.py": "358b07c4699fd7d6cd2c326d9e28da933516fc73984ab25b087b48dab17e587d",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5b59cdb532c401cc15bf4ac48225de6ccc76f8e07b4e56b864cb75a82049f6bf"
+  "pdf_sha256": "27c9bacfd12533e7ddd4917f4f9b4bfbed6be811be59f65c5fc2a2fe2759c5f7"
 }

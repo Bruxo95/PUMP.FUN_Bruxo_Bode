@@ -2185,6 +2185,11 @@
    "versao": "0.32.285",
    "inicio": "2026-11-10T21:40:24+00:00",
    "titulo": "Robinhood: apelido e ícone de pixels em cada trader"
+  },
+  {
+   "versao": "0.32.286",
+   "inicio": "2026-11-10T21:54:34+00:00",
+   "titulo": "Robinhood: saldo da carteira e abastecer de outra rede pela Relay"
   }
  ]
 }

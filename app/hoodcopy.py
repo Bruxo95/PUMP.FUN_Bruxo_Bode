@@ -252,6 +252,8 @@ class Copier:
         # 0.32.283: a REAL envia e confere pelo RPC oficial da rede (a transação não passa por servidor de terceiros antes)
         self.chain = hoodreal.Chain(lambda m, p: watch.rpc(m, p, getattr(watch, "official", None)))
         self.safe = hoodsafe.Safety(self._call, http)
+        from .hoodgas import HoodGas
+        self.gas = HoodGas(self)                     # 0.32.286: saldo da carteira e abastecer de outra rede (Relay)
         self.keys: dict[str, list | None] = {}      # id do pool → chave conferida (None = procurado e não achado)
         self._key_at: dict[str, float] = {}
         self._px_at: dict[str, float] = {}

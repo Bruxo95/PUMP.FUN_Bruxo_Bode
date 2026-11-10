@@ -1729,3 +1729,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.284 (pedido do dono): `hoodcopy` cfg `manual` (até 50 carteiras por conta) e `auto_top`; `Book.follows`; `Copier.follow` +
   `POST /api/hood/seguir` (audit); a compra só entra nas contas que seguem o trader (`tr["_auto"]`). Ranking com botão `data-follow`.
 - 0.32.285 (pedido do dono): `nick`/`blockie` em `web/hood.js` (apelido e ícone "blockie" gerados do endereço; adjetivos só de dois gêneros) na função `addr`.
+- 0.32.286 (pedido do dono): `app/hoodgas.py` (`HoodGas` em `Copier.gas`): saldo na Robinhood, compras possíveis e "precisa abastecer"
+  (5 compras REAL + reserva); rotas de Ethereum/BNB/Base/Arbitrum no MESMO endereço da chave da Robinhood; cotação e envio pela Relay com
+  `dormant_gas.check_quote` (destino = a própria carteira, chain 4663, conferido na Relay em 10/11: 1 passo, `DEPOSITORY`, ~1% em US$ 2).
+  Rotas `/api/hood/abastecer`, `/cotar`, `/confirmar` (ABASTECER; audit). Teto US$ 50/vez e 150/24 h; histórico só em memória (zera no reinício).

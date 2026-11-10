@@ -409,3 +409,63 @@ def test_follow_route_is_admin_only(env):  # noqa: F811
     assert c.post("/api/hood/seguir", json={"wallet": w, "on": True}, headers=tok(UA)).json()["manual"] == [w]
     assert c.get("/api/hood/painel", headers=tok(UA)).json()["cfg_sim"]["manual"] == [w]
     assert "error" in c.post("/api/hood/seguir", json={"wallet": "x", "on": True}, headers=tok(UA)).json()
+
+
+def test_refuel_quotes_only_to_own_robinhood_wallet_and_needs_ligar_lock():
+    """0.32.286 (pedido do dono): abastecer a carteira da Robinhood de outra rede pela Relay, com a conferência do Dormant."""
+    from app import hoodgas
+    from app.dormant_gas import DEPOSITORY, SEL_DEPOSIT
+    addr = "0x" + "77" * 20
+    sent = {}
+
+    class Http:
+        async def post(self, url, json=None, **kw):
+            if "relay" in url:
+                sent["relay"] = json
+                v = int(json["amount"])
+                return Resp({"steps": [{"id": "deposit", "kind": "transaction", "requestId": "0x" + "ab" * 32,
+                                        "items": [{"data": {"to": DEPOSITORY, "chainId": json["originChainId"], "value": str(v), "from": json["user"],
+                                                            "data": SEL_DEPOSIT + evm.w_addr(json["user"]) + "cd" * 32}}]}],
+                             "details": {"recipient": json["recipient"], "sender": json["user"], "timeEstimate": 1,
+                                         "currencyOut": {"amountFormatted": str(v / 1e18 * 0.99)}}})
+            m = json["method"]
+            res = {"eth_getBalance": hex(10 ** 18), "eth_gasPrice": hex(10 ** 9), "eth_estimateGas": hex(50000), "eth_chainId": hex(8453),
+                   "eth_getTransactionCount": "0x1", "eth_sendRawTransaction": "0x" + "ef" * 32}[m]
+            sent.setdefault("rpc", []).append(m)
+            return Resp({"result": res})
+
+        async def get(self, url, **kw):
+            return Resp({"ethereum": {"usd": 2000.0}})
+
+    async def go():
+        w = Watch()
+        w.eth_usd = 2000.0
+        c = hoodcopy.Copier(w, Http())
+        async def gk(uid):
+            return 5, addr
+        c.get_key = gk
+        async def rpc(m, p):
+            return hex(10 ** 15)
+        c.chain.rpc = rpc
+        st = await c.gas.status("u")
+        assert st["chave"] and st["precisa"] and st["rotas"][0]["ok"]
+        assert sent["relay"]["recipient"] == addr and sent["relay"]["destinationChainId"] == 4663
+        q = await c.gas.preview("u", "base", 10)
+        assert any("PUMP_REAL_ALLOWED" in b for b in q["bloqueia"]) and "quote_id" not in q        # trava geral fechada
+        c.real_allowed = True
+        assert "teto" in " ".join((await c.gas.preview("u", "base", 80))["bloqueia"])
+        q = await c.gas.preview("u", "base", 10)
+        assert q["quote_id"] and not q["bloqueia"] and abs(q["taxa_pct"] - 1.0) < 0.01
+        try:
+            await c.gas.fill("u", q["quote_id"], "sim")
+            assert False
+        except hoodgas.FillError as e:
+            assert "ABASTECER" in str(e)
+        row = await c.gas.fill("u", q["quote_id"], "ABASTECER")
+        assert row["status"] == "pendente" and "eth_sendRawTransaction" in sent["rpc"] and c.gas.spent_24h("u") == 10
+        try:
+            await c.gas.preview("u", "polygon", 10)
+            assert False
+        except hoodgas.FillError:
+            pass
+    run(go())
