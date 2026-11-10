@@ -41,6 +41,14 @@
   .hdmodes .btn.on{background:var(--up-bg);color:var(--up);border-color:rgba(34,197,94,.45)}
   .hdmodes .btn.on[data-modo="sim"]{background:#7c3aed;color:#fff;border-color:#7c3aed}
   .hdmodes .btn.on[data-modo="real"]{background:var(--real);color:#111;border-color:var(--real)}
+  .cfgrid{display:grid;grid-template-columns:minmax(200px,1.3fr) 1fr 1fr;gap:10px 18px;align-items:center}
+  .cfrows{display:contents}
+  .cfh{display:flex;align-items:center;gap:10px;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--line2);min-height:40px}
+  .cfl{font-size:13.5px}.cfl small{display:block;color:var(--muted);font-size:11.5px}
+  .cfc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.cfc input{width:120px}.cfc .muted{font-size:12px}
+  .cfc.na{color:var(--muted);font-size:12px}
+  @media (max-width:860px){.cfgrid{grid-template-columns:1fr 1fr;gap:6px 12px}.cfgrid>.cfh:first-child,.cfgrid>.cfl:empty{display:none}
+    .cfl{grid-column:1/-1;margin-top:8px}.cfc input{width:100%}.cfh{flex-wrap:wrap}}
   .hdsec{margin:22px 0 12px;font-size:14px;color:var(--muted);font-weight:600}
   .hdask{margin-top:12px;border:1px dashed var(--down);border-radius:10px;padding:12px}
   #modeSeg button[data-mode="real"].on{background:var(--real);color:#111}
@@ -122,21 +130,25 @@
           <div class="tbl-wrap"><table id="hiTb"></table></div></div>
       </section>
       <section class="view" data-view="carteira" hidden>
-        <div class="grid2e">
-          <div class="card"><header><div><h2>Cópia FICTÍCIA</h2><div class="sub">carteira de mentira em ETH desta conta · nada é enviado à rede</div></div><div class="sp"></div><button class="btn tgl sw" id="cfOn" type="button" role="switch"></button></header>
-            <div class="form" id="cfF"></div>
-            <div class="row" style="margin-top:10px"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button><small class="muted">salva sozinho ao mudar um valor</small></div>
-            <div class="help"><p>Mudar o saldo inicial soma ou tira a diferença do saldo de agora. A REAL tem os valores dela, no quadro ao lado.</p></div></div>
-          <div class="card"><header><div><h2>Carteira REAL</h2><div class="sub">compra e vende de verdade pela Uniswap V4 · começa desligada</div></div><div class="sp"></div><button class="btn tgl sw" id="rlOn" type="button" role="switch"></button></header>
-            <div class="decbox" id="rlSt"></div>
-            <div class="hdbal" id="rlBal" hidden></div>
-            <div class="field" style="margin-top:12px"><label for="rlKey">Chave privada da carteira da Robinhood Chain</label>
+        <div class="card"><header><div><h2>Valores da cópia</h2><div class="sub">uma linha por opção, FICTÍCIA e REAL lado a lado · salva sozinho ao mudar um valor</div></div></header>
+          <div class="cfgrid" id="cfgT">
+            <div class="cfh"></div>
+            <div class="cfh"><span class="tag sim">FICTÍCIA</span><button class="btn tgl sw" id="cfOn" type="button" role="switch"></button></div>
+            <div class="cfh"><span class="tag real">REAL</span><button class="btn tgl sw" id="rlOn" type="button" role="switch"></button></div>
+            <div id="cfRows" class="cfrows"></div>
+            <div class="cfl"></div>
+            <div class="cfc"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button></div>
+            <div class="cfc"><button class="btn sm" id="rlReset" type="button">Voltar ao padrão</button></div>
+          </div>
+          <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div>
+          <div class="help"><p>Com REAL e FICTÍCIA ligadas, a REAL compra e vende primeiro e a FICTÍCIA usa o preço que a REAL pagou. Na REAL não existem gás simulado nem saldo inicial: lá o gás e o saldo são os de verdade. Mudar o saldo inicial da FICTÍCIA soma ou tira a diferença do saldo de agora.</p></div></div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Carteira REAL</h2><div class="sub">compra e vende de verdade pela Uniswap V4 · começa desligada</div></div></header>
+          <div class="grid2e">
+            <div><div class="decbox" id="rlSt"></div><div class="hdbal" id="rlBal" hidden></div></div>
+            <div class="field"><label for="rlKey">Chave privada da carteira da Robinhood Chain</label>
               <div class="row"><input class="in" id="rlKey" type="password" autocomplete="off" spellcheck="false" placeholder="cole aqui (fica criptografada no servidor e nunca volta para a tela)"><button class="btn sm" id="rlKeySave" type="button">Salvar chave</button><button class="btn sm" id="rlKeyDel" type="button">Remover</button></div>
               <small class="muted">Use uma carteira nova, só para isto, com pouco ETH. Nunca cole esta chave no chat.</small></div>
-            <div class="form" id="rlF" style="margin-top:12px"></div>
-            <div class="row" style="margin-top:10px"><small class="muted">salva sozinho ao mudar um valor · com REAL e FICTÍCIA ligadas, a REAL compra e vende primeiro e a FICTÍCIA usa o preço que a REAL pagou</small></div>
-            <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div></div>
-        </div>
+          </div></div>
         <div class="card" id="gaCard" style="margin-top:16px" hidden><header><div><h2>Abastecer de outra rede</h2><div class="sub">manda ETH ou BNB das suas outras redes para a carteira da Robinhood, pela ponte Relay · a mesma chave abre o mesmo endereço nelas</div></div><div class="sp"></div><button class="btn sm" id="gaRe" type="button">Atualizar</button></header>
           <div id="gaR"></div>
           <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><label for="gaUsd" class="muted">Valor em dólar</label><input class="in w100" id="gaUsd" type="number" min="1" step="1" value="10"><span class="muted" id="gaConv"></span><button class="btn primary" id="gaQ" type="button">Cotar</button></div>

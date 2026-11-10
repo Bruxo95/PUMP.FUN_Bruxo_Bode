@@ -1737,3 +1737,5 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   REAL primeiro (venda REAL antes no `on_trade`; compra FICTÍCIA via `call_soon` depois das REAL; `Copier._align` põe na fictícia o preço da REAL).
   `real_max_hold_h`/`real_stop_pct` próprios. Telas: `autoSave` (sem botão Salvar), Abastecer sem digitar (o navegador manda ABASTECER),
   FICTÍCIA roxa (#7c3aed) e REAL amarela.
+- 0.32.288 (pedido do dono): Carteira do /hood com `CFG_ROWS` (uma linha por opção, colunas FICTÍCIA | REAL, `#cfRows` em `.cfgrid`).
+  Opção nova da cópia da Robinhood = linha em `CFG_ROWS` (com as duas chaves, ou null e o motivo).

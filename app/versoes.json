@@ -2195,6 +2195,11 @@
    "versao": "0.32.287",
    "inicio": "2026-11-10T22:12:38+00:00",
    "titulo": "Robinhood: copiar na FICTÍCIA, na REAL ou nas 2, REAL primeiro e valores que salvam sozinhos"
+  },
+  {
+   "versao": "0.32.288",
+   "inicio": "2026-11-10T22:30:06+00:00",
+   "titulo": "Robinhood: valores da FICTÍCIA e da REAL lado a lado, com os mesmos nomes"
   }
  ]
 }

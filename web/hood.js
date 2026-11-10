@@ -193,6 +193,28 @@
   const dur = (s) => (s < 60 ? Math.round(s) + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1).replace(".", ",") + " h" : (s / 86400).toFixed(1).replace(".", ",") + " dias");
   const mtag = () => (REAL ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>');
   const pct = (v) => (v == null ? "—" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : "") + num(v, 1) + "%</span>");
+  // 0.32.288 (pedido do dono: "os config estão desalinhados e fora de padrão de palavras"): uma linha por opção, FICTÍCIA e REAL lado a
+  // lado, mesmos nomes e mesma ordem. [nome, unidade, chave da FICTÍCIA ou null, chave da REAL ou null, motivo de não ter numa delas]
+  const CFG_ROWS = [
+    ["ETH por compra", "ETH", "eth_por_compra", "real_eth_por_compra"],
+    ["Posições abertas no máximo", "posições", "max_abertas", "real_max_abertas"],
+    ["Tempo máximo da posição", "h", "max_hold_h", "real_max_hold_h"],
+    ["Stop de perda (0 = desligado)", "%", "stop_pct", "real_stop_pct"],
+    ["Folga de preço (slippage)", "%", "slip_pct", "real_slip_pct"],
+    ["Perda do dia que para a cópia", "ETH", null, "real_perda_dia", "só na REAL"],
+    ["Gás por transação", "ETH", "gas_eth", null, "na REAL é o gás de verdade"],
+    ["Saldo inicial", "ETH", "saldo_inicial", null, "na REAL é o saldo da carteira"],
+  ];
+  function cfgCell(pre, key, info, c, p, na) {
+    if (!key) return '<div class="cfc na">' + esc(na || "—") + "</div>";
+    const x = info.find((i) => i[0] === key) || [key, "", "", 0, 1e9, "any"];
+    return '<div class="cfc"><input class="in" id="' + pre + key + '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[key]) +
+      '" aria-label="' + esc(x[1]) + '">' + (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + "</div>";
+  }
+  function cfgRows(c, rc) {
+    return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small></div>" +
+      cfgCell("cf_", r[2], CF_INFO, c, P.padrao, r[4]) + cfgCell("rl_", r[3], RL_INFO, rc, P.real_padrao, r[4])).join("");
+  }
   function fieldHtml(pre, info, c, p) {
     return info.map((x) => '<div class="field"><label for="' + pre + x[0] + '">' + esc(x[1]) + '</label><div class="row"><input class="in w120" id="' + pre + x[0] +
       '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><span class="muted">' + esc(x[2]) +
@@ -245,8 +267,7 @@
     const c = P.cfg_sim || {}, rc = P.real_cfg || {}, st = P.real_status || {};
     const on = $("cfOn"); on.classList.toggle("on", !!c.on); on.textContent = c.on ? "Ligada" : "Desligada"; on.setAttribute("aria-checked", c.on ? "true" : "false");
     const ro = $("rlOn"); ro.classList.toggle("on", !!st.ligada); ro.textContent = st.ligada ? "Ligada" : "Desligada"; ro.setAttribute("aria-checked", st.ligada ? "true" : "false");
-    if (!CF_DIRTY) $("cfF").innerHTML = fieldHtml("cf_", CF_INFO, c, P.padrao);
-    if (!RL_DIRTY) $("rlF").innerHTML = fieldHtml("rl_", RL_INFO, rc, P.real_padrao);
+    if (!CF_DIRTY && !RL_DIRTY && !document.activeElement.closest("#cfRows")) $("cfRows").innerHTML = cfgRows(c, rc);
     $("rlSt").innerHTML = [
       "Trava geral do servidor: " + (st.permitido ? '<span class="up">aberta</span>' : '<span class="down">fechada (PUMP_REAL_ALLOWED): nada é enviado</span>'),
       "Chave: " + (st.chave ? '<span class="up">salva</span> · carteira ' + addr(st.endereco) : '<span class="muted">não salva</span>'),
@@ -349,8 +370,8 @@
     const t = e.target && e.target.closest ? e.target : null; if (!t) return;
     if (t.id === "gaUsd") { gaConv(); $("gaP").hidden = true; }
     if (t.closest("#hdCfg")) DIRTY = true;
-    if (t.closest("#cfF")) { CF_DIRTY = true; autoSave("cf"); }
-    if (t.closest("#rlF")) { RL_DIRTY = true; autoSave("rl"); }
+    if (t.closest("#cfRows") && t.id.startsWith("cf_")) { CF_DIRTY = true; autoSave("cf"); }
+    if (t.closest("#cfRows") && t.id.startsWith("rl_")) { RL_DIRTY = true; autoSave("rl"); }
   });
   // 0.32.287 (pedido do dono): os valores salvam sozinhos (0,8 s depois de parar de digitar) e aparece "Salvo." em verde
   const SAVE_T = {};
@@ -401,6 +422,7 @@
     }
     if (t.id === "cfOn") { const r = await post("/api/hood/conta", { on: !(P && P.cfg_sim && P.cfg_sim.on) }, t); if (r && r.error) alert(r.error); return load(); }
     if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); return autoSave("cf"); }
+    if (t.id === "rlReset") { RL_DIRTY = true; const p = (P && P.real_padrao) || {}; RL_INFO.forEach((x) => { if ($("rl_" + x[0])) $("rl_" + x[0]).value = p[x[0]]; }); return autoSave("rl"); }
     if (t.id === "rlKeySave") {
       const v = $("rlKey").value.trim(); if (!v) return;
       const r = await post("/api/hood/chave", { value: v }, t);
