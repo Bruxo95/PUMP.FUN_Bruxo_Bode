@@ -51,12 +51,14 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         if c is None:
             return {"error": "leitura da Robinhood Chain desligada no servidor"}
         w, on = str((body or {}).get("wallet") or ""), bool((body or {}).get("on"))
+        modo = str((body or {}).get("modo") or "ambas")
         try:
-            lst = await c.follow(u["id"], w, on)
+            lst = await c.follow(u["id"], w, on, modo)
         except ValueError as e:
             return {"error": str(e)}
-        await audit(db, u["id"], "Robinhood: " + ("copiar trader" if on else "parar de copiar trader"), w[:42])
-        return {"ok": True, "manual": lst}
+        nomes = {"sim": "só FICTÍCIA", "real": "só REAL", "ambas": "FICTÍCIA e REAL"}
+        await audit(db, u["id"], "Robinhood: " + ("copiar trader (" + nomes.get(modo, modo) + ")" if on else "parar de copiar trader"), w[:42])
+        return {"ok": True, "manual": lst, "modo": c.book(u["id"]).cfg.get("modo") or {}}
 
     # 0.32.286 (pedido do dono): saldo da carteira, se precisa abastecer, e abastecer de outra rede pela Relay
     @app.get("/api/hood/abastecer")

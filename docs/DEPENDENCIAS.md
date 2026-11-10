@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-10**; revisão documental **2.0**.
-Aplicação: **0.32.286 · 2026-11-10 · Robinhood: saldo da carteira e abastecer de outra rede pela Relay**.
-Referência Git na emissão: `60dbb980486a6f2ffca814bc8729c81ae2af4f30`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.287 · 2026-11-10 · Robinhood: copiar na FICTÍCIA, na REAL ou nas 2, REAL primeiro e valores que salvam sozinhos**.
+Referência Git na emissão: `ae472651964d26eb73d02657ac3f915f42ef5803`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

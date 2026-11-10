@@ -37,9 +37,14 @@
   .hdbal b.big{font-size:20px;display:block;margin:2px 0 4px}
   .garow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2);flex-wrap:wrap}
   .garow input{margin:0}.garow .gn{min-width:120px;font-weight:600}.garow .gs{flex:1 1 180px;min-width:0}
+  .hdmodes{display:inline-flex;gap:4px;flex-wrap:wrap}.hdmodes .btn{padding:0 8px}
+  .hdmodes .btn.on{background:var(--up-bg);color:var(--up);border-color:rgba(34,197,94,.45)}
+  .hdmodes .btn.on[data-modo="sim"]{background:#7c3aed;color:#fff;border-color:#7c3aed}
+  .hdmodes .btn.on[data-modo="real"]{background:var(--real);color:#111;border-color:var(--real)}
   .hdsec{margin:22px 0 12px;font-size:14px;color:var(--muted);font-weight:600}
   .hdask{margin-top:12px;border:1px dashed var(--down);border-radius:10px;padding:12px}
   #modeSeg button[data-mode="real"].on{background:var(--real);color:#111}
+  #modeSeg button[data-mode="sim"].on{background:#7c3aed;color:#fff}   /* 0.32.287 (pedido do dono): FICTÍCIA roxa, REAL amarela */
   #rlKey{flex:1 1 220px;min-width:0}
   @media (max-width:860px){#modeSeg button{padding:0 7px}}
 </style>
@@ -120,8 +125,8 @@
         <div class="grid2e">
           <div class="card"><header><div><h2>Cópia FICTÍCIA</h2><div class="sub">carteira de mentira em ETH desta conta · nada é enviado à rede</div></div><div class="sp"></div><button class="btn tgl sw" id="cfOn" type="button" role="switch"></button></header>
             <div class="form" id="cfF"></div>
-            <div class="row" style="margin-top:10px"><button class="btn primary" id="cfSave" type="button">Salvar</button><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button></div>
-            <div class="help"><p>Tempo máximo e stop valem também para a REAL. Mudar o saldo inicial soma ou tira a diferença do saldo de agora.</p></div></div>
+            <div class="row" style="margin-top:10px"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button><small class="muted">salva sozinho ao mudar um valor</small></div>
+            <div class="help"><p>Mudar o saldo inicial soma ou tira a diferença do saldo de agora. A REAL tem os valores dela, no quadro ao lado.</p></div></div>
           <div class="card"><header><div><h2>Carteira REAL</h2><div class="sub">compra e vende de verdade pela Uniswap V4 · começa desligada</div></div><div class="sp"></div><button class="btn tgl sw" id="rlOn" type="button" role="switch"></button></header>
             <div class="decbox" id="rlSt"></div>
             <div class="hdbal" id="rlBal" hidden></div>
@@ -129,7 +134,7 @@
               <div class="row"><input class="in" id="rlKey" type="password" autocomplete="off" spellcheck="false" placeholder="cole aqui (fica criptografada no servidor e nunca volta para a tela)"><button class="btn sm" id="rlKeySave" type="button">Salvar chave</button><button class="btn sm" id="rlKeyDel" type="button">Remover</button></div>
               <small class="muted">Use uma carteira nova, só para isto, com pouco ETH. Nunca cole esta chave no chat.</small></div>
             <div class="form" id="rlF" style="margin-top:12px"></div>
-            <div class="row" style="margin-top:10px"><button class="btn primary" id="rlSave" type="button">Salvar valores da REAL</button></div>
+            <div class="row" style="margin-top:10px"><small class="muted">salva sozinho ao mudar um valor · com REAL e FICTÍCIA ligadas, a REAL compra e vende primeiro e a FICTÍCIA usa o preço que a REAL pagou</small></div>
             <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div></div>
         </div>
         <div class="card" id="gaCard" style="margin-top:16px" hidden><header><div><h2>Abastecer de outra rede</h2><div class="sub">manda ETH ou BNB das suas outras redes para a carteira da Robinhood, pela ponte Relay · a mesma chave abre o mesmo endereço nelas</div></div><div class="sp"></div><button class="btn sm" id="gaRe" type="button">Atualizar</button></header>

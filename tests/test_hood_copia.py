@@ -469,3 +469,49 @@ def test_refuel_quotes_only_to_own_robinhood_wallet_and_needs_ligar_lock():
         except hoodgas.FillError:
             pass
     run(go())
+
+
+def test_modes_per_trader_and_real_goes_first():
+    """0.32.287 (pedido do dono): 3 botões (FICTÍCIA, REAL, as 2); com as duas ligadas a REAL sai primeiro e a FICTÍCIA usa o preço dela."""
+    async def go():
+        w, c = copier()
+        w.copiaria = []
+        order = []
+
+        async def real_buy(uid, tr, px, key):
+            order.append(("real", tr["wallet"]))
+        c._real_buy = real_buy
+        orig_buy = hoodcopy.Book.buy
+
+        def fake_buy(self, tr, px, t, key, origem="top"):
+            order.append(("sim", tr["wallet"]))
+            return orig_buy(self, tr, px, t, key, origem)
+        hoodcopy.Book.buy = fake_buy
+        try:
+            c.rcfg("u1")["real_on"] = True
+            await c.follow("u1", OTHER, True, "real")
+            await c.follow("u1", TRADER, True, "sim")
+            c.on_trade(trade("buy", 1000.0, 1.0, wallet=OTHER), 0.0, w.copiaria)
+            c.on_trade(trade("buy", 1000.0, 1.0, wallet=TRADER), 0.0, w.copiaria)
+            await settle(c)
+            assert ("real", OTHER) in order and ("sim", OTHER) not in order
+            assert ("sim", TRADER) in order and ("real", TRADER) not in order
+            order.clear()
+            await c.follow("u1", OTHER, True, "ambas")
+            c.on_trade(trade("buy", 500.0, 1.0, wallet=OTHER), 0.0, w.copiaria)
+            await settle(c)
+            assert order == [("real", OTHER), ("sim", OTHER)]                 # a REAL sai primeiro
+        finally:
+            hoodcopy.Book.buy = orig_buy
+        b = c.books["u1"]
+        p = next(x for x in b.pos.values() if x["wallet"] == OTHER)
+        c._align("u1", {"wallet": OTHER, "token": TOK, "open_t": p["open_t"], "px_in": p["px_in"] * 2})
+        assert p["alinhado_real"] and abs(p["px_in"] - p["px_in_ficticio"] * 2) < 1e-15
+        rc = hoodreal.clean({"real_stop_pct": 30, "real_max_hold_h": 2})
+        assert rc["real_stop_pct"] == 30 and rc["real_max_hold_h"] == 2
+        try:
+            await c.follow("u1", OTHER, True, "tudo")
+            assert False
+        except ValueError:
+            pass
+    run(go())

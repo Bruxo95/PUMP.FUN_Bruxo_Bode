@@ -1733,3 +1733,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (5 compras REAL + reserva); rotas de Ethereum/BNB/Base/Arbitrum no MESMO endereço da chave da Robinhood; cotação e envio pela Relay com
   `dormant_gas.check_quote` (destino = a própria carteira, chain 4663, conferido na Relay em 10/11: 1 passo, `DEPOSITORY`, ~1% em US$ 2).
   Rotas `/api/hood/abastecer`, `/cotar`, `/confirmar` (ABASTECER; audit). Teto US$ 50/vez e 150/24 h; histórico só em memória (zera no reinício).
+- 0.32.287 (pedido do dono): `hoodcopy` cfg `modo` {carteira: sim|real|ambas} (`Book.mode_of`/`follows`/`real_follows`; `/api/hood/seguir` com `modo`);
+  REAL primeiro (venda REAL antes no `on_trade`; compra FICTÍCIA via `call_soon` depois das REAL; `Copier._align` põe na fictícia o preço da REAL).
+  `real_max_hold_h`/`real_stop_pct` próprios. Telas: `autoSave` (sem botão Salvar), Abastecer sem digitar (o navegador manda ABASTECER),
+  FICTÍCIA roxa (#7c3aed) e REAL amarela.

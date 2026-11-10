@@ -33,8 +33,11 @@ GAS_RESERVE = 0.0005                # ETH que fica na carteira para o gás das v
 RETRY_S = 60                        # venda automática que falhou espera 1 min antes de tentar de novo
 RECIBO_S = 60
 
-REAL_DEFAULT = {"real_on": False, "real_eth_por_compra": 0.002, "real_max_abertas": 5, "real_slip_pct": 15.0, "real_perda_dia": 0.01}
-REAL_LIMITS = {"real_eth_por_compra": (0.0002, 0.5), "real_max_abertas": (1, 30), "real_slip_pct": (1, 49), "real_perda_dia": (0.0005, 5)}
+# 0.32.287 (pedido do dono: "a carteira real tá faltando umas coisas que tem na fictícia"): tempo máximo e stop próprios da REAL
+REAL_DEFAULT = {"real_on": False, "real_eth_por_compra": 0.002, "real_max_abertas": 5, "real_slip_pct": 15.0, "real_perda_dia": 0.01,
+                "real_max_hold_h": 6.0, "real_stop_pct": 0.0}
+REAL_LIMITS = {"real_eth_por_compra": (0.0002, 0.5), "real_max_abertas": (1, 30), "real_slip_pct": (1, 49), "real_perda_dia": (0.0005, 5),
+               "real_max_hold_h": (0.1, 168), "real_stop_pct": (0, 100)}
 
 
 def clean(raw: dict | None, base: dict | None = None) -> dict:

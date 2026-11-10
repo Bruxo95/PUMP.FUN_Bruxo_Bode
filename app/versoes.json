@@ -2190,6 +2190,11 @@
    "versao": "0.32.286",
    "inicio": "2026-11-10T21:54:34+00:00",
    "titulo": "Robinhood: saldo da carteira e abastecer de outra rede pela Relay"
+  },
+  {
+   "versao": "0.32.287",
+   "inicio": "2026-11-10T22:12:38+00:00",
+   "titulo": "Robinhood: copiar na FICTÍCIA, na REAL ou nas 2, REAL primeiro e valores que salvam sozinhos"
   }
  ]
 }

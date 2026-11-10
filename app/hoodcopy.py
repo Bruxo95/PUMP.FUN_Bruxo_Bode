@@ -34,7 +34,9 @@ KEEP_TRADES = 3000
 # 0.32.284 (pedido do dono, 10/11/2026: "botão aqui pra já clicar e começar a copiar"): cada conta escolhe traders à mão
 # (manual, até MANUAL_MAX), copiados mesmo sem passar na regra do ranking; auto_top = copiar também o "Copiando agora".
 MANUAL_MAX = 50
-CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
+# 0.32.287 (pedido do dono: "3 botões: copiar REAL, copiar FICTÍCIA ou as 2"): modo por trader escolhido (sim, real, ambas)
+MODOS = ("sim", "real", "ambas")
+CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
                "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5}
 CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000)}
@@ -72,8 +74,11 @@ def repair(p: dict) -> bool:
 def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(base or CFG_DEFAULT)
     out["manual"] = list(out.get("manual") or [])
+    out["modo"] = dict(out.get("modo") or {})
     for k, v in (raw or {}).items():
-        if k in ("on", "auto_top"):
+        if k == "modo" and isinstance(v, dict):
+            out["modo"] = {str(w).lower(): m for w, m in v.items() if m in MODOS}
+        elif k in ("on", "auto_top"):
             out[k] = bool(v)
         elif k == "manual":
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
@@ -89,6 +94,7 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
             lo, hi = CFG_LIMITS[k]
             val = min(hi, max(lo, val))
             out[k] = int(val) if isinstance(CFG_DEFAULT[k], int) else round(val, 6)
+    out["modo"] = {w: m for w, m in out["modo"].items() if w in out["manual"]}
     return out
 
 
@@ -111,13 +117,23 @@ class Book:
         self.events.insert(0, {"t": t, "wallet": wallet, "token": token, "acao": acao, "motivo": motivo})
         del self.events[200:]
 
-    def follows(self, wallet: str, auto: bool) -> str | None:
-        """Por que esta conta copia o trader: 'manual' (escolhido no botão), 'top' (Copiando agora) ou None."""
+    def mode_of(self, wallet: str, auto: bool) -> str | None:
+        """Onde esta conta copia o trader: 'sim', 'real' ou 'ambas' (escolhido no botão; o Copiando agora vale nas duas) ou None."""
         if wallet in (self.cfg.get("manual") or []):
-            return "manual"
+            return (self.cfg.get("modo") or {}).get(wallet, "ambas")
         if auto and self.cfg.get("auto_top", True):
-            return "top"
+            return "ambas"
         return None
+
+    def follows(self, wallet: str, auto: bool) -> str | None:
+        """Por que a FICTÍCIA desta conta copia o trader: 'manual' (botão), 'top' (Copiando agora) ou None."""
+        m = self.mode_of(wallet, auto)
+        if m not in ("sim", "ambas"):
+            return None
+        return "manual" if wallet in (self.cfg.get("manual") or []) else "top"
+
+    def real_follows(self, wallet: str, auto: bool) -> bool:
+        return self.mode_of(wallet, auto) in ("real", "ambas")
 
     def value_now(self, p: dict) -> float:
         px = p.get("px_now") or p["px_in"]
@@ -355,13 +371,7 @@ class Copier:
         ranking comprou → confere o token e compra na fictícia (e na REAL ligada)."""
         px = tr["eth"] / tr["amount"] if tr.get("amount") else None
         now = time.time()
-        for b in self.books.values():
-            if px:
-                b.on_price(tr["token"], px, tr["t"])
-            if tr["side"] == "sell":
-                frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
-                for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
-                    b.sell(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
+        # 0.32.287 (pedido do dono): com REAL e FICTÍCIA ligadas a prioridade é da REAL: a venda REAL sai primeiro
         for uid, rb in self.real.items():
             if px:
                 self._real_price(uid, rb, tr["token"], px, tr["t"])
@@ -370,8 +380,15 @@ class Copier:
                 for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     p["retry_frac"] = frac
                     self._spawn(self._real_sell(uid, p, frac, f"trader vendeu {frac * 100:.0f}%"))
+        for b in self.books.values():
+            if px:
+                b.on_price(tr["token"], px, tr["t"])
+            if tr["side"] == "sell":
+                frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
+                for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
+                    b.sell(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
         auto = tr["wallet"] in copiaria
-        if tr["side"] == "buy" and now - tr["t"] <= FRESH_S and any(b.follows(tr["wallet"], auto) for b in self.books.values()):
+        if tr["side"] == "buy" and now - tr["t"] <= FRESH_S and any(b.mode_of(tr["wallet"], auto) for b in self.books.values()):
             tr["_auto"] = auto
             self.stat["compras_vistas"] += 1
             self._spawn(self._prepare(tr, px))
@@ -400,17 +417,26 @@ class Copier:
                 if b.cfg.get("on") and b.follows(tr["wallet"], tr.get("_auto", True)):
                     b.ev(now, tr["wallet"], tr["token"], "não copiou", why)
             for uid, rc in list(self.real_cfg.items()):
-                if rc.get("real_on") and self.book(uid).follows(tr["wallet"], tr.get("_auto", True)):
+                if rc.get("real_on") and self.book(uid).real_follows(tr["wallet"], tr.get("_auto", True)):
                     self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
             return
         self.stat["copiadas"] += 1
-        for b in self.books.values():
-            why = b.follows(tr["wallet"], tr.get("_auto", True))
-            if why:
-                b.buy(tr, px, now, key, why)
+        # 0.32.287: a REAL sai primeiro; a FICTÍCIA da mesma conta depois passa a usar o preço que a REAL pagou (_align)
+        reais = 0
         for uid, rc in list(self.real_cfg.items()):
-            if rc.get("real_on") and self.book(uid).follows(tr["wallet"], tr.get("_auto", True)):
+            if rc.get("real_on") and self.book(uid).real_follows(tr["wallet"], tr.get("_auto", True)):
                 self._spawn(self._real_buy(uid, tr, px, key))
+                reais += 1
+
+        def sim() -> None:
+            for b in self.books.values():
+                why = b.follows(tr["wallet"], tr.get("_auto", True))
+                if why:
+                    b.buy(tr, px, now, key, why)
+        if reais:                                  # a FICTÍCIA entra na fila depois das compras REAL (elas começam primeiro)
+            asyncio.get_running_loop().call_soon(sim)
+        else:
+            sim()
 
     # ------------------------------------------------------------------ carteira REAL
     async def get_key(self, uid: str):
@@ -439,7 +465,7 @@ class Copier:
                 "ligada": bool(rc.get("real_on")), "desde": rc.get("on_since"), "saldo": rb.balance if rb else None}
 
     def _real_price(self, uid: str, rb, token: str, px: float, t: float) -> None:
-        rc, cf = self.rcfg(uid), self.book(uid).cfg
+        rc = self.rcfg(uid)
         for p in list(rb.pos.values()):
             if p["token"] != token or px <= 0:
                 continue
@@ -447,9 +473,9 @@ class Copier:
             _, pct = rb.pnl_now(p, rc["real_slip_pct"])
             p["best_pct"], p["worst_pct"] = max(p.get("best_pct", 0), pct), min(p.get("worst_pct", 0), pct)
             rb.dirty_pos.add(p["id"])
-            if cf["stop_pct"] and pct <= -cf["stop_pct"] and (p.get("sell_retry_at") or 0) <= time.time():
+            if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] and (p.get("sell_retry_at") or 0) <= time.time():
                 p["retry_frac"] = 1.0
-                self._spawn(self._real_sell(uid, p, 1.0, f"stop de {cf['stop_pct']:.0f}%"))
+                self._spawn(self._real_sell(uid, p, 1.0, f"stop de {rc['real_stop_pct']:g}%"))
 
     def real_why_not(self, uid: str, tr: dict, rb, rc: dict) -> str | None:
         if not self.real_allowed:
@@ -485,7 +511,7 @@ class Copier:
                 if rb.balance < rc["real_eth_por_compra"] + hoodreal.GAS_RESERVE:
                     rb.ev(now, tr["wallet"], tr["token"], "REAL não copiou", f"saldo da carteira ({rb.balance:.5f} ETH) menor que a compra + gás")
                     return
-                until = time.time() + self.book(uid).cfg["max_hold_h"] * 3600 + 86400
+                until = time.time() + rc["real_max_hold_h"] * 3600 + 86400
                 res = await self.chain.buy(key, addr, tr["token"], pkey, rc["real_eth_por_compra"], rc["real_slip_pct"], until)
             t = time.time()
             p = hoodreal.new_position(tr, res, t, px, pkey)
@@ -493,6 +519,7 @@ class Copier:
             rb.dirty_pos.add(p["id"])
             rb.balance_t = 0
             rb.ev(t, tr["wallet"], tr["token"], "REAL comprou", f"{rc['real_eth_por_compra']:g} ETH, {t - tr['t']:.0f} s depois do trader", res["tx"])
+            self._align(uid, p)
             log.info("Robinhood REAL: comprou %s… %.5f ETH (conta %s…)", tr["token"][:10], res["eth"], uid[:8])
         except Exception as e:
             rb.ev(time.time(), tr["wallet"], tr["token"], "REAL falhou", str(e)[:200])
@@ -500,6 +527,18 @@ class Copier:
         finally:
             rb.busy.discard(k)
             await self.flush()
+
+    def _align(self, uid: str, rp: dict) -> None:
+        """0.32.287 (pedido do dono: prioridade da REAL): a posição FICTÍCIA do mesmo trader e token passa a usar o preço de entrada que a
+        REAL pagou de verdade (mesma quantidade em ETH; muda só quantos tokens isso compra), para as duas mostrarem o mesmo resultado."""
+        b = self.books.get(uid)
+        if not b or not rp.get("px_in"):
+            return
+        for p in b.pos.values():
+            if p["wallet"] == rp["wallet"] and p["token"] == rp["token"] and not p.get("vendas") and abs(p["open_t"] - rp["open_t"]) < 600 and p.get("px_in"):
+                k = p["px_in"] / rp["px_in"]
+                p.update(tokens=p["tokens"] * k, tokens_left=p["tokens_left"] * k, px_in_ficticio=p["px_in"], px_in=rp["px_in"], alinhado_real=True)
+                b.dirty_pos.add(p["id"])
 
     async def _real_sell(self, uid: str, p: dict, frac: float, motivo: str, manual: bool = False) -> dict | None:
         rb, rc = self.rbook(uid), self.rcfg(uid)
@@ -565,11 +604,11 @@ class Copier:
         if bal:
             self._rbal_at = now
         for uid, rb in list(self.real.items()):
-            cf = self.book(uid).cfg
+            cf = self.rcfg(uid)
             for p in list(rb.pos.values()):
-                if now - p["open_t"] >= cf["max_hold_h"] * 3600:
+                if now - p["open_t"] >= cf["real_max_hold_h"] * 3600:
                     p["retry_frac"] = 1.0
-                    self._spawn(self._real_sell(uid, p, 1.0, f"tempo máximo de {cf['max_hold_h']:g} h"))
+                    self._spawn(self._real_sell(uid, p, 1.0, f"tempo máximo de {cf['real_max_hold_h']:g} h"))
                 elif p.get("sell_error") and (p.get("sell_retry_at") or 0) <= now and p.get("retry_frac"):
                     self._spawn(self._real_sell(uid, p, p["retry_frac"], "nova tentativa de venda"))
             if bal and (rb.address or self.rcfg(uid).get("real_on")):
@@ -661,18 +700,24 @@ class Copier:
         await self.flush()
         return b.cfg
 
-    async def follow(self, uid: str, wallet: str, on: bool) -> list:
-        """Liga ou desliga a cópia de um trader nesta conta (botão Copiar do ranking)."""
+    async def follow(self, uid: str, wallet: str, on: bool, modo: str = "ambas") -> list:
+        """Liga (no modo sim, real ou ambas) ou desliga a cópia de um trader nesta conta (botões do ranking)."""
         b = self.book(uid)
         cur = list(b.cfg.get("manual") or [])
+        modos = dict(b.cfg.get("modo") or {})
         w = (wallet or "").strip().lower()
+        if on and modo not in MODOS:
+            raise ValueError("modo inválido")
         if on and w not in cur:
             if len(cur) >= MANUAL_MAX:
                 raise ValueError(f"no máximo {MANUAL_MAX} traders copiados à mão")
             cur.append(w)
         elif not on:
             cur = [x for x in cur if x != w]
+        if on:
+            modos[w] = modo
         b.cfg = clean_cfg({"manual": cur}, b.cfg)
+        b.cfg = clean_cfg({"modo": modos}, b.cfg)
         if on and w not in b.cfg["manual"]:
             raise ValueError("carteira inválida")
         b.dirty_book = True
@@ -718,7 +763,7 @@ class Copier:
                 v, pct = rb.pnl_now(p, rc["real_slip_pct"])
                 pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                       "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling")},
-                            "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600, "real": True})
+                            "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + rc["real_max_hold_h"] * 3600, "real": True})
             return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
                     "trades": rb.trades[:500], "eventos": rb.events[:100]}
         pos = []

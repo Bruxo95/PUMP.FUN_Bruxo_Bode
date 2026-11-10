@@ -17,6 +17,7 @@
   const RL_INFO = [
     ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0005], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
     ["real_slip_pct", "Folga de preço na REAL (slippage)", "%", 1, 49, 1], ["real_perda_dia", "Perda do dia que para a REAL", "ETH", 0.0005, 5, 0.001],
+    ["real_max_hold_h", "Tempo máximo da posição REAL", "h", 0.1, 168, 0.5], ["real_stop_pct", "Stop de perda da REAL (0 = desligado)", "%", 0, 100, 1],
   ];
   let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
   try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
@@ -157,14 +158,19 @@
     const rk = (R && R.ranking) || {}, rows = rk.rows || [];
     const man = new Set(((P && P.cfg_sim && P.cfg_sim.manual) || []));
     const autoOn = !(P && P.cfg_sim && P.cfg_sim.auto_top === false);
+    // 0.32.287 (pedido do dono): 3 botões por trader: copiar só na FICTÍCIA, só na REAL ou nas 2
+    const modo = (P && P.cfg_sim && P.cfg_sim.modo) || {};
+    const MODO_TXT = { sim: "FICTÍCIA", real: "REAL", ambas: "As 2" };
     const btn = (r) => {
-      if (man.has(r.wallet)) return '<button class="btn sm on" data-follow="' + esc(r.wallet) + '" data-on="0" title="Parar de copiar este trader">Copiando · parar</button>';
-      if (r.copiaria && autoOn) return '<button class="btn sm" data-follow="' + esc(r.wallet) + '" data-on="1" title="Já é copiado pela regra; fixar para continuar copiando mesmo se sair da lista">Fixar</button>';
-      return '<button class="btn sm primary" data-follow="' + esc(r.wallet) + '" data-on="1" title="' + esc(r.eligible ? "Copiar este trader" : "Copiar mesmo sem passar na regra: " + (r.flags || []).join(" · ")) + '">Copiar</button>';
+      const cur = man.has(r.wallet) ? (modo[r.wallet] || "ambas") : null;
+      const why = r.eligible ? "" : " (fora da regra: " + (r.flags || []).join(" · ") + ")";
+      return '<span class="hdmodes">' + ["sim", "real", "ambas"].map((m) => '<button class="btn sm' + (cur === m ? " on" : "") + '" data-follow="' + esc(r.wallet) + '" data-on="' + (cur === m ? "0" : "1") +
+        '" data-modo="' + m + '" title="' + esc(cur === m ? "Parar de copiar este trader" : "Copiar " + (m === "ambas" ? "na FICTÍCIA e na REAL" : "só na " + MODO_TXT[m]) + why) + '">' + MODO_TXT[m] + "</button>").join("") +
+        (cur ? '<button class="btn sm" data-follow="' + esc(r.wallet) + '" data-on="0" title="Parar de copiar este trader">Parar</button>' : "") + "</span>";
     };
     const row = (r, i) => [String(i + 1), addr(r.wallet), eth(r.realized_eth), num(r.vol_eth, 3) + " ETH", num(r.trades, 0), r.winrate == null ? "—" : num(r.winrate, 0) + "% (" + r.closed + ")",
       r.wallet_usd == null ? "—" : "US$ " + num(r.wallet_usd, 0), "há " + ago(r.last_t),
-      (man.has(r.wallet) ? '<span class="tag win">você copia</span> ' : "") + (r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
+      (man.has(r.wallet) ? '<span class="tag win">você copia · ' + MODO_TXT[modo[r.wallet] || "ambas"] + "</span> " : "") + (r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
         : '<span class="muted small">' + esc((r.flags || []).join(" · ")) + "</span>"), btn(r)];
     const H = ["#", "Carteira", "Lucro realizado", "Volume", "Trades", "Acerto", "Saldo", "Último trade", "Situação", ""];
     $("hdRkSub").textContent = num(rk.carteiras, 0) + " carteiras negociaram nas últimas 24 h · os 50 que mais lucraram · " + num(rk.aptos, 0) + " aptos";
@@ -300,7 +306,7 @@
       "<br>Taxa da ponte ≈ " + num(q.taxa_pct, 2) + "% · gás na origem ≈ US$ " + num(q.gas_usd, 3) + " · entrega em ~" + num(q.tempo_s || 0, 0) + " s" +
       (q.avisos && q.avisos.length ? '<br><span class="warn">' + q.avisos.map(esc).join(" · ") + "</span>" : "") +
       (q.bloqueia && q.bloqueia.length ? '<br><b class="down">Não dá para enviar: ' + q.bloqueia.map(esc).join(" · ") + "</b>"
-        : '<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px"><label for="gaW">Para enviar, digite ABASTECER</label><input class="in w120" id="gaW" autocomplete="off"><button class="btn primary" id="gaGo" type="button">Abastecer</button><small class="muted">cotação vale ' + num(q.validade_s, 0) + " s</small></div>");
+        : '<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="gaGo" type="button">Abastecer agora</button><small class="muted">cotação vale ' + num(q.validade_s, 0) + " s</small></div>");
   }
   function draw() {
     drawSys();
@@ -343,9 +349,24 @@
     const t = e.target && e.target.closest ? e.target : null; if (!t) return;
     if (t.id === "gaUsd") { gaConv(); $("gaP").hidden = true; }
     if (t.closest("#hdCfg")) DIRTY = true;
-    if (t.closest("#cfF")) CF_DIRTY = true;
-    if (t.closest("#rlF")) RL_DIRTY = true;
+    if (t.closest("#cfF")) { CF_DIRTY = true; autoSave("cf"); }
+    if (t.closest("#rlF")) { RL_DIRTY = true; autoSave("rl"); }
   });
+  // 0.32.287 (pedido do dono): os valores salvam sozinhos (0,8 s depois de parar de digitar) e aparece "Salvo." em verde
+  const SAVE_T = {};
+  function autoSave(which) {
+    clearTimeout(SAVE_T[which]);
+    SAVE_T[which] = setTimeout(async () => {
+      const real = which === "rl";
+      const body = real ? vals("rl_", RL_INFO) : vals("cf_", CF_INFO);
+      if (!Object.keys(body).length) return;
+      const r = await BB.api(real ? "/api/hood/real/cfg" : "/api/hood/conta", { body, quiet: true });
+      if (r && r.error) { alert(r.error); return; }
+      if (real) RL_DIRTY = false; else CF_DIRTY = false;
+      if (P && r && r.cfg) { if (real) P.real_cfg = r.cfg; else P.cfg_sim = r.cfg; }
+      toast("Salvo.");
+    }, 800);
+  }
   const vals = (pre, info) => { const b = {}; info.forEach((x) => { const el = $(pre + x[0]); if (el && el.value !== "") b[x[0]] = Number(el.value); }); return b; };
   async function post(url, body, btn) {
     if (btn) btn.disabled = true;
@@ -355,12 +376,13 @@
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
     if (t.dataset.mode) { REAL = t.dataset.mode === "real"; try { localStorage.setItem("hood_mode", REAL ? "real" : "sim"); } catch (x) { /* */ } P = null; draw(); load(); return; }
     if (t.dataset.follow) {
-      const on = t.dataset.on === "1";
-      if (on && REAL && P && P.real_status && P.real_status.ligada && !confirm("A carteira REAL está ligada: as compras deste trader também vão para a REAL. Copiar?")) return;
-      const r = await post("/api/hood/seguir", { wallet: t.dataset.follow, on }, t);
+      const on = t.dataset.on === "1", m = t.dataset.modo || "ambas";
+      const realOn = !!(P && P.real_status && P.real_status.ligada);
+      if (on && m !== "sim" && realOn && !confirm("As compras deste trader vão para a carteira REAL (dinheiro de verdade). Copiar?")) return;
+      const r = await post("/api/hood/seguir", { wallet: t.dataset.follow, on, modo: m }, t);
       if (r && r.error) { alert(r.error); return; }
-      if (P && P.cfg_sim) P.cfg_sim.manual = r.manual;
-      toast(on ? "Copiando este trader." : "Parou de copiar este trader.");
+      if (P && P.cfg_sim) { P.cfg_sim.manual = r.manual; P.cfg_sim.modo = r.modo; }
+      toast(!on ? "Parou de copiar este trader." : m === "sim" ? "Copiando na FICTÍCIA." : (realOn ? "Copiando " + (m === "real" ? "na REAL." : "na FICTÍCIA e na REAL.") : "Salvo. A REAL está desligada: ligue em Carteira para ela comprar."));
       draw(); return load();
     }
     if (t.dataset.close) {
@@ -378,9 +400,7 @@
       return load();
     }
     if (t.id === "cfOn") { const r = await post("/api/hood/conta", { on: !(P && P.cfg_sim && P.cfg_sim.on) }, t); if (r && r.error) alert(r.error); return load(); }
-    if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); return; }
-    if (t.id === "cfSave") { const r = await post("/api/hood/conta", vals("cf_", CF_INFO), t); if (r && r.error) { alert(r.error); return; } CF_DIRTY = false; toast("Salvo."); return load(); }
-    if (t.id === "rlSave") { const r = await post("/api/hood/real/cfg", vals("rl_", RL_INFO), t); if (r && r.error) { alert(r.error); return; } RL_DIRTY = false; toast("Salvo."); return load(); }
+    if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); return autoSave("cf"); }
     if (t.id === "rlKeySave") {
       const v = $("rlKey").value.trim(); if (!v) return;
       const r = await post("/api/hood/chave", { value: v }, t);
@@ -398,7 +418,7 @@
       drawQuote(r || { error: "sem resposta" }); return;
     }
     if (t.id === "gaGo") {
-      const r = await post("/api/hood/abastecer/confirmar", { quote_id: GA_Q, confirmar: $("gaW").value }, t);
+      const r = await post("/api/hood/abastecer/confirmar", { quote_id: GA_Q, confirmar: "ABASTECER" }, t);      // 0.32.287: o dono não quer digitar; o servidor segue conferindo
       if (r && r.error) { drawQuote({ error: r.error }); return; }
       $("gaP").innerHTML = '<span class="up">Enviado. A entrega costuma levar segundos; acompanhe no histórico abaixo.</span>';
       toast("Abastecimento enviado.");
