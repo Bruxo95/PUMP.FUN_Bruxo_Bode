@@ -206,9 +206,10 @@
     ["Saldo inicial", "ETH", "saldo_inicial", null, "na REAL é o saldo da carteira"],
   ];
   function cfgCell(pre, key, info, c, p, na) {
-    if (!key) return '<div class="cfc na">' + esc(na || "—") + "</div>";
+    const col = pre === "cf_" ? " cf-sim" : " cf-real";
+    if (!key) return '<div class="cfc na' + col + '">' + esc(na || "—") + "</div>";
     const x = info.find((i) => i[0] === key) || [key, "", "", 0, 1e9, "any"];
-    return '<div class="cfc"><input class="in" id="' + pre + key + '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[key]) +
+    return '<div class="cfc' + col + '"><input class="in" id="' + pre + key + '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[key]) +
       '" aria-label="' + esc(x[1]) + '">' + (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + "</div>";
   }
   function cfgRows(c, rc) {

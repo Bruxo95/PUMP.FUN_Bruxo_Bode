@@ -41,13 +41,20 @@
   .hdmodes .btn.on{background:var(--up-bg);color:var(--up);border-color:rgba(34,197,94,.45)}
   .hdmodes .btn.on[data-modo="sim"]{background:#7c3aed;color:#fff;border-color:#7c3aed}
   .hdmodes .btn.on[data-modo="real"]{background:var(--real);color:#111;border-color:var(--real)}
-  .cfgrid{display:grid;grid-template-columns:minmax(200px,1.3fr) 1fr 1fr;gap:10px 18px;align-items:center}
+  .cfgrid{display:grid;grid-template-columns:minmax(200px,1.3fr) 1fr 1fr;gap:0 18px;align-items:stretch}
+  .cfgrid>*,.cfrows>*{padding:7px 12px;display:flex;align-items:center}
+  .cfl{flex-direction:column;align-items:flex-start!important;justify-content:center}
+  /* 0.32.289 (pedido do dono): cada coluna com o fundo da sua carteira, para ver a separação */
+  .cf-sim{background:rgba(124,58,237,.10);border-left:1px solid rgba(124,58,237,.35);border-right:1px solid rgba(124,58,237,.35)}
+  .cf-real{background:rgba(245,165,36,.07);border-left:1px solid rgba(245,165,36,.30);border-right:1px solid rgba(245,165,36,.30)}
+  .cf-top{border-top-left-radius:10px;border-top-right-radius:10px;border-top:1px solid}.cf-sim.cf-top{border-top-color:rgba(124,58,237,.35)}.cf-real.cf-top{border-top-color:rgba(245,165,36,.30)}
+  .cf-bot{border-bottom-left-radius:10px;border-bottom-right-radius:10px;border-bottom:1px solid}.cf-sim.cf-bot{border-bottom-color:rgba(124,58,237,.35)}.cf-real.cf-bot{border-bottom-color:rgba(245,165,36,.30)}
   .cfrows{display:contents}
   .cfh{display:flex;align-items:center;gap:10px;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--line2);min-height:40px}
   .cfl{font-size:13.5px}.cfl small{display:block;color:var(--muted);font-size:11.5px}
   .cfc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.cfc input{width:120px}.cfc .muted{font-size:12px}
   .cfc.na{color:var(--muted);font-size:12px}
-  @media (max-width:860px){.cfgrid{grid-template-columns:1fr 1fr;gap:6px 12px}.cfgrid>.cfh:first-child,.cfgrid>.cfl:empty{display:none}
+  @media (max-width:860px){.cfgrid{grid-template-columns:1fr 1fr;gap:0 8px}.cfgrid>*,.cfrows>*{padding:6px 8px}.cfgrid>.cfh:first-child,.cfgrid>.cfl:empty{display:none}
     .cfl{grid-column:1/-1;margin-top:8px}.cfc input{width:100%}.cfh{flex-wrap:wrap}}
   .hdsec{margin:22px 0 12px;font-size:14px;color:var(--muted);font-weight:600}
   .hdask{margin-top:12px;border:1px dashed var(--down);border-radius:10px;padding:12px}
@@ -133,12 +140,12 @@
         <div class="card"><header><div><h2>Valores da cópia</h2><div class="sub">uma linha por opção, FICTÍCIA e REAL lado a lado · salva sozinho ao mudar um valor</div></div></header>
           <div class="cfgrid" id="cfgT">
             <div class="cfh"></div>
-            <div class="cfh"><span class="tag sim">FICTÍCIA</span><button class="btn tgl sw" id="cfOn" type="button" role="switch"></button></div>
-            <div class="cfh"><span class="tag real">REAL</span><button class="btn tgl sw" id="rlOn" type="button" role="switch"></button></div>
+            <div class="cfh cf-sim cf-top"><span class="tag sim">FICTÍCIA</span><button class="btn tgl sw" id="cfOn" type="button" role="switch"></button></div>
+            <div class="cfh cf-real cf-top"><span class="tag real">REAL</span><button class="btn tgl sw" id="rlOn" type="button" role="switch"></button></div>
             <div id="cfRows" class="cfrows"></div>
             <div class="cfl"></div>
-            <div class="cfc"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button></div>
-            <div class="cfc"><button class="btn sm" id="rlReset" type="button">Voltar ao padrão</button></div>
+            <div class="cfc cf-sim cf-bot"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button></div>
+            <div class="cfc cf-real cf-bot"><button class="btn sm" id="rlReset" type="button">Voltar ao padrão</button></div>
           </div>
           <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div>
           <div class="help"><p>Com REAL e FICTÍCIA ligadas, a REAL compra e vende primeiro e a FICTÍCIA usa o preço que a REAL pagou. Na REAL não existem gás simulado nem saldo inicial: lá o gás e o saldo são os de verdade. Mudar o saldo inicial da FICTÍCIA soma ou tira a diferença do saldo de agora.</p></div></div>
