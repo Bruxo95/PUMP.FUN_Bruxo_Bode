@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-10",
     "timezone": "Europe/Dublin",
-    "repository_reference": "30e6b5485ea280d361c30a8e4b129a9d8f2ee8b2",
-    "application_version": "0.32.276 · 2026-11-10 · Copiar só quem dá resultado também em Carteiras → REAL",
+    "repository_reference": "9a4f94ea4c7a5e1daaa3e3994a7ca82519d1a597",
+    "application_version": "0.32.277 · 2026-11-10 · Espelho total e as chaves da REAL num lugar só",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e78d253f0c4ef0ebeff8b77fdc1f3670eec4d72608755dffac74496a8d3f7949",
+      "app/version.py": "056363679d088a3d167acab22c0a1bd6b1c349057cd48933980c59047536ea1a",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "40a19c78146188284b1d7607db24b458a021cfa1a860416587f315ff068bd869",
+      "web/app.html": "e2b622bd1e8b8e2ff8071c6110715f93e388daaa251030d891fb9fac7682732a",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "0515e21ec721cdc4cacf092e7cd6e3956ef069230497b25a026228ce44f3b892"
+  "pdf_sha256": "8a9ed110f2d92c7cad5c677035f7ff6cd8e210a084c90dc33e2af4ac87c45d57"
 }

@@ -1228,6 +1228,11 @@ class PumpFun:
         # estudo copia só na fictícia, a menos que o dono ligue pump_st_real. Carteiras fora do estudo seguem a regra normal.
         if not who:
             return False
+        if getattr(self.cfg, "pump_real_full_mirror", False):
+            # 0.32.277 (pedido do dono, 10/11/2026: "a fictícia compra com lucro e a REAL não; tem que ser o espelho"): o Espelho total
+            # ignora o "só fictícia" do estudo (Copiar, estudo automático, deram lucro, carteira em estudo). Ficam as travas com chave
+            # própria: "REAL só depois de lucro na fictícia" e "Copiar só quem dá resultado".
+            return self.needs_proof(who) or bool(self.edge_why(who, True))
         if who in (getattr(self, "real_ok_list", None) or []):
             return False                                  # 0.32.38: o dono escolheu "fictícia e REAL" no Copiar do estudo
         if who in self.study_copy_wallets() or who in (getattr(self, "sim_only_list", None) or []):
@@ -1321,6 +1326,9 @@ class PumpFun:
         return self._sim_only_why(who)
 
     def _sim_only_why(self, who: str) -> str:
+        if self.needs_proof(who) and getattr(self.cfg, "pump_real_full_mirror", False):
+            return ("sem cópia fictícia com lucro nas últimas 24 h: fica só na fictícia até uma fechar com lucro "
+                    "(Carteiras → REAL → Espelho → \"REAL só depois de lucro na fictícia\")")
         if self.needs_proof(who) and not (who in (getattr(self, "study", None) or []) or who in self.study_copy_wallets()
                                           or who in (getattr(self, "sim_only_list", None) or []) or who in self.study_lucro_wallets()):
             return ("sem cópia fictícia com lucro nas últimas 24 h: fica só na fictícia até uma fechar com lucro "

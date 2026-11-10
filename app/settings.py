@@ -303,7 +303,8 @@ USER_KEYS: dict[str, tuple] = {
     # 0.31.37 (sugestão do Bruxo, 2026-10-27): com a Execução real ligada, a carteira real copia 100% dos trades da
     # fictícia (cópias, Explorar, Base, Maiores traders, botão Comprar), mas o valor e os limites vêm só das regras reais
     "pump_real_mirror": (bool, True, 0, 1),
-    "pump_real_need_win": (bool, True, 0, 1),         # 0.32.251: trader novo só na fictícia até uma cópia fictícia com lucro
+    "pump_real_need_win": (bool, True, 0, 1),
+    "pump_real_full_mirror": (bool, False, 0, 1),      # 0.32.277: Espelho total, ignora o "só fictícia" do estudo (começa OFF)         # 0.32.251: trader novo só na fictícia até uma cópia fictícia com lucro
     # 0.32.275 (pedido do dono): copiar só traders com resultado médio por cópia positivo (o acerto sozinho engana: com stop de
     # 40%, 10 perdas não se pagam com 20 ganhos de 10%)
     "pump_edge_on": (bool, False, 0, 1),

@@ -2904,7 +2904,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "carteiras") { buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
+    if (VIEW === "carteiras") { drawRealTabs(); buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
     if (VIEW === "sistema") { sysTab(); openSys(); }
@@ -3542,7 +3542,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_real_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
+  const TGL_REAL = ["pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
@@ -3563,6 +3563,20 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     ["Copiar igual", "pump_eq_on", "pump_eq_real", "igual"], ["Carteiras em estudo", "pump_st_copy_on", "pump_st_real", "estudo"],
     ["Estudo · deram lucro", "pump_st_lucro_on", "pump_st_lucro_real", "estudo"]];
   const ABAS_MEM = "pf_abas_antes";
+  // 0.32.277 (pedido do dono, 10/11/2026: "onde ficaram as chaves? não quero espalhado"): a chave REAL de cada tela, reunida em
+  // Carteiras → REAL. É cópia (data-clone) da mesma opção; o aviso de confirmação vem da chave original da tela.
+  function drawRealTabs() {
+    const box = $("realTabs"); if (!box || box.dataset.ok) return;
+    const by = {};
+    ABAS_TR.forEach(([nome, , real, view]) => { if (real && real !== "pump_real_mirror") (by[real] = by[real] || { nomes: [], view }).nomes.push(nome); });
+    box.innerHTML = '<div class="form">' + Object.entries(by).map(([k, x]) => {
+      const org = document.querySelector('[data-toggle="' + k + '"]:not([data-clone])'), conf = org && org.dataset.confirm;
+      return '<div class="field"><label>' + esc(x.nomes.join(" · ")) + '</label><div class="row"><button class="btn sm tgl" data-clone="1" data-toggle="' + esc(k) + '"' +
+        (conf ? ' data-confirm="' + esc(conf) + '"' : "") + '>…</button> <a class="small" href="#' + esc(x.view) + '">abrir a tela</a></div></div>';
+    }).join("") + '<p class="muted small">"Top traders" e "Maiores traders (80%+)" vão para a REAL pelo "Espelhar 100%" acima.</p></div>';
+    box.dataset.ok = "1";
+    render();
+  }
   // 0.32.129 (pedido do dono): as regras de cada aba aqui dentro. São cópias dos campos das outras telas (mesma opção); as opções REAL ficam fora
   const ABAS_TOPX = ["pump_copy_sol", "pump_extra_slip_pct", "pump_portal_fee_pct", "pump_priority_sol", "pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
   const ABAS_OPT = { "Top traders": (x) => x.tc || ABAS_TOPX.includes(x.k), "Explorar": (x) => x.v === "explorar" && !/^pump_bar_/.test(x.k), "Explorar · barrados": (x) => /^pump_bar_/.test(x.k), "Base da pump.fun": (x) => x.v === "base",

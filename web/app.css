@@ -1042,3 +1042,7 @@ label.chgrp{cursor:pointer}
 /* 0.32.225: valor longo no Status geral (ex.: erro do arquivo) quebra linha em vez de sair do quadro */
 .cfgs .v{min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;justify-content:flex-end}
 .cfgs .k{flex-shrink:0;max-width:55%}
+/* 0.32.277: bloco Espelho em Carteiras → REAL (as chaves que decidem o que vai para a REAL ficam juntas) */
+.mirbox{border:1px solid var(--line,#2a2a30);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:rgba(34,197,94,.04)}
+.mirbox .mirh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
+.mirbox .field:last-child{margin-bottom:0}

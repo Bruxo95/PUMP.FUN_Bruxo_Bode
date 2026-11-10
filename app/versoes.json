@@ -2140,6 +2140,11 @@
    "versao": "0.32.276",
    "inicio": "2026-11-10T07:58:56+00:00",
    "titulo": "Copiar só quem dá resultado também em Carteiras → REAL"
+  },
+  {
+   "versao": "0.32.277",
+   "inicio": "2026-11-10T09:53:31+00:00",
+   "titulo": "Espelho total e as chaves da REAL num lugar só"
   }
  ]
 }
