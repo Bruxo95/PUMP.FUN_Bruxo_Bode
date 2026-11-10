@@ -2155,6 +2155,11 @@
    "versao": "0.32.279",
    "inicio": "2026-11-10T16:55:56+00:00",
    "titulo": "Robinhood: cópia dos traders na FICTÍCIA, checagem do token golpe e carteira REAL (desligada)"
+  },
+  {
+   "versao": "0.32.280",
+   "inicio": "2026-11-10T20:21:46+00:00",
+   "titulo": "Robinhood: Copiaria agora não diz mais \"só leitura\""
   }
  ]
 }
