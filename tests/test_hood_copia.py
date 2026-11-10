@@ -342,3 +342,34 @@ def test_ranking_trades_go_to_the_vps_archive_and_come_back_on_restart():
         assert len(w2.trades) == 2 and w2.stat["do_arquivo"] == 2 and w2.hold[(TRADER, TOK)] == 0.0
         assert w2.ranking()["rows"][0]["realized_eth"] > 0
     run(go())
+
+
+def test_rpc_rotation_rests_only_the_rpc_that_asked_to_wait():
+    """0.32.283 (dono: leitura 231 s atrasada): revezamento entre RPC grátis; o 429 pausa só aquele RPC."""
+    class R:
+        def __init__(self, code, js=None):
+            self.status_code, self._js = code, js or {"result": "0x10"}
+
+        def json(self):
+            return self._js
+
+    class H:
+        def __init__(self):
+            self.calls = []
+
+        async def post(self, url, json=None, **kw):
+            self.calls.append(url)
+            return R(429) if "a.rpc" in url else R(200)
+
+    async def go():
+        h = H()
+        w = hood.HoodWatch(h, None, ["https://a.rpc", "https://b.rpc", "https://c.rpc"])
+        assert await w.rpc("eth_blockNumber", []) == "0x10"
+        assert h.calls == ["https://a.rpc", "https://b.rpc"] and w._rpc_off["https://a.rpc"] > time.time()
+        assert w._pause_until == 0.0                                   # os outros seguem lendo
+        h.calls.clear()
+        for _ in range(4):
+            await w.rpc("eth_blockNumber", [])
+        assert "https://a.rpc" not in h.calls and {"https://b.rpc", "https://c.rpc"} <= set(h.calls)
+        assert w.official == hood.OFFICIAL and len(hood.RPCS) >= 3 and hood.OFFICIAL in hood.RPCS
+    run(go())

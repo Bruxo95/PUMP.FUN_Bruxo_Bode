@@ -233,7 +233,8 @@ class Copier:
         self.vault = None
         self.real_allowed = False
         self._keys: dict[str, tuple] = {}
-        self.chain = hoodreal.Chain(watch.rpc)
+        # 0.32.283: a REAL envia e confere pelo RPC oficial da rede (a transação não passa por servidor de terceiros antes)
+        self.chain = hoodreal.Chain(lambda m, p: watch.rpc(m, p, getattr(watch, "official", None)))
         self.safe = hoodsafe.Safety(self._call, http)
         self.keys: dict[str, list | None] = {}      # id do pool → chave conferida (None = procurado e não achado)
         self._key_at: dict[str, float] = {}

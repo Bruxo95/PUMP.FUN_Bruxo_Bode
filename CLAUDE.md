@@ -1723,3 +1723,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.282 (pedido do dono): trades da Robinhood no arquivo da VPS (`hood.ARQ`, tabela lógica `hood_rede`, 2 dias,
   limpeza própria em `save_arquivo`, fora de `arquivo.SPECS` porque não passam pelo Supabase); `HoodWatch.load` relê as 24 h na subida.
   `save_state` (cursor) saiu de dentro do `except` do laço, onde a 0.32.279 o deixou. Telas: "Copiando agora" e marca COPIANDO.
+- 0.32.283 (dono: leitura 231 s atrasada): `hood.RPCS` = daybreak, oficial e blockreq (testados em 10/11 com a consulta do robô;
+  publicnode 403, dRPC 400, blockvectra 100 blocos e ordofi fora). `HoodWatch.rpc(m, p, url)` reveza; 429 pausa só aquele RPC (`_rpc_off`);
+  cada janela faz as 3 consultas no mesmo RPC (`next_rpc`); lê até o bloco − `HEAD_MARGIN`. A REAL usa `watch.official`.

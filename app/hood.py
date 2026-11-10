@@ -47,7 +47,15 @@ ZERO = "0x" + "0" * 40
 DEX_URL = "https://api.dexscreener.com/tokens/v1/robinhood/"
 EXPLORER = "https://robinhoodchain.blockscout.com"
 
-RPCS = [u.strip() for u in os.environ.get("HOOD_RPCS", "https://rpc.mainnet.chain.robinhood.com").split(",") if u.strip()]
+# 0.32.283 (dono, 10/11/2026: leitura 231 s atrasada com um RPC só): revezamento entre os RPC grátis que aceitam eth_getLogs.
+# Testados em 10/11 com a consulta do robô (trocas da V4 em 300 blocos, 9 seguidas): daybreak 0,14 s, oficial 0,25 s, blockreq
+# 0,38 s, todos 9/9. publicnode (403), dRPC (400), blockvectra (máx. 100 blocos) e ordofi (fora do ar) recusaram.
+# O 429 de um RPC agora pausa só ele por 1 min; a leitura para só se todos pedirem para esperar.
+OFFICIAL = "https://rpc.mainnet.chain.robinhood.com"
+RPCS = [u.strip() for u in os.environ.get("HOOD_RPCS", "https://robinhood.daybreak-rpc.network," + OFFICIAL +
+                                          ",https://robinhood-mainnet-rpc.blockreq.com/v1/rpc/public").split(",") if u.strip()]
+HEAD_MARGIN = 30          # blocos (~3 s): cada RPC pode estar um pouco atrás; nunca pede um bloco que ele talvez ainda não tenha
+RPC_PAUSE_S = 60
 SPAN = 300                # blocos por consulta (~30 s). O RPC aceita 10 milhões, mas o 429 vem pelo tamanho das respostas
 POLL_S = 10.0             # 3 consultas por volta: ~18 por minuto (o RPC grátis devolve 429 com rajadas)
 BLOCK_S = 0.1             # medido em 04/11/2026: 600 blocos em 59–60 s; corrigido sozinho a cada leitura
@@ -243,6 +251,8 @@ class HoodWatch:
         self.http, self.db = http, db
         self.rpcs = list(rpcs or RPCS)
         self.rpc_i = 0
+        self.official = OFFICIAL
+        self._rpc_off: dict[str, float] = {}
         self.span = SPAN
         self.trades: deque = deque(maxlen=MAX_MEM)
         self.seen: set = set()
@@ -258,7 +268,7 @@ class HoodWatch:
         self._ts_at = 0.0
         self.stat = {"polls": 0, "trocas": 0, "trades": 0, "fora_rota": 0, "fora_outro": 0, "erros": 0, "ultimo_erro": None,
                      "ultimo_erro_t": None, "rpc": None, "desde": time.time(), "chamadas": 0, "limite_429": 0,
-                     "volta_t": None}
+                     "volta_t": None, "por_rpc": {}}
         self._save_at = 0.0
         self._pause_until = 0.0
         self._bal_q: deque = deque()
@@ -274,25 +284,45 @@ class HoodWatch:
         self.copier = Copier(self, http, db)
 
     # ------------------------------------------------------------------ RPC
-    async def rpc(self, method: str, params: list):
-        last = None
+    def next_rpc(self) -> str | None:
+        """Próximo RPC do revezamento que não está pausado."""
+        now = time.time()
         for k in range(len(self.rpcs)):
             url = self.rpcs[(self.rpc_i + k) % len(self.rpcs)]
+            if self._rpc_off.get(url, 0) <= now:
+                self.rpc_i = (self.rpc_i + k + 1) % len(self.rpcs)
+                return url
+        return None
+
+    async def rpc(self, method: str, params: list, url: str | None = None):
+        """Consulta no RPC pedido (url) ou no próximo do revezamento; se falhar, tenta os outros que não estão pausados."""
+        last = None
+        now = time.time()
+        order = ([url] if url else []) + [u for u in self.rpcs[self.rpc_i:] + self.rpcs[:self.rpc_i] if u != url]
+        if not url:
+            self.rpc_i = (self.rpc_i + 1) % len(self.rpcs)
+        for url in order:
+            if self._rpc_off.get(url, 0) > now:
+                continue
             try:
                 self.stat["chamadas"] += 1
+                self.stat["por_rpc"][url.split("//")[-1].split("/")[0]] = self.stat["por_rpc"].get(url.split("//")[-1].split("/")[0], 0) + 1
                 r = await self.http.post(url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
                                          headers={"User-Agent": "pump-fun-copy/1.0"}, timeout=20)
                 if r.status_code == 429:
                     self.stat["limite_429"] += 1
-                    self._pause_until = time.time() + 60           # o RPC grátis pediu calma: 1 min sem consultar
+                    self._rpc_off[url] = time.time() + RPC_PAUSE_S    # só este RPC descansa 1 min; os outros seguem
+                    if all(self._rpc_off.get(u, 0) > time.time() for u in self.rpcs):
+                        self._pause_until = min(self._rpc_off[u] for u in self.rpcs)
                     raise RpcError("429 Too Many Requests (o RPC grátis pediu para esperar)")
+                if r.status_code >= 400:
+                    raise RpcError(f"HTTP {r.status_code}")
                 js = r.json()
                 if js.get("error"):
                     msg = str(js["error"].get("message") or js["error"])[:160]
                     if method == "eth_getLogs" and ("range" in msg or "limit" in msg or "exceed" in msg or "too many" in msg.lower()):
                         self.span = max(100, self.span // 2)
                     raise RpcError(msg)
-                self.rpc_i = (self.rpc_i + k) % len(self.rpcs)
                 self.stat["rpc"] = url
                 return js.get("result")
             except RpcError as e:
@@ -320,7 +350,8 @@ class HoodWatch:
 
     async def window(self, a: int, b: int) -> list[dict]:
         """Lê os blocos a..b: 3 consultas (trocas, transferências saindo e entrando no PoolManager e nos roteadores)."""
-        logs = await self.rpc("eth_getLogs", [{"address": PM, "topics": [[T_SWAP, T_INIT]], "fromBlock": hex(a), "toBlock": hex(b)}]) or []
+        url = self.next_rpc()
+        logs = await self.rpc("eth_getLogs", [{"address": PM, "topics": [[T_SWAP, T_INIT]], "fromBlock": hex(a), "toBlock": hex(b)}], url) or []
         swaps = [x for x in logs if ((x.get("topics") or [""])[0] or "").lower() == T_SWAP]
         inits = [x for x in logs if ((x.get("topics") or [""])[0] or "").lower() == T_INIT]
         if inits:
@@ -330,10 +361,10 @@ class HoodWatch:
         if not swaps:
             return []
         tps = self._router_topics()
-        await asyncio.sleep(1.0)
-        t_from = await self.rpc("eth_getLogs", [{"topics": [T_TRANSFER, tps], "fromBlock": hex(a), "toBlock": hex(b)}]) or []
-        await asyncio.sleep(1.0)
-        t_to = await self.rpc("eth_getLogs", [{"topics": [T_TRANSFER, None, tps], "fromBlock": hex(a), "toBlock": hex(b)}]) or []
+        await asyncio.sleep(0.2)
+        t_from = await self.rpc("eth_getLogs", [{"topics": [T_TRANSFER, tps], "fromBlock": hex(a), "toBlock": hex(b)}], url) or []
+        await asyncio.sleep(0.2)
+        t_to = await self.rpc("eth_getLogs", [{"topics": [T_TRANSFER, None, tps], "fromBlock": hex(a), "toBlock": hex(b)}], url) or []
         legs = legs_of(t_from + t_to)
         per_tx = Counter(s.get("transactionHash") for s in swaps)
         out = []
@@ -351,7 +382,7 @@ class HoodWatch:
 
     async def poll(self) -> int:
         """Uma volta: blocos novos → trades. Devolve quantos trades entraram."""
-        head = int(await self.rpc("eth_blockNumber", []), 16)
+        head = int(await self.rpc("eth_blockNumber", []), 16) - HEAD_MARGIN
         if self.head and self.head_t and time.time() - self._ts_at < 60:
             ht = self.head_t + (head - self.head) * self.block_s
         else:
@@ -384,7 +415,7 @@ class HoodWatch:
                     log.warning("Robinhood: cópia falhou num trade: %s", str(e)[:160])
                 n += 1
             self.cursor = b
-            await asyncio.sleep(1.0)                       # espaça as consultas (o RPC grátis devolve 429 com rajadas)
+            await asyncio.sleep(0.3)                       # espaça um pouco (com 3 RPC no revezamento, cada um descansa ~1 s)
         self.stat["polls"] += 1
         self.stat["trades"] += n
         self.stat["volta_t"] = time.time()
@@ -550,7 +581,8 @@ class HoodWatch:
                            "compras_24h": sum(1 for t in day if t["side"] == "buy"), "carteiras_24h": len({t["wallet"] for t in day}),
                            "tokens_24h": len({t["token"] for t in day}), "moedas_24h": dict(q),
                            "eth_24h": round(sum(t["eth"] for t in day), 3), "eth_usd": round(self.eth_usd, 2) if self.eth_usd else None,
-                           "rpc": (st["rpc"] or "").split("//")[-1], "erros": st["erros"], "ultimo_erro": st["ultimo_erro"],
+                           "rpc": (st["rpc"] or "").split("//")[-1], "por_rpc": st["por_rpc"],
+                           "rpcs": [{"rpc": u.split("//")[-1].split("/")[0], "pausa_s": max(0, round(self._rpc_off.get(u, 0) - now))} for u in self.rpcs], "erros": st["erros"], "ultimo_erro": st["ultimo_erro"],
                            "ultimo_erro_t": st["ultimo_erro_t"], "chamadas": st["chamadas"], "limite_429": st["limite_429"],
                            "pausa_s": max(0, round(self._pause_until - now)), "desde": st["desde"], "bloco_s": self.block_s,
                            "trocas": st["trocas"], "fora_rota": st["fora_rota"], "fora_outro": st["fora_outro"],

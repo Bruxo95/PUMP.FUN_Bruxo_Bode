@@ -77,7 +77,8 @@
     const i = sysInfo(), s = i.s, rk = (R && R.ranking) || {};
     const rows = [
       ["Leitura", R && R.ligado ? (i.ok ? '<span class="up">funcionando</span>' : '<span class="down">' + esc(i.probs.join(" · ") || "com problema") + "</span>") : '<span class="down">desligada</span>'],
-      ["RPC grátis", esc(s.rpc || "—") + " · " + num(s.chamadas, 0) + " consultas desde " + hora(s.desde) + (s.limite_429 ? " · " + num(s.limite_429, 0) + " vezes pediu para esperar" : "")],
+      ["RPC grátis (revezando)", (s.rpcs || []).map((x) => esc(x.rpc) + " " + (x.pausa_s ? '<span class="down">descansando ' + x.pausa_s + " s</span>" : '<span class="up">ok</span>') +
+        " · " + num((s.por_rpc || {})[x.rpc], 0) + " consultas").join("<br>") + "<br>" + num(s.chamadas, 0) + " consultas desde " + hora(s.desde) + (s.limite_429 ? " · " + num(s.limite_429, 0) + " vezes um deles pediu para esperar" : "")],
       ["Bloco", num(s.bloco, 0) + " · lido até " + num(s.lido_ate, 0) + " · atraso " + (s.atraso_s == null ? "—" : num(s.atraso_s, 1) + " s")],
       ["Último trade lido", ago(s.ultimo_trade_t) + " · " + hora(s.ultimo_trade_t)],
       ["Trocas lidas", num(s.trocas, 0) + " · viraram trade: " + num((s.trocas || 0) - (s.fora_rota || 0) - (s.fora_outro || 0), 0) + " · rota com vários pools: " + num(s.fora_rota, 0) + " · sem trader ou memecoin claro: " + num(s.fora_outro, 0)],

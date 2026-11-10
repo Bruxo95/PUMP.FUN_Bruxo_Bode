@@ -2170,6 +2170,11 @@
    "versao": "0.32.282",
    "inicio": "2026-11-10T20:59:56+00:00",
    "titulo": "Robinhood: ranking guardado no banco da VPS e Copiando agora"
+  },
+  {
+   "versao": "0.32.283",
+   "inicio": "2026-11-10T21:06:08+00:00",
+   "titulo": "Robinhood: leitura revezando 3 RPC grátis (menos atraso)"
   }
  ]
 }
