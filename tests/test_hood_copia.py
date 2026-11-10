@@ -301,3 +301,44 @@ def test_dynamic_fee_pool_does_not_invent_profit():
     bad = dict(p, fee=8.388608, tokens=-700.0, tokens_left=-700.0, best_pct=543649.4)
     assert hoodcopy.repair(bad) and bad["tokens"] > 0 and bad["best_pct"] == 0 and bad["fee"] == 0.01
     assert not hoodcopy.repair(p)
+
+
+def test_ranking_trades_go_to_the_vps_archive_and_come_back_on_restart():
+    """0.32.282 (pedido do dono): o ranking da Robinhood não zera mais quando o site atualiza."""
+    class Rest:
+        def __init__(self):
+            self.deleted = []
+
+        async def _req(self, method, table, params, body, prefer):
+            self.deleted.append(params)
+
+    class Arq:
+        def __init__(self):
+            self.rows, self.rest = [], Rest()
+
+        async def put(self, spec, rows):
+            assert spec["tabela"] == "hood_rede"
+            self.rows += rows
+            return [r["id"] for r in rows]
+
+        async def pages(self, tabela, since=None, until=None, page=5000):
+            yield [r for r in self.rows if r["t"] >= since]
+
+    async def go():
+        arq = Arq()
+        w = hood.HoodWatch(None, None)
+        w.arquivo = arq
+        now = time.time()
+        for i, tr in enumerate([trade("buy", 1000.0, 1.0, t=now - 600), trade("sell", 1000.0, 1.3, t=now - 300)]):
+            tr["id"] = f"x{i}"
+            w._add(tr)
+            w._arq_pend.append({k: tr.get(k) for k in hood.ARQ_FIELDS})
+        await w.save_arquivo()
+        assert len(arq.rows) == 2 and not w._arq_pend and w.stat["salvos"] == 2 and arq.rest.deleted   # limpeza dos 2 dias
+        w2 = hood.HoodWatch(None, None)                                   # "reiniciou"
+        w2.arquivo = arq
+        w2.db = None
+        await w2.load()
+        assert len(w2.trades) == 2 and w2.stat["do_arquivo"] == 2 and w2.hold[(TRADER, TOK)] == 0.0
+        assert w2.ranking()["rows"][0]["realized_eth"] > 0
+    run(go())

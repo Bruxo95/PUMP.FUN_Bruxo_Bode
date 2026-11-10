@@ -2165,6 +2165,11 @@
    "versao": "0.32.281",
    "inicio": "2026-11-10T20:34:10+00:00",
    "titulo": "Robinhood: lucro de mentira em pool de taxa dinâmica corrigido (caso PONS)"
+  },
+  {
+   "versao": "0.32.282",
+   "inicio": "2026-11-10T20:59:56+00:00",
+   "titulo": "Robinhood: ranking guardado no banco da VPS e Copiando agora"
   }
  ]
 }

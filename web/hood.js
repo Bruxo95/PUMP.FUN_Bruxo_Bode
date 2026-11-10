@@ -83,9 +83,12 @@
       ["Trocas lidas", num(s.trocas, 0) + " · viraram trade: " + num((s.trocas || 0) - (s.fora_rota || 0) - (s.fora_outro || 0), 0) + " · rota com vários pools: " + num(s.fora_rota, 0) + " · sem trader ou memecoin claro: " + num(s.fora_outro, 0)],
       ["Últimas 24 h", num(s.trades_24h, 0) + " trades · " + num(s.compras_24h, 0) + " compras · " + num(s.carteiras_24h, 0) + " carteiras · " + num(s.tokens_24h, 0) + " tokens"],
       ["Pago em (24 h)", Object.entries(s.moedas_24h || {}).map((x) => esc(x[0] === "USD" ? "USDG" : x[0]) + " " + num(x[1], 0)).join(" · ") || "—"],
-      ["Ranking", num(rk.aptos, 0) + " aptos · " + num((rk.copiaria || []).length, 0) + " copiaria agora"],
+      ["Ranking", num(rk.aptos, 0) + " aptos · " + num((rk.copiaria || []).length, 0) + " copiando agora"],
       ["ETH em dólar", s.eth_usd ? "US$ " + num(s.eth_usd, 2) + " (DexScreener)" : "—"],
       ["Memória", num(s.trades_memoria, 0) + " trades (últimas 24 h) · " + num(s.roteadores, 0) + " roteadores vistos"],
+      ["Banco da VPS", !s.arquivo ? '<span class="down">desligado: o ranking zera quando o site atualiza</span>'
+        : (s.arquivo_erro ? '<span class="down">' + esc(s.arquivo_erro) + "</span> · " : '<span class="up">guardando</span> · ') +
+          num(s.salvos, 0) + " trades guardados desde a subida · " + num(s.do_arquivo, 0) + " voltaram na subida" + (s.arquivo_fila ? " · " + num(s.arquivo_fila, 0) + " na fila" : "")],
       ["Erros", num(s.erros, 0) + (s.ultimo_erro ? " · último há " + ago(s.ultimo_erro_t) + ": " + esc(s.ultimo_erro) : "")],
       ["Última volta da leitura", s.volta_t ? "há " + ago(s.volta_t) : "—"],
     ];
@@ -115,7 +118,7 @@
     const rk = (R && R.ranking) || {}, rows = rk.rows || [];
     const row = (r, i) => [String(i + 1), addr(r.wallet), eth(r.realized_eth), num(r.vol_eth, 3) + " ETH", num(r.trades, 0), r.winrate == null ? "—" : num(r.winrate, 0) + "% (" + r.closed + ")",
       r.wallet_usd == null ? "—" : "US$ " + num(r.wallet_usd, 0), "há " + ago(r.last_t),
-      r.copiaria ? '<span class="tag win">copiaria</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
+      r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
         : '<span class="muted small">' + esc((r.flags || []).join(" · ")) + "</span>"];
     const H = ["#", "Carteira", "Lucro realizado", "Volume", "Trades", "Acerto", "Saldo", "Último trade", "Situação"];
     $("hdRkSub").textContent = num(rk.carteiras, 0) + " carteiras negociaram nas últimas 24 h · os 50 que mais lucraram · " + num(rk.aptos, 0) + " aptos";
@@ -160,7 +163,7 @@
     table("ovEv", ["Hora", "O que fez", "Token", "Trader", "Motivo"], ((P && P.eventos) || []).slice(0, 80).map((e) => [hora(e.t),
       /não|falhou/.test(e.acao) ? '<span class="tag loss">' + esc(e.acao) + "</span>" : /comprou|copiou/.test(e.acao) ? '<span class="tag buy">' + esc(e.acao) + "</span>" : '<span class="tag neutral">' + esc(e.acao) + "</span>",
       tok(e.token), addr(e.wallet), esc(e.motivo || "") + (e.tx ? " · " + txl(e.tx) : "")]),
-    REAL ? "Nada ainda. A REAL só age depois de ligada em Carteira." : "Nada ainda. Assim que um trader do \"Copiaria agora\" comprar, aparece aqui.");
+    REAL ? "Nada ainda. A REAL só age depois de ligada em Carteira." : "Nada ainda. Assim que um trader do \"Copiando agora\" comprar, aparece aqui.");
   }
   function drawPos() {
     const ps = (P && P.posicoes) || [];
@@ -174,7 +177,7 @@
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
       p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora",
       (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small><br>" : "") + '<button class="btn sm" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>"]),
-    REAL ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. A cópia compra quando um trader do \"Copiaria agora\" comprar.");
+    REAL ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. A cópia compra quando um trader do \"Copiando agora\" comprar.");
   }
   function drawHist() {
     const ts = (P && P.trades) || [], w = (P && P.carteira) || {};
@@ -199,13 +202,13 @@
       "REAL: " + (st.ligada ? '<span class="up">ligada</span> desde ' + hora(st.desde) : '<span class="down">desligada</span>'),
     ].join("<br>");
     const sf = P.seguranca || {}, s = sf.stat || {}, cp = sf.copia || {}, rg = sf.regras || {};
-    kpis("sfK", [["Compras vistas", num(cp.compras_vistas, 0), "dos traders do \"Copiaria agora\"", "tr"], ["Copiadas", num(cp.copiadas, 0), "token aprovado", "tr"],
+    kpis("sfK", [["Compras vistas", num(cp.compras_vistas, 0), "dos traders do \"Copiando agora\"", "tr"], ["Copiadas", num(cp.copiadas, 0), "token aprovado", "tr"],
       ["Barradas", num(cp.barradas, 0), num(cp.sem_pool, 0) + " sem pool de ETH na V4", "tr"],
       ["GoPlus", num(s.goplus_com_dados, 0) + " com dados", num(s.goplus_sem_dados, 0) + " sem dados desta rede", "usr"]]);
     table("sfT", ["Hora", "Token", "Veredito", "Ida e volta", "GoPlus"], (sf.recentes || []).map((x) => [hora(x.t), tok(x.token),
       x.ok ? '<span class="tag win">aprovado</span>' : '<span class="tag loss">' + (x.erro ? "sem conferência" : "barrado") + "</span> " + esc(x.why || ""),
       x.ida_volta_pct == null ? "—" : num(x.ida_volta_pct, 1) + "% (máx. " + num(rg.ida_volta_max_pct, 0) + "%)", esc(x.goplus || "—")]),
-    "Nenhum token conferido ainda: a conferência roda na primeira compra de um trader do \"Copiaria agora\".");
+    "Nenhum token conferido ainda: a conferência roda na primeira compra de um trader do \"Copiando agora\".");
   }
   function draw() {
     drawSys();

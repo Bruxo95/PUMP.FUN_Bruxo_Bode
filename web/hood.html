@@ -73,7 +73,7 @@
       </div>
     </header>
     <main class="page">
-      <div class="hdnote" id="hdNote"><b>Etapa 2 · cópia.</b> Quando um trader do "Copiaria agora" compra um memecoin num pool da Uniswap V4 pago em ETH, o robô confere o token e copia na carteira <b>FICTÍCIA</b>; quando ele vende, vende a mesma parte. A carteira <b>REAL</b> começa desligada e só liga em Carteira, digitando LIGAR. É separado da pump.fun e da BNB.</div>
+      <div class="hdnote" id="hdNote"><b>Etapa 2 · cópia.</b> Quando um trader do "Copiando agora" compra um memecoin num pool da Uniswap V4 pago em ETH, o robô confere o token e copia na carteira <b>FICTÍCIA</b>; quando ele vende, vende a mesma parte. A carteira <b>REAL</b> começa desligada e só liga em Carteira, digitando LIGAR. É separado da pump.fun e da BNB.</div>
       <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
         <header><div><h2 id="sysMT">Monitor da Robinhood Chain</h2><div class="sub">leitura da rede pelo RPC grátis oficial</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
         <div id="sysMB"></div></div></div>
@@ -93,7 +93,7 @@
         <div class="card" style="margin-top:16px"><header><div><h2>Status da leitura</h2><div class="sub">o que o robô está lendo e o que fica de fora</div></div></header>
           <div class="decbox" id="ovSt"></div>
           <div class="help"><p><b>Como lê:</b> toda troca da Uniswap V4 da rede passa pelo mesmo contrato (o PoolManager). O robô lê essas trocas e as transferências de token da mesma transação: o memecoin é o token que entra ou sai do pool (que não é WETH nem USDG), e o trader é quem recebe ou envia esse token. Transações que passam por vários pools de uma vez ainda ficam de fora.</p>
-          <p><b>Memória:</b> nesta etapa o ranking usa as últimas 24 h, guardadas só na memória do servidor (a rede tem mais de 100 vezes o volume da Four.Meme). Depois de uma atualização do sistema, o robô relê até 30 min direto da rede; o ranking volta a encher com as horas.</p></div></div>
+          <p><b>Memória:</b> o ranking usa as últimas 24 h. Os trades lidos também ficam guardados no banco da VPS por 2 dias; quando o site atualiza, eles voltam para a memória e o ranking não começa do zero. O robô ainda relê da rede até 30 min do intervalo em que ficou parado.</p></div></div>
       </section>
       <section class="view" data-view="posicoes" hidden>
         <div class="card"><header><div><h2 id="poT">Posições abertas</h2><div class="sub" id="poSub"></div></div><div class="sp"></div><button class="btn sm" id="poAll" type="button">Vender todas</button></header>
@@ -128,11 +128,11 @@
       <section class="view" data-view="traders" hidden>
         <div class="seg hdsub" id="trTab"><button data-trt="rank">Ranking</button><button data-trt="aj">Regra do ranking</button></div>
         <div id="trRank">
-          <div class="card"><header><div><h2>Copiaria agora</h2><div class="sub" id="hdSelSub">os melhores aptos que negociaram nos últimos minutos, pela regra do Top traders · quando um deles compra, a cópia FICTÍCIA compra junto (Visão geral → O que a cópia fez)</div></div></header>
+          <div class="card"><header><div><h2>Copiando agora</h2><div class="sub" id="hdSelSub">os melhores aptos que negociaram nos últimos minutos, pela regra do Top traders · quando um deles compra, a cópia FICTÍCIA compra junto (Visão geral → O que a cópia fez)</div></div></header>
             <div class="tbl-wrap"><table id="hdSel"></table></div></div>
           <div class="card"><header><div><h2>Ranking dos traders</h2><div class="sub" id="hdRkSub">os 50 que mais lucraram nas últimas 24 h</div></div></header>
             <div class="tbl-wrap"><table id="hdRk"></table></div>
-            <div class="help"><p><b>Como escolhe (igual ao Top traders):</b> pega os 50 que mais lucraram nas últimas 24 h (lucro realizado, em ETH). Apto = trades mínimos no período, acerto acima do mínimo (tokens vendidos com lucro), carteira com saldo mínimo (ETH, WETH e USDG) e não ser robô. Copiaria os mais bem colocados entre os aptos que negociaram nos últimos minutos.</p></div></div>
+            <div class="help"><p><b>Como escolhe (igual ao Top traders):</b> pega os 50 que mais lucraram nas últimas 24 h (lucro realizado, em ETH). Apto = trades mínimos no período, acerto acima do mínimo (tokens vendidos com lucro), carteira com saldo mínimo (ETH, WETH e USDG) e não ser robô. Copia os mais bem colocados entre os aptos que negociaram nos últimos minutos.</p></div></div>
         </div>
         <div id="trAj" hidden>
           <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">quem entra na lista · vale para todos os admins</div></div></header>

@@ -54,6 +54,12 @@ BLOCK_S = 0.1             # medido em 04/11/2026: 600 blocos em 59–60 s; corri
 KEEP_S = 24 * 3600        # memória do ranking (etapa 1)
 CATCHUP_S = 1800          # depois de reiniciar, relê no máximo 30 min (mais que isso pula para 10 min atrás)
 MAX_MEM = 400_000
+# 0.32.282 (pedido do dono, 10/11/2026: o ranking zerava a cada atualização do site): os trades lidos vão para o Postgres da VPS
+# (arquivo, tabela genérica; são dados públicos da rede) e voltam para a memória quando o servidor sobe. Lá ficam ARQ_KEEP_S.
+ARQ = {"tabela": "hood_rede", "pk": "id", "t": "t", "tipo": "epoch"}
+ARQ_FIELDS = ("id", "tx", "block", "token", "wallet", "side", "amount", "eth", "quote", "pool", "fee", "t")
+ARQ_KEEP_S = 2 * 86400
+ARQ_PEND_MAX = 50_000
 ROUTERS_MAX = 25          # roteadores (quem chama o PoolManager) seguidos para achar a carteira de verdade
 
 # Mesma regra do Top traders (pumpfun.refresh_followed/_lb_judge), com valores próprios desta rede.
@@ -260,6 +266,10 @@ class HoodWatch:
         self.loaded = False
         self.px: dict[str, tuple[float, float]] = {}      # token → (preço em ETH, hora): última troca vista ou cotação da cópia
         self.hold: dict[tuple, float] = {}                # (carteira, token) → quantidade vista (para vender a mesma parte)
+        self.arquivo = None                               # main.py liga (hub.arquivo); sem ele, o ranking volta a zerar no reinício
+        self._arq_pend: list[dict] = []
+        self._arq_trim_at = 0.0
+        self.stat.update(salvos=0, do_arquivo=0, arquivo_erro=None)
         from .hoodcopy import Copier
         self.copier = Copier(self, http, db)
 
@@ -366,6 +376,8 @@ class HoodWatch:
                 tr["t"] = round(ht - (head - tr["block"]) * self.block_s, 1)
                 before = self.hold.get((tr["wallet"], tr["token"]), 0.0)
                 self._add(tr)
+                if self.arquivo is not None and len(self._arq_pend) < ARQ_PEND_MAX:
+                    self._arq_pend.append({k: tr.get(k) for k in ARQ_FIELDS})
                 try:
                     self.copier.on_trade(tr, before, cop)
                 except Exception as e:                     # a cópia nunca para a leitura
@@ -446,6 +458,20 @@ class HoodWatch:
                 await self.copier.load()
             except Exception as e:
                 log.warning("Robinhood: carteiras da cópia não carregaram: %s", str(e)[:160])
+        if self.arquivo is not None:                    # 0.32.282: as últimas 24 h voltam do arquivo
+            try:
+                n = 0
+                async for rows in self.arquivo.pages(ARQ["tabela"], time.time() - KEEP_S):
+                    for r in rows:
+                        if r.get("id") and r.get("t") and r.get("wallet") and r.get("token") and r.get("amount") is not None:
+                            self._add(r)
+                            n += 1
+                    if n >= MAX_MEM:
+                        break
+                self.stat["do_arquivo"] = n
+            except Exception as e:
+                self.stat["arquivo_erro"] = f"leitura: {type(e).__name__} {str(e)[:120]}"
+                log.warning("Robinhood: trades do arquivo não carregaram: %s", str(e)[:160])
         self.loaded = True
 
     async def save_state(self) -> None:
@@ -456,6 +482,26 @@ class HoodWatch:
                                  upsert=True, on_conflict="k")
         except Exception as e:
             log.warning("Robinhood: não gravou o ponto da leitura: %s", str(e)[:160])
+
+    async def save_arquivo(self) -> None:
+        """Trades novos para o arquivo (lotes de 500) e, uma vez por dia, apaga de lá o que passou de ARQ_KEEP_S."""
+        arq = self.arquivo
+        if arq is None:
+            return
+        try:
+            while self._arq_pend:
+                part = self._arq_pend[:500]
+                await arq.put(ARQ, part)
+                del self._arq_pend[:500]
+                self.stat["salvos"] += len(part)
+            if time.time() - self._arq_trim_at > 86400:
+                self._arq_trim_at = time.time()
+                await arq.rest._req("DELETE", "arquivo", {"tabela": f"eq.{ARQ['tabela']}", "t": f"lt.{time.time() - ARQ_KEEP_S}"},
+                                    None, "return=minimal")
+            self.stat["arquivo_erro"] = None
+        except Exception as e:
+            self.stat["arquivo_erro"] = f"gravação: {type(e).__name__} {str(e)[:120]}"
+            log.warning("Robinhood: trades não foram para o arquivo: %s", str(e)[:160])
 
     async def save_cfg(self, raw: dict) -> dict:
         self.cfg = clean_cfg({**self.cfg, **(raw or {})})
@@ -481,9 +527,10 @@ class HoodWatch:
                 await asyncio.wait_for(self.copier.tick(), 40)
             except Exception as e:
                 log.warning("Robinhood: volta da cópia falhou: %s", str(e)[:160])
-                if time.time() - self._save_at > 60:
-                    self._save_at = time.time()
-                    await self.save_state()
+            if time.time() - self._save_at > 60:           # 0.32.282: estava dentro do except acima e só gravava quando a cópia falhava
+                self._save_at = time.time()
+                await self.save_state()
+                await self.save_arquivo()
             await asyncio.sleep(POLL_S)
 
     def state(self, now: float | None = None) -> dict:
@@ -507,6 +554,8 @@ class HoodWatch:
                            "ultimo_erro_t": st["ultimo_erro_t"], "chamadas": st["chamadas"], "limite_429": st["limite_429"],
                            "pausa_s": max(0, round(self._pause_until - now)), "desde": st["desde"], "bloco_s": self.block_s,
                            "trocas": st["trocas"], "fora_rota": st["fora_rota"], "fora_outro": st["fora_outro"],
-                           "roteadores": len(self.routers), "volta_t": st["volta_t"]},
+                           "roteadores": len(self.routers), "volta_t": st["volta_t"],
+                           "arquivo": self.arquivo is not None, "salvos": st["salvos"], "do_arquivo": st["do_arquivo"],
+                           "arquivo_fila": len(self._arq_pend), "arquivo_erro": st["arquivo_erro"]},
                 "tokens_1h": [{"token": k, "trades": v} for k, v in tok.most_common(15)],
                 "ranking": rk, "recentes": recent}

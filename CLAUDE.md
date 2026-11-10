@@ -1720,3 +1720,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.281 (caso PONS do dono, 10/11: +543.649% de mentira): pool V4 de taxa dinâmica tem `fee` = 0x800000 na PoolKey, lido como 838%.
   `hoodcopy.pool_fee(key, swap_fee)` (taxa fixa da chave, senão a da troca do trader, senão 1%, máx. 10%) em toda conta; `hoodcopy.repair` refaz
   na subida as posições gravadas com a taxa errada; `hoodsafe` barra pool com taxa acima de 5% de cada lado. Nunca usar `key[2]` direto como taxa.
+- 0.32.282 (pedido do dono): trades da Robinhood no arquivo da VPS (`hood.ARQ`, tabela lógica `hood_rede`, 2 dias,
+  limpeza própria em `save_arquivo`, fora de `arquivo.SPECS` porque não passam pelo Supabase); `HoodWatch.load` relê as 24 h na subida.
+  `save_state` (cursor) saiu de dentro do `except` do laço, onde a 0.32.279 o deixou. Telas: "Copiando agora" e marca COPIANDO.

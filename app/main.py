@@ -55,6 +55,7 @@ def build_app():
         hub.hood = HoodWatch(http, db)
         hub.hood.copier.vault = hub.vault             # 0.32.279: chave da carteira da Robinhood (cofre criptografado)
         hub.hood.copier.real_allowed = hub.real_allowed   # mesma trava geral (PUMP_REAL_ALLOWED)
+        hub.hood.arquivo = hub.arquivo                # 0.32.282: trades da rede no Postgres da VPS (o ranking não zera no reinício)
     # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
     hub.dormant = None
     if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):
