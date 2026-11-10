@@ -20,7 +20,9 @@ SECRET_NAMES = {
 
 # 0.32.172: chave da carteira BNB, guardada no mesmo cofre (user_secrets, criptografada), mas fora da lista acima para não
 # aparecer nas Chaves pessoais do painel da Solana: o painel da BNB tem a tela própria.
-BNB_SECRET_NAMES = {"bnb_private_key": "Chave privada da carteira BNB (Four.Meme)"}
+BNB_SECRET_NAMES = {"bnb_private_key": "Chave privada da carteira BNB (Four.Meme)",
+                    # 0.32.279: carteira da Robinhood Chain, mesma regra (só aparece no painel /hood)
+                    "hood_private_key": "Chave privada da carteira da Robinhood Chain"}
 
 
 # chaves que o ADMIN pode configurar para todos usarem na VISUALIZAÇÃO (dados e cotações; nunca execução real)

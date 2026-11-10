@@ -1,0 +1,733 @@
+"""Robinhood Chain, etapa 2 (0.32.279): cópia dos traders do ranking. Fictícia em ETH por conta de admin e REAL (desligada).
+
+Pedido do dono em 10/11/2026 ("faz 1 a 4"): 1) cópia FICTÍCIA em ETH, 2) checagem de token golpe (hoodsafe), 3) preço das
+posições abertas (stop e tempo máximo), 4) compra e venda REAL (hoodreal), que começa desligada e só liga com LIGAR.
+
+Regra de cópia, igual à da BNB e ao Copiar igual da Solana: quando um trader que o ranking copiaria compra, a fictícia compra o
+valor fixo; quando ele vende, vende a mesma parte. Sai também pelo tempo máximo e pelo stop opcional. A taxa do pool (lida no
+evento Swap de cada troca) vale nos dois lados; gás e slippage configuráveis. Só pools da Uniswap V4 pagos em ETH: é o que a
+REAL consegue comprar, então a fictícia mede a mesma coisa.
+
+Preço das posições: o de cada troca do token lida na rede (ETH ÷ quantidade) e, para o token parado, a cotação de venda do
+Quoter oficial da V4 a cada PRICE_S (uma consulta por token, no máximo PRICE_MAX por volta).
+Isolado: memória e tabelas hood_* próprias; nada da Solana nem da BNB é usado ou alterado.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+import uuid
+from datetime import datetime
+
+from . import evm, hoodreal, hoodsafe
+from .dormant_buy import T_V4_INIT, v4_key_from_log, v4_pool_id, v4_quote_data
+
+log = logging.getLogger("hood.copy")
+
+HOOD_KEY_NAME = "hood_private_key"
+ZERO = "0x" + "0" * 40
+GT = "https://api.geckoterminal.com/api/v2/networks/robinhood/pools/"
+FRESH_S = 90                 # só copia compra lida até 90 s depois de acontecer (a releitura depois de reiniciar não copia)
+PRICE_S, PRICE_MAX = 30, 20
+KEEP_TRADES = 3000
+CFG_DEFAULT = {"on": True, "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
+               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5}
+CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
+              "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000)}
+
+
+def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
+    out = dict(base or CFG_DEFAULT)
+    for k, v in (raw or {}).items():
+        if k == "on":
+            out["on"] = bool(v)
+        elif k in CFG_LIMITS:
+            try:
+                val = float(v)
+            except (TypeError, ValueError):
+                continue
+            if val != val:
+                continue
+            lo, hi = CFG_LIMITS[k]
+            val = min(hi, max(lo, val))
+            out[k] = int(val) if isinstance(CFG_DEFAULT[k], int) else round(val, 6)
+    return out
+
+
+class Book:
+    """Carteira fictícia em ETH de uma conta."""
+
+    def __init__(self, user_id: str, cfg: dict | None = None, cash: float | None = None):
+        self.user_id = user_id
+        self.cfg = clean_cfg(cfg)
+        self.cash = self.cfg["saldo_inicial"] if cash is None else float(cash)
+        self.pos: dict[str, dict] = {}
+        self.trades: list[dict] = []
+        self.events: list[dict] = []
+        self.dirty_pos: set = set()
+        self.closed_pos: set = set()
+        self.new_trades: list[dict] = []
+        self.dirty_book = False
+
+    def ev(self, t: float, wallet: str, token: str, acao: str, motivo: str = "") -> None:
+        self.events.insert(0, {"t": t, "wallet": wallet, "token": token, "acao": acao, "motivo": motivo})
+        del self.events[200:]
+
+    def value_now(self, p: dict) -> float:
+        px = p.get("px_now") or p["px_in"]
+        return p["tokens_left"] * px * (1 - (p.get("fee") or 0) - self.cfg["slip_pct"] / 100) - self.cfg["gas_eth"]
+
+    def pnl_now(self, p: dict) -> tuple[float, float]:
+        v = p["proceeds"] + max(0.0, self.value_now(p)) - p["eth_in"]
+        return v, (100 * v / p["eth_in"] if p["eth_in"] else 0.0)
+
+    def buy(self, tr: dict, px: float, t: float, key: list) -> dict | None:
+        c = self.cfg
+        why = None
+        amt = c["eth_por_compra"]
+        if not c["on"]:
+            why = "cópia fictícia desligada nesta conta"
+        elif not px or px <= 0:
+            why = "sem preço do token"
+        elif any(p["wallet"] == tr["wallet"] and p["token"] == tr["token"] for p in self.pos.values()):
+            why = "já tem a posição deste trader neste token"
+        elif len(self.pos) >= c["max_abertas"]:
+            why = f"limite de {c['max_abertas']} posições abertas"
+        elif self.cash < amt + c["gas_eth"]:
+            why = "saldo fictício insuficiente"
+        if why:
+            self.ev(t, tr["wallet"], tr["token"], "não copiou", why)
+            return None
+        fee_r = key[2] / 1e6
+        px_in = px * (1 + c["slip_pct"] / 100)
+        fee = amt * fee_r
+        tokens = (amt - fee) / px_in
+        p = {"id": uuid.uuid4().hex[:16], "wallet": tr["wallet"], "token": tr["token"], "open_t": t, "px_in": px_in,
+             "trader_px": px, "trader_eth": tr.get("eth"), "tokens": tokens, "tokens_left": tokens, "fee": fee_r,
+             "eth_in": round(amt + c["gas_eth"], 9), "proceeds": 0.0, "fees": fee + c["gas_eth"], "px_now": px, "px_t": t,
+             "best_pct": 0.0, "worst_pct": 0.0, "lag_s": round(max(0.0, t - tr["t"]), 1), "tx_in": tr.get("tx"), "aba": "top",
+             "key": key}
+        self.cash -= amt + c["gas_eth"]
+        self.pos[p["id"]] = p
+        self.dirty_pos.add(p["id"])
+        self.dirty_book = True
+        self.ev(t, tr["wallet"], tr["token"], "copiou compra", f"{amt:g} ETH, {p['lag_s']:.0f} s depois do trader")
+        return p
+
+    def sell(self, p: dict, frac: float, px: float | None, t: float, motivo: str) -> dict | None:
+        """Vende a parte frac (0–1) da posição; 0,95 ou mais vende tudo. Devolve o trade quando fecha."""
+        c = self.cfg
+        px = px or p.get("px_now") or p["px_in"]
+        frac = 1.0 if frac >= 0.95 else max(0.0, frac)
+        q = p["tokens_left"] * frac
+        if q <= 0:
+            return None
+        gross = q * px * (1 - c["slip_pct"] / 100)
+        fee = gross * (p.get("fee") or 0)
+        got = gross - fee - c["gas_eth"]
+        p["tokens_left"] -= q
+        p["proceeds"] += got
+        p["fees"] += fee + c["gas_eth"]
+        p["px_now"], p["px_t"] = px, t
+        self.cash += got
+        self.dirty_book = True
+        if frac < 1.0:
+            p.setdefault("vendas", []).append({"t": t, "frac": round(frac, 4), "eth": round(got, 6), "motivo": motivo})
+            self.dirty_pos.add(p["id"])
+            self.ev(t, p["wallet"], p["token"], "vendeu parte", f"{frac * 100:.0f}% · {motivo}")
+            return None
+        pnl = p["proceeds"] - p["eth_in"]
+        tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "fees",
+                                        "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas")},
+              "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
+              "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo}
+        self.pos.pop(p["id"], None)
+        self.dirty_pos.discard(p["id"])
+        self.closed_pos.add(p["id"])
+        self.trades.insert(0, tr)
+        del self.trades[KEEP_TRADES:]
+        self.new_trades.append(tr)
+        self.ev(t, p["wallet"], p["token"], "fechou", f"{motivo} · {pnl:+.5f} ETH")
+        return tr
+
+    def on_price(self, token: str, px: float, t: float) -> list[dict]:
+        out = []
+        for p in list(self.pos.values()):
+            if p["token"] != token or px <= 0:
+                continue
+            p["px_now"], p["px_t"] = px, t
+            _, pct = self.pnl_now(p)
+            p["best_pct"], p["worst_pct"] = max(p["best_pct"], pct), min(p["worst_pct"], pct)
+            self.dirty_pos.add(p["id"])
+            if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"]:
+                r = self.sell(p, 1.0, px, t, f"stop de {self.cfg['stop_pct']:.0f}%")
+                if r:
+                    out.append(r)
+        return out
+
+    def timeouts(self, t: float) -> list[dict]:
+        lim = self.cfg["max_hold_h"] * 3600
+        return [r for p in list(self.pos.values()) if t - p["open_t"] >= lim
+                for r in [self.sell(p, 1.0, None, t, f"tempo máximo de {self.cfg['max_hold_h']:g} h")] if r]
+
+    def wallet(self, now: float) -> dict:
+        open_val = sum(max(0.0, self.value_now(p)) for p in self.pos.values())
+        total = self.cash + open_val
+        ini = self.cfg["saldo_inicial"]
+        closed = self.trades
+        wins = [x for x in closed if x["pnl_eth"] > 0]
+        return {"saldo": round(self.cash, 6), "em_posicoes": round(open_val, 6), "total": round(total, 6),
+                "inicial": ini, "resultado": round(total - ini, 6), "resultado_pct": round(100 * (total - ini) / ini, 2) if ini else 0,
+                "abertas": len(self.pos), "fechadas": len(closed), "acerto": round(100 * len(wins) / len(closed), 1) if closed else None,
+                "realizado": round(sum(x["pnl_eth"] for x in closed), 6), "periodos": periods(closed, now)}
+
+
+def periods(trades: list[dict], now: float) -> list[dict]:
+    out = []
+    for h in (1, 6, 12, 24):
+        xs = [x for x in trades if x["close_t"] >= now - h * 3600]
+        out.append({"h": h, "n": len(xs), "ganhos": sum(1 for x in xs if x["pnl_eth"] > 0),
+                    "pnl": round(sum(x["pnl_eth"] for x in xs), 6), "investido": round(sum(x["eth_in"] for x in xs), 6),
+                    "traders": len({x["wallet"] for x in xs})})
+    return out
+
+
+class Copier:
+    """Cópia da Robinhood: carteiras fictícias, conferência do token, preço das posições e carteira REAL. watch = HoodWatch."""
+
+    def __init__(self, watch, http, db=None):
+        self.w, self.http, self.db = watch, http, db
+        self.books: dict[str, Book] = {}
+        self.real: dict[str, hoodreal.RealBook] = {}
+        self.real_cfg: dict[str, dict] = {}
+        self.vault = None
+        self.real_allowed = False
+        self._keys: dict[str, tuple] = {}
+        self.chain = hoodreal.Chain(watch.rpc)
+        self.safe = hoodsafe.Safety(self._call, http)
+        self.keys: dict[str, list | None] = {}      # id do pool → chave conferida (None = procurado e não achado)
+        self._key_at: dict[str, float] = {}
+        self._px_at: dict[str, float] = {}
+        self._checking: set = set()
+        self._tasks: set = set()
+        self._rbal_at = 0.0
+        self.stat = {"compras_vistas": 0, "copiadas": 0, "barradas": 0, "sem_pool": 0, "pool_procurado": 0}
+
+    # ------------------------------------------------------------------ util
+    async def _call(self, to: str, data: str, frm: str | None = None) -> str:
+        p = {"to": to, "data": data}
+        if frm:
+            p["from"] = frm
+        return await self.w.rpc("eth_call", [p, "latest"]) or "0x"
+
+    def _spawn(self, coro) -> None:
+        t = asyncio.ensure_future(coro)
+        self._tasks.add(t)
+        t.add_done_callback(self._tasks.discard)
+
+    def book(self, uid: str) -> Book:
+        b = self.books.get(uid)
+        if b is None:
+            b = self.books[uid] = Book(uid)
+            b.dirty_book = True
+        return b
+
+    def rbook(self, uid: str) -> hoodreal.RealBook:
+        rb = self.real.get(uid)
+        if rb is None:
+            rb = self.real[uid] = hoodreal.RealBook(uid)
+        return rb
+
+    def rcfg(self, uid: str) -> dict:
+        if uid not in self.real_cfg:
+            self.real_cfg[uid] = hoodreal.clean(None)
+        return self.real_cfg[uid]
+
+    def held(self) -> set:
+        return {p["token"] for b in self.books.values() for p in b.pos.values()} | \
+            {p["token"] for rb in self.real.values() for p in rb.pos.values()}
+
+    # ------------------------------------------------------------------ chave do pool
+    def note_init(self, logs: list[dict]) -> None:
+        """Eventos Initialize do PoolManager lidos junto com as trocas: guarda a chave dos pools novos (só os pagos em ETH)."""
+        for lg in logs:
+            k = v4_key_from_log(lg)
+            if k and k[0] == ZERO:
+                self.keys[v4_pool_id(k)] = k
+        if len(self.keys) > 20000:
+            for pid in list(self.keys)[:5000]:
+                self.keys.pop(pid, None)
+
+    async def pool_key(self, pid: str, token: str) -> list | None:
+        """Chave do pool pelo id: a que a leitura já viu nascer, senão o Initialize procurado perto da data em que o pool
+        nasceu (GeckoTerminal só dá a data; a chave vem da rede e só vale se o keccak dela for o id)."""
+        pid = (pid or "").lower()
+        if pid in self.keys and (self.keys[pid] or time.time() - self._key_at.get(pid, 0) < 1800):
+            return self.keys[pid]
+        self.stat["pool_procurado"] += 1
+        self._key_at[pid] = time.time()
+        key = None
+        try:
+            r = await self.http.get(GT + pid, headers={"accept": "application/json"}, timeout=10)
+            created = (((r.json() or {}).get("data") or {}).get("attributes") or {}).get("pool_created_at")
+            ts = datetime.fromisoformat(str(created).replace("Z", "+00:00")).timestamp() if created else None
+        except Exception:
+            ts = None
+        head, head_t, bs = self.w.head, self.w.head_t, self.w.block_s or 0.1
+        if head and head_t:
+            spans = []
+            if ts:
+                est = int(head - max(0.0, head_t - ts) / bs)
+                spans.append((max(0, est - 1_000_000), min(head, est + 1_000_000)))
+            b = head                                          # sem a data (ou fora da estimativa): volta em trechos de 9 milhões
+            for _ in range(3):
+                spans.append((max(0, b - 9_000_000), b))
+                b -= 9_000_000
+            for a, z in spans:
+                try:
+                    logs = await self.w.rpc("eth_getLogs", [{"address": hoodreal.PM, "topics": [T_V4_INIT, pid],
+                                                              "fromBlock": hex(a), "toBlock": hex(z)}]) or []
+                except Exception:
+                    continue
+                for lg in logs:
+                    k = v4_key_from_log(lg)
+                    if k and v4_pool_id(k) == pid:
+                        key = k
+                        break
+                if key:
+                    break
+                await asyncio.sleep(1.0)
+        self.keys[pid] = key if key and key[0] == ZERO and key[1] == token else None
+        return self.keys[pid]
+
+    # ------------------------------------------------------------------ cópia
+    def on_trade(self, tr: dict, before: float, copiaria: list) -> None:
+        """Trade novo lido: atualiza o preço das posições; quem tem posição copiada vendeu → vende a mesma parte; o trader do
+        ranking comprou → confere o token e compra na fictícia (e na REAL ligada)."""
+        px = tr["eth"] / tr["amount"] if tr.get("amount") else None
+        now = time.time()
+        for b in self.books.values():
+            if px:
+                b.on_price(tr["token"], px, tr["t"])
+            if tr["side"] == "sell":
+                frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
+                for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
+                    b.sell(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
+        for uid, rb in self.real.items():
+            if px:
+                self._real_price(uid, rb, tr["token"], px, tr["t"])
+            if tr["side"] == "sell":
+                frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
+                for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
+                    p["retry_frac"] = frac
+                    self._spawn(self._real_sell(uid, p, frac, f"trader vendeu {frac * 100:.0f}%"))
+        if tr["side"] == "buy" and tr["wallet"] in copiaria and now - tr["t"] <= FRESH_S:
+            self.stat["compras_vistas"] += 1
+            self._spawn(self._prepare(tr, px))
+
+    async def _prepare(self, tr: dict, px: float | None) -> None:
+        tk = tr["token"]
+        try:
+            key = await self.pool_key(tr.get("pool") or "", tk)
+            if not key:
+                self.stat["sem_pool"] += 1
+                v = {"ok": False, "why": "o pool deste trade não é da Uniswap V4 pago em ETH (ou não achei o pool na rede)"}
+            else:
+                v = self.safe.cached(tk)
+                if v is None:
+                    v = await self.safe.check(tk, key, tr["wallet"], int(tr["amount"] * 1e18))
+        except Exception as e:                                   # nunca compra sem conferir
+            key, v = None, self.safe.mark(tk, False, "falha na conferência (" + type(e).__name__ + ")", erro=True)
+        self._buy_all(tr, v, key, px)
+
+    def _buy_all(self, tr: dict, v: dict, key: list | None, px: float | None) -> None:
+        now = time.time()
+        if not v["ok"] or not key:
+            self.stat["barradas"] += 1
+            why = "token barrado: " + (v.get("why") or "sem conferência")
+            for b in self.books.values():
+                if b.cfg.get("on"):
+                    b.ev(now, tr["wallet"], tr["token"], "não copiou", why)
+            for uid, rc in list(self.real_cfg.items()):
+                if rc.get("real_on"):
+                    self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
+            return
+        self.stat["copiadas"] += 1
+        for b in self.books.values():
+            b.buy(tr, px, now, key)
+        for uid, rc in list(self.real_cfg.items()):
+            if rc.get("real_on"):
+                self._spawn(self._real_buy(uid, tr, px, key))
+
+    # ------------------------------------------------------------------ carteira REAL
+    async def get_key(self, uid: str):
+        """(chave, endereço) da carteira da Robinhood da conta, ou (None, None). A chave nunca sai da memória do servidor."""
+        k = self._keys.get(uid)
+        if k and time.time() - k[2] < 300:
+            return k[0], k[1]
+        if self.vault is None:
+            return None, None
+        try:
+            v = (await self.vault.load(uid)).get(HOOD_KEY_NAME)
+            key = evm.parse_key(v) if v else None
+        except Exception:
+            key = None
+        addr = evm.address_of(key) if key else None
+        self._keys[uid] = (key, addr, time.time())
+        if addr:
+            self.rbook(uid).address = addr
+        return key, addr
+
+    def real_status(self, uid: str) -> dict:
+        rc, rb = self.real_cfg.get(uid) or hoodreal.clean(None), self.real.get(uid)
+        k = self._keys.get(uid)
+        return {"permitido": self.real_allowed, "chave": bool(k and k[0]),
+                "endereco": (k[1] if k else None) or (rb.address if rb else None),
+                "ligada": bool(rc.get("real_on")), "desde": rc.get("on_since"), "saldo": rb.balance if rb else None}
+
+    def _real_price(self, uid: str, rb, token: str, px: float, t: float) -> None:
+        rc, cf = self.rcfg(uid), self.book(uid).cfg
+        for p in list(rb.pos.values()):
+            if p["token"] != token or px <= 0:
+                continue
+            p["px_now"], p["px_t"] = px, t
+            _, pct = rb.pnl_now(p, rc["real_slip_pct"])
+            p["best_pct"], p["worst_pct"] = max(p.get("best_pct", 0), pct), min(p.get("worst_pct", 0), pct)
+            rb.dirty_pos.add(p["id"])
+            if cf["stop_pct"] and pct <= -cf["stop_pct"] and (p.get("sell_retry_at") or 0) <= time.time():
+                p["retry_frac"] = 1.0
+                self._spawn(self._real_sell(uid, p, 1.0, f"stop de {cf['stop_pct']:.0f}%"))
+
+    def real_why_not(self, uid: str, tr: dict, rb, rc: dict) -> str | None:
+        if not self.real_allowed:
+            return "trava geral do servidor fechada (PUMP_REAL_ALLOWED)"
+        if any(p["wallet"] == tr["wallet"] and p["token"] == tr["token"] for p in rb.pos.values()) or (tr["wallet"], tr["token"]) in rb.busy:
+            return "já tem a posição REAL deste trader neste token"
+        if len(rb.pos) + len(rb.busy) >= rc["real_max_abertas"]:
+            return f"limite de {rc['real_max_abertas']} posições REAL abertas"
+        lost = rb.lost_today(time.time())
+        if lost >= rc["real_perda_dia"]:
+            return f"perda do dia ({lost:.5f} ETH) chegou ao limite de {rc['real_perda_dia']:g} ETH: volta amanhã (00:00 UTC)"
+        if rb.balance is not None and rb.balance < rc["real_eth_por_compra"] + hoodreal.GAS_RESERVE:
+            return f"saldo da carteira ({rb.balance:.5f} ETH) menor que a compra + {hoodreal.GAS_RESERVE} ETH de gás"
+        return None
+
+    async def _real_buy(self, uid: str, tr: dict, px: float | None, pkey: list) -> None:
+        rb, rc = self.rbook(uid), self.rcfg(uid)
+        now = time.time()
+        key, addr = await self.get_key(uid)
+        why = "sem a chave da carteira da Robinhood" if not key else self.real_why_not(uid, tr, rb, rc)
+        sv = self.safe.cached(tr["token"])
+        if not why and not (sv and sv["ok"]):                    # a REAL nunca compra token sem conferência boa
+            why = "token sem conferência de segurança aprovada"
+        if why:
+            rb.ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
+            return
+        k = (tr["wallet"], tr["token"])
+        rb.busy.add(k)
+        try:
+            async with rb.lock:
+                if rb.balance is None or time.time() - rb.balance_t > 30:
+                    rb.balance, rb.balance_t = await self.chain.balance(addr) / 1e18, time.time()
+                if rb.balance < rc["real_eth_por_compra"] + hoodreal.GAS_RESERVE:
+                    rb.ev(now, tr["wallet"], tr["token"], "REAL não copiou", f"saldo da carteira ({rb.balance:.5f} ETH) menor que a compra + gás")
+                    return
+                until = time.time() + self.book(uid).cfg["max_hold_h"] * 3600 + 86400
+                res = await self.chain.buy(key, addr, tr["token"], pkey, rc["real_eth_por_compra"], rc["real_slip_pct"], until)
+            t = time.time()
+            p = hoodreal.new_position(tr, res, t, px, pkey)
+            rb.pos[p["id"]] = p
+            rb.dirty_pos.add(p["id"])
+            rb.balance_t = 0
+            rb.ev(t, tr["wallet"], tr["token"], "REAL comprou", f"{rc['real_eth_por_compra']:g} ETH, {t - tr['t']:.0f} s depois do trader", res["tx"])
+            log.info("Robinhood REAL: comprou %s… %.5f ETH (conta %s…)", tr["token"][:10], res["eth"], uid[:8])
+        except Exception as e:
+            rb.ev(time.time(), tr["wallet"], tr["token"], "REAL falhou", str(e)[:200])
+            log.warning("Robinhood REAL: compra falhou (%s…): %s", tr["token"][:10], str(e)[:160])
+        finally:
+            rb.busy.discard(k)
+            await self.flush()
+
+    async def _real_sell(self, uid: str, p: dict, frac: float, motivo: str, manual: bool = False) -> dict | None:
+        rb, rc = self.rbook(uid), self.rcfg(uid)
+        if p.get("selling") or p["id"] not in rb.pos:
+            return None
+        if not manual and (p.get("sell_retry_at") or 0) > time.time():
+            return None
+        p["selling"] = True
+        frac = 1.0 if frac >= 0.95 else max(0.0, frac)
+        try:
+            key, addr = await self.get_key(uid)
+            if not key:
+                raise hoodreal.ChainError("sem a chave da carteira: cole a chave em Carteira para vender")
+            left = int(p["raw_left"])
+            raw = left if frac >= 1 else int(left * frac)
+            async with rb.lock:
+                try:
+                    res = await self.chain.sell(key, addr, p["token"], p["key"], raw, rc["real_slip_pct"])
+                except hoodreal.ChainError as e:
+                    if "não tem mais" in str(e):
+                        p["tokens_left"], p["raw_left"] = 0.0, "0"
+                        tr = rb.close(p, time.time(), "a carteira não tem mais o token (vendido fora do sistema?)", p.get("px_now"))
+                        rb.ev(time.time(), p["wallet"], p["token"], "REAL fechou", tr["motivo"])
+                        return tr
+                    raise
+            t = time.time()
+            p["raw_left"] = str(max(0, left - res["raw"]))
+            p["tokens_left"] = max(0.0, p["tokens_left"] - res["raw"] / 1e18)
+            p["proceeds"] += res["eth"]
+            p["fees"] = p.get("fees", 0) + res.get("gas", 0)
+            p["tx_last"] = res["tx"]
+            for k in ("sell_error", "sell_retry_at", "retry_frac"):
+                p.pop(k, None)
+            rb.balance_t = 0
+            if int(p["raw_left"]) > 0 and frac < 1:
+                p.setdefault("vendas", []).append({"t": t, "frac": round(frac, 4), "eth": round(res["eth"], 6), "motivo": motivo, "tx": res["tx"]})
+                rb.dirty_pos.add(p["id"])
+                rb.ev(t, p["wallet"], p["token"], "REAL vendeu parte", f"{frac * 100:.0f}% · {motivo}", res["tx"])
+                return None
+            tr = rb.close(p, t, motivo, p.get("px_now"))
+            rb.ev(t, p["wallet"], p["token"], "REAL fechou", f"{motivo} · {tr['pnl_eth']:+.5f} ETH", res["tx"])
+            return tr
+        except Exception as e:
+            p["sell_error"] = str(e)[:200]
+            p["sell_retry_at"] = time.time() + hoodreal.RETRY_S
+            p.setdefault("retry_frac", frac)
+            rb.dirty_pos.add(p["id"])
+            rb.ev(time.time(), p["wallet"], p["token"], "REAL falhou ao vender", str(e)[:200])
+            log.warning("Robinhood REAL: venda falhou (%s…): %s", p["token"][:10], str(e)[:160])
+            if manual:
+                raise
+            return None
+        finally:
+            p["selling"] = False
+            await self.flush()
+
+    # ------------------------------------------------------------------ laço (chamado pela leitura a cada volta)
+    async def tick(self) -> None:
+        now = time.time()
+        for b in self.books.values():
+            b.timeouts(now)
+        bal = now - self._rbal_at > 30
+        if bal:
+            self._rbal_at = now
+        for uid, rb in list(self.real.items()):
+            cf = self.book(uid).cfg
+            for p in list(rb.pos.values()):
+                if now - p["open_t"] >= cf["max_hold_h"] * 3600:
+                    p["retry_frac"] = 1.0
+                    self._spawn(self._real_sell(uid, p, 1.0, f"tempo máximo de {cf['max_hold_h']:g} h"))
+                elif p.get("sell_error") and (p.get("sell_retry_at") or 0) <= now and p.get("retry_frac"):
+                    self._spawn(self._real_sell(uid, p, p["retry_frac"], "nova tentativa de venda"))
+            if bal and (rb.address or self.rcfg(uid).get("real_on")):
+                _, addr = await self.get_key(uid)
+                if addr:
+                    try:
+                        rb.balance, rb.balance_t = await self.chain.balance(addr) / 1e18, now
+                    except Exception:
+                        pass
+        await self.price_tick(now)
+        await self.flush()
+
+    async def price_tick(self, now: float) -> None:
+        """Token aberto sem troca lida há PRICE_S: preço pela cotação de venda do Quoter (o que a posição receberia)."""
+        n = 0
+        for tk in self.held():
+            last = max(self.w.px.get(tk, (0, 0))[1], self._px_at.get(tk, 0))
+            if now - last < PRICE_S or n >= PRICE_MAX:
+                continue
+            pos = [p for b in self.books.values() for p in b.pos.values() if p["token"] == tk] + \
+                  [p for rb in self.real.values() for p in rb.pos.values() if p["token"] == tk]
+            key = next((p.get("key") for p in pos if p.get("key")), None)
+            if not key:
+                continue
+            n += 1
+            self._px_at[tk] = now
+            try:                                              # 10% da menor posição: pouco impacto no preço do pool
+                amt = max(10 ** 12, int(min(p["tokens_left"] for p in pos) * 1e17))
+                w = evm.words(await self._call(hoodsafe.QUOTER, v4_quote_data(key, amt, False)))
+            except Exception:
+                continue
+            if not w or not w[0]:
+                continue
+            fee = key[2] / 1e6
+            px = w[0] / amt / max(0.01, 1 - fee)              # o Quoter já tira a taxa do pool: volta ao preço sem ela
+            self.w.px[tk] = (px, now)
+            for b in self.books.values():
+                b.on_price(tk, px, now)
+            for uid, rb in list(self.real.items()):
+                self._real_price(uid, rb, tk, px, now)
+
+    # ------------------------------------------------------------------ chave, liga/desliga, valores
+    async def set_key(self, uid: str, value: str) -> str:
+        key = evm.parse_key(value)
+        await self.vault.save(uid, HOOD_KEY_NAME, value.strip())
+        self._keys.pop(uid, None)
+        _, addr = await self.get_key(uid)
+        return addr or evm.address_of(key)
+
+    async def remove_key(self, uid: str) -> None:
+        self.rcfg(uid)["real_on"] = False
+        await self.vault.delete(uid, HOOD_KEY_NAME)
+        self._keys.pop(uid, None)
+        rb = self.real.get(uid)
+        if rb:
+            rb.address, rb.balance = None, None
+        self.book(uid).dirty_book = True
+        await self.flush()
+
+    async def set_real(self, uid: str, on: bool) -> dict:
+        rc = self.rcfg(uid)
+        if on:
+            if not self.real_allowed:
+                raise ValueError("a trava geral do servidor está fechada (PUMP_REAL_ALLOWED=false): nada é enviado")
+            key, _ = await self.get_key(uid)
+            if not key:
+                raise ValueError("cole antes a chave privada da carteira da Robinhood em Carteira")
+            rc["real_on"], rc["on_since"] = True, time.time()
+        else:
+            rc["real_on"] = False
+        self.book(uid).dirty_book = True
+        await self.flush()
+        return self.real_status(uid)
+
+    async def save_real_cfg(self, uid: str, raw: dict) -> dict:
+        rc = self.rcfg(uid)
+        keep = {k: rc[k] for k in ("real_on", "on_since") if k in rc}
+        self.real_cfg[uid] = {**hoodreal.clean(raw, rc), **keep}
+        self.book(uid).dirty_book = True
+        await self.flush()
+        return self.real_cfg[uid]
+
+    async def save_book_cfg(self, uid: str, raw: dict) -> dict:
+        b = self.book(uid)
+        old = b.cfg["saldo_inicial"]
+        b.cfg = clean_cfg(raw, b.cfg)
+        b.cash += b.cfg["saldo_inicial"] - old             # mudar o saldo inicial soma/tira a diferença do saldo
+        b.dirty_book = True
+        await self.flush()
+        return b.cfg
+
+    def close_manual(self, uid: str, pid: str) -> dict | None:
+        b = self.book(uid)
+        p = b.pos.get(pid)
+        return b.sell(p, 1.0, None, time.time(), "vendido por você") if p else None
+
+    async def close_real(self, uid: str, pid: str) -> dict | None:
+        p = self.rbook(uid).pos.get(pid)
+        return await self._real_sell(uid, p, 1.0, "vendido por você", manual=True) if p else None
+
+    async def close_all(self, uid: str, real: bool) -> dict:
+        if not real:
+            b = self.book(uid)
+            out = [b.sell(p, 1.0, None, time.time(), "vendido por você (vender todas)") for p in list(b.pos.values())]
+            await self.flush()
+            return {"vendidas": len([x for x in out if x]), "falhas": 0}
+        ok = bad = 0
+        for p in list(self.rbook(uid).pos.values()):
+            try:
+                if await self._real_sell(uid, p, 1.0, "vendido por você (vender todas)", manual=True):
+                    ok += 1
+            except Exception:
+                bad += 1
+        return {"vendidas": ok, "falhas": bad}
+
+    # ------------------------------------------------------------------ telas
+    def painel(self, uid: str, now: float | None = None, real: bool = False) -> dict:
+        now = now or time.time()
+        b = self.book(uid)
+        rc = self.rcfg(uid)
+        base = {"cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
+                "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
+                "copiaria": self.w.ranking(now)["copiaria"], "explorer": "https://robinhoodchain.blockscout.com"}
+        if real:
+            rb = self.rbook(uid)
+            pos = []
+            for p in sorted(rb.pos.values(), key=lambda x: x["open_t"], reverse=True):
+                v, pct = rb.pnl_now(p, rc["real_slip_pct"])
+                pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
+                                                      "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling")},
+                            "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600, "real": True})
+            return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
+                    "trades": rb.trades[:500], "eventos": rb.events[:100]}
+        pos = []
+        for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
+            v, pct = b.pnl_now(p)
+            pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
+                                                  "best_pct", "worst_pct", "lag_s", "tx_in", "vendas")},
+                        "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
+        return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100]}
+
+    # ------------------------------------------------------------------ banco (hood_books, hood_positions, hood_trades)
+    async def flush(self) -> None:
+        if self.db is None:
+            for b in list(self.books.values()) + list(self.real.values()):
+                b.dirty_pos.clear()
+                b.closed_pos.clear()
+                b.new_trades.clear()
+                if hasattr(b, "dirty_book"):
+                    b.dirty_book = False
+            return
+        for b in list(self.books.values()):
+            try:
+                if b.dirty_book:
+                    await self.db.insert("hood_books", {"user_id": b.user_id, "cfg": {**b.cfg, "real": self.rcfg(b.user_id)}, "cash": b.cash},
+                                         upsert=True, on_conflict="user_id")
+                    b.dirty_book = False
+                if b.new_trades:
+                    rows = [{"id": x["id"], "user_id": b.user_id, "t": x["close_t"], "data": x} for x in b.new_trades]
+                    await self.db.insert("hood_trades", rows, upsert=True, on_conflict="id")
+                    b.new_trades.clear()
+                for pid in list(b.closed_pos):
+                    await self.db.delete("hood_positions", {"id": pid, "user_id": b.user_id})
+                    b.closed_pos.discard(pid)
+                ids = set(b.dirty_pos)
+                rows = [{"id": pid, "user_id": b.user_id, "data": b.pos[pid]} for pid in ids if pid in b.pos]
+                if rows:
+                    await self.db.insert("hood_positions", rows, upsert=True, on_conflict="id")
+                b.dirty_pos -= ids
+            except Exception as e:
+                log.warning("Robinhood: carteira fictícia não gravou: %s", str(e)[:160])
+        for rb in list(self.real.values()):
+            try:
+                if rb.new_trades:
+                    rows = [{"id": x["id"], "user_id": rb.user_id, "t": x["close_t"], "data": x} for x in rb.new_trades]
+                    await self.db.insert("hood_trades", rows, upsert=True, on_conflict="id")
+                    rb.new_trades.clear()
+                for pid in list(rb.closed_pos):
+                    await self.db.delete("hood_positions", {"id": pid, "user_id": rb.user_id})
+                    rb.closed_pos.discard(pid)
+                ids = set(rb.dirty_pos)
+                rows = [{"id": pid, "user_id": rb.user_id, "data": {k: v for k, v in rb.pos[pid].items() if k != "selling"}}
+                        for pid in ids if pid in rb.pos]
+                if rows:
+                    await self.db.insert("hood_positions", rows, upsert=True, on_conflict="id")
+                rb.dirty_pos -= ids
+            except Exception as e:
+                log.warning("Robinhood: carteira REAL não gravou: %s", str(e)[:160])
+
+    async def load(self) -> None:
+        if self.db is None:
+            return
+        for r in await self.db.select("hood_books", None) or []:
+            b = self.books[r["user_id"]] = Book(r["user_id"], r.get("cfg"), r.get("cash"))
+            b.dirty_book = False
+            rc = (r.get("cfg") or {}).get("real")
+            if isinstance(rc, dict):
+                self.real_cfg[r["user_id"]] = {**hoodreal.clean(rc, rc), **{k: rc[k] for k in ("real_on", "on_since") if k in rc}}
+        for r in await self.db.select("hood_positions", None) or []:
+            d = r.get("data")
+            if not isinstance(d, dict) or not r.get("user_id"):
+                continue
+            if d.get("real"):
+                self.rbook(r["user_id"]).pos[r["id"]] = d
+            elif r["user_id"] in self.books:
+                self.books[r["user_id"]].pos[r["id"]] = d
+        for r in await self.db.select("hood_trades", None, order="t.desc", limit=20000) or []:
+            d = r.get("data")
+            if not isinstance(d, dict):
+                continue
+            b = self.rbook(r["user_id"]) if d.get("real") and r.get("user_id") else self.books.get(r.get("user_id"))
+            if b is not None and len(b.trades) < KEEP_TRADES:
+                b.trades.append(d)

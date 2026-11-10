@@ -53,6 +53,8 @@ def build_app():
     if os.environ.get("HOOD_ON", "true").lower() not in ("0", "false", "no", "off"):
         from .hood import HoodWatch
         hub.hood = HoodWatch(http, db)
+        hub.hood.copier.vault = hub.vault             # 0.32.279: chave da carteira da Robinhood (cofre criptografado)
+        hub.hood.copier.real_allowed = hub.real_allowed   # mesma trava geral (PUMP_REAL_ALLOWED)
     # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
     hub.dormant = None
     if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):

@@ -17,6 +17,10 @@ Como lê (conferido na rede em 04/11/2026, RPC grátis oficial rpc.mainnet.chain
 - O RPC grátis devolve "429 Too Many Requests" com muitas consultas seguidas: aqui são 3 eth_getLogs por volta (trocas,
   transferências saindo e entrando no PoolManager/roteadores), nunca uma consulta por transação.
 
+Etapa 2 (0.32.279, pedido do dono em 10/11/2026: "faz 1 a 4"): a cópia (hoodcopy) recebe cada trade novo, a leitura das trocas
+também traz o evento Initialize dos pools novos (mesma consulta, filtro OU) para a cópia ter a chave do pool, e cada trade guarda a
+taxa do pool (último campo do Swap) e o preço do token (ETH ÷ quantidade).
+
 Limites desta etapa: transações com mais de uma troca (rotas com vários pools) ficam de fora; o ranking guarda só as
 últimas 24 h na memória (a rede tem ~100× o volume da Four.Meme e o banco não aguentaria cada trade); depois de reiniciar,
 relê no máximo 30 min da rede. O banco guarda só o ponto da leitura e a regra do ranking (tabela hood_state).
@@ -34,6 +38,7 @@ log = logging.getLogger("hood")
 CHAIN_ID = 4663
 PM = "0x8366a39cc670b4001a1121b8f6a443a643e40951"                                  # Uniswap V4 PoolManager
 T_SWAP = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f"   # Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)
+T_INIT = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438"    # Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)
 T_TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"  # Transfer(address,address,uint256)
 WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73"                                # 18 casas (conferido na rede)
 USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168"                                # dólar, 6 casas (conferido na rede)
@@ -148,7 +153,8 @@ def decode(swap: dict, legs: list[tuple], n_swaps: int, eth_usd: float | None) -
         return None
     return {"id": f"{swap.get('transactionHash')}:{int(swap.get('logIndex') or '0x0', 16)}", "tx": swap.get("transactionHash"),
             "block": int(swap.get("blockNumber") or "0x0", 16), "token": meme, "wallet": who, "side": side,
-            "amount": amount / 1e18, "eth": round(v, 9), "quote": quote, "pool": (swap.get("topics") or ["", ""])[1]}
+            "amount": amount / 1e18, "eth": round(v, 9), "quote": quote, "pool": (swap.get("topics") or ["", ""])[1],
+            "fee": int(d[2 + 64 * 5:2 + 64 * 6], 16) if len(d) >= 2 + 64 * 6 else None}
 
 
 def rank(trades, now: float, cfg: dict, balances: dict) -> dict:
@@ -252,6 +258,10 @@ class HoodWatch:
         self._bal_q: deque = deque()
         self._rank_cache: tuple[float, dict] | None = None
         self.loaded = False
+        self.px: dict[str, tuple[float, float]] = {}      # token → (preço em ETH, hora): última troca vista ou cotação da cópia
+        self.hold: dict[tuple, float] = {}                # (carteira, token) → quantidade vista (para vender a mesma parte)
+        from .hoodcopy import Copier
+        self.copier = Copier(self, http, db)
 
     # ------------------------------------------------------------------ RPC
     async def rpc(self, method: str, params: list):
@@ -300,7 +310,11 @@ class HoodWatch:
 
     async def window(self, a: int, b: int) -> list[dict]:
         """Lê os blocos a..b: 3 consultas (trocas, transferências saindo e entrando no PoolManager e nos roteadores)."""
-        swaps = await self.rpc("eth_getLogs", [{"address": PM, "topics": [T_SWAP], "fromBlock": hex(a), "toBlock": hex(b)}]) or []
+        logs = await self.rpc("eth_getLogs", [{"address": PM, "topics": [[T_SWAP, T_INIT]], "fromBlock": hex(a), "toBlock": hex(b)}]) or []
+        swaps = [x for x in logs if ((x.get("topics") or [""])[0] or "").lower() == T_SWAP]
+        inits = [x for x in logs if ((x.get("topics") or [""])[0] or "").lower() == T_INIT]
+        if inits:
+            self.copier.note_init(inits)
         for s in swaps:
             self.routers[_topic_addr((s.get("topics") or ["", "", ""])[2])] += 1
         if not swaps:
@@ -342,6 +356,7 @@ class HoodWatch:
         if self.cursor is None or head - self.cursor > CATCHUP_S / self.block_s:
             self.cursor = head - int(600 / self.block_s)          # sem ponto guardado (ou muito velho): começa 10 min atrás
         n, t0 = 0, time.time()
+        cop = set(self.ranking()["copiaria"])             # uma vez por volta: cada trade novo invalida o ranking guardado
         while self.cursor < head and time.time() - t0 < 25:
             a = self.cursor + 1
             b = min(head, a + self.span - 1)
@@ -349,7 +364,12 @@ class HoodWatch:
                 if tr["id"] in self.seen:
                     continue
                 tr["t"] = round(ht - (head - tr["block"]) * self.block_s, 1)
+                before = self.hold.get((tr["wallet"], tr["token"]), 0.0)
                 self._add(tr)
+                try:
+                    self.copier.on_trade(tr, before, cop)
+                except Exception as e:                     # a cópia nunca para a leitura
+                    log.warning("Robinhood: cópia falhou num trade: %s", str(e)[:160])
                 n += 1
             self.cursor = b
             await asyncio.sleep(1.0)                       # espaça as consultas (o RPC grátis devolve 429 com rajadas)
@@ -365,12 +385,22 @@ class HoodWatch:
             self.seen.discard(self.trades[0]["id"])
         self.trades.append(tr)
         self.seen.add(tr["id"])
+        k = (tr["wallet"], tr["token"])
+        self.hold[k] = max(0.0, self.hold.get(k, 0.0) + tr["amount"] * (1 if tr["side"] == "buy" else -1))
+        if tr.get("amount") and tr.get("quote") == "ETH" and (tr["token"] not in self.px or tr.get("t", 0) >= self.px[tr["token"]][1]):
+            self.px[tr["token"]] = (tr["eth"] / tr["amount"], tr.get("t", 0))
         self._rank_cache = None
 
     def trim(self, now: float | None = None) -> None:
         lim = (now or time.time()) - KEEP_S
         while self.trades and self.trades[0]["t"] < lim:
             self.seen.discard(self.trades.popleft()["id"])
+        if len(self.hold) > 200_000:                       # quem não aparece mais nas últimas 24 h sai da conta do que segura
+            live = {(t["wallet"], t["token"]) for t in self.trades}
+            self.hold = {k: v for k, v in self.hold.items() if k in live}
+        if len(self.px) > 50_000:
+            keep = self.copier.held()
+            self.px = {k: v for k, v in self.px.items() if k in keep or v[1] >= lim}
 
     async def balances_tick(self, wallets: list[str]) -> None:
         """Saldo das carteiras do topo (ETH + WETH + USDG), no máximo 3 por volta; vale 30 min."""
@@ -412,6 +442,10 @@ class HoodWatch:
                         self.cursor = int(r["v"].get("block") or 0) or None
             except Exception as e:
                 log.warning("Robinhood: estado guardado não carregou: %s", str(e)[:160])
+            try:
+                await self.copier.load()
+            except Exception as e:
+                log.warning("Robinhood: carteiras da cópia não carregaram: %s", str(e)[:160])
         self.loaded = True
 
     async def save_state(self) -> None:
@@ -443,6 +477,10 @@ class HoodWatch:
                 except Exception as e:
                     self.stat["erros"] += 1
                     self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = (str(e) or type(e).__name__)[:200], time.time()
+            try:                                           # tempo máximo, preço e vendas da cópia seguem mesmo com o RPC pedindo calma
+                await asyncio.wait_for(self.copier.tick(), 40)
+            except Exception as e:
+                log.warning("Robinhood: volta da cópia falhou: %s", str(e)[:160])
                 if time.time() - self._save_at > 60:
                     self._save_at = time.time()
                     await self.save_state()

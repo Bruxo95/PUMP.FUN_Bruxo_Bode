@@ -1701,3 +1701,19 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.276: botão `pump_edge_on` também em Carteiras → REAL; `data-gotrt="lab"` (link que abre o Top traders já numa aba, via `TRT`/`pf_trt`).
 - 0.32.277 (pedido do dono, 10/11: a fictícia comprou com lucro e a REAL não, 21× em 6 h por "só fictícia" do estudo): `pump_real_full_mirror` (OFF, `AUTO_SWITCHES`, `TGL_REAL`) → `PumpFun.sim_only` ignora `sim_only_list`, `study_copy`, `study_lucro` e `study`; ficam `needs_proof` (`pump_real_need_win`) e `edge_why` (`pump_edge_on`). Carteiras → REAL: `.mirbox` "Espelho: o que vai para a REAL" (Espelhar 100%, Cópia exata, Espelho total, lucro, só quem dá resultado, idade mínima) e "Telas que compram na REAL" (`drawRealTabs`, `#realTabs`: `data-clone` da chave REAL de cada linha de `ABAS_TR`, com o `data-confirm` da original). **Chave nova que decide se vai para a REAL = entra no bloco Espelho; tela nova com REAL = linha em `ABAS_TR` (aparece sozinha no bloco).** Relatório `app/relatorios_ia/2026-11-10-0.32.277.md`. `tests/test_espelho_total.py`.
 - 0.32.278 (pedido do dono): Abastecer do Dormant. `GasFiller.routes` + `GET /api/dormant/gas/rotas?destino=` cotam cada origem de `ORIGENS` com `AMOSTRA_USD` (US$ 2) e devolvem ok/taxa/tempo ou o motivo (sem carteira, saldo baixo, Relay não cota), mais o preço das moedas; só cota. Tela: `openGas` → `gasRoutes` (`#gasRts`, rádio `gasR`, `gasPick`) e `gasConv` (`#gasConv`, valor em moeda de origem e quanto chega). `_relay_quote` traduz `AMOUNT_TOO_LOW`. Conferido em 10/11 na Relay: as 4 origens cotam US$ 2 para a Avalanche (depository fixo) e recusam US$ 0,01 (o erro do dono era o valor). `tests/test_dormant_gas.py`.
+
+## Robinhood Chain, etapa 2: cópia (2026-11-10, versão 0.32.279)
+- Pedido do dono ("faz 1 a 4"). **Regra continua: tela, chave ou opção da Robinhood só no `/hood`.**
+- `app/hoodcopy.py`: `Book` (FICTÍCIA em ETH por admin, criada ao abrir o painel) e `Copier` (`HoodWatch.copier`):
+  - `on_trade` em cada trade novo do `poll`, com o `copiaria` calculado uma vez por volta;
+  - `_prepare`: `pool_key` (Initialize lido junto com as trocas, `note_init`; ou procurado pela data do GeckoTerminal) e `hoodsafe`;
+  - `_buy_all`, `tick` (tempo máximo, REAL, `price_tick` pelo Quoter a cada 30 s) e `flush`/`load`.
+- Só pool V4 pago em ETH (`key[0]` = 0). `hood.decode` guarda `fee` (último campo do Swap); `HoodWatch.px`/`hold`.
+- `app/hoodsafe.py`: GoPlus 4663, ida e volta pelo Quoter (`ROUNDTRIP_MAX` 12%), transferência simulada da carteira do trader para o
+  PoolManager (honeypot) e 18 casas. Falha nunca compra.
+- `app/hoodreal.py`: REAL pela Uniswap V4 (Universal Router, reaproveita `v4_data` e Permit2 do `dormant_buy`).
+  - Começa OFF: liga em Carteira com LIGAR, chave `hood_private_key` (em `BNB_SECRET_NAMES`, fora das Chaves pessoais) e `PUMP_REAL_ALLOWED`.
+  - Autoriza o Permit2 e o roteador só na quantidade comprada.
+- Rotas `/api/hood/painel|conta|fechar|fechar-todas|chave|chave/remover|real|real/cfg`. Tabelas `hood_books`/`hood_positions`/`hood_trades`
+  e o nome novo em `user_secrets_nome_check` (migração `20261110000001`). Telas Posições, Histórico, Carteira e o botão FICTÍCIA/REAL.
+- Nenhuma compra REAL enviada. A primeira deve ser pequena, numa carteira nova. `tests/test_hood_copia.py`.

@@ -2150,6 +2150,11 @@
    "versao": "0.32.278",
    "inicio": "2026-11-10T10:03:51+00:00",
    "titulo": "Dormant: Abastecer mostra as rotas ao abrir e o valor em moeda enquanto digita"
+  },
+  {
+   "versao": "0.32.279",
+   "inicio": "2026-11-10T16:55:56+00:00",
+   "titulo": "Robinhood: cópia dos traders na FICTÍCIA, checagem do token golpe e carteira REAL (desligada)"
   }
  ]
 }

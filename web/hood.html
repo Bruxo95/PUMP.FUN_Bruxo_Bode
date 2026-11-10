@@ -25,6 +25,12 @@
   @media (max-width:860px){.hubbtn span{display:none}}
   .hdsub{margin-bottom:14px}
   .hdaddr{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+  .hdtoast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:90;background:#16a34a;color:#fff;font-weight:600;padding:10px 16px;border-radius:10px;max-width:calc(100vw - 32px)}
+  .hdsec{margin:22px 0 12px;font-size:14px;color:var(--muted);font-weight:600}
+  .hdask{margin-top:12px;border:1px dashed var(--down);border-radius:10px;padding:12px}
+  #modeSeg button[data-mode="real"].on{background:var(--real);color:#111}
+  #rlKey{flex:1 1 220px;min-width:0}
+  @media (max-width:860px){#modeSeg button{padding:0 7px}}
 </style>
 </head>
 <body>
@@ -37,6 +43,9 @@
     <div class="lbl">Painel</div>
     <nav class="nav" id="nav">
       <a href="#visao" data-v="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>Visão geral</a>
+      <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Posições</a>
+      <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>Histórico</a>
+      <a href="#carteira" data-v="carteira"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12l2 3M16 13h2"/></svg>Carteira</a>
       <a href="#traders" data-v="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Top traders</a>
     </nav>
     <div class="sp"></div>
@@ -45,6 +54,7 @@
   </aside>
   <nav class="tabbar" id="tabbar" aria-label="Atalhos">
     <a href="#visao" data-tv="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Início</span></a>
+    <a href="#posicoes" data-tv="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Posições</span></a>
     <a href="#traders" data-tv="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Traders</span></a>
     <button type="button" id="tbMenu" aria-label="Abrir o menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
   </nav>
@@ -57,16 +67,22 @@
       </div>
       <div class="tb-right">
         <span class="netload" id="netLoad" hidden aria-live="polite"></span>
+        <div class="seg" id="modeSeg" title="Qual carteira mostrar"><button data-mode="sim">FICTÍCIA</button><button data-mode="real">REAL</button></div>
         <a class="btn sm hubbtn" href="/entrar" title="Escolher outra rede"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-3-3M17 17H4l3 3"/></svg><span>Trocar rede</span></a>
         <button class="btn sm" id="hdOut" type="button">Sair</button>
       </div>
     </header>
     <main class="page">
-      <div class="hdnote"><b>Etapa 1 · só leitura.</b> Este painel lê as compras e vendas de memecoins da Robinhood Chain (pools da Uniswap V4, pagos em ETH, WETH ou USDG) e monta o ranking dos traders pela regra do Top traders. <b>Não compra nem vende nada.</b> É separado da pump.fun e da BNB.</div>
+      <div class="hdnote" id="hdNote"><b>Etapa 2 · cópia.</b> Quando um trader do "Copiaria agora" compra um memecoin num pool da Uniswap V4 pago em ETH, o robô confere o token e copia na carteira <b>FICTÍCIA</b>; quando ele vende, vende a mesma parte. A carteira <b>REAL</b> começa desligada e só liga em Carteira, digitando LIGAR. É separado da pump.fun e da BNB.</div>
       <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
         <header><div><h2 id="sysMT">Monitor da Robinhood Chain</h2><div class="sub">leitura da rede pelo RPC grátis oficial</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
         <div id="sysMB"></div></div></div>
       <section class="view" data-view="visao" hidden>
+        <div class="kpis" id="myK"></div>
+        <div class="kpis" id="myP" style="margin-top:12px"></div>
+        <div class="card" style="margin-top:16px"><header><div><h2>O que a cópia fez</h2><div class="sub" id="evSub">compras copiadas, vendas e o motivo de cada compra que não foi copiada · mais novos primeiro</div></div></header>
+          <div class="tbl-wrap tall"><table id="ovEv"></table></div></div>
+        <h3 class="hdsec">A rede agora</h3>
         <div class="kpis" id="ovK"></div>
         <div class="grid2e vgtop" style="margin-top:16px">
           <div class="card"><header><div><h2>Tokens mais negociados</h2><div class="sub">na última hora · compras e vendas vistas</div></div></header>
@@ -78,6 +94,36 @@
           <div class="decbox" id="ovSt"></div>
           <div class="help"><p><b>Como lê:</b> toda troca da Uniswap V4 da rede passa pelo mesmo contrato (o PoolManager). O robô lê essas trocas e as transferências de token da mesma transação: o memecoin é o token que entra ou sai do pool (que não é WETH nem USDG), e o trader é quem recebe ou envia esse token. Transações que passam por vários pools de uma vez ainda ficam de fora.</p>
           <p><b>Memória:</b> nesta etapa o ranking usa as últimas 24 h, guardadas só na memória do servidor (a rede tem mais de 100 vezes o volume da Four.Meme). Depois de uma atualização do sistema, o robô relê até 30 min direto da rede; o ranking volta a encher com as horas.</p></div></div>
+      </section>
+      <section class="view" data-view="posicoes" hidden>
+        <div class="card"><header><div><h2 id="poT">Posições abertas</h2><div class="sub" id="poSub"></div></div><div class="sp"></div><button class="btn sm" id="poAll" type="button">Vender todas</button></header>
+          <div class="tbl-wrap"><table id="poTb"></table></div>
+          <div class="help"><p><b>Preço:</b> o de cada troca do token vista na rede e, quando o token fica parado, a cotação de venda do contrato oficial da Uniswap (o que a posição receberia) a cada 30 s. O resultado já desconta a taxa do pool, a folga (slippage) e o gás.</p></div></div>
+      </section>
+      <section class="view" data-view="historico" hidden>
+        <div class="kpis" id="hiK"></div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Posições fechadas</h2><div class="sub" id="hiSub">mais novas primeiro</div></div></header>
+          <div class="tbl-wrap"><table id="hiTb"></table></div></div>
+      </section>
+      <section class="view" data-view="carteira" hidden>
+        <div class="grid2e">
+          <div class="card"><header><div><h2>Cópia FICTÍCIA</h2><div class="sub">carteira de mentira em ETH desta conta · nada é enviado à rede</div></div><div class="sp"></div><button class="btn tgl sw" id="cfOn" type="button" role="switch"></button></header>
+            <div class="form" id="cfF"></div>
+            <div class="row" style="margin-top:10px"><button class="btn primary" id="cfSave" type="button">Salvar</button><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button></div>
+            <div class="help"><p>Tempo máximo e stop valem também para a REAL. Mudar o saldo inicial soma ou tira a diferença do saldo de agora.</p></div></div>
+          <div class="card"><header><div><h2>Carteira REAL</h2><div class="sub">compra e vende de verdade pela Uniswap V4 · começa desligada</div></div><div class="sp"></div><button class="btn tgl sw" id="rlOn" type="button" role="switch"></button></header>
+            <div class="decbox" id="rlSt"></div>
+            <div class="field" style="margin-top:12px"><label for="rlKey">Chave privada da carteira da Robinhood Chain</label>
+              <div class="row"><input class="in" id="rlKey" type="password" autocomplete="off" spellcheck="false" placeholder="cole aqui (fica criptografada no servidor e nunca volta para a tela)"><button class="btn sm" id="rlKeySave" type="button">Salvar chave</button><button class="btn sm" id="rlKeyDel" type="button">Remover</button></div>
+              <small class="muted">Use uma carteira nova, só para isto, com pouco ETH. Nunca cole esta chave no chat.</small></div>
+            <div class="form" id="rlF" style="margin-top:12px"></div>
+            <div class="row" style="margin-top:10px"><button class="btn primary" id="rlSave" type="button">Salvar valores da REAL</button></div>
+            <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div></div>
+        </div>
+        <div class="card" style="margin-top:16px"><header><div><h2>Segurança do token</h2><div class="sub">conferido antes de cada compra copiada, na FICTÍCIA e na REAL · nada é enviado</div></div></header>
+          <div class="kpis" id="sfK"></div>
+          <div class="help"><p><b>O que confere:</b> 1) o pool é da Uniswap V4 e pago em ETH (a chave do pool lida na rede tem que dar o id do pool); 2) a GoPlus, quando tiver dados desta rede (honeypot, taxa acima do limite, dono que muda saldo ou pausa transferências); 3) <b>ida e volta</b>: o contrato oficial da Uniswap cota comprar 0,01 ETH do token e vender de volta; perder mais que o limite barra (taxa escondida ou pool vazio); 4) <b>transferência</b>: simula o token saindo da carteira do próprio trader para o pool; se a rede recusa, é honeypot. Token barrado fica 6 h sem compra; aprovado é conferido de novo em 10 min.</p></div>
+          <div class="tbl-wrap"><table id="sfT"></table></div></div>
       </section>
       <section class="view" data-view="traders" hidden>
         <div class="seg hdsub" id="trTab"><button data-trt="rank">Ranking</button><button data-trt="aj">Regra do ranking</button></div>

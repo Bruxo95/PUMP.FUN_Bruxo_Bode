@@ -4,7 +4,22 @@
   "use strict";
   const $ = (id) => document.getElementById(id);
   const esc = (s) => BB.esc(s);
-  const TITLES = { visao: ["Visão geral", "o que a Robinhood Chain está negociando agora"], traders: ["Top traders", "ranking dos traders de memecoin e a regra"] };
+  const TITLES = { visao: ["Visão geral", "a sua cópia e o que a Robinhood Chain está negociando agora"], posicoes: ["Posições", "o que a cópia tem aberto agora"],
+    historico: ["Histórico", "posições fechadas da cópia"], carteira: ["Carteira", "cópia FICTÍCIA, carteira REAL e segurança do token"],
+    traders: ["Top traders", "ranking dos traders de memecoin e a regra"] };
+  // 0.32.279 (pedido do dono, 10/11: "faz 1 a 4"): cópia FICTÍCIA em ETH, conferência do token e carteira REAL (desligada)
+  const CF_INFO = [
+    ["eth_por_compra", "ETH por compra", "ETH", 0.0005, 5, 0.001], ["max_abertas", "Posições abertas no máximo", "posições", 1, 100, 1],
+    ["max_hold_h", "Tempo máximo da posição", "h", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = desligado)", "%", 0, 100, 1],
+    ["slip_pct", "Folga de preço simulada (slippage)", "%", 0, 50, 0.5], ["gas_eth", "Gás simulado por transação", "ETH", 0, 0.01, 0.00001],
+    ["saldo_inicial", "Saldo inicial fictício", "ETH", 0.001, 1000, 0.1],
+  ];
+  const RL_INFO = [
+    ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0005], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
+    ["real_slip_pct", "Folga de preço na REAL (slippage)", "%", 1, 49, 1], ["real_perda_dia", "Perda do dia que para a REAL", "ETH", 0.0005, 5, 0.001],
+  ];
+  let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
+  try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
   const RK_INFO = [
     ["min_trades", "Trades mínimos no período", "trades", 0, 100000, 1], ["min_winrate", "Acerto acima de", "%", 0, 100, 1],
     ["min_closed", "Tokens fechados mínimos (para medir o acerto)", "tokens", 1, 1000, 1],
@@ -113,9 +128,92 @@
         (p[x[0]] !== c[x[0]] ? " · padrão " + esc(p[x[0]]) : "") + "</span></div></div>").join("");
     }
   }
+  // ------------------------------------------------------------------ cópia (0.32.279)
+  function toast(msg) {
+    let el = $("hdToast");
+    if (!el) { el = document.createElement("div"); el.id = "hdToast"; el.className = "hdtoast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+    el.textContent = msg; el.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 2600);
+  }
+  const dur = (s) => (s < 60 ? Math.round(s) + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1).replace(".", ",") + " h" : (s / 86400).toFixed(1).replace(".", ",") + " dias");
+  const mtag = () => (REAL ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>');
+  const pct = (v) => (v == null ? "—" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : "") + num(v, 1) + "%</span>");
+  function fieldHtml(pre, info, c, p) {
+    return info.map((x) => '<div class="field"><label for="' + pre + x[0] + '">' + esc(x[1]) + '</label><div class="row"><input class="in w120" id="' + pre + x[0] +
+      '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><span class="muted">' + esc(x[2]) +
+      (p && p[x[0]] !== c[x[0]] ? " · padrão " + esc(p[x[0]]) : "") + "</span></div></div>").join("");
+  }
+  function drawMy() {
+    const w = (P && P.carteira) || {}, pr = (w.periodos || []);
+    if (REAL) {
+      kpis("myK", [["Saldo da carteira " + mtag(), w.saldo == null ? "—" : num(w.saldo, 5) + " ETH", w.endereco ? short(w.endereco) : "sem chave salva", "mon"],
+        ["Resultado " + mtag(), eth(w.resultado, 5), pct(w.resultado_pct) + " do que entrou", "tr"],
+        ["Posições abertas", num(w.abertas, 0), num(w.fechadas, 0) + " fechadas", "tr"],
+        ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", "posições fechadas com lucro", "usr"]]);
+    } else {
+      kpis("myK", [["Saldo " + mtag(), num(w.saldo, 5) + " ETH", "começou com " + num(w.inicial, 4) + " ETH", "mon"],
+        ["Resultado " + mtag(), eth(w.resultado, 5), pct(w.resultado_pct) + " sobre o inicial", "tr"],
+        ["Posições abertas", num(w.abertas, 0), num(w.em_posicoes, 5) + " ETH nelas", "tr"],
+        ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", num(w.fechadas, 0) + " fechadas", "usr"]]);
+    }
+    kpis("myP", pr.map((x) => ["Últimas " + x.h + " h", eth(x.pnl, 5), x.n ? x.n + " fechadas · " + x.ganhos + " com lucro · " + x.traders + " traders" : "nenhuma fechada", "tr"]));
+    table("ovEv", ["Hora", "O que fez", "Token", "Trader", "Motivo"], ((P && P.eventos) || []).slice(0, 80).map((e) => [hora(e.t),
+      /não|falhou/.test(e.acao) ? '<span class="tag loss">' + esc(e.acao) + "</span>" : /comprou|copiou/.test(e.acao) ? '<span class="tag buy">' + esc(e.acao) + "</span>" : '<span class="tag neutral">' + esc(e.acao) + "</span>",
+      tok(e.token), addr(e.wallet), esc(e.motivo || "") + (e.tx ? " · " + txl(e.tx) : "")]),
+    REAL ? "Nada ainda. A REAL só age depois de ligada em Carteira." : "Nada ainda. Assim que um trader do \"Copiaria agora\" comprar, aparece aqui.");
+  }
+  function drawPos() {
+    const ps = (P && P.posicoes) || [];
+    $("poT").innerHTML = "Posições abertas " + mtag();
+    $("poSub").textContent = ps.length + " abertas · " + ((P && P.carteira && P.carteira.fechadas) || 0) + " fechadas";
+    $("poAll").hidden = !ps.length;
+    table("poTb", ["Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", "Pico", "Fecha em", ""], ps.map((p) => [
+      hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
+      tok(p.token), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
+      pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + "</small>",
+      eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
+      p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora",
+      (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small><br>" : "") + '<button class="btn sm" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>"]),
+    REAL ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. A cópia compra quando um trader do \"Copiaria agora\" comprar.");
+  }
+  function drawHist() {
+    const ts = (P && P.trades) || [], w = (P && P.carteira) || {};
+    const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length;
+    kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Resultado das fechadas", eth(pn, 5), "", "tr"],
+      ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Realizado (tudo)", eth(w.realizado, 5), "", "mon"]]);
+    table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Resultado", "Pico", "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
+      tok(x.token), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
+      esc(x.motivo || "") + (x.tx_out ? " · " + txl(x.tx_out) : "")]), REAL ? "Nenhuma posição REAL fechada ainda." : "Nenhuma posição fechada ainda.");
+  }
+  function drawCarteira() {
+    if (!P) return;
+    const c = P.cfg_sim || {}, rc = P.real_cfg || {}, st = P.real_status || {};
+    const on = $("cfOn"); on.classList.toggle("on", !!c.on); on.textContent = c.on ? "Ligada" : "Desligada"; on.setAttribute("aria-checked", c.on ? "true" : "false");
+    const ro = $("rlOn"); ro.classList.toggle("on", !!st.ligada); ro.textContent = st.ligada ? "Ligada" : "Desligada"; ro.setAttribute("aria-checked", st.ligada ? "true" : "false");
+    if (!CF_DIRTY) $("cfF").innerHTML = fieldHtml("cf_", CF_INFO, c, P.padrao);
+    if (!RL_DIRTY) $("rlF").innerHTML = fieldHtml("rl_", RL_INFO, rc, P.real_padrao);
+    $("rlSt").innerHTML = [
+      "Trava geral do servidor: " + (st.permitido ? '<span class="up">aberta</span>' : '<span class="down">fechada (PUMP_REAL_ALLOWED): nada é enviado</span>'),
+      "Chave: " + (st.chave ? '<span class="up">salva</span> · carteira ' + addr(st.endereco) : '<span class="muted">não salva</span>'),
+      "Saldo: " + (st.saldo == null ? "—" : num(st.saldo, 5) + " ETH"),
+      "REAL: " + (st.ligada ? '<span class="up">ligada</span> desde ' + hora(st.desde) : '<span class="down">desligada</span>'),
+    ].join("<br>");
+    const sf = P.seguranca || {}, s = sf.stat || {}, cp = sf.copia || {}, rg = sf.regras || {};
+    kpis("sfK", [["Compras vistas", num(cp.compras_vistas, 0), "dos traders do \"Copiaria agora\"", "tr"], ["Copiadas", num(cp.copiadas, 0), "token aprovado", "tr"],
+      ["Barradas", num(cp.barradas, 0), num(cp.sem_pool, 0) + " sem pool de ETH na V4", "tr"],
+      ["GoPlus", num(s.goplus_com_dados, 0) + " com dados", num(s.goplus_sem_dados, 0) + " sem dados desta rede", "usr"]]);
+    table("sfT", ["Hora", "Token", "Veredito", "Ida e volta", "GoPlus"], (sf.recentes || []).map((x) => [hora(x.t), tok(x.token),
+      x.ok ? '<span class="tag win">aprovado</span>' : '<span class="tag loss">' + (x.erro ? "sem conferência" : "barrado") + "</span> " + esc(x.why || ""),
+      x.ida_volta_pct == null ? "—" : num(x.ida_volta_pct, 1) + "% (máx. " + num(rg.ida_volta_max_pct, 0) + "%)", esc(x.goplus || "—")]),
+    "Nenhum token conferido ainda: a conferência roda na primeira compra de um trader do \"Copiaria agora\".");
+  }
   function draw() {
     drawSys();
-    if (VIEW === "visao") drawVisao();
+    document.querySelectorAll("#modeSeg button").forEach((b) => b.classList.toggle("on", (b.dataset.mode === "real") === REAL));
+    if (VIEW === "visao") { drawMy(); drawVisao(); }
+    if (VIEW === "posicoes") drawPos();
+    if (VIEW === "historico") drawHist();
+    if (VIEW === "carteira") drawCarteira();
     if (VIEW === "traders") drawTraders();
   }
 
@@ -123,8 +221,9 @@
     if (!READY || BUSY || document.hidden) return;
     BUSY = true;
     try {
-      const r = await BB.api("/api/hood", { quiet: true });
+      const [r, p] = await Promise.all([BB.api("/api/hood", { quiet: true }), BB.api("/api/hood/painel" + (REAL ? "?real=1" : ""), { quiet: true })]);
       if (r && !r.error) R = r;
+      if (p && !p.error && p.ligado !== false) P = p;
       draw();
     } catch (e) { /* tenta de novo na próxima volta */ } finally { BUSY = false; }
   }
@@ -144,9 +243,61 @@
   const closeDrawer = () => { $("side").classList.remove("open"); $("scrim").classList.remove("open"); };
 
   // ------------------------------------------------------------------ ações
-  document.addEventListener("input", (e) => { if (e.target && e.target.closest && e.target.closest("#hdCfg")) DIRTY = true; });
+  document.addEventListener("input", (e) => {
+    const t = e.target && e.target.closest ? e.target : null; if (!t) return;
+    if (t.closest("#hdCfg")) DIRTY = true;
+    if (t.closest("#cfF")) CF_DIRTY = true;
+    if (t.closest("#rlF")) RL_DIRTY = true;
+  });
+  const vals = (pre, info) => { const b = {}; info.forEach((x) => { const el = $(pre + x[0]); if (el && el.value !== "") b[x[0]] = Number(el.value); }); return b; };
+  async function post(url, body, btn) {
+    if (btn) btn.disabled = true;
+    try { return await BB.api(url, { body }); } finally { if (btn) btn.disabled = false; }
+  }
   document.addEventListener("click", async (e) => {
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
+    if (t.dataset.mode) { REAL = t.dataset.mode === "real"; try { localStorage.setItem("hood_mode", REAL ? "real" : "sim"); } catch (x) { /* */ } P = null; draw(); load(); return; }
+    if (t.dataset.close) {
+      if (REAL && !confirm("Vender esta posição na carteira REAL agora?")) return;
+      const r = await post("/api/hood/fechar", { id: t.dataset.close, real: REAL }, t);
+      if (r && r.error) alert(r.error); else toast("Vendida.");
+      return load();
+    }
+    if (t.id === "poAll") {
+      let body = { real: REAL };
+      if (REAL) { const w = prompt("Vender TODAS as posições REAL agora? Digite VENDER"); if (!w) return; body.confirm = w; }
+      else if (!confirm("Vender todas as posições fictícias?")) return;
+      const r = await post("/api/hood/fechar-todas", body, t);
+      if (r && r.error) alert(r.error); else toast(r.vendidas + " vendidas" + (r.falhas ? ", " + r.falhas + " falharam" : "") + ".");
+      return load();
+    }
+    if (t.id === "cfOn") { const r = await post("/api/hood/conta", { on: !(P && P.cfg_sim && P.cfg_sim.on) }, t); if (r && r.error) alert(r.error); return load(); }
+    if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); return; }
+    if (t.id === "cfSave") { const r = await post("/api/hood/conta", vals("cf_", CF_INFO), t); if (r && r.error) { alert(r.error); return; } CF_DIRTY = false; toast("Salvo."); return load(); }
+    if (t.id === "rlSave") { const r = await post("/api/hood/real/cfg", vals("rl_", RL_INFO), t); if (r && r.error) { alert(r.error); return; } RL_DIRTY = false; toast("Salvo."); return load(); }
+    if (t.id === "rlKeySave") {
+      const v = $("rlKey").value.trim(); if (!v) return;
+      const r = await post("/api/hood/chave", { value: v }, t);
+      $("rlKey").value = "";
+      if (r && r.error) alert(r.error); else toast("Chave salva · carteira " + short(r.endereco));
+      return load();
+    }
+    if (t.id === "rlKeyDel") {
+      if (!confirm("Remover a chave da carteira da Robinhood? A REAL desliga.")) return;
+      const r = await post("/api/hood/chave/remover", {}, t); if (r && r.error) alert(r.error); return load();
+    }
+    if (t.id === "rlOn") {
+      if (P && P.real_status && P.real_status.ligada) {
+        const r = await post("/api/hood/real", { on: false }, t); if (r && r.error) alert(r.error); else toast("REAL desligada."); return load();
+      }
+      $("rlAsk").hidden = false; $("rlWord").value = ""; $("rlWord").focus(); return;
+    }
+    if (t.id === "rlNo") { $("rlAsk").hidden = true; return; }
+    if (t.id === "rlGo") {
+      const r = await post("/api/hood/real", { on: true, confirm: $("rlWord").value }, t);
+      if (r && r.error) { alert(r.error); return; }
+      $("rlAsk").hidden = true; toast("REAL ligada."); return load();
+    }
     if (t.dataset.trt) { TRT = t.dataset.trt; try { localStorage.setItem("hood_trt", TRT); } catch (x) { /* */ } draw(); return; }
     if (t.id === "sysBox") { $("sysM").hidden = false; drawSysModal(); return; }
     if (t.id === "sysMX") { $("sysM").hidden = true; return; }
