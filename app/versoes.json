@@ -2130,6 +2130,11 @@
    "versao": "0.32.274",
    "inicio": "2026-11-09T17:48:24+00:00",
    "titulo": "Dormant: carteira da Osmosis (Cosmos) e compra pela DEX da Osmosis"
+  },
+  {
+   "versao": "0.32.275",
+   "inicio": "2026-11-10T07:40:06+00:00",
+   "titulo": "Top traders: média por cópia e copiar só quem dá resultado"
   }
  ]
 }

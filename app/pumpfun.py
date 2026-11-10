@@ -1237,7 +1237,7 @@ class PumpFun:
             return not getattr(self.cfg, "pump_st_lucro_real", False)
         if who in (getattr(self, "study", None) or []) and not getattr(self.cfg, "pump_st_real", False):
             return True
-        return self.needs_proof(who)
+        return self.needs_proof(who) or bool(self.edge_why(who, True))
 
     PROOF_WINDOW_S = 24 * 3600
 
@@ -1263,6 +1263,48 @@ class PumpFun:
             self._proven, self._proven_key = out, key
         return self._proven
 
+    def edge_stats(self) -> dict:
+        """0.32.275: {carteira: (cópias, média % por cópia)} das cópias FICTÍCIAS fechadas nos últimos `pump_edge_days` dias
+        (resultado depois das taxas; ignora REAL, cópia de outra conta e ganho suspeito). Cache por minuto."""
+        from .auto_trades import SUSPECT_PCT
+        tr = self.store.trades(100000)
+        now, days = time.time(), int(self._c("pump_edge_days", 7) or 7)
+        key = (len(tr), tr[0].get("id") if tr else None, int(now // 60), days)
+        if getattr(self, "_edge_key", None) != key:
+            cut, acc = now - days * 86400, {}
+            for t in tr:
+                w = t.get("wallet")
+                if t.get("real") or t.get("follow_of") or not w or len(w) < 32 or float(t.get("pnl_pct") or 0) >= SUSPECT_PCT:
+                    continue
+                try:
+                    ct = datetime.fromisoformat(str(t.get("closed_at")).replace("Z", "+00:00")).timestamp()
+                except ValueError:
+                    continue
+                if ct >= cut:
+                    a = acc.setdefault(w, [0, 0.0])
+                    a[0] += 1
+                    a[1] += float(t.get("pnl_pct") or 0)
+            self._edge = {w: (n, sm / n) for w, (n, sm) in acc.items()}
+            self._edge_key = key
+        return self._edge
+
+    def edge_why(self, who: str, for_real: bool) -> str | None:
+        """0.32.275 (pedido do dono): com `pump_edge_on`, só copia quem tem média por cópia ≥ `pump_edge_min_pct` nas
+        últimas cópias fictícias. Sem base ainda (menos de `pump_edge_min_n` cópias): a fictícia copia para aprender e a REAL
+        espera. Devolve o motivo de não copiar, ou None."""
+        if not getattr(self.cfg, "pump_edge_on", False) or not who or len(who) < 32:
+            return None
+        if not for_real and getattr(self.cfg, "pump_edge_real_only", True):
+            return None
+        n, m = self.edge_stats().get(who, (0, 0.0))
+        need, days, mn = int(self._c("pump_edge_min_n", 5)), int(self._c("pump_edge_days", 7)), float(self._c("pump_edge_min_pct", 0))
+        if n < need:
+            return None if not for_real else (f"trader ainda sem base: {n} de {need} cópias fictícias fechadas em {days} dias "
+                                               "(a REAL espera a média — Top traders → Copiar só quem dá resultado)")
+        if m < mn:
+            return f"média de {m:+.1f}% por cópia nas últimas {n} ({days} dias); o mínimo é {mn:+.0f}% (Copiar só quem dá resultado)"
+        return None
+
     def needs_proof(self, who: str) -> bool:
         """0.32.251 (pedido do dono, caso Fvgs…pTkL: carteira com 59 SOL fez uma compra de 0,01 SOL e se esvaziou logo depois):
         trader sem cópia fictícia com lucro vai SÓ para a fictícia; depois de uma cópia fictícia fechada com lucro, as seguintes
@@ -1273,6 +1315,12 @@ class PumpFun:
         return who not in self.proven_wallets()
 
     def sim_only_why(self, who: str) -> str:
+        ew = self.edge_why(who, True)
+        if ew and not self.needs_proof(who):
+            return ew
+        return self._sim_only_why(who)
+
+    def _sim_only_why(self, who: str) -> str:
         if self.needs_proof(who) and not (who in (getattr(self, "study", None) or []) or who in self.study_copy_wallets()
                                           or who in (getattr(self, "sim_only_list", None) or []) or who in self.study_lucro_wallets()):
             return ("sem cópia fictícia com lucro nas últimas 24 h: fica só na fictícia até uma fechar com lucro "
@@ -1439,6 +1487,8 @@ class PumpFun:
                     why = self.dump_block(mint)
                 if not why and getattr(c, "pump_nc_on", False) and who not in self.eq_wallets():
                     why = self.uncopiable(who)
+                if not why:
+                    why = self.edge_why(who, False)          # 0.32.275: com "travar também a fictícia"
                 if not why:
                     why = self.blacklist_block(who, mint)
                 mn = self._onv("pump_score_min_on", "pump_score_min")

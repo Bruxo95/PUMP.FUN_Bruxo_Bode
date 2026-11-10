@@ -564,6 +564,10 @@ class PumpHub:
         out["saidas"] = {"yours": snap.get("yours") or {}, "variants": sorted([v for v in snap.get("variants") or [] if v.get("trades")], key=lambda v: -(v.get("avg_sol") or 0))[:14]}
         opts = ("pump_size_by_trader", "pump_size_by_score")
         out["opcoes"] = {k: bool(getattr(pf.cfg, k, False)) for k in opts}
+        # 0.32.275: o que a regra "Copiar só quem dá resultado" faria com cada trader agora
+        for x in out.get("traders") or []:
+            n, m = pf.edge_stats().get(x["wallet"], (0, 0.0))
+            x["regra"] = {"n": n, "media": round(m, 2), "real": pf.edge_why(x["wallet"], True), "ficticia": pf.edge_why(x["wallet"], False)}
         cache[pf.user_id] = (now, out)
         return out
 

@@ -239,7 +239,18 @@
         <div class="card" data-trt="lab" data-novo-ate="2026-11-15" data-nosanf><header><div><h2>Laboratório do Top traders</h2><div class="sub" id="tlSub">mede se o resultado desta aba é método ou sorte · carteira FICTÍCIA</div></div></header>
           <div class="help"><p>Só mede: <b>nada aqui compra, vende ou muda opção</b>. Um resultado só é provado com pelo menos 5 dias de trades e a faixa de confiança inteira acima de zero.</p></div>
           <div class="kpis" id="tlK"></div><p class="small" id="tlR" style="margin:10px 0 0"></p>
-          <div class="sub" style="margin-top:14px">Quem faz o resultado</div><div class="tbl-wrap"><table id="tlT" class="daytbl"></table></div>
+          <div class="sub" style="margin-top:14px">Quem faz o resultado</div>
+          <p class="muted small" id="tlPay" style="margin:4px 0 8px"></p>
+          <div class="tbl-wrap"><table id="tlT" class="daytbl"></table></div>
+          <div class="sub" style="margin-top:14px" data-novo-ate="2026-11-24">Copiar só quem dá resultado</div>
+          <div class="muted small" style="margin:4px 0 8px">O acerto sozinho engana: com stop de 40%, uma perda apaga 4 ganhos de 10%. Esta regra olha a <b>média por cópia</b> (ganhos e perdas juntos, depois das taxas) das últimas cópias fictícias de cada trader e só deixa copiar quem fica acima do mínimo.</div>
+          <div class="form">
+            <div class="field"><label>Copiar só quem dá resultado</label><div class="row"><button class="btn sm tgl" data-toggle="pump_edge_on">…</button></div></div>
+            <div class="field"><label>Travar só a REAL</label><div class="row"><button class="btn sm tgl" data-toggle="pump_edge_real_only">…</button></div><div class="hint">Ligado: a FICTÍCIA continua copiando todo mundo (é dela que vem a média) e só a REAL espera. Desligado: quem tem média abaixo do mínimo também sai da fictícia; trader sem base continua na fictícia para aprender.</div></div>
+            <div class="field"><label>Média mínima por cópia</label><div class="row"><input class="in w80" type="number" step="1" min="-50" max="500" data-cfg="pump_edge_min_pct"><span class="muted">%</span></div></div>
+            <div class="field"><label>Cópias para ter base</label><div class="row"><input class="in w80" type="number" step="1" min="1" max="100" data-cfg="pump_edge_min_n"></div></div>
+            <div class="field"><label>Olhar as cópias dos últimos</label><div class="row"><input class="in w80" type="number" step="1" min="1" max="90" data-cfg="pump_edge_days"><span class="muted">dias</span></div></div>
+          </div>
           <p class="muted small">Para dar mais peso a quem se prova, existem duas opções em <a href="#novas">Opções novas</a>: Valor da cópia conforme o trader (<span id="tlO1"></span>) e Valor da cópia conforme a nota (<span id="tlO2"></span>). Elas mudam o valor das cópias e continuam como você deixou.</p>
           <div class="sub" style="margin-top:14px">Quanto cairia entrando depois do trader</div>
           <div class="muted small">A cópia fictícia entra no preço do próprio trader. Esta conta troca esse preço pelo do mercado alguns segundos depois e mantém a mesma saída. É uma estimativa, e vale para cópias abertas a partir da 0.32.124.</div>

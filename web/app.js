@@ -1576,7 +1576,21 @@
     kpis("tlK", [["Resultado", pc(r.pct), sg(r.saldo_sol, "") + " SOL em " + r.trades + " trades", "pnl"], ["Dias com trades", String(r.dias), "faixa de confiança pede 5", "tr"],
       ["Sem os 3 maiores", sg(r.sem_top3_sol, ""), "os 3 maiores somam " + s4(r.top3_sol) + " SOL", "hit"], ["Faixa por trade", fx(r.ci), "com 95% de confiança", "pnl"]]);
     $("tlR").textContent = r.leitura || "";
-    table("tlT", ["Trader", "Veredito", "Saldo", "Trades", "Acerto", "Média", "Faixa", ""], (r.traders || []).map((x) => [pfW(x.wallet, {}), vd(x.veredito), sg(x.saldo_sol, ""), x.trades + "<small>" + x.dias + " dias</small>", x.acerto + "%", pc(x.media_pct), fx(x),
+    // 0.32.275 (pedido do dono): o acerto sozinho engana; ganho médio × perda médio, o acerto que empata e a média por cópia
+    $("tlPay").innerHTML = "";
+    if (r.trades) {
+      const ac = Math.round((r.traders || []).reduce((a, x) => a + x.acerto * x.trades, 0) / r.trades);
+      $("tlPay").innerHTML = "Nesta aba: acerto <b>" + ac + "%</b> · ganho médio <b class=\"up\">+" + f(r.ganho_med_pct, 1) + "%</b> · perda média <b class=\"down\">−" + f(r.perda_med_pct, 1) +
+        "%</b> → para empatar precisa de <b>" + (r.acerto_empate == null ? "–" : r.acerto_empate + "%") + "</b> de acerto · média por cópia <b>" + pc(r.por_copia_pct) +
+        "</b>. A tabela vem ordenada pela média por cópia (o que de fato dá resultado), não pelo acerto.";
+    }
+    const regra = (x) => { const g = x.regra || {}; if (!g.n && !(g.real || g.ficticia)) return '<span class="muted">–</span>';
+      return g.real ? '<span class="tag pause" title="' + esc(g.real) + '">' + (/sem base/.test(g.real) ? "sem base (" + g.n + ")" : "fora da REAL") + "</span>" : '<span class="tag win">copia na REAL</span>'; };
+    table("tlT", ["Trader", "Veredito", "Média por cópia", "Acerto", "Ganho médio", "Perda média", "Empata com", "Fator", "Saldo", "Trades", "Regra", ""], (r.traders || []).map((x) => [pfW(x.wallet, {}), vd(x.veredito),
+      "<b>" + pc(x.por_copia_pct) + "</b>", x.acerto + "%", '<span class="up">+' + f(x.ganho_med_pct, 1) + "%</span>", '<span class="down">−' + f(x.perda_med_pct, 1) + "%</span>",
+      x.acerto_empate == null ? "–" : '<span class="' + (x.acerto >= x.acerto_empate ? "up" : "down") + '" title="acerto que empata com esse ganho e essa perda médios">' + x.acerto_empate + "%</span>",
+      x.fator == null ? "–" : '<span class="' + (x.fator >= 1 ? "up" : "down") + '" title="quanto os ganhos pagam das perdas (1 = empate)">' + f(x.fator, 2) + "</span>",
+      sg(x.saldo_sol, ""), x.trades + "<small>" + x.dias + " dias</small>", regra(x),
       x.veredito === "ruim" ? '<button class="btn sm" data-tlpause="' + esc(x.wallet) + '">Pausar 48 h</button>' : ""]), "Ainda não há cópias fechadas nesta aba.");
     const op = r.opcoes || {}; $("tlO1").textContent = op.pump_size_by_trader ? "ligada" : "desligada"; $("tlO2").textContent = op.pump_size_by_score ? "ligada" : "desligada";
     table("tlL", ["Entrando depois de", "Trades", "Fictícia", "Estimada", "Diferença", "Faixa"], (r.late || []).map((x) => [x.segundos + " s", String(x.n), pc(x.ficticia_pct), pc(x.honesta_pct), pc(x.perda_pct), fx(x)]), "");
@@ -3521,7 +3535,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_real_mirror", "pump_real_need_win", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
+  const TGL_REAL = ["pump_real_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];

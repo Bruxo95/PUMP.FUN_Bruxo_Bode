@@ -304,6 +304,13 @@ USER_KEYS: dict[str, tuple] = {
     # fictícia (cópias, Explorar, Base, Maiores traders, botão Comprar), mas o valor e os limites vêm só das regras reais
     "pump_real_mirror": (bool, True, 0, 1),
     "pump_real_need_win": (bool, True, 0, 1),         # 0.32.251: trader novo só na fictícia até uma cópia fictícia com lucro
+    # 0.32.275 (pedido do dono): copiar só traders com resultado médio por cópia positivo (o acerto sozinho engana: com stop de
+    # 40%, 10 perdas não se pagam com 20 ganhos de 10%)
+    "pump_edge_on": (bool, False, 0, 1),
+    "pump_edge_min_n": (int, 5, 1, 100),              # cópias fictícias fechadas para ter base
+    "pump_edge_days": (int, 7, 1, 90),                # janela das cópias que contam
+    "pump_edge_min_pct": (float, 0.0, -50.0, 500.0),  # média mínima por cópia (%), depois das taxas
+    "pump_edge_real_only": (bool, True, 0, 1),        # True: só trava a REAL; a fictícia continua copiando para aprender
     # 0.32.158 (pedido do dono, 02/11): com real e fictícia ligadas, a REAL manda e a fictícia é a cópia exata dela (mesmo valor,
     # mesmo preço de entrada, sai junto; se a real não compra, a fictícia é desfeita). Começa desligada; ligada só por ajuste pedido.
     "pump_real_exact": (bool, False, 0, 1),

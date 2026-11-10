@@ -55,8 +55,22 @@ def traders(L: list[dict]) -> list[dict]:
         saldo = sum(float(t.get("pnl_sol") or 0) for t in R)
         acerto = round(sum(float(t.get("pnl_sol") or 0) > 0 for t in R) / len(R) * 100)
         out.append({"wallet": w, "trades": len(R), "dias": ci["dias"], "acerto": acerto, "saldo_sol": round(saldo, 6), "media_pct": ci["media"],
-                    "lo": ci["lo"], "hi": ci["hi"], "veredito": trader_verdict(ci, len(R), acerto, saldo)})
-    return sorted(out, key=lambda x: -x["saldo_sol"])
+                    "lo": ci["lo"], "hi": ci["hi"], "veredito": trader_verdict(ci, len(R), acerto, saldo), **payoff(R)})
+    return sorted(out, key=lambda x: (-(x["por_copia_pct"] if x["trades"] >= 3 else -1e9), -x["saldo_sol"]))
+
+
+def payoff(R: list[dict]) -> dict:
+    """0.32.275 (pedido do dono: "com stop de 40%, 10 perdas não se pagam com 20 ganhos de 10%"): o acerto sozinho engana.
+    Ganho médio, perda média, resultado médio por cópia (o que importa), acerto que empata com essas médias e quanto os
+    ganhos pagam das perdas (fator)."""
+    P = [float(t.get("pnl_pct") or 0) for t in R]
+    G, L = [x for x in P if x > 0], [-x for x in P if x <= 0]
+    gs = sum(float(t.get("pnl_sol") or 0) for t in R if float(t.get("pnl_sol") or 0) > 0)
+    ls = -sum(float(t.get("pnl_sol") or 0) for t in R if float(t.get("pnl_sol") or 0) < 0)
+    gm, lm = (sum(G) / len(G) if G else 0.0), (sum(L) / len(L) if L else 0.0)
+    return {"ganho_med_pct": round(gm, 2), "perda_med_pct": round(lm, 2), "por_copia_pct": round(sum(P) / len(P), 2) if P else 0.0,
+            "acerto_empate": round(lm / (gm + lm) * 100) if gm + lm > 0 else None,
+            "fator": round(gs / ls, 2) if ls > 0 else (None if gs == 0 else 99.0)}
 
 
 def late(L: list[dict]) -> list[dict]:
@@ -86,7 +100,7 @@ def study(trades: list[dict], aba_of) -> dict:
     inv = sum(float(t.get("sol_in") or 0) for t in L)
     return {"trades": len(L), "dias": ci["dias"], "saldo_sol": round(saldo, 6), "investido_sol": round(inv, 6), "pct": round(saldo / inv * 100, 2) if inv else None,
             "sem_top3_sol": round(sum(pnl[3:]), 6), "top3_sol": round(sum(pnl[:3]), 6), "ci": ci, "leitura": stats.reading(ci, "trades", "% por trade"),
-            "traders": traders(L), "late": late(L)}
+            "traders": traders(L), "late": late(L), **payoff(L)}
 
 
 def motivo(why: str) -> str:
