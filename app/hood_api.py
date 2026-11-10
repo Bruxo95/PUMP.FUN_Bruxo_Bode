@@ -45,6 +45,19 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         await audit(db, u["id"], "Robinhood: configuração da cópia fictícia mudada", ", ".join(f"{k}={v}" for k, v in sorted(cfg.items())))
         return {"ok": True, "cfg": cfg}
 
+    @app.post("/api/hood/seguir")
+    async def hood_seguir(body: dict, u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        w, on = str((body or {}).get("wallet") or ""), bool((body or {}).get("on"))
+        try:
+            lst = await c.follow(u["id"], w, on)
+        except ValueError as e:
+            return {"error": str(e)}
+        await audit(db, u["id"], "Robinhood: " + ("copiar trader" if on else "parar de copiar trader"), w[:42])
+        return {"ok": True, "manual": lst}
+
     @app.post("/api/hood/fechar")
     async def hood_fechar(body: dict, u: dict = Depends(admin_only)):
         c = cp()

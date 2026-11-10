@@ -373,3 +373,39 @@ def test_rpc_rotation_rests_only_the_rpc_that_asked_to_wait():
         assert "https://a.rpc" not in h.calls and {"https://b.rpc", "https://c.rpc"} <= set(h.calls)
         assert w.official == hood.OFFICIAL and len(hood.RPCS) >= 3 and hood.OFFICIAL in hood.RPCS
     run(go())
+
+
+def test_copy_button_follows_a_trader_only_in_that_account():
+    """0.32.284 (pedido do dono): botão Copiar no ranking, por conta, mesmo para quem não passou na regra."""
+    async def go():
+        w, c = copier()
+        w.copiaria = []                                           # ninguém apto
+        c.book("u2")
+        assert await c.follow("u1", OTHER.upper().replace("0X", "0x"), True) == [OTHER]
+        c.on_trade(trade("buy", 1000.0, 1.0, wallet=OTHER), 0.0, w.copiaria)
+        await settle(c)
+        assert len(c.books["u1"].pos) == 1 and not c.books["u2"].pos
+        assert next(iter(c.books["u1"].pos.values()))["aba"] == "manual"
+        c.books["u2"].cfg["auto_top"] = False                     # u2 não quer o Copiando agora
+        w.copiaria = [TRADER]
+        c.on_trade(trade("buy", 2000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        assert len(c.books["u1"].pos) == 2 and not c.books["u2"].pos
+        assert await c.follow("u1", OTHER, False) == []
+        try:
+            await c.follow("u1", "nao-e-carteira", True)
+            assert False
+        except ValueError:
+            pass
+    run(go())
+
+
+def test_follow_route_is_admin_only(env):  # noqa: F811
+    from tests.test_api import UA, UB, tok
+    c, hub = env["c"], env["hub"]
+    hub.hood = hood.HoodWatch(None, None)
+    w = "0x" + "5a" * 20
+    assert c.post("/api/hood/seguir", json={"wallet": w, "on": True}, headers=tok(UB, "b@x.com")).status_code == 403
+    assert c.post("/api/hood/seguir", json={"wallet": w, "on": True}, headers=tok(UA)).json()["manual"] == [w]
+    assert c.get("/api/hood/painel", headers=tok(UA)).json()["cfg_sim"]["manual"] == [w]
+    assert "error" in c.post("/api/hood/seguir", json={"wallet": "x", "on": True}, headers=tok(UA)).json()

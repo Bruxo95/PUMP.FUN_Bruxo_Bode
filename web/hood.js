@@ -117,11 +117,18 @@
     document.querySelectorAll("#trTab button").forEach((b) => b.classList.toggle("on", b.dataset.trt === TRT));
     $("trRank").hidden = TRT !== "rank"; $("trAj").hidden = TRT !== "aj";
     const rk = (R && R.ranking) || {}, rows = rk.rows || [];
+    const man = new Set(((P && P.cfg_sim && P.cfg_sim.manual) || []));
+    const autoOn = !(P && P.cfg_sim && P.cfg_sim.auto_top === false);
+    const btn = (r) => {
+      if (man.has(r.wallet)) return '<button class="btn sm on" data-follow="' + esc(r.wallet) + '" data-on="0" title="Parar de copiar este trader">Copiando · parar</button>';
+      if (r.copiaria && autoOn) return '<button class="btn sm" data-follow="' + esc(r.wallet) + '" data-on="1" title="Já é copiado pela regra; fixar para continuar copiando mesmo se sair da lista">Fixar</button>';
+      return '<button class="btn sm primary" data-follow="' + esc(r.wallet) + '" data-on="1" title="' + esc(r.eligible ? "Copiar este trader" : "Copiar mesmo sem passar na regra: " + (r.flags || []).join(" · ")) + '">Copiar</button>';
+    };
     const row = (r, i) => [String(i + 1), addr(r.wallet), eth(r.realized_eth), num(r.vol_eth, 3) + " ETH", num(r.trades, 0), r.winrate == null ? "—" : num(r.winrate, 0) + "% (" + r.closed + ")",
       r.wallet_usd == null ? "—" : "US$ " + num(r.wallet_usd, 0), "há " + ago(r.last_t),
-      r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
-        : '<span class="muted small">' + esc((r.flags || []).join(" · ")) + "</span>"];
-    const H = ["#", "Carteira", "Lucro realizado", "Volume", "Trades", "Acerto", "Saldo", "Último trade", "Situação"];
+      (man.has(r.wallet) ? '<span class="tag win">você copia</span> ' : "") + (r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
+        : '<span class="muted small">' + esc((r.flags || []).join(" · ")) + "</span>"), btn(r)];
+    const H = ["#", "Carteira", "Lucro realizado", "Volume", "Trades", "Acerto", "Saldo", "Último trade", "Situação", ""];
     $("hdRkSub").textContent = num(rk.carteiras, 0) + " carteiras negociaram nas últimas 24 h · os 50 que mais lucraram · " + num(rk.aptos, 0) + " aptos";
     table("hdSel", H, rows.filter((r) => r.copiaria).map(row), "Nenhum trader apto e online agora. O ranking enche com as horas de leitura.");
     table("hdRk", H, rows.map(row), "O ranking enche com as horas de leitura.");
@@ -261,6 +268,15 @@
   document.addEventListener("click", async (e) => {
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
     if (t.dataset.mode) { REAL = t.dataset.mode === "real"; try { localStorage.setItem("hood_mode", REAL ? "real" : "sim"); } catch (x) { /* */ } P = null; draw(); load(); return; }
+    if (t.dataset.follow) {
+      const on = t.dataset.on === "1";
+      if (on && REAL && P && P.real_status && P.real_status.ligada && !confirm("A carteira REAL está ligada: as compras deste trader também vão para a REAL. Copiar?")) return;
+      const r = await post("/api/hood/seguir", { wallet: t.dataset.follow, on }, t);
+      if (r && r.error) { alert(r.error); return; }
+      if (P && P.cfg_sim) P.cfg_sim.manual = r.manual;
+      toast(on ? "Copiando este trader." : "Parou de copiar este trader.");
+      draw(); return load();
+    }
     if (t.dataset.close) {
       if (REAL && !confirm("Vender esta posição na carteira REAL agora?")) return;
       const r = await post("/api/hood/fechar", { id: t.dataset.close, real: REAL }, t);

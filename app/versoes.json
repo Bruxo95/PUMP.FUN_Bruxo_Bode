@@ -2175,6 +2175,11 @@
    "versao": "0.32.283",
    "inicio": "2026-11-10T21:06:08+00:00",
    "titulo": "Robinhood: leitura revezando 3 RPC grátis (menos atraso)"
+  },
+  {
+   "versao": "0.32.284",
+   "inicio": "2026-11-10T21:18:28+00:00",
+   "titulo": "Robinhood: botão Copiar em cada trader do ranking"
   }
  ]
 }

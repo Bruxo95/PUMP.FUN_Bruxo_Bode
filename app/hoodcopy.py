@@ -31,7 +31,10 @@ GT = "https://api.geckoterminal.com/api/v2/networks/robinhood/pools/"
 FRESH_S = 90                 # só copia compra lida até 90 s depois de acontecer (a releitura depois de reiniciar não copia)
 PRICE_S, PRICE_MAX = 30, 20
 KEEP_TRADES = 3000
-CFG_DEFAULT = {"on": True, "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
+# 0.32.284 (pedido do dono, 10/11/2026: "botão aqui pra já clicar e começar a copiar"): cada conta escolhe traders à mão
+# (manual, até MANUAL_MAX), copiados mesmo sem passar na regra do ranking; auto_top = copiar também o "Copiando agora".
+MANUAL_MAX = 50
+CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
                "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5}
 CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000)}
@@ -68,9 +71,14 @@ def repair(p: dict) -> bool:
 
 def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(base or CFG_DEFAULT)
+    out["manual"] = list(out.get("manual") or [])
     for k, v in (raw or {}).items():
-        if k == "on":
-            out["on"] = bool(v)
+        if k in ("on", "auto_top"):
+            out[k] = bool(v)
+        elif k == "manual":
+            ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
+            out["manual"] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
+                                               and all(ch in "0123456789abcdef" for ch in x[2:])))[:MANUAL_MAX]
         elif k in CFG_LIMITS:
             try:
                 val = float(v)
@@ -103,6 +111,14 @@ class Book:
         self.events.insert(0, {"t": t, "wallet": wallet, "token": token, "acao": acao, "motivo": motivo})
         del self.events[200:]
 
+    def follows(self, wallet: str, auto: bool) -> str | None:
+        """Por que esta conta copia o trader: 'manual' (escolhido no botão), 'top' (Copiando agora) ou None."""
+        if wallet in (self.cfg.get("manual") or []):
+            return "manual"
+        if auto and self.cfg.get("auto_top", True):
+            return "top"
+        return None
+
     def value_now(self, p: dict) -> float:
         px = p.get("px_now") or p["px_in"]
         return p["tokens_left"] * px * (1 - (p.get("fee") or 0) - self.cfg["slip_pct"] / 100) - self.cfg["gas_eth"]
@@ -111,7 +127,7 @@ class Book:
         v = p["proceeds"] + max(0.0, self.value_now(p)) - p["eth_in"]
         return v, (100 * v / p["eth_in"] if p["eth_in"] else 0.0)
 
-    def buy(self, tr: dict, px: float, t: float, key: list) -> dict | None:
+    def buy(self, tr: dict, px: float, t: float, key: list, origem: str = "top") -> dict | None:
         c = self.cfg
         why = None
         amt = c["eth_por_compra"]
@@ -135,7 +151,7 @@ class Book:
         p = {"id": uuid.uuid4().hex[:16], "wallet": tr["wallet"], "token": tr["token"], "open_t": t, "px_in": px_in,
              "trader_px": px, "trader_eth": tr.get("eth"), "tokens": tokens, "tokens_left": tokens, "fee": fee_r,
              "eth_in": round(amt + c["gas_eth"], 9), "proceeds": 0.0, "fees": fee + c["gas_eth"], "px_now": px, "px_t": t,
-             "best_pct": 0.0, "worst_pct": 0.0, "lag_s": round(max(0.0, t - tr["t"]), 1), "tx_in": tr.get("tx"), "aba": "top",
+             "best_pct": 0.0, "worst_pct": 0.0, "lag_s": round(max(0.0, t - tr["t"]), 1), "tx_in": tr.get("tx"), "aba": origem,
              "key": key}
         self.cash -= amt + c["gas_eth"]
         self.pos[p["id"]] = p
@@ -352,7 +368,9 @@ class Copier:
                 for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     p["retry_frac"] = frac
                     self._spawn(self._real_sell(uid, p, frac, f"trader vendeu {frac * 100:.0f}%"))
-        if tr["side"] == "buy" and tr["wallet"] in copiaria and now - tr["t"] <= FRESH_S:
+        auto = tr["wallet"] in copiaria
+        if tr["side"] == "buy" and now - tr["t"] <= FRESH_S and any(b.follows(tr["wallet"], auto) for b in self.books.values()):
+            tr["_auto"] = auto
             self.stat["compras_vistas"] += 1
             self._spawn(self._prepare(tr, px))
 
@@ -377,17 +395,19 @@ class Copier:
             self.stat["barradas"] += 1
             why = "token barrado: " + (v.get("why") or "sem conferência")
             for b in self.books.values():
-                if b.cfg.get("on"):
+                if b.cfg.get("on") and b.follows(tr["wallet"], tr.get("_auto", True)):
                     b.ev(now, tr["wallet"], tr["token"], "não copiou", why)
             for uid, rc in list(self.real_cfg.items()):
-                if rc.get("real_on"):
+                if rc.get("real_on") and self.book(uid).follows(tr["wallet"], tr.get("_auto", True)):
                     self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
             return
         self.stat["copiadas"] += 1
         for b in self.books.values():
-            b.buy(tr, px, now, key)
+            why = b.follows(tr["wallet"], tr.get("_auto", True))
+            if why:
+                b.buy(tr, px, now, key, why)
         for uid, rc in list(self.real_cfg.items()):
-            if rc.get("real_on"):
+            if rc.get("real_on") and self.book(uid).follows(tr["wallet"], tr.get("_auto", True)):
                 self._spawn(self._real_buy(uid, tr, px, key))
 
     # ------------------------------------------------------------------ carteira REAL
@@ -638,6 +658,24 @@ class Copier:
         b.dirty_book = True
         await self.flush()
         return b.cfg
+
+    async def follow(self, uid: str, wallet: str, on: bool) -> list:
+        """Liga ou desliga a cópia de um trader nesta conta (botão Copiar do ranking)."""
+        b = self.book(uid)
+        cur = list(b.cfg.get("manual") or [])
+        w = (wallet or "").strip().lower()
+        if on and w not in cur:
+            if len(cur) >= MANUAL_MAX:
+                raise ValueError(f"no máximo {MANUAL_MAX} traders copiados à mão")
+            cur.append(w)
+        elif not on:
+            cur = [x for x in cur if x != w]
+        b.cfg = clean_cfg({"manual": cur}, b.cfg)
+        if on and w not in b.cfg["manual"]:
+            raise ValueError("carteira inválida")
+        b.dirty_book = True
+        await self.flush()
+        return b.cfg["manual"]
 
     def close_manual(self, uid: str, pid: str) -> dict | None:
         b = self.book(uid)
