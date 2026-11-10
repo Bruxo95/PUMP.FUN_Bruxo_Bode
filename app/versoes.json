@@ -2135,6 +2135,11 @@
    "versao": "0.32.275",
    "inicio": "2026-11-10T07:40:06+00:00",
    "titulo": "Top traders: média por cópia e copiar só quem dá resultado"
+  },
+  {
+   "versao": "0.32.276",
+   "inicio": "2026-11-10T07:58:56+00:00",
+   "titulo": "Copiar só quem dá resultado também em Carteiras → REAL"
   }
  ]
 }

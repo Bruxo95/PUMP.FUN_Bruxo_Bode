@@ -868,6 +868,13 @@
       x.kind === "buy" ? '<span class="tag buy">Compra</span>' : '<span class="tag loss">Venda</span>', pfM(x.mint, x.symbol), s4(x.sol), act(x), posi(x.position)]),
       STP80 ? "Nenhum passo dos sugeridos (80%+) desde que o servidor ligou." : "Nenhum passo dos maiores traders desde que o servidor ligou.");
   }
+  // 0.32.276: link "Top traders → Laboratório" abre a tela já na aba certa
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("[data-gotrt]");
+    if (!a) return;
+    TRT = a.dataset.gotrt;
+    try { localStorage.setItem("pf_trt", TRT); } catch (er) { /* */ }
+  }, true);
   document.addEventListener("click", (e) => {
     const b = e.target.closest("#stpTabs button"); if (!b) return;
     STP80 = +b.dataset.stp80; document.querySelectorAll("#stpTabs button").forEach((x) => x.classList.toggle("on", x === b)); loadSteps();
