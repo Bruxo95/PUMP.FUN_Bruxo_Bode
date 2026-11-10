@@ -505,26 +505,50 @@
   }
   let GAS = null;
   const GAS_ST = { confirmada: "entregue", devolvida: "devolvida", enviando: "enviando", pendente: "esperando a entrega", falhou: "falhou" };
+  // 0.32.278 (pedido do dono, 10/11/2026): a janela abre testando as rotas (quais existem, taxa e tempo, ou por que não dá) e a escolha é
+  // por elas; embaixo do valor, quanto ele é na moeda que sai e quanto chega, recalculado a cada tecla.
   function openGas(destino) {
     if (!GAS || !WAL) return;
     const nome = (k) => (WAL.redes.find((x) => x.rede === k) || {}).nome || k;
-    const orig = Object.entries(GAS.redes).filter(([k, v]) => v && v.pode_origem && k !== destino);
     const d = GAS.redes[destino] || {};
-    BUY = { gas: destino };
+    BUY = { gas: destino, rotas: null };
     $("buyMT").textContent = "Abastecer " + nome(destino);
     $("buyMS").textContent = "manda um pouco de " + (d.moeda || "moeda") + " para a sua carteira nesta rede, a partir de outra rede sua";
-    if (!orig.length) { $("buyMB").innerHTML = '<div class="buybad">Nenhuma outra carteira sua tem saldo em Ethereum, BNB Chain, Base ou Arbitrum. Mande um pouco para uma delas, ou envie ' + esc(d.moeda || "a moeda") + " direto para esta carteira.</div>"; $("buyM").hidden = false; return; }
-    $("buyMB").innerHTML = '<div class="buyform"><div><label for="gasOrig">Pagar com a carteira de</label><select class="in" id="gasOrig">' +
-      orig.map(([k, v]) => '<option value="' + esc(k) + '">' + esc(nome(k)) + " · " + num(v.saldo, 5) + " " + esc(v.moeda) + "</option>").join("") + "</select></div>" +
-      '<div><label for="gasUsd">Quanto mandar, em dólar (máx. por vez: ' + num(GAS.teto_usd, 2) + ' · sobram ' + num(GAS.resta_dia_usd, 2) + " de " + num(GAS.limite_dia_usd, 2) + ' em 24 h)</label><input class="in" id="gasUsd" type="number" step="any" min="0" inputmode="decimal" value="' + esc(d.sugestao_usd || 2) + '"></div>' +
-      '<div class="row dmact"><button class="btn primary" type="button" id="gasQuote">Ver taxa</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
+    $("buyMB").innerHTML = '<div class="buyform"><div><label>Rotas para ' + esc(nome(destino)) + '</label><div id="gasRts" class="gasrts"><div class="muted small">testando as rotas de cada carteira sua…</div></div></div>' +
+      '<div><label for="gasUsd">Quanto mandar, em dólar (máx. por vez: ' + num(GAS.teto_usd, 2) + ' · sobram ' + num(GAS.resta_dia_usd, 2) + " de " + num(GAS.limite_dia_usd, 2) + ' em 24 h)</label><input class="in" id="gasUsd" type="number" step="any" min="0" inputmode="decimal" value="' + esc(d.sugestao_usd || 2) + '"><div id="gasConv" class="small muted gasconv"></div></div>' +
+      '<div class="row dmact"><button class="btn primary" type="button" id="gasQuote" disabled>Ver taxa</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
     $("buyM").hidden = false;
+    gasRoutes(destino);
+  }
+  async function gasRoutes(destino) {
+    const r = await BB.api("/api/dormant/gas/rotas?destino=" + encodeURIComponent(destino), { quiet: true });
+    if (!BUY || BUY.gas !== destino || !$("gasRts")) return;
+    if (!r || r.error) { $("gasRts").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui testar as rotas") + "</div>"; return; }
+    BUY.rotas = r;
+    const ok = r.rotas.filter((x) => x.ok);
+    $("gasRts").innerHTML = r.rotas.map((x, i) => '<label class="gasrt' + (x.ok ? "" : " no") + '"><input type="radio" name="gasR" value="' + esc(x.origem) + '"' + (x.ok ? "" : " disabled") + (x.ok && x === ok[0] ? " checked" : "") + ">" +
+      "<span><b>" + esc(x.nome) + " → " + esc(r.destino_nome) + "</b>" + (x.saldo != null ? ' <span class="muted">· saldo ' + qtd(x.saldo) + " " + esc(x.moeda) + (x.saldo_usd != null ? " ($" + num(x.saldo_usd, 2) + ")" : "") + "</span>" : "") +
+      '<span class="small ' + (x.ok ? "up" : "muted") + '">' + (x.ok ? "rota existe · taxa perto de " + num(x.taxa_pct, 2) + "%" + (x.tempo_s ? " · chega em ~" + num(x.tempo_s, 0) + " s" : "") + " · com $" + num(r.amostra_usd, 0) + " chegam " + qtd(x.recebe_amostra) + " " + esc(r.moeda_destino) : esc(x.motivo)) + "</span></span></label>").join("") +
+      '<div class="muted small">ponte: ' + esc(r.ponte) + " · as origens possíveis são Ethereum, BNB Chain, Base e Arbitrum</div>";
+    $("gasQuote").disabled = !ok.length;
+    if (!ok.length) $("gasRts").insertAdjacentHTML("beforeend", '<div class="buybad">Nenhuma rota disponível agora. Mande um pouco de moeda para uma das origens, ou envie ' + esc(r.moeda_destino) + " direto para esta carteira.</div>");
+    gasConv();
+  }
+  const gasPick = () => { const e = document.querySelector('input[name="gasR"]:checked'); return e ? e.value : ""; };
+  function gasConv() {
+    const el = $("gasConv"); if (!el || !BUY || !BUY.rotas) return;
+    const usd = Number(($("gasUsd") || {}).value), R = BUY.rotas, x = R.rotas.find((y) => y.origem === gasPick());
+    if (!(usd > 0)) { el.textContent = ""; return; }
+    const partes = [];
+    if (x && x.usd_moeda) partes.push("$" + num(usd, 2) + " = " + qtd(usd / x.usd_moeda) + " " + x.moeda + " saindo da " + x.nome);
+    if (x && x.ok && R.usd_destino) partes.push("chegam perto de " + qtd(usd * (1 - x.taxa_pct / 100) / R.usd_destino) + " " + R.moeda_destino + " ($" + num(usd * (1 - x.taxa_pct / 100), 2) + ")");
+    el.innerHTML = esc(partes.join(" → ")) + (usd < R.amostra_usd / 2 ? '<span class="down"> · valor muito pequeno: a ponte pode recusar (não cobre a taxa)</span>' : "");
   }
   async function gasQuote() {
     if (!BUY || !BUY.gas) return;
     if (BUY.timer) clearInterval(BUY.timer);
     $("buyPrev").innerHTML = '<div class="muted" style="margin-top:10px">cotando e conferindo a transação…</div>';
-    const r = await BB.api("/api/dormant/gas/cotar", { body: { destino: BUY.gas, origem: $("gasOrig").value, usd: Number($("gasUsd").value) } });
+    const r = await BB.api("/api/dormant/gas/cotar", { body: { destino: BUY.gas, origem: gasPick(), usd: Number($("gasUsd").value) } });
     if (!BUY) return;
     if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
     BUY.q = r;
@@ -963,13 +987,15 @@
     if (e.target && e.target.closest && e.target.closest("#rCfg")) DIRTY = true;
     if (e.target && e.target.id === "vQ") { VQ = e.target.value; drawVol(); }
     if (e.target && e.target.id === "mQ") { F.q = e.target.value; saveF(); drawMoedas(); }
+    if (e.target && e.target.id === "gasUsd") gasConv();
     if (e.target && e.target.id === "buyVal") { buyUsdDraw(); if ($("buyPrev")) $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });
   document.addEventListener("change", (e) => {
     if (!e.target) return;
     if (e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); }
     if (e.target.id === "mCat") { F.cat = e.target.value; saveF(); drawMoedas(); }
-    if (e.target.id === "gasOrig" || e.target.id === "gasUsd") { if ($("buyPrev")) $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
+    if (e.target.name === "gasR") gasConv();
+    if (e.target.name === "gasR" || e.target.id === "gasUsd") { if ($("buyPrev")) $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
     if (e.target.id === "sellPct") { $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
     if (e.target.id === "buyRede") { buyUnit(); $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });

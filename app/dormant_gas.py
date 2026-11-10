@@ -37,6 +37,7 @@ GAS_OP = 400000                   # gás de uma compra ou venda (com a autoriza�
 SOL_OP = 0.003                    # taxa + aluguel da conta de um token novo
 OPS_POUCO, OPS_ALVO = 3, 5
 MIN_SUGESTAO = 1.0
+AMOSTRA_USD = 2.0                 # 0.32.278: valor do teste de cada rota quando a janela abre (pouco menos e a Relay diz que não cobre a taxa)
 ENTREGA_S = 60
 ENTREGA_PASSO = 3
 REQ_ID = re.compile(r"^0x[0-9a-fA-F]{64}$")
@@ -136,8 +137,54 @@ class GasFiller:
         except Exception as e:
             raise BuyError(f"a Relay não respondeu ({type(e).__name__})") from None
         if not isinstance(js, dict) or "steps" not in js:
+            if isinstance(js, dict) and (js.get("errorCode") == "AMOUNT_TOO_LOW" or "too small" in str(js.get("message") or "").lower()):
+                # 0.32.278: em 10/11 as 4 origens cotavam US$ 2 para a Avalanche e recusavam US$ 0,01 com esta mensagem
+                raise BuyError("valor pequeno demais: não cobre a taxa da ponte (too small); tente a partir de uns US$ 1")
             raise BuyError("a Relay não cotou esta rota: " + str((js or {}).get("message") if isinstance(js, dict) else "")[:120])
         return check_quote(js, origem, addr, recebedor, value)
+
+    async def routes(self, uid: str, destino: str) -> dict:
+        """0.32.278 (pedido do dono, 10/11/2026: "abri Avalanche e não mostra nada; na Base e na BNB diz que a rota não existe"): ao abrir a
+        janela, testa cada origem possível com uma cotação de AMOSTRA_USD e diz quais rotas existem, a taxa e o tempo de cada uma, ou por que
+        não dá (sem carteira, sem saldo, a Relay não cota). Só cota: nada é assinado nem enviado. Devolve também o preço das moedas."""
+        b = self.b
+        if destino not in CHAINS or destino not in RELAY_ID:
+            raise BuyError("a ponte não leva gás para esta rede: mande a moeda direto para a carteira")
+        d = await b.wallet_row(uid, destino)
+        if not d:
+            raise BuyError("cadastre a carteira desta rede primeiro: o gás só vai para uma carteira sua")
+        ud = await b.native_usd(destino)
+
+        async def one(k: str) -> dict:
+            c = CHAINS[k]
+            r = {"origem": k, "nome": c["nome"], "moeda": c["moeda"]}
+            o = await b.wallet_row(uid, k)
+            if not o:
+                return {**r, "ok": False, "motivo": "sem carteira cadastrada nesta rede"}
+            un = await b.native_usd(k)
+            r["usd_moeda"] = un
+            try:
+                bal = int(await b.rpc(c["rpc"], "eth_getBalance", [o["endereco"], "latest"]) or "0x0", 16) / 1e18
+            except BuyError:
+                return {**r, "ok": False, "motivo": "não consegui ler o saldo"}
+            r.update(saldo=bal, saldo_usd=bal * un if un else None)
+            if not un or not ud:
+                return {**r, "ok": False, "motivo": "sem a cotação em dólar agora"}
+            if bal * un < MIN_SUGESTAO:
+                return {**r, "ok": False, "motivo": f"saldo baixo para mandar (tem ${bal * un:.2f})"}
+            try:
+                q = await self._relay_quote(k, destino, o["endereco"], d["endereco"], int(AMOSTRA_USD / un * 1e18))
+            except BuyError as e:
+                m = str(e)
+                if "too small" in m.lower():
+                    m = f"a Relay não cota ${AMOSTRA_USD:g} nesta rota (pouco para a taxa)"
+                return {**r, "ok": False, "motivo": m[:160]}
+            taxa = (1 - q["saida"] * ud / AMOSTRA_USD) * 100
+            return {**r, "ok": True, "taxa_pct": round(taxa, 2), "tempo_s": q["tempo_s"], "recebe_amostra": q["saida"]}
+        out = await asyncio.gather(*[one(k) for k in ORIGENS if k != destino])
+        out = sorted(out, key=lambda x: (not x["ok"], x.get("taxa_pct") or 99))
+        return {"destino": destino, "destino_nome": CHAINS[destino]["nome"], "moeda_destino": CHAINS[destino]["moeda"], "usd_destino": ud,
+                "amostra_usd": AMOSTRA_USD, "ponte": "Relay", "rotas": out}
 
     async def _wallets(self, uid: str, origem: str, destino: str) -> tuple[dict, dict]:
         if origem not in ORIGENS:

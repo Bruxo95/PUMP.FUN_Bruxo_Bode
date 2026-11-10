@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-10",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9a4f94ea4c7a5e1daaa3e3994a7ca82519d1a597",
-    "application_version": "0.32.277 · 2026-11-10 · Espelho total e as chaves da REAL num lugar só",
+    "repository_reference": "b9153a582ff59002c892737de787d227337c69eb",
+    "application_version": "0.32.278 · 2026-11-10 · Dormant: Abastecer mostra as rotas ao abrir e o valor em moeda enquanto digita",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "056363679d088a3d167acab22c0a1bd6b1c349057cd48933980c59047536ea1a",
+      "app/version.py": "51644b49c5a2ba427048fdd547acee81bd6cda08b5c55fd7eaf633f476476589",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "8a9ed110f2d92c7cad5c677035f7ff6cd8e210a084c90dc33e2af4ac87c45d57"
+  "pdf_sha256": "4121e4645170c49c4d2d730c8a0a9c869072a441492279345d914c93d27d5529"
 }

@@ -251,6 +251,10 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {**await f.status(u["id"]), "historico": await f.history(u["id"])}
         return await run(go())
 
+    @app.get("/api/dormant/gas/rotas")
+    async def gas_routes(destino: str = "", u: dict = Depends(own)):
+        return await run(GasFiller(buyer()).routes(u["id"], destino[:40]))
+
     @app.post("/api/dormant/gas/cotar")
     async def gas_quote(body: dict, u: dict = Depends(own)):
         b = body if isinstance(body, dict) else {}

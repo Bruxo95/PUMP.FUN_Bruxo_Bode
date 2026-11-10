@@ -211,3 +211,30 @@ def test_buy_message_points_to_refuel_and_migration_is_closed():
     assert "Abastecer" in pathlib.Path("app/dormant_buy.py").read_text(encoding="utf-8")
     sql = pathlib.Path("supabase/migrations/20261106000003_dormant_gas.sql").read_text(encoding="utf-8")
     assert "enable row level security" in sql and "revoke all on public.dormant_gas from anon, authenticated" in sql and "create policy" not in sql
+
+
+def test_routes_show_which_origins_work_with_fee_or_why_not():
+    """0.32.278 (pedido do dono): a janela abre mostrando as rotas (taxa e tempo) e por que as outras não dão. Só cota, nada é assinado."""
+    net = RelayNet()
+    net.saida = 0.00396                                                         # US$ 1,98 de BNB por US$ 2: 1% de taxa
+    f, b, net, db = ready(net)
+    r = run(f.routes(UID, "binance-smart-chain"))
+    rt = {x["origem"]: x for x in r["rotas"]}
+    assert set(rt) == {"ethereum", "base", "arbitrum-one"}                      # o próprio destino não aparece como origem
+    ok = rt["base"]
+    assert ok["ok"] and ok["taxa_pct"] == 1.0 and ok["tempo_s"] == 1 and ok["recebe_amostra"] == 0.00396
+    assert r["rotas"][0]["ok"] and r["moeda_destino"] == "BNB" and r["usd_destino"] == 500.0
+    assert net.sent == []                                                       # nada foi enviado
+
+    net.mexe = lambda js: {"message": "Swap output amount is too small to cover fees required to execute swap"}
+    r = run(f.routes(UID, "binance-smart-chain"))
+    assert all(not x["ok"] and "pouco para a taxa" in x["motivo"] for x in r["rotas"])
+
+
+def test_routes_without_destination_wallet_explain_it():
+    b, net, db = setup(RelayNet())
+    try:
+        run(g.GasFiller(b).routes(UID, "base"))
+        raise AssertionError("cotou sem carteira de destino")
+    except db_.BuyError as e:
+        assert "carteira" in str(e)

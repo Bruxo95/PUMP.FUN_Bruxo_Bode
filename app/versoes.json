@@ -2145,6 +2145,11 @@
    "versao": "0.32.277",
    "inicio": "2026-11-10T09:53:31+00:00",
    "titulo": "Espelho total e as chaves da REAL num lugar só"
+  },
+  {
+   "versao": "0.32.278",
+   "inicio": "2026-11-10T10:03:51+00:00",
+   "titulo": "Dormant: Abastecer mostra as rotas ao abrir e o valor em moeda enquanto digita"
   }
  ]
 }
