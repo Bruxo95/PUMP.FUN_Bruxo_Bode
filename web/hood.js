@@ -42,7 +42,45 @@
   }
   const ex = () => (R && R.explorer) || "https://robinhoodchain.blockscout.com";
   const short = (a) => (a ? a.slice(0, 6) + "…" + a.slice(-4) : "—");
-  const addr = (a) => (a ? '<a class="hdaddr" href="' + esc(ex()) + "/address/" + esc(a) + '" target="_blank" rel="noopener">' + esc(short(a)) + "</a>" : "—");
+  // 0.32.285 (pedido do dono): cada carteira ganha um apelido e um ícone de pixels (o mesmo desenho "blockie" que os exploradores
+  // de blockchain mostram, gerado da própria carteira). Os dois saem do endereço: a mesma carteira tem sempre o mesmo nome e ícone.
+  const NICK_A = ["Lobo", "Raposa", "Tubarão", "Falcão", "Coruja", "Pantera", "Touro", "Urso", "Baleia", "Polvo", "Tigre", "Leão", "Corvo",
+    "Águia", "Cobra", "Lince", "Jaguar", "Dragão", "Fênix", "Golfinho", "Escorpião", "Gavião", "Puma", "Rinoceronte", "Bisão", "Camaleão",
+    "Morcego", "Lagarto", "Coiote", "Hiena", "Abutre", "Javali", "Texugo", "Furão", "Arraia", "Piranha", "Mamute", "Gorila", "Leopardo", "Condor"];
+  const NICK_B = ["Veloz", "Feroz", "Audaz", "Sagaz", "Voraz", "Tenaz", "Ágil", "Hábil", "Leal", "Rebelde", "Selvagem", "Brilhante",
+    "Gigante", "Elegante", "Valente", "Paciente", "Ardente", "Potente", "Polar", "Estelar", "Nuclear", "Radical", "Tropical", "Glacial",
+    "Imortal", "Lunar", "Solar", "Turbo", "Neon", "Ninja", "Pirata", "Samurai", "Viking", "Fantasma", "Rubi", "Safira", "Diamante",
+    "Platina", "Bronze", "Alfa"];       // só palavras que servem para os dois gêneros (Raposa Veloz, Lobo Veloz)
+  const NICK = {}, BKY = {};
+  function nick(a) {
+    a = String(a || "").toLowerCase();
+    if (!NICK[a]) {
+      let h = 2166136261;
+      for (let i = 0; i < a.length; i++) { h ^= a.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+      NICK[a] = NICK_A[h % NICK_A.length] + " " + NICK_B[Math.floor(h / NICK_A.length) % NICK_B.length];
+    }
+    return NICK[a];
+  }
+  function blockie(a) {               // algoritmo dos "blockies" do Ethereum: 8×8 espelhado, 3 cores
+    a = String(a || "").toLowerCase();
+    if (BKY[a]) return BKY[a];
+    const rs = [0, 0, 0, 0];
+    for (let i = 0; i < a.length; i++) rs[i % 4] = ((rs[i % 4] << 5) - rs[i % 4] + a.charCodeAt(i)) | 0;
+    const rand = () => { const t = rs[0] ^ (rs[0] << 11); rs[0] = rs[1]; rs[1] = rs[2]; rs[2] = rs[3]; rs[3] = rs[3] ^ (rs[3] >> 19) ^ t ^ (t >> 8); return (rs[3] >>> 0) / ((1 << 31) >>> 0); };
+    const col = () => "hsl(" + Math.floor(rand() * 360) + "," + (rand() * 60 + 40) + "%," + (rand() + rand() + rand() + rand()) * 25 + "%)";
+    const c1 = col(), bg = col(), sp = col();
+    const cv = document.createElement("canvas"); cv.width = cv.height = 8;
+    const g = cv.getContext("2d");
+    if (!g) return "";
+    g.fillStyle = bg; g.fillRect(0, 0, 8, 8);
+    for (let y = 0; y < 8; y++) {
+      const row = [0, 1, 2, 3].map(() => Math.floor(rand() * 2.3));
+      row.concat(row.slice().reverse()).forEach((v, x) => { if (v) { g.fillStyle = v === 1 ? c1 : sp; g.fillRect(x, y, 1, 1); } });
+    }
+    return (BKY[a] = cv.toDataURL());
+  }
+  const addr = (a) => (a ? '<a class="hdwho" href="' + esc(ex()) + "/address/" + esc(a) + '" target="_blank" rel="noopener" title="' + esc(a) + '"><img class="bky" alt="" src="' + blockie(a) +
+    '"><span><b>' + esc(nick(a)) + '</b><small class="hdaddr">' + esc(short(a)) + "</small></span></a>" : "—");
   const tok = (a) => (a ? '<a class="hdaddr" href="https://dexscreener.com/robinhood/' + esc(a) + '" target="_blank" rel="noopener">' + esc(short(a)) + "</a>" : "—");
   const txl = (h) => (h ? '<a class="hdaddr" href="' + esc(ex()) + "/tx/" + esc(h) + '" target="_blank" rel="noopener">' + esc(h.slice(0, 10)) + "…</a>" : "—");
   function table(id, head, rows, empty) {

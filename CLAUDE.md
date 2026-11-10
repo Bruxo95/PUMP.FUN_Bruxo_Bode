@@ -1728,3 +1728,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   cada janela faz as 3 consultas no mesmo RPC (`next_rpc`); lê até o bloco − `HEAD_MARGIN`. A REAL usa `watch.official`.
 - 0.32.284 (pedido do dono): `hoodcopy` cfg `manual` (até 50 carteiras por conta) e `auto_top`; `Book.follows`; `Copier.follow` +
   `POST /api/hood/seguir` (audit); a compra só entra nas contas que seguem o trader (`tr["_auto"]`). Ranking com botão `data-follow`.
+- 0.32.285 (pedido do dono): `nick`/`blockie` em `web/hood.js` (apelido e ícone "blockie" gerados do endereço; adjetivos só de dois gêneros) na função `addr`.

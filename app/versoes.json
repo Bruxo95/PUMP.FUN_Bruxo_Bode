@@ -2180,6 +2180,11 @@
    "versao": "0.32.284",
    "inicio": "2026-11-10T21:18:28+00:00",
    "titulo": "Robinhood: botão Copiar em cada trader do ranking"
+  },
+  {
+   "versao": "0.32.285",
+   "inicio": "2026-11-10T21:40:24+00:00",
+   "titulo": "Robinhood: apelido e ícone de pixels em cada trader"
   }
  ]
 }
