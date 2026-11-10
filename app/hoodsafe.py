@@ -67,7 +67,7 @@ class Safety:
         except Exception:
             return None
 
-    async def check(self, token: str, key: list, trader: str | None, trader_raw: int = 0) -> dict:
+    async def check(self, token: str, key: list, trader: str | None, trader_raw: int = 0, fee: float = 0.0) -> dict:
         if len(key) != 5 or key[0] != ZERO or key[1] != token:
             return self.mark(token, False, "pool não pago em ETH (a cópia só compra em pool de ETH da Uniswap V4)")
         try:
@@ -101,6 +101,8 @@ class Safety:
         if not got or not got[0] or not back:
             return self.mark(token, False, "o pool não cotou a ida e volta", goplus=gp_info)
         loss = 100 * (1 - back[0] / PROBE_WEI)
+        if fee > 0.05:                                    # taxa do pool acima de 5% em cada lado: barra mesmo se a ida e volta passar
+            return self.mark(token, False, f"taxa do pool {fee * 100:.1f}% em cada lado", goplus=gp_info, ida_volta_pct=round(loss, 2))
         if loss > ROUNDTRIP_MAX:
             return self.mark(token, False, f"ida e volta perde {loss:.1f}% (máx. {ROUNDTRIP_MAX:g}%): taxa escondida ou pool vazio",
                              goplus=gp_info, ida_volta_pct=round(loss, 2))

@@ -1717,3 +1717,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - Rotas `/api/hood/painel|conta|fechar|fechar-todas|chave|chave/remover|real|real/cfg`. Tabelas `hood_books`/`hood_positions`/`hood_trades`
   e o nome novo em `user_secrets_nome_check` (migração `20261110000001`). Telas Posições, Histórico, Carteira e o botão FICTÍCIA/REAL.
 - Nenhuma compra REAL enviada. A primeira deve ser pequena, numa carteira nova. `tests/test_hood_copia.py`.
+- 0.32.281 (caso PONS do dono, 10/11: +543.649% de mentira): pool V4 de taxa dinâmica tem `fee` = 0x800000 na PoolKey, lido como 838%.
+  `hoodcopy.pool_fee(key, swap_fee)` (taxa fixa da chave, senão a da troca do trader, senão 1%, máx. 10%) em toda conta; `hoodcopy.repair` refaz
+  na subida as posições gravadas com a taxa errada; `hoodsafe` barra pool com taxa acima de 5% de cada lado. Nunca usar `key[2]` direto como taxa.

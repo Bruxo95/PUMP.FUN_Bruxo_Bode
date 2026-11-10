@@ -284,3 +284,20 @@ def test_copy_routes_are_admin_only_and_real_needs_ligar(env):  # noqa: F811
     assert r["cfg"]["eth_por_compra"] == 0.02 and r["cfg"]["on"] is False
     assert c.get("/api/hood/painel?real=1", headers=tok(UA)).json()["real"] is True
     assert "VENDER" in c.post("/api/hood/fechar-todas", json={"real": True}, headers=tok(UA)).json()["error"]
+
+
+def test_dynamic_fee_pool_does_not_invent_profit():
+    """Caso PONS (10/11/2026): pool V4 de taxa dinâmica (fee = 0x800000) virou +543.649% de mentira."""
+    dyn = [hoodcopy.ZERO, TOK, 0x800000, 200, "0x" + "44" * 20]
+    assert hoodcopy.pool_fee(dyn, 10130) == 0.01013 and hoodcopy.pool_fee(dyn) == 0.01 and hoodcopy.pool_fee(KEY) == 0.01
+    b = hoodcopy.Book("u", {"eth_por_compra": 0.1, "slip_pct": 2})
+    now = time.time()
+    t = trade("buy", 1000.0, 1.0)
+    t["fee"] = 10130
+    p = b.buy(t, 0.001, now, dyn)
+    assert p["tokens"] > 0 and abs(p["fee"] - 0.01013) < 1e-9
+    b.on_price(TOK, 0.001, now + 5)
+    assert -6 < b.pnl_now(p)[1] < 0                      # mesmo preço: só taxa e folga
+    bad = dict(p, fee=8.388608, tokens=-700.0, tokens_left=-700.0, best_pct=543649.4)
+    assert hoodcopy.repair(bad) and bad["tokens"] > 0 and bad["best_pct"] == 0 and bad["fee"] == 0.01
+    assert not hoodcopy.repair(p)

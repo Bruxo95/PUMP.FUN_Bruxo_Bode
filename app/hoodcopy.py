@@ -37,6 +37,35 @@ CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000)}
 
 
+DYNAMIC_FEE = 0x800000      # Uniswap V4: marca de "taxa dinâmica" no campo fee da PoolKey (não é a taxa)
+FEE_MAX = 0.10
+
+
+def pool_fee(key: list | None, swap_fee=None) -> float:
+    """Taxa do pool em fração (0,01 = 1%). 0.32.281 (caso PONS do dono, 10/11/2026: +543.649% de mentira): no pool de taxa
+    dinâmica o campo fee da chave é a marca 0x800000, que lida como taxa dava 838%; a conta da posição ficou negativa × negativa
+    e virou lucro. Agora: taxa fixa da chave; senão a taxa cobrada na troca do trader (evento Swap); senão 1%. Nunca acima de 10%."""
+    f = key[2] if key and len(key) > 2 else None
+    if isinstance(f, int) and not f & DYNAMIC_FEE and 0 <= f < 1_000_000:
+        return min(FEE_MAX, f / 1e6)
+    if isinstance(swap_fee, int) and 0 <= swap_fee < 1_000_000:
+        return min(FEE_MAX, swap_fee / 1e6)
+    return 0.01
+
+
+def repair(p: dict) -> bool:
+    """Posição gravada com a taxa errada (0.32.279/280): refaz a quantidade com a taxa certa e zera o pico. True se mexeu."""
+    fee = p.get("fee")
+    if isinstance(fee, (int, float)) and 0 <= fee <= FEE_MAX and (p.get("tokens") or 0) > 0:
+        return False
+    f = pool_fee(p.get("key"))
+    old_t, old_l = p.get("tokens") or 0, p.get("tokens_left") or 0
+    frac = old_l / old_t if old_t and old_l and (old_l > 0) == (old_t > 0) else 1.0
+    tokens = max(0.0, (p["eth_in"] - p.get("fees_gas", 0.0)) * (1 - f) / p["px_in"]) if p.get("px_in") else 0.0
+    p.update(fee=f, tokens=tokens, tokens_left=tokens * frac, best_pct=0.0, worst_pct=0.0, corrigido="taxa do pool refeita (0.32.281)")
+    return True
+
+
 def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(base or CFG_DEFAULT)
     for k, v in (raw or {}).items():
@@ -99,7 +128,7 @@ class Book:
         if why:
             self.ev(t, tr["wallet"], tr["token"], "não copiou", why)
             return None
-        fee_r = key[2] / 1e6
+        fee_r = pool_fee(key, tr.get("fee"))
         px_in = px * (1 + c["slip_pct"] / 100)
         fee = amt * fee_r
         tokens = (amt - fee) / px_in
@@ -336,7 +365,7 @@ class Copier:
             else:
                 v = self.safe.cached(tk)
                 if v is None:
-                    v = await self.safe.check(tk, key, tr["wallet"], int(tr["amount"] * 1e18))
+                    v = await self.safe.check(tk, key, tr["wallet"], int(tr["amount"] * 1e18), pool_fee(key, tr.get("fee")))
         except Exception as e:                                   # nunca compra sem conferir
             key, v = None, self.safe.mark(tk, False, "falha na conferência (" + type(e).__name__ + ")", erro=True)
         self._buy_all(tr, v, key, px)
@@ -551,8 +580,8 @@ class Copier:
                 continue
             if not w or not w[0]:
                 continue
-            fee = key[2] / 1e6
-            px = w[0] / amt / max(0.01, 1 - fee)              # o Quoter já tira a taxa do pool: volta ao preço sem ela
+            fee = next((p["fee"] for p in pos if isinstance(p.get("fee"), (int, float)) and 0 <= p["fee"] <= FEE_MAX), pool_fee(key))
+            px = w[0] / amt / (1 - fee)                       # o Quoter já tira a taxa do pool: volta ao preço sem ela
             self.w.px[tk] = (px, now)
             for b in self.books.values():
                 b.on_price(tk, px, now)
@@ -720,10 +749,16 @@ class Copier:
             d = r.get("data")
             if not isinstance(d, dict) or not r.get("user_id"):
                 continue
+            if repair(d):
+                log.warning("Robinhood: posição %s com a taxa do pool errada, refeita", r["id"])
             if d.get("real"):
                 self.rbook(r["user_id"]).pos[r["id"]] = d
+                if d.get("corrigido"):
+                    self.real[r["user_id"]].dirty_pos.add(r["id"])
             elif r["user_id"] in self.books:
                 self.books[r["user_id"]].pos[r["id"]] = d
+                if d.get("corrigido"):
+                    self.books[r["user_id"]].dirty_pos.add(r["id"])
         for r in await self.db.select("hood_trades", None, order="t.desc", limit=20000) or []:
             d = r.get("data")
             if not isinstance(d, dict):

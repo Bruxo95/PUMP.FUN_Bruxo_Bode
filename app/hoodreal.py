@@ -125,11 +125,12 @@ class RealBook:
 
 
 def new_position(tr: dict, res: dict, t: float, px: float | None, key: list) -> dict:
+    from .hoodcopy import pool_fee
     tokens = res["raw"] / 1e18
     return {"id": "r" + uuid.uuid4().hex[:15], "wallet": tr["wallet"], "token": tr["token"], "open_t": t,
             "px_in": (res["eth"] - res.get("gas", 0)) / tokens if tokens else None, "trader_px": px, "trader_eth": tr.get("eth"),
             "tokens": tokens, "tokens_left": tokens, "raw_left": str(res["raw"]), "eth_in": round(res["eth"], 9), "proceeds": 0.0,
-            "fees": res.get("gas", 0), "fee": key[2] / 1e6, "px_now": px, "px_t": t, "best_pct": 0.0, "worst_pct": 0.0,
+            "fees": res.get("gas", 0), "fee": pool_fee(key, tr.get("fee")), "px_now": px, "px_t": t, "best_pct": 0.0, "worst_pct": 0.0,
             "lag_s": round(max(0.0, t - tr["t"]), 1), "tx_in": res["tx"], "aba": "top", "key": key, "real": True}
 
 

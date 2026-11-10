@@ -2160,6 +2160,11 @@
    "versao": "0.32.280",
    "inicio": "2026-11-10T20:21:46+00:00",
    "titulo": "Robinhood: Copiaria agora não diz mais \"só leitura\""
+  },
+  {
+   "versao": "0.32.281",
+   "inicio": "2026-11-10T20:34:10+00:00",
+   "titulo": "Robinhood: lucro de mentira em pool de taxa dinâmica corrigido (caso PONS)"
   }
  ]
 }
