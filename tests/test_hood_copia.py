@@ -591,6 +591,7 @@ def test_sells_when_the_trader_leaves_the_coin():
         c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
         await settle(c)
         b = c.books["u1"]
+        b.cfg["trader_so_lucro"] = False
         p = next(iter(b.pos.values()))
         w.bal = {TRADER: 1000 * 10 ** 18, DEV: 0}
         await c.follow_tick(time.time())
@@ -613,7 +614,7 @@ def test_old_position_with_trader_at_zero_is_closed_and_switch_off_keeps_it():
         await c.follow_tick(time.time())
         assert p["id"] in b.pos                      # opção desligada: fica
         p.pop("trader_max")
-        b.cfg["sair_trader"] = True
+        b.cfg["sair_trader"], b.cfg["trader_so_lucro"] = True, False
         await c.follow_tick(time.time())
         assert p["id"] not in b.pos and "saldo zero" in b.trades[0]["motivo"]
     run(go())
@@ -652,3 +653,21 @@ def test_dexscreener_price_when_the_quote_is_stale_and_token_name():
         pa = c.painel("u1")
         assert pa["posicoes"][0]["simbolo"] == "MIHAO" and pa["posicoes"][0]["pnl_pct"] < -60
     run(go())
+
+
+def test_trader_exit_waits_for_profit_after_fees():
+    """0.32.292 (pedido do dono): trader saiu e a posição está no prejuízo → segura; vende quando ficar positiva."""
+    b = hoodcopy.Book("u1", {"slip_pct": 2, "gas_eth": 0.00002})
+    t = time.time()
+    p = b.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
+    assert b.trader_exit(p, 0.5, 0.00101, t, "trader vendeu 50%") is None
+    assert p["id"] in b.pos and p["espera"]["frac"] == 0.5 and abs(p["tokens_left"] - p["tokens"]) < 1e-9
+    b.trader_exit(p, 1.0, 0.00099, t, "trader saiu da moeda")
+    assert p["espera"]["frac"] == 1.0
+    b.on_price(TOK, 0.00102, t)                      # +2% no preço ainda é prejuízo depois de taxa, folga e gás
+    assert p["id"] in b.pos
+    r = b.on_price(TOK, 0.0011, t)                   # +10%: positivo → vende tudo
+    assert r and "ficar positivo" in r[0]["motivo"] and r[0]["pnl_eth"] > 0
+    off = hoodcopy.Book("u2", {"trader_so_lucro": False})
+    q = off.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
+    assert off.trader_exit(q, 1.0, 0.0009, t, "trader saiu da moeda") and q["id"] not in off.pos

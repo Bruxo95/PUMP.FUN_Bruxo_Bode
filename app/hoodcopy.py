@@ -40,12 +40,12 @@ MODOS = ("sim", "real", "ambas")
 # ativar"): sair_trader / sair_dev (saldo do trader e do dev lidos na rede) e stop móvel igual ao da Solana (liga ao passar de
 # trail_ativa_pct de lucro líquido; sai se cair trail_dist_pct pontos do pico, travando no mínimo TRAIL_MIN_LOCK).
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "sair_trader": True, "sair_dev": True,
+               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
               "trail_dist_pct": (1, 1000)}
-CFG_BOOLS = ("on", "auto_top", "sair_trader", "sair_dev", "trail_on")
+CFG_BOOLS = ("on", "auto_top", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
 TRAIL_MIN_LOCK = 2.0
 # Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
 FOLLOW_S, FOLLOW_MAX = 60, 25
@@ -244,6 +244,24 @@ class Book:
         self.ev(t, p["wallet"], p["token"], "fechou", f"{motivo} · {pnl:+.5f} ETH")
         return tr
 
+    def trader_exit(self, p: dict, frac: float, px: float | None, t: float, motivo: str) -> dict | None:
+        """Venda puxada pelo trader (vendeu ou saiu da moeda). 0.32.292 (pedido do dono: "sair somente se estiver positivo +
+        taxas, se não aguarda ficar positivo"): com trader_so_lucro, no prejuízo (já com taxa do pool, folga e gás) não vende;
+        guarda a parte em p["espera"] e vende quando o resultado passar de zero. Stop de perda e tempo máximo continuam valendo."""
+        if px:
+            p["px_now"], p["px_t"] = px, t
+        if self.cfg.get("trader_so_lucro") and self.pnl_now(p)[1] <= 0:
+            ant = (p.get("espera") or {}).get("frac") or 0.0
+            p["espera"] = {"frac": round(1.0 if frac >= 0.95 else 1 - (1 - ant) * (1 - frac), 4), "motivo": motivo, "t": t}
+            self.dirty_pos.add(p["id"])
+            if not ant:
+                self.ev(t, p["wallet"], p["token"], "segurando", f"{motivo} · no prejuízo, espera ficar positivo")
+            return None
+        if p.get("espera"):
+            ant = p.pop("espera")["frac"]
+            frac = 1.0 if frac >= 0.95 else 1 - (1 - ant) * (1 - frac)
+        return self.sell(p, frac, px, t, motivo)
+
     def on_price(self, token: str, px: float, t: float) -> list[dict]:
         out = []
         for p in list(self.pos.values()):
@@ -255,8 +273,12 @@ class Book:
             self.dirty_pos.add(p["id"])
             why = f"stop de {self.cfg['stop_pct']:.0f}%" if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"] else \
                 trail_hit(self.cfg, p["best_pct"], pct)
+            frac = 1.0
+            if not why and p.get("espera") and (pct > 0 or not self.cfg.get("trader_so_lucro")):
+                e = p.pop("espera")
+                why, frac = f"{e['motivo']} · vendeu ao ficar positivo ({pct:+.1f}%)", e["frac"]
             if why:
-                r = self.sell(p, 1.0, px, t, why)
+                r = self.sell(p, frac, px, t, why)
                 if r:
                     out.append(r)
         return out
@@ -418,15 +440,14 @@ class Copier:
             if tr["side"] == "sell":
                 frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
                 for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
-                    p["retry_frac"] = frac
-                    self._spawn(self._real_sell(uid, p, frac, f"trader vendeu {frac * 100:.0f}%"))
+                    self._real_trader_exit(uid, p, frac, f"trader vendeu {frac * 100:.0f}%", tr["t"])
         for b in self.books.values():
             if px:
                 b.on_price(tr["token"], px, tr["t"])
             if tr["side"] == "sell":
                 frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
                 for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
-                    b.sell(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
+                    b.trader_exit(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
         auto = tr["wallet"] in copiaria
         if tr["side"] == "buy" and now - tr["t"] <= FRESH_S and any(b.mode_of(tr["wallet"], auto) for b in self.books.values()):
             tr["_auto"] = auto
@@ -515,9 +536,13 @@ class Copier:
             rb.dirty_pos.add(p["id"])
             why = f"stop de {rc['real_stop_pct']:g}%" if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] else \
                 trail_hit(rc, p["best_pct"], pct, "real_")
+            frac = 1.0
+            if not why and p.get("espera") and (pct > 0 or not rc.get("real_trader_so_lucro")):
+                why, frac = f"{p['espera']['motivo']} · vendeu ao ficar positivo ({pct:+.1f}%)", p["espera"]["frac"]
             if why and not p.get("selling") and (p.get("sell_retry_at") or 0) <= time.time():
-                p["retry_frac"] = 1.0
-                self._spawn(self._real_sell(uid, p, 1.0, why))
+                p.pop("espera", None)
+                p["retry_frac"] = frac
+                self._spawn(self._real_sell(uid, p, frac, why))
 
     def real_why_not(self, uid: str, tr: dict, rb, rc: dict) -> str | None:
         if not self.real_allowed:
@@ -787,15 +812,37 @@ class Copier:
                 self.dev.pop(k, None)
         return self.dev[tk]
 
+    def _real_trader_exit(self, uid: str, p: dict, frac: float, motivo: str, now: float) -> None:
+        """Venda da REAL puxada pelo trader: igual à da fictícia (trader_exit), com real_trader_so_lucro."""
+        rc, rb = self.rcfg(uid), self.rbook(uid)
+        if rc.get("real_trader_so_lucro") and rb.pnl_now(p, rc["real_slip_pct"])[1] <= 0:
+            ant = (p.get("espera") or {}).get("frac") or 0.0
+            p["espera"] = {"frac": round(1.0 if frac >= 0.95 else 1 - (1 - ant) * (1 - frac), 4), "motivo": motivo, "t": now}
+            rb.dirty_pos.add(p["id"])
+            if not ant:
+                rb.ev(now, p["wallet"], p["token"], "segurando", f"{motivo} · no prejuízo, espera ficar positivo")
+            return
+        if p.get("espera"):
+            ant = p.pop("espera")["frac"]
+            frac = 1.0 if frac >= 0.95 else 1 - (1 - ant) * (1 - frac)
+        if p.get("selling") or (p.get("sell_retry_at") or 0) > now:
+            return
+        p["retry_frac"] = frac
+        self._spawn(self._real_sell(uid, p, frac, motivo))
+
     def _exit(self, uid: str, p: dict, real: bool, regra: str, motivo: str, now: float) -> None:
+        so_trader = regra == "sair_trader"
         if real:
-            if self.rcfg(uid).get("real_" + regra) and not p.get("selling") and (p.get("sell_retry_at") or 0) <= now:
-                p["retry_frac"] = 1.0
-                self._spawn(self._real_sell(uid, p, 1.0, motivo))
+            if self.rcfg(uid).get("real_" + regra):
+                if so_trader:
+                    self._real_trader_exit(uid, p, 1.0, motivo, now)
+                elif not p.get("selling") and (p.get("sell_retry_at") or 0) <= now:
+                    p["retry_frac"] = 1.0
+                    self._spawn(self._real_sell(uid, p, 1.0, motivo))
         else:
             b = self.books.get(uid)
             if b and b.cfg.get(regra) and p["id"] in b.pos:
-                b.sell(p, 1.0, None, now, motivo)
+                (b.trader_exit if so_trader else b.sell)(p, 1.0, None, now, motivo)
 
     async def follow_tick(self, now: float) -> None:
         """Acompanha o trader copiado e o dev de cada token aberto pelo saldo na rede (pega também a venda que a leitura das
@@ -951,7 +998,7 @@ class Copier:
                 v, pct = rb.pnl_now(p, rc["real_slip_pct"])
                 pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                       "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling",
-                                                      "nome", "simbolo", "px_src", "dev")},
+                                                      "nome", "simbolo", "px_src", "dev", "espera")},
                             "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + rc["real_max_hold_h"] * 3600, "real": True})
             return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
                     "trades": rb.trades[:500], "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
@@ -960,7 +1007,7 @@ class Copier:
             v, pct = b.pnl_now(p)
             pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                   "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "nome", "simbolo",
-                                                  "px_src", "dev")},
+                                                  "px_src", "dev", "espera")},
                         "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
         return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100],
                 "nomes": self._names(b.events[:100])}

@@ -2215,6 +2215,11 @@
    "versao": "0.32.291",
    "inicio": "2026-11-11T06:25:14+00:00",
    "titulo": "Robinhood: leitura não para mais em transferência de NFT"
+  },
+  {
+   "versao": "0.32.292",
+   "inicio": "2026-11-11T06:54:35+00:00",
+   "titulo": "Robinhood: trader saiu, só vende no lucro (já com taxas)"
   }
  ]
 }
