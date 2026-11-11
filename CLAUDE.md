@@ -1761,3 +1761,6 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.299 (pedido do dono): "Enviar para a Robinhood" (antigo Abastecer de outra rede) cota sozinho: `gaAuto` (0,8 s) no valor/rede e ao abrir, `gaQuote` com `GA_SEQ` (vale a mais nova); `gaGo` cota de novo se `GA_QT` venceu.
 - 0.32.300 (pedido do dono): Sala com `body` 100dvh, `.stwrap` (container-type:size) e `.stage` com `width:min(100cqw, 100cqh*16/9)`; textos do palco em cqw; `.side` container e `.pos` em cqw; coluna Hora nas posições. Conferido em 1920×1080, 1440×900, 1280×720, 1024×768, 768×1024, 800×450, 844×390 e 390×844.
 - 0.32.301 (pedido do dono): Robinhood `um_por_token`/`real_um_por_token` (ON): uma posição por token, mesmo com trader diferente (`Book.buy`, `real_why_not` olhando `rb.busy`).
+- 0.32.302 (pedido do dono): `hoodcopy` cfg `bloqueados` (até 500; `mode_of` devolve None) + `Copier.block` + `POST /api/hood/bloquear` (audit);
+  `on_trade` ignora compra de trader PERIGO (`perigo_ignorados`), nem a FICTÍCIA copia. Tela: botão `data-block`, aba `#trBl` (`drawBlocked`), ranking sem
+  bloqueados/PERIGO; `usdL` (dólar embaixo do ETH, pelo `usdOf` existente) nos quadrados da Visão geral e do Histórico.

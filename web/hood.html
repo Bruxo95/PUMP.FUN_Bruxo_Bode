@@ -67,6 +67,8 @@
   #fxH{flex-wrap:wrap}
   .hdmodes .btn.dz,.hdmodes .btn.dz:hover{background:#2a2a2e;color:#6b6b73;border-color:#2a2a2e;cursor:not-allowed}
   .tag.dzt{font-weight:700}
+  .usdl{display:block;font-size:13px;font-weight:500;color:var(--muted);font-family:var(--sans,inherit);margin-top:2px}
+  .hdmodes .btn.blk{color:var(--down);border-color:rgba(239,68,68,.35)}
   .hdsec{margin:22px 0 12px;font-size:14px;color:var(--muted);font-weight:600}
   .hdask{margin-top:12px;border:1px dashed var(--down);border-radius:10px;padding:12px}
   #modeSeg button[data-mode="real"].on{background:var(--real);color:#111}
@@ -202,13 +204,18 @@
           <div class="tbl-wrap"><table id="sfT"></table></div></div>
       </section>
       <section class="view" data-view="traders" hidden>
-        <div class="seg hdsub" id="trTab"><button data-trt="rank">Ranking</button><button data-trt="aj">Regra do ranking</button></div>
+        <div class="seg hdsub" id="trTab"><button data-trt="rank">Ranking</button><button data-trt="aj">Regra do ranking</button><button data-trt="bl" id="trBlB">Bloqueados</button></div>
         <div id="trRank">
           <div class="card"><header><div><h2>Copiando agora</h2><div class="sub" id="hdSelSub">os melhores aptos que negociaram nos últimos minutos, pela regra do Top traders · quando um deles compra, a cópia FICTÍCIA compra junto (Visão geral → O que a cópia fez)</div></div></header>
             <div class="tbl-wrap"><table id="hdSel"></table></div></div>
           <div class="card"><header><div><h2>Ranking dos traders</h2><div class="sub" id="hdRkSub">os 50 que mais lucraram nas últimas 24 h</div></div></header>
             <div class="tbl-wrap"><table id="hdRk"></table></div>
             <div class="help"><p><b>Como escolhe (igual ao Top traders):</b> pega os 50 que mais lucraram nas últimas 24 h (lucro realizado, em ETH). Apto = trades mínimos no período, acerto acima do mínimo (tokens vendidos com lucro), carteira com saldo mínimo (ETH, WETH e USDG) e não ser robô. Copia os mais bem colocados entre os aptos que negociaram nos últimos minutos.</p></div></div>
+        </div>
+        <div id="trBl" hidden>
+          <div class="card"><header><div><h2>Bloqueados e PERIGO</h2><div class="sub" id="blSub">traders que nunca são copiados: os que você bloqueou e os marcados PERIGO (contrato-robô ou honeypot)</div></div></header>
+            <div class="tbl-wrap"><table id="blT"></table></div>
+            <div class="help"><p><b>PERIGO</b> é automático: carteira que é um contrato (robô) ou que comprou token que não deixa vender. Não é copiada nem na FICTÍCIA nem na REAL e não dá para desbloquear. <b>Bloqueado por você</b> é o botão Bloquear do ranking: para de copiar na hora e some do ranking; Desbloquear devolve.</p></div></div>
         </div>
         <div id="trAj" hidden>
           <div class="card"><header><div><h2>Regra do ranking</h2><div class="sub">quem entra na lista · vale para todos os admins</div></div></header>

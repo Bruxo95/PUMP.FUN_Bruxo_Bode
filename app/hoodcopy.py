@@ -39,7 +39,9 @@ MODOS = ("sim", "real", "ambas")
 # 0.32.290 (pedido do dono, 11/11/2026: "sair quando o desenvolvedor sai da moeda ... stop móvel com as mesmas regras ... botão de
 # ativar"): sair_trader / sair_dev (saldo do trader e do dev lidos na rede) e stop móvel igual ao da Solana (liga ao passar de
 # trail_ativa_pct de lucro líquido; sai se cair trail_dist_pct pontos do pico, travando no mínimo TRAIL_MIN_LOCK).
-CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
+# 0.32.302 (pedido do dono, 11/11: "um botão bloquear e uma aba dos honeypot"): carteiras que esta conta bloqueou; nunca são copiadas
+BLOCK_MAX = 500
+CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
                "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
@@ -107,11 +109,16 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(base or CFG_DEFAULT)
     out["manual"] = list(out.get("manual") or [])
     out["modo"] = dict(out.get("modo") or {})
+    out["bloqueados"] = list(out.get("bloqueados") or [])
     for k, v in (raw or {}).items():
         if k == "modo" and isinstance(v, dict):
             out["modo"] = {str(w).lower(): m for w, m in v.items() if m in MODOS}
         elif k in CFG_BOOLS:
             out[k] = bool(v)
+        elif k == "bloqueados":
+            ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
+            out["bloqueados"] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
+                                                   and all(ch in "0123456789abcdef" for ch in x[2:])))[:BLOCK_MAX]
         elif k == "manual":
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
             out["manual"] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
@@ -151,6 +158,8 @@ class Book:
 
     def mode_of(self, wallet: str, auto: bool) -> str | None:
         """Onde esta conta copia o trader: 'sim', 'real' ou 'ambas' (escolhido no botão; o Copiando agora vale nas duas) ou None."""
+        if wallet in (self.cfg.get("bloqueados") or []):
+            return None
         if wallet in (self.cfg.get("manual") or []):
             return (self.cfg.get("modo") or {}).get(wallet, "ambas")
         if auto and self.cfg.get("auto_top", True):
@@ -461,6 +470,9 @@ class Copier:
                 for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     b.trader_exit(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
         auto = tr["wallet"] in copiaria
+        if tr["side"] == "buy" and hasattr(self.w, "danger_reason") and self.w.danger_reason(tr["wallet"]):
+            self.stat["perigo_ignorados"] = self.stat.get("perigo_ignorados", 0) + 1     # 0.32.302: PERIGO não é copiado nem na FICTÍCIA
+            return
         if tr["side"] == "buy" and now - tr["t"] <= FRESH_S and any(b.mode_of(tr["wallet"], auto) for b in self.books.values()):
             tr["_auto"] = auto
             self.stat["compras_vistas"] += 1
@@ -949,6 +961,23 @@ class Copier:
         await self.flush()
         return b.cfg
 
+    async def block(self, uid: str, wallet: str, on: bool) -> list:
+        """Bloqueia (para de copiar e nunca mais copia nesta conta) ou desbloqueia um trader. 0.32.302, pedido do dono."""
+        b = self.book(uid)
+        w = (wallet or "").strip().lower()
+        bl = [x for x in (b.cfg.get("bloqueados") or []) if x != w]
+        if on:
+            if len(bl) >= BLOCK_MAX:
+                raise ValueError(f"no máximo {BLOCK_MAX} traders bloqueados")
+            bl.append(w)
+            b.cfg = clean_cfg({"manual": [x for x in (b.cfg.get("manual") or []) if x != w]}, b.cfg)
+        b.cfg = clean_cfg({"bloqueados": bl}, b.cfg)
+        if on and w not in b.cfg["bloqueados"]:
+            raise ValueError("carteira inválida")
+        b.dirty_book = True
+        await self.flush()
+        return b.cfg["bloqueados"]
+
     async def follow(self, uid: str, wallet: str, on: bool, modo: str = "ambas") -> list:
         """Liga (no modo sim, real ou ambas) ou desliga a cópia de um trader nesta conta (botões do ranking)."""
         b = self.book(uid)
@@ -957,6 +986,8 @@ class Copier:
         w = (wallet or "").strip().lower()
         if on and modo not in MODOS:
             raise ValueError("modo inválido")
+        if on and w in (b.cfg.get("bloqueados") or []):
+            raise ValueError("este trader está bloqueado: desbloqueie em Top traders → Bloqueados para copiar")
         perigo = self.w.danger_reason(w) if on and hasattr(self.w, "danger_reason") else None
         if perigo:                                  # 0.32.295 (pedido do dono): botão travado também no servidor
             raise ValueError("trader marcado PERIGO, não dá para copiar: " + perigo)

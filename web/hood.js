@@ -167,10 +167,31 @@
       "Desde o início: " + num(s.trocas, 0) + " trocas lidas, " + num(s.fora_rota, 0) + " de rotas com vários pools e " + num(s.fora_outro, 0) + " sem trader ou memecoin claro ficaram de fora."
       : '<span class="down">' + esc((R && R.motivo) || "A leitura da Robinhood Chain está desligada no servidor.") + "</span>";
   }
+  function drawBlocked(all, blk) {
+    const byW = {}; all.forEach((r) => { byW[r.wallet] = r; });
+    const dz = all.filter((r) => (r.perigo || []).length).map((r) => r.wallet);
+    const ws = Array.from(new Set(dz.concat(Array.from(blk))));
+    $("trBlB").textContent = "Bloqueados" + (ws.length ? " (" + ws.length + ")" : "");
+    $("blSub").textContent = dz.length + " PERIGO · " + blk.size + " bloqueados por você · nunca são copiados";
+    const man = new Set(((P && P.cfg_sim && P.cfg_sim.manual) || []));
+    table("blT", ["Carteira", "Por quê", "Lucro realizado", "Trades", "Último trade", ""], ws.map((w) => {
+      const r = byW[w] || {}, pg = r.perigo || [];
+      return [addr(w),
+        (pg.length ? '<span class="tag loss dzt">PERIGO · ' + (pg.some((x) => /honeypot/.test(x)) ? "honeypot" : "robô") + '</span><br><small class="down">' + esc(pg.join(" · ")) + "</small>" : "") +
+          (blk.has(w) ? (pg.length ? "<br>" : "") + '<span class="tag neutral">bloqueado por você</span>' : "") + (man.has(w) ? '<br><small class="muted">estava na sua lista: não copia mais</small>' : ""),
+        r.realized_eth == null ? "—" : eth(r.realized_eth), r.trades == null ? "—" : num(r.trades, 0), r.last_t ? "há " + ago(r.last_t) : '<span class="muted">fora do top 50 agora</span>',
+        blk.has(w) ? '<button class="btn sm" data-block="' + esc(w) + '" data-on="0">Desbloquear</button>' : '<span class="muted small">automático</span>'];
+    }), "Nenhum trader bloqueado.");
+  }
   function drawTraders() {
     document.querySelectorAll("#trTab button").forEach((b) => b.classList.toggle("on", b.dataset.trt === TRT));
-    $("trRank").hidden = TRT !== "rank"; $("trAj").hidden = TRT !== "aj";
-    const rk = (R && R.ranking) || {}, rows = rk.rows || [];
+    $("trRank").hidden = TRT !== "rank"; $("trAj").hidden = TRT !== "aj"; $("trBl").hidden = TRT !== "bl";
+    const rk = (R && R.ranking) || {}, all = rk.rows || [];
+    // 0.32.302 (pedido do dono): bloqueados por você e PERIGO saem do ranking e vão para a aba Bloqueados
+    const blk = new Set(((P && P.cfg_sim && P.cfg_sim.bloqueados) || []));
+    const isOut = (r) => blk.has(r.wallet) || (r.perigo || []).length;
+    const rows = all.filter((r) => !isOut(r));
+    drawBlocked(all, blk);
     const man = new Set(((P && P.cfg_sim && P.cfg_sim.manual) || []));
     const autoOn = !(P && P.cfg_sim && P.cfg_sim.auto_top === false);
     // 0.32.287 (pedido do dono): 3 botões por trader: copiar só na FICTÍCIA, só na REAL ou nas 2
@@ -186,7 +207,8 @@
       const why = r.eligible ? "" : " (fora da regra: " + (r.flags || []).join(" · ") + ")";
       return '<span class="hdmodes">' + ["sim", "real", "ambas"].map((m) => '<button class="btn sm' + (cur === m ? " on" : "") + '" data-follow="' + esc(r.wallet) + '" data-on="' + (cur === m ? "0" : "1") +
         '" data-modo="' + m + '" title="' + esc(cur === m ? "Parar de copiar este trader" : "Copiar " + (m === "ambas" ? "na FICTÍCIA e na REAL" : "só na " + MODO_TXT[m]) + why) + '">' + MODO_TXT[m] + "</button>").join("") +
-        (cur ? '<button class="btn sm" data-follow="' + esc(r.wallet) + '" data-on="0" title="Parar de copiar este trader">Parar</button>' : "") + "</span>";
+        (cur ? '<button class="btn sm" data-follow="' + esc(r.wallet) + '" data-on="0" title="Parar de copiar este trader">Parar</button>' : "") +
+        '<button class="btn sm blk" data-block="' + esc(r.wallet) + '" data-on="1" title="Bloquear: para de copiar e tira do ranking (vai para a aba Bloqueados)">Bloquear</button>' + "</span>";
     };
     const row = (r, i) => [String(i + 1), addr(r.wallet), eth(r.realized_eth), num(r.vol_eth, 3) + " ETH", num(r.trades, 0), r.winrate == null ? "—" : num(r.winrate, 0) + "% (" + r.closed + ")",
       r.wallet_usd == null ? "—" : "US$ " + num(r.wallet_usd, 0), "há " + ago(r.last_t),
@@ -195,7 +217,8 @@
       (man.has(r.wallet) && !(r.perigo || []).length ? '<span class="tag win">você copia · ' + MODO_TXT[modo[r.wallet] || "ambas"] + "</span> " : "") + (r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
         : '<span class="muted small">' + esc((r.flags || []).join(" · ")) + "</span>"), btn(r)];
     const H = ["#", "Carteira", "Lucro realizado", "Volume", "Trades", "Acerto", "Saldo", "Último trade", "Situação", ""];
-    $("hdRkSub").textContent = num(rk.carteiras, 0) + " carteiras negociaram nas últimas 24 h · os 50 que mais lucraram · " + num(rk.aptos, 0) + " aptos";
+    const fora = all.length - rows.length;
+    $("hdRkSub").textContent = num(rk.carteiras, 0) + " carteiras negociaram nas últimas 24 h · os 50 que mais lucraram · " + num(rk.aptos, 0) + " aptos" + (fora ? " · " + fora + " na aba Bloqueados" : "");
     table("hdSel", H, rows.filter((r) => r.copiaria).map(row), "Nenhum trader apto e online agora. O ranking enche com as horas de leitura.");
     table("hdRk", H, rows.map(row), "O ranking enche com as horas de leitura.");
     if (!DIRTY && R && R.cfg) {
@@ -273,21 +296,23 @@
       '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><span class="muted">' + esc(x[2]) +
       (p && p[x[0]] !== c[x[0]] ? " · padrão " + esc(p[x[0]]) : "") + "</span></div></div>").join("");
   }
+  // 0.32.302 (pedido do dono): o valor em dólar junto do ETH, pelo preço do ETH que a leitura já usa (DexScreener)
+  const usdL = (v, sinal = true) => { const u = usdOf(v); return u ? '<span class="usdl">' + (!sinal ? u : v > 0 ? u.replace("US$ ", "+US$ ") : v < 0 ? u.replace("US$ ", "−US$ ").replace("−US$ -", "−US$ ") : u) + "</span>" : ""; };
   function drawMy() {
     const w = (P && P.carteira) || {}, pr = (w.periodos || []);
     if (REAL) {
-      kpis("myK", [["Saldo da carteira " + mtag(), w.saldo == null ? "—" : num(w.saldo, 5) + " ETH", w.endereco ? short(w.endereco) : "sem chave salva", "mon"],
-        ["Resultado " + mtag(), eth(w.resultado, 5), pct(w.resultado_pct) + " do que entrou", "tr"],
+      kpis("myK", [["Saldo da carteira " + mtag(), w.saldo == null ? "—" : num(w.saldo, 5) + " ETH" + usdL(w.saldo, false), w.endereco ? short(w.endereco) : "sem chave salva", "mon"],
+        ["Resultado " + mtag(), eth(w.resultado, 5) + usdL(w.resultado), pct(w.resultado_pct) + " do que entrou", "tr"],
         ["Posições abertas", num(w.abertas, 0), num(w.fechadas, 0) + " fechadas", "tr"],
         ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", "posições fechadas com lucro", "usr"]]);
     } else {
-      kpis("myK", [["Saldo " + mtag(), num(w.saldo, 5) + " ETH", "começou com " + num(w.inicial, 4) + " ETH", "mon"],
-        ["Resultado " + mtag(), eth(w.resultado, 5), pct(w.resultado_pct) + " sobre o inicial", "tr"],
+      kpis("myK", [["Saldo " + mtag(), num(w.saldo, 5) + " ETH" + usdL(w.saldo, false), "começou com " + num(w.inicial, 4) + " ETH", "mon"],
+        ["Resultado " + mtag(), eth(w.resultado, 5) + usdL(w.resultado), pct(w.resultado_pct) + " sobre o inicial", "tr"],
         ["Posições abertas", num(w.abertas, 0), num(w.em_posicoes, 5) + " ETH nelas", "tr"],
         ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", num(w.fechadas, 0) + " fechadas", "usr"]]);
     }
-    kpis("myP", pr.map((x) => ["Últimas " + x.h + " h", eth(x.pnl, 5), x.n ? x.n + " fechadas · " + x.ganhos + " com lucro · " + x.traders + " traders" + (x.taxas ? " · taxas " + num(x.taxas, 5) + " ETH" : "") : "nenhuma fechada", "tr"])
-      .concat([["Taxas pagas " + mtag(), '<span class="down">' + num(w.taxas || 0, 5) + " ETH</span>", "total: pool + gás, fechadas e abertas" + (R && R.status && R.status.eth_usd ? " · ≈ US$ " + num((w.taxas || 0) * R.status.eth_usd, 2) : ""), "mon"]]));
+    kpis("myP", pr.map((x) => ["Últimas " + x.h + " h", eth(x.pnl, 5) + (x.n ? usdL(x.pnl) : ""), x.n ? x.n + " fechadas · " + x.ganhos + " com lucro · " + x.traders + " traders" + (x.taxas ? " · taxas " + num(x.taxas, 5) + " ETH" : "") : "nenhuma fechada", "tr"])
+      .concat([["Taxas pagas " + mtag(), '<span class="down">' + num(w.taxas || 0, 5) + " ETH</span>" + usdL(w.taxas || 0, false), "total: pool + gás, fechadas e abertas", "mon"]]));
     table("ovEv", ["Hora", "O que fez", "Token", "Trader", "Motivo"], ((P && P.eventos) || []).slice(0, 80).map((e) => [hora(e.t),
       /não|falhou/.test(e.acao) ? '<span class="tag loss">' + esc(e.acao) + "</span>" : /comprou|copiou/.test(e.acao) ? '<span class="tag buy">' + esc(e.acao) + "</span>" : '<span class="tag neutral">' + esc(e.acao) + "</span>",
       tok(e.token), addr(e.wallet), esc(e.motivo || "") + (e.tx ? " · " + txl(e.tx) : "")]),
@@ -313,9 +338,9 @@
     // 0.32.294 (pedido do Bruxo, 11/11): taxas pagas e lucro real (já sem as taxas) em cada fechada e no total
     const tx = (x) => (x.taxas_eth != null ? x.taxas_eth : (x.fees || 0));
     const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length, txs = ts.reduce((a, x) => a + tx(x), 0);
-    kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5), "já descontadas as taxas", "tr"],
-      ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>", "sem elas o resultado seria " + num(pn + txs, 5) + " ETH", "mon"],
-      ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Lucro final (tudo)", eth(w.realizado, 5), "já descontadas as taxas · todas as fechadas", "mon"]]);
+    kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5) + usdL(pn), "já descontadas as taxas", "tr"],
+      ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>" + usdL(txs, false), "sem elas o resultado seria " + num(pn + txs, 5) + " ETH " + usdOf(pn + txs), "mon"],
+      ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Lucro final (tudo)", eth(w.realizado, 5) + usdL(w.realizado), "já descontadas as taxas · todas as fechadas", "mon"]]);
     table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Taxas", "Lucro real", "Pico", "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
       tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", '<span class="down">' + num(tx(x), 6) + "</span>",
       eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
@@ -541,6 +566,15 @@
   document.addEventListener("click", async (e) => {
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
     if (t.dataset.mode) { REAL = t.dataset.mode === "real"; try { localStorage.setItem("hood_mode", REAL ? "real" : "sim"); } catch (x) { /* */ } P = null; draw(); load(); return; }
+    if (t.dataset.block) {
+      const on = t.dataset.on === "1";
+      if (on && !confirm("Bloquear este trader? Ele para de ser copiado (FICTÍCIA e REAL) e vai para a aba Bloqueados.")) return;
+      const r = await post("/api/hood/bloquear", { wallet: t.dataset.block, on }, t);
+      if (r && r.error) { alert(r.error); return; }
+      if (P && P.cfg_sim) { P.cfg_sim.bloqueados = r.bloqueados; P.cfg_sim.manual = r.manual; P.cfg_sim.modo = r.modo; }
+      toast(on ? "Bloqueado: foi para a aba Bloqueados." : "Desbloqueado.");
+      draw(); return load();
+    }
     if (t.dataset.follow) {
       const on = t.dataset.on === "1", m = t.dataset.modo || "ambas";
       const realOn = !!(P && P.real_status && P.real_status.ligada);

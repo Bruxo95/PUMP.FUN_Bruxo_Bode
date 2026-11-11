@@ -2265,6 +2265,11 @@
    "versao": "0.32.301",
    "inicio": "2026-11-11T09:50:39+00:00",
    "titulo": "Robinhood: uma entrada por token"
+  },
+  {
+   "versao": "0.32.302",
+   "inicio": "2026-11-11T09:57:16+00:00",
+   "titulo": "Robinhood: botão Bloquear, aba Bloqueados e valores em dólar"
   }
  ]
 }

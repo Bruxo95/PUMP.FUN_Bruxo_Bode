@@ -85,6 +85,20 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         await audit(db, u["id"], "Robinhood: " + ("copiar trader (" + nomes.get(modo, modo) + ")" if on else "parar de copiar trader"), w[:42])
         return {"ok": True, "manual": lst, "modo": c.book(u["id"]).cfg.get("modo") or {}}
 
+    @app.post("/api/hood/bloquear")
+    async def hood_bloquear(body: dict, u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        w, on = str((body or {}).get("wallet") or ""), bool((body or {}).get("on"))
+        try:
+            bl = await c.block(u["id"], w, on)
+        except ValueError as e:
+            return {"error": str(e)}
+        await audit(db, u["id"], "Robinhood: " + ("bloquear trader" if on else "desbloquear trader"), w[:42])
+        b = c.book(u["id"])
+        return {"ok": True, "bloqueados": bl, "manual": b.cfg.get("manual") or [], "modo": b.cfg.get("modo") or {}}
+
     # 0.32.286 (pedido do dono): saldo da carteira, se precisa abastecer, e abastecer de outra rede pela Relay
     @app.get("/api/hood/abastecer")
     async def hood_gas(u: dict = Depends(admin_only)):

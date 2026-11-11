@@ -191,3 +191,27 @@ def test_danger_traders_are_tagged_blocked_from_copy_and_never_buy_in_real():
         await asyncio.sleep(0)
         assert not chamou and c.real["u1"].events[0]["acao"] == "REAL não copiou" and "PERIGO" in c.real["u1"].events[0]["motivo"]
     run(go())
+
+
+def test_block_button_stops_copying_and_danger_is_never_copied():
+    """0.32.302 (pedido do dono): Bloquear tira da lista e nunca copia; PERIGO não é copiado nem na FICTÍCIA."""
+    w = hood.HoodWatch(None, None)
+
+    async def go():
+        c = w.copier
+        c.book("u1")
+        await c.follow("u1", A, True, "ambas")
+        assert await c.block("u1", A, True) == [A]
+        b = c.books["u1"]
+        assert A not in b.cfg["manual"] and b.mode_of(A, True) is None
+        try:
+            await c.follow("u1", A, True, "sim")
+            assert False
+        except ValueError as e:
+            assert "bloqueado" in str(e)
+        assert await c.block("u1", A, False) == [] and b.mode_of(A, True) == "ambas"
+        w.balances[B] = {"usd": 1, "contrato": True, "t": time.time()}
+        w._danger = None
+        c.on_trade(tr(7, TOK, B, "buy", 1.0, t=time.time()), 0.0, [B])
+        assert c.stat.get("perigo_ignorados") == 1 and c.stat["compras_vistas"] == 0
+    run(go())
