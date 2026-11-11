@@ -59,6 +59,7 @@ OLD_POS_S = 600              # posição de antes desta regra (sem saldo lido): 
 DEX_URL = "https://api.dexscreener.com/tokens/v1/robinhood/"
 EXPLORER = "https://robinhoodchain.blockscout.com"
 DEX_S, DEX_STALE, DEX_BATCH = 60, 120, 30
+ZERO_READS, ZERO_MIN_AGE_S = 3, 300
 WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
 SEL_BAL = "0x70a08231"
 
@@ -540,8 +541,8 @@ class Copier:
         auto = tr.get("_auto", True)
         espelho = {uid for uid in list(self.real_cfg) if self.mirrors(uid, tr["wallet"], auto)}
         for uid, rc in list(self.real_cfg.items()):
-            if uid in espelho:                      # 0.32.306: entra depois, só se a FICTÍCIA comprar
-                continue
+            if uid in espelho or (rc.get("real_espelho") and (self.books.get(uid) and self.books[uid].cfg.get("on"))):
+                continue                            # 0.32.306/307: com o espelho a REAL só entra depois da FICTÍCIA, nunca sozinha
             if rc.get("real_on") and self.book(uid).real_follows(tr["wallet"], tr.get("_auto", True)):
                 if tr["token"] in (self.book(uid).cfg.get("tokens_bloqueados") or []):
                     self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "moeda bloqueada por você")
@@ -697,6 +698,11 @@ class Copier:
                 try:
                     res = await self.chain.sell(key, addr, p["token"], p["key"], raw, rc["real_slip_pct"])
                 except hoodreal.ChainError as e:
+                    # 0.32.307 (caso 4Robinhood, 11/11 11:55 UTC: comprou e 24 s depois fechou em -100% por uma leitura de saldo
+                    # zero): só fecha com saldo zero lido 3 vezes, com 1 min entre elas e a posição aberta há 5 min ou mais
+                    if "não tem mais" in str(e) and (int(p.get("zero_reads") or 0) < ZERO_READS - 1 or time.time() - p["open_t"] < ZERO_MIN_AGE_S):
+                        p["zero_reads"] = int(p.get("zero_reads") or 0) + 1
+                        raise hoodreal.ChainError(f"a carteira aparece sem o token (leitura {p['zero_reads']} de {ZERO_READS}); confere de novo em 1 min")
                     if "não tem mais" in str(e):
                         p["tokens_left"], p["raw_left"] = 0.0, "0"
                         tr = rb.close(p, time.time(), "a carteira não tem mais o token (vendido fora do sistema?)", p.get("px_now"))
@@ -709,7 +715,7 @@ class Copier:
             p["proceeds"] += res["eth"]
             p["fees"] = p.get("fees", 0) + res.get("gas", 0)
             p["tx_last"] = res["tx"]
-            for k in ("sell_error", "sell_retry_at", "retry_frac"):
+            for k in ("sell_error", "sell_retry_at", "retry_frac", "zero_reads"):
                 p.pop(k, None)
             rb.balance_t = 0
             if int(p["raw_left"]) > 0 and frac < 1:
@@ -722,7 +728,7 @@ class Copier:
             return tr
         except Exception as e:
             p["sell_error"] = str(e)[:200]
-            p["sell_retry_at"] = time.time() + hoodreal.RETRY_S
+            p["sell_retry_at"] = time.time() + (60 if p.get("zero_reads") else hoodreal.RETRY_S)
             p.setdefault("retry_frac", frac)
             rb.dirty_pos.add(p["id"])
             rb.ev(time.time(), p["wallet"], p["token"], "REAL falhou ao vender", str(e)[:200])

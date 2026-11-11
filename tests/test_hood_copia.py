@@ -751,3 +751,36 @@ def test_real_mirrors_the_fictitious_entries_and_exits():
         await settle(c)
         assert sold == ["fictícia fechou: stop de 40%"]
     run(go())
+
+
+def test_zero_token_balance_needs_three_reads_before_closing_real():
+    """0.32.307 (caso 4Robinhood): uma leitura de saldo zero logo depois da compra não fecha a REAL em -100%."""
+    async def go():
+        c = hoodcopy.Copier(Watch(), Http())
+
+        async def get_key(uid):
+            return 1, "0x" + "aa" * 20
+        c.get_key = get_key
+
+        class Ch:
+            async def sell(self, *a, **k):
+                raise hoodreal.ChainError("a carteira não tem mais este token")
+        c.chain = Ch()
+        rb = c.rbook("u1")
+        p = {"id": "r1", "wallet": TRADER, "token": TOK, "open_t": time.time() - 30, "raw_left": "1000", "tokens_left": 1.0, "key": KEY,
+             "eth_in": 0.002, "proceeds": 0.0, "px_in": 0.001}
+        rb.pos["r1"] = p
+        await c._real_sell("u1", p, 1.0, "trader vendeu 100%")
+        assert "r1" in rb.pos and p["zero_reads"] == 1 and "leitura 1 de 3" in p["sell_error"]
+        p["zero_reads"], p["open_t"], p["sell_retry_at"] = 2, time.time() - 600, 0
+        await c._real_sell("u1", p, 1.0, "trader vendeu 100%")
+        assert "r1" not in rb.pos                       # 3ª leitura e posição com 5 min ou mais: aí fecha
+
+    async def empty():
+        ch = hoodreal.Chain(lambda m, p: asyncio.sleep(0, result="0x"))
+        try:
+            await ch.token_balance(TOK, "0x" + "aa" * 20)
+        except hoodreal.ChainError as e:
+            return str(e)
+    run(go())
+    assert "leitura vazia" in run(empty())

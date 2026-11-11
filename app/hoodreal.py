@@ -176,8 +176,11 @@ class Chain:
         return int(await self.rpc("eth_getBalance", [addr, "latest"]) or "0x0", 16)
 
     async def token_balance(self, token: str, addr: str) -> int:
+        """0.32.307 (caso 4Robinhood, 11/11: -100% falso): resposta vazia do RPC ("0x") NÃO é saldo zero: é leitura que falhou."""
         w = evm.words(await self.call(token, SEL_BALANCE + evm.w_addr(addr)))
-        return w[0] if w else 0
+        if not w:
+            raise ChainError("o RPC não devolveu o saldo do token (leitura vazia); tenta de novo")
+        return w[0]
 
     async def quote(self, key: list, amount: int, buy: bool) -> int:
         w = evm.words(await self.call(QUOTER, v4_quote_data(key, amount, buy)))

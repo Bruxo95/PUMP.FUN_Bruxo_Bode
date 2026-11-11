@@ -2290,6 +2290,11 @@
    "versao": "0.32.306",
    "inicio": "2026-11-11T11:44:11+00:00",
    "titulo": "Robinhood: a REAL segue a FICTÍCIA (espelho)"
+  },
+  {
+   "versao": "0.32.307",
+   "inicio": "2026-11-11T12:02:02+00:00",
+   "titulo": "Robinhood: REAL só entra pela FICTÍCIA e não fecha mais em -100% por leitura de saldo zero"
   }
  ]
 }
