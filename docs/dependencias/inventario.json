@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-11",
     "timezone": "Europe/Dublin",
-    "repository_reference": "62e72583361662adb212efdd1c495c6375368c7e",
-    "application_version": "0.32.316 · 2026-11-11 · Robinhood: não compra token com a liquidez nas mãos de uma carteira comum",
+    "repository_reference": "15585a1c26e4f1f0957bd64b04eff33a64b1f58d",
+    "application_version": "0.32.317 · 2026-11-11 · Dormant: botão Ver o que marcar para criar a chave da MEXC",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "1ad75aa96a902a8fcf9102b08c03c7f0a6945b706834b5ac69b545917c375b7d",
+      "app/version.py": "a4a85d9ac495b91766c9bb0e3bbe3f5481748fb7c63541d5af46558148e05b52",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "37f336964b5373539b70b96a2e5faa75ccc5855312e4fb97d86a0ef1315fcfaf"
+  "pdf_sha256": "2e09f7308a8aea7c317417c607ab0ecc3ce4c5e72ba1f46273757f815e764ae2"
 }

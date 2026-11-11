@@ -2340,6 +2340,11 @@
    "versao": "0.32.316",
    "inicio": "2026-11-11T16:33:00+00:00",
    "titulo": "Robinhood: não compra token com a liquidez nas mãos de uma carteira comum"
+  },
+  {
+   "versao": "0.32.317",
+   "inicio": "2026-11-11T17:13:06+00:00",
+   "titulo": "Dormant: botão Ver o que marcar para criar a chave da MEXC"
   }
  ]
 }

@@ -231,3 +231,16 @@ def test_walk_book_respects_cap():
     w = cx.walk_book(asks, Decimal("100"), Decimal("2"))
     assert w["qty"] == 10 and w["gasto"] == 15 and w["sobra"] == 85
 
+
+
+def test_mexc_guide_marks_only_what_the_panel_uses():
+    """0.32.317 (pedido do dono, prints da tela da MEXC de 11/11): botão "Ver o que marcar" com as caixas da MEXC. Só as 3 que o
+    painel usa (saldo, ordem, ler a ordem) vêm marcadas; saque, transferência, futuros e P2P ficam desmarcados."""
+    import re
+    js = open("web/dormant.js", encoding="utf-8").read()
+    g = js[js.index("const XGUIDE = {"):js.index("let X_IP")]
+    marcadas = re.findall(r'\["([^"]+)", true', g)
+    assert marcadas == ["View Account Details", "View Order Details", "Trade"]
+    for nome in ("Withdraw", "Transfer", "Order Placing", "Place order", "Advertiser", "Edit Account Info"):
+        assert f'["{nome}", false' in g
+    assert "data-xguide" in js and "X_IP = r.ip" in js

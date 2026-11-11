@@ -824,13 +824,51 @@
     desenha(c0);
     if (["enviando", "pendente"].includes(c0.status)) follow(async () => { const h = await BB.api("/api/dormant/compras", { quiet: true }); return ((h && h.vendas) || []).find((i) => i.id === c0.id); }, desenha);
   }
+  // 0.32.317 (pedido do dono, com os prints da tela de criar a chave da MEXC em 11/11): o que marcar no site, igual à tela de lá.
+  // O painel usa só: ler o saldo (GET /api/v3/account = View Account Details), mandar a ordem (POST /api/v3/order = Trade) e ler a
+  // ordem depois (GET /api/v3/order = View Order Details). Todo o resto fica desmarcado. Nomes copiados da tela da MEXC em 11/11.
+  const XGUIDE = {
+    mexc: {
+      grupos: [
+        ["Spot", [["Account", [["View Account Details", true, "o painel lê o saldo de USDT antes de comprar"], ["Edit Account Info", false]]],
+          ["Trade", [["View Order Details", true, "o painel confere se a ordem foi executada"], ["Trade", true, "o painel manda a ordem de compra"]]],
+          ["Withdraw", [["View Deposit/Withdrawal Details", false], ["Withdraw", false, "NUNCA: com ela quem pegar a chave tira o dinheiro"]]],
+          ["Transfer", [["Read transfer information", false], ["Transfer", false]]]]],
+        ["Futures", [["Account", [["View Account Details", false]]], ["Trade", [["View Order Details", false], ["Order Placing", false]]]]],
+        ["P2P", [["Read", [["Read account & order info", false]]], ["Trade", [["Place order", false], ["Advertiser", false]]]]],
+      ],
+      notas: "dormant-painel",
+      uso: "Open API",
+    },
+  };
+  let X_IP = "";
+  function xGuide(id) {
+    const g = XGUIDE[id];
+    if (!g) return;
+    const box = (on) => '<span class="xgb' + (on ? " on" : "") + '" aria-hidden="true">' + (on ? "✓" : "") + "</span>";
+    const grupos = g.grupos.map(([sec, linhas]) => '<div class="xgsec"><b>' + esc(sec) + "</b>" + linhas.map(([rot, itens]) =>
+      '<div class="xgrow"><span class="xgl">' + esc(rot) + ":</span>" + itens.map(([nome, on, pq]) =>
+        '<span class="xgi' + (on ? " on" : "") + '">' + box(on) + esc(nome) + (on ? ' <span class="sr">(marcar)</span>' : ' <span class="sr">(deixar desmarcado)</span>') +
+        (pq ? '<small class="' + (on ? "muted" : "down") + '">' + esc(pq) + "</small>" : "") + "</span>").join("") + "</div>").join("") + "</div>").join("");
+    ask("O que marcar na MEXC", '<div class="xg"><p class="small">Na MEXC: <b>Perfil → API Management → Create new API key</b>. Marque só as 3 caixas verdes; todo o resto fica desmarcado.</p>' +
+      grupos +
+      '<div class="xgsec"><b>Notes (Required)</b><div class="xgrow"><code>' + esc(g.notas) + "</code> " + copyBtn(g.notas) + '<small class="muted">qualquer nome serve; este ajuda a achar a chave depois</small></div></div>' +
+      '<div class="xgsec"><b>Link IP Address</b><div class="xgrow">' + (X_IP ? "<code>" + esc(X_IP) + "</code> " + copyBtn(X_IP) +
+        '<small class="muted">IP de saída do servidor do painel: só ele consegue usar a chave, e ela não vence em 90 dias</small>'
+        : '<small class="down">não consegui ler o IP do servidor agora: deixe em branco (a chave vale 90 dias) ou tente de novo</small>') + "</div></div>" +
+      '<div class="xgsec"><b>API Usage</b><div class="xgrow"><span class="xgi on">' + box(true) + esc(g.uso) + '</span><span class="xgi on">' + box(true) +
+        'I have read and agree to the Risk Reminders for API Users</span></div></div>' +
+      '<p class="small">Clique em <b>Create</b>, confirme no e-mail/2FA e copie a <b>Access Key</b> e a <b>Secret Key</b> (a Secret aparece uma vez só). Cole aqui em MEXC, marque <b>criei SEM permissão de saque</b> e Salvar.</p></div>', null);
+  }
   // 0.32.247 (pedido do dono): comprar em exchange pela API
   async function loadEx() {
     const r = await BB.api("/api/dormant/cex", { quiet: true });
     if (!r || r.error) { $("xList").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler as exchanges") + "</span>"; return; }
     $("xIp").textContent = r.ip || "não consegui ler";
+    X_IP = r.ip || "";
     $("xSub").textContent = "nas que dizem pela API, chave com saque é recusada · nas últimas 24 h já foram $" + num(r.gasto_dia_usd, 2) + " de $" + num(r.cfg.cex_dia_usd, 2) + " · depois: " + r.depois.join(", ");
-    $("xList").innerHTML = r.exchanges.map((x) => '<div class="dmwal"><div class="h"><b>' + esc(x.nome) + '</b> <a class="small" href="' + esc(x.doc) + '" target="_blank" rel="noopener">criar a chave no site ↗</a><span class="sp"></span>' +
+    $("xList").innerHTML = r.exchanges.map((x) => '<div class="dmwal"><div class="h"><b>' + esc(x.nome) + '</b> <a class="small" href="' + esc(x.doc) + '" target="_blank" rel="noopener">criar a chave no site ↗</a>' +
+      (XGUIDE[x.id] ? '<button type="button" class="btn sm" data-xguide="' + esc(x.id) + '">Ver o que marcar</button>' : "") + '<span class="sp"></span>' +
       (x.rotulo ? '<span class="tag win">conectada</span> <button type="button" class="btn sm tgl off" data-xdel="' + esc(x.id) + '">Remover</button>' : '<span class="tag neutral">sem chave</span>') + "</div>" +
       (x.rotulo ? '<div class="ad">' + esc(x.rotulo) + (x.info && x.info.saque_conferido ? ' · <span class="up">conferido: sem saque</span>' : ' · <span class="muted">saque não conferido pela API</span>') + (x.info && x.info.ip ? ' · <span class="up">IP limitado</span>' : "") + "</div>" : "") +
       '<div class="f"><input class="in" id="xk_' + esc(x.id) + '" type="password" autocomplete="off" spellcheck="false" placeholder="API key" aria-label="API key da ' + esc(x.nome) + '">' +
@@ -1072,6 +1110,7 @@
     if (t.id === "sellGo") { sellGo(t); return; }
     if (t.id === "buyHist") { closeBuy(); $("coinM").hidden = true; CM = null; return; }
     if (t.id === "askMX") { closeAsk(); return; }
+    if (t.dataset.xguide) { xGuide(t.dataset.xguide); return; }
     if (t.id === "askGo") { if (ASK) await ASK(t); return; }
     if (t.dataset.adacancel) {
       const [tipo, id] = t.dataset.adacancel.split(":");
