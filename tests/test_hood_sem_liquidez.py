@@ -1,0 +1,150 @@
+"""0.32.315 (casos TEXEL e mihao do dono, 11/11/2026): o criador tirou toda a liquidez do pool V4 (TEXEL às 13:00:30, 5 s depois da
+compra REAL; mihao às 14:01:22, 2 min depois do botão). A fictícia tinha "fechado" no cálculo e a REAL ficou presa com a venda
+recusada (o Quoter devolve NotEnoughLiquidity). Sem internet: a rede é falsa."""
+import asyncio
+import time
+
+from app import evm, hoodcopy, hoodreal
+from app.dormant_buy import v4_pool_id
+from tests.test_hood_copia import KEY, TOK, TRADER, Http, Watch, copier, run, settle, trade
+
+
+def _real_pos(c, sim_id=None, **kw):
+    rb = c.rbook("u1")
+    p = {"id": "r1", "wallet": TRADER, "token": TOK, "sim_id": sim_id, "open_t": time.time() - 600, "eth_in": 0.002, "proceeds": 0.0,
+         "px_in": 0.001, "px_now": 0.0009, "tokens": 2.0, "tokens_left": 2.0, "raw_left": str(2 * 10 ** 18), "fee": 0.0001,
+         "fees": 0.00001, "best_pct": 0.0, "worst_pct": -10.0, "key": KEY, **kw}
+    rb.pos[p["id"]] = p
+    return rb, p
+
+
+def test_liquidity_slot_is_read_from_the_pool_manager():
+    """slot 3 do Pool.State: keccak(id do pool, 6) + 3 (conferido na rede em 11/11: TEXEL e mihao com liquidez 0)."""
+    seen = []
+
+    async def rpc(m, p):
+        seen.append(p[0])
+        return "0x" + evm.w_int((5 << 128) | 0)                 # 128 bits de cima são outro campo: liquidez = 0
+    ch = hoodreal.Chain(rpc)
+    assert run(ch.liquidity(KEY)) == 0
+    base = int.from_bytes(evm.keccak256(bytes.fromhex(v4_pool_id(KEY)[2:]) + (6).to_bytes(32, "big")), "big")
+    assert seen[0]["to"] == hoodreal.PM and seen[0]["data"] == hoodreal.SEL_EXTSLOAD + evm.w_int(base + 3)
+
+
+def test_sell_quote_reports_no_liquidity_when_the_pool_is_empty():
+    async def go(liq):
+        async def rpc(m, p):
+            return "0x" + evm.w_int(liq)
+        ch = hoodreal.Chain(rpc)
+
+        async def quote(key, amount, buy):
+            raise hoodreal.ChainError("simulação recusada: execution reverted")
+        ch.quote = quote
+        try:
+            await ch.sell_quote(KEY, 8000)
+        except hoodreal.SellBlocked as e:
+            return e
+    e = run(go(0))
+    assert isinstance(e, hoodreal.NoLiquidity) and "tirou toda a liquidez" in str(e)
+    e = run(go(10 ** 20))
+    assert not isinstance(e, hoodreal.NoLiquidity) and "recusou cotar a venda" in str(e)
+
+
+def test_no_liquidity_writes_off_the_fictitious_and_keeps_the_real_at_zero():
+    async def go():
+        w, c = copier()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        assert len(b.pos) == 1
+        rb, rp = _real_pos(c)
+        c.mark_no_liq(TOK, "TEXEL")
+        assert not b.pos and b.trades[0]["px_out"] == 0.0 and b.trades[0]["pnl_pct"] < -95     # o que de verdade aconteceria
+        assert "liquidez" in b.trades[0]["motivo"]
+        assert rp["id"] in rb.pos and rp["px_now"] == 0.0 and rb.value_now(rp, 15) == 0.0
+        assert rp["sell_retry_at"] > time.time() + 500                                        # não fica tentando a cada minuto
+        assert c.no_sell_why(TOK, "TEXEL")                                                     # e não compra de novo
+        pos = c.painel("u1", real=True)["posicoes"][0]
+        assert pos["sem_liquidez"] and pos["pnl_pct"] < -95
+        sold = []
+
+        async def chain_sell(*a, **k):
+            sold.append(1)
+        c.chain.sell = chain_sell
+        assert await c._real_sell("u1", rp, 1.0, "stop") is None and not sold                  # espera a próxima conferência
+    run(go())
+
+
+def test_manual_sell_with_no_liquidity_writes_off_the_real():
+    async def go():
+        w, c = copier()
+        rb, rp = _real_pos(c)
+
+        async def get_key(uid):
+            return 1, "0x" + "33" * 20
+        c.get_key = get_key
+
+        async def chain_sell(*a, **k):
+            raise hoodreal.NoLiquidity("o criador tirou toda a liquidez do pool")
+        c.chain.sell = chain_sell
+        tr = await c.close_real("u1", "r1")
+        assert tr and tr["eth_out"] == 0.0 and tr["pnl_eth"] == -0.002 and "baixa" in tr["motivo"]
+        assert not rb.pos and TOK in c.no_liq
+    run(go())
+
+
+def test_real_does_not_buy_when_the_fictitious_already_closed():
+    """Caso TEXEL: a fictícia fechou às 13:00:01 e a REAL comprou às 13:00:25. Com o espelho a REAL desiste."""
+    async def go():
+        w, c = copier()
+        c.real_allowed = True
+        rc = c.rcfg("u1")
+        rc["real_on"] = True
+        c.safe.mark(TOK, True, "")
+
+        async def get_key(uid):
+            return 1, "0x" + "33" * 20
+        c.get_key = get_key
+        bought = []
+
+        async def chain_buy(*a, **k):
+            bought.append(1)
+        c.chain.buy = chain_buy
+        rb = c.rbook("u1")
+        rb.balance, rb.balance_t = 1.0, time.time()
+        await c._real_buy("u1", {**trade("buy", 1000.0, 1.0), "_sim_id": "ja-fechou"}, 0.001, KEY)
+        assert not bought and not rb.pos
+        assert rb.events[0]["acao"] == "REAL não copiou" and "fictícia já fechou" in rb.events[0]["motivo"]
+    run(go())
+
+
+def test_closing_time_never_comes_before_the_opening():
+    """A fictícia mostrava "ficou -15 s": o preço do stop vinha de um trade lido com atraso, de antes da compra."""
+    b = hoodcopy.Book("u1")
+    p = b.buy(trade("buy", 1000.0, 1.0), 0.001, time.time(), KEY)
+    tr = b.sell(p, 1.0, 0.0009, p["open_t"] - 30, "stop de 1%")
+    assert tr["close_t"] >= tr["open_t"]
+
+
+def test_price_tick_marks_no_liquidity_when_the_quoter_refuses():
+    async def go():
+        w, c = copier()
+        rb, rp = _real_pos(c)
+
+        async def call(to, data, frm=None):
+            raise RuntimeError("execution reverted")
+        c._call = call
+
+        async def liquidity(key):
+            return 0
+        c.chain.liquidity = liquidity
+        await c.price_tick(time.time())
+        assert TOK in c.no_liq and rp["px_now"] == 0.0
+    run(go())
+
+
+def test_stop_below_the_round_trip_cost_is_warned_on_screen():
+    js = open("web/hood.js", encoding="utf-8").read()
+    assert "function stopWarn" in js and "custo de entrar e sair" in js
+    assert asyncio  # noqa
+    assert Http and Watch

@@ -28,9 +28,11 @@ ZERO = "0x" + "0" * 40
 SEL_APPROVE = evm.selector("approve(address,uint256)")
 SEL_ALLOW = evm.selector("allowance(address,address)")
 SEL_BALANCE = evm.selector("balanceOf(address)")
+SEL_EXTSLOAD = evm.selector("extsload(bytes32)")
 T_TRANSFER = "0x" + evm.keccak256(b"Transfer(address,address,uint256)").hex()
 GAS_RESERVE = 0.0005                # ETH que fica na carteira para o gás das vendas
 RETRY_S = 60                        # venda automática que falhou espera 1 min antes de tentar de novo
+NO_LIQ_RETRY_S = 600                # pool sem liquidez: confere de novo a cada 10 min (o criador pode devolver)
 RECIBO_S = 60
 
 # 0.32.287 (pedido do dono: "a carteira real tá faltando umas coisas que tem na fictícia"): tempo máximo e stop próprios da REAL
@@ -80,6 +82,11 @@ class SellBlocked(ChainError):
     """O pool não aceita a venda do token (golpe que trava venda ou pool sem ETH)."""
 
 
+class NoLiquidity(SellBlocked):
+    """0.32.315 (casos TEXEL e mihao do dono, 11/11): o criador tirou toda a liquidez do pool (ModifyLiquidity negativo de 100% às
+    13:00:30 e 14:01:22). A liquidez ativa do pool é zero: não existe ETH para receber, a venda é impossível e o token vale 0."""
+
+
 class RealBook:
     """Posições REAIS de uma conta (mesmo formato das fictícias, para as telas serem as mesmas)."""
 
@@ -103,7 +110,9 @@ class RealBook:
 
     @staticmethod
     def value_now(p: dict, slip: float) -> float:
-        px = p.get("px_now") or p.get("px_in") or 0
+        px = p.get("px_now")
+        if px is None:                               # 0.32.315: 0 é preço de verdade (pool sem liquidez), não "sem preço"
+            px = p.get("px_in") or 0
         return p["tokens_left"] * px * (1 - (p.get("fee") or 0) - slip / 100)
 
     def pnl_now(self, p: dict, slip: float) -> tuple[float, float]:
@@ -185,6 +194,14 @@ class Chain:
         if not w:
             raise ChainError("o RPC não devolveu o saldo do token (leitura vazia); tenta de novo")
         return w[0]
+
+    async def liquidity(self, key: list) -> int:
+        """Liquidez ativa do pool V4 (slot 3 do Pool.State no PoolManager: keccak(id, 6) + 3), lida por extsload. 0 = sem liquidez."""
+        base = int.from_bytes(evm.keccak256(bytes.fromhex(v4_pool_id(key)[2:]) + (6).to_bytes(32, "big")), "big")
+        w = evm.words(await self.call(PM, SEL_EXTSLOAD + evm.w_int(base + 3)))
+        if not w:
+            raise ChainError("o RPC não devolveu a liquidez do pool")
+        return w[0] & ((1 << 128) - 1)
 
     async def quote(self, key: list, amount: int, buy: bool) -> int:
         w = evm.words(await self.call(QUOTER, v4_quote_data(key, amount, buy)))
@@ -283,6 +300,12 @@ class Chain:
                 continue
             if out > 0:
                 return amt, out
+        try:
+            liq = await self.liquidity(pkey)
+        except ChainError:
+            liq = None
+        if liq == 0:
+            raise NoLiquidity("o criador tirou toda a liquidez do pool (rug pull): não há ETH para receber, a venda é impossível e o token vale 0")
         raise SellBlocked("o pool recusou cotar a venda (nem 1/8 da posição): o token pode estar bloqueando vendas (golpe) ou o pool ficou sem ETH"
                           + (" · " + str(last)[-80:] if last else ""))
 

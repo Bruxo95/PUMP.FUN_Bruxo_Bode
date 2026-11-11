@@ -184,7 +184,9 @@ class Book:
         return self.mode_of(wallet, auto) in ("real", "ambas")
 
     def value_now(self, p: dict) -> float:
-        px = p.get("px_now") or p["px_in"]
+        px = p.get("px_now")
+        if px is None:                               # 0.32.315: 0 é preço de verdade (pool sem liquidez)
+            px = p["px_in"]
         return p["tokens_left"] * px * (1 - (p.get("fee") or 0) - self.cfg["slip_pct"] / 100) - self.cfg["gas_eth"]
 
     def pnl_now(self, p: dict) -> tuple[float, float]:
@@ -232,17 +234,22 @@ class Book:
     def sell(self, p: dict, frac: float, px: float | None, t: float, motivo: str) -> dict | None:
         """Vende a parte frac (0–1) da posição; 0,95 ou mais vende tudo. Devolve o trade quando fecha."""
         c = self.cfg
-        px = px or p.get("px_now") or p["px_in"]
+        if px is None:
+            px = p.get("px_now") or p["px_in"]
+        # 0.32.315 (pedido do dono, 11/11: "ficou -15 s"): o preço que fecha pode vir de um trade lido com atraso, de antes da compra
+        # da fictícia; a hora do fechamento nunca fica antes da abertura
+        t = max(t, p["open_t"])
         frac = 1.0 if frac >= 0.95 else max(0.0, frac)
         q = p["tokens_left"] * frac
         if q <= 0:
             return None
+        gas = c["gas_eth"] if px > 0 else 0.0       # baixa com preço 0 não envia transação: sem gás
         gross = q * px * (1 - c["slip_pct"] / 100)
         fee = gross * (p.get("fee") or 0)
-        got = gross - fee - c["gas_eth"]
+        got = gross - fee - gas
         p["tokens_left"] -= q
         p["proceeds"] += got
-        p["fees"] += fee + c["gas_eth"]
+        p["fees"] += fee + gas
         p["px_now"], p["px_t"] = px, t
         self.cash += got
         self.dirty_book = True
@@ -380,6 +387,7 @@ class Copier:
         self.no_sell_dev: dict[str, float] = {}     # criador → idem
         self.risky: dict[str, str] = {}             # 0.32.314: token aberto com trava do criador (venda travada ou contrato perigoso)
         self._q_fail: dict[str, int] = {}
+        self.no_liq: dict[str, float] = {}          # 0.32.315: token → última conferência com o pool SEM liquidez (rug pull)
         self.dev: dict[str, str] = {}               # token → carteira de quem criou ("" = não achou)
         self._dev_at: dict[str, float] = {}
         self._px_ok: dict[str, float] = {}          # última vez que o Quoter deu preço
@@ -432,6 +440,32 @@ class Copier:
         if sym and now - self.no_sell_sym.get(sym, 0) < NO_SELL_S:
             return f"outro token chamado {sym} travou a venda: as cópias com o mesmo nome ficam barradas por 24 h"
         return None
+
+    def mark_no_liq(self, token: str, simbolo: str | None = None) -> None:
+        """0.32.315 (casos TEXEL e mihao, 11/11): o criador tirou toda a liquidez do pool. A venda é impossível na REAL e na FICTÍCIA:
+        o preço passa a ser 0 (antes ficava o último da DexScreener, de antes da retirada: mostrava -11% num token que vale 0); a
+        FICTÍCIA dá baixa em 0 (o que de verdade aconteceria) e a REAL fica aberta, conferindo de novo a cada 10 min."""
+        now = time.time()
+        novo = token not in self.no_liq
+        self.no_liq[token] = now
+        self.flag_no_sell(token, simbolo)
+        self.risky[token] = "o criador tirou a liquidez do pool"
+        for _, p, _ in self._positions(token):
+            p["px_now"], p["px_t"], p["px_src"] = 0.0, now, "sem_liquidez"
+        for rb in list(self.real.values()):
+            for p in [x for x in rb.pos.values() if x["token"] == token]:
+                p["sell_error"] = ("o criador tirou toda a liquidez do pool (rug pull): não há ETH para receber e o token vale 0. "
+                                   "Confere de novo a cada 10 min; o botão Vender dá baixa da posição")
+                p["sell_retry_at"] = now + hoodreal.NO_LIQ_RETRY_S
+                p.setdefault("retry_frac", 1.0)
+                rb.dirty_pos.add(p["id"])
+                if novo:
+                    rb.ev(now, p["wallet"], token, "REAL falhou ao vender", "o criador tirou toda a liquidez do pool (rug pull)")
+        for b in self.books.values():
+            for p in [x for x in list(b.pos.values()) if x["token"] == token]:
+                b.sell(p, 1.0, 0.0, now, "o criador tirou toda a liquidez do pool (rug pull): perda total")
+        if novo:
+            log.warning("Robinhood: o criador tirou a liquidez do pool de %s…", token[:10])
 
     async def token_symbol(self, token: str) -> str | None:
         m = self.meta.get(token) or {}
@@ -733,8 +767,18 @@ class Copier:
             return
         k = (tr["wallet"], tr["token"])
         rb.busy.add(k)
+        bk = self.books.get(uid)
+
+        def sim_gone() -> bool:
+            # 0.32.315 (caso TEXEL, 11/11: a fictícia fechou às 13:00:01 e a REAL comprou às 13:00:25, 5 s antes do criador tirar a
+            # liquidez): com o espelho, a REAL só compra se o par da fictícia ainda estiver aberto
+            return bool(tr.get("_sim_id") and bk is not None and tr["_sim_id"] not in bk.pos)
         try:
             async with rb.lock:
+                if sim_gone() or tr["token"] in self.no_liq:
+                    rb.ev(time.time(), tr["wallet"], tr["token"], "REAL não copiou",
+                          "a fictícia já fechou esta posição antes da compra REAL sair" if sim_gone() else "o pool está sem liquidez")
+                    return
                 if rb.balance is None or time.time() - rb.balance_t > 30:
                     rb.balance, rb.balance_t = await self.chain.balance(addr) / 1e18, time.time()
                 if rb.balance < rc["real_eth_por_compra"] + hoodreal.GAS_RESERVE:
@@ -747,7 +791,6 @@ class Copier:
             if tr.get("_sim_id"):
                 p["sim_id"] = tr["_sim_id"]
             rb.pos[p["id"]] = p
-            bk = self.books.get(uid)
             sp = bk.pos.get(p["sim_id"]) if p.get("sim_id") and bk is not None else None
             if sp and sp.get("tokens") and sp["tokens_left"] < sp["tokens"] * 0.999:
                 fr = 1 - sp["tokens_left"] / sp["tokens"]     # a fictícia vendeu parte enquanto a REAL comprava: repete
@@ -783,6 +826,8 @@ class Copier:
             return None
         if not manual and (p.get("sell_retry_at") or 0) > time.time():
             return None
+        if manual and p["token"] in self.no_liq and time.time() - self.no_liq[p["token"]] < 120:
+            return self._write_off(uid, p)
         p["selling"] = True
         frac = 1.0 if frac >= 0.95 else max(0.0, frac)
         try:
@@ -794,6 +839,11 @@ class Copier:
             async with rb.lock:
                 try:
                     res = await self.chain.sell(key, addr, p["token"], p["key"], raw, rc["real_slip_pct"])
+                except hoodreal.NoLiquidity:
+                    self.mark_no_liq(p["token"], p.get("simbolo"))
+                    if manual:
+                        return self._write_off(uid, p)
+                    raise
                 except hoodreal.SellBlocked:
                     self.flag_no_sell(p["token"], p.get("simbolo"))
                     raise
@@ -837,7 +887,8 @@ class Copier:
             return tr
         except Exception as e:
             p["sell_error"] = str(e)[:200]
-            p["sell_retry_at"] = time.time() + (60 if p.get("zero_reads") else hoodreal.RETRY_S)
+            p["sell_retry_at"] = time.time() + (hoodreal.NO_LIQ_RETRY_S if isinstance(e, hoodreal.NoLiquidity) else
+                                                60 if p.get("zero_reads") else hoodreal.RETRY_S)
             p.setdefault("retry_frac", frac)
             rb.dirty_pos.add(p["id"])
             rb.ev(time.time(), p["wallet"], p["token"], "REAL falhou ao vender", str(e)[:200])
@@ -848,6 +899,16 @@ class Copier:
         finally:
             p["selling"] = False
             await self.flush()
+
+    def _write_off(self, uid: str, p: dict) -> dict:
+        """Vender à mão com o pool sem liquidez: dá baixa da posição REAL em 0 (fecha no histórico com a perda total e libera a vaga).
+        Nada é enviado; os tokens continuam na carteira."""
+        rb = self.rbook(uid)
+        t = time.time()
+        p["px_now"], p["px_src"] = 0.0, "sem_liquidez"
+        tr = rb.close(p, t, "baixa: o criador tirou toda a liquidez do pool (os tokens ficam na carteira e valem 0)", 0.0)
+        rb.ev(t, p["wallet"], p["token"], "REAL fechou", tr["motivo"])
+        return tr
 
     # ------------------------------------------------------------------ laço (chamado pela leitura a cada volta)
     async def tick(self) -> None:
@@ -896,6 +957,8 @@ class Copier:
         n = 0
         for tk in self.held():
             last = max(self.w.px.get(tk, (0, 0))[1], self._px_at.get(tk, 0))
+            if tk in self.no_liq:                             # pool sem liquidez: confere de novo a cada 10 min
+                last = max(last, self.no_liq[tk] + hoodreal.NO_LIQ_RETRY_S - PRICE_S)
             if now - last < PRICE_S or n >= PRICE_MAX:
                 continue
             pos = [p for b in self.books.values() for p in b.pos.values() if p["token"] == tk] + \
@@ -911,12 +974,23 @@ class Copier:
             except Exception as e:
                 # 0.32.309 (caso HOLD): o pool recusando até 10% da menor posição 3 vezes seguidas = venda travada
                 if "revert" in str(e).lower():
+                    try:                                       # 0.32.315: liquidez zero = o criador tirou o pool (rug pull)
+                        liq = await self.chain.liquidity(key)
+                    except Exception:
+                        liq = None
+                    if liq == 0:
+                        self.mark_no_liq(tk, next((p.get("simbolo") for p in pos if p.get("simbolo")), None))
+                        continue
                     self._q_fail[tk] = self._q_fail.get(tk, 0) + 1
                     if self._q_fail[tk] >= 3 and tk not in self.no_sell:
                         self.flag_no_sell(tk, next((p.get("simbolo") for p in pos if p.get("simbolo")), None))
                         log.warning("Robinhood: venda travada no pool de %s… (Quoter recusa)", tk[:10])
                 continue
             self._q_fail.pop(tk, None)
+            if self.no_liq.pop(tk, None) is not None:          # a liquidez voltou
+                self.risky.pop(tk, None)
+                self.no_sell.pop(tk, None)
+                log.info("Robinhood: a liquidez do pool de %s… voltou", tk[:10])
             if not w or not w[0]:
                 continue
             fee = next((p["fee"] for p in pos if isinstance(p.get("fee"), (int, float)) and 0 <= p["fee"] <= FEE_MAX), pool_fee(key))
@@ -943,7 +1017,7 @@ class Copier:
         """Nome e símbolo dos tokens abertos e, para o token sem preço novo há DEX_STALE (Quoter falhou, pool sem liquidez),
         o preço do par em ETH da DexScreener (o mesmo do gráfico). Uma consulta para até DEX_BATCH tokens."""
         tks = sorted(self.held())
-        stale = [tk for tk in tks if now - max(self.w.px.get(tk, (0, 0))[1], self._px_ok.get(tk, 0)) >= DEX_STALE]
+        stale = [tk for tk in tks if tk not in self.no_liq and now - max(self.w.px.get(tk, (0, 0))[1], self._px_ok.get(tk, 0)) >= DEX_STALE]
         need = list(dict.fromkeys(stale + [tk for tk in tks if tk not in self.meta]))[:DEX_BATCH]
         if not need:
             return
@@ -1441,7 +1515,7 @@ class Copier:
                 v, pct = rb.pnl_now(p, rc["real_slip_pct"])
                 pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                       "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling",
-                                                      "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta")}, "venda_travada": p["token"] in self.no_sell,
+                                                      "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
                             "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + rc["real_max_hold_h"] * 3600, "real": True})
             return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
                     "trades": rb.trades[:500], "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
@@ -1450,7 +1524,7 @@ class Copier:
             v, pct = b.pnl_now(p)
             pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                   "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "nome", "simbolo",
-                                                  "px_src", "dev", "espera")}, "venda_travada": p["token"] in self.no_sell,
+                                                  "px_src", "dev", "espera")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
                         "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
         return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100],
                 "nomes": self._names(b.events[:100])}

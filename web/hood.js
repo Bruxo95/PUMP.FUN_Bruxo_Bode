@@ -403,8 +403,17 @@
       '" aria-label="' + esc(x[1]) + '">' + (unit === "ETH" ? '<span class="usdh" data-usd="' + pre + key + '">' + esc(usdOf(c[key])) + "</span>" : "") +
       (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + cmpChip(pre, key, c[key]) + "</div>";
   }
+  // 0.32.315 (pedido do dono, 11/11: fictícia fechando tudo em segundos com "stop de 1%"): o resultado já desconta a folga e a taxa na
+  // entrada e na saída, então um stop menor que esse custo dispara no primeiro trade, mesmo com o preço parado
+  function stopWarn(c, rc) {
+    const w = [];
+    const ida = (s) => 2 * (Number(s) || 0) + 0.5;
+    if (c.stop_pct > 0 && c.stop_pct < ida(c.slip_pct)) w.push("FICTÍCIA: " + num(c.stop_pct, 1) + "% é menor que o custo de entrar e sair (~" + num(ida(c.slip_pct), 1) + "% com folga de " + num(c.slip_pct, 1) + "%): fecha logo depois de comprar");
+    if (rc.real_stop_pct > 0 && rc.real_stop_pct < ida(rc.real_slip_pct)) w.push("REAL: " + num(rc.real_stop_pct, 1) + "% é menor que o custo estimado de entrar e sair (~" + num(ida(rc.real_slip_pct), 1) + "%)");
+    return w.length ? '<small class="down">' + esc(w.join(" · ")) + "</small>" : "";
+  }
   function cfgRows(c, rc) {
-    return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small></div>" +
+    return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small>" + (r[2] === "stop_pct" ? stopWarn(c, rc) : "") + "</div>" +
       cfgCell("cf_", r[2], CF_INFO, c, P.padrao, r[4], r[5], r[1]) + cfgCell("rl_", r[3], RL_INFO, rc, P.real_padrao, r[4], r[5], r[1])).join("");
   }
   function fieldHtml(pre, info, c, p) {
@@ -450,7 +459,8 @@
       hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
       tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (usdRate() ? '<br><small class="muted">' + usdOf(p.eth_in) + "</small>" : "") + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
       pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>" +
-        (p.venda_travada ? '<br><small class="down"><b>venda travada no pool</b>: este resultado não dá para realizar</small>' : ""),
+        (p.sem_liquidez ? '<br><small class="down"><b>pool sem liquidez</b>: o criador tirou o ETH do pool (rug pull); o token vale 0</small>'
+          : p.venda_travada ? '<br><small class="down"><b>venda travada no pool</b>: este resultado não dá para realizar</small>' : ""),
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
       p.sim_id && P.real_cfg && P.real_cfg.real_espelho ? '<span class="tag sim">segue a fictícia</span>' : (p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora") + (p.solta ? '<br><small class="muted">' + esc(p.solta) + "</small>" : ""),
       (p.espera ? '<small class="muted">segurando: ' + esc(p.espera.motivo || "trader saiu") + ", vende quando ficar positivo</small><br>" : "") +

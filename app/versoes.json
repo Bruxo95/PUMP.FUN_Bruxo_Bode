@@ -2330,6 +2330,11 @@
    "versao": "0.32.314",
    "inicio": "2026-11-11T14:22:52+00:00",
    "titulo": "Robinhood: token com trava do criador em amarelo e saída no lucro em partes"
+  },
+  {
+   "versao": "0.32.315",
+   "inicio": "2026-11-11T16:18:35+00:00",
+   "titulo": "Robinhood: pool sem liquidez (rug pull) vale 0 e a REAL não compra depois da fictícia fechar"
   }
  ]
 }
