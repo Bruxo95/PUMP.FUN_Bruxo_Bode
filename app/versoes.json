@@ -2220,6 +2220,11 @@
    "versao": "0.32.292",
    "inicio": "2026-11-11T06:54:35+00:00",
    "titulo": "Robinhood: trader saiu, só vende no lucro (já com taxas)"
+  },
+  {
+   "versao": "0.32.293",
+   "inicio": "2026-11-11T06:58:11+00:00",
+   "titulo": "Robinhood: Sala ao vivo igual à da pump.fun"
   }
  ]
 }

@@ -990,7 +990,8 @@ class Copier:
         rc = self.rcfg(uid)
         base = {"cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
-                "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER}
+                "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER,
+                "eth_usd": getattr(self.w, "eth_usd", None)}
         if real:
             rb = self.rbook(uid)
             pos = []

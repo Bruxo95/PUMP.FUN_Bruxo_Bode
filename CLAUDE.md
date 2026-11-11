@@ -1745,3 +1745,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   e linhas `"bool"` em `CFG_ROWS`. `tok(a, obj)` no hood.js mostra ícone, símbolo, nome e endereço.
 - 0.32.291: hood.py lê hexa da rede com `_hex` (vazio "0x" = 0) e `legs_of` ignora Transfer com 4 tópicos (NFT); um log ruim derrubava a janela e travava a leitura.
 - 0.32.292 (pedido do dono): Robinhood `trader_so_lucro`/`real_trader_so_lucro` (ON): venda puxada pelo trader no prejuízo guarda `p["espera"]` e vende ao ficar positivo (`Book.trader_exit`, `Copier._real_trader_exit`).
+- 0.32.293 (pedido do dono): `/sala?rede=hood` (`HOOD` em `web/sala.js`, `hoodData` mapeia `/api/hood/painel` para o formato da cena; ETH; `eth_usd` no painel) e botão `#hoodSala` no topo do /hood.

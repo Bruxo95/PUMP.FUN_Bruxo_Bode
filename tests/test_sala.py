@@ -28,3 +28,11 @@ def test_sala_so_le_os_dados_e_nao_manda_ordem():
     js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert '"/api/pump?ev=' in js
     assert "method:" not in js and "body:" not in js and "/api/pump/close" not in js and "manual-buy" not in js
+
+
+def test_sala_da_robinhood_le_so_o_painel_da_hood():
+    """0.32.293 (pedido do dono): /sala?rede=hood usa /api/hood/painel (ETH) e o /hood tem o botão Sala."""
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert 'get("rede") === "hood"' in js and '"/api/hood/painel"' in js and "/api/hood/real" not in js
+    html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
+    assert 'id="hoodSala" data-link href="/sala?rede=hood"' in html

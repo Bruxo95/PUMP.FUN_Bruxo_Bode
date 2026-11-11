@@ -1,7 +1,7 @@
 // 0.32.266 (pedido do dono, 08/11): Sala ao vivo. Um trader em pixel art, desenhado aqui mesmo (sem imagem de fora), reage às
 // compras e vendas da conta (FICTÍCIA ou REAL): procura gems parado, comemora no lucro, sua frio no prejuízo e aperta o botão
 // gigante a cada compra/venda. Em volta: no telão a posição com o melhor e a com o pior resultado (0.32.268; sem posição, o
-// gráfico da carteira), alertas, posições abertas com o % ao vivo e o letreiro dos últimos trades. Feita para capturar a janela numa live (OBS). Só lê /api/pump; não manda ordem nenhuma.
+// gráfico da carteira), alertas, posições abertas com o % ao vivo e o letreiro dos últimos trades. Feita para capturar a janela numa live (OBS). Só lê /api/pump (ou /api/hood/painel com ?rede=hood); não manda ordem nenhuma.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -16,9 +16,13 @@
     curve: [], positions: [], trades: [], wallet: {}, seenPos: null, seenTr: null, hist: {}, parts: [], sound: false,
     openPct: null, ok: false,
   };
+  // 0.32.293 (pedido do dono: "faça uma sala igual à do Pump para o hood"): /sala?rede=hood usa a cópia da Robinhood Chain
+  // (/api/hood/painel, em ETH); a cena, os alertas e o letreiro são os mesmos.
+  const HOOD = new URLSearchParams(location.search).get("rede") === "hood";
+  const U = HOOD ? "ETH" : "SOL", MKEY = HOOD ? "sala_modo_hood" : "sala_modo";
   try {
     const q = new URLSearchParams(location.search).get("modo");
-    S.real = q ? q === "real" : localStorage.getItem("sala_modo") === "real";
+    S.real = q ? q === "real" : localStorage.getItem(MKEY) === "real";
   } catch (e) { /* sem armazenamento: começa na fictícia */ }
 
   // ------------------------------------------------------------------ desenho (pixels)
@@ -246,14 +250,14 @@
   }
   const sym = (x) => esc(x.symbol || (x.mint || "").slice(0, 6));
   const pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%");
-  const sol = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(4) + " SOL");
+  const sol = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(HOOD ? 5 : 4) + " " + U);
   const cls = (v) => (v > 0 ? "up" : v < 0 ? "down" : "flat");
 
   function act(kind) { S.action = kind; S.actionUntil = Date.now() + 2600; }
 
   function onBuy(p) {
     act("buy"); SFX.buy();
-    alertBox("COMPRA!", "PUMP IT! <b>" + sym(p) + "</b><br>" + Number(p.sol_in || 0).toFixed(3) + " SOL", true);
+    alertBox("COMPRA!", "PUMP IT! <b>" + sym(p) + "</b><br>" + Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U, true);
   }
   function onSell(t) {
     act("sell");
@@ -296,7 +300,7 @@
     $("posN").textContent = P.length ? "(" + P.length + ")" : "";
     // 0.32.269 (pedido do dono): lista compacta — moeda, valor de entrada e valor atual em dólares e o %
     const box = $("pos"), usd = +w.sol_usd || 0;
-    const $v = (solv) => (usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(3) + " SOL");
+    const $v = (solv) => (usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(HOOD ? 4 : 3) + " " + U);
     if (!P.length) { box.innerHTML = '<div class="empty">nenhuma posição aberta agora</div>'; }
     else {
       const sorted = P.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0));
@@ -306,14 +310,31 @@
             '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
     }
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">SELL ' + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
-      .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">BUY ' + sym(p) + " " + Number(p.sol_in || 0).toFixed(3) + " SOL</span>" })))
+      .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">BUY ' + sym(p) + " " + Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U + "</span>" })))
       .sort((a, b) => b.t - a.t).slice(0, 12);
     $("run").innerHTML = items.length ? items.map((x) => x.h).join("") : '<span class="flat">HOLD! HODL! HODL!</span>';
   }
 
+  // Robinhood: posições e trades da cópia em ETH no formato que a cena já usa
+  const iso = (t) => (t ? new Date(t * 1000).toISOString() : "");
+  async function hoodData(real) {
+    const p = await BB._api("/api/hood/painel" + (real ? "?real=1" : ""));
+    if (p.error) return p;
+    if (p.ligado === false) return { error: p.motivo || "leitura da Robinhood desligada no servidor" };
+    const sy = (x) => x.simbolo || x.nome || (x.token || "").slice(0, 8);
+    const pos = (p.posicoes || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
+      pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t) }));
+    const tr = (p.trades || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t) }));
+    const w = p.carteira || {};
+    let acc = 0;
+    const curve = tr.slice().sort((a, b) => tms(a.closed_at) - tms(b.closed_at)).map((t) => { acc += +t.pnl_sol || 0; return [t.closed_at, acc]; });
+    const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: p.eth_usd };
+    return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve };
+  }
+
   async function load() {
     try {
-      const js = await BB._api("/api/pump?ev=999999999999");
+      const js = HOOD ? await hoodData(S.real) : await BB._api("/api/pump?ev=999999999999");
       if (js.error) throw new Error(js.error);
       const real = S.real;
       const P = (js.positions || []).filter((p) => !!p.real === real);
@@ -337,7 +358,7 @@
   // ------------------------------------------------------------------ controles
   function setMode(real) {
     S.real = real; S.seenPos = null; S.seenTr = null; S.hist = {}; S.ok = false;
-    try { localStorage.setItem("sala_modo", real ? "real" : "sim"); } catch (e) { /* */ }
+    try { localStorage.setItem(MKEY, real ? "real" : "sim"); } catch (e) { /* */ }
     $("mSim").classList.toggle("on", !real); $("mReal").classList.toggle("on", real);
     load();
   }
@@ -354,6 +375,11 @@
     try { s = await BB.session(); } catch (e) { /* sem sessão */ }
     if (!s) { location.href = "/"; return; }
     $("mSim").classList.toggle("on", !S.real); $("mReal").classList.toggle("on", S.real);
+    if (HOOD) {
+      document.title = "Sala ao vivo — Robinhood";
+      document.querySelector(".brand").textContent = "ROBINHOOD · SALA";
+      const pn = document.querySelector('.ctl a[href="/app"]'); if (pn) pn.href = "/hood";
+    }
     await load();
     setInterval(load, 2000);                         // 0.32.268: % das posições ao vivo
   })();
