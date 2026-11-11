@@ -66,3 +66,9 @@ def test_sala_tem_historico_e_evolucao_da_carteira():
     html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
     js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert 'id="his"' in html and "function evo(" in js and "evo(f);" in js and "start_sol" in js
+
+
+def test_vender_de_cada_posicao_fica_na_primeira_coluna():
+    """0.32.311 (pedido do dono): o Vender de cada posição do /hood fica na 1ª coluna (na última saía da tela entre 860 e 1280 px)."""
+    js = open(os.path.join(WEB, "hood.js"), encoding="utf-8").read()
+    assert 'table("poTb", ["", "Aberta"' in js and "sellBtn(p)," in js

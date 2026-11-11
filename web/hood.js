@@ -327,7 +327,11 @@
     $("poT").innerHTML = "Posições abertas " + mtag();
     $("poSub").textContent = ps.length + " abertas · " + ((P && P.carteira && P.carteira.fechadas) || 0) + " fechadas";
     $("poAll").hidden = !ps.length;
-    table("poTb", ["Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", PICO_H, "Fecha em", ""], ps.map((p) => [
+    // 0.32.311 (pedido do dono: "botão para vender cada posição"): o Vender sai da última coluna (ficava fora da tela entre 860 e
+    // 1280 px) e vai para a primeira, junto da hora; os avisos (venda travada, segurando, erro) ficam na coluna Situação
+    const sellBtn = (p) => '<button class="btn sm pobtn" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>";
+    table("poTb", ["", "Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", PICO_H, "Fecha em", "Situação"], ps.map((p) => [
+      sellBtn(p),
       hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
       tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (usdRate() ? '<br><small class="muted">' + usdOf(p.eth_in) + "</small>" : "") + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
       pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>" +
@@ -335,7 +339,7 @@
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
       p.sim_id && P.real_cfg && P.real_cfg.real_espelho ? '<span class="tag sim">segue a fictícia</span>' : (p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora") + (p.solta ? '<br><small class="muted">' + esc(p.solta) + "</small>" : ""),
       (p.espera ? '<small class="muted">segurando: ' + esc(p.espera.motivo || "trader saiu") + ", vende quando ficar positivo</small><br>" : "") +
-      (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small><br>" : "") + '<button class="btn sm" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>"]),
+      (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small>" : "") + (!p.espera && !p.sell_error ? '<small class="muted">—</small>' : "")]),
     REAL ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. A cópia compra quando um trader do \"Copiando agora\" comprar.");
     // 0.32.308 (pedido do dono: "a real tem que seguir 100% a fictícia; verificação completa"): par de cada posição da FICTÍCIA na REAL
     const m = REAL && P && P.espelho, mc = $("mrCard");

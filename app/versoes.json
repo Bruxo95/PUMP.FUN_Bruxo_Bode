@@ -2310,6 +2310,11 @@
    "versao": "0.32.310",
    "inicio": "2026-11-11T12:37:43+00:00",
    "titulo": "Robinhood: FICTÍCIA aceita a partir de 0,0001 ETH por compra"
+  },
+  {
+   "versao": "0.32.311",
+   "inicio": "2026-11-11T13:02:05+00:00",
+   "titulo": "Robinhood: botão Vender de cada posição sempre visível"
   }
  ]
 }
