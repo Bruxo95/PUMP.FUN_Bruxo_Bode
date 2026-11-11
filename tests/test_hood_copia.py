@@ -380,6 +380,7 @@ def test_copy_button_follows_a_trader_only_in_that_account():
     async def go():
         w, c = copier()
         w.copiaria = []                                           # ninguém apto
+        c.book("u1").cfg["um_por_token"] = False                  # dois traders no mesmo token (regra de 0.32.301 desligada)
         c.book("u2")
         assert await c.follow("u1", OTHER.upper().replace("0X", "0x"), True) == [OTHER]
         c.on_trade(trade("buy", 1000.0, 1.0, wallet=OTHER), 0.0, w.copiaria)
@@ -476,6 +477,8 @@ def test_modes_per_trader_and_real_goes_first():
     async def go():
         w, c = copier()
         w.copiaria = []
+        c.book("u1").cfg["um_por_token"] = False                  # dois traders no mesmo token (regra de 0.32.301 desligada)
+        c.rcfg("u1")["real_um_por_token"] = False
         order = []
 
         async def real_buy(uid, tr, px, key):
@@ -695,3 +698,20 @@ def test_reset_sim_clears_only_the_fictitious_book():
 def test_reset_route_asks_for_the_word():
     src = open("app/hood_api.py", encoding="utf-8").read()
     assert '"/api/hood/conta/zerar"' in src and '!= "ZERAR"' in src and "carteira fictícia zerada" in src
+
+
+def test_one_entry_per_token_even_from_another_trader():
+    """0.32.301 (pedido do dono): já com posição no token, a compra de outro trader não abre outra."""
+    b = hoodcopy.Book("u1")
+    t = time.time()
+    assert b.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
+    assert b.buy(trade("buy", 500.0, 0.5, wallet=OTHER), 0.001, t, KEY) is None
+    assert "uma entrada por token" in b.events[0]["motivo"] and len(b.pos) == 1
+    off = hoodcopy.Book("u2", {"um_por_token": False})
+    off.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
+    assert off.buy(trade("buy", 500.0, 0.5, wallet=OTHER), 0.001, t, KEY) and len(off.pos) == 2
+    c = hoodcopy.Copier(Watch(), Http())
+    c.real_allowed = True
+    rb, rc = c.rbook("u1"), c.rcfg("u1")
+    rb.pos["p"] = {"id": "p", "wallet": TRADER, "token": TOK}
+    assert "uma entrada por token" in c.real_why_not("u1", trade("buy", 1.0, 1.0, wallet=OTHER), rb, rc)

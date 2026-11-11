@@ -40,12 +40,12 @@ MODOS = ("sim", "real", "ambas")
 # ativar"): sair_trader / sair_dev (saldo do trader e do dev lidos na rede) e stop móvel igual ao da Solana (liga ao passar de
 # trail_ativa_pct de lucro líquido; sai se cair trail_dist_pct pontos do pico, travando no mínimo TRAIL_MIN_LOCK).
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
+               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
               "trail_dist_pct": (1, 1000)}
-CFG_BOOLS = ("on", "auto_top", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
+CFG_BOOLS = ("on", "auto_top", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
 TRAIL_MIN_LOCK = 2.0
 # Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
 FOLLOW_S, FOLLOW_MAX = 60, 25
@@ -185,6 +185,9 @@ class Book:
             why = "sem preço do token"
         elif any(p["wallet"] == tr["wallet"] and p["token"] == tr["token"] for p in self.pos.values()):
             why = "já tem a posição deste trader neste token"
+        elif c.get("um_por_token") and any(p["token"] == tr["token"] for p in self.pos.values()):
+            # 0.32.301 (pedido do dono: "não entrar mais de 1 vez no mesmo contrato do token se já estiver na posição")
+            why = "já tem posição neste token (de outro trader): uma entrada por token"
         elif len(self.pos) >= c["max_abertas"]:
             why = f"limite de {c['max_abertas']} posições abertas"
         elif self.cash < amt + c["gas_eth"]:
@@ -562,6 +565,8 @@ class Copier:
             return "trava geral do servidor fechada (PUMP_REAL_ALLOWED)"
         if any(p["wallet"] == tr["wallet"] and p["token"] == tr["token"] for p in rb.pos.values()) or (tr["wallet"], tr["token"]) in rb.busy:
             return "já tem a posição REAL deste trader neste token"
+        if rc.get("real_um_por_token") and (any(p["token"] == tr["token"] for p in rb.pos.values()) or any(t == tr["token"] for _, t in rb.busy)):
+            return "já tem posição REAL neste token (de outro trader): uma entrada por token"
         if len(rb.pos) + len(rb.busy) >= rc["real_max_abertas"]:
             return f"limite de {rc['real_max_abertas']} posições REAL abertas"
         lost = rb.lost_today(time.time())

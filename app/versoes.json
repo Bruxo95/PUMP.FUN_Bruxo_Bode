@@ -2260,6 +2260,11 @@
    "versao": "0.32.300",
    "inicio": "2026-11-11T08:56:55+00:00",
    "titulo": "Sala ao vivo se adapta à tela e mostra a hora de entrada"
+  },
+  {
+   "versao": "0.32.301",
+   "inicio": "2026-11-11T09:50:39+00:00",
+   "titulo": "Robinhood: uma entrada por token"
   }
  ]
 }
