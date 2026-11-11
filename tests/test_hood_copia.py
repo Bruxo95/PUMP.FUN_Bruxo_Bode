@@ -389,7 +389,7 @@ def test_copy_button_follows_a_trader_only_in_that_account():
         assert next(iter(c.books["u1"].pos.values()))["aba"] == "manual"
         c.books["u2"].cfg["auto_top"] = False                     # u2 não quer o Copiando agora
         w.copiaria = [TRADER]
-        c.on_trade(trade("buy", 2000.0, 1.0), 0.0, w.copiaria)
+        c.on_trade(trade("buy", 2000.0, 2.0), 0.0, w.copiaria)   # mesmo preço do pool (0.32.322: preço muito acima do trader não entra)
         await settle(c)
         assert len(c.books["u1"].pos) == 2 and not c.books["u2"].pos
         assert await c.follow("u1", OTHER, False) == []
@@ -487,9 +487,9 @@ def test_modes_per_trader_and_real_goes_first():
         c._real_buy = real_buy
         orig_buy = hoodcopy.Book.buy
 
-        def fake_buy(self, tr, px, t, key, origem="top"):
+        def fake_buy(self, tr, px, t, key, origem="top", **kw):
             order.append(("sim", tr["wallet"]))
-            return orig_buy(self, tr, px, t, key, origem)
+            return orig_buy(self, tr, px, t, key, origem, **kw)
         hoodcopy.Book.buy = fake_buy
         try:
             c.rcfg("u1")["real_on"] = True
@@ -564,7 +564,7 @@ def fcopier(dex=None):
 
 
 def test_trailing_stop_follows_the_solana_rule():
-    b = hoodcopy.Book("u1", {"slip_pct": 0, "gas_eth": 0})
+    b = hoodcopy.Book("u1", {"slip_pct": 0, "gas_eth": 0, "trail_ativa_pct": 20, "trail_dist_pct": 10})
     p = b.buy(trade("buy", 1000.0, 1.0), 0.001, time.time(), KEY)
     t = time.time()
     b.on_price(TOK, 0.0015, t)                       # ~+48%: liga o stop móvel (passou de 20%)
@@ -649,6 +649,7 @@ def test_dexscreener_price_when_the_quote_is_stale_and_token_name():
         c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
         await settle(c)
         b = c.books["u1"]
+        b.cfg["stop_pct"] = 0                        # sem stop: este teste é do preço reserva (o padrão desde a 0.32.322 é 30%)
         p = next(iter(b.pos.values()))
         w.px[TOK] = (0.001, time.time() - 3600)      # último preço de 1 h atrás (o pool parou de cotar)
         await c.dex_tick(time.time())
@@ -661,7 +662,7 @@ def test_dexscreener_price_when_the_quote_is_stale_and_token_name():
 
 def test_trader_exit_waits_for_profit_after_fees():
     """0.32.292 (pedido do dono): trader saiu e a posição está no prejuízo → segura; vende quando ficar positiva."""
-    b = hoodcopy.Book("u1", {"slip_pct": 2, "gas_eth": 0.00002})
+    b = hoodcopy.Book("u1", {"slip_pct": 2, "gas_eth": 0.00002, "trader_so_lucro": True})   # opção desligada por padrão desde a 0.32.322
     t = time.time()
     p = b.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
     assert b.trader_exit(p, 0.5, 0.00101, t, "trader vendeu 50%") is None

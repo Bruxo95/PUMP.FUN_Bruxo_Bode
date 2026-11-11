@@ -76,10 +76,16 @@ ARQ_PEND_MAX = 50_000
 ROUTERS_MAX = 25          # roteadores (quem chama o PoolManager) seguidos para achar a carteira de verdade
 
 # Mesma regra do Top traders (pumpfun.refresh_followed/_lb_judge), com valores próprios desta rede.
-CFG_DEFAULT = {"days": 1, "min_trades": 20, "min_winrate": 50.0, "min_closed": 3, "min_wallet_usd": 1000.0,
-               "online_min": 10.0, "top_n": 10, "bot_per_day": 400}
+# 0.32.322 (revisão "por que estamos sempre no negativo", 11/11/2026): o ranking premiava quem vende os ganhadores e fica com os
+# perdedores na carteira (só o que foi vendido contava) e aceitava 3 tokens fechados e até 400 trades por dia. Agora o token
+# que o trader ainda segura valendo menos da metade do que custou (BAG_LOSS) conta como perda fechada e desconta do lucro; padrão
+# de 5 tokens fechados e robô acima de 150 trades por dia. "v" marca a regra já ajustada (quem estava no padrão antigo muda uma vez).
+CFG_DEFAULT = {"days": 1, "min_trades": 20, "min_winrate": 50.0, "min_closed": 5, "min_wallet_usd": 1000.0,
+               "online_min": 10.0, "top_n": 10, "bot_per_day": 150, "v": 2}
 CFG_LIMITS = {"days": (1, 1), "min_trades": (0, 100000), "min_winrate": (0, 100), "min_closed": (1, 1000),
-              "min_wallet_usd": (0, 10_000_000), "online_min": (1, 1440), "top_n": (1, 50), "bot_per_day": (10, 100000)}
+              "min_wallet_usd": (0, 10_000_000), "online_min": (1, 1440), "top_n": (1, 50), "bot_per_day": (10, 100000), "v": (2, 2)}
+CFG_OLD = {"min_closed": 3, "bot_per_day": 400}
+BAG_LOSS = 0.5
 
 
 def clean_cfg(raw: dict | None) -> dict:
@@ -185,10 +191,11 @@ def decode(swap: dict, legs: list[tuple], n_swaps: int, eth_usd: float | None) -
             "fee": int(d[2 + 64 * 5:2 + 64 * 6], 16) if len(d) >= 2 + 64 * 6 else None}
 
 
-def rank(trades, now: float, cfg: dict, balances: dict) -> dict:
+def rank(trades, now: float, cfg: dict, balances: dict, px: dict | None = None) -> dict:
     """Ranking próprio pela regra do Top traders: os que mais lucraram no período (lucro realizado, em ETH); apto = trades
     mínimos, acerto acima do mínimo (tokens fechados com lucro), carteira com saldo mínimo, sem robô; copiaria os N
-    melhores aptos que negociaram nos últimos X minutos. A proporção vendida usa a quantidade de token (as casas se cancelam)."""
+    melhores aptos que negociaram nos últimos X minutos. A proporção vendida usa a quantidade de token (as casas se cancelam).
+    px = token → (preço em ETH, hora): com ele, o que o trader ainda segura no prejuízo fundo entra na conta (0.32.322)."""
     cfg = clean_cfg(cfg)
     since = now - cfg["days"] * 86400
     W: dict[str, dict] = {}
@@ -208,8 +215,8 @@ def rank(trades, now: float, cfg: dict, balances: dict) -> dict:
             k["out"] += t["amount"]
     rows = []
     for wal, w in W.items():
-        realized, win, closed, opened = 0.0, 0, 0, 0
-        for k in w["tk"].values():
+        realized, win, closed, opened, bag, bags = 0.0, 0, 0, 0, 0.0, 0
+        for tk, k in w["tk"].items():
             if k["got"] <= 0:
                 continue                                   # vendeu o que comprou antes da janela: sem custo conhecido
             frac = min(1.0, k["out"] / k["got"])
@@ -218,10 +225,19 @@ def rank(trades, now: float, cfg: dict, balances: dict) -> dict:
             if frac >= 0.9:
                 closed += 1
                 win += 1 if k["sell"] > k["buy"] * frac else 0
+                continue
+            custo = k["buy"] * (1 - frac)
+            p = (px or {}).get(tk)
+            vale = (k["got"] - k["out"]) * p[0] if p and p[0] is not None else None
+            if vale is not None and custo > 0 and vale < custo * BAG_LOSS:
+                closed += 1                                # segura um token que já perdeu mais da metade: perda, mesmo sem vender
+                bags += 1
+                bag += vale - custo
             else:
                 opened += 1
         span_d = max(1.0, (w["last"] - w["first"]) / 86400)
-        rows.append({"wallet": wal, "trades": w["n"], "realized_eth": round(realized, 6), "vol_eth": round(w["vol"], 4),
+        rows.append({"wallet": wal, "trades": w["n"], "realized_eth": round(realized + bag, 6), "vendido_eth": round(realized, 6),
+                     "bag_eth": round(bag, 6), "bags": bags, "vol_eth": round(w["vol"], 4),
                      "tokens": len(w["tk"]), "closed": closed, "open": opened,
                      "winrate": round(100 * win / closed, 1) if closed else None, "last_t": w["last"],
                      "per_day": round(w["n"] / span_d, 1)})
@@ -515,7 +531,7 @@ class HoodWatch:
         now = now or time.time()
         if self._rank_cache and now - self._rank_cache[0] < 15:
             return self._rank_cache[1]
-        r = rank(self.trades, now, self.cfg, self.balances)
+        r = rank(self.trades, now, self.cfg, self.balances, self.px)
         # 0.32.295 (pedido do dono, 11/11: "tag e o botão de comprar cinza, não quero perder dinheiro"): trader PERIGO não entra no Copiando agora
         dz = self.danger(now)
         for row in r["rows"]:
@@ -578,7 +594,12 @@ class HoodWatch:
             try:
                 for r in await self.db.select("hood_state", None) or []:
                     if r.get("k") == "cfg" and isinstance(r.get("v"), dict):
-                        self.cfg = clean_cfg(r["v"])
+                        raw = dict(r["v"])
+                        if raw.get("v") != CFG_DEFAULT["v"]:        # 0.32.322: regra ainda no padrão antigo → padrão novo, uma vez
+                            raw.update({k: CFG_DEFAULT[k] for k, old in CFG_OLD.items() if raw.get(k, old) == old})
+                            raw["v"] = CFG_DEFAULT["v"]
+                            await self.db.insert("hood_state", {"k": "cfg", "v": clean_cfg(raw)}, upsert=True, on_conflict="k")
+                        self.cfg = clean_cfg(raw)
                     elif r.get("k") == "cursor" and isinstance(r.get("v"), dict):
                         self.cursor = int(r["v"].get("block") or 0) or None
             except Exception as e:

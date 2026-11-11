@@ -42,18 +42,32 @@ MODOS = ("sim", "real", "ambas")
 # trail_ativa_pct de lucro líquido; sai se cair trail_dist_pct pontos do pico, travando no mínimo TRAIL_MIN_LOCK).
 # 0.32.302 (pedido do dono, 11/11: "um botão bloquear e uma aba dos honeypot"): carteiras que esta conta bloqueou; nunca são copiadas
 BLOCK_MAX = 500
-CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "so_verificado": False, "so_lp_presa": True, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
-               "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
+# 0.32.322 (pedido do dono, 11/11/2026: "por que estamos sempre no negativo ... faz tudo de 1 a 6, se precisa alterar configuração
+# também faz"). A revisão achou a cópia cortando o ganho cedo e deixando a perda correr: stop desligado, "trader saiu: só vende no
+# lucro" segurando o perdedor até o tempo máximo, stop móvel saindo a 10 pontos do pico. Padrões novos: stop de 30%, vende junto
+# com o trader mesmo no prejuízo, stop móvel liga em +25% e sai 20 pontos abaixo do pico. Gás medido na rede em 11/11: 0,02 gwei,
+# ~0,000004 a 0,000008 ETH por transação (o padrão antigo cobrava 0,00002). Opções novas: max_acima_pct (não entra se o preço de
+# agora já está X% acima do que o trader pagou), max_atraso_s (não copia compra velha) e pausa_trader (para de copiar pelo
+# "Copiando agora" quem deu prejuízo nas últimas cópias). cfg_v marca quem já recebeu o ajuste (upgrade_cfg).
+CFG_V = 2
+CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 30.0,
+               "slip_pct": 2.0, "gas_eth": 0.000008, "saldo_inicial": 0.5, "so_verificado": False, "so_lp_presa": True, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": False, "sair_dev": True,
+               "trail_on": True, "trail_ativa_pct": 25.0, "trail_dist_pct": 20.0,
+               "max_acima_pct": 15.0, "max_atraso_s": 45.0, "pausa_trader": True, "cfg_v": CFG_V}
+# valores que eram o padrão até a 0.32.321 → quem ainda está neles (não escolheu outro) passa para o padrão novo, uma vez só
+CFG_OLD = {"stop_pct": 0.0, "trader_so_lucro": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0, "gas_eth": 0.00002}
+REAL_OLD = {"real_stop_pct": 0.0, "real_trader_so_lucro": True, "real_trail_ativa_pct": 20.0, "real_trail_dist_pct": 10.0}
+PAUSA_N, PAUSA_DIAS = 3, 7       # pausa_trader: 3+ cópias fechadas em 7 dias com a soma no prejuízo
+AJUSTE = "ajuste da versão 0.32.322 (saídas que cortavam o ganho e seguravam a perda)"
 # 0.32.310: mínimo de 0,0001 ETH por compra, para a FICTÍCIA poder ficar igual a uma REAL pequena
 CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
-              "trail_dist_pct": (1, 1000)}
-CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
+              "trail_dist_pct": (1, 1000), "max_acima_pct": (0, 500), "max_atraso_s": (5, 90)}
+CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader")
 TRAIL_MIN_LOCK = 2.0
 # 0.32.319: histórico da configuração. Nunca entra: ligar a fictícia, ligar a REAL e o saldo inicial (voltar nunca liga nada)
 TELA = "você mudou na tela"
-HIST_SKIP = ("on", "saldo_inicial", "real_on", "on_since")
+HIST_SKIP = ("on", "saldo_inicial", "real_on", "on_since", "cfg_v")
 HIST_MAX, HIST_JUNTA_S = 200, 600
 
 
@@ -84,7 +98,9 @@ def _cfg_diff(a: dict, b: dict) -> list[dict]:
             out.append({"k": k, "de": x, "para": y})
     return out
 # Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
-FOLLOW_S, FOLLOW_MAX = 60, 25
+# 0.32.322: o saldo do TRADER é conferido a cada 20 s (era 60): ~28% das trocas saem por rotas que a leitura não decodifica, e a
+# venda dele nesses casos só aparece no saldo. O dev e a leitura do contrato continuam a cada DEV_S.
+FOLLOW_S, FOLLOW_MAX, DEV_S = 20, 25, 60
 TRADER_OUT = 0.05            # trader com 5% ou menos do maior saldo visto = saiu da moeda
 DEV_OUT = 0.50               # dev que vendeu metade ou mais do maior saldo visto = saiu da moeda
 OLD_POS_S = 600              # posição de antes desta regra (sem saldo lido): trader com saldo zero também conta como saída
@@ -142,6 +158,113 @@ def repair(p: dict) -> bool:
     return True
 
 
+def upgrade_cfg(raw: dict | None) -> tuple[dict, dict | None, bool]:
+    """Configuração gravada antes da 0.32.322 (sem cfg_v): o que ainda está no padrão antigo vai para o novo. Devolve
+    (cfg da fictícia, cfg da REAL ou None, mudou). O que a pessoa escolheu diferente do padrão antigo fica como está."""
+    raw = dict(raw or {})
+    rc = raw.get("real") if isinstance(raw.get("real"), dict) else None
+    try:
+        feito = int(raw.get("cfg_v") or 1) >= CFG_V
+    except (TypeError, ValueError):
+        feito = False
+    if feito:
+        return raw, rc, False
+    mudou = False
+    for k, old in CFG_OLD.items():
+        if raw.get(k, old) == old:
+            raw[k] = CFG_DEFAULT[k]
+            mudou = True
+    if rc is not None:
+        rc = dict(rc)
+        for k, old in REAL_OLD.items():
+            if rc.get(k, old) == old:
+                rc[k] = hoodreal.REAL_DEFAULT[k]
+                mudou = True
+        raw["real"] = rc
+    raw["cfg_v"] = CFG_V
+    return raw, rc, mudou
+
+
+def entry_block(cfg: dict, tr: dict, t: float, acima: float | None, origem: str, trades: list[dict]) -> str | None:
+    """0.32.322: motivos de não entrar que valem para a FICTÍCIA e para a REAL. A compra pelo botão não passa por aqui."""
+    if origem == "botao":
+        return None
+    lag = t - (tr.get("t") or t)
+    if lag > cfg.get("max_atraso_s", 45):          # o atraso conta a leitura da rede e a conferência do token
+        return f"compra do trader lida {lag:.0f} s depois (máx. {cfg.get('max_atraso_s', 45):g} s): o preço já andou"
+    mx = cfg.get("max_acima_pct") or 0
+    if mx and acima is not None and acima > mx:
+        return f"o preço já está {acima:.0f}% acima do que o trader pagou (máx. {mx:g}%)"
+    if origem == "top" and cfg.get("pausa_trader"):
+        xs = [x for x in trades if x.get("wallet") == tr["wallet"] and (x.get("close_t") or 0) >= t - PAUSA_DIAS * 86400]
+        soma = sum(x.get("pnl_eth") or 0.0 for x in xs)
+        if len(xs) >= PAUSA_N and soma < 0:
+            return f"trader em pausa: {len(xs)} cópias em {PAUSA_DIAS} dias somam {soma:+.5f} ETH (clique em copiar nele para forçar)"
+    return None
+
+
+CAUSAS = (("stop de", "Stop de perda"), ("stop móvel", "Stop móvel"), ("tempo máximo", "Tempo máximo"),
+          ("trader", "Trader vendeu ou saiu"), ("dev", "Dev vendeu ou saiu"),
+          ("liquidez", "Pool sem liquidez (rug pull)"), ("trava do criador", "Token com trava: saiu no lucro"),
+          ("você", "Vendido por você"), ("fictícia", "Seguiu a fictícia"))
+
+
+def causa(motivo: str | None) -> str:
+    m = (motivo or "").lower()
+    if "vendeu ao ficar positivo" in m:
+        return "Esperou ficar positivo"
+    return next((nome for chave, nome in CAUSAS if chave in m), "Outros")
+
+
+def _media(xs: list[dict]) -> float | None:
+    return sum(x.get("pnl_pct") or 0.0 for x in xs) / len(xs) if xs else None
+
+
+def why_lost(trades: list[dict], now: float, dias: int = 7) -> dict:
+    """0.32.322 (quadro "Por que perdeu"): fechadas dos últimos dias por motivo de saída, por trader e por atraso da entrada,
+    com o quanto as taxas pesaram e quantas chegaram a estar no lucro e fecharam no prejuízo. Só mede."""
+    xs = [x for x in trades if (x.get("close_t") or 0) >= now - dias * 86400]
+
+    def grupo(chave) -> list[dict]:
+        g: dict = {}
+        for x in xs:
+            k = chave(x)
+            if k is None:
+                continue
+            d = g.setdefault(k, {"k": k, "n": 0, "ganhos": 0, "pnl": 0.0, "investido": 0.0, "taxas": 0.0, "pior": 0.0})
+            d["n"] += 1
+            d["ganhos"] += 1 if (x.get("pnl_eth") or 0) > 0 else 0
+            d["pnl"] += x.get("pnl_eth") or 0.0
+            d["investido"] += x.get("eth_in") or 0.0
+            d["taxas"] += taxa(x)
+            d["pior"] = min(d["pior"], x.get("pnl_pct") or 0.0)
+        out = sorted(g.values(), key=lambda d: d["pnl"])
+        for d in out:
+            d.update(pnl=round(d["pnl"], 6), investido=round(d["investido"], 6), taxas=round(d["taxas"], 6),
+                     pct=round(100 * d["pnl"] / d["investido"], 1) if d["investido"] else 0.0, pior=round(d["pior"], 1))
+        return out
+
+    def atraso(x) -> str | None:
+        lag = x.get("lag_s")
+        if lag is None:
+            return None
+        return "até 10 s" if lag <= 10 else "10 a 30 s" if lag <= 30 else "mais de 30 s"
+    inv, pnl, tx = sum(x.get("eth_in") or 0.0 for x in xs), sum(x.get("pnl_eth") or 0.0 for x in xs), sum(taxa(x) for x in xs)
+    perd = [x for x in xs if (x.get("pnl_eth") or 0) <= 0]
+    gan = [x for x in xs if (x.get("pnl_eth") or 0) > 0]
+    devolveu = [x for x in perd if (x.get("best_pct") or 0) >= 10]
+    g, p = _media(gan), _media(perd)
+    return {"dias": dias, "n": len(xs), "pnl": round(pnl, 6), "investido": round(inv, 6), "taxas": round(tx, 6),
+            "taxas_pct": round(100 * tx / inv, 1) if inv else 0.0,
+            "ganho_medio_pct": None if g is None else round(g, 1), "perda_media_pct": None if p is None else round(p, 1),
+            "acerto": round(100 * len(gan) / len(xs), 1) if xs else None,
+            # acerto que empata a conta com o ganho e a perda médios de hoje
+            "acerto_empate": round(100 * -p / (g - p), 1) if g is not None and p is not None and g - p > 0 else None,
+            "devolveu": len(devolveu), "devolveu_eth": round(sum(x.get("pnl_eth") or 0.0 for x in devolveu), 6),
+            "motivos": grupo(lambda x: causa(x.get("motivo"))), "traders": grupo(lambda x: x.get("wallet"))[:15],
+            "atraso": grupo(atraso)}
+
+
 def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(base or CFG_DEFAULT)
     out["manual"] = list(out.get("manual") or [])
@@ -153,6 +276,8 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
             out["modo"] = {str(w).lower(): m for w, m in v.items() if m in MODOS}
         elif k in CFG_BOOLS:
             out[k] = bool(v)
+        elif k == "cfg_v":
+            out[k] = CFG_V if str(v) == str(CFG_V) else 1
         elif k in ("bloqueados", "tokens_bloqueados"):
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
             out[k] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
@@ -226,7 +351,10 @@ class Book:
         v = p["proceeds"] + max(0.0, self.value_now(p)) - p["eth_in"]
         return v, (100 * v / p["eth_in"] if p["eth_in"] else 0.0)
 
-    def buy(self, tr: dict, px: float, t: float, key: list, origem: str = "top") -> dict | None:
+    def buy(self, tr: dict, px: float, t: float, key: list, origem: str = "top", trader_px: float | None = None,
+            acima: float | None = None) -> dict | None:
+        """px = preço de AGORA no pool (0.32.322: cotação do Quoter depois da compra do trader); trader_px = o que ele pagou;
+        acima = quanto px está acima de trader_px, em %."""
         c = self.cfg
         why = None
         amt = c["eth_por_compra"]
@@ -245,6 +373,7 @@ class Book:
             why = f"limite de {c['max_abertas']} posições abertas"
         elif self.cash < amt + c["gas_eth"]:
             why = "saldo fictício insuficiente"
+        why = why or entry_block(c, tr, t, acima, origem, self.trades)
         if why:
             self.ev(t, tr["wallet"], tr["token"], "não copiou", why)
             return None
@@ -253,7 +382,8 @@ class Book:
         fee = amt * fee_r
         tokens = (amt - fee) / px_in
         p = {"id": uuid.uuid4().hex[:16], "wallet": tr["wallet"], "token": tr["token"], "open_t": t, "px_in": px_in,
-             "trader_px": px, "trader_eth": tr.get("eth"), "tokens": tokens, "tokens_left": tokens, "fee": fee_r,
+             "trader_px": trader_px or px, "acima_pct": None if acima is None else round(acima, 1),
+             "trader_eth": tr.get("eth"), "tokens": tokens, "tokens_left": tokens, "fee": fee_r,
              "eth_in": round(amt + c["gas_eth"], 9), "proceeds": 0.0, "fees": fee + c["gas_eth"], "px_now": px, "px_t": t,
              "best_pct": 0.0, "worst_pct": 0.0, "lag_s": round(max(0.0, t - tr["t"]), 1), "tx_in": tr.get("tx"), "aba": origem,
              "key": key}
@@ -298,7 +428,7 @@ class Book:
             return None
         pnl = p["proceeds"] - p["eth_in"]
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "fees",
-                                        "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas", "nome", "simbolo", "px_src")},
+                                        "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas", "nome", "simbolo", "px_src", "acima_pct")},
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo,
               "taxas_eth": round(p.get("fees") or 0.0, 9)}
@@ -686,9 +816,29 @@ class Copier:
                     v = await self.safe.check(tk, key, tr["wallet"], int(tr["amount"] * 1e18), pool_fee(key, tr.get("fee")))
         except Exception as e:                                   # nunca compra sem conferir
             key, v = None, self.safe.mark(tk, False, "falha na conferência (" + type(e).__name__ + ")", erro=True)
-        self._buy_all(tr, v, key, px)
+        px_now, acima = None, None
+        if key and v.get("ok") and px:
+            px_now, acima = await self.entry_price(tr, key, px)
+        self._buy_all(tr, v, key, px, px_now, acima)
 
-    def _buy_all(self, tr: dict, v: dict, key: list | None, px: float | None) -> None:
+    async def entry_price(self, tr: dict, key: list, px: float) -> tuple[float | None, float | None]:
+        """0.32.322: o preço que a cópia paga de verdade. O trader já comprou e empurrou o preço do pool; a fictícia entrava no preço
+        médio DELE, que não existe mais. Cota no Quoter a compra do menor valor entre as contas que seguem o trader e devolve
+        (preço de agora sem a taxa do pool, % acima do que o trader pagou). Sem cotação: (None, None) e vale o preço do trader."""
+        auto = tr.get("_auto", True)
+        amts = [b.cfg["eth_por_compra"] for b in self.books.values() if b.mode_of(tr["wallet"], auto)]
+        wei = max(10 ** 13, int(min(amts or [0.01]) * 1e18))
+        try:
+            w = evm.words(await asyncio.wait_for(self._call(hoodsafe.QUOTER, v4_quote_data(key, wei, True)), 6))
+        except Exception:
+            return None, None
+        if not w or not w[0]:
+            return None, None
+        now_px = wei * (1 - pool_fee(key, tr.get("fee"))) / w[0]
+        return now_px, 100 * (now_px / px - 1)
+
+    def _buy_all(self, tr: dict, v: dict, key: list | None, px: float | None, px_now: float | None = None,
+                 acima: float | None = None) -> None:
         now = time.time()
         if not v["ok"] or not key:
             self.stat["barradas"] += 1
@@ -716,6 +866,12 @@ class Copier:
                 if perigo:                          # 0.32.295: trader PERIGO nunca compra na REAL, mesmo se já estava sendo copiado
                     self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "trader marcado PERIGO: " + perigo)
                     continue
+                bk = self.book(uid)                 # 0.32.322: atraso, preço já esticado e trader em pausa valem para a REAL também
+                tarde = entry_block(bk.cfg, tr, now, acima, "manual" if tr["wallet"] in (bk.cfg.get("manual") or []) else "top",
+                                    self.rbook(uid).trades)
+                if tarde:
+                    self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", tarde)
+                    continue
                 self._spawn(self._real_buy(uid, tr, px, key))
                 reais += 1
 
@@ -729,7 +885,7 @@ class Copier:
                     b.ev(now, tr["wallet"], tr["token"], "não copiou", "contrato do token não verificado no explorador (opção \"Só token com contrato verificado\")")
                     continue
                 if why:
-                    p = b.buy(tr, px, now, key, why)
+                    p = b.buy(tr, px_now or px, now, key, why, trader_px=px, acima=acima)
                     if p and uid in espelho:
                         if perigo:
                             self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "trader marcado PERIGO: " + perigo)
@@ -1001,8 +1157,12 @@ class Copier:
             await self.dex_tick(now)
         if now - self._follow_at >= FOLLOW_S:
             self._follow_at = now
-            await self.follow_tick(now)
-            await self.risk_tick()
+            dev = now - getattr(self, "_devf_at", 0.0) >= DEV_S
+            if dev:
+                self._devf_at = now
+            await self.follow_tick(now, dev)
+            if dev:
+                await self.risk_tick()
         await self.flush()
 
     async def price_tick(self, now: float) -> None:
@@ -1193,7 +1353,7 @@ class Copier:
         for tk in [t for t in self.risky if t not in held and t not in self.no_sell]:
             self.risky.pop(tk, None)
 
-    async def follow_tick(self, now: float) -> None:
+    async def follow_tick(self, now: float, dev_too: bool = True) -> None:
         """Acompanha o trader copiado e o dev de cada token aberto pelo saldo na rede (pega também a venda que a leitura das
         trocas não viu, como a feita por outra rota). Trader com ≤5% do maior saldo visto saiu; dev com metade ou menos saiu."""
         tks = sorted(self.held())
@@ -1217,6 +1377,8 @@ class Copier:
                         self._exit(uid, p, real, "sair_trader", "trader saiu da moeda", now)
                     elif first and bal == 0 and now - p["open_t"] >= OLD_POS_S:
                         self._exit(uid, p, real, "sair_trader", "trader saiu da moeda (saldo zero)", now)
+            if not dev_too:
+                continue
             dev = await self._dev_of(tk, now)
             if not dev:
                 continue
@@ -1656,6 +1818,7 @@ class Copier:
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
                 "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER,
                 "eth_usd": getattr(self.w, "eth_usd", None), "riscos": dict(list(self.risky.items())[-300:])}
+        base["porque"] = why_lost((self.rbook(uid) if real else b).trades, now)
         if real:
             rb = self.rbook(uid)
             base["espelho"] = self.mirror_report(uid, now)
@@ -1729,14 +1892,26 @@ class Copier:
     async def load(self) -> None:
         if self.db is None:
             return
+        ajustar = []
         for r in await self.db.select("hood_books", None) or []:
-            b = self.books[r["user_id"]] = Book(r["user_id"], r.get("cfg"), r.get("cash"))
+            velho = r.get("cfg") or {}
+            novo, rc, mudou = upgrade_cfg(velho)
+            b = self.books[r["user_id"]] = Book(r["user_id"], novo, r.get("cash"))
             b.close_hook = self._sim_closed
             b.risky = self.risky
-            b.dirty_book = False
-            rc = (r.get("cfg") or {}).get("real")
+            b.dirty_book = novo.get("cfg_v") != velho.get("cfg_v")
             if isinstance(rc, dict):
                 self.real_cfg[r["user_id"]] = {**hoodreal.clean(rc, rc), **{k: rc[k] for k in ("real_on", "on_since") if k in rc}}
+            if mudou:                                # guarda no Histórico da configuração como estava antes (dá para voltar)
+                vr = velho.get("real") if isinstance(velho.get("real"), dict) else {}
+                antes = {k: v for k, v in {**clean_cfg({**velho, "cfg_v": CFG_V}), **hoodreal.clean(vr, vr)}.items() if k not in HIST_SKIP}
+                ajustar.append((r["user_id"], json.loads(json.dumps(antes))))
+        for uid, antes in ajustar:
+            try:
+                await self.cfg_note(uid, antes, AJUSTE)
+                log.info("Robinhood: configuração da conta %s… ajustada (0.32.322); a anterior está no Histórico da configuração", uid[:8])
+            except Exception as e:
+                log.warning("Robinhood: ajuste da configuração não entrou no histórico: %s", str(e)[:120])
         for r in await self.db.select("hood_positions", None) or []:
             d = r.get("data")
             if not isinstance(d, dict) or not r.get("user_id"):

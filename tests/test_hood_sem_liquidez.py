@@ -224,12 +224,12 @@ def test_config_history_keeps_versions_and_goes_back_without_turning_anything_on
         r = await c.cfg_back("u1", 1)
         assert r["mudou"] >= 3
         b = c.books["u1"]
-        assert b.cfg["stop_pct"] == hoodcopy.CFG_DEFAULT["stop_pct"] and b.cfg["manual"] == [] and c.rcfg("u1")["real_stop_pct"] == 0
+        assert b.cfg["stop_pct"] == hoodcopy.CFG_DEFAULT["stop_pct"] and b.cfg["manual"] == [] and c.rcfg("u1")["real_stop_pct"] == hoodreal.REAL_DEFAULT["real_stop_pct"]
         assert b.cfg["on"] is False and c.rcfg("u1")["real_on"] is False
         h = await c.cfg_history("u1")
         assert h["versoes"][0]["origem"] == "voltou para a versão 1" and h["atual_n"] == 4
         r = await c.cfg_back("u1", 2, ["stop_pct"])                      # só uma opção
-        assert r["mudou"] == 1 and b.cfg["stop_pct"] == 1 and c.rcfg("u1")["real_stop_pct"] == 0
+        assert r["mudou"] == 1 and b.cfg["stop_pct"] == 1 and c.rcfg("u1")["real_stop_pct"] == hoodreal.REAL_DEFAULT["real_stop_pct"]
     run(go())
 
 

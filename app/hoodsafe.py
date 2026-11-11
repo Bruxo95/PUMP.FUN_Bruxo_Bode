@@ -22,7 +22,7 @@ PM = "0x8366a39cc670b4001a1121b8f6a443a643e40951"
 ZERO = "0x" + "0" * 40
 GOPLUS = "https://api.gopluslabs.io/api/v1/token_security/4663?contract_addresses="
 PROBE_WEI = 10 ** 16                 # 0,01 ETH na ida e volta
-ROUNDTRIP_MAX = 12.0                 # % perdidos na ida e volta além disso barra (taxa dos dois lados + folga)
+ROUNDTRIP_MAX = 8.0                  # 0.32.322: era 12 (o trade já nascia devendo até 12%). % perdidos na ida e volta além disso barra (taxa dos dois lados + folga)
 TAX_MAX = 5.0                        # taxa de compra ou venda do token (GoPlus) acima disso barra
 # 0.32.312 (caso HOLD, 11/11: a venda passou na conferência e travou minutos depois): aprovado vale só 90 s (antes 10 min), então
 # cada compra confere de novo se o pool ainda aceita a venda; e o código do contrato é lido no explorador (Blockscout).

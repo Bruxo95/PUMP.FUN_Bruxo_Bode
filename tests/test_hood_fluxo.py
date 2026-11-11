@@ -18,7 +18,7 @@ def run(coro):
 
 def tr(i, token, wallet, side, eth, amount=1000.0, t=None):
     return {"id": f"x{i}", "tx": "0x" + "ee" * 32, "token": token, "wallet": wallet, "side": side, "amount": amount, "eth": eth,
-            "quote": "ETH", "pool": "0x" + "00" * 32, "t": t or time.time() - 60}
+            "quote": "ETH", "pool": "0x" + "00" * 32, "t": t or time.time() - 10}
 
 
 def test_flow_ranks_tokens_by_net_money_in_and_shows_top_traders():
