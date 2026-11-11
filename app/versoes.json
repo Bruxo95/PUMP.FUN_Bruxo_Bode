@@ -2370,6 +2370,11 @@
    "versao": "0.32.322",
    "inicio": "2026-11-11T22:18:54+00:00",
    "titulo": "Robinhood: saídas que cortam a perda, entrada no preço real e quadro Por que perdeu"
+  },
+  {
+   "versao": "0.32.323",
+   "inicio": "2026-11-11T22:34:03+00:00",
+   "titulo": "Solana: saídas da cópia que cortam a perda e deixam o ganho correr"
   }
  ]
 }

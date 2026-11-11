@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-11",
     "timezone": "Europe/Dublin",
-    "repository_reference": "c01d6e86fd14a3ec77bc904d80d87bcd4fe2e5dc",
-    "application_version": "0.32.322 · 2026-11-11 · Robinhood: saídas que cortam a perda, entrada no preço real e quadro Por que perdeu",
+    "repository_reference": "9a2b30f4816b1c4c9bd3ddfeb6cdf4de3d2c4749",
+    "application_version": "0.32.323 · 2026-11-11 · Solana: saídas da cópia que cortam a perda e deixam o ganho correr",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "78c98dadf412bf4c30808ec89de2bd3a31abb37e219c5ed49acf380d901694f5",
+      "app/version.py": "6a9dbf9cc1f0827a320dd3e7a1e845109f3b27e64a5594db316da006e9eb087b",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "ee1f2e3df3bb1339b6ad6bf8e30388df96b0b3dd120fa5e4604aeb19421b0163"
+  "pdf_sha256": "f82536e15dc61b1168ae0349410e182b3ec46a5c2dcc8be2c8b200120d3e3eb2"
 }

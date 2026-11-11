@@ -242,8 +242,12 @@ USER_KEYS: dict[str, tuple] = {
     "pump_swap_fee_official": (bool, False, 0, 1),
     "pump_portal_fee_pct": (float, 0.5, 0.0, 5.0),
     "pump_priority_sol": (float, 0.0005, 0.0, 0.1),
-    "pump_stop_pct": (float, 40.0, 1.0, 100.0),
-    "pump_hold_until_profit": (bool, True, 0, 1),
+    # 0.32.323 (pedido do dono, 11/11/2026: "por que estamos sempre no negativo" → "Sim, aplica"): a revisão achou a cópia
+    # segurando a perda (trader saiu no prejuízo = segura até o stop de 40% ou as 6 h) e cortando o ganho (stop móvel a 10
+    # pontos do pico). Padrões novos: stop 30%, vende junto com o trader mesmo no prejuízo, stop móvel liga em +25% e sai 20
+    # pontos abaixo, e "só copia na REAL quem dá resultado" ligado. Conta antiga: ver saidas_upgrade (uma vez).
+    "pump_stop_pct": (float, 30.0, 1.0, 100.0),
+    "pump_hold_until_profit": (bool, False, 0, 1),
     "pump_hold_min_profit_pct": (float, 0.0, 0.0, 1000.0),
     "pump_min_mcap_usd": (float, 10000.0, 0.0, 1e10),
     "pump_min_vol_h1_usd": (float, 5000.0, 0.0, 1e10),
@@ -271,8 +275,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_max_risk_score": (int, 7, 1, 10),         # 1 = só tokens de risco baixo; 10 = só bloqueia "perigo"
     "pump_min_wallet_usd": (float, 5000.0, 0.0, 1e10),
     "pump_trail_enabled": (bool, True, 0, 1),
-    "pump_trail_start_pct": (float, 20.0, 1.0, 10000.0),
-    "pump_trail_dist_pct": (float, 10.0, 1.0, 1000.0),
+    "pump_trail_start_pct": (float, 25.0, 1.0, 10000.0),
+    "pump_trail_dist_pct": (float, 20.0, 1.0, 1000.0),
     "pump_trail_min_lock_pct": (float, 2.0, 0.0, 1000.0),
     "pump_trail_fast_s": (float, 1.0, 0.0, 30.0),
     # 0.32.61 (perdas de −65% e −100% com stop de −30%/−40%): o preço de TODA posição aberta com stop de perda é lido no
@@ -307,7 +311,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_real_full_mirror": (bool, False, 0, 1),      # 0.32.277: Espelho total, ignora o "só fictícia" do estudo (começa OFF)         # 0.32.251: trader novo só na fictícia até uma cópia fictícia com lucro
     # 0.32.275 (pedido do dono): copiar só traders com resultado médio por cópia positivo (o acerto sozinho engana: com stop de
     # 40%, 10 perdas não se pagam com 20 ganhos de 10%)
-    "pump_edge_on": (bool, False, 0, 1),
+    "pump_edge_on": (bool, True, 0, 1),               # 0.32.323: ligado por padrão (só trava a REAL: pump_edge_real_only)
     "pump_edge_min_n": (int, 5, 1, 100),              # cópias fictícias fechadas para ter base
     "pump_edge_days": (int, 7, 1, 90),                # janela das cópias que contam
     "pump_edge_min_pct": (float, 0.0, -50.0, 500.0),  # média mínima por cópia (%), depois das taxas
@@ -342,6 +346,32 @@ SERVER_KEYS: dict[str, tuple] = {
     "pump_rank_every_s": (float, 600.0),
     "pump_paid_stream": (bool, False),
 }
+
+
+# 0.32.323: valores que eram o padrão das saídas até a 0.32.322. A conta que ainda está neles (e não mexeu na opção pela tela)
+# passa para o padrão novo UMA vez; a marca `_saidas_v` fica guardada junto das opções da conta.
+SAIDAS_V = 2
+SAIDAS_OLD = {"pump_stop_pct": 40.0, "pump_hold_until_profit": True, "pump_trail_start_pct": 20.0, "pump_trail_dist_pct": 10.0,
+              "pump_edge_on": False}
+SAIDAS_WHY = "ajuste da versão 0.32.323 (saídas que seguravam a perda e cortavam o ganho)"
+
+
+def saidas_upgrade(saved: dict | None, atual: dict, mexeu=()) -> dict:
+    """O que muda nesta conta: {opção: valor novo}. Vazio se a conta é nova, se já recebeu o ajuste, se a opção não está mais no
+    padrão antigo ou se a pessoa mudou a opção pela tela (`mexeu`). Só mexe nas 5 opções de SAIDAS_OLD."""
+    if not saved:
+        return {}
+    try:
+        if int(saved.get("_saidas_v") or 1) >= SAIDAS_V:
+            return {}
+    except (TypeError, ValueError):
+        pass
+    out = {}
+    for k, old in SAIDAS_OLD.items():
+        novo = USER_KEYS[k][1]
+        if k not in mexeu and atual.get(k) == old and novo != old:
+            out[k] = novo
+    return out
 
 
 def server_defaults() -> dict:

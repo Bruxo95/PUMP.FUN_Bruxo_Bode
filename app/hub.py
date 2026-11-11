@@ -23,7 +23,7 @@ from .keystore import KEY_LINKS, SYSTEM_NAMES, SYSTEM_OWNER, KeyRing
 from .logsafe import add_secret
 from .pumpfun import AUTO_ORIGINS, EQ_SEED, PumpFun, PumpMarket, PumpReal
 from .radar import RadarBuffer, callout_policy
-from .settings import PumpSettings
+from .settings import PumpSettings, SAIDAS_V, SAIDAS_WHY, saidas_upgrade
 from .solana_wallet import UserWallet
 
 B58_ADDR = __import__("re").compile(r"[1-9A-HJ-NP-Za-km-z]{32,44}")   # endereço Solana (0.32.4)
@@ -205,6 +205,7 @@ class PumpHub:
         # 0.32.33: ajustes pendentes do dono (settings_overrides) — no fim, com tudo da conta já carregado, para o salvar não
         # perder nada (study_copy, copy_equal, _real_on…)
         await self.cfg_hist_load(pf)               # 0.32.199: antes dos ajustes, para eles entrarem como versão
+        await self._ajuste_saidas(pf, saved)       # 0.32.323: padrões novos de saída, uma vez por conta
         await self._apply_overrides(pf)
         await self._reassert_overrides(pf)
         for p in pf.positions():                   # depois de reiniciar, nenhuma venda está "em andamento"
@@ -2814,6 +2815,23 @@ class PumpHub:
             await self.save_settings(pf)
             log.info("ajuste do dono reposto (o servidor antigo tinha gravado por cima): %s", ", ".join(applied))
 
+    async def _ajuste_saidas(self, pf: PumpFun, saved: dict) -> None:
+        """0.32.323 (pedido do dono, 11/11/2026: "se precisa alterar configuração também faz" → "Sim, aplica"): a conta que ainda
+        está no padrão antigo das saídas recebe o novo, uma vez. Não mexe no que a pessoa mudou pela tela, não liga nem desliga
+        carteira nenhuma, e a configuração de antes fica no Histórico de config (dá para voltar)."""
+        try:
+            ch = saidas_upgrade(saved, pf.cfg.user_dict(), set(getattr(pf, "_ov_user", None) or {}))
+            pf._saidas_v = SAIDAS_V                # vai junto no próximo salvar da conta: o ajuste não roda de novo
+            if ch:
+                applied, _err = pf.cfg.apply(ch)
+                pf._cfg_why = SAIDAS_WHY
+                pf._emit("Configuração ajustada (0.32.323): " + ", ".join(f"{k} = {v}" for k, v in applied.items())
+                         + ". A anterior está em Carteiras → Histórico de config.")
+                await audit(self.db, pf.user_id, "ajuste de configuração aplicado", SAIDAS_WHY + ": " + ", ".join(applied))
+                await self.save_settings(pf)
+        except Exception as e:
+            log.warning("ajuste das saídas não aplicou (%s…): %s", pf.user_id[:8], str(e)[:160])
+
     async def _apply_overrides(self, pf: PumpFun) -> None:
         """0.32.33: aplica os ajustes de `settings_overrides` ainda não aplicados (só o servidor novo lê essa tabela, então o
         servidor antigo não consegue sobrescrever como acontecia gravando direto em user_settings)."""
@@ -3013,6 +3031,8 @@ class PumpHub:
                 s[k] = list(getattr(pf, attr))
         if getattr(pf, "_ov_user", None):
             s["_ov_user"] = dict(pf._ov_user)          # 0.32.56: a pessoa mudou estas opções (o ajuste do chat não volta)
+        if getattr(pf, "_saidas_v", None):
+            s["_saidas_v"] = pf._saidas_v              # 0.32.323: esta conta já recebeu o ajuste das saídas
         if list(getattr(pf, "copy_equal", None) or []) != list(EQ_SEED):
             s["_copy_equal"] = list(pf.copy_equal)     # 0.32.4: Copiar igual (só grava se mudou a lista de 28/10)
         if getattr(pf, "eq_mode", None):

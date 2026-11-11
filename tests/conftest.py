@@ -23,6 +23,21 @@ def _real_sem_idade_minima(monkeypatch, request):
 
 
 @pytest.fixture(autouse=True)
+def _saidas_do_original(monkeypatch, request):
+    """0.32.323: os padrões de saída mudaram (stop 30, vende com o trader no prejuízo, stop móvel 25/20, "só quem dá resultado"
+    ligado). Os testes antigos (e os de referência, tests/test_pump.py) foram escritos com os do original e continuam neles.
+    O teste da regra nova (test_saidas_novas.py) usa o padrão de verdade."""
+    if "test_saidas_novas" in request.node.nodeid:
+        yield
+        return
+    from app import settings
+    for k, v in settings.SAIDAS_OLD.items():
+        spec = settings.USER_KEYS[k]
+        monkeypatch.setitem(settings.USER_KEYS, k, (spec[0], v) + tuple(spec[2:]))
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _real_sem_prova(monkeypatch, request):
     """0.32.265: a prova "REAL só depois de lucro na fictícia" vale também para a lista manual; os testes antigos da REAL
     usam carteiras manuais sem histórico, então nela a prova fica desligada. O teste da regra usa o padrão."""

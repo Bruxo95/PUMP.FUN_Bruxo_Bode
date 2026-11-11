@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-11**; revisão documental **2.0**.
-Aplicação: **0.32.322 · 2026-11-11 · Robinhood: saídas que cortam a perda, entrada no preço real e quadro Por que perdeu**.
-Referência Git na emissão: `c01d6e86fd14a3ec77bc904d80d87bcd4fe2e5dc`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.323 · 2026-11-11 · Solana: saídas da cópia que cortam a perda e deixam o ganho correr**.
+Referência Git na emissão: `9a2b30f4816b1c4c9bd3ddfeb6cdf4de3d2c4749`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
