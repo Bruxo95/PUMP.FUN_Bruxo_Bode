@@ -76,6 +76,10 @@ class ChainError(Exception):
     pass
 
 
+class SellBlocked(ChainError):
+    """O pool não aceita a venda do token (golpe que trava venda ou pool sem ETH)."""
+
+
 class RealBook:
     """Posições REAIS de uma conta (mesmo formato das fictícias, para as telas serem as mesmas)."""
 
@@ -264,13 +268,35 @@ class Chain:
             pass                                     # a venda autoriza de novo se precisar
         return {"raw": got, "eth": amt_eth + gas, "tx": rc.get("transactionHash"), "gas": gas}
 
+    async def sell_quote(self, pkey: list, raw: int) -> tuple[int, int]:
+        """0.32.309 (caso HOLD, 11/11: "simulação recusada: execution reverted" ao vender): cota a venda inteira; se o pool recusar,
+        tenta metade, um quarto e um oitavo (pool com pouca liquidez de ETH aceita só parte). Devolve (quantidade, ETH que volta)."""
+        last = None
+        for part in (1, 2, 4, 8):
+            amt = raw // part
+            if amt <= 0:
+                break
+            try:
+                out = await self.quote(pkey, amt, False)
+            except ChainError as e:
+                last = e
+                continue
+            if out > 0:
+                return amt, out
+        raise SellBlocked("o pool recusou cotar a venda (nem 1/8 da posição): o token pode estar bloqueando vendas (golpe) ou o pool ficou sem ETH"
+                          + (" · " + str(last)[-80:] if last else ""))
+
     async def sell(self, key: int, addr: str, token: str, pkey: list, raw: int, slip: float) -> dict:
         self.checked(pkey, token)
         have = await self.token_balance(token, addr)
         raw = min(raw, have)
         if raw <= 0:
             raise ChainError("a carteira não tem mais este token")
-        gas = await self.authorize(key, addr, token, raw, time.time() + 1800)
+        raw, out = await self.sell_quote(pkey, raw)
+        try:
+            gas = await self.authorize(key, addr, token, raw, time.time() + 1800)
+        except ChainError as e:
+            raise ChainError("a autorização do token para a venda foi recusada: " + str(e)[-120:])
         out = await self.quote(pkey, raw, False)
         if out <= 0:
             raise ChainError("o pool não cotou a venda")

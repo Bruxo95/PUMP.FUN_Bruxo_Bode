@@ -60,6 +60,8 @@ DEX_URL = "https://api.dexscreener.com/tokens/v1/robinhood/"
 EXPLORER = "https://robinhoodchain.blockscout.com"
 DEX_S, DEX_STALE, DEX_BATCH = 60, 120, 30
 ZERO_READS, ZERO_MIN_AGE_S = 3, 300
+NO_SELL_S = 24 * 3600
+SEL_SYMBOL = "0x95d89b41"
 WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
 SEL_BAL = "0x70a08231"
 
@@ -369,6 +371,9 @@ class Copier:
         self._tasks: set = set()
         self._rbal_at = 0.0
         self.meta: dict[str, dict] = {}             # token → {"nome", "simbolo"} (DexScreener)
+        self.no_sell: dict[str, float] = {}         # 0.32.309: token → quando a venda foi recusada pelo pool
+        self.no_sell_sym: dict[str, float] = {}     # símbolo → idem (cópias com o mesmo nome)
+        self._q_fail: dict[str, int] = {}
         self.dev: dict[str, str] = {}               # token → carteira de quem criou ("" = não achou)
         self._dev_at: dict[str, float] = {}
         self._px_ok: dict[str, float] = {}          # última vez que o Quoter deu preço
@@ -395,6 +400,45 @@ class Copier:
             b.dirty_book = True
         b.close_hook = self._sim_closed
         return b
+
+    # ------------------------------------------------------------------ 0.32.309: token com venda travada
+    def flag_no_sell(self, token: str, simbolo: str | None) -> None:
+        """Pedido do dono (caso HOLD, 11/11): o pool não aceita a venda. O token e todo token com o mesmo símbolo (o golpe lança
+        cópias com o mesmo nome) ficam barrados para novas compras por NO_SELL_S, na FICTÍCIA e na REAL."""
+        now = time.time()
+        self.no_sell[token] = now
+        sym = (simbolo or (self.meta.get(token) or {}).get("simbolo") or "").strip().upper()
+        if sym:
+            self.no_sell_sym[sym] = now
+        if len(self.no_sell) > 2000:
+            for k in list(self.no_sell)[:500]:
+                self.no_sell.pop(k, None)
+
+    def no_sell_why(self, token: str, simbolo: str | None) -> str | None:
+        now = time.time()
+        if now - self.no_sell.get(token, 0) < NO_SELL_S:
+            return "a venda deste token é recusada pelo pool (golpe ou pool sem ETH)"
+        sym = (simbolo or "").strip().upper()
+        if sym and now - self.no_sell_sym.get(sym, 0) < NO_SELL_S:
+            return f"outro token chamado {sym} travou a venda: as cópias com o mesmo nome ficam barradas por 24 h"
+        return None
+
+    async def token_symbol(self, token: str) -> str | None:
+        m = self.meta.get(token) or {}
+        if m.get("simbolo"):
+            return m["simbolo"]
+        try:
+            h = (await self._call(token, SEL_SYMBOL))[2:]
+            if len(h) >= 192:
+                n = int(h[64:128], 16)
+                s = bytes.fromhex(h[128:128 + 2 * min(n, 32)]).decode("utf-8", "ignore").strip("\x00").strip()
+            else:                                    # alguns tokens devolvem bytes32
+                s = bytes.fromhex(h[:64]).decode("utf-8", "ignore").strip("\x00").strip()
+        except Exception:
+            return None
+        if s:
+            self.meta[token] = {"nome": m.get("nome") or "", "simbolo": s[:20]}
+        return s[:20] or None
 
     # ------------------------------------------------------------------ 0.32.306: REAL espelha a FICTÍCIA
     def mirrors(self, uid: str, wallet: str, auto: bool) -> bool:
@@ -528,6 +572,10 @@ class Copier:
 
     async def _prepare(self, tr: dict, px: float | None) -> None:
         tk = tr["token"]
+        why = self.no_sell_why(tk, await self.token_symbol(tk))
+        if why:
+            self._buy_all(tr, {"ok": False, "why": why}, None, px)
+            return
         try:
             key = await self.pool_key(tr.get("pool") or "", tk)
             if not key:
@@ -724,6 +772,9 @@ class Copier:
             async with rb.lock:
                 try:
                     res = await self.chain.sell(key, addr, p["token"], p["key"], raw, rc["real_slip_pct"])
+                except hoodreal.SellBlocked:
+                    self.flag_no_sell(p["token"], p.get("simbolo"))
+                    raise
                 except hoodreal.ChainError as e:
                     # 0.32.307 (caso 4Robinhood, 11/11 11:55 UTC: comprou e 24 s depois fechou em -100% por uma leitura de saldo
                     # zero): só fecha com saldo zero lido 3 vezes, com 1 min entre elas e a posição aberta há 5 min ou mais
@@ -825,8 +876,15 @@ class Copier:
             try:                                              # 10% da menor posição: pouco impacto no preço do pool
                 amt = max(10 ** 12, int(min(p["tokens_left"] for p in pos) * 1e17))
                 w = evm.words(await self._call(hoodsafe.QUOTER, v4_quote_data(key, amt, False)))
-            except Exception:
+            except Exception as e:
+                # 0.32.309 (caso HOLD): o pool recusando até 10% da menor posição 3 vezes seguidas = venda travada
+                if "revert" in str(e).lower():
+                    self._q_fail[tk] = self._q_fail.get(tk, 0) + 1
+                    if self._q_fail[tk] >= 3 and tk not in self.no_sell:
+                        self.flag_no_sell(tk, next((p.get("simbolo") for p in pos if p.get("simbolo")), None))
+                        log.warning("Robinhood: venda travada no pool de %s… (Quoter recusa)", tk[:10])
                 continue
+            self._q_fail.pop(tk, None)
             if not w or not w[0]:
                 continue
             fee = next((p["fee"] for p in pos if isinstance(p.get("fee"), (int, float)) and 0 <= p["fee"] <= FEE_MAX), pool_fee(key))
@@ -1290,7 +1348,7 @@ class Copier:
                 v, pct = rb.pnl_now(p, rc["real_slip_pct"])
                 pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                       "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling",
-                                                      "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta")},
+                                                      "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta")}, "venda_travada": p["token"] in self.no_sell,
                             "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + rc["real_max_hold_h"] * 3600, "real": True})
             return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
                     "trades": rb.trades[:500], "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
@@ -1299,7 +1357,7 @@ class Copier:
             v, pct = b.pnl_now(p)
             pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                   "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "nome", "simbolo",
-                                                  "px_src", "dev", "espera")},
+                                                  "px_src", "dev", "espera")}, "venda_travada": p["token"] in self.no_sell,
                         "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
         return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100],
                 "nomes": self._names(b.events[:100])}

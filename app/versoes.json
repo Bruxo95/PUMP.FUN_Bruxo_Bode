@@ -2300,6 +2300,11 @@
    "versao": "0.32.308",
    "inicio": "2026-11-11T12:16:18+00:00",
    "titulo": "Robinhood: REAL espelha a FICTÍCIA também nas saídas e quadro de verificação do espelho"
+  },
+  {
+   "versao": "0.32.309",
+   "inicio": "2026-11-11T12:30:56+00:00",
+   "titulo": "Robinhood: venda em partes, motivo claro e trava de tokens que bloqueiam venda (caso HOLD)"
   }
  ]
 }

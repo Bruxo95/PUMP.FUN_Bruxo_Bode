@@ -854,3 +854,33 @@ def test_real_sells_when_the_fictitious_already_closed():
         await settle(c)
         assert sold and sold[-1][1] == "fictícia já fechou esta posição"
     run(go())
+
+
+def test_sell_quote_tries_smaller_parts_then_reports_blocked():
+    """0.32.309 (caso HOLD): o pool recusa a venda inteira → tenta 1/2, 1/4, 1/8; recusando tudo, erro claro de venda travada."""
+    async def go(limit):
+        ch = hoodreal.Chain(lambda m, p: None)
+
+        async def quote(key, amount, buy):
+            if amount > limit:
+                raise hoodreal.ChainError("simulação recusada: execution reverted")
+            return amount // 1000
+        ch.quote = quote
+        try:
+            return await ch.sell_quote(KEY, 8000)
+        except hoodreal.SellBlocked as e:
+            return str(e)
+    assert run(go(4000)) == (4000, 4)
+    assert "recusou cotar a venda" in run(go(10))
+
+
+def test_blocked_sale_bars_tokens_with_the_same_symbol():
+    async def go():
+        w, c = copier()
+        c.flag_no_sell("0x" + "99" * 20, "HOLD")
+        c.meta[TOK] = {"nome": "Hold", "simbolo": "hold"}
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        assert not b.pos and "HOLD travou a venda" in b.events[0]["motivo"]
+    run(go())

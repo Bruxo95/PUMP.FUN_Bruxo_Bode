@@ -330,7 +330,8 @@
     table("poTb", ["Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", PICO_H, "Fecha em", ""], ps.map((p) => [
       hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
       tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (usdRate() ? '<br><small class="muted">' + usdOf(p.eth_in) + "</small>" : "") + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
-      pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>",
+      pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>" +
+        (p.venda_travada ? '<br><small class="down"><b>venda travada no pool</b>: este resultado não dá para realizar</small>' : ""),
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
       p.sim_id && P.real_cfg && P.real_cfg.real_espelho ? '<span class="tag sim">segue a fictícia</span>' : (p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora") + (p.solta ? '<br><small class="muted">' + esc(p.solta) + "</small>" : ""),
       (p.espera ? '<small class="muted">segurando: ' + esc(p.espera.motivo || "trader saiu") + ", vende quando ficar positivo</small><br>" : "") +
