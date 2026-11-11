@@ -246,6 +246,11 @@ class Book:
             p.setdefault("vendas", []).append({"t": t, "frac": round(frac, 4), "eth": round(got, 6), "motivo": motivo})
             self.dirty_pos.add(p["id"])
             self.ev(t, p["wallet"], p["token"], "vendeu parte", f"{frac * 100:.0f}% · {motivo}")
+            if self.close_hook:
+                try:
+                    self.close_hook(self.user_id, p, motivo, frac)
+                except Exception as e:
+                    log.warning("Robinhood: espelho da REAL falhou na venda parcial: %s", str(e)[:120])
             return None
         pnl = p["proceeds"] - p["eth_in"]
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "fees",
@@ -399,15 +404,29 @@ class Copier:
         return bool(rc.get("real_on") and rc.get("real_espelho") and b and b.cfg.get("on")
                     and b.follows(wallet, auto) and b.real_follows(wallet, auto))
 
-    def _sim_closed(self, uid: str, p: dict, motivo: str) -> None:
-        if not (self.real_cfg.get(uid) or {}).get("real_espelho") or str(motivo).startswith("vendido por você"):
-            return
+    def mirrored(self, uid: str, rp: dict) -> bool:
+        """0.32.308: posição REAL presa a uma da FICTÍCIA (sim_id) com o espelho ligado: só a FICTÍCIA decide a saída (as regras de
+        saída da REAL — trader vendeu, stop, stop móvel, dev, tempo máximo — não agem nela; a REAL repete o que a fictícia fizer)."""
+        return bool(rp.get("sim_id") and (self.real_cfg.get(uid) or {}).get("real_espelho"))
+
+    def _sim_closed(self, uid: str, p: dict, motivo: str, frac: float = 1.0) -> None:
         rb = self.real.get(uid)
-        for rp in [x for x in (rb.pos.values() if rb else []) if x.get("sim_id") == p["id"]]:
-            if not rp.get("selling"):
-                rp["retry_frac"] = 1.0
-                rp.pop("espera", None)
-                self._spawn(self._real_sell(uid, rp, 1.0, "fictícia fechou: " + str(motivo)[:80]))
+        pares = [x for x in (rb.pos.values() if rb else []) if x.get("sim_id") == p["id"]]
+        if not pares:
+            return
+        if not (self.real_cfg.get(uid) or {}).get("real_espelho") or str(motivo).startswith("vendido por você"):
+            for rp in pares:                         # venda à mão só na fictícia: a REAL se solta e volta às regras próprias
+                rp.pop("sim_id", None)
+                rp["solta"] = "fictícia vendida à mão"
+                rb.dirty_pos.add(rp["id"])
+            return
+        for rp in pares:
+            rp.pop("espera", None)
+            if rp.get("selling"):                    # já está vendendo: a parte que faltar sai na nova tentativa
+                rp["retry_frac"] = 1.0 if frac >= 0.95 else max(rp.get("retry_frac") or 0, frac)
+                continue
+            rp["retry_frac"] = frac
+            self._spawn(self._real_sell(uid, rp, frac, ("fictícia fechou: " if frac >= 0.95 else "fictícia vendeu parte: ") + str(motivo)[:80]))
 
     def rbook(self, uid: str) -> hoodreal.RealBook:
         rb = self.real.get(uid)
@@ -489,7 +508,7 @@ class Copier:
                 self._real_price(uid, rb, tr["token"], px, tr["t"])
             if tr["side"] == "sell":
                 frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
-                for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
+                for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"] and not self.mirrored(uid, p)]:
                     self._real_trader_exit(uid, p, frac, f"trader vendeu {frac * 100:.0f}%", tr["t"])
         for b in self.books.values():
             if px:
@@ -603,6 +622,8 @@ class Copier:
             _, pct = rb.pnl_now(p, rc["real_slip_pct"])
             p["best_pct"], p["worst_pct"] = max(p.get("best_pct", 0), pct), min(p.get("worst_pct", 0), pct)
             rb.dirty_pos.add(p["id"])
+            if self.mirrored(uid, p):
+                continue
             why = f"stop de {rc['real_stop_pct']:g}%" if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] else \
                 trail_hit(rc, p["best_pct"], pct, "real_")
             frac = 1.0
@@ -656,6 +677,12 @@ class Copier:
             if tr.get("_sim_id"):
                 p["sim_id"] = tr["_sim_id"]
             rb.pos[p["id"]] = p
+            bk = self.books.get(uid)
+            sp = bk.pos.get(p["sim_id"]) if p.get("sim_id") and bk is not None else None
+            if sp and sp.get("tokens") and sp["tokens_left"] < sp["tokens"] * 0.999:
+                fr = 1 - sp["tokens_left"] / sp["tokens"]     # a fictícia vendeu parte enquanto a REAL comprava: repete
+                p["retry_frac"] = fr
+                self._spawn(self._real_sell(uid, p, fr, f"fictícia já tinha vendido {fr * 100:.0f}%"))
             rb.dirty_pos.add(p["id"])
             rb.balance_t = 0
             rb.ev(t, tr["wallet"], tr["token"], "REAL comprou", f"{rc['real_eth_por_compra']:g} ETH, {t - tr['t']:.0f} s depois do trader", res["tx"])
@@ -750,7 +777,16 @@ class Copier:
             self._rbal_at = now
         for uid, rb in list(self.real.items()):
             cf = self.rcfg(uid)
+            bk = self.books.get(uid)
             for p in list(rb.pos.values()):
+                if self.mirrored(uid, p):
+                    if bk is not None and p["sim_id"] not in bk.pos and not p.get("selling") and now - p["open_t"] > 20 \
+                            and (p.get("sell_retry_at") or 0) <= now:
+                        p["retry_frac"] = 1.0                  # a fictícia já fechou (ex.: fechou enquanto a REAL comprava)
+                        self._spawn(self._real_sell(uid, p, 1.0, "fictícia já fechou esta posição"))
+                    elif p.get("sell_error") and (p.get("sell_retry_at") or 0) <= now and p.get("retry_frac"):
+                        self._spawn(self._real_sell(uid, p, p["retry_frac"], "nova tentativa de venda"))
+                    continue
                 if now - p["open_t"] >= cf["real_max_hold_h"] * 3600:
                     p["retry_frac"] = 1.0
                     self._spawn(self._real_sell(uid, p, 1.0, f"tempo máximo de {cf['real_max_hold_h']:g} h"))
@@ -911,6 +947,8 @@ class Copier:
     def _exit(self, uid: str, p: dict, real: bool, regra: str, motivo: str, now: float) -> None:
         so_trader = regra == "sair_trader"
         if real:
+            if self.mirrored(uid, p):
+                return
             if self.rcfg(uid).get("real_" + regra):
                 if so_trader:
                     self._real_trader_exit(uid, p, 1.0, motivo, now)
@@ -1078,16 +1116,17 @@ class Copier:
             raise ValueError("sem preço desta moeda agora")
         tr = {"wallet": "botao", "token": tk, "t": now, "tx": None, "eth": None, "amount": 0, "_auto": False}
         out = {"ficticia": None, "real": None}
+        sp = None
+        if modo in ("sim", "ambas"):                 # 0.32.308: a FICTÍCIA primeiro; a REAL fica presa a ela (espelho)
+            sp = b.buy(tr, px, now, key, "botao")
+            out["ficticia"] = "comprou" if sp else (b.events[0]["motivo"] if b.events else "não comprou")
         if modo in ("real", "ambas"):
             rc = self.rcfg(uid)
             if not rc.get("real_on"):
                 out["real"] = "a carteira REAL está desligada (ligue em Carteira)"
             else:
-                self._spawn(self._real_buy(uid, tr, px, key))
+                self._spawn(self._real_buy(uid, {**tr, "_sim_id": sp["id"]} if sp and rc.get("real_espelho") else tr, px, key))
                 out["real"] = "enviando a compra REAL"
-        if modo in ("sim", "ambas"):
-            p = b.buy(tr, px, now, key, "botao")
-            out["ficticia"] = "comprou" if p else (b.events[0]["motivo"] if b.events else "não comprou")
         await self.flush()
         return out
 
@@ -1159,6 +1198,11 @@ class Copier:
         Valores da cópia, traders seguidos e tudo da REAL ficam como estão."""
         b = self.book(uid)
         n_pos, n_tr = len(b.pos), len(b.trades)
+        rb = self.real.get(uid)
+        for rp in (rb.pos.values() if rb else []):  # a REAL não é vendida: as posições presas à fictícia se soltam
+            if rp.pop("sim_id", None):
+                rp["solta"] = "fictícia zerada"
+                rb.dirty_pos.add(rp["id"])
         b.closed_pos |= set(b.pos)
         b.pos.clear()
         b.trades.clear()
@@ -1201,6 +1245,31 @@ class Copier:
         return {"vendidas": ok, "falhas": bad}
 
     # ------------------------------------------------------------------ telas
+    def mirror_report(self, uid: str, now: float) -> dict:
+        """0.32.308 (pedido do dono: "verificação completa: a REAL tem que seguir 100% a fictícia"): cada posição aberta da FICTÍCIA
+        com o par na REAL (ou o motivo de não ter), e as posições REAL que não estão presas a nenhuma da fictícia."""
+        b, rb, rc = self.book(uid), self.rbook(uid), self.rcfg(uid)
+        par = {p.get("sim_id"): p for p in rb.pos.values() if p.get("sim_id")}
+        linhas = []
+        for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
+            rp = par.get(p["id"])
+            why = None
+            if not rp:
+                ev = next((e for e in rb.events if e.get("token") == p["token"] and e["t"] >= p["open_t"] - 5
+                           and e.get("acao") in ("REAL não copiou", "REAL falhou")), None)
+                why = (ev["acao"] + ": " + (ev.get("motivo") or "")) if ev else (
+                    "a REAL estava desligada" if not rc.get("real_on") else "o espelho estava desligado" if not rc.get("real_espelho")
+                    else "compra REAL ainda saindo" if any(t == p["token"] for _, t in rb.busy)
+                    else "posição de antes do espelho (0.32.306) ou de trader copiado só na FICTÍCIA")
+            linhas.append({"token": p["token"], "nome": p.get("nome"), "simbolo": p.get("simbolo"), "wallet": p["wallet"], "open_t": p["open_t"],
+                           "real": bool(rp), "real_open_t": rp["open_t"] if rp else None, "motivo": why})
+        soltas = [{"token": p["token"], "nome": p.get("nome"), "simbolo": p.get("simbolo"), "wallet": p["wallet"], "open_t": p["open_t"],
+                   "motivo": p.get("solta") or "comprada antes do espelho ou fora da fictícia: segue as regras da REAL"}
+                  for p in rb.pos.values() if not p.get("sim_id")]
+        n = len(linhas)
+        return {"ligado": bool(rc.get("real_espelho")), "ficticia": n, "com_real": sum(1 for x in linhas if x["real"]),
+                "linhas": linhas, "soltas": soltas}
+
     def _names(self, evs: list[dict]) -> dict:
         """Nome e símbolo dos tokens citados nos eventos (as posições e os trades já levam o seu)."""
         return {e["token"]: self.meta[e["token"]] for e in evs if e.get("token") in self.meta}
@@ -1215,12 +1284,13 @@ class Copier:
                 "eth_usd": getattr(self.w, "eth_usd", None)}
         if real:
             rb = self.rbook(uid)
+            base["espelho"] = self.mirror_report(uid, now)
             pos = []
             for p in sorted(rb.pos.values(), key=lambda x: x["open_t"], reverse=True):
                 v, pct = rb.pnl_now(p, rc["real_slip_pct"])
                 pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                       "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling",
-                                                      "nome", "simbolo", "px_src", "dev", "espera")},
+                                                      "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta")},
                             "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + rc["real_max_hold_h"] * 3600, "real": True})
             return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
                     "trades": rb.trades[:500], "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}

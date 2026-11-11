@@ -152,6 +152,10 @@
         <div class="card"><header><div><h2 id="poT">Posições abertas</h2><div class="sub" id="poSub"></div></div><div class="sp"></div><button class="btn sm" id="poAll" type="button">Vender todas</button></header>
           <div class="tbl-wrap"><table id="poTb"></table></div>
           <div class="help"><p><b>Preço:</b> o de cada troca do token vista na rede e, quando o token fica parado, a cotação de venda do contrato oficial da Uniswap (o que a posição receberia) a cada 30 s; se o contrato não cotar por 2 min (pool sem liquidez, golpe), vale o preço do gráfico da DexScreener. O resultado já desconta a taxa do pool, a folga (slippage) e o gás. <b>Saídas:</b> quando o trader vende (ou o saldo dele no token some), quando o dev vende metade ou mais, stop de perda, stop móvel e tempo máximo; cada uma liga e desliga em Carteira.</p></div></div>
+        <div class="card" id="mrCard" style="margin-top:16px" hidden><header><div><h2>Espelho FICTÍCIA × REAL</h2><div class="sub" id="mrSub"></div></div></header>
+          <div class="tbl-wrap"><table id="mrTb"></table></div>
+          <div class="tbl-wrap" style="margin-top:10px"><table id="mrSo"></table></div>
+          <div class="help"><p><b>Como funciona:</b> com "REAL segue a FICTÍCIA" ligado, a REAL só compra depois que a FICTÍCIA comprou, e só sai quando a FICTÍCIA sai (inteira ou em parte, na mesma proporção). As regras de saída da coluna REAL não agem nessas posições. Quando a REAL não acompanha uma entrada, o motivo aparece aqui (saldo, perda do dia, limite de posições REAL, token sem conferência). Venda à mão só na fictícia ou "Zerar a fictícia" soltam a REAL, que volta às regras próprias.</p></div></div>
       </section>
       <section class="view" data-view="fluxo" hidden>
         <div class="card"><header><div><h2>As 30 moedas com mais dinheiro entrando</h2><div class="sub" id="fxSub">ETH que entrou nas compras menos o que saiu nas vendas, no período · só o que a leitura viu na rede</div></div><div class="sp"></div>

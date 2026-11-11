@@ -332,10 +332,21 @@
       tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (usdRate() ? '<br><small class="muted">' + usdOf(p.eth_in) + "</small>" : "") + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
       pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>",
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
-      p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora",
+      p.sim_id && P.real_cfg && P.real_cfg.real_espelho ? '<span class="tag sim">segue a fictícia</span>' : (p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora") + (p.solta ? '<br><small class="muted">' + esc(p.solta) + "</small>" : ""),
       (p.espera ? '<small class="muted">segurando: ' + esc(p.espera.motivo || "trader saiu") + ", vende quando ficar positivo</small><br>" : "") +
       (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small><br>" : "") + '<button class="btn sm" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>"]),
     REAL ? "Nenhuma posição REAL aberta." : "Nenhuma posição aberta. A cópia compra quando um trader do \"Copiando agora\" comprar.");
+    // 0.32.308 (pedido do dono: "a real tem que seguir 100% a fictícia; verificação completa"): par de cada posição da FICTÍCIA na REAL
+    const m = REAL && P && P.espelho, mc = $("mrCard");
+    if (mc) mc.hidden = !m;
+    if (m) {
+      $("mrSub").innerHTML = (m.ligado ? '<span class="up">espelho ligado</span>' : '<span class="down">espelho desligado: a REAL decide sozinha</span>') +
+        " · " + m.com_real + " de " + m.ficticia + " posições da FICTÍCIA com par na REAL" + (m.soltas.length ? " · " + m.soltas.length + " REAL soltas" : "");
+      table("mrTb", ["FICTÍCIA abriu", "Token", "Trader", "REAL", "Motivo"], m.linhas.map((x) => [hora(x.open_t), tok(x.token, x), addr(x.wallet),
+        x.real ? '<span class="tag win">comprou</span><br><small class="muted">' + num(x.real_open_t - x.open_t, 0) + " s depois</small>" : '<span class="tag loss">não</span>',
+        esc(x.motivo || "")]), "A FICTÍCIA não tem posição aberta.");
+      table("mrSo", ["REAL solta desde", "Token", "Trader", "Por quê"], m.soltas.map((x) => [hora(x.open_t), tok(x.token, x), addr(x.wallet), esc(x.motivo)]), "Nenhuma posição REAL solta: todas seguem a fictícia.");
+    }
   }
   function drawHist() {
     const ts = (P && P.trades) || [], w = (P && P.carteira) || {};

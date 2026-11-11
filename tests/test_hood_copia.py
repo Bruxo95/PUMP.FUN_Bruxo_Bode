@@ -784,3 +784,73 @@ def test_zero_token_balance_needs_three_reads_before_closing_real():
             return str(e)
     run(go())
     assert "leitura vazia" in run(empty())
+
+
+def _mirror_setup():
+    w, c = copier()
+    sold = []
+
+    async def real_buy(uid, tr, px, key):
+        c.rbook(uid).pos["r1"] = {"id": "r1", "wallet": tr["wallet"], "token": tr["token"], "sim_id": tr.get("_sim_id"), "open_t": time.time(),
+                                  "eth_in": 0.002, "proceeds": 0.0, "px_in": 0.001, "px_now": 0.001, "tokens_left": 2.0, "fee": 0.01,
+                                  "best_pct": 0.0, "worst_pct": 0.0}
+
+    async def real_sell(uid, p, frac, motivo, manual=False):
+        sold.append((round(frac, 3), motivo))
+        if frac >= 0.95:
+            c.rbook(uid).pos.pop(p["id"], None)
+    c._real_buy, c._real_sell = real_buy, real_sell
+    rc = c.rcfg("u1")
+    rc.update(real_on=True, real_stop_pct=10.0)
+    return w, c, sold
+
+
+def test_mirrored_real_exits_only_with_the_fictitious():
+    """0.32.308: posição REAL do espelho não usa as regras próprias (stop da REAL), repete a venda parcial e a total da fictícia."""
+    async def go():
+        w, c, sold = _mirror_setup()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b, rb = c.books["u1"], c.rbook("u1")
+        assert rb.pos["r1"]["sim_id"] in b.pos
+        c._real_price("u1", rb, TOK, 0.0005, time.time())                  # -50%: o stop da REAL (10%) não age no espelho
+        await settle(c)
+        assert not sold and "r1" in rb.pos
+        b.cfg["trader_so_lucro"] = False
+        c.on_trade(trade("sell", 500.0, 0.6), 1000.0, w.copiaria)            # trader vendeu 50%: só a fictícia decide
+        await settle(c)
+        assert sold == [(0.5, "fictícia vendeu parte: trader vendeu 50%")]
+        p = next(iter(b.pos.values()))
+        b.sell(p, 1.0, None, time.time(), "stop móvel: pico +40%, saiu em +20%")
+        await settle(c)
+        assert sold[-1] == (1.0, "fictícia fechou: stop móvel: pico +40%, saiu em +20%") and "r1" not in rb.pos
+    run(go())
+
+
+def test_manual_fictitious_sale_and_reset_release_the_real():
+    async def go():
+        w, c, sold = _mirror_setup()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b, rb = c.books["u1"], c.rbook("u1")
+        assert c.mirror_report("u1", time.time())["com_real"] == 1
+        c.close_manual("u1", next(iter(b.pos)))
+        await settle(c)
+        assert not sold and "sim_id" not in rb.pos["r1"] and rb.pos["r1"]["solta"] == "fictícia vendida à mão"
+        rep = c.mirror_report("u1", time.time())
+        assert rep["ficticia"] == 0 and len(rep["soltas"]) == 1
+    run(go())
+
+
+def test_real_sells_when_the_fictitious_already_closed():
+    async def go():
+        w, c, sold = _mirror_setup()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b, rb = c.books["u1"], c.rbook("u1")
+        b.pos.clear()                                                           # fictícia sumiu sem avisar
+        rb.pos["r1"]["open_t"] -= 60
+        await c.tick()
+        await settle(c)
+        assert sold and sold[-1][1] == "fictícia já fechou esta posição"
+    run(go())

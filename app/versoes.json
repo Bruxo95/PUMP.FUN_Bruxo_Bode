@@ -2295,6 +2295,11 @@
    "versao": "0.32.307",
    "inicio": "2026-11-11T12:02:02+00:00",
    "titulo": "Robinhood: REAL só entra pela FICTÍCIA e não fecha mais em -100% por leitura de saldo zero"
+  },
+  {
+   "versao": "0.32.308",
+   "inicio": "2026-11-11T12:16:18+00:00",
+   "titulo": "Robinhood: REAL espelha a FICTÍCIA também nas saídas e quadro de verificação do espelho"
   }
  ]
 }
