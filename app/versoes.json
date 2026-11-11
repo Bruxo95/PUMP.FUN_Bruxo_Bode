@@ -2345,6 +2345,11 @@
    "versao": "0.32.317",
    "inicio": "2026-11-11T17:13:06+00:00",
    "titulo": "Dormant: botão Ver o que marcar para criar a chave da MEXC"
+  },
+  {
+   "versao": "0.32.318",
+   "inicio": "2026-11-11T18:19:34+00:00",
+   "titulo": "Dormant: NonKYC nas exchanges e volume do dia de cada exchange"
   }
  ]
 }

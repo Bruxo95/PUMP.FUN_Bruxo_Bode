@@ -2,7 +2,7 @@
 
 Não há código de saque aqui, e a chave é conferida ANTES de ser guardada: nas exchanges que dizem pela API se a chave pode sacar
 (Binance, Bybit, OKX, KuCoin), chave com saque ligado é recusada. A MEXC não mostra isso por chave: entra só com a confirmação do dono.
-Conectadas só estas 5 porque são aquelas cuja documentação consegui ler em 06/11/2026; Gate, Bitget e outras ficam para depois, sem adivinhar.
+Conectadas só estas porque são aquelas cuja documentação consegui ler (5 em 06/11/2026; NonKYC em 11/11/2026); Gate, Bitget e outras ficam para depois, sem adivinhar.
 
 Nunca usa ordem a mercado. Em moeda pequena o livro é fino (SCCP na MEXC: profundidade $0, spread de 18,7% na CoinGecko) e a mercado o preço dispara
 sem limite. Aqui é ordem limitada que executa na hora ou cancela (IOC), com preço máximo calculado pelo livro e pela folga do dono.
@@ -36,7 +36,13 @@ EXCHANGES = {
     "okx": {"nome": "OKX", "cg": "okex", "frase": True, "confere_saque": True, "doc": "https://www.okx.com/account/my-api"},
     "kucoin": {"nome": "KuCoin", "cg": "kucoin", "frase": True, "confere_saque": True, "doc": "https://www.kucoin.com/account/api"},
     "mexc": {"nome": "MEXC", "cg": "mxc", "frase": False, "confere_saque": False, "doc": "https://www.mexc.com/user/openapi"},
+    # 0.32.318 (pedido do dono, 11/11): documentação lida em https://api.nonkyc.io/openapi.json (base /api/v2, HMAC-SHA256 de
+    # apiKey + URL + corpo + nonce nos cabeçalhos X-API-KEY / X-API-NONCE / X-API-SIGN). Não tem ordem IOC: a ordem limitada é
+    # cancelada logo depois de entrar, e o que ficou aberto não executa. A API não diz as permissões da chave.
+    "nonkyc": {"nome": "NonKYC", "cg": "nonkyc_io", "frase": False, "confere_saque": False, "doc": "https://nonkyc.io/account/apikeys"},
 }
+NK = "https://api.nonkyc.io/api/v2"
+VOL_S = 1800                         # volume de 24 h de cada exchange (CoinGecko) guardado 30 min
 BY_CG = {v["cg"]: k for k, v in EXCHANGES.items()}
 QUOTE = "USDT"
 BASE_RE = re.compile(r"^[A-Z0-9]{1,20}$")
@@ -76,6 +82,14 @@ def binance_query(params: dict, secret: str) -> str:
 
 def bybit_sign(ts: str, key: str, recv: str, payload: str, secret: str) -> str:
     return hmac_hex(secret, ts + key + recv + payload)
+
+
+def nonkyc_sign(key: str, url: str, body: str, nonce: str, secret: str) -> str:
+    """NonKYC: HMAC-SHA256 (chave = secret) de apiKey + URL completa + corpo (só no POST) + nonce, em hexa (exemplo da documentação)."""
+    return hmac_hex(secret, key + url + body + nonce)
+
+
+NK_CANCEL_S = 1.0
 
 
 def walk_book(asks: list, usd: Decimal, cap: Decimal) -> dict:
@@ -130,6 +144,10 @@ class Conn:
         elif ex == "kucoin":
             if str(js.get("code")) != "200000":
                 bad = js.get("msg")
+        elif ex == "nonkyc":
+            e = js.get("error")
+            if e or js["_http"] >= 300:
+                bad = (" · ".join(str(x) for x in (e.get("message"), e.get("description")) if x) if isinstance(e, dict) else str(e or "")) or f"HTTP {js['_http']}"
         if bad is not None:
             txt = str(bad)[:160]
             for k in ((keys or {}).get("key"), (keys or {}).get("secret"), (keys or {}).get("frase")):
@@ -139,6 +157,8 @@ class Conn:
 
     # ------------------------------------------------------------------ público
     def symbol(self, base: str) -> str:
+        if self.ex == "nonkyc":
+            return f"{base}/{QUOTE}"
         return f"{base}-{QUOTE}" if self.ex in ("okx", "kucoin") else f"{base}{QUOTE}"
 
     async def rules(self, base: str) -> dict | None:
@@ -174,6 +194,12 @@ class Conn:
                 if not x or x.get("state") != "live":
                     return None
                 return {"tick": d(x["tickSz"]), "step": d(x["lotSz"]), "min_qty": d(x["minSz"]), "min_usd": Decimal(0)}
+            if ex == "nonkyc":
+                js = await self._send("GET", f"{NK}/market/info?symbol={urllib.parse.quote(s)}")
+                if js.get("error") or js["_http"] >= 300 or js.get("symbol") != s or not js.get("isActive") or js.get("isPaused"):
+                    return None
+                return {"tick": Decimal(1).scaleb(-int(js["priceDecimals"])), "step": Decimal(1).scaleb(-int(js["quantityDecimals"])),
+                        "min_qty": Decimal(1).scaleb(-int(js["quantityDecimals"])), "min_usd": Decimal(0)}
             js = await self._send("GET", f"https://api.kucoin.com/api/v2/symbols/{s}")
             x = js.get("data")
             if not x or not x.get("enableTrading"):
@@ -194,6 +220,9 @@ class Conn:
         elif ex == "okx":
             js = await self._send("GET", f"https://www.okx.com/api/v5/market/books?instId={s}&sz=50")
             raw = ((js.get("data") or [{}])[0]).get("asks")
+        elif ex == "nonkyc":
+            js = await self._send("GET", f"{NK}/market/orderbook?symbol={urllib.parse.quote(s)}&limit=50")
+            raw = [(a.get("price"), a.get("quantity")) for a in js.get("asks") or [] if isinstance(a, dict)]
         else:
             js = await self._send("GET", f"https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol={s}")
             raw = (js.get("data") or {}).get("asks")
@@ -202,7 +231,15 @@ class Conn:
     # ------------------------------------------------------------------ privado
     async def _private(self, method: str, path: str, keys: dict, query: dict | None = None, body: dict | None = None) -> dict:
         ex = self.ex
-        if ex in ("binance", "mexc"):
+        if ex == "nonkyc":
+            qs = urllib.parse.urlencode(query or {})
+            url = NK + path + ("?" + qs if qs else "")
+            txt = json.dumps(body, separators=(",", ":")) if body is not None else ""
+            nonce = str(int(time.time() * 1000))
+            h = {"X-API-KEY": keys["key"], "X-API-NONCE": nonce, "X-API-SIGN": nonkyc_sign(keys["key"], url, txt, nonce, keys["secret"]),
+                 "Content-Type": "application/json"}
+            js = await self._send(method, url, h, txt if body is not None else None)
+        elif ex in ("binance", "mexc"):
             host = "https://api.binance.com" if ex == "binance" else "https://api.mexc.com"
             q = binance_query({**(query or {}), **(body or {}), "recvWindow": 5000, "timestamp": int(time.time() * 1000)}, keys["secret"])
             js = await self._send(method, f"{host}{path}?{q}", {"X-MBX-APIKEY" if ex == "binance" else "X-MEXC-APIKEY": keys["key"], "Content-Type": "application/json"})
@@ -247,6 +284,9 @@ class Conn:
             c = (await self._private("GET", "/api/v1/user/api-key", keys)).get("data") or {}
             perm = str(c.get("permission") or "")
             return {"saque": "Withdrawal" in perm, "trade": "Spot" in perm, "ip": None}
+        if ex == "nonkyc":                            # a NonKYC não diz as permissões: a chave só precisa ler o saldo aqui
+            await self._private("GET", "/balances", keys)
+            return {"saque": None, "trade": True, "ip": None}
         c = await self._private("GET", "/api/v3/account", keys)
         return {"saque": None, "trade": bool(c.get("canTrade")), "ip": None}
 
@@ -263,6 +303,9 @@ class Conn:
             j = await self._private("GET", "/api/v5/account/balance", keys, {"ccy": QUOTE})
             det = ((j.get("data") or [{}])[0]).get("details") or []
             return next((d(c.get("availBal") or 0) for c in det if c.get("ccy") == QUOTE), Decimal(0))
+        if ex == "nonkyc":
+            j = await self._private("GET", "/balances", keys)
+            return next((d(b.get("available") or 0) for b in j.get("lista") or [] if isinstance(b, dict) and b.get("asset") == QUOTE), Decimal(0))
         j = await self._private("GET", "/api/v1/accounts", keys, {"currency": QUOTE, "type": "trade"})
         return sum((d(a.get("available") or 0) for a in j.get("data") or []), Decimal(0))
 
@@ -281,6 +324,21 @@ class Conn:
         if ex == "okx":
             j = await self._private("POST", "/api/v5/trade/order", keys, body={"instId": s, "tdMode": "cash", "side": "buy", "ordType": "ioc", "px": P, "sz": Q, "clOrdId": cid})
             return str(j["data"][0]["ordId"])
+        if ex == "nonkyc":
+            j = await self._private("POST", "/createorder", keys, body={"userProvidedId": cid, "symbol": s, "side": "buy", "type": "limit", "quantity": Q, "price": P,
+                                                                        "strictValidate": True})
+            oid = str(j["id"])
+            await asyncio.sleep(NK_CANCEL_S)               # sem IOC na NonKYC: o que não executou na hora é cancelado
+            for _ in range(3):
+                try:
+                    x = await self._private("GET", f"/getorder/{oid}", keys)
+                    if not x.get("isActive") or str(x.get("status")) in ("Filled", "Cancelled"):
+                        break
+                    await self._private("POST", "/cancelorder", keys, body={"id": oid})
+                    break
+                except ExError:
+                    await asyncio.sleep(1)
+            return oid
         j = await self._private("POST", "/api/v1/hf/orders", keys, body={"type": "limit", "symbol": s, "side": "buy", "price": P, "size": Q, "timeInForce": "IOC", "clientOid": cid})
         return str(j["data"]["orderId"])
 
@@ -297,6 +355,19 @@ class Conn:
             x = ((await self._private("GET", "/api/v5/trade/order", keys, {"instId": s, "ordId": oid})).get("data") or [{}])[0]
             q = d(x.get("accFillSz") or 0)
             return q, q * d(x.get("avgPx") or 0), str(x.get("state")) in ("filled", "canceled", "mmp_canceled")
+        if ex == "nonkyc":
+            x = await self._private("GET", f"/getorder/{oid}", keys)
+            q = d(x.get("executedQuantity") or 0)
+            fim = not x.get("isActive") or str(x.get("status")) in ("Filled", "Cancelled")
+            gasto = q * d(x.get("price") or 0)               # teto: preço máximo; abaixo, o valor de verdade pelas negociações da ordem
+            try:
+                tr = await self._private("GET", "/account/trades", keys, {"symbol": s, "limit": 100, "since": int(x.get("createdAt") or 0) - 1000})
+                pagos = [d(t.get("totalWithFee") or 0) for t in tr.get("lista") or [] if isinstance(t, dict) and str(t.get("orderid")) == oid]
+                if pagos:
+                    gasto = sum(pagos, Decimal(0))
+            except ExError:
+                pass
+            return q, gasto, fim
         x = (await self._private("GET", f"/api/v1/hf/orders/{oid}", keys, {"symbol": s})).get("data") or {}
         return d(x.get("dealSize") or 0), d(x.get("dealFunds") or 0), not x.get("active", False)
 
@@ -350,8 +421,28 @@ class CexBuyer:
         rows = {r["exchange"]: r for r in await b.db.select("dormant_cex_keys", {"user_id": uid}, columns="exchange,rotulo,info,em") or []}
         cfg = await b.cfg(uid)
         gasto = await self.spent(uid)
-        return {"exchanges": [{"id": k, "nome": v["nome"], "frase": v["frase"], "confere_saque": v["confere_saque"], "doc": v["doc"], "rotulo": (rows.get(k) or {}).get("rotulo"), "info": (rows.get(k) or {}).get("info")} for k, v in EXCHANGES.items()],
+        vol = await self.volumes()
+        return {"exchanges": [{"id": k, "nome": v["nome"], "frase": v["frase"], "confere_saque": v["confere_saque"], "doc": v["doc"], "rotulo": (rows.get(k) or {}).get("rotulo"), "info": (rows.get(k) or {}).get("info"),
+                               "vol24_usd": vol.get(v["cg"]), "cg_url": "https://www.coingecko.com/en/exchanges/" + v["cg"].replace("_", "-")} for k, v in EXCHANGES.items()],
                 "depois": ["Gate", "Bitget", "HTX", "Kraken", "Coinbase"], "ip": await self.server_ip(), "cfg": cfg, "gasto_dia_usd": gasto, "trava_geral": bool(b.allowed())}
+
+    async def volumes(self) -> dict:
+        """0.32.318 (pedido do dono): quanto cada exchange negociou em 24 h, em dólar. CoinGecko /exchanges (volume em BTC) × preço do BTC.
+        Duas consultas a cada 30 min; se falhar, a tela mostra sem o volume."""
+        c = self.b.__dict__.setdefault("_vol", [0.0, {}])
+        if time.time() - c[0] < VOL_S:
+            return c[1]
+        c[0] = time.time()
+        try:
+            w = self.b.watch
+            lst = await w.get("/exchanges", {"per_page": 250})
+            btc = float(((await w.get("/simple/price", {"ids": "bitcoin", "vs_currencies": "usd"})) or {}).get("bitcoin", {}).get("usd") or 0)
+            want = {v["cg"] for v in EXCHANGES.values()}
+            if btc > 0:
+                c[1] = {x["id"]: round(float(x.get("trade_volume_24h_btc") or 0) * btc) for x in lst or [] if isinstance(x, dict) and x.get("id") in want}
+        except Exception as e:
+            log.info("Dormant: volume das exchanges não veio: %s", str(e)[:120])
+        return c[1]
 
     async def server_ip(self) -> str | None:
         c = self.b.__dict__.setdefault("_ip", [0.0, None])

@@ -238,9 +238,98 @@ def test_mexc_guide_marks_only_what_the_panel_uses():
     painel usa (saldo, ordem, ler a ordem) vêm marcadas; saque, transferência, futuros e P2P ficam desmarcados."""
     import re
     js = open("web/dormant.js", encoding="utf-8").read()
-    g = js[js.index("const XGUIDE = {"):js.index("let X_IP")]
+    g = js[js.index("const XGUIDE = {"):js.index("    nonkyc: {")]
     marcadas = re.findall(r'\["([^"]+)", true', g)
     assert marcadas == ["View Account Details", "View Order Details", "Trade"]
     for nome in ("Withdraw", "Transfer", "Order Placing", "Place order", "Advertiser", "Edit Account Info"):
         assert f'["{nome}", false' in g
     assert "data-xguide" in js and "X_IP = r.ip" in js
+
+
+# ------------------------------------------------------------------ 0.32.318: NonKYC e volume de 24 h
+def test_nonkyc_signature_follows_the_documentation_example():
+    """https://api.nonkyc.io/openapi.json: hmac.new(secret, f"{apiKey}{url}{json_body}{nonce}", sha256).hexdigest()."""
+    import hashlib
+    import hmac
+    url, body, nonce = "https://api.nonkyc.io/api/v2/cancelorder", '{"id":"5845454765457"}', "1700000000000"
+    want = hmac.new(SEC.encode(), (API + url + body + nonce).encode(), hashlib.sha256).hexdigest()
+    assert cx.nonkyc_sign(API, url, body, nonce, SEC) == want
+
+
+class NkNet(Net):
+    def __init__(self):
+        super().__init__()
+        self.nk_orders, self.cancels, self.nk_active = [], [], True
+
+    async def get(self, url, params=None, headers=None, timeout=None):
+        if url.endswith("/exchanges"):
+            return Resp([{"id": "nonkyc_io", "trade_volume_24h_btc": 200}, {"id": "binance", "trade_volume_24h_btc": 80000}, {"id": "outra", "trade_volume_24h_btc": 1}])
+        if url.endswith("/simple/price") and (params or {}).get("ids") == "bitcoin":
+            return Resp({"bitcoin": {"usd": 70000.0}})
+        if "/tickers" in url:
+            r = await super().get(url, params, headers, timeout)
+            r._js["tickers"].append({"base": "TOK", "target": "USDT", "market": {"identifier": "nonkyc_io", "name": "Nonkyc.io"}, "converted_last": {"usd": 0.02}})
+            return r
+        return await super().get(url, params=params, headers=headers, timeout=timeout)
+
+    async def request(self, method, url, headers=None, content=None, timeout=None):
+        u = urllib.parse.urlsplit(url)
+        if u.netloc != "api.nonkyc.io":
+            return await super().request(method, url, headers, content, timeout)
+        self.urls.append((method, url))
+        p = u.path[len("/api/v2"):]
+        if p == "/market/info":
+            return Resp({"symbol": "TOK/USDT", "isActive": True, "isPaused": False, "priceDecimals": 4, "quantityDecimals": 0})
+        if p == "/market/orderbook":
+            return Resp({"asks": [{"price": "0.02", "quantity": "100000"}]})
+        assert headers["X-API-KEY"] == API and headers["X-API-SIGN"] == cx.nonkyc_sign(API, url, content or "", headers["X-API-NONCE"], SEC)
+        if p == "/balances":
+            return Resp([{"asset": "USDT", "available": self.usdt}, {"asset": "BTC", "available": "1"}])
+        if p == "/createorder":
+            import json
+            self.nk_orders.append(json.loads(content))
+            return Resp({"id": "nk1"})
+        if p == "/getorder/nk1":
+            return Resp({"id": "nk1", "price": "0.0202", "executedQuantity": "400", "isActive": self.nk_active, "status": "Partly Filled" if self.nk_active else "Cancelled", "createdAt": 1})
+        if p == "/cancelorder":
+            self.cancels.append(content)
+            self.nk_active = False
+            return Resp({"success": True, "id": "nk1"})
+        if p == "/account/trades":
+            return Resp([{"orderid": "nk1", "totalWithFee": "8.02"}, {"orderid": "outra", "totalWithFee": "99"}])
+        raise AssertionError(url)
+
+
+def test_nonkyc_buy_is_limit_then_cancels_the_rest_and_reads_the_real_cost():
+    cx.NK_CANCEL_S = 0
+    b, net, db = setup(NkNet())
+    c = cx.CexBuyer(b)
+    try:
+        run(c.save_key(UID, "nonkyc", API, SEC, "", SENHA, False))
+        raise AssertionError("sem a confirmação de saque não pode salvar")
+    except db_.BuyError as e:
+        assert "não diz pela API" in str(e)
+    run(c.save_key(UID, "nonkyc", API, SEC, "", SENHA, True))
+    run(b.set_on(UID, True, SENHA, "LIGAR"))
+    q = run(c.preview(UID, "tok", "nonkyc", 10, SENHA))
+    assert not q["bloqueia"] and q["par"] == "TOK/USDT", q
+    r = run(c.buy(UID, q["quote_id"], SENHA, "COMPRAR"))
+    o = net.nk_orders[0]
+    assert o["type"] == "limit" and o["side"] == "buy" and o["symbol"] == "TOK/USDT" and o["strictValidate"] is True
+    assert float(o["price"]) * float(o["quantity"]) <= 10.0001
+    assert net.cancels and '"nk1"' in net.cancels[0]                  # o resto da ordem foi cancelado
+    assert r["status"] == "confirmada" and r["qty"] == 400 and abs(r["usd_in"] - 8.02) < 1e-9
+
+
+def test_exchange_volume_in_dollars_is_shown_per_exchange():
+    b, net, db = setup(NkNet())
+    st = run(cx.CexBuyer(b).state(UID))
+    v = {x["id"]: x["vol24_usd"] for x in st["exchanges"]}
+    assert v["nonkyc"] == 14_000_000 and v["binance"] == 5_600_000_000 and v["mexc"] is None
+    assert next(x for x in st["exchanges"] if x["id"] == "nonkyc")["cg_url"].endswith("/exchanges/nonkyc-io")
+
+
+def test_nonkyc_guide_picks_read_and_trading_only():
+    js = open("web/dormant.js", encoding="utf-8").read()
+    g = js[js.index("    nonkyc: {"):js.index("let X_IP")]
+    assert '["Read + Trading Access", true' in g and '["Read Only Access", false' in g and '["Read + Trading + Withdraw Access", false' in g

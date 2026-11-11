@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-11**; revisão documental **2.0**.
-Aplicação: **0.32.317 · 2026-11-11 · Dormant: botão Ver o que marcar para criar a chave da MEXC**.
-Referência Git na emissão: `15585a1c26e4f1f0957bd64b04eff33a64b1f58d`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.318 · 2026-11-11 · Dormant: NonKYC nas exchanges e volume do dia de cada exchange**.
+Referência Git na emissão: `2f17e0cb3d355ca9237887ca019cf0b5e11d2a1e`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

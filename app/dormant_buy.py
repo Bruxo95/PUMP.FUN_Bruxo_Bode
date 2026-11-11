@@ -142,7 +142,7 @@ EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 # 0.32.246 (dono, 06/11/2026: abasteceu US$ 7 de gás e ficou sem poder comprar): gás tem limite próprio e não conta no das compras
 CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0, "cex_max_usd": 25.0, "cex_dia_usd": 100.0}
 CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0), "cex_max_usd": (1.0, 5000.0), "cex_dia_usd": (1.0, 20000.0)}
-CEX_NOMES = {"binance": "Binance", "bybit": "Bybit", "okx": "OKX", "kucoin": "KuCoin", "mexc": "MEXC"}
+CEX_NOMES = {"binance": "Binance", "bybit": "Bybit", "okx": "OKX", "kucoin": "KuCoin", "mexc": "MEXC", "nonkyc": "NonKYC"}
 QUOTE_TTL_S = 60                  # depois disso a cotação vale nada e o botão pede outra
 MAX_TRIES, LOCK_S = 5, 15 * 60    # 5 senhas erradas seguidas: compra e chaves travadas por 15 min (sobrevive ao reinício)
 PENDENTE_S = 15 * 60              # compra sem confirmação segura outra na mesma rede por 15 min (nonce, compra dobrada)

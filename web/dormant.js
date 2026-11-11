@@ -840,12 +840,31 @@
       notas: "dormant-painel",
       uso: "Open API",
     },
+    // 0.32.318 (pedido do dono, print da tela "Generate New Api Key" da NonKYC em 11/11): três opções, escolhe uma só
+    nonkyc: {
+      onde: "Na NonKYC: Account → API Keys → Generate New Api Key (pede o código de dois fatores).",
+      radio: [["Read Only Access", false, "só lê: não consegue comprar"], ["Read + Trading Access", true, "lê o saldo e manda a ordem de compra: é o que o painel usa"],
+        ["Read + Trading + Withdraw Access", false, "NUNCA: com ela quem pegar a chave tira o dinheiro"]],
+      ip: "Allowed IPs",
+      depois: "Digite o código de dois fatores e gere a chave. Copie a API Key e a Secret (a Secret aparece uma vez só). Cole aqui em NonKYC, marque <b>criei SEM permissão de saque</b> e Salvar.",
+    },
   };
   let X_IP = "";
   function xGuide(id) {
     const g = XGUIDE[id];
     if (!g) return;
     const box = (on) => '<span class="xgb' + (on ? " on" : "") + '" aria-hidden="true">' + (on ? "✓" : "") + "</span>";
+    const ipRow = (rot) => '<div class="xgsec"><b>' + esc(rot) + '</b><div class="xgrow">' + (X_IP ? "<code>" + esc(X_IP) + "</code> " + copyBtn(X_IP) +
+      '<small class="muted">IP de saída do servidor do painel: só ele consegue usar a chave</small>'
+      : '<small class="down">não consegui ler o IP do servidor agora: deixe em branco ou tente de novo</small>') + "</div></div>";
+    if (g.radio) {
+      ask("O que marcar na NonKYC", '<div class="xg"><p class="small">' + esc(g.onde) + " Escolha <b>só a opção verde</b>.</p>" +
+        '<div class="xgsec"><b>Permissions</b>' + g.radio.map(([nome, on, pq]) => '<div class="xgrow"><span class="xgi' + (on ? " on" : "") + '">' +
+          '<span class="xgb xgr' + (on ? " on" : "") + '" aria-hidden="true">' + (on ? "●" : "") + "</span>" + esc(nome) + (on ? ' <span class="sr">(escolher)</span>' : ' <span class="sr">(não escolher)</span>') +
+          (pq ? '<small class="' + (on ? "muted" : "down") + '">' + esc(pq) + "</small>" : "") + "</span></div>").join("") + "</div>" +
+        ipRow(g.ip) + '<p class="small">' + g.depois + "</p></div>", null);
+      return;
+    }
     const grupos = g.grupos.map(([sec, linhas]) => '<div class="xgsec"><b>' + esc(sec) + "</b>" + linhas.map(([rot, itens]) =>
       '<div class="xgrow"><span class="xgl">' + esc(rot) + ":</span>" + itens.map(([nome, on, pq]) =>
         '<span class="xgi' + (on ? " on" : "") + '">' + box(on) + esc(nome) + (on ? ' <span class="sr">(marcar)</span>' : ' <span class="sr">(deixar desmarcado)</span>') +
@@ -853,9 +872,7 @@
     ask("O que marcar na MEXC", '<div class="xg"><p class="small">Na MEXC: <b>Perfil → API Management → Create new API key</b>. Marque só as 3 caixas verdes; todo o resto fica desmarcado.</p>' +
       grupos +
       '<div class="xgsec"><b>Notes (Required)</b><div class="xgrow"><code>' + esc(g.notas) + "</code> " + copyBtn(g.notas) + '<small class="muted">qualquer nome serve; este ajuda a achar a chave depois</small></div></div>' +
-      '<div class="xgsec"><b>Link IP Address</b><div class="xgrow">' + (X_IP ? "<code>" + esc(X_IP) + "</code> " + copyBtn(X_IP) +
-        '<small class="muted">IP de saída do servidor do painel: só ele consegue usar a chave, e ela não vence em 90 dias</small>'
-        : '<small class="down">não consegui ler o IP do servidor agora: deixe em branco (a chave vale 90 dias) ou tente de novo</small>') + "</div></div>" +
+      ipRow("Link IP Address (sem ele a chave da MEXC vence em 90 dias)") +
       '<div class="xgsec"><b>API Usage</b><div class="xgrow"><span class="xgi on">' + box(true) + esc(g.uso) + '</span><span class="xgi on">' + box(true) +
         'I have read and agree to the Risk Reminders for API Users</span></div></div>' +
       '<p class="small">Clique em <b>Create</b>, confirme no e-mail/2FA e copie a <b>Access Key</b> e a <b>Secret Key</b> (a Secret aparece uma vez só). Cole aqui em MEXC, marque <b>criei SEM permissão de saque</b> e Salvar.</p></div>', null);
@@ -867,7 +884,10 @@
     $("xIp").textContent = r.ip || "não consegui ler";
     X_IP = r.ip || "";
     $("xSub").textContent = "nas que dizem pela API, chave com saque é recusada · nas últimas 24 h já foram $" + num(r.gasto_dia_usd, 2) + " de $" + num(r.cfg.cex_dia_usd, 2) + " · depois: " + r.depois.join(", ");
-    $("xList").innerHTML = r.exchanges.map((x) => '<div class="dmwal"><div class="h"><b>' + esc(x.nome) + '</b> <a class="small" href="' + esc(x.doc) + '" target="_blank" rel="noopener">criar a chave no site ↗</a>' +
+    // 0.32.318 (pedido do dono): quanto a exchange negociou em 24 h, em dólar (CoinGecko)
+    const vol = (x) => x.vol24_usd == null ? "" : ' <a class="small muted" href="' + esc(x.cg_url) + '" target="_blank" rel="noopener" title="volume de negociação de 24 h na CoinGecko">$' +
+      (x.vol24_usd >= 1e9 ? num(x.vol24_usd / 1e9, 1) + " bi" : x.vol24_usd >= 1e6 ? num(x.vol24_usd / 1e6, 1) + " mi" : num(x.vol24_usd, 0)) + " em 24 h</a>";
+    $("xList").innerHTML = r.exchanges.map((x) => '<div class="dmwal"><div class="h"><b>' + esc(x.nome) + "</b>" + vol(x) + ' <a class="small" href="' + esc(x.doc) + '" target="_blank" rel="noopener">criar a chave no site ↗</a>' +
       (XGUIDE[x.id] ? '<button type="button" class="btn sm" data-xguide="' + esc(x.id) + '">Ver o que marcar</button>' : "") + '<span class="sp"></span>' +
       (x.rotulo ? '<span class="tag win">conectada</span> <button type="button" class="btn sm tgl off" data-xdel="' + esc(x.id) + '">Remover</button>' : '<span class="tag neutral">sem chave</span>') + "</div>" +
       (x.rotulo ? '<div class="ad">' + esc(x.rotulo) + (x.info && x.info.saque_conferido ? ' · <span class="up">conferido: sem saque</span>' : ' · <span class="muted">saque não conferido pela API</span>') + (x.info && x.info.ip ? ' · <span class="up">IP limitado</span>' : "") + "</div>" : "") +
