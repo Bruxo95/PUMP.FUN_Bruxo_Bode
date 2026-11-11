@@ -183,6 +183,17 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         await audit(db, u["id"], "Robinhood: execução REAL " + ("ligada" if on else "desligada"), st.get("endereco") or "")
         return {"ok": True, "status": st}
 
+    @app.post("/api/hood/conta/zerar")
+    async def hood_zerar(body: dict, u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        if str((body or {}).get("confirma") or "").strip().upper() != "ZERAR":
+            return {"error": "para zerar a carteira fictícia, digite ZERAR"}
+        r = await c.reset_sim(u["id"])
+        await audit(db, u["id"], "Robinhood: carteira fictícia zerada", f"{r['abertas']} abertas e {r['fechadas']} fechadas apagadas, saldo {r['saldo']:g} ETH")
+        return {"ok": True, **r}
+
     @app.post("/api/hood/real/cfg")
     async def hood_real_cfg(body: dict, u: dict = Depends(admin_only)):
         c = cp()

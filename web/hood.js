@@ -330,9 +330,11 @@
     $("rlSt").innerHTML = [
       "Trava geral do servidor: " + (st.permitido ? '<span class="up">aberta</span>' : '<span class="down">fechada (PUMP_REAL_ALLOWED): nada é enviado</span>'),
       "Chave: " + (st.chave ? '<span class="up">salva</span> · carteira ' + addr(st.endereco) : '<span class="muted">não salva</span>'),
+      // 0.32.298 (pedido do dono: "como sei a carteira"): endereço inteiro, com Copiar, para mandar ETH na Robinhood Chain
+      st.endereco ? 'Endereço: <code class="hdfull">' + esc(st.endereco) + '</code> <button class="btn sm" type="button" data-copyaddr="' + esc(st.endereco) + '">Copiar</button>' : "",
       "Saldo: " + (st.saldo == null ? "—" : num(st.saldo, 5) + " ETH"),
       "REAL: " + (st.ligada ? '<span class="up">ligada</span> desde ' + hora(st.desde) : '<span class="down">desligada</span>'),
-    ].join("<br>");
+    ].filter(Boolean).join("<br>");
     const sf = P.seguranca || {}, s = sf.stat || {}, cp = sf.copia || {}, rg = sf.regras || {};
     kpis("sfK", [["Compras vistas", num(cp.compras_vistas, 0), "dos traders do \"Copiando agora\"", "tr"], ["Copiadas", num(cp.copiadas, 0), "token aprovado", "tr"],
       ["Barradas", num(cp.barradas, 0), num(cp.sem_pool, 0) + " sem pool de ETH na V4", "tr"],
@@ -545,6 +547,19 @@
       return load();
     }
     if (t.id === "cfOn") { const r = await post("/api/hood/conta", { on: !(P && P.cfg_sim && P.cfg_sim.on) }, t); if (r && r.error) alert(r.error); return load(); }
+    if (t.dataset.copyaddr) {
+      try { await navigator.clipboard.writeText(t.dataset.copyaddr); toast("Endereço copiado."); } catch (x) { prompt("Copie o endereço:", t.dataset.copyaddr); }
+      return;
+    }
+    if (t.id === "cfZerar") {
+      const w = (P && !REAL && P.carteira) || {};
+      const ok = prompt("Zerar a carteira FICTÍCIA da Robinhood?\n\nApaga as posições abertas, todo o histórico e os eventos da FICTÍCIA e volta o saldo para o saldo inicial. Valores da cópia, traders e a REAL não mudam. Não dá para desfazer.\n\nDigite ZERAR para confirmar:");
+      if (!ok) return;
+      const r = await post("/api/hood/conta/zerar", { confirma: ok }, t);
+      if (r && r.error) { alert(r.error); return; }
+      toast("Fictícia zerada: " + r.abertas + " abertas e " + r.fechadas + " fechadas apagadas · saldo " + num(r.saldo, 4) + " ETH");
+      P = null; return load();
+    }
     if (t.dataset.cveth) { $("cvEth").value = t.dataset.cveth; conv("eth"); return; }
     if (t.dataset.bool && t.closest("#cfRows")) { setBool(t, !t.classList.contains("on")); if (t.id.startsWith("rl_")) RL_DIRTY = true; else CF_DIRTY = true; return autoSave(t.id.startsWith("rl_") ? "rl" : "cf"); }
     if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); CF_BOOL.forEach((k) => { if ($("cf_" + k)) setBool($("cf_" + k), !!p[k]); }); return autoSave("cf"); }

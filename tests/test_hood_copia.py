@@ -671,3 +671,27 @@ def test_trader_exit_waits_for_profit_after_fees():
     off = hoodcopy.Book("u2", {"trader_so_lucro": False})
     q = off.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
     assert off.trader_exit(q, 1.0, 0.0009, t, "trader saiu da moeda") and q["id"] not in off.pos
+
+
+def test_reset_sim_clears_only_the_fictitious_book():
+    """0.32.298 (pedido do dono): Zerar a fictícia apaga posições, histórico e eventos e volta ao saldo inicial; REAL intacta."""
+    async def go():
+        w, c = copier()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        b.trades.append({"id": "x", "pnl_eth": 0.1, "close_t": time.time()})
+        rb = c.rbook("u1")
+        rb.trades.append({"id": "r", "real": True})
+        b.cfg["saldo_inicial"] = 0.7
+        r = await c.reset_sim("u1")
+        assert r == {"abertas": 1, "fechadas": 1, "saldo": 0.7}
+        assert not b.pos and not b.trades and b.cash == 0.7 and b.events[0]["acao"] == "zerou"
+        assert rb.trades == [{"id": "r", "real": True}]
+    run(go())
+
+
+
+def test_reset_route_asks_for_the_word():
+    src = open("app/hood_api.py", encoding="utf-8").read()
+    assert '"/api/hood/conta/zerar"' in src and '!= "ZERAR"' in src and "carteira fictícia zerada" in src

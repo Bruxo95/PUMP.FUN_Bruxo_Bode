@@ -2245,6 +2245,11 @@
    "versao": "0.32.297",
    "inicio": "2026-11-11T08:18:08+00:00",
    "titulo": "Robinhood: Histórico com Lucro final (já sem as taxas)"
+  },
+  {
+   "versao": "0.32.298",
+   "inicio": "2026-11-11T08:20:53+00:00",
+   "titulo": "Robinhood: zerar a carteira fictícia e endereço completo da carteira REAL"
   }
  ]
 }

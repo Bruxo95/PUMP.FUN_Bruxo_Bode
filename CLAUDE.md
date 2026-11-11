@@ -1757,3 +1757,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   compra na REAL de trader PERIGO (a fictícia segue, para medir). Tela: etiqueta `.dzt` e botões `.dz` travados. Piranha Samurai (0x3367…6fcb) e
   Raposa Radical (0x63bd…48cc) são o mesmo contrato (20.733 bytes, conferido em 11/11).
 - 0.32.296 (pedido do dono): conversor `#cvEth`/`#cvUsd` na Carteira do /hood (`usdRate` = `P.eth_usd` → `R.status.eth_usd` → `FX.eth_usd`; `conv`, `drawConv`, botões `data-cveth`) e `.usdh[data-usd]` nos campos com unidade ETH de `CFG_ROWS`.
+- 0.32.298 (pedido do dono): `Copier.reset_sim` + `POST /api/hood/conta/zerar` (exige "ZERAR"; audit) apaga posições, trades (`hood_trades` com `data->>real` nulo) e eventos da FICTÍCIA; botão `#cfZerar`. Endereço completo + `data-copyaddr` no quadro da REAL.

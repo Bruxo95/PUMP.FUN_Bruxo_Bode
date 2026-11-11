@@ -987,6 +987,29 @@ class Copier:
              "saldo": rb.balance if rb else None}
         return {"ficticia": f, "real": r}
 
+    async def reset_sim(self, uid: str) -> dict:
+        """0.32.298 (pedido do dono: "botão na carteira fictícia para zerar e começar do zero, limpando o histórico"): apaga as
+        posições abertas, os trades fechados e os eventos SÓ da FICTÍCIA desta conta e volta o saldo para o saldo inicial.
+        Valores da cópia, traders seguidos e tudo da REAL ficam como estão."""
+        b = self.book(uid)
+        n_pos, n_tr = len(b.pos), len(b.trades)
+        b.closed_pos |= set(b.pos)
+        b.pos.clear()
+        b.trades.clear()
+        b.new_trades.clear()
+        b.dirty_pos.clear()
+        b.events.clear()
+        b.cash = b.cfg["saldo_inicial"]
+        b.dirty_book = True
+        b.ev(time.time(), "", "", "zerou", f"carteira fictícia zerada: {n_pos} abertas e {n_tr} fechadas apagadas")
+        if self.db is not None and hasattr(self.db, "_req"):
+            try:                                   # trade da fictícia não tem "real" no data; o da REAL tem real=true
+                await self.db._req("DELETE", "hood_trades", {"user_id": f"eq.{uid}", "data->>real": "is.null"}, None, "return=minimal")
+            except Exception as e:
+                log.warning("Robinhood: histórico fictício não foi apagado no banco: %s", str(e)[:160])
+        await self.flush()
+        return {"abertas": n_pos, "fechadas": n_tr, "saldo": b.cash}
+
     def close_manual(self, uid: str, pid: str) -> dict | None:
         b = self.book(uid)
         p = b.pos.get(pid)

@@ -55,6 +55,7 @@
   .cfc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.cfc input{width:120px}.cfc .muted{font-size:12px}
   .cvrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0}.cvf{display:flex;align-items:center;gap:8px;font-weight:600}
   .cvf input{width:170px}.cveq{font-size:20px;color:var(--muted)}.cvq{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px}
+  .hdfull{font-size:12px;word-break:break-all}.btn.danger{color:var(--down,#ef4444);border-color:rgba(239,68,68,.45)}.cf-bot{gap:8px;flex-wrap:wrap}
   .usdh{font-size:12px;color:var(--muted);white-space:nowrap}
   @media (max-width:860px){.cvf{flex:1 1 100%}.cvf input{flex:1;width:auto}.cveq{display:none}}
   .cfc.na{color:var(--muted);font-size:12px}
@@ -176,7 +177,7 @@
             <div class="cfh cf-real cf-top"><span class="tag real">REAL</span><button class="btn tgl sw" id="rlOn" type="button" role="switch"></button></div>
             <div id="cfRows" class="cfrows"></div>
             <div class="cfl"></div>
-            <div class="cfc cf-sim cf-bot"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button></div>
+            <div class="cfc cf-sim cf-bot"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button><button class="btn sm danger" id="cfZerar" type="button" title="Apaga posições, histórico e eventos da FICTÍCIA e volta ao saldo inicial">Zerar a fictícia</button></div>
             <div class="cfc cf-real cf-bot"><button class="btn sm" id="rlReset" type="button">Voltar ao padrão</button></div>
           </div>
           <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div>
