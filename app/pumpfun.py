@@ -2647,7 +2647,9 @@ class PumpFun:
         if sm and t and t - opened >= sm * 60 and p.get("chg_pct") is not None \
                 and abs(float(p["chg_pct"])) <= float(self._c("pump_exit_stale_band", 5)):
             return f"parado há {(t - opened) / 60:.0f} min"
-        if ((p.get("grad_exit", True) if force else getattr(self.cfg, "pump_exit_migrate", False))
+        # 0.32.324: a opção geral (agora ligada por padrão) não vale para a posição com regras próprias que pediu "sem saídas
+        # inteligentes" (smart False: Aba do Bruxo, Jev Trade); elas têm a própria regra de graduação
+        if ((p.get("grad_exit", True) if force else (getattr(self.cfg, "pump_exit_migrate", False) and p.get("smart") is not False))
                 and p.get("grad_in") is False and self.graduated(p["mint"])):
             return "token graduou (PumpSwap)"
         pm = p.get("press_min")                     # 0.31.21: atraso da saída por pressão nas automáticas (0 = não usa)

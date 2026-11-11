@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-11**; revisão documental **2.0**.
-Aplicação: **0.32.323 · 2026-11-11 · Solana: saídas da cópia que cortam a perda e deixam o ganho correr**.
-Referência Git na emissão: `9a2b30f4816b1c4c9bd3ddfeb6cdf4de3d2c4749`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.324 · 2026-11-11 · Solana: custo menor por trade, saída na graduação e sem copiar lançador**.
+Referência Git na emissão: `3db9ce4e3c04fc399b9a3afcd0253c9df2a6f890`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

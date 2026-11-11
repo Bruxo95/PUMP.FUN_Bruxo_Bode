@@ -2825,7 +2825,7 @@ class PumpHub:
             if ch:
                 applied, _err = pf.cfg.apply(ch)
                 pf._cfg_why = SAIDAS_WHY
-                pf._emit("Configuração ajustada (0.32.323): " + ", ".join(f"{k} = {v}" for k, v in applied.items())
+                pf._emit("Configuração ajustada (padrões novos): " + ", ".join(f"{k} = {v}" for k, v in applied.items())
                          + ". A anterior está em Carteiras → Histórico de config.")
                 await audit(self.db, pf.user_id, "ajuste de configuração aplicado", SAIDAS_WHY + ": " + ", ".join(applied))
                 await self.save_settings(pf)

@@ -120,7 +120,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_guard_on": (bool, False, 0, 1),
     # 0.32.57 (análise das 26 carteiras em estudo, "sim, aplica" do dono): nunca copiar lançador de token, robô de alta frequência
     # nem quem segura menos que o atraso da cópia. Começa DESLIGADO (ligado só na conta do dono por settings_overrides).
-    "pump_nc_on": (bool, False, 0, 1),
+    # 0.32.324 (pedido do dono, 11/11/2026, pacote das pesquisas conferidas): ligado por padrão. Das 26 carteiras analisadas em
+    # 29/10, 11 eram lançadoras e 7 de alta frequência: o lucro delas não passa para quem copia.
+    "pump_nc_on": (bool, True, 0, 1),
     "pump_nc_launch_min": (int, 20, 1, 100000),          # criou N+ tokens (vistos pela Base da pump.fun em 14 dias)
     "pump_nc_hft_day": (int, 150, 10, 100000),           # N+ trades em 24 h
     "pump_nc_hold_min_s": (float, 30.0, 0.0, 86400.0),   # segura menos que X s na mediana (8+ tokens fechados em 7 dias)
@@ -161,7 +163,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_radar_window_min": (int, 5, 1, 30),
     # 0.19.0: saídas inteligentes, nota da entrada (0–100) e gestão de banca — todas começam DESLIGADAS
     "pump_exit_dev_sell": (bool, False, 0, 1),          # vende tudo quando o criador do token vende
-    "pump_exit_migrate": (bool, False, 0, 1),           # vende quando o token gradua (comprado ainda na curva)
+    # 0.32.324: ligado por padrão. Aporius, 6.817 graduações (conferido em 28/10): mediana -12,1% em 5 min e -59,5% em 10 min.
+    "pump_exit_migrate": (bool, True, 0, 1),            # vende quando o token gradua (comprado ainda na curva)
     "pump_exit_pressure_on": (bool, False, 0, 1),
     "pump_exit_pressure_pct": (float, 35.0, 0.0, 100.0),  # vende se as compras caírem abaixo de X% das negociações
     "pump_exit_kol_on": (bool, False, 0, 1),
@@ -239,9 +242,11 @@ USER_KEYS: dict[str, tuple] = {
     "pump_swap_fee_pct": (float, 0.30, 0.0, 5.0),
     # 0.31.82 (opção A escolhida pelo dono): usar a tabela oficial da PumpSwap por valor de mercado no lugar do valor fixo
     # acima. Começa DESLIGADA para não mudar a configuração de ninguém; cada um liga se quiser.
-    "pump_swap_fee_official": (bool, False, 0, 1),
+    "pump_swap_fee_official": (bool, True, 0, 1),      # 0.32.324: ligado por padrão (só muda a conta da FICTÍCIA; 0,30% subestimava)
     "pump_portal_fee_pct": (float, 0.5, 0.0, 5.0),
-    "pump_priority_sol": (float, 0.0005, 0.0, 0.1),
+    # 0.32.324: 0,0005 → 0,0001. Lido em 28/10: gorjeta Jito P95 0,00004 e P99 0,00023 SOL; o exemplo da PumpPortal usa 0,00005.
+    # Com 0,05 SOL por compra, 0,0005 por transação custava 2% na ida e volta.
+    "pump_priority_sol": (float, 0.0001, 0.0, 0.1),
     # 0.32.323 (pedido do dono, 11/11/2026: "por que estamos sempre no negativo" → "Sim, aplica"): a revisão achou a cópia
     # segurando a perda (trader saiu no prejuízo = segura até o stop de 40% ou as 6 h) e cortando o ganho (stop móvel a 10
     # pontos do pico). Padrões novos: stop 30%, vende junto com o trader mesmo no prejuízo, stop móvel liga em +25% e sai 20
@@ -350,27 +355,34 @@ SERVER_KEYS: dict[str, tuple] = {
 
 # 0.32.323: valores que eram o padrão das saídas até a 0.32.322. A conta que ainda está neles (e não mexeu na opção pela tela)
 # passa para o padrão novo UMA vez; a marca `_saidas_v` fica guardada junto das opções da conta.
-SAIDAS_V = 2
-SAIDAS_OLD = {"pump_stop_pct": 40.0, "pump_hold_until_profit": True, "pump_trail_start_pct": 20.0, "pump_trail_dist_pct": 10.0,
-              "pump_edge_on": False}
-SAIDAS_WHY = "ajuste da versão 0.32.323 (saídas que seguravam a perda e cortavam o ganho)"
+# 0.32.324: o ajuste virou uma lista por etapa (AJUSTES); a conta recebe as etapas acima da marca que já tem.
+AJUSTES = {
+    2: {"pump_stop_pct": 40.0, "pump_hold_until_profit": True, "pump_trail_start_pct": 20.0, "pump_trail_dist_pct": 10.0,
+        "pump_edge_on": False},
+    3: {"pump_priority_sol": 0.0005, "pump_exit_migrate": False, "pump_nc_on": False, "pump_swap_fee_official": False},
+}
+SAIDAS_V = max(AJUSTES)
+SAIDAS_OLD = {k: v for etapa in AJUSTES.values() for k, v in etapa.items()}      # todos os padrões antigos (os testes antigos usam)
+SAIDAS_WHY = "ajuste das versões 0.32.323 e 0.32.324 (saídas, custo por trade e traders que não dá para copiar)"
 
 
 def saidas_upgrade(saved: dict | None, atual: dict, mexeu=()) -> dict:
-    """O que muda nesta conta: {opção: valor novo}. Vazio se a conta é nova, se já recebeu o ajuste, se a opção não está mais no
-    padrão antigo ou se a pessoa mudou a opção pela tela (`mexeu`). Só mexe nas 5 opções de SAIDAS_OLD."""
+    """O que muda nesta conta: {opção: valor novo}. Vazio se a conta é nova, se já recebeu todas as etapas, se a opção não está
+    mais no padrão antigo ou se a pessoa mudou a opção pela tela (`mexeu`). Só mexe nas opções de AJUSTES."""
     if not saved:
         return {}
     try:
-        if int(saved.get("_saidas_v") or 1) >= SAIDAS_V:
-            return {}
+        feito = int(saved.get("_saidas_v") or 1)
     except (TypeError, ValueError):
-        pass
+        feito = 1
     out = {}
-    for k, old in SAIDAS_OLD.items():
-        novo = USER_KEYS[k][1]
-        if k not in mexeu and atual.get(k) == old and novo != old:
-            out[k] = novo
+    for etapa, olds in AJUSTES.items():
+        if etapa <= feito:
+            continue
+        for k, old in olds.items():
+            novo = USER_KEYS[k][1]
+            if k not in mexeu and atual.get(k) == old and novo != old:
+                out[k] = novo
     return out
 
 
