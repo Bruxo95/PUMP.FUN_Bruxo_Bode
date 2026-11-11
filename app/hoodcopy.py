@@ -234,7 +234,8 @@ class Book:
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "fees",
                                         "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas", "nome", "simbolo", "px_src")},
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
-              "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo}
+              "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo,
+              "taxas_eth": round(p.get("fees") or 0.0, 9)}
         self.pos.pop(p["id"], None)
         self.dirty_pos.discard(p["id"])
         self.closed_pos.add(p["id"])
@@ -297,14 +298,22 @@ class Book:
         return {"saldo": round(self.cash, 6), "em_posicoes": round(open_val, 6), "total": round(total, 6),
                 "inicial": ini, "resultado": round(total - ini, 6), "resultado_pct": round(100 * (total - ini) / ini, 2) if ini else 0,
                 "abertas": len(self.pos), "fechadas": len(closed), "acerto": round(100 * len(wins) / len(closed), 1) if closed else None,
-                "realizado": round(sum(x["pnl_eth"] for x in closed), 6), "periodos": periods(closed, now)}
+                "realizado": round(sum(x["pnl_eth"] for x in closed), 6), "periodos": periods(closed, now),
+                "taxas": round(sum(taxa(x) for x in closed) + sum(p.get("fees") or 0.0 for p in self.pos.values()), 6),
+                "taxas_fechadas": round(sum(taxa(x) for x in closed), 6)}
+
+
+def taxa(x: dict) -> float:
+    """Taxas pagas num trade fechado (0.32.294, pedido do Bruxo): taxa do pool nos dois lados + gás. Trade antigo sem o campo usa `fees`."""
+    v = x.get("taxas_eth")
+    return float(v if v is not None else (x.get("fees") or 0.0))
 
 
 def periods(trades: list[dict], now: float) -> list[dict]:
     out = []
     for h in (1, 6, 12, 24):
         xs = [x for x in trades if x["close_t"] >= now - h * 3600]
-        out.append({"h": h, "n": len(xs), "ganhos": sum(1 for x in xs if x["pnl_eth"] > 0),
+        out.append({"h": h, "n": len(xs), "ganhos": sum(1 for x in xs if x["pnl_eth"] > 0), "taxas": round(sum(taxa(x) for x in xs), 6),
                     "pnl": round(sum(x["pnl_eth"] for x in xs), 6), "investido": round(sum(x["eth_in"] for x in xs), 6),
                     "traders": len({x["wallet"] for x in xs})})
     return out
@@ -954,6 +963,22 @@ class Copier:
         b.dirty_book = True
         await self.flush()
         return b.cfg["manual"]
+
+    def user_summary(self, uid: str, now: float | None = None) -> dict:
+        """0.32.294 (pedido do dono): uma linha por conta em Administração. Não cria carteira para quem nunca abriu o /hood."""
+        now = now or time.time()
+        b, rb, rc = self.books.get(uid), self.real.get(uid), self.real_cfg.get(uid) or {}
+        f = None
+        if b is not None:
+            w = b.wallet(now)
+            f = {"ligada": bool(b.cfg.get("on")), "resultado": w["resultado"], "abertas": w["abertas"], "fechadas": w["fechadas"],
+                 "acerto": w["acerto"], "taxas": w["taxas"], "traders": len(b.cfg.get("manual") or [])}
+        k = self._keys.get(uid)
+        r = {"ligada": bool(rc.get("real_on")), "chave": bool(k and k[0]) or bool(rb and rb.address),
+             "endereco": (k[1] if k else None) or (rb.address if rb else None), "abertas": len(rb.pos) if rb else 0,
+             "fechadas": len(rb.trades) if rb else 0, "resultado": round(sum(x["pnl_eth"] for x in rb.trades), 6) if rb else 0.0,
+             "saldo": rb.balance if rb else None}
+        return {"ficticia": f, "real": r}
 
     def close_manual(self, uid: str, pid: str) -> dict | None:
         b = self.book(uid)

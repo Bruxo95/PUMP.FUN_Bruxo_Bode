@@ -67,6 +67,11 @@ def clean(raw: dict | None, base: dict | None = None) -> dict:
     return out
 
 
+def _taxa(x: dict) -> float:
+    v = x.get("taxas_eth")
+    return float(v if v is not None else (x.get("fees") or 0.0))
+
+
 class ChainError(Exception):
     pass
 
@@ -117,15 +122,21 @@ class RealBook:
                 "total": None if saldo is None else round(saldo + open_val, 6), "inicial": None,
                 "resultado": round(realizado + aberto, 6), "resultado_pct": round(100 * (realizado + aberto) / inv, 2) if inv else 0,
                 "abertas": len(self.pos), "fechadas": len(closed), "acerto": round(100 * len(wins) / len(closed), 1) if closed else None,
-                "realizado": round(realizado, 6), "periodos": periods(closed, now), "endereco": self.address}
+                "realizado": round(realizado, 6), "periodos": periods(closed, now), "endereco": self.address,
+                "taxas": round(sum(_taxa(x) for x in closed) + sum(p.get("fees") or 0.0 for p in self.pos.values()), 6),
+                "taxas_fechadas": round(sum(_taxa(x) for x in closed), 6)}
 
     def close(self, p: dict, t: float, motivo: str, px: float | None) -> dict:
         pnl = p["proceeds"] - p["eth_in"]
+        # 0.32.294 (pedido do Bruxo): taxas da REAL = gás pago de verdade + taxa do pool estimada nos dois lados (ela já sai do preço)
+        f = float(p.get("fee") or 0.0)
+        gas = float(p.get("fees") or 0.0)
+        pool = (p["eth_in"] - gas) * f + (p["proceeds"] / (1 - f) * f if f < 1 else 0.0)
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "best_pct", "worst_pct",
                                        "lag_s", "tx_in", "aba", "vendas", "fees", "nome", "simbolo", "px_src")},
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo, "real": True,
-              "tx_out": p.get("tx_last")}
+              "tx_out": p.get("tx_last"), "taxas_eth": round(gas + max(0.0, pool), 9)}
         self.pos.pop(p["id"], None)
         self.dirty_pos.discard(p["id"])
         self.closed_pos.add(p["id"])

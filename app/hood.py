@@ -56,6 +56,11 @@ RPCS = [u.strip() for u in os.environ.get("HOOD_RPCS", "https://robinhood.daybre
                                           ",https://robinhood-mainnet-rpc.blockreq.com/v1/rpc/public").split(",") if u.strip()]
 HEAD_MARGIN = 30          # blocos (~3 s): cada RPC pode estar um pouco atrás; nunca pede um bloco que ele talvez ainda não tenha
 RPC_PAUSE_S = 60
+# 0.32.290 (dono, 11/11: "erro na leitura · sem trade há mais de 10 min · leitura atrasada; resolver de uma vez"): RPC que demora ou falha
+# também descansa (antes só o 429 pausava). Com 20 s de espera e sem pausa, um RPC travado comia o tempo da volta inteira, que caía no
+# limite de 90 s, e a leitura ficava para trás. Cada consulta espera no máximo RPC_TIMEOUT_S; 2 falhas seguidas = 1 min de descanso.
+RPC_TIMEOUT_S = 8
+RPC_FAILS = 2
 SPAN = 300                # blocos por consulta (~30 s). O RPC aceita 10 milhões, mas o 429 vem pelo tamanho das respostas
 POLL_S = 10.0             # 3 consultas por volta: ~18 por minuto (o RPC grátis devolve 429 com rajadas)
 BLOCK_S = 0.1             # medido em 04/11/2026: 600 blocos em 59–60 s; corrigido sozinho a cada leitura
@@ -234,6 +239,9 @@ def rank(trades, now: float, cfg: dict, balances: dict) -> dict:
         if r["per_day"] > cfg["bot_per_day"]:
             flags.append(f"robô: {r['per_day']:.0f} trades por dia")
         bal = balances.get(r["wallet"])
+        if bal and bal.get("contrato"):
+            flags.append("é um contrato (robô), não uma pessoa: costuma negociar em pools que só ele consegue vender")
+        r["contrato"] = bool(bal and bal.get("contrato"))
         r["wallet_usd"] = bal.get("usd") if bal else None
         if cfg["min_wallet_usd"]:
             if bal is None or bal.get("usd") is None:
@@ -253,6 +261,10 @@ class RpcError(Exception):
     pass
 
 
+class _RpcBad(RpcError):
+    """Erro do próprio RPC (não do contrato chamado)."""
+
+
 class HoodWatch:
     """Leitura da Robinhood Chain num laço próprio. db pode ser None (sem guardar)."""
 
@@ -262,6 +274,7 @@ class HoodWatch:
         self.rpc_i = 0
         self.official = OFFICIAL
         self._rpc_off: dict[str, float] = {}
+        self._rpc_fail: dict[str, int] = {}
         self.span = SPAN
         self.trades: deque = deque(maxlen=MAX_MEM)
         self.seen: set = set()
@@ -288,6 +301,7 @@ class HoodWatch:
         self.arquivo = None                               # main.py liga (hub.arquivo); sem ele, o ranking volta a zerar no reinício
         self._arq_pend: list[dict] = []
         self._arq_trim_at = 0.0
+        self._name_try: dict[str, float] = {}
         self.stat.update(salvos=0, do_arquivo=0, arquivo_erro=None)
         from .hoodcopy import Copier
         self.copier = Copier(self, http, db)
@@ -317,28 +331,44 @@ class HoodWatch:
                 self.stat["chamadas"] += 1
                 self.stat["por_rpc"][url.split("//")[-1].split("/")[0]] = self.stat["por_rpc"].get(url.split("//")[-1].split("/")[0], 0) + 1
                 r = await self.http.post(url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
-                                         headers={"User-Agent": "pump-fun-copy/1.0"}, timeout=20)
+                                         headers={"User-Agent": "pump-fun-copy/1.0"}, timeout=RPC_TIMEOUT_S)
                 if r.status_code == 429:
                     self.stat["limite_429"] += 1
                     self._rpc_off[url] = time.time() + RPC_PAUSE_S    # só este RPC descansa 1 min; os outros seguem
                     if all(self._rpc_off.get(u, 0) > time.time() for u in self.rpcs):
                         self._pause_until = min(self._rpc_off[u] for u in self.rpcs)
-                    raise RpcError("429 Too Many Requests (o RPC grátis pediu para esperar)")
+                    raise _RpcBad("429 Too Many Requests (o RPC grátis pediu para esperar)")
                 if r.status_code >= 400:
-                    raise RpcError(f"HTTP {r.status_code}")
+                    raise _RpcBad(f"HTTP {r.status_code}")
                 js = r.json()
                 if js.get("error"):
                     msg = str(js["error"].get("message") or js["error"])[:160]
                     if method == "eth_getLogs" and ("range" in msg or "limit" in msg or "exceed" in msg or "too many" in msg.lower()):
                         self.span = max(100, self.span // 2)
-                    raise RpcError(msg)
+                    if method == "eth_call":                  # a rede respondeu (o contrato recusou): não é falha do RPC
+                        self._rpc_fail[url] = 0
+                        raise RpcError(msg)
+                    raise _RpcBad(msg)
                 self.stat["rpc"] = url
+                self._rpc_fail[url] = 0
                 return js.get("result")
             except RpcError as e:
                 last = f"{url.split('//')[-1]}: {str(e)[:140]}"
+                if method == "eth_call" and not isinstance(e, _RpcBad) and "429" not in str(e):
+                    raise RpcError(last) from None          # recusa do contrato: perguntar a outro RPC não muda a resposta
+                self._rpc_bad(url)
             except Exception as e:
                 last = f"{url.split('//')[-1]}: {type(e).__name__} {str(e)[:120]}"
+                self._rpc_bad(url)
         raise RpcError(last or "sem RPC")
+
+    def _rpc_bad(self, url: str) -> None:
+        """Falha, demora ou resposta estranha: 2 seguidas e o RPC descansa 1 min (os outros seguem lendo)."""
+        self._rpc_fail[url] = self._rpc_fail.get(url, 0) + 1
+        if self._rpc_fail[url] >= RPC_FAILS and self._rpc_off.get(url, 0) <= time.time():
+            self._rpc_off[url] = time.time() + RPC_PAUSE_S
+            self._rpc_fail[url] = 0
+            self.stat["pausas"] = self.stat.get("pausas", 0) + 1
 
     async def refresh_eth_usd(self) -> None:
         if self.eth_usd and time.time() - self._eth_at < 300:
@@ -470,7 +500,10 @@ class HoodWatch:
                 arg = "0x70a08231" + w[2:].rjust(64, "0")
                 weth = _hex(await self.rpc("eth_call", [{"to": WETH, "data": arg}, "latest"])) / 1e18
                 usdg = _hex(await self.rpc("eth_call", [{"to": USDG, "data": arg}, "latest"])) / 1e6
-                self.balances[w] = {"eth": round(eth + weth, 5), "usd": round((eth + weth) * self.eth_usd + usdg, 2), "t": now}
+                code = str(await self.rpc("eth_getCode", [w, "latest"]) or "0x").lower()
+                # 0.32.290: carteira que tem código é um contrato (robô), não uma pessoa; 0xef0100… é carteira comum com delegação (EIP-7702)
+                contrato = len(code) > 2 and not code.startswith("0xef0100")
+                self.balances[w] = {"eth": round(eth + weth, 5), "usd": round((eth + weth) * self.eth_usd + usdg, 2), "t": now, "contrato": contrato}
             except RpcError:
                 self.balances.setdefault(w, {"eth": None, "usd": None, "t": now - 1500})   # tenta de novo em 5 min
             await asyncio.sleep(0.5)
@@ -557,12 +590,16 @@ class HoodWatch:
             if time.time() >= self._pause_until:
                 try:
                     await asyncio.wait_for(self.poll(), 90)
+                    self.stat["leitura_ok_t"] = time.time()
+                except Exception as e:                     # só erro da LEITURA dos trades acende "erro na leitura" no Monitor
+                    self.stat["erros"] += 1
+                    self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = ("leitura: " + (str(e) or type(e).__name__))[:200], time.time()
+                try:                                       # saldo das carteiras e preço do ETH: erro aqui não para a leitura
                     await self.refresh_eth_usd()
                     self.trim()
                     await asyncio.wait_for(self.balances_tick([r["wallet"] for r in self.ranking()["rows"][:30]]), 30)
                 except Exception as e:
-                    self.stat["erros"] += 1
-                    self.stat["ultimo_erro"], self.stat["ultimo_erro_t"] = (str(e) or type(e).__name__)[:200], time.time()
+                    self.stat["outro_erro"], self.stat["outro_erro_t"] = ("saldo das carteiras: " + (str(e) or type(e).__name__))[:200], time.time()
             try:                                           # tempo máximo, preço e vendas da cópia seguem mesmo com o RPC pedindo calma
                 await asyncio.wait_for(self.copier.tick(), 40)
             except Exception as e:
@@ -572,6 +609,75 @@ class HoodWatch:
                 await self.save_state()
                 await self.save_arquivo()
             await asyncio.sleep(POLL_S)
+
+    def flow(self, hours: float = 1.0, limit: int = 30, now: float | None = None) -> dict:
+        """0.32.294 (pedido do dono, 11/11): as moedas que mais estão recebendo dinheiro. Por token, no período: ETH que entrou nas compras,
+        que saiu nas vendas e o saldo (entrou − saiu), carteiras que compraram, quantos do ranking (top 50) e do Copiando agora compraram,
+        primeira vez que o token apareceu na leitura (idade aproximada: a memória guarda 24 h) e a variação do preço no período.
+        Só trades lidos pela rede (pools V4 com ETH, WETH ou USDG); rota com vários pools fica de fora, como no ranking."""
+        now = now or time.time()
+        since = now - hours * 3600
+        rk = self.ranking(now)
+        top = {r["wallet"]: i + 1 for i, r in enumerate(rk["rows"])}
+        cop = set(rk["copiaria"])
+        first: dict[str, float] = {}
+        T: dict[str, dict] = {}
+        for t in self.trades:
+            tk = t["token"]
+            if tk not in first:
+                first[tk] = t["t"]
+            if t["t"] < since:
+                continue
+            x = T.setdefault(tk, {"token": tk, "compras_eth": 0.0, "vendas_eth": 0.0, "compras": 0, "vendas": 0, "buyers": set(),
+                                  "sellers": set(), "top": {}, "px0": None, "px1": None, "ultimo_t": 0.0})
+            px = t["eth"] / t["amount"] if t.get("amount") else None
+            if px:
+                x["px0"] = x["px0"] or px
+                x["px1"] = px
+            x["ultimo_t"] = max(x["ultimo_t"], t["t"])
+            if t["side"] == "buy":
+                x["compras_eth"] += t["eth"]
+                x["compras"] += 1
+                x["buyers"].add(t["wallet"])
+                if t["wallet"] in top or t["wallet"] in cop:
+                    x["top"][t["wallet"]] = {"wallet": t["wallet"], "pos": top.get(t["wallet"]), "copiando": t["wallet"] in cop}
+            else:
+                x["vendas_eth"] += t["eth"]
+                x["vendas"] += 1
+                x["sellers"].add(t["wallet"])
+        mem0 = self.trades[0]["t"] if self.trades else now
+        rows = []
+        for x in T.values():
+            liq = x["compras_eth"] - x["vendas_eth"]
+            rows.append({"token": x["token"], "entrou_eth": round(x["compras_eth"], 5), "saiu_eth": round(x["vendas_eth"], 5),
+                         "liquido_eth": round(liq, 5), "liquido_usd": round(liq * self.eth_usd, 2) if self.eth_usd else None,
+                         "compras": x["compras"], "vendas": x["vendas"], "carteiras": len(x["buyers"]), "vendedores": len(x["sellers"]),
+                         "top": sorted(x["top"].values(), key=lambda v: v["pos"] or 99), "primeiro_t": first.get(x["token"]),
+                         "idade_conhecida": first.get(x["token"], now) - mem0 > 300, "ultimo_t": x["ultimo_t"],
+                         "preco_pct": round(100 * (x["px1"] / x["px0"] - 1), 1) if x["px0"] and x["px1"] else None,
+                         "nome": (self.copier.meta.get(x["token"]) or {}).get("nome"),
+                         "simbolo": (self.copier.meta.get(x["token"]) or {}).get("simbolo"),
+                         "seguranca": {k: v for k, v in (self.copier.safe.cache.get(x["token"]) or {}).items() if k in ("ok", "why", "t", "erro")} or None})
+        rows.sort(key=lambda r: r["liquido_eth"], reverse=True)
+        return {"horas": hours, "tokens": len(rows), "rows": rows[:limit], "eth_usd": self.eth_usd, "memoria_desde": mem0}
+
+    async def fill_names(self, tokens: list[str]) -> None:
+        """Nome e símbolo dos tokens pela DexScreener (até 30 por consulta; quem não veio só tenta de novo em 10 min)."""
+        now = time.time()
+        miss = [t for t in tokens if t not in self.copier.meta and now - self._name_try.get(t, 0) > 600][:30]
+        if not miss:
+            return
+        for t in miss:
+            self._name_try[t] = now
+        try:
+            r = await self.http.get(DEX_URL + ",".join(miss), timeout=10)
+            for p in r.json() or []:
+                b = p.get("baseToken") or {}
+                a = str(b.get("address") or "").lower()
+                if a in miss and a not in self.copier.meta:
+                    self.copier.meta[a] = {"nome": str(b.get("name") or "")[:40], "simbolo": str(b.get("symbol") or "")[:20]}
+        except Exception:
+            pass
 
     def state(self, now: float | None = None) -> dict:
         now = now or time.time()
@@ -593,6 +699,8 @@ class HoodWatch:
                            "rpc": (st["rpc"] or "").split("//")[-1], "por_rpc": st["por_rpc"],
                            "rpcs": [{"rpc": u.split("//")[-1].split("/")[0], "pausa_s": max(0, round(self._rpc_off.get(u, 0) - now))} for u in self.rpcs], "erros": st["erros"], "ultimo_erro": st["ultimo_erro"],
                            "ultimo_erro_t": st["ultimo_erro_t"], "chamadas": st["chamadas"], "limite_429": st["limite_429"],
+                           "leitura_ok_t": st.get("leitura_ok_t"), "outro_erro": st.get("outro_erro"), "outro_erro_t": st.get("outro_erro_t"),
+                           "pausas": st.get("pausas", 0),
                            "pausa_s": max(0, round(self._pause_until - now)), "desde": st["desde"], "bloco_s": self.block_s,
                            "trocas": st["trocas"], "fora_rota": st["fora_rota"], "fora_outro": st["fora_outro"],
                            "roteadores": len(self.routers), "volta_t": st["volta_t"],

@@ -1746,3 +1746,9 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.291: hood.py lê hexa da rede com `_hex` (vazio "0x" = 0) e `legs_of` ignora Transfer com 4 tópicos (NFT); um log ruim derrubava a janela e travava a leitura.
 - 0.32.292 (pedido do dono): Robinhood `trader_so_lucro`/`real_trader_so_lucro` (ON): venda puxada pelo trader no prejuízo guarda `p["espera"]` e vende ao ficar positivo (`Book.trader_exit`, `Copier._real_trader_exit`).
 - 0.32.293 (pedido do dono): `/sala?rede=hood` (`HOOD` em `web/sala.js`, `hoodData` mapeia `/api/hood/painel` para o formato da cena; ETH; `eth_usd` no painel) e botão `#hoodSala` no topo do /hood.
+- 0.32.294 (pedidos do dono e do Bruxo, 11/11): `HoodWatch.flow` + `fill_names` + `GET /api/hood/fluxo?h=` (aba `#fluxo`, 30 tokens por ETH
+  líquido, top traders, `seguranca` do cache do `hoodsafe`); `Copier.user_summary` + `GET /api/hood/usuarios` (menu `#admin`); `taxas_eth` nas fechadas
+  (`hoodcopy.taxa`, `RealBook.close` estima o pool nos dois lados) e `taxas` no `wallet()`. RPC: `RPC_TIMEOUT_S` 8 s, `_rpc_bad` (2 falhas = 1 min de descanso),
+  recusa de `eth_call` não conta como falha nem vai a outro RPC; erro da leitura × `outro_erro`; `leitura_ok_t`. Ranking marca `contrato` (eth_getCode,
+  menos 0xef0100 = EIP-7702). `hoodsafe`: compra e venda separadas; venda revertida = `venda_travada` (medido em 11/11: hooks 0x1d0f…/0x7016… só
+  deixam o contrato-robô 0x3367…6fcb vender). `tests/test_hood_fluxo.py`.

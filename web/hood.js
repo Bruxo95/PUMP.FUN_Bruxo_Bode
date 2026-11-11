@@ -6,7 +6,8 @@
   const esc = (s) => BB.esc(s);
   const TITLES = { visao: ["Visão geral", "a sua cópia e o que a Robinhood Chain está negociando agora"], posicoes: ["Posições", "o que a cópia tem aberto agora"],
     historico: ["Histórico", "posições fechadas da cópia"], carteira: ["Carteira", "cópia FICTÍCIA, carteira REAL e segurança do token"],
-    traders: ["Top traders", "ranking dos traders de memecoin e a regra"] };
+    traders: ["Top traders", "ranking dos traders de memecoin e a regra"],
+    fluxo: ["Dinheiro entrando", "as 30 moedas que mais recebem dinheiro agora"], admin: ["Administração", "usuários e a situação de cada conta na Robinhood"] };
   // 0.32.279 (pedido do dono, 10/11: "faz 1 a 4"): cópia FICTÍCIA em ETH, conferência do token e carteira REAL (desligada)
   const CF_INFO = [
     ["eth_por_compra", "ETH por compra", "ETH", 0.0005, 5, 0.001], ["max_abertas", "Posições abertas no máximo", "posições", 1, 100, 1],
@@ -111,7 +112,7 @@
   // ------------------------------------------------------------------ monitor (menu da esquerda)
   function sysInfo() {
     const s = (R && R.status) || {};
-    const erro = s.ultimo_erro && s.ultimo_erro_t && Date.now() / 1000 - s.ultimo_erro_t < 120;
+    const erro = s.ultimo_erro && s.ultimo_erro_t && Date.now() / 1000 - s.ultimo_erro_t < 120 && s.ultimo_erro_t > (s.leitura_ok_t || 0);
     const parado = !s.ultimo_trade_t || Date.now() / 1000 - s.ultimo_trade_t > 600;
     const atraso = s.atraso_s != null && s.atraso_s > 120;
     const ok = !!(R && R.ligado && !erro && !parado && !atraso);
@@ -141,7 +142,9 @@
       ["Banco da VPS", !s.arquivo ? '<span class="down">desligado: o ranking zera quando o site atualiza</span>'
         : (s.arquivo_erro ? '<span class="down">' + esc(s.arquivo_erro) + "</span> · " : '<span class="up">guardando</span> · ') +
           num(s.salvos, 0) + " trades guardados desde a subida · " + num(s.do_arquivo, 0) + " voltaram na subida" + (s.arquivo_fila ? " · " + num(s.arquivo_fila, 0) + " na fila" : "")],
-      ["Erros", num(s.erros, 0) + (s.ultimo_erro ? " · último há " + ago(s.ultimo_erro_t) + ": " + esc(s.ultimo_erro) : "")],
+      ["Erros da leitura", num(s.erros, 0) + (s.ultimo_erro ? " · último há " + ago(s.ultimo_erro_t) + ": " + esc(s.ultimo_erro) : "") + (s.leitura_ok_t ? " · última volta boa há " + ago(s.leitura_ok_t) : "")],
+      ["Outros avisos", s.outro_erro ? "há " + ago(s.outro_erro_t) + ": " + esc(s.outro_erro) + ' <small class="muted">(não para a leitura)</small>' : "—"],
+      ["RPC que descansou", num(s.pausas, 0) + " vezes (demorou ou falhou 2 vezes seguidas: 1 min de descanso, os outros seguem lendo)"],
       ["Última volta da leitura", s.volta_t ? "há " + ago(s.volta_t) : "—"],
     ];
     $("sysMB").innerHTML = '<div class="tbl-wrap"><table class="systbl nocard"><tbody>' + rows.map((r) => "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>").join("") + "</tbody></table></div>";
@@ -257,7 +260,8 @@
         ["Posições abertas", num(w.abertas, 0), num(w.em_posicoes, 5) + " ETH nelas", "tr"],
         ["Acerto", w.acerto == null ? "—" : num(w.acerto, 0) + "%", num(w.fechadas, 0) + " fechadas", "usr"]]);
     }
-    kpis("myP", pr.map((x) => ["Últimas " + x.h + " h", eth(x.pnl, 5), x.n ? x.n + " fechadas · " + x.ganhos + " com lucro · " + x.traders + " traders" : "nenhuma fechada", "tr"]));
+    kpis("myP", pr.map((x) => ["Últimas " + x.h + " h", eth(x.pnl, 5), x.n ? x.n + " fechadas · " + x.ganhos + " com lucro · " + x.traders + " traders" + (x.taxas ? " · taxas " + num(x.taxas, 5) + " ETH" : "") : "nenhuma fechada", "tr"])
+      .concat([["Taxas pagas " + mtag(), '<span class="down">' + num(w.taxas || 0, 5) + " ETH</span>", "total: pool + gás, fechadas e abertas" + (R && R.status && R.status.eth_usd ? " · ≈ US$ " + num((w.taxas || 0) * R.status.eth_usd, 2) : ""), "mon"]]));
     table("ovEv", ["Hora", "O que fez", "Token", "Trader", "Motivo"], ((P && P.eventos) || []).slice(0, 80).map((e) => [hora(e.t),
       /não|falhou/.test(e.acao) ? '<span class="tag loss">' + esc(e.acao) + "</span>" : /comprou|copiou/.test(e.acao) ? '<span class="tag buy">' + esc(e.acao) + "</span>" : '<span class="tag neutral">' + esc(e.acao) + "</span>",
       tok(e.token), addr(e.wallet), esc(e.motivo || "") + (e.tx ? " · " + txl(e.tx) : "")]),
@@ -280,11 +284,15 @@
   }
   function drawHist() {
     const ts = (P && P.trades) || [], w = (P && P.carteira) || {};
-    const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length;
-    kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Resultado das fechadas", eth(pn, 5), "", "tr"],
+    // 0.32.294 (pedido do Bruxo, 11/11): taxas pagas e lucro real (já sem as taxas) em cada fechada e no total
+    const tx = (x) => (x.taxas_eth != null ? x.taxas_eth : (x.fees || 0));
+    const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length, txs = ts.reduce((a, x) => a + tx(x), 0);
+    kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5), "já descontadas as taxas", "tr"],
+      ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>", "sem elas o resultado seria " + num(pn + txs, 5) + " ETH", "mon"],
       ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Realizado (tudo)", eth(w.realizado, 5), "", "mon"]]);
-    table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Resultado", "Pico", "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
-      tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
+    table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Taxas", "Lucro real", "Pico", "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
+      tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", '<span class="down">' + num(tx(x), 6) + "</span>",
+      eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
       esc(x.motivo || "") + (x.tx_out ? " · " + txl(x.tx_out) : "")]), REAL ? "Nenhuma posição REAL fechada ainda." : "Nenhuma posição fechada ainda.");
   }
   function drawCarteira() {
@@ -354,6 +362,57 @@
       (q.bloqueia && q.bloqueia.length ? '<br><b class="down">Não dá para enviar: ' + q.bloqueia.map(esc).join(" · ") + "</b>"
         : '<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="gaGo" type="button">Abastecer agora</button><small class="muted">cotação vale ' + num(q.validade_s, 0) + " s</small></div>");
   }
+  // ------------------------------------------------------------------ 0.32.294: Dinheiro entrando e Administração
+  let FX = null, FXH = 1, FX_AT = 0, AD = null, AD_AT = 0;
+  try { FXH = Number(localStorage.getItem("hood_fxh")) || 1; } catch (e) { /* */ }
+  async function loadFx(force) {
+    if (!force && Date.now() - FX_AT < 15000) return;
+    FX_AT = Date.now();
+    const r = await BB.api("/api/hood/fluxo?h=" + FXH, { quiet: true });
+    if (r && !r.error) { FX = r; (r.rows || []).forEach((x) => { if (x.simbolo || x.nome) NOM[x.token] = { nome: x.nome || "", simbolo: x.simbolo || "" }; }); }
+    drawFx();
+  }
+  function drawFx() {
+    document.querySelectorAll("#fxH button").forEach((b) => b.classList.toggle("on", Number(b.dataset.fxh) === FXH));
+    const rows = (FX && FX.rows) || [], usd = FX && FX.eth_usd;
+    const per = FXH < 1 ? Math.round(FXH * 60) + " min" : FXH + " h";
+    const tot = rows.reduce((a, x) => a + Math.max(0, x.liquido_eth), 0), comTop = rows.filter((x) => (x.top || []).length).length;
+    kpis("fxK", [["Tokens com trade em " + per, num(FX && FX.tokens, 0), "lidos na rede", "tr"],
+      ["Entrou líquido nas 30", num(tot, 3) + " ETH", usd ? "≈ US$ " + num(tot * usd, 0) : "", "mon"],
+      ["Com top trader comprando", num(comTop, 0), "das 30 da lista", "usr"]]);
+    const topCell = (x) => !(x.top || []).length ? '<span class="muted">—</span>' : x.top.slice(0, 3).map((t) => addr(t.wallet) + (t.copiando ? ' <span class="tag win">copiando</span>' : ' <small class="muted">#' + (t.pos || "?") + "</small>")).join("<br>") + (x.top.length > 3 ? '<br><small class="muted">+' + (x.top.length - 3) + "</small>" : "");
+    const seg = (x) => { const v = x.seguranca; if (!v || v.erro) return ""; return v.ok ? '<br><span class="tag win" title="passou na checagem de golpe">conferido</span>' : '<br><span class="tag loss" title="' + esc(v.why || "") + '">' + (/VENDA/.test(v.why || "") ? "venda travada" : "barrado") + "</span>"; };
+    const sym = {}; rows.forEach((x) => { const k = String(x.simbolo || "").toUpperCase(); if (k) sym[k] = (sym[k] || 0) + 1; });
+    table("fxT", ["#", "Token", "Entrou líquido", "Compras × vendas", "Carteiras", "Top traders", "Preço no período", "Visto pela 1ª vez"], rows.map((x, i) => [String(i + 1), tok(x.token, x) + seg(x) +
+      (sym[String(x.simbolo || "").toUpperCase()] > 1 ? '<br><span class="tag pause" title="outro token da lista tem o mesmo símbolo: pode ser cópia">nome repetido</span>' : ""),
+      eth(x.liquido_eth, 4) + (x.liquido_usd != null ? '<br><small class="muted">≈ US$ ' + num(x.liquido_usd, 0) + "</small>" : ""),
+      num(x.entrou_eth, 4) + " ETH (" + x.compras + ")<br><small class=\"muted\">saiu " + num(x.saiu_eth, 4) + " ETH (" + x.vendas + ")</small>",
+      num(x.carteiras, 0) + '<br><small class="muted">' + num(x.vendedores, 0) + " venderam</small>", topCell(x), pct(x.preco_pct),
+      x.idade_conhecida ? "há " + ago(x.primeiro_t) : "+24 h"]), "Nenhum trade no período ainda.");
+  }
+  async function loadAdmin(force) {
+    if (!force && Date.now() - AD_AT < 30000) return drawAdmin();
+    AD_AT = Date.now();
+    const r = await BB.api("/api/hood/usuarios", { quiet: true });
+    if (r && !r.error) AD = r;
+    drawAdmin();
+  }
+  function drawAdmin() {
+    const q = String(($("adQ") && $("adQ").value) || "").toLowerCase().trim();
+    const us = ((AD && AD.users) || []).filter((u) => !q || (String(u.nome || "") + " " + String(u.email || "")).toLowerCase().includes(q));
+    $("adSub").textContent = us.length + " contas · cópia FICTÍCIA, carteira REAL e chave de cada uma · nunca mostra a chave, só se está salva";
+    const quando = (v) => { const t = v ? Date.parse(v) / 1000 : 0; return t ? "há " + ago(t) + '<br><small class="muted">' + hora(t) + "</small>" : "—"; };
+    table("adT", ["Usuário", "Categoria", "Situação", "Último acesso", "Desde", "FICTÍCIA", "REAL", "Chave"], us.map((u) => {
+      const f = (u.hood && u.hood.ficticia) || null, r = (u.hood && u.hood.real) || {};
+      return ['<span class="aduser">' + (u.avatar_url ? '<img src="' + esc(u.avatar_url) + '" alt="" referrerpolicy="no-referrer">' : "") + "<span><b>" + esc(u.nome || "—") + '</b><br><small class="muted">' + esc(u.email || "") + "</small></span></span>",
+        u.role === "admin" ? '<span class="tag win">Admin</span>' : '<span class="tag neutral">Usuário</span>',
+        u.bloqueado ? '<span class="tag loss">bloqueado</span>' : '<span class="tag win">ativo</span>', quando(u.ultimo_acesso), quando(u.criado_em),
+        !f ? '<span class="muted">nunca abriu o /hood</span>' : (f.ligada ? '<span class="tag win">ON</span> ' : '<span class="tag loss">OFF</span> ') + eth(f.resultado, 4) +
+          '<br><small class="muted">' + f.fechadas + " fechadas · " + f.abertas + " abertas" + (f.acerto != null ? " · " + num(f.acerto, 0) + "%" : "") + " · taxas " + num(f.taxas, 5) + " · " + f.traders + " traders à mão</small>",
+        (r.ligada ? '<span class="tag real">ON</span> ' : '<span class="tag neutral">OFF</span> ') + eth(r.resultado, 5) + '<br><small class="muted">' + (r.fechadas || 0) + " fechadas · " + (r.abertas || 0) + " abertas" + (r.saldo != null ? " · saldo " + num(r.saldo, 5) + " ETH" : "") + "</small>",
+        r.chave ? '<span class="tag win">CARTEIRA</span><br>' + addr(r.endereco) : '<span class="muted">sem chave</span>'];
+    }), "Nenhum usuário.");
+  }
   function draw() {
     drawSys();
     document.querySelectorAll("#modeSeg button").forEach((b) => b.classList.toggle("on", (b.dataset.mode === "real") === REAL));
@@ -362,6 +421,8 @@
     if (VIEW === "historico") drawHist();
     if (VIEW === "carteira") { drawCarteira(); drawGas(); loadGas(false); }
     if (VIEW === "traders") drawTraders();
+    if (VIEW === "fluxo") { drawFx(); loadFx(false); }
+    if (VIEW === "admin") loadAdmin(false);
   }
 
   async function load() {
@@ -398,6 +459,7 @@
   document.addEventListener("input", (e) => {
     const t = e.target && e.target.closest ? e.target : null; if (!t) return;
     if (t.id === "gaUsd") { gaConv(); $("gaP").hidden = true; }
+    if (t.id === "adQ") drawAdmin();
     if (t.closest("#hdCfg")) DIRTY = true;
     if (t.closest("#cfRows") && t.id.startsWith("cf_")) { CF_DIRTY = true; autoSave("cf"); }
     if (t.closest("#cfRows") && t.id.startsWith("rl_")) { RL_DIRTY = true; autoSave("rl"); }
@@ -498,6 +560,7 @@
       if (r && r.error) { alert(r.error); return; }
       $("rlAsk").hidden = true; toast("REAL ligada."); return load();
     }
+    if (t.dataset.fxh) { FXH = Number(t.dataset.fxh); try { localStorage.setItem("hood_fxh", String(FXH)); } catch (x) { /* */ } return loadFx(true); }
     if (t.dataset.trt) { TRT = t.dataset.trt; try { localStorage.setItem("hood_trt", TRT); } catch (x) { /* */ } draw(); return; }
     if (t.id === "sysBox") { $("sysM").hidden = false; drawSysModal(); return; }
     if (t.id === "sysMX") { $("sysM").hidden = true; return; }

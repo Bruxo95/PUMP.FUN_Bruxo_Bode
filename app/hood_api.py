@@ -14,6 +14,31 @@ def add_routes(app, get_watch, admin_only, db) -> None:
             return {"ligado": False, "motivo": "leitura da Robinhood Chain desligada no servidor (HOOD_ON=false)"}
         return w.state()
 
+    # 0.32.294 (pedido do dono): moedas com mais dinheiro entrando e a lista de usuários (só admin, como todo o /hood)
+    @app.get("/api/hood/fluxo")
+    async def hood_fluxo(h: float = 1.0, u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"ligado": False}
+        out = w.flow(hours=min(24.0, max(0.25, float(h or 1))))
+        await w.fill_names([r["token"] for r in out["rows"]])
+        for r in out["rows"]:
+            m = w.copier.meta.get(r["token"]) or {}
+            r["nome"], r["simbolo"] = m.get("nome") or r.get("nome"), m.get("simbolo") or r.get("simbolo")
+        return out
+
+    @app.get("/api/hood/usuarios")
+    async def hood_usuarios(u: dict = Depends(admin_only)):
+        w = get_watch()
+        rows = await db.select("profiles", None, order="criado_em.asc") or []
+        out = []
+        for p in rows:
+            uid = p.get("user_id")
+            out.append({"user_id": uid, "email": p.get("email"), "nome": p.get("nome"), "avatar_url": p.get("avatar_url"),
+                        "role": p.get("role") or "user", "bloqueado": bool(p.get("bloqueado")), "ultimo_acesso": p.get("ultimo_acesso"),
+                        "criado_em": p.get("criado_em"), "hood": w.copier.user_summary(uid) if w is not None else None})
+        return {"users": out, "me": u["id"]}
+
     @app.post("/api/hood/cfg")
     async def hood_cfg(body: dict, u: dict = Depends(admin_only)):
         w = get_watch()

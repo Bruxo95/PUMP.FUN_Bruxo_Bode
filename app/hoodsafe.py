@@ -32,6 +32,10 @@ GP_BLOQ = {"is_honeypot": "honeypot: não deixa vender", "cannot_sell_all": "nã
            "owner_change_balance": "o dono pode mudar o saldo das carteiras", "transfer_pausable": "o dono pode pausar as transferências"}
 
 
+def _hook(key: list) -> str:
+    return " (contrato extra do pool " + key[4][:10] + "…)" if len(key) > 4 and key[4] != ZERO else ""
+
+
 class Safety:
     def __init__(self, call, http):
         self.call = call            # async (to, data, from|None) → hex (levanta erro se a rede recusar)
@@ -93,13 +97,22 @@ class Safety:
             if bad:
                 return self.mark(token, False, "GoPlus: " + "; ".join(bad), goplus=gp_info)
         # ida e volta pelo Quoter oficial
+        # 0.32.290 (dono, 11/11): compra e venda separadas, com o motivo em palavras. Medido em 11/11: em pools com certos contratos extras
+        # (hooks), a compra cota e QUALQUER venda pelo caminho oficial é recusada; quem negocia neles é um contrato-robô que vende por
+        # dentro. A cópia compraria e não conseguiria sair.
         try:
             got = evm.words(await self.call(QUOTER, v4_quote_data(key, PROBE_WEI, True), None))
-            back = evm.words(await self.call(QUOTER, v4_quote_data(key, got[0], False), None)) if got and got[0] else []
         except Exception as e:
-            return self.mark(token, False, "o pool não cotou a ida e volta (" + str(e)[:80] + ")", goplus=gp_info)
-        if not got or not got[0] or not back:
-            return self.mark(token, False, "o pool não cotou a ida e volta", goplus=gp_info)
+            return self.mark(token, False, "o pool recusou até a compra de teste" + _hook(key) + " (" + str(e)[-60:] + ")", goplus=gp_info)
+        if not got or not got[0]:
+            return self.mark(token, False, "o pool não cotou a compra de teste", goplus=gp_info)
+        try:
+            back = evm.words(await self.call(QUOTER, v4_quote_data(key, got[0], False), None))
+        except Exception:
+            return self.mark(token, False, "a VENDA é recusada pelo pool" + _hook(key) + ": a compra passa, mas não daria para vender depois",
+                             goplus=gp_info, venda_travada=True)
+        if not back:
+            return self.mark(token, False, "o pool não cotou a venda de teste", goplus=gp_info)
         loss = 100 * (1 - back[0] / PROBE_WEI)
         if fee > 0.05:                                    # taxa do pool acima de 5% em cada lado: barra mesmo se a ida e volta passar
             return self.mark(token, False, f"taxa do pool {fee * 100:.1f}% em cada lado", goplus=gp_info, ida_volta_pct=round(loss, 2))

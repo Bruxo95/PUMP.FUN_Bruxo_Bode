@@ -56,6 +56,9 @@
   .cfc.na{color:var(--muted);font-size:12px}
   @media (max-width:860px){.cfgrid{grid-template-columns:1fr 1fr;gap:0 8px}.cfgrid>*,.cfrows>*{padding:6px 8px}.cfgrid>.cfh:first-child,.cfgrid>.cfl:empty{display:none}
     .cfl{grid-column:1/-1;margin-top:8px}.cfc input{width:100%}.cfh{flex-wrap:wrap}}
+  .aduser{display:inline-flex;align-items:center;gap:10px}.aduser img{width:32px;height:32px;border-radius:50%;flex:0 0 32px}
+  #adQ{width:240px;max-width:100%}
+  #fxH{flex-wrap:wrap}
   .hdsec{margin:22px 0 12px;font-size:14px;color:var(--muted);font-weight:600}
   .hdask{margin-top:12px;border:1px dashed var(--down);border-radius:10px;padding:12px}
   #modeSeg button[data-mode="real"].on{background:var(--real);color:#111}
@@ -77,8 +80,11 @@
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Posições</a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>Histórico</a>
       <a href="#carteira" data-v="carteira"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12l2 3M16 13h2"/></svg>Carteira</a>
+      <a href="#fluxo" data-v="fluxo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v14M6 11l6 6 6-6M4 21h16"/></svg>Dinheiro entrando</a>
       <a href="#traders" data-v="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Top traders</a>
     </nav>
+    <div class="lbl">Admin</div>
+    <nav class="nav"><a href="#admin" data-v="admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>Administração</a></nav>
     <div class="sp"></div>
     <button type="button" class="sysbox" id="sysBox" aria-haspopup="dialog" title="Ver a leitura da rede"><span class="dot" id="sysDot"></span><div><b id="sysT">Monitor…</b><small id="sysS">conectando</small></div></button>
     <div class="ver" id="ver"></div>
@@ -131,6 +137,17 @@
         <div class="card"><header><div><h2 id="poT">Posições abertas</h2><div class="sub" id="poSub"></div></div><div class="sp"></div><button class="btn sm" id="poAll" type="button">Vender todas</button></header>
           <div class="tbl-wrap"><table id="poTb"></table></div>
           <div class="help"><p><b>Preço:</b> o de cada troca do token vista na rede e, quando o token fica parado, a cotação de venda do contrato oficial da Uniswap (o que a posição receberia) a cada 30 s; se o contrato não cotar por 2 min (pool sem liquidez, golpe), vale o preço do gráfico da DexScreener. O resultado já desconta a taxa do pool, a folga (slippage) e o gás. <b>Saídas:</b> quando o trader vende (ou o saldo dele no token some), quando o dev vende metade ou mais, stop de perda, stop móvel e tempo máximo; cada uma liga e desliga em Carteira.</p></div></div>
+      </section>
+      <section class="view" data-view="fluxo" hidden>
+        <div class="card"><header><div><h2>As 30 moedas com mais dinheiro entrando</h2><div class="sub" id="fxSub">ETH que entrou nas compras menos o que saiu nas vendas, no período · só o que a leitura viu na rede</div></div><div class="sp"></div>
+          <div class="seg" id="fxH"><button data-fxh="0.25">15 min</button><button data-fxh="1">1 h</button><button data-fxh="6">6 h</button><button data-fxh="24">24 h</button></div></header>
+          <div class="kpis" id="fxK"></div>
+          <div class="tbl-wrap" style="margin-top:12px"><table id="fxT"></table></div>
+          <div class="help"><p><b>Como ler:</b> <b>Entrou líquido</b> = ETH das compras menos ETH das vendas no período (dinheiro novo que ficou no token). <b>Carteiras</b> = quantas carteiras diferentes compraram. <b>Top traders</b> = quantos dos 50 melhores do ranking compraram (e se algum está no Copiando agora). <b>Visto pela 1ª vez</b> = primeira troca que a leitura viu (a memória guarda 24 h; antes disso aparece "+24 h"). A Robinhood não tem a fase de curva da pump.fun: a moeda já nasce num pool. Dinheiro entrando não é garantia de alta: confira a segurança antes de comprar.</p></div></div>
+      </section>
+      <section class="view" data-view="admin" hidden>
+        <div class="card"><header><div><h2>Usuários</h2><div class="sub" id="adSub">cada conta na Robinhood: cópia FICTÍCIA, carteira REAL e chave · nunca mostra a chave, só se está salva</div></div><div class="sp"></div><input class="in" id="adQ" placeholder="Filtrar por nome ou e-mail" autocomplete="off"></header>
+          <div class="tbl-wrap"><table id="adT"></table></div></div>
       </section>
       <section class="view" data-view="historico" hidden>
         <div class="kpis" id="hiK"></div>
