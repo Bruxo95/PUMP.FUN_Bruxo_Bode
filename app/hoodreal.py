@@ -39,12 +39,12 @@ RECIBO_S = 60
 REAL_DEFAULT = {"real_on": False, "real_eth_por_compra": 0.002, "real_max_abertas": 5, "real_slip_pct": 15.0, "real_perda_dia": 0.01,
                 "real_max_hold_h": 6.0, "real_stop_pct": 0.0,
                 # 0.32.290 (pedido do dono): sair quando o trader / o dev sai da moeda e stop móvel (mesma regra da Solana)
-                "real_espelho": True, "real_um_por_token": True, "real_sair_travado": True, "real_sair_trader": True, "real_trader_so_lucro": True, "real_sair_dev": True, "real_trail_on": True, "real_trail_ativa_pct": 20.0,
+                "real_espelho": True, "real_so_lp_presa": True, "real_um_por_token": True, "real_sair_travado": True, "real_sair_trader": True, "real_trader_so_lucro": True, "real_sair_dev": True, "real_trail_on": True, "real_trail_ativa_pct": 20.0,
                 "real_trail_dist_pct": 10.0}
 REAL_LIMITS = {"real_eth_por_compra": (0.0002, 0.5), "real_max_abertas": (1, 30), "real_slip_pct": (1, 49), "real_perda_dia": (0.0005, 5),
                "real_max_hold_h": (0.1, 168), "real_stop_pct": (0, 100), "real_trail_ativa_pct": (1, 10000),
                "real_trail_dist_pct": (1, 1000)}
-REAL_BOOLS = ("real_espelho", "real_um_por_token", "real_sair_travado", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on")
+REAL_BOOLS = ("real_espelho", "real_so_lp_presa", "real_um_por_token", "real_sair_travado", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on")
 
 
 def clean(raw: dict | None, base: dict | None = None) -> dict:

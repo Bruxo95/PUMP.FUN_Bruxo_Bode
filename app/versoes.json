@@ -2335,6 +2335,11 @@
    "versao": "0.32.315",
    "inicio": "2026-11-11T16:18:35+00:00",
    "titulo": "Robinhood: pool sem liquidez (rug pull) vale 0 e a REAL não compra depois da fictícia fechar"
+  },
+  {
+   "versao": "0.32.316",
+   "inicio": "2026-11-11T16:33:00+00:00",
+   "titulo": "Robinhood: não compra token com a liquidez nas mãos de uma carteira comum"
   }
  ]
 }

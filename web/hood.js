@@ -23,7 +23,7 @@
     ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
   // 0.32.290 (pedido do dono: "sair quando o desenvolvedor sai da moeda ... stop móvel ... botão de ativar"): opções liga/desliga
-  const CF_BOOL = ["sair_travado", "so_verificado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on"], RL_BOOL = ["real_sair_travado", "real_espelho", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
+  const CF_BOOL = ["sair_travado", "so_verificado", "so_lp_presa", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on"], RL_BOOL = ["real_sair_travado", "real_espelho", "real_so_lp_presa", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
   const NOM = {};
   let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
   try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
@@ -249,6 +249,7 @@
     ["Tempo máximo da posição", "h", "max_hold_h", "real_max_hold_h"],
     ["Stop de perda (0 = desligado)", "%", "stop_pct", "real_stop_pct"],
     ["Token com trava do criador: sair no lucro", "nome em amarelo; vende assim que ficar positivo (em partes, se o pool não aceitar tudo)", "sair_travado", "real_sair_travado", "", "bool"],
+    ["Só token com a liquidez presa", "não compra se uma carteira comum tem metade ou mais da liquidez do pool (pode tirar tudo a qualquer hora, como no TEXEL e no mihao)", "so_lp_presa", "real_so_lp_presa", "", "bool"],
     ["Só token com contrato verificado", "não compra token cujo código não está publicado no explorador (com o espelho, vale para a REAL também)", "so_verificado", null, "a REAL segue a fictícia", "bool"],
     ["REAL segue a FICTÍCIA (espelho)", "a REAL compra quando a fictícia compra e fecha quando ela fecha", null, "real_espelho", "a FICTÍCIA é a que manda", "bool"],
     ["Uma entrada por token", "não compra de novo um token que já está aberto, mesmo que outro trader compre", "um_por_token", "real_um_por_token", "", "bool"],
@@ -597,6 +598,7 @@
   function fxSafe(x) {
     const v = x.seguranca;
     if (!v || v.erro) return '<span class="fxsg"><span class="tag neutral">conferindo…</span></span>';
+    if (v.ok && v.lp_livre) return '<span class="fxsg"><span class="tag loss">LIQUIDEZ SOLTA</span> <span class="down">' + esc(v.lp_livre) + "</span></span>";
     if (v.ok) return '<span class="fxsg"><span class="tag win">conferido</span> <span class="muted">dá para comprar e vender' + (v.ida_volta_pct != null ? " · ida e volta −" + num(v.ida_volta_pct, 1) + "%" : "") + "</span></span>";
     if (v.venda_travada) return '<span class="fxsg"><span class="tag loss dzt">HONEYPOT</span> <span class="down">' + esc(v.why || "") + "</span></span>";
     return '<span class="fxsg"><span class="tag loss">barrado</span> <span class="muted">' + esc(v.why || "") + "</span></span>";

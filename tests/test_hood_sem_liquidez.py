@@ -148,3 +148,59 @@ def test_stop_below_the_round_trip_cost_is_warned_on_screen():
     assert "function stopWarn" in js and "custo de entrar e sair" in js
     assert asyncio  # noqa
     assert Http and Watch
+
+
+# ------------------------------------------------------------------ 0.32.316: liquidez solta (carteira comum pode tirar)
+def _lp_safety(owner_code):
+    from app import hoodsafe
+    pid = v4_pool_id(KEY)
+    dono = "0x" + "44" * 20
+
+    def log(delta, salt=7, snd=hoodsafe.POSM):
+        return {"topics": [hoodsafe.T_ML, pid, "0x" + "0" * 24 + snd[2:]],
+                "data": "0x" + evm.w_int(0) + evm.w_int(10) + evm.w_int(delta % (1 << 256)) + evm.w_int(salt)}
+
+    async def rpc(m, p):
+        if m == "eth_blockNumber":
+            return hex(10_000_000)
+        if m == "eth_getLogs":
+            return [log(1000), log(300, salt=8, snd="0x" + "55" * 20)]      # 1000 do NFT 7 (carteira) + 300 de uma lançadora
+        if m == "eth_getCode":
+            return owner_code
+        raise AssertionError(m)
+
+    async def call(to, data, frm=None):
+        assert to == hoodsafe.POSM and data == hoodsafe.SEL_OWNER + evm.w_int(7)
+        return "0x" + evm.w_addr(dono)
+    s = hoodsafe.Safety(call, None)
+    s.rpc = rpc
+    return s
+
+
+def test_liquidity_owned_by_a_plain_wallet_is_flagged():
+    r = run(_lp_safety("0x").lp_control(KEY))
+    assert r["pct_carteira"] == 76.9 and "pode tirar tudo" in r["livre"]
+    r = run(_lp_safety("0x6080604052").lp_control(KEY))          # dono é contrato (trava de liquidez)
+    assert r["pct_carteira"] == 0.0 and r["livre"] is None
+
+
+def test_loose_liquidity_blocks_fictitious_and_real_unless_the_option_is_off():
+    async def go():
+        w, c = copier()
+        c.safe.mark(TOK, True, "", lp_livre="100% da liquidez é de uma carteira comum")
+        c._buy_all(trade("buy", 1000.0, 1.0), c.safe.cached(TOK), KEY, 0.001)
+        b = c.books["u1"]
+        assert not b.pos and "liquidez solta" in b.events[0]["motivo"]
+        b.cfg["so_lp_presa"] = False
+        c._buy_all(trade("buy", 1000.0, 1.0), c.safe.cached(TOK), KEY, 0.001)
+        assert len(b.pos) == 1
+        c.real_allowed = True
+        c.rcfg("u1")["real_on"] = True
+
+        async def get_key(uid):
+            return 1, "0x" + "33" * 20
+        c.get_key = get_key
+        rb = c.rbook("u1")
+        await c._real_buy("u1", {**trade("buy", 1000.0, 1.0), "wallet": "0x" + "66" * 20}, 0.001, KEY)
+        assert "liquidez solta" in rb.events[0]["motivo"]
+    run(go())

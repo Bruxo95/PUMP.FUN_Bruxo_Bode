@@ -42,13 +42,13 @@ MODOS = ("sim", "real", "ambas")
 # 0.32.302 (pedido do dono, 11/11: "um botão bloquear e uma aba dos honeypot"): carteiras que esta conta bloqueou; nunca são copiadas
 BLOCK_MAX = 500
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "so_verificado": False, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
+               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "so_verificado": False, "so_lp_presa": True, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 # 0.32.310: mínimo de 0,0001 ETH por compra, para a FICTÍCIA poder ficar igual a uma REAL pequena
 CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
               "trail_dist_pct": (1, 1000)}
-CFG_BOOLS = ("on", "auto_top", "so_verificado", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
+CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
 TRAIL_MIN_LOCK = 2.0
 # Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
 FOLLOW_S, FOLLOW_MAX = 60, 25
@@ -373,6 +373,7 @@ class Copier:
         # 0.32.283: a REAL envia e confere pelo RPC oficial da rede (a transação não passa por servidor de terceiros antes)
         self.chain = hoodreal.Chain(lambda m, p: watch.rpc(m, p, getattr(watch, "official", None)))
         self.safe = hoodsafe.Safety(self._call, http)
+        self.safe.rpc = lambda m, p: watch.rpc(m, p)
         from .hoodgas import HoodGas
         self.gas = HoodGas(self)                     # 0.32.286: saldo da carteira e abastecer de outra rede (Relay)
         self.keys: dict[str, list | None] = {}      # id do pool → chave conferida (None = procurado e não achado)
@@ -674,6 +675,9 @@ class Copier:
         def sim() -> None:
             for uid, b in list(self.books.items()):
                 why = b.follows(tr["wallet"], tr.get("_auto", True))
+                if why and b.cfg.get("so_lp_presa", True) and v.get("lp_livre"):
+                    b.ev(now, tr["wallet"], tr["token"], "não copiou", "liquidez solta: " + v["lp_livre"])
+                    continue
                 if why and b.cfg.get("so_verificado") and v.get("verificado") is not True:
                     b.ev(now, tr["wallet"], tr["token"], "não copiou", "contrato do token não verificado no explorador (opção \"Só token com contrato verificado\")")
                     continue
@@ -762,6 +766,8 @@ class Copier:
         sv = self.safe.cached(tr["token"])
         if not why and not (sv and sv["ok"]):                    # a REAL nunca compra token sem conferência boa
             why = "token sem conferência de segurança aprovada"
+        if not why and rc.get("real_so_lp_presa", True) and sv.get("lp_livre"):
+            why = "liquidez solta: " + sv["lp_livre"]
         if why:
             rb.ev(now, tr["wallet"], tr["token"], "REAL não copiou", why)
             return
@@ -1342,7 +1348,9 @@ class Copier:
         tr = {"wallet": "botao", "token": tk, "t": now, "tx": None, "eth": None, "amount": 0, "_auto": False}
         out = {"ficticia": None, "real": None}
         sp = None
-        if modo in ("sim", "ambas"):                 # 0.32.308: a FICTÍCIA primeiro; a REAL fica presa a ela (espelho)
+        if modo in ("sim", "ambas") and b.cfg.get("so_lp_presa", True) and v.get("lp_livre"):
+            out["ficticia"] = "liquidez solta: " + v["lp_livre"]
+        elif modo in ("sim", "ambas"):               # 0.32.308: a FICTÍCIA primeiro; a REAL fica presa a ela (espelho)
             sp = b.buy(tr, px, now, key, "botao")
             out["ficticia"] = "comprou" if sp else (b.events[0]["motivo"] if b.events else "não comprou")
         if modo in ("real", "ambas"):

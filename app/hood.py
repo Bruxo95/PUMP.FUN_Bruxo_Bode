@@ -716,7 +716,7 @@ class HoodWatch:
                          "nome": (self.copier.meta.get(x["token"]) or {}).get("nome"),
                          "simbolo": (self.copier.meta.get(x["token"]) or {}).get("simbolo"),
                          "seguranca": {k: v for k, v in (self.copier.safe.cache.get(x["token"]) or {}).items()
-                                       if k in ("ok", "why", "t", "erro", "venda_travada", "sem_pool", "ida_volta_pct")} or None})
+                                       if k in ("ok", "why", "t", "erro", "venda_travada", "sem_pool", "ida_volta_pct", "lp_livre")} or None})
         rows.sort(key=lambda r: r["liquido_eth"], reverse=True)
         return {"horas": hours, "tokens": len(rows), "rows": rows[:limit], "eth_usd": self.eth_usd, "memoria_desde": mem0}
 

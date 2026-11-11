@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-11**; revisão documental **2.0**.
-Aplicação: **0.32.315 · 2026-11-11 · Robinhood: pool sem liquidez (rug pull) vale 0 e a REAL não compra depois da fictícia fechar**.
-Referência Git na emissão: `b0dce5423dccdb4d4b8dac4655591d242ed423eb`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.316 · 2026-11-11 · Robinhood: não compra token com a liquidez nas mãos de uma carteira comum**.
+Referência Git na emissão: `62e72583361662adb212efdd1c495c6375368c7e`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

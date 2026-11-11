@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-11",
     "timezone": "Europe/Dublin",
-    "repository_reference": "b0dce5423dccdb4d4b8dac4655591d242ed423eb",
-    "application_version": "0.32.315 · 2026-11-11 · Robinhood: pool sem liquidez (rug pull) vale 0 e a REAL não compra depois da fictícia fechar",
+    "repository_reference": "62e72583361662adb212efdd1c495c6375368c7e",
+    "application_version": "0.32.316 · 2026-11-11 · Robinhood: não compra token com a liquidez nas mãos de uma carteira comum",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "5370ebf4157bcc3ff2d4e3065d45045649d6c807ab634b3cf6ebcf25aea02c6b",
+      "app/version.py": "1ad75aa96a902a8fcf9102b08c03c7f0a6945b706834b5ac69b545917c375b7d",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "09761df6c5159fe883eeadefabdb875c99750a6b58ad2c7e774b12931447f511"
+  "pdf_sha256": "37f336964b5373539b70b96a2e5faa75ccc5855312e4fb97d86a0ef1315fcfaf"
 }

@@ -38,10 +38,24 @@ DANGER = {"blacklist": "lista negra de carteiras", "blocklist": "lista negra de 
           "setmaxwallet": "limite por carteira", "excludefromfee": "isentar carteiras de taxa", "setpair": "trocar o par de venda",
           "setswapenabled": "ligar/desligar venda", "lockseller": "travar quem vende", "freeze": "congelar carteiras"}
 SEL_DEC = evm.selector("decimals()")
+# 0.32.316 (pedido do dono, depois dos casos TEXEL e mihao de 11/11: o criador tirou toda a liquidez minutos depois da compra). Medido
+# na rede em 11/11: dos 151 pools novos pagos em ETH em 2 h, em 120 a liquidez era de uma carteira comum (NFT do PositionManager da
+# Uniswap V4 com dono sem código) e 90 desses já tinham sido retirados. Liquidez queimada ou presa num contrato não sai assim.
+POSM = "0x58daec3116aae6d93017baaea7749052e8a04fa7"     # PositionManager oficial da V4 na Robinhood (name() = Uniswap v4 Positions NFT)
+T_ML = "0x" + evm.keccak256(b"ModifyLiquidity(bytes32,address,int24,int24,int256,bytes32)").hex()
+SEL_OWNER = evm.selector("ownerOf(uint256)")
+LP_S = 300                           # dono da liquidez de cada pool guardado 5 min
+LP_SPANS = (2_000_000, 9_000_000)    # blocos para trás (~2,3 dias, depois ~10 dias) atrás das entradas de liquidez
+LP_LIVRE_PCT = 50.0                  # carteira comum com essa parte da liquidez ou mais = pode tirar a qualquer hora
 SEL_TRANSFER = evm.selector("transfer(address,uint256)")
 GP_BLOQ = {"is_honeypot": "honeypot: não deixa vender", "cannot_sell_all": "não deixa vender tudo",
            "cannot_buy": "não deixa comprar", "selfdestruct": "o contrato pode se autodestruir",
            "owner_change_balance": "o dono pode mudar o saldo das carteiras", "transfer_pausable": "o dono pode pausar as transferências"}
+
+
+def _delta(lg: dict) -> int:
+    w = evm.words(lg.get("data") or "0x")
+    return (w[2] - (1 << 256) if w[2] >> 255 else w[2]) if len(w) > 3 else 0
 
 
 def _hook(key: list) -> str:
@@ -56,6 +70,8 @@ class Safety:
         self.stat = {"aprovados": 0, "barrados": 0, "erros": 0, "goplus_com_dados": 0, "goplus_sem_dados": 0}
         self.recent: list[dict] = []
         self.scans: dict[str, dict] = {}
+        self.rpc = None              # async (método, params) → resultado; posto pela cópia (eth_getLogs e eth_getCode)
+        self.lp_cache: dict[str, dict] = {}
 
     def cached(self, token: str, now: float | None = None) -> dict | None:
         v = self.cache.get(token)
@@ -68,7 +84,7 @@ class Safety:
         v = {"ok": ok, "why": why, "t": time.time(), "erro": erro, "token": token, **extra}
         self.cache[token] = v
         self.stat["erros" if erro else "aprovados" if ok else "barrados"] += 1
-        self.recent.insert(0, {k: v.get(k) for k in ("token", "ok", "why", "t", "erro", "ida_volta_pct", "goplus")})
+        self.recent.insert(0, {k: v.get(k) for k in ("token", "ok", "why", "t", "erro", "ida_volta_pct", "goplus", "lp_livre")})
         del self.recent[60:]
         if len(self.cache) > 3000:
             for k in sorted(self.cache, key=lambda x: self.cache[x]["t"])[:1000]:
@@ -168,7 +184,59 @@ class Safety:
                 if "insufficient" not in msg and "exceeds balance" not in msg:     # o trader já vendeu: não dá para medir
                     return self.mark(token, False, "o token não deixa transferir (nem o trader que comprou consegue mandar para o pool): honeypot", goplus=gp_info,
                                      ida_volta_pct=round(loss, 2), venda_travada=True)
-        return self.mark(token, True, "", goplus=gp_info, ida_volta_pct=round(loss, 2), verificado=sc["verificado"])
+        lp = await self.lp_control(key)
+        return self.mark(token, True, "", goplus=gp_info, ida_volta_pct=round(loss, 2), verificado=sc["verificado"],
+                         lp_carteira_pct=lp.get("pct_carteira") if lp else None, lp_livre=lp.get("livre") if lp else None)
+
+    async def lp_control(self, key: list) -> dict | None:
+        """Quem pode tirar a liquidez do pool. Soma as entradas e saídas de liquidez (ModifyLiquidity) por dono de posição; a que ainda
+        está no pool e pertence a uma carteira comum (NFT do PositionManager com dono sem código, ou com delegação EIP-7702) pode ser
+        retirada a qualquer hora. Devolve {"pct_carteira", "livre" (texto ou None), "donos"}; None se não deu para ler (não barra)."""
+        if self.rpc is None:
+            return None
+        from .dormant_buy import v4_pool_id
+        pid = v4_pool_id(key)
+        c = self.lp_cache.get(pid)
+        if c and time.time() - c["t"] < LP_S:
+            return c
+        try:
+            head = int(await self.rpc("eth_blockNumber", []) or "0x0", 16)
+            logs, b = [], head
+            for span in LP_SPANS:
+                a = max(0, b - span)
+                logs = (await self.rpc("eth_getLogs", [{"address": PM, "topics": [T_ML, pid], "fromBlock": hex(a), "toBlock": hex(b)}]) or []) + logs
+                if any(_delta(lg) > 0 for lg in logs) or a == 0:
+                    break
+                b = a - 1
+            net: dict[tuple, int] = {}
+            for lg in logs:
+                k = ("0x" + lg["topics"][2][-40:], evm.words(lg.get("data") or "0x")[3])
+                net[k] = net.get(k, 0) + _delta(lg)
+            live = {k: v for k, v in net.items() if v > 0}
+            total = sum(live.values())
+            livre, donos = 0, []
+            for (snd, salt), v in live.items():
+                if snd != POSM:
+                    continue                                  # liquidez posta por outro contrato (lançadora): não é carteira comum
+                w = evm.words(await self.call(POSM, SEL_OWNER + evm.w_int(salt), None))
+                dono = "0x" + hex(w[0])[2:].rjust(40, "0") if w else None
+                if not dono or int(dono, 16) == 0 or dono.endswith("dead"):
+                    continue
+                code = await self.rpc("eth_getCode", [dono, "latest"]) or "0x"
+                if code in ("0x", "0x0") or code.startswith("0xef0100"):
+                    livre += v
+                    donos.append(dono)
+        except Exception:
+            return None
+        pct = round(100 * livre / total, 1) if total else None
+        out = {"t": time.time(), "pct_carteira": pct, "donos": donos[:3],
+               "livre": (f"{pct:.0f}% da liquidez do pool é de uma carteira comum ({donos[0][:6]}…{donos[0][-4:]}): ela pode tirar tudo a qualquer hora"
+                         if pct is not None and pct >= LP_LIVRE_PCT and donos else None)}
+        self.lp_cache[pid] = out
+        if len(self.lp_cache) > 3000:
+            for k in list(self.lp_cache)[:1000]:
+                self.lp_cache.pop(k, None)
+        return out
 
     def summary(self, now: float | None = None) -> dict:
         return {"regras": {"ida_volta_max_pct": ROUNDTRIP_MAX, "taxa_max_pct": TAX_MAX, "barrado_h": BAD_S / 3600, "aprovado_min": OK_S / 60},
