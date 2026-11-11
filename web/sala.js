@@ -80,7 +80,7 @@
     g.font = '8px "Press Start 2P", monospace';
     const tw = g.measureText(t).width;
     TXT(t, 305 - tw, y + 3, v >= 0 ? "#3ee66b" : "#ff4d5e", 8);
-    TXT(String(p.symbol || (p.mint || "").slice(0, 6)).slice(0, 12).toUpperCase(), 179, y + 14, f % 10 < 8 ? "#e8f0ff" : "#8fa3d1", 8);
+    TXT((p.risco ? "! " : "") + String(p.symbol || (p.mint || "").slice(0, 6)).slice(0, 12).toUpperCase(), 179, y + 14, p.risco ? (f % 10 < 8 ? "#facc15" : "#a16207") : f % 10 < 8 ? "#e8f0ff" : "#8fa3d1", 8);
     sparkPx(S.hist[(p.id || (p.mint + "|" + p.opened_at))] || [], 179, y + 25, 126, 13);
   }
   function bigMonitor(f) {
@@ -265,7 +265,8 @@
     const fl = $("flash"); fl.style.background = win ? "#3ee66b" : "#ff4d5e"; fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
     clearTimeout(alertT); alertT = setTimeout(() => $("alert").classList.remove("show"), 5000);
   }
-  const sym = (x) => esc(x.symbol || (x.mint || "").slice(0, 6));
+  // 0.32.314 (pedido do dono): token em que o criador pode travar a venda (Robinhood) aparece em amarelo, com ⚠
+  const sym = (x) => (x.risco ? '<span class="risk" title="' + esc(x.risco) + '">⚠ ' : "") + esc(x.symbol || (x.mint || "").slice(0, 6)) + (x.risco ? "</span>" : "");
   const pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%");
   const sol = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(HOOD ? 5 : 4) + " " + U);
   const cls = (v) => (v > 0 ? "up" : v < 0 ? "down" : "flat");
@@ -350,9 +351,10 @@
     if (p.error) return p;
     if (p.ligado === false) return { error: p.motivo || "leitura da Robinhood desligada no servidor" };
     const sy = (x) => x.simbolo || x.nome || (x.token || "").slice(0, 8);
-    const pos = (p.posicoes || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
+    const rk = p.riscos || {};
+    const pos = (p.posicoes || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
       pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t) }));
-    const tr = (p.trades || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t),
+    const tr = (p.trades || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t),
       opened_at: iso(x.open_t), sol_in: x.eth_in, motivo: x.motivo }));
     const w = p.carteira || {};
     let acc = 0;

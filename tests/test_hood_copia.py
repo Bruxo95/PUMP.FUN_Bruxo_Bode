@@ -939,3 +939,46 @@ def test_creator_of_a_sell_locked_token_is_barred():
         b = c.books["u1"]
         assert not b.pos and "criou outro que travou a venda" in b.events[0]["motivo"]
     run(go())
+
+
+def test_risky_token_exits_when_positive_and_is_listed_for_yellow():
+    """0.32.314 (pedido do dono): token com trava do criador sai assim que ficar positivo; vai em `riscos` (nome em amarelo)."""
+    async def go():
+        w = Watch()
+        c = hoodcopy.Copier(w, ScanHttp({"is_verified": True, "abi": []}))
+        c.keys[PID] = KEY
+        b = c.book("u1")
+        b.cfg.update(slip_pct=0, gas_eth=0)
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        p = next(iter(b.pos.values()))
+        c.safe.scans[TOK] = {"verificado": True, "perigo": ["lista negra de carteiras"], "t": time.time()}
+        await c.risk_tick()
+        assert "lista negra" in c.risky[TOK] and c.painel("u1")["riscos"][TOK]
+        b.on_price(TOK, 0.0009, time.time())                 # no prejuízo: segura
+        assert p["id"] in b.pos
+        r = b.on_price(TOK, 0.00105, time.time())            # positivo: sai
+        assert r and "trava do criador" in r[0]["motivo"]
+    run(go())
+
+
+def test_real_partial_sale_keeps_the_rest_open():
+    """0.32.314: o pool aceitou só parte → a posição REAL continua com o resto e tenta de novo em 20 s."""
+    async def go():
+        c = hoodcopy.Copier(Watch(), Http())
+
+        async def get_key(uid):
+            return 1, "0x" + "aa" * 20
+        c.get_key = get_key
+
+        class Ch:
+            async def sell(self, key, addr, token, pkey, raw, slip):
+                return {"eth": 0.001, "raw": raw // 2, "tx": "0xab", "gas": 0.0}
+        c.chain = Ch()
+        rb = c.rbook("u1")
+        p = {"id": "r1", "wallet": TRADER, "token": TOK, "open_t": time.time(), "raw_left": "1000", "tokens_left": 1e-15, "key": KEY,
+             "eth_in": 0.002, "proceeds": 0.0, "px_in": 0.001}
+        rb.pos["r1"] = p
+        await c._real_sell("u1", p, 1.0, "fictícia fechou")
+        assert "r1" in rb.pos and p["raw_left"] == "500" and p["retry_frac"] == 1.0 and p["vendas"]
+    run(go())

@@ -42,13 +42,13 @@ MODOS = ("sim", "real", "ambas")
 # 0.32.302 (pedido do dono, 11/11: "um botão bloquear e uma aba dos honeypot"): carteiras que esta conta bloqueou; nunca são copiadas
 BLOCK_MAX = 500
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "so_verificado": False, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
+               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "so_verificado": False, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 # 0.32.310: mínimo de 0,0001 ETH por compra, para a FICTÍCIA poder ficar igual a uma REAL pequena
 CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
               "trail_dist_pct": (1, 1000)}
-CFG_BOOLS = ("on", "auto_top", "so_verificado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
+CFG_BOOLS = ("on", "auto_top", "so_verificado", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
 TRAIL_MIN_LOCK = 2.0
 # Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
 FOLLOW_S, FOLLOW_MAX = 60, 25
@@ -157,6 +157,7 @@ class Book:
         self.new_trades: list[dict] = []
         self.dirty_book = False
         self.close_hook = None                     # 0.32.306: avisa a cópia quando a posição fecha (espelho da REAL)
+        self.risky: dict = {}                      # 0.32.314: token → motivo (criador pode travar a venda), da cópia
 
     def ev(self, t: float, wallet: str, token: str, acao: str, motivo: str = "") -> None:
         self.events.insert(0, {"t": t, "wallet": wallet, "token": token, "acao": acao, "motivo": motivo})
@@ -305,6 +306,8 @@ class Book:
             why = f"stop de {self.cfg['stop_pct']:.0f}%" if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"] else \
                 trail_hit(self.cfg, p["best_pct"], pct)
             frac = 1.0
+            if not why and pct > 0 and self.cfg.get("sair_travado") and p["token"] in self.risky:
+                why = "token com trava do criador (" + str(self.risky[p["token"]])[:60] + "): saiu no lucro"
             if not why and p.get("espera") and (pct > 0 or not self.cfg.get("trader_so_lucro")):
                 e = p.pop("espera")
                 why, frac = f"{e['motivo']} · vendeu ao ficar positivo ({pct:+.1f}%)", e["frac"]
@@ -375,6 +378,7 @@ class Copier:
         self.no_sell: dict[str, float] = {}         # 0.32.309: token → quando a venda foi recusada pelo pool
         self.no_sell_sym: dict[str, float] = {}     # símbolo → idem (cópias com o mesmo nome)
         self.no_sell_dev: dict[str, float] = {}     # criador → idem
+        self.risky: dict[str, str] = {}             # 0.32.314: token aberto com trava do criador (venda travada ou contrato perigoso)
         self._q_fail: dict[str, int] = {}
         self.dev: dict[str, str] = {}               # token → carteira de quem criou ("" = não achou)
         self._dev_at: dict[str, float] = {}
@@ -401,6 +405,7 @@ class Copier:
             b = self.books[uid] = Book(uid)
             b.dirty_book = True
         b.close_hook = self._sim_closed
+        b.risky = self.risky
         return b
 
     # ------------------------------------------------------------------ 0.32.309: token com venda travada
@@ -409,6 +414,7 @@ class Copier:
         cópias com o mesmo nome) ficam barrados para novas compras por NO_SELL_S, na FICTÍCIA e na REAL."""
         now = time.time()
         self.no_sell[token] = now
+        self.risky[token] = "venda travada no pool"
         if self.dev.get(token):                     # o mesmo criador costuma lançar a mesma armadilha de novo
             self.no_sell_dev[self.dev[token]] = now
         sym = (simbolo or (self.meta.get(token) or {}).get("simbolo") or "").strip().upper()
@@ -688,6 +694,8 @@ class Copier:
                 continue
             why = f"stop de {rc['real_stop_pct']:g}%" if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] else \
                 trail_hit(rc, p["best_pct"], pct, "real_")
+            if not why and pct > 0 and rc.get("real_sair_travado") and p["token"] in self.risky:
+                why = "token com trava do criador (" + str(self.risky[p["token"]])[:60] + "): saiu no lucro"
             frac = 1.0
             if not why and p.get("espera") and (pct > 0 or not rc.get("real_trader_so_lucro")):
                 why, frac = f"{p['espera']['motivo']} · vendeu ao ficar positivo ({pct:+.1f}%)", p["espera"]["frac"]
@@ -810,6 +818,15 @@ class Copier:
             for k in ("sell_error", "sell_retry_at", "retry_frac", "zero_reads"):
                 p.pop(k, None)
             rb.balance_t = 0
+            if int(p["raw_left"]) > 0 and frac >= 1 and res["raw"] < raw:
+                # 0.32.314: o pool só aceitou uma parte (venda fracionada): registra a parte e tenta o resto em 20 s
+                p.setdefault("vendas", []).append({"t": t, "frac": round(res["raw"] / left, 4) if left else 0, "eth": round(res["eth"], 6),
+                                                   "motivo": motivo + " (parte que o pool aceitou)", "tx": res["tx"]})
+                p["retry_frac"], p["sell_retry_at"] = 1.0, t + 20
+                p["sell_error"] = "o pool aceitou só parte da venda; vendendo o resto em partes"
+                rb.dirty_pos.add(p["id"])
+                rb.ev(t, p["wallet"], p["token"], "REAL vendeu parte", f"{res['raw'] / left * 100:.0f}% · o pool não aceitou tudo de uma vez", res["tx"])
+                return None
             if int(p["raw_left"]) > 0 and frac < 1:
                 p.setdefault("vendas", []).append({"t": t, "frac": round(frac, 4), "eth": round(res["eth"], 6), "motivo": motivo, "tx": res["tx"]})
                 rb.dirty_pos.add(p["id"])
@@ -871,6 +888,7 @@ class Copier:
         if now - self._follow_at >= FOLLOW_S:
             self._follow_at = now
             await self.follow_tick(now)
+            await self.risk_tick()
         await self.flush()
 
     async def price_tick(self, now: float) -> None:
@@ -1031,6 +1049,22 @@ class Copier:
             b = self.books.get(uid)
             if b and b.cfg.get(regra) and p["id"] in b.pos:
                 (b.trader_exit if so_trader else b.sell)(p, 1.0, None, now, motivo)
+
+    async def risk_tick(self) -> None:
+        """0.32.314 (pedido do dono: "se o criador bloqueia o token, nome em amarelo e sair se estiver positivo"): lê o contrato de cada
+        token aberto (cache de 24 h no Safety.scan). Função de travar/taxar a venda → o token entra em `risky`."""
+        for tk in sorted(self.held()):
+            if tk in self.risky:
+                continue
+            try:
+                sc = await self.safe.scan(tk)
+            except Exception:
+                continue
+            if sc.get("perigo"):
+                self.risky[tk] = "contrato pode: " + ", ".join(sc["perigo"][:3])
+        held = self.held()
+        for tk in [t for t in self.risky if t not in held and t not in self.no_sell]:
+            self.risky.pop(tk, None)
 
     async def follow_tick(self, now: float) -> None:
         """Acompanha o trader copiado e o dev de cada token aberto pelo saldo na rede (pega também a venda que a leitura das
@@ -1398,7 +1432,7 @@ class Copier:
         base = {"cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
                 "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER,
-                "eth_usd": getattr(self.w, "eth_usd", None)}
+                "eth_usd": getattr(self.w, "eth_usd", None), "riscos": dict(list(self.risky.items())[-300:])}
         if real:
             rb = self.rbook(uid)
             base["espelho"] = self.mirror_report(uid, now)
@@ -1475,6 +1509,7 @@ class Copier:
         for r in await self.db.select("hood_books", None) or []:
             b = self.books[r["user_id"]] = Book(r["user_id"], r.get("cfg"), r.get("cash"))
             b.close_hook = self._sim_closed
+            b.risky = self.risky
             b.dirty_book = False
             rc = (r.get("cfg") or {}).get("real")
             if isinstance(rc, dict):

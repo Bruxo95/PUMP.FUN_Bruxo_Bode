@@ -2325,6 +2325,11 @@
    "versao": "0.32.313",
    "inicio": "2026-11-11T13:56:33+00:00",
    "titulo": "Robinhood: comparar e copiar a configuração de outro usuário"
+  },
+  {
+   "versao": "0.32.314",
+   "inicio": "2026-11-11T14:22:52+00:00",
+   "titulo": "Robinhood: token com trava do criador em amarelo e saída no lucro em partes"
   }
  ]
 }
