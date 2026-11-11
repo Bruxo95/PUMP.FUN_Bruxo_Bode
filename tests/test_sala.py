@@ -51,3 +51,11 @@ def test_enviar_para_robinhood_cota_sozinho():
     html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
     assert "function gaAuto" in js and 'if (t.id === "gaUsd") { gaConv(); gaAuto(); }' in js and "Enviar para a Robinhood</button>" in js
     assert "<h2>Enviar para a Robinhood</h2>" in html
+
+
+def test_sala_se_adapta_a_tela_e_mostra_hora_de_entrada():
+    """0.32.300 (pedido do dono): palco que cabe na janela (zoom, celular, tablet, PC) e coluna Hora nas posições abertas."""
+    html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert "100dvh" in html and "container-type:size" in html and "calc(100cqh * 16 / 9)" in html
+    assert "<span>Hora</span>" in js

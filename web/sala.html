@@ -13,7 +13,11 @@
      transmitir em live (OBS: capturar esta janela). Só mostra dados da própria conta; não manda ordem nenhuma. */
   :root{--bg:#0b1020;--panel:#111a33;--line:#2a3c6b;--neon:#3df2c4;--green:#3ee66b;--red:#ff4d5e;--yellow:#ffd23f;--text:#e8f0ff;--muted:#8fa3d1}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:"VT323",monospace;font-size:20px;overflow-x:hidden}
+  /* 0.32.300 (pedido do dono: "não consigo usar o zoom; a página tem que se adaptar à tela, celular, tablet e PC"): a sala ocupa a
+     altura da janela (100dvh) e o palco 16:9 cresce até onde cabe na largura E na altura (container query); com zoom ou janela
+     pequena tudo diminui junto em vez de sair da tela. No celular em pé vira coluna e a página rola. */
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:"VT323",monospace;font-size:clamp(15px,1.3vw,20px);overflow-x:hidden}
+  body{display:flex;flex-direction:column;height:100vh;height:100dvh}
   canvas,img.px{image-rendering:pixelated;image-rendering:crisp-edges}
   .pf{font-family:"Press Start 2P",monospace;letter-spacing:.02em}
   .top{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:3px solid var(--line);background:#0e1730;flex-wrap:wrap}
@@ -27,8 +31,9 @@
   .btn.on{background:var(--neon);color:#06221b;border-color:var(--neon)}
   .btn.real.on{background:var(--yellow);border-color:var(--yellow);color:#2a1d00}
   .sub{padding:6px 16px;font-size:11px;color:var(--muted);border-bottom:2px solid #16224a;background:#0c1428}
-  .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 16px}
-  .stage{position:relative;border:3px solid var(--line);background:#000;aspect-ratio:16/9;overflow:hidden}
+  .grid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(250px,27vw,400px);gap:12px;padding:10px 16px}
+  .stwrap{min-width:0;min-height:0;container-type:size;display:flex;align-items:center;justify-content:center}
+  .stage{position:relative;border:3px solid var(--line);background:#000;aspect-ratio:16/9;overflow:hidden;width:min(100cqw,calc(100cqh * 16 / 9));container-type:inline-size}
   .stage canvas{position:absolute;inset:0;width:100%;height:100%}
   .hud{background:#060c1c;border:2px solid var(--line);padding:7px 10px;font-size:12px;white-space:nowrap}
   .hud b.up{color:var(--green)}.hud b.down{color:var(--red)}.hud b.flat{color:var(--yellow)}
@@ -40,14 +45,15 @@
   .alert.win{background:#08240f;border-color:var(--green)}
   .alert .ah{display:flex;justify-content:space-between;background:var(--red);color:#fff;font-size:10px;padding:5px 7px}
   .alert.win .ah{background:var(--green);color:#03210b}
-  .alert .ab{padding:10px;font-size:clamp(14px,1.8vw,22px);line-height:1.15}
+  .alert .ab{padding:10px;font-size:clamp(12px,3.4cqw,24px);line-height:1.15}
   .flash{position:absolute;inset:0;pointer-events:none;opacity:0}
   .flash.go{animation:fl .5s steps(4)}
   @keyframes fl{0%{opacity:.75}100%{opacity:0}}
   .stats{position:absolute;left:3%;bottom:4%;display:flex;gap:8px;flex-wrap:wrap;max-width:94%}
-  .st{background:rgba(5,10,25,.85);border:2px solid var(--line);padding:4px 8px;font-size:clamp(13px,1.4vw,20px)}
+  .st{background:rgba(5,10,25,.85);border:2px solid var(--line);padding:3px 7px;font-size:clamp(11px,2.2cqw,20px)}
   .st small{color:var(--muted)}
-  .side{position:relative;min-height:0}
+  .side{position:relative;min-height:0;container-type:inline-size}
+  .pos{font-size:clamp(11px,5.4cqw,22px)}
   .side .box{position:absolute;inset:0}
   .box{border:3px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
   .box h3{margin:0;padding:8px 10px;font-size:11px;border-bottom:3px solid var(--line);color:var(--neon)}
@@ -57,22 +63,27 @@
   .msg b{display:block;font-size:17px}
   @keyframes up{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
   .pos{flex:1;min-height:0;overflow:auto;padding:4px 6px}
-  .ph,.pr{display:grid;grid-template-columns:minmax(0,1fr) 66px 74px 66px;gap:6px;align-items:center;padding:2px 4px}
-  .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:15px;border-bottom:2px solid #1c2c57}
-  .pr{border-bottom:1px solid #1a2850;font-size:19px;line-height:1.1}
+  /* 0.32.300: coluna Hora (entrada); fonte menor para caber a 5ª coluna */
+  .ph,.pr{display:grid;grid-template-columns:minmax(0,1fr) 3.1em 4.2em 4.2em 3.9em;gap:4px;align-items:center;padding:2px 4px}
+  .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:.78em;border-bottom:2px solid #1c2c57}
+  .pr{border-bottom:1px solid #1a2850;font-size:.86em;line-height:1.1}
+  .pr .hr{color:var(--muted)}
   .pr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ph span:not(:first-child),.pr span:not(:first-child){text-align:right}
   .pr .pc{font-weight:bold;overflow:visible}
   .empty{color:var(--muted);padding:10px}
-  .tick{margin:0 16px 14px;border:3px solid var(--line);background:#0c1428;display:flex;align-items:center;overflow:hidden;white-space:nowrap}
+  .tick{flex:0 0 auto;margin:0 16px 12px;border:3px solid var(--line);background:#0c1428;display:flex;align-items:center;overflow:hidden;white-space:nowrap}
   .tick .lab{background:var(--line);padding:10px;font-size:11px;flex:0 0 auto}
-  .tick .run{display:inline-block;padding-left:100%;animation:run 30s linear infinite;font-size:22px}
+  .tick .run{display:inline-block;padding-left:100%;animation:run 30s linear infinite;font-size:1.1em}
   .tick .run span{margin-right:28px}
   @keyframes run{to{transform:translateX(-100%)}}
   .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--yellow)}
   .err{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#3a0d12;border:3px solid var(--red);padding:10px 14px;z-index:9;max-width:92vw}
-  @media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}.side .box{position:static;max-height:460px}}
-  @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:5px 7px;order:3}.alert .ab{font-size:13px}.st{font-size:12px}}
+  @media (max-width:980px) and (orientation:portrait),(max-width:700px){
+    body{height:auto;min-height:100dvh}.grid{flex:none;grid-template-columns:minmax(0,1fr)}
+    .stwrap{container-type:inline-size;display:block}.stage{width:100%}.side .box{position:static;max-height:60vh}}
+  @media (max-height:520px) and (orientation:landscape){.sub{display:none}.top{padding:4px 10px}.grid{padding:6px 10px;gap:8px}.tick{margin:0 10px 6px}.tick .lab{padding:6px}}
+  @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:5px 7px;order:3}}
   @media (prefers-reduced-motion:reduce){.tick .run{animation-duration:90s}}
 </style>
 </head>
@@ -90,12 +101,12 @@
 </div>
 <div class="sub" id="sub">conectando…</div>
 <div class="grid">
-  <div class="stage" id="stage">
+  <div class="stwrap"><div class="stage" id="stage">
     <canvas id="scene" width="320" height="180" aria-label="Trader em pixel art reagindo às operações"></canvas>
     <div class="flash" id="flash"></div>
     <div class="alert" id="alert"><div class="ah pf"><span id="aT">ALERTA!</span><span>X</span></div><div class="ab" id="aB"></div></div>
     <div class="stats" id="stats"></div>
-  </div>
+  </div></div>
   <div class="side">
     <div class="box"><h3 class="pf">POSIÇÕES ABERTAS<span id="posN"></span></h3><div class="pos" id="pos"></div></div>
   </div>

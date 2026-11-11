@@ -304,9 +304,11 @@
     if (!P.length) { box.innerHTML = '<div class="empty">nenhuma posição aberta agora</div>'; }
     else {
       const sorted = P.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0));
-      box.innerHTML = '<div class="ph"><span>Moeda</span><span>Entrada</span><span>Agora</span><span>%</span></div>' +
+      // 0.32.300 (pedido do dono): coluna Hora com o horário de entrada
+      const hr = (p) => { const t = tms(p.opened_at); return t ? new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "–"; };
+      box.innerHTML = '<div class="ph"><span>Moeda</span><span>Hora</span><span>Entrada</span><span>Agora</span><span>%</span></div>' +
         sorted.map((p) => { const ins = +p.sol_in || 0, nowv = ins + (+p.pnl_now_sol || 0);
-          return '<div class="pr"><span>' + sym(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
+          return '<div class="pr"><span>' + sym(p) + '</span><span class="hr" title="entrou às ' + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
             '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
     }
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">SELL ' + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))

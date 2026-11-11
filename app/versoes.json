@@ -2255,6 +2255,11 @@
    "versao": "0.32.299",
    "inicio": "2026-11-11T08:41:45+00:00",
    "titulo": "Robinhood: Enviar para a Robinhood cota sozinho ao digitar o valor"
+  },
+  {
+   "versao": "0.32.300",
+   "inicio": "2026-11-11T08:56:55+00:00",
+   "titulo": "Sala ao vivo se adapta à tela e mostra a hora de entrada"
   }
  ]
 }
