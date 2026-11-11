@@ -2240,6 +2240,11 @@
    "versao": "0.32.296",
    "inicio": "2026-11-11T08:06:22+00:00",
    "titulo": "Robinhood: conversor ETH ↔ dólar e valor em dólar dos campos em ETH"
+  },
+  {
+   "versao": "0.32.297",
+   "inicio": "2026-11-11T08:18:08+00:00",
+   "titulo": "Robinhood: Histórico com Lucro final (já sem as taxas)"
   }
  ]
 }

@@ -314,7 +314,7 @@
     const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length, txs = ts.reduce((a, x) => a + tx(x), 0);
     kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5), "já descontadas as taxas", "tr"],
       ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>", "sem elas o resultado seria " + num(pn + txs, 5) + " ETH", "mon"],
-      ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Realizado (tudo)", eth(w.realizado, 5), "", "mon"]]);
+      ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Lucro final (tudo)", eth(w.realizado, 5), "já descontadas as taxas · todas as fechadas", "mon"]]);
     table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Taxas", "Lucro real", "Pico", "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
       tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", '<span class="down">' + num(tx(x), 6) + "</span>",
       eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
