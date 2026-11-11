@@ -41,7 +41,7 @@ MODOS = ("sim", "real", "ambas")
 # trail_ativa_pct de lucro líquido; sai se cair trail_dist_pct pontos do pico, travando no mínimo TRAIL_MIN_LOCK).
 # 0.32.302 (pedido do dono, 11/11: "um botão bloquear e uma aba dos honeypot"): carteiras que esta conta bloqueou; nunca são copiadas
 BLOCK_MAX = 500
-CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
+CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
                "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
@@ -110,14 +110,15 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out["manual"] = list(out.get("manual") or [])
     out["modo"] = dict(out.get("modo") or {})
     out["bloqueados"] = list(out.get("bloqueados") or [])
+    out["tokens_bloqueados"] = list(out.get("tokens_bloqueados") or [])
     for k, v in (raw or {}).items():
         if k == "modo" and isinstance(v, dict):
             out["modo"] = {str(w).lower(): m for w, m in v.items() if m in MODOS}
         elif k in CFG_BOOLS:
             out[k] = bool(v)
-        elif k == "bloqueados":
+        elif k in ("bloqueados", "tokens_bloqueados"):
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
-            out["bloqueados"] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
+            out[k] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
                                                    and all(ch in "0123456789abcdef" for ch in x[2:])))[:BLOCK_MAX]
         elif k == "manual":
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
@@ -188,7 +189,9 @@ class Book:
         c = self.cfg
         why = None
         amt = c["eth_por_compra"]
-        if not c["on"]:
+        if tr["token"] in (c.get("tokens_bloqueados") or []):
+            why = "moeda bloqueada por você (Dinheiro entrando → Honeypot e bloqueadas)"
+        elif not c["on"] and origem != "botao":
             why = "cópia fictícia desligada nesta conta"
         elif not px or px <= 0:
             why = "sem preço do token"
@@ -511,6 +514,9 @@ class Copier:
         perigo = self.w.danger_reason(tr["wallet"]) if hasattr(self.w, "danger_reason") else None
         for uid, rc in list(self.real_cfg.items()):
             if rc.get("real_on") and self.book(uid).real_follows(tr["wallet"], tr.get("_auto", True)):
+                if tr["token"] in (self.book(uid).cfg.get("tokens_bloqueados") or []):
+                    self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "moeda bloqueada por você")
+                    continue
                 if perigo:                          # 0.32.295: trader PERIGO nunca compra na REAL, mesmo se já estava sendo copiado
                     self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "trader marcado PERIGO: " + perigo)
                     continue
@@ -960,6 +966,88 @@ class Copier:
         b.dirty_book = True
         await self.flush()
         return b.cfg
+
+    async def block_token(self, uid: str, token: str, on: bool) -> list:
+        """0.32.303 (pedido do dono): moeda bloqueada nunca é comprada nesta conta (cópia nem botão Comprar)."""
+        b = self.book(uid)
+        tk = (token or "").strip().lower()
+        bl = [x for x in (b.cfg.get("tokens_bloqueados") or []) if x != tk]
+        if on:
+            if len(bl) >= BLOCK_MAX:
+                raise ValueError(f"no máximo {BLOCK_MAX} moedas bloqueadas")
+            bl.append(tk)
+        b.cfg = clean_cfg({"tokens_bloqueados": bl}, b.cfg)
+        if on and tk not in b.cfg["tokens_bloqueados"]:
+            raise ValueError("moeda inválida")
+        b.dirty_book = True
+        await self.flush()
+        return b.cfg["tokens_bloqueados"]
+
+    async def token_key(self, token: str) -> list | None:
+        """Chave do pool V4 pago em ETH de um token, a partir das trocas vistas (a mais recente primeiro)."""
+        tk = token.lower()
+        tried = set()
+        for t in reversed(self.w.trades):
+            if t["token"] != tk or t.get("quote") != "ETH" or t.get("pool") in tried:
+                continue
+            tried.add(t.get("pool"))
+            k = await self.pool_key(t.get("pool") or "", tk)
+            if k:
+                return k
+            if len(tried) >= 3:
+                break
+        return None
+
+    async def check_token(self, token: str) -> dict:
+        """Conferência de golpe de uma moeda, sem esperar a cópia (Dinheiro entrando e botão Comprar)."""
+        tk = token.lower()
+        v = self.safe.cached(tk)
+        if v is not None:
+            return v
+        key = await self.token_key(tk)
+        if not key:
+            return self.safe.mark(tk, False, "sem pool da Uniswap V4 pago em ETH: a cópia não consegue comprar esta moeda", sem_pool=True)
+        trader = next((t["wallet"] for t in reversed(self.w.trades) if t["token"] == tk and t["side"] == "buy"), None)
+        amt = next((t["amount"] for t in reversed(self.w.trades) if t["token"] == tk and t["side"] == "buy"), 0)
+        return await self.safe.check(tk, key, trader, int(amt * 1e18), pool_fee(key))
+
+    async def buy_token(self, uid: str, token: str, modo: str) -> dict:
+        """0.32.303 (pedido do dono: "um botão de começar a copiar a moeda e já entramos no trade"): compra a moeda agora, na FICTÍCIA,
+        na REAL ou nas 2, com o valor por compra de cada carteira. Só com a conferência de golpe aprovada; sai pelas regras da carteira
+        (stop, stop móvel, tempo máximo), porque não há trader para seguir a venda."""
+        tk = (token or "").strip().lower()
+        if modo not in MODOS:
+            raise ValueError("modo inválido")
+        b = self.book(uid)
+        if tk in (b.cfg.get("tokens_bloqueados") or []):
+            raise ValueError("moeda bloqueada por você: desbloqueie em Honeypot e bloqueadas")
+        v = await self.check_token(tk)
+        if not v.get("ok"):
+            raise ValueError("a conferência de golpe barrou esta moeda: " + (v.get("why") or "sem conferência"))
+        key = await self.token_key(tk)
+        if not key:
+            raise ValueError("não achei o pool desta moeda em ETH")
+        now = time.time()
+        px = (self.w.px.get(tk) or (None, 0))[0]
+        if not px:
+            w = evm.words(await self._call(hoodsafe.QUOTER, v4_quote_data(key, 10 ** 15, True)))
+            px = 1e15 / w[0] if w and w[0] else None
+        if not px:
+            raise ValueError("sem preço desta moeda agora")
+        tr = {"wallet": "botao", "token": tk, "t": now, "tx": None, "eth": None, "amount": 0, "_auto": False}
+        out = {"ficticia": None, "real": None}
+        if modo in ("real", "ambas"):
+            rc = self.rcfg(uid)
+            if not rc.get("real_on"):
+                out["real"] = "a carteira REAL está desligada (ligue em Carteira)"
+            else:
+                self._spawn(self._real_buy(uid, tr, px, key))
+                out["real"] = "enviando a compra REAL"
+        if modo in ("sim", "ambas"):
+            p = b.buy(tr, px, now, key, "botao")
+            out["ficticia"] = "comprou" if p else (b.events[0]["motivo"] if b.events else "não comprou")
+        await self.flush()
+        return out
 
     async def block(self, uid: str, wallet: str, on: bool) -> list:
         """Bloqueia (para de copiar e nunca mais copia nesta conta) ou desbloqueia um trader. 0.32.302, pedido do dono."""

@@ -444,23 +444,50 @@
     if (r && !r.error) { FX = r; (r.rows || []).forEach((x) => { if (x.simbolo || x.nome) NOM[x.token] = { nome: x.nome || "", simbolo: x.simbolo || "" }; }); }
     drawFx();
   }
+  // 0.32.303 (pedido do dono): conferência de cada moeda, aba Honeypot e bloqueadas, botões Bloquear e Comprar
+  let FXT = "ok";
+  const fxHp = (x) => !!(x.seguranca && x.seguranca.venda_travada);
+  function fxSafe(x) {
+    const v = x.seguranca;
+    if (!v || v.erro) return '<span class="fxsg"><span class="tag neutral">conferindo…</span></span>';
+    if (v.ok) return '<span class="fxsg"><span class="tag win">conferido</span> <span class="muted">dá para comprar e vender' + (v.ida_volta_pct != null ? " · ida e volta −" + num(v.ida_volta_pct, 1) + "%" : "") + "</span></span>";
+    if (v.venda_travada) return '<span class="fxsg"><span class="tag loss dzt">HONEYPOT</span> <span class="down">' + esc(v.why || "") + "</span></span>";
+    return '<span class="fxsg"><span class="tag loss">barrado</span> <span class="muted">' + esc(v.why || "") + "</span></span>";
+  }
+  function fxBtns(x, bloq) {
+    const ok = !!(x.seguranca && x.seguranca.ok) && !bloq;
+    const tt = bloq ? "moeda bloqueada por você" : !x.seguranca ? "ainda conferindo esta moeda" : !x.seguranca.ok ? "barrada na conferência: " + (x.seguranca.why || "") : "";
+    const b = (m, txt) => ok ? '<button class="btn sm" data-fxbuy="' + esc(x.token) + '" data-modo="' + m + '" title="Comprar agora ' + (m === "ambas" ? "na FICTÍCIA e na REAL" : "na " + txt) + '">' + txt + "</button>"
+      : '<button class="btn sm dz" type="button" disabled title="' + esc(tt) + '">' + txt + "</button>";
+    return '<span class="fxbuy"><small class="muted">Comprar:</small>' + b("sim", "FICTÍCIA") + b("real", "REAL") + b("ambas", "As 2") +
+      (bloq ? '<button class="btn sm" data-fxblock="' + esc(x.token) + '" data-on="0">Desbloquear</button>'
+        : '<button class="btn sm blk" data-fxblock="' + esc(x.token) + '" data-on="1" title="Nunca comprar esta moeda (cópia e botão)">Bloquear</button>') + "</span>";
+  }
   function drawFx() {
     document.querySelectorAll("#fxH button").forEach((b) => b.classList.toggle("on", Number(b.dataset.fxh) === FXH));
-    const rows = (FX && FX.rows) || [], usd = FX && FX.eth_usd;
+    document.querySelectorAll("#fxTab button").forEach((b) => b.classList.toggle("on", b.dataset.fxt === FXT));
+    const bl = new Set(((P && P.cfg_sim && P.cfg_sim.tokens_bloqueados) || []));
+    const all = (FX && FX.rows) || [], usd = FX && FX.eth_usd;
+    const hpRows = all.filter((x) => fxHp(x) || bl.has(x.token));
+    const known = new Set(all.map((x) => x.token));
+    const extra = Array.from(bl).filter((t) => !known.has(t)).map((t) => ({ token: t, liquido_eth: null, top: [], seguranca: null, _fora: true }));
+    $("fxHpB").textContent = "Honeypot e bloqueadas" + (hpRows.length + extra.length ? " (" + (hpRows.length + extra.length) + ")" : "");
+    const rows = FXT === "hp" ? hpRows.concat(extra) : all.filter((x) => !fxHp(x) && !bl.has(x.token)).slice(0, 30);
     const per = FXH < 1 ? Math.round(FXH * 60) + " min" : FXH + " h";
     const tot = rows.reduce((a, x) => a + Math.max(0, x.liquido_eth), 0), comTop = rows.filter((x) => (x.top || []).length).length;
     kpis("fxK", [["Tokens com trade em " + per, num(FX && FX.tokens, 0), "lidos na rede", "tr"],
       ["Entrou líquido nas 30", num(tot, 3) + " ETH", usd ? "≈ US$ " + num(tot * usd, 0) : "", "mon"],
       ["Com top trader comprando", num(comTop, 0), "das 30 da lista", "usr"]]);
-    const topCell = (x) => !(x.top || []).length ? '<span class="muted">—</span>' : x.top.slice(0, 3).map((t) => addr(t.wallet) + (t.copiando ? ' <span class="tag win">copiando</span>' : ' <small class="muted">#' + (t.pos || "?") + "</small>")).join("<br>") + (x.top.length > 3 ? '<br><small class="muted">+' + (x.top.length - 3) + "</small>" : "");
-    const seg = (x) => { const v = x.seguranca; if (!v || v.erro) return ""; return v.ok ? '<br><span class="tag win" title="passou na checagem de golpe">conferido</span>' : '<br><span class="tag loss" title="' + esc(v.why || "") + '">' + (/VENDA/.test(v.why || "") ? "venda travada" : "barrado") + "</span>"; };
+    const topCell = (x) => !(x.top || []).length ? '<span class="muted">—</span>' : x.top.slice(0, 3).map((t) => addr(t.wallet) + (t.perigo ? ' <span class="tag loss dzt" title="' + esc(t.perigo) + '">PERIGO · ' + (/honeypot/.test(t.perigo) ? "honeypot" : "robô") + "</span>" : t.copiando ? ' <span class="tag win">copiando</span>' : ' <small class="muted">#' + (t.pos || "?") + "</small>")).join("<br>") + (x.top.length > 3 ? '<br><small class="muted">+' + (x.top.length - 3) + "</small>" : "");
     const sym = {}; rows.forEach((x) => { const k = String(x.simbolo || "").toUpperCase(); if (k) sym[k] = (sym[k] || 0) + 1; });
-    table("fxT", ["#", "Token", "Entrou líquido", "Compras × vendas", "Carteiras", "Top traders", "Preço no período", "Visto pela 1ª vez"], rows.map((x, i) => [String(i + 1), tok(x.token, x) + seg(x) +
-      (sym[String(x.simbolo || "").toUpperCase()] > 1 ? '<br><span class="tag pause" title="outro token da lista tem o mesmo símbolo: pode ser cópia">nome repetido</span>' : ""),
+    table("fxT", ["#", "Token", "Entrou líquido", "Compras × vendas", "Carteiras", "Top traders", "Preço no período", "Visto pela 1ª vez"], rows.map((x, i) => x._fora ? [String(i + 1),
+      tok(x.token, x) + '<span class="fxsg"><span class="tag neutral">bloqueada por você</span> <span class="muted">sem trade no período</span></span>' + fxBtns(x, true), "—", "—", "—", "—", "—", "—"] : [String(i + 1),
+      tok(x.token, x) + fxSafe(x) + (bl.has(x.token) ? '<span class="fxsg"><span class="tag neutral">bloqueada por você</span></span>' : "") +
+      (sym[String(x.simbolo || "").toUpperCase()] > 1 ? '<span class="fxsg"><span class="tag pause" title="outro token da lista tem o mesmo símbolo: pode ser cópia">nome repetido</span></span>' : "") + fxBtns(x, bl.has(x.token)),
       eth(x.liquido_eth, 4) + (x.liquido_usd != null ? '<br><small class="muted">≈ US$ ' + num(x.liquido_usd, 0) + "</small>" : ""),
       num(x.entrou_eth, 4) + " ETH (" + x.compras + ")<br><small class=\"muted\">saiu " + num(x.saiu_eth, 4) + " ETH (" + x.vendas + ")</small>",
       num(x.carteiras, 0) + '<br><small class="muted">' + num(x.vendedores, 0) + " venderam</small>", topCell(x), pct(x.preco_pct),
-      x.idade_conhecida ? "há " + ago(x.primeiro_t) : "+24 h"]), "Nenhum trade no período ainda.");
+      x.idade_conhecida ? "há " + ago(x.primeiro_t) : "+24 h"]), FXT === "hp" ? "Nenhuma moeda honeypot ou bloqueada no período." : "Nenhum trade no período ainda.");
   }
   async function loadAdmin(force) {
     if (!force && Date.now() - AD_AT < 30000) return drawAdmin();
@@ -655,6 +682,23 @@
       const r = await post("/api/hood/real", { on: true, confirm: $("rlWord").value }, t);
       if (r && r.error) { alert(r.error); return; }
       $("rlAsk").hidden = true; toast("REAL ligada."); return load();
+    }
+    if (t.dataset.fxt) { FXT = t.dataset.fxt; return drawFx(); }
+    if (t.dataset.fxblock) {
+      const on = t.dataset.on === "1";
+      if (on && !confirm("Bloquear esta moeda? A cópia e o botão Comprar nunca mais compram ela (vai para Honeypot e bloqueadas).")) return;
+      const r = await post("/api/hood/token/bloquear", { token: t.dataset.fxblock, on }, t);
+      if (r && r.error) { alert(r.error); return; }
+      if (P && P.cfg_sim) P.cfg_sim.tokens_bloqueados = r.tokens_bloqueados;
+      toast(on ? "Moeda bloqueada." : "Moeda desbloqueada."); return drawFx();
+    }
+    if (t.dataset.fxbuy) {
+      const m = t.dataset.modo, nm = (NOM[t.dataset.fxbuy] && NOM[t.dataset.fxbuy].simbolo) || short(t.dataset.fxbuy);
+      if (!confirm("Comprar " + nm + " agora " + (m === "ambas" ? "na FICTÍCIA e na REAL" : "na " + (m === "real" ? "REAL (dinheiro de verdade)" : "FICTÍCIA")) + ", com o valor por compra da carteira? A saída segue o stop, o stop móvel e o tempo máximo da carteira.")) return;
+      const r = await post("/api/hood/token/comprar", { token: t.dataset.fxbuy, modo: m }, t);
+      if (r && r.error) { alert(r.error); return; }
+      toast([r.ficticia ? "FICTÍCIA: " + r.ficticia : "", r.real ? "REAL: " + r.real : ""].filter(Boolean).join(" · ") || "Enviado.");
+      return load();
     }
     if (t.dataset.fxh) { FXH = Number(t.dataset.fxh); try { localStorage.setItem("hood_fxh", String(FXH)); } catch (x) { /* */ } return loadFx(true); }
     if (t.dataset.trt) { TRT = t.dataset.trt; try { localStorage.setItem("hood_trt", TRT); } catch (x) { /* */ } draw(); return; }

@@ -215,3 +215,55 @@ def test_block_button_stops_copying_and_danger_is_never_copied():
         c.on_trade(tr(7, TOK, B, "buy", 1.0, t=time.time()), 0.0, [B])
         assert c.stat.get("perigo_ignorados") == 1 and c.stat["compras_vistas"] == 0
     run(go())
+
+
+def test_token_block_buy_button_and_check_without_waiting_for_copy():
+    """0.32.303 (pedido do dono): moeda bloqueada nunca é comprada; botão Comprar só com a conferência aprovada; moeda sem pool de ETH
+    aparece barrada; trader PERIGO marcado na lista Dinheiro entrando."""
+    w = hood.HoodWatch(None, None)
+    c = w.copier
+    now = time.time()
+    key = [hoodcopy.ZERO, TOK, 3000, 60, hoodcopy.ZERO]
+    pid = v4_pool_id(key)
+    t1 = tr(1, TOK, A, "buy", 1.0, t=now - 30)
+    t1["pool"] = pid
+    w._add(t1)
+    c.keys[pid] = key
+    w.px[TOK] = (0.001, now)
+
+    async def go():
+        c.book("u1")
+        v = await c.check_token(TOK2)
+        assert not v["ok"] and v.get("sem_pool")
+        c.safe.mark(TOK, True, "")
+        r = await c.buy_token("u1", TOK, "sim")
+        assert r["ficticia"] == "comprou" and r["real"] is None
+        p = next(iter(c.books["u1"].pos.values()))
+        assert p["wallet"] == "botao" and p["aba"] == "botao"
+        r = await c.buy_token("u1", TOK, "real")
+        assert "desligada" in r["real"]
+        assert await c.block_token("u1", TOK, True) == [TOK]
+        try:
+            await c.buy_token("u1", TOK, "sim")
+            assert False
+        except ValueError as e:
+            assert "bloqueada" in str(e)
+        c.safe.mark(TOK2, False, "a VENDA é recusada pelo pool", venda_travada=True)
+        try:
+            await c.buy_token("u1", TOK2, "sim")
+            assert False
+        except ValueError as e:
+            assert "barrou" in str(e)
+        t2 = tr(2, TOK, B, "buy", 1.0, t=now)
+        b = c.books["u1"]
+        b.cfg["manual"] = [B]
+        n = len(b.pos)
+        c._buy_all({**t2, "_auto": False}, {"ok": True}, key, 0.001)
+        assert len(b.pos) == n and "bloqueada" in b.events[0]["motivo"]
+    run(go())
+    w.balances[B] = {"usd": 1, "contrato": True, "t": now}
+    w._danger = None
+    w._add(tr(3, TOK, B, "buy", 1.0, t=now))
+    w._rank_cache = (now, {"rows": [{"wallet": B}], "copiaria": []})
+    f = w.flow(1, now=now)
+    assert f["rows"][0]["top"][0]["perigo"]

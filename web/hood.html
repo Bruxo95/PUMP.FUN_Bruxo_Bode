@@ -67,6 +67,10 @@
   #fxH{flex-wrap:wrap}
   .hdmodes .btn.dz,.hdmodes .btn.dz:hover{background:#2a2a2e;color:#6b6b73;border-color:#2a2a2e;cursor:not-allowed}
   .tag.dzt{font-weight:700}
+  .fxsg{display:block;margin-top:4px;font-size:11.5px;line-height:1.35}
+  .fxbuy{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.fxbuy .btn{padding:0 8px}
+  .fxbuy .btn.dz,.fxbuy .btn.dz:hover{background:#2a2a2e;color:#6b6b73;border-color:#2a2a2e;cursor:not-allowed}
+  .fxbuy .blk{color:var(--down);border-color:rgba(239,68,68,.35)}
   .usdl{display:block;font-size:13px;font-weight:500;color:var(--muted);font-family:var(--sans,inherit);margin-top:2px}
   .hdmodes .btn.blk{color:var(--down);border-color:rgba(239,68,68,.35)}
   .hdsec{margin:22px 0 12px;font-size:14px;color:var(--muted);font-weight:600}
@@ -151,6 +155,7 @@
       <section class="view" data-view="fluxo" hidden>
         <div class="card"><header><div><h2>As 30 moedas com mais dinheiro entrando</h2><div class="sub" id="fxSub">ETH que entrou nas compras menos o que saiu nas vendas, no período · só o que a leitura viu na rede</div></div><div class="sp"></div>
           <div class="seg" id="fxH"><button data-fxh="0.25">15 min</button><button data-fxh="1">1 h</button><button data-fxh="6">6 h</button><button data-fxh="24">24 h</button></div></header>
+          <div class="seg hdsub" id="fxTab" style="margin-top:4px"><button data-fxt="ok">Moedas</button><button data-fxt="hp" id="fxHpB">Honeypot e bloqueadas</button></div>
           <div class="kpis" id="fxK"></div>
           <div class="tbl-wrap" style="margin-top:12px"><table id="fxT"></table></div>
           <div class="help"><p><b>Como ler:</b> <b>Entrou líquido</b> = ETH das compras menos ETH das vendas no período (dinheiro novo que ficou no token). <b>Carteiras</b> = quantas carteiras diferentes compraram. <b>Top traders</b> = quantos dos 50 melhores do ranking compraram (e se algum está no Copiando agora). <b>Visto pela 1ª vez</b> = primeira troca que a leitura viu (a memória guarda 24 h; antes disso aparece "+24 h"). A Robinhood não tem a fase de curva da pump.fun: a moeda já nasce num pool. Dinheiro entrando não é garantia de alta: confira a segurança antes de comprar.</p></div></div>

@@ -303,6 +303,7 @@ class HoodWatch:
         self._arq_trim_at = 0.0
         self._name_try: dict[str, float] = {}
         self._danger: tuple[float, dict] | None = None
+        self._flow_scanning = False
         self._scan_at: dict[str, float] = {}
         self.stat.update(salvos=0, do_arquivo=0, arquivo_erro=None)
         from .hoodcopy import Copier
@@ -696,7 +697,8 @@ class HoodWatch:
                 x["compras"] += 1
                 x["buyers"].add(t["wallet"])
                 if t["wallet"] in top or t["wallet"] in cop:
-                    x["top"][t["wallet"]] = {"wallet": t["wallet"], "pos": top.get(t["wallet"]), "copiando": t["wallet"] in cop}
+                    x["top"][t["wallet"]] = {"wallet": t["wallet"], "pos": top.get(t["wallet"]), "copiando": t["wallet"] in cop,
+                                             "perigo": self.danger_reason(t["wallet"])}
             else:
                 x["vendas_eth"] += t["eth"]
                 x["vendas"] += 1
@@ -713,9 +715,33 @@ class HoodWatch:
                          "preco_pct": round(100 * (x["px1"] / x["px0"] - 1), 1) if x["px0"] and x["px1"] else None,
                          "nome": (self.copier.meta.get(x["token"]) or {}).get("nome"),
                          "simbolo": (self.copier.meta.get(x["token"]) or {}).get("simbolo"),
-                         "seguranca": {k: v for k, v in (self.copier.safe.cache.get(x["token"]) or {}).items() if k in ("ok", "why", "t", "erro")} or None})
+                         "seguranca": {k: v for k, v in (self.copier.safe.cache.get(x["token"]) or {}).items()
+                                       if k in ("ok", "why", "t", "erro", "venda_travada", "sem_pool", "ida_volta_pct")} or None})
         rows.sort(key=lambda r: r["liquido_eth"], reverse=True)
         return {"horas": hours, "tokens": len(rows), "rows": rows[:limit], "eth_usd": self.eth_usd, "memoria_desde": mem0}
+
+    async def flow_scan(self, tokens: list[str], limit: int = 8) -> None:
+        """0.32.303 (pedido do dono): confere sozinho as moedas da lista Dinheiro entrando (até `limit` por vez, uma de cada vez)."""
+        if self._flow_scanning:
+            return
+        self._flow_scanning = True
+        try:
+            n = 0
+            for tk in tokens:
+                if n >= limit:
+                    break
+                if self.copier.safe.cached(tk) is not None:
+                    continue
+                n += 1
+                try:
+                    await asyncio.wait_for(self.copier.check_token(tk), 30)
+                except Exception:
+                    pass
+            if n:
+                self._danger = None
+                self._rank_cache = None
+        finally:
+            self._flow_scanning = False
 
     async def fill_names(self, tokens: list[str]) -> None:
         """Nome e símbolo dos tokens pela DexScreener (até 30 por consulta; quem não veio só tenta de novo em 10 min)."""

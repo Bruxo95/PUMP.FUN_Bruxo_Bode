@@ -20,12 +20,39 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         w = get_watch()
         if w is None:
             return {"ligado": False}
-        out = w.flow(hours=min(24.0, max(0.25, float(h or 1))))
+        out = w.flow(hours=min(24.0, max(0.25, float(h or 1))), limit=60)
         await w.fill_names([r["token"] for r in out["rows"]])
+        w.copier._spawn(w.flow_scan([r["token"] for r in out["rows"]]))   # 0.32.303: confere as moedas da lista sem esperar a cópia
         for r in out["rows"]:
             m = w.copier.meta.get(r["token"]) or {}
             r["nome"], r["simbolo"] = m.get("nome") or r.get("nome"), m.get("simbolo") or r.get("simbolo")
         return out
+
+    @app.post("/api/hood/token/bloquear")
+    async def hood_token_bloquear(body: dict, u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        tk, on = str((body or {}).get("token") or ""), bool((body or {}).get("on"))
+        try:
+            bl = await w.copier.block_token(u["id"], tk, on)
+        except ValueError as e:
+            return {"error": str(e)}
+        await audit(db, u["id"], "Robinhood: " + ("bloquear moeda" if on else "desbloquear moeda"), tk[:42])
+        return {"ok": True, "tokens_bloqueados": bl}
+
+    @app.post("/api/hood/token/comprar")
+    async def hood_token_comprar(body: dict, u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        tk, modo = str((body or {}).get("token") or ""), str((body or {}).get("modo") or "sim")
+        try:
+            r = await w.copier.buy_token(u["id"], tk, modo)
+        except ValueError as e:
+            return {"error": str(e)}
+        await audit(db, u["id"], "Robinhood: comprar moeda pelo botão (" + {"sim": "FICTÍCIA", "real": "REAL", "ambas": "FICTÍCIA e REAL"}.get(modo, modo) + ")", tk[:42])
+        return {"ok": True, **r}
 
     @app.get("/api/hood/usuarios")
     async def hood_usuarios(u: dict = Depends(admin_only)):

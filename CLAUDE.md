@@ -1764,3 +1764,8 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.302 (pedido do dono): `hoodcopy` cfg `bloqueados` (até 500; `mode_of` devolve None) + `Copier.block` + `POST /api/hood/bloquear` (audit);
   `on_trade` ignora compra de trader PERIGO (`perigo_ignorados`), nem a FICTÍCIA copia. Tela: botão `data-block`, aba `#trBl` (`drawBlocked`), ranking sem
   bloqueados/PERIGO; `usdL` (dólar embaixo do ETH, pelo `usdOf` existente) nos quadrados da Visão geral e do Histórico.
+- 0.32.303 (pedido do dono): `HoodWatch.flow_scan` (rota `/api/hood/fluxo` lista 60 e confere até 8 por vez em segundo plano) com
+  `Copier.check_token`/`token_key` (sem pool de ETH = `sem_pool`); `hoodsafe`: transferência recusada também é `venda_travada`. cfg `tokens_bloqueados`
+  (`Copier.block_token`, `POST /api/hood/token/bloquear`; cópia e botão nunca compram) e `Copier.buy_token` + `POST /api/hood/token/comprar` (modo sim|real|ambas;
+  wallet "botao", origem "botao"; só com a conferência ok). Tela: sub-abas `#fxTab` (Moedas | Honeypot e bloqueadas), `fxSafe`, `fxBtns`; `perigo` nos top traders da lista.
+  Medido em 11/11 (12 moedas reais): 4 ok, 2 venda travada, 2 transferência travada, 1 compra recusada, 3 sem pool de ETH.

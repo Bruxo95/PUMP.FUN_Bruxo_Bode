@@ -126,7 +126,8 @@ class Safety:
             except Exception as e:
                 msg = str(e).lower()
                 if "insufficient" not in msg and "exceeds balance" not in msg:     # o trader já vendeu: não dá para medir
-                    return self.mark(token, False, "o token não deixa transferir: honeypot", goplus=gp_info, ida_volta_pct=round(loss, 2))
+                    return self.mark(token, False, "o token não deixa transferir (nem o trader que comprou consegue mandar para o pool): honeypot", goplus=gp_info,
+                                     ida_volta_pct=round(loss, 2), venda_travada=True)
         return self.mark(token, True, "", goplus=gp_info, ida_volta_pct=round(loss, 2))
 
     def summary(self, now: float | None = None) -> dict:
