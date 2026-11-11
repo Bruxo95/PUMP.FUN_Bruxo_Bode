@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-11**; revisão documental **2.0**.
-Aplicação: **0.32.318 · 2026-11-11 · Dormant: NonKYC nas exchanges e volume do dia de cada exchange**.
-Referência Git na emissão: `2f17e0cb3d355ca9237887ca019cf0b5e11d2a1e`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.319 · 2026-11-11 · Robinhood: histórico da configuração e voltar para uma versão anterior**.
+Referência Git na emissão: `afeb97935941cc93b676ac37e2d7b3e1cc3c17c6`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

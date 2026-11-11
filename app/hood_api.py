@@ -145,6 +145,33 @@ def add_routes(app, get_watch, admin_only, db) -> None:
             return {"error": "essa conta ainda não abriu a Robinhood"}
         return {"ok": True, **src}
 
+    # 0.32.319 (pedido do dono): histórico da configuração da cópia e voltar para uma versão (nunca liga a REAL nem a fictícia)
+    @app.get("/api/hood/config/historico")
+    async def hood_cfg_hist(u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        return {"ok": True, **await c.cfg_history(u["id"])}
+
+    @app.post("/api/hood/config/voltar")
+    async def hood_cfg_back(body: dict, u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        b = body if isinstance(body, dict) else {}
+        try:
+            n = int(b.get("n"))
+        except (TypeError, ValueError):
+            return {"error": "versão inválida"}
+        keys = b.get("keys")
+        keys = [str(k) for k in keys][:200] if isinstance(keys, list) else None
+        try:
+            r = await c.cfg_back(u["id"], n, keys)
+        except ValueError as e:
+            return {"error": str(e)}
+        await audit(db, u["id"], "Robinhood: configuração voltou para uma versão anterior", f"versão {n}: {r['mudou']} opções")
+        return {"ok": True, **r, **await c.cfg_history(u["id"])}
+
     @app.post("/api/hood/config/copiar")
     async def hood_cfg_copy(body: dict, u: dict = Depends(admin_only)):
         c = cp()

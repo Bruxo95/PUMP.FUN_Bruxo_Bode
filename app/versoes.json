@@ -2350,6 +2350,11 @@
    "versao": "0.32.318",
    "inicio": "2026-11-11T18:19:34+00:00",
    "titulo": "Dormant: NonKYC nas exchanges e volume do dia de cada exchange"
+  },
+  {
+   "versao": "0.32.319",
+   "inicio": "2026-11-11T18:20:00+00:00",
+   "titulo": "Robinhood: histórico da configuração e voltar para uma versão anterior"
   }
  ]
 }

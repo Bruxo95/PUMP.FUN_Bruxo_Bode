@@ -64,6 +64,9 @@
   .cfc.na{color:var(--muted);font-size:12px}
   /* 0.32.313: comparar com outro usuário */
   .cmpeq{color:var(--up);font-size:12px}.cmpne{color:#f5a524;font-size:12px;font-weight:600}
+  .hilist{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}.hiv{border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:0}
+  .hiv.atual{border-color:#16a34a}.hih{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.hiv ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+  .hiv li{margin:2px 0;overflow-wrap:anywhere}
   .cmpsel{gap:10px;flex-wrap:wrap}.cmpsel select{min-width:0;max-width:100%;flex:1 1 260px}
   .cmpsts{display:flex;flex-wrap:wrap;gap:8px 18px;margin:12px 0}.cmpst{font-size:13px}
   .cmplist{display:grid;gap:4px;font-size:13px;margin-bottom:10px;overflow-wrap:anywhere}
@@ -193,6 +196,8 @@
           <div class="help"><p>Digite em um dos lados e o outro muda sozinho, pela cotação real do ETH (DexScreener, renovada a cada 5 min). Nos campos em ETH abaixo também aparece quanto vale em dólar.</p></div></div>
         <div class="card" id="cmpCard" style="margin-bottom:16px"><header><div><h2>Comparar com outro usuário</h2><div class="sub">mostra o que está igual e o que está diferente da configuração de outra conta e copia só o que você escolher · a REAL nunca liga sozinha</div></div></header>
           <div id="cmpBox"></div></div>
+        <div class="card" id="hiCard" style="margin-bottom:16px"><header><div><h2>Histórico da configuração</h2><div class="sub">cada mudança fica guardada (na tela, ao copiar de outro usuário, ao seguir ou bloquear) · "Voltar a esta" põe tudo como estava · nunca liga nem desliga a FICTÍCIA ou a REAL</div></div></header>
+          <div id="hiBox"></div></div>
         <div class="card"><header><div><h2>Valores da cópia</h2><div class="sub">uma linha por opção, FICTÍCIA e REAL lado a lado · salva sozinho ao mudar um valor</div></div></header>
           <div class="cfgrid" id="cfgT">
             <div class="cfh"></div>

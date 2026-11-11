@@ -384,6 +384,46 @@
     P.cfg_sim = r.cfg; P.real_cfg = r.real_cfg; CF_DIRTY = RL_DIRTY = false; CMP_PLAN = null;
     drawCmp(); cmpRows(); toast("Salvo.");
   }
+  // 0.32.319 (pedido do dono: "as configurações ficam salvas e eu posso voltar para o que era antes", como no PUMP FUN Solana):
+  // cada mudança vira uma versão; "Voltar a esta" põe a configuração como estava nela. Ligar a REAL e a fictícia nunca muda.
+  let HIST = null, HIST_AT = 0, HIST_ALL = false;
+  async function loadHist(force) {
+    if (!force && HIST && Date.now() - HIST_AT < 30000) return;
+    HIST_AT = Date.now();
+    const r = await BB.api("/api/hood/config/historico", { quiet: true });
+    HIST = r && r.ok ? r : { error: (r && r.error) || "não carregou" };
+    drawHist();
+  }
+  const hLbl = (k) => ({ manual: "Traders copiados", modo: "Modo de cada trader (FICTÍCIA/REAL/ambas)", bloqueados: "Traders bloqueados", tokens_bloqueados: "Moedas bloqueadas", auto_top: "Copiar o ranking sozinho" }[k] || cmpLabel(k));
+  const hSide = (k) => (k.startsWith("real_") ? '<span class="tag real">REAL</span> ' : ["manual", "modo", "bloqueados", "tokens_bloqueados"].includes(k) ? "" : '<span class="tag sim">FICT.</span> ');
+  function hChange(m) {
+    const v = m.lista ? [(m.entrou ? "+" + m.entrou : ""), (m.saiu ? "−" + m.saiu : "")].filter(Boolean).join(" ") + ' <span class="muted">(' + m.de + " → " + m.para + ")</span>"
+      : '<span class="muted">' + esc(cmpShow(m.de)) + "</span> → <b>" + esc(cmpShow(m.para)) + "</b>";
+    return "<li>" + hSide(m.k) + esc(hLbl(m.k)) + ": " + v + "</li>";
+  }
+  function drawHist() {
+    const box = $("hiBox"); if (!box) return;
+    if (!HIST) { box.innerHTML = '<p class="muted">Carregando…</p>'; return; }
+    if (HIST.error) { box.innerHTML = '<p class="down">' + esc(HIST.error) + "</p>"; return; }
+    const vs = HIST.versoes || [];
+    if (!vs.length) { box.innerHTML = '<p class="muted">Nenhuma mudança guardada ainda. A partir de agora, cada mudança na configuração vira uma versão aqui.</p>'; return; }
+    const show = HIST_ALL ? vs : vs.slice(0, 12);
+    box.innerHTML = '<div class="hilist">' + show.map((v) => {
+      const atual = v.n === HIST.atual_n, ch = v.mudou || [];
+      return '<div class="hiv' + (atual ? " atual" : "") + '"><div class="hih"><b>Versão ' + v.n + "</b> <span class=\"muted\">" + esc(hora(Date.parse(v.em) / 1000)) + " · " + esc(v.origem || "") + "</span>" +
+        (atual ? ' <span class="tag win">atual</span>' : ' <button class="btn sm" type="button" data-hback="' + v.n + '">Voltar a esta</button>') + "</div>" +
+        (ch.length ? "<ul>" + ch.slice(0, 12).map(hChange).join("") + (ch.length > 12 ? '<li class="muted">e mais ' + (ch.length - 12) + "</li>" : "") + "</ul>" : '<p class="muted small">como a configuração estava antes das mudanças guardadas</p>') + "</div>";
+    }).join("") + "</div>" + (vs.length > 12 ? '<button class="btn sm" type="button" id="hiAll">' + (HIST_ALL ? "Mostrar só as 12 últimas" : "Mostrar todas (" + vs.length + ")") + "</button>" : "");
+  }
+  async function hBack(n, btn) {
+    if (!confirm("Voltar a configuração da cópia para como estava na versão " + n + "?\n\nA FICTÍCIA e a REAL não são ligadas nem desligadas e o saldo não muda. Dá para voltar de novo depois.")) return;
+    const r = await post("/api/hood/config/voltar", { n }, btn);
+    if (!r || r.error) { alert((r && r.error) || "não voltou"); return; }
+    HIST = r; HIST_AT = Date.now(); drawHist();
+    CF_DIRTY = RL_DIRTY = false;
+    toast(r.mudou ? "Voltou " + r.mudou + " opções para a versão " + n + "." : "Já estava igual à versão " + n + ".");
+    await load();
+  }
   async function cmpDoUndo(btn) {
     const u = cmpUndo(); if (!u) return;
     if (Object.keys(u.sim || {}).length) { const r = await post("/api/hood/conta", u.sim, btn); if (r && r.error) { alert(r.error); return; } if (P && r && r.cfg) P.cfg_sim = r.cfg; }
@@ -501,6 +541,7 @@
     if (!CF_DIRTY && !RL_DIRTY && !document.activeElement.closest("#cfRows")) $("cfRows").innerHTML = cfgRows(c, rc);
     if (!CMP_PLAN && !document.activeElement.closest("#cmpBox")) drawCmp();
     loadCmp(false);
+    loadHist(false);
     $("rlSt").innerHTML = [
       "Trava geral do servidor: " + (st.permitido ? '<span class="up">aberta</span>' : '<span class="down">fechada (PUMP_REAL_ALLOWED): nada é enviado</span>'),
       "Chave: " + (st.chave ? '<span class="up">salva</span> · carteira ' + addr(st.endereco) : '<span class="muted">não salva</span>'),
@@ -796,6 +837,8 @@
     if (t.dataset.cmpgo) return cmpPlan(t.dataset.cmpgo);
     if (t.id === "cmpOk") return cmpApply(t);
     if (t.id === "cmpNo") { CMP_PLAN = null; return drawCmp(); }
+    if (t.dataset.hback) { await hBack(Number(t.dataset.hback), t); return; }
+    if (t.id === "hiAll") { HIST_ALL = !HIST_ALL; drawHist(); return; }
     if (t.id === "cmpUndo") { if (confirm("Voltar os valores de antes da última cópia?")) await cmpDoUndo(t); return; }
     if (t.dataset.cveth) { $("cvEth").value = t.dataset.cveth; conv("eth"); return; }
     if (t.dataset.bool && t.closest("#cfRows")) { setBool(t, !t.classList.contains("on")); if (t.id.startsWith("rl_")) RL_DIRTY = true; else CF_DIRTY = true; return autoSave(t.id.startsWith("rl_") ? "rl" : "cf"); }

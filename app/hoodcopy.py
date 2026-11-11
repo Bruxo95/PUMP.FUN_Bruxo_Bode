@@ -15,10 +15,11 @@ Isolado: memória e tabelas hood_* próprias; nada da Solana nem da BNB é usado
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from . import evm, hoodreal, hoodsafe
 from .dormant_buy import T_V4_INIT, v4_key_from_log, v4_pool_id, v4_quote_data
@@ -50,6 +51,38 @@ CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_
               "trail_dist_pct": (1, 1000)}
 CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
 TRAIL_MIN_LOCK = 2.0
+# 0.32.319: histórico da configuração. Nunca entra: ligar a fictícia, ligar a REAL e o saldo inicial (voltar nunca liga nada)
+TELA = "você mudou na tela"
+HIST_SKIP = ("on", "saldo_inicial", "real_on", "on_since")
+HIST_MAX, HIST_JUNTA_S = 200, 600
+
+
+def _iso(t: float) -> str:
+    return datetime.fromtimestamp(t, timezone.utc).isoformat()
+
+
+def _ts(s) -> float:
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _cfg_diff(a: dict, b: dict) -> list[dict]:
+    """O que mudou de a para b. Listas (traders, bloqueios) vão como quantos entraram e saíram."""
+    out = []
+    for k in sorted(set(a) | set(b)):
+        x, y = a.get(k), b.get(k)
+        if x == y:
+            continue
+        if isinstance(x, (list, dict)) or isinstance(y, (list, dict)):
+            xs, ys = set(x or []), set(y or [])
+            if isinstance(x, dict) or isinstance(y, dict):
+                xs, ys = {f"{i}={v}" for i, v in (x or {}).items()}, {f"{i}={v}" for i, v in (y or {}).items()}
+            out.append({"k": k, "lista": True, "entrou": len(ys - xs), "saiu": len(xs - ys), "de": len(x or []), "para": len(y or [])})
+        else:
+            out.append({"k": k, "de": x, "para": y})
+    return out
 # Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
 FOLLOW_S, FOLLOW_MAX = 60, 25
 TRADER_OUT = 0.05            # trader com 5% ou menos do maior saldo visto = saiu da moeda
@@ -395,6 +428,7 @@ class Copier:
         self._dex_at = self._follow_at = 0.0
         self._follow_i = 0
         self.stat = {"compras_vistas": 0, "copiadas": 0, "barradas": 0, "sem_pool": 0, "pool_procurado": 0}
+        self.hist: dict[str, list] = {}             # 0.32.319: versões da configuração por conta (a mais nova primeiro)
 
     # ------------------------------------------------------------------ util
     async def _call(self, to: str, data: str, frm: str | None = None) -> str:
@@ -1216,22 +1250,108 @@ class Copier:
         await self.flush()
         return self.real_status(uid)
 
-    async def save_real_cfg(self, uid: str, raw: dict) -> dict:
+    async def save_real_cfg(self, uid: str, raw: dict, nota: str | None = TELA) -> dict:
+        antes = self.cfg_snap(uid)
         rc = self.rcfg(uid)
         keep = {k: rc[k] for k in ("real_on", "on_since") if k in rc}
         self.real_cfg[uid] = {**hoodreal.clean(raw, rc), **keep}
         self.book(uid).dirty_book = True
         await self.flush()
+        if nota:
+            await self.cfg_note(uid, antes, nota)
         return self.real_cfg[uid]
 
-    async def save_book_cfg(self, uid: str, raw: dict) -> dict:
+    async def save_book_cfg(self, uid: str, raw: dict, nota: str | None = TELA) -> dict:
+        antes = self.cfg_snap(uid)
         b = self.book(uid)
         old = b.cfg["saldo_inicial"]
         b.cfg = clean_cfg(raw, b.cfg)
         b.cash += b.cfg["saldo_inicial"] - old             # mudar o saldo inicial soma/tira a diferença do saldo
         b.dirty_book = True
         await self.flush()
+        if nota:
+            await self.cfg_note(uid, antes, nota)
         return b.cfg
+
+    # ------------------------------------------------------------------ 0.32.319: histórico da configuração e voltar
+    # Pedido do dono (11/11): "as configurações ficam salvas e eu posso voltar para o que era antes", como no PUMP FUN Solana (0.32.199).
+    def cfg_snap(self, uid: str) -> dict:
+        b, rc = self.book(uid), self.rcfg(uid)
+        out = {k: v for k, v in b.cfg.items() if k not in HIST_SKIP}
+        out.update({k: v for k, v in rc.items() if k not in HIST_SKIP})
+        return json.loads(json.dumps(out))              # cópia: as listas não mudam junto com a configuração
+
+    async def _hist(self, uid: str) -> list[dict]:
+        h = self.hist.get(uid)
+        if h is None:
+            h = []
+            if self.db is not None:
+                try:
+                    h = await self.db.select("hood_config_versions", {"user_id": uid}, order="n.desc", limit=HIST_MAX) or []
+                except Exception as e:
+                    log.warning("Robinhood: histórico de configuração não leu: %s", str(e)[:120])
+            self.hist[uid] = h
+        return h
+
+    async def _hist_put(self, uid: str, v: dict) -> None:
+        if self.db is None:
+            return
+        try:
+            await self.db.insert("hood_config_versions", {"user_id": uid, **v}, upsert=True, on_conflict="user_id,n")
+        except Exception as e:
+            log.warning("Robinhood: versão da configuração não gravou: %s", str(e)[:120])
+
+    async def cfg_note(self, uid: str, antes: dict, origem: str) -> None:
+        """Guarda uma versão quando a configuração mudou. Na primeira, guarda antes como estava. Mudanças na tela em até HIST_JUNTA_S
+        viram uma versão só."""
+        agora = self.cfg_snap(uid)
+        if agora == antes:
+            return
+        h = await self._hist(uid)
+        now = time.time()
+        if not h:
+            v0 = {"n": 1, "em": _iso(now - 1), "origem": "como estava antes do histórico", "cfg": antes}
+            h.insert(0, v0)
+            await self._hist_put(uid, v0)
+        last = h[0]
+        if origem == TELA and last.get("origem") == TELA and last["n"] > 1 and now - _ts(last.get("em")) < HIST_JUNTA_S:
+            last.update(cfg=agora, em=_iso(now))
+            await self._hist_put(uid, last)
+            return
+        v = {"n": int(last["n"]) + 1, "em": _iso(now), "origem": str(origem)[:120], "cfg": agora}
+        h.insert(0, v)
+        del h[HIST_MAX:]
+        await self._hist_put(uid, v)
+
+    async def cfg_history(self, uid: str) -> dict:
+        h = await self._hist(uid)
+        out = []
+        for i, v in enumerate(h):
+            prev = h[i + 1]["cfg"] if i + 1 < len(h) else None
+            out.append({"n": v["n"], "em": v.get("em"), "origem": v.get("origem"),
+                        "mudou": [] if prev is None else _cfg_diff(prev, v["cfg"])})
+        atual = self.cfg_snap(uid)
+        return {"versoes": out, "atual_n": h[0]["n"] if h and h[0]["cfg"] == atual else None}
+
+    async def cfg_back(self, uid: str, n: int, keys: list | None = None) -> dict:
+        """Volta as opções (todas ou só keys) para como estavam na versão n. Nunca liga a REAL nem a fictícia, nem mexe no saldo."""
+        h = await self._hist(uid)
+        v = next((x for x in h if x["n"] == n), None)
+        if v is None:
+            raise ValueError("versão não encontrada")
+        atual = self.cfg_snap(uid)
+        mud = {k: val for k, val in v["cfg"].items() if k not in HIST_SKIP and atual.get(k) != val and (keys is None or k in keys)}
+        if not mud:
+            return {"mudou": 0}
+        sim = {k: val for k, val in mud.items() if not k.startswith("real_")}
+        real = {k: val for k, val in mud.items() if k.startswith("real_")}
+        antes = atual
+        if sim:
+            await self.save_book_cfg(uid, sim, nota=None)
+        if real:
+            await self.save_real_cfg(uid, real, nota=None)
+        await self.cfg_note(uid, antes, f"voltou para a versão {n}" + ("" if keys is None else f" ({len(mud)} opções)"))
+        return {"mudou": len(mud)}
 
     # 0.32.313 (pedido do dono: "copiar config de um outro usuário e na carteira mostrar se tá igual ou diferente", como na Solana)
     COPY_SKIP = ("on", "saldo_inicial", "manual", "modo", "bloqueados", "tokens_bloqueados")
@@ -1272,15 +1392,18 @@ class Copier:
         n_sim = sum(1 for k, v in sim.items() if cfg.get(k) != v)
         rc0 = self.rcfg(uid)
         n_real = sum(1 for k, v in real.items() if rc0.get(k) != v)
+        antes = self.cfg_snap(uid)
         if sim:
-            await self.save_book_cfg(uid, sim)
+            await self.save_book_cfg(uid, sim, nota=None)
         if real:
-            await self.save_real_cfg(uid, real)
+            await self.save_real_cfg(uid, real, nota=None)
+        await self.cfg_note(uid, antes, "copiou de outro usuário")
         return {"ficticia": n_sim, "real": n_real, "cfg": self.book(uid).cfg, "real_cfg": self.rcfg(uid)}
 
     async def block_token(self, uid: str, token: str, on: bool) -> list:
         """0.32.303 (pedido do dono): moeda bloqueada nunca é comprada nesta conta (cópia nem botão Comprar)."""
         b = self.book(uid)
+        antes = self.cfg_snap(uid)
         tk = (token or "").strip().lower()
         bl = [x for x in (b.cfg.get("tokens_bloqueados") or []) if x != tk]
         if on:
@@ -1292,6 +1415,7 @@ class Copier:
             raise ValueError("moeda inválida")
         b.dirty_book = True
         await self.flush()
+        await self.cfg_note(uid, antes, ("bloqueou" if on else "desbloqueou") + " uma moeda")
         return b.cfg["tokens_bloqueados"]
 
     async def token_key(self, token: str) -> list | None:
@@ -1366,6 +1490,7 @@ class Copier:
     async def block(self, uid: str, wallet: str, on: bool) -> list:
         """Bloqueia (para de copiar e nunca mais copia nesta conta) ou desbloqueia um trader. 0.32.302, pedido do dono."""
         b = self.book(uid)
+        antes = self.cfg_snap(uid)
         w = (wallet or "").strip().lower()
         bl = [x for x in (b.cfg.get("bloqueados") or []) if x != w]
         if on:
@@ -1378,11 +1503,13 @@ class Copier:
             raise ValueError("carteira inválida")
         b.dirty_book = True
         await self.flush()
+        await self.cfg_note(uid, antes, ("bloqueou" if on else "desbloqueou") + " um trader")
         return b.cfg["bloqueados"]
 
     async def follow(self, uid: str, wallet: str, on: bool, modo: str = "ambas") -> list:
         """Liga (no modo sim, real ou ambas) ou desliga a cópia de um trader nesta conta (botões do ranking)."""
         b = self.book(uid)
+        antes = self.cfg_snap(uid)
         cur = list(b.cfg.get("manual") or [])
         modos = dict(b.cfg.get("modo") or {})
         w = (wallet or "").strip().lower()
@@ -1407,6 +1534,7 @@ class Copier:
             raise ValueError("carteira inválida")
         b.dirty_book = True
         await self.flush()
+        await self.cfg_note(uid, antes, ("passou a copiar" if on else "parou de copiar") + " um trader")
         return b.cfg["manual"]
 
     def user_summary(self, uid: str, now: float | None = None) -> dict:

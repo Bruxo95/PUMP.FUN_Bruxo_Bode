@@ -204,3 +204,40 @@ def test_loose_liquidity_blocks_fictitious_and_real_unless_the_option_is_off():
         await c._real_buy("u1", {**trade("buy", 1000.0, 1.0), "wallet": "0x" + "66" * 20}, 0.001, KEY)
         assert "liquidez solta" in rb.events[0]["motivo"]
     run(go())
+
+
+# ------------------------------------------------------------------ 0.32.319: histórico da configuração e voltar
+def test_config_history_keeps_versions_and_goes_back_without_turning_anything_on():
+    async def go():
+        w, c = copier()
+        rc = c.rcfg("u1")
+        rc["real_on"] = False
+        await c.save_book_cfg("u1", {"stop_pct": 1})
+        await c.save_real_cfg("u1", {"real_stop_pct": 20})               # junta com a anterior (tela, menos de 10 min)
+        h = await c.cfg_history("u1")
+        assert [v["n"] for v in h["versoes"]] == [2, 1] and h["atual_n"] == 2
+        assert {m["k"] for m in h["versoes"][0]["mudou"]} == {"stop_pct", "real_stop_pct"}
+        await c.follow("u1", "0x" + "77" * 20, True, "sim")
+        h = await c.cfg_history("u1")
+        assert h["versoes"][0]["n"] == 3 and h["versoes"][0]["mudou"][0]["lista"]
+        c.books["u1"].cfg["on"] = False                                   # ligar/desligar nunca entra nem volta
+        r = await c.cfg_back("u1", 1)
+        assert r["mudou"] >= 3
+        b = c.books["u1"]
+        assert b.cfg["stop_pct"] == hoodcopy.CFG_DEFAULT["stop_pct"] and b.cfg["manual"] == [] and c.rcfg("u1")["real_stop_pct"] == 0
+        assert b.cfg["on"] is False and c.rcfg("u1")["real_on"] is False
+        h = await c.cfg_history("u1")
+        assert h["versoes"][0]["origem"] == "voltou para a versão 1" and h["atual_n"] == 4
+        r = await c.cfg_back("u1", 2, ["stop_pct"])                      # só uma opção
+        assert r["mudou"] == 1 and b.cfg["stop_pct"] == 1 and c.rcfg("u1")["real_stop_pct"] == 0
+    run(go())
+
+
+def test_config_history_routes_and_screen():
+    import pathlib
+    api = pathlib.Path("app/hood_api.py").read_text(encoding="utf-8")
+    assert '"/api/hood/config/historico"' in api and '"/api/hood/config/voltar"' in api and "admin_only" in api
+    sql = pathlib.Path("supabase/migrations/20261111000001_hood_config_versoes.sql").read_text(encoding="utf-8")
+    assert "enable row level security" in sql and "revoke all on public.hood_config_versions from anon, authenticated" in sql
+    js = pathlib.Path("web/hood.js").read_text(encoding="utf-8")
+    assert "data-hback" in js and 'id="hiBox"' in pathlib.Path("web/hood.html").read_text(encoding="utf-8")
