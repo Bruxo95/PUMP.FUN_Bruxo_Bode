@@ -10,14 +10,14 @@
     fluxo: ["Dinheiro entrando", "as 30 moedas que mais recebem dinheiro agora"], admin: ["Administração", "usuários e a situação de cada conta na Robinhood"] };
   // 0.32.279 (pedido do dono, 10/11: "faz 1 a 4"): cópia FICTÍCIA em ETH, conferência do token e carteira REAL (desligada)
   const CF_INFO = [
-    ["eth_por_compra", "ETH por compra", "ETH", 0.0005, 5, 0.001], ["max_abertas", "Posições abertas no máximo", "posições", 1, 100, 1],
+    ["eth_por_compra", "ETH por compra", "ETH", 0.0001, 5, 0.0001], ["max_abertas", "Posições abertas no máximo", "posições", 1, 100, 1],
     ["max_hold_h", "Tempo máximo da posição", "h", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = desligado)", "%", 0, 100, 1],
     ["slip_pct", "Folga de preço simulada (slippage)", "%", 0, 50, 0.5], ["gas_eth", "Gás simulado por transação", "ETH", 0, 0.01, 0.00001],
     ["saldo_inicial", "Saldo inicial fictício", "ETH", 0.001, 1000, 0.1],
     ["trail_ativa_pct", "Stop móvel liga com lucro de", "%", 1, 10000, 1], ["trail_dist_pct", "Stop móvel sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
   const RL_INFO = [
-    ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0005], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
+    ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0001], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
     ["real_slip_pct", "Folga de preço na REAL (slippage)", "%", 1, 49, 1], ["real_perda_dia", "Perda do dia que para a REAL", "ETH", 0.0005, 5, 0.001],
     ["real_max_hold_h", "Tempo máximo da posição REAL", "h", 0.1, 168, 0.5], ["real_stop_pct", "Stop de perda da REAL (0 = desligado)", "%", 0, 100, 1],
     ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],

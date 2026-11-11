@@ -2305,6 +2305,11 @@
    "versao": "0.32.309",
    "inicio": "2026-11-11T12:30:56+00:00",
    "titulo": "Robinhood: venda em partes, motivo claro e trava de tokens que bloqueiam venda (caso HOLD)"
+  },
+  {
+   "versao": "0.32.310",
+   "inicio": "2026-11-11T12:37:43+00:00",
+   "titulo": "Robinhood: FICTÍCIA aceita a partir de 0,0001 ETH por compra"
   }
  ]
 }

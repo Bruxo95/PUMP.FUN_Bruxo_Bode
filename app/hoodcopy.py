@@ -44,7 +44,8 @@ BLOCK_MAX = 500
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
                "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
-CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
+# 0.32.310: mínimo de 0,0001 ETH por compra, para a FICTÍCIA poder ficar igual a uma REAL pequena
+CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
               "trail_dist_pct": (1, 1000)}
 CFG_BOOLS = ("on", "auto_top", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
