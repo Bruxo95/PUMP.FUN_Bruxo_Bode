@@ -129,7 +129,7 @@
       <section class="view" data-view="posicoes" hidden>
         <div class="card"><header><div><h2 id="poT">Posições abertas</h2><div class="sub" id="poSub"></div></div><div class="sp"></div><button class="btn sm" id="poAll" type="button">Vender todas</button></header>
           <div class="tbl-wrap"><table id="poTb"></table></div>
-          <div class="help"><p><b>Preço:</b> o de cada troca do token vista na rede e, quando o token fica parado, a cotação de venda do contrato oficial da Uniswap (o que a posição receberia) a cada 30 s. O resultado já desconta a taxa do pool, a folga (slippage) e o gás.</p></div></div>
+          <div class="help"><p><b>Preço:</b> o de cada troca do token vista na rede e, quando o token fica parado, a cotação de venda do contrato oficial da Uniswap (o que a posição receberia) a cada 30 s; se o contrato não cotar por 2 min (pool sem liquidez, golpe), vale o preço do gráfico da DexScreener. O resultado já desconta a taxa do pool, a folga (slippage) e o gás. <b>Saídas:</b> quando o trader vende (ou o saldo dele no token some), quando o dev vende metade ou mais, stop de perda, stop móvel e tempo máximo; cada uma liga e desliga em Carteira.</p></div></div>
       </section>
       <section class="view" data-view="historico" hidden>
         <div class="kpis" id="hiK"></div>

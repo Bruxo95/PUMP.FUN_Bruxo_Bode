@@ -13,12 +13,17 @@
     ["max_hold_h", "Tempo máximo da posição", "h", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = desligado)", "%", 0, 100, 1],
     ["slip_pct", "Folga de preço simulada (slippage)", "%", 0, 50, 0.5], ["gas_eth", "Gás simulado por transação", "ETH", 0, 0.01, 0.00001],
     ["saldo_inicial", "Saldo inicial fictício", "ETH", 0.001, 1000, 0.1],
+    ["trail_ativa_pct", "Stop móvel liga com lucro de", "%", 1, 10000, 1], ["trail_dist_pct", "Stop móvel sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
   const RL_INFO = [
     ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0005], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
     ["real_slip_pct", "Folga de preço na REAL (slippage)", "%", 1, 49, 1], ["real_perda_dia", "Perda do dia que para a REAL", "ETH", 0.0005, 5, 0.001],
     ["real_max_hold_h", "Tempo máximo da posição REAL", "h", 0.1, 168, 0.5], ["real_stop_pct", "Stop de perda da REAL (0 = desligado)", "%", 0, 100, 1],
+    ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
+  // 0.32.290 (pedido do dono: "sair quando o desenvolvedor sai da moeda ... stop móvel ... botão de ativar"): opções liga/desliga
+  const CF_BOOL = ["sair_trader", "sair_dev", "trail_on"], RL_BOOL = ["real_sair_trader", "real_sair_dev", "real_trail_on"];
+  const NOM = {};
   let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
   try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
   const RK_INFO = [
@@ -82,7 +87,14 @@
   }
   const addr = (a) => (a ? '<a class="hdwho" href="' + esc(ex()) + "/address/" + esc(a) + '" target="_blank" rel="noopener" title="' + esc(a) + '"><img class="bky" alt="" src="' + blockie(a) +
     '"><span><b>' + esc(nick(a)) + '</b><small class="hdaddr">' + esc(short(a)) + "</small></span></a>" : "—");
-  const tok = (a) => (a ? '<a class="hdaddr" href="https://dexscreener.com/robinhood/' + esc(a) + '" target="_blank" rel="noopener">' + esc(short(a)) + "</a>" : "—");
+  // 0.32.290 (pedido do dono: "no token coloque o nome e endereço que nem você fez para os traders"): ícone, símbolo e endereço curto
+  const tok = (a, o) => {
+    if (!a) return "—";
+    const m = (o && (o.simbolo || o.nome)) ? o : (NOM[a] || {});
+    const sym = m.simbolo || m.nome || "", nm = m.nome && m.nome !== sym ? m.nome : "";
+    return '<a class="hdwho" href="https://dexscreener.com/robinhood/' + esc(a) + '" target="_blank" rel="noopener" title="' + esc((nm ? nm + " · " : "") + a) + '"><img class="bky" alt="" src="' + blockie(a) +
+      '"><span><b>' + esc(sym || short(a)) + "</b>" + (sym ? '<small class="hdaddr" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px">' + esc((nm ? (nm.length > 14 ? nm.slice(0, 13) + "…" : nm) + " · " : "") + short(a)) + "</small>" : "") + "</span></a>";
+  };
   const txl = (h) => (h ? '<a class="hdaddr" href="' + esc(ex()) + "/tx/" + esc(h) + '" target="_blank" rel="noopener">' + esc(h.slice(0, 10)) + "…</a>" : "—");
   function table(id, head, rows, empty) {
     const el = $(id); if (!el) return;
@@ -200,21 +212,31 @@
     ["Posições abertas no máximo", "posições", "max_abertas", "real_max_abertas"],
     ["Tempo máximo da posição", "h", "max_hold_h", "real_max_hold_h"],
     ["Stop de perda (0 = desligado)", "%", "stop_pct", "real_stop_pct"],
+    ["Sair quando o trader sai da moeda", "vende tudo quando o saldo dele no token some", "sair_trader", "real_sair_trader", "", "bool"],
+    ["Sair quando o dev sai da moeda", "vende tudo quando quem criou o token vende metade ou mais", "sair_dev", "real_sair_dev", "", "bool"],
+    ["Stop móvel", "liga no lucro e sai se cair do pico (regra da Solana)", "trail_on", "real_trail_on", "", "bool"],
+    ["Stop móvel liga com lucro de", "%", "trail_ativa_pct", "real_trail_ativa_pct"],
+    ["Stop móvel sai ao cair do pico", "pontos (trava no mínimo +2%)", "trail_dist_pct", "real_trail_dist_pct"],
     ["Folga de preço (slippage)", "%", "slip_pct", "real_slip_pct"],
     ["Perda do dia que para a cópia", "ETH", null, "real_perda_dia", "só na REAL"],
     ["Gás por transação", "ETH", "gas_eth", null, "na REAL é o gás de verdade"],
     ["Saldo inicial", "ETH", "saldo_inicial", null, "na REAL é o saldo da carteira"],
   ];
-  function cfgCell(pre, key, info, c, p, na) {
+  function cfgCell(pre, key, info, c, p, na, kind) {
     const col = pre === "cf_" ? " cf-sim" : " cf-real";
     if (!key) return '<div class="cfc na' + col + '">' + esc(na || "—") + "</div>";
+    if (kind === "bool") {
+      const v = !!c[key];
+      return '<div class="cfc' + col + '"><button class="btn tgl sw ' + (v ? "on" : "off") + '" id="' + pre + key + '" type="button" role="switch" data-bool="1" aria-checked="' + v + '">' +
+        (v ? "Ligado" : "Desligado") + "</button>" + (p && p[key] !== c[key] ? '<span class="muted">padrão ' + (p[key] ? "ligado" : "desligado") + "</span>" : "") + "</div>";
+    }
     const x = info.find((i) => i[0] === key) || [key, "", "", 0, 1e9, "any"];
     return '<div class="cfc' + col + '"><input class="in" id="' + pre + key + '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[key]) +
       '" aria-label="' + esc(x[1]) + '">' + (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + "</div>";
   }
   function cfgRows(c, rc) {
     return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small></div>" +
-      cfgCell("cf_", r[2], CF_INFO, c, P.padrao, r[4]) + cfgCell("rl_", r[3], RL_INFO, rc, P.real_padrao, r[4])).join("");
+      cfgCell("cf_", r[2], CF_INFO, c, P.padrao, r[4], r[5]) + cfgCell("rl_", r[3], RL_INFO, rc, P.real_padrao, r[4], r[5])).join("");
   }
   function fieldHtml(pre, info, c, p) {
     return info.map((x) => '<div class="field"><label for="' + pre + x[0] + '">' + esc(x[1]) + '</label><div class="row"><input class="in w120" id="' + pre + x[0] +
@@ -247,8 +269,8 @@
     $("poAll").hidden = !ps.length;
     table("poTb", ["Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", "Pico", "Fecha em", ""], ps.map((p) => [
       hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
-      tok(p.token), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
-      pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + "</small>",
+      tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
+      pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>",
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
       p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora",
       (p.sell_error ? '<small class="down">' + esc(p.sell_error) + "</small><br>" : "") + '<button class="btn sm" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>"]),
@@ -260,7 +282,7 @@
     kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Resultado das fechadas", eth(pn, 5), "", "tr"],
       ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Realizado (tudo)", eth(w.realizado, 5), "", "mon"]]);
     table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Resultado", "Pico", "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
-      tok(x.token), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
+      tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
       esc(x.motivo || "") + (x.tx_out ? " · " + txl(x.tx_out) : "")]), REAL ? "Nenhuma posição REAL fechada ainda." : "Nenhuma posição fechada ainda.");
   }
   function drawCarteira() {
@@ -346,7 +368,11 @@
     try {
       const [r, p] = await Promise.all([BB.api("/api/hood", { quiet: true }), BB.api("/api/hood/painel" + (REAL ? "?real=1" : ""), { quiet: true })]);
       if (r && !r.error) R = r;
-      if (p && !p.error && p.ligado !== false) P = p;
+      if (p && !p.error && p.ligado !== false) {
+        P = p;
+        Object.assign(NOM, p.nomes || {});
+        (p.posicoes || []).concat(p.trades || []).forEach((x) => { if (x.token && (x.simbolo || x.nome)) NOM[x.token] = { nome: x.nome || "", simbolo: x.simbolo || "" }; });
+      }
       draw();
     } catch (e) { /* tenta de novo na próxima volta */ } finally { BUSY = false; }
   }
@@ -380,7 +406,7 @@
     clearTimeout(SAVE_T[which]);
     SAVE_T[which] = setTimeout(async () => {
       const real = which === "rl";
-      const body = real ? vals("rl_", RL_INFO) : vals("cf_", CF_INFO);
+      const body = real ? vals("rl_", RL_INFO, RL_BOOL) : vals("cf_", CF_INFO, CF_BOOL);
       if (!Object.keys(body).length) return;
       const r = await BB.api(real ? "/api/hood/real/cfg" : "/api/hood/conta", { body, quiet: true });
       if (r && r.error) { alert(r.error); return; }
@@ -389,7 +415,12 @@
       toast("Salvo.");
     }, 800);
   }
-  const vals = (pre, info) => { const b = {}; info.forEach((x) => { const el = $(pre + x[0]); if (el && el.value !== "") b[x[0]] = Number(el.value); }); return b; };
+  const vals = (pre, info, bools) => {
+    const b = {}; info.forEach((x) => { const el = $(pre + x[0]); if (el && el.value !== "") b[x[0]] = Number(el.value); });
+    (bools || []).forEach((k) => { const el = $(pre + k); if (el) b[k] = el.classList.contains("on"); });
+    return b;
+  };
+  const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
   async function post(url, body, btn) {
     if (btn) btn.disabled = true;
     try { return await BB.api(url, { body }); } finally { if (btn) btn.disabled = false; }
@@ -422,8 +453,9 @@
       return load();
     }
     if (t.id === "cfOn") { const r = await post("/api/hood/conta", { on: !(P && P.cfg_sim && P.cfg_sim.on) }, t); if (r && r.error) alert(r.error); return load(); }
-    if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); return autoSave("cf"); }
-    if (t.id === "rlReset") { RL_DIRTY = true; const p = (P && P.real_padrao) || {}; RL_INFO.forEach((x) => { if ($("rl_" + x[0])) $("rl_" + x[0]).value = p[x[0]]; }); return autoSave("rl"); }
+    if (t.dataset.bool && t.closest("#cfRows")) { setBool(t, !t.classList.contains("on")); if (t.id.startsWith("rl_")) RL_DIRTY = true; else CF_DIRTY = true; return autoSave(t.id.startsWith("rl_") ? "rl" : "cf"); }
+    if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); CF_BOOL.forEach((k) => { if ($("cf_" + k)) setBool($("cf_" + k), !!p[k]); }); return autoSave("cf"); }
+    if (t.id === "rlReset") { RL_DIRTY = true; const p = (P && P.real_padrao) || {}; RL_INFO.forEach((x) => { if ($("rl_" + x[0])) $("rl_" + x[0]).value = p[x[0]]; }); RL_BOOL.forEach((k) => { if ($("rl_" + k)) setBool($("rl_" + k), !!p[k]); }); return autoSave("rl"); }
     if (t.id === "rlKeySave") {
       const v = $("rlKey").value.trim(); if (!v) return;
       const r = await post("/api/hood/chave", { value: v }, t);

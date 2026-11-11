@@ -1739,3 +1739,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   FICTÍCIA roxa (#7c3aed) e REAL amarela.
 - 0.32.288 (pedido do dono): Carteira do /hood com `CFG_ROWS` (uma linha por opção, colunas FICTÍCIA | REAL, `#cfRows` em `.cfgrid`).
   Opção nova da cópia da Robinhood = linha em `CFG_ROWS` (com as duas chaves, ou null e o motivo).
+- 0.32.290 (pedido do dono): Robinhood sai com o trader/dev e stop móvel. `Copier.dex_tick` (preço DexScreener se o Quoter não cotou
+  em 120 s; nome/símbolo em `meta` e na posição), `Copier.follow_tick` (balanceOf do trader e do dev a cada 60 s; dev via Blockscout),
+  `trail_hit` (regra da Solana 20/10/+2). Chaves `sair_trader`, `sair_dev`, `trail_*` e `real_*`; booleanos em `CFG_BOOLS`/`REAL_BOOLS`
+  e linhas `"bool"` em `CFG_ROWS`. `tok(a, obj)` no hood.js mostra ícone, símbolo, nome e endereço.

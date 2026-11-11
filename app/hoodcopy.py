@@ -36,10 +36,42 @@ KEEP_TRADES = 3000
 MANUAL_MAX = 50
 # 0.32.287 (pedido do dono: "3 botões: copiar REAL, copiar FICTÍCIA ou as 2"): modo por trader escolhido (sim, real, ambas)
 MODOS = ("sim", "real", "ambas")
+# 0.32.290 (pedido do dono, 11/11/2026: "sair quando o desenvolvedor sai da moeda ... stop móvel com as mesmas regras ... botão de
+# ativar"): sair_trader / sair_dev (saldo do trader e do dev lidos na rede) e stop móvel igual ao da Solana (liga ao passar de
+# trail_ativa_pct de lucro líquido; sai se cair trail_dist_pct pontos do pico, travando no mínimo TRAIL_MIN_LOCK).
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5}
+               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "sair_trader": True, "sair_dev": True,
+               "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 CFG_LIMITS = {"eth_por_compra": (0.0005, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
-              "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000)}
+              "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
+              "trail_dist_pct": (1, 1000)}
+CFG_BOOLS = ("on", "auto_top", "sair_trader", "sair_dev", "trail_on")
+TRAIL_MIN_LOCK = 2.0
+# Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
+FOLLOW_S, FOLLOW_MAX = 60, 25
+TRADER_OUT = 0.05            # trader com 5% ou menos do maior saldo visto = saiu da moeda
+DEV_OUT = 0.50               # dev que vendeu metade ou mais do maior saldo visto = saiu da moeda
+OLD_POS_S = 600              # posição de antes desta regra (sem saldo lido): trader com saldo zero também conta como saída
+# Preço reserva pela DexScreener (pedido do dono: "não está indo com a realidade do gráfico"): token sem preço novo há DEX_STALE
+# (Quoter falhou, pool sem liquidez, golpe) usa o preço do par em ETH da DexScreener; o nome e o símbolo vêm junto.
+DEX_URL = "https://api.dexscreener.com/tokens/v1/robinhood/"
+EXPLORER = "https://robinhoodchain.blockscout.com"
+DEX_S, DEX_STALE, DEX_BATCH = 60, 120, 30
+WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+SEL_BAL = "0x70a08231"
+
+
+def trail_hit(cfg: dict, best: float, pct: float, pre: str = "") -> str | None:
+    """Stop móvel (mesma regra da Solana): ligado e o pico passou de ativa% → sai se cair dist pontos do pico (no mínimo +2%)."""
+    if not cfg.get(pre + "trail_on"):
+        return None
+    ativa, dist = float(cfg.get(pre + "trail_ativa_pct") or 20), float(cfg.get(pre + "trail_dist_pct") or 10)
+    if best < ativa:
+        return None
+    sai = max(best - dist, TRAIL_MIN_LOCK)
+    if pct <= sai:
+        return f"stop móvel: pico {best:+.0f}%, saiu em {pct:+.0f}%"
+    return None
 
 
 DYNAMIC_FEE = 0x800000      # Uniswap V4: marca de "taxa dinâmica" no campo fee da PoolKey (não é a taxa)
@@ -78,7 +110,7 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     for k, v in (raw or {}).items():
         if k == "modo" and isinstance(v, dict):
             out["modo"] = {str(w).lower(): m for w, m in v.items() if m in MODOS}
-        elif k in ("on", "auto_top"):
+        elif k in CFG_BOOLS:
             out[k] = bool(v)
         elif k == "manual":
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
@@ -200,7 +232,7 @@ class Book:
             return None
         pnl = p["proceeds"] - p["eth_in"]
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "fees",
-                                        "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas")},
+                                        "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas", "nome", "simbolo", "px_src")},
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo}
         self.pos.pop(p["id"], None)
@@ -221,8 +253,10 @@ class Book:
             _, pct = self.pnl_now(p)
             p["best_pct"], p["worst_pct"] = max(p["best_pct"], pct), min(p["worst_pct"], pct)
             self.dirty_pos.add(p["id"])
-            if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"]:
-                r = self.sell(p, 1.0, px, t, f"stop de {self.cfg['stop_pct']:.0f}%")
+            why = f"stop de {self.cfg['stop_pct']:.0f}%" if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"] else \
+                trail_hit(self.cfg, p["best_pct"], pct)
+            if why:
+                r = self.sell(p, 1.0, px, t, why)
                 if r:
                     out.append(r)
         return out
@@ -276,6 +310,12 @@ class Copier:
         self._checking: set = set()
         self._tasks: set = set()
         self._rbal_at = 0.0
+        self.meta: dict[str, dict] = {}             # token → {"nome", "simbolo"} (DexScreener)
+        self.dev: dict[str, str] = {}               # token → carteira de quem criou ("" = não achou)
+        self._dev_at: dict[str, float] = {}
+        self._px_ok: dict[str, float] = {}          # última vez que o Quoter deu preço
+        self._dex_at = self._follow_at = 0.0
+        self._follow_i = 0
         self.stat = {"compras_vistas": 0, "copiadas": 0, "barradas": 0, "sem_pool": 0, "pool_procurado": 0}
 
     # ------------------------------------------------------------------ util
@@ -473,9 +513,11 @@ class Copier:
             _, pct = rb.pnl_now(p, rc["real_slip_pct"])
             p["best_pct"], p["worst_pct"] = max(p.get("best_pct", 0), pct), min(p.get("worst_pct", 0), pct)
             rb.dirty_pos.add(p["id"])
-            if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] and (p.get("sell_retry_at") or 0) <= time.time():
+            why = f"stop de {rc['real_stop_pct']:g}%" if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] else \
+                trail_hit(rc, p["best_pct"], pct, "real_")
+            if why and not p.get("selling") and (p.get("sell_retry_at") or 0) <= time.time():
                 p["retry_frac"] = 1.0
-                self._spawn(self._real_sell(uid, p, 1.0, f"stop de {rc['real_stop_pct']:g}%"))
+                self._spawn(self._real_sell(uid, p, 1.0, why))
 
     def real_why_not(self, uid: str, tr: dict, rb, rc: dict) -> str | None:
         if not self.real_allowed:
@@ -619,6 +661,12 @@ class Copier:
                     except Exception:
                         pass
         await self.price_tick(now)
+        if now - self._dex_at >= DEX_S:
+            self._dex_at = now
+            await self.dex_tick(now)
+        if now - self._follow_at >= FOLLOW_S:
+            self._follow_at = now
+            await self.follow_tick(now)
         await self.flush()
 
     async def price_tick(self, now: float) -> None:
@@ -645,10 +693,146 @@ class Copier:
             fee = next((p["fee"] for p in pos if isinstance(p.get("fee"), (int, float)) and 0 <= p["fee"] <= FEE_MAX), pool_fee(key))
             px = w[0] / amt / (1 - fee)                       # o Quoter já tira a taxa do pool: volta ao preço sem ela
             self.w.px[tk] = (px, now)
+            self._px_ok[tk] = now
+            self._set_src(tk, "rede")
             for b in self.books.values():
                 b.on_price(tk, px, now)
             for uid, rb in list(self.real.items()):
                 self._real_price(uid, rb, tk, px, now)
+
+    # ------------------------------------------------------------------ preço reserva, nome e saída do trader / dev (0.32.290)
+    def _positions(self, tk: str) -> list[tuple]:
+        """(uid, posição, é_real) de todas as contas abertas no token."""
+        return [(uid, p, False) for uid, b in self.books.items() for p in b.pos.values() if p["token"] == tk] + \
+               [(uid, p, True) for uid, rb in self.real.items() for p in rb.pos.values() if p["token"] == tk]
+
+    def _set_src(self, tk: str, src: str) -> None:
+        for _, p, _ in self._positions(tk):
+            p["px_src"] = src
+
+    async def dex_tick(self, now: float) -> None:
+        """Nome e símbolo dos tokens abertos e, para o token sem preço novo há DEX_STALE (Quoter falhou, pool sem liquidez),
+        o preço do par em ETH da DexScreener (o mesmo do gráfico). Uma consulta para até DEX_BATCH tokens."""
+        tks = sorted(self.held())
+        stale = [tk for tk in tks if now - max(self.w.px.get(tk, (0, 0))[1], self._px_ok.get(tk, 0)) >= DEX_STALE]
+        need = list(dict.fromkeys(stale + [tk for tk in tks if tk not in self.meta]))[:DEX_BATCH]
+        if not need:
+            return
+        try:
+            js = (await self.http.get(DEX_URL + ",".join(need), timeout=10)).json()
+        except Exception as e:
+            log.info("Robinhood: DexScreener não respondeu: %s", str(e)[:120])
+            return
+        best: dict[str, tuple] = {}
+        for pr in js if isinstance(js, list) else []:
+            base = pr.get("baseToken") or {}
+            tk = (base.get("address") or "").lower()
+            if tk not in need:
+                continue
+            if base.get("symbol") or base.get("name"):
+                if len(self.meta) > 5000:
+                    for k in list(self.meta)[:1000]:
+                        self.meta.pop(k, None)
+                self.meta[tk] = {"nome": str(base.get("name") or "")[:40], "simbolo": str(base.get("symbol") or "")[:20]}
+            q = ((pr.get("quoteToken") or {}).get("address") or "").lower()
+            try:
+                px, liq = float(pr.get("priceNative") or 0), float((pr.get("liquidity") or {}).get("usd") or 0)
+            except (TypeError, ValueError):
+                continue
+            if q in (WETH, ZERO) and px > 0 and (tk not in best or liq > best[tk][1]):
+                best[tk] = (px, liq)
+        for tk in tks:
+            m = self.meta.get(tk)
+            if m:
+                for _, p, _ in self._positions(tk):
+                    if p.get("nome") != m["nome"] or p.get("simbolo") != m["simbolo"]:
+                        p.update(m)
+        for tk in stale:
+            if tk not in best:
+                continue
+            px = best[tk][0]
+            self.w.px[tk] = (px, now)
+            for b in self.books.values():
+                b.on_price(tk, px, now)
+            for uid, rb in list(self.real.items()):
+                self._real_price(uid, rb, tk, px, now)
+            self._set_src(tk, "dexscreener")
+
+    async def _balance(self, tk: str, who: str) -> int | None:
+        try:
+            w = evm.words(await self._call(tk, SEL_BAL + "0" * 24 + who.lower()[2:]))
+            return int(w[0]) if w else None
+        except Exception:
+            return None
+
+    async def _dev_of(self, tk: str, now: float) -> str:
+        """Quem criou o token: remetente da transação que criou o contrato (Blockscout). Guarda; tenta de novo em 30 min."""
+        if tk in self.dev and (self.dev[tk] or now - self._dev_at.get(tk, 0) < 1800):
+            return self.dev[tk]
+        self._dev_at[tk] = now
+        dev = ""
+        try:
+            a = (await self.http.get(f"{EXPLORER}/api/v2/addresses/{tk}", timeout=10)).json() or {}
+            h = a.get("creation_transaction_hash") or a.get("creation_tx_hash")
+            if h:
+                tx = (await self.http.get(f"{EXPLORER}/api/v2/transactions/{h}", timeout=10)).json() or {}
+                dev = ((tx.get("from") or {}).get("hash") or "").lower()
+            if not dev:
+                dev = (a.get("creator_address_hash") or "").lower()
+        except Exception as e:
+            log.info("Robinhood: criador do token %s não veio: %s", tk[:10], str(e)[:100])
+        self.dev[tk] = dev if len(dev) == 42 else ""
+        if len(self.dev) > 5000:
+            for k in list(self.dev)[:1000]:
+                self.dev.pop(k, None)
+        return self.dev[tk]
+
+    def _exit(self, uid: str, p: dict, real: bool, regra: str, motivo: str, now: float) -> None:
+        if real:
+            if self.rcfg(uid).get("real_" + regra) and not p.get("selling") and (p.get("sell_retry_at") or 0) <= now:
+                p["retry_frac"] = 1.0
+                self._spawn(self._real_sell(uid, p, 1.0, motivo))
+        else:
+            b = self.books.get(uid)
+            if b and b.cfg.get(regra) and p["id"] in b.pos:
+                b.sell(p, 1.0, None, now, motivo)
+
+    async def follow_tick(self, now: float) -> None:
+        """Acompanha o trader copiado e o dev de cada token aberto pelo saldo na rede (pega também a venda que a leitura das
+        trocas não viu, como a feita por outra rota). Trader com ≤5% do maior saldo visto saiu; dev com metade ou menos saiu."""
+        tks = sorted(self.held())
+        if not tks:
+            return
+        i = self._follow_i % len(tks)
+        tks = (tks[i:] + tks[:i])[:FOLLOW_MAX]
+        self._follow_i = i + len(tks)
+        for tk in tks:
+            pos = self._positions(tk)
+            for who in sorted({p["wallet"] for _, p, _ in pos}):
+                bal = await self._balance(tk, who)
+                if bal is None:
+                    continue
+                for uid, p, real in [x for x in pos if x[1]["wallet"] == who]:
+                    first = "trader_max" not in p
+                    top = max(int(p.get("trader_max") or 0), bal)
+                    p["trader_max"], p["trader_bal"] = str(top), str(bal)
+                    (self.rbook(uid) if real else self.book(uid)).dirty_pos.add(p["id"])
+                    if top > 0 and bal <= top * TRADER_OUT:
+                        self._exit(uid, p, real, "sair_trader", "trader saiu da moeda", now)
+                    elif first and bal == 0 and now - p["open_t"] >= OLD_POS_S:
+                        self._exit(uid, p, real, "sair_trader", "trader saiu da moeda (saldo zero)", now)
+            dev = await self._dev_of(tk, now)
+            if not dev:
+                continue
+            bal = await self._balance(tk, dev)
+            if bal is None:
+                continue
+            for uid, p, real in self._positions(tk):
+                top = max(int(p.get("dev_max") or 0), bal)
+                p["dev"], p["dev_max"], p["dev_bal"] = dev, str(top), str(bal)
+                if top > 0 and bal <= top * DEV_OUT:
+                    caiu = 100 * (1 - bal / top)
+                    self._exit(uid, p, real, "sair_dev", f"dev vendeu {caiu:.0f}% da moeda" if bal else "dev saiu da moeda", now)
 
     # ------------------------------------------------------------------ chave, liga/desliga, valores
     async def set_key(self, uid: str, value: str) -> str:
@@ -749,30 +933,37 @@ class Copier:
         return {"vendidas": ok, "falhas": bad}
 
     # ------------------------------------------------------------------ telas
+    def _names(self, evs: list[dict]) -> dict:
+        """Nome e símbolo dos tokens citados nos eventos (as posições e os trades já levam o seu)."""
+        return {e["token"]: self.meta[e["token"]] for e in evs if e.get("token") in self.meta}
+
     def painel(self, uid: str, now: float | None = None, real: bool = False) -> dict:
         now = now or time.time()
         b = self.book(uid)
         rc = self.rcfg(uid)
         base = {"cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
-                "copiaria": self.w.ranking(now)["copiaria"], "explorer": "https://robinhoodchain.blockscout.com"}
+                "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER}
         if real:
             rb = self.rbook(uid)
             pos = []
             for p in sorted(rb.pos.values(), key=lambda x: x["open_t"], reverse=True):
                 v, pct = rb.pnl_now(p, rc["real_slip_pct"])
                 pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
-                                                      "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling")},
+                                                      "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling",
+                                                      "nome", "simbolo", "px_src", "dev")},
                             "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + rc["real_max_hold_h"] * 3600, "real": True})
             return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
-                    "trades": rb.trades[:500], "eventos": rb.events[:100]}
+                    "trades": rb.trades[:500], "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
         pos = []
         for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
             v, pct = b.pnl_now(p)
             pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
-                                                  "best_pct", "worst_pct", "lag_s", "tx_in", "vendas")},
+                                                  "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "nome", "simbolo",
+                                                  "px_src", "dev")},
                         "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
-        return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100]}
+        return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100],
+                "nomes": self._names(b.events[:100])}
 
     # ------------------------------------------------------------------ banco (hood_books, hood_positions, hood_trades)
     async def flush(self) -> None:
@@ -837,6 +1028,8 @@ class Copier:
                 continue
             if repair(d):
                 log.warning("Robinhood: posição %s com a taxa do pool errada, refeita", r["id"])
+            if d.get("nome") or d.get("simbolo"):
+                self.meta[d["token"]] = {"nome": d.get("nome") or "", "simbolo": d.get("simbolo") or ""}
             if d.get("real"):
                 self.rbook(r["user_id"]).pos[r["id"]] = d
                 if d.get("corrigido"):

@@ -35,9 +35,14 @@ RECIBO_S = 60
 
 # 0.32.287 (pedido do dono: "a carteira real tá faltando umas coisas que tem na fictícia"): tempo máximo e stop próprios da REAL
 REAL_DEFAULT = {"real_on": False, "real_eth_por_compra": 0.002, "real_max_abertas": 5, "real_slip_pct": 15.0, "real_perda_dia": 0.01,
-                "real_max_hold_h": 6.0, "real_stop_pct": 0.0}
+                "real_max_hold_h": 6.0, "real_stop_pct": 0.0,
+                # 0.32.290 (pedido do dono): sair quando o trader / o dev sai da moeda e stop móvel (mesma regra da Solana)
+                "real_sair_trader": True, "real_sair_dev": True, "real_trail_on": True, "real_trail_ativa_pct": 20.0,
+                "real_trail_dist_pct": 10.0}
 REAL_LIMITS = {"real_eth_por_compra": (0.0002, 0.5), "real_max_abertas": (1, 30), "real_slip_pct": (1, 49), "real_perda_dia": (0.0005, 5),
-               "real_max_hold_h": (0.1, 168), "real_stop_pct": (0, 100)}
+               "real_max_hold_h": (0.1, 168), "real_stop_pct": (0, 100), "real_trail_ativa_pct": (1, 10000),
+               "real_trail_dist_pct": (1, 1000)}
+REAL_BOOLS = ("real_sair_trader", "real_sair_dev", "real_trail_on")
 
 
 def clean(raw: dict | None, base: dict | None = None) -> dict:
@@ -45,6 +50,9 @@ def clean(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(REAL_DEFAULT)
     out.update({k: v for k, v in (base or {}).items() if k in REAL_DEFAULT})
     for k, v in (raw or {}).items():
+        if k in REAL_BOOLS:
+            out[k] = bool(v)
+            continue
         if k not in REAL_LIMITS:
             continue
         try:
@@ -114,7 +122,7 @@ class RealBook:
     def close(self, p: dict, t: float, motivo: str, px: float | None) -> dict:
         pnl = p["proceeds"] - p["eth_in"]
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "best_pct", "worst_pct",
-                                       "lag_s", "tx_in", "aba", "vendas", "fees")},
+                                       "lag_s", "tx_in", "aba", "vendas", "fees", "nome", "simbolo", "px_src")},
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo, "real": True,
               "tx_out": p.get("tx_last")}

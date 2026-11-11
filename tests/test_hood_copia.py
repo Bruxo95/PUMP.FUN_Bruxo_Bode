@@ -515,3 +515,140 @@ def test_modes_per_trader_and_real_goes_first():
         except ValueError:
             pass
     run(go())
+
+
+# ---------------------------------------------------------------- 0.32.290: stop móvel, sair com o trader / dev, preço reserva
+DEV = "0x" + "33" * 20
+
+
+class FollowWatch(Watch):
+    """Watch que também responde balanceOf(token, carteira)."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.bal = {}
+
+    async def rpc(self, method, params):
+        p = params[0]
+        if method == "eth_call" and p["data"].startswith(hoodcopy.SEL_BAL):
+            who = "0x" + p["data"][-40:]
+            return "0x" + evm.w_int(self.bal.get(who, 0))
+        return await super().rpc(method, params)
+
+
+class FollowHttp(Http):
+    def __init__(self, dex=None):
+        super().__init__()
+        self.dex = dex or []
+
+    async def get(self, url, **kw):
+        if "dexscreener" in url:
+            return Resp(self.dex)
+        if "/api/v2/addresses/" in url:
+            return Resp({"creation_transaction_hash": "0x" + "cd" * 32})
+        if "/api/v2/transactions/" in url:
+            return Resp({"from": {"hash": DEV}})
+        return await super().get(url, **kw)
+
+
+def fcopier(dex=None):
+    w = FollowWatch()
+    c = hoodcopy.Copier(w, FollowHttp(dex))
+    c.keys[PID] = KEY
+    c.book("u1")
+    return w, c
+
+
+def test_trailing_stop_follows_the_solana_rule():
+    b = hoodcopy.Book("u1", {"slip_pct": 0, "gas_eth": 0})
+    p = b.buy(trade("buy", 1000.0, 1.0), 0.001, time.time(), KEY)
+    t = time.time()
+    b.on_price(TOK, 0.0015, t)                       # ~+48%: liga o stop móvel (passou de 20%)
+    assert p["id"] in b.pos and p["best_pct"] > 40
+    b.on_price(TOK, 0.00142, t)                      # caiu ~8 pontos: segura
+    assert p["id"] in b.pos
+    r = b.on_price(TOK, 0.0013, t)                   # caiu mais de 10 pontos do pico: sai
+    assert r and r[0]["motivo"].startswith("stop móvel")
+    off = hoodcopy.Book("u2", {"slip_pct": 0, "gas_eth": 0, "trail_on": False})
+    q = off.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
+    off.on_price(TOK, 0.0015, t)
+    off.on_price(TOK, 0.0011, t)
+    assert q["id"] in off.pos                        # desligado: não sai
+
+
+def test_new_switches_are_saved_as_booleans():
+    c = hoodcopy.clean_cfg({"sair_dev": 0, "trail_on": "", "trail_ativa_pct": 50, "trail_dist_pct": 0})
+    assert c["sair_dev"] is False and c["trail_on"] is False and c["sair_trader"] is True
+    assert c["trail_ativa_pct"] == 50 and c["trail_dist_pct"] == 1
+    rc = hoodreal.clean({"real_sair_trader": False, "real_trail_dist_pct": 25, "real_on": True})
+    assert rc["real_sair_trader"] is False and rc["real_sair_dev"] is True and rc["real_trail_dist_pct"] == 25
+    assert rc["real_on"] is False                    # ligar a REAL continua só pela rota com confirmação
+
+
+def test_sells_when_the_trader_leaves_the_coin():
+    async def go():
+        w, c = fcopier()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        p = next(iter(b.pos.values()))
+        w.bal = {TRADER: 1000 * 10 ** 18, DEV: 0}
+        await c.follow_tick(time.time())
+        assert p["id"] in b.pos and int(p["trader_max"]) == 1000 * 10 ** 18
+        w.bal[TRADER] = 10 ** 18                     # vendeu por outra rota: sobrou 0,1%
+        await c.follow_tick(time.time())
+        assert p["id"] not in b.pos and b.trades[0]["motivo"] == "trader saiu da moeda"
+    run(go())
+
+
+def test_old_position_with_trader_at_zero_is_closed_and_switch_off_keeps_it():
+    async def go():
+        w, c = fcopier()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        p = next(iter(b.pos.values()))
+        p["open_t"] -= 3600                          # posição de antes da regra
+        b.cfg["sair_trader"] = False
+        await c.follow_tick(time.time())
+        assert p["id"] in b.pos                      # opção desligada: fica
+        p.pop("trader_max")
+        b.cfg["sair_trader"] = True
+        await c.follow_tick(time.time())
+        assert p["id"] not in b.pos and "saldo zero" in b.trades[0]["motivo"]
+    run(go())
+
+
+def test_sells_when_the_dev_dumps():
+    async def go():
+        w, c = fcopier()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        p = next(iter(b.pos.values()))
+        w.bal = {TRADER: 5 * 10 ** 18, DEV: 100 * 10 ** 18}
+        await c.follow_tick(time.time())
+        assert c.dev[TOK] == DEV and p["id"] in b.pos
+        w.bal[DEV] = 30 * 10 ** 18                   # dev vendeu 70%
+        await c.follow_tick(time.time())
+        assert p["id"] not in b.pos and b.trades[0]["motivo"] == "dev vendeu 70% da moeda"
+    run(go())
+
+
+def test_dexscreener_price_when_the_quote_is_stale_and_token_name():
+    dex = [{"baseToken": {"address": TOK, "name": "Mihao Coin", "symbol": "MIHAO"},
+            "quoteToken": {"address": hoodcopy.WETH}, "priceNative": "0.0003", "liquidity": {"usd": 900}}]
+
+    async def go():
+        w, c = fcopier(dex)
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        p = next(iter(b.pos.values()))
+        w.px[TOK] = (0.001, time.time() - 3600)      # último preço de 1 h atrás (o pool parou de cotar)
+        await c.dex_tick(time.time())
+        assert p["px_now"] == 0.0003 and p["px_src"] == "dexscreener"
+        assert p["nome"] == "Mihao Coin" and p["simbolo"] == "MIHAO"
+        pa = c.painel("u1")
+        assert pa["posicoes"][0]["simbolo"] == "MIHAO" and pa["posicoes"][0]["pnl_pct"] < -60
+    run(go())

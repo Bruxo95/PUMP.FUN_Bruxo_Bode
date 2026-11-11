@@ -2205,6 +2205,11 @@
    "versao": "0.32.289",
    "inicio": "2026-11-10T22:50:26+00:00",
    "titulo": "Robinhood: colunas FICTÍCIA e REAL com fundo da cor de cada carteira"
+  },
+  {
+   "versao": "0.32.290",
+   "inicio": "2026-11-11T06:04:10+00:00",
+   "titulo": "Robinhood: sair com o trader e com o dev, stop móvel, preço do gráfico e nome do token"
   }
  ]
 }
