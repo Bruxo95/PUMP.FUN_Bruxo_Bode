@@ -2355,6 +2355,11 @@
    "versao": "0.32.319",
    "inicio": "2026-11-11T18:20:00+00:00",
    "titulo": "Robinhood: histórico da configuração e voltar para uma versão anterior"
+  },
+  {
+   "versao": "0.32.320",
+   "inicio": "2026-11-11T19:44:28+00:00",
+   "titulo": "Dormant: chave de exchange nova entra sem senha"
   }
  ]
 }
