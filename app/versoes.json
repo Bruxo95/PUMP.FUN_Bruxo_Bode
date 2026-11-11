@@ -2275,6 +2275,11 @@
    "versao": "0.32.303",
    "inicio": "2026-11-11T10:16:25+00:00",
    "titulo": "Robinhood: Dinheiro entrando confere cada moeda, aba Honeypot e botões Comprar e Bloquear"
+  },
+  {
+   "versao": "0.32.304",
+   "inicio": "2026-11-11T10:26:39+00:00",
+   "titulo": "Robinhood: explicação do Pico ao passar o mouse"
   }
  ]
 }

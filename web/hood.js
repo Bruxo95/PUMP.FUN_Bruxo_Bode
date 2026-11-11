@@ -318,12 +318,15 @@
       tok(e.token), addr(e.wallet), esc(e.motivo || "") + (e.tx ? " · " + txl(e.tx) : "")]),
     REAL ? "Nada ainda. A REAL só age depois de ligada em Carteira." : "Nada ainda. Assim que um trader do \"Copiando agora\" comprar, aparece aqui.");
   }
+  // 0.32.304 (pedido do dono, 11/11: "o pico deu 10%, não entendi"): texto ao passar o mouse (ou tocar) no título Pico
+  const PICO_TXT = "Pico = o melhor resultado que a posição chegou a ter enquanto estava aberta, já descontadas as taxas e a folga. Ex.: pico +10% e fechou −2%: chegou a estar ganhando 10%, mas o preço voltou e o stop vendeu depois. O stop móvel só protege o lucro a partir do valor de \"Stop móvel liga com lucro de\".";
+  const PICO_H = '<span class="hint" title="' + PICO_TXT.replace(/"/g, "&quot;") + '">Pico ⓘ</span>';
   function drawPos() {
     const ps = (P && P.posicoes) || [];
     $("poT").innerHTML = "Posições abertas " + mtag();
     $("poSub").textContent = ps.length + " abertas · " + ((P && P.carteira && P.carteira.fechadas) || 0) + " fechadas";
     $("poAll").hidden = !ps.length;
-    table("poTb", ["Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", "Pico", "Fecha em", ""], ps.map((p) => [
+    table("poTb", ["Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", PICO_H, "Fecha em", ""], ps.map((p) => [
       hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
       tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (usdRate() ? '<br><small class="muted">' + usdOf(p.eth_in) + "</small>" : "") + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
       pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>",
@@ -341,7 +344,7 @@
     kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5) + usdL(pn), "já descontadas as taxas", "tr"],
       ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>" + usdL(txs, false), "sem elas o resultado seria " + num(pn + txs, 5) + " ETH " + usdOf(pn + txs), "mon"],
       ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Lucro final (tudo)", eth(w.realizado, 5) + usdL(w.realizado), "já descontadas as taxas · todas as fechadas", "mon"]]);
-    table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Taxas", "Lucro real", "Pico", "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
+    table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Taxas", "Lucro real", PICO_H, "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
       tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", '<span class="down">' + num(tx(x), 6) + "</span>",
       eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
       esc(x.motivo || "") + (x.tx_out ? " · " + txl(x.tx_out) : "")]), REAL ? "Nenhuma posição REAL fechada ainda." : "Nenhuma posição fechada ainda.");
