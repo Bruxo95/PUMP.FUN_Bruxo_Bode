@@ -23,7 +23,7 @@
     ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
   // 0.32.290 (pedido do dono: "sair quando o desenvolvedor sai da moeda ... stop móvel ... botão de ativar"): opções liga/desliga
-  const CF_BOOL = ["um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on"], RL_BOOL = ["real_espelho", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
+  const CF_BOOL = ["so_verificado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on"], RL_BOOL = ["real_espelho", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
   const NOM = {};
   let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
   try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
@@ -245,6 +245,7 @@
     ["Posições abertas no máximo", "posições", "max_abertas", "real_max_abertas"],
     ["Tempo máximo da posição", "h", "max_hold_h", "real_max_hold_h"],
     ["Stop de perda (0 = desligado)", "%", "stop_pct", "real_stop_pct"],
+    ["Só token com contrato verificado", "não compra token cujo código não está publicado no explorador (com o espelho, vale para a REAL também)", "so_verificado", null, "a REAL segue a fictícia", "bool"],
     ["REAL segue a FICTÍCIA (espelho)", "a REAL compra quando a fictícia compra e fecha quando ela fecha", null, "real_espelho", "a FICTÍCIA é a que manda", "bool"],
     ["Uma entrada por token", "não compra de novo um token que já está aberto, mesmo que outro trader compre", "um_por_token", "real_um_por_token", "", "bool"],
     ["Sair quando o trader sai da moeda", "vende tudo quando o saldo dele no token some", "sair_trader", "real_sair_trader", "", "bool"],

@@ -884,3 +884,58 @@ def test_blocked_sale_bars_tokens_with_the_same_symbol():
         b = c.books["u1"]
         assert not b.pos and "HOLD travou a venda" in b.events[0]["motivo"]
     run(go())
+
+
+class ScanHttp(Http):
+    def __init__(self, contract):
+        super().__init__()
+        self.contract = contract
+
+    async def get(self, url, **kw):
+        if "smart-contracts" in url:
+            return Resp(self.contract)
+        return await super().get(url, **kw)
+
+
+def test_contract_with_sell_lock_functions_is_barred():
+    """0.32.312 (pedido do dono: "se houver travas de venda não é para entrar"): ABI com blacklist/setTrading barra a compra."""
+    async def go():
+        w = Watch()
+        c = hoodcopy.Copier(w, ScanHttp({"is_verified": True, "abi": [{"type": "function", "name": "setTradingEnabled"},
+                                                                      {"type": "function", "name": "addToBlacklist"}]}))
+        c.keys[PID] = KEY
+        b = c.book("u1")
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        assert not b.pos and "travar ou taxar a venda" in b.events[0]["motivo"]
+    run(go())
+
+
+def test_only_verified_contract_option():
+    async def go():
+        w = Watch()
+        c = hoodcopy.Copier(w, ScanHttp({"is_verified": False}))
+        c.keys[PID] = KEY
+        b = c.book("u1")
+        b.cfg["so_verificado"] = True
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        assert not b.pos and "não verificado" in b.events[0]["motivo"]
+        b.cfg["so_verificado"] = False
+        c.safe.cache.clear()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        assert b.pos
+    run(go())
+
+
+def test_creator_of_a_sell_locked_token_is_barred():
+    async def go():
+        w, c = fcopier()
+        c.dev["0x" + "77" * 20] = DEV
+        c.flag_no_sell("0x" + "77" * 20, "TRAP")
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)               # FollowHttp: o criador de TOK é DEV
+        await settle(c)
+        b = c.books["u1"]
+        assert not b.pos and "criou outro que travou a venda" in b.events[0]["motivo"]
+    run(go())

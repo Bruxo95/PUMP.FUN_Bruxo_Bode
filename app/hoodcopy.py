@@ -42,13 +42,13 @@ MODOS = ("sim", "real", "ambas")
 # 0.32.302 (pedido do dono, 11/11: "um botão bloquear e uma aba dos honeypot"): carteiras que esta conta bloqueou; nunca são copiadas
 BLOCK_MAX = 500
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
+               "slip_pct": 2.0, "gas_eth": 0.00002, "saldo_inicial": 0.5, "so_verificado": False, "um_por_token": True, "sair_trader": True, "trader_so_lucro": True, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0}
 # 0.32.310: mínimo de 0,0001 ETH por compra, para a FICTÍCIA poder ficar igual a uma REAL pequena
 CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
               "trail_dist_pct": (1, 1000)}
-CFG_BOOLS = ("on", "auto_top", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
+CFG_BOOLS = ("on", "auto_top", "so_verificado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on")
 TRAIL_MIN_LOCK = 2.0
 # Acompanhar o trader e o dev: saldo do token na carteira deles (balanceOf) a cada FOLLOW_S, até FOLLOW_MAX tokens por volta.
 FOLLOW_S, FOLLOW_MAX = 60, 25
@@ -374,6 +374,7 @@ class Copier:
         self.meta: dict[str, dict] = {}             # token → {"nome", "simbolo"} (DexScreener)
         self.no_sell: dict[str, float] = {}         # 0.32.309: token → quando a venda foi recusada pelo pool
         self.no_sell_sym: dict[str, float] = {}     # símbolo → idem (cópias com o mesmo nome)
+        self.no_sell_dev: dict[str, float] = {}     # criador → idem
         self._q_fail: dict[str, int] = {}
         self.dev: dict[str, str] = {}               # token → carteira de quem criou ("" = não achou)
         self._dev_at: dict[str, float] = {}
@@ -408,6 +409,8 @@ class Copier:
         cópias com o mesmo nome) ficam barrados para novas compras por NO_SELL_S, na FICTÍCIA e na REAL."""
         now = time.time()
         self.no_sell[token] = now
+        if self.dev.get(token):                     # o mesmo criador costuma lançar a mesma armadilha de novo
+            self.no_sell_dev[self.dev[token]] = now
         sym = (simbolo or (self.meta.get(token) or {}).get("simbolo") or "").strip().upper()
         if sym:
             self.no_sell_sym[sym] = now
@@ -574,6 +577,13 @@ class Copier:
     async def _prepare(self, tr: dict, px: float | None) -> None:
         tk = tr["token"]
         why = self.no_sell_why(tk, await self.token_symbol(tk))
+        if not why and self.no_sell_dev:                 # 0.32.312: criador de token que travou a venda
+            try:
+                dev = await asyncio.wait_for(self._dev_of(tk, time.time()), 4)
+            except Exception:
+                dev = ""
+            if dev and time.time() - self.no_sell_dev.get(dev, 0) < NO_SELL_S:
+                why = "quem criou este token criou outro que travou a venda: barrado por 24 h"
         if why:
             self._buy_all(tr, {"ok": False, "why": why}, None, px)
             return
@@ -624,6 +634,9 @@ class Copier:
         def sim() -> None:
             for uid, b in list(self.books.items()):
                 why = b.follows(tr["wallet"], tr.get("_auto", True))
+                if why and b.cfg.get("so_verificado") and v.get("verificado") is not True:
+                    b.ev(now, tr["wallet"], tr["token"], "não copiou", "contrato do token não verificado no explorador (opção \"Só token com contrato verificado\")")
+                    continue
                 if why:
                     p = b.buy(tr, px, now, key, why)
                     if p and uid in espelho:

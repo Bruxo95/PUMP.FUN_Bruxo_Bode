@@ -2315,6 +2315,11 @@
    "versao": "0.32.311",
    "inicio": "2026-11-11T13:02:05+00:00",
    "titulo": "Robinhood: botão Vender de cada posição sempre visível"
+  },
+  {
+   "versao": "0.32.312",
+   "inicio": "2026-11-11T13:14:29+00:00",
+   "titulo": "Robinhood: conferência mais forte antes de comprar (travas de venda)"
   }
  ]
 }

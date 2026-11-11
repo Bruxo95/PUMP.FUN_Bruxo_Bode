@@ -24,7 +24,19 @@ GOPLUS = "https://api.gopluslabs.io/api/v1/token_security/4663?contract_addresse
 PROBE_WEI = 10 ** 16                 # 0,01 ETH na ida e volta
 ROUNDTRIP_MAX = 12.0                 # % perdidos na ida e volta além disso barra (taxa dos dois lados + folga)
 TAX_MAX = 5.0                        # taxa de compra ou venda do token (GoPlus) acima disso barra
-OK_S, BAD_S, ERR_S = 600, 6 * 3600, 60
+# 0.32.312 (caso HOLD, 11/11: a venda passou na conferência e travou minutos depois): aprovado vale só 90 s (antes 10 min), então
+# cada compra confere de novo se o pool ainda aceita a venda; e o código do contrato é lido no explorador (Blockscout).
+OK_S, BAD_S, ERR_S = 90, 6 * 3600, 60
+EXPLORER = "https://robinhoodchain.blockscout.com/api/v2/smart-contracts/"
+SCAN_S = 24 * 3600
+# nomes de função que só existem para travar ou taxar a venda de quem comprou (honeypot clássico): o dono liga a trava depois
+DANGER = {"blacklist": "lista negra de carteiras", "blocklist": "lista negra de carteiras", "addbot": "marcar carteiras como robô",
+          "setbot": "marcar carteiras como robô", "isbot": "lista de robôs", "pause": "pausar o token", "settrading": "ligar/desligar negociação",
+          "disabletrading": "desligar negociação", "settradingenabled": "ligar/desligar negociação", "setmaxtx": "limite por transação",
+          "setmaxsell": "limite de venda", "setsellfee": "taxa de venda", "setselltax": "taxa de venda", "settax": "mudar a taxa",
+          "setfee": "mudar a taxa", "updatefee": "mudar a taxa", "setcooldown": "espera entre vendas", "setlimit": "limites de carteira",
+          "setmaxwallet": "limite por carteira", "excludefromfee": "isentar carteiras de taxa", "setpair": "trocar o par de venda",
+          "setswapenabled": "ligar/desligar venda", "lockseller": "travar quem vende", "freeze": "congelar carteiras"}
 SEL_DEC = evm.selector("decimals()")
 SEL_TRANSFER = evm.selector("transfer(address,uint256)")
 GP_BLOQ = {"is_honeypot": "honeypot: não deixa vender", "cannot_sell_all": "não deixa vender tudo",
@@ -43,6 +55,7 @@ class Safety:
         self.cache: dict[str, dict] = {}
         self.stat = {"aprovados": 0, "barrados": 0, "erros": 0, "goplus_com_dados": 0, "goplus_sem_dados": 0}
         self.recent: list[dict] = []
+        self.scans: dict[str, dict] = {}
 
     def cached(self, token: str, now: float | None = None) -> dict | None:
         v = self.cache.get(token)
@@ -61,6 +74,29 @@ class Safety:
             for k in sorted(self.cache, key=lambda x: self.cache[x]["t"])[:1000]:
                 self.cache.pop(k, None)
         return v
+
+    async def scan(self, token: str) -> dict:
+        """Código do contrato no Blockscout (cache 24 h): {"verificado": True/False/None, "perigo": [nomes]}. None = não deu para ler."""
+        c = self.scans.get(token)
+        if c and time.time() - c["t"] < SCAN_S:
+            return c
+        out = {"verificado": None, "perigo": [], "t": time.time()}
+        try:
+            r = await self.http.get(EXPLORER + token, timeout=6)
+            js = r.json() if getattr(r, "status_code", 200) == 200 else {}
+            if isinstance(js, dict) and js:
+                out["verificado"] = bool(js.get("is_verified") or js.get("is_fully_verified"))
+                names = {str(f.get("name") or "").lower() for f in (js.get("abi") or []) if isinstance(f, dict) and f.get("type") == "function"}
+                out["perigo"] = sorted({DANGER[k] for n in names for k in DANGER if k in n})
+            elif getattr(r, "status_code", 200) == 404:
+                out["verificado"] = False
+        except Exception:
+            pass
+        self.scans[token] = out
+        if len(self.scans) > 5000:
+            for k in list(self.scans)[:1000]:
+                self.scans.pop(k, None)
+        return out
 
     async def goplus(self, token: str) -> dict | None:
         """Dados da GoPlus para o token, {} sem dados, None se a consulta falhou."""
@@ -82,6 +118,10 @@ class Safety:
             return self.mark(token, False, "o token não respondeu as casas decimais", erro=True)
         if dec[0] != 18:
             return self.mark(token, False, f"token com {dec[0]} casas decimais (só 18 nesta etapa)")
+        sc = await self.scan(token)
+        if sc["perigo"]:
+            return self.mark(token, False, "o contrato tem funções que o dono usa para travar ou taxar a venda: " + ", ".join(sc["perigo"][:4]),
+                             verificado=sc["verificado"], venda_travada=True)
         gp = await self.goplus(token)
         gp_info = "consulta falhou" if gp is None else "sem dados" if not gp else "com dados"
         self.stat["goplus_com_dados" if gp else "goplus_sem_dados"] += 1
@@ -128,7 +168,7 @@ class Safety:
                 if "insufficient" not in msg and "exceeds balance" not in msg:     # o trader já vendeu: não dá para medir
                     return self.mark(token, False, "o token não deixa transferir (nem o trader que comprou consegue mandar para o pool): honeypot", goplus=gp_info,
                                      ida_volta_pct=round(loss, 2), venda_travada=True)
-        return self.mark(token, True, "", goplus=gp_info, ida_volta_pct=round(loss, 2))
+        return self.mark(token, True, "", goplus=gp_info, ida_volta_pct=round(loss, 2), verificado=sc["verificado"])
 
     def summary(self, now: float | None = None) -> dict:
         return {"regras": {"ida_volta_max_pct": ROUNDTRIP_MAX, "taxa_max_pct": TAX_MAX, "barrado_h": BAD_S / 3600, "aprovado_min": OK_S / 60},

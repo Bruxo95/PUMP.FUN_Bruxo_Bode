@@ -1776,3 +1776,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.309 (caso HOLD): `Chain.sell_quote` (1, 1/2, 1/4, 1/8 → `SellBlocked`); `Copier.flag_no_sell`/`no_sell_why` barram token e símbolo por 24 h em `_prepare` (lê `symbol()`); Quoter recusando 3× no `price_tick` também marca; `venda_travada` nas posições.
 - 0.32.310 (pedido do dono): `CFG_LIMITS.eth_por_compra` da Robinhood com mínimo 0,0001 (FICTÍCIA igual a uma REAL pequena). O dono preferiu mudar a configuração na tela, sem migração.
 - 0.32.311 (pedido do dono): Vender de cada posição do /hood na 1ª coluna de `#poTb` (`sellBtn`); avisos na coluna Situação. Conferido de 390 a 1920 px.
+- 0.32.312 (pedido do dono): Robinhood `Safety.scan` (ABI no Blockscout, `DANGER` barra), `OK_S` 90 s, `no_sell_dev` (criador barrado 24 h), opção `so_verificado` (OFF).
