@@ -5,7 +5,7 @@ import urllib.parse
 from decimal import Decimal
 
 from app import dormant_buy as db_, dormant_cex as cx
-from tests.test_dormant_compra import SENHA, UID, OUTRO, FakeNet, Resp, setup
+from tests.test_dormant_compra import KEY, SENHA, UID, OUTRO, FakeNet, Resp, setup
 
 cx.ORDEM_PASSO = 0
 API, SEC = "fakeApiKey12345678", "fakeSecret12345678"
@@ -333,3 +333,36 @@ def test_nonkyc_guide_picks_read_and_trading_only():
     js = open("web/dormant.js", encoding="utf-8").read()
     g = js[js.index("    nonkyc: {"):js.index("let X_IP")]
     assert '["Read + Trading Access", true' in g and '["Read Only Access", false' in g and '["Read + Trading + Withdraw Access", false' in g
+
+
+# ------------------------------------------------------------------ 0.32.320: chave nova sem senha, trocar pede senha
+def test_new_key_needs_no_password_but_replacing_it_does():
+    b, net, db = setup(Net())
+    c = cx.CexBuyer(b)
+    r = run(c.save_key(UID, "binance", API, SEC, "", "", False))
+    assert r["info"]["sem_senha"] is True
+    t = str(db.tables["dormant_cex_keys"])
+    assert SEC not in t and API not in t
+    assert run(c._keys(UID, "binance", ""))["secret"] == SEC          # sem outra senha cadastrada, abre sem senha
+    run(b.save_wallet(UID, "ethereum", KEY, SENHA))      # com uma carteira, a senha de compra passa a valer
+    try:
+        run(c.save_key(UID, "binance", API, "outroSecret123456", "", "", False))
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "senha" in str(e)
+    try:
+        run(c._keys(UID, "binance", "errada-12345"))
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "errada" in str(e)
+    assert run(c.save_key(UID, "binance", API, "outroSecret123456", "", SENHA, False))["info"].get("sem_senha") is None
+    assert run(c._keys(UID, "binance", SENHA))["secret"] == "outroSecret123456"
+
+
+def test_password_change_moves_keyless_keys_to_the_new_password():
+    b, net, db = setup(Net())
+    c = cx.CexBuyer(b)
+    run(c.save_key(UID, "binance", API, SEC, "", "", False))
+    run(b.save_wallet(UID, "ethereum", KEY, SENHA))
+    assert run(b.change_password(UID, SENHA, "senha-nova-123")) == 2
+    assert run(c._keys(UID, "binance", "senha-nova-123"))["secret"] == SEC

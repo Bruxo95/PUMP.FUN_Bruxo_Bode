@@ -246,10 +246,8 @@
       <section class="view" data-view="exchanges" hidden>
         <div class="card dmwarn"><header><div><h2>Crie a chave SEM permissão de saque</h2></div></header><div class="help">
           <p>A chave de API deixa o painel comprar sem login. Marque só <b>negociar no spot</b>. <b>Nunca marque saque (withdraw).</b> Sem saque, quem pegar a chave pode negociar com o seu saldo, mas não tirar o dinheiro da exchange.</p>
-          <p>Se a exchange deixar, limite a chave ao IP do servidor: <b id="xIp">lendo…</b>. Deixe na exchange só o que aceita arriscar. Nesta tela a chave fica guardada com a sua senha de compra, e não volta para a tela.</p>
+          <p>Se a exchange deixar, limite a chave ao IP do servidor: <b id="xIp">lendo…</b>. Deixe na exchange só o que aceita arriscar. Nesta tela a chave fica guardada no servidor e não volta para a tela. Chave nova entra sem senha; trocar uma chave já salva pede a senha de compra.</p>
           <p class="muted small">O painel compra em USDT, então a conta precisa ter USDT no spot. Só compra, por enquanto: a venda é na própria exchange. Limites em Carteiras e compra.</p></div></div>
-        <div class="card"><header><div><h2>Senha de compra</h2><div class="sub" id="xPassS">a mesma das carteiras · precisa dela para salvar uma chave</div></div></header>
-          <input class="in" id="xPass" type="password" autocomplete="new-password" spellcheck="false" placeholder="senha de compra" aria-label="Senha de compra" style="width:100%"></div>
         <div class="card"><header><div><h2>Exchanges conectadas</h2><div class="sub" id="xSub"></div></div></header><div class="dmwals" id="xList"></div></div>
       </section>
       <section class="view" data-view="compras" hidden>

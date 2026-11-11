@@ -466,7 +466,17 @@ class CexBuyer:
             raise BuyError("esta exchange pede a passphrase criada junto com a chave")
         keys = {"key": key.strip(), "secret": secret.strip(), "frase": (frase or "") if EXCHANGES[ex]["frase"] else ""}
         async with b.lock(uid):
-            await b._check_senha(uid, senha)
+            # 0.32.320 (pedido do dono): chave NOVA entra sem senha de compra; trocar uma chave já salva pede a senha.
+            # Sem senha a chave fica só com a cifra do servidor (info.sem_senha) e a próxima troca/alteração de senha a passa para a senha.
+            antiga = await b.db.select("dormant_cex_keys", {"user_id": uid, "exchange": ex}, limit=1) or []
+            sem = not antiga and not senha
+            if antiga and not senha:
+                if await b._any_secret(uid):
+                    raise BuyError("para trocar uma chave já salva, digite a senha de compra")
+            elif not sem:
+                await b._check_senha(uid, senha)
+            if antiga and not senha:
+                sem = True                                  # só chaves sem senha existem: não há senha para conferir
             c = await conn.check_key(keys)                 # chave errada ou com saque nem chega ao cofre
             if c["saque"]:
                 raise BuyError("esta chave pode SACAR: não guardo. Crie outra só com permissão de negociar (spot), sem saque.")
@@ -475,8 +485,10 @@ class CexBuyer:
             if c["saque"] is None and not sem_saque:
                 raise BuyError(f"a {EXCHANGES[ex]['nome']} não diz pela API se a chave pode sacar: confirme que criou sem saque")
             rot = keys["key"][:4] + "…" + keys["key"][-4:]
-            cifra = await asyncio.to_thread(vault.seal, b.box, uid, "cex:" + ex, rot, json.dumps(keys), senha)
+            cifra = await asyncio.to_thread(vault.seal, b.box, uid, "cex:" + ex, rot, json.dumps(keys), "" if sem else senha)
             info = {"saque_conferido": c["saque"] is False, "ip": c["ip"], "t": time.time()}
+            if sem:
+                info["sem_senha"] = True
             await b.db.insert("dormant_cex_keys", {"user_id": uid, "exchange": ex, "rotulo": rot, "cifra": cifra, "info": info, "em": _iso(time.time())}, upsert=True, on_conflict="user_id,exchange")
         return {"rotulo": rot, "info": info}
 
@@ -489,7 +501,14 @@ class CexBuyer:
         rows = await self.b.db.select("dormant_cex_keys", {"user_id": uid, "exchange": ex}, limit=1) or []
         if not rows:
             raise BuyError(f"cadastre a chave da {EXCHANGES[ex]['nome']} em API exchanges")
-        return json.loads(await self.b._open(uid, {"rede": "cex:" + ex, "endereco": rows[0]["rotulo"], "cifra": rows[0]["cifra"]}, senha))
+        pseudo = {"rede": "cex:" + ex, "endereco": rows[0]["rotulo"], "cifra": rows[0]["cifra"]}
+        if (rows[0].get("info") or {}).get("sem_senha"):
+            # chave salva sem senha: se já existe senha de compra (carteira ou outra chave), ela continua exigida para comprar
+            outra = await self.b._any_secret(uid)
+            if outra:
+                await self.b._open(uid, outra, senha)
+            return json.loads(await asyncio.to_thread(vault.unseal, self.b.box, uid, pseudo["rede"], pseudo["endereco"], pseudo["cifra"], ""))
+        return json.loads(await self.b._open(uid, pseudo, senha))
 
     async def spent(self, uid: str) -> float:
         since = _iso(time.time() - 86400)

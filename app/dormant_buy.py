@@ -2120,8 +2120,10 @@ class Buyer:
         rows = await self.db.select("dormant_wallets", {"user_id": uid}, limit=1) or []
         if rows:
             return rows[0]
-        x = await self.db.select("dormant_cex_keys", {"user_id": uid}, limit=1) or []
-        return {"rede": "cex:" + x[0]["exchange"], "endereco": x[0]["rotulo"], "cifra": x[0]["cifra"]} if x else None
+        for r in await self.db.select("dormant_cex_keys", {"user_id": uid}) or []:
+            if not (r.get("info") or {}).get("sem_senha"):     # chave salva sem senha (0.32.320) não serve para conferir a senha
+                return {"rede": "cex:" + r["exchange"], "endereco": r["rotulo"], "cifra": r["cifra"]}
+        return None
 
     async def _check_senha(self, uid: str, senha: str) -> None:
         """Confere a senha contra o que já está guardado. Sem nada ainda: a senha nova vale como a primeira."""
@@ -2211,8 +2213,12 @@ class Buyer:
                               "cifra": await asyncio.to_thread(vault.seal, self.box, uid, r["rede"], r["endereco"], secret, nova)})
             for r in chaves:
                 pseudo = {"rede": "cex:" + r["exchange"], "endereco": r["rotulo"], "cifra": r["cifra"]}
-                secret = await self._open(uid, pseudo, atual)
-                novas_cex.append({"user_id": uid, "exchange": r["exchange"], "rotulo": r["rotulo"], "info": r.get("info"), "em": r.get("em") or _iso(time.time()),
+                info = dict(r.get("info") or {})
+                if info.pop("sem_senha", None):        # chave salva sem senha: passa a usar a senha nova
+                    secret = await asyncio.to_thread(vault.unseal, self.box, uid, pseudo["rede"], pseudo["endereco"], pseudo["cifra"], "")
+                else:
+                    secret = await self._open(uid, pseudo, atual)
+                novas_cex.append({"user_id": uid, "exchange": r["exchange"], "rotulo": r["rotulo"], "info": info, "em": r.get("em") or _iso(time.time()),
                                   "cifra": await asyncio.to_thread(vault.seal, self.box, uid, pseudo["rede"], r["rotulo"], secret, nova)})
             if novas:
                 await self.db.insert("dormant_wallets", novas, upsert=True, on_conflict="user_id,rede")

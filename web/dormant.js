@@ -849,7 +849,7 @@
       depois: "Digite o código de dois fatores e gere a chave. Copie a API Key e a Secret (a Secret aparece uma vez só). Cole aqui em NonKYC, marque <b>criei SEM permissão de saque</b> e Salvar.",
     },
   };
-  let X_IP = "";
+  let X_IP = "", X_CONN = {};
   function xGuide(id) {
     const g = XGUIDE[id];
     if (!g) return;
@@ -883,6 +883,7 @@
     if (!r || r.error) { $("xList").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler as exchanges") + "</span>"; return; }
     $("xIp").textContent = r.ip || "não consegui ler";
     X_IP = r.ip || "";
+    X_CONN = {}; r.exchanges.forEach((x) => { X_CONN[x.id] = !!x.rotulo; });
     $("xSub").textContent = "nas que dizem pela API, chave com saque é recusada · nas últimas 24 h já foram $" + num(r.gasto_dia_usd, 2) + " de $" + num(r.cfg.cex_dia_usd, 2) + " · depois: " + r.depois.join(", ");
     // 0.32.318 (pedido do dono): quanto a exchange negociou em 24 h, em dólar (CoinGecko)
     const vol = (x) => x.vol24_usd == null ? "" : ' <a class="small muted" href="' + esc(x.cg_url) + '" target="_blank" rel="noopener" title="volume de negociação de 24 h na CoinGecko">$' +
@@ -1114,11 +1115,25 @@
     if (t.dataset.xsave) {
       const x = t.dataset.xsave, k = $("xk_" + x), s = $("xs_" + x), f = $("xf_" + x), c = $("xc_" + x);
       if (!k.value.trim() || !s.value.trim()) { alert("Cole a API key e o secret."); return; }
-      t.disabled = true;
-      const r = await BB.api("/api/dormant/cex/chave", { body: { exchange: x, api_key: k.value, secret: s.value, frase: f ? f.value : "", senha: $("xPass").value, sem_saque: !!(c && c.checked) } });
-      t.disabled = false; s.value = ""; if (f) f.value = ""; k.value = "";
-      if (r && r.error) { alert(r.error); return; }
-      $("xPass").value = ""; await loadEx(); return;
+      // 0.32.320 (pedido do dono): chave nova não pede senha; trocar uma chave já salva pede a senha de compra numa janela
+      const salvar = async (senha, btn) => {
+        btn.disabled = true;
+        const r = await BB.api("/api/dormant/cex/chave", { body: { exchange: x, api_key: k.value, secret: s.value, frase: f ? f.value : "", senha, sem_saque: !!(c && c.checked) } });
+        btn.disabled = false;
+        if (r && r.error) { alert(r.error); return false; }
+        s.value = ""; if (f) f.value = ""; k.value = "";
+        await loadEx(); return true;
+      };
+      if (X_CONN[x]) {
+        ask("Trocar a chave da " + (t.dataset.xn || x), '<p class="muted small">Já existe uma chave salva. Para trocar por esta, digite a senha de compra.</p>' + askPass("Senha de compra") +
+          '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Trocar chave</button></div></div>', async (b) => {
+          const ok = await salvar($("askSenha").value, b);
+          if ($("askSenha")) $("askSenha").value = "";
+          if (ok) closeAsk();
+        });
+        return;
+      }
+      await salvar("", t); return;
     }
     if (t.dataset.xdel) {
       if (!confirm("Remover esta chave do sistema? Depois, apague a chave também no site da exchange.")) return;
