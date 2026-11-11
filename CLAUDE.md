@@ -1752,3 +1752,7 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   recusa de `eth_call` não conta como falha nem vai a outro RPC; erro da leitura × `outro_erro`; `leitura_ok_t`. Ranking marca `contrato` (eth_getCode,
   menos 0xef0100 = EIP-7702). `hoodsafe`: compra e venda separadas; venda revertida = `venda_travada` (medido em 11/11: hooks 0x1d0f…/0x7016… só
   deixam o contrato-robô 0x3367…6fcb vender). `tests/test_hood_fluxo.py`.
+- 0.32.295 (pedido do dono): `HoodWatch.danger` (contrato pelo eth_getCode + comprou token com `venda_travada`; 30 s), `danger_reason`,
+  `danger_scan` (até 2 tokens por volta dos 30 primeiros, 2 h). `ranking` põe `perigo` e tira do `copiaria`; `Copier.follow` recusa e `_buy_all` não
+  compra na REAL de trader PERIGO (a fictícia segue, para medir). Tela: etiqueta `.dzt` e botões `.dz` travados. Piranha Samurai (0x3367…6fcb) e
+  Raposa Radical (0x63bd…48cc) são o mesmo contrato (20.733 bytes, conferido em 11/11).

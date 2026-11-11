@@ -302,6 +302,8 @@ class HoodWatch:
         self._arq_pend: list[dict] = []
         self._arq_trim_at = 0.0
         self._name_try: dict[str, float] = {}
+        self._danger: tuple[float, dict] | None = None
+        self._scan_at: dict[str, float] = {}
         self.stat.update(salvos=0, do_arquivo=0, arquivo_erro=None)
         from .hoodcopy import Copier
         self.copier = Copier(self, http, db)
@@ -489,7 +491,7 @@ class HoodWatch:
         now = time.time()
         for w in wallets:
             b = self.balances.get(w)
-            if (not b or now - b["t"] > 1800) and w not in self._bal_q:
+            if (not b or now - b["t"] > 1800 or "contrato" not in b) and w not in self._bal_q:
                 self._bal_q.append(w)
         if not self.eth_usd:
             return
@@ -513,8 +515,61 @@ class HoodWatch:
         if self._rank_cache and now - self._rank_cache[0] < 15:
             return self._rank_cache[1]
         r = rank(self.trades, now, self.cfg, self.balances)
+        # 0.32.295 (pedido do dono, 11/11: "tag e o botão de comprar cinza, não quero perder dinheiro"): trader PERIGO não entra no Copiando agora
+        dz = self.danger(now)
+        for row in r["rows"]:
+            row["perigo"] = dz.get(row["wallet"], [])
+            if row["perigo"]:
+                row["eligible"], row["copiaria"] = False, False
+        r["copiaria"] = [w for w in r["copiaria"] if w not in dz]
         self._rank_cache = (now, r)
         return r
+
+    def danger(self, now: float | None = None) -> dict[str, list[str]]:
+        """Traders PERIGO (0.32.295): carteira que é um contrato-robô, ou que comprou token cuja VENDA o pool recusa (honeypot para quem
+        copia). Vem do saldo (eth_getCode) e das conferências do hoodsafe; guardado 30 s."""
+        now = now or time.time()
+        if self._danger and now - self._danger[0] < 30:
+            return self._danger[1]
+        hp = {tk for tk, v in self.copier.safe.cache.items() if v.get("venda_travada")}
+        by: dict[str, set] = {}
+        if hp:
+            for t in self.trades:
+                if t["side"] == "buy" and t["token"] in hp:
+                    by.setdefault(t["wallet"], set()).add(t["token"])
+        out: dict[str, list[str]] = {}
+        for w, b in self.balances.items():
+            if b.get("contrato"):
+                out.setdefault(w, []).append("é um contrato (robô), não uma pessoa")
+        for w, tks in by.items():
+            out.setdefault(w, []).append(f"comprou {len(tks)} token(s) que não deixam vender (honeypot)")
+        self._danger = (now, out)
+        return out
+
+    def danger_reason(self, wallet: str) -> str | None:
+        r = self.danger().get((wallet or "").lower())
+        return "; ".join(r) if r else None
+
+    async def danger_scan(self) -> None:
+        """Confere antes, sem esperar a cópia tentar: os tokens que os 30 primeiros do ranking compraram nas últimas 2 h (até 2 por volta)."""
+        now = time.time()
+        top = {r["wallet"] for r in self.ranking(now)["rows"][:30]}
+        seen, n = set(), 0
+        for t in reversed(self.trades):
+            if t["t"] < now - 7200 or n >= 2:
+                break
+            if t["side"] != "buy" or t["wallet"] not in top or t["token"] in seen or t.get("quote") != "ETH":
+                continue
+            seen.add(t["token"])
+            if self.copier.safe.cached(t["token"], now) is not None or now - self._scan_at.get(t["token"], 0) < 3600:
+                continue
+            self._scan_at[t["token"]] = now
+            n += 1
+            key = await self.copier.pool_key(t.get("pool") or "", t["token"])
+            if key:
+                await self.copier.safe.check(t["token"], key, t["wallet"], int(t["amount"] * 1e18))
+                self._danger = None
+                self._rank_cache = None
 
     # ------------------------------------------------------------------ banco (só o estado: cursor e regra)
     async def load(self) -> None:
@@ -598,6 +653,7 @@ class HoodWatch:
                     await self.refresh_eth_usd()
                     self.trim()
                     await asyncio.wait_for(self.balances_tick([r["wallet"] for r in self.ranking()["rows"][:30]]), 30)
+                    await asyncio.wait_for(self.danger_scan(), 30)
                 except Exception as e:
                     self.stat["outro_erro"], self.stat["outro_erro_t"] = ("saldo das carteiras: " + (str(e) or type(e).__name__))[:200], time.time()
             try:                                           # tempo máximo, preço e vendas da cópia seguem mesmo com o RPC pedindo calma

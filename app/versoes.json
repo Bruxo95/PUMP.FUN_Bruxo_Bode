@@ -2230,6 +2230,11 @@
    "versao": "0.32.294",
    "inicio": "2026-11-11T07:48:18+00:00",
    "titulo": "Robinhood: Dinheiro entrando, Administração, taxas e leitura mais firme"
+  },
+  {
+   "versao": "0.32.295",
+   "inicio": "2026-11-11T07:53:49+00:00",
+   "titulo": "Robinhood: trader PERIGO (robô ou honeypot) com botões travados"
   }
  ]
 }

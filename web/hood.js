@@ -178,6 +178,11 @@
     const MODO_TXT = { sim: "FICTÍCIA", real: "REAL", ambas: "As 2" };
     const btn = (r) => {
       const cur = man.has(r.wallet) ? (modo[r.wallet] || "ambas") : null;
+      if ((r.perigo || []).length) {               // 0.32.295 (pedido do dono): trader PERIGO com os botões cinza e travados (o servidor também recusa)
+        const tt = "Não dá para copiar: " + r.perigo.join(" · ");
+        return '<span class="hdmodes">' + ["sim", "real", "ambas"].map((m) => '<button class="btn sm dz" type="button" disabled title="' + esc(tt) + '">' + MODO_TXT[m] + "</button>").join("") +
+          (cur ? '<button class="btn sm" data-follow="' + esc(r.wallet) + '" data-on="0" title="Parar de copiar este trader">Parar</button>' : "") + "</span>";
+      }
       const why = r.eligible ? "" : " (fora da regra: " + (r.flags || []).join(" · ") + ")";
       return '<span class="hdmodes">' + ["sim", "real", "ambas"].map((m) => '<button class="btn sm' + (cur === m ? " on" : "") + '" data-follow="' + esc(r.wallet) + '" data-on="' + (cur === m ? "0" : "1") +
         '" data-modo="' + m + '" title="' + esc(cur === m ? "Parar de copiar este trader" : "Copiar " + (m === "ambas" ? "na FICTÍCIA e na REAL" : "só na " + MODO_TXT[m]) + why) + '">' + MODO_TXT[m] + "</button>").join("") +
@@ -185,7 +190,9 @@
     };
     const row = (r, i) => [String(i + 1), addr(r.wallet), eth(r.realized_eth), num(r.vol_eth, 3) + " ETH", num(r.trades, 0), r.winrate == null ? "—" : num(r.winrate, 0) + "% (" + r.closed + ")",
       r.wallet_usd == null ? "—" : "US$ " + num(r.wallet_usd, 0), "há " + ago(r.last_t),
-      (man.has(r.wallet) ? '<span class="tag win">você copia · ' + MODO_TXT[modo[r.wallet] || "ambas"] + "</span> " : "") + (r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
+      ((r.perigo || []).length ? '<span class="tag loss dzt" title="' + esc(r.perigo.join(" · ")) + '">PERIGO · ' + esc(r.perigo.some((x) => /honeypot/.test(x)) ? "honeypot" : "robô") + "</span> " +
+        (man.has(r.wallet) ? '<span class="tag pause">você ainda copia: a REAL não compra dele</span> ' : "") + '<small class="down">' + esc(r.perigo.join(" · ")) + "</small><br>" : "") +
+      (man.has(r.wallet) && !(r.perigo || []).length ? '<span class="tag win">você copia · ' + MODO_TXT[modo[r.wallet] || "ambas"] + "</span> " : "") + (r.copiaria ? '<span class="tag win">copiando</span>' : r.eligible ? '<span class="tag neutral">' + (r.online ? "apto" : "apto · fora (inativo)") + "</span>"
         : '<span class="muted small">' + esc((r.flags || []).join(" · ")) + "</span>"), btn(r)];
     const H = ["#", "Carteira", "Lucro realizado", "Volume", "Trades", "Acerto", "Saldo", "Último trade", "Situação", ""];
     $("hdRkSub").textContent = num(rk.carteiras, 0) + " carteiras negociaram nas últimas 24 h · os 50 que mais lucraram · " + num(rk.aptos, 0) + " aptos";

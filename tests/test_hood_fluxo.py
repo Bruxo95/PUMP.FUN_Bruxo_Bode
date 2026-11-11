@@ -153,3 +153,41 @@ def test_flow_and_users_routes_are_admin_only(env):  # noqa: F811
     assert r["horas"] == 6 and r["rows"] == []
     us = c.get("/api/hood/usuarios", headers=tok(UA)).json()["users"]
     assert us and all("hood" in u for u in us)
+
+
+def test_danger_traders_are_tagged_blocked_from_copy_and_never_buy_in_real():
+    """0.32.295 (pedido do dono): trader PERIGO (contrato-robô ou comprou token que não deixa vender) não entra no Copiando agora,
+    o botão Copiar é recusado e a REAL não compra dele mesmo se já estava sendo copiado."""
+    w = hood.HoodWatch(None, None)
+    now = time.time()
+    w._add(tr(1, TOK, A, "buy", 1.0, t=now - 100))
+    w._add(tr(2, TOK2, B, "buy", 1.0, t=now - 100))
+    w.copier.safe.mark(TOK, False, "a VENDA é recusada pelo pool", venda_travada=True)
+    w.balances[B] = {"usd": 5000, "contrato": True, "t": now}
+    dz = w.danger(now)
+    assert "honeypot" in dz[A][0] and "contrato" in dz[B][0]
+    rows = {r["wallet"]: r for r in w.ranking(now)["rows"]}
+    assert rows[A]["perigo"] and not rows[A]["eligible"] and not rows[A]["copiaria"]
+
+    async def go():
+        c = w.copier
+        c.book("u1")
+        try:
+            await c.follow("u1", A, True, "real")
+            assert False
+        except ValueError as e:
+            assert "PERIGO" in str(e)
+        assert await c.follow("u1", A, False) == []                     # parar continua funcionando
+        c.books["u1"].cfg["manual"] = [B]
+        c.rcfg("u1")["real_on"] = True
+        chamou = []
+
+        async def real_buy(*a):
+            chamou.append(a)
+        c._real_buy = real_buy
+        t = tr(9, TOK2, B, "buy", 1.0)
+        t["_auto"] = False
+        c._buy_all(t, {"ok": True}, [hoodcopy.ZERO, TOK2, 3000, 60, hoodcopy.ZERO], 0.001)
+        await asyncio.sleep(0)
+        assert not chamou and c.real["u1"].events[0]["acao"] == "REAL não copiou" and "PERIGO" in c.real["u1"].events[0]["motivo"]
+    run(go())

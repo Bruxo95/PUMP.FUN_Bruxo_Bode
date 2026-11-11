@@ -493,8 +493,12 @@ class Copier:
         self.stat["copiadas"] += 1
         # 0.32.287: a REAL sai primeiro; a FICTÍCIA da mesma conta depois passa a usar o preço que a REAL pagou (_align)
         reais = 0
+        perigo = self.w.danger_reason(tr["wallet"]) if hasattr(self.w, "danger_reason") else None
         for uid, rc in list(self.real_cfg.items()):
             if rc.get("real_on") and self.book(uid).real_follows(tr["wallet"], tr.get("_auto", True)):
+                if perigo:                          # 0.32.295: trader PERIGO nunca compra na REAL, mesmo se já estava sendo copiado
+                    self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "trader marcado PERIGO: " + perigo)
+                    continue
                 self._spawn(self._real_buy(uid, tr, px, key))
                 reais += 1
 
@@ -948,6 +952,9 @@ class Copier:
         w = (wallet or "").strip().lower()
         if on and modo not in MODOS:
             raise ValueError("modo inválido")
+        perigo = self.w.danger_reason(w) if on and hasattr(self.w, "danger_reason") else None
+        if perigo:                                  # 0.32.295 (pedido do dono): botão travado também no servidor
+            raise ValueError("trader marcado PERIGO, não dá para copiar: " + perigo)
         if on and w not in cur:
             if len(cur) >= MANUAL_MAX:
                 raise ValueError(f"no máximo {MANUAL_MAX} traders copiados à mão")
