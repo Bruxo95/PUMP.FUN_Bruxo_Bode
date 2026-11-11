@@ -53,6 +53,10 @@
   .cfh{display:flex;align-items:center;gap:10px;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--line2);min-height:40px}
   .cfl{font-size:13.5px}.cfl small{display:block;color:var(--muted);font-size:11.5px}
   .cfc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.cfc input{width:120px}.cfc .muted{font-size:12px}
+  .cvrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0}.cvf{display:flex;align-items:center;gap:8px;font-weight:600}
+  .cvf input{width:170px}.cveq{font-size:20px;color:var(--muted)}.cvq{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px}
+  .usdh{font-size:12px;color:var(--muted);white-space:nowrap}
+  @media (max-width:860px){.cvf{flex:1 1 100%}.cvf input{flex:1;width:auto}.cveq{display:none}}
   .cfc.na{color:var(--muted);font-size:12px}
   @media (max-width:860px){.cfgrid{grid-template-columns:1fr 1fr;gap:0 8px}.cfgrid>*,.cfrows>*{padding:6px 8px}.cfgrid>.cfh:first-child,.cfgrid>.cfl:empty{display:none}
     .cfl{grid-column:1/-1;margin-top:8px}.cfc input{width:100%}.cfh{flex-wrap:wrap}}
@@ -157,6 +161,14 @@
           <div class="tbl-wrap"><table id="hiTb"></table></div></div>
       </section>
       <section class="view" data-view="carteira" hidden>
+        <div class="card" id="cvCard"><header><div><h2>Conversor ETH ↔ dólar</h2><div class="sub" id="cvRate">cotação do ETH carregando…</div></div></header>
+          <div class="cvrow">
+            <label class="cvf"><span>ETH</span><input class="in" id="cvEth" type="number" min="0" step="0.001" inputmode="decimal" placeholder="0,01" aria-label="Valor em ETH"></label>
+            <span class="cveq" aria-hidden="true">=</span>
+            <label class="cvf"><span>US$</span><input class="in" id="cvUsd" type="number" min="0" step="1" inputmode="decimal" placeholder="5" aria-label="Valor em dólar"></label>
+          </div>
+          <div class="cvq" id="cvQuick"></div>
+          <div class="help"><p>Digite em um dos lados e o outro muda sozinho, pela cotação real do ETH (DexScreener, renovada a cada 5 min). Nos campos em ETH abaixo também aparece quanto vale em dólar.</p></div></div>
         <div class="card"><header><div><h2>Valores da cópia</h2><div class="sub">uma linha por opção, FICTÍCIA e REAL lado a lado · salva sozinho ao mudar um valor</div></div></header>
           <div class="cfgrid" id="cfgT">
             <div class="cfh"></div>

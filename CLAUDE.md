@@ -1756,3 +1756,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   `danger_scan` (até 2 tokens por volta dos 30 primeiros, 2 h). `ranking` põe `perigo` e tira do `copiaria`; `Copier.follow` recusa e `_buy_all` não
   compra na REAL de trader PERIGO (a fictícia segue, para medir). Tela: etiqueta `.dzt` e botões `.dz` travados. Piranha Samurai (0x3367…6fcb) e
   Raposa Radical (0x63bd…48cc) são o mesmo contrato (20.733 bytes, conferido em 11/11).
+- 0.32.296 (pedido do dono): conversor `#cvEth`/`#cvUsd` na Carteira do /hood (`usdRate` = `P.eth_usd` → `R.status.eth_usd` → `FX.eth_usd`; `conv`, `drawConv`, botões `data-cveth`) e `.usdh[data-usd]` nos campos com unidade ETH de `CFG_ROWS`.

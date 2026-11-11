@@ -36,3 +36,10 @@ def test_sala_da_robinhood_le_so_o_painel_da_hood():
     assert 'get("rede") === "hood"' in js and '"/api/hood/painel"' in js and "/api/hood/real" not in js
     html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
     assert 'id="hoodSala" data-link href="/sala?rede=hood"' in html
+
+
+def test_hood_tem_conversor_eth_dolar():
+    """0.32.296 (pedido do dono): conversor ETH ↔ dólar na Carteira do /hood e "≈ US$" nos campos em ETH."""
+    html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
+    js = open(os.path.join(WEB, "hood.js"), encoding="utf-8").read()
+    assert 'id="cvEth"' in html and 'id="cvUsd"' in html and "data-usd=" in js and "usdRate" in js

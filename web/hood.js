@@ -233,7 +233,24 @@
     ["Gás por transação", "ETH", "gas_eth", null, "na REAL é o gás de verdade"],
     ["Saldo inicial", "ETH", "saldo_inicial", null, "na REAL é o saldo da carteira"],
   ];
-  function cfgCell(pre, key, info, c, p, na, kind) {
+  // 0.32.296 (pedido do dono: "conversão direta ... 0,01 ETH = 5 dólares, consultando a cotação real"): cotação do ETH da
+  // DexScreener (a mesma do Monitor), conversor ETH ↔ dólar e "≈ US$" ao lado de cada campo em ETH
+  const usdRate = () => (P && P.eth_usd) || (R && R.status && R.status.eth_usd) || (FX && FX.eth_usd) || null;
+  const usdOf = (e) => { const r = usdRate(); return r && e !== "" && e != null && isFinite(e) ? "≈ US$ " + num(Number(e) * r, Number(e) * r >= 100 ? 0 : 2) : ""; };
+  function usdHints() { document.querySelectorAll("[data-usd]").forEach((h) => { const el = $(h.dataset.usd); h.textContent = el ? usdOf(el.value) : ""; }); }
+  function drawConv() {
+    const r = usdRate();
+    if ($("cvRate")) $("cvRate").textContent = r ? "1 ETH = US$ " + num(r, 2) + " · cotação real da DexScreener" : "cotação do ETH ainda não chegou (o conversor liga quando chegar)";
+    if ($("cvQuick")) $("cvQuick").innerHTML = [0.001, 0.002, 0.005, 0.01, 0.05, 0.1].map((v) => '<button class="btn sm" type="button" data-cveth="' + v + '">' + num(v, 3) + " ETH" +
+      (r ? ' <span class="muted">= US$ ' + num(v * r, v * r >= 100 ? 0 : 2) + "</span>" : "") + "</button>").join("");
+    usdHints();
+  }
+  function conv(from) {
+    const r = usdRate(); if (!r) return;
+    if (from === "eth") { const v = parseFloat($("cvEth").value); $("cvUsd").value = isFinite(v) ? +(v * r).toFixed(2) : ""; }
+    else { const v = parseFloat($("cvUsd").value); $("cvEth").value = isFinite(v) ? +(v / r).toFixed(6) : ""; }
+  }
+  function cfgCell(pre, key, info, c, p, na, kind, unit) {
     const col = pre === "cf_" ? " cf-sim" : " cf-real";
     if (!key) return '<div class="cfc na' + col + '">' + esc(na || "—") + "</div>";
     if (kind === "bool") {
@@ -243,11 +260,12 @@
     }
     const x = info.find((i) => i[0] === key) || [key, "", "", 0, 1e9, "any"];
     return '<div class="cfc' + col + '"><input class="in" id="' + pre + key + '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[key]) +
-      '" aria-label="' + esc(x[1]) + '">' + (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + "</div>";
+      '" aria-label="' + esc(x[1]) + '">' + (unit === "ETH" ? '<span class="usdh" data-usd="' + pre + key + '">' + esc(usdOf(c[key])) + "</span>" : "") +
+      (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + "</div>";
   }
   function cfgRows(c, rc) {
     return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small></div>" +
-      cfgCell("cf_", r[2], CF_INFO, c, P.padrao, r[4], r[5]) + cfgCell("rl_", r[3], RL_INFO, rc, P.real_padrao, r[4], r[5])).join("");
+      cfgCell("cf_", r[2], CF_INFO, c, P.padrao, r[4], r[5], r[1]) + cfgCell("rl_", r[3], RL_INFO, rc, P.real_padrao, r[4], r[5], r[1])).join("");
   }
   function fieldHtml(pre, info, c, p) {
     return info.map((x) => '<div class="field"><label for="' + pre + x[0] + '">' + esc(x[1]) + '</label><div class="row"><input class="in w120" id="' + pre + x[0] +
@@ -281,7 +299,7 @@
     $("poAll").hidden = !ps.length;
     table("poTb", ["Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", "Pico", "Fecha em", ""], ps.map((p) => [
       hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
-      tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
+      tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (usdRate() ? '<br><small class="muted">' + usdOf(p.eth_in) + "</small>" : "") + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
       pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>",
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
       p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora",
@@ -303,6 +321,7 @@
       esc(x.motivo || "") + (x.tx_out ? " · " + txl(x.tx_out) : "")]), REAL ? "Nenhuma posição REAL fechada ainda." : "Nenhuma posição fechada ainda.");
   }
   function drawCarteira() {
+    drawConv();
     if (!P) return;
     const c = P.cfg_sim || {}, rc = P.real_cfg || {}, st = P.real_status || {};
     const on = $("cfOn"); on.classList.toggle("on", !!c.on); on.textContent = c.on ? "Ligada" : "Desligada"; on.setAttribute("aria-checked", c.on ? "true" : "false");
@@ -468,6 +487,8 @@
     if (t.id === "gaUsd") { gaConv(); $("gaP").hidden = true; }
     if (t.id === "adQ") drawAdmin();
     if (t.closest("#hdCfg")) DIRTY = true;
+    if (t.id === "cvEth" || t.id === "cvUsd") { conv(t.id === "cvEth" ? "eth" : "usd"); return; }
+    if (t.closest("#cfRows") && t.type === "number") usdHints();
     if (t.closest("#cfRows") && t.id.startsWith("cf_")) { CF_DIRTY = true; autoSave("cf"); }
     if (t.closest("#cfRows") && t.id.startsWith("rl_")) { RL_DIRTY = true; autoSave("rl"); }
   });
@@ -524,6 +545,7 @@
       return load();
     }
     if (t.id === "cfOn") { const r = await post("/api/hood/conta", { on: !(P && P.cfg_sim && P.cfg_sim.on) }, t); if (r && r.error) alert(r.error); return load(); }
+    if (t.dataset.cveth) { $("cvEth").value = t.dataset.cveth; conv("eth"); return; }
     if (t.dataset.bool && t.closest("#cfRows")) { setBool(t, !t.classList.contains("on")); if (t.id.startsWith("rl_")) RL_DIRTY = true; else CF_DIRTY = true; return autoSave(t.id.startsWith("rl_") ? "rl" : "cf"); }
     if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); CF_BOOL.forEach((k) => { if ($("cf_" + k)) setBool($("cf_" + k), !!p[k]); }); return autoSave("cf"); }
     if (t.id === "rlReset") { RL_DIRTY = true; const p = (P && P.real_padrao) || {}; RL_INFO.forEach((x) => { if ($("rl_" + x[0])) $("rl_" + x[0]).value = p[x[0]]; }); RL_BOOL.forEach((k) => { if ($("rl_" + k)) setBool($("rl_" + k), !!p[k]); }); return autoSave("rl"); }
