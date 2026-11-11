@@ -2320,6 +2320,11 @@
    "versao": "0.32.312",
    "inicio": "2026-11-11T13:14:29+00:00",
    "titulo": "Robinhood: conferência mais forte antes de comprar (travas de venda)"
+  },
+  {
+   "versao": "0.32.313",
+   "inicio": "2026-11-11T13:56:33+00:00",
+   "titulo": "Robinhood: comparar e copiar a configuração de outro usuário"
   }
  ]
 }

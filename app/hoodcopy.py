@@ -1119,6 +1119,51 @@ class Copier:
         await self.flush()
         return b.cfg
 
+    # 0.32.313 (pedido do dono: "copiar config de um outro usuário e na carteira mostrar se tá igual ou diferente", como na Solana)
+    COPY_SKIP = ("on", "saldo_inicial", "manual", "modo", "bloqueados", "tokens_bloqueados")
+
+    def share_cfg(self, uid: str) -> dict | None:
+        """Configuração de uma conta para comparar e copiar. Fica de fora o que é pessoal: fictícia ligada, saldo inicial e REAL ligada
+        (essa nunca é copiada). Traders seguidos e bloqueios vêm à parte. None = a conta nunca abriu o /hood."""
+        b, rc = self.books.get(uid), self.real_cfg.get(uid)
+        if b is None and rc is None:
+            return None
+        cfg = b.cfg if b is not None else CFG_DEFAULT
+        sim = {k: cfg.get(k, v) for k, v in CFG_DEFAULT.items() if k not in self.COPY_SKIP}
+        real = {k: v for k, v in hoodreal.clean(rc or {}, rc or {}).items() if k != "real_on"}
+        return {"sim": sim, "real": real, "manual": list(cfg.get("manual") or []), "modo": dict(cfg.get("modo") or {}),
+                "bloqueados": list(cfg.get("bloqueados") or []), "tokens_bloqueados": list(cfg.get("tokens_bloqueados") or [])}
+
+    async def copy_cfg(self, uid: str, peer: str, keys: list | None, traders: bool = False, bloqueios: bool = False) -> dict:
+        """Copia da outra conta as opções pedidas (keys; None = todas). traders soma os traders que ela copia (com o modo dela, menos os
+        que esta conta bloqueou); bloqueios soma as listas de bloqueados. Nunca liga a REAL nem mexe no saldo."""
+        if peer == uid:
+            raise ValueError("escolha outra conta")
+        src = self.share_cfg(peer)
+        if src is None:
+            raise ValueError("essa conta ainda não abriu a Robinhood")
+        want = set(keys) if keys is not None else set(src["sim"]) | set(src["real"])
+        sim = {k: v for k, v in src["sim"].items() if k in want}
+        real = {k: v for k, v in src["real"].items() if k in want}
+        b = self.book(uid)
+        cfg = b.cfg
+        if bloqueios:
+            sim["bloqueados"] = list(dict.fromkeys(list(cfg.get("bloqueados") or []) + src["bloqueados"]))
+            sim["tokens_bloqueados"] = list(dict.fromkeys(list(cfg.get("tokens_bloqueados") or []) + src["tokens_bloqueados"]))
+        if traders:
+            bl = set(sim.get("bloqueados") or cfg.get("bloqueados") or [])
+            add = [w for w in src["manual"] if w not in bl]
+            sim["manual"] = list(dict.fromkeys(list(cfg.get("manual") or []) + add))[:MANUAL_MAX]
+            sim["modo"] = {**{w: src["modo"][w] for w in add if w in src["modo"]}, **dict(cfg.get("modo") or {})}
+        n_sim = sum(1 for k, v in sim.items() if cfg.get(k) != v)
+        rc0 = self.rcfg(uid)
+        n_real = sum(1 for k, v in real.items() if rc0.get(k) != v)
+        if sim:
+            await self.save_book_cfg(uid, sim)
+        if real:
+            await self.save_real_cfg(uid, real)
+        return {"ficticia": n_sim, "real": n_real, "cfg": self.book(uid).cfg, "real_cfg": self.rcfg(uid)}
+
     async def block_token(self, uid: str, token: str, on: bool) -> list:
         """0.32.303 (pedido do dono): moeda bloqueada nunca é comprada nesta conta (cópia nem botão Comprar)."""
         b = self.book(uid)

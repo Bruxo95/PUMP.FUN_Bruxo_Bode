@@ -267,3 +267,36 @@ def test_token_block_buy_button_and_check_without_waiting_for_copy():
     w._rank_cache = (now, {"rows": [{"wallet": B}], "copiaria": []})
     f = w.flow(1, now=now)
     assert f["rows"][0]["top"][0]["perigo"]
+
+
+def test_copy_config_from_other_user_only_changes_chosen_and_never_turns_real_on():
+    """0.32.313 (pedido do dono): copiar a configuração de outra conta, como na Solana. Só o que foi escolhido, REAL nunca liga,
+    saldo não muda, traders bloqueados ficam de fora."""
+    w = hood.HoodWatch(None, None)
+    c = w.copier
+    assert c.share_cfg("ele") is None                      # nunca abriu o /hood
+    run(c.save_book_cfg("ele", {"eth_por_compra": 0.0003, "stop_pct": 20, "saldo_inicial": 9, "manual": [A, B], "modo": {A: "real"},
+                                "bloqueados": [C], "tokens_bloqueados": [TOK]}))
+    run(c.save_real_cfg("ele", {"real_slip_pct": 10, "real_stop_pct": 20}))
+    c.real_cfg["ele"]["real_on"] = True
+    run(c.save_book_cfg("eu", {"bloqueados": [B]}))
+    src = c.share_cfg("ele")
+    assert "saldo_inicial" not in src["sim"] and "on" not in src["sim"] and "real_on" not in src["real"]
+    r = run(c.copy_cfg("eu", "ele", ["stop_pct", "real_slip_pct"]))
+    b = c.book("eu")
+    assert r["ficticia"] == 1 and r["real"] == 1
+    assert b.cfg["stop_pct"] == 20 and b.cfg["eth_por_compra"] == hoodcopy.CFG_DEFAULT["eth_por_compra"]   # só o escolhido
+    assert c.rcfg("eu")["real_slip_pct"] == 10 and not c.rcfg("eu").get("real_on")
+    assert b.cfg["saldo_inicial"] == hoodcopy.CFG_DEFAULT["saldo_inicial"]
+    run(c.copy_cfg("eu", "ele", [], traders=True))
+    assert b.cfg["manual"] == [A] and b.cfg["modo"].get(A) == "real"         # B está bloqueado nesta conta
+    run(c.copy_cfg("eu", "ele", [], bloqueios=True))
+    assert set(b.cfg["bloqueados"]) == {B, C} and b.cfg["tokens_bloqueados"] == [TOK]
+    run(c.copy_cfg("eu", "ele", None))
+    assert b.cfg["eth_por_compra"] == 0.0003 and c.rcfg("eu")["real_stop_pct"] == 20 and not c.rcfg("eu").get("real_on")
+    for bad in ("eu", "ninguem"):
+        try:
+            run(c.copy_cfg("eu", bad, None))
+            assert False
+        except ValueError:
+            pass

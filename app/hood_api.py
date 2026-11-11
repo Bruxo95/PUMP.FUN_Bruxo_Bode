@@ -112,6 +112,61 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         await audit(db, u["id"], "Robinhood: " + ("copiar trader (" + nomes.get(modo, modo) + ")" if on else "parar de copiar trader"), w[:42])
         return {"ok": True, "manual": lst, "modo": c.book(u["id"]).cfg.get("modo") or {}}
 
+    # 0.32.313 (pedido do dono): comparar e copiar a configuração de outro usuário (como na Solana). Só entre admins, só leitura
+    # da conta do outro; a cópia mexe só na conta de quem clica, nunca liga a REAL nem mexe no saldo.
+    def _mask(e):
+        e = str(e or "")
+        if "@" not in e:
+            return ""
+        n, d = e.split("@", 1)
+        return n[:2] + "***@" + d
+
+    async def _admins(me):
+        rows = await db.select("profiles", {"role": "admin"}) or []
+        return [p for p in rows if p.get("user_id") and p.get("user_id") != me and not p.get("bloqueado")]
+
+    @app.get("/api/hood/config/usuarios")
+    async def hood_cfg_users(u: dict = Depends(admin_only)):
+        c = cp()
+        out = [{"user_id": p["user_id"], "nome": p.get("nome") or _mask(p.get("email")) or "sem nome", "email": _mask(p.get("email")),
+                "tem_conta": bool(c and c.share_cfg(p["user_id"]))} for p in await _admins(u["id"])]
+        out.sort(key=lambda x: (not x["tem_conta"], x["nome"].lower()))
+        return {"users": out}
+
+    @app.get("/api/hood/config/peer")
+    async def hood_cfg_peer(uid: str, u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        if uid not in {p["user_id"] for p in await _admins(u["id"])}:
+            return {"error": "conta não encontrada"}
+        src = c.share_cfg(uid)
+        if src is None:
+            return {"error": "essa conta ainda não abriu a Robinhood"}
+        return {"ok": True, **src}
+
+    @app.post("/api/hood/config/copiar")
+    async def hood_cfg_copy(body: dict, u: dict = Depends(admin_only)):
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        b = body if isinstance(body, dict) else {}
+        peer = str(b.get("uid") or "")
+        adm = {p["user_id"]: p for p in await _admins(u["id"])}
+        if peer not in adm:
+            return {"error": "conta não encontrada"}
+        keys = b.get("keys")
+        keys = [str(k) for k in keys][:200] if isinstance(keys, list) else None
+        try:
+            r = await c.copy_cfg(u["id"], peer, keys, traders=bool(b.get("traders")), bloqueios=bool(b.get("bloqueios")))
+        except ValueError as e:
+            return {"error": str(e)}
+        nome = adm[peer].get("nome") or _mask(adm[peer].get("email"))
+        await audit(db, u["id"], "Robinhood: configuração copiada de outro usuário",
+                    f"de {nome}: {r['ficticia']} na FICTÍCIA, {r['real']} na REAL" + (", traders" if b.get("traders") else "") +
+                    (", bloqueios" if b.get("bloqueios") else ""))
+        return {"ok": True, **r}
+
     @app.post("/api/hood/bloquear")
     async def hood_bloquear(body: dict, u: dict = Depends(admin_only)):
         c = cp()

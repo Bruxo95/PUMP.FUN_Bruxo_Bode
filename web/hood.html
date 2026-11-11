@@ -61,6 +61,12 @@
   .usdh{font-size:12px;color:var(--muted);white-space:nowrap}
   @media (max-width:860px){.cvf{flex:1 1 100%}.cvf input{flex:1;width:auto}.cveq{display:none}}
   .cfc.na{color:var(--muted);font-size:12px}
+  /* 0.32.313: comparar com outro usuário */
+  .cmpeq{color:var(--up);font-size:12px}.cmpne{color:#f5a524;font-size:12px;font-weight:600}
+  .cmpsel{gap:10px;flex-wrap:wrap}.cmpsel select{min-width:0;max-width:100%;flex:1 1 260px}
+  .cmpsts{display:flex;flex-wrap:wrap;gap:8px 18px;margin:12px 0}.cmpst{font-size:13px}
+  .cmplist{display:grid;gap:4px;font-size:13px;margin-bottom:10px;overflow-wrap:anywhere}
+  .cmpbtns{gap:8px;flex-wrap:wrap}.cmpask ul{margin:8px 0 6px 18px;padding:0;font-size:13px;overflow-wrap:anywhere}
   @media (max-width:860px){.cfgrid{grid-template-columns:1fr 1fr;gap:0 8px}.cfgrid>*,.cfrows>*{padding:6px 8px}.cfgrid>.cfh:first-child,.cfgrid>.cfl:empty{display:none}
     .cfl{grid-column:1/-1;margin-top:8px}.cfc input{width:100%}.cfh{flex-wrap:wrap}}
   .aduser{display:inline-flex;align-items:center;gap:10px}.aduser img{width:32px;height:32px;border-radius:50%;flex:0 0 32px}
@@ -184,6 +190,8 @@
           </div>
           <div class="cvq" id="cvQuick"></div>
           <div class="help"><p>Digite em um dos lados e o outro muda sozinho, pela cotação real do ETH (DexScreener, renovada a cada 5 min). Nos campos em ETH abaixo também aparece quanto vale em dólar.</p></div></div>
+        <div class="card" id="cmpCard" style="margin-bottom:16px"><header><div><h2>Comparar com outro usuário</h2><div class="sub">mostra o que está igual e o que está diferente da configuração de outra conta e copia só o que você escolher · a REAL nunca liga sozinha</div></div></header>
+          <div id="cmpBox"></div></div>
         <div class="card"><header><div><h2>Valores da cópia</h2><div class="sub">uma linha por opção, FICTÍCIA e REAL lado a lado · salva sozinho ao mudar um valor</div></div></header>
           <div class="cfgrid" id="cfgT">
             <div class="cfh"></div>

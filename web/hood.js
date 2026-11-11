@@ -276,18 +276,128 @@
     if (from === "eth") { const v = parseFloat($("cvEth").value); $("cvUsd").value = isFinite(v) ? +(v * r).toFixed(2) : ""; }
     else { const v = parseFloat($("cvUsd").value); $("cvEth").value = isFinite(v) ? +(v / r).toFixed(6) : ""; }
   }
+  // 0.32.313 (pedido do dono: "copiar config de outro usuário e na carteira mostrar se tá igual ou diferente", como na Solana).
+  // Compara com outro admin, marca cada opção (= igual / ≠ dele), copia só depois de ver a lista e guarda o "desfazer" no navegador.
+  let CMP = null, CMP_U = null, CMP_UID = null, CMP_AT = 0, CMP_PLAN = null, CMP_BUSY = false;
+  try { CMP_UID = localStorage.getItem("hood_cmp") || null; } catch (e) { /* */ }
+  const cmpName = () => { const u = (CMP_U || []).find((x) => x.user_id === CMP_UID); return u ? u.nome : "o outro"; };
+  const cmpEq = (a, b) => (typeof a === "number" || typeof b === "number" ? Number(a) === Number(b) : !!a === !!b);
+  const cmpShow = (v) => (typeof v === "boolean" ? (v ? "Ligado" : "Desligado") : v == null ? "—" : num(v, 6));
+  function cmpLabel(k) { const r = CFG_ROWS.find((x) => x[2] === k || x[3] === k); return r ? r[0] : k; }
+  function cmpDiffs() {
+    if (!CMP || !CMP.sim || !P) return null;
+    const c = P.cfg_sim || {}, rc = P.real_cfg || {}, out = { sim: [], real: [] };
+    CFG_ROWS.forEach((r) => {
+      if (r[2] && r[2] in CMP.sim && !cmpEq(c[r[2]], CMP.sim[r[2]])) out.sim.push({ k: r[2], meu: c[r[2]], dele: CMP.sim[r[2]] });
+      if (r[3] && r[3] in CMP.real && !cmpEq(rc[r[3]], CMP.real[r[3]])) out.real.push({ k: r[3], meu: rc[r[3]], dele: CMP.real[r[3]] });
+    });
+    const mine = new Set(c.manual || []), bl = new Set(c.bloqueados || []), tb = new Set(c.tokens_bloqueados || []);
+    out.tr = (CMP.manual || []).filter((w) => !mine.has(w) && !bl.has(w));
+    out.comum = (CMP.manual || []).filter((w) => mine.has(w)).length;
+    out.bl = (CMP.bloqueados || []).filter((w) => !bl.has(w)).length + (CMP.tokens_bloqueados || []).filter((w) => !tb.has(w)).length;
+    return out;
+  }
+  function cmpChip(pre, key, mine) {
+    if (!CMP || !CMP.sim || !key) return "";
+    const src = pre === "cf_" ? CMP.sim : CMP.real;
+    if (!(key in src)) return "";
+    return cmpEq(mine, src[key]) ? '<span class="cmpeq" title="igual ao de ' + esc(cmpName()) + '">= igual</span>'
+      : '<span class="cmpne" title="valor de ' + esc(cmpName()) + '">≠ ' + esc(cmpName().split(" ")[0]) + ": " + esc(cmpShow(src[key])) + "</span>";
+  }
+  async function loadCmp(force) {
+    if (CMP_BUSY || (!force && CMP && Date.now() - CMP_AT < 60000)) return;
+    CMP_BUSY = true;
+    try {
+      if (!CMP_U || force) {
+        const u = await BB.api("/api/hood/config/usuarios", { quiet: true });
+        CMP_U = (u && u.users) || [];
+        if (!CMP_UID || !CMP_U.some((x) => x.user_id === CMP_UID)) {
+          const b = CMP_U.find((x) => x.tem_conta && /bruxo/i.test(x.nome)) || CMP_U.find((x) => x.tem_conta);
+          CMP_UID = b ? b.user_id : null;
+        }
+      }
+      if (CMP_UID) {
+        const r = await BB.api("/api/hood/config/peer?uid=" + encodeURIComponent(CMP_UID), { quiet: true });
+        CMP = r && r.ok ? r : { error: (r && r.error) || "não carregou" };
+      } else CMP = null;
+      CMP_AT = Date.now();
+    } finally { CMP_BUSY = false; }
+    drawCmp(); cmpRows();
+  }
+  function cmpRows() {
+    if (!P || CF_DIRTY || RL_DIRTY || document.activeElement.closest("#cfRows")) return;
+    $("cfRows").innerHTML = cfgRows(P.cfg_sim || {}, P.real_cfg || {}); usdHints();
+  }
+  function cmpUndo() { try { return JSON.parse(localStorage.getItem("hood_cmpundo") || "null"); } catch (e) { return null; } }
+  function drawCmp() {
+    const box = $("cmpBox"); if (!box) return;
+    if (!CMP_U) { box.innerHTML = '<p class="muted">Carregando…</p>'; return; }
+    const opts = CMP_U.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === CMP_UID ? " selected" : "") + (u.tem_conta ? "" : " disabled") + ">" +
+      esc(u.nome) + (u.email ? " · " + esc(u.email) : "") + (u.tem_conta ? "" : " (ainda não abriu a Robinhood)") + "</option>").join("");
+    let h = '<div class="row cmpsel"><label for="cmpSel">Comparar com</label><select class="in" id="cmpSel">' + (opts || '<option value="">Nenhum outro admin</option>') + "</select></div>";
+    const u = cmpUndo();
+    const undo = u ? '<button class="btn sm" id="cmpUndo" type="button" title="Volta os valores de antes da última cópia (de ' + esc(u.de) + ')">Desfazer a cópia de ' + esc(u.de) + "</button>" : "";
+    if (!CMP_UID || !CMP) { box.innerHTML = h + '<p class="muted">Escolha um usuário que já abriu a Robinhood.</p>' + undo; return; }
+    if (CMP.error) { box.innerHTML = h + '<p class="down">' + esc(CMP.error) + "</p>" + undo; return; }
+    const d = cmpDiffs(), n = cmpName();
+    if (!d) { box.innerHTML = h; return; }
+    const st = (k, lst) => '<div class="cmpst"><span class="tag ' + k + '">' + (k === "sim" ? "FICTÍCIA" : "REAL") + "</span> " +
+      (lst.length ? '<b class="cmpne">' + lst.length + " diferente" + (lst.length > 1 ? "s" : "") + "</b>" : '<b class="cmpeq">100% igual</b>') + "</div>";
+    h += '<div class="cmpsts">' + st("sim", d.sim) + st("real", d.real) +
+      '<div class="cmpst">Traders: você copia ' + ((P.cfg_sim || {}).manual || []).length + ", " + esc(n) + " copia " + (CMP.manual || []).length + " · " + d.comum + " em comum</div></div>";
+    const all = d.sim.map((x) => ["sim", x]).concat(d.real.map((x) => ["real", x]));
+    if (all.length) h += '<div class="cmplist">' + all.map(([w, x]) => '<div><span class="tag ' + w + '">' + (w === "sim" ? "FICT." : "REAL") + "</span> " + esc(cmpLabel(x.k)) +
+      ': <span class="muted">você ' + esc(cmpShow(x.meu)) + "</span> → <b>" + esc(cmpShow(x.dele)) + "</b></div>").join("") + "</div>";
+    const btn = (k, txt, off) => '<button class="btn sm' + (k === "all" ? " primary" : "") + '" type="button" data-cmpgo="' + k + '"' + (off ? " disabled" : "") + ">" + txt + "</button>";
+    h += '<div class="row cmpbtns">' + btn("all", "Ficar igual a " + esc(n) + " (FICTÍCIA e REAL)", !all.length) + btn("sim", "Só a FICTÍCIA", !d.sim.length) + btn("real", "Só a REAL", !d.real.length) +
+      btn("tr", "Copiar os traders de " + esc(n) + (d.tr.length ? " (+" + d.tr.length + ")" : ""), !d.tr.length) + btn("bl", "Juntar os bloqueios" + (d.bl ? " (+" + d.bl + ")" : ""), !d.bl) + undo + "</div>";
+    if (CMP_PLAN) {
+      h += '<div class="hdask cmpask"><b>Vai mudar na sua conta:</b><ul>' + CMP_PLAN.linhas.map((l) => "<li>" + l + "</li>").join("") + '</ul><p class="muted">A carteira REAL não liga nem desliga e o saldo não muda. Dá para desfazer depois.</p>' +
+        '<div class="row"><button class="btn primary" id="cmpOk" type="button">Confirmar</button><button class="btn sm" id="cmpNo" type="button">Cancelar</button></div></div>';
+    }
+    box.innerHTML = h;
+  }
+  function cmpPlan(kind) {
+    const d = cmpDiffs(); if (!d) return;
+    const n = cmpName(), linhas = [], plan = { kind, keys: [], traders: kind === "tr", bloqueios: kind === "bl", linhas };
+    const take = (w, lst) => lst.forEach((x) => { plan.keys.push(x.k); linhas.push('<span class="tag ' + w + '">' + (w === "sim" ? "FICT." : "REAL") + "</span> " + esc(cmpLabel(x.k)) + ": " + esc(cmpShow(x.meu)) + " → <b>" + esc(cmpShow(x.dele)) + "</b>"); });
+    if (kind === "all" || kind === "sim") take("sim", d.sim);
+    if (kind === "all" || kind === "real") take("real", d.real);
+    if (kind === "tr") linhas.push("Começa a copiar " + d.tr.length + " trader" + (d.tr.length > 1 ? "s" : "") + " que " + esc(n) + " copia (no mesmo modo FICTÍCIA/REAL dele; os que você bloqueou ficam de fora)");
+    if (kind === "bl") linhas.push("Soma " + d.bl + " bloqueio" + (d.bl > 1 ? "s" : "") + " de " + esc(n) + " (traders e moedas) aos seus");
+    CMP_PLAN = plan; drawCmp();
+  }
+  async function cmpApply(btn) {
+    const pl = CMP_PLAN; if (!pl || !P) return;
+    const c = P.cfg_sim || {}, rc = P.real_cfg || {}, u = { de: cmpName(), sim: {}, real: {} };
+    pl.keys.forEach((k) => { if (k in (CMP.sim || {})) u.sim[k] = c[k]; else u.real[k] = rc[k]; });
+    if (pl.traders) { u.sim.manual = c.manual || []; u.sim.modo = c.modo || {}; }
+    if (pl.bloqueios) { u.sim.bloqueados = c.bloqueados || []; u.sim.tokens_bloqueados = c.tokens_bloqueados || []; }
+    const r = await post("/api/hood/config/copiar", { uid: CMP_UID, keys: pl.keys, traders: pl.traders, bloqueios: pl.bloqueios }, btn);
+    if (!r || r.error) { alert((r && r.error) || "Não copiou."); return; }
+    try { localStorage.setItem("hood_cmpundo", JSON.stringify(u)); } catch (e) { /* */ }
+    P.cfg_sim = r.cfg; P.real_cfg = r.real_cfg; CF_DIRTY = RL_DIRTY = false; CMP_PLAN = null;
+    drawCmp(); cmpRows(); toast("Salvo.");
+  }
+  async function cmpDoUndo(btn) {
+    const u = cmpUndo(); if (!u) return;
+    if (Object.keys(u.sim || {}).length) { const r = await post("/api/hood/conta", u.sim, btn); if (r && r.error) { alert(r.error); return; } if (P && r && r.cfg) P.cfg_sim = r.cfg; }
+    if (Object.keys(u.real || {}).length) { const r = await post("/api/hood/real/cfg", u.real, btn); if (r && r.error) { alert(r.error); return; } if (P && r && r.cfg) P.real_cfg = r.cfg; }
+    try { localStorage.removeItem("hood_cmpundo"); } catch (e) { /* */ }
+    CF_DIRTY = RL_DIRTY = false; drawCmp(); cmpRows(); toast("Salvo.");
+  }
   function cfgCell(pre, key, info, c, p, na, kind, unit) {
     const col = pre === "cf_" ? " cf-sim" : " cf-real";
     if (!key) return '<div class="cfc na' + col + '">' + esc(na || "—") + "</div>";
     if (kind === "bool") {
       const v = !!c[key];
       return '<div class="cfc' + col + '"><button class="btn tgl sw ' + (v ? "on" : "off") + '" id="' + pre + key + '" type="button" role="switch" data-bool="1" aria-checked="' + v + '">' +
-        (v ? "Ligado" : "Desligado") + "</button>" + (p && p[key] !== c[key] ? '<span class="muted">padrão ' + (p[key] ? "ligado" : "desligado") + "</span>" : "") + "</div>";
+        (v ? "Ligado" : "Desligado") + "</button>" + (p && p[key] !== c[key] ? '<span class="muted">padrão ' + (p[key] ? "ligado" : "desligado") + "</span>" : "") + cmpChip(pre, key, c[key]) + "</div>";
     }
     const x = info.find((i) => i[0] === key) || [key, "", "", 0, 1e9, "any"];
     return '<div class="cfc' + col + '"><input class="in" id="' + pre + key + '" type="number" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[key]) +
       '" aria-label="' + esc(x[1]) + '">' + (unit === "ETH" ? '<span class="usdh" data-usd="' + pre + key + '">' + esc(usdOf(c[key])) + "</span>" : "") +
-      (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + "</div>";
+      (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + cmpChip(pre, key, c[key]) + "</div>";
   }
   function cfgRows(c, rc) {
     return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small></div>" +
@@ -328,7 +438,7 @@
     $("poT").innerHTML = "Posições abertas " + mtag();
     $("poSub").textContent = ps.length + " abertas · " + ((P && P.carteira && P.carteira.fechadas) || 0) + " fechadas";
     $("poAll").hidden = !ps.length;
-    // 0.32.311 (pedido do dono: "botão para vender cada posição"): o Vender sai da última coluna (ficava fora da tela entre 860 e
+    // 0.32.313 (pedido do dono: "botão para vender cada posição"): o Vender sai da última coluna (ficava fora da tela entre 860 e
     // 1280 px) e vai para a primeira, junto da hora; os avisos (venda travada, segurando, erro) ficam na coluna Situação
     const sellBtn = (p) => '<button class="btn sm pobtn" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>";
     table("poTb", ["", "Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", PICO_H, "Fecha em", "Situação"], ps.map((p) => [
@@ -374,6 +484,8 @@
     const on = $("cfOn"); on.classList.toggle("on", !!c.on); on.textContent = c.on ? "Ligada" : "Desligada"; on.setAttribute("aria-checked", c.on ? "true" : "false");
     const ro = $("rlOn"); ro.classList.toggle("on", !!st.ligada); ro.textContent = st.ligada ? "Ligada" : "Desligada"; ro.setAttribute("aria-checked", st.ligada ? "true" : "false");
     if (!CF_DIRTY && !RL_DIRTY && !document.activeElement.closest("#cfRows")) $("cfRows").innerHTML = cfgRows(c, rc);
+    if (!CMP_PLAN && !document.activeElement.closest("#cmpBox")) drawCmp();
+    loadCmp(false);
     $("rlSt").innerHTML = [
       "Trava geral do servidor: " + (st.permitido ? '<span class="up">aberta</span>' : '<span class="down">fechada (PUMP_REAL_ALLOWED): nada é enviado</span>'),
       "Chave: " + (st.chave ? '<span class="up">salva</span> · carteira ' + addr(st.endereco) : '<span class="muted">não salva</span>'),
@@ -575,7 +687,10 @@
   const closeDrawer = () => { $("side").classList.remove("open"); $("scrim").classList.remove("open"); };
 
   // ------------------------------------------------------------------ ações
-  document.addEventListener("change", (e) => { if (e.target && e.target.name === "gaO") { GA_PICK = e.target.value; gaConv(); gaAuto(); } });
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.name === "gaO") { GA_PICK = e.target.value; gaConv(); gaAuto(); }
+    if (e.target && e.target.id === "cmpSel") { CMP_UID = e.target.value || null; CMP_PLAN = null; try { localStorage.setItem("hood_cmp", CMP_UID || ""); } catch (x) { /* */ } CMP = null; loadCmp(true); }
+  });
   document.addEventListener("input", (e) => {
     const t = e.target && e.target.closest ? e.target : null; if (!t) return;
     if (t.id === "gaUsd") { gaConv(); gaAuto(); }
@@ -661,6 +776,10 @@
       toast("Fictícia zerada: " + r.abertas + " abertas e " + r.fechadas + " fechadas apagadas · saldo " + num(r.saldo, 4) + " ETH");
       P = null; return load();
     }
+    if (t.dataset.cmpgo) return cmpPlan(t.dataset.cmpgo);
+    if (t.id === "cmpOk") return cmpApply(t);
+    if (t.id === "cmpNo") { CMP_PLAN = null; return drawCmp(); }
+    if (t.id === "cmpUndo") { if (confirm("Voltar os valores de antes da última cópia?")) await cmpDoUndo(t); return; }
     if (t.dataset.cveth) { $("cvEth").value = t.dataset.cveth; conv("eth"); return; }
     if (t.dataset.bool && t.closest("#cfRows")) { setBool(t, !t.classList.contains("on")); if (t.id.startsWith("rl_")) RL_DIRTY = true; else CF_DIRTY = true; return autoSave(t.id.startsWith("rl_") ? "rl" : "cf"); }
     if (t.id === "cfReset") { CF_DIRTY = true; const p = (P && P.padrao) || {}; CF_INFO.forEach((x) => { if ($("cf_" + x[0])) $("cf_" + x[0]).value = p[x[0]]; }); CF_BOOL.forEach((k) => { if ($("cf_" + k)) setBool($("cf_" + k), !!p[k]); }); return autoSave("cf"); }

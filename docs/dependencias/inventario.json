@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-11",
     "timezone": "Europe/Dublin",
-    "repository_reference": "f61d6363e81cf9a13e9cbafa022c099f0ba53865",
-    "application_version": "0.32.312 · 2026-11-11 · Robinhood: conferência mais forte antes de comprar (travas de venda)",
+    "repository_reference": "dc87c8d2efa6b03076f1267c344340254fa127a1",
+    "application_version": "0.32.313 · 2026-11-11 · Robinhood: comparar e copiar a configuração de outro usuário",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "9297253e458a70b19961104bb73efbd35b1c73576c8fe2b63ced13e85736207c",
+      "app/version.py": "933e24083528a3d0156ff7a56a5b3c31786e6e6494601c03add9c805f6fa0cbb",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e9af2b01e7522b9c9e58bea2020c235bd2acb59806beb98805dcc19716a5a744"
+  "pdf_sha256": "3de40d64e04111b5ac26fb1a23b7d83b9bc612258b0aea50faf041d3c05bca0e"
 }
