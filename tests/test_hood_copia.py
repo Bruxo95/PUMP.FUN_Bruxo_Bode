@@ -982,3 +982,19 @@ def test_real_partial_sale_keeps_the_rest_open():
         await c._real_sell("u1", p, 1.0, "fictícia fechou")
         assert "r1" in rb.pos and p["raw_left"] == "500" and p["retry_frac"] == 1.0 and p["vendas"]
     run(go())
+
+
+def test_pool_without_eth_says_which_currency():
+    """0.32.321 (pedido do dono): o motivo diz se o pool é pago em WETH/USDG ou se não foi achado (e tenta de novo em 2 min)."""
+    async def go():
+        w, c = copier()
+        pid = "0x" + "ee" * 32
+        c.keys[pid] = None
+        c._key_at[pid] = time.time()
+        c.key_why[pid] = "pago em WETH (ETH embrulhado, não o ETH puro): a cópia só compra em pool pago em ETH puro"
+        tr = trade("buy", 1000.0, 1.0)
+        tr["pool"] = pid
+        c.on_trade(tr, 0.0, w.copiaria)
+        await settle(c)
+        assert "pago em WETH" in c.books["u1"].events[0]["motivo"]
+    run(go())

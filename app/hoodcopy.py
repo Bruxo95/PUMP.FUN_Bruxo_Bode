@@ -420,6 +420,7 @@ class Copier:
         self.no_sell_sym: dict[str, float] = {}     # símbolo → idem (cópias com o mesmo nome)
         self.no_sell_dev: dict[str, float] = {}     # criador → idem
         self.risky: dict[str, str] = {}             # 0.32.314: token aberto com trava do criador (venda travada ou contrato perigoso)
+        self.key_why: dict[str, str] = {}           # 0.32.321: pool → por que não tem chave
         self._q_fail: dict[str, int] = {}
         self.no_liq: dict[str, float] = {}          # 0.32.315: token → última conferência com o pool SEM liquidez (rug pull)
         self.dev: dict[str, str] = {}               # token → carteira de quem criou ("" = não achou)
@@ -581,7 +582,10 @@ class Copier:
         """Chave do pool pelo id: a que a leitura já viu nascer, senão o Initialize procurado perto da data em que o pool
         nasceu (GeckoTerminal só dá a data; a chave vem da rede e só vale se o keccak dela for o id)."""
         pid = (pid or "").lower()
-        if pid in self.keys and (self.keys[pid] or time.time() - self._key_at.get(pid, 0) < 1800):
+        # 0.32.321 (pedido do dono: "por que esse problema?"): o motivo de não ter chave fica em key_why; pool não achado tenta de
+        # novo em 2 min (antes 30 min: uma falha passageira da rede barrava o token meia hora)
+        espera = 1800 if self.key_why.get(pid, "").startswith("pago em") else 120
+        if pid in self.keys and (self.keys[pid] or time.time() - self._key_at.get(pid, 0) < espera):
             return self.keys[pid]
         self.stat["pool_procurado"] += 1
         self._key_at[pid] = time.time()
@@ -617,6 +621,14 @@ class Copier:
                     break
                 await asyncio.sleep(1.0)
         self.keys[pid] = key if key and key[0] == ZERO and key[1] == token else None
+        if key and not self.keys[pid]:
+            outro = key[0] if key[1] == token else key[1] if key[0] == token else ""
+            nome = {WETH: "WETH (ETH embrulhado, não o ETH puro)", "0x5fc5360d0400a0fd4f2af552add042d716f1d168": "USDG (dólar)"}.get(outro, outro[:10] + "…")
+            self.key_why[pid] = f"pago em {nome}: a cópia só compra em pool pago em ETH puro"
+        elif not key:
+            self.key_why[pid] = "não achei este pool na rede (o servidor da rede não respondeu ou o pool é muito antigo); tento de novo em 2 min"
+        else:
+            self.key_why.pop(pid, None)
         return self.keys[pid]
 
     # ------------------------------------------------------------------ cópia
@@ -666,7 +678,8 @@ class Copier:
             key = await self.pool_key(tr.get("pool") or "", tk)
             if not key:
                 self.stat["sem_pool"] += 1
-                v = {"ok": False, "why": "o pool deste trade não é da Uniswap V4 pago em ETH (ou não achei o pool na rede)"}
+                v = {"ok": False, "why": "pool não serve para a cópia: " + self.key_why.get((tr.get("pool") or "").lower(),
+                                                                                         "não é um pool da Uniswap V4 pago em ETH")}
             else:
                 v = self.safe.cached(tk)
                 if v is None:
