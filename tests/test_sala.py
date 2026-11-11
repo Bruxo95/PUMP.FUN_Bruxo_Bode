@@ -59,3 +59,10 @@ def test_sala_se_adapta_a_tela_e_mostra_hora_de_entrada():
     js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert "100dvh" in html and "container-type:size" in html and "calc(100cqh * 16 / 9)" in html
     assert "<span>Hora</span>" in js
+
+
+def test_sala_tem_historico_e_evolucao_da_carteira():
+    """0.32.305 (pedido do dono): Histórico das posições embaixo das abertas e evolução da carteira desenhada na mesa."""
+    html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert 'id="his"' in html and "function evo(" in js and "evo(f);" in js and "start_sol" in js

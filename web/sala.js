@@ -214,9 +214,26 @@
     }
   }
 
+  // 0.32.305 (pedido do dono: "na parte consertando, a evolução da carteira: valor que começou, % de lucro e valor em dólar")
+  function money(v) {
+    const u = +(S.wallet || {}).sol_usd || 0;
+    if (u) { const d = v * u; return "$" + (Math.abs(d) >= 1000 ? Math.round(d).toString() : d.toFixed(2)); }
+    return Number(v).toFixed(HOOD ? 4 : 3);
+  }
+  function evo(f) {
+    const w = S.wallet || {}, st = w.start_sol, eq = w.equity_sol, pnl = +w.pnl_sol || 0;
+    if (!S.ok) return;
+    const pctv = w.pnl_pct != null ? +w.pnl_pct : st ? pnl / st * 100 : null;
+    const col = pnl > 0 ? "#3ee66b" : pnl < 0 ? "#ff4d5e" : "#ffd23f";
+    R(176, 135, 140, 24, "#04121f"); R(176, 135, 140, 1, "#2a3c6b"); R(176, 158, 140, 1, "#2a3c6b");
+    const l1 = st ? money(st) + ">" + money(eq) : "CARTEIRA";
+    TXT(l1.slice(0, 17), 179, 137, "#e8f0ff", 8);
+    const l2 = (pctv == null ? "" : (pctv > 0 ? "+" : "") + pctv.toFixed(1) + "% ") + (pnl > 0 ? "+" : pnl < 0 ? "-" : "") + money(Math.abs(pnl));
+    TXT(l2.slice(0, 17), 179, 148, f % 20 < 17 ? col : "#8fa3d1", 8);
+  }
   function draw() {
     const f = S.frame++;
-    room(f); bigMonitor(f); trader(f); desk(f); fx(f);
+    room(f); bigMonitor(f); trader(f); desk(f); fx(f); evo(f);
   }
   setInterval(draw, 83);
 
@@ -311,6 +328,15 @@
           return '<div class="pr"><span>' + sym(p) + '</span><span class="hr" title="entrou às ' + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
             '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
     }
+    // 0.32.305 (pedido do dono): Histórico das posições fechadas embaixo das abertas
+    const hb = $("his"), H = S.trades.slice(0, 40);
+    $("hisN").textContent = S.trades.length ? "(" + S.trades.length + ")" : "";
+    const hm = (s) => { const t = tms(s); return t ? new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "–"; };
+    hb.innerHTML = !H.length ? '<div class="empty">nenhuma posição fechada ainda</div>' :
+      '<div class="ph"><span>Moeda</span><span>Saiu</span><span>Entrada</span><span>Saída</span><span>%</span></div>' +
+      H.map((t) => { const ins = +t.sol_in || 0, out = ins + (+t.pnl_sol || 0);
+        return '<div class="pr" title="' + esc((t.motivo || "") + " · entrou " + hm(t.opened_at) + ", saiu " + hm(t.closed_at)) + '"><span>' + sym(t) + '</span><span class="hr">' + hm(t.closed_at) +
+          "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>"; }).join("");
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">SELL ' + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
       .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">BUY ' + sym(p) + " " + Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U + "</span>" })))
       .sort((a, b) => b.t - a.t).slice(0, 12);
@@ -326,11 +352,13 @@
     const sy = (x) => x.simbolo || x.nome || (x.token || "").slice(0, 8);
     const pos = (p.posicoes || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
       pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t) }));
-    const tr = (p.trades || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t) }));
+    const tr = (p.trades || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t),
+      opened_at: iso(x.open_t), sol_in: x.eth_in, motivo: x.motivo }));
     const w = p.carteira || {};
     let acc = 0;
     const curve = tr.slice().sort((a, b) => tms(a.closed_at) - tms(b.closed_at)).map((t) => { acc += +t.pnl_sol || 0; return [t.closed_at, acc]; });
-    const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: p.eth_usd };
+    const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: p.eth_usd,
+      start_sol: w.inicial == null ? null : w.inicial, equity_sol: w.total == null ? null : w.total, pnl_pct: w.resultado_pct };
     return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve };
   }
 

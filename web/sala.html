@@ -52,9 +52,12 @@
   .stats{position:absolute;left:3%;bottom:4%;display:flex;gap:8px;flex-wrap:wrap;max-width:94%}
   .st{background:rgba(5,10,25,.85);border:2px solid var(--line);padding:3px 7px;font-size:clamp(11px,2.2cqw,20px)}
   .st small{color:var(--muted)}
+  @container (max-width:760px){.stats{display:none}}   /* palco pequeno: a evolução da carteira desenhada na mesa já mostra o resultado */
   .side{position:relative;min-height:0;container-type:inline-size}
   .pos{font-size:clamp(11px,5.4cqw,22px)}
-  .side .box{position:absolute;inset:0}
+  /* 0.32.305 (pedido do dono): Histórico das posições embaixo das abertas; as duas listas dividem a altura do painel */
+  .side .col{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px}
+  .side .col .box{flex:1 1 0}.side .col .box.hist{flex:1.2 1 0}
   .box{border:3px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
   .box h3{margin:0;padding:8px 10px;font-size:11px;border-bottom:3px solid var(--line);color:var(--neon)}
   .box h3 span{color:var(--muted);font-family:"VT323",monospace;font-size:16px;margin-left:6px}
@@ -81,7 +84,7 @@
   .err{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#3a0d12;border:3px solid var(--red);padding:10px 14px;z-index:9;max-width:92vw}
   @media (max-width:980px) and (orientation:portrait),(max-width:700px){
     body{height:auto;min-height:100dvh}.grid{flex:none;grid-template-columns:minmax(0,1fr)}
-    .stwrap{container-type:inline-size;display:block}.stage{width:100%}.side .box{position:static;max-height:60vh}}
+    .stwrap{container-type:inline-size;display:block}.stage{width:100%}.side .col{position:static}.side .col .box,.side .col .box.hist{flex:none;max-height:60vh}}
   @media (max-height:520px) and (orientation:landscape){.sub{display:none}.top{padding:4px 10px}.grid{padding:6px 10px;gap:8px}.tick{margin:0 10px 6px}.tick .lab{padding:6px}}
   @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:5px 7px;order:3}}
   @media (prefers-reduced-motion:reduce){.tick .run{animation-duration:90s}}
@@ -108,7 +111,10 @@
     <div class="stats" id="stats"></div>
   </div></div>
   <div class="side">
-    <div class="box"><h3 class="pf">POSIÇÕES ABERTAS<span id="posN"></span></h3><div class="pos" id="pos"></div></div>
+    <div class="col">
+      <div class="box"><h3 class="pf">POSIÇÕES ABERTAS<span id="posN"></span></h3><div class="pos" id="pos"></div></div>
+      <div class="box hist"><h3 class="pf">HISTÓRICO<span id="hisN"></span></h3><div class="pos" id="his"></div></div>
+    </div>
   </div>
 </div>
 <div class="tick"><div class="lab pf">ÚLTIMOS TRADES</div><div style="overflow:hidden;flex:1"><div class="run" id="run"></div></div></div>

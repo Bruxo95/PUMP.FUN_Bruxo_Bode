@@ -2280,6 +2280,11 @@
    "versao": "0.32.304",
    "inicio": "2026-11-11T10:26:39+00:00",
    "titulo": "Robinhood: explicação do Pico ao passar o mouse"
+  },
+  {
+   "versao": "0.32.305",
+   "inicio": "2026-11-11T11:09:00+00:00",
+   "titulo": "Sala ao vivo com histórico das posições e evolução da carteira"
   }
  ]
 }

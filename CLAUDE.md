@@ -1769,3 +1769,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   (`Copier.block_token`, `POST /api/hood/token/bloquear`; cópia e botão nunca compram) e `Copier.buy_token` + `POST /api/hood/token/comprar` (modo sim|real|ambas;
   wallet "botao", origem "botao"; só com a conferência ok). Tela: sub-abas `#fxTab` (Moedas | Honeypot e bloqueadas), `fxSafe`, `fxBtns`; `perigo` nos top traders da lista.
   Medido em 11/11 (12 moedas reais): 4 ok, 2 venda travada, 2 transferência travada, 1 compra recusada, 3 sem pool de ETH.
+- 0.32.305 (pedido do dono): Sala com `#his` (Histórico, 40 fechadas) embaixo das abertas (`.side .col`) e `evo()` no canvas (início → agora, %, lucro em $; `start_sol`/`equity_sol`/`pnl_pct`, na hood vindos de `carteira`); `.stats` some com palco < 760 px (@container).
