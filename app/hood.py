@@ -94,8 +94,17 @@ def clean_cfg(raw: dict | None) -> dict:
     return out
 
 
+def _hex(h) -> int:
+    """Número hexa da rede; vazio ("0x", None) ou lixo vale 0. 0.32.291: um Transfer de NFT (ERC-721, data "0x") no bloco
+    111.488.593 derrubava a janela inteira com "invalid literal for int() with base 16: '0x'" e a leitura parou ali."""
+    try:
+        return int(h, 16) if isinstance(h, str) and len(h) > 2 else 0
+    except ValueError:
+        return 0
+
+
 def _s(h: str) -> int:
-    v = int(h or "0", 16)
+    v = _hex(h if (h or "").startswith("0x") else "0x" + (h or ""))
     return v - (1 << 256) if v >= 1 << 255 else v
 
 
@@ -108,10 +117,10 @@ def legs_of(transfers: list[dict]) -> dict[str, list[tuple]]:
     by: dict[str, list[tuple]] = {}
     for x in transfers:
         tp = x.get("topics") or []
-        if len(tp) < 3 or (tp[0] or "").lower() != T_TRANSFER:
+        if len(tp) != 3 or (tp[0] or "").lower() != T_TRANSFER:      # 4 tópicos = NFT (ERC-721): não é moeda
             continue
         by.setdefault(x.get("transactionHash"), []).append(
-            ((x.get("address") or "").lower(), _topic_addr(tp[1]), _topic_addr(tp[2]), int(x.get("data") or "0x0", 16)))
+            ((x.get("address") or "").lower(), _topic_addr(tp[1]), _topic_addr(tp[2]), _hex(x.get("data"))))
     return by
 
 
@@ -165,8 +174,8 @@ def decode(swap: dict, legs: list[tuple], n_swaps: int, eth_usd: float | None) -
         who = h[2] if side == "buy" else h[1]
     if who in (ZERO, PM, router):
         return None
-    return {"id": f"{swap.get('transactionHash')}:{int(swap.get('logIndex') or '0x0', 16)}", "tx": swap.get("transactionHash"),
-            "block": int(swap.get("blockNumber") or "0x0", 16), "token": meme, "wallet": who, "side": side,
+    return {"id": f"{swap.get('transactionHash')}:{_hex(swap.get('logIndex'))}", "tx": swap.get("transactionHash"),
+            "block": _hex(swap.get("blockNumber")), "token": meme, "wallet": who, "side": side,
             "amount": amount / 1e18, "eth": round(v, 9), "quote": quote, "pool": (swap.get("topics") or ["", ""])[1],
             "fee": int(d[2 + 64 * 5:2 + 64 * 6], 16) if len(d) >= 2 + 64 * 6 else None}
 
@@ -457,10 +466,10 @@ class HoodWatch:
         for _ in range(min(3, len(self._bal_q))):
             w = self._bal_q.popleft()
             try:
-                eth = int(await self.rpc("eth_getBalance", [w, "latest"]) or "0x0", 16) / 1e18
+                eth = _hex(await self.rpc("eth_getBalance", [w, "latest"])) / 1e18
                 arg = "0x70a08231" + w[2:].rjust(64, "0")
-                weth = int(await self.rpc("eth_call", [{"to": WETH, "data": arg}, "latest"]) or "0x0", 16) / 1e18
-                usdg = int(await self.rpc("eth_call", [{"to": USDG, "data": arg}, "latest"]) or "0x0", 16) / 1e6
+                weth = _hex(await self.rpc("eth_call", [{"to": WETH, "data": arg}, "latest"])) / 1e18
+                usdg = _hex(await self.rpc("eth_call", [{"to": USDG, "data": arg}, "latest"])) / 1e6
                 self.balances[w] = {"eth": round(eth + weth, 5), "usd": round((eth + weth) * self.eth_usd + usdg, 2), "t": now}
             except RpcError:
                 self.balances.setdefault(w, {"eth": None, "usd": None, "t": now - 1500})   # tenta de novo em 5 min

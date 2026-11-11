@@ -2210,6 +2210,11 @@
    "versao": "0.32.290",
    "inicio": "2026-11-11T06:04:10+00:00",
    "titulo": "Robinhood: sair com o trader e com o dev, stop móvel, preço do gráfico e nome do token"
+  },
+  {
+   "versao": "0.32.291",
+   "inicio": "2026-11-11T06:25:14+00:00",
+   "titulo": "Robinhood: leitura não para mais em transferência de NFT"
   }
  ]
 }

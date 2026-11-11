@@ -110,3 +110,14 @@ def test_hood_has_own_page_and_admin_only_routes(env):
     r = c.get("/api/hood", headers=tok(UA)).json()
     assert "ligado" in r
     assert c.post("/api/hood/cfg", json={"min_trades": 5}, headers=tok(UB, "b@x.com")).status_code == 403
+
+
+def test_nft_transfer_with_empty_data_does_not_break_the_reading():
+    """0.32.291: Transfer de NFT (4 tópicos, data "0x") parava a leitura com "invalid literal for int() with base 16: '0x'"."""
+    a, b = "0x" + "0" * 24 + "11" * 20, "0x" + "0" * 24 + "22" * 20
+    nft = {"address": "0x" + "99" * 20, "topics": [hood.T_TRANSFER, a, b, "0x" + "0" * 63 + "7"], "data": "0x", "transactionHash": "0xaa"}
+    empty = {"address": "0x" + "98" * 20, "topics": [hood.T_TRANSFER, a, b], "data": "0x", "transactionHash": "0xaa"}
+    ok = {"address": "0x" + "97" * 20, "topics": [hood.T_TRANSFER, a, b], "data": "0x" + "0" * 63 + "5", "transactionHash": "0xaa"}
+    legs = hood.legs_of([nft, empty, ok])["0xaa"]
+    assert [x[3] for x in legs] == [0, 5]
+    assert hood._hex("0x") == 0 and hood._hex(None) == 0 and hood._hex("0x1f") == 31

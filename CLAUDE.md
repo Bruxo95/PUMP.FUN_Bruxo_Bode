@@ -1743,3 +1743,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   em 120 s; nome/símbolo em `meta` e na posição), `Copier.follow_tick` (balanceOf do trader e do dev a cada 60 s; dev via Blockscout),
   `trail_hit` (regra da Solana 20/10/+2). Chaves `sair_trader`, `sair_dev`, `trail_*` e `real_*`; booleanos em `CFG_BOOLS`/`REAL_BOOLS`
   e linhas `"bool"` em `CFG_ROWS`. `tok(a, obj)` no hood.js mostra ícone, símbolo, nome e endereço.
+- 0.32.291: hood.py lê hexa da rede com `_hex` (vazio "0x" = 0) e `legs_of` ignora Transfer com 4 tópicos (NFT); um log ruim derrubava a janela e travava a leitura.

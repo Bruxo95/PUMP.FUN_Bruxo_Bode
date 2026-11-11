@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-11**; revisão documental **2.0**.
-Aplicação: **0.32.290 · 2026-11-11 · Robinhood: sair com o trader e com o dev, stop móvel, preço do gráfico e nome do token**.
-Referência Git na emissão: `67a681762778f45607cdfa49e1839ce079ca0481`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.291 · 2026-11-11 · Robinhood: leitura não para mais em transferência de NFT**.
+Referência Git na emissão: `01ca3ca7d1ab376cb7159e3205f72ebfbef045ae`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
