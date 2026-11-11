@@ -479,6 +479,7 @@ def test_modes_per_trader_and_real_goes_first():
         w.copiaria = []
         c.book("u1").cfg["um_por_token"] = False                  # dois traders no mesmo token (regra de 0.32.301 desligada)
         c.rcfg("u1")["real_um_por_token"] = False
+        c.rcfg("u1")["real_espelho"] = False                     # REAL independente (regra antiga)
         order = []
 
         async def real_buy(uid, tr, px, key):
@@ -715,3 +716,38 @@ def test_one_entry_per_token_even_from_another_trader():
     rb, rc = c.rbook("u1"), c.rcfg("u1")
     rb.pos["p"] = {"id": "p", "wallet": TRADER, "token": TOK}
     assert "uma entrada por token" in c.real_why_not("u1", trade("buy", 1.0, 1.0, wallet=OTHER), rb, rc)
+
+
+
+def test_real_mirrors_the_fictitious_entries_and_exits():
+    """0.32.306 (pedido do dono: "a carteira real tem que seguir 100% a fictícia nas entradas")."""
+    async def go():
+        w, c = copier()
+        calls = []
+
+        async def real_buy(uid, tr, px, key):
+            calls.append(tr)
+            rb = c.rbook(uid)
+            rb.pos["r1"] = {"id": "r1", "wallet": tr["wallet"], "token": tr["token"], "sim_id": tr.get("_sim_id"), "open_t": time.time(),
+                           "eth_in": 0.002, "proceeds": 0.0, "px_in": 0.001, "px_now": 0.001, "tokens_left": 2.0, "fee": 0.01,
+                           "best_pct": 0.0, "worst_pct": 0.0}
+        c._real_buy = real_buy
+        sold = []
+
+        async def real_sell(uid, p, frac, motivo, manual=False):
+            sold.append(motivo)
+        c._real_sell = real_sell
+        c.rcfg("u1")["real_on"] = True
+        b = c.books["u1"]
+        b.cfg["max_abertas"] = 1
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        p = next(iter(b.pos.values()))
+        assert len(calls) == 1 and calls[0]["_sim_id"] == p["id"]          # REAL comprou porque a fictícia comprou
+        c.on_trade(trade("buy", 500.0, 0.5, wallet=OTHER), 0.0, w.copiaria + [OTHER])
+        await settle(c)
+        assert len(calls) == 1                                               # fictícia não comprou (limite) → REAL também não
+        b.sell(p, 1.0, None, time.time(), "stop de 40%")
+        await settle(c)
+        assert sold == ["fictícia fechou: stop de 40%"]
+    run(go())

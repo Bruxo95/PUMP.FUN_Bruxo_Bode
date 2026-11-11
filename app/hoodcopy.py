@@ -152,6 +152,7 @@ class Book:
         self.closed_pos: set = set()
         self.new_trades: list[dict] = []
         self.dirty_book = False
+        self.close_hook = None                     # 0.32.306: avisa a cópia quando a posição fecha (espelho da REAL)
 
     def ev(self, t: float, wallet: str, token: str, acao: str, motivo: str = "") -> None:
         self.events.insert(0, {"t": t, "wallet": wallet, "token": token, "acao": acao, "motivo": motivo})
@@ -258,6 +259,11 @@ class Book:
         del self.trades[KEEP_TRADES:]
         self.new_trades.append(tr)
         self.ev(t, p["wallet"], p["token"], "fechou", f"{motivo} · {pnl:+.5f} ETH")
+        if self.close_hook:
+            try:
+                self.close_hook(self.user_id, p, motivo)
+            except Exception as e:                 # o espelho nunca derruba o fechamento da fictícia
+                log.warning("Robinhood: espelho da REAL falhou ao fechar: %s", str(e)[:120])
         return tr
 
     def trader_exit(self, p: dict, frac: float, px: float | None, t: float, motivo: str) -> dict | None:
@@ -381,7 +387,26 @@ class Copier:
         if b is None:
             b = self.books[uid] = Book(uid)
             b.dirty_book = True
+        b.close_hook = self._sim_closed
         return b
+
+    # ------------------------------------------------------------------ 0.32.306: REAL espelha a FICTÍCIA
+    def mirrors(self, uid: str, wallet: str, auto: bool) -> bool:
+        """Pedido do dono (11/11): "a carteira real tem que seguir 100% a fictícia nas entradas". Com real_espelho, a REAL compra
+        quando (e só quando) a FICTÍCIA da conta abre posição de um trader copiado nas duas, e fecha quando ela fecha."""
+        rc, b = self.real_cfg.get(uid) or {}, self.books.get(uid)
+        return bool(rc.get("real_on") and rc.get("real_espelho") and b and b.cfg.get("on")
+                    and b.follows(wallet, auto) and b.real_follows(wallet, auto))
+
+    def _sim_closed(self, uid: str, p: dict, motivo: str) -> None:
+        if not (self.real_cfg.get(uid) or {}).get("real_espelho") or str(motivo).startswith("vendido por você"):
+            return
+        rb = self.real.get(uid)
+        for rp in [x for x in (rb.pos.values() if rb else []) if x.get("sim_id") == p["id"]]:
+            if not rp.get("selling"):
+                rp["retry_frac"] = 1.0
+                rp.pop("espera", None)
+                self._spawn(self._real_sell(uid, rp, 1.0, "fictícia fechou: " + str(motivo)[:80]))
 
     def rbook(self, uid: str) -> hoodreal.RealBook:
         rb = self.real.get(uid)
@@ -512,7 +537,11 @@ class Copier:
         # 0.32.287: a REAL sai primeiro; a FICTÍCIA da mesma conta depois passa a usar o preço que a REAL pagou (_align)
         reais = 0
         perigo = self.w.danger_reason(tr["wallet"]) if hasattr(self.w, "danger_reason") else None
+        auto = tr.get("_auto", True)
+        espelho = {uid for uid in list(self.real_cfg) if self.mirrors(uid, tr["wallet"], auto)}
         for uid, rc in list(self.real_cfg.items()):
+            if uid in espelho:                      # 0.32.306: entra depois, só se a FICTÍCIA comprar
+                continue
             if rc.get("real_on") and self.book(uid).real_follows(tr["wallet"], tr.get("_auto", True)):
                 if tr["token"] in (self.book(uid).cfg.get("tokens_bloqueados") or []):
                     self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "moeda bloqueada por você")
@@ -524,10 +553,15 @@ class Copier:
                 reais += 1
 
         def sim() -> None:
-            for b in self.books.values():
+            for uid, b in list(self.books.items()):
                 why = b.follows(tr["wallet"], tr.get("_auto", True))
                 if why:
-                    b.buy(tr, px, now, key, why)
+                    p = b.buy(tr, px, now, key, why)
+                    if p and uid in espelho:
+                        if perigo:
+                            self.rbook(uid).ev(now, tr["wallet"], tr["token"], "REAL não copiou", "trader marcado PERIGO: " + perigo)
+                            continue
+                        self._spawn(self._real_buy(uid, {**tr, "_sim_id": p["id"]}, px, key))
         if reais:                                  # a FICTÍCIA entra na fila depois das compras REAL (elas começam primeiro)
             asyncio.get_running_loop().call_soon(sim)
         else:
@@ -618,6 +652,8 @@ class Copier:
                 res = await self.chain.buy(key, addr, tr["token"], pkey, rc["real_eth_por_compra"], rc["real_slip_pct"], until)
             t = time.time()
             p = hoodreal.new_position(tr, res, t, px, pkey)
+            if tr.get("_sim_id"):
+                p["sim_id"] = tr["_sim_id"]
             rb.pos[p["id"]] = p
             rb.dirty_pos.add(p["id"])
             rb.balance_t = 0
@@ -1245,6 +1281,7 @@ class Copier:
             return
         for r in await self.db.select("hood_books", None) or []:
             b = self.books[r["user_id"]] = Book(r["user_id"], r.get("cfg"), r.get("cash"))
+            b.close_hook = self._sim_closed
             b.dirty_book = False
             rc = (r.get("cfg") or {}).get("real")
             if isinstance(rc, dict):
