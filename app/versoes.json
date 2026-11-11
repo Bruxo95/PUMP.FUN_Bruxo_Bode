@@ -2250,6 +2250,11 @@
    "versao": "0.32.298",
    "inicio": "2026-11-11T08:20:53+00:00",
    "titulo": "Robinhood: zerar a carteira fictícia e endereço completo da carteira REAL"
+  },
+  {
+   "versao": "0.32.299",
+   "inicio": "2026-11-11T08:41:45+00:00",
+   "titulo": "Robinhood: Enviar para a Robinhood cota sozinho ao digitar o valor"
   }
  ]
 }

@@ -1758,3 +1758,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
   Raposa Radical (0x63bd…48cc) são o mesmo contrato (20.733 bytes, conferido em 11/11).
 - 0.32.296 (pedido do dono): conversor `#cvEth`/`#cvUsd` na Carteira do /hood (`usdRate` = `P.eth_usd` → `R.status.eth_usd` → `FX.eth_usd`; `conv`, `drawConv`, botões `data-cveth`) e `.usdh[data-usd]` nos campos com unidade ETH de `CFG_ROWS`.
 - 0.32.298 (pedido do dono): `Copier.reset_sim` + `POST /api/hood/conta/zerar` (exige "ZERAR"; audit) apaga posições, trades (`hood_trades` com `data->>real` nulo) e eventos da FICTÍCIA; botão `#cfZerar`. Endereço completo + `data-copyaddr` no quadro da REAL.
+- 0.32.299 (pedido do dono): "Enviar para a Robinhood" (antigo Abastecer de outra rede) cota sozinho: `gaAuto` (0,8 s) no valor/rede e ao abrir, `gaQuote` com `GA_SEQ` (vale a mais nova); `gaGo` cota de novo se `GA_QT` venceu.

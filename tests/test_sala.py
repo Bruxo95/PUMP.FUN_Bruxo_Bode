@@ -43,3 +43,11 @@ def test_hood_tem_conversor_eth_dolar():
     html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
     js = open(os.path.join(WEB, "hood.js"), encoding="utf-8").read()
     assert 'id="cvEth"' in html and 'id="cvUsd"' in html and "data-usd=" in js and "usdRate" in js
+
+
+def test_enviar_para_robinhood_cota_sozinho():
+    """0.32.299 (pedido do dono): o valor digitado já cota quanto chega na Robinhood; botão Enviar para a Robinhood."""
+    js = open(os.path.join(WEB, "hood.js"), encoding="utf-8").read()
+    html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
+    assert "function gaAuto" in js and 'if (t.id === "gaUsd") { gaConv(); gaAuto(); }' in js and "Enviar para a Robinhood</button>" in js
+    assert "<h2>Enviar para a Robinhood</h2>" in html

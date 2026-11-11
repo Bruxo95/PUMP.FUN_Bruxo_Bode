@@ -56,6 +56,7 @@
   .cvrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0}.cvf{display:flex;align-items:center;gap:8px;font-weight:600}
   .cvf input{width:170px}.cveq{font-size:20px;color:var(--muted)}.cvq{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px}
   .hdfull{font-size:12px;word-break:break-all}.btn.danger{color:var(--down,#ef4444);border-color:rgba(239,68,68,.45)}.cf-bot{gap:8px;flex-wrap:wrap}
+  .garec{font-size:16px;margin-bottom:6px}.garec b{font-size:20px}.garec span{color:var(--muted)}
   .usdh{font-size:12px;color:var(--muted);white-space:nowrap}
   @media (max-width:860px){.cvf{flex:1 1 100%}.cvf input{flex:1;width:auto}.cveq{display:none}}
   .cfc.na{color:var(--muted);font-size:12px}
@@ -189,9 +190,9 @@
               <div class="row"><input class="in" id="rlKey" type="password" autocomplete="off" spellcheck="false" placeholder="cole aqui (fica criptografada no servidor e nunca volta para a tela)"><button class="btn sm" id="rlKeySave" type="button">Salvar chave</button><button class="btn sm" id="rlKeyDel" type="button">Remover</button></div>
               <small class="muted">Use uma carteira nova, só para isto, com pouco ETH. Nunca cole esta chave no chat.</small></div>
           </div></div>
-        <div class="card" id="gaCard" style="margin-top:16px" hidden><header><div><h2>Abastecer de outra rede</h2><div class="sub">manda ETH ou BNB das suas outras redes para a carteira da Robinhood, pela ponte Relay · a mesma chave abre o mesmo endereço nelas</div></div><div class="sp"></div><button class="btn sm" id="gaRe" type="button">Atualizar</button></header>
+        <div class="card" id="gaCard" style="margin-top:16px" hidden><header><div><h2>Enviar para a Robinhood</h2><div class="sub">converte o ETH ou BNB das suas outras redes e manda para a carteira da Robinhood, pela ponte Relay · a mesma chave abre o mesmo endereço nelas · digite o valor e a cotação aparece sozinha</div></div><div class="sp"></div><button class="btn sm" id="gaRe" type="button">Atualizar</button></header>
           <div id="gaR"></div>
-          <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><label for="gaUsd" class="muted">Valor em dólar</label><input class="in w100" id="gaUsd" type="number" min="1" step="1" value="10"><span class="muted" id="gaConv"></span><button class="btn primary" id="gaQ" type="button">Cotar</button></div>
+          <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><label for="gaUsd" class="muted">Valor em dólar</label><input class="in w100" id="gaUsd" type="number" min="1" step="1" value="10"><span class="muted" id="gaConv"></span><button class="btn sm" id="gaQ" type="button">Cotar de novo</button></div>
           <div id="gaP" class="decbox" style="margin-top:12px" hidden></div>
           <div class="tbl-wrap" style="margin-top:12px"><table id="gaH"></table></div>
           <div class="help"><p><b>Como protege:</b> o destino é sempre a sua carteira da Robinhood (o navegador só escolhe a rede de origem e o valor). A transação montada pela Relay é conferida antes de assinar: um passo só, o contrato fixo de depósito, o valor, a rede e a sua carteira; nunca há autorização de token. A entrega é conferida pelo saldo na Robinhood. Teto de US$ 50 por vez e US$ 150 em 24 h; vale a trava geral do servidor. Você vê a taxa antes de confirmar.</p></div></div>

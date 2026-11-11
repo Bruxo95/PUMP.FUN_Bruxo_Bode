@@ -345,7 +345,23 @@
     "Nenhum token conferido ainda: a conferência roda na primeira compra de um trader do \"Copiando agora\".");
   }
   // ------------------------------------------------------------------ 0.32.286: saldo e abastecer de outra rede (Relay)
-  let GA = null, GA_AT = 0, GA_BUSY = false, GA_PICK = null, GA_Q = null;
+  let GA = null, GA_AT = 0, GA_BUSY = false, GA_PICK = null, GA_Q = null, GA_QT = 0, GA_QV = 60, GA_SEQ = 0, GA_TM = null, GA_FIRST = false;
+  // 0.32.299 (pedido do dono: "na hora que colocar o valor ele cota o que vai receber a carteira robinhood"): a cotação sai
+  // sozinha 0,8 s depois de digitar o valor ou trocar a rede; o botão "Enviar para a Robinhood" envia (cota de novo se venceu).
+  async function gaQuote(btn) {
+    if (!GA_PICK) { drawQuote({ error: "Nenhuma rede de origem com saldo." }); return null; }
+    const v = Number($("gaUsd").value || 0);
+    if (!(v > 0)) { $("gaP").hidden = true; return null; }
+    const seq = ++GA_SEQ, el = $("gaP");
+    el.hidden = false; el.innerHTML = '<span class="muted">Cotando quanto chega na Robinhood…</span>';
+    GA_Q = null;
+    const r = await BB.api("/api/hood/abastecer/cotar", { body: { origem: GA_PICK, usd: v }, quiet: true });
+    if (seq !== GA_SEQ) return null;                       // o valor mudou enquanto cotava: vale a cotação mais nova
+    if (r && r.quote_id) { GA_Q = r.quote_id; GA_QT = Date.now(); GA_QV = Number(r.validade_s) || 60; }
+    drawQuote(r || { error: "sem resposta" });
+    return r;
+  }
+  function gaAuto() { clearTimeout(GA_TM); GA_TM = setTimeout(() => gaQuote(), 800); }
   async function loadGas(force) {
     if (GA_BUSY || (!force && Date.now() - GA_AT < 30000)) return;
     GA_BUSY = true;
@@ -359,7 +375,7 @@
     box.className = "hdbal " + (GA.precisa ? "low" : "ok");
     box.innerHTML = '<small class="muted">Saldo na Robinhood Chain</small><b class="big">' + (GA.saldo == null ? "—" : num(GA.saldo, 6) + " ETH") + "</b>" +
       (GA.saldo_usd != null ? "≈ US$ " + num(GA.saldo_usd, 2) + " · " : "") + "dá para " + num(GA.compras, 0) + " compras REAL de " + num(GA.por_compra, 4) + " ETH" +
-      (GA.precisa ? '<br><b class="down">Precisa abastecer:</b> faltam ≈ US$ ' + num(GA.falta_usd, 2) + " para " + 5 + " compras e o gás das vendas. Use \"Abastecer de outra rede\" logo abaixo."
+      (GA.precisa ? '<br><b class="down">Precisa abastecer:</b> faltam ≈ US$ ' + num(GA.falta_usd, 2) + " para " + 5 + " compras e o gás das vendas. Use \"Enviar para a Robinhood\" logo abaixo."
         : '<br><span class="up">Saldo suficiente para começar.</span>');
     const rot = GA.rotas || [];
     if (!GA_PICK || !rot.some((x) => x.origem === GA_PICK && x.ok)) GA_PICK = (rot.find((x) => x.ok) || {}).origem || null;
@@ -370,6 +386,7 @@
       '<p class="muted small">Limites: até US$ ' + num(GA.limites.por_vez_usd, 0) + " por vez e US$ " + num(GA.limites.dia_usd, 0) + " em 24 h (já foram US$ " + num(GA.limites.gasto_24h, 2) + ")" +
       (GA.permitido ? "" : ' · <b class="down">trava geral do servidor fechada: só cotação</b>') + "</p>";
     gaConv();
+    if (!GA_FIRST && GA_PICK && GA.permitido !== undefined) { GA_FIRST = true; gaAuto(); }   // ao abrir já mostra quanto chega
     table("gaH", ["Hora", "De", "Pagou", "Chega", "Situação", "Transação"], (GA.historico || []).map((x) => [hora(x.t), esc(x.origem_nome),
       num(x.paga, 6) + " " + esc(x.moeda) + '<br><small class="muted">US$ ' + num(x.usd, 2) + "</small>", num(x.recebe, 6) + " ETH",
       (x.status === "confirmada" ? '<span class="tag win">entregue</span>' : x.status === "falhou" ? '<span class="tag loss">falhou</span>' : x.status === "devolvida" ? '<span class="tag neutral">devolvida</span>' : '<span class="tag buy">' + esc(x.status) + "</span>") +
@@ -384,11 +401,12 @@
   function drawQuote(q) {
     const el = $("gaP"); el.hidden = false;
     if (q.error) { el.innerHTML = '<span class="down">' + esc(q.error) + "</span>"; return; }
-    el.innerHTML = "Paga <b>" + num(q.paga, 6) + " " + esc(q.moeda) + "</b> em " + esc(q.origem_nome) + " (US$ " + num(q.usd, 2) + ") · chega <b>" + num(q.recebe, 6) + " ETH</b> na Robinhood (≈ US$ " + num(q.usd_recebe, 2) + ")" +
+    el.innerHTML = '<div class="garec">A carteira Robinhood recebe <b class="up">' + num(q.recebe, 6) + " ETH</b> <span>≈ US$ " + num(q.usd_recebe, 2) + "</span></div>" +
+      "Sai <b>" + num(q.paga, 6) + " " + esc(q.moeda) + "</b> de " + esc(q.origem_nome) + " (US$ " + num(q.usd, 2) + ")" +
       "<br>Taxa da ponte ≈ " + num(q.taxa_pct, 2) + "% · gás na origem ≈ US$ " + num(q.gas_usd, 3) + " · entrega em ~" + num(q.tempo_s || 0, 0) + " s" +
       (q.avisos && q.avisos.length ? '<br><span class="warn">' + q.avisos.map(esc).join(" · ") + "</span>" : "") +
       (q.bloqueia && q.bloqueia.length ? '<br><b class="down">Não dá para enviar: ' + q.bloqueia.map(esc).join(" · ") + "</b>"
-        : '<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="gaGo" type="button">Abastecer agora</button><small class="muted">cotação vale ' + num(q.validade_s, 0) + " s</small></div>");
+        : '<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="btn primary" id="gaGo" type="button">Enviar para a Robinhood</button><small class="muted">cotação vale ' + num(q.validade_s, 0) + " s; se vencer, cota de novo ao enviar</small></div>");
   }
   // ------------------------------------------------------------------ 0.32.294: Dinheiro entrando e Administração
   let FX = null, FXH = 1, FX_AT = 0, AD = null, AD_AT = 0;
@@ -483,10 +501,10 @@
   const closeDrawer = () => { $("side").classList.remove("open"); $("scrim").classList.remove("open"); };
 
   // ------------------------------------------------------------------ ações
-  document.addEventListener("change", (e) => { if (e.target && e.target.name === "gaO") { GA_PICK = e.target.value; gaConv(); $("gaP").hidden = true; } });
+  document.addEventListener("change", (e) => { if (e.target && e.target.name === "gaO") { GA_PICK = e.target.value; gaConv(); gaAuto(); } });
   document.addEventListener("input", (e) => {
     const t = e.target && e.target.closest ? e.target : null; if (!t) return;
-    if (t.id === "gaUsd") { gaConv(); $("gaP").hidden = true; }
+    if (t.id === "gaUsd") { gaConv(); gaAuto(); }
     if (t.id === "adQ") drawAdmin();
     if (t.closest("#hdCfg")) DIRTY = true;
     if (t.id === "cvEth" || t.id === "cvUsd") { conv(t.id === "cvEth" ? "eth" : "usd"); return; }
@@ -573,14 +591,13 @@
       return load();
     }
     if (t.id === "gaRe") { $("gaP").hidden = true; return loadGas(true); }
-    if (t.id === "gaQ") {
-      if (!GA_PICK) { alert("Nenhuma rede de origem com saldo."); return; }
-      GA_Q = null;
-      const r = await post("/api/hood/abastecer/cotar", { origem: GA_PICK, usd: Number($("gaUsd").value) }, t);
-      if (r && r.quote_id) GA_Q = r.quote_id;
-      drawQuote(r || { error: "sem resposta" }); return;
-    }
+    if (t.id === "gaQ") { clearTimeout(GA_TM); t.disabled = true; try { await gaQuote(); } finally { t.disabled = false; } return; }
     if (t.id === "gaGo") {
+      if (!GA_Q || Date.now() - GA_QT > (GA_QV - 5) * 1000) {           // cotação vencida: cota de novo e mostra antes de enviar
+        const q = await gaQuote();
+        if (q && !q.error && !(q.bloqueia && q.bloqueia.length)) toast("A cotação venceu e foi refeita: confira o valor e clique em Enviar de novo.");
+        return;
+      }
       const r = await post("/api/hood/abastecer/confirmar", { quote_id: GA_Q, confirmar: "ABASTECER" }, t);      // 0.32.287: o dono não quer digitar; o servidor segue conferindo
       if (r && r.error) { drawQuote({ error: r.error }); return; }
       $("gaP").innerHTML = '<span class="up">Enviado. A entrega costuma levar segundos; acompanhe no histórico abaixo.</span>';
