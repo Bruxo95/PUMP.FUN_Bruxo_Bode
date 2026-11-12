@@ -3635,6 +3635,46 @@ class PumpHub:
             return
         loop.create_task(self.tg_send_now(pf, msg))
 
+    # 0.32.329 (pedido do dono, 12/11: "faz tudo"): alertas do Dormant no Telegram de cada admin que ligou (Dormant → Visão geral).
+    # Usa o bot e o chat já salvos em Carteiras → Chaves (telegram_bot_token / telegram_chat_id); a opção fica no /dormant.
+    async def dormant_tg_loop(self) -> None:
+        last = None
+        while True:
+            await asyncio.sleep(30)
+            try:
+                last = await self.dormant_tg_tick(last)
+            except Exception as e:
+                log.warning("Dormant: aviso no Telegram falhou: %s", str(e)[:160])
+
+    async def dormant_tg_tick(self, last: float | None) -> float | None:
+        from .dormant import tg_text
+        from .dormant_buy import TG_TIPOS
+        w = getattr(self, "dormant", None)
+        if w is None:
+            return last
+        al = list(w.alertas)
+        top = max((float(a.get("t") or 0) for a in al), default=0.0)
+        if last is None:                       # na subida não manda os alertas antigos
+            return top
+        novos = sorted([a for a in al if float(a.get("t") or 0) > last], key=lambda a: a.get("t") or 0)
+        if not novos:
+            return last
+        for r in await self.db.select("dormant_buy_cfg", None, columns="user_id,cfg") or []:
+            c = r.get("cfg") or {}
+            if not c.get("tg_on"):
+                continue
+            tipos = set(c.get("tg_tipos") or TG_TIPOS)
+            xs = [a for a in novos if a.get("para") in tipos]
+            if not xs:
+                continue
+            prof = await self.db.select("profiles", {"user_id": r["user_id"]}, columns="role,bloqueado")
+            if not prof or prof[0].get("role") != "admin" or prof[0].get("bloqueado"):
+                continue
+            ok, why = await self.tg_send_now(await self.engine(r["user_id"]), tg_text(xs))
+            if not ok:
+                log.info("Dormant: Telegram de %s… não foi: %s", str(r["user_id"])[:8], why)
+        return top
+
     async def tg_send_now(self, pf, msg: str, force: bool = False) -> tuple[bool, str]:
         tok, chat = pf.keys.get("telegram_bot_token"), pf.keys.get("telegram_chat_id")
         if not tok or not chat:
@@ -4821,6 +4861,7 @@ class PumpHub:
         self._tasks.append(run_as("Relatórios", self.result_loop()))         # 0.32.114: estudo do Resultado (dias fechados)
         self._tasks.append(run_as("Copiar igual", self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(run_as("Sistema", self.usage_loop()))          # 0.31.76: uso das APIs
+        self._tasks.append(run_as("Dormant", self.dormant_tg_loop()))     # 0.32.329: alertas do Dormant no Telegram
         if getattr(self, "arquivo", None) is not None:                     # 0.32.225: histórico no Postgres da VPS
             self._tasks.append(run_as("Sistema", self.arquivo_loop()))
         self._tasks.append(run_as("Sistema", self.config_watch_loop()))

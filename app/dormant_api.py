@@ -318,6 +318,28 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
         return await run(go())
 
     # 0.32.248: moedas favoritas de cada conta
+    # 0.32.329: alertas do Dormant no Telegram (o bot e o chat são os de Carteiras → Chaves do painel da pump.fun)
+    @app.get("/api/dormant/telegram")
+    async def tg_get(u: dict = Depends(own)):
+        async def go():
+            c = await buyer().cfg(u["id"])
+            pf = await hub.engine(u["id"])
+            return {"ok": True, "on": bool(c.get("tg_on")), "tipos": c.get("tg_tipos") or [],
+                    "configurado": bool(pf.keys.get("telegram_bot_token") and pf.keys.get("telegram_chat_id"))}
+        return await run(go())
+
+    @app.post("/api/dormant/telegram")
+    async def tg_set(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            if b.get("teste"):
+                ok, why = await hub.tg_send_now(await hub.engine(u["id"]), "Dormant: teste do aviso no Telegram. Os alertas de moedas chegam assim.", force=True)
+                return {"ok": ok, "error": None if ok else why}
+            c = await buyer().save_tg(u["id"], b.get("on"), b.get("tipos"))
+            await audit(db, u["id"], "Dormant: aviso no Telegram", ("ligado: " + ", ".join(c["tg_tipos"])) if c["tg_on"] else "desligado")
+            return {"ok": True, "on": c["tg_on"], "tipos": c["tg_tipos"]}
+        return await run(go())
+
     @app.get("/api/dormant/favoritas")
     async def favs(u: dict = Depends(own)):
         async def go():

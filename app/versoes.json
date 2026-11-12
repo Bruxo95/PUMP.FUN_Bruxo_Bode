@@ -2400,6 +2400,11 @@
    "versao": "0.32.328",
    "inicio": "2026-11-12T09:16:15+00:00",
    "titulo": "Solana: liga de candidatos no Top traders"
+  },
+  {
+   "versao": "0.32.329",
+   "inicio": "2026-11-12T09:19:51+00:00",
+   "titulo": "Dormant: alertas no Telegram"
   }
  ]
 }

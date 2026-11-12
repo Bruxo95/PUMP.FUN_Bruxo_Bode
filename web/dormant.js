@@ -178,6 +178,29 @@
 
   // ------------------------------------------------------------------ telas
   const M = () => (R && R.moedas) || [];
+  // 0.32.329 (pedido do dono): alertas no Telegram
+  const TG_T = { acordando: "Acordando", pump: "Pump", dump: "Dump", acordou_chain: "Acordou na rede" };
+  let TG = null;
+  async function loadTg() {
+    const r = await BB.api("/api/dormant/telegram", { quiet: true });
+    TG = r && r.ok ? r : { error: (r && r.error) || "não carregou" };
+    drawTg();
+  }
+  function drawTg() {
+    const box = $("tgBox"); if (!box || !TG) return;
+    if (TG.error) { box.innerHTML = '<span class="down small">' + esc(TG.error) + "</span>"; return; }
+    box.innerHTML = '<div class="tgrow"><button class="btn sm tgl ' + (TG.on ? "on" : "off") + '" type="button" data-tgon="1">' + (TG.on ? "Ligado" : "Desligado") + "</button>" +
+      Object.keys(TG_T).map((k) => '<label class="small"><input type="checkbox" data-tgtipo="' + k + '"' + ((TG.tipos || []).includes(k) ? " checked" : "") + "> " + TG_T[k] + "</label>").join("") +
+      '<button class="btn sm" type="button" data-tgtest="1"' + (TG.configurado ? "" : " disabled") + ">Mandar um teste</button></div>" +
+      (TG.configurado ? '<span class="muted small">Bot e chat configurados.</span>'
+        : '<span class="down small">Falta o bot: salve o token do bot e o ID do chat em PUMP FUN → Carteiras → Chaves (Telegram) e mande /start ao bot.</span>');
+  }
+  async function saveTg(on) {
+    const tipos = [...document.querySelectorAll("[data-tgtipo]")].filter((x) => x.checked).map((x) => x.dataset.tgtipo);
+    const r = await BB.api("/api/dormant/telegram", { body: { on, tipos } });
+    if (r && r.ok) { TG = { ...TG, on: r.on, tipos: r.tipos }; drawTg(); }
+    else alert((r && r.error) || "não salvou");
+  }
   function drawVisao() {
     const c = (R && R.contagem) || {};
     $("ovK").innerHTML = ["acordando", "pump", "dump", "dormindo", "normal", "parada", "morta"].map((k) =>
@@ -1006,7 +1029,7 @@
   }
   function draw() {
     drawSys();
-    if (VIEW === "visao") drawVisao();
+    if (VIEW === "visao") { drawVisao(); if (!TG) loadTg(); }
     if (VIEW === "moedas") drawMoedas();
     if (VIEW === "grupos") drawGrupos();
     if (VIEW === "config") drawConfig();
@@ -1051,6 +1074,7 @@
   });
   document.addEventListener("change", (e) => {
     if (!e.target) return;
+    if (e.target.dataset && e.target.dataset.tgtipo) { saveTg(!!(TG && TG.on)); return; }
     if (e.target.id === "mSort") { F.sort = e.target.value; saveF(); drawMoedas(); }
     if (e.target.id === "mCat") { F.cat = e.target.value; saveF(); drawMoedas(); }
     if (e.target.name === "gasR") gasConv();
@@ -1094,6 +1118,8 @@
     const g = e.target.closest && e.target.closest("tr[data-dmch],tr[data-dmcat]");
     if (g) { F.st = ""; F.q = ""; F.ch = g.dataset.dmch || ""; F.cat = g.dataset.dmcat || ""; saveF(); location.hash = "#moedas"; return; }
     const t = e.target.closest ? e.target.closest("button,a") : null; if (!t) return;
+    if (t.dataset.tgon) { await saveTg(!(TG && TG.on)); return; }
+    if (t.dataset.tgtest) { const r = await BB.api("/api/dormant/telegram", { body: { teste: true } }); alert(r && r.ok ? "Teste enviado: confira o Telegram." : ((r && r.error) || "não foi")); return; }
     if (t.dataset.dmclear) { F.ch = ""; F.cat = ""; F.q = ""; saveF(); drawMoedas(); return; }
     if (t.dataset.dmf != null) { F.st = t.dataset.dmf; saveF(); drawMoedas(); return; }
     if (t.dataset.dmchf != null) { F.ch = F.ch === t.dataset.dmchf ? "" : t.dataset.dmchf; saveF(); drawMoedas(); return; }

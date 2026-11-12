@@ -140,7 +140,10 @@ CHAINS = {
 EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 
 # 0.32.246 (dono, 06/11/2026: abasteceu US$ 7 de gás e ficou sem poder comprar): gás tem limite próprio e não conta no das compras
-CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0, "cex_max_usd": 25.0, "cex_dia_usd": 100.0}
+# 0.32.329 (pedido do dono, 12/11): alertas do Dormant no Telegram, por conta (tg_on começa desligado)
+TG_TIPOS = ("acordando", "pump", "dump", "acordou_chain")
+CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0, "cex_max_usd": 25.0, "cex_dia_usd": 100.0,
+               "tg_on": False, "tg_tipos": list(TG_TIPOS)}
 CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0), "cex_max_usd": (1.0, 5000.0), "cex_dia_usd": (1.0, 20000.0)}
 CEX_NOMES = {"binance": "Binance", "bybit": "Bybit", "okx": "OKX", "kucoin": "KuCoin", "mexc": "MEXC", "nonkyc": "NonKYC"}
 QUOTE_TTL_S = 60                  # depois disso a cotação vale nada e o botão pede outra
@@ -2256,6 +2259,16 @@ class Buyer:
         row["cfg"] = novo
         await self._put_cfg(row)
         return novo
+
+    async def save_tg(self, uid: str, on, tipos) -> dict:
+        """0.32.329: liga/desliga o aviso no Telegram e escolhe os tipos de alerta. Não mexe em dinheiro: não pede a senha."""
+        row = await self._cfg_row(uid)
+        base = clean_cfg(None, row.get("cfg") or {})
+        base["tg_on"] = bool(on)
+        base["tg_tipos"] = [t for t in TG_TIPOS if t in (tipos if isinstance(tipos, list) else TG_TIPOS)] or list(TG_TIPOS)
+        row["cfg"] = base
+        await self._put_cfg(row)
+        return base
 
     # ------------------------------------------------------------------ histórico
     async def history(self, uid: str) -> dict:

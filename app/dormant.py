@@ -95,6 +95,28 @@ def norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", s)
 
 
+def tg_text(alertas: list[dict]) -> str:
+    """0.32.329: texto do aviso no Telegram (até 10 alertas; o resto vira "e mais N")."""
+    nomes = {"acordando": "ACORDANDO", "pump": "PUMP", "dump": "DUMP", "acordou_chain": "ACORDOU NA REDE"}
+
+    def pc(v):
+        try:
+            return f"{float(v):+.1f}%"
+        except (TypeError, ValueError):
+            return "–"
+    linhas = []
+    for a in alertas[:10]:
+        por = a.get("por") or []
+        por = "; ".join(str(x) for x in por[:2]) if isinstance(por, list) else str(por)
+        px = a.get("preco")
+        linhas.append(f"• {a.get('simbolo') or ''} ({a.get('nome') or a.get('id') or ''}): {nomes.get(a.get('para'), a.get('para'))}"
+                      + (f" · ${px:.6g}" if isinstance(px, (int, float)) else "") + f" · 1 h {pc(a.get('h1'))} · 24 h {pc(a.get('h24'))}"
+                      + (f"\n  {por}" if por else ""))
+    if len(alertas) > 10:
+        linhas.append(f"e mais {len(alertas) - 10} no painel")
+    return f"Dormant: {len(alertas)} alerta" + ("s" if len(alertas) > 1 else "") + "\n" + "\n".join(linhas)
+
+
 def clean_cfg(raw: dict | None) -> dict:
     out = dict(CFG_DEFAULT)
     for k, v in (raw or {}).items():
