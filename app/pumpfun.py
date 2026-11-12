@@ -1221,7 +1221,60 @@ class PumpFun:
         """0.32.11: carteiras aprovadas pelo estudo automático que esta conta copia (só fictícia)."""
         return list(getattr(self, "study_copy", None) or []) if getattr(self.cfg, "pump_st_auto_copy", False) else []
 
+    GATE_ORIGINS = ("explorar", "barrado", "base", "elite", "calls", "bruxo", "jevtrade")
+
+    def tab_gate_stats(self) -> dict:
+        """0.32.325: {tela: (operações, soma em SOL)} das operações FICTÍCIAS fechadas nos últimos `pump_tab_gate_days` dias, já
+        depois das taxas. Fora: REAL, ganho suspeito (preço falso) e fictícia desfeita. Cache por minuto."""
+        from .auto_trades import SUSPECT_PCT
+        tr = self.store.trades(100000)
+        now, days = time.time(), int(self._c("pump_tab_gate_days", 7) or 7)
+        key = (len(tr), tr[0].get("id") if tr else None, int(now // 60), days)
+        if getattr(self, "_tgate_key", None) != key:
+            cut, acc = now - days * 86400, {}
+            for t in tr:
+                if t.get("real") or float(t.get("pnl_pct") or 0) >= SUSPECT_PCT:
+                    continue
+                try:
+                    ct = datetime.fromisoformat(str(t.get("closed_at")).replace("Z", "+00:00")).timestamp()
+                except ValueError:
+                    continue
+                if ct >= cut:
+                    a = acc.setdefault(self.aba_of(t), [0, 0.0])
+                    a[0] += 1
+                    a[1] += float(t.get("pnl_sol") or 0)
+            self._tgate = {k: (n, s) for k, (n, s) in acc.items()}
+            self._tgate_key = key
+        return self._tgate
+
+    def tab_gate_why(self, aba: str) -> str | None:
+        """0.32.325 (pedido do dono): por que esta tela ainda não compra na REAL, ou None se já provou (ou a trava está desligada)."""
+        if not getattr(self.cfg, "pump_tab_gate_on", False) or not aba:
+            return None
+        need, days = int(self._c("pump_tab_gate_n", 20) or 20), int(self._c("pump_tab_gate_days", 7) or 7)
+        n, s = self.tab_gate_stats().get(aba, (0, 0.0))
+        onde = "Carteiras → REAL → Espelho → \"Tela só vai para a REAL depois de dar lucro\""
+        if n < need:
+            return f"trava por tela: {aba} tem {n} de {need} operações fictícias fechadas em {days} dias; a REAL espera a prova ({onde})"
+        if s <= 0:
+            return (f"trava por tela: {aba} está com {s:+.4f} SOL na fictícia em {days} dias ({n} operações); a REAL só compra "
+                    f"com a tela no positivo ({onde})")
+        return None
+
+    def tab_gate_view(self) -> list[dict]:
+        """A situação de cada tela que já fechou operação na fictícia, para a tela mostrar (liberada ou o que falta)."""
+        need = int(self._c("pump_tab_gate_n", 20) or 20)
+        out = [{"aba": a, "n": n, "sol": round(s, 4), "precisa": need, "liberada": n >= need and s > 0}
+               for a, (n, s) in self.tab_gate_stats().items()]
+        return sorted(out, key=lambda x: (not x["liberada"], -x["sol"]))
+
     def sim_only(self, who: str) -> bool:
+        """Cópia que não vai para a carteira REAL: as regras de sempre (`_sim_only_base`) ou a trava por tela (0.32.325)."""
+        if not who:
+            return False
+        return self._sim_only_base(who) or bool(self.tab_gate_why(self.aba_of({"wallet": who})))
+
+    def _sim_only_base(self, who: str) -> bool:
         """0.32.11: cópia que nunca vai para a carteira real (aprovadas do estudo automático, sem ser manual)."""
         # 0.32.17 (pedido do dono: "por enquanto copiar do estudo somente fictícia, desabilita a real pra testes")
         # 0.32.20 (pedido do dono: "quero padrão só na fictícia, por que está na real?"): toda carteira que está em Carteiras em
@@ -1320,6 +1373,10 @@ class PumpFun:
         return who not in self.proven_wallets()
 
     def sim_only_why(self, who: str) -> str:
+        if not self._sim_only_base(who):
+            gw = self.tab_gate_why(self.aba_of({"wallet": who}))
+            if gw:
+                return gw
         ew = self.edge_why(who, True)
         if ew and not self.needs_proof(who):
             return ew
@@ -3421,6 +3478,15 @@ class PumpFun:
             if target == "real" and not (self.real is not None and getattr(self.cfg, "pump_real_enabled", False)):
                 out["real"] = "execução real desligada"
                 return out
+            # 0.32.325: trava por tela nas compras que o robô faz sozinho (o seu clique no botão Comprar não passa por ela)
+            if origem in self.GATE_ORIGINS or (auto and not origem) or follow:
+                gw = self.tab_gate_why(self.aba_of({"wallet": "manual", "origem": origem or ("base" if auto and not follow else ""),
+                                                    "follow_of": follow or None}))
+                if gw:
+                    if self.real is not None and getattr(self.cfg, "pump_real_enabled", False):
+                        out["real"] = gw
+                        self._feed(**base, action="REAL não copiou", reason=gw, sim_id=(sim_pos or {}).get("id"))
+                    return out
             mirror = getattr(self.cfg, "pump_real_mirror", True)
             if own_auto and origem == "explorar" and not getattr(self.cfg, "pump_ex_real_on", True):
                 if self.real is not None and getattr(self.cfg, "pump_real_enabled", False):
@@ -4652,6 +4718,10 @@ class PumpFun:
         self._real_buying.prune()
         mint, allpos = p["mint"], self.positions()
         base = {"wallet": p["wallet"], "short": short(p["wallet"]), "mint": mint, "symbol": p.get("symbol"), "kind": "buy"}
+        gw = self.tab_gate_why(self.aba_of(p))            # 0.32.325: tela sem prova na fictícia não compra na REAL
+        if gw:
+            self._feed(**base, action="REAL não copiou", reason=gw, sim_id=p["id"])
+            return None                                   # não é falha da REAL: a fictícia continua, é ela que faz a prova
         why = None
         if any(x["mint"] == mint and x.get("real") for x in allpos) or mint in self._real_buying:
             why = "já tem posição REAL neste token"
@@ -5142,7 +5212,7 @@ class PumpFun:
         for w in self.followed:
             r = stats_by_w.get(w) or {"wallet": w, "short": short(w)}
             lbr = lbmap.get(w)
-            followed.append({**r, "manual": w in man, "ia_sim": self.sim_only(w), "prova": self.needs_proof(w), "copied": copied.get(w), "lb": lbr,
+            followed.append({**r, "manual": w in man, "ia_sim": self._sim_only_base(w), "prova": self.needs_proof(w), "copied": copied.get(w), "lb": lbr,
                              "ignored": (self.rpc_status.get("ignored_by") or {}).get(w, 0),
                              "other_copied": (self.rpc_status.get("other_by") or {}).get(w, 0),
                              "act": self.activity_view(w),
@@ -5183,6 +5253,7 @@ class PumpFun:
                                      "top_active": r["wallet"] in self.top_active} for r in self.leaderboard],
                 "lb_status": {**self.lb_status, "key_set": bool(self.lb_key()),
                               "source": "leaderboard" if self.leaderboard else "ranking próprio"},
+                "tab_gate": self.tab_gate_view(),      # 0.32.325: trava por tela (o que cada tela já provou na fictícia)
                 "followed": followed, "ranking": [r | {"followed": r["wallet"] in fol} for r in rk[:50]],
                 "manual": self.manual, "banned": self.banned,
                 "positions": [dict(p, aba=self.aba_of(p), entrou_porque=self.entry_why(p)) for p in pos], "trades": [dict(x, aba=self.aba_of(x)) for x in self.trades(300)],

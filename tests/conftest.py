@@ -38,6 +38,19 @@ def _saidas_do_original(monkeypatch, request):
 
 
 @pytest.fixture(autouse=True)
+def _real_sem_trava_por_tela(monkeypatch, request):
+    """0.32.325: a trava por tela (a REAL só compra de tela que provou lucro na fictícia) vem ligada. Os testes antigos da REAL
+    começam sem histórico, então nela a trava fica desligada. O teste da regra (test_trava_tela.py) usa o padrão."""
+    if "test_trava_tela" in request.node.nodeid:
+        yield
+        return
+    from app import settings
+    spec = settings.USER_KEYS["pump_tab_gate_on"]
+    monkeypatch.setitem(settings.USER_KEYS, "pump_tab_gate_on", (spec[0], False) + tuple(spec[2:]))
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _real_sem_prova(monkeypatch, request):
     """0.32.265: a prova "REAL só depois de lucro na fictícia" vale também para a lista manual; os testes antigos da REAL
     usam carteiras manuais sem histórico, então nela a prova fica desligada. O teste da regra usa o padrão."""

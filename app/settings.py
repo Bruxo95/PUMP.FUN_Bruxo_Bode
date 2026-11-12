@@ -313,6 +313,12 @@ USER_KEYS: dict[str, tuple] = {
     # fictícia (cópias, Explorar, Base, Maiores traders, botão Comprar), mas o valor e os limites vêm só das regras reais
     "pump_real_mirror": (bool, True, 0, 1),
     "pump_real_need_win": (bool, True, 0, 1),
+    # 0.32.325 (pedido do dono, 12/11/2026: "sim, faz a trava"): trava por TELA. Uma tela (Top traders, Explorar, Aba do Bruxo…) só
+    # compra na REAL depois de provar resultado na FICTÍCIA: pelo menos N operações fechadas nos últimos D dias com a soma
+    # positiva depois das taxas. Voltou ao prejuízo, sai da REAL sozinha. Compra pelo botão (clique seu) não passa pela trava.
+    "pump_tab_gate_on": (bool, True, 0, 1),
+    "pump_tab_gate_n": (int, 20, 1, 1000),
+    "pump_tab_gate_days": (int, 7, 1, 90),
     "pump_real_full_mirror": (bool, False, 0, 1),      # 0.32.277: Espelho total, ignora o "só fictícia" do estudo (começa OFF)         # 0.32.251: trader novo só na fictícia até uma cópia fictícia com lucro
     # 0.32.275 (pedido do dono): copiar só traders com resultado médio por cópia positivo (o acerto sozinho engana: com stop de
     # 40%, 10 perdas não se pagam com 20 ganhos de 10%)

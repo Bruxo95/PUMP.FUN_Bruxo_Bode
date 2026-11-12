@@ -956,6 +956,13 @@
             <div class="field" data-novo-ate="2026-11-24"><label>Copiar só quem dá resultado</label>
               <div class="row"><button class="btn sm tgl" data-toggle="pump_edge_on">…</button></div>
               <div class="hint">Só copia traders com <b>média por cópia</b> positiva nas últimas cópias fictícias (padrão: 5 cópias em 7 dias, média ≥ 0%). A média por trader e os ajustes (média mínima, cópias, dias, travar só a REAL) ficam em <a href="#traders" data-gotrt="lab">Top traders → Laboratório</a>.</div></div>
+            <div class="field" data-novo-ate="2026-11-26"><label>Tela só vai para a REAL depois de dar lucro na fictícia</label>
+              <div class="row"><button class="btn sm tgl" data-toggle="pump_tab_gate_on" data-confirm="Desligar a trava por tela? Com ela desligada, qualquer tela com a REAL ligada compra na REAL mesmo sem ter provado lucro na fictícia.">…</button>
+              <input class="in w80" type="number" min="1" max="1000" step="1" data-cfg="pump_tab_gate_n" aria-label="Operações fechadas para a prova"><span class="muted">operações em</span>
+              <input class="in w80" type="number" min="1" max="90" step="1" data-cfg="pump_tab_gate_days" aria-label="Dias da prova"><span class="muted">dias</span></div>
+              <div class="hint">Cada tela (Top traders, Explorar, Aba do Bruxo, Jev Trade…) só compra na REAL depois de fechar esse número de operações na <b>fictícia</b>, no período, com a <b>soma positiva depois das taxas</b>. Se a tela voltar ao prejuízo, sai da REAL sozinha. A compra pelo seu clique no botão Comprar não passa pela trava.</div>
+              <div id="tgView" class="tgview"></div>
+              <div class="hint"><b>Só aqui:</b> a fictícia continua comprando normal: é ela que faz a prova.</div></div>
             <div class="field" data-novo-ate="2026-11-21"><label>Idade mínima do token para a REAL comprar</label>
               <div class="row"><input class="in w80" type="number" min="0" max="10080" step="1" data-cfg="pump_real_min_age_min"><span class="muted">min</span>
               <button class="btn sm" data-set="pump_real_min_age_min" data-val="5">5</button><button class="btn sm" data-set="pump_real_min_age_min" data-val="10">10</button><button class="btn sm" data-set="pump_real_min_age_min" data-val="30">30</button><button class="btn sm" data-set="pump_real_min_age_min" data-val="0">desliga</button></div>

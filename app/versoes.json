@@ -2380,6 +2380,11 @@
    "versao": "0.32.324",
    "inicio": "2026-11-11T22:43:11+00:00",
    "titulo": "Solana: custo menor por trade, saída na graduação e sem copiar lançador"
+  },
+  {
+   "versao": "0.32.325",
+   "inicio": "2026-11-12T08:13:14+00:00",
+   "titulo": "Trava por tela: só vai para a REAL a tela que deu lucro na fictícia"
   }
  ]
 }

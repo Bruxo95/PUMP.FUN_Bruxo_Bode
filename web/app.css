@@ -1046,3 +1046,9 @@ label.chgrp{cursor:pointer}
 .mirbox{border:1px solid var(--line,#2a2a30);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:rgba(34,197,94,.04)}
 .mirbox .mirh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
 .mirbox .field:last-child{margin-bottom:0}
+/* 0.32.325: trava por tela (situação de cada tela) */
+.tgview{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.tgview .tgv{display:inline-flex;flex-direction:column;gap:1px;padding:6px 10px;border-radius:10px;border:1px solid var(--line,#2a2a30);font-size:12px;line-height:1.3;max-width:100%}
+.tgview .tgv b{font-size:12.5px;overflow-wrap:anywhere}
+.tgview .tgv.ok{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.08)}
+.tgview .tgv.no{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.05)}

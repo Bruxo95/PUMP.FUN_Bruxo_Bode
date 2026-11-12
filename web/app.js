@@ -2904,7 +2904,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "carteiras") { drawRealTabs(); buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
+    if (VIEW === "carteiras") { drawRealTabs(); drawTabGate(); buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
     if (VIEW === "sistema") { sysTab(); openSys(); }
@@ -3530,7 +3530,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "semanas") loadWk();
     if (VIEW === "tradershist") loadTH();
     if (VIEW === "explorar" && XC.mode !== undefined && XC.mode !== realMode()) loadExCopy();
-    if (VIEW === "carteiras") { renderAllCfgCopy(); renderReal(); renderSimW(); renderRealSync(); }
+    if (VIEW === "carteiras") { renderAllCfgCopy(); renderReal(); renderSimW(); renderRealSync(); drawTabGate(); }
     else if (VIEW === "traders") renderTraders();
     else if (VIEW === "posicoes") renderPositions();
     else if (VIEW === "historico") { renderHistory(); renderErrs(); renderHMon(); renderFeed(); }
@@ -3542,7 +3542,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
+  const TGL_REAL = ["pump_tab_gate_on", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
@@ -3565,6 +3565,19 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const ABAS_MEM = "pf_abas_antes";
   // 0.32.277 (pedido do dono, 10/11/2026: "onde ficaram as chaves? não quero espalhado"): a chave REAL de cada tela, reunida em
   // Carteiras → REAL. É cópia (data-clone) da mesma opção; o aviso de confirmação vem da chave original da tela.
+  // 0.32.325 (pedido do dono: "sim, faz a trava"): o que cada tela já provou na fictícia e se está liberada para a REAL
+  let TGV_SIG = "";
+  function drawTabGate() {
+    const box = $("tgView"); if (!box || !D) return;
+    const xs = D.tab_gate || [], on = !!(cfg() || {}).pump_tab_gate_on, sig = JSON.stringify([xs, on]);
+    if (sig === TGV_SIG) return;
+    TGV_SIG = sig;
+    if (!xs.length) { box.innerHTML = '<span class="muted small">Nenhuma tela fechou operação na fictícia no período: por enquanto nenhuma compra na REAL.</span>'; return; }
+    box.innerHTML = xs.map((x) => '<span class="tgv ' + (x.liberada ? "ok" : "no") + '"><b>' + esc(x.aba) + "</b><span>" +
+      (x.liberada ? "liberada para a REAL" : x.n < x.precisa ? "em prova: " + x.n + " de " + x.precisa : "no prejuízo: fora da REAL") +
+      " · " + (x.sol > 0 ? "+" : "") + String(x.sol).replace(".", ",") + " SOL em " + x.n + "</span></span>").join("") +
+      (on ? "" : '<span class="muted small">Trava desligada: a lista é só informativa.</span>');
+  }
   function drawRealTabs() {
     const box = $("realTabs"); if (!box || box.dataset.ok) return;
     const by = {};
