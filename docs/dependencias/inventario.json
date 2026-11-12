@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-12",
     "timezone": "Europe/Dublin",
-    "repository_reference": "642e571974cf12f265a0b1cc623f2b7e7fc0702d",
-    "application_version": "0.32.327 · 2026-11-11 · Robinhood: sai quando o dono tira a liquidez do pool",
+    "repository_reference": "d14a38091914183856e3253492fb1059468fe796",
+    "application_version": "0.32.328 · 2026-11-11 · Solana: liga de candidatos no Top traders",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "0736b2621301b5a18ff03af8910255b7d5bccb02ef6c19dae444505280a74900",
+      "app/version.py": "ba703e8a1be798e6a8c014514f088e46483aeb7093b7c992af16ef2940fe175d",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "043c515be7e938011d1e5398b6cb7d17f4ea2a4d9dcc363f4f826d8295c362bc",
+      "web/app.html": "7ebddd4df8d8c4d01883f2706bb95f9f9015661a65d1192b7423b90b0f7a97fd",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "dbf4abd1c224ecd343494c90d3d38c5d55538621522e44fda73f69868466463b"
+  "pdf_sha256": "fb7a0e8d1e25e64ac39f40b95fe6e6325be75da23f5d829c0453b4a9542f82d8"
 }

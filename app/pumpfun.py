@@ -631,6 +631,8 @@ class PumpFun:
         own = [r["wallet"] for r in self.ranking_cache if r["eligible"] and r["wallet"] not in man and r["wallet"] not in lb]
         # fonte: leaderboard da pump.fun (Solana Tracker); sem chave/sem dados → ranking próprio
         auto = lb + own if self.leaderboard else own
+        if self._c("pump_liga_on", True):              # 0.32.328: vagas pelo resultado de quem copia (liga de candidatos)
+            auto = self.liga_order(auto)
         off: dict[str, float | None] = {}
         if self._c("pump_only_online", True):
             # só entra quem está ONLINE (negociou nos últimos X min); o melhor do top que estiver online ocupa a vaga
@@ -1330,6 +1332,7 @@ class PumpFun:
         key = (len(tr), tr[0].get("id") if tr else None, int(now // 60), days)
         if getattr(self, "_edge_key", None) != key:
             cut, acc = now - days * 86400, {}
+            holds: dict[str, list] = {}
             for t in tr:
                 w = t.get("wallet")
                 if t.get("real") or t.get("follow_of") or not w or len(w) < 32 or float(t.get("pnl_pct") or 0) >= SUSPECT_PCT:
@@ -1342,9 +1345,37 @@ class PumpFun:
                     a = acc.setdefault(w, [0, 0.0])
                     a[0] += 1
                     a[1] += float(t.get("pnl_pct") or 0)
+                    if t.get("hold_s") is not None:
+                        holds.setdefault(w, []).append(float(t.get("hold_s") or 0))
             self._edge = {w: (n, sm / n) for w, (n, sm) in acc.items()}
+            # 0.32.328: quanto tempo as cópias de cada trader ficam abertas (mediana), para a liga de candidatos
+            self._edge_hold = {w: sorted(h)[len(h) // 2] for w, h in holds.items() if h}
             self._edge_key = key
         return self._edge
+
+    def liga_order(self, auto: list[str]) -> list[str]:
+        """0.32.328 (pedido do dono: "copiar os maiores traders não estava dando certo"): liga de candidatos. Quem tem base
+        (`pump_edge_min_n` cópias fictícias fechadas em `pump_edge_days` dias) e média por cópia ≥ `pump_edge_min_pct` sobe para o
+        começo (maior média primeiro); quem ainda não tem base fica em teste, na ordem do ranking; quem tem base e média abaixo do
+        mínimo, ou cujas cópias duram menos que `pump_liga_min_hold_s` (vende rápido demais para dar tempo de copiar), sai das vagas.
+        O motivo de cada um que saiu fica em `liga_out` para a tela."""
+        st, hold = self.edge_stats(), getattr(self, "_edge_hold", {}) or {}
+        need, mn = int(self._c("pump_edge_min_n", 5)), float(self._c("pump_edge_min_pct", 0))
+        mh, days = float(self._c("pump_liga_min_hold_s", 60) or 0), int(self._c("pump_edge_days", 7))
+        prov, trial, out = [], [], {}
+        for w in auto:
+            n, m = st.get(w, (0, 0.0))
+            if n >= need and mh and w in hold and hold[w] < mh:
+                out[w] = f"vende rápido demais para copiar: as cópias duram {hold[w]:.0f} s (mediana de {n} em {days} dias)"
+            elif n >= need and m < mn:
+                out[w] = f"média de {m:+.1f}% por cópia nas últimas {n} ({days} dias)"
+            elif n >= need:
+                prov.append((m, w))
+            else:
+                trial.append(w)
+        self.liga_out = out
+        self.liga_count = {"comprovados": len(prov), "em_teste": len(trial), "rebaixados": len(out)}
+        return [w for _, w in sorted(prov, key=lambda x: -x[0])] + trial
 
     def edge_why(self, who: str, for_real: bool) -> str | None:
         """0.32.275 (pedido do dono): com `pump_edge_on`, só copia quem tem média por cópia ≥ `pump_edge_min_pct` nas

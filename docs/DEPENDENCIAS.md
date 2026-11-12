@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-12**; revisão documental **2.0**.
-Aplicação: **0.32.327 · 2026-11-11 · Robinhood: sai quando o dono tira a liquidez do pool**.
-Referência Git na emissão: `642e571974cf12f265a0b1cc623f2b7e7fc0702d`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.328 · 2026-11-11 · Solana: liga de candidatos no Top traders**.
+Referência Git na emissão: `d14a38091914183856e3253492fb1059468fe796`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -241,6 +241,11 @@
           <div class="kpis" id="tlK"></div><p class="small" id="tlR" style="margin:10px 0 0"></p>
           <div class="sub" style="margin-top:14px">Quem faz o resultado</div>
           <p class="muted small" id="tlPay" style="margin:4px 0 8px"></p>
+          <div class="field" data-novo-ate="2026-11-26"><label>Liga de candidatos: a vaga vai para quem dá resultado para quem copia</label>
+            <div class="row"><button class="btn sm tgl" data-toggle="pump_liga_on">…</button>
+              <span class="muted">cópia que dura menos de</span><input class="in w80" type="number" min="0" max="3600" step="10" data-cfg="pump_liga_min_hold_s" aria-label="Duração mínima das cópias em segundos"><span class="muted">s = rápido demais</span></div>
+            <div class="hint">As vagas do Top traders vão primeiro para quem já deu lucro <b>nas suas cópias fictícias</b> (média por cópia, mesma regra de "Copiar só quem dá resultado" abaixo), depois para quem ainda está em teste. Quem já tem base e dá prejuízo para quem copia, ou vende tão rápido que a cópia não acompanha, perde a vaga para o próximo do ranking. 0 s desliga a regra da rapidez.</div>
+            <div id="tlLiga" class="small" style="margin-top:6px"></div></div>
           <div class="tbl-wrap"><table id="tlT" class="daytbl"></table></div>
           <div class="sub" style="margin-top:14px" data-novo-ate="2026-11-24">Copiar só quem dá resultado</div>
           <div class="muted small" style="margin:4px 0 8px">O acerto sozinho engana: com stop de 40%, uma perda apaga 4 ganhos de 10%. Esta regra olha a <b>média por cópia</b> (ganhos e perdas juntos, depois das taxas) das últimas cópias fictícias de cada trader e só deixa copiar quem fica acima do mínimo.</div>

@@ -1591,6 +1591,12 @@
         "%</b> → para empatar precisa de <b>" + (r.acerto_empate == null ? "–" : r.acerto_empate + "%") + "</b> de acerto · média por cópia <b>" + pc(r.por_copia_pct) +
         "</b>. A tabela vem ordenada pela média por cópia (o que de fato dá resultado), não pelo acerto.";
     }
+    // 0.32.328: liga de candidatos (vagas pelo resultado de quem copia)
+    const lg = r.liga || {};
+    if ($("tlLiga")) $("tlLiga").innerHTML = !lg.ligada ? '<span class="muted">Liga desligada: as vagas seguem a ordem do ranking.</span>'
+      : lg.comprovados == null ? '<span class="muted">A liga monta a lista na próxima atualização do ranking (até 10 min).</span>'
+      : '<span class="tag win">' + lg.comprovados + " comprovados</span> <span class=\"tag neutral\">" + lg.em_teste + " em teste</span> <span class=\"tag loss\">" + lg.rebaixados + " fora</span>" +
+        ((lg.fora || []).length ? '<ul class="tlfora">' + lg.fora.map((x) => "<li>" + pfW(x.wallet, {}) + " · " + esc(x.motivo) + "</li>").join("") + "</ul>" : "");
     const regra = (x) => { const g = x.regra || {}; if (!g.n && !(g.real || g.ficticia)) return '<span class="muted">–</span>';
       return g.real ? '<span class="tag pause" title="' + esc(g.real) + '">' + (/sem base/.test(g.real) ? "sem base (" + g.n + ")" : "fora da REAL") + "</span>" : '<span class="tag win">copia na REAL</span>'; };
     table("tlT", ["Trader", "Veredito", "Média por cópia", "Acerto", "Ganho médio", "Perda média", "Empata com", "Fator", "Saldo", "Trades", "Regra", ""], (r.traders || []).map((x) => [pfW(x.wallet, {}), vd(x.veredito),

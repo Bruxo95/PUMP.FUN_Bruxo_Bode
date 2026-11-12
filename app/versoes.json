@@ -2395,6 +2395,11 @@
    "versao": "0.32.327",
    "inicio": "2026-11-12T09:13:48+00:00",
    "titulo": "Robinhood: sai quando o dono tira a liquidez do pool"
+  },
+  {
+   "versao": "0.32.328",
+   "inicio": "2026-11-12T09:16:15+00:00",
+   "titulo": "Solana: liga de candidatos no Top traders"
   }
  ]
 }

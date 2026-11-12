@@ -1052,3 +1052,6 @@ label.chgrp{cursor:pointer}
 .tgview .tgv b{font-size:12.5px;overflow-wrap:anywhere}
 .tgview .tgv.ok{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.08)}
 .tgview .tgv.no{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.05)}
+
+/* 0.32.328: liga de candidatos */
+.tlfora{margin:6px 0 0;padding-left:18px}.tlfora li{margin:2px 0;overflow-wrap:anywhere}

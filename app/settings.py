@@ -326,7 +326,12 @@ USER_KEYS: dict[str, tuple] = {
     "pump_edge_min_n": (int, 5, 1, 100),              # cópias fictícias fechadas para ter base
     "pump_edge_days": (int, 7, 1, 90),                # janela das cópias que contam
     "pump_edge_min_pct": (float, 0.0, -50.0, 500.0),  # média mínima por cópia (%), depois das taxas
-    "pump_edge_real_only": (bool, True, 0, 1),        # True: só trava a REAL; a fictícia continua copiando para aprender
+    "pump_edge_real_only": (bool, True, 0, 1),
+    # 0.32.328 (pedido do dono, 12/11: "faz tudo" — copiar os maiores traders não estava dando certo): liga de candidatos. As vagas do
+    # Top traders vão primeiro para quem já deu resultado PARA QUEM COPIA (média por cópia fictícia, regra acima), depois para quem
+    # ainda está em teste; quem tem base e dá prejuízo, ou vende rápido demais para ser copiado, perde a vaga para o próximo.
+    "pump_liga_on": (bool, True, 0, 1),
+    "pump_liga_min_hold_s": (int, 60, 0, 3600),       # cópias que duram menos que isso (mediana) = trader rápido demais para copiar        # True: só trava a REAL; a fictícia continua copiando para aprender
     # 0.32.158 (pedido do dono, 02/11): com real e fictícia ligadas, a REAL manda e a fictícia é a cópia exata dela (mesmo valor,
     # mesmo preço de entrada, sai junto; se a real não compra, a fictícia é desfeita). Começa desligada; ligada só por ajuste pedido.
     "pump_real_exact": (bool, False, 0, 1),
