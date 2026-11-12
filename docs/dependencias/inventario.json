@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-12",
     "timezone": "Europe/Dublin",
-    "repository_reference": "6479fc6d62f22bcfada20d6c1a9aaf7482647f4c",
-    "application_version": "0.32.326 · 2026-11-12 · Segurança: revisão dos quatro painéis e cabeçalhos mais fechados",
+    "repository_reference": "642e571974cf12f265a0b1cc623f2b7e7fc0702d",
+    "application_version": "0.32.327 · 2026-11-11 · Robinhood: sai quando o dono tira a liquidez do pool",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e40178a70e264cd9f0052cb6d8496381471f691344425084567784e291eb3a93",
+      "app/version.py": "0736b2621301b5a18ff03af8910255b7d5bccb02ef6c19dae444505280a74900",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "edd7cd3867386a841430768d86fb36acd4e5937e7db19aa4d354deba93dff4b6"
+  "pdf_sha256": "dbf4abd1c224ecd343494c90d3d38c5d55538621522e44fda73f69868466463b"
 }

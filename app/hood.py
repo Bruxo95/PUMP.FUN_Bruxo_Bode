@@ -38,7 +38,9 @@ log = logging.getLogger("hood")
 CHAIN_ID = 4663
 PM = "0x8366a39cc670b4001a1121b8f6a443a643e40951"                                  # Uniswap V4 PoolManager
 T_SWAP = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f"   # Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)
-T_INIT = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438"    # Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)
+T_INIT = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438"
+# 0.32.327: ModifyLiquidity(bytes32,address,int24,int24,int256,bytes32), lido na mesma consulta das trocas (sem consulta a mais)
+T_ML = "0xf208f4912782fd25c7f114ca3723a2d5dd6f3bcc3ac8db5af63baa85f711d5ec"    # Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)
 T_TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"  # Transfer(address,address,uint256)
 WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73"                                # 18 casas (conferido na rede)
 USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168"                                # dólar, 6 casas (conferido na rede)
@@ -409,11 +411,14 @@ class HoodWatch:
     async def window(self, a: int, b: int) -> list[dict]:
         """Lê os blocos a..b: 3 consultas (trocas, transferências saindo e entrando no PoolManager e nos roteadores)."""
         url = self.next_rpc()
-        logs = await self.rpc("eth_getLogs", [{"address": PM, "topics": [[T_SWAP, T_INIT]], "fromBlock": hex(a), "toBlock": hex(b)}], url) or []
+        logs = await self.rpc("eth_getLogs", [{"address": PM, "topics": [[T_SWAP, T_INIT, T_ML]], "fromBlock": hex(a), "toBlock": hex(b)}], url) or []
         swaps = [x for x in logs if ((x.get("topics") or [""])[0] or "").lower() == T_SWAP]
         inits = [x for x in logs if ((x.get("topics") or [""])[0] or "").lower() == T_INIT]
+        mls = [x for x in logs if ((x.get("topics") or [""])[0] or "").lower() == T_ML]
         if inits:
             self.copier.note_init(inits)
+        if mls:
+            self.copier.note_liq(mls)
         for s in swaps:
             self.routers[_topic_addr((s.get("topics") or ["", "", ""])[2])] += 1
         if not swaps:

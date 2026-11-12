@@ -2390,6 +2390,11 @@
    "versao": "0.32.326",
    "inicio": "2026-11-12T08:33:28+00:00",
    "titulo": "Segurança: revisão dos quatro painéis e cabeçalhos mais fechados"
+  },
+  {
+   "versao": "0.32.327",
+   "inicio": "2026-11-12T09:13:48+00:00",
+   "titulo": "Robinhood: sai quando o dono tira a liquidez do pool"
   }
  ]
 }

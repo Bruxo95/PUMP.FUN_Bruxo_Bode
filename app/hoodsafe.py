@@ -46,7 +46,8 @@ T_ML = "0x" + evm.keccak256(b"ModifyLiquidity(bytes32,address,int24,int24,int256
 SEL_OWNER = evm.selector("ownerOf(uint256)")
 LP_S = 300                           # dono da liquidez de cada pool guardado 5 min
 LP_SPANS = (2_000_000, 9_000_000)    # blocos para trás (~2,3 dias, depois ~10 dias) atrás das entradas de liquidez
-LP_LIVRE_PCT = 50.0                  # carteira comum com essa parte da liquidez ou mais = pode tirar a qualquer hora
+LP_LIVRE_PCT = 50.0
+PULLS_LIVRE = 2                      # 0.32.327: contrato que tirou liquidez 2+ vezes conta como "pode tirar a qualquer hora"                  # carteira comum com essa parte da liquidez ou mais = pode tirar a qualquer hora
 SEL_TRANSFER = evm.selector("transfer(address,uint256)")
 GP_BLOQ = {"is_honeypot": "honeypot: não deixa vender", "cannot_sell_all": "não deixa vender tudo",
            "cannot_buy": "não deixa comprar", "selfdestruct": "o contrato pode se autodestruir",
@@ -72,6 +73,7 @@ class Safety:
         self.scans: dict[str, dict] = {}
         self.rpc = None              # async (método, params) → resultado; posto pela cópia (eth_getLogs e eth_getCode)
         self.lp_cache: dict[str, dict] = {}
+        self.pullers: dict[str, int] = {}   # 0.32.327: contrato → retiradas de liquidez vistas (posto pela cópia)
 
     def cached(self, token: str, now: float | None = None) -> dict | None:
         v = self.cache.get(token)
@@ -217,7 +219,12 @@ class Safety:
             livre, donos = 0, []
             for (snd, salt), v in live.items():
                 if snd != POSM:
-                    continue                                  # liquidez posta por outro contrato (lançadora): não é carteira comum
+                    # liquidez posta por outro contrato (lançadora): presa, a não ser que esse contrato já tenha tirado liquidez de
+                    # outros pools (0.32.327; medido em 11/11: a 0x0af5… retirou em 6 dos 14 pools dela em 2 h)
+                    if self.pullers.get(snd, 0) >= PULLS_LIVRE:
+                        livre += v
+                        donos.append(snd)
+                    continue
                 w = evm.words(await self.call(POSM, SEL_OWNER + evm.w_int(salt), None))
                 dono = "0x" + hex(w[0])[2:].rjust(40, "0") if w else None
                 if not dono or int(dono, 16) == 0 or dono.endswith("dead"):
@@ -230,7 +237,8 @@ class Safety:
             return None
         pct = round(100 * livre / total, 1) if total else None
         out = {"t": time.time(), "pct_carteira": pct, "donos": donos[:3],
-               "livre": (f"{pct:.0f}% da liquidez do pool é de uma carteira comum ({donos[0][:6]}…{donos[0][-4:]}): ela pode tirar tudo a qualquer hora"
+               "livre": (f"{pct:.0f}% da liquidez do pool é de " + ("uma lançadora que já tirou liquidez de outros pools" if donos[0] in self.pullers else "uma carteira comum")
+                         + f" ({donos[0][:6]}…{donos[0][-4:]}): pode tirar tudo a qualquer hora"
                          if pct is not None and pct >= LP_LIVRE_PCT and donos else None)}
         self.lp_cache[pid] = out
         if len(self.lp_cache) > 3000:

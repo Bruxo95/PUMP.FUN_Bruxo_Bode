@@ -51,7 +51,7 @@ BLOCK_MAX = 500
 # "Copiando agora" quem deu prejuízo nas últimas cópias). cfg_v marca quem já recebeu o ajuste (upgrade_cfg).
 CFG_V = 2
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 30.0,
-               "slip_pct": 2.0, "gas_eth": 0.000008, "saldo_inicial": 0.5, "so_verificado": False, "so_lp_presa": True, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": False, "sair_dev": True,
+               "slip_pct": 2.0, "gas_eth": 0.000008, "saldo_inicial": 0.5, "so_verificado": False, "so_lp_presa": True, "sair_liquidez": True, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": False, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 25.0, "trail_dist_pct": 20.0,
                "max_acima_pct": 15.0, "max_atraso_s": 45.0, "pausa_trader": True, "cfg_v": CFG_V}
 # valores que eram o padrão até a 0.32.321 → quem ainda está neles (não escolheu outro) passa para o padrão novo, uma vez só
@@ -63,8 +63,9 @@ AJUSTE = "ajuste da versão 0.32.322 (saídas que cortavam o ganho e seguravam a
 CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
               "trail_dist_pct": (1, 1000), "max_acima_pct": (0, 500), "max_atraso_s": (5, 90)}
-CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader")
+CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_liquidez", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader")
 TRAIL_MIN_LOCK = 2.0
+LIQ_EXIT = 0.30              # 0.32.327: retirada de 30% ou mais da liquidez de um pool com posição aberta = sai
 # 0.32.319: histórico da configuração. Nunca entra: ligar a fictícia, ligar a REAL e o saldo inicial (voltar nunca liga nada)
 TELA = "você mudou na tela"
 HIST_SKIP = ("on", "saldo_inicial", "real_on", "on_since", "cfg_v")
@@ -553,6 +554,9 @@ class Copier:
         self.key_why: dict[str, str] = {}           # 0.32.321: pool → por que não tem chave
         self._q_fail: dict[str, int] = {}
         self.no_liq: dict[str, float] = {}          # 0.32.315: token → última conferência com o pool SEM liquidez (rug pull)
+        self.lp_pullers: dict[str, int] = {}        # 0.32.327: contrato (não o PositionManager) → quantas vezes tirou liquidez de um pool
+        self._liq_seen: dict[str, float] = {}       # pool → última saída por retirada (não repete a mesma em 60 s)
+        self.safe.pullers = self.lp_pullers
         self.dev: dict[str, str] = {}               # token → carteira de quem criou ("" = não achou)
         self._dev_at: dict[str, float] = {}
         self._px_ok: dict[str, float] = {}          # última vez que o Quoter deu preço
@@ -707,6 +711,62 @@ class Copier:
         if len(self.keys) > 20000:
             for pid in list(self.keys)[:5000]:
                 self.keys.pop(pid, None)
+
+    # ------------------------------------------------------------------ 0.32.327: o dono tirando liquidez de um pool aberto
+    def note_liq(self, logs: list[dict]) -> None:
+        """Pedido do dono (12/11, depois dos casos TEXEL e mihao): ModifyLiquidity lidos junto com as trocas. Retirada num pool com posição
+        aberta → confere quanto saiu e sai da posição (sair_liquidez / real_sair_liquidez). Retirada feita por um contrato que não é o
+        PositionManager oficial fica anotada: lançadora que tira liquidez deixa de contar como "liquidez presa" (hoodsafe.lp_control)."""
+        held: dict[str, tuple] = {}
+        for _, p, _ in [(u, p, r) for tk in self.held() for (u, p, r) in self._positions(tk)]:
+            k = p.get("key")
+            if k:
+                held.setdefault(v4_pool_id(k), (p["token"], k))
+        for lg in logs:
+            tp = lg.get("topics") or []
+            if len(tp) < 3:
+                continue
+            d = hoodsafe._delta(lg)
+            if d >= 0:
+                continue
+            snd = "0x" + tp[2][-40:].lower()
+            if snd != hoodsafe.POSM:
+                self.lp_pullers[snd] = self.lp_pullers.get(snd, 0) + 1
+            pid = (tp[1] or "").lower()
+            if pid in held and time.time() - self._liq_seen.get(pid, 0) > 60:
+                self._liq_seen[pid] = time.time()
+                tk, key = held[pid]
+                self._spawn(self._liq_exit(tk, key, -d))
+        if len(self.lp_pullers) > 5000:
+            for k in list(self.lp_pullers)[:1000]:
+                self.lp_pullers.pop(k, None)
+
+    async def _liq_exit(self, tk: str, key: list, removed: int) -> None:
+        try:
+            after = await self.chain.liquidity(key)
+        except Exception:
+            after = None
+        if after == 0:
+            self.mark_no_liq(tk, (self.meta.get(tk) or {}).get("simbolo"))
+            return
+        frac = removed / (after + removed) if after is not None else 1.0
+        if frac < LIQ_EXIT:
+            return
+        now = time.time()
+        motivo = f"o dono tirou {frac * 100:.0f}% da liquidez do pool: saiu antes de tirar o resto"
+        self.risky[tk] = "o dono está tirando a liquidez do pool"
+        for uid, b in list(self.books.items()):
+            if not b.cfg.get("sair_liquidez", True):
+                continue
+            for p in [x for x in list(b.pos.values()) if x["token"] == tk]:
+                b.sell(p, 1.0, None, now, motivo)
+        for uid, rb in list(self.real.items()):
+            if not self.rcfg(uid).get("real_sair_liquidez", True):
+                continue
+            for p in [x for x in list(rb.pos.values()) if x["token"] == tk and not self.mirrored(uid, x)]:
+                p["retry_frac"] = 1.0
+                self._spawn(self._real_sell(uid, p, 1.0, motivo))
+        log.warning("Robinhood: retirada de %.0f%% da liquidez de %s… — saindo das posições", frac * 100, tk[:10])
 
     async def pool_key(self, pid: str, token: str) -> list | None:
         """Chave do pool pelo id: a que a leitura já viu nascer, senão o Initialize procurado perto da data em que o pool

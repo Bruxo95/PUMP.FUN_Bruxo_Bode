@@ -241,3 +241,70 @@ def test_config_history_routes_and_screen():
     assert "enable row level security" in sql and "revoke all on public.hood_config_versions from anon, authenticated" in sql
     js = pathlib.Path("web/hood.js").read_text(encoding="utf-8")
     assert "data-hback" in js and 'id="hiBox"' in pathlib.Path("web/hood.html").read_text(encoding="utf-8")
+
+
+# ------------------------------------------------------------------ 0.32.327: o dono tirando liquidez de um pool aberto
+def _ml(pid, delta, snd):
+    from app import hoodsafe
+    return {"topics": [hoodsafe.T_ML, pid, "0x" + "0" * 24 + snd[2:]],
+            "data": "0x" + evm.w_int(0) + evm.w_int(10) + evm.w_int(delta % (1 << 256)) + evm.w_int(7)}
+
+
+def test_owner_pulling_liquidity_closes_open_positions():
+    from app import hoodsafe
+    async def go():
+        w, c = copier()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+        assert len(b.pos) == 1
+
+        async def liquidity(key):
+            return 600                                      # sobrou 600 de 1000: saiu 40%
+        c.chain.liquidity = liquidity
+        c.note_liq([_ml(v4_pool_id(KEY), -400, hoodsafe.POSM)])
+        await settle(c)
+        assert not b.pos and "tirou 40% da liquidez" in b.trades[0]["motivo"]
+    run(go())
+
+
+def test_small_pull_or_option_off_keeps_the_position():
+    from app import hoodsafe
+    async def go():
+        w, c = copier()
+        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
+        await settle(c)
+        b = c.books["u1"]
+
+        async def liquidity(key):
+            return 900
+        c.chain.liquidity = liquidity
+        c.note_liq([_ml(v4_pool_id(KEY), -100, hoodsafe.POSM)])     # 10%: fica
+        await settle(c)
+        assert len(b.pos) == 1
+        b.cfg["sair_liquidez"] = False
+        c._liq_seen.clear()
+        c.note_liq([_ml(v4_pool_id(KEY), -900, hoodsafe.POSM)])
+        await settle(c)
+        assert len(b.pos) == 1
+    run(go())
+
+
+def test_launchpad_contract_that_pulled_liquidity_counts_as_loose():
+    from app import hoodsafe
+    w, c = copier()
+    pad = "0x" + "0a" * 20
+    c.note_liq([_ml("0x" + "12" * 32, -5, pad), _ml("0x" + "13" * 32, -5, pad)])
+    assert c.lp_pullers[pad] == 2 and c.safe.pullers is c.lp_pullers
+    pid = v4_pool_id(KEY)
+
+    async def rpc(m, p):
+        if m == "eth_blockNumber":
+            return hex(10_000_000)
+        if m == "eth_getLogs":
+            return [{"topics": [hoodsafe.T_ML, pid, "0x" + "0" * 24 + pad[2:]],
+                     "data": "0x" + evm.w_int(0) + evm.w_int(10) + evm.w_int(1000) + evm.w_int(1)}]
+        raise AssertionError(m)
+    c.safe.rpc = rpc
+    r = run(c.safe.lp_control(KEY))
+    assert r["pct_carteira"] == 100.0 and r["livre"]
