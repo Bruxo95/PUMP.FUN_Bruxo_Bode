@@ -2405,6 +2405,11 @@
    "versao": "0.32.329",
    "inicio": "2026-11-12T09:19:51+00:00",
    "titulo": "Dormant: alertas no Telegram"
+  },
+  {
+   "versao": "0.32.330",
+   "inicio": "2026-11-12T22:59:10+00:00",
+   "titulo": "Solana: REAL fora da curva e ajuste para lucrar"
   }
  ]
 }

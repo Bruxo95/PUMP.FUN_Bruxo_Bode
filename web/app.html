@@ -972,6 +972,9 @@
               <div class="row"><input class="in w80" type="number" min="0" max="10080" step="1" data-cfg="pump_real_min_age_min"><span class="muted">min</span>
               <button class="btn sm" data-set="pump_real_min_age_min" data-val="5">5</button><button class="btn sm" data-set="pump_real_min_age_min" data-val="10">10</button><button class="btn sm" data-set="pump_real_min_age_min" data-val="30">30</button><button class="btn sm" data-set="pump_real_min_age_min" data-val="0">desliga</button></div>
               <div class="hint">A REAL só compra token que já existe há pelo menos esse tempo (padrão 10 min). Token mais novo fica só na fictícia, com o motivo no feed ("REAL não copiou"). 0 = sem mínimo. Vale para toda compra da REAL: cópias, espelho e compras automáticas.</div><div class="hint"><b>Só aqui:</b> a fictícia continua comprando normal, para medir.</div></div>
+            <div class="field" data-novo-ate="2026-11-26"><label>REAL fora da curva da pump.fun</label>
+              <div class="row"><button class="tgl sw" data-toggle="pump_real_no_curve" role="switch">OFF</button></div>
+              <div class="hint">Ligado, a REAL só compra token que já graduou (PumpSwap ou outra DEX). Nos seus últimos 12 dias, as compras REAL na curva deram em média −30% por trade (taxa de 1,25% por lado, rug e venda travada); na PumpSwap, −4%. A fictícia continua comprando na curva, para medir.</div></div>
             </div>
             <div class="mirbox" data-novo-ate="2026-11-24"><div class="mirh"><b>Telas que compram na REAL</b><span class="muted small">a chave "Também na carteira REAL" de cada tela, reunida aqui (é a mesma chave da tela: ligar aqui liga lá)</span></div>
               <div id="realTabs"></div>

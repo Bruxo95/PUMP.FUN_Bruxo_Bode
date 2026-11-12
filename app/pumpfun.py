@@ -4964,6 +4964,11 @@ class PumpFun:
                 if age < min_age:
                     miss(f"token com {age:.1f} min de vida (a REAL só compra com {min_age:.0f} min ou mais)")
                     return
+            # 0.32.330: a REAL não compra token ainda na curva da pump.fun (taxa 1,25% por lado, rug e venda travada)
+            if (getattr(self.cfg, "pump_real_no_curve", False) and self.is_pump(mint)
+                    and self._fee_rates(mint, True)["venue_name"] == "pump.fun (curva)"):
+                miss("token ainda na curva da pump.fun (a REAL só compra depois de graduar — Execução real → REAL fora da curva)")
+                return
             mult, mwhy = self.trust_mult(it["wallet"])
             amt = float(self._c("pump_real_max_sol", 0.05)) * min(1.0, mult)
             ar_real = float(self._c("pump_ar_real_sol", 0) or 0)
