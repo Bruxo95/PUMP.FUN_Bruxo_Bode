@@ -57,18 +57,19 @@ def create_app(hub, auth, cfg) -> FastAPI:
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["X-Frame-Options"] = "DENY"
         resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # 0.32.326 (revisão de segurança de 12/11): o site só funciona em HTTPS (Cloudflare na frente); o navegador passa a recusar
+        # http por 1 ano. Sem includeSubDomains: outros projetos do dono usam outros endereços de rachar.app.br.
+        resp.headers["Strict-Transport-Security"] = "max-age=31536000"
+        resp.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        # 0.32.326: em toda página só o caminho exato do login (supabase-js 2.118.0, com SRI). Antes só o /dormant era assim;
+        # /hood e /bnb também recebem chave privada, e o jsDelivr inteiro deixaria um script injetado baixar qualquer pacote de lá.
         resp.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; "
+            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
             f"img-src 'self' data: https:; connect-src 'self' {sb} {sb.replace('https://', 'wss://')}; "
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
             # 0.32.234: só a página do Dormant mostra o gráfico da DEX (GeckoTerminal e DexScreener) dentro da janela da moeda
             + ("; frame-src https://www.geckoterminal.com https://dexscreener.com" if request.url.path == "/dormant" else ""))
-        if request.url.path == "/dormant":
-            # 0.32.242: esta página recebe chaves privadas e a senha de compra. O jsDelivr inteiro no script-src deixaria um
-            # script injetado baixar qualquer pacote de lá; aqui só o caminho exato do login
-            resp.headers["Content-Security-Policy"] = resp.headers["Content-Security-Policy"].replace(
-                "script-src 'self' https://cdn.jsdelivr.net;", "script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/;")
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
         elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant", "/sala") or request.url.path.startswith("/static/"):

@@ -2385,6 +2385,11 @@
    "versao": "0.32.325",
    "inicio": "2026-11-12T08:13:14+00:00",
    "titulo": "Trava por tela: só vai para a REAL a tela que deu lucro na fictícia"
+  },
+  {
+   "versao": "0.32.326",
+   "inicio": "2026-11-12T08:33:28+00:00",
+   "titulo": "Segurança: revisão dos quatro painéis e cabeçalhos mais fechados"
   }
  ]
 }

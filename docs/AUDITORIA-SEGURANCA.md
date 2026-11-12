@@ -321,3 +321,33 @@ política Actions. Esses itens permanecem pendentes; não se acessou essa infrae
 | 2026-10-25 | Identificação de versão/SHA/IA em cada revisão e preparação da publicação solicitada | Commit/push dos documentos; depois iniciar correções |
 | 2026-10-25 | Remediação 1: SEC-01..04 no código (0.9.1), regressões em tests/test_seguranca.py | CI verde, 0.9.1 no ar; próximo SEC-05/06 |
 | 2026-10-25 | Remediação 2: SEC-05..11 (0.9.2); SEC-07 já resolvido na 0.8.4 | Confirmar CI; pendências de infraestrutura |
+| 2026-11-12 | Revisão 2 (PUMP FUN, BNB, Robinhood, Dormant) sobre 0.32.325, SHA 6479fc6; Claude Opus 5.5 | Achados abaixo; corrigidos na 0.32.326 |
+
+## Revisão 2 (2026-11-12, aplicação 0.32.325, SHA `6479fc6d62f22bcfada20d6c1a9aaf7482647f4c`)
+
+IA: Claude Opus 5.5 (`claude-opus-5-5`). Escopo: os quatro painéis deste repositório (`/app`, `/bnb`, `/hood`, `/dormant`) e o site no ar.
+Só leitura do código, do Git e do site público; nenhum acesso a servidor, banco ou carteira.
+
+O que foi conferido e passou:
+- Rotas: todas as `/api/*` dos quatro painéis exigem login; as da BNB, Robinhood e Dormant são só admin; carteiras e compras do
+  Dormant (`own`) recusam o "Visualizar tela"; o "Visualizar tela" só aceita GET e bloqueia chaves, registro e Administração.
+  No ar: `/api/me` e `/api/hood` sem login respondem 401.
+- Segredos: nenhuma chave, token ou `api-key=` no código nem no histórico do Git; `logsafe` esconde chaves nos logs; nenhuma rota
+  devolve chave (só "configurada" ou rótulo curto).
+- Banco: as 75 tabelas das migrações têm RLS ligado; nenhuma política ou permissão deixa o navegador gravar.
+- Filtro por conta: atualizações e apagamentos levam `user_id`; os relatórios lidos por id sem conta (`trader_reports`,
+  `result_studies`) são da Base geral, de propósito para os admins.
+- Dinheiro real: a trava `PUMP_REAL_ALLOWED` vale na Solana, BNB, Robinhood (compra e abastecer) e Dormant (compra, venda, gás e
+  exchanges). Exchanges sem código de saque.
+- Dependências: 36 pacotes Python fixados em `constraints.txt` + supabase-js 2.118.0 sem vulnerabilidade conhecida no OSV
+  (consulta de 12/11/2026). Todas as páginas carregam o supabase-js com SRI.
+
+Achados (baixos) e correção na 0.32.326:
+- R2-01: o `script-src` liberava o jsDelivr inteiro em `/app`, `/hood`, `/bnb`, `/entrar`, `/sala` e `/` (só o `/dormant` era
+  restrito), e `/hood` e `/bnb` também recebem chave privada. Agora todas as páginas aceitam só o caminho exato do supabase-js.
+- R2-02: faltavam `Strict-Transport-Security` (agora 1 ano, sem subdomínios) e `Permissions-Policy` (câmera, microfone, localização,
+  pagamento e USB desligados).
+
+Ficam como observação, sem mudança: o "Visualizar tela" de um admin olhando outro admin abre as telas só de leitura dele na BNB e
+na Robinhood (é o que a função faz); algumas leituras (Raio-X com `novo=1`, Relatório do dia) gastam créditos ou gravam o
+resumo, só para admin. Infraestrutura (Portainer, VPS, Supabase remoto) não foi vista nesta revisão.

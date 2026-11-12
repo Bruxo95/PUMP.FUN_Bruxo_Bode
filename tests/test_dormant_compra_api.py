@@ -79,7 +79,11 @@ def test_dormant_page_has_tighter_csp_and_new_menus(env):
     csp = p.headers["content-security-policy"]
     assert "script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/;" in csp and "frame-ancestors 'none'" in csp
     assert 'href="#carteiras"' in p.text and 'href="#compras"' in p.text
-    assert "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/" not in c.get("/app").headers["content-security-policy"]
+    # 0.32.326: o mesmo caminho exato em todas as páginas (o /hood e o /bnb também recebem chave privada)
+    for pg in ("/app", "/hood", "/bnb", "/entrar", "/sala", "/"):
+        h = c.get(pg).headers
+        assert "script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/;" in h["content-security-policy"], pg
+        assert h["strict-transport-security"] == "max-age=31536000" and "camera=()" in h["permissions-policy"], pg
 
 
 def test_txguard_output_check_refuses_route_to_another_account():
