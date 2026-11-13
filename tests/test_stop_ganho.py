@@ -232,3 +232,5 @@ def test_fictitious_slippage_is_lower_but_real_estimate_keeps_3_pct():
     assert d["pump_extra_slip_pct"] == 1.5 and d["pump_sg_entrada_on"] is True
     pf = _pf(pump_extra_slip_pct=1.5)
     assert pf._fee_rates(MINT)["slip"] == 0.015 and pf._fee_rates(MINT, real=True)["slip"] == 0.03
+    pf.cfg.pump_extra_slip_pct = 0.0                     # valor escolhido vale igual nas duas (os testes antigos da REAL usam 0)
+    assert pf._fee_rates(MINT, real=True)["slip"] == 0.0

@@ -1883,8 +1883,13 @@ class PumpFun:
         return {"venue": venue, "venue_name": "PumpSwap" if graduated else "pump.fun (curva)",
                 "portal": float(self._c("pump_portal_fee_pct", 0.5)) / 100,
                 "prio": float(self._c("pump_priority_sol", 0.0005)),
-                # 0.32.335: a posição REAL continua estimada com no mínimo 3% (o padrão novo de 1,5% é só para a fictícia)
-                "slip": (max(3.0, float(self._c("pump_extra_slip_pct", 3.0))) if real else float(self._c("pump_extra_slip_pct", 3.0))) / 100}
+                # 0.32.335: o padrão novo de 1,5% é só para a fictícia; a posição REAL de quem está nesse padrão continua estimada com
+                # os 3% de antes. Valor escolhido pela pessoa vale igual nas duas, como sempre.
+                "slip": self._slip_pct(real) / 100}
+
+    def _slip_pct(self, real: bool = False) -> float:
+        v = float(self._c("pump_extra_slip_pct", 3.0))
+        return 3.0 if real and v == float(USER_KEYS["pump_extra_slip_pct"][1]) and v < 3.0 else v
 
     def _exit_value(self, p: dict, px: float) -> float:
         """Quanto entraria vendendo agora, já com TODAS as taxas de saída (plataforma, PumpPortal, rede, slippage)."""
