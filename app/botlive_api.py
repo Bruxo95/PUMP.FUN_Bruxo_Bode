@@ -6,7 +6,7 @@ from fastapi import Depends
 
 from .db import audit
 
-CARTEIRA = ("on", "saldo_inicial", "eth_por_compra", "max_abertas")
+CARTEIRA = ("on", "saldo_inicial", "eth_por_compra", "max_abertas", "stop_pct", "trail_on", "trail_ativa_pct", "trail_dist_pct", "max_hold_h")
 
 
 def add_routes(app, get_bot, admin_only, db) -> None:

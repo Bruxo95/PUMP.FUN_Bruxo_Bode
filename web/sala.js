@@ -26,7 +26,10 @@
   const C = () => window.SALA_CFG || {};
   const HOOD = C().rede ? C().rede === "hood" : new URLSearchParams(location.search).get("rede") === "hood";
   const U = HOOD ? "ETH" : "SOL", MKEY = C().mkey || (HOOD ? "sala_modo_hood" : "sala_modo");
-  const PRIV = () => !!C().privado;                 // modo privado: esconde saldo e valores (só %), para a live
+  const PRIV = () => !!C().privado;
+  // 0.32.340 (pedido do dono): no BOT LIVE os horários são em UTC (horário global, para quem assiste de qualquer lugar)
+  const TZO = () => (C().botlive ? { timeZone: "UTC" } : {});
+  const hms = (d, o) => new Date(d).toLocaleTimeString("pt-BR", Object.assign({}, o || {}, TZO()));                 // modo privado: esconde saldo e valores (só %), para a live
   try {
     const q = new URLSearchParams(location.search).get("modo");
     S.real = C().carteira ? C().carteira === "real" : q ? q === "real" : localStorage.getItem(MKEY) === "real";
@@ -275,10 +278,9 @@
     spr("plant", 40, 96, 2);
     // relógio de LED e cotação em cima do telão
     R(174, 3, 136, 12, K); R(175, 4, 134, 10, "#05140c");
-    const now = new Date(), hhmm = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    TXT(hhmm, 178, 5, "#3ee66b", 8);
-    const u = +(S.wallet || {}).sol_usd || 0;
-    if (u) { const s = U + " $" + (u >= 1000 ? Math.round(u) : u.toFixed(0)); TXT(s, 307 - TW(s), 5, "#ffd23f", 8); }
+    // 0.32.340: o relógio fica sozinho no LED (antes a cotação encostava nos segundos); a cotação foi para a barra do telão
+    const hhmm = hms(Date.now(), { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + (C().botlive ? " UTC" : "");
+    TXT(hhmm, 242 - TW(hhmm) / 2, 5, "#3ee66b", 8);
   }
 
   // 0.32.268 (pedido do dono): no telão, a posição aberta com o melhor e a com o pior resultado agora, com o % ao vivo
@@ -306,7 +308,9 @@
   function bigMonitor(f) {
     R(170, 17, 144, 100, K); R(171, 18, 142, 98, "#2b2f3a");
     R(174, 21, 136, 8, "#2a3c6b"); TXT("TELAO", 177, 21, "#e8f0ff", 8);                // barra de título da janela
-    R(296, 23, 4, 4, "#ffd23f"); R(302, 23, 4, 4, "#ff4d5e");
+    const u = +(S.wallet || {}).sol_usd || 0;
+    if (u) { const s = U + " $" + (u >= 1000 ? Math.round(u) : u.toFixed(0)); TXT(s, 307 - TW(s), 21, "#ffd23f", 8); }
+    else { R(296, 23, 4, 4, "#ffd23f"); R(302, 23, 4, 4, "#ff4d5e"); }
     R(174, 29, 136, 84, "#030c16");
     for (let y = 30; y < 113; y += 2) R(174, y, 136, 1, "rgba(255,255,255,.02)");       // linhas de TV antiga
     const P = S.positions.slice().sort((a, b) => (+b.pnl_now_pct || 0) - (+a.pnl_now_pct || 0));
@@ -729,7 +733,7 @@
     else {
       const sorted = P.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0));
       // 0.32.300 (pedido do dono): coluna Hora com o horário de entrada
-      const hr = (p) => { const t = tms(p.opened_at); return t ? new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "–"; };
+      const hr = (p) => { const t = tms(p.opened_at); return t ? hms(t, { hour: "2-digit", minute: "2-digit" }) : "–"; };
       box.innerHTML = '<div class="ph"><span>Moeda</span><span>Hora</span><span>Entrada</span><span>Agora</span><span>%</span></div>' +
         sorted.map((p) => { const ins = +p.sol_in || 0, nowv = ins + (+p.pnl_now_sol || 0);
           return '<div class="pr"><span>' + sym(p) + '</span><span class="hr" title="entrou às ' + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
@@ -738,7 +742,7 @@
     // 0.32.305 (pedido do dono): Histórico das posições fechadas embaixo das abertas
     const hb = $("his"), HS = S.trades.slice(0, 40);
     $("hisN").textContent = S.trades.length ? "(" + S.trades.length + ")" : "";
-    const hm = (s) => { const t = tms(s); return t ? new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "–"; };
+    const hm = (s) => { const t = tms(s); return t ? hms(t, { hour: "2-digit", minute: "2-digit" }) : "–"; };
     hb.innerHTML = !HS.length ? '<div class="empty">nenhuma posição fechada ainda</div>' :
       '<div class="ph"><span>Moeda</span><span>Saiu</span><span>Entrada</span><span>Saída</span><span>%</span></div>' +
       HS.map((t) => { const ins = +t.sol_in || 0, out = ins + (+t.pnl_sol || 0);
@@ -768,10 +772,10 @@
     const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: p.eth_usd,
       start_sol: w.inicial == null ? null : w.inicial, equity_sol: w.total == null ? null : w.total, pnl_pct: w.resultado_pct };
     const nmOf = (tk) => { const v = nm[tk]; return (v && (v.simbolo || v.nome || v.symbol)) || (typeof v === "string" ? v : (tk || "").slice(0, 8)); };
-    const log = (p.eventos || []).map((e) => ({ k: e.t + "|" + e.token + "|" + e.acao, h: e.t ? new Date(e.t * 1000).toLocaleTimeString("pt-BR") : "", a: e.acao, s: nmOf(e.token), r: e.motivo }));
+    const log = (p.eventos || []).map((e) => ({ k: e.t + "|" + e.token + "|" + e.acao, h: e.t ? hms(e.t * 1000) : "", a: e.acao, s: nmOf(e.token), r: e.motivo }));
     // 0.32.339: BOT LIVE recém-ligado ainda sem decisões — mostra que está trabalhando e quantos traders acompanha
-    if (C().botlive && !log.length) log.push({ k: "bl-status", h: new Date().toLocaleTimeString("pt-BR"), a: (p.cfg_sim && p.cfg_sim.on === false) ? "BOT parado" : "BOT operando",
-      s: "", r: "acompanhando " + (p.seguindo || 0) + " traders da Robinhood (regra da 0.32.308) · compra quando um deles comprar" });
+    if (C().botlive && !log.length) log.push({ k: "bl-status", h: hms(Date.now()), a: (p.cfg_sim && p.cfg_sim.on === false) ? "BOT parado" : "BOT operando",
+      s: "", r: "copiando os " + (p.seguindo || 0) + " top traders da Robinhood · compra quando um deles comprar" });
     return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log };
   }
 
@@ -794,7 +798,7 @@
         .map((x) => ({ k: (x.at || "") + "|" + (x.mint || "") + "|" + (x.action || ""), h: x.at ? new Date(tms(x.at)).toLocaleTimeString("pt-BR") : "",
           a: x.action, s: x.symbol || (x.mint || "").slice(0, 6), r: x.reason }));
       setLog(log);
-      $("sub").textContent = (C().botlive ? "carteira do BOT · estratégia da Robinhood" : "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA")) + " · atualizado " + new Date().toLocaleTimeString("pt-BR");
+      $("sub").textContent = (C().botlive ? "carteira do BOT · estratégia da Robinhood" : "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA")) + " · atualizado " + hms(Date.now()) + (C().botlive ? " UTC" : "");
       $("err").hidden = true;
       render();
     } catch (e) {

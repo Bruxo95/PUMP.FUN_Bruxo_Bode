@@ -10,7 +10,7 @@ def bot(monkeypatch):
     w = Watch()
     w.trades, w.balances, w.cfg = [], {}, {}
     w.danger = lambda now=None: {}
-    monkeypatch.setattr(botlive, "rank", lambda trades, now, cfg, bal: {"rows": [], "copiaria": [TRADER]})
+    monkeypatch.setattr(botlive, "rank", lambda trades, now, cfg, bal: {"rows": [{"wallet": TRADER, "realized_eth": 1.0, "eligible": False, "online": False}], "copiaria": []})
     b = botlive.BotLive(w, Http())
     b.keys[PID] = KEY
     b.book("u1")
@@ -67,3 +67,15 @@ def test_carteira_do_bot_live_nasce_sozinha_para_quem_usa_a_robinhood(monkeypatc
     assert b.ensure_books() == 1 and "dono" in b.books and b.books["dono"].dirty_book
     run(b.tick())
     assert b.ensure_books() == 0
+
+
+def test_bot_live_copia_os_top_traders_sem_bloqueio_e_com_stop(monkeypatch):
+    """0.32.340: todos os top traders (mesmo não aptos/offline) e saídas com stop de perda e stop móvel."""
+    w, b = bot(monkeypatch)
+    assert b.w.ranking()["copiaria"] == [TRADER]                       # o trader não era "apto" nem online, e entra
+    w.danger_reason = lambda wallet: "robô"
+    assert b.w.danger_reason(TRADER) is None                           # PERIGO da /hood não vale no BOT LIVE
+    c = b.book("novo").cfg
+    assert c["stop_pct"] == botlive.SAIDAS["stop_pct"] and c["trail_on"] and c["max_hold_h"] == botlive.SAIDAS["max_hold_h"]
+    b.books["novo"].cfg["stop_pct"] = 30.0                            # o dono mudou: fica como ele quis
+    assert b.book("novo").cfg["stop_pct"] == 30.0

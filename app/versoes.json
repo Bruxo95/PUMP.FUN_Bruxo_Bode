@@ -2455,6 +2455,11 @@
    "versao": "0.32.339",
    "inicio": "2026-11-13T21:49:01+00:00",
    "titulo": "BOT LIVE trabalha sozinho, mesmo com a página fechada"
+  },
+  {
+   "versao": "0.32.340",
+   "inicio": "2026-11-13T22:32:16+00:00",
+   "titulo": "BOT LIVE copia todos os top traders, com stop de perda e stop móvel, e horário UTC"
   }
  ]
 }

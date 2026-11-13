@@ -54,6 +54,7 @@
     if (document.activeElement !== $("wIni")) $("wIni").value = c.saldo_inicial;
     if (document.activeElement !== $("wBuy")) $("wBuy").value = c.eth_por_compra;
     if (document.activeElement !== $("wMax")) $("wMax").value = c.max_abertas;
+    [["wStop", "stop_pct"], ["wTa", "trail_ativa_pct"], ["wTd", "trail_dist_pct"], ["wHold", "max_hold_h"]].forEach(([id, k]) => { if (document.activeElement !== $(id)) $(id).value = c[k]; });
   }
   async function walLoad() {
     const p = await BB.api("/api/botlive/painel", { quiet: true });
@@ -66,7 +67,8 @@
     await walLoad();
   }
   $("wOn").addEventListener("click", () => walSave({ on: !(W && W.on) }, W && W.on ? "BOT parado: não abre posições novas." : "BOT operando."));
-  $("wSave").addEventListener("click", () => walSave({ saldo_inicial: +$("wIni").value, eth_por_compra: +$("wBuy").value, max_abertas: +$("wMax").value }, "Carteira salva."));
+  $("wSave").addEventListener("click", () => walSave({ saldo_inicial: +$("wIni").value, eth_por_compra: +$("wBuy").value, max_abertas: +$("wMax").value,
+    stop_pct: +$("wStop").value, trail_ativa_pct: +$("wTa").value, trail_dist_pct: +$("wTd").value, max_hold_h: +$("wHold").value }, "Carteira salva."));
   $("wZero").addEventListener("click", async () => {
     if (Date.now() - zeroArm > 4000) { zeroArm = Date.now(); $("wZero").textContent = "Clique de novo para zerar"; setTimeout(() => { $("wZero").textContent = "Zerar carteira"; }, 4000); return; }
     zeroArm = 0; $("wZero").textContent = "Zerar carteira";

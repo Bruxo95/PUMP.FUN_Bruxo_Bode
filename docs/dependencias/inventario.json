@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-13",
     "timezone": "Europe/Dublin",
-    "repository_reference": "0f99a5ada30354d900f6af6ba5d5c5d0bf37ff67",
-    "application_version": "0.32.339 · 2026-11-13 · BOT LIVE trabalha sozinho, mesmo com a página fechada",
+    "repository_reference": "9f867267c5bc0e55666756956e14dd4d2ecca315",
+    "application_version": "0.32.340 · 2026-11-13 · BOT LIVE copia todos os top traders, com stop de perda e stop móvel, e horário UTC",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "de159910f6976d3d09931671a3aa8467ad9e25fff3b727de97fef8e71c354cdb",
+      "app/version.py": "5007d06a40109bc70f3f918dcb77d474a9f41862b82fdb576de5a458b1b0cb4f",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e859e67cd9c825dd909cfa20f8e53dfde9c75c856ea497d2455d3b433d72fa98"
+  "pdf_sha256": "420c6daab021b5330b2e23750323957de0b7af37dd5c9a12807e768a02f1cd3a"
 }

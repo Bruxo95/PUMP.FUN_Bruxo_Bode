@@ -114,6 +114,10 @@ class Watch308:
     def __getattr__(self, k):
         return getattr(self._w, k)
 
+    def danger_reason(self, wallet: str):
+        """0.32.340 (pedido do dono): o BOT LIVE não usa as regras de bloqueio de trader (PERIGO): todo top trader é copiado."""
+        return None
+
     def cfg308(self) -> dict:
         raw = dict(getattr(self._w, "cfg", {}) or {})
         # a regra nova (0.32.322) trocou 3 → 5 tokens fechados e 400 → 150 trades/dia; quem estava no padrão volta ao da 0.32.308
@@ -129,14 +133,22 @@ class Watch308:
         if self._cache and now - self._cache[0] < 15:
             return self._cache[1]
         r = rank(self._w.trades, now, self.cfg308(), self._w.balances)
-        dz = self._w.danger(now) if hasattr(self._w, "danger") else {}
+        # todos os top traders: os TOP_N com mais lucro realizado no período, sem apto/online/PERIGO (0.32.340, pedido do dono)
+        r["copiaria"] = [x["wallet"] for x in r["rows"] if (x.get("realized_eth") or 0) > 0][:TOP_N]
         for row in r["rows"]:
-            row["perigo"] = dz.get(row["wallet"], [])
-            if row["perigo"]:
-                row["eligible"], row["copiaria"] = False, False
-        r["copiaria"] = [w for w in r["copiaria"] if w not in dz]
+            row["copiaria"] = row["wallet"] in r["copiaria"]
         self._cache = (now, r)
         return r
+
+
+# 0.32.340 (pedido do dono, 13/11: "o BOT LIVE entra em todos os top traders, sem as regras de bloqueio de traders, e sai nas melhores
+# regras de stop móvel e stop de perda"): a carteira do BOT copia os TOP_N que mais lucraram no ranking da 0.32.308, sem os filtros de
+# apto/online/PERIGO. A conferência do token (venda que o pool recusa) continua: sem ela a carteira compraria o que não consegue vender.
+TOP_N = 20
+# Saídas do BOT LIVE (a 0.32.308 vinha sem stop de perda: casos de −31% e −41% na fictícia da Robinhood). Aplicadas uma vez a quem ainda
+# estava no padrão da 0.32.308; depois o dono muda pela tela.
+SAIDAS = {"stop_pct": 15.0, "trail_on": True, "trail_ativa_pct": 15.0, "trail_dist_pct": 8.0, "max_hold_h": 3.0, "max_abertas": 20}
+SAIDAS_308 = {"stop_pct": 0.0, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0, "max_hold_h": 6.0}
 
 
 class BotLive(Copier):
@@ -151,6 +163,14 @@ class BotLive(Copier):
 
     # 0.32.339 (pedido do dono: "mesmo que a sala não esteja online, o BOT estará fazendo automático"): toda conta que usa a Robinhood
     # ganha a carteira do BOT LIVE sozinha (gravada no banco), sem precisar abrir a página. Antes ela só nascia ao abrir o BOT LIVE.
+    def book(self, uid: str):
+        b = super().book(uid)
+        if all(abs(float(b.cfg.get(k) or 0) - v) < 1e-9 for k, v in SAIDAS_308.items()):     # ainda no padrão da 0.32.308
+            from .botlive_copy308 import clean_cfg
+            b.cfg = clean_cfg(SAIDAS, b.cfg)
+            b.dirty_book = True
+        return b
+
     def ensure_books(self) -> int:
         n = 0
         for uid in list(getattr(getattr(self.w._w, "copier", None), "books", {}) or {}):

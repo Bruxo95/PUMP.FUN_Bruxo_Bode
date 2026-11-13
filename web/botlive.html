@@ -54,13 +54,17 @@
 
   <a class="go" id="goSala" href="/botlive/sala"><i></i>SALA LIVE ▶</a>
 
-  <div class="card"><header><div><h2>Carteira do BOT</h2><div class="sub">carteira própria do BOT LIVE, separada da Robinhood e das outras salas · copia os traders da Robinhood com a estratégia da versão 0.32.308 · simulada: preços de verdade, sem dinheiro de verdade</div></div></header>
+  <div class="card"><header><div><h2>Carteira do BOT</h2><div class="sub">carteira própria do BOT LIVE, separada da Robinhood e das outras salas · entra nas compras dos 20 top traders da Robinhood (sem as regras de bloqueio de trader) e sai pelo stop de perda, stop móvel, tempo máximo e saída do trader · simulada: preços de verdade, sem dinheiro de verdade</div></div></header>
     <div class="wal" id="wal"><span class="muted">carregando a carteira…</span></div>
     <div class="sw-row"><div><b>BOT operando</b><small>desligado, o BOT não abre posições novas (as abertas seguem até sair)</small></div><button class="btn tgl sw" id="wOn" type="button" role="switch">Desligado</button></div>
     <div class="grid2" style="margin-top:10px">
       <label class="f">Saldo inicial (ETH)<input class="in" type="number" id="wIni" min="0.001" max="1000" step="0.01"></label>
       <label class="f">ETH por compra<input class="in" type="number" id="wBuy" min="0.0005" max="5" step="0.001"></label>
       <label class="f">Máximo de posições abertas<input class="in" type="number" id="wMax" min="1" max="100" step="1"></label>
+      <label class="f">Stop de perda (%)<input class="in" type="number" id="wStop" min="0" max="100" step="1"></label>
+      <label class="f">Stop móvel liga com lucro de (%)<input class="in" type="number" id="wTa" min="1" max="10000" step="1"></label>
+      <label class="f">Stop móvel: sai se cair (pontos do pico)<input class="in" type="number" id="wTd" min="1" max="1000" step="1"></label>
+      <label class="f">Tempo máximo na posição (horas)<input class="in" type="number" id="wHold" min="0.1" max="168" step="0.5"></label>
       <div class="f"><span>&nbsp;</span><div class="row"><button class="btn" id="wSave" type="button">Salvar carteira</button><button class="btn" id="wZero" type="button">Zerar carteira</button></div></div>
     </div>
     <div class="hint" id="wMsg" style="margin-top:8px"></div>
