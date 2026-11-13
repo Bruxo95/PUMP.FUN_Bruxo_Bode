@@ -2410,6 +2410,11 @@
    "versao": "0.32.330",
    "inicio": "2026-11-12T22:59:10+00:00",
    "titulo": "Solana: REAL fora da curva e ajuste para lucrar"
+  },
+  {
+   "versao": "0.32.331",
+   "inicio": "2026-11-13T06:20:19+00:00",
+   "titulo": "Solana: fim dos ganhos falsos e filtro de entrada no topo"
   }
  ]
 }

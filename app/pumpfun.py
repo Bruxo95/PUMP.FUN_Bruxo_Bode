@@ -395,6 +395,54 @@ class PumpFun:
         log.warning("preço de %s recusado: %s → %s (%.0f×, %s); espera outra leitura confirmar", mint[:8], old, px, max(r, 1 / r), src)
         return False
 
+    PX_MKT_S = 600.0        # preço de mercado vale para a conferência por 10 min
+    PX_MKT_BAND = 1.35      # o preço lido do trade pode ficar até 35% acima/abaixo do mercado
+
+    def px_mismatch(self, mint: str, px: float | None, t: float, ev: dict | None = None) -> str | None:
+        """0.32.331 (estudo de 13/11: PUMP, WBTC, SPCX, AMD… entravam na fictícia a 1/3 do preço de mercado e fechavam em
+        "+190%" em segundos; esses ganhos falsos liberavam o trader para a REAL): o preço de um trade fora da curva é o SOL que
+        saiu da carteira ÷ tokens que entraram, e sai errado quando o trader paga parte com outra moeda ou com alavancagem.
+        Confere com o preço de mercado (DexScreener) dos últimos 10 min. Devolve o motivo, ou None se bate (ou não há como conferir).
+        Trade da curva (vSol/vTokens da própria pump.fun) não precisa: o preço vem das reservas."""
+        if not px or (ev and float(ev.get("vSolInBondingCurve") or 0) > 0):
+            return None
+        tk = self.tokens.get(mint) or {}
+        mk, mt = float(tk.get("mkt_px") or 0), float(tk.get("mkt_t") or 0)
+        if not mk or t - mt > self.PX_MKT_S:
+            return None
+        r = px / mk
+        if 1 / self.PX_MKT_BAND <= r <= self.PX_MKT_BAND:
+            return None
+        return (f"o preço lido do trade ({px:.3g} SOL) não bate com o do mercado ({mk:.3g} SOL): o trader pagou parte com outra "
+                "moeda ou a leitura veio errada")
+
+    def px_check_block(self, mint: str, ev: dict, t: float) -> str | None:
+        """Filtro da cópia (opção `pump_px_check_on`): preço do trade que não bate com o mercado, ou token de fora da pump.fun
+        sem preço de mercado para conferir."""
+        if not getattr(self.cfg, "pump_px_check_on", True):
+            return None
+        why = self.px_mismatch(mint, self.price_of(ev), t, ev)
+        if why:
+            return why
+        tk = self.tokens.get(mint) or {}
+        if (getattr(self.cfg, "pump_px_need_mkt", True) and ev.get("source") == "rpc" and not self.is_pump(mint)
+                and not (tk.get("mkt_px") and t - float(tk.get("mkt_t") or 0) <= self.PX_MKT_S)):
+            return "token de fora da pump.fun sem preço de mercado para conferir o preço do trade"
+        return None
+
+    def runup_block(self, mint: str, px: float | None, t: float) -> str | None:
+        """0.32.331 (estudo de 13/11, 427 cópias com histórico de preço): cópia em token que já tinha subido 100% ou mais nos
+        15 min anteriores deu em média −24% (44 cópias). Opção `pump_runup_max_pct` (0 = desliga). Sem histórico, não bloqueia."""
+        mx = float(self._c("pump_runup_max_pct", 0) or 0)
+        if mx <= 0 or not px:
+            return None
+        from .poslearn import entry_context
+        ctx = entry_context(list(self.market.px_hist.get(mint) or []), t, px)
+        up = (ctx or {}).get("subiu_antes_pct")
+        if up is not None and up >= mx:
+            return f"o token já subiu {up:.0f}% nos 15 min antes da compra do trader (máximo {mx:.0f}%): entrada no topo"
+        return None
+
     def _ev_px(self, ev: dict, tk: dict) -> float | None:
         """Preço do trade, a não ser que a trava acabou de recusá-lo (aí a cópia usa o último preço confiável)."""
         px, h = self.price_of(ev), tk.get("px_hold")
@@ -434,7 +482,7 @@ class PumpFun:
             return None
         px = self.price_of(ev)
         tk = self.tokens.setdefault(mint, {"created_t": t})
-        if px and self._px_ok(mint, tk, px, t, "trade " + str(ev.get("source") or "pumpportal")):
+        if px and self.px_mismatch(mint, px, t, ev) is None and self._px_ok(mint, tk, px, t, "trade " + str(ev.get("source") or "pumpportal")):
             tk["price"] = px
         if ev.get("marketCapSol") is not None:
             tk["mcap_sol"] = float(ev["marketCapSol"])
@@ -1241,7 +1289,7 @@ class PumpFun:
                     ct = datetime.fromisoformat(str(t.get("closed_at")).replace("Z", "+00:00")).timestamp()
                 except ValueError:
                     continue
-                if ct >= cut:
+                if ct >= cut and not self.px_tainted(t, ct):
                     a = acc.setdefault(self.aba_of(t), [0, 0.0])
                     a[0] += 1
                     a[1] += float(t.get("pnl_sol") or 0)
@@ -1323,6 +1371,19 @@ class PumpFun:
             self._proven, self._proven_key = out, key
         return self._proven
 
+    PX_FIX_T = 1794553200.0     # 13/11/2026 07:00 UTC: a partir daqui o preço do trade é conferido com o mercado (0.32.331)
+
+    def px_tainted(self, t: dict, closed_t: float) -> bool:
+        """Cópia fictícia de token de fora da pump.fun (Orca, Raydium, Meteora…) aberta antes da conferência de preço: o preço
+        de entrada podia estar errado (ganhos falsos de +100% a +190%). Não conta para liberar trader ou tela para a REAL."""
+        if not str(t.get("venue") or "").startswith("DEX "):
+            return False
+        try:
+            ot = datetime.fromisoformat(str(t.get("opened_at")).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            ot = closed_t
+        return ot < self.PX_FIX_T
+
     def edge_stats(self) -> dict:
         """0.32.275: {carteira: (cópias, média % por cópia)} das cópias FICTÍCIAS fechadas nos últimos `pump_edge_days` dias
         (resultado depois das taxas; ignora REAL, cópia de outra conta e ganho suspeito). Cache por minuto."""
@@ -1341,7 +1402,7 @@ class PumpFun:
                     ct = datetime.fromisoformat(str(t.get("closed_at")).replace("Z", "+00:00")).timestamp()
                 except ValueError:
                     continue
-                if ct >= cut:
+                if ct >= cut and not self.px_tainted(t, ct):
                     a = acc.setdefault(w, [0, 0.0])
                     a[0] += 1
                     a[1] += float(t.get("pnl_pct") or 0)
@@ -1574,7 +1635,11 @@ class PumpFun:
                 if not why:
                     why = self.token_block(mint)
                 if not why:
+                    why = self.px_check_block(mint, ev, t)
+                if not why:
                     why = self.chase_block(self.price_of(ev), px)
+                if not why:
+                    why = self.runup_block(mint, px, t)
                 if not why:
                     why = self.curve_block(mint)
                 if not why:
@@ -4313,6 +4378,8 @@ class PumpFun:
                 tk = self.tokens.setdefault(m, {"created_t": now})
                 tk["liq_usd"] = liq
                 tk["main_dex"] = p.get("dexId")
+                if px:
+                    tk["mkt_px"], tk["mkt_t"] = px, now     # 0.32.331: preço de mercado, para conferir o preço lido do trade
                 tk["chg"] = {k_: float(v_) for k_, v_ in (p.get("priceChange") or {}).items()
                              if k_ in ("m5", "h1", "h6", "h24") and isinstance(v_, (int, float))}
                 if m in vols:

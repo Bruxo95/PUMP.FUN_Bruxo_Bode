@@ -72,3 +72,16 @@ def _real_sem_prova(monkeypatch, request):
     from app import settings
     monkeypatch.setitem(settings.USER_KEYS, "pump_real_need_win", (bool, False, 0, 1))
     yield
+
+
+@pytest.fixture(autouse=True)
+def _sem_exigir_preco_de_mercado(monkeypatch, request):
+    """0.32.331: token de fora da pump.fun só é copiado com preço de mercado para conferir o do trade. Os testes antigos copiam
+    token de fora sem DexScreener; o teste da regra (test_preco_conferido.py) usa o padrão."""
+    if "test_preco_conferido" in request.node.nodeid:
+        yield
+        return
+    from app import settings
+    spec = settings.USER_KEYS["pump_px_need_mkt"]
+    monkeypatch.setitem(settings.USER_KEYS, "pump_px_need_mkt", (spec[0], False) + tuple(spec[2:]))
+    yield

@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-11-12",
+    "generated_date": "2026-11-13",
     "timezone": "Europe/Dublin",
-    "repository_reference": "404298183bca31ca191ed8a0e39c2130853aeb99",
-    "application_version": "0.32.330 · 2026-11-12 · Solana: REAL fora da curva e ajuste para lucrar",
+    "repository_reference": "efc06016d2285a1b78299f7e8acbc4b4424ce9e4",
+    "application_version": "0.32.331 · 2026-11-13 · Solana: fim dos ganhos falsos e filtro de entrada no topo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "ea477a9f9e657f28b3c1a326d1b855bd9298cb24bb9dfbca6df09e44445b6b9d",
+      "app/version.py": "4867c391da8f992574f955224a002311abb680218ad0b3e38d363c521948b13c",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "721df98a31ba21a32bb15eaa8a708c21ca945febfc3cb18a35a3475f9894b3f9",
+      "web/app.html": "9e929726ce82a766c94de9067cb494bcbea75dc234ab3ff9c13155d71693c05f",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e4c9db319c3ea0ded15b194de333167fe51cbb642f616f1bda6a46c88864240a"
+  "pdf_sha256": "55c6ef74604d2d1626be74808888a7b506d101d9b378185168a011893a2d635d"
 }

@@ -311,6 +311,11 @@ USER_KEYS: dict[str, tuple] = {
     "pump_real_min_age_min": (float, 10.0, 0.0, 10080.0),   # 0.32.254: REAL só compra token com pelo menos N min de vida
     # 0.32.330 (estudo do dono, 12/11: a REAL na curva da pump.fun deu −30% por trade em 12 dias): REAL não compra token ainda na curva
     "pump_real_no_curve": (bool, False, 0, 1),
+    # 0.32.331 (estudo de 13/11): confere o preço lido do trade com o de mercado antes de copiar (ganhos falsos de token de DEX)
+    "pump_px_check_on": (bool, True, 0, 1),
+    "pump_px_need_mkt": (bool, True, 0, 1),            # token de fora da pump.fun só é copiado com preço de mercado para conferir
+    # não copiar token que já subiu X% nos 15 min antes da compra do trader (0 = desliga)
+    "pump_runup_max_pct": (float, 0.0, 0.0, 100000.0),
     # 0.31.37 (sugestão do Bruxo, 2026-10-27): com a Execução real ligada, a carteira real copia 100% dos trades da
     # fictícia (cópias, Explorar, Base, Maiores traders, botão Comprar), mas o valor e os limites vêm só das regras reais
     "pump_real_mirror": (bool, True, 0, 1),
