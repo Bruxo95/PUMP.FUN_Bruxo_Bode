@@ -245,6 +245,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.124: Laboratório do Top traders. Só mede."""
         return hub.top_lab(pf)
 
+    @app.get("/api/pump/stop-ganho")
+    async def stop_ganho(pf=Depends(engine)):
+        """0.32.332 (pedido do dono): stop de ganho autônomo. O admin vê a conta de cada aba (tabela por nível e onde a entrada perde);
+        a conta comum vê o nível que vale para cada aba dela (as somas são das operações de todas as contas)."""
+        if getattr(pf, "role", "user") == "admin":
+            return hub.sg_detail(pf)
+        return pf.sg_view(detalhe=False)
+
     @app.get("/api/pump/traders-aba")
     async def traders_aba(aba: str, real: int = 0, pf=Depends(engine)):
         """0.32.140: traders de uma aba, em todo o tempo e nas últimas 24 h. Só os trades desta conta."""

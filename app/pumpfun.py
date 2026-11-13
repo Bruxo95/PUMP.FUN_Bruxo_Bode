@@ -37,7 +37,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 
-from . import apiusage, stkeys, txguard
+from . import apiusage, stkeys, stopganho, txguard
 from .settings import USER_KEYS
 
 log = logging.getLogger("pumpfun")
@@ -181,6 +181,14 @@ class PumpFun:
         from .ghosts import AUTO_BASE, AUTO_VARIANTS
         # 0.31.21: fantasmas das compras automáticas do Explorar (mesma compra, saídas diferentes)
         self.ghosts_auto = Ghosts(self, AUTO_VARIANTS, AUTO_BASE, mine=lambda t: t.get("origem") == "explorar")
+        # 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo. O hub liga sg_pool (decisões com os trades de TODAS as
+        # contas); a sombra segue o preço depois que ele vende, para o robô saber o que as regras normais teriam feito.
+        self.sg_pool = None
+        self.sg_sombra = stopganho.Sombras(salvar=self._sg_salvar)
+        try:
+            self.sg_sombra.restaurar(self.store.trades(5000), time.time())
+        except Exception:
+            pass
         self._halt_until = 0.0                       # pausa geral por sequência de perdas (0.19.0; só memória)
         self.tg = None                               # avisos no Telegram (0.20.0; ligado pelo hub)
         self.auto_rows: dict[str, dict] = {}           # operações próprias; o hub carrega antes de liberar entradas
@@ -1773,6 +1781,8 @@ class PumpFun:
         frac = self._sell_frac(ev, tok, before)
         if self.ghosts.open:
             self.ghosts.on_trader_sell(who, mint, frac, px or tk.get("price"), t)
+        if self.sg_sombra.abertas:                         # 0.32.332: a sombra também vende junto com o trader
+            self.sg_sombra.trader(who, mint, frac, px or tk.get("price"), t)
         mine = [p for p in mine if p["wallet"] == who]
         if not mine:
             return []
@@ -1922,6 +1932,7 @@ class PumpFun:
             p["exit_follow"] = {"frac": frac, "why": why, "t": t}
             self._save_pos(p)
             return f"[PUMP SIM] {p['symbol']}: saída ({why}) espera a venda REAL — a real tem prioridade"
+        pre = {"tokens": p["tokens_left"], "proceeds": p.get("proceeds", 0.0)}      # 0.32.332: a sombra parte daqui
         fr = self._fee_rates(p["mint"])
         slip, prio = fr["slip"], fr["prio"]
         fee = fr["venue"] + fr["portal"]
@@ -1961,6 +1972,7 @@ class PumpFun:
                           closed_t=t, closed_at=datetime.fromtimestamp(t, timezone.utc).isoformat(), exit_price=px)
             tr["pos_id"] = p["id"]                         # 0.31.38: par real × fictícia (espelho)
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60: motivo da entrada guardado junto com o da saída
+            self._sg_trade(p, tr, pre, px, why, t)          # 0.32.332: stop de ganho (e a sombra, quando foi ele que vendeu)
             if p.get("follow_of"):
                 tr["follow_of"] = p["follow_of"]           # 0.31.63: cópia de outra conta não entra no aprendizado geral
             if p.get("origem") and "origem" not in tr:
@@ -2101,6 +2113,8 @@ class PumpFun:
             self.ghosts.on_price(mint, px, t)
         if px and self.ghosts_auto.open:
             self.ghosts_auto.on_price(mint, px, t)
+        if px and self.sg_sombra.abertas:                   # 0.32.332: o que teria acontecido sem o stop de ganho
+            self.sg_sombra.preco(mint, px, t)
         self._note_suspect_price(mint, px)
         for p in sorted([p for p in self.positions() if p["mint"] == mint], key=lambda q: not q.get("real")):   # 0.32.160: real primeiro
             if not px or p.get("selling"):
@@ -2146,6 +2160,7 @@ class PumpFun:
             # pós-trade (0.18.0): melhor e pior momento da posição, para ver quanto ficou na mesa
             p["best_pct"] = round(max(chg, p.get("best_pct", chg)), 2)
             p["worst_pct"] = round(min(chg, p.get("worst_pct", chg)), 2)
+            self._sg_marcas(p, chg, t)
             own_auto = p.get("auto") is True and p.get("origem") in AUTO_ORIGINS
             max_hold = self._auto_num(p.get("max_hold_s"))
             if max_hold is not None and t - p.get("open_t", t) >= max_hold:
@@ -2200,6 +2215,12 @@ class PumpFun:
             if smart:
                 out.append(self._sell(p, 1.0, px, f"{smart} ({chg:+.1f}% líquido)", t))
                 continue
+            # 0.32.332 (pedido do dono, 13/11/2026: "ganhou 10% saiu fora"): stop de ganho autônomo. O nível de cada aba vem do
+            # histórico (stopganho.decidir); antes do alvo antigo, da venda em partes e do stop móvel, que só ligava em +25%.
+            sgn = self.sg_level(p)
+            if sgn is not None and chg >= sgn:
+                out.append(self._sell(p, 1.0, px, f"{stopganho.MOTIVO}: +{sgn:g}% ({chg:+.1f}% líquido)", t))
+                continue
             # Saltos diretos ao alvo/Boost encerram a automática inteira, sem começar por uma parcial.
             if own_auto and p.get("boost_tp") and chg >= float(p["boost_tp"]) and self.boost_info(mint).get("active"):
                 out.append(self._sell(p, 1.0, px, f"boost ON: alvo +{float(p['boost_tp']):.0f}% ({chg:+.1f}% líquido)", t))
@@ -2250,6 +2271,142 @@ class PumpFun:
         kind = "preço parado (leitura atrasada)" if age_s >= 15 else "queda de uma vez (despejo/rug: nenhum stop segura)"
         return f" · pulou de {float(prev[1]):+.0f}% para {chg:+.0f}% em {gap_s:.0f} s — {kind}"
 
+    # ------------------------------------------------------------------ stop de ganho autônomo (0.32.332)
+    # Abas em que ele não age: Copiar igual (sai só quando a carteira vende, pedido do dono na 0.32.4), Botão Comprar e as compras
+    # de botão (as regras são as que você escolheu ao clicar) e Copiar trades de usuário (sai junto com a conta seguida). O Explorar
+    # está dando lucro e a lógica dele não muda sem OK do dono: só com a chave própria (pump_sg_explorar).
+    SG_FORA = ("Copiar igual", "Botão Comprar", "Copiar trades de usuário")
+    SG_BOTAO = ("botao", "barrado_btn", "lancamento")
+
+    def sg_level(self, p: dict) -> float | None:
+        """Nível do stop de ganho desta posição (None = não age aqui). Guarda na posição o nível e de onde veio, para a tela."""
+        nivel, fonte = self._sg_nivel(p)
+        if p.get("sg_nivel") != nivel or p.get("sg_fonte") != fonte:
+            p["sg_nivel"], p["sg_fonte"] = nivel, fonte
+        return nivel
+
+    def _sg_nivel(self, p: dict) -> tuple[float | None, str]:
+        c = self.cfg
+        if not getattr(c, "pump_sg_on", False):
+            return None, "desligado"
+        if p.get("off_sg"):
+            return None, "desligado nesta posição"
+        if p.get("real"):
+            # opção nova de REAL começa desligada (regra do dono). A REAL que é par de uma fictícia (espelho) sai junto dela
+            # pelas regras do espelho, então quem decide é a fictícia.
+            if not getattr(c, "pump_sg_real", False):
+                return None, "REAL sem stop de ganho próprio"
+            if p.get("sim_id") or any(not x.get("real") and x["mint"] == p["mint"] and x.get("wallet") == p.get("wallet")
+                                      for x in self.positions()):
+                return None, "segue a fictícia"
+        if p.get("eq") or p.get("follow_of") or p.get("origem") in self.SG_BOTAO:
+            return None, "fora"
+        aba = self.aba_of(p)
+        if aba in self.SG_FORA:
+            return None, "fora"
+        if aba == "Explorar" and not getattr(c, "pump_sg_explorar", False):
+            return None, "Explorar sem stop de ganho"
+        return stopganho.nivel_de(self.sg_decisions().get(aba), self._c("pump_sg_fixo_pct", 0))
+
+    @staticmethod
+    def sg_itens(conta, aba_of, trades, now: float) -> list[tuple]:
+        """Operações FICTÍCIAS fechadas na janela, no formato do cérebro: (conta, aba, token, abertura, linha)."""
+        out = []
+        for t in trades:
+            if t.get("real") or t.get("follow_of"):
+                continue
+            tf = stopganho.ts_de(t.get("closed_at"))
+            if tf is None or now - tf > stopganho.JANELA_S:
+                continue
+            t0 = stopganho.ts_de(t.get("opened_at"))
+            if str(t.get("venue") or "").startswith("DEX ") and (t0 or tf) < PumpFun.PX_FIX_T:
+                continue                                   # preço de entrada errado antes da 0.32.331 (ganho falso): fora da conta
+            x = {"hora": stopganho.hora_berlim(t0), "atraso": t.get("lag_s"), "mcap": t.get("mcap_in"), "nota": t.get("score")}
+            r = stopganho.linha(t.get("pnl_pct"), t.get("best_pct"), tf, t.get("sg"), x)
+            if r is not None:
+                out.append((conta, aba_of(t), t.get("mint"), t0, r))
+        return out
+
+    def sg_decisions(self) -> dict:
+        """{aba: decisão}. Com o hub, das operações de TODAS as contas (sg_pool); sem ele (testes), só desta conta."""
+        if self.sg_pool is not None:
+            try:
+                return self.sg_pool() or {}
+            except Exception as e:
+                log.warning("stop de ganho: cérebro falhou: %s", str(e)[:120])
+                return {}
+        now, tr = time.time(), self.store.trades(100000)
+        key = (len(tr), tr[0].get("id") if tr else None, sum(1 for t in tr[:50] if (t.get("sg") or {}).get("sem") is not None))
+        hit = self.__dict__.get("_sg_local")
+        if hit and hit[0] == key and now - hit[1] < stopganho.CACHE_S:
+            return hit[2]
+        rows = stopganho.dedup(self.sg_itens(getattr(self, "user_id", "local"), self.aba_of, tr, now))
+        decs = stopganho.decidir_grupos(rows, antes=hit[2] if hit else None)
+        self.__dict__["_sg_local"] = (key, now, decs)
+        return decs
+
+    @staticmethod
+    def _sg_marcas(p: dict, chg: float, t: float) -> None:
+        stopganho.marcar(p, chg, t)
+
+    def _sg_trade(self, p: dict, tr: dict, pre: dict, px, why: str, t: float) -> None:
+        if p.get("sg_hits"):
+            tr["sg_hits"] = p["sg_hits"]
+        if p.get("trader_sol") is not None:
+            tr["trader_sol"] = p.get("trader_sol")         # tamanho da compra do trader, para estudar a entrada
+        nivel, fonte = p.get("sg_nivel"), p.get("sg_fonte")
+        if str(why).startswith(stopganho.MOTIVO):
+            tr["sg"] = {"nivel": nivel, "fonte": fonte, "saiu": True}
+            if not p.get("real") and px:
+                self.sg_sombra.abrir(tr, self._sg_estado(p, pre, px, t))
+        elif nivel is not None:
+            tr["sg"] = {"nivel": nivel, "fonte": fonte, "saiu": False}
+
+    def _sg_estado(self, p: dict, pre: dict, px: float, t: float) -> dict:
+        """Regras normais desta posição para a sombra seguir depois da venda pelo stop de ganho."""
+        fr = self._fee_rates(p["mint"])
+        tokens = float(pre.get("tokens") or 0)
+        left_cost = p["sol_in"] * (tokens / p["tokens"]) if p.get("tokens") else 0.0
+        sp = p.get("stop_pct")
+        stop = float(sp) if sp is not None else float(self._c("pump_stop_pct", 40))
+        if p.get("off_stop"):
+            stop = 0.0
+        trail_on = (p["trail_on"] if "trail_on" in p else getattr(self.cfg, "pump_trail_enabled", True)) and not p.get("off_trail")
+        trail = [float(p.get("trail_start") or self._c("pump_trail_start_pct", 20)), float(p.get("trail_dist") or self._c("pump_trail_dist_pct", 10)),
+                 float(self._c("pump_trail_min_lock_pct", 2))] if trail_on else None
+        tp = float(p["tp_pct"]) if p.get("tp_pct") is not None else float(self._c("pump_tp_pct", 0))
+        hold = self._auto_num(p.get("max_hold_s"))
+        hold = hold if hold is not None else float(self._c("pump_max_hold_h", 6)) * 3600
+        copia = p.get("wallet") not in (None, "manual") and not p.get("manual")
+        segura = float(self._c("pump_hold_min_profit_pct", 0.0)) if copia and getattr(self.cfg, "pump_hold_until_profit", False) else None
+        return {"token": p["mint"], "wallet": p.get("wallet"), "t": t, "ate": float(p.get("open_t") or t) + hold, "tokens": tokens,
+                "mult": (1 - fr["slip"]) * (1 - fr["venue"] - fr["portal"]), "fixo": fr["prio"], "custo": left_cost,
+                "inv": p["sol_in"], "realizado": float(pre.get("proceeds") or 0), "base": "resto", "stop": stop, "trail": trail,
+                "alvo": tp, "segue": copia, "segura": segura, "segurando": bool(p.get("hold_profit")), "pico": p.get("trail_peak"),
+                "best": float(p.get("best_pct") or 0), "px": px}
+
+    def _sg_salvar(self, tr: dict) -> None:
+        """A sombra terminou: grava o trade de novo, agora com o resultado sem o stop de ganho (upsert pelo id)."""
+        try:
+            self.store._persist("trade_insert", dict(tr))
+        except Exception as e:
+            log.warning("stop de ganho: sombra não gravou: %s", str(e)[:120])
+
+    def sg_view(self, detalhe: bool = False) -> dict:
+        """O que o stop de ganho decidiu para cada aba e se vale nesta conta. detalhe = tabela por nível e faixas da entrada."""
+        c = self.cfg
+        fora = tuple(self.SG_FORA) + (() if getattr(c, "pump_sg_explorar", False) else ("Explorar",))
+        abas = stopganho.tela(self.sg_decisions(), float(self._c("pump_sg_fixo_pct", 0) or 0), getattr(c, "pump_sg_on", False), fora)
+        if not detalhe:
+            for a in abas:
+                a.pop("tabela", None)
+        sh = self.sg_sombra.abertas
+        return {"ligado": bool(getattr(c, "pump_sg_on", False)), "real": bool(getattr(c, "pump_sg_real", False)),
+                "explorar": bool(getattr(c, "pump_sg_explorar", False)), "fixo": float(self._c("pump_sg_fixo_pct", 0) or 0),
+                "inicial": stopganho.INICIAL, "janela_dias": stopganho.JANELA_S // 86400, "min_n": stopganho.MIN_N,
+                "min_dias": stopganho.MIN_DIAS, "folga": stopganho.FOLGA, "abas": abas, "sombras_abertas": len(sh),
+                "sombras_feitas": self.sg_sombra.feitas}
+
     def check_timeouts(self, t: float | None = None) -> list[str]:
         t = t or time.time()
         mx = float(self._c("pump_max_hold_h", 6)) * 3600
@@ -2258,6 +2415,8 @@ class PumpFun:
             self.ghosts.on_time(t)
         if self.ghosts_auto.open:
             self.ghosts_auto.on_time(t)
+        if self.sg_sombra.abertas:                         # 0.32.332: sombra do stop de ganho chegando ao tempo máximo
+            self.sg_sombra.tempo(t, lambda m: (self.tokens.get(m) or {}).get("price"))
         for p in self.positions():
             hold = self._auto_num(p.get("max_hold_s"))
             hold = hold if hold is not None else mx

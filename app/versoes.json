@@ -2415,6 +2415,11 @@
    "versao": "0.32.331",
    "inicio": "2026-11-13T06:20:19+00:00",
    "titulo": "Solana: fim dos ganhos falsos e filtro de entrada no topo"
+  },
+  {
+   "versao": "0.32.332",
+   "inicio": "2026-11-13T07:46:28+00:00",
+   "titulo": "Stop de ganho autônomo nas três redes"
   }
  ]
 }

@@ -12,19 +12,23 @@ from __future__ import annotations
 import time
 import uuid
 
+from . import stopganho
+
 FEE = 0.01                       # taxa da Four.Meme em cada lado (conferida nos eventos em 02/11/2026)
+# 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo (app/stopganho.py). A BNB não tinha alvo nem stop móvel: a cópia
+# só saía quando o trader vendia ou pelo tempo máximo. sg_fixo_pct 0 = o robô escolhe o nível pelo histórico.
 CFG_DEFAULT = {"on": True, "bnb_por_compra": 0.05, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 0.0,
-               "slip_pct": 2.0, "gas_bnb": 0.0001, "saldo_inicial": 1.0}
+               "slip_pct": 2.0, "gas_bnb": 0.0001, "saldo_inicial": 1.0, "sg_on": True, "sg_fixo_pct": 0.0}
 CFG_LIMITS = {"bnb_por_compra": (0.001, 10), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
-              "slip_pct": (0, 50), "gas_bnb": (0, 0.01), "saldo_inicial": (0.01, 1000)}
+              "slip_pct": (0, 50), "gas_bnb": (0, 0.01), "saldo_inicial": (0.01, 1000), "sg_fixo_pct": (0, 500)}
 KEEP_TRADES = 3000
 
 
 def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(base or CFG_DEFAULT)
     for k, v in (raw or {}).items():
-        if k == "on":
-            out["on"] = bool(v)
+        if k in ("on", "sg_on"):
+            out[k] = bool(v)
         elif k in CFG_LIMITS:
             try:
                 val = float(v)
@@ -52,6 +56,8 @@ class Book:
         self.closed_pos: set = set()
         self.new_trades: list[dict] = []
         self.dirty_book = False
+        self.sg_dec = None                       # 0.32.332: decisão do stop de ganho (cérebro com todas as contas)
+        self.sombra_hook = None                  # 0.32.332: abre a sombra quando o stop de ganho vende
 
     # ------------------------------------------------------------------ util
     def _ev(self, t: float, wallet: str, token: str, acao: str, motivo: str = "") -> None:
@@ -65,6 +71,16 @@ class Book:
     def pnl_now(self, p: dict) -> tuple[float, float]:
         sol = p["proceeds"] + max(0.0, self.value_now(p)) - p["bnb_in"]
         return sol, (100 * sol / p["bnb_in"] if p["bnb_in"] else 0.0)
+
+    def sg_nivel(self, p: dict) -> float | None:
+        """0.32.332: nível do stop de ganho desta posição (None = desligado)."""
+        if not self.cfg.get("sg_on"):
+            nv, fonte = None, "desligado"
+        else:
+            nv, fonte = stopganho.nivel_de(self.sg_dec() if self.sg_dec else None, self.cfg.get("sg_fixo_pct") or 0)
+        if p.get("sg_nivel") != nv or p.get("sg_fonte") != fonte:
+            p["sg_nivel"], p["sg_fonte"] = nv, fonte
+        return nv
 
     # ------------------------------------------------------------------ cópia
     def buy(self, tr: dict, px: float, t: float) -> dict | None:
@@ -107,6 +123,7 @@ class Book:
         q = p["tokens_left"] * frac
         if q <= 0:
             return None
+        pre = {"tokens": p["tokens_left"], "proceeds": p["proceeds"]}      # 0.32.332: a sombra parte daqui
         gross = q * px * (1 - c["slip_pct"] / 100)
         fee = gross * FEE
         got = gross - fee - c["gas_bnb"]
@@ -126,6 +143,17 @@ class Book:
                                         "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas")},
               "close_t": t, "px_out": px, "bnb_out": round(p["proceeds"], 9), "pnl_bnb": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["bnb_in"], 2) if p["bnb_in"] else 0.0, "motivo": motivo}
+        if p.get("sg_hits"):
+            tr["sg_hits"] = p["sg_hits"]
+        if str(motivo).startswith(stopganho.MOTIVO):
+            tr["sg"] = {"nivel": p.get("sg_nivel"), "fonte": p.get("sg_fonte"), "saiu": True}
+            if self.sombra_hook:
+                try:
+                    self.sombra_hook(self.user_id, p, tr, pre, px, t)
+                except Exception:
+                    pass
+        elif p.get("sg_nivel") is not None:
+            tr["sg"] = {"nivel": p.get("sg_nivel"), "fonte": p.get("sg_fonte"), "saiu": False}
         self.pos.pop(p["id"], None)
         self.dirty_pos.discard(p["id"])
         self.closed_pos.add(p["id"])
@@ -144,9 +172,15 @@ class Book:
             p["px_now"], p["px_t"] = px, t
             _, pct = self.pnl_now(p)
             p["best_pct"], p["worst_pct"] = max(p["best_pct"], pct), min(p["worst_pct"], pct)
+            stopganho.marcar(p, pct, t)
             self.dirty_pos.add(p["id"])
-            if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"]:
-                r = self.sell(p, 1.0, px, t, f"stop de {self.cfg['stop_pct']:.0f}%")
+            why = f"stop de {self.cfg['stop_pct']:.0f}%" if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"] else None
+            if not why:                                 # 0.32.332 (pedido do dono): stop de ganho autônomo
+                sgn = self.sg_nivel(p)
+                if sgn is not None and pct >= sgn:
+                    why = f"{stopganho.MOTIVO}: +{sgn:g}% ({pct:+.1f}% líquido)"
+            if why:
+                r = self.sell(p, 1.0, px, t, why)
                 if r:
                     out.append(r)
         return out

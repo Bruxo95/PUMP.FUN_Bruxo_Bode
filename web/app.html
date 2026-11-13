@@ -950,6 +950,8 @@
           <p class="small muted" id="rwGuard" data-novo-ate="2026-11-15"></p>
           <p class="muted small" style="margin:6px 0 0">A chave da carteira fica em <b>Valem para as duas → Chaves</b>.</p>
           <div class="form" style="margin-top:12px">
+            <div class="field" data-novo-ate="2026-11-27"><label>Stop de ganho na REAL sem par</label><div class="row"><button class="btn sm tgl" data-toggle="pump_sg_real">…</button></div>
+              <div class="hint">A REAL que é par de uma fictícia (espelho) já vende junto quando o stop de ganho vende a fictícia. Esta chave é para a REAL que não tem par: começa desligada e só vende (nunca compra).</div></div>
             <div class="mirbox" data-novo-ate="2026-11-24"><div class="mirh"><b>Espelho: o que vai para a REAL</b><span class="muted small">as chaves que decidem se uma compra da fictícia também sai na REAL</span></div>
             <div class="field" data-novo-ate="2026-11-10"><label>Espelhar 100% a carteira fictícia</label>
               <div class="row"><button class="btn sm tgl" data-toggle="pump_real_mirror" data-confirm="Copiar NO REAL todos os trades da carteira fictícia (cópias, Explorar, Base, Maiores traders e botão Comprar), com o valor e os limites da carteira real?">…</button></div>
@@ -1039,6 +1041,17 @@
         <div data-ct="copia" data-tc data-nosanf class="card" data-novo-ate="2026-11-12"><header><div><h2>Regras de saída e segurança</h2><div class="sub">stops, alvos e segurança das cópias, nas duas carteiras · cada mudança vale na hora e fica salva só para você</div></div>
           <div class="sp"></div><button class="btn sm primary" id="tcSave">Salvar Configurações</button> <button class="btn sm" id="tcReset">Restaurar Padrões Pump.fun</button></header>
           <div class="help"><p><b>Onde vale:</b> nas cópias de traders, na carteira FICTÍCIA e na REAL (quando a execução real está ligada). O Explorar, a Base e o botão Comprar têm regras próprias, nas telas deles. Salvar não é obrigatório: cada campo já grava ao mudar; o botão só confirma que está tudo gravado.</p></div></div>
+        <div data-ct="copia" data-nosanf class="card" data-novo-ate="2026-11-27"><header><div><h2>A. Stop de ganho autônomo</h2><div class="sub">o robô escolhe o alvo de cada aba pelo histórico e vende tudo quando o líquido chega lá</div></div></header>
+          <div class="form">
+            <div class="field"><label>Stop de ganho autônomo</label><div class="row"><button class="btn sm tgl" data-toggle="pump_sg_on">…</button></div>
+              <div class="hint">ON: quando a posição chega ao nível da aba (depois de todas as taxas), vende tudo. A cada 10 min o robô refaz a conta com as operações fictícias dos últimos 14 dias de todas as contas e escolhe o nível que mais rende; sem histórico começa em +10%. Se nenhum nível ganhar das suas regras, aquela aba fica sem alvo. Vale na FICTÍCIA; a REAL que é par dela (espelho) sai junto.</div></div>
+            <div class="field"><label for="sgFixo">Nível</label><div class="row"><span class="muted">+</span><input id="sgFixo" class="in w80" type="number" min="0" max="500" step="1" data-cfg="pump_sg_fixo_pct"><span class="muted">% líquido</span>
+              <button class="btn sm" data-set="pump_sg_fixo_pct" data-val="0">O robô escolhe</button><button class="btn sm" data-set="pump_sg_fixo_pct" data-val="10">10%</button><button class="btn sm" data-set="pump_sg_fixo_pct" data-val="15">15%</button><button class="btn sm" data-set="pump_sg_fixo_pct" data-val="20">20%</button></div>
+              <div class="hint">0 = automático (recomendado). Outro número fixa o mesmo nível em todas as abas.</div></div>
+            <div class="field"><label>Também no Explorar</label><div class="row"><button class="btn sm tgl" data-toggle="pump_sg_explorar">…</button></div>
+              <div class="hint">O Explorar tem regras próprias e estava dando lucro, então fica de fora até você ligar. A tabela abaixo mostra o que o robô faria lá.</div></div>
+          </div>
+          <div id="sgView" class="sgview"><span class="muted small">Carregando…</span></div></div>
         <div data-ct="copia" data-tc class="card" data-novo-ate="2026-11-12"><header><div><h2>B. Risco e stops</h2></div></header>
           <div class="form">
             <div class="field"><label>Stop de perda</label><div class="row"><input class="in w80" type="number" min="1" max="100" step="1" data-cfg="pump_stop_pct"><span class="muted">%</span></div></div>

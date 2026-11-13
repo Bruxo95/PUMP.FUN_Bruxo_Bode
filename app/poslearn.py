@@ -67,7 +67,7 @@ def origin_of(t: dict) -> str:
 
 def exit_kind(reason: str | None) -> str:
     r = str(reason or "").lower()
-    for k, nome in (("stop móvel", "stop móvel"), ("stop de perda", "stop de perda"), ("stop por tempo", "stop por tempo"),
+    for k, nome in (("stop de ganho", "stop de ganho"), ("stop móvel", "stop móvel"), ("stop de perda", "stop de perda"), ("stop por tempo", "stop por tempo"),
                     ("tempo máximo", "tempo máximo"), ("alvo", "alvo"), ("venda em partes", "venda em partes"),
                     ("trader vendeu", "trader vendeu"), ("carteira vendeu", "carteira vendeu"), ("dev vendeu", "dev vendeu"),
                     ("gradua", "graduação"), ("manual", "você fechou"), ("espelho", "espelho")):

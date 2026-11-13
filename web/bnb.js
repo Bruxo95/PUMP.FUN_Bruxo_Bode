@@ -31,7 +31,8 @@
     ["saldo_inicial", "Saldo inicial da fictícia", "BNB", 0.01, 1000, 0.1],
   ];
   // 0.32.175 (pedido do dono, 03/11): tempo máximo e stop num quadro próprio, porque valem para a FICTÍCIA e para a REAL
-  const SA_INFO = [["max_hold_h", "Tempo máximo da posição", "horas", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = sem stop)", "%", 0, 100, 1]];
+  const SA_INFO = [["max_hold_h", "Tempo máximo da posição", "horas", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = sem stop)", "%", 0, 100, 1],
+    ["sg_fixo_pct", "Nível do stop de ganho (0 = o robô escolhe)", "%", 0, 500, 1]];      // 0.32.332: stop de ganho autônomo
   const RC_INFO = [
     ["real_bnb_por_compra", "BNB por compra na REAL", "BNB", 0.001, 1, 0.001], ["real_max_abertas", "Máximo de posições REAL abertas", "posições", 1, 30, 1],
     ["real_slip_pct", "Slippage máximo (compra e venda)", "%", 1, 49, 1], ["real_perda_dia", "Perda máxima por dia", "BNB", 0.001, 10, 0.01],
@@ -283,6 +284,9 @@
       const sw2 = (id, on) => { const el = $(id); el.className = "btn sm tgl sw " + (on ? "on" : "off"); el.setAttribute("aria-checked", on ? "true" : "false"); el.textContent = on ? "Ligado" : "Desligado"; };
       sw2("cfTgl", !!(P.cfg_sim || P.cfg).on);
       sw2("rcTgl", !!RS().ligada);
+      sw2("sgTgl", !!(P.cfg_sim || P.cfg).sg_on);                 // 0.32.332: stop de ganho autônomo
+      sw2("rsgTgl", !!(P.real_cfg || {}).real_sg_on);
+      if ($("sgBox")) $("sgBox").innerHTML = BB.sgHtml(P.stop_ganho);
     }
   }
   function drawPosicoes() {
@@ -619,6 +623,16 @@
       const on = !(P.cfg_sim || P.cfg).on;
       const r = await BB.api("/api/pump/bnb/conta", { body: { on } });
       if (r && r.ok) { P.cfg_sim = r.cfg; if (!REAL) P.cfg = r.cfg; drawAjustes(); load(); }
+      return;
+    }
+    if (t.closest("#sgTgl") && P) {
+      const r = await BB.api("/api/pump/bnb/conta", { body: { sg_on: !(P.cfg_sim || P.cfg).sg_on } });
+      if (r && r.ok) { P.cfg_sim = r.cfg; if (!REAL) P.cfg = r.cfg; drawAjustes(); load(); }
+      return;
+    }
+    if (t.closest("#rsgTgl") && P) {
+      const r = await BB.api("/api/pump/bnb/real/cfg", { body: { real_sg_on: !(P.real_cfg || {}).real_sg_on } });
+      if (r && r.ok) { P.real_cfg = r.cfg; drawAjustes(); load(); }
       return;
     }
     if (t.closest("#rcTgl")) { await toggleReal(); return; }

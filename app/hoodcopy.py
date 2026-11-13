@@ -21,7 +21,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from . import evm, hoodreal, hoodsafe
+from . import evm, hoodreal, hoodsafe, stopganho
 from .dormant_buy import T_V4_INIT, v4_key_from_log, v4_pool_id, v4_quote_data
 
 log = logging.getLogger("hood.copy")
@@ -53,7 +53,9 @@ CFG_V = 2
 CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloqueados": [], "tokens_bloqueados": [], "eth_por_compra": 0.01, "max_abertas": 10, "max_hold_h": 6.0, "stop_pct": 30.0,
                "slip_pct": 2.0, "gas_eth": 0.000008, "saldo_inicial": 0.5, "so_verificado": False, "so_lp_presa": True, "sair_liquidez": True, "sair_travado": True, "um_por_token": True, "sair_trader": True, "trader_so_lucro": False, "sair_dev": True,
                "trail_on": True, "trail_ativa_pct": 25.0, "trail_dist_pct": 20.0,
-               "max_acima_pct": 15.0, "max_atraso_s": 45.0, "pausa_trader": True, "cfg_v": CFG_V}
+               "max_acima_pct": 15.0, "max_atraso_s": 45.0, "pausa_trader": True,
+               # 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo (app/stopganho.py); 0 = o robô escolhe o nível
+               "sg_on": True, "sg_fixo_pct": 0.0, "cfg_v": CFG_V}
 # valores que eram o padrão até a 0.32.321 → quem ainda está neles (não escolheu outro) passa para o padrão novo, uma vez só
 CFG_OLD = {"stop_pct": 0.0, "trader_so_lucro": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0, "gas_eth": 0.00002}
 REAL_OLD = {"real_stop_pct": 0.0, "real_trader_so_lucro": True, "real_trail_ativa_pct": 20.0, "real_trail_dist_pct": 10.0}
@@ -62,8 +64,8 @@ AJUSTE = "ajuste da versão 0.32.322 (saídas que cortavam o ganho e seguravam a
 # 0.32.310: mínimo de 0,0001 ETH por compra, para a FICTÍCIA poder ficar igual a uma REAL pequena
 CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
-              "trail_dist_pct": (1, 1000), "max_acima_pct": (0, 500), "max_atraso_s": (5, 90)}
-CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_liquidez", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader")
+              "trail_dist_pct": (1, 1000), "max_acima_pct": (0, 500), "max_atraso_s": (5, 90), "sg_fixo_pct": (0, 500)}
+CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_liquidez", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader", "sg_on")
 TRAIL_MIN_LOCK = 2.0
 LIQ_EXIT = 0.30              # 0.32.327: retirada de 30% ou mais da liquidez de um pool com posição aberta = sai
 # 0.32.319: histórico da configuração. Nunca entra: ligar a fictícia, ligar a REAL e o saldo inicial (voltar nunca liga nada)
@@ -204,7 +206,7 @@ def entry_block(cfg: dict, tr: dict, t: float, acima: float | None, origem: str,
     return None
 
 
-CAUSAS = (("stop de", "Stop de perda"), ("stop móvel", "Stop móvel"), ("tempo máximo", "Tempo máximo"),
+CAUSAS = (("stop de ganho", "Stop de ganho"), ("stop de", "Stop de perda"), ("stop móvel", "Stop móvel"), ("tempo máximo", "Tempo máximo"),
           ("trader", "Trader vendeu ou saiu"), ("dev", "Dev vendeu ou saiu"),
           ("liquidez", "Pool sem liquidez (rug pull)"), ("trava do criador", "Token com trava: saiu no lucro"),
           ("você", "Vendido por você"), ("fictícia", "Seguiu a fictícia"))
@@ -317,6 +319,8 @@ class Book:
         self.dirty_book = False
         self.close_hook = None                     # 0.32.306: avisa a cópia quando a posição fecha (espelho da REAL)
         self.risky: dict = {}                      # 0.32.314: token → motivo (criador pode travar a venda), da cópia
+        self.sg_dec = None                         # 0.32.332: decisão do stop de ganho autônomo (da cópia, todas as contas)
+        self.sombra_hook = None                    # 0.32.332: abre a sombra quando o stop de ganho vende
 
     def ev(self, t: float, wallet: str, token: str, acao: str, motivo: str = "") -> None:
         self.events.insert(0, {"t": t, "wallet": wallet, "token": token, "acao": acao, "motivo": motivo})
@@ -351,6 +355,16 @@ class Book:
     def pnl_now(self, p: dict) -> tuple[float, float]:
         v = p["proceeds"] + max(0.0, self.value_now(p)) - p["eth_in"]
         return v, (100 * v / p["eth_in"] if p["eth_in"] else 0.0)
+
+    def sg_nivel(self, p: dict) -> float | None:
+        """0.32.332: nível do stop de ganho desta posição (None = não age). A compra pelo botão segue a regra que você escolheu."""
+        if not self.cfg.get("sg_on") or p.get("aba") == "botao":
+            nv, fonte = None, "desligado" if not self.cfg.get("sg_on") else "fora"
+        else:
+            nv, fonte = stopganho.nivel_de(self.sg_dec() if self.sg_dec else None, self.cfg.get("sg_fixo_pct") or 0)
+        if p.get("sg_nivel") != nv or p.get("sg_fonte") != fonte:
+            p["sg_nivel"], p["sg_fonte"] = nv, fonte
+        return nv
 
     def buy(self, tr: dict, px: float, t: float, key: list, origem: str = "top", trader_px: float | None = None,
             acima: float | None = None) -> dict | None:
@@ -407,6 +421,7 @@ class Book:
         q = p["tokens_left"] * frac
         if q <= 0:
             return None
+        pre = {"tokens": p["tokens_left"], "proceeds": p["proceeds"]}      # 0.32.332: a sombra parte daqui
         gas = c["gas_eth"] if px > 0 else 0.0       # baixa com preço 0 não envia transação: sem gás
         gross = q * px * (1 - c["slip_pct"] / 100)
         fee = gross * (p.get("fee") or 0)
@@ -433,6 +448,17 @@ class Book:
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo,
               "taxas_eth": round(p.get("fees") or 0.0, 9)}
+        if p.get("sg_hits"):
+            tr["sg_hits"] = p["sg_hits"]
+        if str(motivo).startswith(stopganho.MOTIVO):    # 0.32.332: o stop de ganho vendeu; a sombra segue o "e se"
+            tr["sg"] = {"nivel": p.get("sg_nivel"), "fonte": p.get("sg_fonte"), "saiu": True}
+            if self.sombra_hook and px > 0:
+                try:
+                    self.sombra_hook(self.user_id, p, tr, pre, px, t)
+                except Exception as e:
+                    log.warning("Robinhood: sombra do stop de ganho não abriu: %s", str(e)[:120])
+        elif p.get("sg_nivel") is not None:
+            tr["sg"] = {"nivel": p.get("sg_nivel"), "fonte": p.get("sg_fonte"), "saiu": False}
         self.pos.pop(p["id"], None)
         self.dirty_pos.discard(p["id"])
         self.closed_pos.add(p["id"])
@@ -473,9 +499,14 @@ class Book:
             p["px_now"], p["px_t"] = px, t
             _, pct = self.pnl_now(p)
             p["best_pct"], p["worst_pct"] = max(p["best_pct"], pct), min(p["worst_pct"], pct)
+            stopganho.marcar(p, pct, t)
             self.dirty_pos.add(p["id"])
             why = f"stop de {self.cfg['stop_pct']:.0f}%" if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"] else \
                 trail_hit(self.cfg, p["best_pct"], pct)
+            if not why:                                 # 0.32.332 (pedido do dono): stop de ganho autônomo
+                sgn = self.sg_nivel(p)
+                if sgn is not None and pct >= sgn:
+                    why = f"{stopganho.MOTIVO}: +{sgn:g}% ({pct:+.1f}% líquido)"
             frac = 1.0
             if not why and pct > 0 and self.cfg.get("sair_travado") and p["token"] in self.risky:
                 why = "token com trava do criador (" + str(self.risky[p["token"]])[:60] + "): saiu no lucro"
@@ -564,6 +595,10 @@ class Copier:
         self._follow_i = 0
         self.stat = {"compras_vistas": 0, "copiadas": 0, "barradas": 0, "sem_pool": 0, "pool_procurado": 0}
         self.hist: dict[str, list] = {}             # 0.32.319: versões da configuração por conta (a mais nova primeiro)
+        # 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo — cérebro com as fictícias de todas as contas e a sombra
+        self.sombra = stopganho.Sombras(salvar=self._sg_salvar)
+        self._sg_hit: tuple | None = None
+        self._sg_rows: list = []
 
     # ------------------------------------------------------------------ util
     async def _call(self, to: str, data: str, frm: str | None = None) -> str:
@@ -584,7 +619,69 @@ class Copier:
             b.dirty_book = True
         b.close_hook = self._sim_closed
         b.risky = self.risky
+        self._sg_wire(b)
         return b
+
+    # ------------------------------------------------------------------ 0.32.332: stop de ganho autônomo
+    def _sg_wire(self, b: Book) -> None:
+        b.sg_dec = lambda: self.sg_brain().get("cópia")
+        b.sombra_hook = self._sg_abrir
+
+    def sg_brain(self) -> dict:
+        """{grupo: decisão} com as operações FICTÍCIAS fechadas de todas as contas nos últimos 14 dias. 'cópia' = Copiando agora e
+        os traders que você escolheu; a compra pelo botão fica em 'botão' (só aparece, não usa alvo). Refeito a cada 10 min."""
+        now = time.time()
+        if self._sg_hit and now - self._sg_hit[0] < stopganho.CACHE_S:
+            return self._sg_hit[1]
+        itens = []
+        for uid, b in list(self.books.items()):
+            for x in b.trades:
+                tf, t0 = x.get("close_t"), x.get("open_t")
+                if not tf or now - float(tf) > stopganho.JANELA_S:
+                    continue
+                r = stopganho.linha(x.get("pnl_pct"), x.get("best_pct"), tf, x.get("sg"),
+                                    {"hora": stopganho.hora_berlim(t0), "atraso": x.get("lag_s"), "acima": x.get("acima_pct")})
+                if r is not None:
+                    itens.append((uid, "botão" if x.get("aba") == "botao" else "cópia", x.get("token"), t0, r))
+        rows = stopganho.dedup(itens)
+        out = stopganho.decidir_grupos(rows, antes=self._sg_hit[1] if self._sg_hit else None)
+        self._sg_hit, self._sg_rows = (now, out), rows
+        return out
+
+    def sg_view(self, uid: str) -> dict:
+        """Para a tela da Carteira: o que o cérebro decidiu e onde a entrada perde (só mede)."""
+        b = self.books.get(uid) or Book(uid)
+        decs = self.sg_brain()
+        abas = stopganho.tela(decs, float(b.cfg.get("sg_fixo_pct") or 0), bool(b.cfg.get("sg_on")), fora=("botão",))
+        for a in abas:
+            a["faixas"] = stopganho.faixas([r for r in self._sg_rows if r.get("grupo") == a["aba"]], a["nivel"])
+        return {"ligado": bool(b.cfg.get("sg_on")), "real": bool(self.rcfg(uid).get("real_sg_on")), "fixo": float(b.cfg.get("sg_fixo_pct") or 0),
+                "inicial": stopganho.INICIAL, "janela_dias": stopganho.JANELA_S // 86400, "min_n": stopganho.MIN_N, "min_dias": stopganho.MIN_DIAS,
+                "folga": stopganho.FOLGA, "abas": abas, "sombras_abertas": len(self.sombra.abertas), "sombras_feitas": self.sombra.feitas}
+
+    def _sg_abrir(self, uid: str, p: dict, tr: dict, pre: dict, px: float, t: float) -> None:
+        """O stop de ganho vendeu: a sombra segue o preço com as regras normais desta conta (stop, stop móvel, venda do trader e
+        espera no prejuízo, tempo máximo) para saber o que teria acontecido sem ele."""
+        b = self.books.get(uid)
+        if b is None:
+            return
+        c = b.cfg
+        trail = [float(c.get("trail_ativa_pct") or 20), float(c.get("trail_dist_pct") or 10), TRAIL_MIN_LOCK] if c.get("trail_on") else None
+        best = float(p.get("best_pct") or 0)
+        self.sombra.abrir(tr, {"token": p["token"], "wallet": p["wallet"], "t": t, "ate": float(p["open_t"]) + float(c["max_hold_h"]) * 3600,
+                               "tokens": float(pre["tokens"]), "mult": 1 - float(p.get("fee") or 0) - float(c["slip_pct"]) / 100,
+                               "fixo": float(c["gas_eth"]), "custo": 0.0, "inv": float(p["eth_in"]), "realizado": float(pre["proceeds"]),
+                               "base": "total", "stop": float(c.get("stop_pct") or 0), "trail": trail, "alvo": 0.0, "segue": True,
+                               "segura": 0.0 if c.get("trader_so_lucro") else None, "segurando": bool(p.get("espera")),
+                               "pico": best if trail and best >= trail[0] else None, "best": best, "px": px})
+
+    def _sg_salvar(self, tr: dict) -> None:
+        """A sombra terminou: o trade volta para a fila de gravação (upsert pelo id) com o resultado sem o stop de ganho."""
+        for b in self.books.values():
+            if any(x is tr for x in b.trades):
+                if not any(x is tr for x in b.new_trades):
+                    b.new_trades.append(tr)
+                return
 
     # ------------------------------------------------------------------ 0.32.309: token com venda travada
     def flag_no_sell(self, token: str, simbolo: str | None) -> None:
@@ -842,6 +939,10 @@ class Copier:
                 frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
                 for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     b.trader_exit(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
+        if self.sombra.abertas and px:                    # 0.32.332: o "e se" sem o stop de ganho segue a mesma troca
+            self.sombra.preco(tr["token"], px, tr["t"])
+            if tr["side"] == "sell":
+                self.sombra.trader(tr["wallet"], tr["token"], min(1.0, tr["amount"] / before) if before > 0 else 1.0, px, tr["t"])
         auto = tr["wallet"] in copiaria
         if tr["side"] == "buy" and hasattr(self.w, "danger_reason") and self.w.danger_reason(tr["wallet"]):
             self.stat["perigo_ignorados"] = self.stat.get("perigo_ignorados", 0) + 1     # 0.32.302: PERIGO não é copiado nem na FICTÍCIA
@@ -995,6 +1096,12 @@ class Copier:
                 continue
             why = f"stop de {rc['real_stop_pct']:g}%" if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] else \
                 trail_hit(rc, p["best_pct"], pct, "real_")
+            if not why and rc.get("real_sg_on") and p.get("aba") != "botao":
+                # 0.32.332: REAL sem par da fictícia com stop de ganho próprio (começa desligado); o nível é o do cérebro
+                bk = self.books.get(uid)
+                sgn, _f = stopganho.nivel_de(self.sg_brain().get("cópia"), (bk.cfg.get("sg_fixo_pct") if bk else 0) or 0)
+                if sgn is not None and pct >= sgn:
+                    why = f"{stopganho.MOTIVO}: +{sgn:g}% ({pct:+.1f}% líquido)"
             if not why and pct > 0 and rc.get("real_sair_travado") and p["token"] in self.risky:
                 why = "token com trava do criador (" + str(self.risky[p["token"]])[:60] + "): saiu no lucro"
             frac = 1.0
@@ -1184,6 +1291,8 @@ class Copier:
         now = time.time()
         for b in self.books.values():
             b.timeouts(now)
+        if self.sombra.abertas:
+            self.sombra.tempo(now, lambda tk: (self.w.px.get(tk) or (None,))[0])
         bal = now - self._rbal_at > 30
         if bal:
             self._rbal_at = now
@@ -1875,6 +1984,7 @@ class Copier:
         b = self.book(uid)
         rc = self.rcfg(uid)
         base = {"cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
+                "stop_ganho": self.sg_view(uid),
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
                 "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER,
                 "eth_usd": getattr(self.w, "eth_usd", None), "riscos": dict(list(self.risky.items())[-300:])}
@@ -1959,6 +2069,7 @@ class Copier:
             b = self.books[r["user_id"]] = Book(r["user_id"], novo, r.get("cash"))
             b.close_hook = self._sim_closed
             b.risky = self.risky
+            self._sg_wire(b)
             b.dirty_book = novo.get("cfg_v") != velho.get("cfg_v")
             if isinstance(rc, dict):
                 self.real_cfg[r["user_id"]] = {**hoodreal.clean(rc, rc), **{k: rc[k] for k in ("real_on", "on_since") if k in rc}}
@@ -1995,3 +2106,5 @@ class Copier:
             b = self.rbook(r["user_id"]) if d.get("real") and r.get("user_id") else self.books.get(r.get("user_id"))
             if b is not None and len(b.trades) < KEEP_TRADES:
                 b.trades.append(d)
+        # 0.32.332: volta a seguir as sombras do stop de ganho que estavam abertas antes de reiniciar
+        self.sombra.restaurar([x for b in self.books.values() for x in b.trades], time.time())

@@ -16,6 +16,7 @@
     ["saldo_inicial", "Saldo inicial fictício", "ETH", 0.001, 1000, 0.1],
     ["trail_ativa_pct", "Stop móvel liga com lucro de", "%", 1, 10000, 1], ["trail_dist_pct", "Stop móvel sai ao cair do pico", "pontos", 1, 1000, 1],
     ["max_acima_pct", "Não entrar se o preço já subiu mais que", "%", 0, 500, 1], ["max_atraso_s", "Atraso máximo para copiar", "s", 5, 90, 1],
+    ["sg_fixo_pct", "Nível do stop de ganho (0 = o robô escolhe)", "%", 0, 500, 1],
   ];
   const RL_INFO = [
     ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0001], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
@@ -24,7 +25,7 @@
     ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
   // 0.32.290 (pedido do dono: "sair quando o desenvolvedor sai da moeda ... stop móvel ... botão de ativar"): opções liga/desliga
-  const CF_BOOL = ["sair_travado", "so_verificado", "so_lp_presa", "sair_liquidez", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader"], RL_BOOL = ["real_sair_travado", "real_espelho", "real_so_lp_presa", "real_sair_liquidez", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
+  const CF_BOOL = ["sair_travado", "so_verificado", "so_lp_presa", "sair_liquidez", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader", "sg_on"], RL_BOOL = ["real_sg_on", "real_sair_travado", "real_espelho", "real_so_lp_presa", "real_sair_liquidez", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
   const NOM = {};
   let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
   try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
@@ -251,6 +252,9 @@
     ["Posições abertas no máximo", "posições", "max_abertas", "real_max_abertas"],
     ["Tempo máximo da posição", "h", "max_hold_h", "real_max_hold_h"],
     ["Stop de perda (0 = desligado)", "%", "stop_pct", "real_stop_pct"],
+    // 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo; a REAL que é par da fictícia (espelho) sai junto dela
+    ["Stop de ganho autônomo", "vende tudo quando o líquido chega ao nível que o robô escolheu pelo histórico (sem base: +10%) · na REAL vale só para a posição sem par da fictícia", "sg_on", "real_sg_on", "", "bool"],
+    ["Nível do stop de ganho", "% líquido (0 = o robô escolhe)", "sg_fixo_pct", null, "a REAL usa o nível da FICTÍCIA"],
     // 0.32.322 (revisão "por que estamos sempre no negativo"): três travas de entrada; a REAL usa o valor da FICTÍCIA
     ["Não entrar se o preço já subiu mais que", "% acima do que o trader pagou, medido no pool na hora (0 = desligado)", "max_acima_pct", null, "a REAL usa o valor da FICTÍCIA"],
     ["Atraso máximo para copiar", "segundos depois da compra do trader; mais que isso não copia", "max_atraso_s", null, "a REAL usa o valor da FICTÍCIA"],
@@ -568,6 +572,7 @@
     const on = $("cfOn"); on.classList.toggle("on", !!c.on); on.textContent = c.on ? "Ligada" : "Desligada"; on.setAttribute("aria-checked", c.on ? "true" : "false");
     const ro = $("rlOn"); ro.classList.toggle("on", !!st.ligada); ro.textContent = st.ligada ? "Ligada" : "Desligada"; ro.setAttribute("aria-checked", st.ligada ? "true" : "false");
     if (!CF_DIRTY && !RL_DIRTY && !document.activeElement.closest("#cfRows")) $("cfRows").innerHTML = cfgRows(c, rc);
+    if ($("sgBox")) $("sgBox").innerHTML = BB.sgHtml(P.stop_ganho);
     if (!CMP_PLAN && !document.activeElement.closest("#cmpBox")) drawCmp();
     loadCmp(false);
     loadHist(false);

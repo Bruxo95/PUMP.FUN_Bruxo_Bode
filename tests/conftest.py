@@ -85,3 +85,20 @@ def _sem_exigir_preco_de_mercado(monkeypatch, request):
     spec = settings.USER_KEYS["pump_px_need_mkt"]
     monkeypatch.setitem(settings.USER_KEYS, "pump_px_need_mkt", (spec[0], False) + tuple(spec[2:]))
     yield
+
+
+@pytest.fixture(autouse=True)
+def _sem_stop_de_ganho_nos_testes_antigos(monkeypatch, request):
+    """0.32.332: o stop de ganho autônomo vem ligado na fictícia (Solana, Robinhood e BNB). Os testes antigos de saída (stop móvel,
+    alvo, venda do trader) foram escritos sem ele e continuam assim. test_stop_ganho.py usa o padrão de verdade."""
+    if "test_stop_ganho" in request.node.nodeid:
+        yield
+        return
+    from app import bnbcopy, hoodcopy, settings
+    spec = settings.USER_KEYS["pump_sg_on"]
+    monkeypatch.setitem(settings.USER_KEYS, "pump_sg_on", (spec[0], False) + tuple(spec[2:]))
+    monkeypatch.setitem(hoodcopy.CFG_DEFAULT, "sg_on", False)
+    monkeypatch.setitem(bnbcopy.CFG_DEFAULT, "sg_on", False)
+    spec = settings.USER_KEYS["pump_runup_max_pct"]                  # 0.32.332: filtro de entrada no topo ligado por padrão
+    monkeypatch.setitem(settings.USER_KEYS, "pump_runup_max_pct", (spec[0], 0.0) + tuple(spec[2:]))
+    yield

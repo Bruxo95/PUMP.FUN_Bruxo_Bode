@@ -1576,6 +1576,45 @@
         (avg != null ? ' · <span class="' + (avg < 5 && n >= 20 ? "down" : "muted") + '">$' + f(avg, avg < 10 ? 2 : 0) + "/neg.</span>" : "") + "</small>"; }).join("");
   }
   // 0.32.124: Laboratório do Top traders; o veredito vem sempre da faixa de confiança
+  // 0.32.332 (pedido do dono, 13/11/2026: "estratégia autônoma de stop de ganho, ganhou 10% saiu fora"): o que o robô decidiu em
+  // cada aba e por quê. O admin vê também a conta por nível e onde a entrada perde (só mede).
+  const SG_ACAO = { aplicar: ["win", "usa"], inicio: ["sim", "começo (+10%)"], manter: ["neutral", "sem alvo"] };
+  const SG_FONTE = { fixo: "nível fixo escolhido por você", inicio: "sem histórico ainda: começa no +10%", aplicar: "escolhido pelo robô com o histórico",
+    manter: "o histórico mostrou que, nesta aba, um alvo fixo rende menos que as suas regras", desligado: "desligado em Carteiras → Regras",
+    fora: "não vale nesta aba (regras próprias)", "Explorar sem stop de ganho": "Explorar fica de fora até você ligar", "segue a fictícia": "sai junto com a fictícia (espelho)",
+    "REAL sem stop de ganho próprio": "REAL sem par: chave desligada em Carteiras → REAL" };
+  let SG_T = 0;
+  async function loadSg(force) {
+    const box = $("sgView"); if (!box || (!force && Date.now() - SG_T < 60000)) return;
+    SG_T = Date.now();
+    let r; try { r = await BB.api("/api/pump/stop-ganho", { quiet: true }); } catch (e) { return; }
+    if (!r || r.error) { box.innerHTML = '<span class="muted small">Não carregou agora.</span>'; return; }
+    const abas = r.abas || [];
+    if (!abas.length) { box.innerHTML = '<p class="muted small">Ainda não há operações fictícias fechadas nos últimos ' + r.janela_dias + ' dias: toda aba começa no +' + f(r.inicial, 0) + "%.</p>"; return; }
+    const tag = (a) => { const x = SG_ACAO[a.acao] || ["neutral", a.acao]; return '<span class="tag ' + x[0] + '">' + x[1] + "</span>"; };
+    const conf = (a) => a.chance == null ? (a.confianca ? esc(a.confianca) : "–") : esc(a.confianca) + " · " + Math.round(a.chance * 100) + "%";
+    let h = '<p class="small muted">Conta com as operações fictícias dos últimos ' + r.janela_dias + " dias de todas as contas (precisa de " + r.min_n + " em " + r.min_dias +
+      " dias por aba). Ganho por operação = quantos pontos o alvo rende a mais que sem alvo, já com 1 ponto de folga para atraso e slippage. Sombras seguindo o que teria acontecido sem o alvo: <b>" +
+      r.sombras_abertas + "</b> agora, " + r.sombras_feitas + " desde que o servidor ligou.</p>";
+    h += '<div class="tblwrap"><table class="tbl"><thead><tr><th>Aba</th><th>Operações</th><th>Decisão</th><th>Nível</th><th>Ganho por operação</th><th>Média sem alvo</th><th>Confiança</th><th>Nesta conta</th></tr></thead><tbody>' +
+      abas.map((a) => "<tr><td>" + esc(a.aba) + "</td><td>" + (a.n || 0) + " em " + (a.dias || 0) + " dias</td><td>" + tag(a) + "</td><td>" + (a.nivel == null ? "–" : "+" + f(a.nivel, 0) + "%") +
+        "</td><td>" + (a.ganho == null ? "–" : pc(a.ganho)) + "</td><td>" + pc(a.media_sem) + "</td><td>" + conf(a) + "</td><td>" +
+        (a.aplica ? '<span class="tag win">vale</span>' : '<span class="tag neutral" title="' + esc(SG_FONTE[a.fonte] || "") + '">não vale</span>') + "</td></tr>" +
+        '<tr class="sgwhy"><td colspan="8" class="small muted">' + esc(a.motivo || "") + "</td></tr>").join("") + "</tbody></table></div>";
+    const ruins = abas.flatMap((a) => (a.faixas || []).filter((x) => x.ruim).map((x) => Object.assign({ aba: a.aba }, x)));
+    const det = abas.filter((a) => (a.tabela || []).length);
+    if (det.length) {
+      h += '<details class="sgdet"><summary>Conta por nível em cada aba</summary>' + det.map((a) => '<p class="pc-lbl">' + esc(a.aba) + "</p>" +
+        '<div class="tblwrap"><table class="tbl"><thead><tr><th>Nível</th><th>Chegaram lá</th><th>Média com o alvo</th><th>Ganho por operação</th><th>Dias melhores</th></tr></thead><tbody>' +
+        a.tabela.map((x) => "<tr" + (x.nivel === a.nivel ? ' class="sgsel"' : "") + "><td>+" + f(x.nivel, 0) + "%</td><td>" + f(x.chegou_pct, 0) + "%</td><td>" + pc(x.media) + "</td><td>" + pc(x.ganho) +
+          "</td><td>" + x.dias_melhor + "</td></tr>").join("") + "</tbody></table></div>").join("") + "</details>";
+    }
+    if (ruins.length) {
+      h += '<details class="sgdet"><summary>Onde a entrada perde (' + ruins.length + ')</summary><p class="small muted">Faixas com 15+ operações, média de −5% ou pior mesmo com o alvo, e no máximo 30% chegando lá. Só mede: nenhuma compra é barrada por isto ainda.</p><ul class="pc-list">' +
+        ruins.slice(0, 20).map((x) => "<li><b>" + esc(x.aba) + "</b> · " + esc(x.nome) + " " + esc(x.faixa) + ": " + x.n + " operações, média " + pc(x.media) + ", " + f(x.ganhou, 0) + "% no lucro</li>").join("") + "</ul></details>";
+    }
+    box.innerHTML = h;
+  }
   async function loadTopLab() {
     const r = await BB.api("/api/pump/top-lab", { quiet: true }); if (r.error || !$("tlK")) return;
     const fx = (x) => (x.lo == null ? "–" : f(x.lo, 1) + "% a " + f(x.hi, 1) + "%");
@@ -2910,7 +2949,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "carteiras") { drawRealTabs(); drawTabGate(); buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); if (WALT === "hist") loadCfgHist(); }
+    if (VIEW === "carteiras") { drawRealTabs(); drawTabGate(); buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); loadSg(); if (WALT === "hist") loadCfgHist(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
     if (VIEW === "sistema") { sysTab(); openSys(); }
@@ -3261,6 +3300,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const errs = Object.entries(r.errors || {});
     toast(r.error || (errs.length ? "Não aplicado: " + errs.map((e) => e[0].replace("pump_", "") + " (" + e[1] + ")").join(", ") : "Salvo."));
     poll(true);
+    if (Object.keys(body).some((k) => k.startsWith("pump_sg_"))) loadSg(true);     // 0.32.332: a tabela diz se vale nesta conta
   }
 
   // ------------------------------------------------------------------ render geral
@@ -3548,7 +3588,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real"];
+  const TGL_REAL = ["pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
@@ -4661,14 +4701,14 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const offWhy = (soPos) => soPos ? "desligado só nesta posição" : "desligado na configuração · " + (own ? "aba " + (p.aba || "de origem") : "Carteiras → Regras");
     // faixa: stop (esquerda) … 0 … alvo (direita), com o agora e o pico
     const lo = stopOff ? Math.min(-50, (p.worst_pct || 0) * 1.1) : -stopV;
-    const hi = Math.max(tpV || 0, tp1 || 0, trS || 0, (p.best_pct || 0) * 1.1, (chg || 0) * 1.1, 30);
+    const hi = Math.max(tpV || 0, tp1 || 0, trS || 0, p.sg_nivel || 0, (p.best_pct || 0) * 1.1, (chg || 0) * 1.1, 30);
     const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100)).toFixed(1);
     const range = chg == null ? "" : '<div class="pc-range" title="faixa entre o stop de perda e o alvo; ● = agora, ▲ = pico">' +
       '<div class="pc-bar"><span class="pc-zero" style="left:' + at(0) + '%"></span>' +
       (p.trail_exit != null ? '<span class="pc-trx" style="left:' + at(p.trail_exit) + '%" title="stop móvel: sai em +' + f(p.trail_exit, 1) + '%"></span>' : "") +
       (p.best_pct != null ? '<span class="pc-peak" style="left:' + at(p.best_pct) + '%" title="pico ' + f(p.best_pct, 1) + '%"></span>' : "") +
       '<span class="pc-now ' + (chg >= 0 ? "up" : "down") + '" style="left:' + at(chg) + '%"></span></div>' +
-      '<div class="pc-rl"><span>' + (stopOff ? "sem stop" : "stop −" + f(stopV, 0) + "%") + "</span><span>" + (tpV ? "alvo +" + f(tpV, 0) + "%" : p.best_pct != null ? "pico " + pc(p.best_pct) : "") + "</span></div></div>";
+      '<div class="pc-rl"><span>' + (stopOff ? "sem stop" : "stop −" + f(stopV, 0) + "%") + "</span><span>" + (p.sg_nivel != null ? "stop de ganho +" + f(p.sg_nivel, 0) + "%" : tpV ? "alvo +" + f(tpV, 0) + "%" : p.best_pct != null ? "pico " + pc(p.best_pct) : "") + "</span></div></div>";
     // tempo de saída
     const h = p.hold_s, rest = h != null && open ? h - (now - open) : null;
     const leftTxt = h == null || !open ? "–" : h >= 3e8 ? '<b class="up">sem limite</b>' : rest > 0 ? "<b>" + hms(rest) + "</b>" : '<b class="down">vencido · saindo</b>';
@@ -4694,6 +4734,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<div class="pc-sec"><div><small>Sai por tempo em</small>' + leftTxt + (h != null && h < 3e8 ? '<small class="dim">limite ' + hms(h) + "</small>" : "") + "</div>" +
       (p.selling ? "" : '<div class="pc-chips">' + btn("+30 min", "hold", { id: p.id, add: 30 }, "chip") + btn("+1 h", "hold", { id: p.id, add: 60 }, "chip") + btn("Sem limite", "hold", { id: p.id, add: "none" }, "chip") + "</div>") + "</div>" +
       (p.selling ? "" : '<div class="pc-rules"><div class="pc-src">Regras vêm de: <a href="#' + srcTela + '">' + esc(srcNome) + '</a> · o ON/OFF abaixo muda só esta posição</div>' +
+        rule("Stop de ganho", p.sg_nivel != null ? "vende tudo em +" + f(p.sg_nivel, 0) + "% líquido · " + esc(SG_FONTE[p.sg_fonte] || "") : esc(SG_FONTE[p.sg_fonte] || "–"), "") +
         rule("Stop de perda", stopOff ? offWhy(!!p.off_stop) : "sai em −" + f(stopV, 0) + "%" + (p.be_after ? " · vira 0% depois de +" + f(p.be_after, 0) + "%" : ""), sw("stop", stopOff)) +
         rule("Stop móvel", !trOn ? offWhy(!!p.off_trail) : p.trail_peak != null ? "armado · pico " + f(p.trail_peak, 1) + "% · sai em +" + f(p.trail_exit, 1) + "%" : "liga em +" + f(trS, 0) + "% · sai " + (p.trail_rel ? f(p.trail_rel, 0) + "% abaixo do pico do preço" : f(trD, 0) + " pts abaixo do pico"), sw("trail", !trOn)) +
         rule("Venda em partes", p.tp1_done ? "já vendeu " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%" : tp1 ? (p.off_tp1 ? offWhy(true) : "vende " + f(tp1F, 0) + "% em +" + f(tp1, 0) + "%") : offWhy(false), p.tp1_done ? '<span class="tag win">feita</span>' : sw("tp1", !!p.off_tp1 || !tp1)) + "</div>") +

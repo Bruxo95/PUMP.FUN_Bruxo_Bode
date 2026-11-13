@@ -1055,3 +1055,13 @@ label.chgrp{cursor:pointer}
 
 /* 0.32.328: liga de candidatos */
 .tlfora{margin:6px 0 0;padding-left:18px}.tlfora li{margin:2px 0;overflow-wrap:anywhere}
+
+/* 0.32.332: stop de ganho autônomo (Carteiras → Regras) */
+.sgview{margin-top:12px}
+.sgview .sgwhy td{padding-top:0;border-top:0;white-space:normal}
+.sgview .sgsel td{background:rgba(34,197,94,.10)}
+.sgview .sgdet{margin-top:10px}
+.sgview .sgdet summary{cursor:pointer;font-weight:600}
+.bnsg{gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 4px}
+.bnsgbox .decbox{margin-top:8px;overflow-wrap:anywhere}
+#sgBox .decbox{margin-top:8px;overflow-wrap:anywhere}

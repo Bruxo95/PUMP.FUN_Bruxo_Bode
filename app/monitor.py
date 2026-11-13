@@ -32,7 +32,8 @@ log = logging.getLogger("monitor")
 def _gm(e) -> set:
     """Tokens das estratégias fantasma de um motor (0.18.0); motores de teste sem fantasmas devolvem vazio."""
     out = set()
-    for name in ("ghosts", "ghosts_auto"):                # 0.31.21: fantasmas das automáticas do Explorar também
+    # 0.31.21: fantasmas das automáticas do Explorar também; 0.32.332: sombras do stop de ganho (o "e se" depois da venda)
+    for name in ("ghosts", "ghosts_auto", "sg_sombra"):
         g = getattr(e, name, None)
         if g is not None:
             out |= g.mints()

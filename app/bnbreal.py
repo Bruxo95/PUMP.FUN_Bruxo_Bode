@@ -45,7 +45,8 @@ GAS_RESERVE = 0.002                 # BNB que fica na carteira para o gás das v
 RETRY_S = 60                        # venda automática que falhou espera 1 min antes de tentar de novo
 
 REAL_DEFAULT = {"real_on": False, "real_bnb_por_compra": 0.01, "real_max_abertas": 5, "real_slip_pct": 15.0,
-                "real_perda_dia": 0.05, "real_gwei": 0.1}
+                "real_perda_dia": 0.05, "real_gwei": 0.1,
+                "real_sg_on": False}            # 0.32.332: stop de ganho autônomo na REAL (opção nova de REAL começa desligada)
 REAL_LIMITS = {"real_bnb_por_compra": (0.001, 1), "real_max_abertas": (1, 30), "real_slip_pct": (1, 49),
                "real_perda_dia": (0.001, 10), "real_gwei": (0.05, 5)}
 
@@ -55,6 +56,9 @@ def clean(raw: dict | None, base: dict | None = None) -> dict:
     out = dict(REAL_DEFAULT)
     out.update({k: v for k, v in (base or {}).items() if k in REAL_DEFAULT})
     for k, v in (raw or {}).items():
+        if k == "real_sg_on":
+            out[k] = bool(v)
+            continue
         if k not in REAL_LIMITS:
             continue
         try:

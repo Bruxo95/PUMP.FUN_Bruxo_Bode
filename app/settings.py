@@ -290,6 +290,13 @@ USER_KEYS: dict[str, tuple] = {
     "pump_autopause_stops": (int, 2, 0, 100),
     "pump_autopause_hours": (float, 24.0, 0.0, 720.0),
     "pump_tp_pct": (float, 0.0, 0.0, 10000.0),
+    # 0.32.332 (pedido do dono, 13/11/2026: "estratégia autônoma de stop de ganho, ganhou 10% saiu fora"): o robô escolhe o alvo de
+    # cada aba pelo histórico (app/stopganho.py) e vende tudo quando o líquido chega lá. Vale na FICTÍCIA; a REAL que é par da
+    # fictícia sai junto dela pelo espelho. A REAL sem par e o Explorar (lógica que não muda sem OK do dono) têm chave própria, desligada.
+    "pump_sg_on": (bool, True, 0, 1),
+    "pump_sg_fixo_pct": (float, 0.0, 0.0, 500.0),      # 0 = o robô escolhe; acima de 0 = nível fixo escolhido por você
+    "pump_sg_explorar": (bool, False, 0, 1),
+    "pump_sg_real": (bool, False, 0, 1),
     "pump_max_hold_h": (float, 6.0, 0.05, 168.0),
     "pump_min_trader_sol": (float, 0.2, 0.0, 100.0),
     "pump_min_mcap_sol": (float, 0.0, 0.0, 1000000.0),
@@ -314,8 +321,10 @@ USER_KEYS: dict[str, tuple] = {
     # 0.32.331 (estudo de 13/11): confere o preço lido do trade com o de mercado antes de copiar (ganhos falsos de token de DEX)
     "pump_px_check_on": (bool, True, 0, 1),
     "pump_px_need_mkt": (bool, True, 0, 1),            # token de fora da pump.fun só é copiado com preço de mercado para conferir
-    # não copiar token que já subiu X% nos 15 min antes da compra do trader (0 = desliga)
-    "pump_runup_max_pct": (float, 0.0, 0.0, 100000.0),
+    # não copiar token que já subiu X% nos 15 min antes da compra do trader (0 = desliga). 0.32.332 (pedido do dono, 13/11: "a estratégia de
+    # entrada tá horrível; segue o que você propõe"): padrão 100 para quem ainda não mexeu. Estudo de 13/11: essas cópias deram −24% (44),
+    # contra −1,7% das que entraram antes da subida. Quem já salvou outro valor fica com o dele.
+    "pump_runup_max_pct": (float, 100.0, 0.0, 100000.0),
     # 0.31.37 (sugestão do Bruxo, 2026-10-27): com a Execução real ligada, a carteira real copia 100% dos trades da
     # fictícia (cópias, Explorar, Base, Maiores traders, botão Comprar), mas o valor e os limites vêm só das regras reais
     "pump_real_mirror": (bool, True, 0, 1),

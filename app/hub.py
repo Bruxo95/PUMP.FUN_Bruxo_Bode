@@ -185,6 +185,7 @@ class PumpHub:
         pf.brain_freeze = saved.get("_brain_freeze") if isinstance(saved.get("_brain_freeze"), dict) else None   # 0.31.85
         pf.leader_hook = lambda ev, p, why="", _pf=pf: self._on_leader(_pf, ev, p, why)
         pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
+        pf.sg_pool = self.sg_brain                                            # 0.32.332: stop de ganho com todas as contas
         pf.shadow_hook = self.shadow_note                                     # 0.31.72: entradas sombra
         pf.top_hook = self.top_note                                           # 0.32.124: compras barradas do Top traders
         # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
@@ -494,6 +495,33 @@ class PumpHub:
             out += [(mine, dict(t, _conta=e.user_id)) for t in e.trades(100000) if t.get("origem") in AUTO_ORIGINS and not t.get("real")]
         out += [(False, t) for t in self.shadow_trades()]                    # 0.31.72: o que teria acontecido
         return out
+
+    def sg_brain(self) -> dict:
+        """0.32.332: stop de ganho autônomo. {aba: decisão} com as operações FICTÍCIAS fechadas de TODAS as contas nos últimos 14
+        dias (o mesmo token comprado por contas diferentes com até 10 min de diferença conta uma vez). Refeito a cada 10 min."""
+        from . import stopganho
+        now = time.time()
+        hit = self.__dict__.get("_sg_brain")
+        if hit and now - hit[0] < stopganho.CACHE_S:
+            return hit[1]
+        itens = []
+        for e in list(self.engines.values()):
+            itens += e.sg_itens(e.user_id, e.aba_of, e.trades(100000), now)
+        rows = stopganho.dedup(itens)
+        out = stopganho.decidir_grupos(rows, antes=hit[1] if hit else None)
+        self.__dict__["_sg_brain"] = (now, out)
+        self.__dict__["_sg_rows"] = rows                       # para a tela de detalhe (faixas da entrada)
+        return out
+
+    def sg_detail(self, pf: PumpFun) -> dict:
+        """O que o stop de ganho decidiu (com a tabela por nível) e onde a entrada perde, por aba. Só mede e mostra."""
+        from . import stopganho
+        view = pf.sg_view(detalhe=True)
+        rows = self.__dict__.get("_sg_rows") or []
+        for a in view["abas"]:
+            sel = [r for r in rows if r.get("grupo") == a["aba"]]
+            a["faixas"] = stopganho.faixas(sel, a["nivel"])
+        return view
 
     def brain_shadow(self) -> dict:
         """0.32.117: a regra do aprender com os erros medida nas outras abas, só com o passado de cada trade. Não bloqueia nada."""

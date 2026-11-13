@@ -23,7 +23,7 @@ import os
 import time
 from collections import deque
 
-from . import bnbcopy, bnbhist, bnbpancake, bnbreal, bnbsafe, evm
+from . import bnbcopy, bnbhist, bnbpancake, bnbreal, bnbsafe, evm, stopganho
 
 log = logging.getLogger("bnb")
 
@@ -256,6 +256,10 @@ class BnbWatch:
         # 0.32.170: cópia fictícia por conta de admin (bnbcopy.Book); o que cada trader tem em cada token (para vender a
         # mesma parte) e o último preço em BNB de cada token
         self.books: dict[str, bnbcopy.Book] = {}
+        # 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo — cérebro com as fictícias de todas as contas e a sombra
+        self.sombra = stopganho.Sombras(salvar=self._sg_salvar)
+        self._sg_hit: tuple | None = None
+        self._sg_rows: list = []
         self.hold: dict[tuple, float] = {}
         self.px: dict[str, tuple] = {}
         self._dex_at: dict[str, float] = {}
@@ -498,7 +502,62 @@ class BnbWatch:
         if b is None:
             b = self.books[uid] = bnbcopy.Book(uid)
             b.dirty_book = True
+        self._sg_wire(b)
         return b
+
+    # ------------------------------------------------------------------ 0.32.332: stop de ganho autônomo
+    def _sg_wire(self, b) -> None:
+        b.sg_dec = lambda: self.sg_brain().get("cópia")
+        b.sombra_hook = self._sg_abrir
+
+    def sg_brain(self) -> dict:
+        """{'cópia': decisão} com as operações FICTÍCIAS fechadas de todas as contas nos últimos 14 dias. Refeito a cada 10 min."""
+        now = time.time()
+        if self._sg_hit and now - self._sg_hit[0] < stopganho.CACHE_S:
+            return self._sg_hit[1]
+        itens = []
+        for uid, b in list(self.books.items()):
+            for x in b.trades:
+                tf, t0 = x.get("close_t"), x.get("open_t")
+                if not tf or now - float(tf) > stopganho.JANELA_S:
+                    continue
+                r = stopganho.linha(x.get("pnl_pct"), x.get("best_pct"), tf, x.get("sg"),
+                                    {"hora": stopganho.hora_berlim(t0), "atraso": x.get("lag_s")})
+                if r is not None:
+                    itens.append((uid, "cópia", x.get("token"), t0, r))
+        rows = stopganho.dedup(itens)
+        out = stopganho.decidir_grupos(rows, antes=self._sg_hit[1] if self._sg_hit else None)
+        self._sg_hit, self._sg_rows = (now, out), rows
+        return out
+
+    def sg_view(self, uid: str) -> dict:
+        b = self.books.get(uid) or bnbcopy.Book(uid)
+        abas = stopganho.tela(self.sg_brain(), float(b.cfg.get("sg_fixo_pct") or 0), bool(b.cfg.get("sg_on")))
+        for a in abas:
+            a["faixas"] = stopganho.faixas([r for r in self._sg_rows if r.get("grupo") == a["aba"]], a["nivel"])
+        return {"ligado": bool(b.cfg.get("sg_on")), "real": bool((self.real_cfg.get(uid) or {}).get("real_sg_on")),
+                "fixo": float(b.cfg.get("sg_fixo_pct") or 0), "inicial": stopganho.INICIAL, "janela_dias": stopganho.JANELA_S // 86400,
+                "min_n": stopganho.MIN_N, "min_dias": stopganho.MIN_DIAS, "folga": stopganho.FOLGA, "abas": abas,
+                "sombras_abertas": len(self.sombra.abertas), "sombras_feitas": self.sombra.feitas}
+
+    def _sg_abrir(self, uid: str, p: dict, tr: dict, pre: dict, px: float, t: float) -> None:
+        """O stop de ganho vendeu: a sombra segue com as regras normais da BNB (venda do trader, stop opcional, tempo máximo)."""
+        b = self.books.get(uid)
+        if b is None or not px:
+            return
+        c = b.cfg
+        self.sombra.abrir(tr, {"token": p["token"], "wallet": p["wallet"], "t": t, "ate": float(p["open_t"]) + float(c["max_hold_h"]) * 3600,
+                               "tokens": float(pre["tokens"]), "mult": 1 - bnbcopy.FEE - float(c["slip_pct"]) / 100,
+                               "fixo": float(c["gas_bnb"]), "custo": 0.0, "inv": float(p["bnb_in"]), "realizado": float(pre["proceeds"]),
+                               "base": "total", "stop": float(c.get("stop_pct") or 0), "trail": None, "alvo": 0.0, "segue": True,
+                               "segura": None, "segurando": False, "pico": None, "best": float(p.get("best_pct") or 0), "px": px})
+
+    def _sg_salvar(self, tr: dict) -> None:
+        for b in self.books.values():
+            if any(x is tr for x in b.trades):
+                if not any(x is tr for x in b.new_trades):
+                    b.new_trades.append(tr)
+                return
 
     def _copy(self, tr: dict, before: float, cop: set) -> None:
         """Trade novo lido: o trader do ranking comprou → confere a segurança do token e a fictícia (e a REAL ligada)
@@ -511,6 +570,10 @@ class BnbWatch:
                 frac = min(1.0, (tr["amount"] or 0) / before) if before > 0 else 1.0
                 for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
                     b.sell(p, frac, px, time.time(), f"trader vendeu {frac * 100:.0f}%")
+        if self.sombra.abertas and px:                # 0.32.332: o "e se" sem o stop de ganho segue a mesma troca
+            self.sombra.preco(tr["token"], px, tr["t"])
+            if tr["side"] == "sell":
+                self.sombra.trader(tr["wallet"], tr["token"], min(1.0, (tr["amount"] or 0) / before) if before > 0 else 1.0, px, tr["t"])
         # 0.32.172: a REAL segue a mesma decisão, com valor e limites próprios; só compras novas (até 60 s) entram
         for uid, rb in self.real.items():
             if px:
@@ -617,6 +680,12 @@ class BnbWatch:
             if cf["stop_pct"] and pct <= -cf["stop_pct"] and (p.get("sell_retry_at") or 0) <= time.time():
                 p["retry_frac"] = 1.0
                 self._spawn(self._real_sell(uid, p, 1.0, f"stop de {cf['stop_pct']:.0f}%"))
+            elif rc.get("real_sg_on") and not p.get("selling") and (p.get("sell_retry_at") or 0) <= time.time():
+                # 0.32.332: stop de ganho na REAL (começa desligado); o nível é o mesmo do cérebro da fictícia
+                sgn, _f = stopganho.nivel_de(self.sg_brain().get("cópia"), cf.get("sg_fixo_pct") or 0)
+                if sgn is not None and pct >= sgn:
+                    p["retry_frac"] = 1.0
+                    self._spawn(self._real_sell(uid, p, 1.0, f"{stopganho.MOTIVO}: +{sgn:g}% ({pct:+.1f}% líquido)"))
 
     def real_why_not(self, uid: str, tr: dict, rb, rc: dict) -> str | None:
         q = self.quotes.get(tr["token"])
@@ -817,8 +886,10 @@ class BnbWatch:
         now = time.time()
         for b in self.books.values():
             b.timeouts(now)
+        if self.sombra.abertas:
+            self.sombra.tempo(now, lambda tk: (self.px.get(tk) or (None,))[0])
         toks = {p["token"] for b in self.books.values() for p in b.pos.values()} | \
-            {p["token"] for rb in self.real.values() for p in rb.pos.values()}
+            {p["token"] for rb in self.real.values() for p in rb.pos.values()} | self.sombra.mints()
         for tk in list(toks)[:20]:
             if tk not in self.graduated and now - self._grad_at.get(tk, 0) > 300:
                 self._grad_at[tk] = now
@@ -835,6 +906,7 @@ class BnbWatch:
                         b.on_price(tk, px, now)
                     for uid, rb in list(self.real.items()):
                         self._real_price(uid, rb, tk, px, now)
+                    self.sombra.preco(tk, px, now)
 
     async def dex_price(self, token: str) -> float | None:
         try:
@@ -876,7 +948,7 @@ class BnbWatch:
                                                   "proceeds", "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "aba")},
                         "pnl_bnb": round(sol, 6), "pnl_pct": round(pct, 2), "graduou": p["token"] in self.graduated,
                         "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
-        return {"cfg": b.cfg, "padrao": bnbcopy.CFG_DEFAULT, "carteira": b.wallet(now), "posicoes": pos,
+        return {"cfg": b.cfg, "padrao": bnbcopy.CFG_DEFAULT, "carteira": b.wallet(now), "posicoes": pos, "stop_ganho": self.sg_view(uid),
                 "trades": b.trades[:500], "eventos": b.events[:100], "semana": bnbcopy.week_split(b.trades),
                 "abas": [{"aba": "top", "nome": "Top traders BNB", "ligada": b.cfg["on"], "abertas": len(b.pos),
                           "fechadas": len(b.trades), "periodos": bnbcopy.periods(b.trades, now),
@@ -903,7 +975,7 @@ class BnbWatch:
                         "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600, "real": True})
         cfg = {**b.cfg, "on": bool(rc.get("real_on")), "bnb_por_compra": rc["real_bnb_por_compra"],
                "max_abertas": rc["real_max_abertas"], "slip_pct": rc["real_slip_pct"]}
-        return {"real": True, "cfg": cfg, "padrao": bnbcopy.CFG_DEFAULT, "carteira": rb.wallet(now, rc["real_slip_pct"], bnbcopy.periods),
+        return {"real": True, "cfg": cfg, "padrao": bnbcopy.CFG_DEFAULT, "stop_ganho": self.sg_view(uid), "carteira": rb.wallet(now, rc["real_slip_pct"], bnbcopy.periods),
                 "posicoes": pos, "trades": rb.trades[:500], "eventos": rb.events[:100], "semana": bnbcopy.week_split(rb.trades),
                 "abas": [{"aba": "top", "nome": "Top traders BNB", "ligada": bool(rc.get("real_on")), "abertas": len(rb.pos),
                           "fechadas": len(rb.trades), "periodos": bnbcopy.periods(rb.trades, now),
@@ -979,6 +1051,7 @@ class BnbWatch:
     async def load_books(self) -> None:
         for r in await self.db.select("bnb_books", None) or []:
             b = self.books[r["user_id"]] = bnbcopy.Book(r["user_id"], r.get("cfg"), r.get("cash"))
+            self._sg_wire(b)
             b.dirty_book = False
             rc = (r.get("cfg") or {}).get("real")
             if isinstance(rc, dict):
@@ -998,6 +1071,7 @@ class BnbWatch:
             b = self.rbook(r["user_id"]) if d.get("real") and r.get("user_id") else self.books.get(r.get("user_id"))
             if b is not None and len(b.trades) < bnbcopy.KEEP_TRADES:
                 b.trades.append(d)
+        self.sombra.restaurar([x for b in self.books.values() for x in b.trades], time.time())
 
     async def balances_tick(self, wallets: list[str]) -> None:
         """Saldo das carteiras do topo (BNB + USDT + USD1 + USDC), no máximo 6 por volta; vale 30 min."""

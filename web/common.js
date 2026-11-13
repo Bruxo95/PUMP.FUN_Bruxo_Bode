@@ -151,6 +151,28 @@
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => BB.loaderScan()); else setTimeout(() => BB.loaderScan(), 0);
 
+  // 0.32.332 (pedido do dono, 13/11/2026): o que o stop de ganho autônomo decidiu (painéis da Robinhood e da BNB; a Solana tem o dela)
+  BB.sgHtml = function (r) {
+    const e = (x) => BB.esc(x), n = (v, d) => (v == null ? "–" : Number(v).toFixed(d == null ? 1 : d).replace(".", ","));
+    const pc = (v) => (v == null ? "–" : '<span class="' + (v > 0 ? "up" : v < 0 ? "down" : "") + '">' + (v > 0 ? "+" : "") + n(v) + "%</span>");
+    if (!r) return '<p class="muted small">Ainda sem dados.</p>';
+    const ac = { aplicar: ["win", "usa"], inicio: ["sim", "começo (+10%)"], manter: ["neutral", "sem alvo"] };
+    let h = '<p class="small muted">' + (r.ligado ? "Ligado na FICTÍCIA" : "Desligado na FICTÍCIA") + " · REAL sem par: " + (r.real ? "ligado" : "desligado") +
+      (r.fixo ? " · nível fixo em +" + n(r.fixo, 0) + "%" : " · nível escolhido pelo robô") + ". Conta com as fictícias dos últimos " + r.janela_dias +
+      " dias de todas as contas; sem base (" + r.min_n + " operações em " + r.min_dias + " dias) começa em +" + n(r.inicial, 0) + "%. Sombras medindo o que teria acontecido sem o alvo: " +
+      r.sombras_abertas + " agora.</p>";
+    (r.abas || []).forEach((a) => {
+      const t = ac[a.acao] || ["neutral", a.acao];
+      h += '<div class="decbox"><b>' + e(a.aba) + '</b> <span class="tag ' + t[0] + '">' + t[1] + "</span> " + (a.nivel == null ? "" : "<b>+" + n(a.nivel, 0) + "%</b> ") +
+        '<span class="muted small">' + (a.n || 0) + " operações em " + (a.dias || 0) + " dias · ganho por operação " + pc(a.ganho) + " · média sem alvo " + pc(a.media_sem) +
+        (a.chance == null ? "" : " · confiança " + e(a.confianca) + " (" + Math.round(a.chance * 100) + "%)") + "</span><br><small>" + e(a.motivo || "") + "</small>";
+      const ruins = (a.faixas || []).filter((x) => x.ruim);
+      if (ruins.length) h += '<br><small class="muted">Onde a entrada perde (só mede): ' + ruins.slice(0, 4).map((x) => e(x.nome) + " " + e(x.faixa) + " (" + x.n + ", média " + n(x.media) + "%)").join(" · ") + "</small>";
+      h += "</div>";
+    });
+    if (!(r.abas || []).length) h += '<p class="muted small">Nenhuma operação fictícia fechada nos últimos dias: começa em +' + n(r.inicial, 0) + "%.</p>";
+    return h;
+  };
   BB.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // 0.32.217 (pedido do dono): o botão Trocar rede abre um menu logo abaixo com as redes, sem passar pela página /entrar.
   const NETS = [
