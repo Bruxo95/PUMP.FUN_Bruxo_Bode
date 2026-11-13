@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-13**; revisão documental **2.0**.
-Aplicação: **0.32.336 · 2026-11-13 · BOT LIVE no Trocar rede e Robinhood de volta à lógica da 0.32.308**.
-Referência Git na emissão: `254199296a4c1d8d5f756973fbcabde4b99e89d6`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.337 · 2026-11-13 · BOT LIVE na escolha de projeto, com configuração e botão SALA LIVE**.
+Referência Git na emissão: `230fb6e735549e343c007c9049602302d645a449`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

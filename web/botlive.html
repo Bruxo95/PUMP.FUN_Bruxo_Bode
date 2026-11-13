@@ -4,212 +4,88 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BOT LIVE — PUMP FUN COPY</title>
-<meta name="theme-color" content="#0b1020">
-<link rel="icon" type="image/png" sizes="192x192" href="/static/fun-copy-192.png?v=__V__">
+<meta name="theme-color" content="#0a0a0a">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/fun-copy-192.png?v=__V__">
+<link rel="stylesheet" href="/static/app.css?v=__V__">
 <style>
-  /* 0.32.336 (pedido do dono, 13/11: "uma página para o BOT, para lives estilo lo-fi do bot trabalhando, no Trocar rede, com
-     configurações, operando com as informações da Robinhood"): mesma cena da Sala (sala.js) com a configuração da live
-     (window.SALA_CFG, montada por botlive.js), música lo-fi gerada no navegador e link pronto para o OBS. */
-  /* 0.32.266 (pedido do dono): Sala ao vivo — cena em pixel art de um trader que reage às compras e vendas da conta, para
-     transmitir em live (OBS: capturar esta janela). Só mostra dados da própria conta; não manda ordem nenhuma. */
-  :root{--bg:#0b1020;--panel:#111a33;--line:#2a3c6b;--neon:#3df2c4;--green:#3ee66b;--red:#ff4d5e;--yellow:#ffd23f;--text:#e8f0ff;--muted:#8fa3d1}
-  *{box-sizing:border-box}
-  /* 0.32.300 (pedido do dono: "não consigo usar o zoom; a página tem que se adaptar à tela, celular, tablet e PC"): a sala ocupa a
-     altura da janela (100dvh) e o palco 16:9 cresce até onde cabe na largura E na altura (container query); com zoom ou janela
-     pequena tudo diminui junto em vez de sair da tela. No celular em pé vira coluna e a página rola. */
-  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:"VT323",monospace;font-size:clamp(15px,1.3vw,20px);overflow-x:hidden}
-  body{display:flex;flex-direction:column;height:100vh;height:100dvh}
-  canvas,img.px{image-rendering:pixelated;image-rendering:crisp-edges}
-  .pf{font-family:"Press Start 2P",monospace;letter-spacing:.02em}
-  .top{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:3px solid var(--line);background:#0e1730;flex-wrap:wrap}
-  .brand{font-size:16px;color:var(--neon);text-shadow:0 0 8px rgba(61,242,196,.5);white-space:nowrap}
-  .live{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#fff;background:var(--red);padding:5px 8px;border-radius:3px}
-  .live i{width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1s steps(2) infinite}
-  @keyframes blink{50%{opacity:.2}}
-  .ctl{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center;transition:opacity .4s}
-  .ctl.hide{opacity:0;pointer-events:none}
-  .btn{font-family:"Press Start 2P",monospace;font-size:10px;background:#18264a;color:var(--text);border:2px solid var(--line);padding:8px 10px;cursor:pointer;border-radius:3px}
-  .btn.on{background:var(--neon);color:#06221b;border-color:var(--neon)}
-  .btn.real.on{background:var(--yellow);border-color:var(--yellow);color:#2a1d00}
-  .sub{padding:6px 16px;font-size:11px;color:var(--muted);border-bottom:2px solid #16224a;background:#0c1428}
-  .grid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(250px,27vw,400px);gap:12px;padding:10px 16px}
-  .stwrap{min-width:0;min-height:0;container-type:size;display:flex;align-items:center;justify-content:center}
-  .stage{position:relative;border:3px solid var(--line);background:#000;aspect-ratio:16/9;overflow:hidden;width:min(100cqw,calc(100cqh * 16 / 9));container-type:inline-size}
-  .stage canvas{position:absolute;inset:0;width:100%;height:100%}
-  .hud{background:#060c1c;border:2px solid var(--line);padding:7px 10px;font-size:12px;white-space:nowrap}
-  .hud b.up{color:var(--green)}.hud b.down{color:var(--red)}.hud b.flat{color:var(--yellow)}
-  .hud.up{border-color:var(--green)}.hud.flat{border-color:var(--yellow)}
-  .hud.down{border-color:var(--red);animation:alarm 1s steps(2) infinite}
-  @keyframes alarm{50%{background:#3a0d12}}
-  .alert{position:absolute;top:5%;left:3%;width:min(46%,320px);background:#2a0b12;border:3px solid var(--red);box-shadow:4px 4px 0 #000;transform:translateY(-30px);opacity:0;visibility:hidden;transition:transform .35s steps(5),opacity .35s steps(5),visibility 0s .35s}
-  .alert.show{transform:none;opacity:1;visibility:visible;transition:transform .35s steps(5),opacity .35s steps(5)}
-  .alert.win{background:#08240f;border-color:var(--green)}
-  .alert .ah{display:flex;justify-content:space-between;background:var(--red);color:#fff;font-size:10px;padding:5px 7px}
-  .alert.win .ah{background:var(--green);color:#03210b}
-  .alert .ab{padding:10px;font-size:clamp(12px,3.4cqw,24px);line-height:1.15}
-  .flash{position:absolute;inset:0;pointer-events:none;opacity:0}
-  .flash.go{animation:fl .5s steps(4)}
-  @keyframes fl{0%{opacity:.75}100%{opacity:0}}
-  .stats{position:absolute;left:3%;bottom:4%;display:flex;gap:8px;flex-wrap:wrap;max-width:94%}
-  .st{background:rgba(5,10,25,.85);border:2px solid var(--line);padding:3px 7px;font-size:clamp(11px,2.2cqw,20px)}
-  .st small{color:var(--muted)}
-  @container (max-width:760px){.stats{display:none}}   /* palco pequeno: a evolução da carteira desenhada na mesa já mostra o resultado */
-  .side{position:relative;min-height:0;container-type:inline-size}
-  .pos{font-size:clamp(11px,5.4cqw,22px)}
-  /* 0.32.305 (pedido do dono): Histórico das posições embaixo das abertas; as duas listas dividem a altura do painel */
-  .side .col{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px}
-  .side .col .box{flex:1 1 0}.side .col .box.hist{flex:1.2 1 0}
-  .box{border:3px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
-  .box h3{margin:0;padding:8px 10px;font-size:11px;border-bottom:3px solid var(--line);color:var(--neon)}
-  .box h3 span{color:var(--muted);font-family:"VT323",monospace;font-size:16px;margin-left:6px}
-  .chat{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 10px;gap:6px;min-height:240px}
-  .msg{line-height:1.05;animation:up .35s steps(4)}
-  .msg b{display:block;font-size:17px}
-  @keyframes up{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
-  .pos{flex:1;min-height:0;overflow:auto;padding:4px 6px}
-  /* 0.32.300: coluna Hora (entrada); fonte menor para caber a 5ª coluna */
-  .ph,.pr{display:grid;grid-template-columns:minmax(0,1fr) 3.1em 4.2em 4.2em 3.9em;gap:4px;align-items:center;padding:2px 4px}
-  .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:.78em;border-bottom:2px solid #1c2c57}
-  .pr{border-bottom:1px solid #1a2850;font-size:.86em;line-height:1.1}
-  .pr .hr{color:var(--muted)}
-  .pr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ph span:not(:first-child),.pr span:not(:first-child){text-align:right}
-  .pr .pc{font-weight:bold;overflow:visible}
-  .empty{color:var(--muted);padding:10px}
-  .tick{flex:0 0 auto;margin:0 16px 12px;border:3px solid var(--line);background:#0c1428;display:flex;align-items:center;overflow:hidden;white-space:nowrap}
-  .tick .lab{background:var(--line);padding:10px;font-size:11px;flex:0 0 auto}
-  .tick .run{display:inline-block;padding-left:100%;animation:run 30s linear infinite;font-size:1.1em}
-  .tick .run span{margin-right:28px}
-  @keyframes run{to{transform:translateX(-100%)}}
-  .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--yellow)}
-  .risk{color:#facc15;font-weight:bold}
-  .err{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#3a0d12;border:3px solid var(--red);padding:10px 14px;z-index:9;max-width:92vw}
-  /* 0.32.333 (pedido do dono, com referências de pixel art): janelas retrô com barra de título, ícones e borda em degraus;
-     LOG DO ROBÔ em estilo terminal */
-  .box{border:0;box-shadow:0 0 0 3px #0a0f20,0 0 0 6px var(--line),6px 6px 0 6px #050914;margin:6px}
-  .box h3{display:flex;align-items:center;gap:6px;background:linear-gradient(#24407e,#1a2f5e);color:#fff;text-shadow:2px 2px 0 #0a0f20;border-bottom:3px solid #0a0f20}
-  .box h3 .ico{flex:0 0 auto;height:16px;width:auto}
-  .box h3 .dots{margin-left:auto;display:flex;gap:4px}
-  .box h3 .dots b{width:8px;height:8px;background:#3df2c4;box-shadow:0 0 0 2px #0a0f20}
-  .box h3 .dots b:nth-child(2){background:#ffd23f}.box h3 .dots b:nth-child(3){background:#ff4d5e}
-  .side .col{gap:14px;padding:4px}
-  .side .col .box.logb{flex:1 1 0}
-  .log{flex:1;min-height:0;overflow:auto;background:#020a06;padding:6px 8px;font-family:"VT323",monospace;font-size:clamp(13px,4.6cqw,19px);line-height:1.05;color:#3ee66b}
-  .log .ll{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 0;border-bottom:1px dashed #0c2a18}
-  .log .lt{color:#4f7a5e;margin-right:6px}.log .lr{color:#7fa58c}
-  .log .ll.no b{color:#8fa3d1}.log .ll.wait b{color:#6fd3ff}.log .ll.real b{color:#ffd23f}.log .ll.bad b{color:#ff4d5e}.log .ll.sell b{color:#ff9f1c}.log .ll.ok b{color:#3ee66b}
-  .log .ll.new{animation:typein .8s steps(12)}
-  @keyframes typein{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-  .log .cur{color:#3ee66b;animation:blink 1s steps(2) infinite}
-  .ico{height:1.1em;width:auto;vertical-align:-0.15em;margin-right:4px}
-  .alert{border-width:4px;box-shadow:6px 6px 0 #000;top:auto;bottom:5%;left:2%;transform:translateY(30px)}
-  .stage .stats{display:none}
-  .mood{font-size:10px}.mood.m-euforia,.mood.m-feliz{border-color:var(--green);color:var(--green)}.mood.m-atento{border-color:#6fd3ff;color:#6fd3ff}
-  .mood.m-dedicado{border-color:#ff9f1c;color:#ff9f1c}.mood.m-nervoso{border-color:var(--red);color:var(--red);animation:alarm 1s steps(2) infinite}   /* o resultado agora é desenhado na mesa (placar e carteira) */
-  .alert .ah{align-items:center}.alert .ah .ico{height:16px}
-  .tick .run .ico{height:1em}
-  /* BOT LIVE */
-  .brand{color:#c084fc;text-shadow:0 0 8px rgba(192,132,252,.5)}
-  /* letreiro da live: na mesa, à esquerda (a cena deixa esse lugar livre quando há título) */
-  .ovt{position:absolute;left:1.9%;bottom:2.8%;width:50.3%;height:20.2%;pointer-events:none;display:flex;flex-direction:column;justify-content:center;padding:0 2.2%;overflow:hidden}
-  .ovt b{display:block;font-family:"Press Start 2P",monospace;font-size:clamp(8px,2.1cqw,22px);color:#f5d0fe;text-shadow:0 0 6px #c084fc,2px 2px 0 #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:neon 4s steps(2) infinite}
-  .ovt small{display:block;font-size:clamp(11px,2.3cqw,24px);color:#c4b5fd;margin-top:.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  @keyframes neon{0%,92%{opacity:1}94%{opacity:.55}}
-  .ovt:empty{display:none}
-  .lofi{position:absolute;right:1.6%;bottom:26.5%;font-family:"Press Start 2P",monospace;font-size:clamp(7px,1.3cqw,12px);color:#e9d5ff;background:rgba(10,6,25,.7);border:2px solid #6d28d9;padding:4px 6px;pointer-events:none}
-  .lofi[hidden]{display:none}
-  .lofi i{display:inline-block;width:3px;margin-right:2px;background:#c084fc;animation:eq .9s steps(3) infinite;vertical-align:bottom}
-  .lofi i:nth-child(2){animation-delay:-.3s}.lofi i:nth-child(3){animation-delay:-.6s}
-  @keyframes eq{0%{height:3px}50%{height:10px}100%{height:6px}}
-  body.nopanel .grid{grid-template-columns:minmax(0,1fr)}body.nopanel .side,body.nopanel .tick{display:none}
-  body.clean .top,body.clean .sub{display:none}body.clean .grid{padding:0}body.clean .stage{border:0}
-  .cfgbtn{background:#2e1065;border-color:#7c3aed}
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);background:#0d0a1f;border-left:4px solid #7c3aed;z-index:20;transform:translateX(105%);transition:transform .25s steps(5);display:flex;flex-direction:column}
-  .drawer.open{transform:none}
-  .drawer h2{margin:0;padding:12px 14px;font-family:"Press Start 2P",monospace;font-size:12px;background:#2e1065;color:#fff;display:flex;justify-content:space-between;align-items:center}
-  .drawer .bd{overflow:auto;padding:10px 14px 20px;display:flex;flex-direction:column;gap:12px}
-  .drawer label{display:flex;flex-direction:column;gap:4px;font-size:18px;color:var(--muted)}
-  .drawer input[type=text],.drawer select{font-family:"VT323",monospace;font-size:20px;background:#140f2e;color:var(--text);border:2px solid #4c1d95;padding:6px 8px}
-  .drawer input[type=range]{width:100%}
-  .drawer .row{display:flex;gap:8px;flex-wrap:wrap}
-  .drawer .sw{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:18px;color:var(--text);border-bottom:1px dashed #2e1065;padding:4px 0}
-  .drawer .sw button{min-width:64px}
-  .drawer .tg{font-family:"Press Start 2P",monospace;font-size:9px;border:2px solid #7f1d1d;background:#3b0a0a;color:#fecaca;padding:7px 8px;cursor:pointer}
-  .drawer .tg.on{border-color:#15803d;background:#052e16;color:#bbf7d0}
-  .drawer .hint{font-size:15px;color:var(--muted);line-height:1.15}
-  .drawer .obs{font-size:14px;word-break:break-all;background:#140f2e;border:2px dashed #4c1d95;padding:6px;color:#e9d5ff}
-  @media (max-width:980px) and (orientation:portrait),(max-width:700px){
-    body{height:auto;min-height:100dvh}.grid{flex:none;grid-template-columns:minmax(0,1fr)}
-    .stwrap{container-type:inline-size;display:block}.stage{width:100%}.side .col{position:static}.side .col .box,.side .col .box.hist,.side .col .box.logb{flex:none;max-height:60vh}}
-  @media (max-height:520px) and (orientation:landscape){.sub{display:none}.top{padding:4px 10px}.grid{padding:6px 10px;gap:8px}.tick{margin:0 10px 6px}.tick .lab{padding:6px}}
-  @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:5px 7px;order:3}}
-  @media (prefers-reduced-motion:reduce){.tick .run{animation-duration:90s}}
+  /* 0.32.337 (pedido do dono, 13/11): BOT LIVE no "Qual projeto você quer abrir?" abre esta configuração simples; o botão SALA LIVE
+     leva para a cena do BOT fazendo trades (/botlive/sala). Tudo fica salvo neste navegador e vai junto no link do OBS. */
+  body{background:var(--bg);min-height:100vh;margin:0}
+  .bl{max-width:760px;margin:0 auto;padding:max(32px,env(safe-area-inset-top)) 16px 48px;display:flex;flex-direction:column;gap:16px}
+  .bl-h{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .bl-h svg{width:54px;height:54px;flex:0 0 auto}
+  .bl-h h1{margin:0;font-family:"Press Start 2P",monospace;font-size:clamp(16px,3vw,22px);color:#c084fc;letter-spacing:.02em}
+  .bl-h p{margin:4px 0 0;color:var(--muted)}
+  .bl-h .sp{flex:1}
+  .go{display:flex;align-items:center;justify-content:center;gap:12px;height:64px;border:2px solid #c084fc;background:#1c1033;color:#f5d0fe;text-decoration:none;
+    font-family:"Press Start 2P",monospace;font-size:clamp(13px,2.4vw,18px);letter-spacing:.04em;box-shadow:0 0 18px rgba(192,132,252,.25)}
+  .go:hover,.go:focus-visible{background:#2e1065;outline:none}
+  .go i{width:10px;height:10px;border-radius:50%;background:#ef4444;animation:bl 1s steps(2) infinite}
+  @keyframes bl{50%{opacity:.2}}
+  .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .f{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+  .f .in{width:100%}
+  .sw-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .sw-row:last-child{border-bottom:0}
+  .sw-row .tgl{flex:0 0 auto;min-width:132px;justify-content:flex-start}
+  .sw-row b{font-weight:500;color:var(--text);font-size:14px}.sw-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .obs{font-family:"JetBrains Mono",monospace;font-size:11.5px;word-break:break-all;background:var(--bg2);border:1px dashed var(--line2);padding:8px;color:var(--muted);max-height:76px;overflow:auto}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .back{color:var(--muted);font-size:13px}
+  input[type=range]{width:100%}
+  @media (max-width:600px){.grid2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="top">
-  <div class="brand pf">BOT LIVE</div>
-  <span class="live pf"><i></i>AO VIVO</span>
-  <div class="hud pf" id="hud">PROCURANDO GEMS…</div>
-  <div class="hud pf mood" id="mood">HUMOR: ATENTO</div>
-  <div class="ctl" id="ctl">
-    <button class="btn" id="mSim" type="button">FICTÍCIA</button>
-    <button class="btn real" id="mReal" type="button">REAL</button>
-    <button class="btn" id="snd" type="button">SOM: OFF</button>
-    <button class="btn" id="mus" type="button">LO-FI: OFF</button>
-    <button class="btn cfgbtn" id="cfgOpen" type="button">⚙ CONFIGURAR</button>
-    <a class="btn" id="pnLink" href="/hood" style="text-decoration:none">PAINEL</a>
+<div class="loading" id="boot" data-ll="Carregando">Carregando…</div>
+<div class="bl" id="bl" hidden>
+  <div class="bl-h">
+    <svg viewBox="0 0 126 126" aria-hidden="true"><rect x="28" y="34" width="70" height="56" rx="6" fill="none" stroke="#c084fc" stroke-width="9"/><rect x="44" y="52" width="10" height="12" fill="#c084fc"/><rect x="72" y="52" width="10" height="12" fill="#c084fc"/><path d="M63 34V18" stroke="#c084fc" stroke-width="8"/><circle cx="63" cy="16" r="7" fill="#c084fc"/><path d="M50 76h26" stroke="#c084fc" stroke-width="7"/></svg>
+    <div><h1>BOT LIVE</h1><p>Configure a live e abra a SALA LIVE com o BOT fazendo trades.</p></div>
+    <div class="sp"></div><a class="back" href="/entrar">← trocar projeto</a>
   </div>
-</div>
-<div class="sub" id="sub">conectando…</div>
-<div class="grid">
-  <div class="stwrap"><div class="stage" id="stage">
-    <canvas id="scene" width="320" height="180" aria-label="BOT trabalhando em pixel art, reagindo às operações"></canvas>
-    <div class="ovt" id="ovt"></div>
-    <div class="lofi" id="lofiTag" hidden><i></i><i></i><i></i> LO-FI · <span id="lofiMood">CHILL</span></div>
-    <div class="flash" id="flash"></div>
-    <div class="alert" id="alert"><div class="ah pf"><span id="aT">ALERTA!</span><span class="ax">X</span></div><div class="ab" id="aB"></div></div>
-    <div class="stats" id="stats"></div>
-  </div></div>
-  <div class="side">
-    <div class="col">
-      <div class="box"><h3 class="pf" data-ico="coin">POSIÇÕES ABERTAS<span id="posN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="pos"></div></div>
-      <div class="box logb"><h3 class="pf" data-ico="bot">LOG DO ROBÔ<span id="logN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="log" id="log"></div></div>
-      <div class="box hist"><h3 class="pf" data-ico="trophy">HISTÓRICO<span id="hisN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="his"></div></div>
+
+  <a class="go" id="goSala" href="/botlive/sala"><i></i>SALA LIVE ▶</a>
+
+  <div class="card"><header><div><h2>Dados da live</h2><div class="sub">de onde vêm as compras e vendas que o BOT mostra</div></div></header>
+    <div class="grid2">
+      <label class="f">Rede<select class="in" id="cRede"><option value="hood">Robinhood (ETH)</option><option value="pump">Solana (pump.fun)</option></select></label>
+      <label class="f">Carteira<select class="in" id="cCart"><option value="sim">FICTÍCIA</option><option value="real">REAL</option></select></label>
     </div>
   </div>
-</div>
-<div class="tick"><div class="lab pf">ÚLTIMOS TRADES</div><div style="overflow:hidden;flex:1"><div class="run" id="run"></div></div></div>
-<div class="err" id="err" hidden></div>
-<div class="drawer" id="drawer" aria-label="Configuração da live">
-  <h2>CONFIGURAR LIVE <button class="btn" id="cfgClose" type="button">X</button></h2>
-  <div class="bd">
-    <label>Dados da live<select id="cRede"><option value="hood">Robinhood (ETH)</option><option value="pump">Solana (pump.fun)</option></select></label>
-    <label>Carteira<select id="cCart"><option value="sim">FICTÍCIA</option><option value="real">REAL</option></select></label>
-    <label>Nome do BOT<input type="text" id="cNome" maxlength="10" placeholder="ex.: BOTZIN"></label>
-    <label>Título na tela<input type="text" id="cTit" maxlength="40" placeholder="ex.: BOT TRABALHANDO 24H"></label>
-    <label>Subtítulo<input type="text" id="cSub" maxlength="60" placeholder="ex.: lo-fi beats para operar memecoin"></label>
-    <label>Céu da janela<select id="cCeu"><option value="">Pela hora (automático)</option><option value="dia">Sempre dia</option><option value="tarde">Sempre fim de tarde</option><option value="noite">Sempre noite</option></select></label>
-    <div class="sw">Música lo-fi <button class="tg" id="cMus" type="button">OFF</button></div>
-    <label>Volume da música<input type="range" id="cVol" min="0" max="100" step="1"></label>
-    <div class="sw">Efeitos sonoros (compra e venda) <button class="tg" id="cSfx" type="button">OFF</button></div>
-    <div class="sw">Balões de fala <button class="tg" id="cBal" type="button">ON</button></div>
-    <div class="sw">Modo privado (esconde saldo e valores, só %) <button class="tg" id="cPriv" type="button">OFF</button></div>
-    <div class="sw">Painel ao lado e letreiro <button class="tg" id="cPan" type="button">ON</button></div>
-    <div class="sw">Tela limpa (sem barra de cima) <button class="tg" id="cClean" type="button">OFF</button></div>
-    <div class="hint">Tudo fica salvo neste navegador. O OBS tem navegador próprio: use o link abaixo na fonte "Navegador" (1920×1080) e entre com a sua conta Google uma vez dentro dela (Interagir). Marque "Controlar áudio pelo OBS" para a música sair na live.</div>
-    <div class="obs" id="cLink"></div>
-    <div class="row"><button class="btn" id="cCopy" type="button">COPIAR LINK DO OBS</button><button class="btn" id="cReset" type="button">PADRÃO</button></div>
-    <div class="hint">A página só lê os dados da sua conta; não compra nem vende nada. A música é gerada aqui mesmo (sem direitos autorais).</div>
-  </div>
-</div>
 
+  <div class="card"><header><div><h2>Na tela</h2><div class="sub">o que aparece para quem assiste</div></div></header>
+    <div class="grid2">
+      <label class="f">Nome do BOT<input class="in" type="text" id="cNome" maxlength="10" placeholder="ex.: BOTZIN"></label>
+      <label class="f">Céu da janela<select class="in" id="cCeu"><option value="">Pela hora (automático)</option><option value="dia">Sempre dia</option><option value="tarde">Sempre fim de tarde</option><option value="noite">Sempre noite</option></select></label>
+      <label class="f">Título da live<input class="in" type="text" id="cTit" maxlength="40" placeholder="ex.: BOT TRABALHANDO 24H"></label>
+      <label class="f">Subtítulo<input class="in" type="text" id="cSub" maxlength="60" placeholder="ex.: lo-fi beats para copiar trader"></label>
+    </div>
+    <div style="margin-top:8px">
+      <div class="sw-row"><div><b>Modo privado</b><small>esconde saldo e valores; mostra só os %</small></div><button class="btn tgl sw" id="cPriv" type="button" role="switch">Desligado</button></div>
+      <div class="sw-row"><div><b>Balões de fala</b><small>o BOT e o personagem comentam o mercado</small></div><button class="btn tgl sw" id="cBal" type="button" role="switch">Desligado</button></div>
+      <div class="sw-row"><div><b>Painel ao lado e letreiro</b><small>posições, log do robô e histórico ao lado da cena</small></div><button class="btn tgl sw" id="cPan" type="button" role="switch">Desligado</button></div>
+      <div class="sw-row"><div><b>Tela limpa</b><small>sem a barra de cima (só a cena)</small></div><button class="btn tgl sw" id="cClean" type="button" role="switch">Desligado</button></div>
+    </div>
+  </div>
+
+  <div class="card"><header><div><h2>Som</h2><div class="sub">a música é gerada no navegador, sem direitos autorais</div></div></header>
+    <div class="sw-row"><div><b>Música lo-fi</b><small>fica mais tensa quando o BOT está dedicado ou nervoso</small></div><button class="btn tgl sw" id="cMus" type="button" role="switch">Desligado</button></div>
+    <label class="f" style="padding:10px 0"><span>Volume da música <span id="cVolN"></span></span><input type="range" id="cVol" min="0" max="100" step="1"></label>
+    <div class="sw-row"><div><b>Efeitos sonoros</b><small>bipes de 8 bits na compra e na venda</small></div><button class="btn tgl sw" id="cSfx" type="button" role="switch">Desligado</button></div>
+  </div>
+
+  <div class="card"><header><div><h2>Link para o OBS</h2><div class="sub">fonte "Navegador", 1920 × 1080 · entre com a sua conta Google uma vez dentro dela (Interagir) · marque "Controlar áudio pelo OBS"</div></div></header>
+    <div class="obs" id="cLink"></div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="cCopy" type="button">Copiar link do OBS</button><button class="btn" id="cReset" type="button">Voltar ao padrão</button><span class="muted" id="cSaved"></span></div>
+  </div>
+  <p class="muted" style="font-size:12.5px;margin:0">A SALA LIVE só lê os dados da sua conta; não compra nem vende nada. A configuração fica salva neste navegador.</p>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="/static/common.js?v=__V__"></script>
 <script src="/static/botlive.js?v=__V__"></script>
-<script src="/static/sala.js?v=__V__"></script>
-<script src="/static/botlive2.js?v=__V__"></script>
+<script src="/static/botlivecfg.js?v=__V__"></script>
 </body>
 </html>

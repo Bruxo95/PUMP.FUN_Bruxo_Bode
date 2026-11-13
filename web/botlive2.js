@@ -1,5 +1,5 @@
-// 0.32.336 (pedido do dono, 13/11): BOT LIVE — roda DEPOIS de sala.js. Liga a gaveta de configuração, o título na tela, o link do
-// OBS e a música lo-fi. A música é gerada aqui mesmo com o WebAudio (acordes de piano elétrico, baixo, bateria com swing e chiado de
+// 0.32.336 (pedido do dono, 13/11): BOT LIVE — roda DEPOIS de sala.js na SALA LIVE (/botlive/sala). Aplica a configuração da
+// live (feita em /botlive): título na tela, painel, música lo-fi e efeitos. 0.32.337: a configuração saiu desta tela. A música é gerada aqui mesmo com o WebAudio (acordes de piano elétrico, baixo, bateria com swing e chiado de
 // vinil), sem arquivo de fora e sem direitos autorais; quando o humor do BOT fica tenso (dedicado/nervoso) a harmonia vira menor.
 (function () {
   "use strict";
@@ -103,49 +103,32 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   function obsLink() {
     const o = Object.assign({}, cfg); delete o.botlive; delete o.mkey;
-    return location.origin + "/botlive?cfg=" + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))));
+    return location.origin + "/botlive/sala?cfg=" + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))));
   }
   function apply() {
     $("ovt").innerHTML = (cfg.titulo ? "<b>" + esc(cfg.titulo) + "</b>" : "") + (cfg.sub ? "<small>" + esc(cfg.sub) + "</small>" : "");
     document.body.classList.toggle("nopanel", !cfg.painel);
     document.body.classList.toggle("clean", !!cfg.limpa);
-    Object.entries(TG).forEach(([id, k]) => { const b = $(id); b.classList.toggle("on", !!cfg[k]); b.textContent = cfg[k] ? "ON" : "OFF"; });
+    Object.entries(TG).forEach(([id, k]) => { const b = $(id); if (b) { b.classList.toggle("on", !!cfg[k]); b.textContent = cfg[k] ? "ON" : "OFF"; } });
     $("mus").textContent = "LO-FI: " + (cfg.musica ? "ON" : "OFF"); $("mus").classList.toggle("on", !!cfg.musica);
     $("lofiTag").hidden = !cfg.musica;
     if (cfg.musica) Lofi.start(); else Lofi.stop();
     Lofi.vol(cfg.vol);
     if (window.SALA) { window.SALA.setSound(cfg.sfx); window.SALA.rerender(); }
-    $("cLink").textContent = obsLink();
+    if ($("cLink")) $("cLink").textContent = obsLink();
     $("pnLink").href = cfg.rede === "hood" ? "/hood" : "/app";
-  }
-  function fill() {
-    $("cRede").value = cfg.rede; $("cCart").value = cfg.carteira; $("cNome").value = cfg.nome || ""; $("cTit").value = cfg.titulo || "";
-    $("cSub").value = cfg.sub || ""; $("cCeu").value = cfg.ceu || ""; $("cVol").value = cfg.vol;
   }
   const set = (k, v) => { cfg[k] = v; save(); apply(); };
 
-  $("cfgOpen").addEventListener("click", () => $("drawer").classList.add("open"));
-  $("cfgClose").addEventListener("click", () => $("drawer").classList.remove("open"));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("drawer").classList.remove("open"); });
-  $("cRede").addEventListener("change", (e) => { cfg.rede = e.target.value; save(); location.href = "/botlive"; });   // a rede muda a fonte dos dados: recarrega
-  $("cCart").addEventListener("change", (e) => { cfg.carteira = e.target.value; save(); if (window.SALA) window.SALA.setMode(cfg.carteira === "real"); apply(); });
-  ["mSim", "mReal"].forEach((id) => $(id).addEventListener("click", () => { cfg.carteira = id === "mReal" ? "real" : "sim"; save(); fill(); apply(); }));
-  [["cNome", "nome"], ["cTit", "titulo"], ["cSub", "sub"]].forEach(([id, k]) => $(id).addEventListener("input", (e) => set(k, e.target.value.slice(0, 60))));
-  $("cCeu").addEventListener("change", (e) => set("ceu", e.target.value));
-  $("cVol").addEventListener("input", (e) => set("vol", +e.target.value));
-  Object.entries(TG).forEach(([id, k]) => $(id).addEventListener("click", () => set(k, !cfg[k])));
+  // a carteira escolhida nos botões FICTÍCIA/REAL fica salva na configuração da live
+  ["mSim", "mReal"].forEach((id) => $(id).addEventListener("click", () => { cfg.carteira = id === "mReal" ? "real" : "sim"; save(); }));
   $("mus").addEventListener("click", () => set("musica", !cfg.musica));
-  $("snd").addEventListener("click", () => { cfg.sfx = !!(window.SALA && window.SALA.state.sound); save(); fill(); apply(); });
-  $("cCopy").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(obsLink()); $("cCopy").textContent = "COPIADO!"; } catch (e) { $("cCopy").textContent = "SELECIONE E COPIE"; }
-    setTimeout(() => { $("cCopy").textContent = "COPIAR LINK DO OBS"; }, 2000);
-  });
-  $("cReset").addEventListener("click", () => { const r = cfg.rede; Object.assign(cfg, DEF, { rede: r }); save(); fill(); apply(); });
+  $("snd").addEventListener("click", () => { cfg.sfx = !!(window.SALA && window.SALA.state.sound); save(); apply(); });
   // o navegador só deixa tocar som depois de um clique: o primeiro clique na página destrava a música
   document.addEventListener("pointerdown", () => { if (cfg.musica) Lofi.resume(); }, { passive: true });
   setInterval(() => {
     $("lofiMood").textContent = Lofi.blocked() ? "CLIQUE PARA TOCAR" : Lofi.mood() === "tensa" ? "TENSO" : "CHILL";
   }, 1500);
 
-  fill(); apply();
+  apply();
 })();

@@ -2440,6 +2440,11 @@
    "versao": "0.32.336",
    "inicio": "2026-11-13T20:48:58+00:00",
    "titulo": "BOT LIVE no Trocar rede e Robinhood de volta à lógica da 0.32.308"
+  },
+  {
+   "versao": "0.32.337",
+   "inicio": "2026-11-13T21:07:04+00:00",
+   "titulo": "BOT LIVE na escolha de projeto, com configuração e botão SALA LIVE"
   }
  ]
 }

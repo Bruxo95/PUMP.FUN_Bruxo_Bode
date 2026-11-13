@@ -95,14 +95,17 @@ def test_sala_personagem_casual_com_humor_do_mercado():
 
 
 def test_pagina_bot_live(env):
-    """0.32.336 (pedido do dono): BOT LIVE — /botlive com a cena da Sala, configuração da live e música lo-fi; aparece no Trocar rede."""
+    """0.32.336/0.32.337 (pedido do dono): BOT LIVE no "Qual projeto você quer abrir?" → /botlive (configuração simples) com o botão
+    SALA LIVE → /botlive/sala (a cena do BOT fazendo trades). Fora do menu Trocar rede."""
     r = env["c"].get("/botlive")
-    assert r.status_code == 200 and "/static/botlive.js?v=" in r.text and "/static/sala.js?v=" in r.text and "/static/botlive2.js?v=" in r.text
-    body = r.text.split("<body>", 1)[1]
-    assert "<script>" not in body and 'id="drawer"' in body and 'id="cPriv"' in body
+    assert r.status_code == 200 and "/static/botlivecfg.js?v=" in r.text and 'href="/botlive/sala"' in r.text and "SALA LIVE" in r.text
+    assert "<script>" not in r.text.split("<body>", 1)[1] and 'id="cPriv"' in r.text
+    r = env["c"].get("/botlive/sala")
+    assert r.status_code == 200 and "/static/sala.js?v=" in r.text and "/static/botlive2.js?v=" in r.text and 'id="drawer"' not in r.text
+    assert "<script>" not in r.text.split("<body>", 1)[1] and 'href="/botlive"' in r.text
     js = open(os.path.join(WEB, "botlive.js"), encoding="utf-8").read()
     assert 'rede: "hood"' in js and "window.SALA_CFG" in js                     # padrão: dados da Robinhood
-    common = open(os.path.join(WEB, "common.js"), encoding="utf-8").read()
-    assert '["botlive", "/botlive"' in common
+    assert '"/botlive"' not in open(os.path.join(WEB, "common.js"), encoding="utf-8").read()
+    assert 'href="/botlive"' in open(os.path.join(WEB, "entrar.html"), encoding="utf-8").read()
     sala = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert "PRIV()" in sala and "window.SALA =" in sala
