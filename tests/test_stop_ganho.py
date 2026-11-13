@@ -228,9 +228,14 @@ def test_entry_block_uses_bad_bands_and_lets_one_in_five_through():
 
 
 def test_fictitious_slippage_is_lower_but_real_estimate_keeps_3_pct():
-    d = settings.server_defaults()
-    assert d["pump_extra_slip_pct"] == 1.5 and d["pump_sg_entrada_on"] is True
-    pf = _pf(pump_extra_slip_pct=1.5)
-    assert pf._fee_rates(MINT)["slip"] == 0.015 and pf._fee_rates(MINT, real=True)["slip"] == 0.03
-    pf.cfg.pump_extra_slip_pct = 0.0                     # valor escolhido vale igual nas duas (os testes antigos da REAL usam 0)
-    assert pf._fee_rates(MINT, real=True)["slip"] == 0.0
+    # o conftest põe os padrões antigos (SAIDAS_OLD) nos testes; aqui o padrão novo é posto à mão
+    assert settings.AJUSTES[4] == {"pump_extra_slip_pct": 3.0} and settings.server_defaults()["pump_sg_entrada_on"] is True
+    spec = settings.USER_KEYS["pump_extra_slip_pct"]
+    settings.USER_KEYS["pump_extra_slip_pct"] = (spec[0], 1.5) + tuple(spec[2:])
+    try:
+        pf = _pf(pump_extra_slip_pct=1.5)
+        assert pf._fee_rates(MINT)["slip"] == 0.015 and pf._fee_rates(MINT, real=True)["slip"] == 0.03
+        pf.cfg.pump_extra_slip_pct = 0.0                 # valor escolhido vale igual nas duas (os testes antigos da REAL usam 0)
+        assert pf._fee_rates(MINT, real=True)["slip"] == 0.0
+    finally:
+        settings.USER_KEYS["pump_extra_slip_pct"] = spec
