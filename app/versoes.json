@@ -2460,6 +2460,11 @@
    "versao": "0.32.340",
    "inicio": "2026-11-13T22:32:16+00:00",
    "titulo": "BOT LIVE copia todos os top traders, com stop de perda e stop móvel, e horário UTC"
+  },
+  {
+   "versao": "0.32.341",
+   "inicio": "2026-11-13T22:45:47+00:00",
+   "titulo": "BOT LIVE: log com horário, nome do token, rede e motivo"
   }
  ]
 }

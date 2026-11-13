@@ -101,6 +101,14 @@
   .log .lt{color:#4f7a5e;margin-right:6px}.log .lr{color:#7fa58c}
   .log .ll.no b{color:#8fa3d1}.log .ll.wait b{color:#6fd3ff}.log .ll.real b{color:#ffd23f}.log .ll.bad b{color:#ff4d5e}.log .ll.sell b{color:#ff9f1c}.log .ll.ok b{color:#3ee66b}
   .log .ll.new{animation:typein .8s steps(12)}
+  /* 0.32.341: linha do log do BOT LIVE em duas partes (decisão e motivo), sem cortar o motivo */
+  .log .ll.bl{white-space:normal;overflow:visible;padding:3px 0}
+  .log .ll.bl .l1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .log .ll.bl .tk{color:#f5d0fe;font-weight:bold;margin-left:4px}
+  .log .ll.bl .net{margin-left:6px;font-size:.78em;color:#c3f53c;border:1px solid #4d6a14;padding:0 3px;vertical-align:1px}
+  .log .ll.bl .nx{margin-left:6px;color:#ffd23f}
+  .log .ll.bl .l2{color:#9fbfaa;padding-left:4.2em;font-size:.95em;line-height:1.05}
+  .log .ll.bl .tk{margin-left:0}
   @keyframes typein{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
   .log .cur{color:#3ee66b;animation:blink 1s steps(2) infinite}
   .ico{height:1.1em;width:auto;vertical-align:-0.15em;margin-right:4px}

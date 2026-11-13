@@ -2,6 +2,8 @@
 separada da /hood. Só admin, só a própria conta. Nada aqui compra ou vende de verdade."""
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import Depends
 
 from .db import audit
@@ -20,7 +22,24 @@ def add_routes(app, get_bot, admin_only, db) -> None:
             return off()
         p = c.painel(u["id"])
         keep = ("cfg_sim", "padrao", "carteira", "posicoes", "trades", "eventos", "nomes", "eth_usd", "copiaria", "explorer")
-        return {"ligado": True, "real": False, "seguindo": len(p.get("copiaria") or []), **{k: p.get(k) for k in keep}}
+        out = {"ligado": True, "real": False, "seguindo": len(p.get("copiaria") or []), **{k: p.get(k) for k in keep}}
+        # 0.32.341: nome dos tokens do log. O HoodWatch busca nomes para o motor da /hood; o BOT LIVE usa os dois.
+        watch = getattr(c.w, "_w", None)
+        hood_meta = getattr(getattr(watch, "copier", None), "meta", {}) or {}
+        falta = list(dict.fromkeys(e.get("token") for e in out.get("eventos") or []
+                                   if e.get("token") and e["token"] not in c.meta and e["token"] not in hood_meta))
+        if falta and hasattr(watch, "fill_names"):                       # DexScreener, até 30 por vez; quem não veio tenta de novo em 10 min
+            try:
+                await asyncio.wait_for(watch.fill_names(falta), 4)
+            except Exception:
+                pass
+        nomes = dict(out.get("nomes") or {})
+        for e in out.get("eventos") or []:
+            tk = e.get("token")
+            if tk and tk not in nomes and (c.meta.get(tk) or hood_meta.get(tk)):
+                nomes[tk] = c.meta.get(tk) or hood_meta.get(tk)
+        out["nomes"] = nomes
+        return out
 
     @app.post("/api/botlive/carteira")
     async def botlive_carteira(body: dict, u: dict = Depends(admin_only)):

@@ -671,10 +671,41 @@
     if (a.indexOf("vend") >= 0 || a.indexOf("fech") >= 0 || a.indexOf("saiu") >= 0) return "sell";
     return "ok";
   }
+  // 0.32.341 (pedido do dono): no BOT LIVE cada linha do log mostra horário (UTC), nome do token, rede, a decisão e o motivo em texto
+  // curto, sem cortar; linhas iguais seguidas viram uma só com "×N".
+  const MOTIVOS = [
+    [/pool deste trade não é da Uniswap V4 pago em ETH/i, "pool fora da Uniswap V4 em ETH"],
+    [/já tem (a )?posição/i, "já tem posição neste token"],
+    [/sem saldo|saldo insuficiente/i, "sem saldo na carteira do BOT"],
+    [/máximo de .*abertas|limite de .*abertas/i, "limite de posições abertas"],
+    [/venda .*recus|honeypot|não deixa vender/i, "o pool não deixa vender (golpe)"],
+    [/atrasad|velho|antigo/i, "trade antigo, chegou tarde"],
+  ];
+  const motivo = (r) => {
+    r = String(r || "");
+    for (const [re, t] of MOTIVOS) if (re.test(r)) return t;
+    return r.replace(/^token barrado:\s*/i, "").replace(/\s*\(.*$/, "");
+  };
+  function renderBotLog(L, box) {
+    const G = [];
+    L.forEach((x) => {
+      const last = G[G.length - 1], m = motivo(x.r);
+      if (last && last.a === x.a && last.s === x.s && last.m === m) last.n++;
+      else G.push(Object.assign({}, x, { m, n: 1 }));
+    });
+    box.innerHTML = G.slice(0, 30).map((x, i) => {
+      const k = logKind(x.a), ic = k === "ok" ? icon("up", 1) : k === "sell" ? icon("down", 1) : "";
+      return '<div class="ll bl ' + k + (i === 0 && x.fresh ? " new" : "") + '" title="' + esc(x.r || "") + '">' +
+        '<div class="l1"><span class="lt">' + esc(x.h) + '</span>' + ic + '<span class="tk">' + esc(x.s || "?") + '</span><span class="net">ROBINHOOD</span>' +
+        (x.n > 1 ? '<span class="nx">×' + x.n + "</span>" : "") + "</div>" +
+        '<div class="l2"><b>' + esc(String(x.a || "").toUpperCase()) + "</b>" + (x.m ? " · " + esc(x.m) : "") + "</div></div>";
+    }).join("") + '<div class="cur">&gt; _</div>';
+  }
   function renderLog() {
     const L = S.log.slice(0, 40), box = $("log");
     $("logN").textContent = L.length ? "(" + L.length + ")" : "";
     if (!L.length) { box.innerHTML = '<div class="empty">sem decisões recentes</div>'; return; }
+    if (C().botlive) { renderBotLog(L, box); return; }
     box.innerHTML = L.map((x, i) => {
       const k = logKind(x.a);
       const ic = k === "ok" ? icon("up", 1) : k === "sell" ? icon("down", 1) : "";
@@ -771,7 +802,7 @@
     const curve = tr.slice().sort((a, b) => tms(a.closed_at) - tms(b.closed_at)).map((t) => { acc += +t.pnl_sol || 0; return [t.closed_at, acc]; });
     const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: p.eth_usd,
       start_sol: w.inicial == null ? null : w.inicial, equity_sol: w.total == null ? null : w.total, pnl_pct: w.resultado_pct };
-    const nmOf = (tk) => { const v = nm[tk]; return (v && (v.simbolo || v.nome || v.symbol)) || (typeof v === "string" ? v : (tk || "").slice(0, 8)); };
+    const nmOf = (tk) => { const v = nm[tk]; return (v && (v.simbolo || v.nome || v.symbol)) || (typeof v === "string" ? v : tk ? tk.slice(0, 6) + "…" + tk.slice(-4) : ""); };
     const log = (p.eventos || []).map((e) => ({ k: e.t + "|" + e.token + "|" + e.acao, h: e.t ? hms(e.t * 1000) : "", a: e.acao, s: nmOf(e.token), r: e.motivo }));
     // 0.32.339: BOT LIVE recém-ligado ainda sem decisões — mostra que está trabalhando e quantos traders acompanha
     if (C().botlive && !log.length) log.push({ k: "bl-status", h: hms(Date.now()), a: (p.cfg_sim && p.cfg_sim.on === false) ? "BOT parado" : "BOT operando",
