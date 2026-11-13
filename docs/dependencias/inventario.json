@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-13",
     "timezone": "Europe/Dublin",
-    "repository_reference": "749896f57da49316feddc52e775d2dcf10ce0704",
-    "application_version": "0.32.335 · 2026-11-13 · Fictícia mais perto da REAL e entradas ruins barradas",
+    "repository_reference": "254199296a4c1d8d5f756973fbcabde4b99e89d6",
+    "application_version": "0.32.336 · 2026-11-13 · BOT LIVE no Trocar rede e Robinhood de volta à lógica da 0.32.308",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "3eb94fb7ed3cb604fb59f107927da2892a8867ee27dd3263cdb0a71b7d88fba1",
+      "app/version.py": "6bf957f4860ef91ba51f373efb0e937b5dfab5d6de65f8b35b4b84bebbf5aef6",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e14c058c8d99f07d93a938aabc8397ab6186d75287e1cb8f83e8b80aa5ad038f"
+  "pdf_sha256": "ff779a17a81003ea8c08042ed7d5dffddcf3e14f45512b8852c8000fbb26882a"
 }

@@ -19,9 +19,9 @@ def test_defaults_fictitious_on_real_and_explorar_off():
     d = settings.server_defaults()
     assert d["pump_sg_on"] is True and d["pump_sg_fixo_pct"] == 0
     assert d["pump_sg_real"] is False and d["pump_sg_explorar"] is False         # REAL nova começa OFF; Explorar não muda sozinho
-    assert hoodcopy.CFG_DEFAULT["sg_on"] is True and bnbcopy.CFG_DEFAULT["sg_on"] is True
+    assert bnbcopy.CFG_DEFAULT["sg_on"] is True   # Robinhood voltou à lógica da 0.32.308 (13/11)
     from app import bnbreal, hoodreal
-    assert hoodreal.REAL_DEFAULT["real_sg_on"] is False and bnbreal.REAL_DEFAULT["real_sg_on"] is False
+    assert bnbreal.REAL_DEFAULT["real_sg_on"] is False and "real_sg_on" not in hoodreal.REAL_DEFAULT   # Robinhood: lógica da 0.32.308
     assert settings.PumpSettings({}).pump_real_enabled is False
     assert d["pump_runup_max_pct"] == 100                                       # 0.32.332: entrada no topo barrada por padrão
 
@@ -173,20 +173,6 @@ def test_solana_switches_fixed_level_explorar_and_copiar_igual():
     pf2._save_pos(r)
     _price(pf2, r["price_in"] * 1.5)
     assert pf2.positions()
-
-
-def test_robinhood_book_sells_at_the_level_but_not_the_button_buy():
-    key = [hoodcopy.ZERO, "0x" + "ab" * 20, 10000, 200, hoodcopy.ZERO]
-    b = hoodcopy.Book("u", {"slip_pct": 0, "gas_eth": 0})
-    t = time.time()
-    tr = {"id": "x", "tx": "0x" + "ee" * 32, "token": key[1], "wallet": "0x" + "11" * 20, "side": "buy", "amount": 1000.0,
-          "eth": 1.0, "t": t, "fee": 10000}
-    p = b.buy(tr, 0.001, t, key)
-    out = b.on_price(key[1], 0.00113, t)                      # +13% no preço, ~+10,9% depois da taxa do pool
-    assert out and out[0]["motivo"].startswith("stop de ganho autônomo: +10%") and out[0]["sg"]["saiu"]
-    assert p["id"] not in b.pos
-    q = b.buy(dict(tr, wallet="0x" + "22" * 20), 0.001, t, key, origem="botao")
-    assert not b.on_price(key[1], 0.0013, t) and q["id"] in b.pos and q["sg_fonte"] == "fora"
 
 
 def test_bnb_book_now_has_a_take_profit():

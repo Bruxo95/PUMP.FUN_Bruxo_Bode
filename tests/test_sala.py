@@ -92,3 +92,17 @@ def test_sala_personagem_casual_com_humor_do_mercado():
     for m in ("euforia", "feliz", "atento", "dedicado", "nervoso"):
         assert m + ":" in js
     assert "S.mood =" in js and "MELHORANDO!" in js and 'id="mood"' in html and "HOOD_C" in js
+
+
+def test_pagina_bot_live(env):
+    """0.32.336 (pedido do dono): BOT LIVE — /botlive com a cena da Sala, configuração da live e música lo-fi; aparece no Trocar rede."""
+    r = env["c"].get("/botlive")
+    assert r.status_code == 200 and "/static/botlive.js?v=" in r.text and "/static/sala.js?v=" in r.text and "/static/botlive2.js?v=" in r.text
+    body = r.text.split("<body>", 1)[1]
+    assert "<script>" not in body and 'id="drawer"' in body and 'id="cPriv"' in body
+    js = open(os.path.join(WEB, "botlive.js"), encoding="utf-8").read()
+    assert 'rede: "hood"' in js and "window.SALA_CFG" in js                     # padrão: dados da Robinhood
+    common = open(os.path.join(WEB, "common.js"), encoding="utf-8").read()
+    assert '["botlive", "/botlive"' in common
+    sala = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert "PRIV()" in sala and "window.SALA =" in sala

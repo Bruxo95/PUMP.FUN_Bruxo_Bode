@@ -28,24 +28,21 @@ ZERO = "0x" + "0" * 40
 SEL_APPROVE = evm.selector("approve(address,uint256)")
 SEL_ALLOW = evm.selector("allowance(address,address)")
 SEL_BALANCE = evm.selector("balanceOf(address)")
-SEL_EXTSLOAD = evm.selector("extsload(bytes32)")
 T_TRANSFER = "0x" + evm.keccak256(b"Transfer(address,address,uint256)").hex()
 GAS_RESERVE = 0.0005                # ETH que fica na carteira para o gás das vendas
 RETRY_S = 60                        # venda automática que falhou espera 1 min antes de tentar de novo
-NO_LIQ_RETRY_S = 600                # pool sem liquidez: confere de novo a cada 10 min (o criador pode devolver)
 RECIBO_S = 60
 
 # 0.32.287 (pedido do dono: "a carteira real tá faltando umas coisas que tem na fictícia"): tempo máximo e stop próprios da REAL
 REAL_DEFAULT = {"real_on": False, "real_eth_por_compra": 0.002, "real_max_abertas": 5, "real_slip_pct": 15.0, "real_perda_dia": 0.01,
-                "real_max_hold_h": 6.0, "real_stop_pct": 30.0,     # 0.32.322: mesmos padrões novos de saída da fictícia
+                "real_max_hold_h": 6.0, "real_stop_pct": 0.0,
                 # 0.32.290 (pedido do dono): sair quando o trader / o dev sai da moeda e stop móvel (mesma regra da Solana)
-                "real_espelho": True, "real_so_lp_presa": True, "real_sair_liquidez": True, "real_um_por_token": True, "real_sair_travado": True, "real_sair_trader": True, "real_trader_so_lucro": False, "real_sair_dev": True, "real_trail_on": True, "real_trail_ativa_pct": 25.0,
-                "real_trail_dist_pct": 20.0,
-                "real_sg_on": False}            # 0.32.332: stop de ganho autônomo na REAL sem par (opção nova de REAL começa desligada)
+                "real_espelho": True, "real_um_por_token": True, "real_sair_trader": True, "real_trader_so_lucro": True, "real_sair_dev": True, "real_trail_on": True, "real_trail_ativa_pct": 20.0,
+                "real_trail_dist_pct": 10.0}
 REAL_LIMITS = {"real_eth_por_compra": (0.0002, 0.5), "real_max_abertas": (1, 30), "real_slip_pct": (1, 49), "real_perda_dia": (0.0005, 5),
                "real_max_hold_h": (0.1, 168), "real_stop_pct": (0, 100), "real_trail_ativa_pct": (1, 10000),
                "real_trail_dist_pct": (1, 1000)}
-REAL_BOOLS = ("real_sg_on", "real_espelho", "real_so_lp_presa", "real_sair_liquidez", "real_um_por_token", "real_sair_travado", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on")
+REAL_BOOLS = ("real_espelho", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on")
 
 
 def clean(raw: dict | None, base: dict | None = None) -> dict:
@@ -79,15 +76,6 @@ class ChainError(Exception):
     pass
 
 
-class SellBlocked(ChainError):
-    """O pool não aceita a venda do token (golpe que trava venda ou pool sem ETH)."""
-
-
-class NoLiquidity(SellBlocked):
-    """0.32.315 (casos TEXEL e mihao do dono, 11/11): o criador tirou toda a liquidez do pool (ModifyLiquidity negativo de 100% às
-    13:00:30 e 14:01:22). A liquidez ativa do pool é zero: não existe ETH para receber, a venda é impossível e o token vale 0."""
-
-
 class RealBook:
     """Posições REAIS de uma conta (mesmo formato das fictícias, para as telas serem as mesmas)."""
 
@@ -111,9 +99,7 @@ class RealBook:
 
     @staticmethod
     def value_now(p: dict, slip: float) -> float:
-        px = p.get("px_now")
-        if px is None:                               # 0.32.315: 0 é preço de verdade (pool sem liquidez), não "sem preço"
-            px = p.get("px_in") or 0
+        px = p.get("px_now") or p.get("px_in") or 0
         return p["tokens_left"] * px * (1 - (p.get("fee") or 0) - slip / 100)
 
     def pnl_now(self, p: dict, slip: float) -> tuple[float, float]:
@@ -195,14 +181,6 @@ class Chain:
         if not w:
             raise ChainError("o RPC não devolveu o saldo do token (leitura vazia); tenta de novo")
         return w[0]
-
-    async def liquidity(self, key: list) -> int:
-        """Liquidez ativa do pool V4 (slot 3 do Pool.State no PoolManager: keccak(id, 6) + 3), lida por extsload. 0 = sem liquidez."""
-        base = int.from_bytes(evm.keccak256(bytes.fromhex(v4_pool_id(key)[2:]) + (6).to_bytes(32, "big")), "big")
-        w = evm.words(await self.call(PM, SEL_EXTSLOAD + evm.w_int(base + 3)))
-        if not w:
-            raise ChainError("o RPC não devolveu a liquidez do pool")
-        return w[0] & ((1 << 128) - 1)
 
     async def quote(self, key: list, amount: int, buy: bool) -> int:
         w = evm.words(await self.call(QUOTER, v4_quote_data(key, amount, buy)))
@@ -286,41 +264,13 @@ class Chain:
             pass                                     # a venda autoriza de novo se precisar
         return {"raw": got, "eth": amt_eth + gas, "tx": rc.get("transactionHash"), "gas": gas}
 
-    async def sell_quote(self, pkey: list, raw: int) -> tuple[int, int]:
-        """0.32.309 (caso HOLD, 11/11: "simulação recusada: execution reverted" ao vender): cota a venda inteira; se o pool recusar,
-        tenta metade, um quarto e um oitavo (pool com pouca liquidez de ETH aceita só parte). Devolve (quantidade, ETH que volta)."""
-        last = None
-        for part in (1, 2, 4, 8):
-            amt = raw // part
-            if amt <= 0:
-                break
-            try:
-                out = await self.quote(pkey, amt, False)
-            except ChainError as e:
-                last = e
-                continue
-            if out > 0:
-                return amt, out
-        try:
-            liq = await self.liquidity(pkey)
-        except ChainError:
-            liq = None
-        if liq == 0:
-            raise NoLiquidity("o criador tirou toda a liquidez do pool (rug pull): não há ETH para receber, a venda é impossível e o token vale 0")
-        raise SellBlocked("o pool recusou cotar a venda (nem 1/8 da posição): o token pode estar bloqueando vendas (golpe) ou o pool ficou sem ETH"
-                          + (" · " + str(last)[-80:] if last else ""))
-
     async def sell(self, key: int, addr: str, token: str, pkey: list, raw: int, slip: float) -> dict:
         self.checked(pkey, token)
         have = await self.token_balance(token, addr)
         raw = min(raw, have)
         if raw <= 0:
             raise ChainError("a carteira não tem mais este token")
-        raw, out = await self.sell_quote(pkey, raw)
-        try:
-            gas = await self.authorize(key, addr, token, raw, time.time() + 1800)
-        except ChainError as e:
-            raise ChainError("a autorização do token para a venda foi recusada: " + str(e)[-120:])
+        gas = await self.authorize(key, addr, token, raw, time.time() + 1800)
         out = await self.quote(pkey, raw, False)
         if out <= 0:
             raise ChainError("o pool não cotou a venda")

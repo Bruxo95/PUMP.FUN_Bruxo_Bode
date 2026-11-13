@@ -56,7 +56,6 @@
   .cvrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0}.cvf{display:flex;align-items:center;gap:8px;font-weight:600}
   .cvf input{width:170px}.cveq{font-size:20px;color:var(--muted)}.cvq{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px}
   #poTb td:first-child{width:1%;white-space:nowrap}.pobtn{font-weight:600}
-  b.risk{color:#facc15}
   .hdfull{font-size:12px;word-break:break-all}.btn.danger{color:var(--down,#ef4444);border-color:rgba(239,68,68,.45)}.cf-bot{gap:8px;flex-wrap:wrap}
   .garec{font-size:16px;margin-bottom:6px}.garec b{font-size:20px}.garec span{color:var(--muted)}
   .usdh{font-size:12px;color:var(--muted);white-space:nowrap}
@@ -182,12 +181,6 @@
       </section>
       <section class="view" data-view="historico" hidden>
         <div class="kpis" id="hiK"></div>
-        <div class="card" id="pqCard" style="margin-top:16px"><header><div><h2>Por que perdeu (ou ganhou)</h2><div class="sub" id="pqSub">fechadas dos últimos 7 dias</div></div></header>
-          <div class="kpis" id="pqK"></div>
-          <div class="tbl-wrap"><table id="pqM"></table></div>
-          <div class="tbl-wrap"><table id="pqA"></table></div>
-          <div class="tbl-wrap"><table id="pqT"></table></div>
-          <div class="help"><p>Lê assim: a primeira linha de cada tabela é a que mais tirou dinheiro. Se a perda média é muito maior que o ganho médio, o problema está na saída (stop, tempo máximo). Se a entrada com mais atraso perde mais, o problema é chegar tarde. Se um trader soma prejuízo, bloqueie ele em Top traders. As taxas mostram quanto do investido foi para o pool e o gás.</p></div></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Posições fechadas</h2><div class="sub" id="hiSub">mais novas primeiro</div></div></header>
           <div class="tbl-wrap"><table id="hiTb"></table></div></div>
       </section>
@@ -216,8 +209,6 @@
           </div>
           <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div>
           <div class="help"><p>Com REAL e FICTÍCIA ligadas, a REAL compra e vende primeiro e a FICTÍCIA usa o preço que a REAL pagou. Na REAL não existem gás simulado nem saldo inicial: lá o gás e o saldo são os de verdade. Mudar o saldo inicial da FICTÍCIA soma ou tira a diferença do saldo de agora.</p></div></div>
-        <div class="card" style="margin-top:16px" data-novo-ate="2026-11-27"><header><div><h2>Stop de ganho autônomo</h2><div class="sub">o alvo que o robô escolheu com o histórico · liga, desliga e fixa o nível nos Valores da cópia</div></div></header>
-          <div id="sgBox"></div></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Carteira REAL</h2><div class="sub">compra e vende de verdade pela Uniswap V4 · começa desligada</div></div></header>
           <div class="grid2e">
             <div><div class="decbox" id="rlSt"></div><div class="hdbal" id="rlBal" hidden></div></div>

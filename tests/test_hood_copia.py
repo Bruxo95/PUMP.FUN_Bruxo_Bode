@@ -389,7 +389,7 @@ def test_copy_button_follows_a_trader_only_in_that_account():
         assert next(iter(c.books["u1"].pos.values()))["aba"] == "manual"
         c.books["u2"].cfg["auto_top"] = False                     # u2 não quer o Copiando agora
         w.copiaria = [TRADER]
-        c.on_trade(trade("buy", 2000.0, 2.0), 0.0, w.copiaria)   # mesmo preço do pool (0.32.322: preço muito acima do trader não entra)
+        c.on_trade(trade("buy", 2000.0, 1.0), 0.0, w.copiaria)
         await settle(c)
         assert len(c.books["u1"].pos) == 2 and not c.books["u2"].pos
         assert await c.follow("u1", OTHER, False) == []
@@ -487,9 +487,9 @@ def test_modes_per_trader_and_real_goes_first():
         c._real_buy = real_buy
         orig_buy = hoodcopy.Book.buy
 
-        def fake_buy(self, tr, px, t, key, origem="top", **kw):
+        def fake_buy(self, tr, px, t, key, origem="top"):
             order.append(("sim", tr["wallet"]))
-            return orig_buy(self, tr, px, t, key, origem, **kw)
+            return orig_buy(self, tr, px, t, key, origem)
         hoodcopy.Book.buy = fake_buy
         try:
             c.rcfg("u1")["real_on"] = True
@@ -564,7 +564,7 @@ def fcopier(dex=None):
 
 
 def test_trailing_stop_follows_the_solana_rule():
-    b = hoodcopy.Book("u1", {"slip_pct": 0, "gas_eth": 0, "trail_ativa_pct": 20, "trail_dist_pct": 10})
+    b = hoodcopy.Book("u1", {"slip_pct": 0, "gas_eth": 0})
     p = b.buy(trade("buy", 1000.0, 1.0), 0.001, time.time(), KEY)
     t = time.time()
     b.on_price(TOK, 0.0015, t)                       # ~+48%: liga o stop móvel (passou de 20%)
@@ -649,7 +649,6 @@ def test_dexscreener_price_when_the_quote_is_stale_and_token_name():
         c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
         await settle(c)
         b = c.books["u1"]
-        b.cfg["stop_pct"] = 0                        # sem stop: este teste é do preço reserva (o padrão desde a 0.32.322 é 30%)
         p = next(iter(b.pos.values()))
         w.px[TOK] = (0.001, time.time() - 3600)      # último preço de 1 h atrás (o pool parou de cotar)
         await c.dex_tick(time.time())
@@ -662,7 +661,7 @@ def test_dexscreener_price_when_the_quote_is_stale_and_token_name():
 
 def test_trader_exit_waits_for_profit_after_fees():
     """0.32.292 (pedido do dono): trader saiu e a posição está no prejuízo → segura; vende quando ficar positiva."""
-    b = hoodcopy.Book("u1", {"slip_pct": 2, "gas_eth": 0.00002, "trader_so_lucro": True})   # opção desligada por padrão desde a 0.32.322
+    b = hoodcopy.Book("u1", {"slip_pct": 2, "gas_eth": 0.00002})
     t = time.time()
     p = b.buy(trade("buy", 1000.0, 1.0), 0.001, t, KEY)
     assert b.trader_exit(p, 0.5, 0.00101, t, "trader vendeu 50%") is None
@@ -854,148 +853,4 @@ def test_real_sells_when_the_fictitious_already_closed():
         await c.tick()
         await settle(c)
         assert sold and sold[-1][1] == "fictícia já fechou esta posição"
-    run(go())
-
-
-def test_sell_quote_tries_smaller_parts_then_reports_blocked():
-    """0.32.309 (caso HOLD): o pool recusa a venda inteira → tenta 1/2, 1/4, 1/8; recusando tudo, erro claro de venda travada."""
-    async def go(limit):
-        ch = hoodreal.Chain(lambda m, p: None)
-
-        async def quote(key, amount, buy):
-            if amount > limit:
-                raise hoodreal.ChainError("simulação recusada: execution reverted")
-            return amount // 1000
-        ch.quote = quote
-        try:
-            return await ch.sell_quote(KEY, 8000)
-        except hoodreal.SellBlocked as e:
-            return str(e)
-    assert run(go(4000)) == (4000, 4)
-    assert "recusou cotar a venda" in run(go(10))
-
-
-def test_blocked_sale_bars_tokens_with_the_same_symbol():
-    async def go():
-        w, c = copier()
-        c.flag_no_sell("0x" + "99" * 20, "HOLD")
-        c.meta[TOK] = {"nome": "Hold", "simbolo": "hold"}
-        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
-        await settle(c)
-        b = c.books["u1"]
-        assert not b.pos and "HOLD travou a venda" in b.events[0]["motivo"]
-    run(go())
-
-
-class ScanHttp(Http):
-    def __init__(self, contract):
-        super().__init__()
-        self.contract = contract
-
-    async def get(self, url, **kw):
-        if "smart-contracts" in url:
-            return Resp(self.contract)
-        return await super().get(url, **kw)
-
-
-def test_contract_with_sell_lock_functions_is_barred():
-    """0.32.312 (pedido do dono: "se houver travas de venda não é para entrar"): ABI com blacklist/setTrading barra a compra."""
-    async def go():
-        w = Watch()
-        c = hoodcopy.Copier(w, ScanHttp({"is_verified": True, "abi": [{"type": "function", "name": "setTradingEnabled"},
-                                                                      {"type": "function", "name": "addToBlacklist"}]}))
-        c.keys[PID] = KEY
-        b = c.book("u1")
-        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
-        await settle(c)
-        assert not b.pos and "travar ou taxar a venda" in b.events[0]["motivo"]
-    run(go())
-
-
-def test_only_verified_contract_option():
-    async def go():
-        w = Watch()
-        c = hoodcopy.Copier(w, ScanHttp({"is_verified": False}))
-        c.keys[PID] = KEY
-        b = c.book("u1")
-        b.cfg["so_verificado"] = True
-        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
-        await settle(c)
-        assert not b.pos and "não verificado" in b.events[0]["motivo"]
-        b.cfg["so_verificado"] = False
-        c.safe.cache.clear()
-        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
-        await settle(c)
-        assert b.pos
-    run(go())
-
-
-def test_creator_of_a_sell_locked_token_is_barred():
-    async def go():
-        w, c = fcopier()
-        c.dev["0x" + "77" * 20] = DEV
-        c.flag_no_sell("0x" + "77" * 20, "TRAP")
-        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)               # FollowHttp: o criador de TOK é DEV
-        await settle(c)
-        b = c.books["u1"]
-        assert not b.pos and "criou outro que travou a venda" in b.events[0]["motivo"]
-    run(go())
-
-
-def test_risky_token_exits_when_positive_and_is_listed_for_yellow():
-    """0.32.314 (pedido do dono): token com trava do criador sai assim que ficar positivo; vai em `riscos` (nome em amarelo)."""
-    async def go():
-        w = Watch()
-        c = hoodcopy.Copier(w, ScanHttp({"is_verified": True, "abi": []}))
-        c.keys[PID] = KEY
-        b = c.book("u1")
-        b.cfg.update(slip_pct=0, gas_eth=0)
-        c.on_trade(trade("buy", 1000.0, 1.0), 0.0, w.copiaria)
-        await settle(c)
-        p = next(iter(b.pos.values()))
-        c.safe.scans[TOK] = {"verificado": True, "perigo": ["lista negra de carteiras"], "t": time.time()}
-        await c.risk_tick()
-        assert "lista negra" in c.risky[TOK] and c.painel("u1")["riscos"][TOK]
-        b.on_price(TOK, 0.0009, time.time())                 # no prejuízo: segura
-        assert p["id"] in b.pos
-        r = b.on_price(TOK, 0.00105, time.time())            # positivo: sai
-        assert r and "trava do criador" in r[0]["motivo"]
-    run(go())
-
-
-def test_real_partial_sale_keeps_the_rest_open():
-    """0.32.314: o pool aceitou só parte → a posição REAL continua com o resto e tenta de novo em 20 s."""
-    async def go():
-        c = hoodcopy.Copier(Watch(), Http())
-
-        async def get_key(uid):
-            return 1, "0x" + "aa" * 20
-        c.get_key = get_key
-
-        class Ch:
-            async def sell(self, key, addr, token, pkey, raw, slip):
-                return {"eth": 0.001, "raw": raw // 2, "tx": "0xab", "gas": 0.0}
-        c.chain = Ch()
-        rb = c.rbook("u1")
-        p = {"id": "r1", "wallet": TRADER, "token": TOK, "open_t": time.time(), "raw_left": "1000", "tokens_left": 1e-15, "key": KEY,
-             "eth_in": 0.002, "proceeds": 0.0, "px_in": 0.001}
-        rb.pos["r1"] = p
-        await c._real_sell("u1", p, 1.0, "fictícia fechou")
-        assert "r1" in rb.pos and p["raw_left"] == "500" and p["retry_frac"] == 1.0 and p["vendas"]
-    run(go())
-
-
-def test_pool_without_eth_says_which_currency():
-    """0.32.321 (pedido do dono): o motivo diz se o pool é pago em WETH/USDG ou se não foi achado (e tenta de novo em 2 min)."""
-    async def go():
-        w, c = copier()
-        pid = "0x" + "ee" * 32
-        c.keys[pid] = None
-        c._key_at[pid] = time.time()
-        c.key_why[pid] = "pago em WETH (ETH embrulhado, não o ETH puro): a cópia só compra em pool pago em ETH puro"
-        tr = trade("buy", 1000.0, 1.0)
-        tr["pool"] = pid
-        c.on_trade(tr, 0.0, w.copiaria)
-        await settle(c)
-        assert "pago em WETH" in c.books["u1"].events[0]["motivo"]
     run(go())

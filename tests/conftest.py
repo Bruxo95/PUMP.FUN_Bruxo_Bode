@@ -94,12 +94,11 @@ def _sem_stop_de_ganho_nos_testes_antigos(monkeypatch, request):
     if "test_stop_ganho" in request.node.nodeid:
         yield
         return
-    from app import bnbcopy, hoodcopy, settings
+    from app import bnbcopy, settings
     spec = settings.USER_KEYS["pump_sg_on"]
     monkeypatch.setitem(settings.USER_KEYS, "pump_sg_on", (spec[0], False) + tuple(spec[2:]))
     spec = settings.USER_KEYS["pump_sg_entrada_on"]                 # 0.32.335: faixas de entrada ruins
     monkeypatch.setitem(settings.USER_KEYS, "pump_sg_entrada_on", (spec[0], False) + tuple(spec[2:]))
-    monkeypatch.setitem(hoodcopy.CFG_DEFAULT, "sg_on", False)
     monkeypatch.setitem(bnbcopy.CFG_DEFAULT, "sg_on", False)
     spec = settings.USER_KEYS["pump_runup_max_pct"]                  # 0.32.332: filtro de entrada no topo ligado por padrão
     monkeypatch.setitem(settings.USER_KEYS, "pump_runup_max_pct", (spec[0], 0.0) + tuple(spec[2:]))

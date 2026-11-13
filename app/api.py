@@ -72,7 +72,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             + ("; frame-src https://www.geckoterminal.com https://dexscreener.com" if request.url.path == "/dormant" else ""))
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
-        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant", "/sala") or request.url.path.startswith("/static/"):
+        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant", "/sala", "/botlive") or request.url.path.startswith("/static/"):
             resp.headers["Cache-Control"] = "no-cache"          # o navegador sempre confere se há versão nova
         return resp
 
@@ -1687,7 +1687,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     VTAG = hashlib.sha256(VERSION.encode()).hexdigest()[:10]
     PAGES = {n: open(os.path.join(WEB, n), encoding="utf-8").read().replace("__V__", VTAG)
              .replace("__BASE__", (cfg.public_base_url or "").rstrip("/"))
-             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html", "dormant.html", "sala.html")}
+             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html", "dormant.html", "sala.html", "botlive.html")}
 
     @app.get("/")
     def landing():
@@ -1706,6 +1706,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/sala")
     def sala_page():
         return HTMLResponse(PAGES["sala.html"])
+
+    # 0.32.336 (pedido do dono): BOT LIVE — a cena da Sala para lives lo-fi, com configuração própria e dados da Robinhood por padrão
+    @app.get("/botlive")
+    def botlive_page():
+        return HTMLResponse(PAGES["botlive.html"])
 
     @app.get("/bnb")
     def bnb_panel():

@@ -10,22 +10,20 @@
     fluxo: ["Dinheiro entrando", "as 30 moedas que mais recebem dinheiro agora"], admin: ["Administração", "usuários e a situação de cada conta na Robinhood"] };
   // 0.32.279 (pedido do dono, 10/11: "faz 1 a 4"): cópia FICTÍCIA em ETH, conferência do token e carteira REAL (desligada)
   const CF_INFO = [
-    ["eth_por_compra", "ETH por compra", "ETH", 0.0001, 5, 0.0001], ["max_abertas", "Posições abertas no máximo", "posições", 1, 100, 1],
+    ["eth_por_compra", "ETH por compra", "ETH", 0.0005, 5, 0.001], ["max_abertas", "Posições abertas no máximo", "posições", 1, 100, 1],
     ["max_hold_h", "Tempo máximo da posição", "h", 0.1, 168, 0.5], ["stop_pct", "Stop de perda (0 = desligado)", "%", 0, 100, 1],
     ["slip_pct", "Folga de preço simulada (slippage)", "%", 0, 50, 0.5], ["gas_eth", "Gás simulado por transação", "ETH", 0, 0.01, 0.00001],
     ["saldo_inicial", "Saldo inicial fictício", "ETH", 0.001, 1000, 0.1],
     ["trail_ativa_pct", "Stop móvel liga com lucro de", "%", 1, 10000, 1], ["trail_dist_pct", "Stop móvel sai ao cair do pico", "pontos", 1, 1000, 1],
-    ["max_acima_pct", "Não entrar se o preço já subiu mais que", "%", 0, 500, 1], ["max_atraso_s", "Atraso máximo para copiar", "s", 5, 90, 1],
-    ["sg_fixo_pct", "Nível do stop de ganho (0 = o robô escolhe)", "%", 0, 500, 1],
   ];
   const RL_INFO = [
-    ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0001], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
+    ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0005], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
     ["real_slip_pct", "Folga de preço na REAL (slippage)", "%", 1, 49, 1], ["real_perda_dia", "Perda do dia que para a REAL", "ETH", 0.0005, 5, 0.001],
     ["real_max_hold_h", "Tempo máximo da posição REAL", "h", 0.1, 168, 0.5], ["real_stop_pct", "Stop de perda da REAL (0 = desligado)", "%", 0, 100, 1],
     ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
   // 0.32.290 (pedido do dono: "sair quando o desenvolvedor sai da moeda ... stop móvel ... botão de ativar"): opções liga/desliga
-  const CF_BOOL = ["sair_travado", "so_verificado", "so_lp_presa", "sair_liquidez", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader", "sg_on"], RL_BOOL = ["real_sg_on", "real_sair_travado", "real_espelho", "real_so_lp_presa", "real_sair_liquidez", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
+  const CF_BOOL = ["um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on"], RL_BOOL = ["real_espelho", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
   const NOM = {};
   let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
   try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
@@ -91,15 +89,12 @@
   const addr = (a) => (a ? '<a class="hdwho" href="' + esc(ex()) + "/address/" + esc(a) + '" target="_blank" rel="noopener" title="' + esc(a) + '"><img class="bky" alt="" src="' + blockie(a) +
     '"><span><b>' + esc(nick(a)) + '</b><small class="hdaddr">' + esc(short(a)) + "</small></span></a>" : "—");
   // 0.32.290 (pedido do dono: "no token coloque o nome e endereço que nem você fez para os traders"): ícone, símbolo e endereço curto
-  // 0.32.314 (pedido do dono): token em que o criador pode travar a venda aparece com o nome em amarelo, em todas as telas
-  let RISCO = {};
   const tok = (a, o) => {
     if (!a) return "—";
-    const rk = RISCO[a];
     const m = (o && (o.simbolo || o.nome)) ? o : (NOM[a] || {});
     const sym = m.simbolo || m.nome || "", nm = m.nome && m.nome !== sym ? m.nome : "";
-    return '<a class="hdwho" href="https://dexscreener.com/robinhood/' + esc(a) + '" target="_blank" rel="noopener" title="' + esc((rk ? "⚠ " + rk + " · " : "") + (nm ? nm + " · " : "") + a) + '"><img class="bky" alt="" src="' + blockie(a) +
-      '"><span><b' + (rk ? ' class="risk"' : "") + ">" + (rk ? "⚠ " : "") + esc(sym || short(a)) + "</b>" + (sym ? '<small class="hdaddr" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px">' + esc((nm ? (nm.length > 14 ? nm.slice(0, 13) + "…" : nm) + " · " : "") + short(a)) + "</small>" : "") + "</span></a>";
+    return '<a class="hdwho" href="https://dexscreener.com/robinhood/' + esc(a) + '" target="_blank" rel="noopener" title="' + esc((nm ? nm + " · " : "") + a) + '"><img class="bky" alt="" src="' + blockie(a) +
+      '"><span><b>' + esc(sym || short(a)) + "</b>" + (sym ? '<small class="hdaddr" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px">' + esc((nm ? (nm.length > 14 ? nm.slice(0, 13) + "…" : nm) + " · " : "") + short(a)) + "</small>" : "") + "</span></a>";
   };
   const txl = (h) => (h ? '<a class="hdaddr" href="' + esc(ex()) + "/tx/" + esc(h) + '" target="_blank" rel="noopener">' + esc(h.slice(0, 10)) + "…</a>" : "—");
   function table(id, head, rows, empty) {
@@ -215,9 +210,7 @@
         (cur ? '<button class="btn sm" data-follow="' + esc(r.wallet) + '" data-on="0" title="Parar de copiar este trader">Parar</button>' : "") +
         '<button class="btn sm blk" data-block="' + esc(r.wallet) + '" data-on="1" title="Bloquear: para de copiar e tira do ranking (vai para a aba Bloqueados)">Bloquear</button>' + "</span>";
     };
-    // 0.32.322: o lucro já desconta o token que o trader ainda segura valendo menos da metade do que custou
-    const lucro = (r) => eth(r.realized_eth) + (r.bags ? '<br><small class="down">segura ' + r.bags + (r.bags > 1 ? " tokens" : " token") + " no prejuízo: " + num(r.bag_eth, 4) + " ETH</small>" : "");
-    const row = (r, i) => [String(i + 1), addr(r.wallet), lucro(r), num(r.vol_eth, 3) + " ETH", num(r.trades, 0), r.winrate == null ? "—" : num(r.winrate, 0) + "% (" + r.closed + ")",
+    const row = (r, i) => [String(i + 1), addr(r.wallet), eth(r.realized_eth), num(r.vol_eth, 3) + " ETH", num(r.trades, 0), r.winrate == null ? "—" : num(r.winrate, 0) + "% (" + r.closed + ")",
       r.wallet_usd == null ? "—" : "US$ " + num(r.wallet_usd, 0), "há " + ago(r.last_t),
       ((r.perigo || []).length ? '<span class="tag loss dzt" title="' + esc(r.perigo.join(" · ")) + '">PERIGO · ' + esc(r.perigo.some((x) => /honeypot/.test(x)) ? "honeypot" : "robô") + "</span> " +
         (man.has(r.wallet) ? '<span class="tag pause">você ainda copia: a REAL não compra dele</span> ' : "") + '<small class="down">' + esc(r.perigo.join(" · ")) + "</small><br>" : "") +
@@ -252,21 +245,10 @@
     ["Posições abertas no máximo", "posições", "max_abertas", "real_max_abertas"],
     ["Tempo máximo da posição", "h", "max_hold_h", "real_max_hold_h"],
     ["Stop de perda (0 = desligado)", "%", "stop_pct", "real_stop_pct"],
-    // 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo; a REAL que é par da fictícia (espelho) sai junto dela
-    ["Stop de ganho autônomo", "vende tudo quando o líquido chega ao nível que o robô escolheu pelo histórico (sem base: +10%) · na REAL vale só para a posição sem par da fictícia", "sg_on", "real_sg_on", "", "bool"],
-    ["Nível do stop de ganho", "% líquido (0 = o robô escolhe)", "sg_fixo_pct", null, "a REAL usa o nível da FICTÍCIA"],
-    // 0.32.322 (revisão "por que estamos sempre no negativo"): três travas de entrada; a REAL usa o valor da FICTÍCIA
-    ["Não entrar se o preço já subiu mais que", "% acima do que o trader pagou, medido no pool na hora (0 = desligado)", "max_acima_pct", null, "a REAL usa o valor da FICTÍCIA"],
-    ["Atraso máximo para copiar", "segundos depois da compra do trader; mais que isso não copia", "max_atraso_s", null, "a REAL usa o valor da FICTÍCIA"],
-    ["Parar de copiar trader que dá prejuízo", "no Copiando agora: 3 cópias ou mais em 7 dias somando prejuízo; quem você escolheu no botão continua", "pausa_trader", null, "a REAL usa o valor da FICTÍCIA", "bool"],
-    ["Token com trava do criador: sair no lucro", "nome em amarelo; vende assim que ficar positivo (em partes, se o pool não aceitar tudo)", "sair_travado", "real_sair_travado", "", "bool"],
-    ["Só token com a liquidez presa", "não compra se uma carteira comum tem metade ou mais da liquidez do pool (pode tirar tudo a qualquer hora, como no TEXEL e no mihao)", "so_lp_presa", "real_so_lp_presa", "", "bool"],
-    ["Sair quando o dono tira liquidez", "o dono tirou 30% ou mais da liquidez do pool de uma posição aberta: vende antes de ele tirar o resto", "sair_liquidez", "real_sair_liquidez", "", "bool"],
-    ["Só token com contrato verificado", "não compra token cujo código não está publicado no explorador (com o espelho, vale para a REAL também)", "so_verificado", null, "a REAL segue a fictícia", "bool"],
     ["REAL segue a FICTÍCIA (espelho)", "a REAL compra quando a fictícia compra e fecha quando ela fecha", null, "real_espelho", "a FICTÍCIA é a que manda", "bool"],
     ["Uma entrada por token", "não compra de novo um token que já está aberto, mesmo que outro trader compre", "um_por_token", "real_um_por_token", "", "bool"],
     ["Sair quando o trader sai da moeda", "vende tudo quando o saldo dele no token some", "sair_trader", "real_sair_trader", "", "bool"],
-    ["Trader saiu: só vende no lucro", "no prejuízo (já com taxas) segura e vende quando ficar positivo · desligado por padrão: segurar o perdedor até o tempo máximo foi a maior causa de prejuízo", "trader_so_lucro", "real_trader_so_lucro", "", "bool"],
+    ["Trader saiu: só vende no lucro", "no prejuízo (já com taxas) segura e vende quando ficar positivo", "trader_so_lucro", "real_trader_so_lucro", "", "bool"],
     ["Sair quando o dev sai da moeda", "vende tudo quando quem criou o token vende metade ou mais", "sair_dev", "real_sair_dev", "", "bool"],
     ["Stop móvel", "liga no lucro e sai se cair do pico (regra da Solana)", "trail_on", "real_trail_on", "", "bool"],
     ["Stop móvel liga com lucro de", "%", "trail_ativa_pct", "real_trail_ativa_pct"],
@@ -456,17 +438,8 @@
       '" aria-label="' + esc(x[1]) + '">' + (unit === "ETH" ? '<span class="usdh" data-usd="' + pre + key + '">' + esc(usdOf(c[key])) + "</span>" : "") +
       (p && p[key] !== c[key] ? '<span class="muted">padrão ' + esc(p[key]) + "</span>" : "") + cmpChip(pre, key, c[key]) + "</div>";
   }
-  // 0.32.315 (pedido do dono, 11/11: fictícia fechando tudo em segundos com "stop de 1%"): o resultado já desconta a folga e a taxa na
-  // entrada e na saída, então um stop menor que esse custo dispara no primeiro trade, mesmo com o preço parado
-  function stopWarn(c, rc) {
-    const w = [];
-    const ida = (s) => 2 * (Number(s) || 0) + 0.5;
-    if (c.stop_pct > 0 && c.stop_pct < ida(c.slip_pct)) w.push("FICTÍCIA: " + num(c.stop_pct, 1) + "% é menor que o custo de entrar e sair (~" + num(ida(c.slip_pct), 1) + "% com folga de " + num(c.slip_pct, 1) + "%): fecha logo depois de comprar");
-    if (rc.real_stop_pct > 0 && rc.real_stop_pct < ida(rc.real_slip_pct)) w.push("REAL: " + num(rc.real_stop_pct, 1) + "% é menor que o custo estimado de entrar e sair (~" + num(ida(rc.real_slip_pct), 1) + "%)");
-    return w.length ? '<small class="down">' + esc(w.join(" · ")) + "</small>" : "";
-  }
   function cfgRows(c, rc) {
-    return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small>" + (r[2] === "stop_pct" ? stopWarn(c, rc) : "") + "</div>" +
+    return CFG_ROWS.map((r) => '<div class="cfl">' + esc(r[0]) + "<small>" + esc(r[1]) + "</small></div>" +
       cfgCell("cf_", r[2], CF_INFO, c, P.padrao, r[4], r[5], r[1]) + cfgCell("rl_", r[3], RL_INFO, rc, P.real_padrao, r[4], r[5], r[1])).join("");
   }
   function fieldHtml(pre, info, c, p) {
@@ -504,16 +477,13 @@
     $("poT").innerHTML = "Posições abertas " + mtag();
     $("poSub").textContent = ps.length + " abertas · " + ((P && P.carteira && P.carteira.fechadas) || 0) + " fechadas";
     $("poAll").hidden = !ps.length;
-    // 0.32.313 (pedido do dono: "botão para vender cada posição"): o Vender sai da última coluna (ficava fora da tela entre 860 e
-    // 1280 px) e vai para a primeira, junto da hora; os avisos (venda travada, segurando, erro) ficam na coluna Situação
+    // 0.32.311 (pedido do dono: "botão para vender cada posição"): o Vender fica na primeira coluna, junto da hora
     const sellBtn = (p) => '<button class="btn sm pobtn" data-close="' + esc(p.id) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender") + "</button>";
     table("poTb", ["", "Aberta", "Token", "Trader", "Entrou", "Agora", "Resultado", PICO_H, "Fecha em", "Situação"], ps.map((p) => [
       sellBtn(p),
       hora(p.open_t) + '<br><small class="muted">há ' + ago(p.open_t) + " · " + num(p.lag_s, 0) + " s depois do trader</small>",
       tok(p.token, p), addr(p.wallet), num(p.eth_in, 5) + " ETH" + (usdRate() ? '<br><small class="muted">' + usdOf(p.eth_in) + "</small>" : "") + (p.vendas && p.vendas.length ? '<br><small class="muted">' + p.vendas.length + " vendas parciais</small>" : ""),
-      pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>" +
-        (p.sem_liquidez ? '<br><small class="down"><b>pool sem liquidez</b>: o criador tirou o ETH do pool (rug pull); o token vale 0</small>'
-          : p.venda_travada ? '<br><small class="down"><b>venda travada no pool</b>: este resultado não dá para realizar</small>' : ""),
+      pct(p.pnl_pct) + '<br><small class="muted">preço de ' + (p.px_t ? "há " + ago(p.px_t) : "—") + (p.px_src === "dexscreener" ? " · DexScreener" : "") + "</small>",
       eth(p.pnl_eth, 5), pct(p.best_pct) + ' <small class="muted">pior ' + num(p.worst_pct, 1) + "%</small>",
       p.sim_id && P.real_cfg && P.real_cfg.real_espelho ? '<span class="tag sim">segue a fictícia</span>' : (p.fecha_em > Date.now() / 1000 ? "em " + dur(p.fecha_em - Date.now() / 1000) : "agora") + (p.solta ? '<br><small class="muted">' + esc(p.solta) + "</small>" : ""),
       (p.espera ? '<small class="muted">segurando: ' + esc(p.espera.motivo || "trader saiu") + ", vende quando ficar positivo</small><br>" : "") +
@@ -543,27 +513,6 @@
       tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", '<span class="down">' + num(tx(x), 6) + "</span>",
       eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
       esc(x.motivo || "") + (x.tx_out ? " · " + txl(x.tx_out) : "")]), REAL ? "Nenhuma posição REAL fechada ainda." : "Nenhuma posição fechada ainda.");
-    drawWhy();
-  }
-  // 0.32.322 (pedido do dono, 11/11: "por que estamos sempre no negativo"): fechadas dos últimos 7 dias por motivo de saída, por atraso
-  // da entrada e por trader, com o peso das taxas. Só mede: é daqui que sai a próxima correção.
-  function drawWhy() {
-    if (!$("pqK")) return;
-    const q = (P && P.porque) || {};
-    $("pqSub").innerHTML = "fechadas dos últimos " + (q.dias || 7) + " dias " + mtag() + " · só mede, não muda nada";
-    const falta = q.acerto != null && q.acerto_empate != null;
-    kpis("pqK", [
-      ["Ganho médio quando ganha", q.ganho_medio_pct == null ? "—" : pct(q.ganho_medio_pct), "por posição com lucro", "tr"],
-      ["Perda média quando perde", q.perda_media_pct == null ? "—" : pct(q.perda_media_pct), "por posição no prejuízo", "tr"],
-      ["Acerto × o que empata", (q.acerto == null ? "—" : num(q.acerto, 0) + "%") + " × " + (q.acerto_empate == null ? "—" : num(q.acerto_empate, 0) + "%"),
-        falta ? (q.acerto >= q.acerto_empate ? "acima do que precisa" : "abaixo do que precisa") : "falta ganho ou perda", "usr"],
-      ["Taxas sobre o investido", '<span class="down">' + num(q.taxas_pct || 0, 1) + "%</span>", num(q.taxas || 0, 5) + " ETH em " + num(q.n || 0, 0) + " fechadas", "mon"],
-      ["Teve lucro e fechou perdendo", num(q.devolveu || 0, 0), "pico de +10% ou mais", "tr"]]);
-    const H = ["Fechadas", "Com lucro", "Resultado", "Sobre o investido", "Taxas", "Pior"];
-    const row = (d, nome) => [nome, num(d.n, 0), d.ganhos + " de " + d.n, eth(d.pnl, 5) + usdL(d.pnl), pct(d.pct), '<span class="down">' + num(d.taxas, 5) + "</span>", pct(d.pior)];
-    table("pqM", ["Motivo da saída"].concat(H), (q.motivos || []).map((d) => row(d, esc(d.k))), "Nenhuma posição fechada nos últimos 7 dias.");
-    table("pqA", ["Atraso da entrada"].concat(H), (q.atraso || []).map((d) => row(d, esc(d.k))), "Sem posição fechada com o atraso guardado.");
-    table("pqT", ["Trader (pior primeiro)"].concat(H), (q.traders || []).map((d) => row(d, addr(d.k))), "Nenhum trader com posição fechada nos últimos 7 dias.");
   }
   function drawCarteira() {
     drawConv();
@@ -572,7 +521,6 @@
     const on = $("cfOn"); on.classList.toggle("on", !!c.on); on.textContent = c.on ? "Ligada" : "Desligada"; on.setAttribute("aria-checked", c.on ? "true" : "false");
     const ro = $("rlOn"); ro.classList.toggle("on", !!st.ligada); ro.textContent = st.ligada ? "Ligada" : "Desligada"; ro.setAttribute("aria-checked", st.ligada ? "true" : "false");
     if (!CF_DIRTY && !RL_DIRTY && !document.activeElement.closest("#cfRows")) $("cfRows").innerHTML = cfgRows(c, rc);
-    if ($("sgBox")) $("sgBox").innerHTML = BB.sgHtml(P.stop_ganho);
     if (!CMP_PLAN && !document.activeElement.closest("#cmpBox")) drawCmp();
     loadCmp(false);
     loadHist(false);
@@ -673,7 +621,6 @@
   function fxSafe(x) {
     const v = x.seguranca;
     if (!v || v.erro) return '<span class="fxsg"><span class="tag neutral">conferindo…</span></span>';
-    if (v.ok && v.lp_livre) return '<span class="fxsg"><span class="tag loss">LIQUIDEZ SOLTA</span> <span class="down">' + esc(v.lp_livre) + "</span></span>";
     if (v.ok) return '<span class="fxsg"><span class="tag win">conferido</span> <span class="muted">dá para comprar e vender' + (v.ida_volta_pct != null ? " · ida e volta −" + num(v.ida_volta_pct, 1) + "%" : "") + "</span></span>";
     if (v.venda_travada) return '<span class="fxsg"><span class="tag loss dzt">HONEYPOT</span> <span class="down">' + esc(v.why || "") + "</span></span>";
     return '<span class="fxsg"><span class="tag loss">barrado</span> <span class="muted">' + esc(v.why || "") + "</span></span>";
@@ -756,7 +703,6 @@
       if (r && !r.error) R = r;
       if (p && !p.error && p.ligado !== false) {
         P = p;
-        RISCO = p.riscos || {};
         Object.assign(NOM, p.nomes || {});
         (p.posicoes || []).concat(p.trades || []).forEach((x) => { if (x.token && (x.simbolo || x.nome)) NOM[x.token] = { nome: x.nome || "", simbolo: x.simbolo || "" }; });
       }
