@@ -7972,6 +7972,94 @@
         "automatic_install_approval": false,
         "limitation": "Sinais favoraveis nao certificam ausencia de malware; popularidade nao determina esta classificacao."
       }
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "opentelemetry-api",
+      "version": "1.45.2",
+      "role": "dependencia do fastapi; correcao do GHSA-mf5v-w3w3-f6cg",
+      "registry": {
+        "status": "ok",
+        "source_url": "https://pypi.org/pypi/opentelemetry-api/1.45.2/json",
+        "checked_at": "2026-11-13T18:07:57+00:00",
+        "url": "https://pypi.org/pypi/opentelemetry-api/1.45.2/json",
+        "version_exists": true,
+        "canonical_name": "opentelemetry-api",
+        "yanked": false,
+        "yanked_reason": [],
+        "repository": "open-telemetry/opentelemetry-python",
+        "repository_url": "https://github.com/open-telemetry/opentelemetry-python",
+        "artifact_count": 2,
+        "hashes_present": true,
+        "published_at": "2026-10-29T17:29:06.955093Z",
+        "requires_python": ">=3.10",
+        "artifact_hashes": [
+          {
+            "filename": "opentelemetry_api-1.45.2-py3-none-any.whl",
+            "sha256": "2cbd737377e710ee740d261c94e93fa0f08e6d037c18f17513cc0a2d94479a34",
+            "type": "bdist_wheel",
+            "yanked": false
+          },
+          {
+            "filename": "opentelemetry_api-1.45.2.tar.gz",
+            "sha256": "d7b0008e21e5fd61cbe7a7f34ca3b6905a78ab677d9bc395e299359c75cda6b4",
+            "type": "sdist",
+            "yanked": false
+          }
+        ],
+        "repository_evidence": "Link publicado nos metadados PyPI; nao verifica identidade do mantenedor."
+      },
+      "popularity": {
+        "downloads": {
+          "status": "ok",
+          "source_url": "https://pypistats.org/api/packages/opentelemetry-api/recent",
+          "checked_at": "2026-11-13T18:07:58+00:00",
+          "count": 697347277,
+          "period": "last_month (janela movel do provedor)",
+          "start": null,
+          "end": null,
+          "scope": "Downloads de todas as versoes do projeto, nao instalacoes nem pessoas unicas.",
+          "provider": "PyPI Stats, agregador de dados publicos de downloads PyPI"
+        },
+        "github": {
+          "status": "ok",
+          "source_url": "https://api.github.com/repos/open-telemetry/opentelemetry-python",
+          "checked_at": "2026-11-13T18:08:19+00:00",
+          "repository": "open-telemetry/opentelemetry-python",
+          "url": "https://github.com/open-telemetry/opentelemetry-python",
+          "stars": 2709,
+          "subscribers": 43,
+          "archived": false,
+          "disabled": false,
+          "pushed_at": "2026-11-13T15:41:57Z",
+          "created_at": "2019-05-07T21:13:30Z",
+          "scope": "Estrelas e assinantes/watchers do repositorio; nao usuarios, auditorias ou garantia de seguranca."
+        }
+      },
+      "advisories": {
+        "status": "ok",
+        "source_url": "https://api.osv.dev/v1/querybatch",
+        "checked_at": "2026-11-13T18:08:19+00:00",
+        "ids": [],
+        "malware_ids": [],
+        "query": {
+          "package": {
+            "ecosystem": "PyPI",
+            "name": "opentelemetry-api"
+          },
+          "version": "1.45.2"
+        },
+        "record_urls": [],
+        "scope": "Relatos de vulnerabilidades e malware que a base OSV associa a este nome/ecossistema/versao; ausencia nao garante seguranca."
+      },
+      "classification": {
+        "level": "favorable",
+        "reasons": [
+          "Versao existente, origem vinculada ao registro confirmada e consulta OSV sem avisos retornados nesta data."
+        ],
+        "automatic_install_approval": false,
+        "limitation": "Sinais favoraveis nao certificam ausencia de malware; popularidade nao determina esta classificacao."
+      }
     }
   ],
   "summary": {

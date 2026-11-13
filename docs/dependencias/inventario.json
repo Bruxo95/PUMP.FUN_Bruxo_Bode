@@ -4,7 +4,7 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-13",
     "timezone": "Europe/Dublin",
-    "repository_reference": "c53a1cf1a9ef70994f4fbdcc77d21cf8eb7a70b7",
+    "repository_reference": "749896f57da49316feddc52e775d2dcf10ce0704",
     "application_version": "0.32.335 · 2026-11-13 · Fictícia mais perto da REAL e entradas ruins barradas",
     "reviewer": {
       "agent": "OpenAI Codex",
@@ -19,14 +19,14 @@
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
       "app/version.py": "3eb94fb7ed3cb604fb59f107927da2892a8867ee27dd3263cdb0a71b7d88fba1",
-      "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
+      "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
       "docs/auditoria/2026-10-25/triagem-scanners.json": "33265530b9c0d44687dbf732b3b5f9323d77fdca0559c1d37111ed8ab2bdfc77",
       "docs/dependencias/POLITICA-DE-DEPENDENCIAS.md": "f9c9864b0dd5aaf340cb6dabdb7093d4be2ac20074eca97a3ef33682b05f937e",
       "docs/dependencias/pesquisa-malware.md": "828c5231feb1f28c3caa2978955375175b7a00ac0b74ad7183225661561b8f41",
       "docs/dependencias/revisoes-manuais.json": "218826416d7a6f29f715feb3cbb0f738644b12c738b8cb852fbac2adb9a74405",
-      "docs/dependencias/triagem-seguranca.json": "182c3e42c55b5998772aeb85bd2f64cd017f79f24cc58bc78cb4410f9a2fab61",
+      "docs/dependencias/triagem-seguranca.json": "0e16297412c8011d6d5f4409146ee6410316a4f4be9e2cf56921f3efcd1a4dbd",
       "requirements-test.txt": "4d31f2778625031500fd7279af137185cb1001b3aeaf69fb1f0d43777d1bc519",
       "requirements.txt": "19536a896a1baf0afcfd9fa5cca9583e4e79e137323832967b5df7df3480eb78",
       "scripts/aplicar_migracoes.py": "d6fc39a856af058b84c516be1b101649be0c5e16c56bc1309896ba9cad4f3ea4",
@@ -8061,6 +8061,94 @@
             "automatic_install_approval": false,
             "limitation": "Sinais favoraveis nao certificam ausencia de malware; popularidade nao determina esta classificacao."
           }
+        },
+        {
+          "ecosystem": "PyPI",
+          "name": "opentelemetry-api",
+          "version": "1.45.2",
+          "role": "dependencia do fastapi; correcao do GHSA-mf5v-w3w3-f6cg",
+          "registry": {
+            "status": "ok",
+            "source_url": "https://pypi.org/pypi/opentelemetry-api/1.45.2/json",
+            "checked_at": "2026-11-13T18:07:57+00:00",
+            "url": "https://pypi.org/pypi/opentelemetry-api/1.45.2/json",
+            "version_exists": true,
+            "canonical_name": "opentelemetry-api",
+            "yanked": false,
+            "yanked_reason": [],
+            "repository": "open-telemetry/opentelemetry-python",
+            "repository_url": "https://github.com/open-telemetry/opentelemetry-python",
+            "artifact_count": 2,
+            "hashes_present": true,
+            "published_at": "2026-10-29T17:29:06.955093Z",
+            "requires_python": ">=3.10",
+            "artifact_hashes": [
+              {
+                "filename": "opentelemetry_api-1.45.2-py3-none-any.whl",
+                "sha256": "2cbd737377e710ee740d261c94e93fa0f08e6d037c18f17513cc0a2d94479a34",
+                "type": "bdist_wheel",
+                "yanked": false
+              },
+              {
+                "filename": "opentelemetry_api-1.45.2.tar.gz",
+                "sha256": "d7b0008e21e5fd61cbe7a7f34ca3b6905a78ab677d9bc395e299359c75cda6b4",
+                "type": "sdist",
+                "yanked": false
+              }
+            ],
+            "repository_evidence": "Link publicado nos metadados PyPI; nao verifica identidade do mantenedor."
+          },
+          "popularity": {
+            "downloads": {
+              "status": "ok",
+              "source_url": "https://pypistats.org/api/packages/opentelemetry-api/recent",
+              "checked_at": "2026-11-13T18:07:58+00:00",
+              "count": 697347277,
+              "period": "last_month (janela movel do provedor)",
+              "start": null,
+              "end": null,
+              "scope": "Downloads de todas as versoes do projeto, nao instalacoes nem pessoas unicas.",
+              "provider": "PyPI Stats, agregador de dados publicos de downloads PyPI"
+            },
+            "github": {
+              "status": "ok",
+              "source_url": "https://api.github.com/repos/open-telemetry/opentelemetry-python",
+              "checked_at": "2026-11-13T18:08:19+00:00",
+              "repository": "open-telemetry/opentelemetry-python",
+              "url": "https://github.com/open-telemetry/opentelemetry-python",
+              "stars": 2709,
+              "subscribers": 43,
+              "archived": false,
+              "disabled": false,
+              "pushed_at": "2026-11-13T15:41:57Z",
+              "created_at": "2019-05-07T21:13:30Z",
+              "scope": "Estrelas e assinantes/watchers do repositorio; nao usuarios, auditorias ou garantia de seguranca."
+            }
+          },
+          "advisories": {
+            "status": "ok",
+            "source_url": "https://api.osv.dev/v1/querybatch",
+            "checked_at": "2026-11-13T18:08:19+00:00",
+            "ids": [],
+            "malware_ids": [],
+            "query": {
+              "package": {
+                "ecosystem": "PyPI",
+                "name": "opentelemetry-api"
+              },
+              "version": "1.45.2"
+            },
+            "record_urls": [],
+            "scope": "Relatos de vulnerabilidades e malware que a base OSV associa a este nome/ecossistema/versao; ausencia nao garante seguranca."
+          },
+          "classification": {
+            "level": "favorable",
+            "reasons": [
+              "Versao existente, origem vinculada ao registro confirmada e consulta OSV sem avisos retornados nesta data."
+            ],
+            "automatic_install_approval": false,
+            "limitation": "Sinais favoraveis nao certificam ausencia de malware; popularidade nao determina esta classificacao."
+          }
         }
       ],
       "summary": {
@@ -8333,11 +8421,11 @@
       "external_fonts": 2
     },
     "security_counts": {
-      "reviewed": 46,
-      "favorable": 43,
+      "reviewed": 47,
+      "favorable": 44,
       "attention": 2,
       "danger": 1
     }
   },
-  "pdf_sha256": "74015a6fbde85ce54d706a8b574559afdfbb632a4a4f37cd36024c267b6c47b7"
+  "pdf_sha256": "e14c058c8d99f07d93a938aabc8397ab6186d75287e1cb8f83e8b80aa5ad038f"
 }

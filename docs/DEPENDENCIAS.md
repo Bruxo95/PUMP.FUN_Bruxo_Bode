@@ -2,7 +2,7 @@
 
 Emissão: **2026-11-13**; revisão documental **2.0**.
 Aplicação: **0.32.335 · 2026-11-13 · Fictícia mais perto da REAL e entradas ruins barradas**.
-Referência Git na emissão: `c53a1cf1a9ef70994f4fbdcc77d21cf8eb7a70b7`; fontes locais identificadas por SHA-256 no JSON.
+Referência Git na emissão: `749896f57da49316feddc52e775d2dcf10ce0704`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -142,9 +142,9 @@ Se o gerador de PDF não estiver disponível, não instalar automaticamente no W
 
 ## Triagem de malware, vulnerabilidades e procedência
 
-Coleta: **2026-10-25T20:44:04+00:00**. 46 versões/ferramentas avaliadas: **43 favoráveis, 2 em atenção, 1 em perigo**.
+Coleta: **2026-10-25T20:44:04+00:00**. 47 versões/ferramentas avaliadas: **44 favoráveis, 2 em atenção, 1 em perigo**.
 
-O conjunto inclui os 34 pacotes históricos Python, as versões fixadas em constraints.txt, a biblioteca JS, o gerador PDF preexistente e três ferramentas de auditoria removidas. Não são 46 dependências de execução.
+O conjunto inclui os 34 pacotes históricos Python, as versões fixadas em constraints.txt, a biblioteca JS, o gerador PDF preexistente e três ferramentas de auditoria removidas. Não são 47 dependências de execução.
 Favorável significa consulta concluída sem alerta aplicável no escopo e sinais de origem; não garante ausência de malware nem autoriza instalação no Windows.
 Atenção significa verificação incompleta ou origem não confirmada neste método; não é acusação de malware. Perigo exige alerta/motivo aplicável registrado.
 
@@ -201,6 +201,7 @@ PyPI/npm: período mensal informado pelo provedor; Gitleaks: acumulado dos arqui
 | starlette 1.7.0 | fixada em constraints.txt (14+ dias) | 500.961.483 | 12.684 | 98 | Favorável |
 | uvloop 0.23.0 | fixada em constraints.txt (14+ dias) | 216.734.647 | 11.913 | 216 | Favorável |
 | tzdata 2026.5 | execução direta (fuso do /health), fixada em constraints.txt | 382.367.011 | 121 | 11 | Favorável |
+| opentelemetry-api 1.45.2 | dependencia do fastapi; correcao do GHSA-mf5v-w3w3-f6cg | 697.347.277 | 2.709 | 43 | Favorável |
 
 ### Pendências e motivos
 
