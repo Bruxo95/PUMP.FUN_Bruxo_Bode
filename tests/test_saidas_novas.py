@@ -19,7 +19,8 @@ def test_upgrade_only_touches_what_was_still_the_old_default():
     ch = saidas_upgrade(antiga, antiga)
     assert ch == {"pump_stop_pct": 30.0, "pump_hold_until_profit": False, "pump_trail_start_pct": 25.0,
                   "pump_trail_dist_pct": 20.0, "pump_edge_on": True,
-                  "pump_priority_sol": 0.0001, "pump_exit_migrate": True, "pump_nc_on": True, "pump_swap_fee_official": True}
+                  "pump_priority_sol": 0.0001, "pump_exit_migrate": True, "pump_nc_on": True, "pump_swap_fee_official": True,
+                  "pump_extra_slip_pct": 1.5}
     assert "pump_real_enabled" not in ch and "pump_sim_on" not in ch and not [k for k in ch if k.startswith(("pump_ex_", "pump_ar_"))]
     escolheu = {**antiga, "pump_stop_pct": 55.0, "pump_trail_dist_pct": 13.0}    # valores que a pessoa escolheu ficam
     ch = saidas_upgrade(escolheu, escolheu)
@@ -35,7 +36,8 @@ def test_upgrade_runs_once_and_never_for_a_new_account():
     assert saidas_upgrade({**antiga, "_saidas_v": "x"}, antiga)                          # marca estragada: trata como não feito
     # 0.32.324: quem já recebeu a etapa 2 (0.32.323) recebe só a etapa 3
     ch = saidas_upgrade({**antiga, "_saidas_v": 2}, antiga)
-    assert set(ch) == {"pump_priority_sol", "pump_exit_migrate", "pump_nc_on", "pump_swap_fee_official"}
+    assert set(ch) == {"pump_priority_sol", "pump_exit_migrate", "pump_nc_on", "pump_swap_fee_official", "pump_extra_slip_pct"}
+    assert set(saidas_upgrade({**antiga, "_saidas_v": 3}, antiga)) == {"pump_extra_slip_pct"}     # 0.32.335
 
 
 def test_package_defaults_from_the_checked_research():
@@ -43,7 +45,7 @@ def test_package_defaults_from_the_checked_research():
     assert d["pump_priority_sol"] == 0.0001 and d["pump_exit_migrate"] is True and d["pump_nc_on"] is True
     assert d["pump_swap_fee_official"] is True
     assert d["pump_real_slippage_pct"] == 15 and d["pump_ar_exit_grad"] is True          # não mexidos
-    assert settings.SAIDAS_V == 3 and set(settings.SAIDAS_OLD) >= set(settings.AJUSTES[2]) | set(settings.AJUSTES[3])
+    assert settings.SAIDAS_V == 4 and set(settings.SAIDAS_OLD) >= set(settings.AJUSTES[2]) | set(settings.AJUSTES[3])
 
 
 def test_graduation_exit_skips_positions_that_asked_for_no_smart_exits():

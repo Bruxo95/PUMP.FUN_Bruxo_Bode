@@ -237,7 +237,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_other_fee_pct": (float, 0.30, 0.0, 5.0),
     "pump_other_slip_pct": (float, 1.0, 0.0, 50.0),
     "pump_max_open": (int, 10, 1, 50),
-    "pump_extra_slip_pct": (float, 3.0, 0.0, 50.0),
+    # 0.32.335 (dono, 13/11: "você decide, só fictícia"): 3% → 1,5% por lado. Com 3% a ida e volta da fictícia custava ~9,5%; a REAL
+    # mediu 4,5% (estudo de 13/11). Com 1,5% fica ~6,5%, ainda mais caro que a REAL. A REAL não muda: a conta dela usa no mínimo 3%.
+    "pump_extra_slip_pct": (float, 1.5, 0.0, 50.0),
     "pump_fee_pct": (float, 1.25, 0.0, 10.0),
     "pump_swap_fee_pct": (float, 0.30, 0.0, 5.0),
     # 0.31.82 (opção A escolhida pelo dono): usar a tabela oficial da PumpSwap por valor de mercado no lugar do valor fixo
@@ -297,6 +299,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_sg_fixo_pct": (float, 0.0, 0.0, 500.0),      # 0 = o robô escolhe; acima de 0 = nível fixo escolhido por você
     "pump_sg_explorar": (bool, False, 0, 1),
     "pump_sg_real": (bool, False, 0, 1),
+    # 0.32.335: não copiar entrada que cai numa faixa que o cérebro do stop de ganho marcou como ruim (1 em cada 5 passa para medir)
+    "pump_sg_entrada_on": (bool, True, 0, 1),
     "pump_max_hold_h": (float, 6.0, 0.05, 168.0),
     "pump_min_trader_sol": (float, 0.2, 0.0, 100.0),
     "pump_min_mcap_sol": (float, 0.0, 0.0, 1000000.0),
@@ -387,10 +391,11 @@ AJUSTES = {
     2: {"pump_stop_pct": 40.0, "pump_hold_until_profit": True, "pump_trail_start_pct": 20.0, "pump_trail_dist_pct": 10.0,
         "pump_edge_on": False},
     3: {"pump_priority_sol": 0.0005, "pump_exit_migrate": False, "pump_nc_on": False, "pump_swap_fee_official": False},
+    4: {"pump_extra_slip_pct": 3.0},
 }
 SAIDAS_V = max(AJUSTES)
 SAIDAS_OLD = {k: v for etapa in AJUSTES.values() for k, v in etapa.items()}      # todos os padrões antigos (os testes antigos usam)
-SAIDAS_WHY = "ajuste das versões 0.32.323 e 0.32.324 (saídas, custo por trade e traders que não dá para copiar)"
+SAIDAS_WHY = "ajuste das versões 0.32.323, 0.32.324 e 0.32.335 (saídas, custo por trade, traders que não dá para copiar e slippage simulado da fictícia)"
 
 
 def saidas_upgrade(saved: dict | None, atual: dict, mexeu=()) -> dict:

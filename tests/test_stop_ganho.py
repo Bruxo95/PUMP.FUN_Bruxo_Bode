@@ -206,3 +206,29 @@ def test_entry_bands_only_measure():
     rs += [dict(r, x={"atraso": 1}) for r in _rows([(-30, 15, i % 5) for i in range(20)])]
     f = stopganho.faixas(rs, 10.0, {"atraso": stopganho.FAIXAS["atraso"]})
     assert f[0]["faixa"] == "mais de 30 s" and f[0]["ruim"] and not f[-1]["ruim"] and f[-1]["media"] == 9.0
+
+
+def test_entry_block_uses_bad_bands_and_lets_one_in_five_through():
+    """0.32.335: a faixa ruim barra a entrada na fictícia; uma em cada cinco passa para continuar medindo."""
+    rs = [dict(r, x={"atraso": 40}) for r in _rows([(-30, 3, i % 5) for i in range(20)])]
+    rs += [dict(r, x={"atraso": 1}) for r in _rows([(-30, 15, i % 5) for i in range(30)])]
+    rows = [dict(r, grupo="Top traders") for r in rs]
+    d = stopganho.decidir_grupos(rows)["Top traders"]
+    assert [f["faixa"] for f in d["ruins"]] == ["mais de 30 s"]
+    assert stopganho.na_faixa(d["ruins"], {"atraso": 45})["faixa"] == "mais de 30 s"
+    assert stopganho.na_faixa(d["ruins"], {"atraso": 2}) is None
+    pf = _pf()
+    pf.sg_pool = lambda: {"Top traders": d}
+    ev = {"blockTime": 1000.0}
+    outs = [pf.sg_entry_block(W, {}, ev, 1045.0, 50) for _ in range(5)]
+    assert sum(1 for o in outs if o) == 4 and "entrada ruim" in outs[0]
+    assert pf.sg_entry_block(W, {}, ev, 1001.0, 50) is None
+    pf.cfg.pump_sg_entrada_on = False
+    assert pf.sg_entry_block(W, {}, ev, 1045.0, 50) is None
+
+
+def test_fictitious_slippage_is_lower_but_real_estimate_keeps_3_pct():
+    d = settings.server_defaults()
+    assert d["pump_extra_slip_pct"] == 1.5 and d["pump_sg_entrada_on"] is True
+    pf = _pf(pump_extra_slip_pct=1.5)
+    assert pf._fee_rates(MINT)["slip"] == 0.015 and pf._fee_rates(MINT, real=True)["slip"] == 0.03

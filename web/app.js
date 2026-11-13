@@ -1610,7 +1610,7 @@
           "</td><td>" + x.dias_melhor + "</td></tr>").join("") + "</tbody></table></div>").join("") + "</details>";
     }
     if (ruins.length) {
-      h += '<details class="sgdet"><summary>Onde a entrada perde (' + ruins.length + ')</summary><p class="small muted">Faixas com 15+ operações, média de −5% ou pior mesmo com o alvo, e no máximo 30% chegando lá. Só mede: nenhuma compra é barrada por isto ainda.</p><ul class="pc-list">' +
+      h += '<details class="sgdet"><summary>Onde a entrada perde (' + ruins.length + ')</summary><p class="small muted">Faixas com 15+ operações em 4+ dias, média de −5% ou pior mesmo com o alvo e no máximo 30% chegando lá. Com a chave acima ligada, a cópia não entra nelas (uma em cada cinco passa, para medir).</p><ul class="pc-list">' +
         ruins.slice(0, 20).map((x) => "<li><b>" + esc(x.aba) + "</b> · " + esc(x.nome) + " " + esc(x.faixa) + ": " + x.n + " operações, média " + pc(x.media) + ", " + f(x.ganhou, 0) + "% no lucro</li>").join("") + "</ul></details>";
     }
     box.innerHTML = h;

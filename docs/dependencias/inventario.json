@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-13",
     "timezone": "Europe/Dublin",
-    "repository_reference": "4402f87481e0dd8dd4e62047ddd48e2af34d0f70",
-    "application_version": "0.32.334 · 2026-11-13 · Sala: personagem casual que trabalha e reage ao mercado",
+    "repository_reference": "c53a1cf1a9ef70994f4fbdcc77d21cf8eb7a70b7",
+    "application_version": "0.32.335 · 2026-11-13 · Fictícia mais perto da REAL e entradas ruins barradas",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "a6b251a88f7fcebabf4cf16f8336d4d06241c7e62861201c76bba6e8cf859da5",
+      "app/version.py": "3eb94fb7ed3cb604fb59f107927da2892a8867ee27dd3263cdb0a71b7d88fba1",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "6a1223eb911a77cb9e5aaa387db60f9a5f6cf35a2e169e48d889e277a92403be",
+      "web/app.html": "0114feff7bed38561db341e60c8372f5e784cd8c63c7a6c529b02f9c0bff1ec6",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8304,7 +8304,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "ef1bbaa493414b58f8db106ab834a75309693eb103ba2665701b0052bed76954"
+  "pdf_sha256": "74015a6fbde85ce54d706a8b574559afdfbb632a4a4f37cd36024c267b6c47b7"
 }

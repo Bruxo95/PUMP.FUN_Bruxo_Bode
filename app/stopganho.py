@@ -223,6 +223,8 @@ def decidir_grupos(rows: list[dict], antes: dict | None = None, inicial: float =
     for nome, rs in g.items():
         a = antes.get(nome) or {}
         out[nome] = decidir(rs, a.get("nivel") if a.get("acao") == "aplicar" else None, inicial)
+        nv = out[nome]["nivel"] if out[nome]["acao"] != "inicio" else None
+        out[nome]["ruins"] = [f for f in faixas(rs, nv) if f["ruim"]]      # 0.32.335: a entrada usa estas faixas
     return out
 
 
@@ -262,7 +264,16 @@ FAIXAS = {
     "nota": ("Nota da entrada", ((0, 40, "até 40"), (40, 60, "40–60"), (60, 75, "60–75"), (75, 101, "75 ou mais"))),
     "acima": ("Preço acima do que o trader pagou", ((-1e9, 2, "até 2%"), (2, 5, "2–5%"), (5, 10, "5–10%"), (10, 1e9, "mais de 10%"))),
 }
-RUIM_N, RUIM_MEDIA, RUIM_CHEGOU = 15, -5.0, 30.0
+RUIM_N, RUIM_MEDIA, RUIM_CHEGOU, RUIM_DIAS, RUIM_FRAC = 15, -5.0, 30.0, 4, 0.5
+
+
+def na_faixa(ruins: list[dict], x: dict) -> dict | None:
+    """A primeira faixa ruim em que a entrada cai (x = hora, atraso, mcap, nota da entrada que vai acontecer)."""
+    for f in ruins or []:
+        v = (x or {}).get(f.get("campo"))
+        if isinstance(v, (int, float)) and f.get("lo") is not None and float(f["lo"]) <= v < float(f["hi"]):
+            return f
+    return None
 
 
 def faixas(rows: list[dict], nivel: float | None, campos=None) -> list[dict]:
@@ -277,10 +288,13 @@ def faixas(rows: list[dict], nivel: float | None, campos=None) -> list[dict]:
             res = [com_alvo(r, nivel) if nivel else r["sem"] for r in sel]
             media = sum(res) / len(sel)
             ch = (100 * sum(1 for r in sel if nivel and r["bu"] >= nivel) / len(sel)) if nivel else None
-            out.append({"campo": campo, "nome": nome, "faixa": rotulo, "n": len(sel), "media": round(media, 2),
+            dias = len({r["dia"] for r in sel})
+            out.append({"campo": campo, "nome": nome, "faixa": rotulo, "lo": lo, "hi": hi, "n": len(sel), "dias": dias, "media": round(media, 2),
                         "ganhou": round(100 * sum(1 for v in res if v > 0) / len(sel), 1),
                         "chegou_pct": None if ch is None else round(ch, 1),
-                        "ruim": len(sel) >= RUIM_N and media <= RUIM_MEDIA and (ch is None or ch <= RUIM_CHEGOU)})
+                        # 0.32.335: ruim só com 4+ dias e se não for mais da metade da aba (senão o problema é a aba, não a faixa)
+                        "ruim": (len(sel) >= RUIM_N and media <= RUIM_MEDIA and (ch is None or ch <= RUIM_CHEGOU)
+                                 and dias >= RUIM_DIAS and len(sel) <= RUIM_FRAC * len(rows))})
     return sorted(out, key=lambda f: f["media"])
 
 

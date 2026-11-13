@@ -1663,6 +1663,8 @@ class PumpFun:
                 mn = self._onv("pump_score_min_on", "pump_score_min")
                 if not why and mn and score < mn:
                     why = f"nota da entrada {score:.0f} abaixo do mínimo {mn:.0f}"
+                if not why:
+                    why = self.sg_entry_block(who, tk, ev, t, score)
             if why:
                 self._feed(**base, action="não copiou", reason=why)
                 self._copy_note(who, why, t, mint)
@@ -1881,7 +1883,8 @@ class PumpFun:
         return {"venue": venue, "venue_name": "PumpSwap" if graduated else "pump.fun (curva)",
                 "portal": float(self._c("pump_portal_fee_pct", 0.5)) / 100,
                 "prio": float(self._c("pump_priority_sol", 0.0005)),
-                "slip": float(self._c("pump_extra_slip_pct", 3.0)) / 100}
+                # 0.32.335: a posição REAL continua estimada com no mínimo 3% (o padrão novo de 1,5% é só para a fictícia)
+                "slip": (max(3.0, float(self._c("pump_extra_slip_pct", 3.0))) if real else float(self._c("pump_extra_slip_pct", 3.0))) / 100}
 
     def _exit_value(self, p: dict, px: float) -> float:
         """Quanto entraria vendendo agora, já com TODAS as taxas de saída (plataforma, PumpPortal, rede, slippage)."""
@@ -2345,6 +2348,28 @@ class PumpFun:
         self.__dict__["_sg_local"] = (key, now, decs)
         return decs
 
+    SG_EXPLORA = 5      # 1 em cada 5 entradas numa faixa ruim passa: sem isso a faixa nunca mais teria dado e ficaria barrada para sempre
+
+    def sg_entry_block(self, who: str, tk: dict, ev: dict, t: float, score) -> str | None:
+        """0.32.335 (dono, 13/11: "você decide, só fictícia"): a entrada cai numa faixa que o cérebro marcou como ruim na aba (15+
+        operações em 4+ dias, média de −5% ou pior mesmo com o alvo, até 30% chegando lá, no máximo metade da aba)? Não copia."""
+        if not getattr(self.cfg, "pump_sg_entrada_on", False):
+            return None
+        d = self.sg_decisions().get(self.aba_of({"wallet": who})) or {}
+        ruins = d.get("ruins") or []
+        if not ruins:
+            return None
+        bt = ev.get("blockTime")
+        x = {"hora": stopganho.hora_berlim(t), "atraso": max(0.0, t - float(bt)) if bt else None, "mcap": tk.get("mcap_sol"), "nota": score}
+        f = stopganho.na_faixa(ruins, x)
+        if not f:
+            return None
+        n = self.__dict__["_sg_exp"] = self.__dict__.get("_sg_exp", 0) + 1
+        if n % self.SG_EXPLORA == 0:
+            return None
+        return (f"entrada ruim pelo histórico: {f['nome'].lower()} {f['faixa']} deu média {f['media']:+.1f}% em {f['n']} operações "
+                "(Carteiras → Regras → Stop de ganho → Onde a entrada perde)")
+
     @staticmethod
     def _sg_marcas(p: dict, chg: float, t: float) -> None:
         stopganho.marcar(p, chg, t)
@@ -2352,6 +2377,8 @@ class PumpFun:
     def _sg_trade(self, p: dict, tr: dict, pre: dict, px, why: str, t: float) -> None:
         if p.get("sg_hits"):
             tr["sg_hits"] = p["sg_hits"]
+        sp = p.get("stop_pct")
+        tr["sg_stop"] = float(sp) if sp is not None else float(self._c("pump_stop_pct", 40))      # 0.32.335: stop que valia
         if p.get("trader_sol") is not None:
             tr["trader_sol"] = p.get("trader_sol")         # tamanho da compra do trader, para estudar a entrada
         nivel, fonte = p.get("sg_nivel"), p.get("sg_fonte")
