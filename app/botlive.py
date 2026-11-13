@@ -148,3 +148,21 @@ class BotLive(Copier):
 
     def on_trade(self, tr: dict, before: float, copiaria) -> None:
         return super().on_trade(tr, before, set(self.w.ranking()["copiaria"]))
+
+    # 0.32.339 (pedido do dono: "mesmo que a sala não esteja online, o BOT estará fazendo automático"): toda conta que usa a Robinhood
+    # ganha a carteira do BOT LIVE sozinha (gravada no banco), sem precisar abrir a página. Antes ela só nascia ao abrir o BOT LIVE.
+    def ensure_books(self) -> int:
+        n = 0
+        for uid in list(getattr(getattr(self.w._w, "copier", None), "books", {}) or {}):
+            if uid not in self.books:
+                self.book(uid)
+                n += 1
+        return n
+
+    async def load(self) -> None:
+        await super().load()
+        self.ensure_books()
+
+    async def tick(self) -> None:
+        self.ensure_books()
+        await super().tick()

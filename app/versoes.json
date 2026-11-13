@@ -2450,6 +2450,11 @@
    "versao": "0.32.338",
    "inicio": "2026-11-13T21:27:15+00:00",
    "titulo": "BOT LIVE com carteira própria (estratégia 0.32.308) e Robinhood de volta à lógica nova"
+  },
+  {
+   "versao": "0.32.339",
+   "inicio": "2026-11-13T21:49:01+00:00",
+   "titulo": "BOT LIVE trabalha sozinho, mesmo com a página fechada"
   }
  ]
 }

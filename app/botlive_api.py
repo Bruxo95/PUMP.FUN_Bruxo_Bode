@@ -20,7 +20,7 @@ def add_routes(app, get_bot, admin_only, db) -> None:
             return off()
         p = c.painel(u["id"])
         keep = ("cfg_sim", "padrao", "carteira", "posicoes", "trades", "eventos", "nomes", "eth_usd", "copiaria", "explorer")
-        return {"ligado": True, "real": False, **{k: p.get(k) for k in keep}}
+        return {"ligado": True, "real": False, "seguindo": len(p.get("copiaria") or []), **{k: p.get(k) for k in keep}}
 
     @app.post("/api/botlive/carteira")
     async def botlive_carteira(body: dict, u: dict = Depends(admin_only)):

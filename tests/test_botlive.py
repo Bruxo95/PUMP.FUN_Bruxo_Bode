@@ -56,3 +56,14 @@ def test_rotas_do_bot_live_exigem_login(env):
     assert c.get("/api/botlive/painel").status_code == 401
     assert c.post("/api/botlive/carteira", json={"saldo_inicial": 1}).status_code == 401
     assert c.post("/api/botlive/zerar", json={}).status_code == 401
+
+
+def test_carteira_do_bot_live_nasce_sozinha_para_quem_usa_a_robinhood(monkeypatch):
+    """0.32.339: o BOT trabalha mesmo sem a página aberta — a carteira nasce para toda conta com carteira na /hood."""
+    w, b = bot(monkeypatch)
+    w.copier = hoodcopy.Copier(w, Http())
+    w.copier.book("dono")
+    assert "dono" not in b.books
+    assert b.ensure_books() == 1 and "dono" in b.books and b.books["dono"].dirty_book
+    run(b.tick())
+    assert b.ensure_books() == 0

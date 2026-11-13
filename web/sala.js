@@ -769,6 +769,9 @@
       start_sol: w.inicial == null ? null : w.inicial, equity_sol: w.total == null ? null : w.total, pnl_pct: w.resultado_pct };
     const nmOf = (tk) => { const v = nm[tk]; return (v && (v.simbolo || v.nome || v.symbol)) || (typeof v === "string" ? v : (tk || "").slice(0, 8)); };
     const log = (p.eventos || []).map((e) => ({ k: e.t + "|" + e.token + "|" + e.acao, h: e.t ? new Date(e.t * 1000).toLocaleTimeString("pt-BR") : "", a: e.acao, s: nmOf(e.token), r: e.motivo }));
+    // 0.32.339: BOT LIVE recém-ligado ainda sem decisões — mostra que está trabalhando e quantos traders acompanha
+    if (C().botlive && !log.length) log.push({ k: "bl-status", h: new Date().toLocaleTimeString("pt-BR"), a: (p.cfg_sim && p.cfg_sim.on === false) ? "BOT parado" : "BOT operando",
+      s: "", r: "acompanhando " + (p.seguindo || 0) + " traders da Robinhood (regra da 0.32.308) · compra quando um deles comprar" });
     return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log };
   }
 
