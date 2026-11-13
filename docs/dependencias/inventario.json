@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-13",
     "timezone": "Europe/Dublin",
-    "repository_reference": "82c2a7f3ef1f552e99dc77105d2be0ace1004152",
-    "application_version": "0.32.341 · 2026-11-13 · BOT LIVE: log com horário, nome do token, rede e motivo",
+    "repository_reference": "5ef55162a8f66b5841b0858607f2ed03670bd9a1",
+    "application_version": "0.32.342 · 2026-11-13 · BOT LIVE: log em uma linha (NC = não copiou) e radar no telão",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "4cd0c70304ae2f73cd99b23bc1c622d0757afe930e8f5f99c4c425df4a9abe98",
+      "app/version.py": "8c44371b6dac74275f75990bd77d08299e52cf99b6de0638e73da694be5e3344",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "32a4ddf1c073567ef4ec3cd4adc7f7247f38fa11de80ca667c41b268ceff3145"
+  "pdf_sha256": "9c0cae70a6e5318fd3151f1536683399b3ed5f1344f8aa927fd865034491f33e"
 }

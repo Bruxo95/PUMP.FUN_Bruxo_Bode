@@ -108,6 +108,12 @@
   .log .ll.bl .net{margin-left:6px;font-size:.78em;color:#c3f53c;border:1px solid #4d6a14;padding:0 3px;vertical-align:1px}
   .log .ll.bl .nx{margin-left:6px;color:#ffd23f}
   .log .ll.bl .l2{color:#9fbfaa;padding-left:4.2em;font-size:.95em;line-height:1.05}
+  /* 0.32.342: uma linha só — horário, token e código (NC = não copiou) */
+  .log .ll.one{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+  .log .ll.one .lt{margin:0;flex:0 0 auto}
+  .log .ll.one .tk{color:#f5d0fe;font-weight:bold;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .box h3 .leg{font-family:"VT323",monospace;font-size:14px;color:#9fbfaa;margin-left:8px;text-shadow:none}
+  .log .ll.one b{flex:0 0 auto}.log .ll.one .nx{color:#ffd23f;flex:0 0 auto}
   .log .ll.bl .tk{margin-left:0}
   @keyframes typein{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
   .log .cur{color:#3ee66b;animation:blink 1s steps(2) infinite}
@@ -184,7 +190,7 @@
   <div class="side">
     <div class="col">
       <div class="box"><h3 class="pf" data-ico="coin">POSIÇÕES ABERTAS<span id="posN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="pos"></div></div>
-      <div class="box logb"><h3 class="pf" data-ico="bot">LOG DO ROBÔ<span id="logN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="log" id="log"></div></div>
+      <div class="box logb"><h3 class="pf" data-ico="bot">LOG DO ROBÔ<span id="logN"></span><span class="leg">NC = não copiou</span><i class="dots"><b></b><b></b><b></b></i></h3><div class="log" id="log"></div></div>
       <div class="box hist"><h3 class="pf" data-ico="trophy">HISTÓRICO<span id="hisN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="his"></div></div>
     </div>
   </div>

@@ -84,6 +84,6 @@ def test_bot_live_copia_os_top_traders_sem_bloqueio_e_com_stop(monkeypatch):
 def test_log_do_bot_live_mostra_horario_token_rede_e_motivo():
     import os
     js = open(os.path.join(os.path.dirname(__file__), "..", "web", "sala.js"), encoding="utf-8").read()
-    assert "function renderBotLog(" in js and "ROBINHOOD" in js and "pool fora da Uniswap V4 em ETH" in js
+    assert "function renderBotLog(" in js and "function radar(" in js and '"NC"' in js
     api = open(os.path.join(os.path.dirname(__file__), "..", "app", "botlive_api.py"), encoding="utf-8").read()
     assert "fill_names" in api

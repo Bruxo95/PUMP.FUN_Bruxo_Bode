@@ -305,6 +305,27 @@
     TXT((p.risco ? "! " : "") + String(p.symbol || (p.mint || "").slice(0, 6)).slice(0, 12).toUpperCase(), 180, y + 14, p.risco ? (f % 10 < 8 ? "#facc15" : "#a16207") : f % 10 < 8 ? "#e8f0ff" : "#8fa3d1", 8);
     sparkPx(S.hist[(p.id || (p.mint + "|" + p.opened_at))] || [], 180, y + 25, 124, 13);
   }
+  // 0.32.342 (pedido do dono: "pode preencher esse espaço"): no BOT LIVE sem trades, o telão vira o RADAR do BOT — quantos top traders
+  // ele copia e as últimas decisões (horário, token e NC/COMPRA/VENDA), com uma linha de varredura passando.
+  function radar(f) {
+    R(176, 42, 132, 70, "#030c16");
+    TXT("RADAR · " + (S.seguindo || 0) + " TOP", 178, 43, "#ffd23f", 8);
+    const L = [];
+    S.log.filter((x) => x.k !== "bl-status").forEach((x) => {
+      const last = L[L.length - 1];
+      if (!last || last.s !== x.s || logCode(last.a) !== logCode(x.a)) L.push(x);
+    });
+    L.splice(6);
+    if (!L.length) TXT("AGUARDANDO COMPRA", 178, 70, "#8fa3d1", 8);
+    L.forEach((x, i) => {
+      const y = 55 + i * 9, code = logCode(x.a), col = code === "NC" ? "#8fa3d1" : code === "VENDA" ? "#ff9f1c" : "#3ee66b";
+      TXT(String(x.h || "").slice(0, 5), 178, y, "#4f7a5e", 8);
+      TXT(String(x.s || "?").toUpperCase().slice(0, 7), 222, y, "#f5d0fe", 8);
+      TXT(code === "COMPRA" ? "C" : code === "VENDA" ? "V" : "NC", 306 - TW(code === "COMPRA" ? "C" : code === "VENDA" ? "V" : "NC"), y, col, 8);
+    });
+    const sy = 52 + (f * 2) % 58;
+    R(176, sy, 132, 1, "rgba(61,242,196,.25)");
+  }
   function bigMonitor(f) {
     R(170, 17, 144, 100, K); R(171, 18, 142, 98, "#2b2f3a");
     R(174, 21, 136, 8, "#2a3c6b"); TXT("TELAO", 177, 21, "#e8f0ff", 8);                // barra de título da janela
@@ -332,7 +353,8 @@
           px = x; py = y;
         });
         if (f % 8 < 5) R(px - 1, py - 1, 3, 3, "#ffffff");
-      } else TXT("SEM TRADES AINDA", 180, 70, "#8fa3d1", 8);
+      } else if (C().botlive) radar(f);
+      else TXT("SEM TRADES AINDA", 180, 70, "#8fa3d1", 8);
     }
     R(234, 117, 16, 8, "#2b2f3a"); R(226, 124, 32, 3, "#2b2f3a");                      // pé do monitor
   }
@@ -686,19 +708,24 @@
     for (const [re, t] of MOTIVOS) if (re.test(r)) return t;
     return r.replace(/^token barrado:\s*/i, "").replace(/\s*\(.*$/, "");
   };
+  // 0.32.342 (pedido do dono): uma linha por decisão — horário, token e o código (NC = não copiou, COMPRA, VENDA); o motivo fica na
+  // dica do mouse. Repetidas seguidas viram uma com ×N.
+  function logCode(a) {
+    const k = logKind(a);
+    return k === "sell" ? "VENDA" : k === "ok" ? "COMPRA" : "NC";
+  }
   function renderBotLog(L, box) {
     const G = [];
     L.forEach((x) => {
-      const last = G[G.length - 1], m = motivo(x.r);
-      if (last && last.a === x.a && last.s === x.s && last.m === m) last.n++;
-      else G.push(Object.assign({}, x, { m, n: 1 }));
+      const last = G[G.length - 1], c = logCode(x.a);
+      if (last && last.c === c && last.s === x.s) last.n++;
+      else G.push(Object.assign({}, x, { c, n: 1 }));
     });
-    box.innerHTML = G.slice(0, 30).map((x, i) => {
-      const k = logKind(x.a), ic = k === "ok" ? icon("up", 1) : k === "sell" ? icon("down", 1) : "";
-      return '<div class="ll bl ' + k + (i === 0 && x.fresh ? " new" : "") + '" title="' + esc(x.r || "") + '">' +
-        '<div class="l1"><span class="lt">' + esc(x.h) + '</span>' + ic + '<span class="tk">' + esc(x.s || "?") + '</span><span class="net">ROBINHOOD</span>' +
-        (x.n > 1 ? '<span class="nx">×' + x.n + "</span>" : "") + "</div>" +
-        '<div class="l2"><b>' + esc(String(x.a || "").toUpperCase()) + "</b>" + (x.m ? " · " + esc(x.m) : "") + "</div></div>";
+    box.innerHTML = G.slice(0, 40).map((x, i) => {
+      const k = x.c === "NC" ? "no" : x.c === "VENDA" ? "sell" : "ok";
+      return '<div class="ll one ' + k + (i === 0 && x.fresh ? " new" : "") + '" title="' + esc((x.a || "") + (x.r ? " · " + motivo(x.r) : "")) + '">' +
+        '<span class="lt">' + esc(x.h) + '</span><span class="tk">' + esc(x.s || "?") + '</span><b>' + x.c + "</b>" +
+        (x.n > 1 ? '<span class="nx">×' + x.n + "</span>" : "") + "</div>";
     }).join("") + '<div class="cur">&gt; _</div>';
   }
   function renderLog() {
@@ -807,6 +834,7 @@
     // 0.32.339: BOT LIVE recém-ligado ainda sem decisões — mostra que está trabalhando e quantos traders acompanha
     if (C().botlive && !log.length) log.push({ k: "bl-status", h: hms(Date.now()), a: (p.cfg_sim && p.cfg_sim.on === false) ? "BOT parado" : "BOT operando",
       s: "", r: "copiando os " + (p.seguindo || 0) + " top traders da Robinhood · compra quando um deles comprar" });
+    S.seguindo = p.seguindo || 0;
     return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log };
   }
 

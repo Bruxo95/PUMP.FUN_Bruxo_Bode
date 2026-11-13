@@ -2465,6 +2465,11 @@
    "versao": "0.32.341",
    "inicio": "2026-11-13T22:45:47+00:00",
    "titulo": "BOT LIVE: log com horário, nome do token, rede e motivo"
+  },
+  {
+   "versao": "0.32.342",
+   "inicio": "2026-11-13T22:56:53+00:00",
+   "titulo": "BOT LIVE: log em uma linha (NC = não copiou) e radar no telão"
   }
  ]
 }
