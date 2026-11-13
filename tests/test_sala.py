@@ -72,3 +72,14 @@ def test_vender_de_cada_posicao_fica_na_primeira_coluna():
     """0.32.311 (pedido do dono): o Vender de cada posição do /hood fica na 1ª coluna (na última saía da tela entre 860 e 1280 px)."""
     js = open(os.path.join(WEB, "hood.js"), encoding="utf-8").read()
     assert 'table("poTb", ["", "Aberta"' in js and "sellBtn(p)," in js
+
+
+def test_sala_escritorio_com_personagens_balões_e_log():
+    """0.32.333 (pedido do dono, com referências de pixel art): escritório com trader, BOT assistente, balões de fala, ícones e
+    LOG DO ROBÔ; tudo desenhado no código (sem imagem de fora) e a sala continua só lendo os dados."""
+    html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert 'id="log"' in html and 'data-ico="bot"' in html
+    assert "function balloon(" in js and "function botDraw(" in js and "function renderLog(" in js and "const SPR = {" in js
+    assert "<img" not in html.split("<body>")[1].split("<script")[0]        # nenhuma imagem de fora na página
+    assert "http" not in js.split("const SPR = {")[1].split("const CACHE")[0]

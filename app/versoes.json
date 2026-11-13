@@ -2420,6 +2420,11 @@
    "versao": "0.32.332",
    "inicio": "2026-11-13T07:46:28+00:00",
    "titulo": "Stop de ganho autônomo nas três redes"
+  },
+  {
+   "versao": "0.32.333",
+   "inicio": "2026-11-13T08:18:28+00:00",
+   "titulo": "Sala: escritório em pixel art com personagens, balões e log"
   }
  ]
 }
