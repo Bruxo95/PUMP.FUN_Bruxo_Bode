@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-13",
     "timezone": "Europe/Dublin",
-    "repository_reference": "58f587061950e9532ab22bcffc25c98a381e5be3",
-    "application_version": "0.32.333 · 2026-11-13 · Sala: escritório em pixel art com personagens, balões e log",
+    "repository_reference": "4402f87481e0dd8dd4e62047ddd48e2af34d0f70",
+    "application_version": "0.32.334 · 2026-11-13 · Sala: personagem casual que trabalha e reage ao mercado",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "b0474ac0fda4ea4835af34c6a0657f25aef5fd9f7fc7ea8e7a2799f8683c3b5e",
+      "app/version.py": "a6b251a88f7fcebabf4cf16f8336d4d06241c7e62861201c76bba6e8cf859da5",
       "constraints.txt": "27e9aad6bf55a5d2774b5f8e18bae8e986b06a317ed37aeb46f0843138e9f93e",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8339,5 +8339,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "715203309c842bbaebc2a5df4b0af8620f5be622bf66d5c9289bedeae6aae85a"
+  "pdf_sha256": "ef1bbaa493414b58f8db106ab834a75309693eb103ba2665701b0052bed76954"
 }

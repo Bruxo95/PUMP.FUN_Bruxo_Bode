@@ -102,7 +102,9 @@
   .log .cur{color:#3ee66b;animation:blink 1s steps(2) infinite}
   .ico{height:1.1em;width:auto;vertical-align:-0.15em;margin-right:4px}
   .alert{border-width:4px;box-shadow:6px 6px 0 #000;top:auto;bottom:5%;left:2%;transform:translateY(30px)}
-  .stage .stats{display:none}   /* o resultado agora é desenhado na mesa (placar e carteira) */
+  .stage .stats{display:none}
+  .mood{font-size:10px}.mood.m-euforia,.mood.m-feliz{border-color:var(--green);color:var(--green)}.mood.m-atento{border-color:#6fd3ff;color:#6fd3ff}
+  .mood.m-dedicado{border-color:#ff9f1c;color:#ff9f1c}.mood.m-nervoso{border-color:var(--red);color:var(--red);animation:alarm 1s steps(2) infinite}   /* o resultado agora é desenhado na mesa (placar e carteira) */
   .alert .ah{align-items:center}.alert .ah .ico{height:16px}
   .tick .run .ico{height:1em}
   @media (max-width:980px) and (orientation:portrait),(max-width:700px){
@@ -118,6 +120,7 @@
   <div class="brand pf">PUMP FUN COPY · SALA</div>
   <span class="live pf"><i></i>AO VIVO</span>
   <div class="hud pf" id="hud">PROCURANDO GEMS…</div>
+  <div class="hud pf mood" id="mood">HUMOR: ATENTO</div>
   <div class="ctl" id="ctl">
     <button class="btn" id="mSim" type="button">FICTÍCIA</button>
     <button class="btn real" id="mReal" type="button">REAL</button>

@@ -83,3 +83,12 @@ def test_sala_escritorio_com_personagens_balões_e_log():
     assert "function balloon(" in js and "function botDraw(" in js and "function renderLog(" in js and "const SPR = {" in js
     assert "<img" not in html.split("<body>")[1].split("<script")[0]        # nenhuma imagem de fora na página
     assert "http" not in js.split("const SPR = {")[1].split("const CACHE")[0]
+
+
+def test_sala_personagem_casual_com_humor_do_mercado():
+    """0.32.334 (pedido do dono): personagem casual que trabalha e reage ao mercado (eufórico, feliz, atento, dedicado, nervoso)."""
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
+    for m in ("euforia", "feliz", "atento", "dedicado", "nervoso"):
+        assert m + ":" in js
+    assert "S.mood =" in js and "MELHORANDO!" in js and 'id="mood"' in html and "HOOD_C" in js

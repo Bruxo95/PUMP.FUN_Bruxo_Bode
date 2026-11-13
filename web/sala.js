@@ -42,14 +42,14 @@
   };
   const SPR = {
     head: [
-      "....kkkkkkkk....",
-      "..kkhhhhhhhhkk..",
-      ".khhHHhhhhhhhhk.",
-      ".khHhhhhhhhhhhk.",
+      "...k.kkk.kk.k...",
+      "..khkhhhkhhkhk..",
+      ".khhhhhhhhhhhhk.",
+      "khhHhhhhhhhHhhhk",
       "khhhhhhhhhhhhhhk",
-      "khhhsshhhhsshhhk",
+      "khhhshhhhhhshhhk",
+      "khhsssssssssshhk",
       "khsssssssssssshk",
-      "kssssssssssssssk",
       "kssssssssssssssk",
       "kssssssssssssssk",
       "kSssssssssssssSk",
@@ -215,7 +215,8 @@
     const st = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1), 1);
     for (let k = 0; k <= st; k++) R(x1 + (x2 - x1) * k / st - w / 2, y1 + (y2 - y1) * k / st - w / 2, w, w, c);
   }
-  function arm(x1, y1, x2, y2) { seg(x1, y1, x2, y2, 8, K); seg(x1, y1, x2, y2, 6, "#4b8fe2"); hand(x2, y2); }
+  const HOOD_C = "#e4572e", HOOD_D = "#b23a1c";
+  function arm(x1, y1, x2, y2) { seg(x1, y1, x2, y2, 8, K); seg(x1, y1, x2, y2, 6, HOOD_C); hand(x2, y2); }
   function hand(x, y) { R(x - 4, y - 4, 8, 8, K); R(x - 3, y - 3, 6, 6, "#f2c28b"); R(x - 3, y + 1, 6, 2, "#d9935a"); }
 
   // ------------------------------------------------------------------ cenário
@@ -327,65 +328,119 @@
   }
 
   // ------------------------------------------------------------------ personagens
-  // o trader: camisa azul, gravata e headset; muda o rosto e os braços conforme o mercado e cada compra/venda
-  function face(hx, hy, ex, f) {
+  // 0.32.334 (pedido do dono: "troque o personagem por um mais casual; ele tem que se mexer como quem trabalha e reagir conforme o
+  // mercado melhora ou piora: nervoso, feliz, atento, dedicado"): dev casual de moletom com capuz, fone grande, óculos e cabelo
+  // bagunçado. O humor (S.mood) vem do resultado das posições abertas e da tendência dos últimos 20 s:
+  //   euforia (≥ +10%) · feliz (≥ +2%) · atento (entre −3% e +2%, ou sem posição) · dedicado (até −10%) · nervoso (abaixo de −10%).
+  // Em cada humor ele alterna atividades de trabalho (digitar, mexer no mouse, pensar, tomar café, olhar o telão…).
+  const MOODS = {
+    euforia: ["festa", "festa", "danca", "festa"],
+    feliz: ["digita", "musica", "cafe", "espreguica"],
+    atento: ["digita", "mouse", "pensa", "olha", "cafe"],
+    dedicado: ["rapido", "rapido", "mouse", "limpa", "rapido"],
+    nervoso: ["unha", "cabeca", "rapido", "unha", "cabeca"],
+  };
+  function face(hx, hy, ex, f, look) {
     const P = (x, y, w, h, c) => R(hx + x * 2, hy + y * 2, w * 2, h * 2, c);
-    const blink = ex === "neutral" && f % 40 === 0;
+    const lk = look || 0;                                                     // pupilas para o lado (olhando o telão)
+    // óculos redondos
+    const glass = (x) => { P(x, 7, 4, 1, K); P(x, 10, 4, 1, K); P(x - 1, 8, 1, 2, K); P(x + 4, 8, 1, 2, K); P(x, 8, 4, 2, "rgba(170,220,255,.35)"); };
+    const eyes = (h) => { P(3 + lk, 8, 1, h, K); P(10 + lk, 8, 1, h, K); };
     if (ex === "happy") {
-      P(3, 8, 1, 1, K); P(4, 7, 1, 1, K); P(5, 8, 1, 1, K); P(10, 8, 1, 1, K); P(11, 7, 1, 1, K); P(12, 8, 1, 1, K);
-      P(5, 11, 6, 1, K); P(6, 12, 4, 1, "#9c2f3a"); P(2, 10, 2, 1, "#ff9a9a"); P(12, 10, 2, 1, "#ff9a9a");
-    } else if (ex === "panic") {
-      P(3, 7, 3, 3, "#ffffff"); P(10, 7, 3, 3, "#ffffff"); P(4, 8, 1, 1, K); P(11, 8, 1, 1, K);
-      P(3, 6, 3, 1, K); P(10, 6, 3, 1, K); P(7, 11, 2, 2, K);
+      glass(2); glass(9); P(6, 8, 3, 1, K);
+      P(2 + 1, 9, 1, 1, K); P(3 + 1, 8, 1, 1, K); P(4 + 1, 9, 1, 1, K); P(9 + 1, 9, 1, 1, K); P(10 + 1, 8, 1, 1, K); P(11 + 1, 9, 1, 1, K);
+      P(5, 12, 6, 1, K); P(6, 13, 4, 1, "#9c2f3a"); P(1, 11, 2, 1, "#ff9a9a"); P(13, 11, 2, 1, "#ff9a9a");
+      return;
+    }
+    glass(2); glass(9); P(6, 8, 3, 1, K);
+    if (ex === "panic") {
+      P(3, 8, 2, 2, "#ffffff"); P(10, 8, 2, 2, "#ffffff"); P(3 + (f % 2), 8, 1, 1, K); P(10 + (f % 2), 8, 1, 1, K);
+      P(2, 5, 3, 1, K); P(10, 5, 3, 1, K); P(7, 12, 2, 2, K);
+    } else if (ex === "worried") {
+      P(2, 6, 1, 1, K); P(3, 5, 2, 1, K); P(12, 6, 1, 1, K); P(10, 5, 2, 1, K); eyes(2); P(6, 13, 4, 1, K); P(5, 12, 1, 1, K); P(10, 12, 1, 1, K);
     } else if (ex === "focus") {
-      P(3, 6, 3, 1, K); P(10, 6, 3, 1, K); P(4, 8, 2, 1, K); P(10, 8, 2, 1, K); P(6, 12, 4, 1, K);
+      P(2, 6, 3, 1, K); P(10, 6, 3, 1, K); P(3 + lk, 9, 2, 1, K); P(10 + lk, 9, 2, 1, K); P(6, 13, 4, 1, K);
+    } else if (ex === "bite") {
+      P(2, 6, 1, 1, K); P(3, 5, 2, 1, K); P(12, 6, 1, 1, K); P(10, 5, 2, 1, K); eyes(2); P(7, 12, 2, 1, "#ffffff");
     } else if (ex === "shout") {
-      P(4, 7, 1, 2, K); P(11, 7, 1, 2, K); P(5, 10, 6, 3, K); P(6, 11, 4, 1, "#ff4d5e");
+      eyes(2); P(5, 11, 6, 3, K); P(6, 12, 4, 1, "#ff4d5e");
     } else if (ex === "sad") {
-      P(3, 7, 2, 1, K); P(11, 7, 2, 1, K); P(4, 8, 1, 1, K); P(11, 8, 1, 1, K); P(6, 12, 4, 1, K); P(5, 11, 1, 1, K); P(10, 11, 1, 1, K);
-      P(12, 9, 1, 2, "#6fd3ff");
+      P(3, 9, 2, 1, K); P(10, 9, 2, 1, K); P(6, 13, 4, 1, K); P(5, 12, 1, 1, K); P(10, 12, 1, 1, K); P(13, 10, 1, 2, "#6fd3ff");
+    } else if (ex === "smile") {
+      eyes(2); P(5, 12, 1, 1, K); P(6, 13, 4, 1, K); P(10, 12, 1, 1, K);
+    } else if (ex === "think") {
+      P(10, 5, 3, 1, K); eyes(2); P(7, 13, 3, 1, K);
     } else {
-      if (!blink) { P(4, 7, 1, 2, K); P(11, 7, 1, 2, K); } else { P(4, 8, 1, 1, K); P(11, 8, 1, 1, K); }
-      P(6, 12, 4, 1, "#9c5a3c");
+      if (f % 46 === 0) { P(3, 9, 1, 1, K); P(10, 9, 1, 1, K); } else eyes(2);
+      P(6, 13, 4, 1, "#9c5a3c");
     }
   }
+  function phones(hx, hy, f, beat) {
+    const by = beat ? -1 : 0;
+    R(hx - 1, hy - 4 + by, 34, 4, K); R(hx + 1, hy - 3 + by, 30, 2, "#2b2f3a");                         // arco
+    R(hx - 6, hy + 8, 9, 16, K); R(hx - 5, hy + 9, 7, 14, "#ff9f1c"); R(hx - 5, hy + 12, 3, 8, "#d97706");
+    R(hx + 29, hy + 8, 9, 16, K); R(hx + 30, hy + 9, 7, 14, "#ff9f1c"); R(hx + 34, hy + 12, 3, 8, "#d97706");
+  }
   function trader(f) {
-    const act = S.action && Date.now() < S.actionUntil ? S.action : null;
-    const st = act || S.base;
-    const bob = st === "dump" ? (f % 2) : (f % 24 < 12 ? 0 : 1);
-    const hx = 112, hy = 46 + bob + (st === "dump" ? 3 : 0);
-    // cadeira de escritório
-    R(102, 60, 56, 68, K); R(104, 62, 52, 64, "#33294a"); R(108, 66, 44, 56, "#3f3360");
-    // tronco
+    const now = Date.now(), act = S.action && now < S.actionUntil ? S.action : null;
+    const mood = S.mood || "atento", list = MOODS[mood] || MOODS.atento;
+    const task = act || list[Math.floor(f / 48) % list.length];
+    const jitter = mood === "nervoso" && !act ? (f % 3 === 0 ? -1 : f % 3 === 1 ? 1 : 0) : 0;
+    const lean = (task === "rapido" || mood === "dedicado") && !act ? 4 : task === "espreguica" ? -3 : 0;
+    const beat = task === "musica" && f % 8 < 4;
+    let bob = 0;
+    if (task === "festa" || act === "win") bob = -Math.abs(Math.round(Math.sin(f / 2.5) * 4));
+    else if (task === "danca") bob = (f % 8 < 4 ? -2 : 0);
+    else if (beat) bob = 1;
+    else bob = f % 24 < 12 ? 0 : 1;
+    const sway = task === "danca" ? (f % 16 < 8 ? -3 : 3) : 0;
+    const hx = 112 + jitter + sway + (lean > 0 ? 2 : 0), hy = 46 + bob + lean;
+    // cadeira gamer
+    R(100 + jitter, 54, 60, 74, K); R(102 + jitter, 56, 56, 70, "#2b2d42"); R(108 + jitter, 60, 44, 62, "#3a3d5c"); R(126 + jitter, 60, 8, 62, "#e4572e");
+    // tronco: moletom com capuz, camiseta escura por baixo, cordões e bolso canguru
     const bx = hx - 4, by = hy + 30;
-    R(bx, by, 40, 36, K); R(bx + 1, by + 1, 38, 35, "#4b8fe2"); R(bx + 1, by + 1, 4, 35, "#2f69b5"); R(bx + 35, by + 1, 4, 35, "#2f69b5");
-    R(bx + 12, by + 1, 6, 5, "#ffffff"); R(bx + 22, by + 1, 6, 5, "#ffffff");            // colarinho
-    R(bx + 18, by + 3, 4, 4, "#c9372c"); R(bx + 17, by + 7, 6, 16, "#c9372c"); R(bx + 19, by + 23, 2, 3, "#8f2219"); // gravata
-    R(hx + 12, hy + 28, 8, 4, "#d9935a");                                                // pescoço
-    // braços por estado
+    R(bx - 2, by - 4, 44, 8, K); R(bx, by - 3, 40, 6, HOOD_D);                                         // capuz atrás do pescoço
+    R(bx, by, 40, 36, K); R(bx + 1, by + 1, 38, 35, HOOD_C); R(bx + 1, by + 1, 3, 35, HOOD_D); R(bx + 36, by + 1, 3, 35, HOOD_D);
+    R(bx + 14, by + 1, 12, 7, "#26263a"); R(bx + 16, by + 8, 8, 2, "#26263a");                         // gola em V
+    R(bx + 13, by + 4, 1, 12, "#ffffff"); R(bx + 26, by + 4, 1, 12, "#ffffff"); R(bx + 12, by + 16, 3, 2, "#ffffff"); R(bx + 25, by + 16, 3, 2, "#ffffff");
+    R(bx + 8, by + 24, 24, 9, HOOD_D); R(bx + 9, by + 25, 22, 1, K);                                  // bolso
+    R(hx + 12, hy + 28, 8, 4, "#d9935a");
+    // braços e expressão por atividade
     const L = [bx + 3, by + 6], Rr = [bx + 37, by + 6];
-    let expr = "neutral";
-    if (st === "buy") { expr = "shout"; arm(L[0], L[1], bx - 4, by + 30); arm(Rr[0], Rr[1], 212, f % 4 < 2 ? 114 : 116); }
-    else if (st === "win") { expr = "happy"; arm(L[0], L[1], bx - 10, by - 18 + (f % 6 < 3 ? 0 : 2)); arm(Rr[0], Rr[1], bx + 50, by - 18 + (f % 6 < 3 ? 2 : 0)); }
-    else if (st === "loss") { expr = "sad"; arm(L[0], L[1], hx + 8, hy + 18); arm(Rr[0], Rr[1], bx + 30, by + 32); }
-    else if (st === "pump") {
-      expr = "happy";
-      if (f % 64 < 32) { arm(L[0], L[1], bx - 8, by - 16 + (f % 8 < 4 ? 0 : 2)); arm(Rr[0], Rr[1], bx + 48, by - 16 + (f % 8 < 4 ? 2 : 0)); }
-      else { arm(L[0], L[1], bx - 2, by + 30); arm(Rr[0], Rr[1], hx + 34, hy + 30); var mugAt = [hx + 30, hy + 18]; }
-    } else if (st === "dump") {
-      if (f % 50 < 12) { expr = "panic"; arm(L[0], L[1], hx - 2, hy + 6); arm(Rr[0], Rr[1], hx + 34, hy + 6); }
-      else { expr = "focus"; const a = f % 2 ? 0 : 3; arm(L[0], L[1], 118, 118 + a); arm(Rr[0], Rr[1], 146, 121 - a); }
-      for (let i = 0; i < 2; i++) { const dy = (f * 2 + i * 9) % 16; R(hx - 4 + i * 38, hy + 6 + dy, 2, 3, "#6fd3ff"); }   // suor
-    } else {
-      const k = f % 4 < 2 ? 0 : 2; arm(L[0], L[1], 120, 118 + k); arm(Rr[0], Rr[1], 144, 120 - k);
+    let expr = "neutral", look = 1, mugAt = null, extra = null;
+    const type = (fast) => { const a = fast ? (f % 2 ? 0 : 3) : (f % 4 < 2 ? 0 : 2); arm(L[0], L[1], 120, 118 + a); arm(Rr[0], Rr[1], 144, 120 - a); };
+    switch (task) {
+      case "buy": expr = "shout"; arm(L[0], L[1], bx - 4, by + 30); arm(Rr[0], Rr[1], 212, f % 4 < 2 ? 114 : 116); break;
+      case "win": expr = "happy"; arm(L[0], L[1], bx - 10, by - 20 + (f % 6 < 3 ? 0 : 3)); arm(Rr[0], Rr[1], bx + 50, by - 20 + (f % 6 < 3 ? 3 : 0)); break;
+      case "loss": expr = "sad"; look = 0; arm(L[0], L[1], hx + 10, hy + 20); arm(Rr[0], Rr[1], bx + 30, by + 32); break;   // mão na testa
+      case "festa": expr = "happy"; arm(L[0], L[1], bx - 10, by - 18 + (f % 4 < 2 ? 0 : 4)); arm(Rr[0], Rr[1], bx + 50, by - 18 + (f % 4 < 2 ? 4 : 0)); extra = "confete"; break;
+      case "danca": expr = "happy"; arm(L[0], L[1], bx - 8, by + (f % 8 < 4 ? -14 : 4)); arm(Rr[0], Rr[1], bx + 48, by + (f % 8 < 4 ? 4 : -14)); extra = "nota"; break;
+      case "musica": expr = "smile"; type(false); extra = "nota"; break;
+      case "espreguica": expr = "happy"; arm(L[0], L[1], hx + 2, hy - 2); arm(Rr[0], Rr[1], hx + 30, hy - 2); break;   // mãos atrás da cabeça
+      case "cafe": expr = mood === "feliz" ? "smile" : "neutral"; arm(L[0], L[1], 120, 118); arm(Rr[0], Rr[1], hx + 34, hy + 30); mugAt = [hx + 30, hy + 18]; break;
+      case "mouse": expr = mood === "dedicado" ? "focus" : "neutral"; look = 2; arm(L[0], L[1], 122, 119); arm(Rr[0], Rr[1], 176 + (f % 12 < 6 ? 0 : 3), 124 - (f % 8 < 4 ? 0 : 1)); break;
+      case "pensa": expr = "think"; look = 2; arm(L[0], L[1], 122, 119); arm(Rr[0], Rr[1], hx + 22, hy + 30); extra = "?"; break;   // mão no queixo
+      case "olha": expr = "neutral"; look = 2; arm(L[0], L[1], 122, 119); arm(Rr[0], Rr[1], 146, 120); break;
+      case "rapido": expr = mood === "nervoso" ? "worried" : "focus"; look = 2; type(true); extra = "risco"; break;
+      case "limpa": expr = "worried"; arm(L[0], L[1], 122, 119); arm(Rr[0], Rr[1], hx + 28 - (f % 6 < 3 ? 0 : 6), hy + 6); extra = "suor"; break;   // enxuga a testa
+      case "unha": expr = "bite"; look = 0; arm(L[0], L[1], 122, 119); arm(Rr[0], Rr[1], hx + 16 + (f % 2), hy + 26); extra = "suor"; break;   // roendo a unha
+      case "cabeca": expr = "panic"; look = 0; arm(L[0], L[1], hx - 2, hy + 4); arm(Rr[0], Rr[1], hx + 34, hy + 4); extra = "suor"; break; // mãos na cabeça
+      default: expr = mood === "feliz" ? "smile" : "neutral"; type(false);
     }
     spr("head", hx, hy, 2);
-    face(hx, hy, expr, f);
-    // headset
-    R(hx + 2, hy - 2, 28, 3, K); R(hx - 3, hy + 12, 6, 12, K); R(hx - 2, hy + 13, 4, 10, "#30364a");
-    R(hx + 29, hy + 12, 6, 12, K); R(hx + 30, hy + 13, 4, 10, "#30364a");
-    seg(hx, hy + 22, hx + 9, hy + 27, 2, "#30364a"); R(hx + 9, hy + 26, 3, 3, "#3df2c4");
-    if (typeof mugAt !== "undefined" && mugAt) { mug(mugAt[0], mugAt[1], f); hand(hx + 34, hy + 30); }   // café na frente do rosto
+    face(hx, hy, expr, f, look);
+    phones(hx, hy, f, beat);
+    if (mugAt) { mug(mugAt[0], mugAt[1], f); hand(hx + 34, hy + 30); }
+    if (task === "unha") hand(hx + 16 + (f % 2), hy + 26);
+    if (task === "pensa") hand(hx + 22, hy + 30);
+    // efeitos de cada humor
+    if (extra === "suor" || mood === "nervoso") for (let i = 0; i < 2; i++) { const dy = (f * 2 + i * 9) % 16; R(hx - 6 + i * 42, hy + 2 + dy, 2, 3, "#6fd3ff"); }
+    if (extra === "risco") for (let i = 0; i < 3; i++) R(bx + 46 + (f * 3 + i * 5) % 10, by + 18 + i * 4, 6, 1, "#ffd23f");          // linhas de velocidade
+    if (extra === "nota" && f % 24 < 18) { const ny = hy - 6 - (f % 24); R(hx + 40, ny, 2, 7, "#c084fc"); R(hx + 38, ny + 6, 4, 3, "#c084fc"); R(hx + 42, ny, 3, 2, "#c084fc"); }
+    if (extra === "?" && f % 20 < 14) TXT("?", hx + 36, hy - 6, "#ffd23f", 8);
+    if (extra === "confete" && f % 2 === 0) S.parts.push({ x: hx + Math.random() * 32, y: hy - 6, vx: (Math.random() - .5) * 3, vy: -2 - Math.random() * 2, c: ["#3ee66b", "#ffd23f", "#c084fc", "#6fd3ff"][f % 4], w: 3, h: 3, g: .15, life: 30 });
+    if (mood === "nervoso" && !act && f % 10 < 5) { R(hx + 40, hy - 4, 3, 9, "#ff4d5e"); R(hx + 40, hy + 7, 3, 3, "#ff4d5e"); }      // "!"
+    if (mood === "dedicado" && !act) { const t = (f % 30) / 30; R(hx + 6, hy - 8 - t * 6, 2, 2, "rgba(220,230,255,.5)"); R(hx + 24, hy - 6 - t * 6, 2, 2, "rgba(220,230,255,.5)"); }  // "fumacinha" de concentração
   }
   function mug(x, y, f) {
     R(x - 1, y - 1, 12, 14, K); R(x, y, 10, 12, "#e8e8f0"); R(x, y + 3, 10, 3, "#ff4d5e"); R(x + 10, y + 3, 3, 6, K); R(x + 11, y + 4, 1, 4, "#e8e8f0");
@@ -440,22 +495,26 @@
     lines.forEach((l, i) => TXT(l, x + 5, y + 4 + i * 10, col || K, 8));
   }
   const LINES = {
-    idle: ["CACANDO GEMS", "OLHANDO O FEED", "PACIENCIA...", "BORA?"],
-    pump: ["TA SUBINDO!", "HODL!", "CAFEZIN TOP", "DEIXA CORRER"],
-    dump: ["CALMA...", "SEGURA!", "AJUSTANDO", "FOCO NO STOP"],
+    euforia: ["VOANDO!!!", "TO THE MOON!", "QUE DIA!", "HODL HODL!"],
+    feliz: ["TA SUBINDO", "DEIXA CORRER", "CAFEZIN TOP", "BOA BOA"],
+    atento: ["OLHANDO...", "CACANDO GEMS", "HMM...", "BORA?"],
+    dedicado: ["FOCO!", "CALMA...", "AJUSTANDO", "SEGURA ESSA"],
+    nervoso: ["AI AI AI", "VAI VOLTAR?", "SEGURA!!", "RESPIRA..."],
   };
-  const BOTL = { idle: ["BEEP", "SCAN...", "ZZZ"], pump: ["LUCRO!", "UP!"], dump: ["ALERTA", "!!!"] };
+  const BOTL = { atento: ["BEEP", "SCAN...", "ZZZ"], feliz: ["LUCRO!", "UP!"], euforia: ["MOON!", "WOW!"], dedicado: ["FOCO!", "..."], nervoso: ["ALERTA", "!!!"] };
   function say(text, ms, col) { S.say = { text, until: Date.now() + (ms || 4000), col }; }
   function botSay(text, ms) { S.botSay = { text, until: Date.now() + (ms || 3000) }; }
   function speech(f, bp) {
     const now = Date.now();
     if (S.say && now < S.say.until) balloon(S.say.text, 116, 52, S.say.col, false, true);
     else {
-      const list = LINES[S.base] || LINES.idle, k = Math.floor(f / 60) % list.length;
-      if (f % 60 < 42) balloon(list[k], 116, 52, S.base === "dump" ? "#a81f2d" : S.base === "pump" ? "#1b8f3f" : K, false, true);
+      const md = S.mood || "atento", list = LINES[md] || LINES.atento, k = Math.floor(f / 60) % list.length;
+      const col = md === "nervoso" ? "#a81f2d" : md === "dedicado" ? "#b45309" : md === "atento" ? K : "#1b8f3f";
+      if (S.trendSay && now < S.trendSay.until) balloon(S.trendSay.text, 116, 52, S.trendSay.col, false, true);
+      else if (f % 60 < 42) balloon(list[k], 116, 52, col, false, true);
     }
     if (S.botSay && now < S.botSay.until) balloon(S.botSay.text, bp.x + 14, bp.y, "#2f69b5", true);
-    else if (f % 120 > 90) { const l = BOTL[S.base] || BOTL.idle; balloon(l[Math.floor(f / 120) % l.length], bp.x + 14, bp.y, "#2f69b5", true); }
+    else if (f % 120 > 90) { const l = BOTL[S.mood] || BOTL.atento; balloon(l[Math.floor(f / 120) % l.length], bp.x + 14, bp.y, "#2f69b5", true); }
   }
 
   function desk(f) {
@@ -625,7 +684,21 @@
     if (S.openPct != null) S.base = S.openPct > 2 ? "pump" : S.openPct < 0 ? "dump" : "idle";
     else if (recent && Date.now() - recentT < 120000) S.base = (recent.pnl_sol || 0) > 0 ? "pump" : "dump";
     else S.base = "idle";
+    // humor do personagem: nível do resultado aberto + tendência dos últimos ~20 s (melhorando ou piorando)
+    const op = S.openPct;
+    S.mood = op == null ? (S.base === "pump" ? "feliz" : S.base === "dump" ? "dedicado" : "atento")
+      : op >= 10 ? "euforia" : op >= 2 ? "feliz" : op > -3 ? "atento" : op > -10 ? "dedicado" : "nervoso";
+    const tnow = Date.now();
+    S.pctHist = (S.pctHist || []).filter((x) => tnow - x[0] < 25000);
+    if (op != null) S.pctHist.push([tnow, op]);
+    const old = S.pctHist.length > 3 ? S.pctHist[0][1] : null;
+    if (old != null && op != null && (!S.trendSay || tnow > S.trendSay.until + 15000)) {
+      if (op - old >= 3) S.trendSay = { text: "MELHORANDO!", col: "#1b8f3f", until: tnow + 3000 };
+      else if (op - old <= -3) S.trendSay = { text: "PIOROU... ATENCAO", col: "#a81f2d", until: tnow + 3000 };
+    }
     const hud = $("hud");
+    const MH = { euforia: "EUFÓRICO", feliz: "FELIZ", atento: "ATENTO", dedicado: "DEDICADO", nervoso: "NERVOSO" };
+    $("mood").textContent = "HUMOR: " + (MH[S.mood] || "ATENTO"); $("mood").className = "hud pf mood m-" + (S.mood || "atento");
     if (S.openPct == null) hud.innerHTML = '<b class="flat">PROCURANDO GEMS…</b>';
     else if (S.openPct > 0) hud.innerHTML = 'PUMPING NOW! <b class="up">' + pct(S.openPct) + "</b>";
     else hud.innerHTML = 'DUMPING… <b class="down">' + pct(S.openPct) + "</b>";
