@@ -116,7 +116,7 @@
     Lofi.vol(cfg.vol);
     if (window.SALA) { window.SALA.setSound(cfg.sfx); window.SALA.rerender(); }
     if ($("cLink")) $("cLink").textContent = obsLink();
-    $("pnLink").href = cfg.rede === "hood" ? "/hood" : "/app";
+    $("pnLink").href = "/entrar"; $("pnLink").textContent = "PROJETOS";
   }
   const set = (k, v) => { cfg[k] = v; save(); apply(); };
 

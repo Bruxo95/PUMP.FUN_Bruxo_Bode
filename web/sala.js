@@ -584,7 +584,7 @@
     const col = pnl > 0 ? "#3ee66b" : pnl < 0 ? "#ff4d5e" : "#ffd23f";
     R(174, 138, 142, 38, K); R(175, 139, 140, 36, "#04121f");
     spr("coin", 178, 142, 1);
-    TXT(S.real ? "REAL" : "FICTICIA", 192, 143, S.real ? "#ffd23f" : "#3df2c4", 8);
+    TXT(C().botlive ? "CARTEIRA" : S.real ? "REAL" : "FICTICIA", 192, 143, S.real ? "#ffd23f" : "#3df2c4", 8);
     const l1 = st && !PRIV() ? money(st) + ">" + money(eq) : "CARTEIRA";
     TXT(l1.slice(0, 17), 178, 154, "#e8f0ff", 8);
     const l2 = (pctv == null ? "" : (pctv > 0 ? "+" : "") + pctv.toFixed(1) + "% ") + (PRIV() ? "" : (pnl > 0 ? "+" : pnl < 0 ? "-" : "") + money(Math.abs(pnl)));
@@ -716,7 +716,7 @@
     hud.className = "hud pf " + (S.openPct == null ? "flat" : S.openPct > 0 ? "up" : "down");
     const res = +w.pnl_sol || 0;
     $("stats").innerHTML = [
-      ["Carteira", (S.real ? "REAL" : "FICTÍCIA")],
+      ["Carteira", C().botlive ? "do BOT" : (S.real ? "REAL" : "FICTÍCIA")],
       ["Resultado", '<span class="' + cls(res) + '">' + sol(res) + "</span>"],
       ["Acerto", w.win_rate == null ? "–" : Math.round(w.win_rate * 100) + "%"],
       ["Trades", String(w.count || 0)], ["Abertas", String(P.length)],
@@ -753,7 +753,7 @@
   // Robinhood: posições e trades da cópia em ETH no formato que a cena já usa
   const iso = (t) => (t ? new Date(t * 1000).toISOString() : "");
   async function hoodData(real) {
-    const p = await BB._api("/api/hood/painel" + (real ? "?real=1" : ""));
+    const p = await BB._api(C().api ? C().api : "/api/hood/painel" + (real ? "?real=1" : ""));
     if (p.error) return p;
     if (p.ligado === false) return { error: p.motivo || "leitura da Robinhood desligada no servidor" };
     const sy = (x) => x.simbolo || x.nome || (x.token || "").slice(0, 8);
@@ -791,7 +791,7 @@
         .map((x) => ({ k: (x.at || "") + "|" + (x.mint || "") + "|" + (x.action || ""), h: x.at ? new Date(tms(x.at)).toLocaleTimeString("pt-BR") : "",
           a: x.action, s: x.symbol || (x.mint || "").slice(0, 6), r: x.reason }));
       setLog(log);
-      $("sub").textContent = "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA") + " · atualizado " + new Date().toLocaleTimeString("pt-BR");
+      $("sub").textContent = (C().botlive ? "carteira do BOT · estratégia da Robinhood" : "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA")) + " · atualizado " + new Date().toLocaleTimeString("pt-BR");
       $("err").hidden = true;
       render();
     } catch (e) {

@@ -50,12 +50,18 @@ def build_app():
         hub.bnb.arquivo = hub.arquivo
     # 0.32.208: leitura da Robinhood Chain, isolada: laço próprio, RPC grátis próprio e tabela hood_state; HOOD_ON=false desliga
     hub.hood = None
+    hub.botlive = None
     if os.environ.get("HOOD_ON", "true").lower() not in ("0", "false", "no", "off"):
         from .hood import HoodWatch
         hub.hood = HoodWatch(http, db)
         hub.hood.copier.vault = hub.vault             # 0.32.279: chave da carteira da Robinhood (cofre criptografado)
         hub.hood.copier.real_allowed = hub.real_allowed   # mesma trava geral (PUMP_REAL_ALLOWED)
         hub.hood.arquivo = hub.arquivo                # 0.32.282: trades da rede no Postgres da VPS (o ranking não zera no reinício)
+        # 0.32.338 (pedido do dono): BOT LIVE — carteira simulada própria com a estratégia da Robinhood da 0.32.308, separada da /hood;
+        # nunca compra de verdade (sem cofre e sem a trava geral liberada)
+        from .botlive import BotLive
+        hub.botlive = BotLive(hub.hood, http, db)
+        hub.hood.extra.append(hub.botlive)
     # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
     hub.dormant = None
     if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):

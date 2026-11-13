@@ -24,11 +24,11 @@
     $("cLink").textContent = obsLink();
   }
   function fill() {
-    $("cRede").value = cfg.rede; $("cCart").value = cfg.carteira; $("cNome").value = cfg.nome || ""; $("cTit").value = cfg.titulo || "";
+    $("cNome").value = cfg.nome || ""; $("cTit").value = cfg.titulo || "";
     $("cSub").value = cfg.sub || ""; $("cCeu").value = cfg.ceu || ""; $("cVol").value = cfg.vol;
     paint();
   }
-  [["cRede", "rede"], ["cCart", "carteira"], ["cCeu", "ceu"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { cfg[k] = e.target.value; save(); }));
+  [["cCeu", "ceu"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { cfg[k] = e.target.value; save(); }));
   [["cNome", "nome"], ["cTit", "titulo"], ["cSub", "sub"]].forEach(([id, k]) => $(id).addEventListener("input", (e) => { cfg[k] = e.target.value.slice(0, 60); save(); }));
   $("cVol").addEventListener("input", (e) => { cfg.vol = +e.target.value; save(); });
   Object.entries(TG).forEach(([id, k]) => $(id).addEventListener("click", () => { cfg[k] = !cfg[k]; save(); }));
@@ -37,8 +37,43 @@
     setTimeout(() => { $("cCopy").textContent = "Copiar link do OBS"; }, 2000);
   });
   $("cReset").addEventListener("click", () => { Object.assign(cfg, DEF); save(); fill(); });
-  // a SALA LIVE escolhe a carteira pelo que foi salvo aqui (e não pelo último botão FICTÍCIA/REAL apertado lá)
-  $("goSala").addEventListener("click", () => { try { localStorage.setItem("botlive_modo", cfg.carteira === "real" ? "real" : "sim"); } catch (e) { /* */ } });
+  // ------------------------------------------------------------------ carteira do BOT (0.32.338): /api/botlive/*
+  const n = (v, d) => (v == null || isNaN(v) ? "–" : Number(v).toFixed(d == null ? 4 : d));
+  const sg = (v) => (v > 0 ? "+" : "");
+  let W = null, zeroArm = 0;
+  function walPaint(p) {
+    const w = (p && p.carteira) || {}, c = (p && p.cfg_sim) || {};
+    W = c;
+    const cls = (v) => (v > 0 ? "up" : v < 0 ? "down" : "");
+    $("wal").innerHTML = [
+      ["Total agora", n(w.total) + " ETH"], ["Resultado", '<span class="' + cls(w.resultado) + '">' + sg(w.resultado) + n(w.resultado) + " ETH · " + sg(w.resultado_pct) + n(w.resultado_pct, 2) + "%</span>"],
+      ["Acerto", w.acerto == null ? "–" : n(w.acerto, 1) + "% de " + (w.fechadas || 0)], ["Abertas", String(w.abertas || 0)],
+    ].map(([k, v]) => "<div><small>" + k + "</small><b>" + v + "</b></div>").join("");
+    const on = !!c.on;
+    $("wOn").classList.toggle("on", on); $("wOn").classList.toggle("off", !on); $("wOn").textContent = on ? "Ligado" : "Desligado"; $("wOn").setAttribute("aria-checked", on ? "true" : "false");
+    if (document.activeElement !== $("wIni")) $("wIni").value = c.saldo_inicial;
+    if (document.activeElement !== $("wBuy")) $("wBuy").value = c.eth_por_compra;
+    if (document.activeElement !== $("wMax")) $("wMax").value = c.max_abertas;
+  }
+  async function walLoad() {
+    const p = await BB.api("/api/botlive/painel", { quiet: true });
+    if (!p || p.error || p.ligado === false) { $("wal").innerHTML = '<span class="muted">' + BB.esc((p && (p.error || p.motivo)) || "carteira indisponível") + "</span>"; return; }
+    walPaint(p);
+  }
+  async function walSave(raw, msg) {
+    const r = await BB.api("/api/botlive/carteira", { method: "POST", body: raw });
+    $("wMsg").textContent = r && r.ok ? msg : "Não salvou: " + ((r && (r.error || r.motivo)) || "erro");
+    await walLoad();
+  }
+  $("wOn").addEventListener("click", () => walSave({ on: !(W && W.on) }, W && W.on ? "BOT parado: não abre posições novas." : "BOT operando."));
+  $("wSave").addEventListener("click", () => walSave({ saldo_inicial: +$("wIni").value, eth_por_compra: +$("wBuy").value, max_abertas: +$("wMax").value }, "Carteira salva."));
+  $("wZero").addEventListener("click", async () => {
+    if (Date.now() - zeroArm > 4000) { zeroArm = Date.now(); $("wZero").textContent = "Clique de novo para zerar"; setTimeout(() => { $("wZero").textContent = "Zerar carteira"; }, 4000); return; }
+    zeroArm = 0; $("wZero").textContent = "Zerar carteira";
+    const r = await BB.api("/api/botlive/zerar", { method: "POST", body: {} });
+    $("wMsg").textContent = r && r.ok ? "Carteira zerada: começa do saldo inicial, sem histórico." : "Não zerou: " + ((r && r.error) || "erro");
+    await walLoad();
+  });
 
   $("boot").innerHTML = BB.loader("Carregando", { grid: 4, pattern: "sweep", font: 15, cell: 7, glow: true });
   (async function () {
@@ -47,5 +82,6 @@
     if (!s) { location.href = "/"; return; }
     fill();
     $("boot").hidden = true; $("bl").hidden = false;
+    walLoad(); setInterval(walLoad, 15000);
   })();
 })();

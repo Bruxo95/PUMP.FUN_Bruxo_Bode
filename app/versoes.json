@@ -2445,6 +2445,11 @@
    "versao": "0.32.337",
    "inicio": "2026-11-13T21:07:04+00:00",
    "titulo": "BOT LIVE na escolha de projeto, com configuração e botão SALA LIVE"
+  },
+  {
+   "versao": "0.32.338",
+   "inicio": "2026-11-13T21:27:15+00:00",
+   "titulo": "BOT LIVE com carteira própria (estratégia 0.32.308) e Robinhood de volta à lógica nova"
   }
  ]
 }
