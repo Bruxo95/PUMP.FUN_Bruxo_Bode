@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-11-14",
+    "generated_date": "2026-11-15",
     "timezone": "Europe/Dublin",
-    "repository_reference": "afceefd1e22e1017cbfe50acab0499b8a7f60035",
-    "application_version": "0.32.354 · 2026-11-14 · BOT LIVE: personagem fala com quem está no chat (a cada 10 min)",
+    "repository_reference": "b2843f1388c6c97367a04a837a27ab9735836395",
+    "application_version": "0.32.355 · 2026-11-15 · SALA LIVE: personagem novo feito no SpriteCook, animado por humor",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "5d93e8239c13c9c4b270fb3723b900fbb1e95fe1f3a6448fe110a43a02cfecdc",
+      "app/version.py": "335c1d047b62a0cd6635698390a5019c6c2e26dd2b549622b41e598425ad6f84",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b1e0f94d1c1ee719145f94743045eb4727b46d8745686e8d43f09039d22751f1"
+  "pdf_sha256": "8a05925b90268365af86cfa68f5b8c7b4a95a49e5c290dfd99a48486831ce1d3"
 }

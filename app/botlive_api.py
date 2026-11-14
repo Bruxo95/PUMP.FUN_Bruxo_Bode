@@ -223,6 +223,30 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         await audit(db, u["id"], "BOT LIVE: música importada", f"{it['periodo']} · {it['titulo']} · {it['fonte'][:120]}")
         return {"ok": True, "faixa": it, **await m.public()}
 
+    # 0.32.355 (pedido do dono): arte da SALA LIVE feita no SpriteCook (personagem animado por humor)
+    @app.post("/api/botlive/arte/importar")
+    async def botlive_art_import(body: dict, u: dict = Depends(admin_only)):
+        c, m = get_bot(), music()
+        if c is None or m is None:
+            return off()
+        try:
+            it = await m.art_import(c.http, str(body.get("url") or ""), str(body.get("nome") or ""))
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except Exception as e:
+            return JSONResponse({"error": "não consegui baixar: " + str(e)[:160]}, status_code=502)
+        await audit(db, u["id"], "BOT LIVE: arte importada", f"{it['nome']} · {it['bytes']} bytes")
+        return {"ok": True, **it}
+
+    @app.get("/botlive/arte/{nome}")
+    async def botlive_art_file(nome: str):
+        """Público: só os sprites da SALA LIVE (nomes fixos)."""
+        m = music()
+        v = await m.art_file(nome) if m is not None else None
+        if not v:
+            return Response(status_code=404)
+        return Response(v[0], media_type=v[1], headers={"Cache-Control": "public, max-age=3600"})
+
     @app.post("/api/botlive/musicas/remover")
     async def botlive_music_remove(body: dict, u: dict = Depends(admin_only)):
         m = music()

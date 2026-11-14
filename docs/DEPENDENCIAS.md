@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
-Emissão: **2026-11-14**; revisão documental **2.0**.
-Aplicação: **0.32.354 · 2026-11-14 · BOT LIVE: personagem fala com quem está no chat (a cada 10 min)**.
-Referência Git na emissão: `afceefd1e22e1017cbfe50acab0499b8a7f60035`; fontes locais identificadas por SHA-256 no JSON.
+Emissão: **2026-11-15**; revisão documental **2.0**.
+Aplicação: **0.32.355 · 2026-11-15 · SALA LIVE: personagem novo feito no SpriteCook, animado por humor**.
+Referência Git na emissão: `b2843f1388c6c97367a04a837a27ab9735836395`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

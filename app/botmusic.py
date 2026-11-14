@@ -32,6 +32,18 @@ MAX_FAIXAS = 80
 CACHE_MAX = 6                     # faixas guardadas na memória (o OBS toca uma por vez)
 LINK_TTL = 6 * 3600               # o link de cada faixa vale 6 h (a SALA LIVE relê a lista a cada 10 min)
 IMPORT_HOSTS = ("cdn.pixabay.com",)   # de onde o servidor aceita baixar música pelo "importar" (sem SSRF)
+# 0.32.355: arte da SALA LIVE feita no SpriteCook (personagem animado por humor). Só cdn.spritecook.ai; nomes fixos.
+ART_HOSTS = ("cdn.spritecook.ai",)
+ART_NAMES = ("trader_atento", "trader_feliz", "trader_euforia", "trader_dedicado", "trader_nervoso", "trader_base")
+ART_MAX = 3 * 1024 * 1024
+
+
+def image_type(data: bytes) -> str | None:
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def audio_type(data: bytes) -> str | None:
@@ -172,6 +184,40 @@ class Music:
         v = (data, "audio/mpeg" if it["ext"] == "mp3" else "audio/ogg")
         self.cache[fid] = v
         while len(self.cache) > CACHE_MAX:
+            self.cache.popitem(last=False)
+        return v
+
+    # ------------------------------------------------------------------ 0.32.355: arte (sprites) da SALA LIVE
+    async def art_import(self, http, url: str, nome: str) -> dict:
+        import urllib.parse as up
+        u = up.urlparse(str(url or ""))
+        if u.scheme != "https" or u.hostname not in ART_HOSTS:
+            raise ValueError("só aceito links https de " + ", ".join(ART_HOSTS))
+        if nome not in ART_NAMES:
+            raise ValueError("nome de arte inválido")
+        r = await http.get(url, timeout=60, follow_redirects=False)
+        if r.status_code != 200:
+            raise ValueError(f"o SpriteCook respondeu {r.status_code} (o link pode ter vencido)")
+        data = r.content
+        ct = image_type(data)
+        if not ct or len(data) > ART_MAX:
+            raise ValueError("não é PNG/WEBP ou passa de 3 MB")
+        await self.st.put(f"arte/{nome}", data, ct)
+        self.cache.pop("arte/" + nome, None)
+        return {"nome": nome, "bytes": len(data), "tipo": ct}
+
+    async def art_file(self, nome: str) -> tuple[bytes, str] | None:
+        if nome not in ART_NAMES:
+            return None
+        k = "arte/" + nome
+        if k in self.cache:
+            return self.cache[k]
+        data = await self.st.get(k)
+        if not data:
+            return None
+        v = (data, image_type(data) or "application/octet-stream")
+        self.cache[k] = v
+        while len(self.cache) > CACHE_MAX + len(ART_NAMES):
             self.cache.popitem(last=False)
         return v
 

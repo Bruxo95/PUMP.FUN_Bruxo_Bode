@@ -2530,6 +2530,11 @@
    "versao": "0.32.354",
    "inicio": "2026-11-14T21:20:00+00:00",
    "titulo": "BOT LIVE: personagem fala com quem está no chat (a cada 10 min)"
+  },
+  {
+   "versao": "0.32.355",
+   "inicio": "2026-11-14T23:30:00+00:00",
+   "titulo": "SALA LIVE: personagem novo feito no SpriteCook, animado por humor"
   }
  ]
 }

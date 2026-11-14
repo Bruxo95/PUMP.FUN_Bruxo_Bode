@@ -306,3 +306,25 @@ def test_baloes_do_chat_em_ingles_e_sem_placeholder_sobrando():
     for frase in ("WHERE IS EVERYBODY?", "WORKING ALONE AGAIN...", "HEY {N}! THANKS FOR WATCHING", "setInterval(talkNow, 600000)"):
         assert frase in js
     assert "/api/botlive/youtube/sala" in open("web/botlivecfg.js", encoding="utf-8").read()
+
+
+def test_arte_do_spritecook_so_de_la_e_nomes_fixos(env):
+    """0.32.355: personagem da SALA LIVE feito no SpriteCook; o servidor só baixa de cdn.spritecook.ai."""
+    from app import botmusic
+
+    async def go():
+        m = botmusic.Music()
+        for url, nome in (("https://evil.com/a.webp", "trader_atento"), ("http://cdn.spritecook.ai/a.webp", "trader_atento"),
+                          ("https://cdn.spritecook.ai/a.webp", "../index.json")):
+            try:
+                await m.art_import(None, url, nome)
+                assert False
+            except ValueError:
+                pass
+        assert await m.art_file("index.json") is None and await m.art_file("trader_atento") is None
+    run(go())
+    c = env["c"]
+    assert c.post("/api/botlive/arte/importar", json={}).status_code == 401
+    assert c.get("/botlive/arte/trader_atento").status_code == 404
+    js = open("web/sala.js", encoding="utf-8").read()
+    assert "ImageDecoder" in js and "/botlive/arte/trader_" in js and "if (sprTrader()) return;" in js

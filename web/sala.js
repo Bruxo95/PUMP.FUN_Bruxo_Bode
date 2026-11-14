@@ -12,6 +12,37 @@
   const W = 320, H = 180;
   const cv = $("scene"), g = cv.getContext("2d");
   g.imageSmoothingEnabled = false;
+  // 0.32.355 (pedido do dono): no BOT LIVE o personagem é arte do SpriteCook (86×86, 8 quadros por humor). A cena passa a ser
+  // desenhada em 640×360 com escala 2, para o sprite entrar em 1,5× com pixels iguais (3×3); o resto continua idêntico.
+  const HI = !!(window.SALA_CFG && window.SALA_CFG.botlive);
+  if (HI) { cv.width = 640; cv.height = 360; g.imageSmoothingEnabled = false; }
+  const ART = { ok: false, m: {} };
+  if (HI && window.ImageDecoder) {
+    (async () => {
+      for (const k of ["atento", "feliz", "euforia", "dedicado", "nervoso"]) {
+        try {
+          const r = await fetch("/botlive/arte/trader_" + k, { cache: "force-cache" });
+          if (!r.ok) continue;
+          const d = new ImageDecoder({ data: new Uint8Array(await r.arrayBuffer()), type: r.headers.get("content-type") || "image/webp" });
+          await d.tracks.ready;
+          const n = (d.tracks.selectedTrack && d.tracks.selectedTrack.frameCount) || 1, fr = [];
+          for (let i = 0; i < n; i++) { const o = await d.decode({ frameIndex: i }); fr.push({ img: await createImageBitmap(o.image), ms: Math.max(60, (o.image.duration || 125000) / 1000) }); o.image.close(); }
+          ART.m[k] = { fr, tot: fr.reduce((a, x) => a + x.ms, 0) };
+        } catch (e) { /* sem arte: desenha o personagem antigo */ }
+      }
+      ART.ok = !!ART.m.atento;
+    })();
+  }
+  function sprTrader() {
+    if (!ART.ok) return false;
+    const now = Date.now(), act = S.action && now < S.actionUntil ? S.action : null;
+    const k = act === "win" ? "euforia" : act === "buy" ? "feliz" : act === "loss" ? "nervoso" : (S.mood || "atento");
+    const a = ART.m[k] || ART.m.atento;
+    let t = now % a.tot, i = 0;
+    while (i < a.fr.length - 1 && t >= a.fr[i].ms) { t -= a.fr[i].ms; i++; }
+    g.drawImage(a.fr[i].img, 66, 40, 129, 129);     // teclado do sprite (linha 56) cai em y≈124, logo acima da mesa
+    return true;
+  }
 
   // ------------------------------------------------------------------ estado
   const S = {
@@ -420,6 +451,7 @@
     R(hx + 29, hy + 8, 9, 16, K); R(hx + 30, hy + 9, 7, 14, "#ff9f1c"); R(hx + 34, hy + 12, 3, 8, "#d97706");
   }
   function trader(f) {
+    if (sprTrader()) return;
     const now = Date.now(), act = S.action && now < S.actionUntil ? S.action : null;
     const mood = S.mood || "atento", list = MOODS[mood] || MOODS.atento;
     const task = act || list[Math.floor(f / 48) % list.length];
@@ -620,7 +652,7 @@
   function desk(f) {
     R(0, 127, W, 2, K); R(0, 128, W, 6, "#a8743f"); R(0, 134, W, 46, "#6e4523");
     for (let x = 0; x < W; x += 16) R(x, 136, 1, 44, "#5a381c");
-    R(104, 121, 64, 8, K); R(105, 122, 62, 6, "#3a3f4d"); for (let i = 0; i < 9; i++) R(107 + i * 7, 124, 5, 2, (S.base === "idle" && (i + f) % 4 === 0) ? "#9fb3ff" : "#5d6475");
+    if (!ART.ok) { R(104, 121, 64, 8, K); R(105, 122, 62, 6, "#3a3f4d"); for (let i = 0; i < 9; i++) R(107 + i * 7, 124, 5, 2, (S.base === "idle" && (i + f) % 4 === 0) ? "#9fb3ff" : "#5d6475"); }
     R(172, 123, 10, 6, K); R(173, 124, 8, 4, "#3a3f4d");                                   // mouse
     if (S.base !== "pump") mug(80, 112, f);
     if (S.base === "dump") { for (let i = 0; i < 4; i++) R(258 + i, 125 - i * 3, 22, 3, i % 2 ? "#e8e8f0" : "#cfd6e6"); }
@@ -686,6 +718,7 @@
   }
   function draw() {
     const f = S.frame++;
+    if (HI) g.setTransform(2, 0, 0, 2, 0, 0);
     room(f); bigMonitor(f); trader(f); desk(f); const bp = botDraw(f); fx(f); evo(f); speech(f, bp);
   }
   setInterval(draw, 83);
