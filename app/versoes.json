@@ -2525,6 +2525,11 @@
    "versao": "0.32.353",
    "inicio": "2026-11-14T20:50:00+00:00",
    "titulo": "SALA LIVE: letra maior em Posições e Histórico"
+  },
+  {
+   "versao": "0.32.354",
+   "inicio": "2026-11-14T21:20:00+00:00",
+   "titulo": "BOT LIVE: personagem fala com quem está no chat (a cada 10 min)"
   }
  ]
 }

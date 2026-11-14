@@ -252,3 +252,57 @@ def test_rotas_das_musicas_lista_publica_envio_so_admin(env):
     assert "'botlive-music'" in sql and "false" in sql                    # bucket privado
     js = open("web/botlive2.js", encoding="utf-8").read()
     assert "madrugada" in js and "/api/botlive/obs/musicas" in js and "Lofi.start()" in js   # sem músicas, volta para a gerada
+
+
+def test_sala_le_o_chat_a_cada_10_min_e_guarda_os_nomes(monkeypatch):
+    """0.32.354 (pedido do dono): o personagem fala no balão o nome de quem escreveu no chat (lê a cada 10 min)."""
+    from app import ytchat
+
+    class R:
+        def __init__(self, code, j):
+            self.status_code, self._j = code, j
+
+        def json(self):
+            return self._j
+
+    class H:
+        def __init__(self):
+            self.calls = []
+
+        async def post(self, url, data=None, **k):
+            return R(200, {"access_token": "AT", "expires_in": 3600})
+
+        async def get(self, url, params=None, headers=None, timeout=None):
+            self.calls.append(url)
+            if url.endswith("/liveBroadcasts"):
+                return R(200, {"items": [{"id": "VID1", "snippet": {"liveChatId": "C1", "title": "Lofi"}}]})
+            if url.endswith("/liveChat/messages"):
+                return R(200, {"nextPageToken": "P2", "items": [
+                    {"authorDetails": {"displayName": "Maria Silva 🚀", "isChatOwner": False}},
+                    {"authorDetails": {"displayName": "Canal Dono", "isChatOwner": True}}]})
+            return R(200, {"items": [{"liveStreamingDetails": {"concurrentViewers": "47"}}]})
+
+    class V:
+        async def load(self, uid):
+            return {"youtube_client_id": "c" * 10, "youtube_client_secret": "s" * 10, "youtube_refresh_token": "r" * 10}
+
+    async def go():
+        y = ytchat.YTChat(H(), V(), "https://x")
+        assert y.room_due("u1")
+        await y.poll_room("u1")
+        v = y.room_view("u1")
+        assert v["live"] and v["viewers"] == 47 and v["names"] == ["MARIA_SILVA"]   # o dono do canal não entra
+        assert not y.room_due("u1")                                       # só daqui a 10 min (cota do YouTube)
+        assert y.room["u1"]["page"] == "P2"                               # a próxima leitura pega só as mensagens novas
+        y.room_off.add("u1")
+        assert not y.room_due("u1", 10 ** 12)
+        return y
+    run(go())
+    assert ytchat.clean_name("<script>x</script>") == "SCRIPTXSCRIPT" and len(ytchat.clean_name("a" * 50)) == 14
+
+
+def test_baloes_do_chat_em_ingles_e_sem_placeholder_sobrando():
+    js = open("web/sala.js", encoding="utf-8").read()
+    for frase in ("WHERE IS EVERYBODY?", "WORKING ALONE AGAIN...", "HEY {N}! THANKS FOR WATCHING", "setInterval(talkNow, 600000)"):
+        assert frase in js
+    assert "/api/botlive/youtube/sala" in open("web/botlivecfg.js", encoding="utf-8").read()

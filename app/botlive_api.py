@@ -127,6 +127,20 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         await audit(db, u["id"], "BOT LIVE: compras no chat do YouTube " + ("ligado" if on else "desligado"))
         return {"ok": True, **await c.yt.status(u["id"])}
 
+    @app.post("/api/botlive/youtube/sala")
+    async def botlive_yt_room(body: dict, u: dict = Depends(admin_only)):
+        """0.32.354: liga/desliga o balão que fala com quem está no chat (a cada 10 min)."""
+        c = get_bot()
+        if c is None:
+            return off()
+        if body.get("on"):
+            c.yt.room_off.discard(u["id"])
+        else:
+            c.yt.room_off.add(u["id"])
+        c.book(u["id"]).dirty_book = True
+        await audit(db, u["id"], "BOT LIVE: falar com o chat " + ("ligado" if body.get("on") else "desligado"))
+        return {"ok": True, **await c.yt.status(u["id"])}
+
     @app.post("/api/botlive/youtube/teste")
     async def botlive_yt_test(u: dict = Depends(admin_only)):
         c = get_bot()
@@ -232,6 +246,7 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
 
     async def painel_de(c, uid: str) -> dict:
         p = c.painel(uid)
+        chat_sala = c.yt.room_view(uid)
         keep = ("cfg_sim", "padrao", "carteira", "posicoes", "trades", "eventos", "nomes", "eth_usd", "copiaria", "explorer")
         out = {"ligado": True, "real": False, "seguindo": len(p.get("copiaria") or []), **{k: p.get(k) for k in keep}}
         # 0.32.341: nome dos tokens do log. O HoodWatch busca nomes para o motor da /hood; o BOT LIVE usa os dois.
@@ -250,6 +265,7 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
             if tk and tk not in nomes and (c.meta.get(tk) or hood_meta.get(tk)):
                 nomes[tk] = c.meta.get(tk) or hood_meta.get(tk)
         out["nomes"] = nomes
+        out["chat_sala"] = chat_sala                                   # 0.32.354: nomes do chat e quantos assistem (balão da sala)
         return out
 
     @app.post("/api/botlive/carteira")

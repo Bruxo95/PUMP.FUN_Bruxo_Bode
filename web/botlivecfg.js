@@ -114,6 +114,14 @@
     if (!YT) return;
     const on = !!YT.ligado;
     $("ytOn").classList.toggle("on", on); $("ytOn").classList.toggle("off", !on); $("ytOn").textContent = on ? "Ligado" : "Desligado"; $("ytOn").setAttribute("aria-checked", on ? "true" : "false");
+    const ro = !!(YT.sala && YT.sala.on);
+    $("ytRoom").classList.toggle("on", ro); $("ytRoom").classList.toggle("off", !ro); $("ytRoom").textContent = ro ? "Ligado" : "Desligado"; $("ytRoom").setAttribute("aria-checked", ro ? "true" : "false");
+    if (YT.sala) {
+      const sl = YT.sala, quando = sl.t ? new Date(sl.t * 1000).toLocaleTimeString("pt-BR") : "ainda não leu";
+      $("ytRoomSt").textContent = "a cada 10 min o personagem fala no balão (em inglês) com quem escreveu no chat · última leitura: " + quando +
+        (sl.live ? " · " + (sl.names.length ? sl.names.length + " nome(s) no chat" : "ninguém escreveu ainda") + (sl.viewers != null ? " · " + sl.viewers + " assistindo" : "") : " · sem live no ar") +
+        (YT.sala_erro ? " · erro: " + YT.sala_erro : "");
+    }
     $("ytCidS").textContent = YT.client_id ? "configurada: sim" : "configurada: não";
     $("ytSecS").textContent = YT.client_secret ? "configurada: sim" : "configurada: não";
     $("ytRet").textContent = YT.retorno || "";
@@ -131,6 +139,7 @@
     } catch (e) { $("ytMsg").textContent = String(e.message || e); return null; }
   }
   $("ytOn").addEventListener("click", () => ytCall("/api/botlive/youtube/ligar", { on: !(YT && YT.ligado) }, ""));
+  $("ytRoom").addEventListener("click", () => ytCall("/api/botlive/youtube/sala", { on: !(YT && YT.sala && YT.sala.on) }, ""));
   $("ytSave").addEventListener("click", async () => {
     const cid = $("ytCid").value.trim(), sec = $("ytSec").value.trim();
     if (!cid && !sec) { $("ytMsg").textContent = "cole o Client ID e o Client Secret"; return; }

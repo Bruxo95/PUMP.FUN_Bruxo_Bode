@@ -5,6 +5,8 @@ enxerga o ranking pela regra da 0.32.308 (rank e clean_cfg copiados daquela vers
 3 tokens fechados e robô acima de 400 trades/dia. A /hood e as outras salas não mudam. Nunca compra de verdade."""
 from __future__ import annotations
 
+import asyncio
+
 import time
 
 from .botlive_copy308 import Copier
@@ -189,6 +191,8 @@ class BotLive(Copier):
         out = {"obs_hash": self.obs[uid]} if self.obs.get(uid) else {}
         if self.yt.on.get(uid):
             out["yt_on"] = True
+        if uid in self.yt.room_off:
+            out["yt_room_off"] = True
         return out
 
     # 0.32.349 (pedido do dono): cada COMPRA da carteira do BOT vira um comentário no chat da live, com o hash do trader copiado
@@ -209,6 +213,8 @@ class BotLive(Copier):
             self.obs[row["user_id"]] = h
         if (row.get("cfg") or {}).get("yt_on"):
             self.yt.on[row["user_id"]] = True
+        if (row.get("cfg") or {}).get("yt_room_off"):
+            self.yt.room_off.add(row["user_id"])
 
     def on_trade(self, tr: dict, before: float, copiaria) -> None:
         return super().on_trade(tr, before, set(self.w.ranking()["copiaria"]))
@@ -238,3 +244,8 @@ class BotLive(Copier):
     async def tick(self) -> None:
         self.ensure_books()
         await super().tick()
+        # 0.32.354: a cada 10 min lê quem escreveu no chat da live (só contas com o YouTube conectado e live no ar)
+        if self.yt.vault is not None:
+            for uid in list(self.books):
+                if self.yt.room_due(uid):
+                    self.yt.room_task[uid] = asyncio.get_running_loop().create_task(self.yt.poll_room(uid))

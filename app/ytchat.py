@@ -31,6 +31,8 @@ DAY_MAX = 400        # 400 × 20 = 8.000 da cota de 10.000 por dia (sobra para a
 CHAT_TTL = 300       # o id do chat da live é guardado por 5 min
 NO_LIVE_TTL = 60     # sem live no ar: tenta achar de novo depois de 1 min
 STATE_TTL = 600      # o "Conectar YouTube" vale por 10 min
+ROOM_EVERY = 600     # 0.32.354: lê o chat (5 pontos) e quantos assistem (1 ponto) a cada 10 min, só com live no ar
+ROOM_KEEP = 1800     # nomes de quem escreveu nos últimos 30 min
 MSG_MAX = 200        # limite do chat do YouTube
 
 
@@ -56,10 +58,14 @@ class YTChat:
         self.states: dict[str, tuple[str, float]] = {}
         self.tok: dict[str, tuple[str, float]] = {}
         self.chat: dict[str, tuple[str | None, float, str]] = {}
+        self.video: dict[str, str] = {}               # conta → id do vídeo da live no ar (para saber quantos assistem)
         self.sent_t: dict[str, float] = {}
         self.day: dict[tuple[str, str], int] = {}
         self.last: dict[str, dict] = {}
         self.task: asyncio.Task | None = None
+        self.room: dict[str, dict] = {}               # 0.32.354: quem escreveu no chat e quantos assistem (para o balão da sala)
+        self.room_off: set[str] = set()               # contas que desligaram o "falar com o chat" (gravado no botlive_books)
+        self.room_task: dict[str, asyncio.Task] = {}
 
     # ------------------------------------------------------------------ chaves (cofre)
     async def keys(self, uid: str) -> dict:
@@ -155,6 +161,8 @@ class YTChat:
             sn = it.get("snippet") or {}
             if sn.get("liveChatId"):
                 cid, title = sn["liveChatId"], str(sn.get("title") or "")[:80]
+                if it.get("id"):
+                    self.video[uid] = str(it["id"])
                 break
         self.chat[uid] = (cid, time.time(), title)
         return cid, title
@@ -210,6 +218,61 @@ class YTChat:
             log.info("YouTube chat (conta %s…): %s", uid[:8], str(e)[:200])
             return False
 
+    # ------------------------------------------------------------------ 0.32.354: quem está no chat (para o balão a cada 10 min)
+    def room_due(self, uid: str, now: float | None = None) -> bool:
+        now = now or time.time()
+        if uid in self.room_off:
+            return False
+        t = self.room_task.get(uid)
+        if t is not None and not t.done():
+            return False
+        return now - (self.room.get(uid) or {}).get("t", 0) >= ROOM_EVERY
+
+    async def poll_room(self, uid: str) -> dict:
+        now = time.time()
+        r = self.room.setdefault(uid, {"names": {}, "viewers": None, "live": False, "page": None, "t": 0})
+        r["t"] = now
+        try:
+            tok = await self.access(uid)
+            cid, _ = await self.live_chat(uid, tok)
+            if not cid:
+                r.update(live=False, viewers=None, page=None)
+                return r
+            r["live"] = True
+            q = {"liveChatId": cid, "part": "snippet,authorDetails", "maxResults": 200}
+            if r.get("page") and r.get("cid") == cid:
+                q["pageToken"] = r["page"]
+            res = await self.http.get(API + "/liveChat/messages", params=q, headers={"Authorization": "Bearer " + tok}, timeout=15)
+            j = _json(res)
+            if res.status_code != 200:
+                if res.status_code in (403, 404):
+                    self.chat.pop(uid, None)
+                raise ValueError("YouTube recusou a leitura do chat: " + _err(j, res.status_code))
+            r["page"], r["cid"] = j.get("nextPageToken"), cid
+            for it in j.get("items") or []:
+                a = it.get("authorDetails") or {}
+                nome = clean_name(a.get("displayName"))
+                if nome and not a.get("isChatOwner"):
+                    r["names"][nome] = now
+            vid = self.video.get(uid)
+            if vid:
+                v = await self.http.get(API + "/videos", params={"part": "liveStreamingDetails", "id": vid},
+                                        headers={"Authorization": "Bearer " + tok}, timeout=15)
+                its = _json(v).get("items") or []
+                cv = ((its[0] if its else {}).get("liveStreamingDetails") or {}).get("concurrentViewers")
+                r["viewers"] = int(cv) if str(cv or "").isdigit() else None
+            r.pop("erro", None)
+        except Exception as e:
+            r["erro"] = str(e)[:160]
+        r["names"] = {n: t for n, t in r["names"].items() if now - t <= ROOM_KEEP}
+        return r
+
+    def room_view(self, uid: str) -> dict:
+        r = self.room.get(uid) or {}
+        names = sorted((r.get("names") or {}).items(), key=lambda x: -x[1])[:8]
+        return {"on": uid not in self.room_off, "live": bool(r.get("live")), "viewers": r.get("viewers"),
+                "names": [n for n, _ in names], "t": int(r.get("t") or 0)}
+
     async def status(self, uid: str) -> dict:
         n = await self.names(uid)
         c = self.chat.get(uid)
@@ -217,7 +280,14 @@ class YTChat:
                 "conectado": "youtube_refresh_token" in n, "ligado": bool(self.on.get(uid)),
                 "live": (c[2] or "live no ar") if c and c[0] else None,
                 "enviadas_hoje": self.day.get((uid, time.strftime("%Y-%m-%d", time.gmtime())), 0), "limite_dia": DAY_MAX,
-                "fila": len(self.q.get(uid) or []), "ultima": self.last.get(uid)}
+                "fila": len(self.q.get(uid) or []), "ultima": self.last.get(uid), "sala": self.room_view(uid),
+                "sala_erro": (self.room.get(uid) or {}).get("erro")}
+
+
+def clean_name(n) -> str:
+    """Nome do chat para o balão: só letras, números e _ (até 14), em maiúsculas como o resto do balão."""
+    s = "".join(ch for ch in str(n or "").replace(" ", "_") if ch.isalnum() or ch == "_").strip("_")
+    return s[:14].upper()
 
 
 def _json(r) -> dict:

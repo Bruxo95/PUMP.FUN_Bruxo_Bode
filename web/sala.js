@@ -523,6 +523,57 @@
   }
   // balão de diálogo em pixel: borda preta com cantos cortados, sombra e rabinho apontando para quem fala.
   // left=true: o balão fica à esquerda do ponto (o do trader fica sobre a janela, sem cobrir o quadro e o telão)
+  // 0.32.354 (pedido do dono): a cada 10 min o personagem fala com quem está no chat da live, pelo nome; sem ninguém, reclama
+  // que está trabalhando sozinho. Tudo em inglês. Só no BOT LIVE (inglês) e com o "falar com o chat" ligado em /botlive.
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const TALK = {
+    hi: ["HEY {N}! THANKS FOR WATCHING", "WELCOME {N}! GRAB A COFFEE", "{N} IS HERE! LET'S TRADE", "GOOD VIBES, {N}!", "{N}, STAY FOR THE NEXT PUMP?",
+      "THANKS FOR THE COMPANY, {N}", "YO {N}! BOT IS ON FIRE", "{N}, PICK OUR NEXT GEM?"],
+    up: ["{N}, WE'RE UP {P}! LET'S GO", "GREEN DAY, {N}! {P} SO FAR", "{N}, THE BOT IS COOKING ({P})"],
+    down: ["{N}, TOUGH MARKET TODAY...", "{N}, HARD DAY FOR MEMECOINS", "HOLDING THE LINE, {N}...", "{N}, RED DAY. STOPS ARE ON"],
+    crowd: ["{V} FRIENDS WATCHING! HI ALL", "{V} PEOPLE HERE! SAY HI", "{V} WATCHING... SAY HI IN CHAT!"],
+    alone: ["HELLO? ANYONE THERE?", "WORKING ALONE AGAIN...", "WHERE IS EVERYBODY?", "JUST ME AND THE CHARTS", "TALKING TO MY ROBOT AGAIN",
+      "SAY HI IN THE CHAT!", "EMPTY ROOM, FULL FOCUS", "BOT NEVER SLEEPS. ME NEITHER", "COFFEE NO. 5 AND NOBODY HERE", "IS THIS MIC ON?",
+      "SOLO SHIFT TODAY...", "ROBOT, AT LEAST YOU'RE HERE"],
+    tradeDown: ["HARD DAY FOR MEMECOINS...", "RED DAY... STOPS ARE ON"],
+    tradeUp: ["GREEN DAY SO FAR!", "WE'RE UP {P} TODAY!"],
+    tradeAny: ["{T} TRADES TODAY. NO BREAKS", "HUNTING NEW GEMS...", "CHARTS NEVER SLEEP"],
+    lastWin: ["{S} PAID {X}! NICE", "TOOK {X} ON {S}!"],
+    lastLoss: ["STOP LOSS SAVED ME ON {S}", "{S} DIDN'T WORK... NEXT"],
+  };
+  let lastName = "";
+  const fill = (l, o) => l.replace(/\{(\w)\}/g, (m, k) => (o[k] == null ? "" : String(o[k])));
+  function talkLine() {
+    const cs = S.chatSala || {}, w = S.wallet || {}, T = S.trades || [];
+    const pct = w.pnl_pct == null ? null : +w.pnl_pct;
+    const t0 = T[0], o = { P: pct == null ? "" : (pct >= 0 ? "+" : "") + pct.toFixed(1) + "%", V: +cs.viewers || 0, T: T.length,
+      S: t0 ? String(symTxt(t0) || "").slice(0, 8) : "", X: t0 ? ((+t0.pnl_pct || 0) >= 0 ? "+" : "") + (+t0.pnl_pct || 0).toFixed(0) + "%" : "" };
+    const names = (cs.names || []).filter(Boolean);
+    if (names.length) {
+      const fresh = names.filter((n) => n !== lastName), n = (fresh.length ? fresh : names)[0];
+      lastName = n; o.N = "@" + n;
+      const pool = pct == null ? TALK.hi : pct >= 3 ? TALK.hi.concat(TALK.up) : pct <= -3 ? TALK.hi.concat(TALK.down) : TALK.hi;
+      return fill(pick(pool), o);
+    }
+    if (o.V > 1 && Math.random() < 0.6) return fill(pick(TALK.crowd), o);
+    if (Math.random() < 0.4) {
+      const pool = TALK.tradeAny.slice();
+      if (pct != null && pct < 0) pool.push(...TALK.tradeDown);
+      if (pct != null && pct > 0) pool.push(...TALK.tradeUp);
+      if (t0 && o.S) pool.push(...((+t0.pnl_pct || 0) > 0 ? TALK.lastWin : TALK.lastLoss));
+      return fill(pick(pool), o);
+    }
+    return pick(TALK.alone);
+  }
+  function talkNow() {
+    if (!C().botlive || !EN() || C().baloes === false) return;
+    if (S.chatSala && S.chatSala.on === false) return;
+    say(talkLine(), 25000, K);
+    if (Math.random() < 0.5) botSay(pick(["BEEP! HI!", "HELLO!", "BEEP BOOP", "HI HUMANS"]), 6000);
+  }
+  setTimeout(() => { talkNow(); setInterval(talkNow, 600000); }, 60000);
+  window.__salaTalk = talkLine;
+
   function balloon(text, ax, ay, col, small, left) {
     const lines = wrap(text, small ? 10 : 11), lw = Math.max(...lines.map((l) => l.length)) * 8;
     const w = lw + 10, h = lines.length * 10 + 7;
@@ -882,6 +933,7 @@
     if (C().botlive && !log.length) log.push({ k: "bl-status", h: hms(Date.now()), a: (p.cfg_sim && p.cfg_sim.on === false) ? "BOT parado" : "BOT operando",
       s: "", r: "copiando os " + (p.seguindo || 0) + " top traders da Robinhood · compra quando um deles comprar" });
     S.seguindo = p.seguindo || 0;
+    S.chatSala = p.chat_sala || null;                                 // 0.32.354: quem escreveu no chat e quantos assistem
     return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log };
   }
 
