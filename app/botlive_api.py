@@ -141,17 +141,25 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         return getattr(c, "music", None) if c is not None else None
 
     @app.get("/api/botlive/musicas")
-    async def botlive_music_list():
-        """Público (a SALA LIVE do OBS não tem login): só títulos e períodos."""
+    async def botlive_music_list(u: dict = Depends(admin_only)):
         m = music()
         if m is None:
             return {"periodos": {}, "faixas": []}
         return await m.public()
 
+    @app.get("/api/botlive/obs/musicas")
+    async def botlive_music_list_obs(k: str = ""):
+        """A SALA LIVE do OBS (sem login) lê a lista com o código do link; cada faixa vem com um link assinado de 6 h."""
+        c, m = get_bot(), music()
+        if c is None or m is None or not c.obs_user(k):
+            return JSONResponse({"error": "link do OBS inválido"}, status_code=403)
+        return await m.public()
+
     @app.get("/botlive/musica/{fid}")
-    async def botlive_music_file(fid: str, request: Request):
+    async def botlive_music_file(fid: str, request: Request, e: str = "", s: str = ""):
         m = music()
-        v = await m.file(fid) if (m is not None and fid.isalnum() and len(fid) <= 32) else None
+        ok = m is not None and fid.isalnum() and len(fid) <= 32 and m.check(fid, e, s)
+        v = await m.file(fid) if ok else None
         if not v:
             return Response(status_code=404)
         data, ct = v
@@ -184,6 +192,21 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         except Exception as e:
             return JSONResponse({"error": "não consegui guardar a música: " + str(e)[:160]}, status_code=502)
         await audit(db, u["id"], "BOT LIVE: música enviada", f"{it['periodo']} · {it['titulo']}")
+        return {"ok": True, "faixa": it, **await m.public()}
+
+    @app.post("/api/botlive/musicas/importar")
+    async def botlive_music_import(body: dict, u: dict = Depends(admin_only)):
+        c, m = get_bot(), music()
+        if c is None or m is None:
+            return off()
+        try:
+            it = await m.import_url(c.http, str(body.get("url") or ""), str(body.get("periodo") or ""), str(body.get("titulo") or ""),
+                                    str(body.get("artista") or ""), str(body.get("fonte") or ""))
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except Exception as e:
+            return JSONResponse({"error": "não consegui baixar: " + str(e)[:160]}, status_code=502)
+        await audit(db, u["id"], "BOT LIVE: música importada", f"{it['periodo']} · {it['titulo']} · {it['fonte'][:120]}")
         return {"ok": True, "faixa": it, **await m.public()}
 
     @app.post("/api/botlive/musicas/remover")

@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-14**; revisão documental **2.0**.
-Aplicação: **0.32.351 · 2026-11-14 · BOT LIVE: músicas lofi de verdade em 4 playlists por horário**.
-Referência Git na emissão: `b4dccaea27918c7ffb267fd190f0150bd7e74e14`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.352 · 2026-11-14 · Músicas da SALA LIVE: importar da Pixabay e links protegidos**.
+Referência Git na emissão: `384eed34d0519d28d06b62ad6dc92945518bff19`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

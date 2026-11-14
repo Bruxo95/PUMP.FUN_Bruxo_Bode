@@ -177,7 +177,7 @@
           '</select><button class="btn" type="button" data-murm="' + x.id + '">Remover</button></div>').join("") : '<div class="muted" style="font-size:12px">nenhuma ainda (toca as de outro horário)</div>') + "</div>";
     }).join("");
   }
-  async function muLoad() { try { muPaint(await (await fetch("/api/botlive/musicas", { cache: "no-store" })).json()); } catch (e) { $("muList").textContent = "não consegui ler a lista de músicas"; } }
+  async function muLoad() { try { muPaint(await BB._api("/api/botlive/musicas")); } catch (e) { $("muList").textContent = "não consegui ler a lista de músicas"; } }
   $("muFile").addEventListener("change", async (ev) => {
     const files = Array.from(ev.target.files || []); ev.target.value = "";
     const s = await BB.session(); if (!s) return;

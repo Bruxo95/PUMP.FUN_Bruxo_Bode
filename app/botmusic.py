@@ -13,6 +13,8 @@ gerada no navegador (como antes).
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import secrets
 import time
@@ -28,6 +30,8 @@ BUCKET = "botlive-music"
 MAX_BYTES = 25 * 1024 * 1024
 MAX_FAIXAS = 80
 CACHE_MAX = 6                     # faixas guardadas na memória (o OBS toca uma por vez)
+LINK_TTL = 6 * 3600               # o link de cada faixa vale 6 h (a SALA LIVE relê a lista a cada 10 min)
+IMPORT_HOSTS = ("cdn.pixabay.com",)   # de onde o servidor aceita baixar música pelo "importar" (sem SSRF)
 
 
 def audio_type(data: bytes) -> str | None:
@@ -90,6 +94,17 @@ class Music:
         self.st = storage or MemStorage()
         self.index: list[dict] | None = None
         self.cache: OrderedDict[str, tuple[bytes, str]] = OrderedDict()
+        self.key = secrets.token_bytes(32)            # assina os links das faixas (muda a cada reinício: a lista é relida)
+
+    def sign(self, fid: str, exp: int) -> str:
+        return hmac.new(self.key, f"{fid}|{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+
+    def check(self, fid: str, exp: str, sig: str) -> bool:
+        try:
+            e = int(exp)
+        except (TypeError, ValueError):
+            return False
+        return e >= time.time() and hmac.compare_digest(self.sign(fid, e), str(sig or ""))
 
     async def faixas(self) -> list[dict]:
         if self.index is None:
@@ -161,5 +176,20 @@ class Music:
         return v
 
     async def public(self) -> dict:
+        exp = int(time.time()) + LINK_TTL
         return {"periodos": PERIODOS,
-                "faixas": [{k: it.get(k) for k in ("id", "periodo", "titulo", "artista", "fonte")} for it in await self.faixas()]}
+                "faixas": [{**{k: it.get(k) for k in ("id", "periodo", "titulo", "artista", "fonte")},
+                            "src": f"/botlive/musica/{it['id']}?e={exp}&s={self.sign(it['id'], exp)}"} for it in await self.faixas()]}
+
+    async def import_url(self, http, url: str, periodo: str, titulo: str, artista: str = "", fonte: str = "") -> dict:
+        """0.32.351: o servidor baixa a faixa direto da Pixabay (só cdn.pixabay.com, https, até 25 MB)."""
+        import urllib.parse as up
+        u = up.urlparse(str(url or ""))
+        if u.scheme != "https" or u.hostname not in IMPORT_HOSTS:
+            raise ValueError("só aceito links https de " + ", ".join(IMPORT_HOSTS))
+        if any(x.get("fonte") == fonte for x in await self.faixas()) and fonte:
+            raise ValueError("essa música já está na lista")
+        r = await http.get(url, timeout=120, follow_redirects=False, headers={"User-Agent": "Mozilla/5.0"})
+        if r.status_code != 200:
+            raise ValueError(f"a Pixabay respondeu {r.status_code}")
+        return await self.add(r.content, periodo, titulo, artista, fonte)

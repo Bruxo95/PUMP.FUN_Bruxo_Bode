@@ -107,8 +107,10 @@
     const period = () => { const h = new Date().getHours(); return h < 6 ? "madrugada" : h < 12 ? "manha" : h < 18 ? "trabalho" : "noite"; };
     async function load() {
       try {
-        const r = await fetch("/api/botlive/musicas", { cache: "no-store" });
-        const j = await r.json(); list = j.faixas || []; pers = j.periodos || {}; loadedT = Date.now();
+        // 0.32.351: no OBS a lista vem com o código do link; logado, pela rota do admin. Cada faixa traz um link assinado (6 h).
+        const j = cfg.obs ? await (await fetch("/api/botlive/obs/musicas?k=" + encodeURIComponent(cfg.k), { cache: "no-store" })).json()
+          : await BB._api("/api/botlive/musicas");
+        if (j && !j.error) { list = j.faixas || []; pers = j.periodos || {}; loadedT = Date.now(); }
       } catch (e) { /* sem lista agora: tenta de novo depois */ }
     }
     function pick() {
@@ -132,10 +134,10 @@
       const it = pick();
       if (!it) { Radio.stop(); Lofi.start(); return; }
       const old = a;
-      a = new Audio("/botlive/musica/" + encodeURIComponent(it.id));
+      a = new Audio(it.src || ("/botlive/musica/" + encodeURIComponent(it.id)));
       a.preload = "auto"; a.volume = 0; cur = it;
       a.addEventListener("ended", next);
-      a.addEventListener("error", () => setTimeout(next, 3000));
+      a.addEventListener("error", () => setTimeout(async () => { await load(); next(); }, 3000));   // link vencido: relê a lista
       a.play().then(() => { blocked = false; fade(a, vol(), 2500); }).catch(() => { blocked = true; });
       if (old) fade(old, 0, 2500, () => { try { old.pause(); } catch (e) { /* */ } });
     }

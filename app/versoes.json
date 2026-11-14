@@ -2515,6 +2515,11 @@
    "versao": "0.32.351",
    "inicio": "2026-11-14T20:10:00+00:00",
    "titulo": "BOT LIVE: músicas lofi de verdade em 4 playlists por horário"
+  },
+  {
+   "versao": "0.32.352",
+   "inicio": "2026-11-14T20:40:00+00:00",
+   "titulo": "Músicas da SALA LIVE: importar da Pixabay e links protegidos"
   }
  ]
 }

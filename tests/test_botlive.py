@@ -223,6 +223,15 @@ def test_musicas_lofi_por_horario_guarda_toca_e_recusa_o_que_nao_e_audio():
         assert set(pub["periodos"]) == {"madrugada", "manha", "trabalho", "noite"}
         assert [x["titulo"] for x in pub["faixas"]] == ["Morning Coffee", "Night"] and "bytes" not in pub["faixas"][0]
         assert (await m.file(it["id"]))[1] == "audio/mpeg"
+        src = pub["faixas"][0]["src"]                                   # link assinado, vale 6 h
+        e, s = src.split("e=")[1].split("&s=")
+        assert m.check(it["id"], e, s) and not m.check(it["id"], e, "x" * 32) and not m.check(it["id"], "1", s)
+        for bad in ("http://cdn.pixabay.com/a.mp3", "https://evil.com/a.mp3", "https://169.254.169.254/x"):
+            try:
+                await m.import_url(None, bad, "manha", "x")
+                assert False
+            except ValueError:
+                pass
         assert await m.move(it["id"], "trabalho") and (await m.public())["faixas"][0]["periodo"] == "trabalho"
         m2 = botmusic.Music(m.st)                                      # a lista fica no próprio armazenamento (index.json)
         assert len(await m2.faixas()) == 2
@@ -232,11 +241,14 @@ def test_musicas_lofi_por_horario_guarda_toca_e_recusa_o_que_nao_e_audio():
 
 def test_rotas_das_musicas_lista_publica_envio_so_admin(env):
     c = env["c"]
-    assert c.get("/api/botlive/musicas").status_code == 200
+    assert c.get("/api/botlive/musicas").status_code == 401                 # lista: login ou código do OBS
+    assert c.get("/api/botlive/obs/musicas?k=" + "A" * 32).status_code in (403, 200)
+    assert c.post("/api/botlive/musicas/importar", json={}).status_code == 401
     assert c.post("/api/botlive/musicas", content=b"ID3xxx").status_code == 401
     assert c.post("/api/botlive/musicas/remover", json={}).status_code == 401
     assert c.get("/botlive/musica/naoexiste").status_code == 404
+    assert c.get("/botlive/musica/abc123?e=9999999999&s=errada").status_code == 404   # sem assinatura certa não toca
     sql = open("supabase/migrations/20261114000002_botlive_musicas.sql", encoding="utf-8").read()
     assert "'botlive-music'" in sql and "false" in sql                    # bucket privado
     js = open("web/botlive2.js", encoding="utf-8").read()
-    assert "madrugada" in js and "/botlive/musica/" in js and "Lofi.start()" in js   # sem músicas, volta para a gerada
+    assert "madrugada" in js and "/api/botlive/obs/musicas" in js and "Lofi.start()" in js   # sem músicas, volta para a gerada
