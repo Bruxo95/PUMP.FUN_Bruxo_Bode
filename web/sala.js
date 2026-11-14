@@ -21,7 +21,9 @@
     (async () => {
       for (const k of ["atento", "feliz", "euforia", "dedicado", "nervoso"]) {
         try {
-          const r = await fetch("/botlive/arte/trader_" + k, { cache: "force-cache" });
+          // 0.32.356: a arte fica no próprio site (web/arte, enviada pelo dono); a rota /botlive/arte é a reserva
+          let r = await fetch("/static/arte/trader_" + k + ".webp?v=1", { cache: "force-cache" });
+          if (!r.ok) r = await fetch("/botlive/arte/trader_" + k, { cache: "force-cache" });
           if (!r.ok) continue;
           const d = new ImageDecoder({ data: new Uint8Array(await r.arrayBuffer()), type: r.headers.get("content-type") || "image/webp" });
           await d.tracks.ready;
