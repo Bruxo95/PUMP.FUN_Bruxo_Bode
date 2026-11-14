@@ -70,9 +70,12 @@
   @keyframes up{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
   .pos{flex:1;min-height:0;overflow:auto;padding:4px 6px}
   /* 0.32.300: coluna Hora (entrada); fonte menor para caber a 5ª coluna */
-  .ph,.pr{display:grid;grid-template-columns:minmax(0,1fr) 3.1em 4.2em 4.2em 3.9em;gap:4px;align-items:center;padding:2px 4px}
-  .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:.78em;border-bottom:2px solid #1c2c57}
-  .pr{border-bottom:1px solid #1a2850;font-size:.86em;line-height:1.1}
+  /* 0.32.353 (pedido do dono: "letra muito pequena na live"): as linhas de Posições e Histórico usam a maior letra que cabe na
+     largura do painel (cqi = largura da coluna .side), sempre em uma linha (cerca de 27% maior em 1920 × 1080). Colunas fixas em caracteres (ch). */
+  .ph,.pr{display:grid;grid-template-columns:minmax(4ch,1fr) 5ch 6.2ch 6.6ch 7.4ch;gap:.25em;align-items:center;padding:.12em .3em}
+  .pr{border-bottom:1px solid #1a2850;font-size:clamp(13px,calc((100cqi - 36px) / 14),32px);line-height:1.05}
+  .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:clamp(13px,calc((100cqi - 36px) / 14),32px);border-bottom:2px solid #1c2c57}
+  .ph span{white-space:nowrap;overflow:hidden}
   .pr .hr{color:var(--muted)}
   .pr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ph span:not(:first-child),.pr span:not(:first-child){text-align:right}

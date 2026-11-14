@@ -2520,6 +2520,11 @@
    "versao": "0.32.352",
    "inicio": "2026-11-14T20:40:00+00:00",
    "titulo": "Músicas da SALA LIVE: importar da Pixabay e links protegidos"
+  },
+  {
+   "versao": "0.32.353",
+   "inicio": "2026-11-14T20:50:00+00:00",
+   "titulo": "SALA LIVE: letra maior em Posições e Histórico"
   }
  ]
 }
