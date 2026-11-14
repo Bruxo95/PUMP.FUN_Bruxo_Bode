@@ -25,7 +25,7 @@
           let r = await fetch("/static/arte/trader_" + k + ".webp?v=1", { cache: "force-cache" });
           if (!r.ok) r = await fetch("/botlive/arte/trader_" + k, { cache: "force-cache" });
           if (!r.ok) continue;
-          const d = new ImageDecoder({ data: new Uint8Array(await r.arrayBuffer()), type: r.headers.get("content-type") || "image/webp" });
+          const d = new ImageDecoder({ data: new Uint8Array(await r.arrayBuffer()), type: /^image\//.test(r.headers.get("content-type") || "") ? r.headers.get("content-type") : "image/webp" });   // o servidor manda .webp como octet-stream
           await d.tracks.ready;
           const n = (d.tracks.selectedTrack && d.tracks.selectedTrack.frameCount) || 1, fr = [];
           for (let i = 0; i < n; i++) { const o = await d.decode({ frameIndex: i }); fr.push({ img: await createImageBitmap(o.image), ms: Math.max(60, (o.image.duration || 125000) / 1000) }); o.image.close(); }

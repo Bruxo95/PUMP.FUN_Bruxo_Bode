@@ -18,6 +18,8 @@ import hashlib
 
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
+import mimetypes
+mimetypes.add_type("image/webp", ".webp")   # 0.32.357: a imagem do Python não conhece .webp (a arte da SALA LIVE vinha como octet-stream)
 
 from .auth import AuthError
 from .db import audit

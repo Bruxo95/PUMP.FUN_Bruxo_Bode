@@ -2540,6 +2540,11 @@
    "versao": "0.32.356",
    "inicio": "2026-11-14T23:25:00+00:00",
    "titulo": "SALA LIVE: arte do personagem no próprio site"
+  },
+  {
+   "versao": "0.32.357",
+   "inicio": "2026-11-14T23:35:00+00:00",
+   "titulo": "SALA LIVE: personagem novo aparece no site (formato da imagem)"
   }
  ]
 }
