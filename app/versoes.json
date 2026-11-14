@@ -2545,6 +2545,11 @@
    "versao": "0.32.357",
    "inicio": "2026-11-14T23:35:00+00:00",
    "titulo": "SALA LIVE: personagem novo aparece no site (formato da imagem)"
+  },
+  {
+   "versao": "0.32.358",
+   "inicio": "2026-11-15T00:00:00+00:00",
+   "titulo": "SALA LIVE: personagem só mexe as mãos digitando; música na barra de cima"
   }
  ]
 }

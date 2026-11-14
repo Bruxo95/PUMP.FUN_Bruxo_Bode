@@ -327,4 +327,4 @@ def test_arte_do_spritecook_so_de_la_e_nomes_fixos(env):
     assert c.post("/api/botlive/arte/importar", json={}).status_code == 401
     assert c.get("/botlive/arte/trader_atento").status_code == 404
     js = open("web/sala.js", encoding="utf-8").read()
-    assert "ImageDecoder" in js and "/botlive/arte/trader_" in js and "if (sprTrader()) return;" in js
+    assert "ImageDecoder" in js and "/botlive/arte/trader_" in js and "if (sprTrader()) return;" in js and "trader_base.png" in js

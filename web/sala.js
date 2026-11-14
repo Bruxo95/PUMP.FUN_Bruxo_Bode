@@ -16,35 +16,78 @@
   // desenhada em 640×360 com escala 2, para o sprite entrar em 1,5× com pixels iguais (3×3); o resto continua idêntico.
   const HI = !!(window.SALA_CFG && window.SALA_CFG.botlive);
   if (HI) { cv.width = 640; cv.height = 360; g.imageSmoothingEnabled = false; }
-  const ART = { ok: false, m: {} };
+  // 0.32.358 (pedido do dono): o corpo fica parado e só as mãos digitam (desenhado aqui, por cima do quadro parado); as animações
+  // inteiras do SpriteCook só entram em momentos certos: compra (polegar), venda no lucro (comemora), venda no prejuízo (mãos na
+  // cabeça) e, de tempos em tempos, conforme o humor. Enquanto a arte carrega não desenha o personagem antigo.
+  const ART = { ok: false, pending: HI, base: null, m: {}, play: null, nextT: 0, hands: { L: 0, R: 0, t: 0 } };
+  if (HI) {
+    const bi = new Image();
+    bi.onload = () => { ART.base = bi; };
+    bi.src = "/static/arte/trader_base.png?v=1";
+  }
   if (HI && window.ImageDecoder) {
     (async () => {
       for (const k of ["atento", "feliz", "euforia", "dedicado", "nervoso"]) {
         try {
-          // 0.32.356: a arte fica no próprio site (web/arte, enviada pelo dono); a rota /botlive/arte é a reserva
+          // a arte fica no próprio site (web/arte); a rota /botlive/arte é a reserva
           let r = await fetch("/static/arte/trader_" + k + ".webp?v=1", { cache: "force-cache" });
           if (!r.ok) r = await fetch("/botlive/arte/trader_" + k, { cache: "force-cache" });
           if (!r.ok) continue;
-          const d = new ImageDecoder({ data: new Uint8Array(await r.arrayBuffer()), type: /^image\//.test(r.headers.get("content-type") || "") ? r.headers.get("content-type") : "image/webp" });   // o servidor manda .webp como octet-stream
+          const d = new ImageDecoder({ data: new Uint8Array(await r.arrayBuffer()), type: "image/webp" });
           await d.tracks.ready;
           const n = (d.tracks.selectedTrack && d.tracks.selectedTrack.frameCount) || 1, fr = [];
-          for (let i = 0; i < n; i++) { const o = await d.decode({ frameIndex: i }); fr.push({ img: await createImageBitmap(o.image), ms: Math.max(60, (o.image.duration || 125000) / 1000) }); o.image.close(); }
-          ART.m[k] = { fr, tot: fr.reduce((a, x) => a + x.ms, 0) };
-        } catch (e) { /* sem arte: desenha o personagem antigo */ }
+          for (let i = 0; i < n; i++) { const o = await d.decode({ frameIndex: i }); fr.push(await createImageBitmap(o.image)); o.image.close(); }
+          ART.m[k] = fr;
+        } catch (e) { /* sem essa animação: só digita */ }
       }
-      ART.ok = !!ART.m.atento;
+      ART.ok = !!(ART.base || ART.m.atento);
+      ART.pending = false;
     })();
-  }
+  } else if (HI) { setTimeout(() => { ART.ok = !!ART.base; ART.pending = false; }, 1500); }
+  // momentos especiais: qual animação toca, com que frequência (ms) por humor
+  const ART_MOOD = { feliz: ["feliz", 16000], euforia: ["euforia", 7000], nervoso: ["nervoso", 7000] };
+  const ART_FRAME = 140;                                        // um pouco mais lento que o original (125 ms): mais suave
+  const HAND = { L: [37, 47, 13, 8], R: [54, 47, 13, 8] };     // mãos no quadro de 86×86 (x, y, largura, altura)
   function sprTrader() {
-    if (!ART.ok) return false;
+    if (!HI) return false;
+    const base = ART.base || (ART.m.atento && ART.m.atento[0]);
+    if (!base) return ART.pending ? true : false;               // carregando: não pisca o personagem antigo
     const now = Date.now(), act = S.action && now < S.actionUntil ? S.action : null;
-    const k = act === "win" ? "euforia" : act === "buy" ? "feliz" : act === "loss" ? "nervoso" : (S.mood || "atento");
-    const a = ART.m[k] || ART.m.atento;
-    let t = now % a.tot, i = 0;
-    while (i < a.fr.length - 1 && t >= a.fr[i].ms) { t -= a.fr[i].ms; i++; }
-    g.drawImage(a.fr[i].img, 66, 40, 129, 129);     // teclado do sprite (linha 56) cai em y≈124, logo acima da mesa
+    const X = 66, Y = 40, Z = 1.5;
+    // começa uma animação inteira no momento certo
+    if (!ART.play) {
+      const want = act === "win" ? "euforia" : act === "buy" ? "feliz" : act === "loss" ? "nervoso" : null;
+      const md = ART_MOOD[S.mood];
+      const k = want || (md && now >= ART.nextT ? md[0] : null);
+      if (k && ART.m[k] && !(want && ART.lastAct === S.actionUntil)) {
+        ART.play = { k, t0: now, reps: want === "euforia" ? 2 : 1 };
+        if (want) ART.lastAct = S.actionUntil;
+        ART.nextT = now + (md ? md[1] : 9000);
+      }
+    }
+    if (ART.play) {
+      const fr = ART.m[ART.play.k], i = Math.floor((now - ART.play.t0) / ART_FRAME);
+      if (i < fr.length * ART.play.reps) { g.drawImage(fr[i % fr.length], X, Y, 86 * Z, 86 * Z); return true; }
+      ART.play = null;
+    }
+    // digitando: corpo parado, só as mãos sobem e descem (cada mão aperta uma tecla por vez)
+    g.drawImage(base, X, Y, 86 * Z, 86 * Z);
+    const h = ART.hands, fast = S.mood === "dedicado" || S.mood === "nervoso";
+    if (now >= h.t) {
+      h.L = h.R = 0;
+      const r = Math.random();
+      if (r < 0.45) h.L = 1; else if (r < 0.9) h.R = 1; else if (fast) { h.L = 1; h.R = 1; }
+      h.t = now + (fast ? 70 + Math.random() * 70 : 120 + Math.random() * 180) * (Math.random() < 0.08 ? 6 : 1);   // às vezes uma pausa curta
+    }
+    for (const s of ["L", "R"]) {
+      if (!h[s]) continue;
+      const [x, y, w, hh] = HAND[s];
+      g.drawImage(base, x, y, w, hh, X + x * Z, Y + (y + 1) * Z, w * Z, hh * Z);          // a mão desce 1 pixel (aperta a tecla)
+      R(X + (x + 3) * Z, Y + 55 * Z, 4 * Z, 1 * Z, "#9fb3ff");                               // a tecla acende
+    }
     return true;
   }
+
 
   // ------------------------------------------------------------------ estado
   const S = {
@@ -654,7 +697,7 @@
   function desk(f) {
     R(0, 127, W, 2, K); R(0, 128, W, 6, "#a8743f"); R(0, 134, W, 46, "#6e4523");
     for (let x = 0; x < W; x += 16) R(x, 136, 1, 44, "#5a381c");
-    if (!ART.ok) { R(104, 121, 64, 8, K); R(105, 122, 62, 6, "#3a3f4d"); for (let i = 0; i < 9; i++) R(107 + i * 7, 124, 5, 2, (S.base === "idle" && (i + f) % 4 === 0) ? "#9fb3ff" : "#5d6475"); }
+    if (!HI || (!ART.base && !ART.pending && !ART.ok)) { R(104, 121, 64, 8, K); R(105, 122, 62, 6, "#3a3f4d"); for (let i = 0; i < 9; i++) R(107 + i * 7, 124, 5, 2, (S.base === "idle" && (i + f) % 4 === 0) ? "#9fb3ff" : "#5d6475"); }
     R(172, 123, 10, 6, K); R(173, 124, 8, 4, "#3a3f4d");                                   // mouse
     if (S.base !== "pump") mug(80, 112, f);
     if (S.base === "dump") { for (let i = 0; i < 4; i++) R(258 + i, 125 - i * 3, 22, 3, i % 2 ? "#e8e8f0" : "#cfd6e6"); }

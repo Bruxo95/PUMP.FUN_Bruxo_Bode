@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-15",
     "timezone": "Europe/Dublin",
-    "repository_reference": "e9b08c0da0c98f36c931067b6b2e05caaadec187",
-    "application_version": "0.32.357 · 2026-11-15 · SALA LIVE: personagem novo aparece no site (formato da imagem)",
+    "repository_reference": "79c5b639592b6b4637327208d120be3c4b200f1f",
+    "application_version": "0.32.358 · 2026-11-15 · SALA LIVE: personagem só mexe as mãos digitando; música na barra de cima",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "53fa583f6109d50cb755f6266f106ab2670a5cdbd839e238e958dc9b2aef7d6c",
+      "app/version.py": "66a197b056749a691eae83d2297d9b55b877959742022a91f40a0ffbd7f51682",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b18720d575aec91e3d4653e2be1cac81e9baf56cb68ccc863d448a996b3b58d5"
+  "pdf_sha256": "a69a4783fe739d7dd4f2581e043714002ce7556ac468009fdcae48f7229fb2e6"
 }

@@ -144,7 +144,7 @@
   .ovt small{display:block;font-size:clamp(11px,2.3cqw,24px);color:#c4b5fd;margin-top:.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   @keyframes neon{0%,92%{opacity:1}94%{opacity:.55}}
   .ovt:empty{display:none}
-  .lofi{position:absolute;right:1.6%;bottom:26.5%;font-family:"Press Start 2P",monospace;font-size:clamp(7px,1.3cqw,12px);color:#e9d5ff;background:rgba(10,6,25,.7);border:2px solid #6d28d9;padding:4px 6px;pointer-events:none}
+  .lofi{font-family:"Press Start 2P",monospace;font-size:11px;color:#e9d5ff;background:#0b0620;border:2px solid #6d28d9;padding:7px 10px;pointer-events:none;white-space:nowrap;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
   .lofi[hidden]{display:none}
   .lofi i{display:inline-block;width:3px;margin-right:2px;background:#c084fc;animation:eq .9s steps(3) infinite;vertical-align:bottom}
   .lofi i:nth-child(2){animation-delay:-.3s}.lofi i:nth-child(3){animation-delay:-.6s}
@@ -204,6 +204,8 @@
   <span class="live pf"><i></i>LIVE</span>
   <div class="hud pf" id="hud">HUNTING GEMS…</div>
   <div class="hud pf mood" id="mood">MOOD: FOCUSED</div>
+  <!-- 0.32.358 (pedido do dono): a legenda da música saiu de cima da mesa e veio para a barra de cima -->
+  <div class="lofi pf" id="lofiTag" hidden><i></i><i></i><i></i> LO-FI · <span id="lofiMood">CHILL</span></div>
   <div class="ctl" id="ctl">
     <button class="btn" id="mSim" type="button" hidden>FICTÍCIA</button>
     <button class="btn real" id="mReal" type="button" hidden>REAL</button>
@@ -218,7 +220,6 @@
   <div class="stwrap"><div class="stage" id="stage">
     <canvas id="scene" width="320" height="180" aria-label="Pixel art BOT trading live, reacting to every trade"></canvas>
     <div class="ovt" id="ovt"></div>
-    <div class="lofi" id="lofiTag" hidden><i></i><i></i><i></i> LO-FI · <span id="lofiMood">CHILL</span></div>
     <div class="flash" id="flash"></div>
     <div class="alert" id="alert"><div class="ah pf"><span id="aT">ALERT!</span><span class="ax">X</span></div><div class="ab" id="aB"></div></div>
     <div class="stats" id="stats"></div>
