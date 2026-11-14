@@ -116,7 +116,7 @@
     Lofi.vol(cfg.vol);
     if (window.SALA) { window.SALA.setSound(cfg.sfx); window.SALA.rerender(); }
     if ($("cLink")) $("cLink").textContent = obsLink();
-    $("pnLink").href = "/entrar"; $("pnLink").textContent = "PROJETOS";
+    $("pnLink").href = "/entrar"; $("pnLink").textContent = "PROJECTS";
   }
   const set = (k, v) => { cfg[k] = v; save(); apply(); };
 
@@ -127,7 +127,7 @@
   // o navegador só deixa tocar som depois de um clique: o primeiro clique na página destrava a música
   document.addEventListener("pointerdown", () => { if (cfg.musica) Lofi.resume(); }, { passive: true });
   setInterval(() => {
-    $("lofiMood").textContent = Lofi.blocked() ? "CLIQUE PARA TOCAR" : Lofi.mood() === "tensa" ? "TENSO" : "CHILL";
+    $("lofiMood").textContent = Lofi.blocked() ? "CLICK TO PLAY" : Lofi.mood() === "tensa" ? "TENSE" : "CHILL";
   }, 1500);
 
   // 0.32.344: o painel da direita acompanha a altura da cena (a cena é 16:9 e fica centralizada)

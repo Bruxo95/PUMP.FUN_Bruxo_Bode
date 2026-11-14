@@ -58,7 +58,7 @@ def test_sala_se_adapta_a_tela_e_mostra_hora_de_entrada():
     html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
     js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert "100dvh" in html and "container-type:size" in html and "calc(100cqh * 16 / 9)" in html
-    assert "<span>Hora</span>" in js
+    assert "tr(\"Hora\", \"Time\")" in js   # 0.32.346: cabeçalho traduzido na SALA LIVE (inglês)
 
 
 def test_sala_tem_historico_e_evolucao_da_carteira():

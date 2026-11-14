@@ -27,6 +27,9 @@
   const HOOD = C().rede ? C().rede === "hood" : new URLSearchParams(location.search).get("rede") === "hood";
   const U = HOOD ? "ETH" : "SOL", MKEY = C().mkey || (HOOD ? "sala_modo_hood" : "sala_modo");
   const PRIV = () => !!C().privado;
+  // 0.32.346 (pedido do dono): a SALA LIVE do BOT LIVE é em inglês (lang "en" vem do botlive.js); a Sala normal continua em português
+  const EN = () => C().lang === "en";
+  const tr = (pt, en) => (EN() ? en : pt);
   // 0.32.340 (pedido do dono): no BOT LIVE os horários são em UTC (horário global, para quem assiste de qualquer lugar)
   const TZO = () => (C().botlive ? { timeZone: "UTC" } : {});
   const hms = (d, o) => new Date(d).toLocaleTimeString("pt-BR", Object.assign({}, o || {}, TZO()));                 // modo privado: esconde saldo e valores (só %), para a live
@@ -256,8 +259,10 @@
   function board(f) {
     const x0 = 104, y0 = 8, w = 62, h = 48;
     R(x0 - 2, y0 - 2, w + 4, h + 4, K); R(x0 - 1, y0 - 1, w + 2, h + 2, "#8a94a8"); R(x0, y0, w, h, "#f4f6fb");
-    TXT("PNL", x0 + 3, y0 + 3, "#2f69b5", 8);
     const T = S.trades.slice(0, 11).reverse(), mid = y0 + 30;
+    const cnt = T.length ? T.filter((t) => (+t.pnl_sol || 0) > 0).length + "/" + T.length : "";
+    // 0.32.346: com 10+ trades "PNL" e o placar (ex.: 8/11) não cabem juntos no quadro e ficavam um em cima do outro
+    if (!cnt || TW("PNL") + TW(cnt) + 10 <= w) TXT("PNL", x0 + 3, y0 + 3, "#2f69b5", 8);
     R(x0 + 3, mid, w - 6, 1, "#c8d0e0");
     T.forEach((t, i) => {
       const v = +t.pnl_pct || 0, hh = Math.min(16, Math.round(Math.abs(v) / 4) + 1), bx = x0 + 5 + i * 5;
@@ -265,7 +270,7 @@
     });
     if (!T.length) TXT("...", x0 + 22, y0 + 24, "#8a94a8", 8);
     const wins = T.filter((t) => (+t.pnl_sol || 0) > 0).length;
-    if (T.length) TXT(wins + "/" + T.length, x0 + w - 3 - TW(wins + "/" + T.length), y0 + 3, wins * 2 >= T.length ? "#1b8f3f" : "#a81f2d", 8);
+    if (T.length) TXT(cnt, x0 + w - 3 - TW(cnt), y0 + 3, wins * 2 >= T.length ? "#1b8f3f" : "#a81f2d", 8);
     R(x0 + 10, y0 + h + 2, 30, 3, "#8a94a8"); R(x0 + 14, y0 + h + 1, 6, 2, "#ff4d5e"); R(x0 + 24, y0 + h + 1, 6, 2, "#2f69b5");
   }
   function room(f) {
@@ -316,19 +321,20 @@
       if (!last || last.s !== x.s || logCode(last.a) !== logCode(x.a)) L.push(x);
     });
     L.splice(6);
-    if (!L.length) TXT("AGUARDANDO COMPRA", 178, 70, "#8fa3d1", 8);
+    if (!L.length) TXT(tr("AGUARDANDO COMPRA", "WAITING FOR A BUY"), 178, 70, "#8fa3d1", 8);
     L.forEach((x, i) => {
       const y = 55 + i * 9, code = logCode(x.a), col = code === "NC" ? "#8fa3d1" : code === "VENDA" ? "#ff9f1c" : "#3ee66b";
       TXT(String(x.h || "").slice(0, 5), 178, y, "#4f7a5e", 8);
       TXT(String(x.s || "?").toUpperCase().slice(0, 7), 222, y, "#f5d0fe", 8);
-      TXT(code === "COMPRA" ? "C" : code === "VENDA" ? "V" : "NC", 306 - TW(code === "COMPRA" ? "C" : code === "VENDA" ? "V" : "NC"), y, col, 8);
+      const cc = code === "COMPRA" ? tr("C", "B") : code === "VENDA" ? tr("V", "S") : tr("NC", "SK");
+      TXT(cc, 306 - TW(cc), y, col, 8);
     });
     const sy = 52 + (f * 2) % 58;
     R(176, sy, 132, 1, "rgba(61,242,196,.25)");
   }
   function bigMonitor(f) {
     R(170, 17, 144, 100, K); R(171, 18, 142, 98, "#2b2f3a");
-    R(174, 21, 136, 8, "#2a3c6b"); TXT("TELAO", 177, 21, "#e8f0ff", 8);                // barra de título da janela
+    R(174, 21, 136, 8, "#2a3c6b"); TXT(tr("TELAO", "SCREEN"), 177, 21, "#e8f0ff", 8);                // barra de título da janela
     const u = +(S.wallet || {}).sol_usd || 0;
     if (u) { const s = U + " $" + (u >= 1000 ? Math.round(u) : u.toFixed(0)); TXT(s, 307 - TW(s), 21, "#ffd23f", 8); }
     else { R(296, 23, 4, 4, "#ffd23f"); R(302, 23, 4, 4, "#ff4d5e"); }
@@ -336,10 +342,10 @@
     for (let y = 30; y < 113; y += 2) R(174, y, 136, 1, "rgba(255,255,255,.02)");       // linhas de TV antiga
     const P = S.positions.slice().sort((a, b) => (+b.pnl_now_pct || 0) - (+a.pnl_now_pct || 0));
     if (P.length) {
-      if (P.length === 1) { slot(P[0], "ABERTA", 31, "#ffd23f", f); TXT("SO 1 POSICAO", 180, 80, "#8fa3d1", 8); }
-      else { slot(P[0], "MELHOR", 31, "#3ee66b", f); slot(P[P.length - 1], "PIOR", 72, "#ff4d5e", f); }
+      if (P.length === 1) { slot(P[0], tr("ABERTA", "OPEN"), 31, "#ffd23f", f); TXT(tr("SO 1 POSICAO", "ONLY 1 POSITION"), 180, 80, "#8fa3d1", 8); }
+      else { slot(P[0], tr("MELHOR", "BEST"), 31, "#3ee66b", f); slot(P[P.length - 1], tr("PIOR", "WORST"), 72, "#ff4d5e", f); }
     } else {
-      TXT("CARTEIRA AO VIVO", 178, 32, "#3df2c4", 8);
+      TXT(tr("CARTEIRA AO VIVO", "LIVE WALLET"), 178, 32, "#3df2c4", 8);
       for (let x = 178; x < 307; x += 10) R(x, 42, 1, 68, "#0b2233");
       for (let y = 48; y < 110; y += 10) R(176, y, 132, 1, "#0b2233");
       const pts = S.curve.slice(-80).map((p) => +p[1]);
@@ -354,7 +360,7 @@
         });
         if (f % 8 < 5) R(px - 1, py - 1, 3, 3, "#ffffff");
       } else if (C().botlive) radar(f);
-      else TXT("SEM TRADES AINDA", 180, 70, "#8fa3d1", 8);
+      else TXT(tr("SEM TRADES AINDA", "NO TRADES YET"), 180, 70, "#8fa3d1", 8);
     }
     R(234, 117, 16, 8, "#2b2f3a"); R(226, 124, 32, 3, "#2b2f3a");                      // pé do monitor
   }
@@ -528,6 +534,14 @@
     R(tx, y + h - 1, 7, 3, K); R(tx + 1, y + h - 1, 5, 2, "#ffffff"); R(tx + 2, y + h + 2, 3, 2, K); R(tx + 3, y + h + 1, 1, 2, "#ffffff"); R(tx + 3, y + h + 4, 1, 2, K);
     lines.forEach((l, i) => TXT(l, x + 5, y + 4 + i * 10, col || K, 8));
   }
+  const LINES_EN = {
+    euforia: ["TO THE MOON!", "LET'S GOOO!", "WHAT A DAY!", "HODL HODL!"],
+    feliz: ["PUMPING...", "LET IT RIDE", "NICE COFFEE", "GOOD GOOD"],
+    atento: ["WATCHING...", "HUNTING GEMS", "HMM...", "SHALL WE?"],
+    dedicado: ["FOCUS!", "STAY CALM...", "ADJUSTING", "HOLD IT"],
+    nervoso: ["OH NO NO", "COME BACK?", "HOLD ON!!", "BREATHE..."],
+  };
+  const BOTL_EN = { atento: ["BEEP", "SCAN...", "ZZZ"], feliz: ["PROFIT!", "UP!"], euforia: ["MOON!", "WOW!"], dedicado: ["FOCUS!", "..."], nervoso: ["ALERT", "!!!"] };
   const LINES = {
     euforia: ["VOANDO!!!", "TO THE MOON!", "QUE DIA!", "HODL HODL!"],
     feliz: ["TA SUBINDO", "DEIXA CORRER", "CAFEZIN TOP", "BOA BOA"],
@@ -543,13 +557,13 @@
     if (C().baloes === false) return;
     if (S.say && now < S.say.until) balloon(S.say.text, 116, 52, S.say.col, false, true);
     else {
-      const md = S.mood || "atento", list = LINES[md] || LINES.atento, k = Math.floor(f / 60) % list.length;
+      const md = S.mood || "atento", list = (EN() ? LINES_EN : LINES)[md] || (EN() ? LINES_EN : LINES).atento, k = Math.floor(f / 60) % list.length;
       const col = md === "nervoso" ? "#a81f2d" : md === "dedicado" ? "#b45309" : md === "atento" ? K : "#1b8f3f";
       if (S.trendSay && now < S.trendSay.until) balloon(S.trendSay.text, 116, 52, S.trendSay.col, false, true);
       else if (f % 60 < 42) balloon(list[k], 116, 52, col, false, true);
     }
     if (S.botSay && now < S.botSay.until) balloon(S.botSay.text, bp.x + 14, bp.y, "#2f69b5", true);
-    else if (f % 120 > 90) { const l = BOTL[S.mood] || BOTL.atento; balloon(l[Math.floor(f / 120) % l.length], bp.x + 14, bp.y, "#2f69b5", true); }
+    else if (f % 120 > 90) { const BL = EN() ? BOTL_EN : BOTL, l = BL[S.mood] || BL.atento; balloon(l[Math.floor(f / 120) % l.length], bp.x + 14, bp.y, "#2f69b5", true); }
   }
 
   function desk(f) {
@@ -584,18 +598,18 @@
     // faixa de status no chão (na BOT LIVE com título, o letreiro da live ocupa esse lugar)
     if (C().botlive && (C().titulo || C().sub)) { R(4, 138, 164, 38, K); R(5, 139, 162, 36, "#140a2e"); return; }
     R(4, 138, 164, 18, K); R(5, 139, 162, 16, "#0b1430");
-    if (S.base === "dump") { spr("skull", 8, 142, 1); TXT("CONSERTANDO", 20, 143, f % 6 < 3 ? "#ffd23f" : "#ff7b1c", 8); }
+    if (S.base === "dump") { spr("skull", 8, 142, 1); TXT(tr("CONSERTANDO", "FIXING IT"), 20, 143, f % 6 < 3 ? "#ffd23f" : "#ff7b1c", 8); }
     else if (S.base === "pump") { spr("rocket", 8, 141, 1); TXT("TO THE MOON!", 20, 143, f % 6 < 3 ? "#3ee66b" : "#ffd23f", 8); }
     else {
       const a = (now / 600) % (Math.PI * 2);
       R(8, 140, 12, 12, "#06221b"); g.strokeStyle = "#3df2c4"; g.beginPath(); g.moveTo(14, 146); g.lineTo(14 + Math.cos(a) * 6, 146 + Math.sin(a) * 6); g.stroke();
-      TXT("CACANDO GEMS", 24, 143, "#3df2c4", 8);
+      TXT(tr("CACANDO GEMS", "HUNTING GEMS"), 24, 143, "#3df2c4", 8);
     }
     // placar do dia na mesa
     const w = S.wallet || {}, n = +w.count || 0;
     R(4, 160, 164, 16, K); R(5, 161, 162, 14, "#0b1430");
     spr("trophy", 8, 163, 1);
-    TXT((w.win_rate == null ? "--" : Math.round(w.win_rate * 100) + "%") + " ACERTO", 22, 164, "#e8f0ff", 8);
+    TXT((w.win_rate == null ? "--" : Math.round(w.win_rate * 100) + "%") + tr(" ACERTO", " WIN RATE"), 22, 164, "#e8f0ff", 8);
     TXT(String(n), 160 - TW(String(n)), 164, "#8fa3d1", 8);
   }
 
@@ -613,8 +627,8 @@
     const col = pnl > 0 ? "#3ee66b" : pnl < 0 ? "#ff4d5e" : "#ffd23f";
     R(174, 138, 142, 38, K); R(175, 139, 140, 36, "#04121f");
     spr("coin", 178, 142, 1);
-    TXT(C().botlive ? "CARTEIRA" : S.real ? "REAL" : "FICTICIA", 192, 143, S.real ? "#ffd23f" : "#3df2c4", 8);
-    const l1 = st && !PRIV() ? money(st) + ">" + money(eq) : "CARTEIRA";
+    TXT(C().botlive ? tr("CARTEIRA", "WALLET") : S.real ? "REAL" : "FICTICIA", 192, 143, S.real ? "#ffd23f" : "#3df2c4", 8);
+    const l1 = st && !PRIV() ? money(st) + ">" + money(eq) : tr("CARTEIRA", "WALLET");
     TXT(l1.slice(0, 17), 178, 154, "#e8f0ff", 8);
     const l2 = (pctv == null ? "" : (pctv > 0 ? "+" : "") + pctv.toFixed(1) + "% ") + (PRIV() ? "" : (pnl > 0 ? "+" : pnl < 0 ? "-" : "") + money(Math.abs(pnl)));
     TXT(l2.slice(0, 17), 178, 165, f % 20 < 17 ? col : "#8fa3d1", 8);
@@ -665,19 +679,19 @@
   function onBuy(p) {
     act("buy"); SFX.buy();
     S.bot = { mode: "buy", t0: Date.now(), sym: symTxt(p) };
-    say("COMPREI " + symTxt(p) + "!", 3500, "#1b8f3f"); botSay("NO TELAO!", 2500);
-    alertBox("COMPRA!", "PUMP IT! <b>" + sym(p) + "</b><br>" + (PRIV() ? "nova posição" : Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U), true, "coin");
+    say(tr("COMPREI ", "BOUGHT ") + symTxt(p) + "!", 3500, "#1b8f3f"); botSay(tr("NO TELAO!", "ON SCREEN!"), 2500);
+    alertBox(tr("COMPRA!", "BUY!"), "PUMP IT! <b>" + sym(p) + "</b><br>" + (PRIV() ? tr("nova posição", "new position") : Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U), true, "coin");
   }
   function onSell(t) {
     const v = t.pnl_sol || 0;
     if (v > 0) {
       act("win"); SFX.win(); S.bot = { mode: "win", t0: Date.now(), sym: symTxt(t) };
-      say(pct(t.pnl_pct) + " NO BOLSO!", 4000, "#1b8f3f"); botSay("LUCRO!", 2500);
-      alertBox("VENDA COM LUCRO", "<b>" + sym(t) + "</b> " + pct(t.pnl_pct) + "<br>" + sol(v) + " · TO THE MOON", true, "trophy");
+      say(pct(t.pnl_pct) + tr(" NO BOLSO!", " IN THE BAG!"), 4000, "#1b8f3f"); botSay(tr("LUCRO!", "PROFIT!"), 2500);
+      alertBox(tr("VENDA COM LUCRO", "SOLD IN PROFIT"), "<b>" + sym(t) + "</b> " + pct(t.pnl_pct) + "<br>" + sol(v) + " · TO THE MOON", true, "trophy");
     } else {
       act("loss"); SFX.loss(); S.bot = { mode: "loss", t0: Date.now(), sym: symTxt(t) };
-      say("STOP. PROXIMA!", 4000, "#a81f2d"); botSay("R.I.P.", 2500);
-      alertBox("R.I.P. STOP LOSS", "<b>" + sym(t) + "</b> " + pct(t.pnl_pct) + "<br>" + sol(v) + " · vaga na lanchonete aberta", false, "skull");
+      say(tr("STOP. PROXIMA!", "STOP. NEXT ONE!"), 4000, "#a81f2d"); botSay("R.I.P.", 2500);
+      alertBox("R.I.P. STOP LOSS", "<b>" + sym(t) + "</b> " + pct(t.pnl_pct) + "<br>" + sol(v) + tr(" · vaga na lanchonete aberta", " · burger flipping job still open"), false, "skull");
     }
   }
 
@@ -706,8 +720,29 @@
     [/venda .*recus|honeypot|não deixa vender/i, "o pool não deixa vender (golpe)"],
     [/atrasad|velho|antigo/i, "trade antigo, chegou tarde"],
   ];
+  const MOTIVOS_EN = [
+    [/Uniswap V4/i, "pool outside Uniswap V4 (ETH)"],
+    [/já tem (a )?posição/i, "already holding this token"],
+    [/sem saldo|saldo .*insuficiente/i, "not enough balance in the bot wallet"],
+    [/máximo de .*abertas|limite de .*abertas/i, "max open positions reached"],
+    [/venda .*recus|honeypot|não deixa vender/i, "pool won't let you sell (scam)"],
+    [/atrasad|velho|antigo/i, "old trade, arrived late"],
+    [/sem preço/i, "no token price yet"],
+    [/bloquead/i, "token blocked"],
+    [/desligad/i, "bot paused"],
+    [/stop móvel/i, "trailing stop"],
+    [/stop de (\d+)/i, (m) => "stop loss " + m[1] + "%"],
+    [/tempo máximo/i, "max holding time"],
+    [/trader vendeu (\d+)/i, (m) => "trader sold " + m[1] + "%"],
+    [/trader saiu/i, "trader left the token"],
+    [/vendeu ao ficar positivo/i, "sold once back in profit"],
+    [/vendido por você/i, "sold manually"],
+    [/PERIGO/i, "trader flagged as dangerous"],
+    [/barrado|conferência|segurança/i, "blocked by safety check"],
+  ];
   const motivo = (r) => {
     r = String(r || "");
+    if (EN()) { for (const [re, t] of MOTIVOS_EN) { const m = r.match(re); if (m) return typeof t === "function" ? t(m) : t; } return r ? "skipped" : ""; }
     for (const [re, t] of MOTIVOS) if (re.test(r)) return t;
     return r.replace(/^token barrado:\s*/i, "").replace(/\s*\(.*$/, "");
   };
@@ -717,6 +752,7 @@
     const k = logKind(a);
     return k === "sell" ? "VENDA" : k === "ok" ? "COMPRA" : "NC";
   }
+  const codeTxt = (c) => (EN() ? (c === "VENDA" ? "SELL" : c === "COMPRA" ? "BUY" : "SKIP") : c);
   function renderBotLog(L, box) {
     const G = [];
     L.forEach((x) => {
@@ -727,15 +763,15 @@
     const one = box.classList.contains("logline");                 // 0.32.343: faixa de uma linha só (a decisão mais nova)
     box.innerHTML = G.slice(0, one ? 1 : 40).map((x, i) => {
       const k = x.c === "NC" ? "no" : x.c === "VENDA" ? "sell" : "ok";
-      return '<div class="ll one ' + k + (i === 0 && x.fresh ? " new" : "") + '" title="' + esc((x.a || "") + (x.r ? " · " + motivo(x.r) : "")) + '">' +
-        '<span class="lt">' + esc(x.h) + '</span><span class="tk">' + esc(x.s || "?") + '</span><b>' + x.c + "</b>" +
+      return '<div class="ll one ' + k + (i === 0 && x.fresh ? " new" : "") + '" title="' + esc((EN() ? codeTxt(x.c) : (x.a || "")) + (x.r ? " · " + motivo(x.r) : "")) + '">' +
+        '<span class="lt">' + esc(x.h) + '</span><span class="tk">' + esc(x.s || "?") + '</span><b>' + codeTxt(x.c) + "</b>" +
         (x.n > 1 ? '<span class="nx">×' + x.n + "</span>" : "") + (one && x.r ? '<span class="lmot">· ' + esc(motivo(x.r)) + "</span>" : "") + "</div>";
     }).join("") + '<div class="cur">&gt; _</div>';
   }
   function renderLog() {
     const L = S.log.slice(0, 40), box = $("log");
     $("logN").textContent = L.length ? "(" + L.length + ")" : "";
-    if (!L.length) { box.innerHTML = '<div class="empty">sem decisões recentes</div>'; return; }
+    if (!L.length) { box.innerHTML = '<div class="empty">' + tr("sem decisões recentes", "no recent decisions") + "</div>"; return; }
     if (C().botlive) { renderBotLog(L, box); return; }
     box.innerHTML = L.map((x, i) => {
       const k = logKind(x.a);
@@ -770,45 +806,46 @@
     if (op != null) S.pctHist.push([tnow, op]);
     const old = S.pctHist.length > 3 ? S.pctHist[0][1] : null;
     if (old != null && op != null && (!S.trendSay || tnow > S.trendSay.until + 15000)) {
-      if (op - old >= 3) S.trendSay = { text: "MELHORANDO!", col: "#1b8f3f", until: tnow + 3000 };
-      else if (op - old <= -3) S.trendSay = { text: "PIOROU... ATENCAO", col: "#a81f2d", until: tnow + 3000 };
+      if (op - old >= 3) S.trendSay = { text: tr("MELHORANDO!", "GETTING BETTER!"), col: "#1b8f3f", until: tnow + 3000 };
+      else if (op - old <= -3) S.trendSay = { text: tr("PIOROU... ATENCAO", "GOT WORSE... CAREFUL"), col: "#a81f2d", until: tnow + 3000 };
     }
     const hud = $("hud");
-    const MH = { euforia: "EUFÓRICO", feliz: "FELIZ", atento: "ATENTO", dedicado: "DEDICADO", nervoso: "NERVOSO" };
-    $("mood").textContent = "HUMOR: " + (MH[S.mood] || "ATENTO"); $("mood").className = "hud pf mood m-" + (S.mood || "atento");
-    if (S.openPct == null) hud.innerHTML = '<b class="flat">PROCURANDO GEMS…</b>';
+    const MH = EN() ? { euforia: "EUPHORIC", feliz: "HAPPY", atento: "FOCUSED", dedicado: "GRINDING", nervoso: "NERVOUS" }
+      : { euforia: "EUFÓRICO", feliz: "FELIZ", atento: "ATENTO", dedicado: "DEDICADO", nervoso: "NERVOSO" };
+    $("mood").textContent = tr("HUMOR: ", "MOOD: ") + (MH[S.mood] || MH.atento); $("mood").className = "hud pf mood m-" + (S.mood || "atento");
+    if (S.openPct == null) hud.innerHTML = '<b class="flat">' + tr("PROCURANDO GEMS…", "HUNTING GEMS…") + "</b>";
     else if (S.openPct > 0) hud.innerHTML = 'PUMPING NOW! <b class="up">' + pct(S.openPct) + "</b>";
     else hud.innerHTML = 'DUMPING… <b class="down">' + pct(S.openPct) + "</b>";
     hud.className = "hud pf " + (S.openPct == null ? "flat" : S.openPct > 0 ? "up" : "down");
     const res = +w.pnl_sol || 0;
     $("stats").innerHTML = [
-      ["Carteira", C().botlive ? "do BOT" : (S.real ? "REAL" : "FICTÍCIA")],
-      ["Resultado", '<span class="' + cls(res) + '">' + sol(res) + "</span>"],
-      ["Acerto", w.win_rate == null ? "–" : Math.round(w.win_rate * 100) + "%"],
-      ["Trades", String(w.count || 0)], ["Abertas", String(P.length)],
+      [tr("Carteira", "Wallet"), C().botlive ? tr("do BOT", "BOT") : (S.real ? "REAL" : "FICTÍCIA")],
+      [tr("Resultado", "Result"), '<span class="' + cls(res) + '">' + sol(res) + "</span>"],
+      [tr("Acerto", "Win rate"), w.win_rate == null ? "–" : Math.round(w.win_rate * 100) + "%"],
+      ["Trades", String(w.count || 0)], [tr("Abertas", "Open"), String(P.length)],
     ].map(([k, v]) => '<div class="st"><small>' + k + "</small> " + v + "</div>").join("");
     $("posN").textContent = P.length ? "(" + P.length + ")" : "";
     // 0.32.269 (pedido do dono): lista compacta — moeda, valor de entrada e valor atual em dólares e o %
     const box = $("pos"), usd = +w.sol_usd || 0;
     const $v = (solv) => (PRIV() ? "•••" : usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(HOOD ? 4 : 3) + " " + U);
-    if (!P.length) { box.innerHTML = '<div class="empty">nenhuma posição aberta agora</div>'; }
+    if (!P.length) { box.innerHTML = '<div class="empty">' + tr("nenhuma posição aberta agora", "no open positions right now") + "</div>"; }
     else {
       const sorted = P.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0));
       // 0.32.300 (pedido do dono): coluna Hora com o horário de entrada
       const hr = (p) => { const t = tms(p.opened_at); return t ? hms(t, { hour: "2-digit", minute: "2-digit" }) : "–"; };
-      box.innerHTML = '<div class="ph"><span>Moeda</span><span>Hora</span><span>Entrada</span><span>Agora</span><span>%</span></div>' +
+      box.innerHTML = '<div class="ph"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Hora", "Time") + "</span><span>" + tr("Entrada", "In") + "</span><span>" + tr("Agora", "Now") + "</span><span>%</span></div>" +
         sorted.map((p) => { const ins = +p.sol_in || 0, nowv = ins + (+p.pnl_now_sol || 0);
-          return '<div class="pr"><span>' + sym(p) + '</span><span class="hr" title="entrou às ' + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
+          return '<div class="pr"><span>' + sym(p) + '</span><span class="hr" title="' + tr("entrou às ", "bought at ") + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
             '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
     }
     // 0.32.305 (pedido do dono): Histórico das posições fechadas embaixo das abertas
     const hb = $("his"), HS = S.trades.slice(0, 40);
     $("hisN").textContent = S.trades.length ? "(" + S.trades.length + ")" : "";
     const hm = (s) => { const t = tms(s); return t ? hms(t, { hour: "2-digit", minute: "2-digit" }) : "–"; };
-    hb.innerHTML = !HS.length ? '<div class="empty">nenhuma posição fechada ainda</div>' :
-      '<div class="ph"><span>Moeda</span><span>Saiu</span><span>Entrada</span><span>Saída</span><span>%</span></div>' +
+    hb.innerHTML = !HS.length ? '<div class="empty">' + tr("nenhuma posição fechada ainda", "no closed positions yet") + "</div>" :
+      '<div class="ph"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Saiu", "Out") + "</span><span>" + tr("Entrada", "In") + "</span><span>" + tr("Saída", "Exit") + "</span><span>%</span></div>" +
       HS.map((t) => { const ins = +t.sol_in || 0, out = ins + (+t.pnl_sol || 0);
-        return '<div class="pr" title="' + esc((t.motivo || "") + " · entrou " + hm(t.opened_at) + ", saiu " + hm(t.closed_at)) + '"><span>' + sym(t) + '</span><span class="hr">' + hm(t.closed_at) +
+        return '<div class="pr" title="' + esc((EN() ? motivo(t.motivo) : (t.motivo || "")) + tr(" · entrou ", " · in ") + hm(t.opened_at) + tr(", saiu ", ", out ") + hm(t.closed_at)) + '"><span>' + sym(t) + '</span><span class="hr">' + hm(t.closed_at) +
           "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>"; }).join("");
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">' + icon((t.pnl_sol || 0) > 0 ? "trophy" : "skull", 1) + "SELL " + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
       .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">' + icon("coin", 1) + "BUY " + sym(p) + (PRIV() ? "" : " " + Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U) + "</span>" })))
@@ -861,11 +898,11 @@
         .map((x) => ({ k: (x.at || "") + "|" + (x.mint || "") + "|" + (x.action || ""), h: x.at ? new Date(tms(x.at)).toLocaleTimeString("pt-BR") : "",
           a: x.action, s: x.symbol || (x.mint || "").slice(0, 6), r: x.reason }));
       setLog(log);
-      $("sub").textContent = (C().botlive ? "carteira do BOT · estratégia da Robinhood" : "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA")) + " · atualizado " + hms(Date.now()) + (C().botlive ? " UTC" : "");
+      $("sub").textContent = (C().botlive ? tr("carteira do BOT · estratégia da Robinhood", "BOT wallet (simulated) · Robinhood Chain strategy · ETH") : "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA")) + tr(" · atualizado ", " · updated ") + hms(Date.now()) + (C().botlive ? " UTC" : "");
       $("err").hidden = true;
       render();
     } catch (e) {
-      $("err").textContent = "Não consegui ler os dados: " + (e.message || e) + " (tentando de novo)"; $("err").hidden = false;
+      $("err").textContent = tr("Não consegui ler os dados: ", "Could not read the data: ") + (e.message || e) + tr(" (tentando de novo)", " (retrying)"); $("err").hidden = false;
     }
   }
 
@@ -878,12 +915,12 @@
   }
   $("mSim").addEventListener("click", () => setMode(false));
   $("mReal").addEventListener("click", () => setMode(true));
-  $("snd").addEventListener("click", () => { S.sound = !S.sound; $("snd").textContent = "SOM: " + (S.sound ? "ON" : "OFF"); $("snd").classList.toggle("on", S.sound); if (S.sound) SFX.buy(); });
+  $("snd").addEventListener("click", () => { S.sound = !S.sound; $("snd").textContent = tr("SOM: ", "SOUND: ") + (S.sound ? "ON" : "OFF"); $("snd").classList.toggle("on", S.sound); if (S.sound) SFX.buy(); });
   let hideT = null;
   const wake = () => { $("ctl").classList.remove("hide"); clearTimeout(hideT); hideT = setTimeout(() => $("ctl").classList.add("hide"), 5000); };
   ["mousemove", "touchstart", "keydown"].forEach((ev) => document.addEventListener(ev, wake, { passive: true }));
   wake();
-  window.SALA = { state: S, setSound: (v) => { S.sound = !!v; $("snd").textContent = "SOM: " + (S.sound ? "ON" : "OFF"); $("snd").classList.toggle("on", S.sound); },
+  window.SALA = { state: S, setSound: (v) => { S.sound = !!v; $("snd").textContent = tr("SOM: ", "SOUND: ") + (S.sound ? "ON" : "OFF"); $("snd").classList.toggle("on", S.sound); },
     setMode, rerender: () => { if (S.ok) render(); renderLog(); } };
   // ícones nos títulos das janelas do painel
   document.querySelectorAll("[data-ico]").forEach((el) => { el.insertAdjacentHTML("afterbegin", icon(el.getAttribute("data-ico"), 2)); });

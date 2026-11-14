@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SALA LIVE — BOT LIVE</title>
+<title>LOFI TRADING BOT — LIVE</title>
 <meta name="theme-color" content="#0b1020">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/fun-copy-192.png?v=__V__">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -184,39 +184,39 @@
 </head>
 <body>
 <div class="top">
-  <div class="brand pf">BOT LIVE · SALA</div>
-  <span class="live pf"><i></i>AO VIVO</span>
-  <div class="hud pf" id="hud">PROCURANDO GEMS…</div>
-  <div class="hud pf mood" id="mood">HUMOR: ATENTO</div>
+  <div class="brand pf">LOFI TRADING BOT</div>
+  <span class="live pf"><i></i>LIVE</span>
+  <div class="hud pf" id="hud">HUNTING GEMS…</div>
+  <div class="hud pf mood" id="mood">MOOD: FOCUSED</div>
   <div class="ctl" id="ctl">
     <button class="btn" id="mSim" type="button" hidden>FICTÍCIA</button>
     <button class="btn real" id="mReal" type="button" hidden>REAL</button>
-    <button class="btn" id="snd" type="button">SOM: OFF</button>
+    <button class="btn" id="snd" type="button">SOUND: OFF</button>
     <button class="btn" id="mus" type="button">LO-FI: OFF</button>
-    <a class="btn cfgbtn" href="/botlive" style="text-decoration:none">⚙ CONFIGURAR</a>
+    <a class="btn cfgbtn" href="/botlive" style="text-decoration:none">⚙ SETTINGS</a>
     <a class="btn" id="pnLink" href="/hood" style="text-decoration:none">PAINEL</a>
   </div>
 </div>
-<div class="sub" id="sub">conectando…</div>
+<div class="sub" id="sub">connecting…</div>
 <div class="grid">
   <div class="stwrap"><div class="stage" id="stage">
-    <canvas id="scene" width="320" height="180" aria-label="BOT trabalhando em pixel art, reagindo às operações"></canvas>
+    <canvas id="scene" width="320" height="180" aria-label="Pixel art BOT trading live, reacting to every trade"></canvas>
     <div class="ovt" id="ovt"></div>
     <div class="lofi" id="lofiTag" hidden><i></i><i></i><i></i> LO-FI · <span id="lofiMood">CHILL</span></div>
     <div class="flash" id="flash"></div>
-    <div class="alert" id="alert"><div class="ah pf"><span id="aT">ALERTA!</span><span class="ax">X</span></div><div class="ab" id="aB"></div></div>
+    <div class="alert" id="alert"><div class="ah pf"><span id="aT">ALERT!</span><span class="ax">X</span></div><div class="ab" id="aB"></div></div>
     <div class="stats" id="stats"></div>
   </div></div>
   <div class="side">
     <div class="col">
-      <div class="box"><h3 class="pf" data-ico="coin">POSIÇÕES ABERTAS<span id="posN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="pos"></div></div>
-      <div class="box hist"><h3 class="pf" data-ico="trophy">HISTÓRICO<span id="hisN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="his"></div></div>
+      <div class="box"><h3 class="pf" data-ico="coin">OPEN POSITIONS<span id="posN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="pos"></div></div>
+      <div class="box hist"><h3 class="pf" data-ico="trophy">HISTORY<span id="hisN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="his"></div></div>
     </div>
   </div>
 </div>
 <!-- 0.32.343 (pedido do dono): o LOG DO ROBÔ virou uma faixa de uma linha, do tamanho da de ÚLTIMOS TRADES, logo acima dela -->
-<div class="tick logbar"><div class="lab pf" data-ico="bot">LOG DO ROBÔ<span id="logN" hidden></span></div><div class="log logline" id="log"></div></div>
-<div class="tick"><div class="lab pf">ÚLTIMOS TRADES</div><div style="overflow:hidden;flex:1"><div class="run" id="run"></div></div></div>
+<div class="tick logbar"><div class="lab pf" data-ico="bot">BOT LOG<span id="logN" hidden></span></div><div class="log logline" id="log"></div></div>
+<div class="tick"><div class="lab pf">LATEST TRADES</div><div style="overflow:hidden;flex:1"><div class="run" id="run"></div></div></div>
 <div class="err" id="err" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
