@@ -1804,3 +1804,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.341: log do BOT LIVE (`renderBotLog`, `MOTIVOS`/`motivo()` em `sala.js`, só com `C().botlive`): horário UTC, token, ROBINHOOD, decisão e motivo curto, repetidos como ×N; `/api/botlive/painel` chama `HoodWatch.fill_names` para os tokens do log e junta os nomes do motor da /hood.
 - 0.32.342: log do BOT LIVE em uma linha (`logCode`: NC/COMPRA/VENDA, motivo no `title`), sem selo de rede; `radar(f)` no telão do BOT LIVE sem trades (`S.seguindo` + últimas decisões).
 - 0.32.343: SALA LIVE com lado direito = Posições abertas + Histórico; `#log` virou `.tick.logbar` (classe `logline`: `renderBotLog` mostra só a decisão mais nova, com o motivo) acima de ÚLTIMOS TRADES.
+- 0.32.344: SALA LIVE no PC: coluna da direita `clamp(230px,22vw,340px)` e `.side{height:var(--sth)}` (ResizeObserver da `.stage` em `botlive2.js`) para alinhar com a cena.

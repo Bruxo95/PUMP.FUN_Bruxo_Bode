@@ -130,5 +130,10 @@
     $("lofiMood").textContent = Lofi.blocked() ? "CLIQUE PARA TOCAR" : Lofi.mood() === "tensa" ? "TENSO" : "CHILL";
   }, 1500);
 
+  // 0.32.344: o painel da direita acompanha a altura da cena (a cena é 16:9 e fica centralizada)
+  const stage = document.querySelector(".stage");
+  if (stage && window.ResizeObserver) {
+    new ResizeObserver(() => { document.documentElement.style.setProperty("--sth", Math.round(stage.getBoundingClientRect().height + 8) + "px"); }).observe(stage);
+  }
   apply();
 })();

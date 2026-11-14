@@ -146,6 +146,11 @@
   .lofi i{display:inline-block;width:3px;margin-right:2px;background:#c084fc;animation:eq .9s steps(3) infinite;vertical-align:bottom}
   .lofi i:nth-child(2){animation-delay:-.3s}.lofi i:nth-child(3){animation-delay:-.6s}
   @keyframes eq{0%{height:3px}50%{height:10px}100%{height:6px}}
+  /* 0.32.344 (pedido do dono): cena um pouco maior e o painel da direita alinhado com ela (topo e base); --sth vem do botlive2.js */
+  @media (min-width:981px),(orientation:landscape) and (min-width:701px){
+    .grid{grid-template-columns:minmax(0,1fr) clamp(230px,22vw,340px)}
+    .side{align-self:center;height:var(--sth,100%)}
+  }
   body.nopanel .grid{grid-template-columns:minmax(0,1fr)}body.nopanel .side,body.nopanel .tick{display:none}
   body.clean .top,body.clean .sub{display:none}body.clean .grid{padding:0}body.clean .stage{border:0}
   .cfgbtn{background:#2e1065;border-color:#7c3aed}
