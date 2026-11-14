@@ -124,6 +124,15 @@
   .mood.m-dedicado{border-color:#ff9f1c;color:#ff9f1c}.mood.m-nervoso{border-color:var(--red);color:var(--red);animation:alarm 1s steps(2) infinite}   /* o resultado agora é desenhado na mesa (placar e carteira) */
   .alert .ah{align-items:center}.alert .ah .ico{height:16px}
   .tick .run .ico{height:1em}
+  /* 0.32.343: faixa do LOG DO ROBÔ (uma linha, a decisão mais nova) */
+  .tick.logbar{margin-bottom:6px}
+  .tick.logbar .lab{display:flex;align-items:center;gap:6px}.tick.logbar .lab .ico{height:14px}
+  .log.logline{flex:1;min-width:0;align-self:stretch;display:flex;align-items:center;background:#020a06;overflow:hidden;padding:0 12px;font-size:1.1em;line-height:1}
+  .log.logline .ll.one{flex:1;min-width:0}
+  .log.logline .ll.one{border:0;padding:0}
+  .log.logline .ll.one .tk{flex:0 1 auto}
+  .log.logline .lmot{color:#7fa58c;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0}
+  .log.logline .cur,.log.logline .empty{display:none}
   /* BOT LIVE */
   .brand{color:#c084fc;text-shadow:0 0 8px rgba(192,132,252,.5)}
   /* letreiro da live: na mesa, à esquerda (a cena deixa esse lugar livre quando há título) */
@@ -190,11 +199,12 @@
   <div class="side">
     <div class="col">
       <div class="box"><h3 class="pf" data-ico="coin">POSIÇÕES ABERTAS<span id="posN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="pos"></div></div>
-      <div class="box logb"><h3 class="pf" data-ico="bot">LOG DO ROBÔ<span id="logN"></span><span class="leg">NC = não copiou</span><i class="dots"><b></b><b></b><b></b></i></h3><div class="log" id="log"></div></div>
       <div class="box hist"><h3 class="pf" data-ico="trophy">HISTÓRICO<span id="hisN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="his"></div></div>
     </div>
   </div>
 </div>
+<!-- 0.32.343 (pedido do dono): o LOG DO ROBÔ virou uma faixa de uma linha, do tamanho da de ÚLTIMOS TRADES, logo acima dela -->
+<div class="tick logbar"><div class="lab pf" data-ico="bot">LOG DO ROBÔ<span id="logN" hidden></span></div><div class="log logline" id="log"></div></div>
 <div class="tick"><div class="lab pf">ÚLTIMOS TRADES</div><div style="overflow:hidden;flex:1"><div class="run" id="run"></div></div></div>
 <div class="err" id="err" hidden></div>
 

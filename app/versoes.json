@@ -2470,6 +2470,11 @@
    "versao": "0.32.342",
    "inicio": "2026-11-13T22:56:53+00:00",
    "titulo": "BOT LIVE: log em uma linha (NC = não copiou) e radar no telão"
+  },
+  {
+   "versao": "0.32.343",
+   "inicio": "2026-11-14T07:17:05+00:00",
+   "titulo": "SALA LIVE: log do robô numa faixa de uma linha acima dos últimos trades"
   }
  ]
 }

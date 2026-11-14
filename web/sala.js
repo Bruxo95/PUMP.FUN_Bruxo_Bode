@@ -721,11 +721,12 @@
       if (last && last.c === c && last.s === x.s) last.n++;
       else G.push(Object.assign({}, x, { c, n: 1 }));
     });
-    box.innerHTML = G.slice(0, 40).map((x, i) => {
+    const one = box.classList.contains("logline");                 // 0.32.343: faixa de uma linha só (a decisão mais nova)
+    box.innerHTML = G.slice(0, one ? 1 : 40).map((x, i) => {
       const k = x.c === "NC" ? "no" : x.c === "VENDA" ? "sell" : "ok";
       return '<div class="ll one ' + k + (i === 0 && x.fresh ? " new" : "") + '" title="' + esc((x.a || "") + (x.r ? " · " + motivo(x.r) : "")) + '">' +
         '<span class="lt">' + esc(x.h) + '</span><span class="tk">' + esc(x.s || "?") + '</span><b>' + x.c + "</b>" +
-        (x.n > 1 ? '<span class="nx">×' + x.n + "</span>" : "") + "</div>";
+        (x.n > 1 ? '<span class="nx">×' + x.n + "</span>" : "") + (one && x.r ? '<span class="lmot">· ' + esc(motivo(x.r)) + "</span>" : "") + "</div>";
     }).join("") + '<div class="cur">&gt; _</div>';
   }
   function renderLog() {
