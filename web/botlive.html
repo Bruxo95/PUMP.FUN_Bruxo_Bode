@@ -31,6 +31,7 @@
   .sw-row:last-child{border-bottom:0}
   .sw-row .tgl{flex:0 0 auto;min-width:132px;justify-content:flex-start}
   .sw-row b{font-weight:500;color:var(--text);font-size:14px}.sw-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .ythow{font-size:13px;color:var(--muted)}.ythow summary{cursor:pointer;color:var(--text)}.ythow code{word-break:break-all;color:var(--text)}.f small{color:var(--muted);font-size:11px;margin-left:6px}
   .obsl{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.obsl small{color:var(--muted);font-size:12px}
   .obs{font-family:"JetBrains Mono",monospace;font-size:11.5px;word-break:break-all;background:var(--bg2);border:1px dashed var(--line2);padding:8px;color:var(--muted);max-height:76px;overflow:auto}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -92,6 +93,25 @@
     <div class="sw-row"><div><b>Efeitos sonoros</b><small>bipes de 8 bits na compra e na venda</small></div><button class="btn tgl sw" id="cSfx" type="button" role="switch">Desligado</button></div>
   </div>
 
+  <!-- 0.32.349 (pedido do dono): cada COMPRA do BOT vira um comentário no chat da live do YouTube, com o hash do trader copiado -->
+  <div class="card" id="ytCard"><header><div><h2>YouTube: compras no chat da live</h2><div class="sub">a cada compra do BOT sai no chat: 🤖 BOT BUY $TOKEN · copying trader 0x12ab…9f · tx (link do hash) · só compras · no máximo 1 a cada 8 s</div></div></header>
+    <div class="sw-row"><div><b>Comentar as compras no chat</b><small id="ytSt">carregando…</small></div><button class="btn tgl sw" id="ytOn" type="button" role="switch">Desligado</button></div>
+    <div class="grid2" style="margin-top:10px">
+      <label class="f">Client ID <small id="ytCidS"></small><input class="in" type="password" id="ytCid" autocomplete="off" placeholder="cole aqui o Client ID"></label>
+      <label class="f">Client Secret <small id="ytSecS"></small><input class="in" type="password" id="ytSec" autocomplete="off" placeholder="cole aqui o Client Secret"></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="ytSave" type="button">Salvar chaves</button><button class="btn" id="ytCon" type="button">Conectar YouTube</button><button class="btn" id="ytTest" type="button">Enviar mensagem de teste</button><button class="btn" id="ytDel" type="button">Remover</button><span class="muted" id="ytMsg"></span></div>
+    <details class="ythow" style="margin-top:12px"><summary>Como criar o Client ID e o Client Secret</summary>
+      <ol>
+        <li>Entre em console.cloud.google.com com a conta do canal e crie um projeto.</li>
+        <li>Em "APIs e serviços" → Biblioteca, ative a <b>YouTube Data API v3</b>.</li>
+        <li>Em "Tela de consentimento OAuth": tipo Externo e coloque o e-mail do canal em Usuários de teste. Depois que a mensagem de teste funcionar, clique em <b>Publicar app</b>: em modo de teste o Google derruba a autorização a cada 7 dias. Na hora de autorizar, o aviso "app não verificado" é normal (o app é só seu): clique em Avançado → continuar.</li>
+        <li>Em Credenciais → Criar credenciais → <b>ID do cliente OAuth</b> → Aplicativo da Web.</li>
+        <li>Em "URIs de redirecionamento autorizados" cole: <code id="ytRet"></code></li>
+        <li>Copie o Client ID e o Client Secret para os campos acima, clique em Salvar e depois em Conectar YouTube.</li>
+      </ol>
+    </details>
+  </div>
   <!-- 0.32.347 (pedido do dono): o link abre direto, sem login, e há um link para cada formato (WEB horizontal e celular vertical) -->
   <div class="card"><header><div><h2>Links para o OBS</h2><div class="sub">fonte "Navegador" · abre direto, sem login · marque "Controlar áudio pelo OBS"</div></div></header>
     <div class="obsl"><b>Link para WEB</b><small>horizontal · largura 1920 × altura 1080 · YouTube, Twitch</small></div>

@@ -158,6 +158,9 @@ class BotLive(Copier):
         super().__init__(Watch308(watch), http, db)
         self.vault, self.real_allowed = None, False
         self.obs: dict[str, str] = {}                # 0.32.347: conta → sha256 do código do link do OBS (o código mesmo nunca é guardado)
+        from .hood import EXPLORER
+        from .ytchat import YTChat
+        self.yt = YTChat(http, None, EXPLORER)        # 0.32.349: compras no chat da live do YouTube (cofre ligado em main.py)
 
     # 0.32.347 (pedido do dono: "o link do OBS entra na tela de login, deveria entrar direto"): o link leva um código só de leitura
     # da SALA LIVE dessa conta. O banco guarda só o hash; gerar um novo derruba o anterior.
@@ -181,12 +184,29 @@ class BotLive(Copier):
         return None
 
     def _book_extra(self, uid: str) -> dict:
-        return {"obs_hash": self.obs[uid]} if self.obs.get(uid) else {}
+        out = {"obs_hash": self.obs[uid]} if self.obs.get(uid) else {}
+        if self.yt.on.get(uid):
+            out["yt_on"] = True
+        return out
+
+    # 0.32.349 (pedido do dono): cada COMPRA da carteira do BOT vira um comentário no chat da live, com o hash do trader copiado
+    def _sim_opened(self, uid: str, p: dict) -> None:
+        if not self.yt.on.get(uid):
+            return
+        from .ytchat import buy_text
+        tk = p.get("token") or ""
+        watch = getattr(self.w, "_w", None)
+        hm = getattr(getattr(watch, "copier", None), "meta", {}) or {}
+        m = self.meta.get(tk) or hm.get(tk) or {}
+        sym = m.get("simbolo") or m.get("nome") or (tk[:6] + "…" if tk else "")
+        self.yt.push(uid, buy_text(sym, p.get("wallet") or "", p.get("tx_in"), self.yt.explorer))
 
     def _book_loaded(self, row: dict) -> None:
         h = (row.get("cfg") or {}).get("obs_hash")
         if isinstance(h, str) and len(h) == 64:
             self.obs[row["user_id"]] = h
+        if (row.get("cfg") or {}).get("yt_on"):
+            self.yt.on[row["user_id"]] = True
 
     def on_trade(self, tr: dict, before: float, copiaria) -> None:
         return super().on_trade(tr, before, set(self.w.ranking()["copiaria"]))

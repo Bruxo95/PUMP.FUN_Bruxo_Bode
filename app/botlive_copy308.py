@@ -162,6 +162,7 @@ class Book:
         self.new_trades: list[dict] = []
         self.dirty_book = False
         self.close_hook = None                     # 0.32.306: avisa a cópia quando a posição fecha (espelho da REAL)
+        self.open_hook = None                      # 0.32.349: avisa o BOT LIVE quando a posição abre (comentário no chat do YouTube)
 
     def ev(self, t: float, wallet: str, token: str, acao: str, motivo: str = "") -> None:
         self.events.insert(0, {"t": t, "wallet": wallet, "token": token, "acao": acao, "motivo": motivo})
@@ -231,6 +232,11 @@ class Book:
         self.dirty_pos.add(p["id"])
         self.dirty_book = True
         self.ev(t, tr["wallet"], tr["token"], "copiou compra", f"{amt:g} ETH, {p['lag_s']:.0f} s depois do trader")
+        if self.open_hook:
+            try:
+                self.open_hook(self.user_id, p)
+            except Exception:
+                pass
         return p
 
     def sell(self, p: dict, frac: float, px: float | None, t: float, motivo: str) -> dict | None:
@@ -402,6 +408,7 @@ class Copier:
             b = self.books[uid] = Book(uid)
             b.dirty_book = True
         b.close_hook = self._sim_closed
+        b.open_hook = self._sim_opened
         return b
 
     # ------------------------------------------------------------------ 0.32.306: REAL espelha a FICTÍCIA
@@ -447,6 +454,9 @@ class Copier:
         return {}
 
     def _book_loaded(self, row: dict) -> None:
+        return None
+
+    def _sim_opened(self, uid: str, p: dict) -> None:
         return None
 
     def rcfg(self, uid: str) -> dict:
@@ -1373,6 +1383,7 @@ class Copier:
         for r in await self.db.select("botlive_books", None) or []:
             b = self.books[r["user_id"]] = Book(r["user_id"], r.get("cfg"), r.get("cash"))
             b.close_hook = self._sim_closed
+            b.open_hook = self._sim_opened
             b.dirty_book = False
             self._book_loaded(r)
             rc = (r.get("cfg") or {}).get("real")

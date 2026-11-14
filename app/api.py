@@ -1729,7 +1729,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     from .hood_api import add_routes as hood_routes
     hood_routes(app, lambda: getattr(hub, "hood", None), admin_only, hub.db)
     from .botlive_api import add_routes as botlive_routes
-    botlive_routes(app, lambda: getattr(hub, "botlive", None), admin_only, hub.db)
+    botlive_routes(app, lambda: getattr(hub, "botlive", None), admin_only, hub.db, cfg.public_base_url)
 
     # 0.32.227 (pedido do dono): Dormant, painel próprio (/dormant) para a watchlist da CoinMarketCap; só observa
     @app.get("/dormant")

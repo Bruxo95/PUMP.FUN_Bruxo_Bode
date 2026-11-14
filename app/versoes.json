@@ -2500,6 +2500,11 @@
    "versao": "0.32.348",
    "inicio": "2026-11-14T11:25:00+00:00",
    "titulo": "SALA LIVE: tira a palavra simulated da linha de cima"
+  },
+  {
+   "versao": "0.32.349",
+   "inicio": "2026-11-14T18:40:00+00:00",
+   "titulo": "BOT LIVE comenta as compras no chat da live do YouTube"
   }
  ]
 }

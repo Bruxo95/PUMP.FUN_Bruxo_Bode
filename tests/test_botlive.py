@@ -110,3 +110,94 @@ def test_rota_publica_do_obs_recusa_codigo_errado_e_gerar_exige_login(env):
     r = c.get("/api/botlive/obs/painel?k=" + "A" * 32)
     assert r.status_code in (200, 403)
     assert "posicoes" not in r.json()                                      # código que não existe não lê nada
+
+
+def test_compra_do_bot_vira_comentario_no_chat_do_youtube_so_quando_ligado(monkeypatch):
+    """0.32.349 (pedido do dono): só as COMPRAS vão para o chat, com o hash da transação do trader copiado."""
+    from app import ytchat
+    t = ytchat.buy_text("MOON", "0x" + "ab" * 20, "0x" + "cd" * 32, "https://robinhoodchain.blockscout.com/")
+    assert t.startswith("🤖 BOT BUY $MOON · copying trader 0xabab…abab") and t.endswith("/tx/0x" + "cd" * 32) and len(t) <= 200
+    w, b = bot(monkeypatch)
+    p = {"token": "0x" + "11" * 20, "wallet": TRADER, "tx_in": "0x" + "ee" * 32}
+    b._sim_opened("u1", p)
+    assert not b.yt.q.get("u1")                                            # desligado: nada vai para o chat
+    b.yt.on["u1"] = True
+    b.meta[p["token"]] = {"nome": "Moon Cat", "simbolo": "MOON"}
+    b._sim_opened("u1", p)
+    assert b.yt.q["u1"] == [ytchat.buy_text("MOON", TRADER, p["tx_in"], b.yt.explorer)]
+    assert b._book_extra("u1") == {"yt_on": True}                          # o liga/desliga sobrevive ao reinício
+    b2 = botlive.BotLive(w, Http())
+    b2._book_loaded({"user_id": "u1", "cfg": {"yt_on": True}})
+    assert b2.yt.on.get("u1") is True
+    src = inspect.getsource(botlive_copy308.Book.buy)
+    assert "open_hook" in src and "não copiou" in src                      # o gancho fica só na compra que abriu posição
+
+
+def test_youtube_conecta_guarda_no_cofre_e_envia_para_a_live(monkeypatch):
+    from app import ytchat
+
+    class R:
+        def __init__(self, code, j):
+            self.status_code, self._j = code, j
+
+        def json(self):
+            return self._j
+
+    class H:
+        def __init__(self):
+            self.sent = []
+
+        async def post(self, url, data=None, json=None, params=None, headers=None, timeout=None):
+            if url == ytchat.TOKEN:
+                if data["grant_type"] == "authorization_code":
+                    return R(200, {"access_token": "AT-1", "refresh_token": "RT-1", "expires_in": 3600})
+                return R(200, {"access_token": "AT-2", "expires_in": 3600})
+            self.sent.append((json["snippet"]["liveChatId"], json["snippet"]["textMessageDetails"]["messageText"], headers))
+            return R(200, {"id": "m1"})
+
+        async def get(self, url, params=None, headers=None, timeout=None):
+            return R(200, {"items": [{"snippet": {"liveChatId": "CHAT1", "title": "Lofi live"}}]})
+
+    class V:
+        def __init__(self):
+            self.d = {"youtube_client_id": "cid-123456", "youtube_client_secret": "sec-123456"}
+
+        async def load(self, uid):
+            return dict(self.d)
+
+        async def names(self, uid):
+            return set(self.d)
+
+        async def save(self, uid, n, v):
+            self.d[n] = v
+
+    async def go():
+        h, v = H(), V()
+        y = ytchat.YTChat(h, v, "https://x")
+        url = y.auth_url("u1", "cid-123456", "https://site/botlive/youtube/retorno")
+        state = url.split("state=")[1]
+        assert "youtube.force-ssl" in urllib.parse.unquote(url) and "access_type=offline" in url
+        assert y.take_state(state) == "u1" and y.take_state(state) is None      # uso único
+        await y.exchange("u1", "CODE", "https://site/botlive/youtube/retorno")
+        assert v.d["youtube_refresh_token"] == "RT-1"
+        assert await y.send("u1", "oi") is True
+        st = await y.status("u1")
+        assert st["conectado"] and st["live"] == "Lofi live" and st["enviadas_hoje"] == 1
+        assert "RT-1" not in str(st) and "sec-123456" not in str(st) and "AT-1" not in str(st)   # nada de chave na resposta
+        return h
+    import urllib.parse
+    h = run(go())
+    assert h.sent[0][0] == "CHAT1" and h.sent[0][1] == "oi"
+
+
+def test_rotas_do_youtube_exigem_login_e_migracao_libera_os_nomes(env):
+    c = env["c"]
+    for path in ("/api/botlive/youtube", "/api/botlive/youtube/conectar"):
+        assert c.get(path).status_code == 401
+    for path in ("/api/botlive/youtube/chave", "/api/botlive/youtube/ligar", "/api/botlive/youtube/teste", "/api/botlive/youtube/remover"):
+        assert c.post(path, json={}).status_code == 401
+    r = c.get("/botlive/youtube/retorno?code=x&state=nao-existe", follow_redirects=False)
+    assert r.status_code in (302, 307) and "yt=erro" in r.headers["location"]
+    sql = open("supabase/migrations/20261114000001_botlive_youtube.sql", encoding="utf-8").read()
+    for n in ("'youtube_client_id'", "'youtube_client_secret'", "'youtube_refresh_token'", "'hood_private_key'", "'wallet_private_key'"):
+        assert n in sql

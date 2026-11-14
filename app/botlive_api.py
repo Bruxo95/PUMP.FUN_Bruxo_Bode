@@ -3,16 +3,17 @@ separada da /hood. Só admin, só a própria conta. Nada aqui compra ou vende de
 from __future__ import annotations
 
 import asyncio
+import urllib.parse
 
 from fastapi import Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from .db import audit
 
 CARTEIRA = ("on", "saldo_inicial", "eth_por_compra", "max_abertas", "stop_pct", "trail_on", "trail_ativa_pct", "trail_dist_pct", "max_hold_h")
 
 
-def add_routes(app, get_bot, admin_only, db) -> None:
+def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
     def off():
         return {"ligado": False, "motivo": "leitura da Robinhood Chain desligada no servidor (HOOD_ON=false)"}
 
@@ -43,6 +44,95 @@ def add_routes(app, get_bot, admin_only, db) -> None:
         if not uid:
             return JSONResponse({"error": "link do OBS inválido ou trocado: gere um novo em /botlive"}, status_code=403)
         return await painel_de(c, uid)
+
+    # ------------------------------------------------------------------ 0.32.349: compras no chat da live do YouTube
+    YT_KEYS = {"client_id": "youtube_client_id", "client_secret": "youtube_client_secret"}
+
+    def yt_redirect() -> str:
+        return (base_url or "").rstrip("/") + "/botlive/youtube/retorno"
+
+    @app.get("/api/botlive/youtube")
+    async def botlive_yt(u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None:
+            return off()
+        return {"ok": True, **await c.yt.status(u["id"]), "retorno": yt_redirect()}
+
+    @app.post("/api/botlive/youtube/chave")
+    async def botlive_yt_key(body: dict, u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None or c.yt.vault is None:
+            return JSONResponse({"error": "cofre indisponível"}, status_code=503)
+        nome = YT_KEYS.get(str(body.get("nome") or ""))
+        valor = str(body.get("valor") or "").strip()
+        if not nome or not (8 <= len(valor) <= 300) or any(ch.isspace() for ch in valor):
+            return JSONResponse({"error": "valor inválido"}, status_code=400)
+        await c.yt.vault.save(u["id"], nome, valor)
+        c.yt.tok.pop(u["id"], None)
+        await audit(db, u["id"], "salvar chave", nome)
+        return {"ok": True, **await c.yt.status(u["id"])}
+
+    @app.post("/api/botlive/youtube/remover")
+    async def botlive_yt_remove(u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None or c.yt.vault is None:
+            return JSONResponse({"error": "cofre indisponível"}, status_code=503)
+        for n in ("youtube_client_id", "youtube_client_secret", "youtube_refresh_token"):
+            await c.yt.vault.delete(u["id"], n)
+        c.yt.tok.pop(u["id"], None)
+        c.yt.chat.pop(u["id"], None)
+        c.yt.on.pop(u["id"], None)
+        c.book(u["id"]).dirty_book = True
+        await audit(db, u["id"], "remover chave", "YouTube do BOT LIVE (Client ID, Client Secret e autorização)")
+        return {"ok": True, **await c.yt.status(u["id"])}
+
+    @app.get("/api/botlive/youtube/conectar")
+    async def botlive_yt_connect(u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None:
+            return off()
+        k = await c.yt.keys(u["id"])
+        if not k.get("youtube_client_id") or not k.get("youtube_client_secret"):
+            return JSONResponse({"error": "salve o Client ID e o Client Secret primeiro"}, status_code=400)
+        return {"ok": True, "url": c.yt.auth_url(u["id"], k["youtube_client_id"], yt_redirect())}
+
+    @app.get("/botlive/youtube/retorno")
+    async def botlive_yt_back(code: str = "", state: str = "", error: str = ""):
+        """O Google volta para cá depois do "Permitir". Sem login: quem vale é o state (de uso único, 10 min)."""
+        c = get_bot()
+        uid = c.yt.take_state(state) if c is not None else None
+        if not uid:
+            return RedirectResponse("/botlive?yt=erro&msg=" + urllib.parse.quote("pedido vencido: clique em Conectar YouTube de novo"))
+        if error or not code:
+            return RedirectResponse("/botlive?yt=erro&msg=" + urllib.parse.quote("o Google não autorizou (" + (error or "sem código") + ")"))
+        try:
+            await c.yt.exchange(uid, code, yt_redirect())
+        except Exception as e:
+            return RedirectResponse("/botlive?yt=erro&msg=" + urllib.parse.quote(str(e)[:200]))
+        await audit(db, uid, "salvar chave", "YouTube do BOT LIVE conectado")
+        return RedirectResponse("/botlive?yt=ok")
+
+    @app.post("/api/botlive/youtube/ligar")
+    async def botlive_yt_on(body: dict, u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None:
+            return off()
+        on = bool(body.get("on"))
+        if on:
+            c.yt.on[u["id"]] = True
+        else:
+            c.yt.on.pop(u["id"], None)
+        c.book(u["id"]).dirty_book = True
+        await audit(db, u["id"], "BOT LIVE: compras no chat do YouTube " + ("ligado" if on else "desligado"))
+        return {"ok": True, **await c.yt.status(u["id"])}
+
+    @app.post("/api/botlive/youtube/teste")
+    async def botlive_yt_test(u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None:
+            return off()
+        ok = await c.yt.send(u["id"], "🎧 Lofi Trading Bot is connected! Every bot buy will show up here.")
+        return {"ok": ok, **await c.yt.status(u["id"])}
 
     async def painel_de(c, uid: str) -> dict:
         p = c.painel(uid)

@@ -62,6 +62,7 @@ def build_app():
         from .botlive import BotLive
         hub.botlive = BotLive(hub.hood, http, db)
         hub.hood.extra.append(hub.botlive)
+        hub.botlive.yt.vault = hub.vault             # 0.32.349: chaves do YouTube do BOT LIVE (cofre criptografado)
     # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
     hub.dormant = None
     if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):

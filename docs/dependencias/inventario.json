@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-14",
     "timezone": "Europe/Dublin",
-    "repository_reference": "55a8ed57dc9bc3e74a0d6cb695f61947bda2c960",
-    "application_version": "0.32.348 · 2026-11-14 · SALA LIVE: tira a palavra simulated da linha de cima",
+    "repository_reference": "83f365b6d7e04935b3fc6cbaaa54ebe0ed8c6179",
+    "application_version": "0.32.349 · 2026-11-14 · BOT LIVE comenta as compras no chat da live do YouTube",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "9feaa1a64c905e34d5ac17523869a18d2d219d007697781c99ab46bd022b449a",
+      "app/version.py": "ca209fdf86617c30c50a56ae6eca708825701c234444e276aced9321dc67b21b",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "eeb3cd4b58ab5fb1f61593be556f6d9b86a2a1455f021266eebb5b74ab988506"
+  "pdf_sha256": "461c79c18bc7a40d089f8d5a23489f8c1b5844d758486bf780429630de7106b8"
 }

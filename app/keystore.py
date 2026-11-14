@@ -22,7 +22,11 @@ SECRET_NAMES = {
 # aparecer nas Chaves pessoais do painel da Solana: o painel da BNB tem a tela própria.
 BNB_SECRET_NAMES = {"bnb_private_key": "Chave privada da carteira BNB (Four.Meme)",
                     # 0.32.279: carteira da Robinhood Chain, mesma regra (só aparece no painel /hood)
-                    "hood_private_key": "Chave privada da carteira da Robinhood Chain"}
+                    "hood_private_key": "Chave privada da carteira da Robinhood Chain",
+                    # 0.32.349: YouTube do BOT LIVE (comentar as compras no chat da live). Só aparecem em /botlive.
+                    "youtube_client_id": "YouTube: Client ID (OAuth)",
+                    "youtube_client_secret": "YouTube: Client Secret (OAuth)",
+                    "youtube_refresh_token": "YouTube: autorização do canal"}
 
 
 # chaves que o ADMIN pode configurar para todos usarem na VISUALIZAÇÃO (dados e cotações; nunca execução real)

@@ -105,4 +105,58 @@
     $("boot").hidden = true; $("bl").hidden = false;
     walLoad(); setInterval(walLoad, 15000);
   })();
+
+  // 0.32.349 (pedido do dono): compras do BOT no chat da live do YouTube. As chaves vão para o cofre do servidor (criptografadas);
+  // a tela só recebe "configurada: sim/não".
+  let YT = null;
+  function ytPaint(st) {
+    if (st && st.ok !== undefined) YT = st;
+    if (!YT) return;
+    const on = !!YT.ligado;
+    $("ytOn").classList.toggle("on", on); $("ytOn").classList.toggle("off", !on); $("ytOn").textContent = on ? "Ligado" : "Desligado"; $("ytOn").setAttribute("aria-checked", on ? "true" : "false");
+    $("ytCidS").textContent = YT.client_id ? "configurada: sim" : "configurada: não";
+    $("ytSecS").textContent = YT.client_secret ? "configurada: sim" : "configurada: não";
+    $("ytRet").textContent = YT.retorno || "";
+    const u = YT.ultima;
+    $("ytSt").textContent = (YT.conectado ? "canal conectado" : "canal não conectado") + (YT.live ? " · live: " + YT.live : "") +
+      " · " + (YT.enviadas_hoje || 0) + "/" + (YT.limite_dia || 400) + " hoje" +
+      (u ? " · última: " + (u.ok ? "enviada" + (u.info ? " (" + u.info + ")" : "") : "falhou: " + (u.erro || "")) : "");
+  }
+  async function ytCall(path, body, msg) {
+    try {
+      const r = await BB.api(path, body === undefined ? {} : { method: "POST", body: body });
+      if (r && r.error) throw new Error(r.error);
+      ytPaint(r); if (msg) $("ytMsg").textContent = msg;
+      return r;
+    } catch (e) { $("ytMsg").textContent = String(e.message || e); return null; }
+  }
+  $("ytOn").addEventListener("click", () => ytCall("/api/botlive/youtube/ligar", { on: !(YT && YT.ligado) }, ""));
+  $("ytSave").addEventListener("click", async () => {
+    const cid = $("ytCid").value.trim(), sec = $("ytSec").value.trim();
+    if (!cid && !sec) { $("ytMsg").textContent = "cole o Client ID e o Client Secret"; return; }
+    if (cid) await ytCall("/api/botlive/youtube/chave", { nome: "client_id", valor: cid });
+    if (sec) await ytCall("/api/botlive/youtube/chave", { nome: "client_secret", valor: sec });
+    $("ytCid").value = ""; $("ytSec").value = ""; $("ytMsg").textContent = "chaves salvas ✓";
+  });
+  $("ytCon").addEventListener("click", async () => {
+    const r = await ytCall("/api/botlive/youtube/conectar");
+    if (r && r.url) location.href = r.url;
+  });
+  $("ytTest").addEventListener("click", async () => {
+    $("ytMsg").textContent = "enviando…";
+    const r = await ytCall("/api/botlive/youtube/teste", {});
+    if (r) $("ytMsg").textContent = r.ok ? "mensagem enviada ✓ (confira o chat)" : "não enviou: " + ((r.ultima && r.ultima.erro) || "veja o status");
+  });
+  $("ytDel").addEventListener("click", () => {
+    if (!confirm("Remover as chaves e a autorização do YouTube?")) return;
+    ytCall("/api/botlive/youtube/remover", {}, "removido ✓");
+  });
+  (function () {
+    const q = new URLSearchParams(location.search);
+    if (q.get("yt") === "ok") $("ytMsg").textContent = "YouTube conectado ✓";
+    if (q.get("yt") === "erro") $("ytMsg").textContent = "não conectou: " + (q.get("msg") || "");
+    if (q.get("yt")) { try { history.replaceState(null, "", "/botlive"); } catch (e) { /* */ } }
+    ytCall("/api/botlive/youtube");
+    setInterval(() => ytCall("/api/botlive/youtube"), 30000);
+  })();
 })();
