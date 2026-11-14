@@ -4,7 +4,7 @@ transação do trader copiado. Só compras (nada de vendas ou "não copiou").
 Como funciona: o dono cria um "ID do cliente OAuth" (Aplicativo da Web) no Google Cloud com a YouTube Data API v3 ativa, cola o
 Client ID e o Client Secret em /botlive (ficam no cofre criptografado, user_secrets) e clica em "Conectar YouTube" uma vez. O Google
 devolve uma autorização permanente (refresh token), que também vai para o cofre. A cada compra a mensagem entra numa fila e sai no
-chat da live que estiver no ar no canal (liveBroadcasts → liveChatId → liveChatMessages.insert).
+chat da live que estiver no ar no canal (liveBroadcasts → liveChatId → POST liveChat/messages).
 
 Nada daqui volta pela API: a tela só vê "configurada: sim/não". Cota grátis do YouTube: 10.000 por dia; cada mensagem gasta 20.
 """
@@ -193,7 +193,8 @@ class YTChat:
             if not cid:
                 self.last[uid] = {"t": time.time(), "ok": False, "erro": "nenhuma live no ar neste canal", "texto": text}
                 return False
-            r = await self.http.post(API + "/liveChatMessages", params={"part": "snippet"},
+            # 0.32.350: o endereço certo é liveChat/messages (com "liveChatMessages" o YouTube responde 404)
+            r = await self.http.post(API + "/liveChat/messages", params={"part": "snippet"},
                                      json={"snippet": {"liveChatId": cid, "type": "textMessageEvent",
                                                        "textMessageDetails": {"messageText": text}}},
                                      headers={"Authorization": "Bearer " + tok}, timeout=15)

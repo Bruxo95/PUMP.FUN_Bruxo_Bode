@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-14**; revisão documental **2.0**.
-Aplicação: **0.32.349 · 2026-11-14 · BOT LIVE comenta as compras no chat da live do YouTube**.
-Referência Git na emissão: `83f365b6d7e04935b3fc6cbaaa54ebe0ed8c6179`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.350 · 2026-11-14 · YouTube: corrige o endereço que escreve no chat (erro 404)**.
+Referência Git na emissão: `306d05b593878fd97322cf4c7d4477d8fbe0344e`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

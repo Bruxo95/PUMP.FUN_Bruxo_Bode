@@ -2505,6 +2505,11 @@
    "versao": "0.32.349",
    "inicio": "2026-11-14T18:40:00+00:00",
    "titulo": "BOT LIVE comenta as compras no chat da live do YouTube"
+  },
+  {
+   "versao": "0.32.350",
+   "inicio": "2026-11-14T19:20:00+00:00",
+   "titulo": "YouTube: corrige o endereço que escreve no chat (erro 404)"
   }
  ]
 }

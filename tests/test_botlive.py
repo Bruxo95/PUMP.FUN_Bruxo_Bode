@@ -152,6 +152,7 @@ def test_youtube_conecta_guarda_no_cofre_e_envia_para_a_live(monkeypatch):
                 if data["grant_type"] == "authorization_code":
                     return R(200, {"access_token": "AT-1", "refresh_token": "RT-1", "expires_in": 3600})
                 return R(200, {"access_token": "AT-2", "expires_in": 3600})
+            assert url == ytchat.API + "/liveChat/messages"                  # 0.32.350: endereço oficial (o outro dava 404)
             self.sent.append((json["snippet"]["liveChatId"], json["snippet"]["textMessageDetails"]["messageText"], headers))
             return R(200, {"id": "m1"})
 
