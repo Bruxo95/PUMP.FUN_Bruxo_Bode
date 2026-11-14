@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-14",
     "timezone": "Europe/Dublin",
-    "repository_reference": "c537bb1571ffdfde616e5703f51fdbd5895259c0",
-    "application_version": "0.32.344 · 2026-11-14 · SALA LIVE: cena maior e alinhada com Posições e Histórico",
+    "repository_reference": "cebe819ab0de334f7dae4e5fd828ee18a61c2620",
+    "application_version": "0.32.345 · 2026-11-14 · SALA LIVE alinhada no PC e no celular e botão PUMP em cima da mesa",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "eec2a841c9e962702bfdb337a06f046f3dfd55317a9ecf8125a0ef15cbf8d7d6",
+      "app/version.py": "f143b0ebb4439880e4a267032b19d4fac76945dc7db2463a3ddbce0f8d3af7ec",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "72c2db6679ad61f35dbe90cfb26e719930df2bfba0b25aa5ddae723c80ee9f42"
+  "pdf_sha256": "90747d878fc8a932a442657fb71c7791026ef4e6ca510d10ec783cda23f2b853"
 }

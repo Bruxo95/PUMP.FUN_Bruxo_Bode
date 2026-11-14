@@ -149,8 +149,14 @@
   /* 0.32.344 (pedido do dono): cena um pouco maior e o painel da direita alinhado com ela (topo e base); --sth vem do botlive2.js */
   @media (min-width:981px),(orientation:landscape) and (min-width:701px){
     .grid{grid-template-columns:minmax(0,1fr) clamp(230px,22vw,340px)}
-    .side{align-self:center;height:var(--sth,100%)}
+    .side{align-self:center;height:min(var(--sth,100%),100%)}
+    /* 0.32.345: a coluna da cena tem a largura da própria cena (--gh = altura da linha, botlive2.js) e Posições/Histórico ocupam o resto,
+       sem faixa vazia entre a cena e o painel; as bordas batem com as faixas do log e dos últimos trades */
+    .grid.fit{grid-template-columns:minmax(0,calc((var(--gh) - 6px) * 16 / 9 + 6px)) minmax(clamp(230px,22vw,340px),1fr)}
   }
+  /* 0.32.345: no celular o nome do token não some na faixa do log e o texto de "nenhuma posição" fica do tamanho dos outros */
+  .log.logline .ll.one .tk{flex:0 0 auto;max-width:45%}
+  @media (max-width:700px){.side .empty{font-size:15px;padding:8px 10px}}
   body.nopanel .grid{grid-template-columns:minmax(0,1fr)}body.nopanel .side,body.nopanel .tick{display:none}
   body.clean .top,body.clean .sub{display:none}body.clean .grid{padding:0}body.clean .stage{border:0}
   .cfgbtn{background:#2e1065;border-color:#7c3aed}

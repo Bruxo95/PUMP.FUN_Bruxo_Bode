@@ -563,8 +563,11 @@
     const act = S.action && Date.now() < S.actionUntil;
     const buy = act && S.action === "buy";
     const col = act ? (buy ? "#3ee66b" : S.action === "win" ? "#ffd23f" : "#ff4d5e") : "#a81f2d";
-    R(196, 117, 34, 8, K); R(197, 118, 32, 6, "#222"); R(199, act && f % 4 < 2 ? 116 : 113, 28, 6, col);
-    TXT(buy ? "BUY" : act ? "SELL" : "PUMP", 198, 126, act ? col : "#ff4d5e", 8);
+    // 0.32.345: botão com o nome escrito nele, em cima da mesa (como o teclado), entre o mouse e o pé do monitor (antes o texto ficava solto na beira da mesa)
+    const down = act && f % 4 < 2, lab = buy ? "BUY" : act ? "SELL" : "PUMP";
+    R(186, 121, 38, 11, K); R(187, 130, 36, 1, act ? "#5a1018" : "#4a0d14");
+    R(187, down ? 123 : 122, 36, 8, col);
+    TXT(lab, Math.round(205 - TW(lab) / 2), down ? 123 : 122, act ? K : "#ffe3e6", 8);
   }
 
   function fx(f) {

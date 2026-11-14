@@ -133,7 +133,27 @@
   // 0.32.344: o painel da direita acompanha a altura da cena (a cena é 16:9 e fica centralizada)
   const stage = document.querySelector(".stage");
   if (stage && window.ResizeObserver) {
-    new ResizeObserver(() => { document.documentElement.style.setProperty("--sth", Math.round(stage.getBoundingClientRect().height + 8) + "px"); }).observe(stage);
+    new ResizeObserver(() => { document.documentElement.style.setProperty("--sth", Math.round(stage.getBoundingClientRect().height) + "px"); }).observe(stage);
+    // 0.32.345: a coluna da cena tem a largura da própria cena (16:9) e Posições/Histórico ocupam o resto, sem faixa vazia.
+    // Se a janela for mais alta que a cena (cena limitada pela largura), a linha encolhe para a altura da cena e o log
+    // e os últimos trades ficam logo abaixo dela, sem espaço vazio no meio. Recalculado só ao mudar o tamanho da janela.
+    const wrap = stage.parentElement, grid = wrap && wrap.parentElement;
+    const DESK = window.matchMedia("(min-width:981px),(orientation:landscape) and (min-width:701px)");
+    const fit = () => {
+      if (!wrap || !grid) return;
+      grid.style.flex = ""; grid.style.gridTemplateRows = ""; grid.classList.remove("fit");
+      if (!DESK.matches || document.body.classList.contains("nopanel")) return;
+      const cs = getComputedStyle(grid), rowH = wrap.getBoundingClientRect().height;
+      const sideMin = Math.min(340, Math.max(230, innerWidth * 0.22)), gap = parseFloat(cs.columnGap) || 12;
+      const wMax = grid.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - gap - sideMin;
+      const h = Math.floor(Math.min(rowH, (wMax - 6) * 9 / 16 + 6));
+      if (h <= 0) return;
+      document.documentElement.style.setProperty("--gh", h + "px"); grid.classList.add("fit");
+      if (h < rowH - 2) { grid.style.flex = "0 0 auto"; grid.style.gridTemplateRows = h + "px"; }
+    };
+    let ft = 0; const refit = () => { clearTimeout(ft); ft = setTimeout(fit, 60); };
+    addEventListener("resize", refit); if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+    refit(); setTimeout(refit, 800);
   }
   apply();
 })();
