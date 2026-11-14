@@ -904,7 +904,7 @@
         .map((x) => ({ k: (x.at || "") + "|" + (x.mint || "") + "|" + (x.action || ""), h: x.at ? new Date(tms(x.at)).toLocaleTimeString("pt-BR") : "",
           a: x.action, s: x.symbol || (x.mint || "").slice(0, 6), r: x.reason }));
       setLog(log);
-      $("sub").textContent = (C().botlive ? tr("carteira do BOT · estratégia da Robinhood", "BOT wallet (simulated) · Robinhood Chain strategy · ETH") : "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA")) + tr(" · atualizado ", " · updated ") + hms(Date.now()) + (C().botlive ? " UTC" : "");
+      $("sub").textContent = (C().botlive ? tr("carteira do BOT · estratégia da Robinhood", "BOT wallet · Robinhood Chain strategy · ETH") : "dados da sua conta · carteira " + (real ? "REAL" : "FICTÍCIA")) + tr(" · atualizado ", " · updated ") + hms(Date.now()) + (C().botlive ? " UTC" : "");
       $("err").hidden = true;
       render();
     } catch (e) {

@@ -2495,6 +2495,11 @@
    "versao": "0.32.347",
    "inicio": "2026-11-14T08:50:00+00:00",
    "titulo": "Links do OBS sem login: um para WEB e outro para Mobile vertical"
+  },
+  {
+   "versao": "0.32.348",
+   "inicio": "2026-11-14T11:25:00+00:00",
+   "titulo": "SALA LIVE: tira a palavra simulated da linha de cima"
   }
  ]
 }

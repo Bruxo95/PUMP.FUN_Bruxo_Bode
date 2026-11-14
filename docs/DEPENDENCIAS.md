@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-14**; revisão documental **2.0**.
-Aplicação: **0.32.347 · 2026-11-14 · Links do OBS sem login: um para WEB e outro para Mobile vertical**.
-Referência Git na emissão: `8e2abb86fddd9739b1753697fa7813cd95e3e1ef`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.348 · 2026-11-14 · SALA LIVE: tira a palavra simulated da linha de cima**.
+Referência Git na emissão: `55a8ed57dc9bc3e74a0d6cb695f61947bda2c960`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
