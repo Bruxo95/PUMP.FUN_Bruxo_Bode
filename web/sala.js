@@ -855,8 +855,14 @@
 
   // Robinhood: posições e trades da cópia em ETH no formato que a cena já usa
   const iso = (t) => (t ? new Date(t * 1000).toISOString() : "");
+  // 0.32.347: no link do OBS (C().obs) a SALA LIVE lê sem login, pela rota pública com o código do link
+  const API = (path) => (!C().obs ? BB._api(path) : fetch(path, { cache: "no-store" }).then(async (r) => {
+    let j = {}; try { j = await r.json(); } catch (e) { j = { error: "invalid server response" }; }
+    if (!r.ok && !j.error) j.error = "error " + r.status;
+    return j;
+  }));
   async function hoodData(real) {
-    const p = await BB._api(C().api ? C().api : "/api/hood/painel" + (real ? "?real=1" : ""));
+    const p = await API(C().api ? C().api : "/api/hood/painel" + (real ? "?real=1" : ""));
     if (p.error) return p;
     if (p.ligado === false) return { error: p.motivo || "leitura da Robinhood desligada no servidor" };
     const sy = (x) => x.simbolo || x.nome || (x.token || "").slice(0, 8);
@@ -927,8 +933,10 @@
 
   (async function start() {
     let s = null;
-    try { s = await BB.session(); } catch (e) { /* sem sessão */ }
-    if (!s) { location.href = "/"; return; }
+    if (!C().obs) {
+      try { s = await BB.session(); } catch (e) { /* sem sessão */ }
+      if (!s) { location.href = "/"; return; }
+    }
     $("mSim").classList.toggle("on", !S.real); $("mReal").classList.toggle("on", S.real);
     if (HOOD && !C().botlive) {
       document.title = "Sala ao vivo — Robinhood";

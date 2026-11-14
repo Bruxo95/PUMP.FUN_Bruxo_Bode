@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-14",
     "timezone": "Europe/Dublin",
-    "repository_reference": "0d869e5f2db5eabe60b23225893678ca90fc6330",
-    "application_version": "0.32.346 · 2026-11-14 · SALA LIVE em inglês (LOFI TRADING BOT)",
+    "repository_reference": "8e2abb86fddd9739b1753697fa7813cd95e3e1ef",
+    "application_version": "0.32.347 · 2026-11-14 · Links do OBS sem login: um para WEB e outro para Mobile vertical",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "9e053fa8f10dd44cd59e0fe09cba3edecaf2a9eb9173f3edc6c6897e3e7f82d8",
+      "app/version.py": "fe8c89a2cc2f3b99cca1484e946470234db65fbef8c4a4dbaa8da9f216349848",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "43b5f7a7a65806d6c5c88e535f815dc8ddcf7bb94bc1319ca2c86997e9af4a92"
+  "pdf_sha256": "457fdb9c954420d17d261233473b74720a0efcfac9df4378b403a6466d82c250"
 }

@@ -11,8 +11,20 @@
     $("cSaved").textContent = "salvo ✓"; clearTimeout(savedT); savedT = setTimeout(() => { $("cSaved").textContent = ""; }, 1500);
     paint();
   }
-  function obsLink() {
-    const o = Object.assign({}, cfg); delete o.botlive; delete o.mkey;
+  // 0.32.347: o link leva um código só de leitura (gerado no servidor, que guarda só o hash) para abrir sem login, e o formato:
+  // "h" = WEB horizontal 1920×1080, "v" = celular vertical 1080×1920. O código fica só neste navegador.
+  const OBSK = "botlive_obs_k";
+  let obsK = ""; try { obsK = localStorage.getItem(OBSK) || ""; } catch (e) { /* sem armazenamento */ }
+  async function newKey() {
+    const r = await BB.api("/api/botlive/obs-link", { method: "POST", body: {} });
+    if (!r || !r.k) throw new Error((r && r.error) || "não consegui gerar o link");
+    obsK = r.k; try { localStorage.setItem(OBSK, obsK); } catch (e) { /* */ }
+    paint();
+  }
+  function obsLink(layout) {
+    if (!obsK) return "";
+    const o = Object.assign({}, cfg); delete o.botlive; delete o.mkey; delete o.api; delete o.obs;
+    o.k = obsK; o.layout = layout === "v" ? "v" : "h";
     return location.origin + "/botlive/sala?cfg=" + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))));
   }
   function paint() {
@@ -21,7 +33,8 @@
       b.classList.toggle("on", on); b.classList.toggle("off", !on); b.textContent = on ? "Ligado" : "Desligado"; b.setAttribute("aria-checked", on ? "true" : "false");
     });
     $("cVolN").textContent = "· " + cfg.vol + "%";
-    $("cLink").textContent = obsLink();
+    $("cLink").textContent = obsLink("h") || "clique em Copiar para criar o link (vale para os dois formatos)";
+    $("cLinkV").textContent = obsLink("v") || "clique em Copiar para criar o link (vale para os dois formatos)";
   }
   function fill() {
     $("cNome").value = cfg.nome || ""; $("cTit").value = cfg.titulo || "";
@@ -32,10 +45,16 @@
   [["cNome", "nome"], ["cTit", "titulo"], ["cSub", "sub"]].forEach(([id, k]) => $(id).addEventListener("input", (e) => { cfg[k] = e.target.value.slice(0, 60); save(); }));
   $("cVol").addEventListener("input", (e) => { cfg.vol = +e.target.value; save(); });
   Object.entries(TG).forEach(([id, k]) => $(id).addEventListener("click", () => { cfg[k] = !cfg[k]; save(); }));
-  $("cCopy").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(obsLink()); $("cCopy").textContent = "Copiado!"; } catch (e) { $("cCopy").textContent = "Selecione o link e copie"; }
-    setTimeout(() => { $("cCopy").textContent = "Copiar link do OBS"; }, 2000);
+  [["cCopy", "h", "Copiar link WEB"], ["cCopyV", "v", "Copiar link vertical"]].forEach(([id, lay, txt]) => $(id).addEventListener("click", async () => {
+    try { if (!obsK) await newKey(); await navigator.clipboard.writeText(obsLink(lay)); $(id).textContent = "Copiado!"; }
+    catch (e) { $(id).textContent = "Selecione o link e copie"; }
+    setTimeout(() => { $(id).textContent = txt; }, 2000);
+  }));
+  $("cNew").addEventListener("click", async () => {
+    try { await newKey(); $("cNew").textContent = "Links novos ✓ (os antigos pararam)"; } catch (e) { $("cNew").textContent = String(e.message || e); }
+    setTimeout(() => { $("cNew").textContent = "Gerar links novos"; }, 3000);
   });
+
   $("cReset").addEventListener("click", () => { Object.assign(cfg, DEF); save(); fill(); });
   // ------------------------------------------------------------------ carteira do BOT (0.32.338): /api/botlive/*
   const n = (v, d) => (v == null || isNaN(v) ? "–" : Number(v).toFixed(d == null ? 4 : d));

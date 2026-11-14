@@ -17,6 +17,10 @@
   if (cfg.sub === "lo-fi beats para copiar trader") cfg.sub = DEF.sub;
   cfg.lang = "en";
   cfg.botlive = true; cfg.mkey = DEF.mkey; cfg.rede = "hood"; cfg.carteira = "sim"; cfg.api = DEF.api;
+  // 0.32.347: link do OBS com código só de leitura → abre sem login (rota pública do painel do BOT LIVE); layout "v" = vertical
+  cfg.obs = typeof cfg.k === "string" && cfg.k.length >= 20;
+  if (cfg.obs) cfg.api = "/api/botlive/obs/painel?k=" + encodeURIComponent(cfg.k);
+  if (cfg.layout === "v") document.documentElement.classList.add("vert");
   window.BOTLIVE_DEF = DEF; window.BOTLIVE_KEY = KEY;
   window.SALA_CFG = cfg;
 })();

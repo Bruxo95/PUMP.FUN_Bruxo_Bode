@@ -31,6 +31,7 @@
   .sw-row:last-child{border-bottom:0}
   .sw-row .tgl{flex:0 0 auto;min-width:132px;justify-content:flex-start}
   .sw-row b{font-weight:500;color:var(--text);font-size:14px}.sw-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .obsl{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.obsl small{color:var(--muted);font-size:12px}
   .obs{font-family:"JetBrains Mono",monospace;font-size:11.5px;word-break:break-all;background:var(--bg2);border:1px dashed var(--line2);padding:8px;color:var(--muted);max-height:76px;overflow:auto}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .back{color:var(--muted);font-size:13px}
@@ -91,9 +92,16 @@
     <div class="sw-row"><div><b>Efeitos sonoros</b><small>bipes de 8 bits na compra e na venda</small></div><button class="btn tgl sw" id="cSfx" type="button" role="switch">Desligado</button></div>
   </div>
 
-  <div class="card"><header><div><h2>Link para o OBS</h2><div class="sub">fonte "Navegador", 1920 × 1080 · entre com a sua conta Google uma vez dentro dela (Interagir) · marque "Controlar áudio pelo OBS"</div></div></header>
+  <!-- 0.32.347 (pedido do dono): o link abre direto, sem login, e há um link para cada formato (WEB horizontal e celular vertical) -->
+  <div class="card"><header><div><h2>Links para o OBS</h2><div class="sub">fonte "Navegador" · abre direto, sem login · marque "Controlar áudio pelo OBS"</div></div></header>
+    <div class="obsl"><b>Link para WEB</b><small>horizontal · largura 1920 × altura 1080 · YouTube, Twitch</small></div>
     <div class="obs" id="cLink"></div>
-    <div class="row" style="margin-top:10px"><button class="btn" id="cCopy" type="button">Copiar link do OBS</button><button class="btn" id="cReset" type="button">Voltar ao padrão</button><span class="muted" id="cSaved"></span></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="cCopy" type="button">Copiar link WEB</button></div>
+    <div class="obsl" style="margin-top:16px"><b>Link para Mobile vertical</b><small>vertical · largura 1080 × altura 1920 · Shorts, TikTok, Reels</small></div>
+    <div class="obs" id="cLinkV"></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="cCopyV" type="button">Copiar link vertical</button></div>
+    <div class="row" style="margin-top:16px"><button class="btn" id="cNew" type="button">Gerar links novos</button><button class="btn" id="cReset" type="button">Voltar ao padrão</button><span class="muted" id="cSaved"></span></div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Quem tiver o link só vê a SALA LIVE do BOT (carteira simulada, posições e log); não vê o resto do site nem mexe em nada. O link fica guardado só neste navegador: se copiar em outro navegador, um link novo é criado e o antigo para. Se o link vazar, clique em "Gerar links novos": os antigos param na hora.</p>
   </div>
   <p class="muted" style="font-size:12.5px;margin:0">A SALA LIVE só lê os dados da sua conta; não compra nem vende nada. A configuração fica salva neste navegador.</p>
 </div>

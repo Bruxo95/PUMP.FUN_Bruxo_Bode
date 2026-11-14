@@ -87,3 +87,26 @@ def test_log_do_bot_live_mostra_horario_token_rede_e_motivo():
     assert "function renderBotLog(" in js and "function radar(" in js and '"NC"' in js
     api = open(os.path.join(os.path.dirname(__file__), "..", "app", "botlive_api.py"), encoding="utf-8").read()
     assert "fill_names" in api
+
+
+def test_link_do_obs_abre_sem_login_so_com_o_codigo_e_o_banco_guarda_so_o_hash(monkeypatch):
+    """0.32.347 (pedido do dono): o link do OBS abre a SALA LIVE direto, sem login; gerar outro derruba o anterior."""
+    import hashlib
+    w, b = bot(monkeypatch)
+    k1 = b.obs_new("u1")
+    assert b.obs_user(k1) == "u1" and b.obs["u1"] == hashlib.sha256(k1.encode()).hexdigest()
+    assert b._book_extra("u1") == {"obs_hash": b.obs["u1"]} and k1 not in str(b._book_extra("u1"))
+    k2 = b.obs_new("u1")
+    assert b.obs_user(k1) is None and b.obs_user(k2) == "u1"            # o link antigo parou
+    assert b.obs_user("") is None and b.obs_user("x" * 30) is None
+    b2 = botlive.BotLive(w, Http())                                        # depois de reiniciar, volta do banco
+    b2._book_loaded({"user_id": "u1", "cfg": {"obs_hash": b.obs["u1"]}})
+    assert b2.obs_user(k2) == "u1"
+
+
+def test_rota_publica_do_obs_recusa_codigo_errado_e_gerar_exige_login(env):
+    c = env["c"]
+    assert c.post("/api/botlive/obs-link", json={}).status_code == 401
+    r = c.get("/api/botlive/obs/painel?k=" + "A" * 32)
+    assert r.status_code in (200, 403)
+    assert "posicoes" not in r.json()                                      # código que não existe não lê nada

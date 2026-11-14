@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-14**; revisão documental **2.0**.
-Aplicação: **0.32.346 · 2026-11-14 · SALA LIVE em inglês (LOFI TRADING BOT)**.
-Referência Git na emissão: `0d869e5f2db5eabe60b23225893678ca90fc6330`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.347 · 2026-11-14 · Links do OBS sem login: um para WEB e outro para Mobile vertical**.
+Referência Git na emissão: `8e2abb86fddd9739b1753697fa7813cd95e3e1ef`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

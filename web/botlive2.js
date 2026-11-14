@@ -138,10 +138,12 @@
     // Se a janela for mais alta que a cena (cena limitada pela largura), a linha encolhe para a altura da cena e o log
     // e os últimos trades ficam logo abaixo dela, sem espaço vazio no meio. Recalculado só ao mudar o tamanho da janela.
     const wrap = stage.parentElement, grid = wrap && wrap.parentElement;
+    const VERT = document.documentElement.classList.contains("vert");            // 0.32.347: link Mobile vertical
     const DESK = window.matchMedia("(min-width:981px),(orientation:landscape) and (min-width:701px)");
     const fit = () => {
       if (!wrap || !grid) return;
       grid.style.flex = ""; grid.style.gridTemplateRows = ""; grid.classList.remove("fit");
+      if (VERT) { document.documentElement.style.setProperty("--vs", (innerWidth / 540).toFixed(4)); return; }
       if (!DESK.matches || document.body.classList.contains("nopanel")) return;
       const cs = getComputedStyle(grid), rowH = wrap.getBoundingClientRect().height;
       const sideMin = Math.min(340, Math.max(230, innerWidth * 0.22)), gap = parseFloat(cs.columnGap) || 12;

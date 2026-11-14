@@ -2490,6 +2490,11 @@
    "versao": "0.32.346",
    "inicio": "2026-11-14T08:20:00+00:00",
    "titulo": "SALA LIVE em inglês (LOFI TRADING BOT)"
+  },
+  {
+   "versao": "0.32.347",
+   "inicio": "2026-11-14T08:50:00+00:00",
+   "titulo": "Links do OBS sem login: um para WEB e outro para Mobile vertical"
   }
  ]
 }

@@ -157,6 +157,36 @@ class BotLive(Copier):
     def __init__(self, watch, http, db=None):
         super().__init__(Watch308(watch), http, db)
         self.vault, self.real_allowed = None, False
+        self.obs: dict[str, str] = {}                # 0.32.347: conta → sha256 do código do link do OBS (o código mesmo nunca é guardado)
+
+    # 0.32.347 (pedido do dono: "o link do OBS entra na tela de login, deveria entrar direto"): o link leva um código só de leitura
+    # da SALA LIVE dessa conta. O banco guarda só o hash; gerar um novo derruba o anterior.
+    def obs_new(self, uid: str) -> str:
+        import hashlib
+        import secrets
+        k = secrets.token_urlsafe(24)
+        self.obs[uid] = hashlib.sha256(k.encode()).hexdigest()
+        self.book(uid).dirty_book = True
+        return k
+
+    def obs_user(self, k: str) -> str | None:
+        import hashlib
+        import hmac
+        if not isinstance(k, str) or not 20 <= len(k) <= 80:
+            return None
+        h = hashlib.sha256(k.encode()).hexdigest()
+        for uid, v in self.obs.items():
+            if v and hmac.compare_digest(v, h):
+                return uid
+        return None
+
+    def _book_extra(self, uid: str) -> dict:
+        return {"obs_hash": self.obs[uid]} if self.obs.get(uid) else {}
+
+    def _book_loaded(self, row: dict) -> None:
+        h = (row.get("cfg") or {}).get("obs_hash")
+        if isinstance(h, str) and len(h) == 64:
+            self.obs[row["user_id"]] = h
 
     def on_trade(self, tr: dict, before: float, copiaria) -> None:
         return super().on_trade(tr, before, set(self.w.ranking()["copiaria"]))

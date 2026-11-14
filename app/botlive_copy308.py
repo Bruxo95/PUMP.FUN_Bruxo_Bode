@@ -442,6 +442,13 @@ class Copier:
             rb = self.real[uid] = hoodreal.RealBook(uid)
         return rb
 
+    # 0.32.347: ganchos para o BOT LIVE guardar dados próprios na linha de botlive_books (link do OBS)
+    def _book_extra(self, uid: str) -> dict:
+        return {}
+
+    def _book_loaded(self, row: dict) -> None:
+        return None
+
     def rcfg(self, uid: str) -> dict:
         if uid not in self.real_cfg:
             self.real_cfg[uid] = hoodreal.clean(None)
@@ -1325,7 +1332,7 @@ class Copier:
         for b in list(self.books.values()):
             try:
                 if b.dirty_book:
-                    await self.db.insert("botlive_books", {"user_id": b.user_id, "cfg": {**b.cfg, "real": self.rcfg(b.user_id)}, "cash": b.cash},
+                    await self.db.insert("botlive_books", {"user_id": b.user_id, "cfg": {**b.cfg, "real": self.rcfg(b.user_id), **self._book_extra(b.user_id)}, "cash": b.cash},
                                          upsert=True, on_conflict="user_id")
                     b.dirty_book = False
                 if b.new_trades:
@@ -1367,6 +1374,7 @@ class Copier:
             b = self.books[r["user_id"]] = Book(r["user_id"], r.get("cfg"), r.get("cash"))
             b.close_hook = self._sim_closed
             b.dirty_book = False
+            self._book_loaded(r)
             rc = (r.get("cfg") or {}).get("real")
             if isinstance(rc, dict):
                 self.real_cfg[r["user_id"]] = {**hoodreal.clean(rc, rc), **{k: rc[k] for k in ("real_on", "on_since") if k in rc}}

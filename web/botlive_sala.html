@@ -180,6 +180,19 @@
   @media (max-height:520px) and (orientation:landscape){.sub{display:none}.top{padding:4px 10px}.grid{padding:6px 10px;gap:8px}.tick{margin:0 10px 6px}.tick .lab{padding:6px}}
   @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:5px 7px;order:3}}
   @media (prefers-reduced-motion:reduce){.tick .run{animation-duration:90s}}
+  /* 0.32.347 (pedido do dono): link "Mobile vertical" do OBS (layout v, fonte 1080 × 1920). A página é montada em 540 × 960 e ampliada
+     (--vs, botlive2.js) para ficar legível no celular: cena em cima, Posições e Histórico no meio, log e últimos trades embaixo. */
+  html.vert,html.vert body{overflow:hidden}
+  html.vert body{width:540px;height:960px!important;min-height:0!important;font-size:16px;transform-origin:0 0;transform:scale(var(--vs,1))}
+  html.vert .grid{flex:1 1 auto!important;min-height:0;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto minmax(0,1fr)!important;padding:8px 10px;gap:8px}
+  html.vert .stwrap{container-type:inline-size;display:block}
+  html.vert .stage{width:100%!important}
+  html.vert .side{height:auto!important;align-self:stretch}
+  html.vert .side .col{position:absolute;inset:0}
+  html.vert .side .col{padding:0}html.vert .side .col .box{flex:1 1 0;max-height:none}html.vert .side .col .box.hist{flex:1.7 1 0;max-height:none}
+  html.vert .tick{margin:0 10px 8px}
+  html.vert .top{gap:8px;padding:8px 10px}html.vert .ctl.hide{display:none}
+  html.vert .sub{padding:4px 10px;font-size:10px}
 </style>
 </head>
 <body>

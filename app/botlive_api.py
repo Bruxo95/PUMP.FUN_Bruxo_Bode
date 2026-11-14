@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import Depends
+from fastapi.responses import JSONResponse
 
 from .db import audit
 
@@ -20,7 +21,31 @@ def add_routes(app, get_bot, admin_only, db) -> None:
         c = get_bot()
         if c is None:
             return off()
-        p = c.painel(u["id"])
+        return await painel_de(c, u["id"])
+
+    # 0.32.347 (pedido do dono): o link do OBS abre a SALA LIVE direto, sem a tela de login. O código do link só lê o painel do BOT LIVE
+    # dessa conta (carteira simulada, posições, trades e log); não dá acesso a mais nada. Gerar um novo derruba o anterior.
+    @app.post("/api/botlive/obs-link")
+    async def botlive_obs_link(u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None:
+            return off()
+        k = c.obs_new(u["id"])
+        await audit(db, u["id"], "BOT LIVE: link do OBS gerado", "o link anterior parou de valer")
+        return {"ok": True, "k": k}
+
+    @app.get("/api/botlive/obs/painel")
+    async def botlive_obs_painel(k: str = ""):
+        c = get_bot()
+        if c is None:
+            return off()
+        uid = c.obs_user(k)
+        if not uid:
+            return JSONResponse({"error": "link do OBS inválido ou trocado: gere um novo em /botlive"}, status_code=403)
+        return await painel_de(c, uid)
+
+    async def painel_de(c, uid: str) -> dict:
+        p = c.painel(uid)
         keep = ("cfg_sim", "padrao", "carteira", "posicoes", "trades", "eventos", "nomes", "eth_usd", "copiaria", "explorer")
         out = {"ligado": True, "real": False, "seguindo": len(p.get("copiaria") or []), **{k: p.get(k) for k in keep}}
         # 0.32.341: nome dos tokens do log. O HoodWatch busca nomes para o motor da /hood; o BOT LIVE usa os dois.
