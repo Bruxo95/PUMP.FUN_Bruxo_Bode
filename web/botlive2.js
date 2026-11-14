@@ -98,6 +98,66 @@
     };
   })();
 
+  // ------------------------------------------------------------------ 0.32.351: músicas lofi de verdade, 4 playlists por horário
+  // Horário do computador que transmite: 0–6 madrugada (dormir), 6–12 manhã (café), 12–18 trabalho (foco), 18–24 noite (relax).
+  // As faixas vêm de /api/botlive/musicas (enviadas em /botlive). Sem nenhuma faixa, toca a música gerada (Lofi, acima).
+  const Radio = (function () {
+    let list = [], pers = {}, a = null, on = false, cur = null, blocked = false, loadedT = 0;
+    const last = {};
+    const period = () => { const h = new Date().getHours(); return h < 6 ? "madrugada" : h < 12 ? "manha" : h < 18 ? "trabalho" : "noite"; };
+    async function load() {
+      try {
+        const r = await fetch("/api/botlive/musicas", { cache: "no-store" });
+        const j = await r.json(); list = j.faixas || []; pers = j.periodos || {}; loadedT = Date.now();
+      } catch (e) { /* sem lista agora: tenta de novo depois */ }
+    }
+    function pick() {
+      const p = period();
+      let pool = list.filter((x) => x.periodo === p);
+      if (!pool.length) pool = list.slice();
+      if (!pool.length) return null;
+      const not = pool.filter((x) => x.id !== last[p]), from = not.length ? not : pool;
+      const it = from[Math.floor(Math.random() * from.length)];
+      last[p] = it.id;
+      return it;
+    }
+    const vol = () => Math.max(0, Math.min(1, (cfg.vol == null ? 45 : cfg.vol) / 100));
+    function fade(el, to, ms, done) {
+      const from = el.volume, t0 = performance.now();
+      const step = (now) => { const k = Math.min(1, (now - t0) / ms); el.volume = from + (to - from) * k; if (k < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    }
+    function next() {
+      if (!on) return;
+      const it = pick();
+      if (!it) { Radio.stop(); Lofi.start(); return; }
+      const old = a;
+      a = new Audio("/botlive/musica/" + encodeURIComponent(it.id));
+      a.preload = "auto"; a.volume = 0; cur = it;
+      a.addEventListener("ended", next);
+      a.addEventListener("error", () => setTimeout(next, 3000));
+      a.play().then(() => { blocked = false; fade(a, vol(), 2500); }).catch(() => { blocked = true; });
+      if (old) fade(old, 0, 2500, () => { try { old.pause(); } catch (e) { /* */ } });
+    }
+    return {
+      async start() {
+        if (on) return true;
+        if (!list.length || Date.now() - loadedT > 600000) await load();
+        if (!list.length) return false;
+        on = true; Lofi.stop(); next(); return true;
+      },
+      stop() { on = false; if (a) { const o = a; a = null; fade(o, 0, 800, () => { try { o.pause(); } catch (e) { /* */ } }); } cur = null; },
+      vol() { if (a) a.volume = vol(); },
+      resume() { if (on && a && blocked) a.play().then(() => { blocked = false; fade(a, vol(), 1500); }).catch(() => {}); },
+      blocked: () => on && blocked,
+      isOn: () => on,
+      label() { const p = pers[period()] || {}; return (p.en || "LO-FI") + (cur ? " · " + String(cur.titulo || "").toUpperCase().slice(0, 28) : ""); },
+      // troca de período: a faixa atual dá lugar à da nova playlist (só se faltar mais de 30 s para acabar)
+      checkPeriod() { if (on && cur && cur.periodo !== period() && list.some((x) => x.periodo === period()) && a && a.duration && a.duration - a.currentTime > 30) next(); },
+      reload: load,
+    };
+  })();
+
   // ------------------------------------------------------------------ aplicar a configuração
   const TG = { cMus: "musica", cSfx: "sfx", cBal: "baloes", cPriv: "privado", cPan: "painel", cClean: "limpa" };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -112,8 +172,8 @@
     Object.entries(TG).forEach(([id, k]) => { const b = $(id); if (b) { b.classList.toggle("on", !!cfg[k]); b.textContent = cfg[k] ? "ON" : "OFF"; } });
     $("mus").textContent = "LO-FI: " + (cfg.musica ? "ON" : "OFF"); $("mus").classList.toggle("on", !!cfg.musica);
     $("lofiTag").hidden = !cfg.musica;
-    if (cfg.musica) Lofi.start(); else Lofi.stop();
-    Lofi.vol(cfg.vol);
+    if (cfg.musica) { Radio.start().then((ok) => { if (!ok && cfg.musica) Lofi.start(); }); } else { Radio.stop(); Lofi.stop(); }
+    Lofi.vol(cfg.vol); Radio.vol();
     if (window.SALA) { window.SALA.setSound(cfg.sfx); window.SALA.rerender(); }
     if ($("cLink")) $("cLink").textContent = obsLink();
     $("pnLink").href = "/entrar"; $("pnLink").textContent = "PROJECTS";
@@ -125,10 +185,13 @@
   $("mus").addEventListener("click", () => set("musica", !cfg.musica));
   $("snd").addEventListener("click", () => { cfg.sfx = !!(window.SALA && window.SALA.state.sound); save(); apply(); });
   // o navegador só deixa tocar som depois de um clique: o primeiro clique na página destrava a música
-  document.addEventListener("pointerdown", () => { if (cfg.musica) Lofi.resume(); }, { passive: true });
+  document.addEventListener("pointerdown", () => { if (cfg.musica) { Lofi.resume(); Radio.resume(); } }, { passive: true });
   setInterval(() => {
+    if (Radio.isOn()) { $("lofiMood").textContent = Radio.blocked() ? "CLICK TO PLAY" : Radio.label(); return; }
     $("lofiMood").textContent = Lofi.blocked() ? "CLICK TO PLAY" : Lofi.mood() === "tensa" ? "TENSE" : "CHILL";
   }, 1500);
+  // 0.32.351: a cada 10 min confere se a lista de músicas mudou e se o período do dia trocou
+  setInterval(async () => { if (!cfg.musica) return; await Radio.reload(); if (!Radio.isOn()) { if (await Radio.start()) return; } else Radio.checkPeriod(); }, 600000);
 
   // 0.32.344: o painel da direita acompanha a altura da cena (a cena é 16:9 e fica centralizada)
   const stage = document.querySelector(".stage");

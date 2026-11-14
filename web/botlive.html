@@ -32,6 +32,9 @@
   .sw-row .tgl{flex:0 0 auto;min-width:132px;justify-content:flex-start}
   .sw-row b{font-weight:500;color:var(--text);font-size:14px}.sw-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
   .ythow{font-size:13px;color:var(--muted)}.ythow summary{cursor:pointer;color:var(--text)}.ythow code{word-break:break-all;color:var(--text)}.f small{color:var(--muted);font-size:11px;margin-left:6px}
+  .mugrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media (max-width:600px){.mugrid{grid-template-columns:1fr}}
+  .mubox{border:1px solid var(--line);border-radius:10px;padding:10px 12px}.mubox h3{margin:0 0 2px;font-size:14px;font-weight:600}.mubox .h{color:var(--muted);font-size:12px;margin-bottom:6px}
+  .murow{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--line);font-size:13px}.murow span{flex:1;min-width:0;overflow-wrap:anywhere}.murow select{max-width:110px;font-size:12px;padding:3px}.murow button{font-size:12px;padding:3px 8px}
   .obsl{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.obsl small{color:var(--muted);font-size:12px}
   .obs{font-family:"JetBrains Mono",monospace;font-size:11.5px;word-break:break-all;background:var(--bg2);border:1px dashed var(--line2);padding:8px;color:var(--muted);max-height:76px;overflow:auto}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -87,10 +90,20 @@
     </div>
   </div>
 
-  <div class="card"><header><div><h2>Som</h2><div class="sub">a música é gerada no navegador, sem direitos autorais</div></div></header>
-    <div class="sw-row"><div><b>Música lo-fi</b><small>fica mais tensa quando o BOT está dedicado ou nervoso</small></div><button class="btn tgl sw" id="cMus" type="button" role="switch">Desligado</button></div>
+  <div class="card"><header><div><h2>Som</h2><div class="sub">toca as músicas lofi abaixo (playlist do horário); sem nenhuma enviada, toca a música gerada no navegador</div></div></header>
+    <div class="sw-row"><div><b>Música lo-fi</b><small>liga ou desliga a música da SALA LIVE</small></div><button class="btn tgl sw" id="cMus" type="button" role="switch">Desligado</button></div>
     <label class="f" style="padding:10px 0"><span>Volume da música <span id="cVolN"></span></span><input type="range" id="cVol" min="0" max="100" step="1"></label>
     <div class="sw-row"><div><b>Efeitos sonoros</b><small>bipes de 8 bits na compra e na venda</small></div><button class="btn tgl sw" id="cSfx" type="button" role="switch">Desligado</button></div>
+  </div>
+  <!-- 0.32.351 (pedido do dono): músicas lofi de verdade em 4 playlists que trocam sozinhas pelo horário do computador da live -->
+  <div class="card" id="muCard"><header><div><h2>Músicas lofi (4 horários)</h2><div class="sub">troca sozinha pelo relógio do computador que transmite · só músicas livres de direitos autorais (ex.: Pixabay Music) · MP3 ou OGG até 25 MB</div></div></header>
+    <div class="mugrid" id="muList"><div class="muted">carregando…</div></div>
+    <div class="row" style="margin-top:12px;align-items:center">
+      <label class="f" style="margin:0">Enviar para<select class="in" id="muPer"></select></label>
+      <label class="btn" style="cursor:pointer">Escolher arquivos…<input type="file" id="muFile" accept="audio/mpeg,audio/ogg,.mp3,.ogg" multiple hidden></label>
+      <span class="muted" id="muMsg"></span>
+    </div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">O nome do arquivo vira o título na tela (ex.: "Morning Coffee - Artista.mp3"). Músicas da Pixabay podem ser usadas em live no YouTube sem dar crédito; se o YouTube marcar alguma por engano (Content ID), conteste ou remova a faixa aqui.</p>
   </div>
 
   <!-- 0.32.349 (pedido do dono): cada COMPRA do BOT vira um comentário no chat da live do YouTube, com o hash do trader copiado -->

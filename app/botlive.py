@@ -161,6 +161,8 @@ class BotLive(Copier):
         from .hood import EXPLORER
         from .ytchat import YTChat
         self.yt = YTChat(http, None, EXPLORER)        # 0.32.349: compras no chat da live do YouTube (cofre ligado em main.py)
+        from .botmusic import Music
+        self.music = Music()                          # 0.32.351: músicas lofi da SALA LIVE (Supabase Storage ligado em main.py)
 
     # 0.32.347 (pedido do dono: "o link do OBS entra na tela de login, deveria entrar direto"): o link leva um código só de leitura
     # da SALA LIVE dessa conta. O banco guarda só o hash; gerar um novo derruba o anterior.

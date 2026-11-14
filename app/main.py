@@ -63,6 +63,8 @@ def build_app():
         hub.botlive = BotLive(hub.hood, http, db)
         hub.hood.extra.append(hub.botlive)
         hub.botlive.yt.vault = hub.vault             # 0.32.349: chaves do YouTube do BOT LIVE (cofre criptografado)
+        from .botmusic import Music, SupaStorage
+        hub.botlive.music = Music(SupaStorage(http, cfg.supabase_url, cfg.supabase_service_key))   # 0.32.351: músicas lofi
     # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
     hub.dormant = None
     if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):

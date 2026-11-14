@@ -159,4 +159,52 @@
     ytCall("/api/botlive/youtube");
     setInterval(() => ytCall("/api/botlive/youtube"), 30000);
   })();
+
+  // 0.32.351 (pedido do dono): músicas lofi de verdade, 4 playlists por horário. O arquivo vai direto para o servidor (corpo cru,
+  // com o token do login); o servidor confere se é MP3/OGG e guarda num bucket privado.
+  let MU = null;
+  const esc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  function muPaint(j) {
+    if (j && j.periodos) MU = j;
+    if (!MU) return;
+    const P = MU.periodos || {}, keys = Object.keys(P);
+    if (!$("muPer").options.length) $("muPer").innerHTML = keys.map((k) => '<option value="' + k + '">' + esc(P[k].nome) + "</option>").join("");
+    $("muList").innerHTML = keys.map((k) => {
+      const fx = (MU.faixas || []).filter((x) => x.periodo === k);
+      return '<div class="mubox"><h3>' + esc(P[k].nome) + '</h3><div class="h">' + String(P[k].de).padStart(2, "0") + ":00–" + String(P[k].ate % 24).padStart(2, "0") + ":00 · " + fx.length + " música(s)</div>" +
+        (fx.length ? fx.map((x) => '<div class="murow"><span>' + esc(x.titulo) + (x.artista ? " · " + esc(x.artista) : "") + '</span><select class="in" data-mumv="' + x.id + '">' +
+          keys.map((o) => '<option value="' + o + '"' + (o === k ? " selected" : "") + ">" + esc(P[o].nome.split(" · ")[0]) + "</option>").join("") +
+          '</select><button class="btn" type="button" data-murm="' + x.id + '">Remover</button></div>').join("") : '<div class="muted" style="font-size:12px">nenhuma ainda (toca as de outro horário)</div>') + "</div>";
+    }).join("");
+  }
+  async function muLoad() { try { muPaint(await (await fetch("/api/botlive/musicas", { cache: "no-store" })).json()); } catch (e) { $("muList").textContent = "não consegui ler a lista de músicas"; } }
+  $("muFile").addEventListener("change", async (ev) => {
+    const files = Array.from(ev.target.files || []); ev.target.value = "";
+    const s = await BB.session(); if (!s) return;
+    let ok = 0, fail = [];
+    for (const f of files) {
+      $("muMsg").textContent = "enviando " + f.name + "…";
+      const base = f.name.replace(/\.[^.]+$/, ""), parts = base.split(" - ");
+      try {
+        const r = await fetch("/api/botlive/musicas", { method: "POST", body: f, headers: { Authorization: "Bearer " + s.access_token,
+          "Content-Type": f.type || "audio/mpeg", "X-Periodo": $("muPer").value, "X-Titulo": encodeURIComponent(parts[0].trim()),
+          "X-Artista": encodeURIComponent((parts[1] || "").trim()), "X-Fonte": encodeURIComponent(f.name) } });
+        const j = await r.json(); if (!r.ok || j.error) throw new Error(j.error || ("erro " + r.status));
+        muPaint(j); ok++;
+      } catch (e) { fail.push(f.name + ": " + (e.message || e)); }
+    }
+    $("muMsg").textContent = (ok ? ok + " enviada(s) ✓" : "") + (fail.length ? " · falhou: " + fail.join("; ") : "");
+  });
+  $("muList").addEventListener("click", async (ev) => {
+    const b = ev.target.closest("[data-murm]"); if (!b) return;
+    if (!confirm("Remover esta música?")) return;
+    const r = await BB.api("/api/botlive/musicas/remover", { method: "POST", body: { id: b.dataset.murm } });
+    if (r && !r.error) muPaint(r); else $("muMsg").textContent = (r && r.error) || "erro";
+  });
+  $("muList").addEventListener("change", async (ev) => {
+    const sel = ev.target.closest("[data-mumv]"); if (!sel) return;
+    const r = await BB.api("/api/botlive/musicas/periodo", { method: "POST", body: { id: sel.dataset.mumv, periodo: sel.value } });
+    if (r && !r.error) { muPaint(r); $("muMsg").textContent = "movida ✓"; } else $("muMsg").textContent = (r && r.error) || "erro";
+  });
+  muLoad();
 })();

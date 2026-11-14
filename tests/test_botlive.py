@@ -202,3 +202,41 @@ def test_rotas_do_youtube_exigem_login_e_migracao_libera_os_nomes(env):
     sql = open("supabase/migrations/20261114000001_botlive_youtube.sql", encoding="utf-8").read()
     for n in ("'youtube_client_id'", "'youtube_client_secret'", "'youtube_refresh_token'", "'hood_private_key'", "'wallet_private_key'"):
         assert n in sql
+
+
+def test_musicas_lofi_por_horario_guarda_toca_e_recusa_o_que_nao_e_audio():
+    """0.32.351 (pedido do dono): 4 playlists (madrugada, manhã, trabalho, noite) com músicas enviadas em /botlive."""
+    from app import botmusic
+
+    async def go():
+        m = botmusic.Music()
+        mp3 = b"ID3" + b"\x00" * 200
+        it = await m.add(mp3, "manha", "Morning Coffee", "Artista", "morning.mp3")
+        await m.add(b"OggS" + b"\x00" * 100, "noite", "Night")
+        for bad in ((b"<html>", "manha"), (mp3, "tarde"), (b"", "manha")):
+            try:
+                await m.add(bad[0], bad[1], "x")
+                assert False
+            except ValueError:
+                pass
+        pub = await m.public()
+        assert set(pub["periodos"]) == {"madrugada", "manha", "trabalho", "noite"}
+        assert [x["titulo"] for x in pub["faixas"]] == ["Morning Coffee", "Night"] and "bytes" not in pub["faixas"][0]
+        assert (await m.file(it["id"]))[1] == "audio/mpeg"
+        assert await m.move(it["id"], "trabalho") and (await m.public())["faixas"][0]["periodo"] == "trabalho"
+        m2 = botmusic.Music(m.st)                                      # a lista fica no próprio armazenamento (index.json)
+        assert len(await m2.faixas()) == 2
+        assert await m.remove(it["id"]) and await m.file(it["id"]) is None
+    run(go())
+
+
+def test_rotas_das_musicas_lista_publica_envio_so_admin(env):
+    c = env["c"]
+    assert c.get("/api/botlive/musicas").status_code == 200
+    assert c.post("/api/botlive/musicas", content=b"ID3xxx").status_code == 401
+    assert c.post("/api/botlive/musicas/remover", json={}).status_code == 401
+    assert c.get("/botlive/musica/naoexiste").status_code == 404
+    sql = open("supabase/migrations/20261114000002_botlive_musicas.sql", encoding="utf-8").read()
+    assert "'botlive-music'" in sql and "false" in sql                    # bucket privado
+    js = open("web/botlive2.js", encoding="utf-8").read()
+    assert "madrugada" in js and "/botlive/musica/" in js and "Lofi.start()" in js   # sem músicas, volta para a gerada

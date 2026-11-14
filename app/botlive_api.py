@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import urllib.parse
 
-from fastapi import Depends
+from fastapi import Depends, Request
+from fastapi.responses import Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from .db import audit
@@ -133,6 +134,78 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
             return off()
         ok = await c.yt.send(u["id"], "🎧 Lofi Trading Bot is connected! Every bot buy will show up here.")
         return {"ok": ok, **await c.yt.status(u["id"])}
+
+    # ------------------------------------------------------------------ 0.32.351: músicas lofi de verdade (4 períodos)
+    def music():
+        c = get_bot()
+        return getattr(c, "music", None) if c is not None else None
+
+    @app.get("/api/botlive/musicas")
+    async def botlive_music_list():
+        """Público (a SALA LIVE do OBS não tem login): só títulos e períodos."""
+        m = music()
+        if m is None:
+            return {"periodos": {}, "faixas": []}
+        return await m.public()
+
+    @app.get("/botlive/musica/{fid}")
+    async def botlive_music_file(fid: str, request: Request):
+        m = music()
+        v = await m.file(fid) if (m is not None and fid.isalnum() and len(fid) <= 32) else None
+        if not v:
+            return Response(status_code=404)
+        data, ct = v
+        h = {"Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400"}
+        rg = request.headers.get("range") or ""
+        if rg.startswith("bytes="):
+            try:
+                a, _, b = rg[6:].split(",")[0].partition("-")
+                n = len(data)
+                start = int(a) if a else max(0, n - int(b))
+                end = min(n - 1, int(b)) if (a and b) else n - 1
+                if 0 <= start <= end:
+                    return Response(data[start:end + 1], status_code=206, media_type=ct,
+                                    headers={**h, "Content-Range": f"bytes {start}-{end}/{n}"})
+            except ValueError:
+                pass
+        return Response(data, media_type=ct, headers=h)
+
+    @app.post("/api/botlive/musicas")
+    async def botlive_music_add(request: Request, u: dict = Depends(admin_only)):
+        m = music()
+        if m is None:
+            return off()
+        data = await request.body()
+        q = lambda k: urllib.parse.unquote(request.headers.get(k) or "")  # noqa: E731
+        try:
+            it = await m.add(data, q("x-periodo"), q("x-titulo"), q("x-artista"), q("x-fonte"))
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except Exception as e:
+            return JSONResponse({"error": "não consegui guardar a música: " + str(e)[:160]}, status_code=502)
+        await audit(db, u["id"], "BOT LIVE: música enviada", f"{it['periodo']} · {it['titulo']}")
+        return {"ok": True, "faixa": it, **await m.public()}
+
+    @app.post("/api/botlive/musicas/remover")
+    async def botlive_music_remove(body: dict, u: dict = Depends(admin_only)):
+        m = music()
+        if m is None:
+            return off()
+        ok = await m.remove(str(body.get("id") or ""))
+        if ok:
+            await audit(db, u["id"], "BOT LIVE: música removida", str(body.get("id"))[:32])
+        return {"ok": ok, **await m.public()}
+
+    @app.post("/api/botlive/musicas/periodo")
+    async def botlive_music_move(body: dict, u: dict = Depends(admin_only)):
+        m = music()
+        if m is None:
+            return off()
+        try:
+            ok = await m.move(str(body.get("id") or ""), str(body.get("periodo") or ""))
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        return {"ok": ok, **await m.public()}
 
     async def painel_de(c, uid: str) -> dict:
         p = c.painel(uid)
