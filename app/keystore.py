@@ -26,7 +26,11 @@ BNB_SECRET_NAMES = {"bnb_private_key": "Chave privada da carteira BNB (Four.Meme
                     # 0.32.349: YouTube do BOT LIVE (comentar as compras no chat da live). Só aparecem em /botlive.
                     "youtube_client_id": "YouTube: Client ID (OAuth)",
                     "youtube_client_secret": "YouTube: Client Secret (OAuth)",
-                    "youtube_refresh_token": "YouTube: autorização do canal"}
+                    "youtube_refresh_token": "YouTube: autorização do canal",
+                    # 0.32.370: Projeto Forex — aplicativo da cTrader Open API e o token da conta (só aparecem em /forex)
+                    "ctrader_client_id": "cTrader: Client ID (Open API)",
+                    "ctrader_client_secret": "cTrader: Client Secret (Open API)",
+                    "ctrader_tokens": "cTrader: autorização das contas (OAuth, só leitura)"}
 
 
 # chaves que o ADMIN pode configurar para todos usarem na VISUALIZAÇÃO (dados e cotações; nunca execução real)

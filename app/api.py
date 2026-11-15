@@ -1734,7 +1734,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         return HTMLResponse(PAGES["forex.html"])
 
     from .forex_api import add_routes as forex_routes
-    forex_routes(app, lambda: getattr(hub, "forex", None), admin_only, hub.db)
+    forex_routes(app, lambda: getattr(hub, "forex", None), admin_only, hub.db, cfg.public_base_url)
     from .hood_api import add_routes as hood_routes
     hood_routes(app, lambda: getattr(hub, "hood", None), admin_only, hub.db)
     from .botlive_api import add_routes as botlive_routes

@@ -2605,6 +2605,11 @@
    "versao": "0.32.369",
    "inicio": "2026-11-15T22:20:00+00:00",
    "titulo": "Escolher projeto em quadrados iguais e Trocar rede com todos"
+  },
+  {
+   "versao": "0.32.370",
+   "inicio": "2026-11-15T23:30:00+00:00",
+   "titulo": "Forex: conector do cTrader (mestres reais no ranking e cópia fictícia ao vivo)"
   }
  ]
 }

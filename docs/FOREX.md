@@ -128,7 +128,14 @@ A nota favorece retorno constante com rebaixamento baixo. Quem dobrou a conta co
 ## 6. Etapas
 
 1. **0.32.368 (esta):** SQL do banco local, este documento, motor de nota e de cópia fictícia (com testes), página `/forex` e Sala. Sem corretora conectada, as telas mostram "nenhum mestre conectado".
-2. **Conector cTrader:** OAuth2, eventos ao vivo, histórico, curva de patrimônio e gravação no Postgres local. Ranking com dados reais.
+2. **0.32.370 — Conector cTrader (feito):** `app/ctrader.py`.
+   - O admin salva o Client ID e o Client Secret em /forex → Conexões (cofre `user_secrets`) e clica em "Conectar conta cTrader".
+   - Login da cTrader (OAuth2, escopo `accounts` = só leitura); retorno em `/forex/ctrader/retorno`. O token (30 dias) é renovado sozinho 3 dias antes.
+   - WebSocket JSON oficial (`live`/`demo.ctraderapi.com:5036`): saldo, ativos, posições abertas e 365 dias de histórico (janelas de 7 dias).
+   - Cada conta vira um mestre "ct:<id>"; a nota é recalculada a cada 15 min e a cada posição fechada. Conta demo fica fora do ranking.
+   - Eventos ao vivo → `ForexCopier.on_event` → carteira FICTÍCIA de quem ligou "Cópia FICTÍCIA" no Ranking. Aumento de posição ainda não é copiado.
+   - O histórico do cTrader não traz o stop dos negócios: esses trades não contam como "sem stop" (só os ao vivo, que trazem o SL).
+   - Banco local opcional: serviço `pump_forex_api` (PostgREST) no stack, com `FOREX_DB_PASSWORD` e o mesmo `ARQUIVO_JWT_SECRET`. Sem ele, o histórico vem de novo do cTrader a cada reinício.
 3. **Cópia fictícia ao vivo:** os eventos dos mestres vão para a carteira fictícia dos seguidores. Mede o atraso e o slippage de cada mestre.
 4. **MT5** (Windows VPS ou Wine) e **Twelve Data** para conferir preços.
 5. **Cópia REAL:** só depois de semanas de fictícia e com teste em conta demo. Atrás da trava geral e da chave de cada usuário, como na Solana.

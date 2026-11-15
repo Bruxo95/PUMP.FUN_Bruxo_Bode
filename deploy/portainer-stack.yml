@@ -10,6 +10,8 @@
 ##   ARQUIVO_DB_PASSWORD        senha do usuário pump_arquivo_auth no Postgres da VPS (deploy/arquivo.sql)  [0.32.225]
 ##   ARQUIVO_JWT_SECRET         segredo do PostgREST do arquivo (40+ letras e números, inventado por você)    [0.32.225]
 ##   Sem as duas, o arquivo fica desligado e tudo funciona como antes (histórico só no Supabase).
+##   FOREX_DB_PASSWORD          senha do usuário pump_forex_auth no Postgres da VPS (deploy/forex.sql)       [0.32.370]
+##   Sem ela (ou sem o ARQUIVO_JWT_SECRET), o Forex funciona igual, só não guarda o histórico no banco local.
 ## Nunca coloque os valores das chaves neste arquivo.
 version: "3.7"
 services:
@@ -35,6 +37,7 @@ services:
       - PUMP_REAL_ALLOWED=${PUMP_REAL_ALLOWED:-false}
       - ARQUIVO_URL=http://pump_arquivo_api:3000
       - ARQUIVO_JWT_SECRET=${ARQUIVO_JWT_SECRET:-}
+      - FOREX_DB_URL=http://pump_forex_api:3000
 
     # logs do container com limite (30 MB no máximo): o disco cheio de 01/11/2026 derrubou o site
     logging:
@@ -77,6 +80,37 @@ services:
       - PGRST_DB_SCHEMAS=public
       - PGRST_JWT_SECRET=${ARQUIVO_JWT_SECRET:-}
       - PGRST_DB_POOL=5
+      - PGRST_DB_MAX_ROWS=5000
+      - PGRST_LOG_LEVEL=warn
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 10s
+      placement:
+        constraints:
+          - node.role == manager
+
+  # 0.32.370: PostgREST na frente do banco pump_forex (Projeto Forex, deploy/forex.sql). Igual ao do arquivo: sem porta, sem
+  # Traefik, só a rede interna, e só aceita token assinado com ARQUIVO_JWT_SECRET (papel pump_forex).
+  pump_forex_api:
+    image: postgrest/postgrest:v12.2.3
+
+    networks:
+      - vpsrachar
+
+    environment:
+      - PGRST_DB_URI=postgres://pump_forex_auth:${FOREX_DB_PASSWORD:-sem_senha}@postgres:5432/pump_forex
+      - PGRST_DB_SCHEMAS=forex
+      - PGRST_JWT_SECRET=${ARQUIVO_JWT_SECRET:-}
+      - PGRST_DB_POOL=3
       - PGRST_DB_MAX_ROWS=5000
       - PGRST_LOG_LEVEL=warn
 

@@ -111,6 +111,9 @@ def clean_cfg(raw: dict, atual: dict | None = None) -> dict:
         c["copiar_sl_tp"] = bool(raw["copiar_sl_tp"])
     if isinstance(raw.get("seguindo"), list):
         c["seguindo"] = [str(x)[:40] for x in raw["seguindo"]][:50]
+    for k in ("ct_off",):                       # 0.32.370: contas cTrader que a pessoa pausou (lista de ids)
+        if isinstance(raw.get(k), list):
+            c[k] = [str(x)[:30] for x in raw[k]][:100]
     c["alavancagem"] = int(c["alavancagem"])
     c["atraso_max_s"] = int(c["atraso_max_s"])
     return c
@@ -155,6 +158,7 @@ class ForexCopier:
         self.livros: dict[str, Livro] = {}
         self.carregado: set[str] = set()
         self.mestres: dict[str, dict] = {}    # id → {"apelido", "plataforma", "patrimonio", "elegivel", "score", "status"}
+        self.ct = None                         # 0.32.370: conector do cTrader (app/ctrader.py), ligado em main.py
 
     # ------------------------------------------------------------------ carteira de cada conta
     def livro(self, uid: str) -> Livro:
@@ -290,8 +294,10 @@ class ForexCopier:
         return None
 
     def conectores(self) -> list[dict]:
-        """Situação de cada plataforma (docs/FOREX.md, seção 3). Etapa 1: nenhuma conectada ainda."""
-        return [{"plataforma": "cTrader", "status": "próxima etapa", "como": "Open API oficial (OAuth2 + WebSocket), grátis"},
+        """Situação de cada plataforma (docs/FOREX.md, seção 3). 0.32.370: o cTrader vem do conector (app/ctrader.py)."""
+        ct = self.ct.conector() if self.ct is not None else {"plataforma": "cTrader", "status": "desligado no servidor",
+                                                               "como": "Open API oficial (OAuth2 + WebSocket), grátis"}
+        return [ct,
                 {"plataforma": "MT5", "status": "depois do cTrader", "como": "terminal MT5 (Windows VPS ou Wine) com senha de investidor"},
                 {"plataforma": "Twelve Data", "status": "depois", "como": "segunda opinião do preço (plano grátis)"}]
 

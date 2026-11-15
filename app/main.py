@@ -71,6 +71,10 @@ def build_app():
     if os.environ.get("FOREX_ON", "true").lower() not in ("0", "false", "no", "off"):
         from .forexcopy import ForexCopier
         hub.forex = ForexCopier(db)
+        # 0.32.370: conector do cTrader (contas autorizadas pelo admin viram mestres do ranking; eventos ao vivo → cópia fictícia).
+        # O Postgres da VPS (FOREX_DB_URL + ARQUIVO_JWT_SECRET) é opcional: sem ele, o histórico vem do cTrader a cada subida.
+        from .ctrader import CTraderHub, ForexDB
+        hub.forex.ct = CTraderHub(http, hub.forex, db, hub.vault, store=ForexDB.from_env(http))
     # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
     hub.dormant = None
     if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):
@@ -90,7 +94,10 @@ def build_app():
         bnb = run_as("BNB (Four.Meme)", hub.bnb.run()) if hub.bnb is not None else None
         hood = run_as("Robinhood Chain", hub.hood.run()) if hub.hood is not None else None
         dormant = run_as("Dormant", hub.dormant.run()) if hub.dormant is not None else None
+        fxct = run_as("Forex (cTrader)", hub.forex.ct.run()) if getattr(hub, "forex", None) is not None and hub.forex.ct is not None else None
         yield
+        if fxct is not None:
+            fxct.cancel()
         if dormant is not None:
             dormant.cancel()
         if hood is not None:

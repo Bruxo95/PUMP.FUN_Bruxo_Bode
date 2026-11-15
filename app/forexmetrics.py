@@ -128,7 +128,7 @@ def sinal_grade(trades: list[dict], min_juntas: int = 4) -> float:
         grupos[(t["simbolo"], t["lado"])].append(t)
     marcados = set()
     for lst in grupos.values():
-        lst = [t for t in lst if not t.get("sl")]
+        lst = [t for t in lst if "sl" in t and not t.get("sl")]      # sem a chave "sl" = stop desconhecido (não conta)
         for t in lst:
             juntos = [o for o in lst if o["abriu"] <= t["abriu"] < o["fechou"]]
             if len(juntos) + 1 >= min_juntas:
@@ -138,7 +138,10 @@ def sinal_grade(trades: list[dict], min_juntas: int = 4) -> float:
 
 
 def sem_stop(trades: list[dict]) -> float:
-    return round(sum(1 for t in trades if not t.get("sl")) / len(trades), 4) if trades else 0.0
+    """Fração dos trades sem stop, contando só os que têm o stop conhecido (0.32.370: o histórico do cTrader não traz o SL
+    dos negócios; esses trades vêm sem a chave "sl" e não contam como "sem stop")."""
+    conh = [t for t in trades if "sl" in t]
+    return round(sum(1 for t in conh if not t.get("sl")) / len(conh), 4) if conh else 0.0
 
 
 # ------------------------------------------------------------------------------------------------------------------ nota

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-15",
     "timezone": "Europe/Dublin",
-    "repository_reference": "c3af1d823bd2be94f4ecaea3ebe461b448964c6a",
-    "application_version": "0.32.369 · 2026-11-15 · Escolher projeto em quadrados iguais e Trocar rede com todos",
+    "repository_reference": "6b1f77584488be3944385cfec2139f9bff9abf20",
+    "application_version": "0.32.370 · 2026-11-15 · Forex: conector do cTrader (mestres reais no ranking e cópia fictícia ao vivo)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "687053c94289bad98c7f8f1c9389f171c9c5f4bff99bcb3d7cfb208745d81c78",
+      "app/version.py": "bcd50a60a5d86300e74156211866ef3f49a43a07734c87affd3318a2c7816e63",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "8656209d6b9b7fe167ac9f3cdf8bd59c41c726ede21fb0717411dfea9e1c9db1"
+  "pdf_sha256": "ae27f11934a71c4145922eb6cf6e6de103d69a4287bea02201e00f65baaadd34"
 }

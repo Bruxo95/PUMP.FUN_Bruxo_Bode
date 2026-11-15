@@ -34,6 +34,13 @@
   .fxrule b{display:block;color:var(--text);margin-bottom:3px}
   .fxformula{font-family:var(--mono);font-size:12.5px;background:#0d0d10;border:1px solid var(--line2);border-radius:10px;padding:12px 14px;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0 0}
   .st-ok{color:var(--up)}.st-wait{color:#f5a524}
+  /* 0.32.370: Conexões (cTrader) */
+  .f{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}.f small{color:var(--muted);font-size:11px}
+  .f input{width:100%}
+  .ythow{font-size:13px;color:var(--muted)}.ythow summary{cursor:pointer;color:var(--text)}.ythow code{word-break:break-all;color:var(--text)}
+  .ythow ol{padding-left:20px;line-height:1.6}
+  .st-err{color:var(--down)}
+  .ck-ok{color:var(--up);font-weight:600}.ck-no{color:#f5a524;font-weight:600}
 </style>
 </head>
 <body>
@@ -49,6 +56,7 @@
       <a href="#ranking" data-v="ranking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Ranking</a>
       <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Posições</a>
       <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>Histórico</a>
+      <a href="#conexoes" data-v="conexoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-10 0zM12 16v5"/></svg>Conexões</a>
       <a href="#copia" data-v="copia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9h11v11H9zM5 15H4V4h11v1"/></svg>Regras da cópia</a>
     </nav>
     <div class="sp"></div>
@@ -76,7 +84,7 @@
       </div>
     </header>
     <main class="page">
-      <div class="hdnote"><b>Etapa 1 · só fictícia.</b> O motor de nota e o de cópia estão prontos, mas nenhuma corretora está conectada ainda: a próxima etapa é o conector do <b>cTrader</b> (Open API oficial, grátis). Quando um mestre bom do ranking abrir uma ordem, ela é copiada na sua carteira <b>FICTÍCIA</b> com o lote proporcional; nada vai para corretora. Plano completo em docs/FOREX.md.</div>
+      <div class="hdnote"><b>Etapa 2 · cTrader conectado, cópia só fictícia.</b> As contas cTrader que você autorizar em <a href="#conexoes">Conexões</a> viram mestres do ranking, com a nota calculada pelo histórico real. Quando um mestre que você copia abrir ou fechar uma ordem, ela é espelhada na sua carteira <b>FICTÍCIA</b> com o lote proporcional; nada vai para corretora (a autorização da cTrader é só de leitura). Plano completo em docs/FOREX.md.</div>
 
       <section class="view" data-view="visao">
         <div class="kpis" id="ovK"></div>
@@ -116,6 +124,29 @@
         <div class="kpis" id="hiK"></div>
         <div class="card"><header><div><h2>Posições fechadas</h2><div class="sub">o resultado é o do mestre na proporção do lote, menos slippage e comissão simulados</div></div></header>
           <div class="tbl-wrap"><table id="hiT"></table></div></div>
+      </section>
+
+      <section class="view" data-view="conexoes" hidden>
+        <div class="card"><header><div><h2>cTrader</h2><div class="sub">aplicativo grátis da cTrader Open API · as chaves ficam criptografadas no servidor e nunca voltam para a tela</div></div></header>
+          <div class="keysum" id="ctSum"></div>
+          <div class="grid2" style="margin-top:6px">
+            <label class="f">Client ID <small id="ctCidS"></small><input class="in" type="password" id="ctCid" autocomplete="off" spellcheck="false" placeholder="cole aqui o Client ID"></label>
+            <label class="f">Client Secret <small id="ctSecS"></small><input class="in" type="password" id="ctSec" autocomplete="off" spellcheck="false" placeholder="cole aqui o Client Secret"></label>
+          </div>
+          <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button class="btn" id="ctSave" type="button">Salvar chaves</button><button class="btn primary" id="ctCon" type="button">Conectar conta cTrader</button><button class="btn sm" id="ctDel" type="button">Remover tudo</button></div>
+          <details class="ythow" style="margin-top:12px" id="ctHow"><summary>Como criar o aplicativo e ligar a conta</summary>
+            <ol>
+              <li>Entre em <b>openapi.ctrader.com</b> com o seu cTrader ID → <b>Applications</b> → <b>Add new app</b>. Espere o e-mail de aprovação.</li>
+              <li>Depois de aprovado, no aplicativo, em <b>Redirect URIs</b>, adicione: <code id="ctRet"></code></li>
+              <li>Copie o <b>Client ID</b> e o <b>Client Secret</b> do aplicativo para os campos acima e clique em <b>Salvar chaves</b>.</li>
+              <li>Clique em <b>Conectar conta cTrader</b>: abre o login da cTrader; escolha as contas e clique em <b>Allow access</b>. A autorização é só de leitura: o sistema não consegue mandar ordem.</li>
+              <li>Em até 1 minuto as contas aparecem abaixo. O histórico de até 365 dias é lido na primeira conexão e a nota entra no Ranking.</li>
+            </ol>
+          </details></div>
+        <div class="card"><header><div><h2>Contas autorizadas</h2><div class="sub" id="ctSub">cada conta é um mestre do ranking · conta demo entra na lista mas fica fora do ranking</div></div></header>
+          <div class="tbl-wrap"><table id="ctT"></table></div></div>
+        <div class="card"><header><div><h2>Últimas ordens dos mestres</h2><div class="sub">o que chegou do cTrader ao vivo (aberturas, fechamentos e ajustes de stop)</div></div></header>
+          <div class="tbl-wrap"><table id="ctE"></table></div></div>
       </section>
 
       <section class="view" data-view="copia" hidden>
