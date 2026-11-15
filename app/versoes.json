@@ -2570,6 +2570,11 @@
    "versao": "0.32.362",
    "inicio": "2026-11-15T08:10:00+00:00",
    "titulo": "Salas com o visual da SALA LIVE"
+  },
+  {
+   "versao": "0.32.363",
+   "inicio": "2026-11-15T10:30:00+00:00",
+   "titulo": "BOT LIVE: link fixo do OBS para WEB e para Mobile"
   }
  ]
 }

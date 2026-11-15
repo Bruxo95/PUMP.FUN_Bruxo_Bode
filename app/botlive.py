@@ -159,7 +159,9 @@ class BotLive(Copier):
     def __init__(self, watch, http, db=None):
         super().__init__(Watch308(watch), http, db)
         self.vault, self.real_allowed = None, False
-        self.obs: dict[str, str] = {}                # 0.32.347: conta → sha256 do código do link do OBS (o código mesmo nunca é guardado)
+        self.obs: dict[str, str] = {}                # 0.32.347: conta → sha256 do link ANTIGO (um só para os dois formatos); vale até a pessoa desligar
+        self.obs2: dict[str, dict] = {}              # 0.32.363: conta → {"web"|"mob": {"h": sha256, "c": código cifrado}}
+        self.box = None                              # cofre (APP_ENCRYPTION_KEY), ligado em main.py
         from .hood import EXPLORER
         from .ytchat import YTChat
         self.yt = YTChat(http, None, EXPLORER)        # 0.32.349: compras no chat da live do YouTube (cofre ligado em main.py)
@@ -167,14 +169,54 @@ class BotLive(Copier):
         self.music = Music()                          # 0.32.351: músicas lofi da SALA LIVE (Supabase Storage ligado em main.py)
 
     # 0.32.347 (pedido do dono: "o link do OBS entra na tela de login, deveria entrar direto"): o link leva um código só de leitura
-    # da SALA LIVE dessa conta. O banco guarda só o hash; gerar um novo derruba o anterior.
-    def obs_new(self, uid: str) -> str:
+    # da SALA LIVE dessa conta.
+    # 0.32.363 (pedido do dono: "gerei um link para o TikTok em outro PC e ele revogou o link que estava no OBS"): um link fixo para
+    # cada formato (WEB e Mobile vertical), guardado no servidor (o código vai cifrado com a APP_ENCRYPTION_KEY, o hash confere o
+    # acesso), então qualquer PC mostra o MESMO link. Só muda quando a pessoa clica em Renovar daquele formato, e renovar um não
+    # mexe no outro. O link antigo (da 0.32.347) continua valendo até a pessoa desligar.
+    OBS_SLOTS = ("web", "mob")
+
+    def _obs_code(self, uid: str, slot: str) -> str | None:
+        it = (self.obs2.get(uid) or {}).get(slot) or {}
+        if it.get("p"):
+            return it["p"]
+        if it.get("c") and self.box is not None:
+            try:
+                return self.box.decrypt(uid, "botlive_obs_" + slot, it["c"])
+            except Exception:
+                return None
+        return None
+
+    def obs_new(self, uid: str, slot: str = "web") -> str:
         import hashlib
         import secrets
+        if slot not in self.OBS_SLOTS:
+            raise ValueError("formato inválido")
         k = secrets.token_urlsafe(24)
-        self.obs[uid] = hashlib.sha256(k.encode()).hexdigest()
+        it = {"h": hashlib.sha256(k.encode()).hexdigest()}
+        if self.box is not None:
+            it["c"] = self.box.encrypt(uid, "botlive_obs_" + slot, k)
+        else:
+            it["p"] = k                               # sem cofre (testes): só na memória, nunca no banco
+        self.obs2.setdefault(uid, {})[slot] = it
         self.book(uid).dirty_book = True
         return k
+
+    def obs_links(self, uid: str) -> dict:
+        """Os dois links da conta; cria só o formato que ainda não tem nenhum (nunca troca um que já existe)."""
+        out = {}
+        for slot in self.OBS_SLOTS:
+            if not (self.obs2.get(uid) or {}).get(slot):
+                self.obs_new(uid, slot)
+            out[slot] = self._obs_code(uid, slot)
+        out["antigo"] = bool(self.obs.get(uid))
+        return out
+
+    def obs_old_off(self, uid: str) -> bool:
+        if not self.obs.pop(uid, None):
+            return False
+        self.book(uid).dirty_book = True
+        return True
 
     def obs_user(self, k: str) -> str | None:
         import hashlib
@@ -185,10 +227,17 @@ class BotLive(Copier):
         for uid, v in self.obs.items():
             if v and hmac.compare_digest(v, h):
                 return uid
+        for uid, d in self.obs2.items():
+            for it in d.values():
+                if it.get("h") and hmac.compare_digest(it["h"], h):
+                    return uid
         return None
 
     def _book_extra(self, uid: str) -> dict:
         out = {"obs_hash": self.obs[uid]} if self.obs.get(uid) else {}
+        d = {sl: {k: v for k, v in it.items() if k in ("h", "c")} for sl, it in (self.obs2.get(uid) or {}).items()}
+        if d:
+            out["obs_links"] = d                      # só o hash e o código cifrado; o código aberto nunca vai para o banco
         if self.yt.on.get(uid):
             out["yt_on"] = True
         if uid in self.yt.room_off:
@@ -211,6 +260,12 @@ class BotLive(Copier):
         h = (row.get("cfg") or {}).get("obs_hash")
         if isinstance(h, str) and len(h) == 64:
             self.obs[row["user_id"]] = h
+        d = (row.get("cfg") or {}).get("obs_links")
+        if isinstance(d, dict):
+            ok = {sl: {"h": it["h"], **({"c": it["c"]} if isinstance(it.get("c"), str) else {})} for sl, it in d.items()
+                  if sl in self.OBS_SLOTS and isinstance(it, dict) and isinstance(it.get("h"), str) and len(it["h"]) == 64}
+            if ok:
+                self.obs2[row["user_id"]] = ok
         if (row.get("cfg") or {}).get("yt_on"):
             self.yt.on[row["user_id"]] = True
         if (row.get("cfg") or {}).get("yt_room_off"):

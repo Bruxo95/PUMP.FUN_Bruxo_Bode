@@ -26,15 +26,31 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         return await painel_de(c, u["id"])
 
     # 0.32.347 (pedido do dono): o link do OBS abre a SALA LIVE direto, sem a tela de login. O código do link só lê o painel do BOT LIVE
-    # dessa conta (carteira simulada, posições, trades e log); não dá acesso a mais nada. Gerar um novo derruba o anterior.
-    @app.post("/api/botlive/obs-link")
-    async def botlive_obs_link(u: dict = Depends(admin_only)):
+    # dessa conta (carteira simulada, posições, trades e log); não dá acesso a mais nada.
+    # 0.32.363: um link fixo para WEB e outro para Mobile vertical, os mesmos em qualquer PC; renovar é por formato.
+    @app.get("/api/botlive/obs-links")
+    async def botlive_obs_links(u: dict = Depends(admin_only)):
         c = get_bot()
         if c is None:
             return off()
-        k = c.obs_new(u["id"])
-        await audit(db, u["id"], "BOT LIVE: link do OBS gerado", "o link anterior parou de valer")
-        return {"ok": True, "k": k}
+        return {"ok": True, **c.obs_links(u["id"])}
+
+    @app.post("/api/botlive/obs-link")
+    async def botlive_obs_link(body: dict, u: dict = Depends(admin_only)):
+        c = get_bot()
+        if c is None:
+            return off()
+        slot = (body or {}).get("formato")
+        if slot == "antigo":
+            ok = c.obs_old_off(u["id"])
+            if ok:
+                await audit(db, u["id"], "BOT LIVE: link antigo do OBS desligado", "")
+            return {"ok": True, "desligado": ok}
+        if slot not in c.OBS_SLOTS:
+            return JSONResponse({"error": "formato inválido (web ou mob)"}, status_code=400)
+        k = c.obs_new(u["id"], slot)
+        await audit(db, u["id"], "BOT LIVE: link do OBS renovado", ("WEB" if slot == "web" else "Mobile vertical") + ": o anterior desse formato parou de valer")
+        return {"ok": True, slot: k}
 
     @app.get("/api/botlive/obs/painel")
     async def botlive_obs_painel(k: str = ""):

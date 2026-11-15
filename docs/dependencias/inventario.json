@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-15",
     "timezone": "Europe/Dublin",
-    "repository_reference": "4c76d1cc3029031c00ac9524f1cabd6437bd02a2",
-    "application_version": "0.32.362 · 2026-11-15 · Salas com o visual da SALA LIVE",
+    "repository_reference": "a3dfa74479c8c78e9fa43da42c386fcae127e36e",
+    "application_version": "0.32.363 · 2026-11-15 · BOT LIVE: link fixo do OBS para WEB e para Mobile",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e3323eabba55c55c234b9108bf6b777b57e62ab3f137cb59153a59e28c4e00e1",
+      "app/version.py": "f09cf09723bd78c30fde265d4172713ec7e292df2f42a7eefd00502e69d2fe76",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b5ad3985c9f5270fb0f930ed5956514cc6beda7f5b5460f131e4f8a89d9ac3fa"
+  "pdf_sha256": "97f61eb1b05da0ad0d58b0ad35d26393d74e2816a75d6c6bef50f9171945bc01"
 }

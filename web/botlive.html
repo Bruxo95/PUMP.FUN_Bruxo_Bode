@@ -130,12 +130,14 @@
   <div class="card"><header><div><h2>Links para o OBS</h2><div class="sub">fonte "Navegador" · abre direto, sem login · marque "Controlar áudio pelo OBS"</div></div></header>
     <div class="obsl"><b>Link para WEB</b><small>horizontal · largura 1920 × altura 1080 · YouTube, Twitch</small></div>
     <div class="obs" id="cLink"></div>
-    <div class="row" style="margin-top:8px"><button class="btn" id="cCopy" type="button">Copiar link WEB</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="cCopy" type="button">Copiar link WEB</button><button class="btn" id="cNewW" type="button">Renovar link WEB</button></div>
     <div class="obsl" style="margin-top:16px"><b>Link para Mobile vertical</b><small>vertical · largura 1080 × altura 1920 · Shorts, TikTok, Reels</small></div>
     <div class="obs" id="cLinkV"></div>
-    <div class="row" style="margin-top:8px"><button class="btn" id="cCopyV" type="button">Copiar link vertical</button></div>
-    <div class="row" style="margin-top:16px"><button class="btn" id="cNew" type="button">Gerar links novos</button><button class="btn" id="cReset" type="button">Voltar ao padrão</button><span class="muted" id="cSaved"></span></div>
-    <p class="muted" style="font-size:12px;margin:10px 0 0">Quem tiver o link só vê a SALA LIVE do BOT (carteira do BOT, posições e log); não vê o resto do site nem mexe em nada. O link fica guardado só neste navegador: se copiar em outro navegador, um link novo é criado e o antigo para. Se o link vazar, clique em "Gerar links novos": os antigos param na hora.</p>
+    <div class="row" style="margin-top:8px"><button class="btn" id="cCopyV" type="button">Copiar link vertical</button><button class="btn" id="cNewV" type="button">Renovar link vertical</button></div>
+    <div class="row" id="cOld" style="margin-top:12px" hidden><span class="muted" style="font-size:12px">Ainda vale o link antigo (de antes desta versão), caso ele esteja em algum OBS.</span><button class="btn" id="cOldOff" type="button">Desligar link antigo</button></div>
+    <div class="row" style="margin-top:16px"><button class="btn" id="cReset" type="button">Voltar ao padrão</button><span class="muted" id="cSaved"></span></div>
+    <!-- 0.32.363 (pedido do dono): link fixo por formato, o mesmo em qualquer PC; renovar é separado -->
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Cada formato tem um link fixo, o mesmo em qualquer PC ou navegador: copiar não cria link novo e não derruba o que está no OBS. Só use "Renovar" se o link vazar ou se quiser trocar: o link daquele formato para na hora e o outro continua valendo. Quem tiver o link só vê a SALA LIVE do BOT (carteira do BOT, posições e log); não vê o resto do site nem mexe em nada.</p>
   </div>
   <p class="muted" style="font-size:12.5px;margin:0">A SALA LIVE só lê os dados da sua conta; não compra nem vende nada. A configuração fica salva neste navegador.</p>
 </div>

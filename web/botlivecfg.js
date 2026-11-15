@@ -11,20 +11,31 @@
     $("cSaved").textContent = "salvo ✓"; clearTimeout(savedT); savedT = setTimeout(() => { $("cSaved").textContent = ""; }, 1500);
     paint();
   }
-  // 0.32.347: o link leva um código só de leitura (gerado no servidor, que guarda só o hash) para abrir sem login, e o formato:
-  // "h" = WEB horizontal 1920×1080, "v" = celular vertical 1080×1920. O código fica só neste navegador.
-  const OBSK = "botlive_obs_k";
-  let obsK = ""; try { obsK = localStorage.getItem(OBSK) || ""; } catch (e) { /* sem armazenamento */ }
-  async function newKey() {
-    const r = await BB.api("/api/botlive/obs-link", { method: "POST", body: {} });
-    if (!r || !r.k) throw new Error((r && r.error) || "não consegui gerar o link");
-    obsK = r.k; try { localStorage.setItem(OBSK, obsK); } catch (e) { /* */ }
+  // 0.32.347: o link leva um código só de leitura para abrir sem login, e o formato: "h" = WEB horizontal 1920×1080, "v" = celular
+  // vertical 1080×1920.
+  // 0.32.363 (pedido do dono): um link fixo para cada formato, guardado no servidor: qualquer PC mostra o MESMO link e nada é
+  // trocado sozinho. Só muda quando a pessoa clica em "Renovar" daquele formato (o outro continua valendo).
+  const OBS = { web: "", mob: "", antigo: false, err: "" };
+  async function loadKeys() {
+    try {
+      const r = await BB.api("/api/botlive/obs-links");
+      if (!r || !r.ok) throw new Error((r && r.error) || "não consegui ler os links");
+      OBS.web = r.web || ""; OBS.mob = r.mob || ""; OBS.antigo = !!r.antigo; OBS.err = "";
+    } catch (e) { OBS.err = String(e.message || e); }
+    try { localStorage.removeItem("botlive_obs_k"); } catch (e) { /* o código antigo deste navegador não é mais usado */ }
+    paint();
+  }
+  async function renew(slot) {
+    const r = await BB.api("/api/botlive/obs-link", { method: "POST", body: { formato: slot } });
+    if (!r || !r.ok) throw new Error((r && r.error) || "não consegui renovar o link");
+    if (slot === "antigo") OBS.antigo = false; else OBS[slot] = r[slot] || "";
     paint();
   }
   function obsLink(layout) {
-    if (!obsK) return "";
+    const k = layout === "v" ? OBS.mob : OBS.web;
+    if (!k) return "";
     const o = Object.assign({}, cfg); delete o.botlive; delete o.mkey; delete o.api; delete o.obs;
-    o.k = obsK; o.layout = layout === "v" ? "v" : "h";
+    o.k = k; o.layout = layout === "v" ? "v" : "h";
     return location.origin + "/botlive/sala?cfg=" + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))));
   }
   function paint() {
@@ -33,8 +44,10 @@
       b.classList.toggle("on", on); b.classList.toggle("off", !on); b.textContent = on ? "Ligado" : "Desligado"; b.setAttribute("aria-checked", on ? "true" : "false");
     });
     $("cVolN").textContent = "· " + cfg.vol + "%";
-    $("cLink").textContent = obsLink("h") || "clique em Copiar para criar o link (vale para os dois formatos)";
-    $("cLinkV").textContent = obsLink("v") || "clique em Copiar para criar o link (vale para os dois formatos)";
+    const wait = OBS.err ? "erro: " + OBS.err : "carregando o link…";
+    $("cLink").textContent = obsLink("h") || wait;
+    $("cLinkV").textContent = obsLink("v") || wait;
+    $("cOld").hidden = !OBS.antigo;
   }
   function fill() {
     $("cNome").value = cfg.nome || ""; $("cTit").value = cfg.titulo || "";
@@ -46,14 +59,21 @@
   $("cVol").addEventListener("input", (e) => { cfg.vol = +e.target.value; save(); });
   Object.entries(TG).forEach(([id, k]) => $(id).addEventListener("click", () => { cfg[k] = !cfg[k]; save(); }));
   [["cCopy", "h", "Copiar link WEB"], ["cCopyV", "v", "Copiar link vertical"]].forEach(([id, lay, txt]) => $(id).addEventListener("click", async () => {
-    try { if (!obsK) await newKey(); await navigator.clipboard.writeText(obsLink(lay)); $(id).textContent = "Copiado!"; }
+    try { if (!obsLink(lay)) await loadKeys(); await navigator.clipboard.writeText(obsLink(lay)); $(id).textContent = "Copiado!"; }
     catch (e) { $(id).textContent = "Selecione o link e copie"; }
     setTimeout(() => { $(id).textContent = txt; }, 2000);
   }));
-  $("cNew").addEventListener("click", async () => {
-    try { await newKey(); $("cNew").textContent = "Links novos ✓ (os antigos pararam)"; } catch (e) { $("cNew").textContent = String(e.message || e); }
-    setTimeout(() => { $("cNew").textContent = "Gerar links novos"; }, 3000);
-  });
+  // renovar: só aquele formato; o link que está no OBS desse formato para de abrir na hora
+  [["cNewW", "web", "Renovar link WEB", "Renovar o link WEB? O link WEB que está no OBS para de abrir na hora (o link vertical continua valendo)."],
+   ["cNewV", "mob", "Renovar link vertical", "Renovar o link vertical? O link vertical que está no OBS/TikTok para de abrir na hora (o link WEB continua valendo)."],
+   ["cOldOff", "antigo", "Desligar link antigo", "Desligar o link antigo (de antes desta versão)? Se ele ainda estiver em algum OBS, para de abrir."]].forEach(([id, slot, txt, q]) =>
+    $(id).addEventListener("click", async () => {
+      if (!window.confirm(q)) return;
+      try { await renew(slot); $(id).textContent = slot === "antigo" ? "Desligado ✓" : "Renovado ✓ — copie o link novo"; }
+      catch (e) { $(id).textContent = String(e.message || e); }
+      setTimeout(() => { $(id).textContent = txt; }, 3000);
+    }));
+  loadKeys();
 
   $("cReset").addEventListener("click", () => { Object.assign(cfg, DEF); save(); fill(); });
   // ------------------------------------------------------------------ carteira do BOT (0.32.338): /api/botlive/*
