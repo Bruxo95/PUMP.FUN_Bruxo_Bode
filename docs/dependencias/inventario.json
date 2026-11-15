@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-15",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9a4778047b431c3e3700f81a475d118ce1f8d1ea",
-    "application_version": "0.32.366 · 2026-11-15 · Transmissor: a live sai sempre com som",
+    "repository_reference": "7f8a25b307527cdea1d83ed426de4a62bff5dc78",
+    "application_version": "0.32.367 · 2026-11-15 · Transmissor: tela remota para ver e clicar na sala",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "a32ce843fb4a9f31f218da34a1d835c3349956ce83009490391c438a1abe0390",
+      "app/version.py": "0c154ace14a6297a8bc02a6b4dd20d40d5fb916a434ab74e78c97fdb17d4a823",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "d59a30bf8d48fe8be7720e67968dba4eabe3bcf4eb8e571e58f09e16e017c7cc"
+  "pdf_sha256": "c8a636708edae7c16ef6caea4d06858ecc3c52c6603eb783882c29d65a356ffa"
 }

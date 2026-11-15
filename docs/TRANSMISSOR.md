@@ -52,6 +52,14 @@ Arquivos: `transmissor/Dockerfile`, `transmissor/transmitir.sh`, `deploy/transmi
 4. **Deploy the stack.** Em Containers → `live-web` → Logs aparece "transmitindo". No YouTube Studio a prévia entra em alguns segundos.
 5. **Atualizar a imagem depois de uma versão nova:** Stack → Update the stack → marcar "Re-pull image".
 
+## Tela remota (ver e clicar, como no OBS) — 0.32.367
+
+- Preencha `VNC_SENHA` nas variáveis da stack (até 8 caracteres; o VNC só usa os 8 primeiros) e faça Update com Re-pull.
+- No navegador de qualquer PC da rede: `http://192.168.178.65:6080/vnc.html` (horizontal) ou `:6081/vnc.html` (vertical) → Connect → senha.
+- Dá para ver exatamente o que vai para a live e clicar na sala (ligar música/sons, etc.). O que se clica vale até o navegador do
+  transmissor reabrir (reinício ou a cada 12 h); o que deve valer sempre vai no link ou nas variáveis.
+- Sem `VNC_SENHA` a tela remota fica desligada. A porta só deve ficar aberta na rede de casa (não abrir no roteador).
+
 ## Quanto pesa (estimativa, não medido no PC do dono)
 
 - **Por transmissão em 1080p 30 qps:** 3–4 núcleos, 2–3 GB de memória e 4–6 Mbps de subida.

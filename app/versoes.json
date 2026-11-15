@@ -2590,6 +2590,11 @@
    "versao": "0.32.366",
    "inicio": "2026-11-15T18:40:00+00:00",
    "titulo": "Transmissor: a live sai sempre com som"
+  },
+  {
+   "versao": "0.32.367",
+   "inicio": "2026-11-15T18:50:00+00:00",
+   "titulo": "Transmissor: tela remota para ver e clicar na sala"
   }
  ]
 }

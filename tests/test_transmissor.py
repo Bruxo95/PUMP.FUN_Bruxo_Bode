@@ -47,3 +47,12 @@ def test_live_sai_com_som_mesmo_com_link_mudo(tmp_path):
     out = subprocess.run(["bash", str(f)], env={"LINK": link, "PATH": os.environ.get("PATH", "")}, capture_output=True, text=True).stdout
     cfg = base64.b64decode(urllib.parse.unquote(out.split("cfg=", 1)[1])).decode()
     assert '"musica":true' in cfg and '"sfx":true' in cfg and '"k":"abc"' in cfg
+
+
+def test_tela_remota_so_com_senha_e_so_na_rede_local():
+    """0.32.367 (pedido do dono): ver e clicar na tela do transmissor pelo navegador (noVNC), só com VNC_SENHA."""
+    sh = _r("transmissor", "transmitir.sh")
+    assert 'if [ -n "${VNC_SENHA:-}" ]' in sh and "-rfbauth" in sh and "-localhost" in sh     # o VNC cru fica preso dentro do container
+    assert "x11vnc novnc python3-websockify" in _r("transmissor", "Dockerfile")
+    st = _r("deploy", "transmissor-stack.yml")
+    assert '"6080:6080"' in st and '"6081:6080"' in st and "VNC_SENHA: ${VNC_SENHA:-}" in st

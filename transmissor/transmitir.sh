@@ -11,6 +11,7 @@
 #   QUALIDADE   1080 | 720 (padrão 1080)      FPS (padrão 30)      VBITRATE (ex.: 4500k)      ABITRATE (padrão 160k)
 #   PRESET      preset do x264 (padrão veryfast; mais leve: superfast/ultrafast)
 #   MUSICA / SONS   1 = liga música lo-fi / sons da sala mesmo que o link venha com eles desligados (padrão 1)
+#   VNC_SENHA   liga a tela remota (noVNC) na porta 6080 para ver e clicar na sala pelo navegador (vazio = desligada)
 #   REINICIAR_H reabre o navegador a cada N horas para não acumular memória (padrão 12; 0 = nunca)
 set -u
 
@@ -64,6 +65,19 @@ for _ in $(seq 1 50); do pactl info >/dev/null 2>&1 && break; sleep 0.2; done
 pactl info >/dev/null 2>&1 || say "a placa de som virtual não subiu: a live vai sem som"
 pactl load-module module-null-sink sink_name=live sink_properties=device.description=live >/dev/null 2>&1
 pactl set-default-sink live >/dev/null 2>&1
+
+# 0.32.367 (pedido do dono): ver e mexer na tela do transmissor pelo navegador, como se fazia no OBS (clicar na sala para ligar
+# música/sons etc.). Só liga com VNC_SENHA preenchida: abre http://<IP do PC>:6080/vnc.html (porta definida na stack) e pede a senha.
+# O que se clica vale até o navegador reabrir; o que deve valer sempre vai no link (ou nas variáveis da stack).
+if [ -n "${VNC_SENHA:-}" ]; then
+  mkdir -p "$HOME/.vnc"
+  x11vnc -storepasswd "$VNC_SENHA" "$HOME/.vnc/senha" >/dev/null 2>&1
+  x11vnc -display :99 -rfbauth "$HOME/.vnc/senha" -rfbport 5900 -localhost -forever -shared -quiet -noxdamage >/dev/null 2>&1 &
+  websockify --web /usr/share/novnc 6080 localhost:5900 >/dev/null 2>&1 &
+  say "tela remota ligada na porta 6080 (abra /vnc.html no navegador; pede a senha VNC_SENHA)"
+else
+  say "tela remota desligada (preencha VNC_SENHA na stack para ver e clicar na tela)"
+fi
 
 CPID=""; FPID=""
 start_chrome() {

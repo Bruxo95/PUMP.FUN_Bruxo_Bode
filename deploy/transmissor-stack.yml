@@ -17,7 +17,10 @@ services:
     mem_limit: 2g
     extra_hosts:
       - "pump.rachar.app.br:${SITE_IP:-192.168.178.62}"
+    ports:
+      - "6080:6080"        # tela remota: http://192.168.178.65:6080/vnc.html (só com VNC_SENHA)
     environment:
+      VNC_SENHA: ${VNC_SENHA:-}
       LINK: ${LINK_WEB:-}
       RTMP_URL: ${RTMP_WEB:-rtmp://a.rtmp.youtube.com/live2}
       STREAM_KEY: ${KEY_WEB:-}
@@ -39,7 +42,10 @@ services:
     mem_limit: 2g
     extra_hosts:
       - "pump.rachar.app.br:${SITE_IP:-192.168.178.62}"
+    ports:
+      - "6081:6080"        # tela remota da vertical: http://192.168.178.65:6081/vnc.html
     environment:
+      VNC_SENHA: ${VNC_SENHA:-}
       LINK: ${LINK_VERT:-}
       RTMP_URL: ${RTMP_VERT:-}
       STREAM_KEY: ${KEY_VERT:-}
