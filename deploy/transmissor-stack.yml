@@ -1,5 +1,6 @@
 # 0.32.364 (pedido do dono): transmissor da SALA LIVE do BOT LIVE, para o PC do OBS (192.168.178.65, Portainer em :9443),
 # separado da VPS do site (192.168.178.62) para não pesar nela. Stack do Portainer em modo Docker Compose (não é o Swarm do site).
+# O PC do OBS tem 4 núcleos e 8 GB: padrão 720p e no máximo 2 núcleos por transmissão (dá para as duas juntas).
 # Um serviço por transmissão: WEB horizontal (YouTube) e vertical (TikTok). Serviço sem LINK/STREAM_KEY fica parado sem gastar nada.
 # As variáveis abaixo (LINK_*, KEY_*) se preenchem em Portainer → Stack → Environment variables; nunca no arquivo.
 name: transmissor-live
@@ -10,14 +11,14 @@ services:
     image: ghcr.io/bruxo95/pump.fun_bruxo_bode-transmissor:latest
     restart: unless-stopped
     shm_size: "1gb"
-    cpus: ${CPU_WEB:-3}
-    mem_limit: 3g
+    cpus: ${CPU_WEB:-2}
+    mem_limit: 2g
     environment:
       LINK: ${LINK_WEB:-}
       RTMP_URL: ${RTMP_WEB:-rtmp://a.rtmp.youtube.com/live2}
       STREAM_KEY: ${KEY_WEB:-}
       LAYOUT: h
-      QUALIDADE: ${QUALIDADE_WEB:-1080}
+      QUALIDADE: ${QUALIDADE_WEB:-720}
       FPS: ${FPS_WEB:-30}
       TZ: Europe/Berlin
     logging:
@@ -30,14 +31,14 @@ services:
     image: ghcr.io/bruxo95/pump.fun_bruxo_bode-transmissor:latest
     restart: unless-stopped
     shm_size: "1gb"
-    cpus: ${CPU_VERT:-3}
-    mem_limit: 3g
+    cpus: ${CPU_VERT:-2}
+    mem_limit: 2g
     environment:
       LINK: ${LINK_VERT:-}
       RTMP_URL: ${RTMP_VERT:-}
       STREAM_KEY: ${KEY_VERT:-}
       LAYOUT: v
-      QUALIDADE: ${QUALIDADE_VERT:-1080}
+      QUALIDADE: ${QUALIDADE_VERT:-720}
       FPS: ${FPS_VERT:-30}
       TZ: Europe/Berlin
     logging:

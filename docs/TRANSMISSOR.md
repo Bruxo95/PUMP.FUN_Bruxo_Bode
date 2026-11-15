@@ -45,9 +45,9 @@ Arquivos: `transmissor/Dockerfile`, `transmissor/transmitir.sh`, `deploy/transmi
      - Só aparecem em contas com acesso à chave de transmissão.
      - A chave do TikTok costuma mudar a cada live: troque a variável e reinicie o container `live-vertical`.
    - **Opcionais:**
-     - `QUALIDADE_WEB` / `QUALIDADE_VERT`: `1080` ou `720`. 720 pesa bem menos.
+     - `QUALIDADE_WEB` / `QUALIDADE_VERT`: `720` (padrão) ou `1080`. O PC do OBS tem 4 núcleos e 8 GB: 1080p só com uma live por vez.
      - `FPS_WEB` / `FPS_VERT`: padrão 30.
-     - `CPU_WEB` / `CPU_VERT`: núcleos máximos por container, padrão 3.
+     - `CPU_WEB` / `CPU_VERT`: núcleos máximos por container, padrão 2 (memória máxima 2 GB cada).
 4. **Deploy the stack.** Em Containers → `live-web` → Logs aparece "transmitindo". No YouTube Studio a prévia entra em alguns segundos.
 5. **Atualizar a imagem depois de uma versão nova:** Stack → Update the stack → marcar "Re-pull image".
 
