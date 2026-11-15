@@ -64,12 +64,16 @@ start_chrome() {
   say "navegador aberto"
 }
 # a chave nunca vai para o log: o que o ffmpeg escrever passa por aqui e a chave vira ***
-mask() { awk -v k="$KEY" '{ if (k != "") { while ((i = index($0, k)) > 0) $0 = substr($0, 1, i-1) "***" substr($0, i+length(k)) } print; fflush() }'; }
+# 0.32.365: taxa CONSTANTE (CBR). A cena pixel art muda pouco e o x264 mandava ~200 Kbps; o YouTube avisava "taxa de bits inferior
+# ao recomendado" e pode baixar a qualidade. Com nal-hrd=cbr o vídeo sai sempre na taxa pedida. As linhas de andamento do ffmpeg
+# terminam em \r: viram linhas normais para aparecerem no log do Portainer (uma por minuto).
+mask() { awk -v k="$KEY" 'BEGIN { RS = "[\r\n]+" } { if (k != "") { while ((i = index($0, k)) > 0) $0 = substr($0, 1, i-1) "***" substr($0, i+length(k)) } print; fflush() }'; }
 start_ffmpeg() {
   ( ffmpeg -hide_banner -loglevel warning -stats_period 60 -stats \
       -thread_queue_size 512 -f x11grab -draw_mouse 0 -video_size "${W}x${H}" -framerate "$FPS" -i :99.0 \
       -thread_queue_size 512 -f pulse -i live.monitor \
-      -c:v libx264 -preset "$PRESET" -pix_fmt yuv420p -b:v "$VB" -maxrate "$VB" -bufsize "$(( ${VB%k} * 2 ))k" \
+      -c:v libx264 -preset "$PRESET" -pix_fmt yuv420p -b:v "$VB" -minrate "$VB" -maxrate "$VB" -bufsize "$(( ${VB%k} * 2 ))k" \
+      -x264-params "nal-hrd=cbr:force-cfr=1" \
       -g "$(( FPS * 2 ))" -keyint_min "$(( FPS * 2 ))" -sc_threshold 0 \
       -c:a aac -b:a "$AB" -ar 44100 -ac 2 \
       -f flv "${RTMP%/}/$KEY" 2>&1 | mask ) &

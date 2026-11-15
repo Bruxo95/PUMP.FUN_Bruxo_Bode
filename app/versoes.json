@@ -2580,6 +2580,11 @@
    "versao": "0.32.364",
    "inicio": "2026-11-15T17:00:00+00:00",
    "titulo": "Transmissor da SALA LIVE para o PC do OBS"
+  },
+  {
+   "versao": "0.32.365",
+   "inicio": "2026-11-15T18:05:00+00:00",
+   "titulo": "Transmissor: taxa de bits constante para o YouTube"
   }
  ]
 }

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-15",
     "timezone": "Europe/Dublin",
-    "repository_reference": "2c19126b3c30ee0e7df7be67c0ae003271681b45",
-    "application_version": "0.32.364 · 2026-11-15 · Transmissor da SALA LIVE para o PC do OBS",
+    "repository_reference": "f28cfa733131d686c63fb1ce5316b09394b313bb",
+    "application_version": "0.32.365 · 2026-11-15 · Transmissor: taxa de bits constante para o YouTube",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "5096ae8c930c458e1f87b19a1ad8ae83cc142837b1eaf0813e48b0863a72bf78",
+      "app/version.py": "d98c3fdc51a36d6bc01515ce08ae363d077c31d63726f1adba48218403fd2f48",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "06b076ad7cc77d7b89f34fff67cb98ba02fcadd62b1cf7283c0e3632c10a7487"
+  "pdf_sha256": "6aab9d64c7ba35f6170878de6e310bee5a1fa6b90b4f31804af6b176c7bb32f8"
 }
