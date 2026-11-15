@@ -2575,6 +2575,11 @@
    "versao": "0.32.363",
    "inicio": "2026-11-15T10:30:00+00:00",
    "titulo": "BOT LIVE: link fixo do OBS para WEB e para Mobile"
+  },
+  {
+   "versao": "0.32.364",
+   "inicio": "2026-11-15T17:00:00+00:00",
+   "titulo": "Transmissor da SALA LIVE para o PC do OBS"
   }
  ]
 }
