@@ -2550,6 +2550,11 @@
    "versao": "0.32.358",
    "inicio": "2026-11-15T00:00:00+00:00",
    "titulo": "SALA LIVE: personagem só mexe as mãos digitando; música na barra de cima"
+  },
+  {
+   "versao": "0.32.359",
+   "inicio": "2026-11-15T00:20:00+00:00",
+   "titulo": "SALA LIVE: rosto do personagem vivo (pisca, olha, sobrancelha e boca)"
   }
  ]
 }

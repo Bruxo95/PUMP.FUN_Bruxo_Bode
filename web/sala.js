@@ -83,9 +83,62 @@
       if (!h[s]) continue;
       const [x, y, w, hh] = HAND[s];
       g.drawImage(base, x, y, w, hh, X + x * Z, Y + (y + 1) * Z, w * Z, hh * Z);          // a mão desce 1 pixel (aperta a tecla)
-      R(X + (x + 3) * Z, Y + 55 * Z, 4 * Z, 1 * Z, "#9fb3ff");                               // a tecla acende
+      g.fillStyle = "#9fb3ff"; g.fillRect(X + (x + 3) * Z, Y + 55 * Z, 4 * Z, 1 * Z);         // a tecla acende
     }
+    rosto(now, X, Y, Z);
     return true;
+  }
+
+  // 0.32.359 (pedido do dono): o rosto vive — pisca, olha para o telão, para o teclado e para o robô, sobrancelhas e boca mudam
+  // com o humor (pensativo, esforço, sorriso, preocupado). Desenhado por cima do quadro parado, pixel a pixel (quadro de 86×86).
+  const FC = { pele: "#ecb58b", lente: "#ebccb2", pupila: "#2a1c1f", boca: "#7c4038" };
+  const FACE = {
+    atento: { olho: [["tela", 45], ["frente", 30], ["teclado", 15], ["robo", 10]], sob: [["normal", 60], ["foco", 20], ["sobe", 20]],
+      boca: [["normal", 55], ["pensa", 30], ["esforco", 15]], troca: [1600, 4200], pisca: [2600, 5600] },
+    dedicado: { olho: [["tela", 60], ["teclado", 30], ["frente", 10]], sob: [["foco", 80], ["normal", 20]],
+      boca: [["esforco", 60], ["normal", 20], ["pensa", 20]], troca: [1400, 3400], pisca: [3200, 6500] },
+    feliz: { olho: [["tela", 40], ["frente", 40], ["robo", 20]], sob: [["sobe", 40], ["normal", 60]],
+      boca: [["sorri", 80], ["normal", 20]], troca: [1800, 4200], pisca: [2400, 5000] },
+    euforia: { olho: [["frente", 50], ["tela", 50]], sob: [["sobe", 75], ["normal", 25]], boca: [["sorri", 100]], troca: [1200, 2600], pisca: [2200, 4500] },
+    nervoso: { olho: [["tela", 40], ["robo", 25], ["teclado", 35]], sob: [["preocupa", 85], ["normal", 15]],
+      boca: [["o", 40], ["esforco", 40], ["normal", 20]], troca: [700, 1800], pisca: [1300, 3000] },
+  };
+  const EXP = { olho: "tela", sob: "normal", boca: "normal", ate: 0, piscaT: 0, piscaFim: 0, duplo: false };
+  window.__salaExp = EXP;                                        // só para conferir as expressões no teste
+  const sorteia = (l) => { let r = Math.random() * l.reduce((a, x) => a + x[1], 0); for (const [k, p] of l) { if ((r -= p) < 0) return k; } return l[0][0]; };
+  function rosto(now, X, Y, Z) {
+    const P = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(X + x * Z, Y + y * Z, w * Z, h * Z); };   // sem arredondar (1,5×)
+    const cfg = FACE[S.mood] || FACE.atento;
+    if (now >= EXP.ate) {
+      EXP.olho = sorteia(cfg.olho); EXP.sob = sorteia(cfg.sob); EXP.boca = sorteia(cfg.boca);
+      if (S.say && now < S.say.until && Math.random() < 0.5) EXP.olho = "frente";        // falando com o chat: olha para a câmera
+      EXP.ate = now + cfg.troca[0] + Math.random() * (cfg.troca[1] - cfg.troca[0]);
+    }
+    if (!EXP.piscaT) EXP.piscaT = now + 1500;
+    if (now >= EXP.piscaT && !EXP.piscaFim) { EXP.piscaFim = now + 110; EXP.duplo = Math.random() < 0.2; }
+    const piscando = EXP.piscaFim && now < EXP.piscaFim;
+    if (EXP.piscaFim && now >= EXP.piscaFim) {
+      EXP.piscaFim = 0;
+      EXP.piscaT = EXP.duplo ? now + 160 : now + cfg.pisca[0] + Math.random() * (cfg.pisca[1] - cfg.pisca[0]);
+      EXP.duplo = false;
+    }
+    // olhos (lente esquerda x35–40, direita x45–49, linhas 19–22; pupilas 2×3 em x37 e x46)
+    if (piscando) {
+      P(35, 19, 6, 3, FC.lente); P(45, 19, 5, 3, FC.lente); P(35, 21, 6, 1, FC.pupila); P(45, 21, 5, 1, FC.pupila);
+    } else if (EXP.olho !== "frente") {
+      const dx = EXP.olho === "tela" ? 1 : EXP.olho === "robo" ? -1 : 0, dy = EXP.olho === "teclado" ? 1 : 0;
+      P(37, 19, 2, 3, FC.lente); P(46, 19, 2, 3, FC.lente);
+      P(37 + dx, 19 + dy, 2, 3 - dy, FC.pupila); P(46 + dx, 19 + dy, 2, 3 - dy, FC.pupila);
+    }
+    // sobrancelhas (esquerda x34–40, direita x45–52, linhas 16–17)
+    if (EXP.sob === "sobe") { P(34, 17, 7, 1, FC.pele); P(45, 17, 6, 1, FC.pele); P(35, 15, 5, 1, FC.pupila); P(46, 15, 6, 1, FC.pupila); }
+    else if (EXP.sob === "foco") { P(34, 16, 2, 1, FC.pele); P(50, 16, 2, 1, FC.pele); P(39, 17, 2, 1, FC.pupila); P(45, 17, 2, 1, FC.pupila); }
+    else if (EXP.sob === "preocupa") { P(34, 17, 2, 1, FC.pele); P(50, 17, 2, 1, FC.pele); P(38, 15, 2, 1, FC.pupila); P(46, 15, 2, 1, FC.pupila); }
+    // boca (base: linha 27, x40–43)
+    if (EXP.boca === "sorri") { P(39, 26, 1, 1, FC.boca); P(44, 26, 1, 1, FC.boca); }
+    else if (EXP.boca === "pensa") { P(40, 27, 4, 1, FC.pele); P(42, 27, 3, 1, FC.boca); P(45, 26, 1, 1, FC.boca); }
+    else if (EXP.boca === "esforco") { P(39, 27, 6, 1, FC.boca); }
+    else if (EXP.boca === "o") { P(40, 27, 4, 1, FC.pele); P(41, 26, 2, 2, FC.boca); }
   }
 
 
