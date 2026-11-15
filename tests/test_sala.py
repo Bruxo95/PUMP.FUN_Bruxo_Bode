@@ -109,3 +109,13 @@ def test_pagina_bot_live(env):
     assert 'href="/botlive"' in open(os.path.join(WEB, "entrar.html"), encoding="utf-8").read()
     sala = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert "PRIV()" in sala and "window.SALA =" in sala
+
+
+def test_sala_usa_o_visual_da_sala_live():
+    """0.32.362 (pedido do dono): o visual da SALA LIVE do BOT LIVE vale para as outras salas (pump.fun e Robinhood): cena em resolução
+    dobrada com o personagem do SpriteCook e o robô, letra grande em uma linha nas Posições/Histórico e LOG DO ROBÔ numa faixa. Só o visual."""
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
+    assert "const HI = true;" in js and "function salaFit()" in js and 'box.classList.contains("logline")' in js
+    assert '<div class="log logline" id="log"></div>' in html and 'class="box logb"' not in html
+    assert "calc((100cqi - 36px) / 14)" in html and ".grid.fit{" in html

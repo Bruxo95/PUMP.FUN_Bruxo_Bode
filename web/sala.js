@@ -14,7 +14,10 @@
   g.imageSmoothingEnabled = false;
   // 0.32.355 (pedido do dono): no BOT LIVE o personagem é arte do SpriteCook (86×86, 8 quadros por humor). A cena passa a ser
   // desenhada em 640×360 com escala 2, para o sprite entrar em 1,5× com pixels iguais (3×3); o resto continua idêntico.
-  const HI = !!(window.SALA_CFG && window.SALA_CFG.botlive);
+  // 0.32.362 (pedido do dono): o visual da SALA LIVE do BOT LIVE vale para todas as salas (Sala da pump.fun e da Robinhood):
+  // cena em resolução dobrada, personagem do SpriteCook com rosto vivo e o robô com o nome no peito. Só o visual; os dados e a
+  // lógica de cada sala não mudam.
+  const HI = true;
   if (HI) { cv.width = 640; cv.height = 360; g.imageSmoothingEnabled = false; }
   // 0.32.358 (pedido do dono): o corpo fica parado e só as mãos digitam (desenhado aqui, por cima do quadro parado); as animações
   // inteiras do SpriteCook só entram em momentos certos: compra (polegar), venda no lucro (comemora), venda no prejuízo (mãos na
@@ -1034,7 +1037,7 @@
     const L = S.log.slice(0, 40), box = $("log");
     $("logN").textContent = L.length ? "(" + L.length + ")" : "";
     if (!L.length) { box.innerHTML = '<div class="empty">' + tr("sem decisões recentes", "no recent decisions") + "</div>"; return; }
-    if (C().botlive) { renderBotLog(L, box); return; }
+    if (C().botlive || box.classList.contains("logline")) { renderBotLog(L, box); return; }   // 0.32.362: faixa de uma linha também na Sala
     box.innerHTML = L.map((x, i) => {
       const k = logKind(x.a);
       const ic = k === "ok" ? icon("up", 1) : k === "sell" ? icon("down", 1) : "";
@@ -1193,6 +1196,31 @@
     setMode, rerender: () => { if (S.ok) render(); renderLog(); } };
   // ícones nos títulos das janelas do painel
   document.querySelectorAll("[data-ico]").forEach((el) => { el.insertAdjacentHTML("afterbegin", icon(el.getAttribute("data-ico"), 2)); });
+
+  // 0.32.362: na Sala o painel da direita acompanha a cena como na SALA LIVE (a SALA LIVE faz isso no botlive2.js): a coluna da cena
+  // tem a largura da própria cena (16:9) e Posições/Histórico ocupam o resto, sem faixa vazia; a faixa do log fica logo abaixo.
+  (function salaFit() {
+    const stage = document.querySelector(".stage");
+    if (C().botlive || !stage || !window.ResizeObserver) return;
+    new ResizeObserver(() => { document.documentElement.style.setProperty("--sth", Math.round(stage.getBoundingClientRect().height) + "px"); }).observe(stage);
+    const wrap = stage.parentElement, grid = wrap && wrap.parentElement;
+    const DESK = window.matchMedia("(min-width:981px),(orientation:landscape) and (min-width:701px)");
+    const fit = () => {
+      if (!wrap || !grid) return;
+      grid.style.flex = ""; grid.style.gridTemplateRows = ""; grid.classList.remove("fit");
+      if (!DESK.matches) return;
+      const cs = getComputedStyle(grid), rowH = wrap.getBoundingClientRect().height;
+      const sideMin = Math.min(340, Math.max(230, innerWidth * 0.22)), gap = parseFloat(cs.columnGap) || 12;
+      const wMax = grid.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - gap - sideMin;
+      const h = Math.floor(Math.min(rowH, (wMax - 6) * 9 / 16 + 6));
+      if (h <= 0) return;
+      document.documentElement.style.setProperty("--gh", h + "px"); grid.classList.add("fit");
+      if (h < rowH - 2) { grid.style.flex = "0 0 auto"; grid.style.gridTemplateRows = h + "px"; }
+    };
+    let ft = 0; const refit = () => { clearTimeout(ft); ft = setTimeout(fit, 60); };
+    addEventListener("resize", refit); if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+    refit(); setTimeout(refit, 800);
+  })();
 
   (async function start() {
     let s = null;

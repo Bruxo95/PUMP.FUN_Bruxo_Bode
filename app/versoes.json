@@ -2565,6 +2565,11 @@
    "versao": "0.32.361",
    "inicio": "2026-11-15T00:55:00+00:00",
    "titulo": "SALA LIVE: BOT antigo não pisca mais ao atualizar a página"
+  },
+  {
+   "versao": "0.32.362",
+   "inicio": "2026-11-15T08:10:00+00:00",
+   "titulo": "Salas com o visual da SALA LIVE"
   }
  ]
 }
