@@ -18,6 +18,7 @@ Serviço sem `LINK` ou sem chave fica parado, sem gastar processador.
 
 - **Se cair:** a transmissão volta sozinha em 5 s, e o navegador reabre se fechar.
 - **Reabertura programada:** o navegador também reabre a cada 12 h, para não acumular memória (`REINICIAR_H`).
+- **Rede local:** `extra_hosts` faz o navegador do container buscar `pump.rachar.app.br` direto na VPS do site (192.168.178.62, variável `SITE_IP`); só o vídeo sai pela internet.
 - **Logs:** a chave de transmissão e o link do OBS nunca aparecem no log.
 
 Arquivos: `transmissor/Dockerfile`, `transmissor/transmitir.sh`, `deploy/transmissor-stack.yml`.

@@ -2,6 +2,8 @@
 # separado da VPS do site (192.168.178.62) para não pesar nela. Stack do Portainer em modo Docker Compose (não é o Swarm do site).
 # O PC do OBS tem 4 núcleos e 8 GB: padrão 720p e no máximo 2 núcleos por transmissão (dá para as duas juntas).
 # Um serviço por transmissão: WEB horizontal (YouTube) e vertical (TikTok). Serviço sem LINK/STREAM_KEY fica parado sem gastar nada.
+# extra_hosts: o navegador do container busca pump.rachar.app.br direto na VPS do site pela rede de casa (mesmo link, mesmo
+# certificado; nada da página passa pela internet). Só o vídeo para o YouTube/TikTok sai pela internet.
 # As variáveis abaixo (LINK_*, KEY_*) se preenchem em Portainer → Stack → Environment variables; nunca no arquivo.
 name: transmissor-live
 
@@ -13,6 +15,8 @@ services:
     shm_size: "1gb"
     cpus: ${CPU_WEB:-2}
     mem_limit: 2g
+    extra_hosts:
+      - "pump.rachar.app.br:${SITE_IP:-192.168.178.62}"
     environment:
       LINK: ${LINK_WEB:-}
       RTMP_URL: ${RTMP_WEB:-rtmp://a.rtmp.youtube.com/live2}
@@ -33,6 +37,8 @@ services:
     shm_size: "1gb"
     cpus: ${CPU_VERT:-2}
     mem_limit: 2g
+    extra_hosts:
+      - "pump.rachar.app.br:${SITE_IP:-192.168.178.62}"
     environment:
       LINK: ${LINK_VERT:-}
       RTMP_URL: ${RTMP_VERT:-}
