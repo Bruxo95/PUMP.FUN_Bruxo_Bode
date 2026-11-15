@@ -339,6 +339,7 @@ def test_botlive_robo_spritecook_com_nome_no_peito():
     assert ((b & 0x3FFF) + 1, ((b >> 14) & 0x3FFF) + 1) == (48 * 8, 68 * 6)
     js = open("web/sala.js", encoding="utf-8").read()
     assert "/static/arte/robo.webp" in js and "function roboSheet()" in js and "if (HI && ROBO.img) return roboDraw(f);" in js
+    assert "if (HI && ROBO.pending) return" in js and "ROBO.pending = false" in js     # 0.32.361: não pisca o BOT antigo ao carregar
     assert "F35" in js and "C().nome" in js.split("function roboSheet()")[1].split("function roboDraw")[0]
     rd = js.split("function roboDraw(f)")[1].split("function botDraw(f)")[0]
     assert "RA.pula" in rd and "RA.aponta" in rd and "RA.festa" in rd and "RA.oi" in rd and "RA.forca" in rd and "RA.pisca" in rd

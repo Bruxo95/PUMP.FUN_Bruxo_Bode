@@ -47,8 +47,15 @@
   // 0.32.360 (pedido do dono): no BOT LIVE o BOT assistente é o robô do SpriteCook ("Cheerful Robot"): 6 animações × 8 quadros
   // numa folha (cada quadro 48×68, entra na cena com 24×34, pequeno para não atrapalhar). O nome do BOT sai do balão solto e vai
   // escrito na placa cinza do peito dele. Linhas da folha: 0 acena, 1 pula, 2 comemora, 3 força, 4 pisca, 5 aponta.
-  const ROBO = { img: null, sheet: null, nome: null, play: null, nextT: Date.now() + 9000 };
-  if (HI) { const ri = new Image(); ri.onload = () => { ROBO.img = ri; }; ri.src = "/static/arte/robo.webp?v=1"; }
+  // 0.32.361: enquanto o robô carrega não desenha o BOT antigo (piscava ao atualizar a página); se não carregar em 6 s, volta o antigo
+  const ROBO = { img: null, sheet: null, nome: null, play: null, nextT: Date.now() + 9000, pending: HI };
+  if (HI) {
+    const ri = new Image();
+    ri.onload = () => { ROBO.img = ri; ROBO.pending = false; };
+    ri.onerror = () => { ROBO.pending = false; };
+    ri.src = "/static/arte/robo.webp?v=1";
+    setTimeout(() => { ROBO.pending = false; }, 6000);
+  }
   const RA = { oi: 0, pula: 1, festa: 2, forca: 3, pisca: 4, aponta: 5 }, RW = 48, RH = 68, RFR = 125;
   // centro da placa cinza do peito em cada quadro (achado na arte)
   const RPL = [[[22,35],[22,35],[23,35],[23,37],[25,39],[25,39],[21,37],[22,35]],[[24,33],[23,33],[24,35],[25,37],[25,37],[23,36],[23,35],[24,34]],[[24,34],[25,36],[24,36],[22,37],[22,38],[23,37],[24,36],[24,35]],[[24,37],[24,37],[25,38],[23,39],[22,39],[22,40],[22,41],[23,37]],[[26,39],[24,38],[24,37],[24,38],[24,39],[24,40],[25,39],[24,37]],[[22,37],[21,37],[22,37],[23,38],[26,39],[25,40],[22,41],[22,37]]];
@@ -686,6 +693,7 @@
   }
   function botDraw(f) {
     if (HI && ROBO.img) return roboDraw(f);
+    if (HI && ROBO.pending) return { x: 63, y: 93, hide: true };              // carregando: não pisca o BOT antigo
     const now = Date.now(), b = S.bot, age = now - b.t0;
     let x = 66, y = 74 + (f % 20 < 10 ? 0 : 2), eye = "#3df2c4", flip = false;
     if (b.mode === "buy" && age < 3200) {
@@ -814,6 +822,7 @@
       if (S.trendSay && now < S.trendSay.until) balloon(S.trendSay.text, 116, 52, S.trendSay.col, false, true);
       else if (f % 60 < 42) balloon(list[k], 116, 52, col, false, true);
     }
+    if (bp.hide) return;
     if (S.botSay && now < S.botSay.until) balloon(S.botSay.text, bp.x + 14, bp.y, "#2f69b5", true);
     else if (f % 120 > 90) { const BL = EN() ? BOTL_EN : BOTL, l = BL[S.mood] || BL.atento; balloon(l[Math.floor(f / 120) % l.length], bp.x + 14, bp.y, "#2f69b5", true); }
   }

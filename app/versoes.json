@@ -2560,6 +2560,11 @@
    "versao": "0.32.360",
    "inicio": "2026-11-15T00:50:00+00:00",
    "titulo": "SALA LIVE: BOT novo (robô do SpriteCook) com o nome no peito"
+  },
+  {
+   "versao": "0.32.361",
+   "inicio": "2026-11-15T00:55:00+00:00",
+   "titulo": "SALA LIVE: BOT antigo não pisca mais ao atualizar a página"
   }
  ]
 }
