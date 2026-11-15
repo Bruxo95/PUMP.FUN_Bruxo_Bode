@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-15",
     "timezone": "Europe/Dublin",
-    "repository_reference": "ecb766db35af3d8ace5d703b36130038cba4c1e4",
-    "application_version": "0.32.359 · 2026-11-15 · SALA LIVE: rosto do personagem vivo (pisca, olha, sobrancelha e boca)",
+    "repository_reference": "933f7c7fd294e792f054b25eec672961e042403e",
+    "application_version": "0.32.360 · 2026-11-15 · SALA LIVE: BOT novo (robô do SpriteCook) com o nome no peito",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "4f7f6918a4e0f6ac49c7ac2ea7fcb84c96cef1d899680a487b52724ab56fb741",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "95b54b86b2e5433978f4604c1886977455c7fad3e2ab3ad804511310cb46732b",
+      "app/version.py": "b989829d880ca0b062804af1e3dc0e7cefca16f92d3b0a1d206a21c5b7fce625",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "3e185be4bcab69d2823698b62c42c3056ee1d7cd16d71479bc62207f74f97d5c"
+  "pdf_sha256": "cf597d582bf33cf190741e0969488f2cda5fa3e78c7d9da5b6bd8d5d2bb954f5"
 }

@@ -328,3 +328,17 @@ def test_arte_do_spritecook_so_de_la_e_nomes_fixos(env):
     assert c.get("/botlive/arte/trader_atento").status_code == 404
     js = open("web/sala.js", encoding="utf-8").read()
     assert "ImageDecoder" in js and "/botlive/arte/trader_" in js and "if (sprTrader()) return;" in js and "trader_base.png" in js
+
+
+def test_botlive_robo_spritecook_com_nome_no_peito():
+    """0.32.360: o BOT assistente da SALA LIVE é o robô do SpriteCook (6 animações × 8 quadros numa folha 384×408), com o nome
+    escrito na placa cinza do peito (sem a etiqueta solta embaixo); a Sala normal continua com o BOT antigo."""
+    data = open("web/arte/robo.webp", "rb").read()
+    assert data[:4] == b"RIFF" and data[8:12] == b"WEBP" and data[12:16] == b"VP8L"      # sem perdas, com transparência
+    b = int.from_bytes(data[21:25], "little")
+    assert ((b & 0x3FFF) + 1, ((b >> 14) & 0x3FFF) + 1) == (48 * 8, 68 * 6)
+    js = open("web/sala.js", encoding="utf-8").read()
+    assert "/static/arte/robo.webp" in js and "function roboSheet()" in js and "if (HI && ROBO.img) return roboDraw(f);" in js
+    assert "F35" in js and "C().nome" in js.split("function roboSheet()")[1].split("function roboDraw")[0]
+    rd = js.split("function roboDraw(f)")[1].split("function botDraw(f)")[0]
+    assert "RA.pula" in rd and "RA.aponta" in rd and "RA.festa" in rd and "RA.oi" in rd and "RA.forca" in rd and "RA.pisca" in rd

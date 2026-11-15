@@ -2555,6 +2555,11 @@
    "versao": "0.32.359",
    "inicio": "2026-11-15T00:20:00+00:00",
    "titulo": "SALA LIVE: rosto do personagem vivo (pisca, olha, sobrancelha e boca)"
+  },
+  {
+   "versao": "0.32.360",
+   "inicio": "2026-11-15T00:50:00+00:00",
+   "titulo": "SALA LIVE: BOT novo (robô do SpriteCook) com o nome no peito"
   }
  ]
 }

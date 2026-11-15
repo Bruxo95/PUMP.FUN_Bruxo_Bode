@@ -44,6 +44,40 @@
       ART.pending = false;
     })();
   } else if (HI) { setTimeout(() => { ART.ok = !!ART.base; ART.pending = false; }, 1500); }
+  // 0.32.360 (pedido do dono): no BOT LIVE o BOT assistente é o robô do SpriteCook ("Cheerful Robot"): 6 animações × 8 quadros
+  // numa folha (cada quadro 48×68, entra na cena com 24×34, pequeno para não atrapalhar). O nome do BOT sai do balão solto e vai
+  // escrito na placa cinza do peito dele. Linhas da folha: 0 acena, 1 pula, 2 comemora, 3 força, 4 pisca, 5 aponta.
+  const ROBO = { img: null, sheet: null, nome: null, play: null, nextT: Date.now() + 9000 };
+  if (HI) { const ri = new Image(); ri.onload = () => { ROBO.img = ri; }; ri.src = "/static/arte/robo.webp?v=1"; }
+  const RA = { oi: 0, pula: 1, festa: 2, forca: 3, pisca: 4, aponta: 5 }, RW = 48, RH = 68, RFR = 125;
+  // centro da placa cinza do peito em cada quadro (achado na arte)
+  const RPL = [[[22,35],[22,35],[23,35],[23,37],[25,39],[25,39],[21,37],[22,35]],[[24,33],[23,33],[24,35],[25,37],[25,37],[23,36],[23,35],[24,34]],[[24,34],[25,36],[24,36],[22,37],[22,38],[23,37],[24,36],[24,35]],[[24,37],[24,37],[25,38],[23,39],[22,39],[22,40],[22,41],[23,37]],[[26,39],[24,38],[24,37],[24,38],[24,39],[24,40],[25,39],[24,37]],[[22,37],[21,37],[22,37],[23,38],[26,39],[25,40],[22,41],[22,37]]];
+  // letras 3×5 para escrever o nome na placa
+  const F35 = { A: "010101111101101", B: "110101110101110", C: "011100100100011", D: "110101101101110", E: "111100110100111", F: "111100110100100",
+    G: "011100101101011", H: "101101111101101", I: "111010010010111", J: "001001001101010", K: "101101110101101", L: "100100100100111",
+    M: "101111111101101", N: "110101101101101", O: "010101101101010", P: "110101110100100", Q: "010101101110011", R: "110101110101101",
+    S: "011100010001110", T: "111010010010010", U: "101101101101111", V: "101101101101010", W: "101101111111101", X: "101101010101101",
+    Y: "101101010010010", Z: "111001010100111", 0: "111101101101111", 1: "010110010010111", 2: "110001010100111", 3: "110001010001110",
+    4: "101101111001001", 5: "111100110001110", 6: "011100110101010", 7: "111001010010010", 8: "010101010101010", 9: "010101011001110",
+    "-": "000000111000000", ".": "000000000000010", "!": "010010010000010", " ": "000000000000000" };
+  function roboSheet() {
+    const nm = String(C().nome || "BOT").toUpperCase().replace(/[^A-Z0-9 .!-]/g, "").slice(0, 5);
+    if (ROBO.sheet && ROBO.nome === nm) return ROBO.sheet;
+    const o = document.createElement("canvas"); o.width = ROBO.img.width; o.height = ROBO.img.height;
+    const x = o.getContext("2d"); x.drawImage(ROBO.img, 0, 0);
+    if (nm) {
+      const tw = nm.length * 4 - 1, pw = tw + 4, ph = 9;
+      for (let k = 0; k < 6; k++) for (let i = 0; i < 8; i++) {
+        const [cx, cy] = RPL[k][i], px = i * RW + cx - Math.floor(pw / 2), py = k * RH + cy - 4;
+        x.fillStyle = "#1d1a26"; x.fillRect(px, py, pw, ph);
+        x.fillStyle = "#4d5466"; x.fillRect(px + 1, py + 1, pw - 2, ph - 2);
+        x.fillStyle = "#ffd23f";
+        [...nm].forEach((ch, j) => { const gl = F35[ch] || F35[" "]; for (let b = 0; b < 15; b++) if (gl[b] === "1") x.fillRect(px + 2 + j * 4 + (b % 3), py + 2 + Math.floor(b / 3), 1, 1); });
+      }
+    }
+    ROBO.sheet = o; ROBO.nome = nm;
+    return o;
+  }
   // momentos especiais: qual animação toca, com que frequência (ms) por humor
   const ART_MOOD = { feliz: ["feliz", 16000], euforia: ["euforia", 7000], nervoso: ["nervoso", 7000] };
   const ART_FRAME = 140;                                        // um pouco mais lento que o original (125 ms): mais suave
@@ -615,7 +649,43 @@
     for (let i = 0; i < 2; i++) { const sy = y - 4 - ((f + i * 6) % 10); R(x + 2 + i * 4, sy, 2, 3, "rgba(220,230,255,.6)"); }
   }
   // o BOT assistente: flutua perto da mesa, leva cada compra até o telão e reage às vendas
+  function roboDraw(f) {
+    const now = Date.now(), b = S.bot, age = now - b.t0;
+    // 0.32.360: fica em pé em cima da mesa (tampo em y=127), ao lado do vaso de planta; só sai da mesa para levar a compra ao telão
+    let x = 65, y = 93, flip = false, k = -1, t0 = b.t0;
+    if (b.mode === "buy" && age < 3200) {
+      const p = age < 1400 ? age / 1400 : age < 2200 ? 1 : 1 - (age - 2200) / 1000;
+      x = 65 + p * 151; y = 93 - p * 59 - Math.abs(Math.sin(age / 90)) * 3 * (p > 0 && p < 1); flip = age > 2200;
+      k = age >= 1400 && age < 2200 ? RA.aponta : RA.pula;                    // pula levando a compra, aponta para o telão
+      spr("coin", x + 6, y - 12, 1);
+      if (b.sym) { const s = b.sym.slice(0, 8); const w = TW(s) + 6; R(x + 12 - w / 2, y - 24, w, 11, K); R(x + 13 - w / 2, y - 23, w - 2, 9, "#ffd23f"); TXT(s, x + 15 - w / 2, y - 22, K, 8); }
+    } else if (b.mode === "win" && age < 3000) {
+      y = 93 - Math.abs(Math.sin(age / 160)) * 8; k = RA.festa;
+      if (f % 3 === 0) S.parts.push({ x: x + 12, y: y, vx: (Math.random() - .5) * 3, vy: -2 - Math.random() * 2, c: "#ffd23f", w: 3, h: 3, g: .15, life: 30 });
+    } else if (b.mode === "loss" && age < 3000) {
+      x += (f % 2 ? 1 : -1);
+      if (f % 6 < 3) { R(x + 26, y - 4, 3, 8, "#ff4d5e"); R(x + 26, y + 6, 3, 3, "#ff4d5e"); }
+      for (let i = 0; i < 2; i++) { const dy = (f * 2 + i * 9) % 14; R(x + 2 + i * 18, y + 4 + dy, 2, 3, "#6fd3ff"); }
+    } else if (S.base === "dump" && f % 16 < 8) { R(x + 26, y - 4, 3, 8, "#ff4d5e"); R(x + 26, y + 6, 3, 3, "#ff4d5e"); }
+    if (k < 0) {
+      // parado: de tempos em tempos acena, pisca, aponta ou faz força (no pump); acena sempre que fala
+      const talking = S.botSay && now < S.botSay.until;
+      if (ROBO.play && now - ROBO.play.t0 >= 8 * RFR) ROBO.play = null;
+      if (!ROBO.play && (now > ROBO.nextT || (talking && !ROBO.talked))) {
+        const kk = talking ? RA.oi : S.base === "pump" ? RA.forca : pick([RA.oi, RA.pisca, RA.pisca, RA.aponta]);
+        ROBO.play = { k: kk, t0: now }; ROBO.nextT = now + 9000 + Math.random() * 9000;
+      }
+      ROBO.talked = talking;
+      if (ROBO.play) { k = ROBO.play.k; t0 = ROBO.play.t0; }
+    }
+    const fi = k < 0 ? 7 : Math.floor((now - t0) / RFR) % 8, kk = k < 0 ? 0 : k;
+    const sh = roboSheet(), X = Math.round(x * 2) / 2, Y = Math.round(y * 2) / 2;
+    if (flip) { g.save(); g.translate(X + 24, Y); g.scale(-1, 1); g.drawImage(sh, fi * RW, kk * RH, RW, RH, 0, 0, 24, 34); g.restore(); }
+    else g.drawImage(sh, fi * RW, kk * RH, RW, RH, X, Y, 24, 34);
+    return { x: x - 2, y };
+  }
   function botDraw(f) {
+    if (HI && ROBO.img) return roboDraw(f);
     const now = Date.now(), b = S.bot, age = now - b.t0;
     let x = 66, y = 74 + (f % 20 < 10 ? 0 : 2), eye = "#3df2c4", flip = false;
     if (b.mode === "buy" && age < 3200) {
@@ -703,6 +773,7 @@
   }
   setTimeout(() => { talkNow(); setInterval(talkNow, 600000); }, 60000);
   window.__salaTalk = talkLine;
+  window.__salaBot = (mode) => { S.bot = { mode, t0: Date.now(), sym: "PEPE" }; };   // só para conferir o BOT no teste
 
   function balloon(text, ax, ay, col, small, left) {
     const lines = wrap(text, small ? 10 : 11), lw = Math.max(...lines.map((l) => l.length)) * 8;
