@@ -30,3 +30,20 @@ def test_stack_sem_segredo_e_imagem_publicada_pelo_actions():
     wf = _r(".github", "workflows", "imagem.yml")
     assert "  transmissor:\n" in wf and "context: transmissor" in wf and "-transmissor" in wf
     assert "USER live" in _r("transmissor", "Dockerfile")
+
+
+def test_live_sai_com_som_mesmo_com_link_mudo(tmp_path):
+    """0.32.366: o link copiado com música/sons desligados deixava a live muda (no OBS dava para clicar na tela; aqui não)."""
+    if not shutil.which("bash") or not shutil.which("base64"):
+        return
+    import base64
+    import urllib.parse
+    sh = _r("transmissor", "transmitir.sh")
+    part = sh[sh.index("cfg_get()"):sh.index('\nLAY="${LAYOUT:-}"')]
+    j = '{"titulo":"BOT","musica":false,"sfx":false,"layout":"h","k":"abc"}'
+    link = "https://pump.rachar.app.br/botlive/sala?cfg=" + urllib.parse.quote(base64.b64encode(j.encode()).decode(), safe="")
+    f = tmp_path / "p.sh"
+    f.write_text("say(){ :; }\n" + part + '\nprintf "%s" "$LINK"\n')
+    out = subprocess.run(["bash", str(f)], env={"LINK": link, "PATH": os.environ.get("PATH", "")}, capture_output=True, text=True).stdout
+    cfg = base64.b64decode(urllib.parse.unquote(out.split("cfg=", 1)[1])).decode()
+    assert '"musica":true' in cfg and '"sfx":true' in cfg and '"k":"abc"' in cfg

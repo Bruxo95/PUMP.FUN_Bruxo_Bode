@@ -10,6 +10,7 @@
 #   LAYOUT      h = horizontal 16:9 | v = vertical 9:16 (padrão: o que vier no link, senão h)
 #   QUALIDADE   1080 | 720 (padrão 1080)      FPS (padrão 30)      VBITRATE (ex.: 4500k)      ABITRATE (padrão 160k)
 #   PRESET      preset do x264 (padrão veryfast; mais leve: superfast/ultrafast)
+#   MUSICA / SONS   1 = liga música lo-fi / sons da sala mesmo que o link venha com eles desligados (padrão 1)
 #   REINICIAR_H reabre o navegador a cada N horas para não acumular memória (padrão 12; 0 = nunca)
 set -u
 
@@ -20,6 +21,20 @@ if [ -z "$LINK" ] || [ -z "$KEY" ]; then
   exec sleep infinity
 fi
 case "$LINK" in https://*|http://*) ;; *) say "LINK precisa começar com https://"; exec sleep infinity ;; esac
+
+# 0.32.366 (pedido do dono): a live sempre sai COM som. O link do OBS leva a configuração do navegador onde foi copiado; se lá a
+# música/os sons estavam desligados, o transmissor (que não tem como clicar na tela, como se fazia no OBS) ficava mudo.
+# MUSICA=1 / SONS=1 (padrão) ligam música lo-fi e sons da sala no próprio link; MUSICA=0 / SONS=0 respeitam o link.
+cfg_get() { printf '%s' "$1" | sed -n 's/.*[?&]cfg=\([^&]*\).*/\1/p' | sed 's/%2B/+/g;s/%2F/\//g;s/%3D/=/g'; }
+cfg64=$(cfg_get "$LINK")
+if [ -n "$cfg64" ] && json=$(printf '%s' "$cfg64" | base64 -d 2>/dev/null) && [ -n "$json" ]; then
+  liga() { case "$json" in *"\"$1\":"*) json=$(printf '%s' "$json" | sed "s/\"$1\":[a-z]*/\"$1\":true/") ;; *) json="${json%\}},\"$1\":true}" ;; esac; }
+  [ "${MUSICA:-1}" = "1" ] && liga musica
+  [ "${SONS:-1}" = "1" ] && liga sfx
+  novo=$(printf '%s' "$json" | base64 -w0 | sed 's/+/%2B/g;s/\//%2F/g;s/=/%3D/g')
+  LINK=$(printf '%s' "$LINK" | sed "s|cfg=[^&]*|cfg=$novo|")
+  say "som da live: música $([ "${MUSICA:-1}" = 1 ] && echo ligada || echo 'como no link') · sons $([ "${SONS:-1}" = 1 ] && echo ligados || echo 'como no link')"
+fi
 
 LAY="${LAYOUT:-}"
 if [ -z "$LAY" ]; then
