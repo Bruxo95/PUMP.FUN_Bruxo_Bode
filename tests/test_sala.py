@@ -112,7 +112,7 @@ def test_pagina_bot_live(env):
     assert "<script>" not in r.text.split("<body>", 1)[1] and 'href="/botlive"' in r.text
     js = open(os.path.join(WEB, "botlive.js"), encoding="utf-8").read()
     assert 'rede: "hood"' in js and "window.SALA_CFG" in js                     # padrão: dados da Robinhood
-    assert '"/botlive"' not in open(os.path.join(WEB, "common.js"), encoding="utf-8").read()
+    assert '"/botlive"' in open(os.path.join(WEB, "common.js"), encoding="utf-8").read()   # 0.32.369: o menu Trocar rede mostra todos
     assert 'href="/botlive"' in open(os.path.join(WEB, "entrar.html"), encoding="utf-8").read()
     sala = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert "PRIV()" in sala and "window.SALA =" in sala
@@ -126,3 +126,21 @@ def test_sala_usa_o_visual_da_sala_live():
     assert "const HI = true;" in js and "function salaFit()" in js and 'box.classList.contains("logline")' in js
     assert '<div class="log logline" id="log"></div>' in html and 'class="box logb"' not in html
     assert "calc((100cqi - 36px) / 14)" in html and ".grid.fit{" in html
+
+
+def test_botao_sala_de_toda_pagina_abre_a_sala_e_trocar_rede_lista_todos():
+    """0.32.369 (pedido do dono): o botão Sala do /forex abria o menu de redes (faltava data-link); o menu Trocar rede
+    lista todos os projetos da tela /entrar e o BOT LIVE também tem o botão."""
+    import re
+    for f in os.listdir(WEB):
+        if not f.endswith(".html"):
+            continue
+        html = open(os.path.join(WEB, f), encoding="utf-8").read()
+        for a in re.findall(r'<a [^>]*class="[^"]*hubbtn[^"]*"[^>]*>', html):
+            if "/sala" in a:
+                assert "data-link" in a, f + ": botão Sala sem data-link abre o menu de redes"
+    js = open(os.path.join(WEB, "common.js"), encoding="utf-8").read()
+    entrar = open(os.path.join(WEB, "entrar.html"), encoding="utf-8").read()
+    for href in re.findall(r'class="hub-card[^"]*" href="([^"]+)"', entrar):
+        assert '"' + href + '", "#' in js, href + " falta no menu Trocar rede"
+    assert "hubbtn" in open(os.path.join(WEB, "botlive.html"), encoding="utf-8").read()

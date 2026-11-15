@@ -2600,6 +2600,11 @@
    "versao": "0.32.368",
    "inicio": "2026-11-15T21:55:00+00:00",
    "titulo": "Forex: rede nova com ranking de traders e cópia fictícia"
+  },
+  {
+   "versao": "0.32.369",
+   "inicio": "2026-11-15T22:20:00+00:00",
+   "titulo": "Escolher projeto em quadrados iguais e Trocar rede com todos"
   }
  ]
 }
