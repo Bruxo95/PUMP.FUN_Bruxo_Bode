@@ -66,6 +66,11 @@ def build_app():
         hub.botlive.box = hub.vault.box               # 0.32.363: código dos links do OBS cifrado (o mesmo link em qualquer PC)
         from .botmusic import Music, SupaStorage
         hub.botlive.music = Music(SupaStorage(http, cfg.supabase_url, cfg.supabase_service_key))   # 0.32.351: músicas lofi
+    # 0.32.368 (pedido do dono): Projeto Forex, rede nova (docs/FOREX.md). Etapa 1 só fictícia; FOREX_ON=false desliga
+    hub.forex = None
+    if os.environ.get("FOREX_ON", "true").lower() not in ("0", "false", "no", "off"):
+        from .forexcopy import ForexCopier
+        hub.forex = ForexCopier(db)
     # 0.32.227: Dormant (moedas da watchlist do dono: dormindo, acordando, pump, dump), isolado; DORMANT_ON=false desliga
     hub.dormant = None
     if os.environ.get("DORMANT_ON", "true").lower() not in ("0", "false", "no", "off"):

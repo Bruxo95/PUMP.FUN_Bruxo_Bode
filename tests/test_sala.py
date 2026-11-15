@@ -33,9 +33,16 @@ def test_sala_so_le_os_dados_e_nao_manda_ordem():
 def test_sala_da_robinhood_le_so_o_painel_da_hood():
     """0.32.293 (pedido do dono): /sala?rede=hood usa /api/hood/painel (ETH) e o /hood tem o botão Sala."""
     js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
-    assert 'get("rede") === "hood"' in js and '"/api/hood/painel"' in js and "/api/hood/real" not in js
+    assert 'get("rede")' in js and 'REDE === "hood"' in js and '"/api/hood/painel"' in js and "/api/hood/real" not in js
     html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
     assert 'id="hoodSala" data-link href="/sala?rede=hood"' in html
+
+
+def test_sala_do_forex_le_o_painel_do_forex():
+    """0.32.368 (pedido do dono): /sala?rede=forex usa /api/forex/painel (US$) e nunca mostra o botão REAL."""
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert 'REDE === "forex"' in js and '"/api/forex/painel"' in js and "/api/forex/real" not in js
+    assert "const DEC = FOREX ? 2 : HOOD ? 4 : 3" in js     # sem referência a si mesma (quebrava a Sala normal)
 
 
 def test_hood_tem_conversor_eth_dolar():

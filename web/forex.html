@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forex — PUMP FUN COPY</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FUN COPY">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/fun-copy-180.png?v=__V__">
+<link rel="manifest" href="/static/manifest.json?v=__V__">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/fun-copy-192.png?v=__V__">
+<link rel="stylesheet" href="/static/app.css?v=__V__">
+<style>
+  /* 0.32.368 (pedido do dono): Projeto Forex no mesmo padrão do painel da Robinhood (app.css), destaque azul */
+  .hdmark{width:28px;height:28px;flex:0 0 28px}
+  .side-top .logo{gap:9px}
+  .nav a.on{box-shadow:inset 2px 0 0 #38bdf8}
+  .hdnote{border:1px dashed #38bdf8;border-radius:12px;padding:14px 16px;color:var(--muted);margin-bottom:16px}
+  .hdnote b{color:var(--text)}
+  .hubbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}.hubbtn svg{width:14px;height:14px}
+  @media (max-width:860px){.hubbtn span{display:none}}
+  .fxtag{display:inline-block;background:#7c3aed;color:#fff;font-weight:700;font-size:11.5px;border-radius:6px;padding:3px 8px;letter-spacing:.04em}
+  .hdtoast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:90;background:#16a34a;color:#fff;font-weight:600;padding:10px 16px;border-radius:10px;max-width:calc(100vw - 32px)}
+  .fxform{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 18px}
+  .fxform label{display:flex;flex-direction:column;gap:5px;font-size:13px}
+  .fxform label small{color:var(--muted);font-size:11.5px}
+  .fxform input,.fxform select{width:100%}
+  .fxrule{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:6px}
+  .fxrule div{border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+  .fxrule b{display:block;color:var(--text);margin-bottom:3px}
+  .fxformula{font-family:var(--mono);font-size:12.5px;background:#0d0d10;border:1px solid var(--line2);border-radius:10px;padding:12px 14px;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0 0}
+  .st-ok{color:var(--up)}.st-wait{color:#f5a524}
+</style>
+</head>
+<body>
+<div class="loading" id="boot" data-ll="Carregando">Carregando…</div>
+<div class="shell" id="shell" hidden>
+  <aside class="side" id="side">
+    <div class="side-top">
+      <a class="logo" href="#visao"><svg class="hdmark" viewBox="0 0 126 126" aria-hidden="true"><path d="M18 96l26-30 20 16 26-34 18 12" fill="none" stroke="#38bdf8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/></svg>FOREX</a>
+    </div>
+    <div class="lbl">Painel</div>
+    <nav class="nav" id="nav">
+      <a href="#visao" data-v="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg>Visão geral</a>
+      <a href="#ranking" data-v="ranking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Ranking</a>
+      <a href="#posicoes" data-v="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Posições</a>
+      <a href="#historico" data-v="historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>Histórico</a>
+      <a href="#copia" data-v="copia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9h11v11H9zM5 15H4V4h11v1"/></svg>Regras da cópia</a>
+    </nav>
+    <div class="sp"></div>
+    <div class="ver" id="ver"></div>
+  </aside>
+  <nav class="tabbar" id="tabbar" aria-label="Atalhos">
+    <a href="#visao" data-tv="visao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Início</span></a>
+    <a href="#ranking" data-tv="ranking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Ranking</span></a>
+    <a href="#posicoes" data-tv="posicoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Posições</span></a>
+    <button type="button" id="tbMenu" aria-label="Abrir o menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+  </nav>
+  <div class="scrim" id="scrim"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-left">
+        <button class="burger" id="burger" aria-label="Abrir menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div style="min-width:0"><h1 id="pgTitle">Visão geral</h1><div class="sub" id="pgSub"></div></div>
+      </div>
+      <div class="tb-right">
+        <span class="netload" id="netLoad" hidden aria-live="polite"></span>
+        <span class="fxtag" title="Nesta etapa a cópia é só na carteira fictícia">FICTÍCIA</span>
+        <a class="btn sm hubbtn" href="/sala?rede=forex" target="_blank" rel="noopener" title="Sala ao vivo do Forex: trader em pixel art reagindo às posições copiadas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3"/></svg><span>Sala</span></a>
+        <a class="btn sm hubbtn" href="/entrar" title="Escolher outra rede"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-3-3M17 17H4l3 3"/></svg><span>Trocar rede</span></a>
+        <button class="btn sm" id="fxOut" type="button">Sair</button>
+      </div>
+    </header>
+    <main class="page">
+      <div class="hdnote"><b>Etapa 1 · só fictícia.</b> O motor de nota e o de cópia estão prontos, mas nenhuma corretora está conectada ainda: a próxima etapa é o conector do <b>cTrader</b> (Open API oficial, grátis). Quando um mestre bom do ranking abrir uma ordem, ela é copiada na sua carteira <b>FICTÍCIA</b> com o lote proporcional; nada vai para corretora. Plano completo em docs/FOREX.md.</div>
+
+      <section class="view" data-view="visao">
+        <div class="kpis" id="ovK"></div>
+        <div class="card"><header><div><h2>Conexão com as corretoras</h2><div class="sub">de onde vêm as ordens dos mestres</div></div></header>
+          <div class="tbl-wrap"><table id="cnT"></table></div></div>
+        <div class="card"><header><div><h2>Últimos eventos da cópia</h2><div class="sub">o que o robô copiou ou deixou de copiar, e por quê</div></div></header>
+          <div class="tbl-wrap"><table id="evT"></table></div></div>
+      </section>
+
+      <section class="view" data-view="ranking" hidden>
+        <div class="card"><header><div><h2>Ranking dos mestres</h2><div class="sub">nota 0–100 ajustada ao risco · os que não passam nos filtros ficam embaixo, com o motivo</div></div></header>
+          <div class="tbl-wrap"><table id="rkT"></table></div></div>
+        <div class="card"><header><div><h2>Como a nota é calculada</h2><div class="sub">prioriza retorno constante com rebaixamento baixo</div></div></header>
+          <div class="fxrule">
+            <div><b>Max Drawdown</b>maior queda % do pico ao vale da curva de patrimônio, sem contar depósitos e saques</div>
+            <div><b>Profit Factor</b>lucro bruto ÷ prejuízo bruto dos trades fechados</div>
+            <div><b>Sharpe</b>retorno diário médio ÷ variação, anualizado</div>
+            <div><b>Consistência</b>fração de semanas positivas, com peso pelo tamanho da semana</div>
+            <div><b>Martingale</b>perdas seguidas de lote 1,5× maior no mesmo ativo</div>
+            <div><b>Grade sem stop</b>4+ posições juntas no mesmo ativo e lado, sem stop</div>
+          </div>
+          <p class="sub" style="margin:14px 0 4px">Fica fora do ranking: conta demo, menos de 60 dias, menos de 50 trades fechados, drawdown acima de 40%, sinal de martingale ou grade acima de 25%, 70%+ dos trades sem stop, resultado negativo.</p>
+          <div class="fxformula">nota = 30 × retorno ÷ drawdown (3,0 = cheio)
+     + 20 × profit factor (1,0 → 0; 2,5 → cheio)
+     + 20 × consistência
+     + 15 × Sharpe (0 → 0; 2,0 → cheio)
+     + 15 × tempo de histórico (60 → 0; 365 dias → cheio)
+     − 40 × martingale − 40 × grade</div></div>
+      </section>
+
+      <section class="view" data-view="posicoes" hidden>
+        <div class="card"><header><div><h2>Posições abertas</h2><div class="sub">cópias abertas na carteira fictícia</div></div></header>
+          <div class="tbl-wrap"><table id="poT"></table></div></div>
+      </section>
+
+      <section class="view" data-view="historico" hidden>
+        <div class="kpis" id="hiK"></div>
+        <div class="card"><header><div><h2>Posições fechadas</h2><div class="sub">o resultado é o do mestre na proporção do lote, menos slippage e comissão simulados</div></div></header>
+          <div class="tbl-wrap"><table id="hiT"></table></div></div>
+      </section>
+
+      <section class="view" data-view="copia" hidden>
+        <div class="card"><header><div><h2>Regras da cópia</h2><div class="sub">carteira FICTÍCIA · salva só na sua conta</div></div></header>
+          <div class="fxform" id="cfF"></div>
+          <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="cfSave" type="button">Salvar regras</button><button class="btn sm" id="cfZero" type="button">Zerar carteira fictícia</button><span class="muted" id="cfMsg"></span></div>
+          <div class="help" style="margin-top:12px"><p><b>Patrimônio (equity)</b>: o lote acompanha o tamanho das contas. Mestre com US$ 10.000 e você com US$ 1.000 → lote 10× menor. <b>Multiplicador</b>: lote do mestre × o número. <b>Fixo</b>: sempre o mesmo lote. O lote é arredondado <b>para baixo</b> no passo da corretora; abaixo do mínimo (0,01) a ordem não é copiada.</p></div></div>
+      </section>
+    </main>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="/static/common.js?v=__V__"></script>
+<script src="/static/forex.js?v=__V__"></script>
+</body>
+</html>

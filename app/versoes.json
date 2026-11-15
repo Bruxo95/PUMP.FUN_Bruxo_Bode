@@ -2595,6 +2595,11 @@
    "versao": "0.32.367",
    "inicio": "2026-11-15T18:50:00+00:00",
    "titulo": "Transmissor: tela remota para ver e clicar na sala"
+  },
+  {
+   "versao": "0.32.368",
+   "inicio": "2026-11-15T21:55:00+00:00",
+   "titulo": "Forex: rede nova com ranking de traders e cópia fictícia"
   }
  ]
 }

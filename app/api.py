@@ -74,7 +74,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
             + ("; frame-src https://www.geckoterminal.com https://dexscreener.com" if request.url.path == "/dormant" else ""))
         if request.url.path.startswith("/api/"):
             resp.headers["Cache-Control"] = "no-store"
-        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/dormant", "/sala", "/botlive", "/botlive/sala") or request.url.path.startswith("/static/"):
+        elif request.url.path in ("/", "/app", "/entrar", "/bnb", "/hood", "/forex", "/dormant", "/sala", "/botlive", "/botlive/sala") or request.url.path.startswith("/static/"):
             resp.headers["Cache-Control"] = "no-cache"          # o navegador sempre confere se há versão nova
         return resp
 
@@ -1689,7 +1689,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
     VTAG = hashlib.sha256(VERSION.encode()).hexdigest()[:10]
     PAGES = {n: open(os.path.join(WEB, n), encoding="utf-8").read().replace("__V__", VTAG)
              .replace("__BASE__", (cfg.public_base_url or "").rstrip("/"))
-             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html", "dormant.html", "sala.html", "botlive.html", "botlive_sala.html")}
+             for n in ("index.html", "app.html", "entrar.html", "bnb.html", "hood.html", "forex.html", "dormant.html", "sala.html", "botlive.html", "botlive_sala.html")}
 
     @app.get("/")
     def landing():
@@ -1728,6 +1728,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
     def hood_panel():
         return HTMLResponse(PAGES["hood.html"])
 
+    # 0.32.368 (pedido do dono): Projeto Forex, rede nova (forexcopy.py/forex_api.py, página /forex)
+    @app.get("/forex")
+    def forex_panel():
+        return HTMLResponse(PAGES["forex.html"])
+
+    from .forex_api import add_routes as forex_routes
+    forex_routes(app, lambda: getattr(hub, "forex", None), admin_only, hub.db)
     from .hood_api import add_routes as hood_routes
     hood_routes(app, lambda: getattr(hub, "hood", None), admin_only, hub.db)
     from .botlive_api import add_routes as botlive_routes

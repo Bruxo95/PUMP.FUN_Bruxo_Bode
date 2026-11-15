@@ -69,6 +69,8 @@
   /* 0.32.300: coluna Hora (entrada); fonte menor para caber a 5ª coluna */
   /* 0.32.362 (pedido do dono): visual da SALA LIVE do BOT LIVE — a maior letra que cabe na largura do painel, sempre em uma linha */
   .ph,.pr{display:grid;grid-template-columns:minmax(4ch,1fr) 5ch 7.1ch 6.6ch 7.4ch;gap:.25em;align-items:center;padding:.12em .3em}
+  /* 0.32.368: Forex — símbolo de 6 letras (EURUSD) cabe inteiro */
+  .fx .ph,.fx .pr{grid-template-columns:minmax(6.2ch,1fr) 5ch 7.1ch 6.6ch 5.6ch}
   .pr{border-bottom:1px solid #1a2850;font-size:clamp(13px,calc((100cqi - 36px) / 14),32px);line-height:1.05}
   .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:clamp(13px,calc((100cqi - 36px) / 14),32px);border-bottom:2px solid #1c2c57}
   .ph span{white-space:nowrap;overflow:hidden}

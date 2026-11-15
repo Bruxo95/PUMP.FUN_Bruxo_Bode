@@ -197,8 +197,11 @@
   // 0.32.336 (pedido do dono): a mesma cena serve a página BOT LIVE (/botlive), que define window.SALA_CFG antes deste arquivo
   // (rede, carteira, nome do bot, balões, céu, modo privado). C() é lido a cada quadro: mudar a configuração muda a cena na hora.
   const C = () => window.SALA_CFG || {};
-  const HOOD = C().rede ? C().rede === "hood" : new URLSearchParams(location.search).get("rede") === "hood";
-  const U = HOOD ? "ETH" : "SOL", MKEY = C().mkey || (HOOD ? "sala_modo_hood" : "sala_modo");
+  // 0.32.368 (pedido do dono): /sala?rede=forex usa a carteira FICTÍCIA do Projeto Forex (/api/forex/painel, em US$); a cena é a mesma.
+  const REDE = C().rede || new URLSearchParams(location.search).get("rede") || "";
+  const FOREX = REDE === "forex", HOOD = REDE === "hood" || FOREX;   // o Forex usa o mesmo caminho de dados "de outra rede" da Robinhood
+  const U = FOREX ? "USD" : REDE === "hood" ? "ETH" : "SOL", MKEY = C().mkey || (FOREX ? "sala_modo_forex" : HOOD ? "sala_modo_hood" : "sala_modo");
+  const DEC = FOREX ? 2 : HOOD ? 4 : 3, DEC2 = FOREX ? 2 : HOOD ? 5 : 4;
   const PRIV = () => !!C().privado;
   // 0.32.346 (pedido do dono): a SALA LIVE do BOT LIVE é em inglês (lang "en" vem do botlive.js); a Sala normal continua em português
   const EN = () => C().lang === "en";
@@ -882,7 +885,7 @@
     if (PRIV()) return "•••";
     const u = +(S.wallet || {}).sol_usd || 0;
     if (u) { const d = v * u; return "$" + (Math.abs(d) >= 1000 ? Math.round(d).toString() : d.toFixed(2)); }
-    return Number(v).toFixed(HOOD ? 4 : 3);
+    return Number(v).toFixed(DEC);
   }
   function evo(f) {
     const w = S.wallet || {}, st = w.start_sol, eq = w.equity_sol, pnl = +w.pnl_sol || 0;
@@ -936,7 +939,9 @@
   const sym = (x) => (x.risco ? '<span class="risk" title="' + esc(x.risco) + '">⚠ ' : "") + esc(x.symbol || (x.mint || "").slice(0, 6)) + (x.risco ? "</span>" : "");
   const symTxt = (x) => String(x.symbol || (x.mint || "").slice(0, 6)).toUpperCase();
   const pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%");
-  const sol = (v) => (v == null ? "–" : PRIV() ? "•••" : (v > 0 ? "+" : "") + Number(v).toFixed(HOOD ? 5 : 4) + " " + U);
+  const sol = (v) => (v == null ? "–" : PRIV() ? "•••" : FOREX ? fxUsd(v) : (v > 0 ? "+" : "") + Number(v).toFixed(DEC2) + " " + U);
+  // 0.32.368: no Forex o valor vai curto ("-$5.00", "+$14.9") para caber na coluna da Sala
+  function fxUsd(v) { const a = Math.abs(+v || 0); return (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + a.toFixed(a >= 100 ? 0 : a >= 10 ? 1 : 2); }
   const cls = (v) => (v > 0 ? "up" : v < 0 ? "down" : "flat");
 
   function act(kind) { S.action = kind; S.actionUntil = Date.now() + 2600; }
@@ -945,7 +950,7 @@
     act("buy"); SFX.buy();
     S.bot = { mode: "buy", t0: Date.now(), sym: symTxt(p) };
     say(tr("COMPREI ", "BOUGHT ") + symTxt(p) + "!", 3500, "#1b8f3f"); botSay(tr("NO TELAO!", "ON SCREEN!"), 2500);
-    alertBox(tr("COMPRA!", "BUY!"), "PUMP IT! <b>" + sym(p) + "</b><br>" + (PRIV() ? tr("nova posição", "new position") : Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U), true, "coin");
+    alertBox(tr("COMPRA!", "BUY!"), "PUMP IT! <b>" + sym(p) + "</b><br>" + (PRIV() ? tr("nova posição", "new position") : Number(p.sol_in || 0).toFixed(DEC) + " " + U), true, "coin");
   }
   function onSell(t) {
     const v = t.pnl_sol || 0;
@@ -1092,7 +1097,7 @@
     $("posN").textContent = P.length ? "(" + P.length + ")" : "";
     // 0.32.269 (pedido do dono): lista compacta — moeda, valor de entrada e valor atual em dólares e o %
     const box = $("pos"), usd = +w.sol_usd || 0;
-    const $v = (solv) => (PRIV() ? "•••" : usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(HOOD ? 4 : 3) + " " + U);
+    const $v = (solv) => (PRIV() ? "•••" : usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(DEC) + " " + U);
     if (!P.length) { box.innerHTML = '<div class="empty">' + tr("nenhuma posição aberta agora", "no open positions right now") + "</div>"; }
     else {
       const sorted = P.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0));
@@ -1113,7 +1118,7 @@
         return '<div class="pr" title="' + esc((EN() ? motivo(t.motivo) : (t.motivo || "")) + tr(" · entrou ", " · in ") + hm(t.opened_at) + tr(", saiu ", ", out ") + hm(t.closed_at)) + '"><span>' + sym(t) + '</span><span class="hr">' + hm(t.closed_at) +
           "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>"; }).join("");
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">' + icon((t.pnl_sol || 0) > 0 ? "trophy" : "skull", 1) + "SELL " + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
-      .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">' + icon("coin", 1) + "BUY " + sym(p) + (PRIV() ? "" : " " + Number(p.sol_in || 0).toFixed(HOOD ? 4 : 3) + " " + U) + "</span>" })))
+      .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">' + icon("coin", 1) + "BUY " + sym(p) + (PRIV() ? "" : " " + Number(p.sol_in || 0).toFixed(DEC) + " " + U) + "</span>" })))
       .sort((a, b) => b.t - a.t).slice(0, 12);
     $("run").innerHTML = items.length ? items.map((x) => x.h).join("") : '<span class="flat">HOLD! HODL! HODL!</span>';
   }
@@ -1126,7 +1131,27 @@
     if (!r.ok && !j.error) j.error = "error " + r.status;
     return j;
   }));
+  async function forexData() {
+    const p = await API("/api/forex/painel");
+    if (p.error) return p;
+    if (p.ligado === false) return { error: p.motivo || "Forex desligado no servidor" };
+    const pos = (p.posicoes || []).map((x) => ({ id: x.id, real: false, mint: x.id, symbol: x.simbolo, sol_in: x.margem, pnl_now_sol: null, pnl_now_pct: null,
+      opened_at: iso(x.abriu_t) }));
+    const tr = (p.trades || []).map((x) => ({ id: x.id, real: false, mint: x.id, symbol: x.simbolo, pnl_sol: x.lucro, pnl_pct: x.lucro_pct, closed_at: iso(x.fechou_t),
+      opened_at: iso(x.abriu_t), sol_in: null, motivo: x.motivo }));
+    const w = p.carteira || {};
+    let acc = 0;
+    const curve = tr.slice().sort((a, b) => tms(a.closed_at) - tms(b.closed_at)).map((t) => { acc += +t.pnl_sol || 0; return [t.closed_at, acc]; });
+    const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: 1,
+      start_sol: w.inicial, equity_sol: w.total, pnl_pct: w.resultado_pct };
+    const log = (p.eventos || []).map((e) => ({ k: e.t + "|" + e.token + "|" + e.acao, h: e.t ? hms(e.t * 1000) : "", a: e.acao, s: e.token || "", r: e.motivo }));
+    if (!log.length) log.push({ k: "fx-status", h: hms(Date.now()), a: "aguardando", s: "", r: "nenhum mestre conectado ainda · próxima etapa: conector cTrader" });
+    S.seguindo = p.seguindo || 0;
+    return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log };
+  }
+
   async function hoodData(real) {
+    if (FOREX) return forexData();
     const p = await API(C().api ? C().api : "/api/hood/painel" + (real ? "?real=1" : ""));
     if (p.error) return p;
     if (p.ligado === false) return { error: p.motivo || "leitura da Robinhood desligada no servidor" };
@@ -1229,7 +1254,13 @@
       if (!s) { location.href = "/"; return; }
     }
     $("mSim").classList.toggle("on", !S.real); $("mReal").classList.toggle("on", S.real);
-    if (HOOD && !C().botlive) {
+    if (FOREX) document.body.classList.add("fx");
+    if (FOREX && !C().botlive) {
+      S.real = false; $("mReal").hidden = true; $("mSim").classList.add("on"); $("mReal").classList.remove("on");   // Forex: só fictícia nesta etapa
+      document.title = "Sala ao vivo — Forex";
+      document.querySelector(".brand").textContent = "FOREX · SALA";
+      const pn = document.querySelector('.ctl a[href="/app"]'); if (pn) pn.href = "/forex";
+    } else if (HOOD && !C().botlive) {
       document.title = "Sala ao vivo — Robinhood";
       document.querySelector(".brand").textContent = "ROBINHOOD · SALA";
       const pn = document.querySelector('.ctl a[href="/app"]'); if (pn) pn.href = "/hood";
