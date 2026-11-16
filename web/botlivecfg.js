@@ -198,10 +198,18 @@
     if (!MU) return;
     const P = MU.periodos || {}, keys = Object.keys(P);
     if (!$("muPer").options.length) $("muPer").innerHTML = keys.map((k) => '<option value="' + k + '">' + esc(P[k].nome) + "</option>").join("");
+    const gen = !!MU.so_gerada;
+    $("muGen").classList.toggle("on", gen); $("muGen").classList.toggle("off", !gen);
+    $("muGen").setAttribute("aria-checked", String(gen)); $("muGen").textContent = gen ? "Ligado" : "Desligado";
+    const tz = { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" };
+    $("muPlayed").innerHTML = (MU.tocou || []).length ? (MU.tocou || []).slice(0, 30).map((x) =>
+      '<div class="murow"><span><b>' + esc(new Date(x.t * 1000).toLocaleString("pt-BR", tz)) + "</b> · " + esc(x.titulo) + (x.artista ? " · " + esc(x.artista) : "") + "</span></div>").join("")
+      : '<div class="muted" style="font-size:12px">nada ainda</div>';
     $("muList").innerHTML = keys.map((k) => {
-      const fx = (MU.faixas || []).filter((x) => x.periodo === k);
+      const fx = (MU.todas || MU.faixas || []).filter((x) => x.periodo === k);
       return '<div class="mubox"><h3>' + esc(P[k].nome) + '</h3><div class="h">' + String(P[k].de).padStart(2, "0") + ":00–" + String(P[k].ate % 24).padStart(2, "0") + ":00 · " + fx.length + " música(s)</div>" +
-        (fx.length ? fx.map((x) => '<div class="murow"><span>' + esc(x.titulo) + (x.artista ? " · " + esc(x.artista) : "") + '</span><select class="in" data-mumv="' + x.id + '">' +
+        (fx.length ? fx.map((x) => '<div class="murow' + (x.off ? " muoff" : "") + '"><span>' + (x.off ? '<b class="mutag">PAUSADA</b> ' : "") + esc(x.titulo) + (x.artista ? " · " + esc(x.artista) : "") +
+          (x.fonte && /^https:\/\//.test(x.fonte) ? ' · <a href="' + esc(x.fonte) + '" target="_blank" rel="noopener">origem</a>' : "") + '</span><button class="btn" type="button" data-mupause="' + x.id + '" data-off="' + (x.off ? 1 : 0) + '">' + (x.off ? "Voltar a tocar" : "Pausar") + '</button><select class="in" data-mumv="' + x.id + '">' +
           keys.map((o) => '<option value="' + o + '"' + (o === k ? " selected" : "") + ">" + esc(P[o].nome.split(" · ")[0]) + "</option>").join("") +
           '</select><button class="btn" type="button" data-murm="' + x.id + '">Remover</button></div>').join("") : '<div class="muted" style="font-size:12px">nenhuma ainda (toca as de outro horário)</div>') + "</div>";
     }).join("");
@@ -224,7 +232,19 @@
     }
     $("muMsg").textContent = (ok ? ok + " enviada(s) ✓" : "") + (fail.length ? " · falhou: " + fail.join("; ") : "");
   });
+  $("muGen").addEventListener("click", async () => {
+    const on = !(MU && MU.so_gerada);
+    const r = await BB.api("/api/botlive/musicas/so-gerada", { method: "POST", body: { on } });
+    if (r && !r.error) { muPaint(r); $("muMsg").textContent = on ? "a live passa a tocar só a música gerada (em até 10 min ou ao recarregar a SALA LIVE) ✓" : "faixas voltaram ✓"; }
+    else $("muMsg").textContent = (r && r.error) || "erro";
+  });
   $("muList").addEventListener("click", async (ev) => {
+    const p = ev.target.closest("[data-mupause]");
+    if (p) {
+      const r = await BB.api("/api/botlive/musicas/pausar", { method: "POST", body: { id: p.dataset.mupause, off: p.dataset.off !== "1" } });
+      if (r && !r.error) { muPaint(r); $("muMsg").textContent = p.dataset.off !== "1" ? "pausada ✓" : "voltou ✓"; } else $("muMsg").textContent = (r && r.error) || "erro";
+      return;
+    }
     const b = ev.target.closest("[data-murm]"); if (!b) return;
     if (!confirm("Remover esta música?")) return;
     const r = await BB.api("/api/botlive/musicas/remover", { method: "POST", body: { id: b.dataset.murm } });
@@ -236,4 +256,5 @@
     if (r && !r.error) { muPaint(r); $("muMsg").textContent = "movida ✓"; } else $("muMsg").textContent = (r && r.error) || "erro";
   });
   muLoad();
+  setInterval(muLoad, 60000);
 })();

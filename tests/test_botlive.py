@@ -254,6 +254,33 @@ def test_musicas_lofi_por_horario_guarda_toca_e_recusa_o_que_nao_e_audio():
     run(go())
 
 
+def test_musica_pausada_e_so_gerada_saem_da_live_e_o_que_tocou_fica_anotado():
+    """0.32.371 (pedido do dono): o YouTube interrompeu a live por direitos autorais. Faixa pausada não toca; "só música gerada"
+    tira todas (a live toca a música do navegador); o registro do que tocou ajuda a achar a faixa reclamada."""
+    from app import botmusic
+
+    async def go():
+        m = botmusic.Music()
+        a = await m.add(b"ID3" + b"\x00" * 200, "manha", "Cafe", "Autor A", "https://cdn.pixabay.com/audio/a.mp3")
+        b = await m.add(b"ID3" + b"\x00" * 200, "manha", "Chuva")
+        assert await m.set_off(a["id"], True) and not await m.set_off("nao-existe", True)
+        pub = await m.public()
+        assert [x["titulo"] for x in pub["faixas"]] == ["Chuva"] and "todas" not in pub and "tocou" not in pub
+        adm = await m.public(admin=True)
+        assert [(x["titulo"], x["off"]) for x in adm["todas"]] == [("Cafe", True), ("Chuva", False)]
+        await m.set_so_gerada(True)
+        assert (await m.public())["faixas"] == [] and (await m.public())["so_gerada"] is True
+        m2 = botmusic.Music(m.st)                                        # sobrevive ao reinício (config.json e index.json)
+        assert (await m2.public())["so_gerada"] and (await m2.public(admin=True))["todas"][0]["off"]
+        await m.set_so_gerada(False)
+        m.played(b["id"], 1000)
+        m.played(b["id"], 1050)                                          # o player pede pedaços: conta uma vez
+        m.played(b["id"], 1200)
+        t = (await m.public(admin=True))["tocou"]
+        assert [x["t"] for x in t] == [1200, 1000] and t[0]["titulo"] == "Chuva"
+    run(go())
+
+
 def test_rotas_das_musicas_lista_publica_envio_so_admin(env):
     c = env["c"]
     assert c.get("/api/botlive/musicas").status_code == 401                 # lista: login ou código do OBS
@@ -261,6 +288,8 @@ def test_rotas_das_musicas_lista_publica_envio_so_admin(env):
     assert c.post("/api/botlive/musicas/importar", json={}).status_code == 401
     assert c.post("/api/botlive/musicas", content=b"ID3xxx").status_code == 401
     assert c.post("/api/botlive/musicas/remover", json={}).status_code == 401
+    assert c.post("/api/botlive/musicas/pausar", json={}).status_code == 401
+    assert c.post("/api/botlive/musicas/so-gerada", json={"on": True}).status_code == 401
     assert c.get("/botlive/musica/naoexiste").status_code == 404
     assert c.get("/botlive/musica/abc123?e=9999999999&s=errada").status_code == 404   # sem assinatura certa não toca
     sql = open("supabase/migrations/20261114000002_botlive_musicas.sql", encoding="utf-8").read()

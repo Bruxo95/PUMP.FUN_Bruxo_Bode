@@ -18,7 +18,7 @@ import hmac
 import json
 import secrets
 import time
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 PERIODOS = {
     "madrugada": {"de": 0, "ate": 6, "nome": "Madrugada · para dormir", "en": "LATE NIGHT"},
@@ -107,6 +107,10 @@ class Music:
         self.index: list[dict] | None = None
         self.cache: OrderedDict[str, tuple[bytes, str]] = OrderedDict()
         self.key = secrets.token_bytes(32)            # assina os links das faixas (muda a cada reinício: a lista é relida)
+        # 0.32.371 (pedido do dono: live interrompida por direitos autorais): chave "só música gerada" (config.json no bucket),
+        # faixa pausada (campo "off" no index.json) e o registro do que tocou (só memória) para achar a faixa reclamada.
+        self.cfg: dict | None = None
+        self.tocou: deque = deque(maxlen=60)
 
     def sign(self, fid: str, exp: int) -> str:
         return hmac.new(self.key, f"{fid}|{exp}".encode(), hashlib.sha256).hexdigest()[:32]
@@ -221,11 +225,52 @@ class Music:
             self.cache.popitem(last=False)
         return v
 
-    async def public(self) -> dict:
+    async def config(self) -> dict:
+        if self.cfg is None:
+            try:
+                raw = await self.st.get("config.json")
+                self.cfg = json.loads(raw.decode()) if raw else {}
+            except Exception:
+                return {}
+        return self.cfg
+
+    async def set_so_gerada(self, on: bool) -> None:
+        c = dict(await self.config())
+        c["so_gerada"] = bool(on)
+        await self.st.put("config.json", json.dumps(c).encode(), "application/json")
+        self.cfg = c
+
+    async def set_off(self, fid: str, off: bool) -> bool:
+        for it in await self.faixas():
+            if it["id"] == fid:
+                it["off"] = bool(off)
+                await self._save()
+                return True
+        return False
+
+    def played(self, fid: str, now: float | None = None) -> None:
+        """Anota quando o OBS pediu a faixa (o player pede pedaços várias vezes: conta 1 vez a cada 2 min por faixa)."""
+        now = now or time.time()
+        if any(x["id"] == fid and now - x["t"] < 120 for x in self.tocou):
+            return
+        self.tocou.appendleft({"id": fid, "t": int(now)})
+
+    async def public(self, admin: bool = False) -> dict:
         exp = int(time.time()) + LINK_TTL
-        return {"periodos": PERIODOS,
-                "faixas": [{**{k: it.get(k) for k in ("id", "periodo", "titulo", "artista", "fonte")},
-                            "src": f"/botlive/musica/{it['id']}?e={exp}&s={self.sign(it['id'], exp)}"} for it in await self.faixas()]}
+        cfg = await self.config()
+        todas = await self.faixas()
+        tocar = [] if cfg.get("so_gerada") else [it for it in todas if not it.get("off")]
+        out = {"periodos": PERIODOS, "so_gerada": bool(cfg.get("so_gerada")),
+               "faixas": [{**{k: it.get(k) for k in ("id", "periodo", "titulo", "artista", "fonte")},
+                           "src": f"/botlive/musica/{it['id']}?e={exp}&s={self.sign(it['id'], exp)}"} for it in tocar]}
+        if admin:
+            nome = {it["id"]: it for it in todas}
+            out["todas"] = [{**{k: it.get(k) for k in ("id", "periodo", "titulo", "artista", "fonte")}, "off": bool(it.get("off"))}
+                            for it in todas]
+            out["tocou"] = [{"t": x["t"], "id": x["id"], "titulo": (nome.get(x["id"]) or {}).get("titulo", "(removida)"),
+                             "artista": (nome.get(x["id"]) or {}).get("artista", ""), "fonte": (nome.get(x["id"]) or {}).get("fonte", "")}
+                            for x in self.tocou]
+        return out
 
     async def import_url(self, http, url: str, periodo: str, titulo: str, artista: str = "", fonte: str = "") -> dict:
         """0.32.351: o servidor baixa a faixa direto da Pixabay (só cdn.pixabay.com, https, até 25 MB)."""

@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
-Emissão: **2026-11-15**; revisão documental **2.0**.
-Aplicação: **0.32.370 · 2026-11-15 · Forex: conector do cTrader (mestres reais no ranking e cópia fictícia ao vivo)**.
-Referência Git na emissão: `6b1f77584488be3944385cfec2139f9bff9abf20`; fontes locais identificadas por SHA-256 no JSON.
+Emissão: **2026-11-16**; revisão documental **2.0**.
+Aplicação: **0.32.371 · 2026-11-16 · BOT LIVE: só música gerada, pausar faixa e o que tocou por último**.
+Referência Git na emissão: `8feec88e4e12ab98894a43d62893e0781f6f0851`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

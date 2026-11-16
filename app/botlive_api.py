@@ -175,7 +175,7 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         m = music()
         if m is None:
             return {"periodos": {}, "faixas": []}
-        return await m.public()
+        return await m.public(admin=True)
 
     @app.get("/api/botlive/obs/musicas")
     async def botlive_music_list_obs(k: str = ""):
@@ -193,6 +193,7 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         if not v:
             return Response(status_code=404)
         data, ct = v
+        m.played(fid)
         h = {"Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400"}
         rg = request.headers.get("range") or ""
         if rg.startswith("bytes="):
@@ -222,7 +223,7 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         except Exception as e:
             return JSONResponse({"error": "não consegui guardar a música: " + str(e)[:160]}, status_code=502)
         await audit(db, u["id"], "BOT LIVE: música enviada", f"{it['periodo']} · {it['titulo']}")
-        return {"ok": True, "faixa": it, **await m.public()}
+        return {"ok": True, "faixa": it, **await m.public(admin=True)}
 
     @app.post("/api/botlive/musicas/importar")
     async def botlive_music_import(body: dict, u: dict = Depends(admin_only)):
@@ -237,7 +238,7 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         except Exception as e:
             return JSONResponse({"error": "não consegui baixar: " + str(e)[:160]}, status_code=502)
         await audit(db, u["id"], "BOT LIVE: música importada", f"{it['periodo']} · {it['titulo']} · {it['fonte'][:120]}")
-        return {"ok": True, "faixa": it, **await m.public()}
+        return {"ok": True, "faixa": it, **await m.public(admin=True)}
 
     # 0.32.355 (pedido do dono): arte da SALA LIVE feita no SpriteCook (personagem animado por humor)
     @app.post("/api/botlive/arte/importar")
@@ -271,7 +272,7 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
         ok = await m.remove(str(body.get("id") or ""))
         if ok:
             await audit(db, u["id"], "BOT LIVE: música removida", str(body.get("id"))[:32])
-        return {"ok": ok, **await m.public()}
+        return {"ok": ok, **await m.public(admin=True)}
 
     @app.post("/api/botlive/musicas/periodo")
     async def botlive_music_move(body: dict, u: dict = Depends(admin_only)):
@@ -282,7 +283,31 @@ def add_routes(app, get_bot, admin_only, db, base_url: str = "") -> None:
             ok = await m.move(str(body.get("id") or ""), str(body.get("periodo") or ""))
         except ValueError as e:
             return JSONResponse({"error": str(e)}, status_code=400)
-        return {"ok": ok, **await m.public()}
+        return {"ok": ok, **await m.public(admin=True)}
+
+    # 0.32.371 (pedido do dono: o YouTube interrompeu a live por direitos autorais)
+    @app.post("/api/botlive/musicas/pausar")
+    async def botlive_music_pause(body: dict, u: dict = Depends(admin_only)):
+        """Pausa (ou volta) uma faixa: some da live sem apagar o arquivo."""
+        m = music()
+        if m is None:
+            return off()
+        off_ = bool(body.get("off"))
+        ok = await m.set_off(str(body.get("id") or ""), off_)
+        if ok:
+            await audit(db, u["id"], "BOT LIVE: música " + ("pausada" if off_ else "voltou a tocar"), str(body.get("id"))[:32])
+        return {"ok": ok, **await m.public(admin=True)}
+
+    @app.post("/api/botlive/musicas/so-gerada")
+    async def botlive_music_only_generated(body: dict, u: dict = Depends(admin_only)):
+        """Liga/desliga "só música gerada": a live toca só a música feita no navegador (sem nenhuma faixa com direitos)."""
+        m = music()
+        if m is None:
+            return off()
+        on = bool(body.get("on"))
+        await m.set_so_gerada(on)
+        await audit(db, u["id"], "BOT LIVE: só música gerada " + ("ligada" if on else "desligada"), "")
+        return {"ok": True, **await m.public(admin=True)}
 
     async def painel_de(c, uid: str) -> dict:
         p = c.painel(uid)
