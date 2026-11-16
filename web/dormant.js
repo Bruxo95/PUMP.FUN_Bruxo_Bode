@@ -223,7 +223,8 @@
       const L = grp[k], a = L[0], m = byKey[k] || {}, v1 = m.v1 != null ? m.v1 : a.v1, v24 = m.vol != null ? m.vol : a.vol24, st = m.status || a.para;
       return [V(hora(a.t), a.t),
         V('<span class="dmcoin">' + star(k) + '<b data-dmcoin="' + esc(k) + '">' + esc(nm(k)) + "</b></span> <small class=\"muted\">" + esc(m.simbolo || a.simbolo || "") +
-          (rep[nm(k)] > 1 ? " · " + esc(m.cg || k) : "") + (m.chain_nome ? " " + chainTag(m.chain_nome, (m.chains || []).join(", ")) : "") + "</small>", nm(k)),
+          (rep[nm(k)] > 1 ? " · " + esc(m.cg || k) : "") + (m.chain_nome ? " " + chainTag(m.chain_nome, (m.chains || []).join(", ")) : "") + "</small>" +
+          (m.preco != null ? '<small class="muted" style="display:block">' + price(m.preco) + "</small>" : ""), nm(k)),
         V(tag(st), stV(st)), V(pc(m.h1), m.h1), V(pc(m.h24), m.h24), V(usd(v1), v1), V(usd(v24), v24),
         '<div class="dmhist">' + L.slice(0, 4).map((x) => "<div>" + hev(x) + "</div>").join("") + (L.length > 4 ? '<small class="muted">+' + (L.length - 4) + " alertas antes</small>" : "") +
           (a.por && a.por.length ? '<small class="muted">' + esc(a.por.join(" · ")) + "</small>" : "") + "</div>"]; }), "Nenhum alerta ainda. Eles aparecem quando uma moeda muda para pump, dump ou acordando.");
@@ -1006,9 +1007,9 @@
       " · o valor agora não desconta a taxa de uma venda futura · vender vende o saldo do token na carteira, e as vendas abatem as compras mais antigas";
     const ok = r.itens.filter((x) => x.status === "confirmada"), fora = r.itens.filter((x) => x.status !== "confirmada");
     const tx = (x) => (x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—");
-    const moeda = (x) => '<div class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<div><b>" + esc(x.nome) + "</b> <small>" + esc(x.simbolo || "") + "</small></div></div>";
+    const moeda = (x) => '<div class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<div><b" + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda"' : "") + ">" + esc(x.nome) + "</b> <small>" + esc(x.simbolo || "") + "</small></div></div>";
     const kv = (l, v) => "<div><small>" + l + "</small><b>" + v + "</b></div>";
-    $("cpT").innerHTML = ok.length ? ok.map((x) => '<div class="cpc"><div class="t"><b>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
+    $("cpT").innerHTML = ok.length ? ok.map((x) => '<div class="cpc"><div class="t"><b' + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda" style="cursor:pointer"' : "") + '>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
       '<div>' + chainTag(x.rede_nome) + "</div>" + '<div class="n">' + esc(x.nome) + " · " + esc(x.dex || "") + (x.rota ? " · " + esc(x.rota) : "") + "</div>" +
       '<div class="g">' + kv("Total", pc(x.total)) + kv("Investido", "$" + num(x.custo, 2)) + kv("Valor agora", x.valor == null ? "—" : "$" + num(x.valor, 2)) +
       kv("Quantidade", qtd(x.qty)) + kv("Preço pago", price(x.px_in)) + kv("Agora", price(x.px_agora)) + "</div>" +

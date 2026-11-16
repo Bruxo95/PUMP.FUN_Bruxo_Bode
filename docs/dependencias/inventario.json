@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-16",
     "timezone": "Europe/Dublin",
-    "repository_reference": "8feec88e4e12ab98894a43d62893e0781f6f0851",
-    "application_version": "0.32.371 · 2026-11-16 · BOT LIVE: só música gerada, pausar faixa e o que tocou por último",
+    "repository_reference": "2de0341b0d52499d444286d7b3a8e09b607ffa39",
+    "application_version": "0.32.372 · 2026-11-16 · Dormant: nome da moeda abre a ficha em Minhas compras e preço embaixo do nome nos Alertas",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "65ae79819d4034d230d3b1c0267b44738f4b0fbd7e5048b13b87282da22d99ca",
+      "app/version.py": "00daa65f344df4e9346df5eeafb44400e927ab545dd7a91017f268cf1b811d03",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "73b6fabcb566667d47532497b7386df335b7a8585b844f2581c50d4f953b5f9c"
+  "pdf_sha256": "8dccc5384820a2946759842eace5fdaf6b26951206097359b448736b067b6896"
 }

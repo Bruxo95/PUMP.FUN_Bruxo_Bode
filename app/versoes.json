@@ -2615,6 +2615,11 @@
    "versao": "0.32.371",
    "inicio": "2026-11-16T16:45:00+00:00",
    "titulo": "BOT LIVE: só música gerada, pausar faixa e o que tocou por último"
+  },
+  {
+   "versao": "0.32.372",
+   "inicio": "2026-11-16T22:58:14+00:00",
+   "titulo": "Dormant: nome da moeda abre a ficha em Minhas compras e preço embaixo do nome nos Alertas"
   }
  ]
 }
