@@ -218,8 +218,20 @@ async def _funder(rpc: Rpc, wallet: str, now: float) -> dict:
 
 
 async def analyze(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, alert_pct: float = 20.0, bundle_lim: float = 25.0,
-                  now: float | None = None) -> dict:
+                  now: float | None = None, curve_pda: str | None = None) -> dict:
     now = now or time.time()
+    creator_src = "boost" if creator else None
+    if not creator and curve_pda:        # 0.32.383: o BOOST ainda não leu o DEV → lê aqui, na conta da curva (pela Alchemy)
+        try:
+            import base64
+            from .boostmig import creator_of
+            acc = ((await rpc.call("getAccountInfo", [curve_pda, {"encoding": "base64"}])) or {}).get("value")
+            creator = creator_of(base64.b64decode(acc["data"][0])) if acc else None
+            creator_src = "alchemy" if creator else None
+        except RpcError:
+            raise
+        except Exception:
+            creator = None
     sup = await rpc.call("getTokenSupply", [mint])
     supply = float(((sup or {}).get("value") or {}).get("uiAmountString") or 0)
     if supply <= 0:
@@ -272,5 +284,6 @@ async def analyze(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, ale
         launch_slot = min(slots) if slots else None
     out = build(mint, creator, rows, launch_slot, creator_funder, creator_pct, alert_pct, bundle_lim, now)
     out["creator_funder"] = creator_funder
+    out["creator"], out["creator_src"] = creator, creator_src
     out["chamadas"] = rpc.n
     return out

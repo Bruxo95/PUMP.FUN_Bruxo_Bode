@@ -1404,8 +1404,9 @@
     return '<span class="tag neutral">TERMINOU</span>'; };
   // 0.32.382: carteiras ligadas ao DEV (Alchemy) — etiqueta e janela com cada carteira
   const BM_SYN = { alto: ["ALERTA", "loss"], "médio": ["ATENÇÃO", "pause"], baixo: ["OK", "win"], "sem dados": ["SEM DADOS", "neutral"] };
-  function bmSy(s, m, st) {
-    if (!s) return '<span class="dim">' + (st && !st.chave ? "sem chave Alchemy" : st && !st.ligado ? "desligado" : "–") + "</span>";
+  function bmSy(s, m, st, x) {
+    if (!s) return '<span class="dim">' + (st && !st.chave ? "sem chave Alchemy" : st && !st.ligado ? "desligado" : st && st.rodando === m ? "analisando…" :
+      st && x && (x.progress || 0) < 100 ? "na fila" : "–") + "</span>";
     const N = BM_SYN[s.nivel] || [s.nivel || "?", "neutral"];
     return '<a href="#" class="bmdl" data-bmsy="' + esc(m) + '" title="' + esc(s.motivo || "") + '"><span class="tag ' + N[1] + '">' + N[0] + "</span></a>" +
       (s.real_dev_pct != null && s.nivel !== "sem dados" ? '<small class="bmwhy">DEV real ' + f(s.real_dev_pct, 1) + "% · bundle " + f(s.bundle_pct || 0, 1) + "%</small>" : "");
@@ -1461,7 +1462,7 @@
       return ["<b>" + pfM(x.mint, x.symbol || x.name) + "</b>" + (x.name && x.symbol && x.name !== x.symbol ? ' <small class="muted">' + esc(x.name) + "</small>" : "") + bmDev(x), dt(x.t0), bmBar(x, ex), bmSit(x),
         (u.estado ? '<span class="tag ' + E[1] + '">' + esc(E[0]) + "</span> " : "") + '<span class="wrapcell small">' + esc(u.motivo || ((cfg() || {}).pump_bm_on ? "" : "BOOST desligado para você")) + "</span>",
         x.safety_ok === true ? '<span class="up">sem trava</span>' : x.safety_ok === false ? '<span class="down">TRAVA</span>' : '<span class="dim">' + (x.safety_why || (x.progress || 0) > 60 ? "não conferido" : "conferindo…") + "</span>",
-        bmSy(x.sybil, x.mint, r.sybil),
+        bmSy(x.sybil, x.mint, r.sybil, x),
         x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
         res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–"];
     }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhuma migração nas últimas 24 h ainda. Os tokens aparecem aqui assim que migrarem para a PumpSwap.");

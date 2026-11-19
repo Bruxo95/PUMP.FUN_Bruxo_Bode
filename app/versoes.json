@@ -2670,6 +2670,11 @@
    "versao": "0.32.382",
    "inicio": "2026-11-19T21:30:00+00:00",
    "titulo": "BOOST: carteiras ligadas ao DEV (bundle e mesma origem) com a Alchemy — alerta e relatório"
+  },
+  {
+   "versao": "0.32.383",
+   "inicio": "2026-11-19T21:35:00+00:00",
+   "titulo": "BOOST: carteiras analisadas mesmo sem o DEV lido (DEV pela Alchemy) e situação na coluna"
   }
  ]
 }

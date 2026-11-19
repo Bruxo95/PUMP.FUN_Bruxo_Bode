@@ -114,7 +114,7 @@ def test_hub_analisa_avisa_e_sem_chave_nao_roda(tmp_path):
     b["creator"], b["symbol"] = DEV, "GTAVI"
     calls = []
 
-    async def fake_analyze(rpc, mint, creator, top, a, bl):
+    async def fake_analyze(rpc, mint, creator, top, a, bl, curve_pda=None):
         calls.append((mint, creator, top))
         return sybil.build(mint, creator, [{"wallet": "A", "pct": 30.0, "kind": "carteira", "first_slot": 100, "funder": DEV}], 100, None)
     hub = PumpHub.__new__(PumpHub)
@@ -139,3 +139,25 @@ def test_hub_analisa_avisa_e_sem_chave_nao_roda(tmp_path):
     row = boostmig.history_row(b, now + 1300)
     assert row["sybil"]["nivel"] == "alto"
     assert any(g["grupo"] == "Carteiras: alerta alto" for g in boostmig.hist_study([dict(row, p0=1.0)])["grupos"])
+
+
+def test_sem_dev_le_o_dev_na_curva_pela_alchemy():
+    """0.32.383: o RPC do sistema parou e o BOOST ficou sem DEV; a análise lê o DEV na conta da curva."""
+    import base64
+    from solders.keypair import Keypair
+    dev = str(Keypair().pubkey())
+    from solders.pubkey import Pubkey
+    raw = bytes(49) + bytes(Pubkey.from_string(dev)) + bytes(10)
+    inner = _fake()
+
+    def h(req):
+        b = json.loads(req.content)
+        if b["method"] == "getAccountInfo":
+            return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": {"value": {"data": [base64.b64encode(raw).decode(), "base64"]}}})
+        return inner.handle_request(req)
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(h)) as c:
+            return await sybil.analyze(sybil.Rpc(c, sybil.alchemy_url("k" * 20)), MINT, None, curve_pda="Curve111", now=5000)
+    r = asyncio.run(go())
+    assert r["creator"] == dev and r["creator_src"] == "alchemy"

@@ -1977,8 +1977,9 @@ class PumpHub:
         st["feitos"] = [t for t in st["feitos"] if now - t < 3600]
         if len(st["feitos"]) >= int(boostmig.SYBIL_MAX_H):
             return
-        cand = [b for b in bm.items.values() if not b.get("sybil") and b.get("sybil_tries", 0) < 2 and 10 <= now - b["t0"] <= boostmig.JANELA_S
-                and (b.get("creator") or b.get("creator_tries", 0) >= 3)]
+        # 0.32.383: não espera o BOOST ler o DEV (desde 19/11 ~19h o RPC do sistema não respondia e nada era analisado): com o DEV
+        # ainda desconhecido, a própria análise lê o DEV na conta da curva pela Alchemy
+        cand = [b for b in bm.items.values() if not b.get("sybil") and b.get("sybil_tries", 0) < 2 and 10 <= now - b["t0"] <= boostmig.JANELA_S]
         if not cand:
             return
         b = max(cand, key=lambda x: x["t0"])                  # o mais novo primeiro (é o que ainda dá para comprar)
@@ -1990,8 +1991,10 @@ class PumpHub:
             ORIGIN.set("BOOST (carteiras, Alchemy)")
             rpc = sybil.Rpc(self.http, sybil.alchemy_url(key))
             try:
+                svc = bm.svc
+                pda = svc.curve_pda(b["mint"]) if (svc is not None and not b.get("creator")) else None
                 res = await sybil.analyze(rpc, b["mint"], b.get("creator"), int(boostmig.SYBIL_TOP), boostmig.SYBIL_ALERT_PCT,
-                                          boostmig.SYBIL_BUNDLE_PCT)
+                                          boostmig.SYBIL_BUNDLE_PCT, curve_pda=pda)
                 b["sybil"] = boostmig.finite(res)
                 st["ultimo"] = {"mint": b["mint"], "symbol": b.get("symbol"), "nivel": res["nivel"], "t": time.time(), "chamadas": rpc.n}
                 self._sybil_alert(b)
@@ -2025,7 +2028,7 @@ class PumpHub:
         b = self.bm.items.get(mint)
         if not b:
             return None
-        return {"mint": mint, "symbol": b.get("symbol"), "creator": b.get("creator"), "t0": b["t0"], "sybil": b.get("sybil")}
+        return {"mint": mint, "symbol": b.get("symbol"), "creator": b.get("creator") or (b.get("sybil") or {}).get("creator"), "t0": b["t0"], "sybil": b.get("sybil")}
 
     async def _bm_rpc_multi(self, keys: list, enc: str):
         """0.32.376: getMultipleAccounts no RPC do sistema (Administração → Chaves do sistema), se houver."""

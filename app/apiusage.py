@@ -36,7 +36,7 @@ APIS = [  # (host termina com, nome, limite mensal, limite por minuto)
 SKIP = ("supabase.co", "supabase.in", "api.telegram.org", "github.com")
 MORE = [("publicnode.com", "RPC da BNB (publicnode)"), ("blockrazor.xyz", "RPC da BNB (blockrazor)"),
         ("nodereal.io", "NodeReal (BNB)"), ("typesafe.ai", "Jev (TypeSafe)"), ("gopluslabs.io", "GoPlus (segurança BNB)"),
-        ("alchemy.com", "Alchemy (carteiras do BOOST)")]
+        ("solana-mainnet.g.alchemy.com", "Alchemy (carteiras do BOOST)")]
 CREDITS = {"Helius (RPC da Solana)": {"getProgramAccounts": 10}}      # o resto = 1 crédito por chamada
 PER_KEY = {"Solana Tracker", "Helius (RPC da Solana)"}                  # 0.32.240: mês contado por chave
 CRED = " · créditos"                                                   # sufixo da linha de créditos no mês (guardada no banco)
