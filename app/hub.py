@@ -1803,6 +1803,7 @@ class PumpHub:
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
         await bm.tick(now)
         self._bm_results(now)
+        self.sybil_tick(now)                              # 0.32.382: carteiras ligadas ao DEV (Alchemy), em segundo plano
         try:
             await self._bm_hist(now)                      # 0.32.378: análise de cada token aos 20 min (entrando ou não)
         except Exception as e:
@@ -1925,6 +1926,9 @@ class PumpHub:
         out["lista"] = [{k: d.get(k) for k in ("mint", "creator", "symbol", "name", "t0", "classe", "top_pct", "top_s", "dump_pct", "dump_s",
                                                 "dump_dur_s", "fim_pct", "fundo_pct", "buys_m5", "sells_m5", "mcap_sol", "safety_ok", "scam",
                                                 "entrou", "pnl_sol", "pnl_pct", "dev_n", "pontos", "marks")} for d in ds[:500]]
+        from .sybil import compact
+        for d, x in zip(ds[:500], out["lista"]):
+            x["sybil"] = compact(d.get("sybil"))
         self._bm_hist_cache = (key, time.time(), out)
         return out
 
@@ -1955,6 +1959,73 @@ class PumpHub:
             self.bm.load(rows, devs)
         except Exception as e:
             log.warning("boost da migração não carregou: %s", str(e)[:120])
+
+    # ------------------------------------------------------------------ 0.32.382: carteiras ligadas ao DEV (Alchemy)
+    def sybil_state(self) -> dict:
+        st = self.__dict__.setdefault("sybil_st", {"feitos": [], "chamadas": 0, "erros": 0, "ultimo_erro": None, "rodando": None,
+                                                  "ultimo": None})
+        return st
+
+    def sybil_tick(self, now: float) -> None:
+        """Um token por vez, uma análise por token, entre 10 s e o fim do BOOST, até SYBIL_MAX_H por hora. Só com a chave da
+        Alchemy (Administração → Chaves do sistema) e a opção ligada. Roda numa tarefa separada para não travar o BOOST."""
+        from . import sybil
+        st, bm = self.sybil_state(), self.bm
+        key = self.system_keys.get("alchemy_api_key")
+        if not key or not boostmig.SYBIL_ON or st["rodando"]:
+            return
+        st["feitos"] = [t for t in st["feitos"] if now - t < 3600]
+        if len(st["feitos"]) >= int(boostmig.SYBIL_MAX_H):
+            return
+        cand = [b for b in bm.items.values() if not b.get("sybil") and b.get("sybil_tries", 0) < 2 and 10 <= now - b["t0"] <= boostmig.JANELA_S
+                and (b.get("creator") or b.get("creator_tries", 0) >= 3)]
+        if not cand:
+            return
+        b = max(cand, key=lambda x: x["t0"])                  # o mais novo primeiro (é o que ainda dá para comprar)
+        b["sybil_tries"] = b.get("sybil_tries", 0) + 1
+        st["rodando"], st["inicio"] = b["mint"], now
+        st["feitos"].append(now)
+
+        async def run():
+            ORIGIN.set("BOOST (carteiras, Alchemy)")
+            rpc = sybil.Rpc(self.http, sybil.alchemy_url(key))
+            try:
+                res = await sybil.analyze(rpc, b["mint"], b.get("creator"), int(boostmig.SYBIL_TOP), boostmig.SYBIL_ALERT_PCT,
+                                          boostmig.SYBIL_BUNDLE_PCT)
+                b["sybil"] = boostmig.finite(res)
+                st["ultimo"] = {"mint": b["mint"], "symbol": b.get("symbol"), "nivel": res["nivel"], "t": time.time(), "chamadas": rpc.n}
+                self._sybil_alert(b)
+            except Exception as e:
+                st["erros"] += 1
+                st["ultimo_erro"] = f"{type(e).__name__}: {str(e)[:160]}".replace(key, "***")
+                if b.get("sybil_tries", 0) >= 2:
+                    b["sybil"] = {"t": round(time.time()), "nivel": "sem dados", "motivo": ("falhou: " + str(e)[:120]).replace(key, "***"), "erro": True}
+            finally:
+                st["chamadas"] += rpc.n
+                st["rodando"] = None
+                bm.dirty.add(b["mint"])
+        st["task"] = asyncio.create_task(run())
+
+    def _sybil_alert(self, b: dict) -> None:
+        """Avisa (sino, Feed e Telegram) cada admin com o BOOST ligado e o aviso ligado, quando o nível é alto ou médio."""
+        s = b.get("sybil") or {}
+        if s.get("nivel") not in ("alto", "médio"):
+            return
+        sym = b.get("symbol") or b["mint"][:6]
+        msg = (f"BOOST alerta de carteiras ({s['nivel']}): {sym} — {s.get('motivo')} · bundle {str(round(s.get('bundle_pct') or 0, 1)).replace('.', ',')}% "
+               f"em {s.get('bundle_n', 0)} carteiras · ligadas ao DEV {s.get('cluster_n', 0)}")
+        for pf in list(self.engines.values()):
+            if getattr(pf, "role", "user") == "admin" and getattr(pf.cfg, "pump_bm_on", False) and getattr(pf.cfg, "pump_bm_sybil_alert", True):
+                try:
+                    pf._emit(msg)
+                except Exception:
+                    pass
+
+    def bm_sybil(self, mint: str) -> dict | None:
+        b = self.bm.items.get(mint)
+        if not b:
+            return None
+        return {"mint": mint, "symbol": b.get("symbol"), "creator": b.get("creator"), "t0": b["t0"], "sybil": b.get("sybil")}
 
     async def _bm_rpc_multi(self, keys: list, enc: str):
         """0.32.376: getMultipleAccounts no RPC do sistema (Administração → Chaves do sistema), se houver."""
@@ -2073,7 +2144,11 @@ class PumpHub:
         scam.sort(key=lambda x: -(x.get("t") or 0))
         vip.sort(key=lambda x: (not x.get("vip"), -(x.get("pnl_sol") or 0)))
         ult = bm.st.get("ultima")
-        return {"itens": itens, "janela_s": boostmig.JANELA_S, "scam": scam, "vip": vip, "monitor": dict(bm.st),
+        sy = self.sybil_state()
+        sybil_st = {"chave": bool(self.system_keys.get("alchemy_api_key")), "ligado": bool(boostmig.SYBIL_ON), "hora": len([t for t in sy["feitos"] if now - t < 3600]),
+                    "max_h": int(boostmig.SYBIL_MAX_H), "chamadas": sy["chamadas"], "erros": sy["erros"], "ultimo_erro": sy["ultimo_erro"],
+                    "ultimo": sy["ultimo"], "rodando": sy["rodando"], "top": int(boostmig.SYBIL_TOP)}
+        return {"itens": itens, "janela_s": boostmig.JANELA_S, "scam": scam, "vip": vip, "monitor": dict(bm.st), "sybil": sybil_st,
                 "regras_dev": boostmig.apply_cfg({}),
                 "ws": bool((self.market.status or {}).get("ws")), "ultima_migracao_s": round(now - ult) if ult else None,
                 "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),

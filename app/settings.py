@@ -126,6 +126,13 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_ext_max_min": (float, 20.0, 1.0, 240.0),     # …tempo extra máximo depois do BOOST (min)
     "pump_bm_hold_profit_on": (bool, False, 0, 1),        # 0.32.380: segura até ficar +X% depois do BOOST
     "pump_bm_hold_profit_pct": (float, 10.0, 1.0, 1000.0),
+    "pump_bm_sybil_on": (bool, True, 0, 1),               # 0.32.382: carteiras ligadas ao DEV (Alchemy) — análise do servidor
+    "pump_bm_sybil_alert": (bool, True, 0, 1),            # …avisar (sino/Telegram) quando o nível for alto ou médio
+    "pump_bm_sybil_alert_pct": (float, 20.0, 5.0, 90.0),  # …alerta alto: DEV + carteiras ligadas com X% ou mais do total
+    "pump_bm_sybil_bundle_pct": (float, 25.0, 5.0, 90.0), # …alerta alto: bundle (comprou no bloco do lançamento) com X%+
+    "pump_bm_sybil_top": (float, 15.0, 5.0, 20.0),        # …quantos maiores detentores analisar
+    "pump_bm_sybil_max_h": (float, 30.0, 1.0, 200.0),     # …no máximo N tokens por hora (gasto da Alchemy)
+    "pump_bm_sybil_block": (bool, False, 0, 1),           # …TRAVA: barrar a compra com alerta alto (desativada nesta versão)
     "pump_bm_hist_min": (float, 20.0, 5.0, 30.0),         # 0.32.378: análise de cada token X min depois da migração (histórico)                   # posição do BOOST no laço rápido de preço (~1 s)
     # 0.32.102 (dono, 31/10): filtros do Jev Trade editáveis na tela; padrão = a regra que estava valendo
     "pump_jt_min_holders": (int, 40, 5, 5000),            # detentores mínimos na 1ª conferência

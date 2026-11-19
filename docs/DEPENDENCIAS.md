@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-19**; revisão documental **2.0**.
-Aplicação: **0.32.381 · 2026-11-19 · Forex: banco local conferido a cada 2 min, com a hora certa e o motivo do erro**.
-Referência Git na emissão: `0676b542882c761ae44964069b1423ca21aa2b5e`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.382 · 2026-11-19 · BOOST: carteiras ligadas ao DEV (bundle e mesma origem) com a Alchemy — alerta e relatório**.
+Referência Git na emissão: `6f73df5617dab2e645ab90e8bf368bce02d5023a`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -40,6 +40,7 @@ SYSTEM_NAMES = {
     "jupiter_api_key": "Chave da Jupiter (opcional)",
     "rpc_url": "RPC próprio (Helius etc.)",
     "jev_api_key": "Chave do Jev (TypeSafe AI) — modo sombra",
+    "alchemy_api_key": "Chave da Alchemy (Solana) — só para as carteiras do BOOST",
 }
 # 0.32.180 (pedido do dono: "tudo o que for BNB fica separado da rede Solana"): chaves do sistema da BNB. Ficam na mesma
 # tabela app_secrets (criptografadas), mas só aparecem e só são salvas no painel da BNB (/bnb → Administração).
@@ -55,6 +56,7 @@ KEY_LINKS = {
     "jupiter_api_key": "https://developers.jup.ag/portal",
     "rpc_url": "https://dashboard.helius.dev",
     "jev_api_key": "https://typesafe.ai",
+    "alchemy_api_key": "https://dashboard.alchemy.com",
     "nodereal_bnb_key": "https://nodereal.io/meganode",
     "wallet_private_key": "https://phantom.com",
     "telegram_bot_token": "https://t.me/BotFather",

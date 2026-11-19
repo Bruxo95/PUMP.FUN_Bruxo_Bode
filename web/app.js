@@ -1320,12 +1320,12 @@
       '<span class="wrapcell">' + (d.symbols || []).map(esc).join(", ") + "</span>", dt(d.ult)]), "Nenhum DEV com 2+ tokens no período.");
     const F = $("bmHF").value;
     const L = (r.lista || []).filter((x) => !F || (F === "entrou" ? x.entrou > 0 : x.classe === F));
-    table("bmHL", ["Token", "Migrou", "Classe", "Topo", "Dump", "Aos 1 min", "Aos 5 min", "Fim", "Compras × vendas", "Trava", "Scam", "Entrou / resultado"], L.map((x) => {
+    table("bmHL", ["Token", "Migrou", "Classe", "Topo", "Dump", "Aos 1 min", "Aos 5 min", "Fim", "Compras × vendas", "Trava", "Scam", "Carteiras", "Entrou / resultado"], L.map((x) => {
       const M = x.marks || {};
       return ['<a href="#" class="bmdl" data-bmtok="' + esc(x.mint) + '">' + esc(x.symbol || x.mint.slice(0, 6)) + "</a>" + (x.creator ? '<small class="bmwhy">DEV ' + bmDevLink(x.creator) + "</small>" : ""), dt(x.t0), bmCl(x.classe),
         x.top_pct == null ? "–" : pc(x.top_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.top_s) + "</small>", x.dump_pct == null ? "–" : pc(x.dump_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.dump_s) + "</small>",
         M["1"] == null ? "–" : pc(M["1"], 0), M["5"] == null ? "–" : pc(M["5"], 0), x.fim_pct == null ? "–" : pc(x.fim_pct, 0), x.buys_m5 == null ? "–" : x.buys_m5 + " × " + (x.sells_m5 || 0),
-        x.safety_ok === false ? '<span class="down">TRAVA</span>' : x.safety_ok === true ? '<span class="up">não</span>' : '<span class="dim">–</span>', x.scam ? '<span class="down">sim</span>' : "não",
+        x.safety_ok === false ? '<span class="down">TRAVA</span>' : x.safety_ok === true ? '<span class="up">não</span>' : '<span class="dim">–</span>', x.scam ? '<span class="down">sim</span>' : "não", bmSy(x.sybil, x.mint),
         x.entrou ? x.entrou + " conta(s)" + (x.pnl_sol != null ? " · " + sg(x.pnl_sol) : "") : '<span class="dim">ninguém</span>'];
     }), "Nenhum token analisado no período ainda: o primeiro aparece 20 min depois da primeira migração.");
   }
@@ -1402,8 +1402,44 @@
     if (/scam/i.test(st)) return '<span class="tag loss">DEV SCAM</span><small class="bmwhy">' + esc(st.replace(/^DEV scam — /, "")) + "</small>";
     if (p < 100) return '<span class="tag bmlive">ATIVO</span><small class="bmwhy">faltam ' + hms(Math.max(0, ((100 - p) / 100) * ((BM && BM.janela_s) || 300))) + "</small>";
     return '<span class="tag neutral">TERMINOU</span>'; };
+  // 0.32.382: carteiras ligadas ao DEV (Alchemy) — etiqueta e janela com cada carteira
+  const BM_SYN = { alto: ["ALERTA", "loss"], "médio": ["ATENÇÃO", "pause"], baixo: ["OK", "win"], "sem dados": ["SEM DADOS", "neutral"] };
+  function bmSy(s, m, st) {
+    if (!s) return '<span class="dim">' + (st && !st.chave ? "sem chave Alchemy" : st && !st.ligado ? "desligado" : "–") + "</span>";
+    const N = BM_SYN[s.nivel] || [s.nivel || "?", "neutral"];
+    return '<a href="#" class="bmdl" data-bmsy="' + esc(m) + '" title="' + esc(s.motivo || "") + '"><span class="tag ' + N[1] + '">' + N[0] + "</span></a>" +
+      (s.real_dev_pct != null && s.nivel !== "sem dados" ? '<small class="bmwhy">DEV real ' + f(s.real_dev_pct, 1) + "% · bundle " + f(s.bundle_pct || 0, 1) + "%</small>" : "");
+  }
+  async function openBmSy(m) {
+    ovShow("Carteiras ligadas ao DEV", "carregando…", "");
+    const d = await BB.api("/api/pump/boost-migracao/carteiras/" + encodeURIComponent(m));
+    if (d.error) { $("jtMS").textContent = d.error; return; }
+    const s = d.sybil;
+    $("jtMT").textContent = "Carteiras · " + (d.symbol || m.slice(0, 6));
+    if (!s) { $("jtMS").textContent = "Ainda não analisado."; $("jtMB").innerHTML = ""; return; }
+    const N = BM_SYN[s.nivel] || [s.nivel, "neutral"];
+    $("jtMS").innerHTML = '<span class="tag ' + N[1] + '">' + N[0] + "</span> " + esc(s.motivo || "") + " · " + pfM(m, "abrir na pump.fun") + (d.creator ? " · DEV " + bmDevLink(d.creator) : "") + " · analisado " + dt(s.t);
+    $("jtMB").innerHTML = '<div class="kpis" id="bmSyK"></div><h3 class="small">Maiores detentores (só carteiras de pessoas; pool e programas ficam de fora)</h3><div class="tablewrap"><table id="bmSyW" class="daytbl"></table></div>' +
+      '<h3 class="small">Mesma origem do dinheiro (2+ carteiras)</h3><div class="tablewrap"><table id="bmSyG" class="daytbl"></table></div>' +
+      '<p class="small muted">Bundle = recebeu o token até 2 blocos depois do lançamento. Ligada ao DEV = o DEV mandou o primeiro SOL, ou a mesma carteira que financiou o DEV, ou outra carteira do grupo. "Mesma origem" sem ligação com o DEV pode ser uma corretora. Carteira com 1.000+ transações = antiga (origem não procurada).</p>';
+    kpis("bmSyK", [["DEV real", pc(s.real_dev_pct || 0, 1).replace("+", ""), "DEV + ligadas + bundle", "hit"], ["Só o DEV", pc(s.dev_pct || 0, 1).replace("+", ""), (s.cluster_n || 0) + " carteira(s) ligada(s) ao DEV", "tr"],
+      ["Bundle", pc(s.bundle_pct || 0, 1).replace("+", ""), (s.bundle_n || 0) + " carteira(s) no bloco da criação", "pnl"], ["Mesma origem", pc(s.funder_max_pct || 0, 1).replace("+", ""), (s.funder_max_n || 0) + " carteiras · " + (s.novas_n || 0) + " nova(s) (<1 dia)", "pos"]]);
+    const sol = (w) => '<a href="https://solscan.io/account/' + encodeURIComponent(w) + '" target="_blank" rel="noopener">' + esc(shortW(w)) + "</a>";
+    table("bmSyW", ["Carteira", "% do total", "Marcas", "Quem mandou o 1º SOL", "Bloco (desde o lançamento)", "Idade"], (s.carteiras || []).map((w) => [sol(w.w), f(w.pct, 2) + "%",
+      (w.tags || []).map((t) => '<span class="tag ' + (t === "dev" || t === "ligada ao dev" || t === "bundle" ? "loss" : t === "nova" ? "pause" : "neutral") + '">' + esc(t) + "</span>").join(" ") || '<span class="dim">–</span>',
+      w.funder ? sol(w.funder) : (w.antiga ? '<span class="dim">antiga</span>' : "–"), w.bloco == null ? "–" : "+" + w.bloco, w.idade_h == null ? (w.antiga ? "1.000+ transações" : "–") : (w.idade_h < 48 ? f(w.idade_h, 1) + " h" : f(w.idade_h / 24, 0) + " dias")]), "Nenhuma carteira de pessoa entre os maiores.");
+    table("bmSyG", ["Origem", "Carteiras", "% do total", "Ligada ao DEV"], (s.grupos || []).map((g) => [sol(g.funder), String(g.n), f(g.pct, 2) + "%", g.dev ? '<span class="down">sim</span>' : "não"]), "Nenhuma origem comum.");
+  }
+  document.addEventListener("click", (e) => { const a = e.target.closest("[data-bmsy]"); if (!a) return; e.preventDefault(); openBmSy(a.dataset.bmsy); });
+  function renderBmSySt() {
+    const S = (BM || {}).sybil, el = $("bmSySt"); if (!el || !S) return;
+    el.innerHTML = "Alchemy: " + (S.chave ? '<b class="up">chave configurada</b>' : '<b class="down">sem chave</b> (Administração → Chaves do sistema)') + " · análise " + (S.ligado ? "ligada" : "desligada") +
+      " · " + S.hora + " de " + S.max_h + " na última hora · " + (S.chamadas || 0) + " pedidos desde que o servidor subiu" + (S.rodando ? " · analisando agora" : "") +
+      (S.ultimo ? " · último: " + esc(S.ultimo.symbol || S.ultimo.mint.slice(0, 6)) + " (" + esc(S.ultimo.nivel) + ")" : "") + (S.ultimo_erro ? ' · <span class="down">erro: ' + esc(S.ultimo_erro) + "</span>" : "");
+  }
   function renderBm() {
     const r = BM; if (!r) return;
+    renderBmSySt();
     const R = r.resumo || {}, ex = Number((cfg() || {}).pump_bm_exit_pct || 80);
     $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
       " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
@@ -1420,11 +1456,12 @@
     const its = (r.itens || []).filter((x) => { const e = (x.sua || {}).estado;
       return F === "todos" || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && e === "entrou") || (F === "esperar" && e === "esperar") ||
         (F === "fora" && e === "fora") || (F === "scam" && (x.scam || x.safety_ok === false)); });
-    table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Trava de venda", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
+    table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Trava de venda", "Carteiras", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
       const u = x.sua || {}, E = BM_EST[u.estado] || [u.estado ? u.estado : "–", "neutral"], res = x.result;
       return ["<b>" + pfM(x.mint, x.symbol || x.name) + "</b>" + (x.name && x.symbol && x.name !== x.symbol ? ' <small class="muted">' + esc(x.name) + "</small>" : "") + bmDev(x), dt(x.t0), bmBar(x, ex), bmSit(x),
         (u.estado ? '<span class="tag ' + E[1] + '">' + esc(E[0]) + "</span> " : "") + '<span class="wrapcell small">' + esc(u.motivo || ((cfg() || {}).pump_bm_on ? "" : "BOOST desligado para você")) + "</span>",
         x.safety_ok === true ? '<span class="up">sem trava</span>' : x.safety_ok === false ? '<span class="down">TRAVA</span>' : '<span class="dim">' + (x.safety_why || (x.progress || 0) > 60 ? "não conferido" : "conferindo…") + "</span>",
+        bmSy(x.sybil, x.mint, r.sybil),
         x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
         res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–"];
     }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhuma migração nas últimas 24 h ainda. Os tokens aparecem aqui assim que migrarem para a PumpSwap.");
@@ -2935,7 +2972,7 @@
         pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
         pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true, pump_bm_scam_dump_pct: 70, pump_bm_scam_dump_min: 10,
-        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10 }).then(() => { if (VIEW === "boost") loadBm(); });
+        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25 }).then(() => { if (VIEW === "boost") loadBm(); });
       return;
     }
     if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão
@@ -3810,7 +3847,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const TGL_REAL = ["pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real", pump_bm_on: "pump_bm_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
-  const TGL_NOBUY = ["pump_bm_fast", "pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
+  const TGL_NOBUY = ["pump_bm_sybil_on", "pump_bm_sybil_alert", "pump_bm_fast", "pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
   function tglScope(k, c) {
     if (TGL_REAL.includes(k)) return ["REAL", "só a carteira REAL (dinheiro de verdade), e só com a Execução real ligada"];
     if (TGL_NOBUY.includes(k)) return ["SEM COMPRA", "não compra nada, nem na fictícia nem na real: só muda dados, avisos ou contas"];
@@ -5433,7 +5470,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     wallet_private_key: "Chave privada (base58 da Phantom/Solflare ou os 64 números do id.json) de uma carteira NOVA só para o bot. Fica criptografada e só é usada no servidor para assinar.",
     rpc_url: "Opcional. Endereço https:// de um RPC próprio (Helius, QuickNode…) — mais rápido e sem limite do público.",
     jupiter_api_key: "Opcional. Aumenta o limite de cotações da Jupiter para a sua carteira.",
-    jev_api_key: "Chave da API do Jev (TypeSafe AI). Só opina nos sinais da Aba do Bruxo (modo sombra, nunca compra). Veja a aba JEV." };
+    jev_api_key: "Chave da API do Jev (TypeSafe AI). Só opina nos sinais da Aba do Bruxo (modo sombra, nunca compra). Veja a aba JEV.",
+    alchemy_api_key: "Chave da Alchemy (Solana). Usada SÓ para analisar as carteiras ligadas ao DEV nos tokens do BOOST (bundle e mesma origem). Pode colar a chave ou o endereço https://solana-mainnet.g.alchemy.com/v2/…" };
   // 0.31.25: passo a passo de cada chave, para quem nunca fez (pedido do dono em 2026-10-27: "muito usuário sem
   // experiência"). Os nomes dos botões nos sites de fora podem mudar; por isso o texto diz o que procurar.
   const KEY_HOW = {
@@ -5467,6 +5505,9 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
         "Escolha um nome (ex.: Meu PUMP) e depois um usuário que termine em bot (ex.: meupump123_bot).",
         "O BotFather responde com o token (números:letras). Copie, cole no campo abaixo e clique em Salvar.",
         "Abra o seu bot novo (link na resposta do BotFather) e toque em Iniciar. Sem isso ele não consegue mandar mensagem para você."] },
+    alchemy_api_key: { custo: "Tem plano grátis (limite mensal de unidades de uso; cada token analisado gasta ~50 pedidos).", ganha: "O BOOST passa a mostrar quanto do token está de verdade com o DEV: carteiras financiadas por ele ou pela mesma origem e as que compraram no bloco da criação (bundle). Avisa e vai para o relatório.",
+      passos: ["Clique em \"Criar minha chave →\" (abre o painel da Alchemy) e entre ou crie a conta.", "Crie um app (Create new app) e escolha a rede Solana (Mainnet).", "Copie a API key do app (ou o endereço https://solana-mainnet.g.alchemy.com/v2/…).",
+        "Cole no campo abaixo e clique em Salvar. A chave fica criptografada e nunca volta para a tela.", "Em BOOST → Regras → Carteiras ligadas ao DEV aparece \"chave configurada\"; o próximo token que migrar já é analisado."] },
     jev_api_key: { custo: "Pago por uso, bem barato (cerca de US$ 0,04 por milhão de tokens de entrada; cada pergunta usa poucas centenas).", ganha: "O Jev dá a opinião dele (entrar/esperar/evitar) em cada sinal da Aba do Bruxo. A aba JEV mostra se ele acerta.",
       passos: ["Clique em \"Criar minha chave →\" (abre o site da TypeSafe AI).", "Entre com a sua conta e abra a parte de API keys.", "Crie uma chave nova e copie na hora.",
         "Cole no campo abaixo e clique em Salvar. A chave fica criptografada e nunca volta para a tela.", "Na aba JEV, os tokens começam a aparecer no próximo sinal da Aba do Bruxo."] },
@@ -5480,9 +5521,9 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       "<ol>" + h.passos.map((p) => "<li>" + esc(p) + "</li>").join("") + "</ol></details>";
   }
   const KEY_SHORT = { solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", wallet_private_key: "Carteira do bot", rpc_url: "RPC",
-    jupiter_api_key: "Jupiter", telegram_bot_token: "Bot Telegram", telegram_chat_id: "Id Telegram", jev_api_key: "Jev" };
+    jupiter_api_key: "Jupiter", telegram_bot_token: "Bot Telegram", telegram_chat_id: "Id Telegram", alchemy_api_key: "Alchemy", jev_api_key: "Jev" };
   const KEY_NEED = { solanatracker_api_key: "Recomendada", wallet_private_key: "Só modo real", pumpportal_api_key: "Opcional", rpc_url: "Opcional",
-    jupiter_api_key: "Opcional", telegram_bot_token: "Para avisos", telegram_chat_id: "Para avisos", jev_api_key: "Teste (sombra)" };
+    jupiter_api_key: "Opcional", telegram_bot_token: "Para avisos", telegram_chat_id: "Para avisos", alchemy_api_key: "Carteiras do BOOST", jev_api_key: "Teste (sombra)" };
   const KEY_EDIT = {}; let KEY_SAVED = "", KEY_ERR_SIG = "";
   // 0.32.157 (pedido do dono): o erro que o Monitor mostra (ex.: Solana Tracker sem créditos) aparece também no cartão da chave
   function keyErr(k) {
@@ -5661,7 +5702,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const m = A.monitor || {}, rpc = m.rpc || {}, pp = m.pumpportal || {}, j = m.jupiter || {};
     $("adminS").innerHTML = [["Usuários cadastrados", A.users_total], ["Motores carregados", A.users_loaded], ["Com execução real ON", A.real_on], ["Trava do real (.env)", A.real_allowed ? "liberado" : "travado"],
       ["Monitor Solana", rpc.ws ? "conectado · " + (rpc.subs || 0) + " carteiras" : rpc.error || "desconectado"], ["Trades lidos / erros", (rpc.parsed || 0) + " / " + (rpc.tx_errors || 0)], ["PumpPortal (tokens novos)", pp.ws ? "conectado · " + (pp.new_tokens || 0) : pp.error || "desconectado"],
-      ["Jupiter", j && j.on ? "ok " + (j.latency_ms || "") + " ms" : (j && j.error) || "–"], ["Preço do SOL", m.sol_usd ? "$" + f(m.sol_usd, 2) : "–"], ["Chaves do sistema", Object.entries(A.system_keys || {}).filter((x) => x[1]).map((x) => ({ solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", jupiter_api_key: "Jupiter", rpc_url: "RPC próprio", jev_api_key: "Jev" }[x[0]])).join(", ") || "nenhuma"], ["No ar há", hms(A.uptime_s)],
+      ["Jupiter", j && j.on ? "ok " + (j.latency_ms || "") + " ms" : (j && j.error) || "–"], ["Preço do SOL", m.sol_usd ? "$" + f(m.sol_usd, 2) : "–"], ["Chaves do sistema", Object.entries(A.system_keys || {}).filter((x) => x[1]).map((x) => ({ solanatracker_api_key: "Solana Tracker", pumpportal_api_key: "PumpPortal", jupiter_api_key: "Jupiter", rpc_url: "RPC próprio", jev_api_key: "Jev", alchemy_api_key: "Alchemy" }[x[0]])).join(", ") || "nenhuma"], ["No ar há", hms(A.uptime_s)],
       ["Erros de gravação no banco", (A.db_errors || []).length ? A.db_errors.map((e) => e.user + ": " + (e.error || e.queued + " gravações na fila")).join(" · ") : "nenhum"],
       // 0.32.225: histórico no Postgres da VPS (erro completo em Administração → Logs)
       ["Arquivo (Postgres da VPS)", !(A.arquivo && A.arquivo.ligado) ? "desligado" : A.arquivo.ok === false ? "falhou (veja os Logs)" : A.arquivo.ok ? "ok" : "esperando a 1ª volta"],

@@ -185,6 +185,9 @@ def test_system_keys_let_everyone_view_and_personal_key_wins(env):
         assert c.post("/api/admin/keys", json={"name": name, "value": "k-" + name + "-" + "z" * 20}, headers=A).json()["ok"]
     assert c.post("/api/admin/keys", json={"name": "rpc_url", "value": "https://helius.com/?api-key=" + "z" * 20}, headers=A).json()["ok"]
     assert c.post("/api/admin/keys", json={"name": "nodereal_bnb_key", "value": "a1" * 16}, headers=A).json()["error"]  # 0.32.180: só no /bnb
+    # 0.32.382: Alchemy aceita a chave ou o endereço, recusa outro site
+    assert c.post("/api/admin/keys", json={"name": "alchemy_api_key", "value": "https://evil.com/v2/" + "a" * 32}, headers=A).json()["error"]
+    assert c.post("/api/admin/keys", json={"name": "alchemy_api_key", "value": "https://solana-mainnet.g.alchemy.com/v2/" + "a" * 32}, headers=A).json()["ok"]
     view = c.get("/api/admin/keys", headers=A)
     assert all(v["configured"] for v in view.json()["keys"].values()) and SYS not in view.text
     assert SYS not in json.dumps(db.tables["app_secrets"])                       # no banco só a cifra
@@ -210,7 +213,7 @@ def test_system_keys_let_everyone_view_and_personal_key_wins(env):
     assert c.get("/api/secrets", headers=A).json()["keys"]["solanatracker_api_key"]["system"] is False
     assert c.get("/api/pump", headers=B).json()["lb_status"]["key_set"] is True
     acoes = [a["acao"] for a in db.tables["audit_log"] if a["user_id"] == UA]
-    assert acoes.count("admin: salvar chave do sistema") == 5 and "admin: remover chave do sistema" in acoes
+    assert acoes.count("admin: salvar chave do sistema") == 6 and "admin: remover chave do sistema" in acoes
 
 
 def test_system_keys_survive_restart(env):

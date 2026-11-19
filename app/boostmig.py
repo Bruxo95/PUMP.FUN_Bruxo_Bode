@@ -35,7 +35,11 @@ VIP_KEEP_S = 30 * 86400
 # original. A lista de DEVs é uma só para o servidor, então vale o último valor que um admin salvou (hub.bm_cfg).
 CFG_KEYS = {"pump_bm_hist_min": ("HIST_MIN", 1.0), "pump_bm_scam_dump_pct": ("SCAM_DUMP_PCT", 1.0), "pump_bm_scam_dump_min": ("SCAM_DUMP_MIN", 1.0),
             "pump_bm_twin_min": ("TWIN_MIN", 1.0), "pump_bm_scam_keep_d": ("SCAM_KEEP_S", 86400.0),
-            "pump_bm_vip_keep_d": ("VIP_KEEP_S", 86400.0)}
+            "pump_bm_vip_keep_d": ("VIP_KEEP_S", 86400.0),
+            # 0.32.382: carteiras ligadas ao DEV (Alchemy) — uma análise por token para o servidor todo
+            "pump_bm_sybil_on": ("SYBIL_ON", 1.0), "pump_bm_sybil_top": ("SYBIL_TOP", 1.0), "pump_bm_sybil_max_h": ("SYBIL_MAX_H", 1.0),
+            "pump_bm_sybil_alert_pct": ("SYBIL_ALERT_PCT", 1.0), "pump_bm_sybil_bundle_pct": ("SYBIL_BUNDLE_PCT", 1.0)}
+SYBIL_ON, SYBIL_TOP, SYBIL_MAX_H, SYBIL_ALERT_PCT, SYBIL_BUNDLE_PCT = 1.0, 15.0, 30.0, 20.0, 25.0
 
 
 def apply_cfg(cfg: dict) -> dict:
@@ -205,7 +209,7 @@ def history_row(b: dict, now: float, scam: dict | None = None) -> dict:
            "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"), "mcap_sol": b.get("mcap_sol"), "top10_pct": b.get("top10_pct"),
            "safety_ok": b.get("safety_ok"), "safety_why": b.get("safety_why"), "dev_n": b.get("dev_n"),
            "scam": bool(scam), "scam_why": (scam or {}).get("why"), "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"),
-           "entry": b.get("entry"), "entrou": len(entrou), "fora_motivo": fora[0] if fora else None,
+           "entry": b.get("entry"), "sybil": b.get("sybil"), "entrou": len(entrou), "fora_motivo": fora[0] if fora else None,
            "pnl_sol": res.get("pnl_sol"), "pnl_pct": res.get("pnl_pct"), "saida": res.get("why"),
            "serie": [[int(p[0]), p[1]] for p in se]}
     return row
@@ -272,7 +276,12 @@ def hist_study(rows: list[dict]) -> dict:
           grupo("Com trava de venda", lambda r: r.get("safety_ok") is False), grupo("Sem trava (conferido)", lambda r: r.get("safety_ok") is True),
           grupo("100+ compras em 5 min", lambda r: (r.get("buys_m5") or 0) >= 100), grupo("Menos de 100 compras", lambda r: (r.get("buys_m5") or 0) < 100),
           grupo("Compras ≥ vendas × 1,2", lambda r: (r.get("buys_m5") or 0) >= (r.get("sells_m5") or 0) * 1.2),
-          grupo("DEV com 2+ tokens em 24 h", lambda r: (r.get("dev_n") or 1) >= 2), grupo("Alguém entrou", lambda r: (r.get("entrou") or 0) > 0)]
+          grupo("DEV com 2+ tokens em 24 h", lambda r: (r.get("dev_n") or 1) >= 2), grupo("Alguém entrou", lambda r: (r.get("entrou") or 0) > 0),
+          # 0.32.382: carteiras ligadas ao DEV (Alchemy)
+          grupo("Carteiras: alerta alto", lambda r: (r.get("sybil") or {}).get("nivel") == "alto"),
+          grupo("Carteiras: alerta médio", lambda r: (r.get("sybil") or {}).get("nivel") == "médio"),
+          grupo("Carteiras: sem alerta", lambda r: (r.get("sybil") or {}).get("nivel") == "baixo"),
+          grupo("Bundle 10%+ do total", lambda r: ((r.get("sybil") or {}).get("bundle_pct") or 0) >= 10)]
     out["grupos"] = [g for g in gs if g]
     devs = {}
     for r in rows:
@@ -701,7 +710,10 @@ class BoostMig:
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
                 "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry")
-        return {k: b.get(k) for k in keep}
+        out = {k: b.get(k) for k in keep}
+        from .sybil import compact
+        out["sybil"] = compact(b.get("sybil"))
+        return out
 
     def dump(self, m: str) -> dict:
         b = self.items[m]

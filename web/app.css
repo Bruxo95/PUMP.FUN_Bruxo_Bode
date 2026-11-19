@@ -1109,3 +1109,7 @@ label.chgrp{cursor:pointer}
 .qtxt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .qtxt small{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
 .qrow .tgl{flex:0 0 auto}
+
+/* 0.32.382: BOOST — carteiras ligadas ao DEV */
+.bmsy{margin-top:6px}
+#bmSyCard .tgl[disabled]{opacity:.55;cursor:not-allowed}

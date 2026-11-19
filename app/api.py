@@ -1345,6 +1345,12 @@ def create_app(hub, auth, cfg) -> FastAPI:
                 value = check_rpc_url(value)
             except ValueError as e:
                 return {"error": str(e)}
+        elif name == "alchemy_api_key":               # 0.32.382: aceita a chave ou o endereço da Alchemy; guarda só a chave
+            from .sybil import key_of
+            try:
+                value = key_of(value)
+            except ValueError as e:
+                return {"error": str(e)}
         elif len(value) < 16:
             return {"error": "chave inválida (curta demais)"}
         try:
@@ -1423,6 +1429,19 @@ def create_app(hub, auth, cfg) -> FastAPI:
     @app.get("/api/pump/consultas")
     async def consultas_state(u: dict = Depends(admin_only)):
         return {"itens": await hub.q_state()}
+
+    # 0.32.382 (pedido do dono): carteiras ligadas ao DEV de um token do BOOST (Alchemy)
+    @app.get("/api/pump/boost-migracao/carteiras/{mint}")
+    async def bm_carteiras(mint: str, u: dict = Depends(admin_only)):
+        d = hub.bm_sybil(mint)
+        if d is None:
+            d = await hub.bm_hist_token(mint)
+            d = {"mint": mint, "symbol": (d or {}).get("symbol"), "creator": (d or {}).get("creator"), "t0": (d or {}).get("t0"),
+                 "sybil": (d or {}).get("sybil")} if d else None
+        if d is None:
+            raise HTTPException(404, "token não encontrado")
+        from .boostmig import finite
+        return finite(d)
 
     # 0.32.373 (pedido do dono): BOOST da migração (app/boostmig.py)
     @app.get("/api/pump/boost-migracao")
