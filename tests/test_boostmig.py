@@ -163,3 +163,30 @@ def test_rota_exige_admin(env):
 
 
 from tests.test_api import env  # noqa: E402,F401
+
+
+def test_regras_do_dev_editaveis_como_no_original():
+    """0.32.375 (pedido do dono: "as regras do BOOST não têm as mesmas opções"): % do full dump, minutos, cópias, dias do scam e
+    do VIP vêm da tela; o livro do VIP esquece resultados mais velhos que os dias escolhidos."""
+    from app.settings import USER_KEYS
+    for k, v in (("pump_bm_scam_dump_pct", 70.0), ("pump_bm_scam_dump_min", 10.0), ("pump_bm_twin_min", 10.0),
+                 ("pump_bm_scam_keep_d", 7.0), ("pump_bm_vip_keep_d", 30.0), ("pump_bm_fast", True)):
+        assert USER_KEYS[k][1] == v
+    try:
+        got = bmod.apply_cfg({"pump_bm_scam_dump_pct": 50, "pump_bm_scam_dump_min": 5, "pump_bm_vip_keep_d": 1})
+        assert got["pump_bm_scam_dump_pct"] == 50 and bmod.SCAM_DUMP_MIN == 300 / 60 and bmod.VIP_KEEP_S == 86400
+        now = 3_000_000.0
+        bm = BoostMig(Svc({}), clock=lambda: now)
+        velho = pronto(bm, M2, now - 3600, now)
+        velho["track"] = {"n": 5, "dump_pct": -55.0, "dump_s": 200, "top_pct": 30}       # −55% em 3 min: com 50% já é scam
+        bm.dev_book["D9"] = {"mints": {"a": {"pnl_sol": 0.01, "t": now - 2 * 86400}, "b": {"pnl_sol": 0.02, "t": now - 60}}}
+        bm.scam_mark(now)
+        assert DEV in bm.scam_devs and list(bm.dev_book["D9"]["mints"]) == ["b"]
+    finally:
+        bmod.apply_cfg({"pump_bm_scam_dump_pct": 70, "pump_bm_scam_dump_min": 10, "pump_bm_twin_min": 10, "pump_bm_scam_keep_d": 7,
+                        "pump_bm_vip_keep_d": 30})
+    mon = open(os.path.join("app", "monitor.py"), encoding="utf-8").read()
+    assert 'p.get("origem") == "boostmig" and getattr(e.cfg, "pump_bm_fast", True)' in mon
+    html = open(os.path.join("web", "app.html"), encoding="utf-8").read()
+    for k in ("pump_bm_scam_dump_pct", "pump_bm_scam_dump_min", "pump_bm_twin_min", "pump_bm_scam_keep_d", "pump_bm_vip_keep_d", "pump_bm_fast"):
+        assert 'data-cfg="' + k + '"' in html or 'data-toggle="' + k + '"' in html

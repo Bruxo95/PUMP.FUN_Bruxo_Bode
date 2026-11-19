@@ -29,6 +29,27 @@ SCAM_DUMP_PCT, SCAM_DUMP_MIN = 70.0, 10.0
 TWIN_MIN = 10.0
 SCAM_KEEP_S = 7 * 86400
 VIP_KEEP_S = 30 * 86400
+
+# 0.32.375 (pedido do dono: "as regras do BOOST não têm as mesmas opções"): regras do DEV scam/VIP editáveis na tela, como no
+# original. A lista de DEVs é uma só para o servidor, então vale o último valor que um admin salvou (hub.bm_cfg).
+CFG_KEYS = {"pump_bm_scam_dump_pct": ("SCAM_DUMP_PCT", 1.0), "pump_bm_scam_dump_min": ("SCAM_DUMP_MIN", 1.0),
+            "pump_bm_twin_min": ("TWIN_MIN", 1.0), "pump_bm_scam_keep_d": ("SCAM_KEEP_S", 86400.0),
+            "pump_bm_vip_keep_d": ("VIP_KEEP_S", 86400.0)}
+
+
+def apply_cfg(cfg: dict) -> dict:
+    """{opção pump_bm_*: valor} → constantes do módulo (dias viram segundos). Devolve o que ficou valendo, nas unidades da tela."""
+    g = globals()
+    out = {}
+    for key, (name, mul) in CFG_KEYS.items():
+        v = cfg.get(key)
+        if v is not None:
+            try:
+                g[name] = float(v) * mul
+            except (TypeError, ValueError):
+                pass
+        out[key] = round(g[name] / mul, 2)
+    return out
 SAFETY_TTL_S = 600
 SAFETY_TRIES = 4
 
@@ -223,6 +244,14 @@ class BoostMig:
         for cr in [c for c, d in self.scam_devs.items() if now - d.get("t", 0) > SCAM_KEEP_S]:
             del self.scam_devs[cr]
             self.dirty_devs.add(cr)
+        for cr, d in list(self.dev_book.items()):                          # livro do VIP: resultado guardado por VIP_KEEP_S
+            ms = {m: x for m, x in (d.get("mints") or {}).items() if now - float(x.get("t") or now) <= VIP_KEEP_S}
+            if len(ms) != len(d.get("mints") or {}):
+                self.dirty_devs.add(cr)
+                if ms:
+                    d["mints"] = ms
+                else:
+                    del self.dev_book[cr]
 
     def vip_note(self, mint: str, pnl_sol: float, pnl_pct: float | None, real: bool, now: float) -> None:
         """Resultado de um BOOST fechado (de qualquer conta) vai para o livro do DEV. VIP = 1+ ganho e saldo > 0."""

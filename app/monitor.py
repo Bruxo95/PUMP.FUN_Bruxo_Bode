@@ -931,6 +931,7 @@ class SharedMonitor:
         for e in self.engines():
             for p in e.positions():
                 fast = p.get("trail_peak") is not None or (getattr(e.cfg, "pump_stop_fast_on", True) and p.get("origem") != "explorar")
+                fast = fast or (p.get("origem") == "boostmig" and getattr(e.cfg, "pump_bm_fast", True))   # 0.32.375: BOOST a cada ~1 s
                 if fast and not p.get("selling"):
                     ms.append(p["mint"])
                     qty[p["mint"]] = qty.get(p["mint"], 0.0) + float(p.get("tokens_left") or 0)

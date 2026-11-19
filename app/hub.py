@@ -1785,6 +1785,7 @@ class PumpHub:
             return
         bm.svc = svc
         now = time.time()
+        boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
         await bm.tick(now)
         self._bm_results(now)
         for uid, pf in list(self.engines.items()):
@@ -1881,6 +1882,22 @@ class PumpHub:
         except Exception as e:
             log.warning("boost da migração não carregou: %s", str(e)[:120])
 
+    def bm_cfg(self) -> dict:
+        """0.32.375: regras compartilhadas do BOOST (DEV scam/VIP). Para cada opção, o valor do admin que a mudou por último na
+        tela (`_ov_user`); se ninguém mudou, o padrão. Mesmo jeito dos filtros do Jev Trade."""
+        out = {}
+        for key in boostmig.CFG_KEYS:
+            best = None
+            for e in getattr(self, "engines", {}).values():
+                if getattr(e, "role", "user") != "admin":
+                    continue
+                when = (getattr(e, "_ov_user", None) or {}).get(key)
+                if when and (best is None or str(when) > best[0]):
+                    best = (str(when), getattr(e.cfg, key, None))
+            if best and best[1] is not None:
+                out[key] = best[1]
+        return out
+
     def bm_state(self, pf: PumpFun, uid: str) -> dict:
         bm, now = self.bm, time.time()
         itens = []
@@ -1906,6 +1923,7 @@ class PumpHub:
         vip.sort(key=lambda x: (not x.get("vip"), -(x.get("pnl_sol") or 0)))
         ult = bm.st.get("ultima")
         return {"itens": itens, "janela_s": boostmig.JANELA_S, "scam": scam, "vip": vip, "monitor": dict(bm.st),
+                "regras_dev": boostmig.apply_cfg({}),
                 "ws": bool((self.market.status or {}).get("ws")), "ultima_migracao_s": round(now - ult) if ult else None,
                 "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
