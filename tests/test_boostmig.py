@@ -362,3 +362,29 @@ def test_stop_de_ganho_autonomo_so_arma_no_fim_do_boost_se_negativo(tmp_path):
     assert not [x for x in pf.positions() if x["mint"] == M]
     tr = [t for t in pf.trades(50) if t.get("mint") == M][0]
     assert tr["reason"].startswith("BOOST") and not tr["reason"].startswith("stop de ganho")
+
+
+def test_real_do_boost_segue_a_ficticia_mesmo_sem_espelho(tmp_path):
+    """0.32.387 (pedido do dono): a REAL do BOOST não decide sozinha; só vende quando a fictícia vende (inteira ou em partes)."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "name": "GTA VI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False, pump_bm_sg_after=False, pump_real_mirror=False, pump_bm_no_stop=False,
+                         pump_bm_partial_on=False, pump_bm_trail_start=500)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    f = [p for p in pf.positions() if p["mint"] == M][0]
+    r = dict(f, id="real-1", real=True, wallet="manual")             # a REAL comprada junto (sem espelho: sem sim_id)
+    pf._save_pos(r)
+    vendas = []
+    pf._real_sell = lambda p, frac, why: vendas.append((p["id"], frac, why)) or True
+    assert pf.bm_follows_sim(r) and r["id"] in [x["id"] for x in pf.real_twins(f)]
+    pf.tokens[M].update(price=1e-6 * 0.3, last_t=now + 5)              # caiu 70%: o stop de 40% vende a fictícia…
+    pf._check_stops(M, now + 5)
+    assert vendas and vendas[0][0] == "real-1" and vendas[0][1] == 1.0  # …e a REAL vai junto, nunca antes nem sozinha
+    assert not [p for p in pf.positions() if p["mint"] == M and not p.get("real")]
+    setattr(pf.cfg, "pump_bm_real_follow", False)
+    assert not pf.bm_follows_sim(r)

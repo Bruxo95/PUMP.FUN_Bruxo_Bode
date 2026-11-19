@@ -2690,6 +2690,11 @@
    "versao": "0.32.386",
    "inicio": "2026-11-19T22:55:00+00:00",
    "titulo": "BOOST: stop de ganho autônomo só no fim do BOOST e só se estiver negativo (opção)"
+  },
+  {
+   "versao": "0.32.387",
+   "inicio": "2026-11-19T23:20:00+00:00",
+   "titulo": "BOOST: a carteira REAL segue a fictícia (só vende quando a fictícia vende)"
   }
  ]
 }

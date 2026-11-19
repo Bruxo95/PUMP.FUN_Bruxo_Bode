@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
-Emissão: **2026-11-19**; revisão documental **2.0**.
-Aplicação: **0.32.386 · 2026-11-19 · BOOST: stop de ganho autônomo só no fim do BOOST e só se estiver negativo (opção)**.
-Referência Git na emissão: `c6681e8da30af338b6e9b302649d9df2db3de617`; fontes locais identificadas por SHA-256 no JSON.
+Emissão: **2026-11-20**; revisão documental **2.0**.
+Aplicação: **0.32.387 · 2026-11-20 · BOOST: a carteira REAL segue a fictícia (só vende quando a fictícia vende)**.
+Referência Git na emissão: `3c6137990899c5037c321b229eaa6a1ddaef8995`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

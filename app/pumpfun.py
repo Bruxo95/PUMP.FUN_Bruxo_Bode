@@ -2009,9 +2009,17 @@ class PumpFun:
         if p.get("real"):                    # a venda real não depende da chave da execução real (0.32.103)
             return []
         mirror = getattr(self.cfg, "pump_real_mirror", True)
+        bm = p.get("origem") == "boostmig"
         return [rp for rp in self.positions() if rp.get("real") and rp["mint"] == p["mint"]
                 and ((mirror and rp.get("sim_id") == p["id"])
+                     or (bm and rp.get("origem") == "boostmig")      # 0.32.387: no BOOST a REAL segue a fictícia mesmo sem espelho
                      or (not rp.get("sim_id") and rp.get("wallet") == p.get("wallet") and p.get("wallet") not in (None, "manual")))]
+
+    def bm_follows_sim(self, rp: dict) -> bool:
+        """0.32.387 (pedido do dono: "a real segue 100% a fictícia no BOOST"): REAL do BOOST com a fictícia do mesmo token aberta
+        não decide nada sozinha (stop, stop móvel, venda em partes, fim do BOOST, tempo): só vende quando a fictícia vende."""
+        return bool(rp.get("real") and rp.get("origem") == "boostmig" and getattr(self.cfg, "pump_bm_real_follow", True)
+                    and any(not x.get("real") and x["mint"] == rp["mint"] and x.get("origem") == "boostmig" for x in self.positions()))
 
     def _waits_real(self, p: dict) -> bool:
         """Fictícia com a compra REAL do espelho ainda saindo (real ligada): a real tem prioridade (0.31.47)."""
@@ -2129,6 +2137,8 @@ class PumpFun:
             self.sg_sombra.preco(mint, px, t)
         self._note_suspect_price(mint, px)
         for p in sorted([p for p in self.positions() if p["mint"] == mint], key=lambda q: not q.get("real")):   # 0.32.160: real primeiro
+            if self.bm_follows_sim(p):                     # 0.32.387: a REAL do BOOST não tem regra própria; segue a fictícia
+                continue
             if not px or p.get("selling"):
                 continue
             if p.get("exit_follow") and not p.get("real"):
@@ -2457,6 +2467,8 @@ class PumpFun:
         if self.sg_sombra.abertas:                         # 0.32.332: sombra do stop de ganho chegando ao tempo máximo
             self.sg_sombra.tempo(t, lambda m: (self.tokens.get(m) or {}).get("price"))
         for p in self.positions():
+            if self.bm_follows_sim(p):                     # 0.32.387: a REAL do BOOST sai junto com a fictícia
+                continue
             hold = self._auto_num(p.get("max_hold_s"))
             hold = hold if hold is not None else mx
             ext = p.get("bm_ext")
