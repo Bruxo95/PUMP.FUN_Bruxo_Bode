@@ -1286,7 +1286,8 @@
     const R = r.resumo || {}, ex = Number((cfg() || {}).pump_bm_exit_pct || 80);
     $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
       " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
-      " · janela de " + Math.round((r.janela_s || 300) / 60) + " min" + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "");
+      " · janela de " + Math.round((r.janela_s || 300) / 60) + " min · " + ((r.monitor || {}).cotacoes || 0) + " cotações Jupiter" +
+      ((r.monitor || {}).rpc_falhou ? " · RPC sem resposta " + r.monitor.rpc_falhou + "x" : "") + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "");
     const ativos = (r.itens || []).filter((x) => (x.progress || 0) < 100).length;
     kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h · " + ativos + " com BOOST ativo agora", "tr"], ["Você entrou", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA" + (R.abertas_real ? " · " + R.abertas_real + " na REAL" : ""), "pos"],
       ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],
@@ -1298,10 +1299,11 @@
     const its = (r.itens || []).filter((x) => { const e = (x.sua || {}).estado;
       return F === "todos" || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && e === "entrou") || (F === "esperar" && e === "esperar") ||
         (F === "fora" && e === "fora") || (F === "scam" && (x.scam || x.safety_ok === false)); });
-    table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
+    table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Trava de venda", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
       const u = x.sua || {}, E = BM_EST[u.estado] || [u.estado ? u.estado : "–", "neutral"], res = x.result;
       return ["<b>" + pfM(x.mint, x.symbol || x.name) + "</b>" + (x.name && x.symbol && x.name !== x.symbol ? ' <small class="muted">' + esc(x.name) + "</small>" : "") + bmDev(x), dt(x.t0), bmBar(x, ex), bmSit(x),
         (u.estado ? '<span class="tag ' + E[1] + '">' + esc(E[0]) + "</span> " : "") + '<span class="wrapcell small">' + esc(u.motivo || ((cfg() || {}).pump_bm_on ? "" : "BOOST desligado para você")) + "</span>",
+        x.safety_ok === true ? '<span class="up">sem trava</span>' : x.safety_ok === false ? '<span class="down">TRAVA</span>' : '<span class="dim">' + (x.safety_why || (x.progress || 0) > 60 ? "não conferido" : "conferindo…") + "</span>",
         x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
         res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–"];
     }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhuma migração nas últimas 24 h ainda. Os tokens aparecem aqui assim que migrarem para a PumpSwap.");

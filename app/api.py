@@ -1411,7 +1411,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
     # 0.32.373 (pedido do dono): BOOST da migração (app/boostmig.py)
     @app.get("/api/pump/boost-migracao")
     async def boost_migracao(u: dict = Depends(admin_only)):
-        return hub.bm_state(await hub.engine(u["id"]), u["id"])
+        # 0.32.376: número inválido (infinito/NaN) virava erro 500 sem texto ("resposta inválida do servidor" na tela)
+        from .boostmig import finite
+        try:
+            return finite(hub.bm_state(await hub.engine(u["id"]), u["id"]))
+        except Exception as e:
+            log.exception("boost: tela")
+            return JSONResponse({"error": f"BOOST: {type(e).__name__}: {str(e)[:160]}"}, status_code=500)
 
     @app.post("/api/pump/boost-migracao/dev")
     async def boost_migracao_dev(body: dict, u: dict = Depends(admin_only)):

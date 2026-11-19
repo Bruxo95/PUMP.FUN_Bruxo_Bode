@@ -1784,6 +1784,7 @@ class PumpHub:
         if svc is None:
             return
         bm.svc = svc
+        bm.rpc_multi = self._bm_rpc_multi
         now = time.time()
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
         await bm.tick(now)
@@ -1812,12 +1813,14 @@ class PumpHub:
             u.update(estado=est, motivo=why, t=now)
             if est != "entrar":
                 continue
-            tk = pf.tokens.get(m) or {}
-            if not tk.get("price") or now - float(tk.get("last_t") or 0) > 15:
-                try:
-                    await bm.svc._pumpswap_prices([m])
-                except Exception:
-                    pass
+            # 0.32.376: entra no preço da cotação da Jupiter da observação (até 10 s). O preço guardado do token pode ser o da
+            # curva, congelado depois da migração, e daria um ganho falso.
+            sm = b.get("samples") or []
+            if not sm or now - sm[-1][0] > 10:
+                u.update(estado="esperar", motivo="aguardando cotação da Jupiter (preço de agora)")
+                continue
+            tk = pf.tokens.setdefault(m, {"created_t": now})
+            tk.update(price=sm[-1][1], last_t=sm[-1][0], price_src="cotação Jupiter (compra de 0,01 SOL)", pool="pumpswap")
             real = bool(getattr(pf.cfg, "pump_bm_real", False))
             r = pf.manual_buy(m, t=now, auto="BOOST da migração · " + why, origem="boostmig", target="both" if real else "sim",
                               amt_sol=float(getattr(pf.cfg, "pump_bm_sol", 0.05)), pos_rules=bm.rules(pf.cfg, b, now))
@@ -1881,6 +1884,18 @@ class PumpHub:
             self.bm.load(rows, devs)
         except Exception as e:
             log.warning("boost da migração não carregou: %s", str(e)[:120])
+
+    async def _bm_rpc_multi(self, keys: list, enc: str):
+        """0.32.376: getMultipleAccounts no RPC do sistema (Administração → Chaves do sistema), se houver."""
+        u = self.system_keys.get("rpc_url") or getattr(self.cfg, "solana_rpc_public", "") or ""
+        if not u or not keys:
+            return None
+        try:
+            r = await self.http.post(u, timeout=8, json={"jsonrpc": "2.0", "id": "bm", "method": "getMultipleAccounts",
+                                                       "params": [keys, {"encoding": enc, "commitment": "confirmed"}]})
+            return ((r.json() or {}).get("result") or {}).get("value")
+        except Exception:
+            return None
 
     def bm_cfg(self) -> dict:
         """0.32.375: regras compartilhadas do BOOST (DEV scam/VIP). Para cada opção, o valor do admin que a mudou por último na

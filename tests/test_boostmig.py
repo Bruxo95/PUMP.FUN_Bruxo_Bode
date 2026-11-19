@@ -190,3 +190,37 @@ def test_regras_do_dev_editaveis_como_no_original():
     html = open(os.path.join("web", "app.html"), encoding="utf-8").read()
     for k in ("pump_bm_scam_dump_pct", "pump_bm_scam_dump_min", "pump_bm_twin_min", "pump_bm_scam_keep_d", "pump_bm_vip_keep_d", "pump_bm_fast"):
         assert 'data-cfg="' + k + '"' in html or 'data-toggle="' + k + '"' in html
+
+
+def test_observacao_cota_compra_na_jupiter_e_ignora_preco_da_curva():
+    """0.32.376 (prints do dono, 19/11: o antigo mostrava DEV e trava; o nosso não): a observação cota uma compra de 0,01 SOL na
+    Jupiter a cada volta (antes usava o preço guardado, que vinha da curva congelada); RPC sem resposta não gasta tentativa."""
+    now = 5_000_000.0
+
+    class Jup:
+        async def _quote(self, inp, out, amount, dexes, direct=True):
+            assert inp == bmod.SOL_MINT and amount == bmod.QUOTE_LAMPORTS
+            return {"outAmount": str(20_000 * 10 ** 6)}                 # 0,01 SOL → 20.000 tokens = 5e-7 SOL cada
+
+    class S(Svc):
+        market = types.SimpleNamespace(jup=Jup())
+
+        async def token_decimals(self, m):
+            return 6
+
+        async def _rpc_multi(self, keys, enc, pf=False):
+            return None
+
+        @staticmethod
+        def curve_pda(m):
+            return "PDA" + m[:4]
+
+    tk = {M: {"price": 4e-7, "last_t": now}}                             # preço congelado da curva
+    bm = BoostMig(S(tk), clock=lambda: now)
+    b = bm.on_migration({"mint": M, "txType": "migrate"}, now - 10)
+    run(bm._samples(now))
+    assert b["samples"] == [[round(now, 1), 5e-7]]
+    run(bm._creators(now))
+    run(bm._safety(now))
+    assert b.get("creator_tries", 0) == 0 and b.get("safety_tries", 0) == 0 and bm.st["rpc_falhou"] == 2
+    assert bmod.finite({"a": float("inf"), "b": [float("nan"), 1.5]}) == {"a": None, "b": [None, 1.5]}

@@ -52,6 +52,19 @@ def apply_cfg(cfg: dict) -> dict:
     return out
 SAFETY_TTL_S = 600
 SAFETY_TRIES = 4
+SOL_MINT = "So11111111111111111111111111111111111111112"
+QUOTE_LAMPORTS = 10_000_000        # 0,01 SOL: cotação de compra da observação (como no original)
+
+
+def finite(x):
+    """Troca infinito/NaN por None em toda a resposta (o JSON da API não aceita esses números)."""
+    if isinstance(x, float):
+        return x if x == x and x not in (float("inf"), float("-inf")) else None
+    if isinstance(x, dict):
+        return {k: finite(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [finite(v) for v in x]
+    return x
 
 
 def norm(v) -> str:
@@ -143,7 +156,8 @@ class BoostMig:
         self.dev_book: dict[str, dict] = {}
         self.dirty: set[str] = set()
         self.dirty_devs: set[str] = set()
-        self.st = {"migracoes": 0, "ultima": None, "erro": None}
+        self.st = {"migracoes": 0, "ultima": None, "erro": None, "rpc_falhou": 0, "cotacoes": 0, "sem_cotacao": 0}
+        self.rpc_multi = None                  # 0.32.376: o hub põe aqui o RPC do sistema (Helius) na frente do público
 
     # ------------------------------------------------------------------ eventos
     @property
@@ -333,13 +347,24 @@ class BoostMig:
             return "BOOST terminou"
         return f"BOOST ativo ({p:.0f}%)"
 
+    async def _rpc(self, keys: list, enc: str):
+        """0.32.376: RPC do sistema primeiro (o público responde 429 com frequência e a leitura do DEV e da trava se perdia)."""
+        if self.rpc_multi is not None:
+            vals = await self.rpc_multi(keys, enc)
+            if vals is not None:
+                return vals
+        return await self.svc._rpc_multi(keys, enc, True)
+
     async def _creators(self, now: float) -> None:
         need = [m for m, b in self.items.items() if not b.get("creator") and b.get("creator_tries", 0) < 3 and now - b["t0"] < 3600]
         if not need:
             return
         pdas = {m: self.svc.curve_pda(m) for m in need[:100]}
         keys = [v for v in pdas.values() if v]
-        vals = await self.svc._rpc_multi(keys, "base64", True) if keys else None
+        vals = await self._rpc(keys, "base64") if keys else None
+        if keys and vals is None:                  # RPC não respondeu: não gasta tentativa (antes 3 voltas de 429 = DEV nunca lido)
+            self.st["rpc_falhou"] += 1
+            return
         by = dict(zip(keys, vals or []))
         for m, pda in pdas.items():
             b = self.items[m]
@@ -372,8 +397,13 @@ class BoostMig:
                 and self.progress(b, now) <= OBS_MAX_PCT and now - b.get("safety_t", 0) > 10]
         if not need:
             return
-        vals = await self.svc._rpc_multi(need[:50], "jsonParsed", True)
-        for m, acc in zip(need[:50], vals or [None] * len(need[:50])):
+        vals = await self._rpc(need[:50], "jsonParsed")
+        if vals is None:                            # 0.32.376: RPC não respondeu: tenta de novo sem gastar tentativa
+            self.st["rpc_falhou"] += 1
+            for m in need[:50]:
+                self.items[m]["safety_t"] = now
+            return
+        for m, acc in zip(need[:50], vals):
             b = self.items[m]
             b["safety_tries"] = b.get("safety_tries", 0) + 1
             b["safety_t"] = now
@@ -382,19 +412,33 @@ class BoostMig:
             self.dirty.add(m)
 
     async def _samples(self, now: float) -> None:
-        """Preço de cada token nos primeiros 60% da janela, para a observação (cotação de venda pela Jupiter/PumpSwap)."""
+        """Preço de cada token nos primeiros 60% da janela, para a observação. 0.32.376: cotação de COMPRA de 0,01 SOL na Jupiter a
+        cada volta, como no original. Antes usava o preço guardado do token, que a Jupiter só atualiza para quem tem o token na
+        carteira: as primeiras leituras vinham do preço congelado da curva (~4e-7 → salto falso) e havia buracos de 2 min."""
+        jup = getattr(getattr(self.svc, "market", None), "jup", None)
         obs = [m for m, b in self.items.items() if self.progress(b, now) <= OBS_MAX_PCT and b.get("safety_ok") is not False]
-        if not obs:
+        if not obs or jup is None:
             return
-        await self.svc._pumpswap_prices(obs[:20])
-        for m in obs[:20]:
-            tk = self.tokens.get(m) or {}
-            px = tk.get("price")
-            if px and now - float(tk.get("last_t") or 0) < 10:
-                sm = self.items[m].setdefault("samples", [])
-                if not sm or sm[-1][0] != round(now, 1):
-                    sm.append([round(now, 1), px])
-                    del sm[:-60]
+        for m in sorted(obs, key=lambda x: -self.items[x]["t0"])[:8]:
+            b = self.items[m]
+            dec = await self.svc.token_decimals(m)
+            if dec is None:
+                continue
+            try:
+                q = await jup._quote(SOL_MINT, m, QUOTE_LAMPORTS, None, direct=False)
+            except Exception:
+                q = None
+            out = int((q or {}).get("outAmount") or 0) / (10 ** dec)
+            if out <= 0:
+                self.st["sem_cotacao"] += 1
+                continue
+            self.st["cotacoes"] += 1
+            px = QUOTE_LAMPORTS / 1e9 / out
+            sm = b.setdefault("samples", [])
+            sm.append([round(now, 1), px])
+            del sm[:-60]
+            tk = self.tokens.setdefault(m, {"created_t": now})
+            tk["bm_px"], tk["bm_px_t"] = px, now
 
     # ------------------------------------------------------------------ decisão de cada usuário
     def decide(self, c, b: dict, now: float, abertas_nomes: set, ja_aberto: int) -> tuple[str, str]:
@@ -493,6 +537,8 @@ class BoostMig:
             d = r.get("dados") or {}
             if d.get("mint") and now - float(d.get("t0") or 0) <= KEEP_S:
                 d.setdefault("users", {})
+                if not d.get("creator"):
+                    d["creator_tries"] = 0          # 0.32.376: as tentativas gastas com o RPC sem resposta voltam a valer
                 self.items.setdefault(d["mint"], d)
         for r in devs or []:
             d = r.get("dados") or {}

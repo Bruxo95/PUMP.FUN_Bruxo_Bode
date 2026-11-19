@@ -2635,6 +2635,11 @@
    "versao": "0.32.375",
    "inicio": "2026-11-19T07:00:00+00:00",
    "titulo": "Regras do BOOST com as mesmas opções do original"
+  },
+  {
+   "versao": "0.32.376",
+   "inicio": "2026-11-19T07:45:00+00:00",
+   "titulo": "BOOST: DEV, trava de venda e preço da observação como no original"
   }
  ]
 }
