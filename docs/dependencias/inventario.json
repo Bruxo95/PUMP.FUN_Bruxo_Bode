@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-19",
     "timezone": "Europe/Dublin",
-    "repository_reference": "0a7739ef4219c1439fb9f7a5121be5ba70b8d6a1",
-    "application_version": "0.32.379 · 2026-11-19 · Consultas do servidor: liga e desliga as consultas de cada aba (Só BOOST)",
+    "repository_reference": "0e56a8f1e4d6a68083cc6be9ffd6c455633cc57d",
+    "application_version": "0.32.380 · 2026-11-19 · BOOST: no fim do BOOST continua se as compras crescem (perda máxima 25%) e opção de segurar até +X%",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "92fe0c096fd0753d0e0ba61516f7a5a71bafa7efbfeaffb00182f3624b7c9e12",
+      "app/version.py": "fa9a4bc6ad61f398dd364155d2cf424cd6f0f48b810e71da66e637edc1ca1f53",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "fa343434da3a80243e7c8f40f6f78fcfac99eb17ef77722d066441e76aadac00",
+      "web/app.html": "ea16602e8b6e3f74069594b49fc54c25d9e7d2e4306a50455d61fac80cfe96de",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5209210d06373ea5e11c8695cf622093b10864a16362fd5cc07a076215e3408d"
+  "pdf_sha256": "e2f122374792fe306ada5fc7f37f978a48d824e5835729e705b6a9300b6b5663"
 }

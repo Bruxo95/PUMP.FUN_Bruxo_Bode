@@ -120,6 +120,12 @@ USER_KEYS: dict[str, tuple] = {
     "pump_q_calls": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
     "pump_q_raiox": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
     "pump_q_elite": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_bm_ext_on": (bool, True, 0, 1),                 # 0.32.380: no fim do BOOST fica se as compras crescem
+    "pump_bm_ext_grow_pct": (float, 10.0, 0.0, 500.0),    # …crescimento mínimo das compras no último minuto (%)
+    "pump_bm_ext_stop_pct": (float, 25.0, 1.0, 95.0),     # …perda máxima enquanto fica depois do BOOST (%)
+    "pump_bm_ext_max_min": (float, 20.0, 1.0, 240.0),     # …tempo extra máximo depois do BOOST (min)
+    "pump_bm_hold_profit_on": (bool, False, 0, 1),        # 0.32.380: segura até ficar +X% depois do BOOST
+    "pump_bm_hold_profit_pct": (float, 10.0, 1.0, 1000.0),
     "pump_bm_hist_min": (float, 20.0, 5.0, 30.0),         # 0.32.378: análise de cada token X min depois da migração (histórico)                   # posição do BOOST no laço rápido de preço (~1 s)
     # 0.32.102 (dono, 31/10): filtros do Jev Trade editáveis na tela; padrão = a regra que estava valendo
     "pump_jt_min_holders": (int, 40, 5, 5000),            # detentores mínimos na 1ª conferência

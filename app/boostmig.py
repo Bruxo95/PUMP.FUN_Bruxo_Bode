@@ -21,6 +21,7 @@ import base64
 import time
 
 JANELA_S = 300                     # duração estimada do BOOST
+BUYS_HIST_MAX = 130                # 0.32.380: leituras das compras guardadas por token (~30 min a cada 15 s)
 TRACK_S = 30 * 60                  # acompanha topo e dump de todo token por 30 min (entrando ou não)
 TRACK_EVERY_S = 15
 KEEP_S = 86400                     # histórico de 24 h
@@ -532,7 +533,25 @@ class BoostMig:
             tk = self.tokens.get(m) or {}
             px = tk.get("mkt_px") if now - float(tk.get("mkt_t") or 0) < 60 else None
             track_point(self.items[m], px, now)
+            v = tk.get("vol") or {}
+            if v and v.get("buys_m5") is not None:            # 0.32.380: compras dos últimos 5 min a cada 15 s (crescimento)
+                bh = self.items[m].setdefault("buys_hist", [])
+                bh.append([round(now), int(v.get("buys_m5") or 0), int(v.get("sells_m5") or 0)])
+                del bh[:-BUYS_HIST_MAX]
             self.dirty.add(m)
+
+    @staticmethod
+    def buy_growth(b: dict | None, now: float) -> float | None:
+        """0.32.380: crescimento das compras (contagem dos últimos 5 min da DexScreener) no último minuto, em %. None = sem
+        dados recentes (leitura com mais de 90 s ou nenhuma de 1–3 min atrás)."""
+        bh = (b or {}).get("buys_hist") or []
+        if not bh or now - bh[-1][0] > 90:
+            return None
+        old = [x for x in bh if now - 180 <= x[0] <= now - 50]
+        if not old:
+            return None
+        o, c = old[-1][1], bh[-1][1]
+        return round((c - o) / max(o, 1) * 100, 1)
 
     async def _safety(self, now: float) -> None:
         need = [m for m, b in self.items.items() if b.get("safety_ok") is None and b.get("safety_tries", 0) < SAFETY_TRIES
@@ -653,13 +672,26 @@ class BoostMig:
         do BOOST (prioridade sobre o stop) e stop de perda (0 = pausado até a saída do BOOST)."""
         g = lambda k, d: getattr(c, k, d)                                    # noqa: E731
         ex = float(g("pump_bm_exit_pct", 80))
-        hold = max(5.0, b["t0"] + JANELA_S * ex / 100 - now)
-        return {"stop_pct": 0.0 if g("pump_bm_no_stop", False) else float(g("pump_bm_stop_pct", 40)), "tp_pct": 0.0, "boost_tp": None,
+        end_t = b["t0"] + JANELA_S * ex / 100
+        hold = max(5.0, end_t - now)
+        out = {"stop_pct": 0.0 if g("pump_bm_no_stop", False) else float(g("pump_bm_stop_pct", 40)), "tp_pct": 0.0, "boost_tp": None,
                 "smart": False, "trail_on": True, "trail_start": float(g("pump_bm_trail_start", 10)),
                 "trail_dist": float(g("pump_bm_trail_dist", 5)),
                 "tp1_pct": float(g("pump_bm_partial_at", 15)) if g("pump_bm_partial_on", True) else None,
                 "tp1_frac": float(g("pump_bm_partial_frac", 50)), "max_hold_s": round(hold, 1),
                 "hold_why": f"BOOST {ex:.0f}% (saída em {ex:.0f}%)", "bm_t0": b["t0"]}
+        # 0.32.380 (pedido do dono): no fim do BOOST, fica se as compras estão crescendo e/ou até ficar +X%; enquanto fica,
+        # a perda máxima é a da opção (padrão 25%) e há um tempo extra máximo
+        grow_on, prof_on = bool(g("pump_bm_ext_on", True)), bool(g("pump_bm_hold_profit_on", False))
+        if grow_on or prof_on:
+            mx = float(g("pump_bm_ext_max_min", 20))
+            out["max_hold_s"] = round(hold + mx * 60, 1)
+            out["hold_why"] = f"BOOST {ex:.0f}% + {mx:g} min extras (tempo máximo)"
+            out["bm_ext"] = {"end_t": round(end_t, 1), "ex": ex, "max_min": mx, "stop": float(g("pump_bm_ext_stop_pct", 25)),
+                             "grow": float(g("pump_bm_ext_grow_pct", 10)) if grow_on else None,
+                             "profit": float(g("pump_bm_hold_profit_pct", 10)) if prof_on else None}
+        return out
+
 
     # ------------------------------------------------------------------ tela e banco
     def due_history(self, now: float) -> list[str]:
@@ -692,3 +724,21 @@ class BoostMig:
                 self.scam_devs[r["creator"]] = d["scam"]
             if d.get("book"):
                 self.dev_book[r["creator"]] = d["book"]
+
+
+def ext_decide(ext: dict, pnl: float | None, growth: float | None) -> tuple[bool, str]:
+    """0.32.380: depois do fim do BOOST — (continua?, motivo). Perda passou do máximo: sai. Compras crescendo no último minuto
+    acima do mínimo: fica. "Segurar até +X%" ligado e ainda abaixo de X%: fica. Senão sai."""
+    stop, grow, prof = float(ext.get("stop") or 25), ext.get("grow"), ext.get("profit")
+    if pnl is not None and pnl <= -stop:
+        return False, f"BOOST acabou: perda de {pnl:.0f}% (máximo {stop:g}%)"
+    if grow is not None and growth is not None and growth >= float(grow):
+        return True, f"compras crescendo {growth:+.0f}% no último minuto (mínimo +{float(grow):g}%)"
+    if prof is not None and (pnl is None or pnl < float(prof)):
+        return True, f"segurando até +{float(prof):g}% (agora {'sem preço' if pnl is None else f'{pnl:+.0f}%'})"
+    if prof is not None and pnl is not None and pnl >= float(prof):
+        return False, f"BOOST acabou e chegou a {pnl:+.0f}% (alvo +{float(prof):g}%)"
+    if grow is not None:
+        g = "sem dados de compras" if growth is None else f"{growth:+.0f}% no último minuto, mínimo +{float(grow):g}%"
+        return False, f"BOOST acabou e as compras não estão crescendo ({g})"
+    return False, f"BOOST {float(ext.get('ex') or 0):.0f}%"

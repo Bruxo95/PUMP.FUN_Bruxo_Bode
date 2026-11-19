@@ -189,6 +189,7 @@ class PumpHub:
         pf.learn_pool = lambda _pf=pf: self._learn_pool(_pf)                 # 0.31.63: aprendizado geral
         pf.sg_pool = self.sg_brain                                            # 0.32.332: stop de ganho com todas as contas
         pf.shadow_hook = self.shadow_note                                     # 0.31.72: entradas sombra
+        pf.bm_growth_hook = lambda m, t: boostmig.BoostMig.buy_growth(self.bm.items.get(m), t)   # 0.32.380
         pf.top_hook = self.top_note                                           # 0.32.124: compras barradas do Top traders
         # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
         # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta

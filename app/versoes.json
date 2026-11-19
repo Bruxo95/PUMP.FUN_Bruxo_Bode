@@ -2655,6 +2655,11 @@
    "versao": "0.32.379",
    "inicio": "2026-11-19T09:30:00+00:00",
    "titulo": "Consultas do servidor: liga e desliga as consultas de cada aba (Só BOOST)"
+  },
+  {
+   "versao": "0.32.380",
+   "inicio": "2026-11-19T09:55:00+00:00",
+   "titulo": "BOOST: no fim do BOOST continua se as compras crescem (perda máxima 25%) e opção de segurar até +X%"
   }
  ]
 }

@@ -111,7 +111,7 @@ def test_entra_na_ficticia_com_as_regras_e_sai_no_boost(tmp_path):
     pf.role = "admin"
     now = time.time()
     pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "name": "GTA VI", "pool": "pumpswap"}
-    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05)).items():
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False)).items():
         setattr(pf.cfg, k, v)
     bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
     b = pronto(bm, M, now - 60, now)
@@ -276,3 +276,43 @@ def test_historico_aos_20_min_guarda_tudo_e_calcula_as_metricas():
     assert bm.items[M]["hist_t"] == now and bm.due_history(now) == []
     sql = open(os.path.join("supabase", "migrations", "20261119000001_boost_historico.sql"), encoding="utf-8").read()
     assert "create table if not exists public.boost_history" in sql and "enable row level security" in sql and "delete" not in sql.lower()
+
+
+def test_fim_do_boost_continua_com_compras_crescendo_e_sai_com_perda_maxima(tmp_path):
+    """0.32.380 (pedido do dono): no fim do BOOST fica se as compras crescem; enquanto fica, perda máxima 25%; opção de
+    segurar até +X%."""
+    assert bmod.ext_decide({"stop": 25, "grow": 10, "profit": None, "ex": 90}, -5, 30)[0] is True
+    assert bmod.ext_decide({"stop": 25, "grow": 10, "profit": None, "ex": 90}, -5, 3) == (False, "BOOST acabou e as compras não estão crescendo (+3% no último minuto, mínimo +10%)")
+    assert bmod.ext_decide({"stop": 25, "grow": 10, "profit": None, "ex": 90}, -26, 80)[0] is False      # passou da perda máxima
+    assert bmod.ext_decide({"stop": 25, "grow": None, "profit": 10, "ex": 90}, 4, None)[0] is True       # segura até +10%
+    keep, why = bmod.ext_decide({"stop": 25, "grow": None, "profit": 10, "ex": 90}, 12, None)
+    assert keep is False and "+12%" in why
+    # crescimento: compras dos últimos 5 min agora × 1 min atrás
+    now = 1_000_000.0
+    b = {"buys_hist": [[now - 120, 100, 50], [now - 60, 100, 50], [now - 5, 130, 60]]}
+    assert BoostMig.buy_growth(b, now) == 30.0
+    assert BoostMig.buy_growth({"buys_hist": [[now - 200, 100, 0]]}, now) is None                         # leitura velha
+
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "name": "GTA VI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=True, pump_bm_ext_grow_pct=10, pump_bm_ext_stop_pct=25,
+                         pump_bm_ext_max_min=20, pump_bm_hold_profit_on=False)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    p = [p for p in pf.positions() if p["mint"] == M][0]
+    assert p["bm_ext"]["grow"] == 10 and abs(p["max_hold_s"] - (bmod.JANELA_S * 0.9 - 60 + 1200)) < 2
+    growth = {"v": 40.0}
+    pf.bm_growth_hook = lambda m, t: growth["v"]
+    end = p["bm_ext"]["end_t"]
+    assert pf.check_timeouts(end + 1) == []                       # compras crescendo: continua
+    p = [p for p in pf.positions() if p["mint"] == M][0]
+    assert p["stop_pct"] == 25 and p.get("bm_ext_t")              # perda máxima de 25% enquanto continua
+    growth["v"] = 2.0
+    msgs = pf.check_timeouts(end + 30)                            # parou de crescer: sai
+    assert not [x for x in pf.positions() if x["mint"] == M], msgs
+    tr = [t for t in pf.trades(50) if t.get("mint") == M][0]
+    assert tr["reason"].startswith("BOOST acabou e as compras não estão crescendo")

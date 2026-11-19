@@ -168,6 +168,7 @@ class PumpFun:
         self.leader_hook = None
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
         self.learn_pool = None
+        self.bm_growth_hook = None                    # 0.32.380: crescimento das compras de um token do BOOST (o hub liga)
         self.top_hook = None                          # 0.32.124: compra barrada do Top traders vira acompanhamento
         self.shadow_hook = None                       # 0.31.72: token "chance alta" barrado vira entrada sombra (hub)
         self._real_buying: _Buying = _Buying()
@@ -2455,12 +2456,44 @@ class PumpFun:
         for p in self.positions():
             hold = self._auto_num(p.get("max_hold_s"))
             hold = hold if hold is not None else mx
+            ext = p.get("bm_ext")
+            if ext and not p.get("selling") and t >= float(ext.get("end_t") or 0) and t - p.get("open_t", t) < hold:
+                msg = self._bm_ext_check(p, ext, t)          # 0.32.380: fim do BOOST — fica ou sai
+                if msg:
+                    out.append(msg)
+                continue
             if t - p.get("open_t", t) >= hold and not p.get("selling"):
                 out.append(self._sell(p, 1.0, (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now"),
                                       p.get("hold_why") or (f"tempo máximo ({hold / 60:g} min)" if p.get("max_hold_s") is not None else f"tempo máximo ({hold / 3600:.0f} h)"), t))
         return [m for m in out if m]
 
     NO_LIMIT_S = 10 * 365 * 86400.0
+
+    def _bm_ext_check(self, p: dict, ext: dict, t: float) -> str | None:
+        """0.32.380 (pedido do dono): o BOOST chegou ao fim (X%). Fica enquanto as compras crescem e/ou até ficar +X%; enquanto
+        fica, o stop de perda vira o máximo da opção (padrão 25%). Senão vende tudo com o motivo."""
+        from .boostmig import ext_decide
+        px = (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now")
+        pnl = None
+        if px and p.get("sol_in"):
+            pnl = (float(p.get("proceeds") or 0) + self._exit_value(p, px) - p["sol_in"]) / p["sol_in"] * 100
+        growth = None
+        if self.bm_growth_hook is not None:
+            try:
+                growth = self.bm_growth_hook(p["mint"], t)
+            except Exception:
+                growth = None
+        keep, why = ext_decide(ext, pnl, growth)
+        if keep:
+            if not p.get("bm_ext_t"):
+                p["bm_ext_t"] = t
+                p["stop_pct"] = float(ext.get("stop") or 25)       # perda máxima enquanto fica depois do BOOST
+                self._emit(f"BOOST: {p.get('symbol') or p['mint'][:6]} continua depois do fim do BOOST ({why})")
+            if p.get("bm_ext_why") != why:
+                p["bm_ext_why"] = why
+                self._save_pos(p)
+            return None
+        return self._sell(p, 1.0, px, why, t)
 
     def extend_hold(self, pid, add_min: float | None) -> dict:
         """0.31.69 (sugestão do Bruxo): estende o tempo máximo de UMA posição aberta (add_min minutos) ou tira o limite
