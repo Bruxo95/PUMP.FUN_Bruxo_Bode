@@ -2975,7 +2975,7 @@
         pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
         pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true, pump_bm_scam_dump_pct: 70, pump_bm_scam_dump_min: 10,
-        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25 }).then(() => { if (VIEW === "boost") loadBm(); });
+        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25 }).then(() => { if (VIEW === "boost") loadBm(); });
       return;
     }
     if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão

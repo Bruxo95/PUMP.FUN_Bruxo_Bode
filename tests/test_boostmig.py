@@ -111,7 +111,7 @@ def test_entra_na_ficticia_com_as_regras_e_sai_no_boost(tmp_path):
     pf.role = "admin"
     now = time.time()
     pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "name": "GTA VI", "pool": "pumpswap"}
-    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False)).items():
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False, pump_bm_sg_after=False)).items():
         setattr(pf.cfg, k, v)
     bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
     b = pronto(bm, M, now - 60, now)
@@ -316,3 +316,49 @@ def test_fim_do_boost_continua_com_compras_crescendo_e_sai_com_perda_maxima(tmp_
     assert not [x for x in pf.positions() if x["mint"] == M], msgs
     tr = [t for t in pf.trades(50) if t.get("mint") == M][0]
     assert tr["reason"].startswith("BOOST acabou e as compras não estão crescendo")
+
+
+def test_stop_de_ganho_autonomo_so_arma_no_fim_do_boost_se_negativo(tmp_path):
+    """0.32.386 (pedido do dono): durante o BOOST vale o stop móvel (o autônomo de +10% não vende); no fim, negativo → segura até
+    subir e aí o autônomo vende; positivo no fim → regras do BOOST."""
+    def setup(sub):
+        pf = _pf(tmp_path / sub)
+        pf.role = "admin"
+        now = time.time()
+        pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "name": "GTA VI", "pool": "pumpswap"}
+        for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False, pump_bm_hold_profit_on=False, pump_bm_sg_after=True,
+                             pump_bm_ext_stop_pct=25, pump_bm_ext_max_min=20, pump_sg_on=True, pump_sg_fixo_pct=10, pump_bm_trail_start=500,
+                             pump_bm_partial_on=False)).items():
+            setattr(pf.cfg, k, v)
+        bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+        pronto(bm, M, now - 60, now)
+        run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+        p = [p for p in pf.positions() if p["mint"] == M][0]
+        return pf, p, now
+
+    def px(pf, v, t):
+        pf.tokens[M].update(price=v, last_t=t)
+
+    pf, p, now = setup("a")
+    entry = p["entry_px"] if "entry_px" in p else p.get("price_in") or 1e-6
+    px(pf, entry * 1.5, now + 5)
+    assert not pf._check_stops(M, now + 5) or [x for x in pf.positions() if x["mint"] == M]   # +50% no BOOST: o autônomo não vende
+    assert [x for x in pf.positions() if x["mint"] == M]
+    end = p["bm_ext"]["end_t"]
+    px(pf, entry * 0.9, end + 1)                                   # negativo no fim do BOOST: segura
+    assert pf.check_timeouts(end + 1) == []
+    p = [x for x in pf.positions() if x["mint"] == M][0]
+    assert p.get("bm_sg_armed") and "esperando subir" in p.get("bm_ext_why", "")
+    px(pf, entry * 1.5, end + 60)                                  # subiu: o autônomo vende
+    pf._check_stops(M, end + 60)
+    assert not [x for x in pf.positions() if x["mint"] == M]
+    assert [t for t in pf.trades(50) if t.get("mint") == M][0]["reason"].startswith("stop de ganho autônomo")
+
+    pf, p, now = setup("b")                                        # positivo no fim: sai pelas regras do BOOST
+    end = p["bm_ext"]["end_t"]
+    entry = p["entry_px"] if "entry_px" in p else p.get("price_in") or 1e-6
+    px(pf, entry * 1.25, end + 1)
+    pf.check_timeouts(end + 1)
+    assert not [x for x in pf.positions() if x["mint"] == M]
+    tr = [t for t in pf.trades(50) if t.get("mint") == M][0]
+    assert tr["reason"].startswith("BOOST") and not tr["reason"].startswith("stop de ganho")

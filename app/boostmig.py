@@ -702,7 +702,8 @@ class BoostMig:
         # 0.32.380 (pedido do dono): no fim do BOOST, fica se as compras estão crescendo e/ou até ficar +X%; enquanto fica,
         # a perda máxima é a da opção (padrão 25%) e há um tempo extra máximo
         grow_on, prof_on = bool(g("pump_bm_ext_on", True)), bool(g("pump_bm_hold_profit_on", False))
-        if grow_on or prof_on:
+        sg_after = bool(g("pump_bm_sg_after", True))       # 0.32.386: precisa da conferência do fim do BOOST para armar o autônomo
+        if grow_on or prof_on or sg_after:
             mx = float(g("pump_bm_ext_max_min", 20))
             out["max_hold_s"] = round(hold + mx * 60, 1)
             out["hold_why"] = f"BOOST {ex:.0f}% + {mx:g} min extras (tempo máximo)"

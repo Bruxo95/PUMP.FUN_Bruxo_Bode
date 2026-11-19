@@ -2318,6 +2318,9 @@ class PumpFun:
             return None, "fora"
         if aba == "Explorar" and not getattr(c, "pump_sg_explorar", False):
             return None, "Explorar sem stop de ganho"
+        if p.get("origem") == "boostmig" and getattr(c, "pump_bm_sg_after", True) and not p.get("bm_sg_armed"):
+            # 0.32.386 (pedido do dono): durante o BOOST vale o stop móvel; o autônomo só arma no fim, se estiver negativo
+            return None, "BOOST: stop móvel (o autônomo só arma no fim do BOOST, se estiver negativo)"
         return stopganho.nivel_de(self.sg_decisions().get(aba), self._c("pump_sg_fixo_pct", 0))
 
     @staticmethod
@@ -2483,7 +2486,21 @@ class PumpFun:
                 growth = self.bm_growth_hook(p["mint"], t)
             except Exception:
                 growth = None
-        keep, why = ext_decide(ext, pnl, growth)
+        # 0.32.386 (pedido do dono): o stop de ganho autônomo do BOOST só arma no fim do BOOST e só se a posição estiver
+        # negativa: segura até subir e aí ele vende. Positiva no fim = segue as regras do BOOST (stop móvel, compras crescendo).
+        if "bm_end_pnl" not in p:
+            p["bm_end_pnl"] = None if pnl is None else round(pnl, 1)
+            if pnl is not None and pnl < 0 and getattr(self.cfg, "pump_bm_sg_after", True):
+                p["bm_sg_armed"] = True
+        lvl = self.sg_level(p) if p.get("bm_sg_armed") else None
+        if lvl is not None:
+            stop = float(ext.get("stop") or 25)
+            if pnl is not None and pnl <= -stop:
+                keep, why = False, f"BOOST acabou: perda de {pnl:.0f}% (máximo {stop:g}%)"
+            else:
+                keep, why = True, f"negativo no fim do BOOST: esperando subir até o stop de ganho autônomo (+{lvl:g}%)"
+        else:
+            keep, why = ext_decide(ext, pnl, growth)
         if keep:
             if not p.get("bm_ext_t"):
                 p["bm_ext_t"] = t

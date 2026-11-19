@@ -124,6 +124,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_ext_grow_pct": (float, 10.0, 0.0, 500.0),    # …crescimento mínimo das compras no último minuto (%)
     "pump_bm_ext_stop_pct": (float, 25.0, 1.0, 95.0),     # …perda máxima enquanto fica depois do BOOST (%)
     "pump_bm_ext_max_min": (float, 20.0, 1.0, 240.0),     # …tempo extra máximo depois do BOOST (min)
+    "pump_bm_sg_after": (bool, True, 0, 1),               # 0.32.386: stop de ganho autônomo só no fim do BOOST, se negativo
     "pump_bm_hold_profit_on": (bool, False, 0, 1),        # 0.32.380: segura até ficar +X% depois do BOOST
     "pump_bm_hold_profit_pct": (float, 10.0, 1.0, 1000.0),
     "pump_bm_sybil_on": (bool, True, 0, 1),               # 0.32.382: carteiras ligadas ao DEV (Alchemy) — análise do servidor

@@ -2685,6 +2685,11 @@
    "versao": "0.32.385",
    "inicio": "2026-11-19T22:10:00+00:00",
    "titulo": "BOOST: carteiras em até 20 s, token novo sempre primeiro e o resto depois; ritmo que se ajusta na Alchemy"
+  },
+  {
+   "versao": "0.32.386",
+   "inicio": "2026-11-19T22:55:00+00:00",
+   "titulo": "BOOST: stop de ganho autônomo só no fim do BOOST e só se estiver negativo (opção)"
   }
  ]
 }
