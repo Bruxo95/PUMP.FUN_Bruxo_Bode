@@ -1275,10 +1275,98 @@
     document.querySelectorAll("#bmTabs [data-bmt]").forEach((b) => b.classList.toggle("on", b.dataset.bmt === BMT));
     document.querySelectorAll('section[data-view="boost"] [data-bmt]:not(button)').forEach((c) => c.classList.toggle("ctoff", c.dataset.bmt !== BMT || (!!c.dataset.bmd && c.dataset.bmd !== BMD)));
     document.querySelectorAll("#bmDevTabs [data-bmdt]").forEach((b) => b.classList.toggle("on", b.dataset.bmdt === BMD));
+    if (BMT === "hist" && VIEW === "boost") loadBmHist();
   }
   let BMD = "vip";
   try { BMD = localStorage.getItem("pf_bmd") || "vip"; } catch (e) { /* */ }
   function bmDevTab(t) { BMD = t; try { localStorage.setItem("pf_bmd", t); } catch (e) { /* */ } bmTab(); }
+  // 0.32.378 (pedido do dono): histórico de todo token que migrou (analisado aos 20 min) e as métricas
+  const BM_CL = { despejou: ["DESPEJOU", "loss"], subiu: ["SUBIU", "win"], lateral: ["LATERAL", "neutral"], caiu: ["CAIU", "loss"], "sem preço": ["SEM PREÇO", "neutral"] };
+  const bmCl = (c) => { const x = BM_CL[c] || [c || "–", "neutral"]; return '<span class="tag ' + x[1] + '">' + esc(x[0]) + "</span>"; };
+  const bmMin = (s) => s == null ? "–" : s < 60 ? Math.round(s) + " s" : f(s / 60, 1) + " min";
+  let BMH = null, BMH_T = null;
+  function bmCurve(C) {
+    const pts = (C || []).filter((x) => x.med != null);
+    if (pts.length < 2) return '<p class="muted">O gráfico aparece quando houver tokens analisados (cada um entra 20 min depois de migrar).</p>';
+    const W = 640, H = 200, P = 36, xs = pts.map((p) => p.min), all = pts.flatMap((p) => [p.p25, p.p75, p.med, 0]).filter((v) => v != null);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...all), y1 = Math.max(...all);
+    const sx = (t) => P + (W - 2 * P) * (x1 > x0 ? (t - x0) / (x1 - x0) : 1), sy = (v) => H - P - (H - 2 * P) * (y1 > y0 ? (v - y0) / (y1 - y0) : 0.5);
+    const band = pts.map((p, i) => (i ? "L" : "M") + sx(p.min).toFixed(1) + " " + sy(p.p75).toFixed(1)).join(" ") + " " + pts.slice().reverse().map((p) => "L" + sx(p.min).toFixed(1) + " " + sy(p.p25).toFixed(1)).join(" ") + " Z";
+    let out = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Variação mediana do preço por minuto depois da migração"><line class="ax" x1="' + P + '" x2="' + (W - P) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/><text x="2" y="' + (sy(0) + 4) + '">0%</text>';
+    out += '<path class="bmband" d="' + band + '"/><path class="jvs1" d="' + pts.map((p, i) => (i ? "L" : "M") + sx(p.min).toFixed(1) + " " + sy(p.med).toFixed(1)).join(" ") + '"/>';
+    pts.forEach((p) => { out += '<circle class="bmdot" cx="' + sx(p.min).toFixed(1) + '" cy="' + sy(p.med).toFixed(1) + '" r="3"/><text x="' + (sx(p.min) - 8).toFixed(1) + '" y="' + (H - 10) + '">' + p.min + "m</text>"; });
+    return out + "</svg>";
+  }
+  function renderBmHist() {
+    const r = BMH; if (!r) return;
+    const K = r.kpi || {}, C = r.classes || {};
+    $("bmHSub").textContent = "todo token que migra (entrando ou não) é analisado " + f(r.hist_min || 20, 0) + " min depois da migração e guardado para sempre · " + (r.n || 0) + " tokens no período · " + (r.com_preco || 0) + " com preço";
+    kpis("bmHK", [["Tokens analisados", String(r.n || 0), (r.com_preco || 0) + " com preço", "tr"],
+      ["Topo (mediana)", K.top_med == null ? "–" : pc(K.top_med, 0), "aos " + bmMin(K.top_s_med) + " da migração", "pnl"],
+      ["Despejaram", K.despejou == null ? "–" : K.despejou + "%", "caíram 70%+ do topo · dump típico aos " + bmMin(K.dump_s_med), "hit"],
+      ["Terminaram acima", K.fim_pos == null ? "–" : K.fim_pos + "%", "aos " + f(r.hist_min || 20, 0) + " min · mediana " + (K.fim_med == null ? "–" : pc(K.fim_med, 0)), "pos"]]);
+    $("bmHCl").innerHTML = Object.keys(BM_CL).filter((k) => C[k]).map((k) => bmCl(k) + " " + C[k]).join(" · ");
+    $("bmHC").innerHTML = bmCurve(r.curva);
+    table("bmHCt", ["Minuto", "Tokens", "25%", "Mediana", "75%", "Acima do início"], (r.curva || []).map((x) => [x.min + " min", String(x.n), pc(x.p25, 0), "<b>" + pc(x.med, 0) + "</b>", pc(x.p75, 0), x.pos + "%"]), "Sem tokens analisados no período.");
+    table("bmHDu", ["Quando", "Tokens", "%"], (r.quando_dump || []).map((x) => [x.faixa, String(x.n), '<span class="bmbarh"><i style="width:' + x.pct + '%"></i></span> ' + x.pct + "%"]), "–");
+    const tt = (r.quando_topo || []).reduce((a, x) => a + x.n, 0) || 1;
+    table("bmHTo", ["Quando", "Tokens", "%"], (r.quando_topo || []).map((x) => [x.faixa, String(x.n), '<span class="bmbarh"><i style="width:' + Math.round(x.n / tt * 100) + '%"></i></span> ' + Math.round(x.n / tt * 100) + "%"]), "–");
+    const sais = ["3", "4", "5", "7", "10", "15", "20"];
+    $("bmHMSub").textContent = "resultado médio de todos os tokens, já com " + f(r.custo_pct || 1.5, 1) + "% de custo de ida e volta · (% positivos) · ajuda a escolher o % de entrada e de saída do BOOST (5 min = 100%)";
+    table("bmHM", ["Entra \\ sai"].concat(sais.map((x) => x + " min")), (r.entra_sai || []).map((l) => ["<b>" + l.entra + " min</b>"].concat(sais.map((x) => {
+      const c = (l.sai || {})[x]; return c ? pc(c.media, 1) + '<small class="bmwhy">' + c.pos + "% positivos · " + c.n + "</small>" : '<span class="dim">–</span>'; }))), "Sem dados ainda.");
+    table("bmHG", ["Grupo", "Tokens", "Topo (mediana)", "Fim (mediana)", "Despejaram", "Terminaram acima"], (r.grupos || []).map((g) => [esc(g.grupo), String(g.n), pc(g.top_med, 0), pc(g.fim_med, 0), g.despejou + "%", g.fim_pos + "%"]), "–");
+    table("bmHDv", ["DEV", "Tokens", "Despejaram", "Topo (mediana)", "Fim (mediana)", "Nomes", "Último"], (r.devs || []).map((d) => [bmDevLink(d.creator), String(d.n), d.despejou_pct + "%", pc(d.top_med, 0), pc(d.fim_med, 0),
+      '<span class="wrapcell">' + (d.symbols || []).map(esc).join(", ") + "</span>", dt(d.ult)]), "Nenhum DEV com 2+ tokens no período.");
+    const F = $("bmHF").value;
+    const L = (r.lista || []).filter((x) => !F || (F === "entrou" ? x.entrou > 0 : x.classe === F));
+    table("bmHL", ["Token", "Migrou", "Classe", "Topo", "Dump", "Aos 1 min", "Aos 5 min", "Fim", "Compras × vendas", "Trava", "Scam", "Entrou / resultado"], L.map((x) => {
+      const M = x.marks || {};
+      return ['<a href="#" class="bmdl" data-bmtok="' + esc(x.mint) + '">' + esc(x.symbol || x.mint.slice(0, 6)) + "</a>" + (x.creator ? '<small class="bmwhy">DEV ' + bmDevLink(x.creator) + "</small>" : ""), dt(x.t0), bmCl(x.classe),
+        x.top_pct == null ? "–" : pc(x.top_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.top_s) + "</small>", x.dump_pct == null ? "–" : pc(x.dump_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.dump_s) + "</small>",
+        M["1"] == null ? "–" : pc(M["1"], 0), M["5"] == null ? "–" : pc(M["5"], 0), x.fim_pct == null ? "–" : pc(x.fim_pct, 0), x.buys_m5 == null ? "–" : x.buys_m5 + " × " + (x.sells_m5 || 0),
+        x.safety_ok === false ? '<span class="down">TRAVA</span>' : x.safety_ok === true ? '<span class="up">não</span>' : '<span class="dim">–</span>', x.scam ? '<span class="down">sim</span>' : "não",
+        x.entrou ? x.entrou + " conta(s)" + (x.pnl_sol != null ? " · " + sg(x.pnl_sol) : "") : '<span class="dim">ninguém</span>'];
+    }), "Nenhum token analisado no período ainda: o primeiro aparece 20 min depois da primeira migração.");
+  }
+  async function loadBmHist() {
+    clearTimeout(BMH_T); BMH_T = setTimeout(() => { if (VIEW === "boost" && BMT === "hist") loadBmHist(); }, 60000);
+    const r = await BB.api("/api/pump/boost-migracao/historico?dias=" + ($("bmHD").value || 7), { quiet: true });
+    if (r.error) { $("bmHSub").textContent = r.error; return; }
+    BMH = r; renderBmHist();
+  }
+  async function openBmTok(m) {
+    ovShow("Token", "carregando…", "");
+    const d = await BB.api("/api/pump/boost-migracao/historico/" + encodeURIComponent(m));
+    if (d.error) { $("jtMS").textContent = d.error; return; }
+    $("jtMT").textContent = d.symbol || m.slice(0, 6);
+    $("jtMS").innerHTML = bmCl(d.classe) + " · migrou " + dt(d.t0) + " · analisado " + f(d.minutos || 20, 0) + " min depois · " + pfM(m, "abrir na pump.fun") + (d.creator ? " · DEV " + bmDevLink(d.creator) : "");
+    const se = d.serie || [], p0 = d.p0;
+    const pts = se.filter((p) => p[1] > 0 && p0).map((p) => [p[0] / 60, (p[1] / p0 - 1) * 100]);
+    let svg = '<p class="muted">Sem preço suficiente para o gráfico.</p>';
+    if (pts.length > 1) {
+      const W = 640, H = 200, P = 36, xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]).concat([0]);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const sx = (t) => P + (W - 2 * P) * (x1 > x0 ? (t - x0) / (x1 - x0) : 1), sy = (v) => H - P - (H - 2 * P) * (y1 > y0 ? (v - y0) / (y1 - y0) : 0.5);
+      svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Preço do token depois da migração"><line class="ax" x1="' + P + '" x2="' + (W - P) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/><text x="2" y="' + (sy(0) + 4) + '">0%</text><path class="jvs1" d="' +
+        pts.map((p, i) => (i ? "L" : "M") + sx(p[0]).toFixed(1) + " " + sy(p[1]).toFixed(1)).join(" ") + '"/>' +
+        (d.top_s != null && d.top_pct != null ? '<circle class="bmdot up" cx="' + sx(d.top_s / 60).toFixed(1) + '" cy="' + sy(d.top_pct).toFixed(1) + '" r="4"/>' : "") +
+        [0, 5, 10, 15, 20].filter((m2) => m2 >= x0 && m2 <= x1).map((m2) => '<text x="' + (sx(m2) - 8).toFixed(1) + '" y="' + (H - 10) + '">' + m2 + "m</text>").join("") + "</svg>";
+    }
+    $("jtMB").innerHTML = '<div class="kpis" id="bmTK"></div><div class="chartbox">' + svg + '</div><h3 class="small">Cada minuto</h3><div class="tablewrap"><table id="bmTM" class="daytbl"></table></div>' +
+      '<h3 class="small">Na hora da análise</h3><div class="tablewrap"><table id="bmTI" class="daytbl"></table></div>';
+    kpis("bmTK", [["Topo", d.top_pct == null ? "–" : pc(d.top_pct, 0), "aos " + bmMin(d.top_s), "pnl"], ["Dump", d.dump_pct == null ? "–" : pc(d.dump_pct, 0), "aos " + bmMin(d.dump_s) + " · durou " + bmMin(d.dump_dur_s), "hit"],
+      ["Fim", d.fim_pct == null ? "–" : pc(d.fim_pct, 0), "aos " + f(d.minutos || 20, 0) + " min · fundo " + (d.fundo_pct == null ? "–" : pc(d.fundo_pct, 0)), "tr"],
+      ["Nós", d.entrou ? d.entrou + " conta(s)" : "ninguém entrou", d.pnl_sol != null ? sg(d.pnl_sol) + " " + pc(d.pnl_pct) : (d.fora_motivo || ""), "pos"]]);
+    const M = d.marks || {};
+    table("bmTM", ["Minuto"].concat(Object.keys(M).map((k) => k + " min")), [["variação"].concat(Object.keys(M).map((k) => M[k] == null ? "–" : pc(M[k], 0)))], "–");
+    table("bmTI", ["Compras × vendas 5 min", "Mcap", "10 maiores", "Trava", "Scam", "Tokens do DEV em 24 h", "Observação", "Saída (se entrou)"], [[d.buys_m5 == null ? "–" : d.buys_m5 + " × " + (d.sells_m5 || 0),
+      d.mcap_sol == null ? "–" : f(d.mcap_sol, 0) + " SOL", d.top10_pct == null ? "–" : f(d.top10_pct, 0) + "%", d.safety_ok === false ? '<span class="down">' + esc(d.safety_why || "TRAVA") + "</span>" : d.safety_ok ? "não" : "não conferido",
+      d.scam ? '<span class="down">' + esc(d.scam_why || "sim") + "</span>" : "não", d.dev_n == null ? "–" : String(d.dev_n), d.trend_pct == null ? "–" : "preço " + pc(d.trend_pct) + " · queda " + pc(d.drawdown_pct),
+      esc(d.saida || "–")]], "–");
+  }
+  document.addEventListener("click", (e) => { const a = e.target.closest("[data-bmtok]"); if (!a) return; e.preventDefault(); openBmTok(a.dataset.bmtok); });
+  document.addEventListener("change", (e) => { if (e.target.id === "bmHD") loadBmHist(); if (e.target.id === "bmHF") renderBmHist(); });
   const bmDevLink = (c, ico) => '<a href="#" class="bmdl" data-bmdev1="' + esc(c) + '" title="Ver todos os detalhes deste DEV">' + (ico || "") + esc(shortW(c)) + "</a>";
   const bmAgo = (t) => t ? dt(t) + '<small class="bmwhy">há ' + hms(Math.max(0, Date.now() / 1000 - t)) + "</small>" : "–";
   async function openBmDev(c) {
@@ -2847,7 +2935,7 @@
         pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
         pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true, pump_bm_scam_dump_pct: 70, pump_bm_scam_dump_min: 10,
-        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true }).then(() => { if (VIEW === "boost") loadBm(); });
+        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20 }).then(() => { if (VIEW === "boost") loadBm(); });
       return;
     }
     if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão

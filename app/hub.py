@@ -1789,6 +1789,10 @@ class PumpHub:
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
         await bm.tick(now)
         self._bm_results(now)
+        try:
+            await self._bm_hist(now)                      # 0.32.378: análise de cada token aos 20 min (entrando ou não)
+        except Exception as e:
+            log.warning("boost (histórico): %s", str(e)[:160])
         for uid, pf in list(self.engines.items()):
             if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_bm_on", False) or not hasattr(pf, "manual_buy"):
                 continue
@@ -1860,6 +1864,59 @@ class PumpHub:
                 self.bm.vip_note(m, pnl, b["result"]["pnl_pct"], b["result"]["real"], now)
                 self.bm.dirty.add(m)
                 break
+
+    async def _bm_hist(self, now: float) -> None:
+        """0.32.378 (pedido do dono): todo token que migrou ganha um registro PERMANENTE em boost_history HIST_MIN min depois da
+        migração: série de preço, preço em cada minuto, topo e dump (quanto e quando), compras/vendas, DEV, trava, scam e o
+        nosso resultado. É a base das métricas do submenu Histórico e análise."""
+        bm = self.bm
+        due = bm.due_history(now)
+        if not due:
+            return
+        rows = []
+        for m in due[:50]:
+            b = bm.items[m]
+            sc = ((bm.scam_devs.get(b.get("creator") or "") or {}).get("mints") or {}).get(m)
+            r = boostmig.history_row(b, now, sc)
+            rows.append({"mint": m, "creator": r["creator"], "symbol": (r["symbol"] or "")[:40] or None,
+                         "t0": datetime.fromtimestamp(r["t0"], timezone.utc).isoformat(),
+                         "analisado": datetime.fromtimestamp(now, timezone.utc).isoformat(), "classe": r["classe"],
+                         "top_pct": r["top_pct"], "top_s": r["top_s"], "dump_pct": r["dump_pct"], "dump_s": r["dump_s"],
+                         "fim_pct": r["fim_pct"], "scam": r["scam"], "trava": r["safety_ok"] is False, "entrou": r["entrou"],
+                         "pnl_sol": r["pnl_sol"], "dados": boostmig.finite(r)})
+        await self.db.insert("boost_history", rows, upsert=True, on_conflict="mint")
+        for m in due[:50]:
+            bm.items[m]["hist_t"] = now
+            bm.dirty.add(m)
+        self._bm_hist_cache = None
+
+    async def bm_hist(self, dias: float = 7) -> dict:
+        """Linhas do histórico do período + métricas (cache de 60 s)."""
+        key = round(float(dias), 2)
+        c = getattr(self, "_bm_hist_cache", None)
+        if c and c[0] == key and time.time() - c[1] < 60:
+            return c[2]
+        since = datetime.fromtimestamp(time.time() - float(dias) * 86400, timezone.utc).isoformat()
+        rows, off = [], 0
+        while off < 20000:                               # o banco devolve no máximo 1.000 linhas por pedido
+            part = await self.db.select("boost_history", None, order="t0.desc", limit=1000, gte={"t0": since}, columns="dados", offset=off)
+            rows += part
+            if len(part) < 1000:
+                break
+            off += 1000
+        ds = [r.get("dados") or {} for r in rows]
+        out = boostmig.hist_study(ds)
+        out["dias"] = dias
+        out["hist_min"] = boostmig.HIST_MIN
+        out["lista"] = [{k: d.get(k) for k in ("mint", "creator", "symbol", "name", "t0", "classe", "top_pct", "top_s", "dump_pct", "dump_s",
+                                                "dump_dur_s", "fim_pct", "fundo_pct", "buys_m5", "sells_m5", "mcap_sol", "safety_ok", "scam",
+                                                "entrou", "pnl_sol", "pnl_pct", "dev_n", "pontos", "marks")} for d in ds[:500]]
+        self._bm_hist_cache = (key, time.time(), out)
+        return out
+
+    async def bm_hist_token(self, mint: str) -> dict | None:
+        rows = await self.db.select("boost_history", {"mint": mint}, limit=1, columns="dados")
+        return (rows[0].get("dados") if rows else None)
 
     async def bm_save(self) -> None:
         bm = self.bm

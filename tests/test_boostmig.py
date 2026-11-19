@@ -240,3 +240,39 @@ def test_detalhes_do_dev(env):
     assert d["tokens_24h"][0]["scam_por"] and d["resultados"][0]["symbol"] == "OLD" and d["stats"]["wins"] == 1
     c = env["c"]
     assert c.get("/api/pump/boost-migracao/dev/" + DEV).status_code == 401
+
+
+def test_historico_aos_20_min_guarda_tudo_e_calcula_as_metricas():
+    """0.32.378 (pedido do dono): todo token que migrou (entrando ou não) é analisado 20 min depois e guardado em boost_history;
+    as métricas dizem quando sobe, quando despeja e o resultado de entrar no minuto X e sair no Y."""
+    now = 6_000_000.0
+    bm = BoostMig(Svc({}), clock=lambda: now)
+    b = pronto(bm, M, now - 21 * 60, now)
+    for sec, px in ((15, 1.0), (60, 1.2), (120, 1.5), (180, 2.0), (300, 1.8), (600, 0.5), (900, 0.4), (1200, 0.45)):
+        bmod.track_point(b, px, b["t0"] + sec)
+    b["users"] = {"u1": {"estado": "fora", "motivo": "nome repetido"}}
+    assert bm.due_history(now) == [M]
+    r = bmod.history_row(b, now)
+    assert r["top_pct"] == 100.0 and r["top_s"] == 180 and r["dump_pct"] == -80.0 and r["dump_s"] == 900
+    assert r["marks"]["1"] == 20.0 and r["marks"]["3"] == 100.0 and r["marks"]["20"] == -55.0 and r["classe"] == "despejou"
+    assert r["fora_motivo"] == "nome repetido" and r["entrou"] == 0 and len(r["serie"]) == 8
+    out = bmod.hist_study([r, {**r, "mint": "x", "classe": "subiu", "fim_pct": 30.0, "marks": {"1": 5.0, "3": 10.0, "5": 30.0}, "scam": True}])
+    assert out["n"] == 2 and out["classes"] == {"despejou": 1, "subiu": 1}
+    um_tres = out["entra_sai"][0]["sai"]["3"]                                     # entra 1 min, sai 3 min
+    assert um_tres["n"] == 2 and um_tres["media"] == round(((2.0 / 1.2 - 1) * 100 - 1.5 + (1.10 / 1.05 - 1) * 100 - 1.5) / 2, 1)
+    assert any(g["grupo"] == "DEV scam" and g["n"] == 1 for g in out["grupos"])
+    assert [c["min"] for c in out["curva"]][:3] == [1, 2, 3]
+
+    class DB:
+        rows = []
+
+        async def insert(self, t, rows, upsert=False, on_conflict=None):
+            assert t == "boost_history" and on_conflict == "mint"
+            DB.rows += rows
+
+    fake = types.SimpleNamespace(bm=bm, db=DB())
+    run(PumpHub._bm_hist(fake, now))
+    assert len(DB.rows) == 1 and DB.rows[0]["classe"] == "despejou" and DB.rows[0]["dados"]["serie"]
+    assert bm.items[M]["hist_t"] == now and bm.due_history(now) == []
+    sql = open(os.path.join("supabase", "migrations", "20261119000001_boost_historico.sql"), encoding="utf-8").read()
+    assert "create table if not exists public.boost_history" in sql and "enable row level security" in sql and "delete" not in sql.lower()

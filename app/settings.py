@@ -108,7 +108,8 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_twin_min": (float, 10.0, 1.0, 120.0),        # cópias: 2+ tokens com o mesmo nome migrando em até X min
     "pump_bm_scam_keep_d": (float, 7.0, 1.0, 90.0),       # lembrar o DEV scam por X dias
     "pump_bm_vip_keep_d": (float, 30.0, 1.0, 365.0),      # lembrar o resultado do DEV (VIP) por X dias
-    "pump_bm_fast": (bool, True, 0, 1),                   # posição do BOOST no laço rápido de preço (~1 s)
+    "pump_bm_fast": (bool, True, 0, 1),
+    "pump_bm_hist_min": (float, 20.0, 5.0, 30.0),         # 0.32.378: análise de cada token X min depois da migração (histórico)                   # posição do BOOST no laço rápido de preço (~1 s)
     # 0.32.102 (dono, 31/10): filtros do Jev Trade editáveis na tela; padrão = a regra que estava valendo
     "pump_jt_min_holders": (int, 40, 5, 5000),            # detentores mínimos na 1ª conferência
     "pump_jt_age_min": (float, 5.0, 1.0, 60.0),           # confere o token a partir de X min de vida…

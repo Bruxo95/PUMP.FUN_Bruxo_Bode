@@ -32,7 +32,7 @@ VIP_KEEP_S = 30 * 86400
 
 # 0.32.375 (pedido do dono: "as regras do BOOST não têm as mesmas opções"): regras do DEV scam/VIP editáveis na tela, como no
 # original. A lista de DEVs é uma só para o servidor, então vale o último valor que um admin salvou (hub.bm_cfg).
-CFG_KEYS = {"pump_bm_scam_dump_pct": ("SCAM_DUMP_PCT", 1.0), "pump_bm_scam_dump_min": ("SCAM_DUMP_MIN", 1.0),
+CFG_KEYS = {"pump_bm_hist_min": ("HIST_MIN", 1.0), "pump_bm_scam_dump_pct": ("SCAM_DUMP_PCT", 1.0), "pump_bm_scam_dump_min": ("SCAM_DUMP_MIN", 1.0),
             "pump_bm_twin_min": ("TWIN_MIN", 1.0), "pump_bm_scam_keep_d": ("SCAM_KEEP_S", 86400.0),
             "pump_bm_vip_keep_d": ("VIP_KEEP_S", 86400.0)}
 
@@ -51,6 +51,14 @@ def apply_cfg(cfg: dict) -> dict:
         out[key] = round(g[name] / mul, 2)
     return out
 SAFETY_TTL_S = 600
+
+# 0.32.378 (pedido do dono, 19/11): todo token que migra (entrando ou não) é analisado HIST_MIN minutos depois da migração e
+# guardado para sempre em boost_history: série de preço, preço em cada minuto (MARKS), topo, dump, compras/vendas, DEV, trava e
+# o nosso resultado. É a base para medir o tempo de cada token (quando sobe, quando despeja) e ajustar o BOOST.
+HIST_MIN = 20.0
+MARKS = (1, 2, 3, 4, 5, 7, 10, 15, 20)
+CUSTO_PCT = 1.5                     # custo de ida e volta na PumpSwap usado nas contas do histórico (0,3% por lado + rede/slippage)
+SERIE_MAX = 200
 SAFETY_TRIES = 4
 SOL_MINT = "So11111111111111111111111111111111111111112"
 QUOTE_LAMPORTS = 10_000_000        # 0,01 SOL: cotação de compra da observação (como no original)
@@ -88,6 +96,9 @@ def track_point(b: dict, px: float | None, now: float) -> None:
     t = round(now - b["t0"])
     tr = b.setdefault("trk", {"p0": px, "t0": t, "hi": px, "hi_t": t, "lo": px, "lo_t": t, "dd": px, "dd_t": t, "n": 0})
     tr["n"] += 1
+    se = b.setdefault("serie", [])                                           # 0.32.378: série para o histórico
+    if len(se) < SERIE_MAX:
+        se.append([t, px])
     if px > tr["hi"]:
         tr["hi"], tr["hi_t"] = px, t
         tr["dd"], tr["dd_t"] = px, t
@@ -145,6 +156,137 @@ def creator_of(raw: bytes) -> str | None:
         return str(Pubkey.from_bytes(raw[49:81]))
     except Exception:
         return None
+
+
+def price_at(serie: list, sec: float, tol: float = 45.0):
+    """Preço da série no segundo `sec` desde a migração: o último ponto até lá (ou o primeiro depois, se estiver a até `tol` s)."""
+    antes = [p for p in serie if p[0] <= sec]
+    if antes and sec - antes[-1][0] <= max(tol, 90):
+        return antes[-1][1]
+    depois = [p for p in serie if p[0] > sec]
+    return depois[0][1] if depois and depois[0][0] - sec <= tol else None
+
+
+def classe(top: float | None, dump: float | None, dump_s: float | None, fim: float | None) -> str:
+    if dump is not None and dump <= -SCAM_DUMP_PCT and (dump_s or 1e9) <= HIST_MIN * 60:
+        return "despejou"
+    if fim is not None and fim >= 20:
+        return "subiu"
+    if fim is not None and fim <= -30:
+        return "caiu"
+    if top is None:
+        return "sem preço"
+    return "lateral"
+
+
+def history_row(b: dict, now: float, scam: dict | None = None) -> dict:
+    """Registro permanente do token aos HIST_MIN min (entrando ou não)."""
+    se = [p for p in (b.get("serie") or []) if p[0] <= HIST_MIN * 60 + 30]
+    p0 = se[0][1] if se else None
+    pts = [p for p in se if p[1] and p[1] > 0]
+    hi = max(pts, key=lambda p: p[1]) if pts else None
+    dd = min([p for p in pts if hi and p[0] >= hi[0]], key=lambda p: p[1]) if hi else None
+    lo = min(pts, key=lambda p: p[1]) if pts else None
+    pct = lambda x: round((x / p0 - 1) * 100, 1) if (x and p0) else None               # noqa: E731
+    marks = {str(m): pct(price_at(se, m * 60)) for m in MARKS if m <= HIST_MIN}
+    fim = pct(pts[-1][1]) if pts else None
+    users = b.get("users") or {}
+    entrou = [u for u in users.values() if u.get("estado") == "entrou"]
+    fora = [u.get("motivo") for u in users.values() if u.get("estado") == "fora" and u.get("motivo")]
+    res = b.get("result") or {}
+    top, dump = pct(hi[1]) if hi else None, (round((dd[1] / hi[1] - 1) * 100, 1) if (hi and dd) else None)
+    row = {"mint": b["mint"], "creator": b.get("creator"), "symbol": b.get("symbol"), "name": b.get("name"),
+           "t0": b["t0"], "analisado_t": now, "minutos": HIST_MIN,
+           "top_pct": top, "top_s": hi[0] if hi else None, "dump_pct": dump, "dump_s": dd[0] if dd else None,
+           "dump_dur_s": (dd[0] - hi[0]) if (hi and dd) else None, "fundo_pct": pct(lo[1]) if lo else None, "fundo_s": lo[0] if lo else None,
+           "fim_pct": fim, "marks": marks, "classe": classe(top, dump, dd[0] if dd else None, fim),
+           "p0": p0, "p0_s": se[0][0] if se else None, "pontos": len(pts),
+           "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"), "mcap_sol": b.get("mcap_sol"), "top10_pct": b.get("top10_pct"),
+           "safety_ok": b.get("safety_ok"), "safety_why": b.get("safety_why"), "dev_n": b.get("dev_n"),
+           "scam": bool(scam), "scam_why": (scam or {}).get("why"), "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"),
+           "entry": b.get("entry"), "entrou": len(entrou), "fora_motivo": fora[0] if fora else None,
+           "pnl_sol": res.get("pnl_sol"), "pnl_pct": res.get("pnl_pct"), "saida": res.get("why"),
+           "serie": [[int(p[0]), p[1]] for p in se]}
+    return row
+
+
+def _q(xs: list, q: float):
+    xs = sorted(x for x in xs if x is not None)
+    if not xs:
+        return None
+    return round(xs[min(len(xs) - 1, int(q * (len(xs) - 1) + 0.5))], 1)
+
+
+def hist_study(rows: list[dict]) -> dict:
+    """Métricas do histórico: curva por minuto, quando o dump acontece, entrar no minuto X e sair no Y, comparação por grupo."""
+    rs = [r for r in rows if r.get("p0")]
+    n = len(rs)
+    out = {"n": len(rows), "com_preco": n, "custo_pct": CUSTO_PCT}
+    if not n:
+        return out
+    cls = {}
+    for r in rows:
+        cls[r.get("classe") or "?"] = cls.get(r.get("classe") or "?", 0) + 1
+    out["classes"] = cls
+    out["kpi"] = {"top_med": _q([r.get("top_pct") for r in rs], .5), "top_s_med": _q([r.get("top_s") for r in rs], .5),
+                  "dump_med": _q([r.get("dump_pct") for r in rs], .5), "dump_s_med": _q([r.get("dump_s") for r in rs if (r.get("dump_pct") or 0) <= -30], .5),
+                  "fim_med": _q([r.get("fim_pct") for r in rs], .5), "fim_pos": round(sum(1 for r in rs if (r.get("fim_pct") or 0) > 0) / n * 100),
+                  "despejou": round(cls.get("despejou", 0) / len(rows) * 100)}
+    curva = []
+    for m in MARKS:
+        v = [(r.get("marks") or {}).get(str(m)) for r in rs]
+        v = [x for x in v if x is not None]
+        if v:
+            curva.append({"min": m, "n": len(v), "p25": _q(v, .25), "med": _q(v, .5), "p75": _q(v, .75), "pos": round(sum(1 for x in v if x > 0) / len(v) * 100)})
+    out["curva"] = curva
+    faixas = [(0, 60, "até 1 min"), (60, 120, "1–2 min"), (120, 300, "2–5 min"), (300, 600, "5–10 min"), (600, 1200, "10–20 min"), (1200, 1e9, "depois")]
+    dumps = [r for r in rs if (r.get("dump_pct") or 0) <= -30 and r.get("dump_s") is not None]
+    out["quando_dump"] = [{"faixa": nome, "n": sum(1 for r in dumps if a <= r["dump_s"] < b_), "pct": round(sum(1 for r in dumps if a <= r["dump_s"] < b_) / len(dumps) * 100) if dumps else 0}
+                          for a, b_, nome in faixas]
+    out["quando_topo"] = [{"faixa": nome, "n": sum(1 for r in rs if r.get("top_s") is not None and a <= r["top_s"] < b_)} for a, b_, nome in faixas]
+    mat = []
+    for e in (1, 2, 3):
+        linha = {"entra": e, "sai": {}}
+        for x in (3, 4, 5, 7, 10, 15, 20):
+            if x <= e:
+                continue
+            v = []
+            for r in rs:
+                pe, px = (r.get("marks") or {}).get(str(e)), (r.get("marks") or {}).get(str(x))
+                if pe is not None and px is not None:
+                    v.append(((1 + px / 100) / (1 + pe / 100) - 1) * 100 - CUSTO_PCT)
+            if v:
+                linha["sai"][str(x)] = {"n": len(v), "media": round(sum(v) / len(v), 1), "med": _q(v, .5), "pos": round(sum(1 for y in v if y > 0) / len(v) * 100)}
+        mat.append(linha)
+    out["entra_sai"] = mat
+
+    def grupo(nome, f):
+        g = [r for r in rs if f(r)]
+        if not g:
+            return None
+        return {"grupo": nome, "n": len(g), "top_med": _q([r.get("top_pct") for r in g], .5), "fim_med": _q([r.get("fim_pct") for r in g], .5),
+                "despejou": round(sum(1 for r in g if r.get("classe") == "despejou") / len(g) * 100),
+                "fim_pos": round(sum(1 for r in g if (r.get("fim_pct") or 0) > 0) / len(g) * 100)}
+    gs = [grupo("Todos", lambda r: True), grupo("DEV scam", lambda r: r.get("scam")), grupo("Sem marca de scam", lambda r: not r.get("scam")),
+          grupo("Com trava de venda", lambda r: r.get("safety_ok") is False), grupo("Sem trava (conferido)", lambda r: r.get("safety_ok") is True),
+          grupo("100+ compras em 5 min", lambda r: (r.get("buys_m5") or 0) >= 100), grupo("Menos de 100 compras", lambda r: (r.get("buys_m5") or 0) < 100),
+          grupo("Compras ≥ vendas × 1,2", lambda r: (r.get("buys_m5") or 0) >= (r.get("sells_m5") or 0) * 1.2),
+          grupo("DEV com 2+ tokens em 24 h", lambda r: (r.get("dev_n") or 1) >= 2), grupo("Alguém entrou", lambda r: (r.get("entrou") or 0) > 0)]
+    out["grupos"] = [g for g in gs if g]
+    devs = {}
+    for r in rows:
+        if r.get("creator"):
+            d = devs.setdefault(r["creator"], {"creator": r["creator"], "n": 0, "despejou": 0, "tops": [], "fims": [], "ult": 0, "symbols": []})
+            d["n"] += 1
+            d["despejou"] += 1 if r.get("classe") == "despejou" else 0
+            d["tops"].append(r.get("top_pct"))
+            d["fims"].append(r.get("fim_pct"))
+            d["ult"] = max(d["ult"], r.get("t0") or 0)
+            d["symbols"].append(r.get("symbol"))
+    out["devs"] = sorted([{"creator": d["creator"], "n": d["n"], "despejou_pct": round(d["despejou"] / d["n"] * 100), "top_med": _q(d["tops"], .5),
+                           "fim_med": _q(d["fims"], .5), "ult": d["ult"], "symbols": [x for x in d["symbols"] if x][-5:]} for d in devs.values() if d["n"] >= 2],
+                         key=lambda x: (-x["n"], x["despejou_pct"]))[:100]
+    return out
 
 
 class BoostMig:
@@ -520,6 +662,10 @@ class BoostMig:
                 "hold_why": f"BOOST {ex:.0f}% (saída em {ex:.0f}%)", "bm_t0": b["t0"]}
 
     # ------------------------------------------------------------------ tela e banco
+    def due_history(self, now: float) -> list[str]:
+        """Tokens que já passaram de HIST_MIN min desde a migração e ainda não foram analisados."""
+        return [m for m, b in self.items.items() if not b.get("hist_t") and now - b["t0"] >= HIST_MIN * 60]
+
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
                 "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry")

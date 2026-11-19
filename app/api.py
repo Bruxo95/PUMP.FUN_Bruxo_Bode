@@ -1427,6 +1427,20 @@ def create_app(hub, auth, cfg) -> FastAPI:
             return JSONResponse({"error": "DEV inválido"}, status_code=400)
         return finite(hub.bm_dev(creator))
 
+    @app.get("/api/pump/boost-migracao/historico")
+    async def boost_migracao_hist(dias: float = 7, u: dict = Depends(admin_only)):
+        """0.32.378: histórico de todo token que migrou (análise aos 20 min) e as métricas."""
+        from .boostmig import finite
+        return finite(await hub.bm_hist(max(0.04, min(90.0, float(dias)))))
+
+    @app.get("/api/pump/boost-migracao/historico/{mint}")
+    async def boost_migracao_hist_one(mint: str, u: dict = Depends(admin_only)):
+        from .boostmig import finite
+        if not mint.isalnum() or len(mint) > 60:
+            return JSONResponse({"error": "token inválido"}, status_code=400)
+        d = await hub.bm_hist_token(mint)
+        return finite(d) if d else JSONResponse({"error": "token ainda não analisado"}, status_code=404)
+
     @app.post("/api/pump/boost-migracao/dev")
     async def boost_migracao_dev(body: dict, u: dict = Depends(admin_only)):
         """Tira um DEV da lista scam (engano) ou apaga o histórico de resultados dele (VIP)."""

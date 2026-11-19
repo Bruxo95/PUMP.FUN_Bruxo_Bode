@@ -1097,3 +1097,7 @@ label.chgrp{cursor:pointer}
 #bmDevTabs{margin-top:-4px}
 .bmdl{font-weight:600}.bmdbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:12px 0;background:var(--down-bg)}
 #jtMS a{word-break:break-all}
+/* 0.32.378: histórico do BOOST */
+.bmband{fill:var(--info-bg);stroke:none}.bmdot{fill:var(--info)}.bmdot.up{fill:var(--up)}
+.bmbarh{display:inline-block;width:80px;height:7px;border-radius:4px;background:var(--line);vertical-align:middle;overflow:hidden}.bmbarh i{display:block;height:100%;background:var(--info)}
+.bmmat td,.bmmat th{text-align:center}.bmmat td:first-child,.bmmat th:first-child{text-align:left}
