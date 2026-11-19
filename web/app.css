@@ -1065,3 +1065,13 @@ label.chgrp{cursor:pointer}
 .bnsg{gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 4px}
 .bnsgbox .decbox{margin-top:8px;overflow-wrap:anywhere}
 #sgBox .decbox{margin-top:8px;overflow-wrap:anywhere}
+/* 0.32.373 (pedido do dono): menu BOOST da migração */
+.bmsw{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 22px;margin-top:10px}
+.bmsw .sw-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px dashed var(--line)}
+.bmsw .sw-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.bmhelp{margin:4px 0 12px}.bmhelp summary{cursor:pointer;color:var(--text);margin:4px 0 8px;font-weight:600}
+.bmbar{position:relative;display:inline-block;width:90px;height:8px;border-radius:4px;background:var(--line);vertical-align:middle;overflow:hidden}
+.bmbar i{position:absolute;left:0;top:0;bottom:0;background:var(--up)}.bmbar.late i{background:#f5a524}.bmbar.done i{background:var(--muted)}
+.bmbar b{position:absolute;top:0;bottom:0;width:2px;background:var(--text);opacity:.7}
+.bmdev{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.bmsw .sw-row>div{flex:1 1 auto;min-width:0}.bmsw .sw-row>button{flex:0 0 auto;white-space:nowrap}

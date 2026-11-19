@@ -30,7 +30,7 @@
    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
   // 0.31.73 (pedido do dono): "manual" não é carteira — é o marcador das compras que não vieram de um trader (automáticas
   // do Explorar/Base/Maiores traders, botão Comprar, cópia de outra conta). Mostra de onde veio, sem link quebrado.
-  const ORIG_NOME = { jevtrade: "Jev Trade (automática, só fictícia)", bruxo: "Aba do Bruxo (automática, só fictícia)", calls: "Calls quentes (automática)", explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)", barrado: "Barrado que subiu (automática, só fictícia)", barrado_btn: "Barrado que subiu (você comprou)" };
+  const ORIG_NOME = { boostmig: "BOOST da migração (automática)", jevtrade: "Jev Trade (automática, só fictícia)", bruxo: "Aba do Bruxo (automática, só fictícia)", calls: "Calls quentes (automática)", explorar: "Explorar (automática)", base: "Base (automática)", elite: "Maiores traders (automática)", barrado: "Barrado que subiu (automática, só fictícia)", barrado_btn: "Barrado que subiu (você comprou)" };
   // legenda ao passar o mouse (pedido do dono: "explicar o que é Explorar")
   const ORIG_DESC = { "Barrado que subiu (automática, só fictícia)": "o robô comprou sozinho, só na fictícia, um token que o filtro do Explorar barrou mas que subiu depois", "Barrado que subiu (você comprou)": "você clicou em Comprar num token da lista Barrado que subiu, no Explorar", "Explorar (automática)": "o robô comprou sozinho um token da lista Quase graduando do Explorar: veredito chance alta e passou em todos os seus filtros e proteções",
     "Base (automática)": "compra automática da tela Base da pump.fun (ex.: token com Boost ON)",
@@ -526,7 +526,7 @@
   // todas as telas. Em Configurações vira um quadro editável (os botões e campos são os mesmos data-toggle/data-cfg, então
   // salvar aqui é salvar lá); na Visão geral vira um resumo só de leitura, junto com "está copiando alguém?".
   let ALLCFG = null;
-  const ADMIN_VIEWS = ["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo", "jev", "jevtrade"];
+  const ADMIN_VIEWS = ["admin", "novidades", "estudo", "radar", "relatorios", "aprendizado", "novas", "fantasma", "listanegra", "base", "explorar", "elite", "comparar", "bruxo", "jev", "jevtrade", "boost"];
   function cfgItems() {
     if (ALLCFG) return ALLCFG;
     const out = [], seen = new Set(), adm = !!(ME && ME.role === "admin");
@@ -1255,6 +1255,63 @@
     const p = j.p || {};
     return ["entrar", "esperar", "evitar"].map((k) => '<span class="' + (k === j.acao ? "" : "dim") + '">' + k.slice(0, 3) + " " + Math.round((p[k] || 0) * 100) + "%</span>").join(" · ");
   }
+  // 0.32.373 (pedido do dono): BOOST da migração — token graduou para a PumpSwap; entra no começo dos ~5 min e sai antes do fim
+  const BM_EST = { entrou: ["entrou", "win"], esperar: ["observando", "neutral"], fora: ["fora", "loss"], entrar: ["entrando", "win"] };
+  const bmBar = (x, ex) => { const p = Math.max(0, Math.min(100, x.progress || 0));
+    return '<span class="bmbar' + (p >= 100 ? " done" : p > ex ? " late" : "") + '" title="' + f(p, 0) + '% do BOOST"><i style="width:' + p + '%"></i><b style="left:' + ex + '%"></b></span> ' + f(p, 0) + "%"; };
+  const bmDev = (x) => { if (!x.creator) return '<span class="bmdev">DEV: lendo…</span>';
+    const r = x.dev_rec || {}, h = x.dev_hist || [];
+    return '<span class="bmdev">' + (x.scam ? "💀 " : x.vip ? "👑 " : "") + "DEV " + esc(shortW(x.creator)) + " · " + (x.dev_n || 1) + " token(s) em 24 h" +
+      (r.n ? " · nosso resultado " + r.wins + "×" + r.losses + " (" + s4(r.pnl_sol || 0) + " SOL)" : "") +
+      (h.length ? " · antes: " + h.slice(0, 3).map((o) => esc(o.symbol || "?") + (o.dump_pct != null ? " dump " + f(o.dump_pct, 0) + "%" : "") + (o.lock ? " (trava)" : "")).join(", ") : "") + "</span>"; };
+  const bmTrk = (k) => !k || !k.n ? '<span class="dim">–</span>' : pc(k.top_pct, 0) + " aos " + hms(k.top_s || 0) +
+    (k.dump_pct != null && k.dump_pct < 0 ? '<br><small>dump ' + pc(k.dump_pct, 0) + " aos " + hms(k.dump_s || 0) + "</small>" : "");
+  let BM = null, BM_T = null;
+  function renderBm() {
+    const r = BM; if (!r) return;
+    const R = r.resumo || {}, ex = Number((cfg() || {}).pump_bm_exit_pct || 80);
+    $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
+      " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
+      " · janela de " + Math.round((r.janela_s || 300) / 60) + " min" + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "");
+    kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h", "tr"], ["Você entrou", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA" + (R.abertas_real ? " · " + R.abertas_real + " na REAL" : ""), "pos"],
+      ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],
+      ["DEVs", (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀", "VIP · scam", "hit"]]);
+    const F = $("bmF").value || "todos";
+    const its = (r.itens || []).filter((x) => { const e = (x.sua || {}).estado;
+      return F === "todos" || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && e === "entrou") || (F === "esperar" && e === "esperar") ||
+        (F === "fora" && e === "fora") || (F === "scam" && (x.scam || x.safety_ok === false)); });
+    table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
+      const u = x.sua || {}, E = BM_EST[u.estado] || [u.estado ? u.estado : "–", "neutral"], res = x.result;
+      return [pfM(x.mint, x.symbol || x.name) + bmDev(x), dt(x.t0), bmBar(x, ex), '<span class="wrapcell">' + esc(x.status || "") + "</span>",
+        (u.estado ? '<span class="tag ' + E[1] + '">' + esc(E[0]) + "</span> " : "") + '<span class="wrapcell small">' + esc(u.motivo || ((cfg() || {}).pump_bm_on ? "" : "BOOST desligado para você")) + "</span>",
+        x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
+        res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–"];
+    }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhuma migração nas últimas 24 h ainda. Os tokens aparecem aqui assim que migrarem para a PumpSwap.");
+    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Motivo da saída"], (r.trades || []).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.real ? ' <span class="tag loss">REAL</span>' : ""),
+      f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", t.hold_s == null ? "–" : hms(t.hold_s), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
+      "Nenhum trade do BOOST ainda.");
+    table("bmVip", ["DEV", "Tokens", "Ganhou × perdeu", "Saldo", ""], (r.vip || []).slice(0, 80).map((d) => [(d.vip ? "👑 " : "") + esc(shortW(d.creator)) +
+      '<span class="bmdev">' + (d.tokens || []).slice(-4).map((t) => esc(t.symbol || "?")).join(", ") + "</span>", String(d.n || 0), (d.wins || 0) + " × " + (d.losses || 0), sg(d.pnl_sol || 0),
+      '<button class="btn sm" type="button" data-bmdev="unvip" data-cr="' + esc(d.creator) + '">Apagar histórico</button>']), "Nenhum resultado guardado ainda.");
+    table("bmScam", ["DEV", "Por quê", "Tokens", ""], (r.scam || []).slice(0, 80).map((d) => ["💀 " + esc(shortW(d.creator)), '<span class="wrapcell">' + esc(d.why || "") + "</span>",
+      (d.tokens || []).map((t) => esc(t.symbol || "?")).join(", "), '<button class="btn sm" type="button" data-bmdev="unscam" data-cr="' + esc(d.creator) + '">Tirar da lista</button>']),
+      "Nenhum DEV marcado como scam.");
+  }
+  const hmsTxt = (s) => (s < 60 ? Math.round(s) + " s" : hms(s));
+  async function loadBm() {
+    clearTimeout(BM_T); BM_T = setTimeout(() => { if (VIEW === "boost") loadBm(); }, 5000);
+    if (document.hidden) return;
+    const r = await BB.api("/api/pump/boost-migracao", { quiet: true }); if (r.error) { $("bmSub").textContent = r.error; return; }
+    BM = r; renderBm();
+  }
+  document.addEventListener("change", (e) => { if (e.target.id === "bmF") renderBm(); });
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-bmdev]"); if (!b) return;
+    if (!confirm(b.dataset.bmdev === "unscam" ? "Tirar este DEV da lista scam? Os próximos tokens dele voltam a poder entrar." : "Apagar o histórico de resultados deste DEV? Ele deixa de ser VIP.")) return;
+    const r = await BB.api("/api/pump/boost-migracao/dev", { body: { creator: b.dataset.cr, action: b.dataset.bmdev } });
+    if (r.error) { toast(r.error); return; }
+    BM = r; renderBm(); toast(b.dataset.bmdev === "unscam" ? "DEV tirado da lista scam." : "Histórico do DEV apagado.");
+  });
   // 0.32.87 (áudio do Bruxo, 30/10): Jev Trade — o Jev faz o trade inteiro, só em simulação
   const JT_ACT = { entrar: "win", esperar: "neutral", desistir: "loss", segurar: "neutral", vender_25: "win", vender_50: "win", vender_tudo: "loss" };
   const jtTag = (d) => !d ? "–" : '<span class="tag ' + (JT_ACT[d.acao] || "neutral") + '">' + esc(String(d.acao || "–").replace("_", " ")) + "</span>";
@@ -2720,6 +2777,13 @@
     if (t.dataset.sam) { SAM = t.dataset.sam === "real"; loadAbaLucro(); return; }
     // 0.32.19: Configuração do Trader
     if (t.id === "tcSave") { await poll(true); toast("Configurações gravadas (cada campo já grava ao mudar)."); return; }
+    if (t.id === "bmReset") {          // 0.32.373: regras do BOOST de volta ao padrão do guia
+      setCfg({ pump_bm_sol: 0.05, pump_bm_max_open: 3, pump_bm_enter_max_pct: 40, pump_bm_exit_pct: 80, pump_bm_watch_s: 60, pump_bm_min_trend_pct: -3,
+        pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
+        pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
+        pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true }).then(() => { if (VIEW === "boost") loadBm(); });
+      return;
+    }
     if (t.id === "jtFReset") {          // 0.32.102: filtros do Jev Trade de volta à regra padrão
       setCfg({ pump_jt_min_holders: 40, pump_jt_age_min: 5, pump_jt_age_max: 8, pump_jt_janela_min: 2, pump_jt_cresc_pct: 0, pump_jt_prazo_min: 7,
         pump_jt_stop_pct: 25, pump_jt_empate_pct: 50, pump_jt_parcial_pct: 100, pump_jt_parcial_frac: 50, pump_jt_trail_apos: 30,
@@ -2910,7 +2974,7 @@
   const TITLES = { visao: ["Visão geral", "sua carteira e o que o bot fez"], traders: ["Top traders", "quem está sendo copiado e por quê"], posicoes: ["Posições", "o que está aberto agora"],
     historico: ["Histórico", "trades fechados, líquidos de taxas"], relatorios: ["Relatórios", "o que está dando certo e errado nas cópias"],
     aprendizado: ["Aprendizado diário", "o que os top traders fazem e o que dá para ajustar"],
-    tradershist: ["Traders copiados", "todo o histórico de cada trader que você copiou: ganhos, perdas e cada trade"], semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"],
+    tradershist: ["Traders copiados", "todo o histórico de cada trader que você copiou: ganhos, perdas e cada trade"], semanas: ["Semana × fim de semana", "o resultado de segunda a sexta comparado com sábado e domingo, guardado"], abas: ["Abas de trades", "liga e desliga as compras de cada aba em um clique"], igual: ["Copiar igual", "toda compra e venda das carteiras da lista, sem filtros e sem espera"], elite: ["Maiores traders", "o que os maiores ganhadores fazem, sinais, estudo e compra automática"], explorar: ["Explorar", "novos, quase graduando, graduados e os que mais sobem"], basegeral: ["Base geral", "o cérebro do robô: o que aprendeu com todas as contas, maturidade e evolução"], logs: ["Logs dos robôs", "o que cada robô analisou, fez e por que não fez · guardado sem prazo"], calls: ["Calls quentes", "compras de quem chama, veredito e nota de cada caller"], bruxo: ["Aba do Bruxo", "top trader comprou moeda nova: entrar junto, sair rápido"], jevtrade: ["Jev Trade", "o Jev decide entrada, stop, venda parcial e saída nos tokens novos, em simulação"], boost: ["BOOST da migração", "token graduou para a PumpSwap: entra no começo dos ~5 min de compra e sai antes do fim"], jev: ["JEV (modo sombra)", "cada decisão do Jev nos sinais da Aba do Bruxo e o que teria dado"], base: ["Base da pump.fun", "a vida de cada token novo, criadores e mercado por hora"], listanegra: ["Lista negra", "criadores e carteiras que ninguém copia"], fantasma: ["Estratégias fantasma", "várias regras de saída testadas ao mesmo tempo, só no simulado"], novas: ["Opções novas de cópia", "em teste: ligue para usar ou deixe desligado para descartar"], estudo: ["Carteiras em estudo", "entender o que as carteiras fazem e quanto ganham"], radar: ["Radar de KOLs", "ondas de compras e primeiras vendas nas carteiras em estudo"],
     carteiras: ["Carteiras", "ligar, desligar e quanto entrar na FICTÍCIA e na REAL; as regras das duas ficam num lugar só"], sistema: ["Status do sistema", "conexões, funil das transações e quanto cada serviço usou"], loggeral: ["Log geral", "registro de segurança da sua conta e, para o admin, de todas as contas e o log do servidor"],
 usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fica"], admin: ["Administração", "usuários, sistema e logs"],
     comparar: ["Comparar config copiada", "usuário X × usuário Y depois de copiar a configuração: ganhos, perdas e o que aconteceu"], ajuda: ["Como funciona", ""] };
@@ -2966,6 +3030,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "bruxo") { loadBruxo(); loadBxReports(); }
     if (VIEW === "jev") loadJev();
     if (VIEW === "jevtrade") loadJt();
+    if (VIEW === "boost") loadBm();
     if (VIEW === "basegeral") { loadRsBase(); loadBrainShadow(); loadTuneBase(); loadTrBase(); }
     if (VIEW === "abas") loadAbas();
     if (VIEW === "traders") trTab();
@@ -3380,11 +3445,11 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // que gastou de cada serviço (soma dos laços do servidor que trabalham para aquela tela). Em cima, a tabela geral (laranja/vermelho).
   const USAR_ORIG = { tradershist: ["Cópia de traders", "Ranking (Top traders)", "Top traders (laboratório)"],
     explorar: ["Explorar", "Explorar (sombras)", "Explorar (carteiras novas)"], basegeral: ["Base geral", "Ajuste automático"],
-    logs: ["Logs dos robôs"], bruxo: ["Aba do Bruxo"], jevtrade: ["Jev Trade"], jev: ["JEV (sombra)"], calls: ["Calls quentes"],
+    logs: ["Logs dos robôs"], bruxo: ["Aba do Bruxo"], jevtrade: ["Jev Trade"], boost: ["BOOST da migração"], jev: ["JEV (sombra)"], calls: ["Calls quentes"],
     estudo: ["Carteiras em estudo"], relatorios: ["Relatórios", "Relatório do dia"], aprendizado: ["Aprendizado diário"],
     fantasma: ["Estratégias fantasma"], igual: ["Copiar igual"], base: ["Base da pump.fun", "Boost e dados das carteiras"] };
   // Abas de trades = todas as telas que compram
-  USAR_ORIG.abas = [...new Set([].concat(USAR_ORIG.tradershist, USAR_ORIG.explorar, USAR_ORIG.bruxo, USAR_ORIG.jevtrade, USAR_ORIG.calls,
+  USAR_ORIG.abas = [...new Set([].concat(USAR_ORIG.tradershist, USAR_ORIG.explorar, USAR_ORIG.bruxo, USAR_ORIG.jevtrade, USAR_ORIG.boost, USAR_ORIG.calls,
     USAR_ORIG.estudo, USAR_ORIG.igual, USAR_ORIG.base, ["Execução real"]))];
   let SAM = null;
   async function loadAbaLucro() {
@@ -3588,8 +3653,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
-  const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real",
+  const TGL_REAL = ["pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
+  const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real", pump_bm_on: "pump_bm_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
   function tglScope(k, c) {
@@ -3605,7 +3670,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.127 (pedido do dono): um botão por aba e foco em uma só. Aqui só mexe nas chaves de COMPRA; as chaves REAL de cada aba ficam como estão
   const ABAS_TR = [["Top traders", "pump_top_on", "pump_real_mirror", "traders"], ["Explorar", "pump_ex_auto_on", "pump_ex_real_on", "explorar"], ["Explorar · barrados", "pump_bar_auto_on", "pump_bar_real", "explorar"],
     ["Base da pump.fun", "pump_auto_on", "pump_auto_real", "base"], ["Maiores traders", "pump_el_auto_on", "pump_el_real", "elite"], ["Maiores traders (80%+)", "pump_el_copy80", "pump_real_mirror", "elite"],
-    ["Calls quentes", "pump_calls_auto_on", "pump_calls_real", "calls"], ["Aba do Bruxo", "pump_bx_on", "pump_bx_real", "bruxo"], ["Jev Trade", "pump_jt_wallet", "pump_jt_real", "jevtrade"],
+    ["Calls quentes", "pump_calls_auto_on", "pump_calls_real", "calls"], ["Aba do Bruxo", "pump_bx_on", "pump_bx_real", "bruxo"], ["Jev Trade", "pump_jt_wallet", "pump_jt_real", "jevtrade"], ["BOOST da migração", "pump_bm_on", "pump_bm_real", "boost"],
     ["Copiar igual", "pump_eq_on", "pump_eq_real", "igual"], ["Carteiras em estudo", "pump_st_copy_on", "pump_st_real", "estudo"],
     ["Estudo · deram lucro", "pump_st_lucro_on", "pump_st_lucro_real", "estudo"]];
   const ABAS_MEM = "pf_abas_antes";
@@ -3639,7 +3704,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.129 (pedido do dono): as regras de cada aba aqui dentro. São cópias dos campos das outras telas (mesma opção); as opções REAL ficam fora
   const ABAS_TOPX = ["pump_copy_sol", "pump_extra_slip_pct", "pump_portal_fee_pct", "pump_priority_sol", "pump_hold_until_profit", "pump_hold_min_profit_pct", "pump_min_trader_sol", "pump_copy_delay_s", "pump_max_open", "pump_top_n", "pump_only_online", "pump_online_min", "pump_min_winrate"];
   const ABAS_OPT = { "Top traders": (x) => x.tc || ABAS_TOPX.includes(x.k), "Explorar": (x) => x.v === "explorar" && !/^pump_bar_/.test(x.k), "Explorar · barrados": (x) => /^pump_bar_/.test(x.k), "Base da pump.fun": (x) => x.v === "base",
-    "Maiores traders": (x) => x.v === "elite", "Calls quentes": (x) => x.v === "calls", "Aba do Bruxo": (x) => x.v === "bruxo", "Jev Trade": (x) => x.v === "jevtrade", "Copiar igual": (x) => x.v === "igual", "Carteiras em estudo": (x) => x.v === "estudo" };
+    "Maiores traders": (x) => x.v === "elite", "Calls quentes": (x) => x.v === "calls", "Aba do Bruxo": (x) => x.v === "bruxo", "Jev Trade": (x) => x.v === "jevtrade", "BOOST da migração": (x) => x.v === "boost", "Copiar igual": (x) => x.v === "igual", "Carteiras em estudo": (x) => x.v === "estudo" };
   const abasKeys = () => ABAS_TR.map((a) => a[1]);
   function abasBackup() { const c = cfg(), b = {}; abasKeys().forEach((k) => { b[k] = !!(isAutoCfg(k) ? autoValue(k, c) : c[k]); }); try { localStorage.setItem(ABAS_MEM, JSON.stringify(b)); } catch (e) { /* sem navegador guardando, só não dá para voltar */ } }
   async function abasSet(body) {
@@ -3946,7 +4011,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   // 0.32.123 (pedido do dono): resultado por aba. Vem do servidor porque o painel só recebe os últimos 300 trades
   let OV_ABAS = [];
-  const ABA_INFO = { "Explorar": "Compra sozinha tokens quase graduando que passam nos filtros do Explorar.", "Explorar · barrados": "Tokens que o Explorar barrou e continuaram subindo.",
+  const ABA_INFO = { "BOOST da migração": "Entra no começo dos ~5 min depois que o token migra para a PumpSwap e sai antes do fim.", "Explorar": "Compra sozinha tokens quase graduando que passam nos filtros do Explorar.", "Explorar · barrados": "Tokens que o Explorar barrou e continuaram subindo.",
     "Base da pump.fun": "Compra sozinha tokens novos da Base com Boost ou chance alta.", "Maiores traders": "Compra quando os maiores traders entram no mesmo token.", "Maiores traders (80%+)": "Copia as carteiras sugeridas com 80% ou mais de acerto.",
     "Calls quentes": "Compra a partir das calls com nota alta.", "Aba do Bruxo": "Entra quando um top trader compra um token novo.", "Lançamento sem trader": "Tokens novos com ritmo forte, sem trader por trás.",
     "Jev Trade": "Observa os detentores do token e entra pela regra do Bruxo.", "Top traders": "Copia os traders do ranking e da sua lista.", "Copiar igual": "Copia as carteiras escolhidas, sem filtros.",
@@ -5334,7 +5399,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const US_SO_FICT = [];          // 0.32.212: abas que nunca compram na REAL (0.32.213: Estudo · deram lucro ganhou chave REAL)
   const USAR_ABAS = { estudo: ["Carteiras em estudo"], estudolucro: ["Estudo · deram lucro"], elite: ["Maiores traders", "Maiores traders (80%+)"], igual: ["Copiar igual"],
     base: ["Base da pump.fun"], explorar: ["Explorar", "Explorar · barrados"], bruxo: ["Aba do Bruxo", "Lançamento sem trader"],
-    jevtrade: ["Jev Trade"], calls: ["Calls quentes"], tradershist: ["Top traders"], abas: "*" };
+    jevtrade: ["Jev Trade"], boost: ["BOOST da migração"], calls: ["Calls quentes"], tradershist: ["Top traders"], abas: "*" };
   let US = { rm: null, at: 0, r: {} };
   try { const x = localStorage.getItem("pf_usm"); if (x) US.rm = x === "real"; } catch (e) { /* */ }
   // a chave fica dentro do link do quadrado: clicar nela liga ou desliga, sem abrir a tela
@@ -5729,6 +5794,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     $("realB").onclick = realToggle;
     $("simB").onclick = simToggle;
     $("navAdmin").hidden = ME.role !== "admin";
+    if ($("navBoost")) $("navBoost").hidden = ME.role !== "admin";      // 0.32.373: menu BOOST (admin)
     $("navGrp").hidden = false;                    // 0.32.186: abre para todos; os quadrados só do admin ficam escondidos
     if ($("navExp")) $("navExp").hidden = ME.role !== "admin";            // 0.32.186: foi para o Usar ou descartar
     if ($("navBaseG")) $("navBaseG").hidden = ME.role !== "admin";

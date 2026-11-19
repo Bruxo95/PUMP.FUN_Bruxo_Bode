@@ -183,7 +183,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
                      "pump_el_auto_on", "pump_auto_on", "pump_st_auto_copy", "pump_eq_on", "pump_guard_on", "pump_nc_on",
                      "pump_lanc_on", "pump_jt_real", "pump_calls_real", "pump_el_real", "pump_auto_real", "pump_st_real", "pump_eq_real",
                      "pump_ex_real_on", "pump_radar_enabled", "pump_top_on", "pump_st_copy_on", "pump_jt_wallet", "pump_el_copy80",
-                     "pump_st_lucro_on", "pump_st_lucro_real", "pump_real_full_mirror"}
+                     "pump_st_lucro_on", "pump_st_lucro_real", "pump_real_full_mirror", "pump_bm_on", "pump_bm_real"}
 
     @app.post("/api/pump/settings")
     async def pump_settings(body: dict, request: Request, pf=Depends(engine), u: dict = Depends(user)):
@@ -1407,6 +1407,20 @@ def create_app(hub, auth, cfg) -> FastAPI:
                             max(5, min(1000, hold_min)), max(0.0, min(500.0, hold_cresc)), max(0, min(1000, hold_show)))
         await hub.hold_market(out["detentores"])
         return out
+
+    # 0.32.373 (pedido do dono): BOOST da migração (app/boostmig.py)
+    @app.get("/api/pump/boost-migracao")
+    async def boost_migracao(u: dict = Depends(admin_only)):
+        return hub.bm_state(await hub.engine(u["id"]), u["id"])
+
+    @app.post("/api/pump/boost-migracao/dev")
+    async def boost_migracao_dev(body: dict, u: dict = Depends(admin_only)):
+        """Tira um DEV da lista scam (engano) ou apaga o histórico de resultados dele (VIP)."""
+        cr, ac = str((body or {}).get("creator") or "")[:60], str((body or {}).get("action") or "")
+        if ac not in ("unscam", "unvip") or not hub.bm.dev_action(cr, ac):
+            return JSONResponse({"error": "DEV não está na lista"}, status_code=404)
+        await audit(hub.db, u["id"], "BOOST: " + ("tirou DEV da lista scam" if ac == "unscam" else "apagou histórico do DEV"), cr)
+        return {"ok": True, **hub.bm_state(await hub.engine(u["id"]), u["id"])}
 
     @app.get("/api/pump/jev-trade")
     async def jev_trade(horas: float = 24, pf=Depends(admin_engine)):

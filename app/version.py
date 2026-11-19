@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.372 · 2026-11-16 · Dormant: nome da moeda abre a ficha em Minhas compras e preço embaixo do nome nos Alertas"
+VERSION = "0.32.373 · 2026-11-19 · BOOST da migração: menu novo no pump.fun (do hermes-jev-trader)"

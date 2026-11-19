@@ -460,6 +460,7 @@ class SharedMonitor:
                     st.update(ws=True, connected_at=now_iso(), error=None)
                     backoff = 2.0
                     await ws.send(json.dumps({"method": "subscribeNewToken"}))
+                    await ws.send(json.dumps({"method": "subscribeMigration"}))    # 0.32.373: BOOST da migração (grátis)
                     self._pp_subs = set()                     # conexão nova: assina de novo
                     sync_at = 0.0
                     while True:
@@ -481,6 +482,13 @@ class SharedMonitor:
                             # 0.32.106: sem isto, um aviso de saldo ou de chave da PumpPortal sumia sem ninguém ver
                             txt = str(ev.get("errors") or ev.get("error") or ev.get("message"))[:200]
                             st["pp_msg"], st["pp_msg_t"] = txt.replace(pk, "***") if pk else txt, time.time()
+                        if isinstance(ev, dict) and (ev.get("txType") in ("migrate", "migration")
+                                                     or (not ev.get("txType") and ev.get("mint") and ev.get("pool") == "pump-amm")):
+                            try:
+                                self.hub.bm_on_migration(ev)          # 0.32.373: token graduou → começa o BOOST
+                            except Exception as e_:
+                                log.warning("boost: migração não registrada: %s", str(e_)[:120])
+                            continue
                         if not isinstance(ev, dict) or not ev.get("txType"):
                             continue
                         w = ev.get("traderPublicKey")

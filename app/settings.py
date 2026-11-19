@@ -78,6 +78,30 @@ USER_KEYS: dict[str, tuple] = {
     "pump_jt_wallet": (bool, True, 0, 1),                 # 0.32.93: cada entrada do Jev Trade vai também para a carteira FICTÍCIA
     "pump_jt_wallet_max": (int, 10, 1, 50),
     "pump_jt_real": (bool, False, 0, 1),
+    # 0.32.373 (pedido do dono): BOOST da migração (app/boostmig.py; guia do hermes-jev-trader 2026-11-18.15). Tudo por usuário.
+    "pump_bm_on": (bool, False, 0, 1),                    # entra sozinho na FICTÍCIA
+    "pump_bm_real": (bool, False, 0, 1),                  # também na REAL (precisa da Execução real ligada)
+    "pump_bm_sol": (float, 0.05, 0.001, 5.0),
+    "pump_bm_max_open": (int, 3, 1, 20),
+    "pump_bm_enter_max_pct": (float, 40.0, 1.0, 60.0),
+    "pump_bm_exit_pct": (float, 80.0, 10.0, 100.0),
+    "pump_bm_watch_s": (float, 60.0, 0.0, 180.0),
+    "pump_bm_min_trend_pct": (float, -3.0, -50.0, 50.0),
+    "pump_bm_max_dd_pct": (float, 15.0, 0.0, 90.0),
+    "pump_bm_min_buy_ratio": (float, 1.2, 0.0, 10.0),
+    "pump_bm_min_buys": (int, 100, 0, 5000),
+    "pump_bm_block_repeat": (bool, True, 0, 1),
+    "pump_bm_block_scam": (bool, True, 0, 1),
+    "pump_bm_vip_skip_repeat": (bool, True, 0, 1),
+    "pump_bm_require_safety": (bool, True, 0, 1),
+    "pump_bm_max_top10": (float, 35.0, 0.0, 100.0),
+    "pump_bm_no_stop": (bool, False, 0, 1),               # sem stop de perda até a saída do BOOST
+    "pump_bm_stop_pct": (float, 40.0, 1.0, 95.0),
+    "pump_bm_trail_start": (float, 10.0, 1.0, 1000.0),
+    "pump_bm_trail_dist": (float, 5.0, 1.0, 90.0),
+    "pump_bm_partial_on": (bool, True, 0, 1),
+    "pump_bm_partial_at": (float, 15.0, 1.0, 1000.0),
+    "pump_bm_partial_frac": (float, 50.0, 5.0, 95.0),
     # 0.32.102 (dono, 31/10): filtros do Jev Trade editáveis na tela; padrão = a regra que estava valendo
     "pump_jt_min_holders": (int, 40, 5, 5000),            # detentores mínimos na 1ª conferência
     "pump_jt_age_min": (float, 5.0, 1.0, 60.0),           # confere o token a partir de X min de vida…

@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
-Emissão: **2026-11-16**; revisão documental **2.0**.
-Aplicação: **0.32.372 · 2026-11-16 · Dormant: nome da moeda abre a ficha em Minhas compras e preço embaixo do nome nos Alertas**.
-Referência Git na emissão: `2de0341b0d52499d444286d7b3a8e09b607ffa39`; fontes locais identificadas por SHA-256 no JSON.
+Emissão: **2026-11-19**; revisão documental **2.0**.
+Aplicação: **0.32.373 · 2026-11-19 · BOOST da migração: menu novo no pump.fun (do hermes-jev-trader)**.
+Referência Git na emissão: `b8c0a45195937eb02914da2ca4d33d0fccfacee1`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

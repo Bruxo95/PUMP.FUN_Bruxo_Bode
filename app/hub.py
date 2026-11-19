@@ -14,7 +14,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from . import detentores, jev, jevtrade, stkeys
+from . import boostmig, detentores, jev, jevtrade, stkeys
 from . import cfghist
 from .apiusage import ORIGIN, run_as
 from .db import SupabaseStore, Vault, audit
@@ -59,6 +59,7 @@ class PumpHub:
         from .bruxo import Bruxo
         self.bx_reports: dict[str, dict] = {}     # 0.32.80: relatórios da Aba do Bruxo por usuário {"30min": [...], "dia": [...]}
         self.bruxo = Bruxo()                      # 0.32.41: Aba do Bruxo (top trader em moeda nova)
+        self.bm = boostmig.BoostMig()             # 0.32.373: BOOST da migração (parte compartilhada)
         self.jt = jevtrade.JevTrade()             # 0.32.87: Jev Trade (simulação; o Jev decide entrada e saída)
         self.jt.on_event = self._jt_wallet        # 0.32.93: entradas e vendas também na carteira FICTÍCIA de quem ligou
         self._bx_base: tuple[float, dict] = (0.0, {})
@@ -1755,6 +1756,164 @@ class PumpHub:
                 n += 1
         return n
 
+    # ------------------------------------------------------------------ 0.32.373: BOOST da migração (app/boostmig.py)
+    def bm_on_migration(self, ev: dict) -> None:
+        b = self.bm.on_migration(ev)
+        if b is not None:
+            log.info("BOOST: migrou %s", b.get("symbol") or b["mint"][:8])
+
+    async def bm_loop(self) -> None:
+        await asyncio.sleep(20)
+        saved = 0.0
+        while True:
+            try:
+                await self.bm_tick()
+            except Exception as e:
+                log.warning("boost da migração: %s", str(e)[:160])
+            if time.time() - saved > 30:
+                saved = time.time()
+                try:
+                    await self.bm_save()
+                except Exception as e:
+                    log.warning("boost da migração (banco): %s", str(e)[:160])
+            await asyncio.sleep(3)
+
+    async def bm_tick(self) -> None:
+        bm = self.bm
+        svc = getattr(self.monitor, "svc", None) if self.monitor else None
+        if svc is None:
+            return
+        bm.svc = svc
+        now = time.time()
+        await bm.tick(now)
+        self._bm_results(now)
+        for uid, pf in list(self.engines.items()):
+            if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_bm_on", False) or not hasattr(pf, "manual_buy"):
+                continue
+            await self._bm_user(uid, pf, now)
+
+    async def _bm_user(self, uid: str, pf: PumpFun, now: float) -> None:
+        bm = self.bm
+        pos = [p for p in pf.positions() if p.get("origem") == "boostmig"]
+        abertas = len([p for p in pos if not p.get("real")])
+        for m, b in list(bm.items.items()):
+            u = b.setdefault("users", {}).setdefault(uid, {})
+            if u.get("estado") in ("entrou", "fora"):
+                continue
+            if bm.progress(b, now) >= 100:
+                u.update(estado="fora", motivo=u.get("motivo") or "BOOST terminou", t=now)
+                continue
+            nomes = set()
+            for p in pos:
+                if p["mint"] != m:
+                    nomes |= bm.name_keys(p["mint"])
+            est, why = bm.decide(pf.cfg, b, now, nomes, abertas)
+            u.update(estado=est, motivo=why, t=now)
+            if est != "entrar":
+                continue
+            tk = pf.tokens.get(m) or {}
+            if not tk.get("price") or now - float(tk.get("last_t") or 0) > 15:
+                try:
+                    await bm.svc._pumpswap_prices([m])
+                except Exception:
+                    pass
+            real = bool(getattr(pf.cfg, "pump_bm_real", False))
+            r = pf.manual_buy(m, t=now, auto="BOOST da migração · " + why, origem="boostmig", target="both" if real else "sim",
+                              amt_sol=float(getattr(pf.cfg, "pump_bm_sol", 0.05)), pos_rules=bm.rules(pf.cfg, b, now))
+            sim = str(r.get("sim") or "")
+            if r.get("error"):
+                u.update(estado="esperar", motivo="não comprou: " + str(r["error"]))
+            elif sim.startswith("comprou") or (real and str(r.get("real") or "").startswith("enviando")):
+                u.update(estado="entrou", motivo=f"entrou em {bm.progress(b, now):.0f}% do BOOST", t=now)
+                b.setdefault("entry", {"prog": round(bm.progress(b, now), 1), "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"),
+                                       "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"), "mcap_sol": b.get("mcap_sol")})
+                abertas += 1
+                pos.append({"mint": m})
+                bm.dirty.add(m)
+            elif sim in ("carteira FICTÍCIA desligada",) or sim.startswith("já tem"):
+                u.update(estado="fora", motivo=sim)
+            else:
+                u.update(estado="esperar", motivo=sim or str(r.get("real") or "não comprou"))
+
+    def _bm_results(self, now: float) -> None:
+        """Quando ninguém tem mais posição do BOOST num token, o resultado (da 1ª conta que entrou) vai para o livro do DEV."""
+        for m, b in self.bm.items.items():
+            if b.get("result"):
+                continue
+            quem = [uid for uid, u in (b.get("users") or {}).items() if u.get("estado") == "entrou"]
+            for uid in quem:
+                pf = self.engines.get(uid)
+                if pf is None or any(p["mint"] == m and p.get("origem") == "boostmig" for p in pf.positions()):
+                    continue
+                ts = [t for t in pf.trades(400) if t.get("mint") == m and t.get("origem") == "boostmig"]
+                if not ts:
+                    continue
+                sol_in = sum(float(t.get("sol_in") or 0) for t in ts)
+                pnl = sum(float(t.get("pnl_sol") or 0) for t in ts)
+                b["result"] = {"pnl_sol": round(pnl, 6), "pnl_pct": round(pnl / sol_in * 100, 2) if sol_in else None,
+                               "real": any(t.get("real") for t in ts), "why": ts[0].get("reason"),
+                               "hold_s": max(int(t.get("hold_s") or 0) for t in ts)}
+                self.bm.vip_note(m, pnl, b["result"]["pnl_pct"], b["result"]["real"], now)
+                self.bm.dirty.add(m)
+                break
+
+    async def bm_save(self) -> None:
+        bm = self.bm
+        ms = [m for m in list(bm.dirty) if m in bm.items]
+        bm.dirty.clear()
+        rows = [{"mint": m, "t0": datetime.fromtimestamp(bm.items[m]["t0"], timezone.utc).isoformat(), "dados": bm.dump(m),
+                 "atualizado": datetime.now(timezone.utc).isoformat()} for m in ms]
+        for i in range(0, len(rows), 200):
+            await self.db.insert("boost_tokens", rows[i:i + 200], upsert=True, on_conflict="mint")
+        cs = list(bm.dirty_devs)
+        bm.dirty_devs.clear()
+        drows = [{"creator": c, "dados": {"scam": bm.scam_devs.get(c), "book": bm.dev_book.get(c)},
+                  "atualizado": datetime.now(timezone.utc).isoformat()} for c in cs]
+        for i in range(0, len(drows), 200):
+            await self.db.insert("boost_devs", drows[i:i + 200], upsert=True, on_conflict="creator")
+
+    async def load_bm(self) -> None:
+        try:
+            since = datetime.fromtimestamp(time.time() - boostmig.KEEP_S, timezone.utc).isoformat()
+            rows = await self.db.select("boost_tokens", None, order="t0.desc", limit=5000, gte={"t0": since})
+            devs = await self.db.select("boost_devs", None, limit=20000)
+            self.bm.load(rows, devs)
+        except Exception as e:
+            log.warning("boost da migração não carregou: %s", str(e)[:120])
+
+    def bm_state(self, pf: PumpFun, uid: str) -> dict:
+        bm, now = self.bm, time.time()
+        itens = []
+        for m, b in sorted(bm.items.items(), key=lambda x: -x[1]["t0"])[:400]:
+            v = bm.view(b)
+            v["progress"] = round(bm.progress(b, now), 1)
+            u = (b.get("users") or {}).get(uid) or {}
+            v["sua"] = {"estado": u.get("estado"), "motivo": u.get("motivo")}
+            v["vip"] = bool((bm.dev_stats(b.get("creator")) or {}).get("vip"))
+            v["scam"] = bool(b.get("creator") in bm.scam_devs)
+            itens.append(v)
+        mine_t = [t for t in pf.trades(3000) if t.get("origem") == "boostmig"]
+        mine_p = [p for p in pf.positions() if p.get("origem") == "boostmig"]
+        fech = [t for t in mine_t if not t.get("real")]
+        ganhos = [t for t in fech if (t.get("pnl_sol") or 0) > 0]
+        scam = [{"creator": c, "why": d.get("why"), "symbol": d.get("symbol"), "t": d.get("t"),
+                 "tokens": [{"mint": m, **x} for m, x in (d.get("mints") or {}).items()]} for c, d in bm.scam_devs.items()]
+        vip = []
+        for c in bm.dev_book:
+            st = bm.dev_stats(c) or {}
+            vip.append({"creator": c, **st, "tokens": [{"mint": m, **x} for m, x in (bm.dev_book[c].get("mints") or {}).items()]})
+        scam.sort(key=lambda x: -(x.get("t") or 0))
+        vip.sort(key=lambda x: (not x.get("vip"), -(x.get("pnl_sol") or 0)))
+        ult = bm.st.get("ultima")
+        return {"itens": itens, "janela_s": boostmig.JANELA_S, "scam": scam, "vip": vip, "monitor": dict(bm.st),
+                "ws": bool((self.market.status or {}).get("ws")), "ultima_migracao_s": round(now - ult) if ult else None,
+                "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),
+                           "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
+                           "fechadas": len(fech), "ganhou": len(ganhos), "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in fech), 6),
+                           "scam_devs": len(bm.scam_devs), "vip_devs": sum(1 for x in vip if x.get("vip"))},
+                "trades": [{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real")}
+                           for t in mine_t[:100]]}
+
     async def bruxo_loop(self) -> None:
         await asyncio.sleep(45)
         while True:
@@ -3029,7 +3188,7 @@ class PumpHub:
                    ("Explorar", "pump_ex_real_on", "compra automática", True), ("Explorar: barrados", "pump_bar_real", "barrados que subiram", True),
                    ("Base da pump.fun", "pump_auto_real", "compra automática", True), ("Maiores traders", "pump_el_real", "compra automática", True),
                    ("Calls quentes", "pump_calls_real", "compra automática", True), ("Aba do Bruxo", "pump_bx_real", "compra automática", True),
-                   ("Jev Trade", "pump_jt_real", "compra do Jev", True), ("Copiar igual", "pump_eq_real", "cópia das carteiras da lista", True),
+                   ("Jev Trade", "pump_jt_real", "compra do Jev", True), ("BOOST da migração", "pump_bm_real", "compra no BOOST", True), ("Copiar igual", "pump_eq_real", "cópia das carteiras da lista", True),
                    ("Carteiras em estudo", "pump_st_real", "cópia das carteiras estudadas", True),
                    ("Estudo · deram lucro", "pump_st_lucro_real", "cópia das carteiras do estudo que deram lucro", True),
                    ("Tokens fora da pump.fun", "pump_copy_other_real", "cópia pela Jupiter", False))
@@ -4852,7 +5011,7 @@ class PumpHub:
         for nome, carga in (("chave compartilhada", self.refresh_shared_key), ("lista negra", self.load_blacklist), ("base pump.fun", self.load_lab),
                             ("maiores traders", self.load_elite), ("sombras", self.load_shadows), ("calls", self.load_calls),
                             ("aba do bruxo", self.load_bruxo), ("jev trade", self.load_jt), ("uso do jev", self.jev_usage_load),
-                            ("passado do jev", self.jev_bt_load), ("top traders", self.load_top)):                # 0.32.84: estudo do passado do Jev
+                            ("passado do jev", self.jev_bt_load), ("top traders", self.load_top), ("boost da migração", self.load_bm)):                # 0.32.84: estudo do passado do Jev
             self._step(nome)
             await carga()
         self._step("ligando o monitor")
@@ -4883,6 +5042,7 @@ class PumpHub:
         self._tasks.append(run_as("Calls quentes", self.calls_loop()))          # 0.31.94: calls quentes
         self._tasks.append(run_as("Aba do Bruxo", self.bruxo_loop()))
         self._tasks.append(run_as("Jev Trade", self.jt_loop()))             # 0.32.87: Jev Trade
+        self._tasks.append(run_as("BOOST da migração", self.bm_loop()))      # 0.32.373: BOOST da migração
         self._tasks.append(run_as("Aba do Bruxo", self.bx_report_loop()))      # 0.32.80: relatórios da Aba do Bruxo (30 min e 1 dia)          # 0.32.41: Aba do Bruxo
         self._tasks.append(run_as("Relatórios", self.tab_report_loop()))
         self._tasks.append(run_as("Execução real", self.wallet_guard_loop()))   # 0.32.116: alerta de saída da carteira real

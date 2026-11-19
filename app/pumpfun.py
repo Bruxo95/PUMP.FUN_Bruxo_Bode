@@ -1279,7 +1279,7 @@ class PumpFun:
         """0.32.11: carteiras aprovadas pelo estudo automático que esta conta copia (só fictícia)."""
         return list(getattr(self, "study_copy", None) or []) if getattr(self.cfg, "pump_st_auto_copy", False) else []
 
-    GATE_ORIGINS = ("explorar", "barrado", "base", "elite", "calls", "bruxo", "jevtrade")
+    GATE_ORIGINS = ("explorar", "barrado", "base", "elite", "calls", "bruxo", "jevtrade", "boostmig")
 
     def tab_gate_stats(self) -> dict:
         """0.32.325: {tela: (operações, soma em SOL)} das operações FICTÍCIAS fechadas nos últimos `pump_tab_gate_days` dias, já
@@ -2172,7 +2172,7 @@ class PumpFun:
             own_auto = p.get("auto") is True and p.get("origem") in AUTO_ORIGINS
             max_hold = self._auto_num(p.get("max_hold_s"))
             if max_hold is not None and t - p.get("open_t", t) >= max_hold:
-                out.append(self._sell(p, 1.0, px, f"tempo máximo ({max_hold / 60:g} min)", t))
+                out.append(self._sell(p, 1.0, px, p.get("hold_why") or f"tempo máximo ({max_hold / 60:g} min)", t))   # 0.32.373: BOOST
                 continue
             # 0.32.19: posições com regras próprias (botão Comprar, automáticas, Copiar igual) não usam as regras novas das cópias
             own_rules = own_auto or bool(p.get("manual")) or p.get("stop_pct") is not None or bool(p.get("eq"))
@@ -2454,7 +2454,7 @@ class PumpFun:
             hold = hold if hold is not None else mx
             if t - p.get("open_t", t) >= hold and not p.get("selling"):
                 out.append(self._sell(p, 1.0, (self.tokens.get(p["mint"]) or {}).get("price") or p.get("price_now"),
-                                      f"tempo máximo ({hold / 60:g} min)" if p.get("max_hold_s") is not None else f"tempo máximo ({hold / 3600:.0f} h)", t))
+                                      p.get("hold_why") or (f"tempo máximo ({hold / 60:g} min)" if p.get("max_hold_s") is not None else f"tempo máximo ({hold / 3600:.0f} h)"), t))
         return [m for m in out if m]
 
     NO_LIMIT_S = 10 * 365 * 86400.0
@@ -3781,6 +3781,8 @@ class PumpFun:
                     self._feed(**base, action="REAL não copiou", reason="Explorar: 'Também na carteira REAL' desligado (só fictícia)",
                                sim_id=(sim_pos or {}).get("id"))
                 return out
+            if origem == "boostmig" and not getattr(self.cfg, "pump_bm_real", False):
+                return out                              # 0.32.373: BOOST da migração só vai para a REAL com a chave da aba
             jt_real = origem == "jevtrade" and target == "both" and getattr(self.cfg, "pump_jt_real", False)   # 0.32.97
             if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or jt_real or getattr(self.cfg, "pump_auto_real", False)):
                 st["tried"] = True
@@ -3956,7 +3958,8 @@ class PumpFun:
     # 0.32.41: origens com vagas próprias (opção do limite, padrão, texto do aviso)
     OWN_SLOTS = {"barrado": ("pump_bar_max_open", 20, " dos barrados"), "bruxo": ("pump_bx_max_open", 5, " da Aba do Bruxo"),
                  "lancamento": ("pump_lanc_max_open", 30, " dos lançamentos"),
-                 "jevtrade": ("pump_jt_wallet_max", 10, " do Jev Trade")}       # 0.32.93: entradas do Jev Trade na fictícia   # 0.32.78: Comprar todas não esbarra nas vagas das cópias
+                 "jevtrade": ("pump_jt_wallet_max", 10, " do Jev Trade"),
+                 "boostmig": ("pump_bm_max_open", 3, " do BOOST da migração")}       # 0.32.93: entradas do Jev Trade na fictícia   # 0.32.78: Comprar todas não esbarra nas vagas das cópias
 
     def _slot(self, origem) -> str | None:
         o = str(origem or "")
@@ -4582,6 +4585,9 @@ class PumpFun:
                 sym = (p.get("baseToken") or {}).get("symbol")
                 if sym:
                     tk["symbol"] = sym
+                nm = (p.get("baseToken") or {}).get("name")      # 0.32.373: nome (BOOST confere nome repetido e cópias)
+                if nm:
+                    tk["name"] = nm
                 if p.get("marketCap") and sol_usd:
                     tk["mcap_sol"] = float(p["marketCap"]) / sol_usd
             self.rpc_status.update(price_at=now_iso(), price_error=None)
@@ -5424,7 +5430,8 @@ class PumpFun:
     # ------------------------------------------------------------------ painel
     ABA_ORIGEM = {"explorar": "Explorar", "barrado": "Explorar · barrados", "barrado_btn": "Explorar · barrados", "base": "Base da pump.fun",
                   "elite": "Maiores traders", "calls": "Calls quentes", "bruxo": "Aba do Bruxo",
-                  "lancamento": "Lançamento sem trader", "jevtrade": "Jev Trade"}
+                  "lancamento": "Lançamento sem trader", "jevtrade": "Jev Trade",
+                  "boostmig": "BOOST da migração"}
 
     def entry_why(self, p: dict) -> str:
         """0.32.60 (pedido do dono: "explicar sempre o motivo que levou o robô a entrar e sair de tal moeda, e salvar"): o
