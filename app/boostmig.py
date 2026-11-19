@@ -40,6 +40,10 @@ CFG_KEYS = {"pump_bm_hist_min": ("HIST_MIN", 1.0), "pump_bm_scam_dump_pct": ("SC
             "pump_bm_sybil_on": ("SYBIL_ON", 1.0), "pump_bm_sybil_top": ("SYBIL_TOP", 1.0), "pump_bm_sybil_max_h": ("SYBIL_MAX_H", 1.0),
             "pump_bm_sybil_alert_pct": ("SYBIL_ALERT_PCT", 1.0), "pump_bm_sybil_bundle_pct": ("SYBIL_BUNDLE_PCT", 1.0)}
 SYBIL_ON, SYBIL_TOP, SYBIL_MAX_H, SYBIL_ALERT_PCT, SYBIL_BUNDLE_PCT = 1.0, 15.0, 30.0, 20.0, 25.0
+CFG_KEYS["pump_bm_alchemy_backup"] = ("ALCHEMY_BACKUP", 1.0)
+ALCHEMY_BACKUP = 1.0                # 0.32.384: Alchemy como reserva da leitura do DEV e da trava quando o RPC do sistema não responde
+DEV_WAIT_S = 30.0                   # 0.32.384: sem DEV lido depois disso, segue sem o filtro de DEV scam (antes esperava para sempre)
+SAFETY_WAIT_S = 45.0                # 0.32.384: sem trava lida depois disso, vale como "não deu para conferir"
 
 
 def apply_cfg(cfg: dict) -> dict:
@@ -310,6 +314,7 @@ class BoostMig:
         self.dirty_devs: set[str] = set()
         self.st = {"migracoes": 0, "ultima": None, "erro": None, "rpc_falhou": 0, "cotacoes": 0, "sem_cotacao": 0}
         self.rpc_multi = None                  # 0.32.376: o hub põe aqui o RPC do sistema (Helius) na frente do público
+        self.rpc_backup = None                 # 0.32.384: reserva pela Alchemy (só quando o do sistema não responde)
 
     # ------------------------------------------------------------------ eventos
     @property
@@ -505,6 +510,11 @@ class BoostMig:
             vals = await self.rpc_multi(keys, enc)
             if vals is not None:
                 return vals
+        if self.rpc_backup is not None and ALCHEMY_BACKUP:          # 0.32.384: reserva pela Alchemy
+            vals = await self.rpc_backup(keys, enc)
+            if vals is not None:
+                self.st["reserva"] = self.st.get("reserva", 0) + 1
+                return vals
         return await self.svc._rpc_multi(keys, enc, True)
 
     async def _creators(self, now: float) -> None:
@@ -623,7 +633,7 @@ class BoostMig:
         if g("pump_bm_block_repeat", True) and not self.name_keys(m, b):
             return "esperar", "aguardando o nome do token (para conferir nome repetido)"
         if g("pump_bm_block_scam", True):
-            if not b.get("creator") and b.get("creator_tries", 0) < 3:
+            if not b.get("creator") and b.get("creator_tries", 0) < 3 and now - b["t0"] < DEV_WAIT_S:
                 return "esperar", "aguardando o DEV do token"
             sc = self.scam_of(m, b)
             if sc:
@@ -642,7 +652,7 @@ class BoostMig:
         if b.get("safety_ok") is False:
             return "fora", "trava de venda — " + str(b.get("safety_why"))
         if b.get("safety_ok") is None:
-            if b.get("safety_tries", 0) < SAFETY_TRIES:
+            if b.get("safety_tries", 0) < SAFETY_TRIES and now - b["t0"] < SAFETY_WAIT_S:
                 return "esperar", "conferindo a trava de venda"
             if g("pump_bm_require_safety", True):
                 return "fora", "não deu para conferir a trava de venda"

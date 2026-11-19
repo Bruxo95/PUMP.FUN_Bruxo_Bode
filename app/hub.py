@@ -1799,6 +1799,7 @@ class PumpHub:
             return
         bm.svc = svc
         bm.rpc_multi = self._bm_rpc_multi
+        bm.rpc_backup = self._bm_rpc_alchemy if self.system_keys.get("alchemy_api_key") else None
         now = time.time()
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
         await bm.tick(now)
@@ -1989,7 +1990,8 @@ class PumpHub:
 
         async def run():
             ORIGIN.set("BOOST (carteiras, Alchemy)")
-            rpc = sybil.Rpc(self.http, sybil.alchemy_url(key))
+            rpc = self.alchemy_rpc()
+            n0 = rpc.n
             try:
                 svc = bm.svc
                 pda = svc.curve_pda(b["mint"]) if (svc is not None and not b.get("creator")) else None
@@ -2004,7 +2006,7 @@ class PumpHub:
                 if b.get("sybil_tries", 0) >= 2:
                     b["sybil"] = {"t": round(time.time()), "nivel": "sem dados", "motivo": ("falhou: " + str(e)[:120]).replace(key, "***"), "erro": True}
             finally:
-                st["chamadas"] += rpc.n
+                st["chamadas"] += rpc.n - n0
                 st["rodando"] = None
                 bm.dirty.add(b["mint"])
         st["task"] = asyncio.create_task(run())
@@ -2023,6 +2025,26 @@ class PumpHub:
                     pf._emit(msg)
                 except Exception:
                     pass
+
+    def alchemy_rpc(self):
+        """0.32.384: um cliente da Alchemy por chave, com ritmo e nova tentativa em 429 (a análise e a reserva dividem o limite)."""
+        from . import sybil
+        key = self.system_keys.get("alchemy_api_key") or ""
+        cur = self.__dict__.get("_alch")
+        if not cur or cur[0] != key:
+            cur = (key, sybil.Rpc(self.http, sybil.alchemy_url(key)))
+            self.__dict__["_alch"] = cur
+        return cur[1]
+
+    async def _bm_rpc_alchemy(self, keys: list, enc: str):
+        """0.32.384: reserva da leitura do DEV e da trava do BOOST quando o RPC do sistema não responde."""
+        if not keys or not self.system_keys.get("alchemy_api_key"):
+            return None
+        try:
+            r = await self.alchemy_rpc().call("getMultipleAccounts", [keys[:100], {"encoding": enc, "commitment": "confirmed"}])
+            return (r or {}).get("value")
+        except Exception:
+            return None
 
     def bm_sybil(self, mint: str) -> dict | None:
         b = self.bm.items.get(mint)

@@ -161,3 +161,54 @@ def test_sem_dev_le_o_dev_na_curva_pela_alchemy():
             return await sybil.analyze(sybil.Rpc(c, sybil.alchemy_url("k" * 20)), MINT, None, curve_pda="Curve111", now=5000)
     r = asyncio.run(go())
     assert r["creator"] == dev and r["creator_src"] == "alchemy"
+
+
+def test_ritmo_e_429_tenta_de_novo():
+    """0.32.384: a Alchemy respondeu 429 em todas as análises de 19/11; agora espera e tenta de novo."""
+    n = {"c": 0}
+
+    def h(req):
+        n["c"] += 1
+        if n["c"] <= 2:
+            return httpx.Response(429, json={})
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": {"ok": 1}})
+    dormiu = []
+
+    async def fake_sleep(s):
+        dormiu.append(s)
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(h)) as c:
+            rpc = sybil.Rpc(c, "https://solana-mainnet.g.alchemy.com/v2/x", sleep=fake_sleep)
+            return await rpc.call("getHealth", []), rpc
+    r, rpc = asyncio.run(go())
+    assert r == {"ok": 1} and rpc.limit_n == 2 and 1.0 in dormiu and 2.0 in dormiu
+
+
+def test_boost_sem_rpc_usa_reserva_e_nao_espera_para_sempre():
+    from app import boostmig
+    from app.boostmig import BoostMig
+    from tests.test_boostmig import Svc, cfg, M
+    now = 1_000_000.0
+    bm = BoostMig(Svc({}), clock=lambda: now)
+    b = bm.on_migration({"mint": M, "pool": "pump-amm", "symbol": "ROCK", "name": "Rockstar"}, now - 40)
+    est, why = bm.decide(cfg(pump_bm_watch_s=0, pump_bm_min_buys=0, pump_bm_require_safety=True), b, now, set(), 0)
+    assert "DEV" not in why                                      # 40 s sem DEV: segue sem o filtro de DEV scam
+    b2 = bm.on_migration({"mint": M[:-4] + "zzzz", "pool": "pump-amm", "symbol": "X2", "name": "X2"}, now - 50)
+    est, why = bm.decide(cfg(pump_bm_watch_s=0, pump_bm_min_buys=0, pump_bm_require_safety=True), b2, now, set(), 0)
+    assert est == "fora" and "trava" in why                        # 50 s sem trava lida: não conferido → fora (exigir trava ligado)
+
+    async def sistema(keys, enc):
+        return None
+
+    async def reserva(keys, enc):
+        return [{"ok": k} for k in keys]
+    bm.rpc_multi, bm.rpc_backup = sistema, reserva
+    vals = asyncio.run(bm._rpc(["a", "b"], "base64"))
+    assert vals == [{"ok": "a"}, {"ok": "b"}] and bm.st["reserva"] == 1
+    boostmig.ALCHEMY_BACKUP = 0.0
+    try:
+        bm.svc._rpc_multi = None
+    except Exception:
+        pass
+    boostmig.ALCHEMY_BACKUP = 1.0

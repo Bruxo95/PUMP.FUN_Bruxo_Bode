@@ -2675,6 +2675,11 @@
    "versao": "0.32.383",
    "inicio": "2026-11-19T21:35:00+00:00",
    "titulo": "BOOST: carteiras analisadas mesmo sem o DEV lido (DEV pela Alchemy) e situação na coluna"
+  },
+  {
+   "versao": "0.32.384",
+   "inicio": "2026-11-19T21:50:00+00:00",
+   "titulo": "BOOST: reserva pela Alchemy para o DEV e a trava, sem espera infinita, e ritmo da Alchemy (429)"
   }
  ]
 }

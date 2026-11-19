@@ -33,7 +33,9 @@ import time
 SYSTEM_PROGRAM = "11111111111111111111111111111111"
 LAUNCH_SLOTS = 2                    # recebeu o token até 2 blocos depois do lançamento = comprou junto (bundle)
 SIG_LIMIT = 1000
-PARALLEL = 5                        # pedidos simultâneos à Alchemy
+PARALLEL = 3                        # pedidos simultâneos à Alchemy
+MIN_GAP_S = 0.12                    # 0.32.384: no máximo ~8 pedidos por segundo (o plano grátis respondia 429 com 5 de uma vez)
+RETRY_429 = 4                       # 0.32.384: em 429 espera e tenta de novo (1, 2, 3, 4 s)
 NEW_WALLET_S = 86400                # carteira com menos de 1 dia = nova
 
 
@@ -66,22 +68,40 @@ class RpcError(Exception):
 
 
 class Rpc:
-    def __init__(self, http, url: str):
-        self.http, self.url, self.n = http, url, 0
+    """Um por chave no servidor (hub.alchemy_rpc): o ritmo vale para a análise das carteiras e para a reserva do BOOST juntos."""
+    def __init__(self, http, url: str, sleep=asyncio.sleep, clock=time.monotonic):
+        self.http, self.url, self.n, self.limit_n = http, url, 0, 0
         self.sem = asyncio.Semaphore(PARALLEL)
+        self.lock = asyncio.Lock()
+        self.sleep, self.clock, self.last = sleep, clock, 0.0
+
+    async def _pace(self) -> None:
+        async with self.lock:
+            wait = self.last + MIN_GAP_S - self.clock()
+            if wait > 0:
+                await self.sleep(wait)
+            self.last = self.clock()
 
     async def call(self, method: str, params: list):
         async with self.sem:
-            self.n += 1
-            r = await self.http.post(self.url, timeout=15, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
-            if r.status_code == 429:
-                raise RpcError("Alchemy: limite de pedidos (429)")
-            if r.status_code in (401, 403):
-                raise RpcError(f"Alchemy recusou a chave (HTTP {r.status_code})")
-            j = r.json()
-            if j.get("error"):
-                raise RpcError(f"Alchemy {method}: {str((j['error'] or {}).get('message'))[:120]}")
-            return j.get("result")
+            for tent in range(RETRY_429 + 1):
+                await self._pace()
+                self.n += 1
+                r = await self.http.post(self.url, timeout=15, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+                if r.status_code in (401, 403):
+                    raise RpcError(f"Alchemy recusou a chave (HTTP {r.status_code})")
+                j = r.json() if r.status_code != 429 else {"error": {"code": 429}}
+                err = j.get("error")
+                if r.status_code == 429 or (err and (err.get("code") == 429 or "rate" in str(err.get("message")).lower()
+                                                     or "compute units" in str(err.get("message")).lower())):
+                    self.limit_n += 1
+                    if tent < RETRY_429:
+                        await self.sleep(1.0 * (tent + 1))
+                        continue
+                    raise RpcError("Alchemy: limite de pedidos (429) mesmo esperando")
+                if err:
+                    raise RpcError(f"Alchemy {method}: {str(err.get('message'))[:120]}")
+                return j.get("result")
 
 
 def funder_of(tx: dict | None, wallet: str) -> str | None:
@@ -220,6 +240,7 @@ async def _funder(rpc: Rpc, wallet: str, now: float) -> dict:
 async def analyze(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, alert_pct: float = 20.0, bundle_lim: float = 25.0,
                   now: float | None = None, curve_pda: str | None = None) -> dict:
     now = now or time.time()
+    n0 = rpc.n
     creator_src = "boost" if creator else None
     if not creator and curve_pda:        # 0.32.383: o BOOST ainda não leu o DEV → lê aqui, na conta da curva (pela Alchemy)
         try:
@@ -285,5 +306,5 @@ async def analyze(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, ale
     out = build(mint, creator, rows, launch_slot, creator_funder, creator_pct, alert_pct, bundle_lim, now)
     out["creator_funder"] = creator_funder
     out["creator"], out["creator_src"] = creator, creator_src
-    out["chamadas"] = rpc.n
+    out["chamadas"] = rpc.n - n0
     return out
