@@ -1093,3 +1093,7 @@ label.chgrp{cursor:pointer}
 .bmrow>button{flex:0 0 auto;white-space:nowrap}
 .bmnote{margin:10px 0 0}
 @media (max-width:1100px){.bmrules{grid-template-columns:1fr}}
+/* 0.32.377: DEV VIP / DEV scam e detalhes do DEV */
+#bmDevTabs{margin-top:-4px}
+.bmdl{font-weight:600}.bmdbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:12px 0;background:var(--down-bg)}
+#jtMS a{word-break:break-all}

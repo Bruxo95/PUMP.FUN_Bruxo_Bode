@@ -224,3 +224,19 @@ def test_observacao_cota_compra_na_jupiter_e_ignora_preco_da_curva():
     run(bm._safety(now))
     assert b.get("creator_tries", 0) == 0 and b.get("safety_tries", 0) == 0 and bm.st["rpc_falhou"] == 2
     assert bmod.finite({"a": float("inf"), "b": [float("nan"), 1.5]}) == {"a": None, "b": [None, 1.5]}
+
+
+def test_detalhes_do_dev(env):
+    """0.32.377 (pedido do dono): página de cada DEV com situação, resultado por token, motivo do scam e tokens dele em 24 h."""
+    now = time.time()
+    bm = BoostMig(Svc({}), clock=lambda: now)
+    b = pronto(bm, M, now - 120, now)
+    b["track"] = {"n": 9, "top_pct": 40.0, "top_s": 60, "dump_pct": -80.0, "dump_s": 200}
+    bm.scam_mark(now)
+    bm.dev_book[DEV] = {"mints": {M2: {"symbol": "OLD", "pnl_sol": 0.01, "pnl_pct": 20.0, "real": False, "t": now - 50}}}
+    fake = types.SimpleNamespace(bm=bm)
+    d = PumpHub.bm_dev(fake, DEV)
+    assert d["scam"] and "full dump" in d["scam_info"]["why"] and d["tokens_24h"][0]["symbol"] == "GTAVI"
+    assert d["tokens_24h"][0]["scam_por"] and d["resultados"][0]["symbol"] == "OLD" and d["stats"]["wins"] == 1
+    c = env["c"]
+    assert c.get("/api/pump/boost-migracao/dev/" + DEV).status_code == 401

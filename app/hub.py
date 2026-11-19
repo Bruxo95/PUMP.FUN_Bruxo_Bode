@@ -1897,6 +1897,30 @@ class PumpHub:
         except Exception:
             return None
 
+    def bm_dev(self, creator: str) -> dict:
+        """0.32.377: página de detalhes de um DEV — situação (VIP/scam), resultado por token, motivo do scam e os tokens dele nas
+        últimas 24 h (com topo, dump, trava e a sua decisão)."""
+        bm, now = self.bm, time.time()
+        st = bm.dev_stats(creator) or {}
+        sc = bm.scam_devs.get(creator) or {}
+        book = (bm.dev_book.get(creator) or {}).get("mints") or {}
+        toks = []
+        for m, b in sorted(bm.items.items(), key=lambda x: -x[1]["t0"]):
+            if b.get("creator") != creator:
+                continue
+            k = b.get("track") or {}
+            toks.append({"mint": m, "symbol": b.get("symbol"), "name": b.get("name"), "t0": b["t0"], "progress": round(bm.progress(b, now), 1),
+                         "status": b.get("status"), "safety_ok": b.get("safety_ok"), "safety_why": b.get("safety_why"),
+                         "top_pct": k.get("top_pct"), "top_s": k.get("top_s"), "dump_pct": k.get("dump_pct"), "dump_s": k.get("dump_s"),
+                         "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"), "mcap_sol": b.get("mcap_sol"),
+                         "scam_por": ((sc.get("mints") or {}).get(m) or {}).get("why"), "resultado": book.get(m) or b.get("result"),
+                         "entraram": sum(1 for u in (b.get("users") or {}).values() if u.get("estado") == "entrou")})
+        return {"creator": creator, "vip": bool(st.get("vip")), "scam": bool(sc), "stats": st or None,
+                "scam_info": {"why": sc.get("why"), "t": sc.get("t"), "expira_t": (sc.get("t") or 0) + boostmig.SCAM_KEEP_S,
+                              "tokens": [{"mint": m, **x} for m, x in (sc.get("mints") or {}).items()]} if sc else None,
+                "resultados": sorted([{"mint": m, **x} for m, x in book.items()], key=lambda x: -float(x.get("t") or 0)),
+                "tokens_24h": toks, "guarda_vip_dias": round(boostmig.VIP_KEEP_S / 86400), "guarda_scam_dias": round(boostmig.SCAM_KEEP_S / 86400)}
+
     def bm_cfg(self) -> dict:
         """0.32.375: regras compartilhadas do BOOST (DEV scam/VIP). Para cada opção, o valor do admin que a mudou por último na
         tela (`_ov_user`); se ninguém mudou, o padrão. Mesmo jeito dos filtros do Jev Trade."""
@@ -1928,12 +1952,28 @@ class PumpHub:
         mine_p = [p for p in pf.positions() if p.get("origem") == "boostmig"]
         fech = [t for t in mine_t if not t.get("real")]
         ganhos = [t for t in fech if (t.get("pnl_sol") or 0) > 0]
-        scam = [{"creator": c, "why": d.get("why"), "symbol": d.get("symbol"), "t": d.get("t"),
-                 "tokens": [{"mint": m, **x} for m, x in (d.get("mints") or {}).items()]} for c, d in bm.scam_devs.items()]
+        # 0.32.377 (pedido do dono): colunas separadas e detalhes por DEV
+        n24 = {}
+        for b in bm.items.values():
+            if b.get("creator"):
+                n24[b["creator"]] = n24.get(b["creator"], 0) + 1
+        scam = []
+        for c, d in bm.scam_devs.items():
+            ms = [{"mint": m, **x} for m, x in (d.get("mints") or {}).items()]
+            ts = [float(x.get("t") or 0) for x in ms if x.get("t")]
+            scam.append({"creator": c, "why": d.get("why"), "symbol": d.get("symbol"), "t": d.get("t"), "n": len(ms), "tokens": ms,
+                         "first_t": min(ts) if ts else d.get("t"), "expira_t": (d.get("t") or 0) + boostmig.SCAM_KEEP_S,
+                         "n24": n24.get(c, 0), "vip_antes": bool((bm.dev_book.get(c) or {}).get("mints"))})
         vip = []
         for c in bm.dev_book:
             st = bm.dev_stats(c) or {}
-            vip.append({"creator": c, **st, "tokens": [{"mint": m, **x} for m, x in (bm.dev_book[c].get("mints") or {}).items()]})
+            ms = [{"mint": m, **x} for m, x in (bm.dev_book[c].get("mints") or {}).items()]
+            pcts = [float(x["pnl_pct"]) for x in ms if x.get("pnl_pct") is not None]
+            ult = max(ms, key=lambda x: float(x.get("t") or 0)) if ms else {}
+            vip.append({"creator": c, **st, "tokens": ms, "best_pct": max(pcts) if pcts else None, "worst_pct": min(pcts) if pcts else None,
+                        "acerto": round(st.get("wins", 0) / st["n"] * 100) if st.get("n") else None, "real_n": sum(1 for x in ms if x.get("real")),
+                        "ultimo": {"symbol": ult.get("symbol"), "pnl_sol": ult.get("pnl_sol"), "pnl_pct": ult.get("pnl_pct"), "t": ult.get("t")},
+                        "n24": n24.get(c, 0), "scam": c in bm.scam_devs})
         scam.sort(key=lambda x: -(x.get("t") or 0))
         vip.sort(key=lambda x: (not x.get("vip"), -(x.get("pnl_sol") or 0)))
         ult = bm.st.get("ultima")

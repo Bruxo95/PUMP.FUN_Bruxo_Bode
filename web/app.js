@@ -1261,7 +1261,7 @@
     return '<span class="bmbar' + (p >= 100 ? " done" : p > ex ? " late" : "") + '" title="' + f(p, 0) + '% do BOOST"><i style="width:' + p + '%"></i><b style="left:' + ex + '%"></b></span> ' + f(p, 0) + "%"; };
   const bmDev = (x) => { if (!x.creator) return '<span class="bmdev">DEV: lendo…</span>';
     const r = x.dev_rec || {}, h = x.dev_hist || [];
-    return '<span class="bmdev">' + (x.scam ? "💀 " : x.vip ? "👑 " : "") + "DEV " + esc(shortW(x.creator)) + " · " + (x.dev_n || 1) + " token(s) em 24 h" +
+    return '<span class="bmdev">' + (x.scam ? "💀 " : x.vip ? "👑 " : "") + "DEV " + bmDevLink(x.creator) + " · " + (x.dev_n || 1) + " token(s) em 24 h" +
       (r.n ? " · nosso resultado " + r.wins + "×" + r.losses + " (" + s4(r.pnl_sol || 0) + " SOL)" : "") +
       (h.length ? " · antes: " + h.slice(0, 3).map((o) => esc(o.symbol || "?") + (o.dump_pct != null ? " dump " + f(o.dump_pct, 0) + "%" : "") + (o.lock ? " (trava)" : "")).join(", ") : "") + "</span>"; };
   const bmTrk = (k) => !k || !k.n ? '<span class="dim">–</span>' : pc(k.top_pct, 0) + " aos " + hms(k.top_s || 0) +
@@ -1273,7 +1273,40 @@
     if (t) { BMT = t; try { localStorage.setItem("pf_bmt", t); } catch (e) { /* */ } }
     if (!document.querySelector('#bmTabs [data-bmt="' + BMT + '"]')) BMT = "tokens";
     document.querySelectorAll("#bmTabs [data-bmt]").forEach((b) => b.classList.toggle("on", b.dataset.bmt === BMT));
-    document.querySelectorAll('section[data-view="boost"] [data-bmt]:not(button)').forEach((c) => c.classList.toggle("ctoff", c.dataset.bmt !== BMT));
+    document.querySelectorAll('section[data-view="boost"] [data-bmt]:not(button)').forEach((c) => c.classList.toggle("ctoff", c.dataset.bmt !== BMT || (!!c.dataset.bmd && c.dataset.bmd !== BMD)));
+    document.querySelectorAll("#bmDevTabs [data-bmdt]").forEach((b) => b.classList.toggle("on", b.dataset.bmdt === BMD));
+  }
+  let BMD = "vip";
+  try { BMD = localStorage.getItem("pf_bmd") || "vip"; } catch (e) { /* */ }
+  function bmDevTab(t) { BMD = t; try { localStorage.setItem("pf_bmd", t); } catch (e) { /* */ } bmTab(); }
+  const bmDevLink = (c, ico) => '<a href="#" class="bmdl" data-bmdev1="' + esc(c) + '" title="Ver todos os detalhes deste DEV">' + (ico || "") + esc(shortW(c)) + "</a>";
+  const bmAgo = (t) => t ? dt(t) + '<small class="bmwhy">há ' + hms(Math.max(0, Date.now() / 1000 - t)) + "</small>" : "–";
+  async function openBmDev(c) {
+    ovShow("DEV " + shortW(c), "carregando…", "");
+    const r = await BB.api("/api/pump/boost-migracao/dev/" + encodeURIComponent(c));
+    if (r.error) { $("jtMS").textContent = r.error; return; }
+    const S = r.stats || {}, X = r.scam_info;
+    const tags = (r.vip ? '<span class="tag win">👑 VIP</span> ' : "") + (r.scam ? '<span class="tag loss">💀 SCAM</span> ' : "") + (!r.vip && !r.scam ? '<span class="tag neutral">sem marca</span>' : "");
+    $("jtMS").innerHTML = tags + ' <a href="https://solscan.io/account/' + encodeURIComponent(c) + '" target="_blank" rel="noopener">' + esc(c) + "</a>";
+    $("jtMB").innerHTML = '<div class="kpis" id="bmDK"></div>' +
+      (X ? '<div class="bmdbox"><b>Por que é scam:</b> ' + esc(X.why || "") + '<br><small class="muted">marcado ' + dt(X.t) + " · sai da lista " + dt(X.expira_t) + " (guarda " + r.guarda_scam_dias + " dias)</small></div>" : "") +
+      '<h3 class="small">Tokens dele nas últimas 24 h</h3><div class="tablewrap"><table id="bmDT" class="daytbl"></table></div>' +
+      '<h3 class="small">Nosso resultado com ele (guardado por ' + r.guarda_vip_dias + ' dias)</h3><div class="tablewrap"><table id="bmDR" class="daytbl"></table></div>' +
+      (X ? '<h3 class="small">Tokens que marcaram como scam</h3><div class="tablewrap"><table id="bmDS" class="daytbl"></table></div>' : "");
+    kpis("bmDK", [["Tokens em 24 h", String((r.tokens_24h || []).length), "migraram para a PumpSwap", "tr"],
+      ["Nosso resultado", S.n ? sg(S.pnl_sol || 0) : "–", S.n ? (S.wins || 0) + " ganhos × " + (S.losses || 0) + " perdas" : "nenhum BOOST fechado com ele", "pnl"],
+      ["Acerto", S.n ? Math.round((S.wins || 0) / S.n * 100) + "%" : "–", (S.n || 0) + " resultado(s)", "hit"],
+      ["Situação", r.scam ? "💀 scam" : r.vip ? "👑 VIP" : "–", r.scam ? "barrado no BOOST" : r.vip ? "pode repetir nome" : "sem marca", "pos"]]);
+    table("bmDT", ["Token", "Migrou", "BOOST", "Trava", "Topo", "Dump", "Compras × vendas", "Mcap", "Contas que entraram", "Resultado"], (r.tokens_24h || []).map((x) => [
+      "<b>" + pfM(x.mint, x.symbol || x.name) + "</b>" + (x.scam_por ? '<small class="bmwhy down">' + esc(x.scam_por) + "</small>" : ""), dt(x.t0), f(x.progress, 0) + "%",
+      x.safety_ok === true ? '<span class="up">sem trava</span>' : x.safety_ok === false ? '<span class="down">TRAVA</span>' : '<span class="dim">não conferido</span>',
+      x.top_pct == null ? "–" : pc(x.top_pct, 0) + '<small class="bmwhy">aos ' + hms(x.top_s || 0) + "</small>",
+      x.dump_pct == null ? "–" : pc(x.dump_pct, 0) + '<small class="bmwhy">aos ' + hms(x.dump_s || 0) + "</small>",
+      x.buys_m5 == null ? "–" : x.buys_m5 + " × " + (x.sells_m5 || 0), x.mcap_sol == null ? "–" : f(x.mcap_sol, 0) + " SOL", String(x.entraram || 0),
+      x.resultado && x.resultado.pnl_sol != null ? sg(x.resultado.pnl_sol) + " <small>" + pc(x.resultado.pnl_pct) + "</small>" : "–"]), "Nenhum token dele nas últimas 24 h.");
+    table("bmDR", ["Fechou", "Token", "Resultado", "%", "Carteira"], (r.resultados || []).map((x) => [dt(x.t), pfM(x.mint, x.symbol), sg(x.pnl_sol), pc(x.pnl_pct), x.real ? "REAL" : "FICTÍCIA"]),
+      "Nenhum BOOST fechado com este DEV.");
+    if (X) table("bmDS", ["Quando", "Token", "Motivo"], (X.tokens || []).map((x) => [dt(x.t), pfM(x.mint, x.symbol), '<span class="wrapcell">' + esc(x.why || "") + "</span>"]), "–");
   }
   // situação de cada token como etiqueta colorida (as cores do painel: verde = bom, laranja = atenção, vermelho = golpe)
   const bmSit = (x) => { const p = x.progress || 0, st = String(x.status || "");
@@ -1310,12 +1343,21 @@
     table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Motivo da saída"], (r.trades || []).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.real ? ' <span class="tag loss">REAL</span>' : ""),
       f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", t.hold_s == null ? "–" : hms(t.hold_s), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
       "Nenhum trade do BOOST ainda.");
-    table("bmVip", ["DEV", "Tokens", "Ganhou × perdeu", "Saldo", ""], (r.vip || []).slice(0, 80).map((d) => [(d.vip ? "👑 " : "") + esc(shortW(d.creator)) +
-      '<span class="bmdev">' + (d.tokens || []).slice(-4).map((t) => esc(t.symbol || "?")).join(", ") + "</span>", String(d.n || 0), (d.wins || 0) + " × " + (d.losses || 0), sg(d.pnl_sol || 0),
-      '<button class="btn sm" type="button" data-bmdev="unvip" data-cr="' + esc(d.creator) + '">Apagar histórico</button>']), "Nenhum resultado guardado ainda.");
-    table("bmScam", ["DEV", "Por quê", "Tokens", ""], (r.scam || []).slice(0, 80).map((d) => ["💀 " + esc(shortW(d.creator)), '<span class="wrapcell">' + esc(d.why || "") + "</span>",
-      (d.tokens || []).map((t) => esc(t.symbol || "?")).join(", "), '<button class="btn sm" type="button" data-bmdev="unscam" data-cr="' + esc(d.creator) + '">Tirar da lista</button>']),
+    table("bmVip", ["DEV", "Situação", "Tokens com resultado", "Ganhos", "Perdas", "Acerto", "Saldo", "Melhor", "Pior", "Último", "Tokens em 24 h", "Ações"],
+      (r.vip || []).slice(0, 200).map((d) => [bmDevLink(d.creator, d.vip ? "👑 " : ""), d.scam ? '<span class="tag loss">SCAM</span>' : d.vip ? '<span class="tag win">VIP</span>' : '<span class="tag neutral">não é VIP</span>',
+        String(d.n || 0) + (d.real_n ? ' <small class="muted">(' + d.real_n + " REAL)</small>" : ""), '<span class="up">' + (d.wins || 0) + "</span>", '<span class="down">' + (d.losses || 0) + "</span>",
+        d.acerto == null ? "–" : d.acerto + "%", sg(d.pnl_sol || 0), d.best_pct == null ? "–" : pc(d.best_pct), d.worst_pct == null ? "–" : pc(d.worst_pct),
+        d.ultimo && d.ultimo.symbol ? esc(d.ultimo.symbol) + " " + pc(d.ultimo.pnl_pct) + '<small class="bmwhy">' + dt(d.ultimo.t) + "</small>" : "–", String(d.n24 || 0),
+        '<button class="btn sm" type="button" data-bmdev1="' + esc(d.creator) + '">Detalhes</button> <button class="btn sm" type="button" data-bmdev="unvip" data-cr="' + esc(d.creator) + '">Apagar histórico</button>']),
+      "Nenhum resultado guardado ainda: o DEV entra aqui quando um BOOST com token dele fecha.");
+    table("bmScam", ["DEV", "Motivo", "Tokens marcados", "Nomes", "Tokens em 24 h", "Primeira marca", "Última marca", "Sai da lista", "Já foi VIP", "Ações"],
+      (r.scam || []).slice(0, 300).map((d) => [bmDevLink(d.creator, "💀 "), '<span class="wrapcell">' + esc(d.why || "") + "</span>", String(d.n || 0),
+        '<span class="wrapcell">' + (d.tokens || []).map((t) => esc(t.symbol || "?")).join(", ") + "</span>", String(d.n24 || 0), bmAgo(d.first_t), bmAgo(d.t), dt(d.expira_t),
+        d.vip_antes ? "sim" : "não",
+        '<button class="btn sm" type="button" data-bmdev1="' + esc(d.creator) + '">Detalhes</button> <button class="btn sm" type="button" data-bmdev="unscam" data-cr="' + esc(d.creator) + '">Tirar da lista</button>']),
       "Nenhum DEV marcado como scam.");
+    $("bmVipSub").textContent = (r.vip || []).filter((d) => d.vip).length + " VIP de " + (r.vip || []).length + " DEVs com resultado · VIP = 1+ ganho e saldo positivo · clique no DEV para ver tudo";
+    $("bmScamSub").textContent = (r.scam || []).length + " DEVs · os próximos tokens deles são barrados, mesmo com outro nome · clique no DEV para ver tudo";
   }
   const hmsTxt = (s) => (s < 60 ? Math.round(s) + " s" : hms(s));
   async function loadBm() {
@@ -1325,6 +1367,7 @@
     BM = r; renderBm();
   }
   document.addEventListener("change", (e) => { if (e.target.id === "bmF") renderBm(); });
+  document.addEventListener("click", (e) => { const a = e.target.closest("[data-bmdev1]"); if (!a) return; e.preventDefault(); openBmDev(a.dataset.bmdev1); });
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-bmdev]"); if (!b) return;
     if (!confirm(b.dataset.bmdev === "unscam" ? "Tirar este DEV da lista scam? Os próximos tokens dele voltam a poder entrar." : "Apagar o histórico de resultados deste DEV? Ele deixa de ser VIP.")) return;
@@ -2757,6 +2800,7 @@
     if (t.dataset.chf && t.closest("#chF")) { CHF = t.dataset.chf; loadCfgHist(); return; }
     if (t.dataset.trt && t.closest("#trTabs")) { trTab(t.dataset.trt); return; }
     if (t.dataset.bmt && t.closest("#bmTabs")) { bmTab(t.dataset.bmt); return; }
+    if (t.dataset.bmdt && t.closest("#bmDevTabs")) { bmDevTab(t.dataset.bmdt); return; }
     if (t.dataset.bdres) { bdAdd(t.dataset.bdres, true); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
     const ltb = t.closest && t.closest("[data-logtab]"); if (ltb) { LOGTAB = ltb.dataset.logtab; if (VIEW === "logs") { e.preventDefault(); showLogTab(LOGTAB); } return; }

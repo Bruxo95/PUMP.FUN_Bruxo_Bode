@@ -1419,6 +1419,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
             log.exception("boost: tela")
             return JSONResponse({"error": f"BOOST: {type(e).__name__}: {str(e)[:160]}"}, status_code=500)
 
+    @app.get("/api/pump/boost-migracao/dev/{creator}")
+    async def boost_migracao_dev_one(creator: str, u: dict = Depends(admin_only)):
+        """0.32.377: detalhes de um DEV (VIP, scam, resultados e os tokens dele em 24 h)."""
+        from .boostmig import finite
+        if not creator.isalnum() or len(creator) > 60:
+            return JSONResponse({"error": "DEV inválido"}, status_code=400)
+        return finite(hub.bm_dev(creator))
+
     @app.post("/api/pump/boost-migracao/dev")
     async def boost_migracao_dev(body: dict, u: dict = Depends(admin_only)):
         """Tira um DEV da lista scam (engano) ou apaga o histórico de resultados dele (VIP)."""
