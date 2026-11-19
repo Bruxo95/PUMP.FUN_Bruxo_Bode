@@ -1075,3 +1075,9 @@ label.chgrp{cursor:pointer}
 .bmbar b{position:absolute;top:0;bottom:0;width:2px;background:var(--text);opacity:.7}
 .bmdev{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .bmsw .sw-row>div{flex:1 1 auto;min-width:0}.bmsw .sw-row>button{flex:0 0 auto;white-space:nowrap}
+/* 0.32.374: submenus e situação do BOOST */
+.bmtabs{margin:2px 0 14px}.bmtabs button{height:32px;padding:0 14px}
+.tag.bmlive{background:var(--info-bg,rgba(56,189,248,.12));color:var(--info,#38bdf8)}
+.bmwhy{display:block;color:var(--muted);font-size:12px;margin-top:4px;line-height:1.35}
+.bmhow p{max-width:980px}
+.bmdevs{gap:16px}

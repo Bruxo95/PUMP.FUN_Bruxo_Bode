@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-19**; revisão documental **2.0**.
-Aplicação: **0.32.373 · 2026-11-19 · BOOST da migração: menu novo no pump.fun (do hermes-jev-trader)**.
-Referência Git na emissão: `b8c0a45195937eb02914da2ca4d33d0fccfacee1`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.374 · 2026-11-19 · BOOST com submenus, abaixo do Top traders e nas cores do painel**.
+Referência Git na emissão: `62fff4c8f0aa059d8b97e05d73d7399462ad006f`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

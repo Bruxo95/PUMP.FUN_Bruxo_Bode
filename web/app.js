@@ -1266,23 +1266,41 @@
       (h.length ? " · antes: " + h.slice(0, 3).map((o) => esc(o.symbol || "?") + (o.dump_pct != null ? " dump " + f(o.dump_pct, 0) + "%" : "") + (o.lock ? " (trava)" : "")).join(", ") : "") + "</span>"; };
   const bmTrk = (k) => !k || !k.n ? '<span class="dim">–</span>' : pc(k.top_pct, 0) + " aos " + hms(k.top_s || 0) +
     (k.dump_pct != null && k.dump_pct < 0 ? '<br><small>dump ' + pc(k.dump_pct, 0) + " aos " + hms(k.dump_s || 0) + "</small>" : "");
-  let BM = null, BM_T = null;
+  let BM = null, BM_T = null, BMT = "tokens";
+  try { BMT = localStorage.getItem("pf_bmt") || "tokens"; } catch (e) { /* */ }
+  // 0.32.374 (pedido do dono): submenus do BOOST (Tokens · Seus trades · Regras · DEV status · Como funciona)
+  function bmTab(t) {
+    if (t) { BMT = t; try { localStorage.setItem("pf_bmt", t); } catch (e) { /* */ } }
+    if (!document.querySelector('#bmTabs [data-bmt="' + BMT + '"]')) BMT = "tokens";
+    document.querySelectorAll("#bmTabs [data-bmt]").forEach((b) => b.classList.toggle("on", b.dataset.bmt === BMT));
+    document.querySelectorAll('section[data-view="boost"] [data-bmt]:not(button)').forEach((c) => c.classList.toggle("ctoff", c.dataset.bmt !== BMT));
+  }
+  // situação de cada token como etiqueta colorida (as cores do painel: verde = bom, laranja = atenção, vermelho = golpe)
+  const bmSit = (x) => { const p = x.progress || 0, st = String(x.status || "");
+    if (x.safety_ok === false) return '<span class="tag loss">TRAVA DE VENDA</span><small class="bmwhy">' + esc(x.safety_why || "") + "</small>";
+    if (/scam/i.test(st)) return '<span class="tag loss">DEV SCAM</span><small class="bmwhy">' + esc(st.replace(/^DEV scam — /, "")) + "</small>";
+    if (p < 100) return '<span class="tag bmlive">ATIVO</span><small class="bmwhy">faltam ' + hms(Math.max(0, ((100 - p) / 100) * ((BM && BM.janela_s) || 300))) + "</small>";
+    return '<span class="tag neutral">TERMINOU</span>'; };
   function renderBm() {
     const r = BM; if (!r) return;
     const R = r.resumo || {}, ex = Number((cfg() || {}).pump_bm_exit_pct || 80);
     $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
       " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
       " · janela de " + Math.round((r.janela_s || 300) / 60) + " min" + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "");
-    kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h", "tr"], ["Você entrou", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA" + (R.abertas_real ? " · " + R.abertas_real + " na REAL" : ""), "pos"],
+    const ativos = (r.itens || []).filter((x) => (x.progress || 0) < 100).length;
+    kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h · " + ativos + " com BOOST ativo agora", "tr"], ["Você entrou", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA" + (R.abertas_real ? " · " + R.abertas_real + " na REAL" : ""), "pos"],
       ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],
       ["DEVs", (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀", "VIP · scam", "hit"]]);
+    const TL = { tokens: "Tokens que migraram (" + (R.migracoes_24h || 0) + ")", trades: "Seus trades do BOOST (" + ((r.trades || []).length) + ")",
+      dev: "DEV status (" + (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀)" };
+    document.querySelectorAll("#bmTabs [data-bmt]").forEach((b) => { if (TL[b.dataset.bmt]) b.textContent = TL[b.dataset.bmt]; });
     const F = $("bmF").value || "todos";
     const its = (r.itens || []).filter((x) => { const e = (x.sua || {}).estado;
       return F === "todos" || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && e === "entrou") || (F === "esperar" && e === "esperar") ||
         (F === "fora" && e === "fora") || (F === "scam" && (x.scam || x.safety_ok === false)); });
     table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
       const u = x.sua || {}, E = BM_EST[u.estado] || [u.estado ? u.estado : "–", "neutral"], res = x.result;
-      return [pfM(x.mint, x.symbol || x.name) + bmDev(x), dt(x.t0), bmBar(x, ex), '<span class="wrapcell">' + esc(x.status || "") + "</span>",
+      return ["<b>" + pfM(x.mint, x.symbol || x.name) + "</b>" + (x.name && x.symbol && x.name !== x.symbol ? ' <small class="muted">' + esc(x.name) + "</small>" : "") + bmDev(x), dt(x.t0), bmBar(x, ex), bmSit(x),
         (u.estado ? '<span class="tag ' + E[1] + '">' + esc(E[0]) + "</span> " : "") + '<span class="wrapcell small">' + esc(u.motivo || ((cfg() || {}).pump_bm_on ? "" : "BOOST desligado para você")) + "</span>",
         x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
         res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–"];
@@ -2736,6 +2754,7 @@
     if (t.dataset.rshist) { e.preventDefault(); CHF = "carteiras"; walTab("hist"); loadCfgHist(); return; }
     if (t.dataset.chf && t.closest("#chF")) { CHF = t.dataset.chf; loadCfgHist(); return; }
     if (t.dataset.trt && t.closest("#trTabs")) { trTab(t.dataset.trt); return; }
+    if (t.dataset.bmt && t.closest("#bmTabs")) { bmTab(t.dataset.bmt); return; }
     if (t.dataset.bdres) { bdAdd(t.dataset.bdres, true); return; }
     if (t.id === "exLogRef") { loadExLog(); return; }
     const ltb = t.closest && t.closest("[data-logtab]"); if (ltb) { LOGTAB = ltb.dataset.logtab; if (VIEW === "logs") { e.preventDefault(); showLogTab(LOGTAB); } return; }
@@ -3030,7 +3049,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "bruxo") { loadBruxo(); loadBxReports(); }
     if (VIEW === "jev") loadJev();
     if (VIEW === "jevtrade") loadJt();
-    if (VIEW === "boost") loadBm();
+    if (VIEW === "boost") { bmTab(); loadBm(); }
     if (VIEW === "basegeral") { loadRsBase(); loadBrainShadow(); loadTuneBase(); loadTrBase(); }
     if (VIEW === "abas") loadAbas();
     if (VIEW === "traders") trTab();
