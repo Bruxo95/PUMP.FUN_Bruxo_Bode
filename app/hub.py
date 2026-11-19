@@ -14,7 +14,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from . import boostmig, detentores, jev, jevtrade, stkeys
+from . import boostmig, consultas, detentores, jev, jevtrade, stkeys
 from . import cfghist
 from .apiusage import ORIGIN, run_as
 from .db import SupabaseStore, Vault, audit
@@ -48,6 +48,7 @@ class PumpHub:
         self._blocked: set[str] = set()            # contas bloqueadas (vale também para cargas já em andamento)
         self._trade_q: list[dict] = []             # operações das carteiras em estudo a gravar (0.14.0)
         self.radar = RadarBuffer()                # só observações ao vivo; não gera ordens
+        consultas.bind(self.q_cfg)                # 0.32.379: chaves das consultas do servidor (último admin que mudou)
         from .tokenlab import TokenLab
         self.lab = TokenLab(self.market)          # base própria da pump.fun (0.21.0)
         from .explore import Explore
@@ -569,7 +570,8 @@ class PumpHub:
         await asyncio.sleep(30)
         while True:
             try:
-                await self.top_tick()
+                if consultas.on("pump_q_top"):
+                    await self.top_tick()
             except Exception as e:
                 log.warning("laboratório do top traders: %s", str(e)[:160])
             await asyncio.sleep(30)
@@ -702,7 +704,8 @@ class PumpHub:
         while True:
             try:
                 await self.shadow_save_open()                      # 0.31.99: sobrevive ao reinício
-                await self.shadow_tick()
+                if consultas.on("pump_q_explorar"):
+                    await self.shadow_tick()
             except Exception as e:
                 log.warning("entradas sombra: %s", str(e)[:160])
             await asyncio.sleep(60)
@@ -733,6 +736,8 @@ class PumpHub:
         return mint in self.market.blacklist or (tk.get("creator") in self.market.blacklist if tk.get("creator") else False)
 
     def calls_on_trade(self, w: str, ev: dict, t: float | None = None) -> dict | None:
+        if not consultas.on("pump_q_calls"):
+            return None
         t = time.time() if t is None else t
         label, fonte = self._call_label(w)
         tk = self.market.tokens.get(ev.get("mint")) or {}
@@ -801,7 +806,8 @@ class PumpHub:
         await asyncio.sleep(60)
         while True:
             try:
-                await self.calls_tick()
+                if consultas.on("pump_q_calls"):
+                    await self.calls_tick()
             except Exception as e:
                 log.warning("calls quentes: %s", str(e)[:160])
             await asyncio.sleep(30)
@@ -854,7 +860,7 @@ class PumpHub:
         trader → as posições da aba nesse token saem junto (se a opção estiver ligada)."""
         t = time.time() if t is None else t
         kind, mint = ev.get("txType"), ev.get("mint")
-        if not mint or kind not in ("buy", "sell"):
+        if not mint or kind not in ("buy", "sell") or not consultas.on("pump_q_bruxo"):
             return None
         admins = [e for e in list(self.engines.values()) if getattr(e, "role", "user") == "admin"]
         tops = [e for e in admins if w in self._bx_tops(e)]
@@ -896,7 +902,7 @@ class PumpHub:
 
     # ---------------------------------------------------------------- 0.32.83: Jev em modo sombra (só opina, nunca compra)
     def jev_wanted(self) -> bool:
-        if not self.system_keys.get("jev_api_key"):
+        if not self.system_keys.get("jev_api_key") or not consultas.on("pump_q_jev"):
             return False
         return any(getattr(e, "role", "user") == "admin" and getattr(e.cfg, "pump_jev_on", True) for e in self.engines.values())
 
@@ -1159,6 +1165,9 @@ class PumpHub:
                     day = time.strftime("%Y-%m-%d", time.gmtime())
                     if bt["dia"] != day:
                         bt.update(dia=day, calls_dia=0, erros_dia=0, tokens_dia=0, ms_dia=0)
+                    while not consultas.on("pump_q_jev") and bt["on"]:      # 0.32.379: desligado em Consultas
+                        bt["msg"] = "pausado: JEV (sombra) desligado em Configurações → Consultas"
+                        await asyncio.sleep(60)
                     while bt["calls_dia"] >= jev.BT_DAY_MAX and bt["on"]:
                         bt["msg"] = f"limite de {jev.BT_DAY_MAX} perguntas do dia; continua depois da meia-noite (UTC)"
                         await asyncio.sleep(300)
@@ -1535,7 +1544,8 @@ class PumpHub:
         await asyncio.sleep(50)
         while True:
             try:
-                await self.jt_tick()
+                if consultas.on("pump_q_jt"):
+                    await self.jt_tick()
             except Exception as e:
                 log.warning("jev trade: %s", str(e)[:160])
             await asyncio.sleep(20)
@@ -1758,6 +1768,8 @@ class PumpHub:
 
     # ------------------------------------------------------------------ 0.32.373: BOOST da migração (app/boostmig.py)
     def bm_on_migration(self, ev: dict) -> None:
+        if not consultas.on("pump_q_boost"):          # 0.32.379: BOOST desligado em Configurações → Consultas
+            return
         b = self.bm.on_migration(ev)
         if b is not None:
             log.info("BOOST: migrou %s", b.get("symbol") or b["mint"][:8])
@@ -1767,7 +1779,8 @@ class PumpHub:
         saved = 0.0
         while True:
             try:
-                await self.bm_tick()
+                if consultas.on("pump_q_boost"):
+                    await self.bm_tick()
             except Exception as e:
                 log.warning("boost da migração: %s", str(e)[:160])
             if time.time() - saved > 30:
@@ -1978,6 +1991,31 @@ class PumpHub:
                 "resultados": sorted([{"mint": m, **x} for m, x in book.items()], key=lambda x: -float(x.get("t") or 0)),
                 "tokens_24h": toks, "guarda_vip_dias": round(boostmig.VIP_KEEP_S / 86400), "guarda_scam_dias": round(boostmig.SCAM_KEEP_S / 86400)}
 
+    def q_cfg(self) -> dict:
+        """0.32.379: chaves das consultas do servidor. {opção: (ligada, user_id de quem mudou, quando)}; ninguém mudou = ligada."""
+        out = {}
+        for key in consultas.KEYS:
+            best = None
+            for e in list(getattr(self, "engines", {}).values()):
+                if getattr(e, "role", "user") != "admin":
+                    continue
+                when = (getattr(e, "_ov_user", None) or {}).get(key)
+                if when and (best is None or str(when) > best[0]):
+                    best = (str(when), bool(getattr(e.cfg, key, True)), getattr(e, "user_id", "") or "")
+            out[key] = (best[1], best[2], best[0]) if best else (True, "", "")
+        return out
+
+    async def q_state(self) -> list[dict]:
+        """0.32.379: o que a tela mostra: cada laço, se está ligado, quem mudou por último e o que para."""
+        cfg, nomes = self.q_cfg(), {}
+        for uid in {v[1] for v in cfg.values() if v[1]}:
+            try:
+                nomes[uid] = await self._nome(uid)
+            except Exception:
+                nomes[uid] = ""
+        return [{"key": k, "nome": n, "para": para, "on": cfg[k][0], "de": nomes.get(cfg[k][1], ""), "quando": cfg[k][2]}
+                for k, n, para in consultas.LOOPS]
+
     def bm_cfg(self) -> dict:
         """0.32.375: regras compartilhadas do BOOST (DEV scam/VIP). Para cada opção, o valor do admin que a mudou por último na
         tela (`_ov_user`); se ninguém mudou, o padrão. Mesmo jeito dos filtros do Jev Trade."""
@@ -2048,7 +2086,8 @@ class PumpHub:
         await asyncio.sleep(45)
         while True:
             try:
-                await self.bruxo_tick()
+                if consultas.on("pump_q_bruxo"):
+                    await self.bruxo_tick()
             except Exception as e:
                 log.warning("aba do bruxo: %s", str(e)[:160])
             await asyncio.sleep(20)
@@ -3023,7 +3062,8 @@ class PumpHub:
         await self.load_xrays()
         while True:
             try:
-                await self.xray_auto_once()
+                if consultas.on("pump_q_raiox"):
+                    await self.xray_auto_once()
             except Exception as e:
                 log.warning("raio-x automático: %s", str(e)[:160])
             await asyncio.sleep(1800)
@@ -4499,7 +4539,7 @@ class PumpHub:
     async def study_auto_loop(self) -> None:
         await asyncio.sleep(120)
         while True:
-            for pf in list(self.engines.values()):
+            for pf in list(self.engines.values()) if consultas.on("pump_q_estudo") else []:   # 0.32.379
                 try:
                     await self.study_auto(pf)
                 except Exception as e:
@@ -4514,7 +4554,8 @@ class PumpHub:
         while True:
             await asyncio.sleep(1800)
             await self.save_learning()
-            await self.refresh_study()
+            if consultas.on("pump_q_estudo"):
+                await self.refresh_study()
 
     # ------------------------------------------------------------------ carteiras em estudo (0.14.0)
     def radar_snapshot(self, pf) -> dict:
@@ -4725,7 +4766,7 @@ class PumpHub:
         return await self.config_offer(pf, sender, to_uid, nome, keys)
 
     # ------------------------------------------------------------------ convites de configuração (0.31.17)
-    SHARE_BLOCK = ("real", "pump_tg_")             # nunca vai junto: nada da carteira real nem do Telegram pessoal
+    SHARE_BLOCK = ("real", "pump_tg_", "pump_q_")             # nunca vai junto: nada da carteira real nem do Telegram pessoal
 
     def share_filter(self, keys, admin: bool) -> list[str]:
         from .settings import USER_KEYS

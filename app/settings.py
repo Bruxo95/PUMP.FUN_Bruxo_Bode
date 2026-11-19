@@ -109,6 +109,17 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_scam_keep_d": (float, 7.0, 1.0, 90.0),       # lembrar o DEV scam por X dias
     "pump_bm_vip_keep_d": (float, 30.0, 1.0, 365.0),      # lembrar o resultado do DEV (VIP) por X dias
     "pump_bm_fast": (bool, True, 0, 1),
+    "pump_q_boost": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_top": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_explorar": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_base": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_estudo": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_bruxo": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_jt": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_jev": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_calls": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_raiox": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
+    "pump_q_elite": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
     "pump_bm_hist_min": (float, 20.0, 5.0, 30.0),         # 0.32.378: análise de cada token X min depois da migração (histórico)                   # posição do BOOST no laço rápido de preço (~1 s)
     # 0.32.102 (dono, 31/10): filtros do Jev Trade editáveis na tela; padrão = a regra que estava valendo
     "pump_jt_min_holders": (int, 40, 5, 5000),            # detentores mínimos na 1ª conferência

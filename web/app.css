@@ -1101,3 +1101,11 @@ label.chgrp{cursor:pointer}
 .bmband{fill:var(--info-bg);stroke:none}.bmdot{fill:var(--info)}.bmdot.up{fill:var(--up)}
 .bmbarh{display:inline-block;width:80px;height:7px;border-radius:4px;background:var(--line);vertical-align:middle;overflow:hidden}.bmbarh i{display:block;height:100%;background:var(--info)}
 .bmmat td,.bmmat th{text-align:center}.bmmat td:first-child,.bmmat th:first-child{text-align:left}
+
+/* 0.32.379: Configurações → Consultas do servidor */
+.qlist{display:flex;flex-direction:column;gap:8px}
+.qrow{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 12px;border:1px solid var(--line,#2a2a2a);border-radius:10px}
+.qrow.qoff{opacity:.75;border-color:rgba(239,68,68,.45)}
+.qtxt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.qtxt small{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.qrow .tgl{flex:0 0 auto}

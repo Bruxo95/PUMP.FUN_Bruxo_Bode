@@ -20,7 +20,7 @@ import logging
 import time
 from collections import deque
 
-from . import stkeys
+from . import consultas, stkeys
 from .pumpfun import PUMP_PROGRAMS, PumpFun, now_iso
 from .settings import PumpSettings
 from .solana_wallet import UserWallet
@@ -83,10 +83,11 @@ class SharedMonitor:
         """Carteiras assinadas no WebSocket: copiadas por alguém + carteiras em estudo + top 20 do leaderboard (status online).
         Limitado a 100 carteiras para evitar ultrapassar o limite de subscrições do RPC WebSocket."""
         out = self.union_followed()
-        for e in self.engines():
-            out |= set(getattr(e, "study", []) or [])          # carteiras em estudo (0.14.0)
+        if consultas.on("pump_q_estudo"):                    # 0.32.379: Configurações → Consultas do servidor
+            for e in self.engines():
+                out |= set(getattr(e, "study", []) or [])      # carteiras em estudo (0.14.0)
         lb_wallets = set()
-        for e in self.engines():
+        for e in self.engines() if consultas.on("pump_q_top") else []:
             lb_wallets |= {r["wallet"] for r in e.leaderboard[:20] if r.get("wallet")}
         # Adiciona carteiras do leaderboard até atingir o limite máximo de 100
         for w in sorted(lb_wallets):
@@ -107,7 +108,7 @@ class SharedMonitor:
         out = set(self.union_followed())
         # 0.32.58 (dono: "entrar no começo, ser o primeiro"): os Maiores traders também chegam pela PumpPortal (sem o atraso do
         # RPC) quando alguém ligou a Aba do Bruxo, que entra junto com eles
-        if any(getattr(e.cfg, "pump_bx_on", False) for e in self.engines()):
+        if any(getattr(e.cfg, "pump_bx_on", False) for e in self.engines()) and consultas.on("pump_q_elite"):
             out |= set(self.hub.elite.wallets())
         return out
 
@@ -247,11 +248,11 @@ class SharedMonitor:
         act["last"] = now
         act["n"].append(now)
         fol = self.followers(w)
-        studied = any(w in (getattr(e, "study", []) or []) for e in self.engines())
+        studied = consultas.on("pump_q_estudo") and any(w in (getattr(e, "study", []) or []) for e in self.engines())
         # 0.31.95: os Maiores traders também são lidos (antes só eram "vistos" se ninguém os copiava, e por isso não
         # viravam sinal nem call). Ler não autoriza copiar: a cópia continua só para quem é seguido.
         el = getattr(getattr(self.hub, "elite", None), "wallets", None)
-        studied = studied or bool(el and w in el())
+        studied = studied or bool(el and consultas.on("pump_q_elite") and w in el())
         was_bot = act.get("bot_until", 0) > now
         is_bot = self.svc._is_bot(w, now)
         if is_bot:
@@ -376,9 +377,9 @@ class SharedMonitor:
     async def handle_ev(self, w: str, sig: str, t0: float, ev: dict | None, cop: bool, via: str = "RPC") -> None:
         """Trade já decodificado (do RPC ou da PumpPortal, 0.32.18): estudo, maiores traders, calls e cópia."""
         st, svc = self.market.rpc_status, self.svc
-        if ev and any(w in (getattr(e, "study", []) or []) for e in self.engines()):
+        if ev and consultas.on("pump_q_estudo") and any(w in (getattr(e, "study", []) or []) for e in self.engines()):
             self.hub.record_trade(w, ev)                        # carteiras em estudo: guarda no banco
-        if ev and w in self.hub.elite.wallets():
+        if ev and consultas.on("pump_q_elite") and w in self.hub.elite.wallets():
             self.elite_event(w, ev)                             # maiores traders (0.31.2)
         if not ev:
             st["not_trade"] = st.get("not_trade", 0) + 1     # transação lida, mas não era compra/venda de token
@@ -668,6 +669,9 @@ class SharedMonitor:
     async def explore_loop(self) -> None:
         from .explore import EVERY_S
         while True:
+            if not consultas.on("pump_q_explorar"):           # 0.32.379: desligado em Configurações → Consultas
+                await asyncio.sleep(30)
+                continue
             try:
                 await self.explore_once()
             except Exception as e:
@@ -776,7 +780,8 @@ class SharedMonitor:
     async def fresh_loop(self) -> None:
         while True:
             try:
-                await self.fresh_once()
+                if consultas.on("pump_q_explorar"):
+                    await self.fresh_once()
             except Exception as e:
                 log.warning("carteiras novas: %s", str(e)[:160])
             await asyncio.sleep(30)
@@ -811,11 +816,13 @@ class SharedMonitor:
             except Exception as e:
                 log.warning("boost DexScreener: %s", str(e)[:160])
             try:
-                await self.elite_info_once()
+                if consultas.on("pump_q_elite"):
+                    await self.elite_info_once()
             except Exception as e:
                 log.warning("saldo/idade dos maiores traders: %s", str(e)[:160])
             try:
-                await self.wallet_facts_once()
+                if consultas.on("pump_q_estudo"):
+                    await self.wallet_facts_once()
             except Exception as e:
                 log.warning("idade/saldo das carteiras em estudo: %s", str(e)[:160])
             await asyncio.sleep(60)
@@ -868,7 +875,7 @@ class SharedMonitor:
         rec = [r["wallet"] for r in self.hub.elite.recommended()]
         n = 0
         for e in self.engines():
-            want = rec if getattr(e.cfg, "pump_el_copy80", True) and getattr(e, "role", "admin") == "admin" else []
+            want = rec if getattr(e.cfg, "pump_el_copy80", True) and getattr(e, "role", "admin") == "admin" and consultas.on("pump_q_elite") else []
             if list(getattr(e, "elite_follow", None) or []) != want:
                 e.elite_follow = list(want)
                 e.refresh_followed(force=True)
@@ -896,12 +903,15 @@ class SharedMonitor:
     async def lab_loop(self) -> None:
         while True:
             try:
-                await self.lab_once()
-                self.auto_once()
-                self.elite_names()
-                self.hub.elite.tick()
-                self.elite_follow_sync()
-                await self.explore_auto_once()
+                if consultas.on("pump_q_base"):                 # 0.32.379: Configurações → Consultas do servidor
+                    await self.lab_once()
+                    self.auto_once()
+                if consultas.on("pump_q_elite"):
+                    self.elite_names()
+                    self.hub.elite.tick()
+                self.elite_follow_sync()                        # desligado: tira os sugeridos 80%+ da cópia
+                if consultas.on("pump_q_explorar"):
+                    await self.explore_auto_once()
                 for e in self.engines():                    # 0.32.21: barrados que subiram, só na fictícia
                     try:
                         e.barred_track()                    # 0.32.22: mede "entrar cedo" (+10/20/30/50%)
@@ -1089,8 +1099,9 @@ class SharedMonitor:
     async def lb_loop(self) -> None:
         while True:
             try:
-                await self.lb_once()
-                await self.wallet_values_once()
+                if consultas.on("pump_q_top"):                  # 0.32.379: ranking da Solana Tracker parado
+                    await self.lb_once()
+                    await self.wallet_values_once()
             except Exception as e:
                 log.warning("leaderboard: %s", str(e)[:160])
             await asyncio.sleep(30)

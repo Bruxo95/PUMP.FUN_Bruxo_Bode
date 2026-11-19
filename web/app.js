@@ -3167,7 +3167,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (VIEW === "visao") { loadDaily(); loadApplied(); buildAllCfg(); loadFollow(); loadWk(true); }
     if (VIEW === "semanas") loadWk(true);
     if (VIEW === "tradershist") loadTH(true);
-    if (VIEW === "carteiras") { drawRealTabs(); drawTabGate(); buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); loadSg(); if (WALT === "hist") loadCfgHist(); }
+    if (VIEW === "carteiras") { drawRealTabs(); drawTabGate(); buildAllCfg(); loadFollow(); loadSecrets(); loadApplied(); loadConfigUsers(); loadCmpAll().then(() => cfgTab()); loadQ().then(() => cfgTab()); cfgTab(); walTab(); walletLoad(true); loadMirror(); loadSg(); if (WALT === "hist") loadCfgHist(); }
     if (VIEW === "admin") { loadApiUsage(); loadAdmin(); loadSysKeys(); loadUsers(); }
     if (VIEW === "loggeral") lgTab();
     if (VIEW === "sistema") { sysTab(); openSys(); }
@@ -4053,6 +4053,38 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     return r;
   }
   const cxaGroups = (dif) => { const g = {}; dif.forEach((x) => { const n = x.vt + (x.ct ? " · " + x.ct : ""); (g[n] = g[n] || []).push(x); }); return g; };
+  // 0.32.379 (pedido do dono: "focar a API no BOOST"): uma chave por laço de consulta do servidor (vale para todos)
+  let QS = [];
+  async function loadQ() {
+    const card = $("qCard"); if (!card) return;
+    const adm = !!(ME && ME.role === "admin" && !ME.view_by); card.hidden = !adm; if (!adm) return;
+    const r = await BB.api("/api/pump/consultas", { quiet: true }).catch(() => null);
+    if (!r || !r.itens) { $("qList").textContent = (r && r.error) || "Não consegui ler as consultas."; return; }
+    QS = r.itens;
+    const on = QS.filter((x) => x.on).length;
+    $("qList").innerHTML = '<div class="small muted" style="margin-bottom:8px">' + on + " de " + QS.length + " ligadas</div>" + QS.map((x) =>
+      '<div class="qrow' + (x.on ? "" : " qoff") + '"><div class="qtxt"><b>' + esc(x.nome) + "</b><small>Desligada para: " + esc(x.para) + "</small>" +
+      (x.de ? '<small class="muted">mudou por último: ' + esc(x.de) + (x.quando ? " · " + dt(x.quando) : "") + "</small>" : "") + "</div>" +
+      '<button type="button" class="btn sm tgl sw' + (x.on ? " on" : "") + '" role="switch" aria-checked="' + (x.on ? "true" : "false") + '" aria-label="' + esc(x.nome) + '" data-qk="' + esc(x.key) + '">' + (x.on ? "Ligado" : "Desligado") + "</button></div>").join("");
+  }
+  async function setQ(body, msg) {
+    const r = await BB.api("/api/pump/settings", { body: body });
+    const errs = Object.entries(r.errors || {});
+    toast(r.error || (errs.length ? "Não aplicado: " + errs.map((e) => e[0]).join(", ") : msg));
+    poll(true); setTimeout(loadQ, 400);
+  }
+  document.addEventListener("click", (e) => {
+    const t = e.target && e.target.closest ? e.target.closest("[data-qk],#qOnly,#qAll") : null; if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    if (t.id === "qOnly") {
+      if (!confirm("Desligar as consultas de TODAS as abas, menos o BOOST?\n\nVale para o servidor todo (todos os usuários). A cópia de Top traders, o Explorar, a Base, o Estudo, a Aba do Bruxo, o Jev Trade, o JEV, as Calls, o Raio-X e os Maiores traders param. Posições abertas seguem normais.")) return;
+      const b = {}; QS.forEach((x) => { b[x.key] = x.key === "pump_q_boost"; }); setQ(b, "Só o BOOST consultando"); return;
+    }
+    if (t.id === "qAll") { const b = {}; QS.forEach((x) => { b[x.key] = true; }); setQ(b, "Todas as consultas ligadas"); return; }
+    const x = QS.find((q) => q.key === t.dataset.qk); if (!x) return;
+    if (x.on && !confirm("Desligar " + x.nome + "?\n\nVale para o servidor todo (todos os usuários).\nPara: " + x.para + ".")) return;
+    setQ({ [x.key]: !x.on }, x.nome + (x.on ? ": desligada" : ": ligada"));
+  }, true);
   async function loadCmpAll(force) {
     const card = $("cmpAllCard"); if (!card) return;
     const adm = !!(ME && ME.role === "admin" && !ME.view_by); card.hidden = !adm; if (!adm) return;

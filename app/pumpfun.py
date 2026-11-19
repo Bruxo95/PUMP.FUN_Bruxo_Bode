@@ -666,7 +666,9 @@ class PumpFun:
         self.ranking_cache = self.ranking(100)
         n = int(self._c("pump_top_n", 10))
         banned = set(self.banned)
-        man = [w for w in self.manual if w not in banned]
+        from . import consultas                          # 0.32.379: Configurações → Consultas do servidor
+        q_top, q_est = consultas.on("pump_q_top"), consultas.on("pump_q_estudo")
+        man = [w for w in self.manual if w not in banned] if q_top else []
         # sugeridos dos Maiores traders (80%+ de acerto, 0.31.4): entram como se fossem manuais enquanto estiverem lá
         man += [w for w in (getattr(self, "elite_follow", None) or []) if w not in banned and w not in man]
         now = time.time()
@@ -679,14 +681,15 @@ class PumpFun:
         # 0.32.4: "Copiar igual" — entram sempre (sem filtro de robô/pausa) enquanto o modo estiver ligado
         man += [w for w in self.eq_wallets() if w not in banned and w not in man]
         # 0.32.11: aprovadas pelo estudo automático (só fictícia; passam pelos filtros normais de cópia)
-        man += [w for w in self.study_copy_wallets() if w not in banned and w not in man and w not in bots]
-        man += [w for w in self.study_lucro_wallets() if w not in banned and w not in man and w not in bots]
+        if q_est:
+            man += [w for w in self.study_copy_wallets() if w not in banned and w not in man and w not in bots]
+            man += [w for w in self.study_lucro_wallets() if w not in banned and w not in man and w not in bots]
         self.leaderboard = [self._lb_judge(r) for r in self.leaderboard]
         lb = [r["wallet"] for r in self.leaderboard if r["eligible"] and r["wallet"] not in man
               and r["wallet"] not in banned and r["wallet"] not in bots]
         own = [r["wallet"] for r in self.ranking_cache if r["eligible"] and r["wallet"] not in man and r["wallet"] not in lb]
         # fonte: leaderboard da pump.fun (Solana Tracker); sem chave/sem dados → ranking próprio
-        auto = lb + own if self.leaderboard else own
+        auto = (lb + own if self.leaderboard else own) if q_top else []
         if self._c("pump_liga_on", True):              # 0.32.328: vagas pelo resultado de quem copia (liga de candidatos)
             auto = self.liga_order(auto)
         off: dict[str, float | None] = {}

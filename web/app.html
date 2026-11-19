@@ -1025,7 +1025,7 @@
         </div>
         <div data-wp="ambas" hidden>
         <p class="muted small" style="margin:0 0 10px">O que está aqui vale igual para a FICTÍCIA e para a REAL.</p>
-        <div class="seg ctabs" id="cfgTabs" data-novo-ate="2026-11-18"><button data-ct="copia">Regras</button><button data-ct="chaves">Chaves</button><button data-ct="share">Compartilhar</button><button data-ct="todas">Todas as telas</button><button data-ct="cmp">Comparar</button></div>
+        <div class="seg ctabs" id="cfgTabs" data-novo-ate="2026-11-18"><button data-ct="copia">Regras</button><button data-ct="chaves">Chaves</button><button data-ct="share">Compartilhar</button><button data-ct="todas">Todas as telas</button><button data-ct="cmp">Comparar</button><button data-ct="consultas">Consultas</button></div>
         <div data-ct="copia" class="card">
           <header><div><h2>Como copiar</h2><div class="sub">vale para as duas carteiras · cada mudança vale na hora e fica salva só para você</div></div></header>
           <div class="form">
@@ -1126,6 +1126,9 @@
         <div data-ct="cmp" class="card" id="cmpAllCard" hidden data-nosanf data-noshare data-novo-ate="2026-11-19"><header><div><h2>Comparar toda a configuração</h2><div class="sub">todas as opções de todas as telas, lado a lado com as de outro usuário (padrão: de quem você copiou por último, senão o Bruxo) · quando houver diferença aparece um aviso no topo do painel</div></div></header>
           <div id="cxAll"></div>
         </div>
+        <div data-ct="consultas" class="card" id="qCard" hidden data-nosanf data-noshare data-novo-ate="2026-12-03"><header><div><h2>Consultas do servidor</h2><div class="sub">liga e desliga as consultas de fundo de cada aba (APIs de fora) para economizar · <b>vale para o servidor todo</b> (todos os usuários) · vale o que o último admin mudou</div></div><div class="sp"></div><button class="btn sm" id="qOnly" title="Desliga todas, menos o BOOST">Só BOOST</button> <button class="btn sm" id="qAll">Ligar todas</button></header>
+          <div id="qList" class="qlist"><span class="muted small">carregando…</span></div>
+          <p class="muted small" style="margin:10px 0 0">Desligar para só as consultas e as compras novas daquela aba. Posições abertas continuam com preço, stop e venda normais (o laço de preços não tem chave aqui). O quanto cada aba gasta está em Administração → Uso das APIs.</p></div>
         <div data-ct="todas" class="card" id="allCfgCard" data-novo-ate="2026-11-10" data-sanf><header><div><h2>Configurações de todas as outras telas</h2><div class="sub">as mesmas opções do Explorar, Opções novas, Maiores traders, Base… mudou aqui, mudou lá (é a mesma configuração)</div></div></header>
           <div id="allCfgCopy"></div>
           <div id="allCfg"></div>

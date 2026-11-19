@@ -189,6 +189,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def pump_settings(body: dict, request: Request, pf=Depends(engine), u: dict = Depends(user)):
         if u["role"] != "admin" and any(key.startswith(("pump_ex_auto_", "pump_ar_")) for key in body):
             raise HTTPException(403, "só o admin pode configurar as novas entradas automáticas")
+        if u["role"] != "admin" and any(str(key).startswith("pump_q_") for key in body or {}):
+            raise HTTPException(403, "só o admin liga e desliga as consultas do servidor")
         radar_keys = ("pump_radar_enabled", "pump_radar_min_wallets", "pump_radar_window_min")
         radar_before = {key: getattr(pf.cfg, key) for key in radar_keys}
         body = dict(body or {})
@@ -210,6 +212,15 @@ def create_app(hub, auth, cfg) -> FastAPI:
             for key in sorted(set(applied) & AUTO_SWITCHES):
                 await audit(hub.db, pf.user_id, "compra automática mudada na tela",
                             f"{key} → {'ligada' if applied[key] else 'desligada'} · {str(request.headers.get('user-agent') or '')[:80]}")
+            q_keys = sorted(k for k in applied if k.startswith("pump_q_"))
+            if q_keys:                                    # 0.32.379: consultas do servidor (valem para todos)
+                from . import consultas
+                consultas.refresh()
+                for key in q_keys:
+                    await audit(hub.db, pf.user_id, "consulta do servidor " + ("ligada" if applied[key] else "desligada"),
+                                f"{consultas.NOMES.get(key, key)} ({key}) · vale para o servidor todo")
+                for e in list(hub.engines.values()):
+                    e.refresh_followed(force=True)
             if any(key in applied and applied[key] != radar_before[key] for key in radar_keys):
                 pf._radar_alerts = {}
             if {"pump_min_winrate", "pump_lb_min_trades", "pump_top_n", "pump_only_online", "pump_online_min"} & set(applied):
@@ -1407,6 +1418,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
                             max(5, min(1000, hold_min)), max(0.0, min(500.0, hold_cresc)), max(0, min(1000, hold_show)))
         await hub.hold_market(out["detentores"])
         return out
+
+    # 0.32.379 (pedido do dono): consultas do servidor — uma chave por laço, vale para todos (último admin que mudou)
+    @app.get("/api/pump/consultas")
+    async def consultas_state(u: dict = Depends(admin_only)):
+        return {"itens": await hub.q_state()}
 
     # 0.32.373 (pedido do dono): BOOST da migração (app/boostmig.py)
     @app.get("/api/pump/boost-migracao")
