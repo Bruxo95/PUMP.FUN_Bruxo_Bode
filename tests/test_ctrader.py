@@ -314,3 +314,18 @@ def test_migracao_libera_os_nomes_e_o_stack_tem_o_banco_local():
     assert {"ctrader_client_id", "ctrader_client_secret", "ctrader_tokens"} <= set(BNB_SECRET_NAMES)
     stack = open(os.path.join("deploy", "portainer-stack.yml"), encoding="utf-8").read()
     assert "pump_forex_api:" in stack and "FOREX_DB_URL=http://pump_forex_api:3000" in stack and "${FOREX_DB_PASSWORD:-sem_senha}" in stack
+
+
+def test_banco_local_confere_a_cada_2_min_e_explica_o_erro():
+    """0.32.381: o estado do banco local não fica parado num erro antigo; o erro de nome diz o que falta."""
+    import asyncio as _a
+    import httpx
+    from app.ctrader import ForexDB
+
+    def falha(req):
+        raise httpx.ConnectError("[Errno -2] Name or service not known")
+    db = ForexDB("http://pump_forex_api:3000", "s" * 40, httpx.AsyncClient(transport=httpx.MockTransport(falha)))
+    assert _a.new_event_loop().run_until_complete(db.ping(1_000_000.0)) is False
+    assert db.st["ok"] is False and "falta no stack" in db.st["ultimo_erro"] and db.st["conferido"]
+    db2 = ForexDB("http://pump_forex_api:3000", "s" * 40, httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=[]))))
+    assert _a.new_event_loop().run_until_complete(db2.ping(1_000_000.0)) is True and db2.st["ok"] is True

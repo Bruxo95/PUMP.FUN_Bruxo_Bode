@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.380 · 2026-11-19 · BOOST: no fim do BOOST continua se as compras crescem (perda máxima 25%) e opção de segurar até +X%"
+VERSION = "0.32.381 · 2026-11-19 · Forex: banco local conferido a cada 2 min, com a hora certa e o motivo do erro"

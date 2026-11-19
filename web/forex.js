@@ -98,7 +98,7 @@
     $("ctSum").innerHTML = "<b>Situação:</b> Client ID " + sim(CT.client_id) + " · Client Secret " + sim(CT.client_secret) + " · conta " +
       (CT.conectado ? '<span class="ck-ok">autorizada</span>' : '<span class="ck-no">não autorizada</span>') +
       (CT.erro ? '<br><span class="st-err">' + esc(CT.erro) + "</span>" : "") +
-      (CT.banco_local ? '<br><small class="muted">Banco local (Postgres da VPS): ' + (CT.banco_local.ok === false ? '<span class="st-err">com erro</span> · ' + esc(CT.banco_local.ultimo_erro || "") : CT.banco_local.ok ? "gravando · " + (CT.banco_local.gravados || 0) + " trades gravados" : "aguardando") + "</small>"
+      (CT.banco_local ? '<br><small class="muted">Banco local (Postgres da VPS): ' + (CT.banco_local.ok === false ? '<span class="st-err">com erro</span> · ' + esc(CT.banco_local.ultimo_erro || "") : CT.banco_local.ok ? "conectado · " + (CT.banco_local.gravados || 0) + " trades gravados" : "aguardando") + (CT.banco_local.conferido ? " · conferido " + esc(CT.banco_local.conferido) : "") + "</small>"
         : '<br><small class="muted">Banco local (Postgres da VPS): desligado · o histórico vem de novo do cTrader a cada reinício</small>');
     $("ctCidS").textContent = CT.client_id ? "(salvo: cole outro só para trocar)" : "";
     $("ctSecS").textContent = CT.client_secret ? "(salvo: cole outro só para trocar)" : "";

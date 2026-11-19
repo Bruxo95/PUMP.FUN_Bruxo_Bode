@@ -279,6 +279,17 @@ async def _ws_connect(url: str):
 
 
 # ------------------------------------------------------------------------------------------------------------------ banco local
+def _hora(t: float, seg: bool = False) -> str:
+    """0.32.381: hora no fuso do painel (o servidor roda em UTC e a tela mostrava 1 h a menos)."""
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(os.environ.get("TZ_PAINEL") or "Europe/Berlin")
+    except Exception:
+        tz = None
+    return datetime.fromtimestamp(t, tz).strftime("%d/%m %H:%M:%S" if seg else "%d/%m %H:%M")
+
+
 class ForexDB:
     """Banco pump_forex (deploy/forex.sql) pelo PostgREST da VPS (mesmo jeito do arquivo: token assinado, sem porta aberta)."""
 
@@ -304,8 +315,22 @@ class ForexDB:
             self.st.update(ok=True)
             return r
         except Exception as e:
-            self.st.update(ok=False, ultimo_erro=f"{time.strftime('%d/%m %H:%M')} {type(e).__name__}: {str(e)[:160]}")
+            msg = f"{type(e).__name__}: {str(e)[:160]}"
+            if "Name or service not known" in msg or "nodename nor servname" in msg:
+                msg += " — o serviço pump_forex_api não está na rede do painel (falta no stack)"
+            elif "PGRST000" in msg or "password authentication failed" in msg or " 503" in msg:
+                msg += " — o PostgREST não entra no Postgres: confira a senha do pump_forex_auth no stack"
+            elif "JWT" in msg or "JWS" in msg or " 401" in msg:
+                msg += " — PGRST_JWT_SECRET do pump_forex_api diferente do ARQUIVO_JWT_SECRET do painel"
+            self.st.update(ok=False, ultimo_erro=f"{_hora(time.time())} {msg}")
             return None
+
+    async def ping(self, now: float) -> bool:
+        """0.32.381: confere o banco local a cada 2 min (antes o estado só mudava quando chegava trade, saldo ou nota, e um erro
+        antigo ficava na tela até a próxima gravação)."""
+        r = await self._ok(self.rest.select("traders_monitored", None, limit=1, columns="id"))
+        self.st["conferido"] = _hora(now, True)
+        return r is not None
 
     async def trader_id(self, c: dict, uid: str) -> int | None:
         k = str(c["id"])
@@ -497,6 +522,9 @@ class CTraderHub:
         self.st["rodando"] = True
         while True:
             try:
+                if self.store is not None and self.clock() - self.st.get("ping_t", 0) >= 120:
+                    self.st["ping_t"] = self.clock()
+                    await self.store.ping(self.clock())
                 await self.volta()
                 self.st.update(volta=self.clock(), erro=None)
             except asyncio.CancelledError:
