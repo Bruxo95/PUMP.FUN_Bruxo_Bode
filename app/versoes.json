@@ -2680,6 +2680,11 @@
    "versao": "0.32.384",
    "inicio": "2026-11-19T21:50:00+00:00",
    "titulo": "BOOST: reserva pela Alchemy para o DEV e a trava, sem espera infinita, e ritmo da Alchemy (429)"
+  },
+  {
+   "versao": "0.32.385",
+   "inicio": "2026-11-19T22:10:00+00:00",
+   "titulo": "BOOST: carteiras em até 20 s, token novo sempre primeiro e o resto depois; ritmo que se ajusta na Alchemy"
   }
  ]
 }

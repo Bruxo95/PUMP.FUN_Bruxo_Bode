@@ -1409,7 +1409,8 @@
       st && x && (x.progress || 0) < 100 ? "na fila" : "–") + "</span>";
     const N = BM_SYN[s.nivel] || [s.nivel || "?", "neutral"];
     return '<a href="#" class="bmdl" data-bmsy="' + esc(m) + '" title="' + esc(s.motivo || "") + '"><span class="tag ' + N[1] + '">' + N[0] + "</span></a>" +
-      (s.real_dev_pct != null && s.nivel !== "sem dados" ? '<small class="bmwhy">DEV real ' + f(s.real_dev_pct, 1) + "% · bundle " + f(s.bundle_pct || 0, 1) + "%</small>" : "");
+      (s.real_dev_pct != null && s.nivel !== "sem dados" ? '<small class="bmwhy">DEV real ' + f(s.real_dev_pct, 1) + "% · bundle " + f(s.bundle_pct || 0, 1) + "%</small>" : "") +
+      (s.parcial ? '<small class="bmwhy">parcial · ' + s.parcial + " carteira(s) na fila</small>" : "");
   }
   async function openBmSy(m) {
     ovShow("Carteiras ligadas ao DEV", "carregando…", "");
@@ -1419,23 +1420,24 @@
     $("jtMT").textContent = "Carteiras · " + (d.symbol || m.slice(0, 6));
     if (!s) { $("jtMS").textContent = "Ainda não analisado."; $("jtMB").innerHTML = ""; return; }
     const N = BM_SYN[s.nivel] || [s.nivel, "neutral"];
-    $("jtMS").innerHTML = '<span class="tag ' + N[1] + '">' + N[0] + "</span> " + esc(s.motivo || "") + " · " + pfM(m, "abrir na pump.fun") + (d.creator ? " · DEV " + bmDevLink(d.creator) : "") + " · analisado " + dt(s.t);
+    $("jtMS").innerHTML = '<span class="tag ' + N[1] + '">' + N[0] + "</span> " + esc(s.motivo || "") + " · " + pfM(m, "abrir na pump.fun") + (d.creator ? " · DEV " + bmDevLink(d.creator) : "") + " · analisado " + dt(s.t) +
+      (s.primeiro_s != null ? " · primeiro resultado " + f(s.primeiro_s, 0) + " s depois da migração" : "") + (s.parcial ? ' · <span class="dim">parcial: ' + s.parcial + " carteira(s) na fila (termina quando não houver token novo)</span>" : s.completo_s != null ? " · completo aos " + hms(s.completo_s) : "");
     $("jtMB").innerHTML = '<div class="kpis" id="bmSyK"></div><h3 class="small">Maiores detentores (só carteiras de pessoas; pool e programas ficam de fora)</h3><div class="tablewrap"><table id="bmSyW" class="daytbl"></table></div>' +
       '<h3 class="small">Mesma origem do dinheiro (2+ carteiras)</h3><div class="tablewrap"><table id="bmSyG" class="daytbl"></table></div>' +
-      '<p class="small muted">Bundle = recebeu o token até 2 blocos depois do lançamento. Ligada ao DEV = o DEV mandou o primeiro SOL, ou a mesma carteira que financiou o DEV, ou outra carteira do grupo. "Mesma origem" sem ligação com o DEV pode ser uma corretora. Carteira com 1.000+ transações = antiga (origem não procurada).</p>';
+      '<p class="small muted">Bundle = recebeu o token até 2 blocos depois do lançamento. Ligada ao DEV = o DEV mandou o primeiro SOL, ou a mesma carteira que financiou o DEV, ou outra carteira do grupo. "Mesma origem" sem ligação com o DEV pode ser uma corretora. Carteira com 200+ transações = antiga (origem não procurada).</p>';
     kpis("bmSyK", [["DEV real", pc(s.real_dev_pct || 0, 1).replace("+", ""), "DEV + ligadas + bundle", "hit"], ["Só o DEV", pc(s.dev_pct || 0, 1).replace("+", ""), (s.cluster_n || 0) + " carteira(s) ligada(s) ao DEV", "tr"],
       ["Bundle", pc(s.bundle_pct || 0, 1).replace("+", ""), (s.bundle_n || 0) + " carteira(s) no bloco da criação", "pnl"], ["Mesma origem", pc(s.funder_max_pct || 0, 1).replace("+", ""), (s.funder_max_n || 0) + " carteiras · " + (s.novas_n || 0) + " nova(s) (<1 dia)", "pos"]]);
     const sol = (w) => '<a href="https://solscan.io/account/' + encodeURIComponent(w) + '" target="_blank" rel="noopener">' + esc(shortW(w)) + "</a>";
     table("bmSyW", ["Carteira", "% do total", "Marcas", "Quem mandou o 1º SOL", "Bloco (desde o lançamento)", "Idade"], (s.carteiras || []).map((w) => [sol(w.w), f(w.pct, 2) + "%",
       (w.tags || []).map((t) => '<span class="tag ' + (t === "dev" || t === "ligada ao dev" || t === "bundle" ? "loss" : t === "nova" ? "pause" : "neutral") + '">' + esc(t) + "</span>").join(" ") || '<span class="dim">–</span>',
-      w.funder ? sol(w.funder) : (w.antiga ? '<span class="dim">antiga</span>' : "–"), w.bloco == null ? "–" : "+" + w.bloco, w.idade_h == null ? (w.antiga ? "1.000+ transações" : "–") : (w.idade_h < 48 ? f(w.idade_h, 1) + " h" : f(w.idade_h / 24, 0) + " dias")]), "Nenhuma carteira de pessoa entre os maiores.");
+      w.funder ? sol(w.funder) : (w.pend ? '<span class="dim">na fila</span>' : w.antiga ? '<span class="dim">antiga</span>' : "–"), w.bloco == null ? "–" : "+" + w.bloco, w.idade_h == null ? (w.antiga ? "200+ transações" : "–") : (w.idade_h < 48 ? f(w.idade_h, 1) + " h" : f(w.idade_h / 24, 0) + " dias")]), "Nenhuma carteira de pessoa entre os maiores.");
     table("bmSyG", ["Origem", "Carteiras", "% do total", "Ligada ao DEV"], (s.grupos || []).map((g) => [sol(g.funder), String(g.n), f(g.pct, 2) + "%", g.dev ? '<span class="down">sim</span>' : "não"]), "Nenhuma origem comum.");
   }
   document.addEventListener("click", (e) => { const a = e.target.closest("[data-bmsy]"); if (!a) return; e.preventDefault(); openBmSy(a.dataset.bmsy); });
   function renderBmSySt() {
     const S = (BM || {}).sybil, el = $("bmSySt"); if (!el || !S) return;
     el.innerHTML = "Alchemy: " + (S.chave ? '<b class="up">chave configurada</b>' : '<b class="down">sem chave</b> (Administração → Chaves do sistema)') + " · análise " + (S.ligado ? "ligada" : "desligada") +
-      " · " + S.hora + " de " + S.max_h + " na última hora · " + (S.chamadas || 0) + " pedidos desde que o servidor subiu" + (S.rodando ? " · analisando agora" : "") +
+      " · " + S.hora + " de " + S.max_h + " na última hora · " + (S.chamadas || 0) + " pedidos desde que o servidor subiu" + (S.rodando ? " · analisando agora" : "") + (S.pendentes ? " · " + S.pendentes + " carteira(s) na fila" : "") + (S.ritmo_s ? " · 1 pedido a cada " + f(S.ritmo_s, 2) + " s" : "") +
       (S.ultimo ? " · último: " + esc(S.ultimo.symbol || S.ultimo.mint.slice(0, 6)) + " (" + esc(S.ultimo.nivel) + ")" : "") + (S.ultimo_erro ? ' · <span class="down">erro: ' + esc(S.ultimo_erro) + "</span>" : "");
   }
   function renderBm() {

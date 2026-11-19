@@ -97,48 +97,57 @@ def test_analyze_com_rpc_falso():
     assert r["creator_funder"] == FUND and r["chamadas"] > 5
 
 
-def test_hub_analisa_avisa_e_sem_chave_nao_roda(tmp_path):
-    from tests.test_boostmig import Svc, _pf, cfg, M, run
+def test_hub_novo_primeiro_parcial_em_20s_e_termina_depois(tmp_path, monkeypatch):
+    """0.32.385 (pedido do dono): resultado rápido em até 20 s; o que faltou só termina quando não há token novo esperando."""
+    from tests.test_boostmig import Svc, _pf, cfg, M
     from app import boostmig
     from app.boostmig import BoostMig
     from app.hub import PumpHub
     import time as _t
-    import types
+    monkeypatch.setattr(sybil, "START_GAP_S", 0.0)
+    monkeypatch.setattr(sybil, "MIN_GAP_S", 0.0)
     pf = _pf(tmp_path)
     pf.role = "admin"
     for k, v in vars(cfg(pump_bm_on=True)).items():
         setattr(pf.cfg, k, v)
     now = _t.time()
     bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
-    b = bm.on_migration({"mint": M, "pool": "pump-amm"}, now - 30)
+    b = bm.on_migration({"mint": MINT, "pool": "pump-amm"}, now - 30)
     b["creator"], b["symbol"] = DEV, "GTAVI"
-    calls = []
-
-    async def fake_analyze(rpc, mint, creator, top, a, bl, curve_pda=None):
-        calls.append((mint, creator, top))
-        return sybil.build(mint, creator, [{"wallet": "A", "pct": 30.0, "kind": "carteira", "first_slot": 100, "funder": DEV}], 100, None)
     hub = PumpHub.__new__(PumpHub)
-    hub.bm, hub.system_keys, hub.engines, hub.http = bm, {}, {"u1": pf}, None
-    orig = sybil.analyze
-    sybil.analyze = fake_analyze
-    try:
-        PumpHub.sybil_tick(hub, now)
-        assert not calls and not b.get("sybil")                     # sem a chave da Alchemy nada roda
-        hub.system_keys = {"alchemy_api_key": "k" * 20}
+    hub.bm, hub.system_keys, hub.engines = bm, {}, {"u1": pf}
 
-        async def go():
+    async def go():
+        async with httpx.AsyncClient(transport=_fake()) as h:
+            hub.http = h
+            PumpHub.sybil_tick(hub, now)
+            assert not b.get("sybil")                               # sem a chave da Alchemy nada roda
+            hub.system_keys = {"alchemy_api_key": "k" * 20}
+            monkeypatch.setattr(sybil, "DEADLINE_S", 0.0)          # prazo estourado: só a parte básica
             PumpHub.sybil_tick(hub, now)
             await hub.sybil_st["task"]
-        asyncio.run(go())
-    finally:
-        sybil.analyze = orig
-    assert calls == [(M, DEV, int(boostmig.SYBIL_TOP))]
-    assert b["sybil"]["nivel"] == "alto"
+            assert b["sybil"]["parcial"] > 0 and b["sybil"]["primeiro_s"] is not None
+            # chega um token NOVO: ele vai antes das pendências do anterior
+            b2 = bm.on_migration({"mint": "Mint2222", "pool": "pump-amm"}, _t.time() - 6)
+            b2["creator"] = DEV
+            PumpHub.sybil_tick(hub, _t.time())
+            assert hub.sybil_st["rodando"] == "Mint2222"
+            await hub.sybil_st["task"]
+            monkeypatch.setattr(sybil, "DEADLINE_S", 20.0)
+            for _ in range(4):                                      # sem token novo: termina as pendências
+                PumpHub.sybil_tick(hub, _t.time())
+                if hub.sybil_st.get("task") and not hub.sybil_st["task"].done():
+                    await hub.sybil_st["task"]
+    asyncio.run(go())
+    assert b["sybil"]["parcial"] == 0 and b["sybil"].get("completo_s") is not None
+    assert "ligada ao dev" in {w["w"]: w for w in b["sybil"]["carteiras"]}["A"]["tags"]
+    assert b["sybil"]["nivel"] in ("médio", "alto")
     assert any("alerta de carteiras" in e["msg"] for e in pf.events)
-    assert bm.view(b)["sybil"]["nivel"] == "alto" and "carteiras" not in bm.view(b)["sybil"]
+    assert bm.view(b)["sybil"]["nivel"] == b["sybil"]["nivel"] and "carteiras" not in bm.view(b)["sybil"]
     row = boostmig.history_row(b, now + 1300)
-    assert row["sybil"]["nivel"] == "alto"
-    assert any(g["grupo"] == "Carteiras: alerta alto" for g in boostmig.hist_study([dict(row, p0=1.0)])["grupos"])
+    assert row["sybil"]["nivel"] == b["sybil"]["nivel"]
+    g = boostmig.hist_study([dict(row, p0=1.0)])["grupos"]
+    assert any(x["grupo"].startswith("Carteiras: alerta") for x in g)
 
 
 def test_sem_dev_le_o_dev_na_curva_pela_alchemy():

@@ -1968,48 +1968,86 @@ class PumpHub:
         return st
 
     def sybil_tick(self, now: float) -> None:
-        """Um token por vez, uma análise por token, entre 10 s e o fim do BOOST, até SYBIL_MAX_H por hora. Só com a chave da
-        Alchemy (Administração → Chaves do sistema) e a opção ligada. Roda numa tarefa separada para não travar o BOOST."""
+        """0.32.385 (pedido do dono): o token NOVO sempre primeiro. Cada token novo ganha a parte rápida (até 20 s: detentores, DEV,
+        bundle e quem financiou o DEV e as maiores carteiras enquanto der tempo). O que ficou pendente só continua quando não há token
+        novo esperando, e para assim que um novo aparece. Uma tarefa por vez. Só com a chave da Alchemy e a opção ligada."""
         from . import sybil
         st, bm = self.sybil_state(), self.bm
         key = self.system_keys.get("alchemy_api_key")
         if not key or not boostmig.SYBIL_ON or st["rodando"]:
             return
+        states = self.__dict__.setdefault("_sy_states", {})
+        for m in [m for m in states if m not in bm.items or now - bm.items[m]["t0"] > boostmig.TRACK_S]:
+            states.pop(m, None)                                # pendências de token com mais de 30 min ficam como estão
         st["feitos"] = [t for t in st["feitos"] if now - t < 3600]
-        if len(st["feitos"]) >= int(boostmig.SYBIL_MAX_H):
-            return
-        # 0.32.383: não espera o BOOST ler o DEV (desde 19/11 ~19h o RPC do sistema não respondia e nada era analisado): com o DEV
-        # ainda desconhecido, a própria análise lê o DEV na conta da curva pela Alchemy
-        cand = [b for b in bm.items.values() if not b.get("sybil") and b.get("sybil_tries", 0) < 2 and 10 <= now - b["t0"] <= boostmig.JANELA_S]
-        if not cand:
-            return
-        b = max(cand, key=lambda x: x["t0"])                  # o mais novo primeiro (é o que ainda dá para comprar)
-        b["sybil_tries"] = b.get("sybil_tries", 0) + 1
-        st["rodando"], st["inicio"] = b["mint"], now
-        st["feitos"].append(now)
 
-        async def run():
+        def novos(t):
+            return [x for x in bm.items.values() if not x.get("sybil") and x.get("sybil_tries", 0) < 3 and 5 <= t - x["t0"] <= boostmig.JANELA_S
+                    and x.get("sybil_retry_t", 0) <= t]
+        cand = novos(now) if len(st["feitos"]) < int(boostmig.SYBIL_MAX_H) else []
+        if cand:
+            b = max(cand, key=lambda x: x["t0"])               # o mais novo primeiro (é o que ainda dá para comprar)
+            b["sybil_tries"] = b.get("sybil_tries", 0) + 1
+            st["rodando"], st["inicio"] = b["mint"], now
+            st["feitos"].append(now)
+
+            async def run_a():
+                ORIGIN.set("BOOST (carteiras, Alchemy)")
+                rpc = self.alchemy_rpc()
+                n0 = rpc.n
+                try:
+                    svc = bm.svc
+                    pda = svc.curve_pda(b["mint"]) if (svc is not None and not b.get("creator")) else None
+                    stt = await sybil.stage_a(rpc, b["mint"], b.get("creator"), int(boostmig.SYBIL_TOP), curve_pda=pda)
+                    res = sybil.result(stt, boostmig.SYBIL_ALERT_PCT, boostmig.SYBIL_BUNDLE_PCT, rpc.n)
+                    res["primeiro_s"] = round(time.time() - b["t0"], 1)
+                    b["sybil"] = boostmig.finite(res)
+                    if stt["pend"]:
+                        states[b["mint"]] = stt
+                    st["ultimo"] = {"mint": b["mint"], "symbol": b.get("symbol"), "nivel": res["nivel"], "t": time.time(), "chamadas": res.get("chamadas")}
+                    self._sybil_alert(b)
+                except Exception as e:
+                    st["erros"] += 1
+                    st["ultimo_erro"] = f"{type(e).__name__}: {str(e)[:160]}".replace(key, "***")
+                    b["sybil_retry_t"] = time.time() + 5
+                    if b.get("sybil_tries", 0) >= 3:
+                        b["sybil"] = {"t": round(time.time()), "nivel": "sem dados", "motivo": ("falhou: " + str(e)[:120]).replace(key, "***"), "erro": True}
+                finally:
+                    st["chamadas"] += rpc.n - n0
+                    st["rodando"] = None
+                    bm.dirty.add(b["mint"])
+            st["task"] = asyncio.create_task(run_a())
+            return
+        pend = [m for m, x in states.items() if x["pend"] and m in bm.items]
+        if not pend:
+            return
+        m = max(pend, key=lambda k: bm.items[k]["t0"])         # entre as pendências, também a mais nova primeiro
+        b, stt = bm.items[m], states[m]
+        st["rodando"] = m
+
+        async def run_b():
             ORIGIN.set("BOOST (carteiras, Alchemy)")
             rpc = self.alchemy_rpc()
             n0 = rpc.n
             try:
-                svc = bm.svc
-                pda = svc.curve_pda(b["mint"]) if (svc is not None and not b.get("creator")) else None
-                res = await sybil.analyze(rpc, b["mint"], b.get("creator"), int(boostmig.SYBIL_TOP), boostmig.SYBIL_ALERT_PCT,
-                                          boostmig.SYBIL_BUNDLE_PCT, curve_pda=pda)
+                antes = (b.get("sybil") or {}).get("nivel")
+                await sybil.stage_b(rpc, stt, should_stop=lambda: bool(novos(time.time())))
+                res = sybil.result(stt, boostmig.SYBIL_ALERT_PCT, boostmig.SYBIL_BUNDLE_PCT, rpc.n)
+                res["primeiro_s"] = (b.get("sybil") or {}).get("primeiro_s")
+                if not stt["pend"]:
+                    res["completo_s"] = round(time.time() - b["t0"], 1)
+                    states.pop(m, None)
                 b["sybil"] = boostmig.finite(res)
-                st["ultimo"] = {"mint": b["mint"], "symbol": b.get("symbol"), "nivel": res["nivel"], "t": time.time(), "chamadas": rpc.n}
-                self._sybil_alert(b)
+                ordem = {"baixo": 0, "sem dados": 0, "médio": 1, "alto": 2}
+                if ordem.get(res["nivel"], 0) > ordem.get(antes, 0):
+                    self._sybil_alert(b)                       # piorou com as carteiras que faltavam: avisa de novo
             except Exception as e:
-                st["erros"] += 1
                 st["ultimo_erro"] = f"{type(e).__name__}: {str(e)[:160]}".replace(key, "***")
-                if b.get("sybil_tries", 0) >= 2:
-                    b["sybil"] = {"t": round(time.time()), "nivel": "sem dados", "motivo": ("falhou: " + str(e)[:120]).replace(key, "***"), "erro": True}
             finally:
                 st["chamadas"] += rpc.n - n0
                 st["rodando"] = None
-                bm.dirty.add(b["mint"])
-        st["task"] = asyncio.create_task(run())
+                bm.dirty.add(m)
+        st["task"] = asyncio.create_task(run_b())
 
     def _sybil_alert(self, b: dict) -> None:
         """Avisa (sino, Feed e Telegram) cada admin com o BOOST ligado e o aviso ligado, quando o nível é alto ou médio."""
@@ -2172,7 +2210,9 @@ class PumpHub:
         sy = self.sybil_state()
         sybil_st = {"chave": bool(self.system_keys.get("alchemy_api_key")), "ligado": bool(boostmig.SYBIL_ON), "hora": len([t for t in sy["feitos"] if now - t < 3600]),
                     "max_h": int(boostmig.SYBIL_MAX_H), "chamadas": sy["chamadas"], "erros": sy["erros"], "ultimo_erro": sy["ultimo_erro"],
-                    "ultimo": sy["ultimo"], "rodando": sy["rodando"], "top": int(boostmig.SYBIL_TOP)}
+                    "ultimo": sy["ultimo"], "rodando": sy["rodando"], "top": int(boostmig.SYBIL_TOP),
+                    "pendentes": sum(len(x["pend"]) for x in (self.__dict__.get("_sy_states") or {}).values()),
+                    "ritmo_s": round(self.alchemy_rpc().gap, 2) if self.system_keys.get("alchemy_api_key") else None}
         return {"itens": itens, "janela_s": boostmig.JANELA_S, "scam": scam, "vip": vip, "monitor": dict(bm.st), "sybil": sybil_st,
                 "regras_dev": boostmig.apply_cfg({}),
                 "ws": bool((self.market.status or {}).get("ws")), "ultima_migracao_s": round(now - ult) if ult else None,
