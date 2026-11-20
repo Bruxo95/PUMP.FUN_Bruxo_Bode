@@ -2199,6 +2199,7 @@ class PumpHub:
         mine_p = [p for p in pf.positions() if p.get("origem") == "boostmig"]
         fech = [t for t in mine_t if not t.get("real")]
         ganhos = [t for t in fech if (t.get("pnl_sol") or 0) > 0]
+        fech_r = [t for t in mine_t if t.get("real")]
         # 0.32.377 (pedido do dono): colunas separadas e detalhes por DEV
         n24 = {}
         for b in bm.items.values():
@@ -2242,6 +2243,10 @@ class PumpHub:
                 "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
                            "fechadas": len(fech), "ganhou": len(ganhos), "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in fech), 6),
+                           # 0.32.396 (pedido do dono): a REAL com números próprios (entradas, fechadas, ganhos, resultado)
+                           "entrou_real": len(({t.get("mint") for t in mine_t if t.get("real")} | {p["mint"] for p in mine_p if p.get("real")}) & set(bm.items)),
+                           "fechadas_real": len(fech_r), "ganhou_real": len([t for t in fech_r if (t.get("pnl_sol") or 0) > 0]),
+                           "pnl_sol_real": round(sum(t.get("pnl_sol") or 0 for t in fech_r), 6),
                            "scam_devs": len(bm.scam_devs), "vip_devs": sum(1 for x in vip if x.get("vip"))},
                 "trades": [{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real")}
                            for t in mine_t[:100]]}

@@ -439,3 +439,19 @@ def test_real_com_regras_proprias(tmp_path):
     r = dict(f, id="real-1", real=True, wallet="manual", **item["pos_cfg"])
     pf._save_pos(r)
     assert not pf.bm_follows_sim(r) and r["id"] not in [x["id"] for x in pf.real_twins(f)]
+
+
+def test_numeros_da_real_separados(env):
+    """0.32.396 (pedido do dono): "Você entrou" e "Resultado" do BOOST têm números próprios da REAL; o resto é o mesmo."""
+    from tests.test_api import UA, tok
+    c, hub = env["c"], env["hub"]
+    A = tok(UA)
+    c.get("/api/pump", headers=A)
+    pf = hub.engines[UA]
+    hub.bm.on_migration({"mint": M, "txType": "migrate", "pool": "pump-amm"})
+    pf.store.save_trade({"id": "f1", "mint": M, "origem": "boostmig", "real": False, "pnl_sol": 0.02, "closed_at": "2026-11-20T20:00:00+00:00"})
+    pf.store.save_trade({"id": "r1", "mint": M, "origem": "boostmig", "real": True, "pnl_sol": -0.01, "closed_at": "2026-11-20T20:00:00+00:00"})
+    pf.store.save_trade({"id": "r2", "mint": M, "origem": "boostmig", "real": True, "pnl_sol": 0.004, "closed_at": "2026-11-20T20:01:00+00:00"})
+    R = c.get("/api/pump/boost-migracao", headers=A).json()["resumo"]
+    assert R["fechadas"] == 1 and R["pnl_sol"] == 0.02 and R["ganhou"] == 1
+    assert R["fechadas_real"] == 2 and R["ganhou_real"] == 1 and abs(R["pnl_sol_real"] + 0.006) < 1e-9 and R["entrou_real"] == 1

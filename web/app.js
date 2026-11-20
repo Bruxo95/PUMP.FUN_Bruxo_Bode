@@ -1451,8 +1451,13 @@
       (r.pp_novo_s != null ? " · último token novo da PumpPortal há " + hmsTxt(r.pp_novo_s) : "") + (r.pp_silencios ? " · reconectou " + r.pp_silencios + "x por silêncio" : "") + (r.mig_reserva ? " · PumpPortal fora: reserva pela blockchain LIGADA" + (r.mig_ws ? " (" + r.mig_ws + ")" : (r.mig_ws_err ? " com erro: " + r.mig_ws_err : " conectando…")) + " · tenta a PumpPortal de novo a cada 10 min" : (r.mig_reserva_n ? " · reserva pela blockchain desligada (PumpPortal ok)" : "")) + (r.mig_ws_n ? " · " + r.mig_ws_n + " migração(ões) pela blockchain" + (r.mig_ws_s != null ? ", última há " + hmsTxt(r.mig_ws_s) : "") : "") +
       (!r.ws && r.pp_erro ? " · " + r.pp_erro : "");
     const ativos = (r.itens || []).filter((x) => (x.progress || 0) < 100).length;
-    kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h · " + ativos + " com BOOST ativo agora", "tr"], ["Você entrou", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA" + (R.abertas_real ? " · " + R.abertas_real + " na REAL" : ""), "pos"],
-      ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],
+    // 0.32.396 (pedido do dono): "Você entrou" e "Resultado" seguem o botão FICTÍCIA / REAL do topo; o resto é o mesmo para as duas
+    const RM = realMode();
+    kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h · " + ativos + " com BOOST ativo agora", "tr"],
+      RM ? ["Você entrou (REAL)", String(R.entrou_real || 0), (R.abertas_real || 0) + " aberta(s) na REAL", "pos"]
+        : ["Você entrou (FICTÍCIA)", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA", "pos"],
+      RM ? ["Resultado (REAL)", sg(R.pnl_sol_real || 0), (R.fechadas_real || 0) + " fechadas · " + (R.ganhou_real || 0) + " ganharam", "pnl"]
+        : ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],
       ["DEVs", (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀", "VIP · scam", "hit"]]);
     const TL = { tokens: "Tokens que migraram (" + (R.migracoes_24h || 0) + ")", trades: "Seus trades do BOOST (" + ((r.trades || []).length) + ")",
       dev: "DEV status (" + (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀)" };
@@ -5902,7 +5907,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     }
     if (t.dataset.toggle) { const k = t.dataset.toggle, on = !cfg()[k], sc = tglScope(k, cfg()); if (on && t.dataset.confirm && !confirm("VALE PARA: " + sc[1] + NL2 + t.dataset.confirm)) return; setCfg({ [k]: on }); toast((on ? "Ligado" : "Desligado") + " · " + sc[1]); if (k === "pump_base_hide_trash") setTimeout(loadBase, 700); return; }
     if (t.dataset.set) { setCfg({ [t.dataset.set]: +t.dataset.val }); return; }
-    if (t.dataset.mode) { MODE = t.dataset.mode; try { localStorage.setItem("pf:mode", MODE); } catch (e) { /* */ } render(); return; }
+    if (t.dataset.mode) { MODE = t.dataset.mode; try { localStorage.setItem("pf:mode", MODE); } catch (e) { /* */ } render(); if (VIEW === "boost" && BM) renderBm(); return; }
     if (t.dataset.kph) {           // 0.32.146: mostrar/esconder as linhas de 24/12/6/1 h (lembra no navegador)
       const all = [24, 12, 6, 1], k = t.dataset.kph;
       KPH = k === "all" ? (KPH.length === all.length ? [] : all.slice()) : (KPH.includes(+k) ? KPH.filter((h) => h !== +k) : KPH.concat(+k));

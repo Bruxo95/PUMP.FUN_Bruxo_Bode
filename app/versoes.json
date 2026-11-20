@@ -2735,6 +2735,11 @@
    "versao": "0.32.395",
    "inicio": "2026-11-20T22:10:00+00:00",
    "titulo": "RPC primeiro para a REAL: o resto espera a REAL terminar + 1 s"
+  },
+  {
+   "versao": "0.32.396",
+   "inicio": "2026-11-20T22:30:00+00:00",
+   "titulo": "BOOST: entradas e resultado da REAL separados da fictícia"
   }
  ]
 }
