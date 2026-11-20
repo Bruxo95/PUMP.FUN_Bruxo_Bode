@@ -1839,7 +1839,8 @@ class PumpHub:
                 for p in mine:
                     if p["mint"] != m:
                         nomes |= bm.name_keys(p["mint"])
-                abertas = len(mine) if own else len([p for p in pos if not p.get("real")])
+                abertas = len(mine) if own else len([p for p in pos if not p.get("real")]) + len(
+                    [x for x in (getattr(pf, "bm_sim_after", None) or {}) if x != m])     # 0.32.400: fictícias que esperam a REAL
                 est, why = bm.decide(c, b, now, nomes, abertas)
                 u.update(estado=est, motivo=why, t=now)
                 if est != "entrar":
@@ -1852,11 +1853,24 @@ class PumpHub:
                     continue
                 tk = pf.tokens.setdefault(m, {"created_t": now})
                 tk.update(price=sm[-1][1], last_t=sm[-1][0], price_src="cotação Jupiter (compra de 0,01 SOL)", pool="pumpswap")
-                target = leg if own else ("both" if real else "sim")
-                r = pf.manual_buy(m, t=now, auto="BOOST da migração · " + why + (" · regras da REAL" if leg == "real" else ""),
-                                  origem="boostmig", target=target, amt_sol=float(getattr(c, "pump_bm_sol", 0.05)),
-                                  pos_rules=bm.rules(c, b, now))
+                target = leg if own else ("real" if real else "sim")
+                auto = "BOOST da migração · " + why + (" · regras da REAL" if leg == "real" else "")
+                rules = bm.rules(c, b, now)
+                amt = float(getattr(c, "pump_bm_sol", 0.05))
+                r = pf.manual_buy(m, t=now, auto=auto, origem="boostmig", target=target, amt_sol=amt, pos_rules=rules)
                 sim, rr = str(r.get("sim") or ""), str(r.get("real") or "")
+                later = False
+                if real and not own:
+                    # 0.32.400 (pedido do dono: "a real tem que entrar primeiro"): a REAL compra primeiro; a fictícia entra quando
+                    # a REAL terminar (com a mesma entrada dela). Se a REAL nem foi enviada, a fictícia entra agora.
+                    if rr.startswith("enviando") and hasattr(pf, "bm_sim_after"):
+                        pf.bm_sim_after[m] = {"auto": auto, "amt_sol": amt, "pos_rules": rules, "t": now}
+                        sim = "comprou (depois da REAL)"
+                        later = True
+                    else:
+                        r2 = pf.manual_buy(m, t=now, auto=auto, origem="boostmig", target="sim", amt_sol=amt, pos_rules=rules)
+                        sim = str(r2.get("sim") or "")
+                        r = {**r2, "real": rr}
                 if real and leg == "sim" and not own and hasattr(pf, "bm_real_note"):
                     # 0.32.398: a coluna "Você" mostra também o que aconteceu com a REAL (enviada, recusada e por quê)
                     pf.bm_real_note[m] = ({"estado": "esperar", "motivo": "compra REAL enviada, aguardando confirmar", "t": now}
@@ -1868,7 +1882,7 @@ class PumpHub:
                     u.update(estado="entrou", motivo=f"entrou em {bm.progress(b, now):.0f}% do BOOST", t=now)
                     b.setdefault("entry", {"prog": round(bm.progress(b, now), 1), "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"),
                                            "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"), "mcap_sol": b.get("mcap_sol")})
-                    pos.append({"mint": m, "real": leg == "real", "origem": "boostmig"})
+                    pos.append({"mint": m, "real": leg == "real" or later, "origem": "boostmig"})   # "later": já contada em bm_sim_after
                     bm.dirty.add(m)
                 elif leg == "real":
                     if rr.startswith("já tem") or not rr:

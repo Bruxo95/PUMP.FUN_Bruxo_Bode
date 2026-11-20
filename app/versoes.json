@@ -2755,6 +2755,11 @@
    "versao": "0.32.399",
    "inicio": "2026-11-20T23:00:00+00:00",
    "titulo": "BOOST obedece só às Regras do BOOST (fictícia e REAL)"
+  },
+  {
+   "versao": "0.32.400",
+   "inicio": "2026-11-20T23:15:00+00:00",
+   "titulo": "BOOST: a REAL entra primeiro e sai primeiro; a fictícia acompanha"
   }
  ]
 }

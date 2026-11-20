@@ -173,6 +173,7 @@ class PumpFun:
         self.shadow_hook = None                       # 0.31.72: token "chance alta" barrado vira entrada sombra (hub)
         self._real_buying: _Buying = _Buying()
         self.bm_real_note: dict[str, dict] = {}           # 0.32.398: BOOST — o que aconteceu com a compra REAL de cada token
+        self.bm_sim_after: dict[str, dict] = {}           # 0.32.400: BOOST — fictícia que entra quando a compra REAL terminar
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
         self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
         self.leaderboard: list[dict] = []          # top traders da pump.fun (Solana Tracker), julgados p/ este usuário
@@ -1931,7 +1932,10 @@ class PumpFun:
             return f"[PUMP SIM] {p['symbol']}: saída ({why}) espera a compra REAL confirmar — a real tem prioridade"
         full = frac >= 1.0 or p["tokens_left"] * (1 - frac) <= p["tokens"] * 0.005
         tw = [] if from_real else self.real_twins(p)
-        exact = self.exact_on() and not from_real
+        # 0.32.400 (dono, HELI 20/11 23:58: "a real tem que entrar primeiro… e sair quando for para sair"): no BOOST com a REAL
+        # seguindo a fictícia, a REAL vende primeiro e a fictícia acompanha no preço que a REAL conseguiu (como a cópia exata)
+        bm_pair = p.get("origem") == "boostmig" and not p.get("real") and any(not r.get("bm_own") and r.get("sim_id") == p["id"] for r in tw)
+        exact = (self.exact_on() or bm_pair) and not from_real
         for rp in tw:                                    # 0.31.47/0.32.156: a venda real sai primeiro
             if rp.get("selling") or rp.get("_paired_sell_t") == t:
                 continue
@@ -2072,6 +2076,29 @@ class PumpFun:
         self._save_pos(sim)
         if sim.get("auto") is True and sim.get("origem") in AUTO_ORIGINS:
             self._auto_record(sim, False)
+
+    def _bm_open_sim(self, mint: str) -> None:
+        """0.32.400 (pedido do dono: "a real tem que entrar primeiro"): no BOOST com a REAL ligada a compra REAL sai primeiro; quando
+        ela termina (comprou ou não), a fictícia entra. Se a REAL comprou, a fictícia fica com a mesma entrada (hora e preço da
+        REAL) e as duas passam a sair juntas, a REAL primeiro."""
+        args = (getattr(self, "bm_sim_after", None) or {}).pop(mint, None)
+        if not args:
+            return
+        try:
+            r = self.manual_buy(mint, t=time.time(), auto=args.get("auto") or "BOOST da migração", origem="boostmig", target="sim",
+                                amt_sol=args.get("amt_sol"), pos_rules=args.get("pos_rules"))
+        except Exception as e:
+            log.warning("BOOST: fictícia depois da REAL não abriu: %s", str(e)[:120])
+            return
+        sim = next((x for x in self.positions() if x["mint"] == mint and not x.get("real") and x.get("origem") == "boostmig"), None)
+        rp = next((x for x in self.positions() if x["mint"] == mint and x.get("real") and x.get("origem") == "boostmig"
+                   and not x.get("bm_own") and x.get("sim_id") is None), None)
+        if sim and rp:
+            rp["sim_id"] = sim["id"]
+            self._save_pos(rp)
+            self._align_to_real(rp)
+        if not sim:
+            self.bm_sim_note = dict(getattr(self, "bm_sim_note", None) or {}, **{mint: str(r.get("sim") or "não abriu")})
 
     def _release_sim_exit(self, sim_id) -> None:
         """Executa a saída da fictícia que esperava a compra real (confirmou ou desistiu)."""
@@ -5383,6 +5410,8 @@ class PumpFun:
         finally:
             self._real_buying.discard(mint)
             self._auto_pending.pop(mint, None)
+            if bm_buy:
+                self._bm_open_sim(mint)                   # 0.32.400: no BOOST a fictícia entra DEPOIS da REAL
             if it.get("sim_id") is not None:
                 if not any(x.get("real") and x.get("sim_id") == it["sim_id"] for x in self.positions()) and not any(
                         t.get("real") and t.get("sim_id") == it["sim_id"] for t in self.trades(50)):
@@ -5498,8 +5527,8 @@ class PumpFun:
     def _sim_follow(self, rp: dict, frac: float, got: float, sold: float, why: str, full: bool) -> None:
         """0.32.160 (cópia exata): depois de cada venda REAL confirmada, a fictícia par vende a mesma parte no preço que a real
         conseguiu (mesmo resultado em SOL). A real decide e executa primeiro; a fictícia só acompanha."""
-        if not self.exact_on() or rp.get("sim_id") is None:
-            return
+        if rp.get("sim_id") is None or not (self.exact_on() or (rp.get("origem") == "boostmig" and not rp.get("bm_own"))):
+            return                                       # 0.32.400: no BOOST a fictícia sempre acompanha a REAL
         sim = next((x for x in self.positions() if x["id"] == rp["sim_id"] and not x.get("real")), None)
         if not sim or not sim.get("tokens_left"):
             return

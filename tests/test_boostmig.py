@@ -524,3 +524,62 @@ def test_boost_ignora_as_regras_de_fora(tmp_path):
     assert gasto == [0.07]                                     # valor do BOOST, não o máximo da Execução real
     f = [p for p in pf.positions() if p["mint"] == M and not p.get("real")][0]
     assert pf.smart_exit(f, now + 4000) is None                # dev vendeu / parado não vendem o BOOST
+
+
+def test_real_entra_primeiro_e_sai_primeiro(tmp_path):
+    """0.32.400 (dono, HELI 20/11 23:58: "a real tem que entrar primeiro… entra e sai quando for para sair"): no BOOST a compra
+    REAL sai primeiro e a fictícia entra quando ela termina, com a entrada da REAL; na saída a REAL vende primeiro e a
+    fictícia acompanha no preço que a REAL conseguiu."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_real=True, pump_real_mirror=False, pump_auto_real=False,
+                         pump_bm_no_stop=False, pump_bm_stop_pct=20, pump_bm_partial_on=False, pump_bm_ext_on=False,
+                         pump_bm_sg_after=False, pump_bm_trail_start=500)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    b = pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    assert b["users"]["u1"]["estado"] == "entrou"
+    assert not [p for p in pf.positions() if p["mint"] == M]           # a fictícia ainda não entrou: espera a REAL
+    it = pf._rq.get_nowait()[1]
+
+    class Real:
+        async def buy(self, mint, amt, other=False):
+            return {"ok": True, "sol_spent": 0.05, "tokens": 0.04, "signature": "sig"}   # REAL pagou 1,25 (a observação estava em 1,05)
+
+        def today_loss(self, trades):
+            return 0.0
+    pf.real = Real()
+    run(pf._real_buy_run(it))
+    rp = [p for p in pf.positions() if p["mint"] == M and p.get("real")][0]
+    sp = [p for p in pf.positions() if p["mint"] == M and not p.get("real")][0]
+    assert rp["sim_id"] == sp["id"] and sp.get("entrou_com_a_real") and sp["open_t"] == rp["open_t"]
+    assert abs(sp["price_in"] / rp["price_in"] - 1) < 0.2               # a fictícia ficou com a entrada da REAL
+    vendas = []
+    pf._real_sell = lambda p, frac, why: vendas.append((p["id"], frac, why)) or True
+    pf.tokens[M].update(price=0.5, last_t=now + 5)                     # caiu: stop de 20%
+    pf._check_stops(M, now + 5)
+    assert vendas and vendas[0][0] == rp["id"]                         # a REAL vende primeiro…
+    sp = [p for p in pf.positions() if p["id"] == sp["id"]][0]
+    assert sp.get("exit_follow")                                       # …e a fictícia espera a venda REAL
+    pf._sim_follow(rp, 1.0, 0.024, 0.04, "stop", True)                 # REAL vendeu: a fictícia sai no preço dela
+    assert not [p for p in pf.positions() if p["id"] == sp["id"]]
+    tr = [t for t in pf.trades(10) if t.get("mint") == M and not t.get("real")][0]
+    assert abs(tr["sol_out"] - 0.024) < 0.003
+
+
+def test_sem_execucao_real_a_ficticia_entra_na_hora(tmp_path):
+    """0.32.400: se a REAL nem é enviada (Execução real desligada), a fictícia do BOOST entra na hora, como antes."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_real=True, pump_real_enabled=False)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    b = pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    assert b["users"]["u1"]["estado"] == "entrou" and [p for p in pf.positions() if p["mint"] == M and not p.get("real")]
+    assert not pf.bm_sim_after
