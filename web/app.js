@@ -3881,7 +3881,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     TGV_SIG = sig;
     if (!xs.length) { box.innerHTML = '<span class="muted small">Nenhuma tela fechou operação na fictícia no período: por enquanto nenhuma compra na REAL.</span>'; return; }
     box.innerHTML = xs.map((x) => '<span class="tgv ' + (x.liberada ? "ok" : "no") + '"><b>' + esc(x.aba) + "</b><span>" +
-      (x.liberada ? "liberada para a REAL" : x.n < x.precisa ? "em prova: " + x.n + " de " + x.precisa : "no prejuízo: fora da REAL") +
+      (x.sem_trava ? "sem trava (usa só a chave REAL dela)" : x.liberada ? "liberada para a REAL" : x.n < x.precisa ? "em prova: " + x.n + " de " + x.precisa : "no prejuízo: fora da REAL") +
       " · " + (x.sol > 0 ? "+" : "") + String(x.sol).replace(".", ",") + " SOL em " + x.n + "</span></span>").join("") +
       (on ? "" : '<span class="muted small">Trava desligada: a lista é só informativa.</span>');
   }

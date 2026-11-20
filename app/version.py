@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.391 · 2026-11-20 · Banco parado: trade repetido no mesmo lote travava a gravação (erro 21000)"
+VERSION = "0.32.392 · 2026-11-20 · BOOST fora da trava por tela: a REAL do BOOST segue só a chave dele"

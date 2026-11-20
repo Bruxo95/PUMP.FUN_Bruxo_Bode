@@ -74,3 +74,15 @@ def test_switch_off_changes_nothing():
     pf = _pf(pump_tab_gate_on=False)
     assert pf.tab_gate_why("Top traders") is None and not pf.sim_only(T)
     assert pf._sim_only_base(T) is False
+
+
+def test_boost_nao_passa_pela_trava_por_tela():
+    """0.32.392 (dono, 20/11, ONODA: "essa regra não funciona no BOOST, ela estava no copy trade"): o BOOST vai para a REAL
+    sem provar na fictícia; as outras telas continuam com a trava."""
+    pf = _pf()
+    _fechadas(pf, 3, 0.01, wallet="manual", manual=True, origem="boostmig")
+    assert pf.tab_gate_why("BOOST da migração") is None
+    assert "0 de 20" in pf.tab_gate_why("Explorar")
+    v = {x["aba"]: x for x in pf.tab_gate_view()}
+    assert v["BOOST da migração"]["sem_trava"] and v["BOOST da migração"]["liberada"]
+    assert "boostmig" not in PumpFun.GATE_ORIGINS

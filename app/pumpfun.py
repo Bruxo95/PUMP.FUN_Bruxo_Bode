@@ -1283,7 +1283,10 @@ class PumpFun:
         """0.32.11: carteiras aprovadas pelo estudo automático que esta conta copia (só fictícia)."""
         return list(getattr(self, "study_copy", None) or []) if getattr(self.cfg, "pump_st_auto_copy", False) else []
 
-    GATE_ORIGINS = ("explorar", "barrado", "base", "elite", "calls", "bruxo", "jevtrade", "boostmig")
+    GATE_ORIGINS = ("explorar", "barrado", "base", "elite", "calls", "bruxo", "jevtrade")
+    # 0.32.392 (dono, 20/11: "essa regra não funciona no BOOST, ela estava no copy trade"): o BOOST da migração vai para a REAL
+    # pela chave dele (pump_bm_real), sem a trava por tela. A fictícia dele continua contando na tela, só não segura a REAL.
+    TAB_GATE_SKIP = ("BOOST da migração",)
 
     def tab_gate_stats(self) -> dict:
         """0.32.325: {tela: (operações, soma em SOL)} das operações FICTÍCIAS fechadas nos últimos `pump_tab_gate_days` dias, já
@@ -1313,6 +1316,8 @@ class PumpFun:
         """0.32.325 (pedido do dono): por que esta tela ainda não compra na REAL, ou None se já provou (ou a trava está desligada)."""
         if not getattr(self.cfg, "pump_tab_gate_on", False) or not aba:
             return None
+        if aba in self.TAB_GATE_SKIP:                  # 0.32.392 (dono): "essa regra não funciona no BOOST"
+            return None
         need, days = int(self._c("pump_tab_gate_n", 20) or 20), int(self._c("pump_tab_gate_days", 7) or 7)
         n, s = self.tab_gate_stats().get(aba, (0, 0.0))
         onde = "Carteiras → REAL → Espelho → \"Tela só vai para a REAL depois de dar lucro\""
@@ -1326,7 +1331,8 @@ class PumpFun:
     def tab_gate_view(self) -> list[dict]:
         """A situação de cada tela que já fechou operação na fictícia, para a tela mostrar (liberada ou o que falta)."""
         need = int(self._c("pump_tab_gate_n", 20) or 20)
-        out = [{"aba": a, "n": n, "sol": round(s, 4), "precisa": need, "liberada": n >= need and s > 0}
+        out = [{"aba": a, "n": n, "sol": round(s, 4), "precisa": need, "liberada": a in self.TAB_GATE_SKIP or (n >= need and s > 0),
+                "sem_trava": a in self.TAB_GATE_SKIP}
                for a, (n, s) in self.tab_gate_stats().items()]
         return sorted(out, key=lambda x: (not x["liberada"], -x["sol"]))
 

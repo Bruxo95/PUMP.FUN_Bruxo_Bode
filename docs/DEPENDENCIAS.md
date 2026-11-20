@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-20**; revisão documental **2.0**.
-Aplicação: **0.32.391 · 2026-11-20 · Banco parado: trade repetido no mesmo lote travava a gravação (erro 21000)**.
-Referência Git na emissão: `a0c4a3163f0390811879615cb936f419e20e205e`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.392 · 2026-11-20 · BOOST fora da trava por tela: a REAL do BOOST segue só a chave dele**.
+Referência Git na emissão: `4ef5a9b6b6f1acbaf8673358a2f0112626dfbd4a`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
