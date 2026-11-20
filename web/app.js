@@ -1459,7 +1459,7 @@
       RM ? ["Resultado (REAL)", sg(R.pnl_sol_real || 0), (R.fechadas_real || 0) + " fechadas · " + (R.ganhou_real || 0) + " ganharam", "pnl"]
         : ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],
       ["DEVs", (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀", "VIP · scam", "hit"]]);
-    const TL = { tokens: "Tokens que migraram (" + (R.migracoes_24h || 0) + ")", trades: "Seus trades do BOOST (" + ((r.trades || []).length) + ")",
+    const TL = { tokens: "Tokens que migraram (" + (R.migracoes_24h || 0) + ")", trades: "Seus trades do BOOST (" + (r.trades || []).filter((t) => !!t.real === RM).length + (RM ? " REAL" : " FICTÍCIA") + ")",
       dev: "DEV status (" + (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀)" };
     document.querySelectorAll("#bmTabs [data-bmt]").forEach((b) => { if (TL[b.dataset.bmt]) b.textContent = TL[b.dataset.bmt]; });
     const F = $("bmF").value || "todos";
@@ -1476,9 +1476,12 @@
         x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
         res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–"];
     }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhuma migração nas últimas 24 h ainda. Os tokens aparecem aqui assim que migrarem para a PumpSwap.");
-    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Motivo da saída"], (r.trades || []).map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.real ? ' <span class="tag loss">REAL</span>' : ""),
+    // 0.32.401 (pedido do dono): os trades do BOOST da REAL e da FICTÍCIA não se misturam — segue o botão FICTÍCIA / REAL do topo
+    const bmTrs = (r.trades || []).filter((t) => !!t.real === RM);
+    if ($("bmTrSub")) $("bmTrSub").textContent = (RM ? "Só a carteira REAL" : "Só a carteira FICTÍCIA") + " · resultado líquido (já com taxas) · troque no botão Fictícia / Real do topo";
+    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Motivo da saída"], bmTrs.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.real ? ' <span class="tag loss">REAL</span>' : ""),
       f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", t.hold_s == null ? "–" : hms(t.hold_s), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
-      "Nenhum trade do BOOST ainda.");
+      RM ? "Nenhum trade do BOOST na REAL ainda." : "Nenhum trade do BOOST na FICTÍCIA ainda.");
     table("bmVip", ["DEV", "Situação", "Tokens com resultado", "Ganhos", "Perdas", "Acerto", "Saldo", "Melhor", "Pior", "Último", "Tokens em 24 h", "Ações"],
       (r.vip || []).slice(0, 200).map((d) => [bmDevLink(d.creator, d.vip ? "👑 " : ""), d.scam ? '<span class="tag loss">SCAM</span>' : d.vip ? '<span class="tag win">VIP</span>' : '<span class="tag neutral">não é VIP</span>',
         String(d.n || 0) + (d.real_n ? ' <small class="muted">(' + d.real_n + " REAL)</small>" : ""), '<span class="up">' + (d.wins || 0) + "</span>", '<span class="down">' + (d.losses || 0) + "</span>",

@@ -2272,7 +2272,7 @@ class PumpHub:
                            "pnl_sol_real": round(sum(t.get("pnl_sol") or 0 for t in fech_r), 6),
                            "scam_devs": len(bm.scam_devs), "vip_devs": sum(1 for x in vip if x.get("vip"))},
                 "trades": [{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real")}
-                           for t in mine_t[:100]]}
+                           for t in ([x for x in mine_t if not x.get("real")][:150] + [x for x in mine_t if x.get("real")][:150])]}
 
     async def bruxo_loop(self) -> None:
         await asyncio.sleep(45)

@@ -5508,6 +5508,8 @@ class PumpFun:
             tr["fora_do_robo"] = bool(p.get("fora_do_robo"))   # 0.32.182: vendido fora do robô (sem o SOL na conta)
             tr["conta_devolvida_sol"] = p.get("conta_devolvida_sol")   # 0.32.215: aluguel da conta do token devolvido
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60
+            if p.get("origem"):
+                tr["origem"] = p["origem"]                 # 0.32.401: o trade REAL guarda a aba (BOOST etc.), como a fictícia
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),

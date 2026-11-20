@@ -583,3 +583,12 @@ def test_sem_execucao_real_a_ficticia_entra_na_hora(tmp_path):
     run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
     assert b["users"]["u1"]["estado"] == "entrou" and [p for p in pf.positions() if p["mint"] == M and not p.get("real")]
     assert not pf.bm_sim_after
+
+
+def test_trade_real_guarda_a_origem():
+    """0.32.401: o trade REAL do BOOST guarda origem "boostmig" (sem ela o BOOST não contava o resultado da REAL)."""
+    src = open(os.path.join("app", "pumpfun.py"), encoding="utf-8").read()
+    i = src.index("    async def _real_do_sell_run")
+    assert 'tr["origem"] = p["origem"]' in src[i:i + 9000]
+    sql = open(os.path.join("supabase", "migrations", "20261121000001_boost_real_origem.sql"), encoding="utf-8").read()
+    assert "update public.pump_trades" in sql and "where r.real = true" in sql and "delete" not in sql.lower()
