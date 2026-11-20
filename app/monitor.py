@@ -473,18 +473,36 @@ class SharedMonitor:
             out.append(("RPC público", "wss://api.mainnet-beta.solana.com"))
         return out
 
+    PP_DOWN_RETRY_S = 600.0             # 0.32.390: com a PumpPortal fora, tenta ela de novo a cada 10 min (a reserva cobre o BOOST)
+
+    def pp_down(self, now: float | None = None) -> bool:
+        """0.32.390: a PumpPortal está fora quando não manda token novo nem migração há mais de PP_SILENT_S (3 min). Em dia normal
+        chegam dezenas de tokens novos por minuto."""
+        now = time.time() if now is None else now
+        last = self.market.status.get("pp_new_t") or getattr(self, "_mig_t0", now)
+        return now - last > self.PP_SILENT_S
+
     async def migration_ws_run(self) -> None:
-        """0.32.389 (dono, 20/11: "às 9:49 foi o último e ainda não voltou"): a PumpPortal parou de mandar migrações; agora o BOOST
-        também ouve as migrações direto da blockchain (logsSubscribe da conta de migração da pump.fun), pelo RPC do sistema ou pela
-        Alchemy. A mesma migração vinda das duas fontes conta uma vez só."""
+        """0.32.389 (dono, 20/11: "às 9:49 foi o último e ainda não voltou"): a PumpPortal parou de mandar migrações; o BOOST
+        ouve as migrações direto da blockchain (logsSubscribe da conta de migração da pump.fun), pelo RPC do sistema ou pela
+        Alchemy. A mesma migração vinda das duas fontes conta uma vez só.
+        0.32.390 (dono: "economizar tokens"): é só RESERVA. Liga quando a PumpPortal fica 3 min sem mandar nada e desliga
+        sozinha quando ela volta; enquanto isso a PumpPortal é tentada de novo a cada 10 min."""
         import websockets
         st = self.market.status
         i, backoff = 0, 2.0
+        self._mig_t0 = time.time()
         await asyncio.sleep(5)
         while True:
-            if not consultas.on("pump_q_boost"):
-                await asyncio.sleep(30)
+            if not consultas.on("pump_q_boost") or not self.pp_down():
+                if st.get("mig_reserva"):
+                    log.info("BOOST: PumpPortal voltou — reserva pela blockchain desligada")
+                st.update(mig_reserva=False, mig_ws_on=False)
+                await asyncio.sleep(5)
                 continue
+            if not st.get("mig_reserva"):
+                log.warning("BOOST: PumpPortal sem tokens há %d min — migrações pela blockchain (reserva) ligadas", self.PP_SILENT_S // 60)
+                st.update(mig_reserva=True, mig_reserva_t=time.time(), mig_reserva_n=int(st.get("mig_reserva_n") or 0) + 1)
             urls = self._mig_urls()
             nome, url = urls[i % len(urls)]
             try:
@@ -494,7 +512,12 @@ class SharedMonitor:
                     st.update(mig_ws=nome, mig_ws_on=True, mig_ws_err=None)
                     backoff = 2.0
                     while True:
-                        raw = await ws.recv()
+                        if not self.pp_down():                 # 0.32.390: PumpPortal voltou → fecha a reserva
+                            break
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=5)
+                        except asyncio.TimeoutError:
+                            continue
                         try:
                             msg = json.loads(raw)
                         except ValueError:
@@ -572,12 +595,13 @@ class SharedMonitor:
                         if time.time() - sync_at > 10:
                             sync_at = time.time()
                             await self._pp_sync(ws)
-                        if time.time() - last_new > self.PP_SILENT_S:
+                        # 0.32.390: com a reserva da blockchain ligada, a PumpPortal é tentada de novo só a cada 10 min
+                        if time.time() - last_new > (self.PP_DOWN_RETRY_S if st.get("mig_reserva") else self.PP_SILENT_S):
                             # 0.32.388: em 20/11 a conexão ficou aberta (respondendo ao ping) mas parou de mandar tokens novos e
                             # migrações por horas; o BOOST e a Base pararam juntos. Sem token novo por 3 min = reconecta.
                             st["pp_silencios"] = int(st.get("pp_silencios") or 0) + 1
                             st["pp_silencio_t"] = time.time()
-                            raise RuntimeError(f"PumpPortal sem tokens novos há {self.PP_SILENT_S / 60:.0f} min — reconectando")
+                            raise RuntimeError("PumpPortal sem tokens novos — reconectando")
                         try:
                             raw = await asyncio.wait_for(ws.recv(), timeout=5)
                         except asyncio.TimeoutError:

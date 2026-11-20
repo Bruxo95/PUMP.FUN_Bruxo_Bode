@@ -2221,6 +2221,7 @@ class PumpHub:
                 "mig_ws": (self.market.status or {}).get("mig_ws") if (self.market.status or {}).get("mig_ws_on") else None, "mig_ws_n": (self.market.status or {}).get("mig_ws_n") or 0,
                 "mig_ws_s": round(now - (self.market.status or {}).get("mig_ws_t")) if (self.market.status or {}).get("mig_ws_t") else None,
                 "mig_ws_err": (self.market.status or {}).get("mig_ws_err"),
+                "mig_reserva": bool((self.market.status or {}).get("mig_reserva")), "mig_reserva_n": (self.market.status or {}).get("mig_reserva_n") or 0,
                 "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
                            "fechadas": len(fech), "ganhou": len(ganhos), "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in fech), 6),

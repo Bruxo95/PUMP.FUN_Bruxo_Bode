@@ -2705,6 +2705,11 @@
    "versao": "0.32.389",
    "inicio": "2026-11-20T16:00:00+00:00",
    "titulo": "BOOST ouve as migrações direto da blockchain (não depende só da PumpPortal)"
+  },
+  {
+   "versao": "0.32.390",
+   "inicio": "2026-11-20T16:45:00+00:00",
+   "titulo": "BOOST: blockchain só como reserva quando a PumpPortal cai (economiza consultas)"
   }
  ]
 }

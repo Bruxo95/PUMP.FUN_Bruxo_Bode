@@ -467,7 +467,8 @@ def test_migracao_pela_blockchain_entra_no_boost(setup, monkeypatch):
         async def recv(self):
             if msgs:
                 return msgs.pop(0)
-            await real_sleep(10)
+            await real_sleep(0.02)
+            raise asyncio.TimeoutError                   # nada chegou: como o wait_for de 5 s
 
     class CM:
         async def __aenter__(self):
@@ -484,11 +485,19 @@ def test_migracao_pela_blockchain_entra_no_boost(setup, monkeypatch):
     monkeypatch.setattr(mon.svc, "_get_tx", get_tx)
     monkeypatch.setattr(asyncio, "sleep", lambda s, *a: real_sleep(0.01))
 
+    mon.market.status["pp_new_t"] = time.time() - 1000   # PumpPortal fora há ~17 min → reserva liga
+
     async def go():
         t = asyncio.ensure_future(mon.migration_ws_run())
         for _ in range(300):
             await real_sleep(0.01)
             if M in hub.bm.items:
+                break
+        assert mon.market.status.get("mig_reserva") is True
+        mon.market.status["pp_new_t"] = time.time()          # PumpPortal voltou → reserva desliga sozinha
+        for _ in range(300):
+            await real_sleep(0.01)
+            if not mon.market.status.get("mig_reserva"):
                 break
         t.cancel()
         try:
@@ -500,6 +509,32 @@ def test_migracao_pela_blockchain_entra_no_boost(setup, monkeypatch):
     assert enviados[0]["params"][0]["mentions"] == [SharedMonitor.MIGRATION_ACCOUNT]
     assert pedidos == ["SIGmig"]                      # transação com erro é ignorada
     assert M in hub.bm.items and mon.market.status["mig_ws_n"] == 1
+    assert mon.market.status["mig_reserva"] is False and mon.market.status["mig_ws_on"] is False
+
+
+def test_reserva_nao_liga_com_a_pumpportal_funcionando(setup, monkeypatch):
+    """0.32.390 (dono: economizar tokens): com a PumpPortal mandando tokens, a blockchain não é consultada."""
+    import sys
+    import types as _ty
+    mon = setup["mon"]
+    conexoes = []
+    monkeypatch.setitem(sys.modules, "websockets", _ty.SimpleNamespace(connect=lambda *a, **k: conexoes.append(1)))
+    real_sleep = asyncio.sleep
+    monkeypatch.setattr(asyncio, "sleep", lambda s, *a: real_sleep(0.01))
+
+    async def go():
+        t = asyncio.ensure_future(mon.migration_ws_run())
+        for _ in range(20):
+            mon.market.status["pp_new_t"] = time.time()
+            await real_sleep(0.01)
+        t.cancel()
+        try:
+            await t
+        except BaseException:
+            pass
+    _run(go())
+    assert conexoes == [] and not mon.market.status.get("mig_reserva")
+    assert mon.pp_down(time.time() + 200) and not mon.pp_down(time.time() + 100)
 
 
 def test_mint_da_migracao():
