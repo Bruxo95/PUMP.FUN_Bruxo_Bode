@@ -190,3 +190,19 @@ def test_migration_runner_only_applies_pending_in_order():
         mod.pending(["x;drop table.sql"], set())
     real = sorted(p.name for p in (path.parents[1] / "supabase" / "migrations").glob("*.sql"))
     assert set(mod.BASELINE) <= set(real) and mod.pending(real, set(real)) == []
+
+
+def test_mesmo_trade_duas_vezes_no_lote_nao_trava_a_gravacao():
+    """0.32.391 (log do dono, 20/11 20:02): 'Supabase POST pump_trades: HTTP 500 21000 … ON CONFLICT' a cada 1,5 s. A sombra do
+    stop de ganho regrava o trade pelo id; se a regravação cai no mesmo lote do trade, o banco recusava o lote inteiro e nada
+    mais era gravado. Agora só a versão mais nova vai."""
+    from app.db import SupabaseStore
+    db = FakeREST()
+    st = SupabaseStore(db, "u-dup")
+    st.save_trade({"id": "t1", "mint": "M", "pnl_sol": 0.1})
+    st._persist("trade_insert", {"id": "t1", "mint": "M", "pnl_sol": 0.1, "sg_sombra": 0.3})
+    st.save_trade({"id": "t2", "mint": "N", "pnl_sol": -0.1})
+    asyncio.run(st.flush())
+    assert st.last_error is None and not st._q
+    rows = {r["id"]: r for r in db.tables["pump_trades"]}
+    assert set(rows) == {"t1", "t2"} and rows["t1"]["data"]["sg_sombra"] == 0.3

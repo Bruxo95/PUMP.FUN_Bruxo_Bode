@@ -2710,6 +2710,11 @@
    "versao": "0.32.390",
    "inicio": "2026-11-20T16:45:00+00:00",
    "titulo": "BOOST: blockchain só como reserva quando a PumpPortal cai (economiza consultas)"
+  },
+  {
+   "versao": "0.32.391",
+   "inicio": "2026-11-20T19:30:00+00:00",
+   "titulo": "Banco parado: trade repetido no mesmo lote travava a gravação (erro 21000)"
   }
  ]
 }

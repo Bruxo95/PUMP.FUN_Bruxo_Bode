@@ -74,6 +74,10 @@ class FakeREST:
         rows = rows if isinstance(rows, list) else [rows]
         self.calls.append(("insert", table, len(rows)))
         pk = PKS[table]
+        if upsert:                                    # como o Postgres: 2 linhas com a mesma chave no mesmo comando = erro 21000
+            ks = [tuple(r.get(k) for k in pk) for r in rows if all(r.get(k) is not None for k in pk)]
+            if len(ks) != len(set(ks)):
+                raise RuntimeError(f'21000 ON CONFLICT DO UPDATE command cannot affect row a second time ({table})')
         for r in rows:
             r = copy.deepcopy(r)
             if table in AUTO_ID and "id" not in r:

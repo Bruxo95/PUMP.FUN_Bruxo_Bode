@@ -2712,7 +2712,10 @@ class PumpHub:
                         e._wg_err_log = time.time()
                         log.warning("vigia da carteira: %s; usei o RPC público", e._wg_err)
                 except Exception as ex:
-                    log.warning("vigia da carteira: %s%s", type(ex).__name__, f" ({e._wg_err})" if getattr(e, "_wg_err", None) else "")   # nunca o texto do erro (o endereço leva a chave)
+                    txt = type(ex).__name__ + (f" ({e._wg_err})" if getattr(e, "_wg_err", None) else "")   # nunca o texto do erro (o endereço leva a chave)
+                    if txt != getattr(e, "_wg_ex_txt", None) or time.time() - getattr(e, "_wg_ex_log", 0) > 1800:
+                        e._wg_ex_txt, e._wg_ex_log = txt, time.time()     # 0.32.391: o mesmo erro no máximo 1x a cada 30 min
+                        log.warning("vigia da carteira: %s (próximo aviso igual só daqui a 30 min)", txt)
             await asyncio.sleep(60)
 
     async def result_loop(self) -> None:

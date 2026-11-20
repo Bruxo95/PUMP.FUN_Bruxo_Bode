@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-20**; revisão documental **2.0**.
-Aplicação: **0.32.390 · 2026-11-20 · BOOST: blockchain só como reserva quando a PumpPortal cai (economiza consultas)**.
-Referência Git na emissão: `c7e488bffba818bc0d541c6af37853a523a9acca`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.391 · 2026-11-20 · Banco parado: trade repetido no mesmo lote travava a gravação (erro 21000)**.
+Referência Git na emissão: `a0c4a3163f0390811879615cb936f419e20e205e`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

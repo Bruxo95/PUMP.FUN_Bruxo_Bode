@@ -167,7 +167,9 @@ class SupabaseStore(MemStore):
             elif op == "pos_delete":
                 pos[str(d)] = None
             elif op == "trade_insert":
-                trades.append(d)
+                # 0.32.391: o mesmo trade pode vir 2x no lote (a sombra do stop de ganho regrava pelo id). O Postgres recusa o
+                # lote inteiro com 2 linhas de mesmo id (erro 21000) e a fila travava para sempre: fica só a versão mais nova.
+                trades = [x for x in trades if str(x.get("id")) != str(d.get("id"))] + [d]
             elif op == "meta":
                 meta[d[0]] = d[1]
             elif op == "feed":
