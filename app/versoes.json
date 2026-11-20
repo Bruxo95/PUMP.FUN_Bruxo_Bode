@@ -2740,6 +2740,11 @@
    "versao": "0.32.396",
    "inicio": "2026-11-20T22:30:00+00:00",
    "titulo": "BOOST: entradas e resultado da REAL separados da fictícia"
+  },
+  {
+   "versao": "0.32.397",
+   "inicio": "2026-11-20T22:30:02+00:00",
+   "titulo": "Dormant: Arena DEX como mais uma opção de compra e venda na Avalanche"
   }
  ]
 }

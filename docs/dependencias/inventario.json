@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-20",
     "timezone": "Europe/Dublin",
-    "repository_reference": "4ac91de1dd8aac7a379202a7aafe64d9fb072688",
-    "application_version": "0.32.396 · 2026-11-20 · BOOST: entradas e resultado da REAL separados da fictícia",
+    "repository_reference": "8744ec90acbcd21e92f2007a76a487d7d405fd54",
+    "application_version": "0.32.397 · 2026-11-20 · Dormant: Arena DEX como mais uma opção de compra e venda na Avalanche",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e501725d019ae8f23743b6819989bafee89054bd08fb2589e3ac7d6cf0fc506e",
+      "app/version.py": "97a302661bc4b412a8f86fef1fb811f325437c3d3fe3e69f153bebb02aea72aa",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "4fec5aa7cfea004f40dd8bc08feb17c28602a477145749eb1679fefec817bc9f"
+  "pdf_sha256": "6466d62b2f2da14a2308dbee5aea2ea8390d3fede0fe8f1fd1993637d76e3ca1"
 }

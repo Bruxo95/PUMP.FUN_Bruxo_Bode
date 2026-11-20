@@ -94,7 +94,10 @@ CHAINS = {
                     "wrapped": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270", "ponte": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359", "v3": True},
     "avalanche": {"nome": "Avalanche", "tipo": "evm", "id": 43114, "moeda": "AVAX", "cg": "avalanche-2", "dec": 18, "dex": "Trader Joe", "expl": "https://snowtrace.io/tx/",
                   "rpc": "https://avalanche-c-chain-rpc.publicnode.com", "router": "0x60ae616a2155ee3d9a68541ba4544862310933d4",
-                  "wrapped": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7", "ponte": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", "swap_sel": SEL_SWAP_AVAX, "sell_sel": SEL_SELL_AVAX},
+                  "wrapped": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7", "ponte": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", "swap_sel": SEL_SWAP_AVAX, "sell_sel": SEL_SELL_AVAX,
+                  # 0.32.397 (pedido do dono): Arena DEX (WOLFI e outras só têm liquidez aí). Roteador achado pelos swaps reais do par na rede e conferido
+                  # em 20/11: factory() = 0xf167…9bd1 (a mesma do par ARENA/WAVAX), WAVAX() = WAVAX e as 6 funções AVAX iguais às do Trader Joe.
+                  "extra": [{"dex": "Arena DEX", "router": "0xf56d524d651b90e4b84dc2fffd83079698b9066e"}]},
     "arbitrum-one": {"nome": "Arbitrum", "tipo": "evm", "id": 42161, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://arbiscan.io/tx/",
                      "rpc": "https://arbitrum-one-rpc.publicnode.com", "router": "0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24",
                      "wrapped": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1", "ponte": "0xaf88d065e77c8cc2239327c5edb3a432268e5831", "v3": True},
@@ -232,6 +235,23 @@ def key_address(chain: str, text: str) -> str:
     if CHAINS[chain]["tipo"] == "cosmos":
         return osmosis.address_of(text)
     return evm.address_of(evm.parse_key(text))
+
+
+def router_of(c: dict, wanted: str | None = None) -> str:
+    """Roteador V2 de uma rota: o principal da rede ou um dos extras escritos AQUI (nunca um endereço que venha de fora)."""
+    ok = {x["router"] for x in c.get("extra") or []}
+    return wanted if wanted and wanted in ok else c["router"]
+
+
+def extra_v2(c: dict, path: list, ponte: str | None, sell: bool = False) -> list:
+    """Rotas V2 dos DEX extras da rede (0.32.397: Arena DEX na Avalanche): direta e, se houver, passando pelo dólar."""
+    out = []
+    for x in c.get("extra") or []:
+        out.append({"tipo": "v2", "path": path, "dex": x["dex"], "router": x["router"], "rota": "direta"})
+        if ponte:
+            via = [path[0], ponte, path[1]]
+            out.append({"tipo": "v2", "path": via, "dex": x["dex"], "router": x["router"], "rota": "passando por dólar"})
+    return out
 
 
 def v2_data(c: dict, min_out: int, path: list, addr: str, deadline: int) -> str:
@@ -562,8 +582,8 @@ class Buyer:
         except BuyError:
             return None                            # rota sem pool responde erro: é só "não há esta rota"
 
-    async def _v2_out(self, c: dict, value: int, path: list) -> int:
-        w = evm.words(await self._call(c, c["router"], evm.call_data(SEL_AMOUNTS, value, path)) or "0x")
+    async def _v2_out(self, c: dict, value: int, path: list, router: str | None = None) -> int:
+        w = evm.words(await self._call(c, router_of(c, router), evm.call_data(SEL_AMOUNTS, value, path)) or "0x")
         return w[-1] if len(w) >= 2 + len(path) else 0
 
     async def _v3_out(self, c: dict, value: int, token: str, fee: int) -> int:
@@ -578,7 +598,7 @@ class Buyer:
     async def _route_out(self, c: dict, rt: dict, value: int, token: str) -> int:
         if rt["tipo"] == "v4":
             return await self._v4_out(c, value, rt["key"], rt["rede"])
-        return await (self._v3_out(c, value, token, rt["fee"]) if rt["tipo"] == "v3" else self._v2_out(c, value, rt["path"]))
+        return await (self._v3_out(c, value, token, rt["fee"]) if rt["tipo"] == "v3" else self._v2_out(c, value, rt["path"], rt.get("router")))
 
     async def _v4_block_at(self, c: dict, ts: float) -> int:
         """Bloco perto de uma hora (busca binária, ~25 leituras). A rede só aceita eth_getLogs em trechos de até 10 milhões de blocos."""
@@ -642,6 +662,7 @@ class Buyer:
         cands = [{"tipo": "v2", "path": [c["wrapped"], token], "dex": c["dex"].split(" e ")[0], "rota": "direta"}]
         if c.get("ponte") and token != c["ponte"]:
             cands.append({"tipo": "v2", "path": [c["wrapped"], c["ponte"], token], "dex": c["dex"].split(" e ")[0], "rota": "passando por dólar"})
+        cands += extra_v2(c, [c["wrapped"], token], c.get("ponte") if token != c.get("ponte") else None)
         if c.get("v3"):
             cands += [{"tipo": "v3", "fee": f, "dex": "Uniswap V3", "rota": f"pool de {f / 10000:g}%"} for f in V3_FEES]
         if chain in V4:
@@ -787,7 +808,7 @@ class Buyer:
             return V3_ROUTER, v3_data(c["wrapped"], q["token"], rt["fee"], addr, dl, q["value"], min_out)
         if rt["tipo"] == "v4":                       # o recebedor é quem assina (TAKE_ALL paga o msg.sender): nada a passar
             return self._v4_checked(q), v4_data(rt["key"], q["value"], min_out, dl)
-        return c["router"], v2_data(c, min_out, rt["path"], addr, dl)
+        return router_of(c, rt.get("router")), v2_data(c, min_out, rt["path"], addr, dl)
 
     # ------------------------------------------------------------------ cotação Solana
     def jup(self):
@@ -1076,6 +1097,7 @@ class Buyer:
         cands = [{"tipo": "v2", "path": [token, c["wrapped"]], "dex": c["dex"].split(" e ")[0], "rota": "direta"}]
         if c.get("ponte") and token != c["ponte"]:
             cands.append({"tipo": "v2", "path": [token, c["ponte"], c["wrapped"]], "dex": c["dex"].split(" e ")[0], "rota": "passando por dólar"})
+        cands += extra_v2(c, [token, c["wrapped"]], c.get("ponte") if token != c.get("ponte") else None, sell=True)
         if c.get("v3"):
             cands += [{"tipo": "v3", "fee": f, "dex": "Uniswap V3", "rota": f"pool de {f / 10000:g}%"} for f in V3_FEES]
         if chain in V4:
@@ -1091,7 +1113,7 @@ class Buyer:
         if rt["tipo"] == "v4":
             return await self._v4_out(c, amount, rt["key"], rt["rede"], zero_for_one=False)
         if rt["tipo"] == "v2":
-            return await self._v2_out(c, amount, rt["path"])
+            return await self._v2_out(c, amount, rt["path"], rt.get("router"))
         data = SEL_V3_QUOTE + evm.w_addr(token) + evm.w_addr(c["wrapped"]) + evm.w_int(amount) + evm.w_int(rt["fee"]) + evm.w_int(0)
         w = evm.words(await self._call(c, V3_QUOTER, data) or "0x")
         return w[0] if w else 0
@@ -1104,7 +1126,7 @@ class Buyer:
             return V3_ROUTER, v3_sell_data(q["token"], c["wrapped"], rt["fee"], addr, dl, q["amount"], min_out)
         if rt["tipo"] == "v4":
             return self._v4_checked(q), v4_data(rt["key"], q["amount"], min_out, dl, sell=True)
-        return c["router"], evm.call_data(c.get("sell_sel") or SEL_SELL_ETH, q["amount"], min_out, rt["path"], addr, dl)
+        return router_of(c, rt.get("router")), evm.call_data(c.get("sell_sel") or SEL_SELL_ETH, q["amount"], min_out, rt["path"], addr, dl)
 
     def _v4_checked(self, q: dict) -> str:
         """Universal Router da rede, só se a chave do pool passou pela conferência na rede (keccak = id do pool) e é o par ETH/este token."""
@@ -1117,7 +1139,7 @@ class Buyer:
     def _spender(q: dict) -> str:
         """Quem o token autoriza: o roteador fixo, ou o Permit2 na V4 (que por sua vez autoriza só o Universal Router)."""
         t = q["route"]["tipo"]
-        return PERMIT2 if t == "v4" else V3_ROUTER if t == "v3" else CHAINS[q["rede"]]["router"]
+        return PERMIT2 if t == "v4" else V3_ROUTER if t == "v3" else router_of(CHAINS[q["rede"]], q["route"].get("router"))
 
     async def _p2_ok(self, c: dict, q: dict, addr: str) -> bool:
         """Permit2 já deixa o Universal Router puxar este valor por mais 2 min?"""
