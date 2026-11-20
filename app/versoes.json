@@ -2720,6 +2720,11 @@
    "versao": "0.32.392",
    "inicio": "2026-11-20T20:45:00+00:00",
    "titulo": "BOOST fora da trava por tela: a REAL do BOOST segue só a chave dele"
+  },
+  {
+   "versao": "0.32.393",
+   "inicio": "2026-11-20T21:35:00+00:00",
+   "titulo": "BOOST compra na REAL mesmo com o espelho desligado"
   }
  ]
 }

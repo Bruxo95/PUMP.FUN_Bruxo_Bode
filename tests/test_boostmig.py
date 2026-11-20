@@ -147,6 +147,21 @@ def test_real_so_com_a_chave_da_aba(tmp_path):
     assert pf._rq is not None and pf._rq.qsize() == 1     # com a chave ligada e a execução real ligada: vai para a fila real
 
 
+def test_real_do_boost_sem_espelho_e_sem_base_na_real(tmp_path):
+    """0.32.393 (dono, DATACENTER 20/11 22:22: "a real não comprou"): com o espelho e a "Base automática na REAL" desligados,
+    o BOOST com a chave REAL ligada saía sem comprar e sem aviso. A chave do BOOST basta."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_real=True, pump_real_mirror=False, pump_auto_real=False)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    assert pf._rq is not None and pf._rq.qsize() == 1
+
+
 def test_migracao_e_rotas():
     sql = open(os.path.join("supabase", "migrations", "20261118000001_boost_migracao.sql"), encoding="utf-8").read()
     assert "boost_tokens" in sql and "boost_devs" in sql and sql.count("enable row level security") == 2

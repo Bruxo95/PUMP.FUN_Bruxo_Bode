@@ -3855,7 +3855,14 @@ class PumpFun:
             if origem == "boostmig" and not getattr(self.cfg, "pump_bm_real", False):
                 return out                              # 0.32.373: BOOST da migração só vai para a REAL com a chave da aba
             jt_real = origem == "jevtrade" and target == "both" and getattr(self.cfg, "pump_jt_real", False)   # 0.32.97
-            if self.real is not None and getattr(self.cfg, "pump_real_enabled", False) and (not auto or mirror or jt_real or getattr(self.cfg, "pump_auto_real", False)):
+            # 0.32.393 (dono, DATACENTER 20/11 22:22): o BOOST com "Também na REAL" ligado não comprava na REAL quando o espelho
+            # e a Base automática na REAL estavam desligados — saía aqui sem aviso. A chave do BOOST basta (a de cima já conferiu).
+            bm_real = origem == "boostmig"
+            real_ok = self.real is not None and getattr(self.cfg, "pump_real_enabled", False)
+            if real_ok and auto and not (mirror or jt_real or bm_real or getattr(self.cfg, "pump_auto_real", False)):
+                out["real"] = "espelho e compra automática na REAL desligados (só fictícia)"
+                self._feed(**base, action="REAL não copiou", reason=out["real"], sim_id=(sim_pos or {}).get("id"))
+            if real_ok and (not auto or mirror or jt_real or bm_real or getattr(self.cfg, "pump_auto_real", False)):
                 st["tried"] = True
                 self._real_buying.prune()
                 if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
