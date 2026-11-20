@@ -403,3 +403,39 @@ def test_real_do_boost_segue_a_ficticia_mesmo_sem_espelho(tmp_path):
     assert not [p for p in pf.positions() if p["mint"] == M and not p.get("real")]
     setattr(pf.cfg, "pump_bm_real_follow", False)
     assert not pf.bm_follows_sim(r)
+
+
+def test_real_com_regras_proprias(tmp_path):
+    """0.32.394 (pedido do dono: "separar regras REAL"): com "REAL usa regras próprias", a REAL do BOOST decide a entrada com
+    os filtros dela, compra o valor dela e grava o stop e a saída dela na posição; não segue a fictícia."""
+    from app.boostmig import RealCfg
+    from app.settings import BM_REAL_RULES
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap"}
+    base = vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_real=True, pump_real_mirror=False, pump_auto_real=False, pump_bmr_on=True))
+    for k, v in base.items():
+        setattr(pf.cfg, k, v)
+    for k in BM_REAL_RULES:                                        # a REAL começa igual à fictícia…
+        if hasattr(pf.cfg, "pump_bm_" + k):
+            setattr(pf.cfg, "pump_bmr_" + k, getattr(pf.cfg, "pump_bm_" + k))
+    pf.cfg.pump_bmr_min_buys, pf.cfg.pump_bmr_stop_pct, pf.cfg.pump_bmr_no_stop, pf.cfg.pump_bmr_sol = 500, 20, False, 0.02
+    rc = RealCfg(pf.cfg)
+    assert rc.pump_bm_min_buys == 500 and rc.pump_bm_sol == 0.02 and rc.pump_bm_on is True and pf.cfg.pump_bm_min_buys == 80
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    b = pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    u = b["users"]["u1"]
+    assert u["estado"] == "entrou" and u["real"]["estado"] == "esperar" and "500" in u["real"]["motivo"]   # REAL pede 500 compras
+    assert pf._rq is None or pf._rq.qsize() == 0
+    pf.cfg.pump_bmr_min_buys = 50
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now + 1))
+    assert u["real"]["estado"] == "entrou" and pf._rq.qsize() == 1
+    item = pf._rq.get_nowait()[1]
+    assert item["amt_sol"] == 0.02 and item["pos_cfg"]["bm_own"] is True and item["pos_cfg"]["stop_pct"] == 20
+    assert item["sim_id"] is None
+    f = [p for p in pf.positions() if p["mint"] == M and not p.get("real")][0]
+    r = dict(f, id="real-1", real=True, wallet="manual", **item["pos_cfg"])
+    pf._save_pos(r)
+    assert not pf.bm_follows_sim(r) and r["id"] not in [x["id"] for x in pf.real_twins(f)]

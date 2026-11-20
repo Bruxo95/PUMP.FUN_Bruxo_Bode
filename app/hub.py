@@ -1815,49 +1815,64 @@ class PumpHub:
             await self._bm_user(uid, pf, now)
 
     async def _bm_user(self, uid: str, pf: PumpFun, now: float) -> None:
+        from .boostmig import RealCfg
         bm = self.bm
         pos = [p for p in pf.positions() if p.get("origem") == "boostmig"]
-        abertas = len([p for p in pos if not p.get("real")])
+        real = bool(getattr(pf.cfg, "pump_bm_real", False))
+        # 0.32.394 (pedido do dono): com "REAL usa regras próprias", a REAL decide a entrada e a saída com as regras da REAL
+        # (pump_bmr_*), separada da fictícia; sem ela, a REAL vai junto com a fictícia como antes.
+        own = real and bool(getattr(pf.cfg, "pump_bmr_on", False))
+        legs = [("sim", pf.cfg)] + ([("real", RealCfg(pf.cfg))] if own else [])
         for m, b in list(bm.items.items()):
-            u = b.setdefault("users", {}).setdefault(uid, {})
-            if u.get("estado") in ("entrou", "fora"):
-                continue
-            if bm.progress(b, now) >= 100:
-                u.update(estado="fora", motivo=u.get("motivo") or "BOOST terminou", t=now)
-                continue
-            nomes = set()
-            for p in pos:
-                if p["mint"] != m:
-                    nomes |= bm.name_keys(p["mint"])
-            est, why = bm.decide(pf.cfg, b, now, nomes, abertas)
-            u.update(estado=est, motivo=why, t=now)
-            if est != "entrar":
-                continue
-            # 0.32.376: entra no preço da cotação da Jupiter da observação (até 10 s). O preço guardado do token pode ser o da
-            # curva, congelado depois da migração, e daria um ganho falso.
-            sm = b.get("samples") or []
-            if not sm or now - sm[-1][0] > 10:
-                u.update(estado="esperar", motivo="aguardando cotação da Jupiter (preço de agora)")
-                continue
-            tk = pf.tokens.setdefault(m, {"created_t": now})
-            tk.update(price=sm[-1][1], last_t=sm[-1][0], price_src="cotação Jupiter (compra de 0,01 SOL)", pool="pumpswap")
-            real = bool(getattr(pf.cfg, "pump_bm_real", False))
-            r = pf.manual_buy(m, t=now, auto="BOOST da migração · " + why, origem="boostmig", target="both" if real else "sim",
-                              amt_sol=float(getattr(pf.cfg, "pump_bm_sol", 0.05)), pos_rules=bm.rules(pf.cfg, b, now))
-            sim = str(r.get("sim") or "")
-            if r.get("error"):
-                u.update(estado="esperar", motivo="não comprou: " + str(r["error"]))
-            elif sim.startswith("comprou") or (real and str(r.get("real") or "").startswith("enviando")):
-                u.update(estado="entrou", motivo=f"entrou em {bm.progress(b, now):.0f}% do BOOST", t=now)
-                b.setdefault("entry", {"prog": round(bm.progress(b, now), 1), "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"),
-                                       "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"), "mcap_sol": b.get("mcap_sol")})
-                abertas += 1
-                pos.append({"mint": m})
-                bm.dirty.add(m)
-            elif sim in ("carteira FICTÍCIA desligada",) or sim.startswith("já tem"):
-                u.update(estado="fora", motivo=sim)
-            else:
-                u.update(estado="esperar", motivo=sim or str(r.get("real") or "não comprou"))
+            uu = b.setdefault("users", {}).setdefault(uid, {})
+            for leg, c in legs:
+                u = uu if leg == "sim" else uu.setdefault("real", {})
+                if u.get("estado") in ("entrou", "fora"):
+                    continue
+                if bm.progress(b, now) >= 100:
+                    u.update(estado="fora", motivo=u.get("motivo") or "BOOST terminou", t=now)
+                    continue
+                mine = [p for p in pos if bool(p.get("real")) == (leg == "real")] if own else pos
+                nomes = set()
+                for p in mine:
+                    if p["mint"] != m:
+                        nomes |= bm.name_keys(p["mint"])
+                abertas = len(mine) if own else len([p for p in pos if not p.get("real")])
+                est, why = bm.decide(c, b, now, nomes, abertas)
+                u.update(estado=est, motivo=why, t=now)
+                if est != "entrar":
+                    continue
+                # 0.32.376: entra no preço da cotação da Jupiter da observação (até 10 s). O preço guardado do token pode ser o da
+                # curva, congelado depois da migração, e daria um ganho falso.
+                sm = b.get("samples") or []
+                if not sm or now - sm[-1][0] > 10:
+                    u.update(estado="esperar", motivo="aguardando cotação da Jupiter (preço de agora)")
+                    continue
+                tk = pf.tokens.setdefault(m, {"created_t": now})
+                tk.update(price=sm[-1][1], last_t=sm[-1][0], price_src="cotação Jupiter (compra de 0,01 SOL)", pool="pumpswap")
+                target = leg if own else ("both" if real else "sim")
+                r = pf.manual_buy(m, t=now, auto="BOOST da migração · " + why + (" · regras da REAL" if leg == "real" else ""),
+                                  origem="boostmig", target=target, amt_sol=float(getattr(c, "pump_bm_sol", 0.05)),
+                                  pos_rules=bm.rules(c, b, now))
+                sim, rr = str(r.get("sim") or ""), str(r.get("real") or "")
+                ok = rr.startswith("enviando") if leg == "real" else (sim.startswith("comprou") or (real and not own and rr.startswith("enviando")))
+                if r.get("error"):
+                    u.update(estado="esperar", motivo="não comprou: " + str(r["error"]))
+                elif ok:
+                    u.update(estado="entrou", motivo=f"entrou em {bm.progress(b, now):.0f}% do BOOST", t=now)
+                    b.setdefault("entry", {"prog": round(bm.progress(b, now), 1), "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"),
+                                           "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"), "mcap_sol": b.get("mcap_sol")})
+                    pos.append({"mint": m, "real": leg == "real", "origem": "boostmig"})
+                    bm.dirty.add(m)
+                elif leg == "real":
+                    if rr.startswith("já tem") or not rr:
+                        u.update(estado="fora", motivo=rr or "REAL não comprou (execução real desligada?)")
+                    else:
+                        u.update(estado="esperar", motivo=rr)
+                elif sim in ("carteira FICTÍCIA desligada",) or sim.startswith("já tem"):
+                    u.update(estado="fora", motivo=sim)
+                else:
+                    u.update(estado="esperar", motivo=sim or rr or "não comprou")
 
     def _bm_results(self, now: float) -> None:
         """Quando ninguém tem mais posição do BOOST num token, o resultado (da 1ª conta que entrou) vai para o livro do DEV."""
@@ -2175,6 +2190,8 @@ class PumpHub:
             v["progress"] = round(bm.progress(b, now), 1)
             u = (b.get("users") or {}).get(uid) or {}
             v["sua"] = {"estado": u.get("estado"), "motivo": u.get("motivo")}
+            if u.get("real"):                              # 0.32.394: REAL com regras próprias
+                v["sua_real"] = {"estado": u["real"].get("estado"), "motivo": u["real"].get("motivo")}
             v["vip"] = bool((bm.dev_stats(b.get("creator")) or {}).get("vip"))
             v["scam"] = bool(b.get("creator") in bm.scam_devs)
             itens.append(v)

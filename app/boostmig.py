@@ -698,7 +698,9 @@ class BoostMig:
                 "trail_dist": float(g("pump_bm_trail_dist", 5)),
                 "tp1_pct": float(g("pump_bm_partial_at", 15)) if g("pump_bm_partial_on", True) else None,
                 "tp1_frac": float(g("pump_bm_partial_frac", 50)), "max_hold_s": round(hold, 1),
-                "hold_why": f"BOOST {ex:.0f}% (saída em {ex:.0f}%)", "bm_t0": b["t0"]}
+                "hold_why": f"BOOST {ex:.0f}% (saída em {ex:.0f}%)", "bm_t0": b["t0"], "bm_sg_after": bool(g("pump_bm_sg_after", True))}
+        if isinstance(c, RealCfg):
+            out["bm_own"] = True                       # 0.32.394: REAL com regras próprias — não segue a fictícia
         # 0.32.380 (pedido do dono): no fim do BOOST, fica se as compras estão crescendo e/ou até ficar +X%; enquanto fica,
         # a perda máxima é a da opção (padrão 25%) e há um tempo extra máximo
         grow_on, prof_on = bool(g("pump_bm_ext_on", True)), bool(g("pump_bm_hold_profit_on", False))
@@ -747,6 +749,20 @@ class BoostMig:
                 self.scam_devs[r["creator"]] = d["scam"]
             if d.get("book"):
                 self.dev_book[r["creator"]] = d["book"]
+
+
+class RealCfg:
+    """0.32.394 (pedido do dono): as regras do BOOST vistas pela carteira REAL — cada pump_bm_<regra> de BM_REAL_RULES vem do
+    pump_bmr_<regra>; o resto (chaves gerais, servidor) é o mesmo da conta."""
+
+    def __init__(self, c):
+        self._c = c
+
+    def __getattr__(self, k):
+        from .settings import BM_REAL_RULES
+        if k.startswith("pump_bm_") and k[8:] in BM_REAL_RULES:
+            return getattr(self._c, "pump_bmr_" + k[8:])
+        return getattr(self._c, k)
 
 
 def ext_decide(ext: dict, pnl: float | None, growth: float | None) -> tuple[bool, str]:

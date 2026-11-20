@@ -2018,14 +2018,15 @@ class PumpFun:
         bm = p.get("origem") == "boostmig"
         return [rp for rp in self.positions() if rp.get("real") and rp["mint"] == p["mint"]
                 and ((mirror and rp.get("sim_id") == p["id"])
-                     or (bm and rp.get("origem") == "boostmig")      # 0.32.387: no BOOST a REAL segue a fictícia mesmo sem espelho
+                     or (bm and rp.get("origem") == "boostmig" and not rp.get("bm_own"))   # 0.32.387 (0.32.394: menos com regras próprias)
                      or (not rp.get("sim_id") and rp.get("wallet") == p.get("wallet") and p.get("wallet") not in (None, "manual")))]
 
     def bm_follows_sim(self, rp: dict) -> bool:
         """0.32.387 (pedido do dono: "a real segue 100% a fictícia no BOOST"): REAL do BOOST com a fictícia do mesmo token aberta
         não decide nada sozinha (stop, stop móvel, venda em partes, fim do BOOST, tempo): só vende quando a fictícia vende."""
+        # 0.32.394: com "REAL usa regras próprias" (pump_bmr_on) a REAL do BOOST tem stop e saída dela (gravados na posição)
         return bool(rp.get("real") and rp.get("origem") == "boostmig" and getattr(self.cfg, "pump_bm_real_follow", True)
-                    and any(not x.get("real") and x["mint"] == rp["mint"] and x.get("origem") == "boostmig" for x in self.positions()))
+                    and not rp.get("bm_own") and any(not x.get("real") and x["mint"] == rp["mint"] and x.get("origem") == "boostmig" for x in self.positions()))
 
     def _waits_real(self, p: dict) -> bool:
         """Fictícia com a compra REAL do espelho ainda saindo (real ligada): a real tem prioridade (0.31.47)."""
@@ -2334,7 +2335,7 @@ class PumpFun:
             return None, "fora"
         if aba == "Explorar" and not getattr(c, "pump_sg_explorar", False):
             return None, "Explorar sem stop de ganho"
-        if p.get("origem") == "boostmig" and getattr(c, "pump_bm_sg_after", True) and not p.get("bm_sg_armed"):
+        if p.get("origem") == "boostmig" and p.get("bm_sg_after", getattr(c, "pump_bm_sg_after", True)) and not p.get("bm_sg_armed"):
             # 0.32.386 (pedido do dono): durante o BOOST vale o stop móvel; o autônomo só arma no fim, se estiver negativo
             return None, "BOOST: stop móvel (o autônomo só arma no fim do BOOST, se estiver negativo)"
         return stopganho.nivel_de(self.sg_decisions().get(aba), self._c("pump_sg_fixo_pct", 0))
@@ -2508,7 +2509,7 @@ class PumpFun:
         # negativa: segura até subir e aí ele vende. Positiva no fim = segue as regras do BOOST (stop móvel, compras crescendo).
         if "bm_end_pnl" not in p:
             p["bm_end_pnl"] = None if pnl is None else round(pnl, 1)
-            if pnl is not None and pnl < 0 and getattr(self.cfg, "pump_bm_sg_after", True):
+            if pnl is not None and pnl < 0 and p.get("bm_sg_after", getattr(self.cfg, "pump_bm_sg_after", True)):
                 p["bm_sg_armed"] = True
         lvl = self.sg_level(p) if p.get("bm_sg_armed") else None
         if lvl is not None:
@@ -3877,7 +3878,7 @@ class PumpFun:
                     st["sent"] = True
                     if own_auto:
                         self._auto_pending[mint] = t
-                    self._rq_put(("buy", {"wallet": "manual", "mint": mint, "symbol": sym, "trader_sol": 0.0,
+                    self._rq_put(("buy", {"wallet": "manual", "mint": mint, "symbol": sym, "trader_sol": 0.0, "amt_sol": amt_sol,
                                           "trader_price": px, "mcap_in": tk.get("mcap_sol"), "t": t, "block_t": t,
                                           "sim_id": (sim_pos or {}).get("id") if mirror and sim_pos else None,
                                           "pos_cfg": {**rules, "manual": True,
@@ -5314,6 +5315,9 @@ class PumpFun:
             mult, mwhy = self.trust_mult(it["wallet"])
             amt = float(self._c("pump_real_max_sol", 0.05)) * min(1.0, mult)
             ar_real = float(self._c("pump_ar_real_sol", 0) or 0)
+            if (it.get("pos_cfg") or {}).get("bm_own") and it.get("amt_sol"):
+                # 0.32.394: BOOST com regras próprias da REAL: valor da REAL do BOOST, sem passar do máximo da Execução real
+                amt = min(float(it["amt_sol"]), float(self._c("pump_real_max_sol", 0.05)))
             if own_auto and (it.get("pos_cfg") or {}).get("origem") == "explorar" and ar_real > 0:
                 # 0.32.32: valor próprio das automáticas do Explorar na real, sem passar do máximo da Execução real
                 amt = min(ar_real, float(self._c("pump_real_max_sol", 0.05)))

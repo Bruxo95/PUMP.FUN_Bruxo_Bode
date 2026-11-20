@@ -423,6 +423,14 @@ USER_KEYS: dict[str, tuple] = {
     "pump_eq_stop_pct": (float, 0.0, 0.0, 100.0),
     "pump_eq_real": (bool, False, 0, 1),
 }
+# 0.32.394 (pedido do dono, 20/11): regras próprias do BOOST para a carteira REAL — as mesmas opções das regras da fictícia,
+# com o prefixo pump_bmr_. Só valem com "REAL usa regras próprias" (pump_bmr_on) ligado. Tela: BOOST → Regras → REAL.
+BM_REAL_RULES = ("sol", "max_open", "enter_max_pct", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
+                 "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
+                 "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
+                 "sg_after", "hold_profit_on", "hold_profit_pct")
+USER_KEYS["pump_bmr_on"] = (bool, False, 0, 1)
+USER_KEYS.update({"pump_bmr_" + _k: USER_KEYS["pump_bm_" + _k] for _k in BM_REAL_RULES})
 LB_DAYS = (1, 7, 30, 90)
 
 # Opções do monitor COMPARTILHADO (um só para todos): só no .env do servidor

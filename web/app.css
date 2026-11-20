@@ -1113,3 +1113,6 @@ label.chgrp{cursor:pointer}
 /* 0.32.382: BOOST — carteiras ligadas ao DEV */
 .bmsy{margin-top:6px}
 #bmSyCard .tgl[disabled]{opacity:.55;cursor:not-allowed}
+/* 0.32.394: BOOST — regras da FICTÍCIA × da REAL */
+.bmrsel{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+.bmrsel p{flex-basis:100%;margin:0}

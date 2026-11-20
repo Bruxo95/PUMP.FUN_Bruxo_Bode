@@ -2725,6 +2725,11 @@
    "versao": "0.32.393",
    "inicio": "2026-11-20T21:35:00+00:00",
    "titulo": "BOOST compra na REAL mesmo com o espelho desligado"
+  },
+  {
+   "versao": "0.32.394",
+   "inicio": "2026-11-20T22:30:00+00:00",
+   "titulo": "BOOST: regras próprias da REAL e botões para copiar FICTÍCIA ↔ REAL"
   }
  ]
 }
