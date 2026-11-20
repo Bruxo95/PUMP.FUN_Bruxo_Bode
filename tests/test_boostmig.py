@@ -455,3 +455,37 @@ def test_numeros_da_real_separados(env):
     R = c.get("/api/pump/boost-migracao", headers=A).json()["resumo"]
     assert R["fechadas"] == 1 and R["pnl_sol"] == 0.02 and R["ganhou"] == 1
     assert R["fechadas_real"] == 2 and R["ganhou_real"] == 1 and abs(R["pnl_sol_real"] + 0.006) < 1e-9 and R["entrou_real"] == 1
+
+
+def test_real_do_boost_sem_idade_minima_e_mostra_o_que_aconteceu(tmp_path):
+    """0.32.398 (dono, Brenter 20/11 23:34): a REAL do BOOST foi barrada pela idade mínima (token com 2,5 min) e a lista
+    mostrava só "ENTROU" (da fictícia). Agora a idade mínima não vale no BOOST e a lista mostra a situação da REAL."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_real=True, pump_real_mirror=False, pump_auto_real=False,
+                         pump_real_min_age_min=10)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    assert pf.bm_real_note[M]["estado"] == "esperar"
+    it = pf._rq.get_nowait()[1]
+    idade = []
+
+    async def age(m, need):
+        idade.append(m)
+        return 2.5
+    pf.token_age_min = age
+
+    class Real:
+        async def buy(self, mint, amt, other=False):
+            return {"ok": False, "reason": "teste: sem RPC"}
+
+        def today_loss(self, trades):
+            return 0.0
+    pf.real = Real()
+    run(pf._real_buy_run(it))
+    assert idade == []                                         # idade mínima não é conferida no BOOST
+    assert pf.bm_real_note[M] == {**pf.bm_real_note[M], "estado": "fora", "motivo": "teste: sem RPC"}

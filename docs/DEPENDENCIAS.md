@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-20**; revisão documental **2.0**.
-Aplicação: **0.32.397 · 2026-11-20 · Dormant: Arena DEX como mais uma opção de compra e venda na Avalanche**.
-Referência Git na emissão: `8744ec90acbcd21e92f2007a76a487d7d405fd54`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.398 · 2026-11-20 · BOOST: a REAL compra sem a idade mínima e a lista mostra o que a REAL fez**.
+Referência Git na emissão: `9dd79858a344003ba255dfd6d39064a4aedbfb79`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

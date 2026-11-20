@@ -1823,6 +1823,8 @@ class PumpHub:
         # (pump_bmr_*), separada da fictícia; sem ela, a REAL vai junto com a fictícia como antes.
         own = real and bool(getattr(pf.cfg, "pump_bmr_on", False))
         legs = [("sim", pf.cfg)] + ([("real", RealCfg(pf.cfg))] if own else [])
+        if getattr(pf, "bm_real_note", None):
+            pf.bm_real_note = {k: v for k, v in pf.bm_real_note.items() if now - float(v.get("t") or now) < 86400}
         for m, b in list(bm.items.items()):
             uu = b.setdefault("users", {}).setdefault(uid, {})
             for leg, c in legs:
@@ -1855,6 +1857,10 @@ class PumpHub:
                                   origem="boostmig", target=target, amt_sol=float(getattr(c, "pump_bm_sol", 0.05)),
                                   pos_rules=bm.rules(c, b, now))
                 sim, rr = str(r.get("sim") or ""), str(r.get("real") or "")
+                if real and leg == "sim" and not own and hasattr(pf, "bm_real_note"):
+                    # 0.32.398: a coluna "Você" mostra também o que aconteceu com a REAL (enviada, recusada e por quê)
+                    pf.bm_real_note[m] = ({"estado": "esperar", "motivo": "compra REAL enviada, aguardando confirmar", "t": now}
+                                          if rr.startswith("enviando") else {"estado": "fora", "motivo": rr or "a REAL não foi pedida", "t": now})
                 ok = rr.startswith("enviando") if leg == "real" else (sim.startswith("comprou") or (real and not own and rr.startswith("enviando")))
                 if r.get("error"):
                     u.update(estado="esperar", motivo="não comprou: " + str(r["error"]))
@@ -2192,6 +2198,9 @@ class PumpHub:
             v["sua"] = {"estado": u.get("estado"), "motivo": u.get("motivo")}
             if u.get("real"):                              # 0.32.394: REAL com regras próprias
                 v["sua_real"] = {"estado": u["real"].get("estado"), "motivo": u["real"].get("motivo")}
+            note = (getattr(pf, "bm_real_note", None) or {}).get(m)
+            if note and (not v.get("sua_real") or v["sua_real"].get("estado") == "entrou"):
+                v["sua_real"] = {"estado": note["estado"], "motivo": note["motivo"]}   # 0.32.398: o que a compra REAL fez de verdade
             v["vip"] = bool((bm.dev_stats(b.get("creator")) or {}).get("vip"))
             v["scam"] = bool(b.get("creator") in bm.scam_devs)
             itens.append(v)

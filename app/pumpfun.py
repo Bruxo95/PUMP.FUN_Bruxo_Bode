@@ -172,6 +172,7 @@ class PumpFun:
         self.top_hook = None                          # 0.32.124: compra barrada do Top traders vira acompanhamento
         self.shadow_hook = None                       # 0.31.72: token "chance alta" barrado vira entrada sombra (hub)
         self._real_buying: _Buying = _Buying()
+        self.bm_real_note: dict[str, dict] = {}           # 0.32.398: BOOST — o que aconteceu com a compra REAL de cada token
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
         self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
         self.leaderboard: list[dict] = []          # top traders da pump.fun (Solana Tracker), julgados p/ este usuário
@@ -5272,9 +5273,13 @@ class PumpFun:
         # real fica no feed com o motivo e o par fictício (sim_id). A tela Real × fictícia junta isso e diz o que ajustar.
         mirrored = getattr(self.cfg, "pump_real_mirror", True) and it.get("sim_id") is not None
 
+        bm_buy = (it.get("pos_cfg") or {}).get("origem") == "boostmig"
+
         def miss(why: str, action: str = "REAL não copiou") -> None:
             self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
                        action=action, reason=why, sim_id=it.get("sim_id"))
+            if bm_buy:                                  # 0.32.398: a lista do BOOST mostra que a REAL não comprou e por quê
+                self.bm_real_note[mint] = {"estado": "fora", "motivo": why, "t": time.time()}
         try:
             lim = float(self._c("pump_real_daily_loss_sol", 0.5))
             if not getattr(self.cfg, "pump_real_enabled", False):
@@ -5301,7 +5306,9 @@ class PumpFun:
                 return
             # 0.32.254 (pedido do dono): a REAL só compra token com pelo menos N min de vida (padrão 10; 0 = desliga)
             min_age = float(self._c("pump_real_min_age_min", 10) or 0)
-            if min_age > 0:
+            # 0.32.398 (dono, Brenter 20/11 23:34: "o real comprou só no status"): o BOOST compra logo depois da migração e muito
+            # token migra com 2–5 min de vida; a idade mínima (feita para as cópias) barrava toda compra REAL do BOOST.
+            if min_age > 0 and not bm_buy:
                 age = await self.token_age_min(mint, min_age)
                 if age is None:
                     miss(f"não deu para conferir a idade do token (mínimo da REAL: {min_age:.0f} min)")
@@ -5357,6 +5364,8 @@ class PumpFun:
             if it.get("sim_id") is not None:
                 p["sim_id"] = it["sim_id"]                 # 0.31.37: par na carteira fictícia (espelho)
             self._save_pos(p)
+            if bm_buy:
+                self.bm_real_note[mint] = {"estado": "entrou", "motivo": f"REAL comprou {spent:.4f} SOL", "t": time.time()}
             if it.get("sim_id") is not None:
                 self._align_to_real(p)
             if it.get("sim_id") is not None and not any(x["id"] == it["sim_id"] for x in self.positions()):
