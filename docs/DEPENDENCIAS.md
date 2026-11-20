@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-20**; revisão documental **2.0**.
-Aplicação: **0.32.398 · 2026-11-20 · BOOST: a REAL compra sem a idade mínima e a lista mostra o que a REAL fez**.
-Referência Git na emissão: `9dd79858a344003ba255dfd6d39064a4aedbfb79`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.399 · 2026-11-20 · BOOST obedece só às Regras do BOOST (fictícia e REAL)**.
+Referência Git na emissão: `de1dac1a3ee45186ac53623f7a698a606201c1be`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

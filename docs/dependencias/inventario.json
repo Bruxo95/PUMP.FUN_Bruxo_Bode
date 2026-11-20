@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-20",
     "timezone": "Europe/Dublin",
-    "repository_reference": "9dd79858a344003ba255dfd6d39064a4aedbfb79",
-    "application_version": "0.32.398 · 2026-11-20 · BOOST: a REAL compra sem a idade mínima e a lista mostra o que a REAL fez",
+    "repository_reference": "de1dac1a3ee45186ac53623f7a698a606201c1be",
+    "application_version": "0.32.399 · 2026-11-20 · BOOST obedece só às Regras do BOOST (fictícia e REAL)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e6db3ea15cb921f912ce89dcafd91d3dc84485c57434ffacf22eb8a51d121502",
+      "app/version.py": "5429504715f135f08d90d73589644b523b1c8c39919bd3289d66dc100a89a125",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "c4502b52d30913b11eafae882872e32fb69c58cc9d9bd94c0f3967e0e79ebc0f",
+      "web/app.html": "471e3f5250d41cf458acd6d37b0481fa176ad3ee4dad1aa9c8cf698cf9a33da7",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "34dc23a8109e828a684508fdc974a5c08286b0e2e481b4781066360ca7dd3725"
+  "pdf_sha256": "eb2e4ad72d13b7af1dcb44ade377d0d9c5bd464a1c7a1b66aed5b1d1944c6e33"
 }

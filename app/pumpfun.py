@@ -2321,7 +2321,7 @@ class PumpFun:
             return None, "desligado"
         if p.get("off_sg"):
             return None, "desligado nesta posição"
-        if p.get("real"):
+        if p.get("real") and p.get("origem") != "boostmig":     # 0.32.399: no BOOST quem decide são as Regras do BOOST
             # opção nova de REAL começa desligada (regra do dono). A REAL que é par de uma fictícia (espelho) sai junto dela
             # pelas regras do espelho, então quem decide é a fictícia.
             if not getattr(c, "pump_sg_real", False):
@@ -3056,6 +3056,8 @@ class PumpFun:
     def smart_exit(self, p: dict, t: float, force: bool = False) -> str | None:
         """Saídas que não dependem do preço da posição (todas começam desligadas): dev vendeu, token graduou,
         pressão de compra virou, outras carteiras seguidas/estudadas vendendo."""
+        if p.get("origem") == "boostmig":
+            return None                                 # 0.32.399: o BOOST sai só pelas Regras do BOOST (fictícia e REAL)
         tk = self.tokens.get(p["mint"]) or {}
         opened = float(p.get("open_t") or 0)
         if (force or getattr(self.cfg, "pump_exit_dev_sell", False)) and tk.get("dev_sold_t") and tk["dev_sold_t"] >= opened:
@@ -3759,7 +3761,7 @@ class PumpFun:
         sim_pos = None
         # 0.32.160 (pedido do dono: "a real sempre primeiro"): na cópia exata os limites e o saldo da fictícia não barram; quem
         # decide é a real. A fictícia que passar do limite dela só fica se a real comprar (ver o fim desta função).
-        exact = self.exact_on() and target != "sim"
+        exact = self.exact_on() and target != "sim" and origem != "boostmig"   # 0.32.399: cópia exata não desfaz a fictícia do BOOST
         over = None
         if exact:
             if len([p for p in allpos if not p.get("real") and self._slot(p.get("origem")) == self._slot(origem)]) >= (
@@ -3821,7 +3823,7 @@ class PumpFun:
             sim_has = out["sim"] == "já tem posição fictícia neste token"
             if own_auto and not out.get("auto_id") and not sim_has:
                 return out                              # uma falha fictícia não dispara compra real automática
-            if sim_off and auto:
+            if sim_off and auto and origem != "boostmig":    # 0.32.399: o BOOST só obedece às Regras do BOOST
                 return out                              # 0.32.198: as telas automáticas seguem a fictícia; sem ela, não compram sozinhas na real
             bar_real = origem == "barrado" and getattr(self.cfg, "pump_bar_real", False)    # 0.32.33: botão "Também na REAL"
             bx_real = origem == "bruxo" and getattr(self.cfg, "pump_bx_real", False)       # 0.32.41: Aba do Bruxo, REAL só se ligar
@@ -3869,7 +3871,7 @@ class PumpFun:
                 self._real_buying.prune()
                 if any(p["mint"] == mint and p.get("real") for p in allpos) or mint in self._real_buying:
                     out["real"] = "já tem posição REAL neste token"
-                elif len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
+                elif origem != "boostmig" and len([p for p in allpos if p.get("real")]) + len(self._real_buying) >= int(self._c("pump_real_max_open", 5)):
                     out["real"] = f"limite de {int(self._c('pump_real_max_open', 5))} posições reais"
                 elif own_auto and not mirror and (guard := self.auto_guard(t=t)):
                     out["real"] = guard
@@ -5301,7 +5303,10 @@ class PumpFun:
                 if guard:
                     self._auto_blocked(guard, mint, (it.get("pos_cfg") or {}).get("origem", "explorar"), time.time())
                     return
-            if lim and self.real.today_loss(self.trades(2000)) >= lim:
+            # 0.32.399 (dono: "todas as regras fora do BOOST são desconsideradas no BOOST"): a compra REAL do BOOST não passa pelas
+            # travas da Execução real (perda do dia, fora da curva, valor por trader, preço fugiu, vagas, valor máximo);
+            # vale só o que está nas Regras do BOOST.
+            if lim and not bm_buy and self.real.today_loss(self.trades(2000)) >= lim:
                 miss(f"perda do dia da REAL chegou a {lim} SOL (Carteiras → REAL → Parar no dia se perder)")
                 return
             # 0.32.254 (pedido do dono): a REAL só compra token com pelo menos N min de vida (padrão 10; 0 = desliga)
@@ -5317,23 +5322,24 @@ class PumpFun:
                     miss(f"token com {age:.1f} min de vida (a REAL só compra com {min_age:.0f} min ou mais)")
                     return
             # 0.32.330: a REAL não compra token ainda na curva da pump.fun (taxa 1,25% por lado, rug e venda travada)
-            if (getattr(self.cfg, "pump_real_no_curve", False) and self.is_pump(mint)
+            if (getattr(self.cfg, "pump_real_no_curve", False) and not bm_buy and self.is_pump(mint)
                     and self._fee_rates(mint, True)["venue_name"] == "pump.fun (curva)"):
                 miss("token ainda na curva da pump.fun (a REAL só compra depois de graduar — Execução real → REAL fora da curva)")
                 return
-            mult, mwhy = self.trust_mult(it["wallet"])
+            mult, mwhy = (1.0, "") if bm_buy else self.trust_mult(it["wallet"])
             amt = float(self._c("pump_real_max_sol", 0.05)) * min(1.0, mult)
             ar_real = float(self._c("pump_ar_real_sol", 0) or 0)
-            if (it.get("pos_cfg") or {}).get("bm_own") and it.get("amt_sol"):
-                # 0.32.394: BOOST com regras próprias da REAL: valor da REAL do BOOST, sem passar do máximo da Execução real
-                amt = min(float(it["amt_sol"]), float(self._c("pump_real_max_sol", 0.05)))
+            if bm_buy and it.get("amt_sol"):
+                # 0.32.399: o valor da REAL do BOOST é o "Valor por entrada" das Regras do BOOST (o da REAL, se ela usa regras
+                # próprias); o máximo da Execução real não vale no BOOST
+                amt = float(it["amt_sol"])
             if own_auto and (it.get("pos_cfg") or {}).get("origem") == "explorar" and ar_real > 0:
                 # 0.32.32: valor próprio das automáticas do Explorar na real, sem passar do máximo da Execução real
                 amt = min(ar_real, float(self._c("pump_real_max_sol", 0.05)))
             # a compra real sai da fila depois: confere de novo se o preço já não fugiu da entrada do trader.
             # 0.31.43: no ESPELHO não — a fictícia já passou pelos filtros e os tokens que mais sobem (ex.: R1R2L1R2,
             # +150% em 12 s) eram justamente os barrados aqui; a proteção da real é a slippage da carteira real.
-            chase = None if mirrored else self.chase_block(it.get("trader_price"), (self.tokens.get(mint) or {}).get("price"))
+            chase = None if (mirrored or bm_buy) else self.chase_block(it.get("trader_price"), (self.tokens.get(mint) or {}).get("price"))
             if chase:
                 miss(chase)
                 return

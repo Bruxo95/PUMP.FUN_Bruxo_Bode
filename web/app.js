@@ -1515,10 +1515,10 @@
       row.querySelectorAll("[data-cfg]").forEach((x) => { x.dataset.cfg = nk; });
       row.querySelectorAll("[data-toggle]").forEach((x) => { x.dataset.toggle = nk; x.setAttribute("aria-label", "REAL: " + (x.getAttribute("aria-label") || "")); });
       row.querySelectorAll("[id]").forEach((x) => { x.id = x.id.replace("pump_bm_", "pump_bmr_"); });
-      row.querySelectorAll("label[for]").forEach((x) => { x.htmlFor = x.htmlFor.replace("pump_bm_", "pump_bmr_"); x.innerHTML = x.innerHTML.replace("(FICTÍCIA)", "(REAL)"); });
+      row.querySelectorAll("label[for]").forEach((x) => { x.htmlFor = x.htmlFor.replace("pump_bm_", "pump_bmr_"); x.innerHTML = x.innerHTML.replace("(FICTÍCIA)", "(REAL)").replace("Valor por entrada", "Valor por entrada (REAL)"); });
       row.querySelectorAll("small").forEach((x) => { if (/servidor todo/.test(x.textContent)) x.remove(); });
     });
-    cl.querySelectorAll(".bmnote").forEach((x) => { x.textContent = "Valor da REAL: no máximo o da Execução real. Só valem com \"REAL usa regras próprias\" ligado."; });
+    cl.querySelectorAll(".bmnote").forEach((x) => { x.textContent = "Valor e vagas da REAL do BOOST (as travas da Execução real não valem aqui). Só valem com \"REAL usa regras próprias\" ligado."; });
     orig.after(cl);
   }
   function bmRealShow(w) {

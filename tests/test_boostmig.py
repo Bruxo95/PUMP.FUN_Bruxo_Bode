@@ -489,3 +489,38 @@ def test_real_do_boost_sem_idade_minima_e_mostra_o_que_aconteceu(tmp_path):
     run(pf._real_buy_run(it))
     assert idade == []                                         # idade mínima não é conferida no BOOST
     assert pf.bm_real_note[M] == {**pf.bm_real_note[M], "estado": "fora", "motivo": "teste: sem RPC"}
+
+
+def test_boost_ignora_as_regras_de_fora(tmp_path):
+    """0.32.399 (dono: "todas as regras que houver fora do BOOST são desconsideradas no BOOST"): a REAL do BOOST não para nas
+    vagas, no valor máximo, na perda do dia, na curva, no "preço fugiu" nem na FICTÍCIA geral desligada; e as saídas
+    inteligentes gerais (dev vendeu, parado…) não vendem posição do BOOST."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap", "dev_sold_t": now + 1}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.07, pump_bm_real=True, pump_real_mirror=False, pump_auto_real=False,
+                         pump_real_max_open=1, pump_real_max_sol=0.01, pump_real_daily_loss_sol=0.001, pump_real_no_curve=True,
+                         pump_exit_dev_sell=True, pump_exit_stale_on=True)).items():
+        setattr(pf.cfg, k, v)
+    pf._save_pos({"id": "x", "mint": "Outro".ljust(40, "1") + "pump", "symbol": "X", "real": True, "sol_in": 0.01, "tokens": 1,
+                  "tokens_left": 1, "price_in": 1e-6, "opened_at": "2026-11-20T20:00:00+00:00", "open_t": now, "wallet": "W"})   # vaga REAL cheia
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    assert pf._rq.qsize() == 1                                  # o limite de 1 posição REAL não barrou
+    it = pf._rq.get_nowait()[1]
+    gasto = []
+
+    class Real:
+        async def buy(self, mint, amt, other=False):
+            gasto.append(amt)
+            return {"ok": False, "reason": "parar aqui"}
+
+        def today_loss(self, trades):
+            return 9.0                                          # perda do dia muito acima do limite
+    pf.real = Real()
+    run(pf._real_buy_run(it))
+    assert gasto == [0.07]                                     # valor do BOOST, não o máximo da Execução real
+    f = [p for p in pf.positions() if p["mint"] == M and not p.get("real")][0]
+    assert pf.smart_exit(f, now + 4000) is None                # dev vendeu / parado não vendem o BOOST
