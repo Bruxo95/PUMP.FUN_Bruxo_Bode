@@ -391,3 +391,53 @@ def test_dead_personal_key_of_other_user_does_not_break_system_key(setup):
     used.clear()
     _run(mon.lb_once(force=True))
     assert used == [SYS]                                # a sem créditos fica de fora por 1 h
+
+
+
+def test_pumpportal_silenciosa_reconecta(setup, monkeypatch):
+    """0.32.388: em 20/11 a PumpPortal ficou conectada (ping ok) sem mandar tokens novos nem migrações por horas; o BOOST e a
+    Base pararam juntos. Sem token novo por PP_SILENT_S = derruba a conexão e conecta de novo."""
+    import sys
+    import types as _ty
+    mon = setup["mon"]
+    conexoes = []
+    real_sleep = asyncio.sleep
+
+    class WS:
+        async def send(self, m):
+            pass
+
+        async def recv(self):
+            await real_sleep(10)                         # conectada, mas nada chega
+
+    class CM:
+        async def __aenter__(self):
+            conexoes.append(1)
+            return WS()
+
+        async def __aexit__(self, *a):
+            return False
+    monkeypatch.setitem(sys.modules, "websockets", _ty.SimpleNamespace(connect=lambda *a, **k: CM()))
+    monkeypatch.setattr(type(mon), "PP_SILENT_S", 0.05)
+    monkeypatch.setattr(mon, "_pp_sync", lambda ws: asyncio.sleep(0))
+    real_wait = asyncio.wait_for
+
+    async def wf(aw, timeout):
+        return await real_wait(aw, 0.02)
+    monkeypatch.setattr(asyncio, "wait_for", wf)
+    monkeypatch.setattr(asyncio, "sleep", lambda s, *a: real_sleep(0.01))
+
+    async def go():
+        t = asyncio.ensure_future(mon.pumpportal_run())
+        for _ in range(300):                             # até 3 s (no CI a máquina pode estar lenta)
+            await real_sleep(0.01)
+            if mon.market.status.get("pp_silencios", 0) >= 1 and len(conexoes) >= 2:
+                break
+        t.cancel()
+        try:
+            await t
+        except BaseException:
+            pass
+    _run(go())
+    st = mon.market.status
+    assert st.get("pp_silencios", 0) >= 1 and len(conexoes) >= 2          # derrubou e conectou de novo

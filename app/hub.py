@@ -2216,6 +2216,8 @@ class PumpHub:
         return {"itens": itens, "janela_s": boostmig.JANELA_S, "scam": scam, "vip": vip, "monitor": dict(bm.st), "sybil": sybil_st,
                 "regras_dev": boostmig.apply_cfg({}),
                 "ws": bool((self.market.status or {}).get("ws")), "ultima_migracao_s": round(now - ult) if ult else None,
+                "pp_novo_s": round(now - (self.market.status or {}).get("pp_new_t")) if (self.market.status or {}).get("pp_new_t") else None,
+                "pp_silencios": (self.market.status or {}).get("pp_silencios") or 0, "pp_erro": (self.market.status or {}).get("error"),
                 "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
                            "fechadas": len(fech), "ganhou": len(ganhos), "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in fech), 6),

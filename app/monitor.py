@@ -443,6 +443,8 @@ class SharedMonitor:
         self.dispatch(ev, only=targets)
 
     # ------------------------------------------------------------------ PumpPortal (tokens novos, grátis)
+    PP_SILENT_S = 180.0                 # 0.32.388: sem token novo da PumpPortal por 3 min = conexão travada → reconecta
+
     async def pumpportal_run(self) -> None:
         import websockets
         backoff = 2.0
@@ -464,10 +466,17 @@ class SharedMonitor:
                     await ws.send(json.dumps({"method": "subscribeMigration"}))    # 0.32.373: BOOST da migração (grátis)
                     self._pp_subs = set()                     # conexão nova: assina de novo
                     sync_at = 0.0
+                    last_new = time.time()                    # 0.32.388: último token novo/migração recebido
                     while True:
                         if time.time() - sync_at > 10:
                             sync_at = time.time()
                             await self._pp_sync(ws)
+                        if time.time() - last_new > self.PP_SILENT_S:
+                            # 0.32.388: em 20/11 a conexão ficou aberta (respondendo ao ping) mas parou de mandar tokens novos e
+                            # migrações por horas; o BOOST e a Base pararam juntos. Sem token novo por 3 min = reconecta.
+                            st["pp_silencios"] = int(st.get("pp_silencios") or 0) + 1
+                            st["pp_silencio_t"] = time.time()
+                            raise RuntimeError(f"PumpPortal sem tokens novos há {self.PP_SILENT_S / 60:.0f} min — reconectando")
                         try:
                             raw = await asyncio.wait_for(ws.recv(), timeout=5)
                         except asyncio.TimeoutError:
@@ -483,6 +492,9 @@ class SharedMonitor:
                             # 0.32.106: sem isto, um aviso de saldo ou de chave da PumpPortal sumia sem ninguém ver
                             txt = str(ev.get("errors") or ev.get("error") or ev.get("message"))[:200]
                             st["pp_msg"], st["pp_msg_t"] = txt.replace(pk, "***") if pk else txt, time.time()
+                        if isinstance(ev, dict) and (ev.get("txType") in ("create", "migrate", "migration") or ev.get("pool") == "pump-amm"):
+                            last_new = time.time()
+                            st["pp_new_t"] = last_new
                         if isinstance(ev, dict) and (ev.get("txType") in ("migrate", "migration")
                                                      or (not ev.get("txType") and ev.get("mint") and ev.get("pool") == "pump-amm")):
                             try:

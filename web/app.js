@@ -1447,7 +1447,9 @@
     $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
       " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
       " · janela de " + Math.round((r.janela_s || 300) / 60) + " min · " + ((r.monitor || {}).cotacoes || 0) + " cotações Jupiter" +
-      ((r.monitor || {}).rpc_falhou ? " · RPC sem resposta " + r.monitor.rpc_falhou + "x" : "") + ((r.monitor || {}).reserva ? " · lido pela reserva Alchemy " + r.monitor.reserva + "x" : "") + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "");
+      ((r.monitor || {}).rpc_falhou ? " · RPC sem resposta " + r.monitor.rpc_falhou + "x" : "") + ((r.monitor || {}).reserva ? " · lido pela reserva Alchemy " + r.monitor.reserva + "x" : "") + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "") +
+      (r.pp_novo_s != null ? " · último token novo da PumpPortal há " + hmsTxt(r.pp_novo_s) : "") + (r.pp_silencios ? " · reconectou " + r.pp_silencios + "x por silêncio" : "") +
+      (!r.ws && r.pp_erro ? " · " + r.pp_erro : "");
     const ativos = (r.itens || []).filter((x) => (x.progress || 0) < 100).length;
     kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h · " + ativos + " com BOOST ativo agora", "tr"], ["Você entrou", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA" + (R.abertas_real ? " · " + R.abertas_real + " na REAL" : ""), "pos"],
       ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],

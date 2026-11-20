@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-20",
     "timezone": "Europe/Dublin",
-    "repository_reference": "3c6137990899c5037c321b229eaa6a1ddaef8995",
-    "application_version": "0.32.387 · 2026-11-20 · BOOST: a carteira REAL segue a fictícia (só vende quando a fictícia vende)",
+    "repository_reference": "03f1545ab46352a087e1c40123a559c6085446ea",
+    "application_version": "0.32.388 · 2026-11-20 · PumpPortal travada sem tokens novos: reconecta sozinha (o BOOST tinha parado)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "901c440431efcc3379ad89cc49796bf01d975d9a5b2480fc1f1f86b1c3a0607f",
+      "app/version.py": "2ed1f7c710ca9b71a701c82d305aa6b2a09040392c4f25df05452c3309cf9baa",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "d2ebee1e61822a0c3f6e5ef991f07465fe7b80468928fca6187c46129252e963"
+  "pdf_sha256": "9cd693cef89c70bcfcf9e111031e5d18460ab33959aab62127e9c5b45a5dd792"
 }

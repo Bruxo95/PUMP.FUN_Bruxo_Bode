@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-20**; revisão documental **2.0**.
-Aplicação: **0.32.387 · 2026-11-20 · BOOST: a carteira REAL segue a fictícia (só vende quando a fictícia vende)**.
-Referência Git na emissão: `3c6137990899c5037c321b229eaa6a1ddaef8995`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.388 · 2026-11-20 · PumpPortal travada sem tokens novos: reconecta sozinha (o BOOST tinha parado)**.
+Referência Git na emissão: `03f1545ab46352a087e1c40123a559c6085446ea`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
