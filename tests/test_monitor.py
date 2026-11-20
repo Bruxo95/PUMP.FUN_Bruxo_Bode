@@ -1,6 +1,7 @@
 """Etapa 6: monitor compartilhado + um motor por usuário. Simula 2 usuários seguindo carteiras diferentes (e a
 mesma), sem internet."""
 import asyncio
+import json
 import base64
 import os
 import time
@@ -441,3 +442,70 @@ def test_pumpportal_silenciosa_reconecta(setup, monkeypatch):
     _run(go())
     st = mon.market.status
     assert st.get("pp_silencios", 0) >= 1 and len(conexoes) >= 2          # derrubou e conectou de novo
+
+
+def test_migracao_pela_blockchain_entra_no_boost(setup, monkeypatch):
+    from app.monitor import SharedMonitor
+    """0.32.389: a PumpPortal parou de mandar migrações em 20/11 (última 9:49). O BOOST também ouve a conta de migração da
+    pump.fun direto da blockchain; o token sai dos saldos de token da transação (fora o SOL embrulhado)."""
+    import sys
+    import types as _ty
+    mon, hub = setup["mon"], setup["hub"]
+    M = "Mgrt".ljust(40, "1") + "pump"
+    enviados = []
+    real_sleep = asyncio.sleep
+    msgs = [json.dumps({"jsonrpc": "2.0", "result": 7, "id": 1}),
+            json.dumps({"method": "logsNotification", "params": {"result": {"value": {
+                "signature": "SIGmig", "err": None, "logs": ["Program log: Instruction: Migrate"]}}}}),
+            json.dumps({"method": "logsNotification", "params": {"result": {"value": {
+                "signature": "SIGerr", "err": {"x": 1}, "logs": ["Program log: Instruction: Migrate"]}}}})]
+
+    class WS:
+        async def send(self, m):
+            enviados.append(json.loads(m))
+
+        async def recv(self):
+            if msgs:
+                return msgs.pop(0)
+            await real_sleep(10)
+
+    class CM:
+        async def __aenter__(self):
+            return WS()
+
+        async def __aexit__(self, *a):
+            return False
+    monkeypatch.setitem(sys.modules, "websockets", _ty.SimpleNamespace(connect=lambda *a, **k: CM()))
+    pedidos = []
+
+    async def get_tx(sig, *a, **k):
+        pedidos.append(sig)
+        return {"meta": {"postTokenBalances": [{"mint": SharedMonitor.WSOL}, {"mint": M}, {"mint": M}]}}
+    monkeypatch.setattr(mon.svc, "_get_tx", get_tx)
+    monkeypatch.setattr(asyncio, "sleep", lambda s, *a: real_sleep(0.01))
+
+    async def go():
+        t = asyncio.ensure_future(mon.migration_ws_run())
+        for _ in range(300):
+            await real_sleep(0.01)
+            if M in hub.bm.items:
+                break
+        t.cancel()
+        try:
+            await t
+        except BaseException:
+            pass
+    _run(go())
+    assert enviados and enviados[0]["method"] == "logsSubscribe"
+    assert enviados[0]["params"][0]["mentions"] == [SharedMonitor.MIGRATION_ACCOUNT]
+    assert pedidos == ["SIGmig"]                      # transação com erro é ignorada
+    assert M in hub.bm.items and mon.market.status["mig_ws_n"] == 1
+
+
+def test_mint_da_migracao():
+    from app.monitor import SharedMonitor
+    W = SharedMonitor.WSOL
+    assert SharedMonitor.mint_of_migration(None) is None
+    assert SharedMonitor.mint_of_migration({"meta": {"postTokenBalances": [{"mint": W}]}}) is None
+    tx = {"meta": {"postTokenBalances": [{"mint": "Abc"}, {"mint": "Xyzpump"}, {"mint": W}]}}
+    assert SharedMonitor.mint_of_migration(tx) == "Xyzpump"

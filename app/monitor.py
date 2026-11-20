@@ -443,6 +443,107 @@ class SharedMonitor:
         self.dispatch(ev, only=targets)
 
     # ------------------------------------------------------------------ PumpPortal (tokens novos, grátis)
+    # ------------------------------------------------------------------ 0.32.389: migrações direto da blockchain
+    MIGRATION_ACCOUNT = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg"     # conta da pump.fun que faz toda migração
+    WSOL = "So11111111111111111111111111111111111111112"
+
+    @staticmethod
+    def mint_of_migration(tx: dict | None) -> str | None:
+        """O token que migrou: o mint (fora o SOL embrulhado) nos saldos de token da transação; prefere o que termina em "pump"."""
+        meta = (tx or {}).get("meta") or {}
+        mints = [b.get("mint") for b in (meta.get("postTokenBalances") or []) + (meta.get("preTokenBalances") or []) if b.get("mint")]
+        mints = [m for m in mints if m != SharedMonitor.WSOL]
+        if not mints:
+            return None
+        pump = [m for m in mints if m.endswith("pump")]
+        return max(set(pump or mints), key=(pump or mints).count)
+
+    def _mig_urls(self) -> list[tuple[str, str]]:
+        """RPC do sistema (Helius) e, se houver chave, a Alchemy como reserva."""
+        out = []
+        sys_rpc = self.hub.system_keys.get("rpc_url") or ""
+        url = sys_rpc.replace("https://", "wss://").replace("http://", "ws://") if sys_rpc else str(self.hub.cfg.defaults.get("pump_rpc_ws") or "")
+        if url and "api.mainnet-beta.solana.com" not in url:
+            out.append(("RPC do sistema", url))
+        ak = self.hub.system_keys.get("alchemy_api_key")
+        if ak:
+            from .sybil import alchemy_url
+            out.append(("Alchemy", alchemy_url(ak).replace("https://", "wss://")))
+        if not out:
+            out.append(("RPC público", "wss://api.mainnet-beta.solana.com"))
+        return out
+
+    async def migration_ws_run(self) -> None:
+        """0.32.389 (dono, 20/11: "às 9:49 foi o último e ainda não voltou"): a PumpPortal parou de mandar migrações; agora o BOOST
+        também ouve as migrações direto da blockchain (logsSubscribe da conta de migração da pump.fun), pelo RPC do sistema ou pela
+        Alchemy. A mesma migração vinda das duas fontes conta uma vez só."""
+        import websockets
+        st = self.market.status
+        i, backoff = 0, 2.0
+        await asyncio.sleep(5)
+        while True:
+            if not consultas.on("pump_q_boost"):
+                await asyncio.sleep(30)
+                continue
+            urls = self._mig_urls()
+            nome, url = urls[i % len(urls)]
+            try:
+                async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
+                    await ws.send(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "logsSubscribe",
+                                              "params": [{"mentions": [self.MIGRATION_ACCOUNT]}, {"commitment": "confirmed"}]}))
+                    st.update(mig_ws=nome, mig_ws_on=True, mig_ws_err=None)
+                    backoff = 2.0
+                    while True:
+                        raw = await ws.recv()
+                        try:
+                            msg = json.loads(raw)
+                        except ValueError:
+                            continue
+                        val = (((msg.get("params") or {}).get("result") or {}).get("value")) or {}
+                        if not val or val.get("err"):
+                            continue
+                        logs = val.get("logs") or []
+                        if not any("Migrate" in str(x) for x in logs):
+                            continue
+                        st["mig_ws_n"] = int(st.get("mig_ws_n") or 0) + 1
+                        st["mig_ws_t"] = time.time()
+                        asyncio.create_task(self._mig_from_sig(val.get("signature")))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                from .logsafe import redact
+                st.update(mig_ws_on=False, mig_ws_err=redact(f"{nome}: {type(e).__name__}: {str(e)[:100]}"))
+                i += 1                                     # tenta a outra fonte
+                await asyncio.sleep(backoff)
+                backoff = min(60.0, backoff * 2)
+
+    async def _mig_from_sig(self, sig: str | None) -> None:
+        if not sig:
+            return
+        tx = None
+        for _ in range(3):
+            try:
+                tx = await self.svc._get_tx(sig, low=False)
+            except Exception:
+                tx = None
+            if tx is None and self.hub.system_keys.get("alchemy_api_key"):
+                try:
+                    tx = await self.hub.alchemy_rpc().call("getTransaction", [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0,
+                                                                                  "commitment": "confirmed"}])
+                except Exception:
+                    tx = None
+            if tx:
+                break
+            await asyncio.sleep(2)
+        mint = self.mint_of_migration(tx)
+        if not mint:
+            self.market.status["mig_ws_sem_mint"] = int(self.market.status.get("mig_ws_sem_mint") or 0) + 1
+            return
+        try:
+            self.hub.bm_on_migration({"mint": mint, "txType": "migrate", "pool": "pump-amm", "signature": sig, "fonte": "blockchain"})
+        except Exception as e:
+            log.warning("boost: migração da blockchain não registrada: %s", str(e)[:120])
+
     PP_SILENT_S = 180.0                 # 0.32.388: sem token novo da PumpPortal por 3 min = conexão travada → reconecta
 
     async def pumpportal_run(self) -> None:
@@ -1128,7 +1229,8 @@ class SharedMonitor:
             ("Preços e stops das posições", self.price_loop()), ("Preços e stops das posições", self.trail_loop()),
             ("Preços e stops das posições", self.tick_loop()), ("Ranking (Top traders)", self.lb_loop()),
             ("Base da pump.fun", self.lab_loop()), ("Boost e dados das carteiras", self.boost_loop()),
-            ("Explorar", self.explore_loop()), ("Explorar (carteiras novas)", self.fresh_loop()))]
+            ("Explorar", self.explore_loop()), ("Explorar (carteiras novas)", self.fresh_loop()),
+            ("BOOST da migração", self.migration_ws_run()))]
         self._tasks += [run_as("Cópia de traders", self.tx_worker()) for _ in range(4)]
         self._tasks += [run_as("Cópia de traders", self.tx_worker(hi=True)) for _ in range(4)]     # 0.32.4: só as copiadas
 

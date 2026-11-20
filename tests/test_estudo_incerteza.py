@@ -125,3 +125,23 @@ def test_first_round_is_a_baseline_and_a_new_transfer_alerts_once():
     sigs.insert(0, {"signature": "nova"})
     assert asyncio.run(h.wallet_guard_once(e, 2.0)) == 1 and "ALERTA" in e.msgs[0] and e.wallet_alerts[0]["sig"] == "nova"
     assert asyncio.run(h.wallet_guard_once(e, 3.0)) == 0
+
+
+def test_rpc_sem_json_usa_o_publico_e_explica():
+    """0.32.389: log de 20/11 — 'vigia da carteira: JSONDecodeError' a cada minuto. O RPC da carteira respondeu sem JSON:
+    agora explica (HTTP e site, sem a chave) e lê pelo RPC público."""
+    from app.hub import PumpHub
+    hosts = []
+
+    def net(req):
+        import json
+        hosts.append(req.url.host)
+        if req.url.host != "api.mainnet-beta.solana.com":
+            return httpx.Response(429, text="<html>limite</html>")
+        return httpx.Response(200, json={"result": [{"signature": "velha"}]})
+    h = PumpHub.__new__(PumpHub)
+    h.http, h.db = httpx.AsyncClient(transport=httpx.MockTransport(net)), _Db()
+    e = _E()
+    e._wg_err = None
+    assert asyncio.run(h.wallet_guard_once(e, 1.0)) == 0
+    assert "HTTP 429 sem JSON" in e._wg_err and "api.mainnet-beta.solana.com" in hosts and "chave" not in e._wg_err

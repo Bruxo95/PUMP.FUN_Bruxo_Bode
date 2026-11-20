@@ -2218,6 +2218,9 @@ class PumpHub:
                 "ws": bool((self.market.status or {}).get("ws")), "ultima_migracao_s": round(now - ult) if ult else None,
                 "pp_novo_s": round(now - (self.market.status or {}).get("pp_new_t")) if (self.market.status or {}).get("pp_new_t") else None,
                 "pp_silencios": (self.market.status or {}).get("pp_silencios") or 0, "pp_erro": (self.market.status or {}).get("error"),
+                "mig_ws": (self.market.status or {}).get("mig_ws") if (self.market.status or {}).get("mig_ws_on") else None, "mig_ws_n": (self.market.status or {}).get("mig_ws_n") or 0,
+                "mig_ws_s": round(now - (self.market.status or {}).get("mig_ws_t")) if (self.market.status or {}).get("mig_ws_t") else None,
+                "mig_ws_err": (self.market.status or {}).get("mig_ws_err"),
                 "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
                            "fechadas": len(fech), "ganhou": len(ganhos), "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in fech), 6),
@@ -2659,9 +2662,24 @@ class PumpHub:
         if not (w and getattr(w, "keypair", None) and getattr(w, "address", None)):
             return 0
         url = await w.safe_rpc_url()
-        rpc = lambda m, p: self.http.post(url, timeout=10, json={"jsonrpc": "2.0", "id": 1, "method": m, "params": p})
-        r = await rpc("getSignaturesForAddress", [w.address, {"limit": 20}])
-        sigs = [x["signature"] for x in (r.json().get("result") or []) if not x.get("err")]
+        pub = getattr(getattr(self, "cfg", None), "solana_rpc_public", "") or "https://api.mainnet-beta.solana.com"
+
+        async def rpc(m, p):
+            """0.32.389: o RPC da carteira passou a responder sem JSON (log de 20/11, a cada minuto). Agora explica o que veio
+            (código HTTP e site, nunca a chave) e tenta uma vez no RPC público."""
+            body = {"jsonrpc": "2.0", "id": 1, "method": m, "params": p}
+            r = await self.http.post(url, timeout=10, json=body)
+            try:
+                return r.json()
+            except ValueError:
+                from urllib.parse import urlparse
+                e._wg_err = f"RPC da carteira ({urlparse(url).hostname}) respondeu HTTP {r.status_code} sem JSON"
+                if url == pub:
+                    raise RuntimeError(e._wg_err)
+            r = await self.http.post(pub, timeout=10, json=body)
+            return r.json()
+        j = await rpc("getSignaturesForAddress", [w.address, {"limit": 20}])
+        sigs = [x["signature"] for x in (j.get("result") or []) if not x.get("err")]
         last, n = getattr(e, "_wg_last", None), 0
         e._wg_last = sigs[0] if sigs else last
         e._wg_at = time.time() if now is None else now
@@ -2670,8 +2688,8 @@ class PumpHub:
         for sig in sigs:
             if sig == last:
                 break
-            r = await rpc("getTransaction", [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 1}])
-            leak = self.wallet_leak(r.json().get("result") or {}, w.address)
+            j = await rpc("getTransaction", [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 1}])
+            leak = self.wallet_leak(j.get("result") or {}, w.address)
             if not leak:
                 continue
             n += 1
@@ -2687,9 +2705,13 @@ class PumpHub:
         while True:
             for e in list(self.engines.values()):
                 try:
+                    e._wg_err = None
                     await self.wallet_guard_once(e)
+                    if e._wg_err and time.time() - getattr(e, "_wg_err_log", 0) > 1800:   # usou o público: avisa 1 vez a cada 30 min
+                        e._wg_err_log = time.time()
+                        log.warning("vigia da carteira: %s; usei o RPC público", e._wg_err)
                 except Exception as ex:
-                    log.warning("vigia da carteira: %s", type(ex).__name__)    # o endereço do RPC leva a chave: nunca o texto do erro
+                    log.warning("vigia da carteira: %s%s", type(ex).__name__, f" ({e._wg_err})" if getattr(e, "_wg_err", None) else "")   # nunca o texto do erro (o endereço leva a chave)
             await asyncio.sleep(60)
 
     async def result_loop(self) -> None:
