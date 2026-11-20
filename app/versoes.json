@@ -2765,6 +2765,11 @@
    "versao": "0.32.401",
    "inicio": "2026-11-20T23:25:00+00:00",
    "titulo": "BOOST: resultado da REAL gravado e trades da REAL separados da fictícia"
+  },
+  {
+   "versao": "0.32.402",
+   "inicio": "2026-11-20T23:45:00+00:00",
+   "titulo": "Compra e venda REAL gastam menos RPC (menos erro 429)"
   }
  ]
 }

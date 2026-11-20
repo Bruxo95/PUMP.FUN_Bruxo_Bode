@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "bc354e4b75cdd8e4db9986f2a225c4828cf2729e",
-    "application_version": "0.32.401 · 2026-11-21 · BOOST: resultado da REAL gravado e trades da REAL separados da fictícia",
+    "repository_reference": "09be54c18d4e6a1ed6cb21af5d2093b2243e7ef3",
+    "application_version": "0.32.402 · 2026-11-21 · Compra e venda REAL gastam menos RPC (menos erro 429)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "2f60b24a72cc53c4746545b7b412c8ca5d9973de2e1c2ff6ee356ccacd4681bc",
+      "app/version.py": "0343c94916b60ee0ab80c1c0f4e13dfbce7e4c87f92d42d13120d418d53621ea",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "22ff7e040b32c62dc373ca2f3b20f3298e57a59aaac7235b8a3a650fe2f40281"
+  "pdf_sha256": "4bcb73299b6f755e76b07f22b8338c6b0dfc1806213d772d7c099a5d7d97d0b2"
 }

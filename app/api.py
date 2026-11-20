@@ -164,6 +164,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         snap["uptime_s"] = round(time.time() - hub.started_at)
         from . import rpcprio
         snap["rpc_prio"] = rpcprio.view()                 # 0.32.395: RPC primeiro para a REAL
+        from .pumpfun import PumpReal
+        snap["rpc_prio"]["leituras"] = dict(PumpReal.rpc_light)   # 0.32.402: leituras leves × completas da REAL
         jst = (hub.market.jup.status if getattr(hub.market, "jup", None) else None) or {}
         snap["apis"] = {"jupiter": {"ok": jst.get("on"), "error": jst.get("error")},
                         "solana_tracker": {"ok": bool(pf.lb_key()) and not (pf.lb_status or {}).get("error"),

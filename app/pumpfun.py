@@ -5755,8 +5755,30 @@ class PumpReal:
             raise RuntimeError(str(js["error"])[:160])
         return js["result"]
 
-    async def balances(self, mint: str) -> tuple[float, float]:
+    async def balances(self, mint: str, zero_ok: bool = False) -> tuple[float, float]:
         """(SOL, tokens do mint) da carteira do bot, direto da blockchain."""
+        # 0.32.402 (pedido do dono: "mudar a compra e a venda para não ter erros" — 429 do RPC): uma consulta leve só
+        # (getMultipleAccounts da carteira + as 2 contas associadas do token) em vez de getBalance + getTokenAccountsByOwner,
+        # que é o pedido que os RPCs mais limitam. Se a resposta vier estranha, ou o token não estiver na conta associada,
+        # volta para o jeito antigo.
+        try:
+            atas = sorted(txguard.token_atas(self.wallet.address, mint))
+            r = await self._rpc_retry("getMultipleAccounts", [[self.wallet.address] + atas,
+                                                              {"encoding": "jsonParsed", "commitment": "confirmed"}])
+            vals = (r or {}).get("value") if isinstance(r, dict) else None
+            if isinstance(vals, list) and len(vals) == 1 + len(atas) and isinstance(vals[0], dict):
+                sol, tok, found = float(vals[0].get("lamports") or 0) / 1e9, 0.0, False
+                for a in vals[1:]:
+                    if a:
+                        ta = a["data"]["parsed"]["info"]["tokenAmount"]
+                        tok += float(ta.get("uiAmountString") or ta.get("uiAmount") or 0)
+                        found = True
+                if found or zero_ok or getattr(self, "_zero_ok", None) == mint:   # antes de comprar, não ter o token é o normal
+                    self.rpc_light["leve"] = self.rpc_light.get("leve", 0) + 1
+                    return sol, tok
+        except Exception:
+            pass
+        self.rpc_light["completa"] = self.rpc_light.get("completa", 0) + 1
         # 0.31.51: as duas consultas vão juntas (antes uma esperava a outra)
         b, res = await asyncio.gather(
             self._rpc_retry("getBalance", [self.wallet.address, {"commitment": "confirmed"}]),
@@ -5768,6 +5790,46 @@ class PumpReal:
             ta = a["account"]["data"]["parsed"]["info"]["tokenAmount"]
             tok += float(ta.get("uiAmountString") or ta.get("uiAmount") or 0)
         return sol, tok
+
+    rpc_light: dict = {}                           # 0.32.402: quantas leituras leves × completas (servidor todo)
+    TACC_TTL_S = 60.0                              # 0.32.402: lista das contas de token da carteira guardada por 60 s
+
+    async def _others_full(self, owner: str):
+        """Lista completa das contas de token da carteira (2 programas) + o SOL: o jeito antigo, mais pesado no RPC."""
+        self.rpc_light["completa"] = self.rpc_light.get("completa", 0) + 1
+        return await asyncio.gather(*[self._rpc_retry("getTokenAccountsByOwner", [owner, {"programId": prog},
+                                                                                  {"encoding": "jsonParsed", "commitment": "processed"}])
+                                      for prog in (txguard.TOKEN, txguard.TOKEN_2022)],
+                                    self._rpc_retry("getBalance", [owner, {"commitment": "processed"}]))
+
+    async def _others_cached(self, owner: str, mint: str | None):
+        """0.32.402: com a lista das contas de token guardada há menos de 60 s, lê os saldos de agora de todas elas (e o SOL)
+        numa consulta leve (getMultipleAccounts, até 100 por vez). Devolve (None, None) para usar o jeito completo."""
+        c = getattr(self, "_tacc", None)
+        if not c or c.get("owner") != owner or time.time() - float(c.get("t") or 0) > self.TACC_TTL_S:
+            return None, None
+        keys = [owner] + list(c.get("keys") or [])
+        try:
+            vals = []
+            for i in range(0, len(keys), 100):
+                r = await self._rpc_retry("getMultipleAccounts", [keys[i:i + 100], {"encoding": "jsonParsed", "commitment": "processed"}])
+                v = (r or {}).get("value") if isinstance(r, dict) else None
+                if not isinstance(v, list) or len(v) != len(keys[i:i + 100]):
+                    return None, None
+                vals += v
+            if not isinstance(vals[0], dict):
+                return None, None
+            pre, others = int(vals[0].get("lamports") or 0), []
+            for k, a in zip(keys[1:], vals[1:]):
+                if not a:
+                    continue                           # conta fechada desde a última lista
+                info = a["data"]["parsed"]["info"]
+                if info.get("mint") != mint:
+                    others.append((k, int(info["tokenAmount"]["amount"])))
+            self.rpc_light["leve"] = self.rpc_light.get("leve", 0) + 1
+            return others, pre
+        except Exception:
+            return None, None
 
     async def _send_raw(self, raw_b64: str, opts: dict) -> str:
         """0.32.98 (dono, 30/10 22:28: "RPC respondeu HTTP 429 sem dados em sendTransaction"): o envio tentava uma vez só no RPC
@@ -5786,7 +5848,7 @@ class PumpReal:
                 if not ("HTTP" in msg or "429" in msg or "sem dados" in msg or isinstance(e, OSError) or type(e).__module__.startswith("httpx")):
                     raise                              # a rede recusou a transação: não adianta repetir
                 if i < len(urls) - 1:
-                    await asyncio.sleep(0.3)
+                    await asyncio.sleep(1.0 if ("429" in msg or "Too many" in msg) else 0.3)   # 0.32.402: limite precisa de mais tempo
         raise last if last else RuntimeError("sendTransaction sem resposta")
 
     async def _send_confirm(self, raw_b64: str, simulated: bool = False) -> tuple[str | None, str, str | None]:
@@ -5873,7 +5935,9 @@ class PumpReal:
             except Exception as e:
                 last = e
                 if i < 2:
-                    await asyncio.sleep(0.15 * (i + 1))
+                    # 0.32.402: limite de pedidos (429) não libera em 0,15 s; espera 1 s e 2 s antes de tentar de novo
+                    lim = "429" in str(e) or "Too many requests" in str(e) or "limite de pedidos" in str(e)
+                    await asyncio.sleep((1.0 if lim else 0.15) * (i + 1))
         raise last
 
     SIM_BATCH = 19                                 # contas de token por simulação (+ a carteira); diminui sozinho se o RPC pedir
@@ -5884,18 +5948,20 @@ class PumpReal:
         Falha fechada: se não der para simular, não envia."""
         owner = self.wallet.address
         try:
-            others = []
-            # 0.31.51: as três consultas vão juntas (antes uma esperava a outra: ~3 idas ao RPC a menos por compra)
-            r1, r2, bal = await asyncio.gather(*[self._rpc_retry("getTokenAccountsByOwner", [owner, {"programId": prog},
-                                                                                             {"encoding": "jsonParsed", "commitment": "processed"}])
-                                                 for prog in (txguard.TOKEN, txguard.TOKEN_2022)],
-                                               self._rpc_retry("getBalance", [owner, {"commitment": "processed"}]))
-            for res in (r1, r2):
-                for a in (res or {}).get("value") or []:
-                    info = a["account"]["data"]["parsed"]["info"]
-                    if info.get("mint") != mint:
-                        others.append((a["pubkey"], int(info["tokenAmount"]["amount"])))
-            pre = bal["value"]
+            others, pre = await self._others_cached(owner, mint)
+            if others is None:
+                others = []
+                r1, r2, bal = await self._others_full(owner)
+                listed = []
+                for res in (r1, r2):
+                    for a in (res or {}).get("value") or []:
+                        info = a["account"]["data"]["parsed"]["info"]
+                        listed.append(a["pubkey"])
+                        if info.get("mint") != mint:
+                            others.append((a["pubkey"], int(info["tokenAmount"]["amount"])))
+                pre = bal["value"]
+                self._tacc = {"owner": owner, "t": time.time(), "keys": listed}
+            # (0.32.402: a lista das contas de token fica guardada 60 s; os saldos são lidos de novo numa consulta leve)
             # 0.31.58 (AI, 27/10 18:00: "Too many accounts provided; max 22"): o RPC aceita no máximo 22 contas por
             # simulação. A carteira do bot tem mais contas de token que isso, então a conferência vai em lotes de 21
             # (+ a carteira), todos ao mesmo tempo. Nenhuma conta deixa de ser conferida.
@@ -6095,7 +6161,11 @@ class PumpReal:
             return {"ok": False, "reason": "execução real desligada"}
         if not self.wallet or not self.wallet.keypair:
             return {"ok": False, "reason": "carteira Solana do bot não configurada"}
-        sol0, tok0 = await self.balances(mint)
+        self._zero_ok = mint                             # 0.32.402: antes de comprar, não ter o token é o normal (leitura leve)
+        try:
+            sol0, tok0 = await self.balances(mint)
+        finally:
+            self._zero_ok = None
         if sol0 < amt + 0.02:
             return {"ok": False, "reason": f"saldo insuficiente: {sol0:.4f} SOL (precisa {amt:.3f} + 0,02 de reserva)"}
         jslip = int(float(getattr(self.cfg, "pump_other_slip_pct", 1.0)) * 100) + 100
@@ -6130,6 +6200,7 @@ class PumpReal:
                 break
             if not self.retryable(r.get("reason")):
                 break
+        self._tacc = None                                # 0.32.402: a compra pode ter criado uma conta de token: lista de novo
         if tok1 - tok0 <= 0:
             return {"ok": False, "status": r.get("status"), "signature": r.get("signature"),
                     "reason": " → ".join(tried)[:300] or "o token não entrou na carteira"}
