@@ -162,6 +162,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         # 0.32.3 (sugestão do Bruxo): os contadores do monitor recomeçam a cada reinício; o painel mostra desde quando
         # e o estado de cada API (ok / com erro) embaixo do menu
         snap["uptime_s"] = round(time.time() - hub.started_at)
+        from . import rpcprio
+        snap["rpc_prio"] = rpcprio.view()                 # 0.32.395: RPC primeiro para a REAL
         jst = (hub.market.jup.status if getattr(hub.market, "jup", None) else None) or {}
         snap["apis"] = {"jupiter": {"ok": jst.get("on"), "error": jst.get("error")},
                         "solana_tracker": {"ok": bool(pf.lb_key()) and not (pf.lb_status or {}).get("error"),

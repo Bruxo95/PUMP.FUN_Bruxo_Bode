@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-20",
     "timezone": "Europe/Dublin",
-    "repository_reference": "19e31f1b76c3b0c4da9bcefb7f22bb6974acff58",
-    "application_version": "0.32.394 · 2026-11-20 · BOOST: regras próprias da REAL e botões para copiar FICTÍCIA ↔ REAL",
+    "repository_reference": "eca92f64ad1c76f1267311ced0ebe5b4f3244765",
+    "application_version": "0.32.395 · 2026-11-20 · RPC primeiro para a REAL: o resto espera a REAL terminar + 1 s",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "3a384a60afb6c1db246ad493671dc49c21e851edada28397b557db6f482a82b7",
+      "app/version.py": "9c136f87097303addd8fec80207983031bc4c32f25ccad98fd85ac7968d530b6",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "02f18de71dddec93f71ae13ccafa279ff93330292ff7cc53d3c4fe699d750dcb"
+  "pdf_sha256": "038bc24307f945f3dfb09b67cfde7894b36f2622fc595ae2ee87ae07e5a6798e"
 }

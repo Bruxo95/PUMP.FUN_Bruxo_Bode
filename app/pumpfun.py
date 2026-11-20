@@ -5195,24 +5195,26 @@ class PumpFun:
                     locks.pop(k, None)
 
     async def _real_run(self, kind: str, it: dict, lock: asyncio.Lock, sem: asyncio.Semaphore) -> None:
+        from . import rpcprio
         async with lock, sem:
-            try:
-                if kind == "buy":
-                    await self._real_buy(it)
-                else:
-                    await self._real_do_sell(it)
-            except Exception as e:
-                if kind == "buy":
-                    self._emit(f"[PUMP REAL] {kind} {it.get('symbol') or it.get('id')}: erro {type(e).__name__}: {str(e)[:120]}")
-                if kind == "buy":
-                    self._real_buying.discard(it.get("mint"))
-                    self._auto_pending.pop(it.get("mint"), None)
-                else:
-                    p = next((x for x in self.positions() if x["id"] == it.get("id")), None)
-                    if p is not None:
-                        self._sell_failed(p, f"{type(e).__name__}: {str(e)[:120]}")
+            with rpcprio.real_scope():                   # 0.32.395: a REAL passa na frente no RPC; o resto espera até 1 s depois
+                try:
+                    if kind == "buy":
+                        await self._real_buy(it)
                     else:
-                        self._unmark_selling(it.get("id"))
+                        await self._real_do_sell(it)
+                except Exception as e:
+                    if kind == "buy":
+                        self._emit(f"[PUMP REAL] {kind} {it.get('symbol') or it.get('id')}: erro {type(e).__name__}: {str(e)[:120]}")
+                    if kind == "buy":
+                        self._real_buying.discard(it.get("mint"))
+                        self._auto_pending.pop(it.get("mint"), None)
+                    else:
+                        p = next((x for x in self.positions() if x["id"] == it.get("id")), None)
+                        if p is not None:
+                            self._sell_failed(p, f"{type(e).__name__}: {str(e)[:120]}")
+                        else:
+                            self._unmark_selling(it.get("id"))
 
     def _unmark_selling(self, pid) -> None:
         for p in self.positions():
