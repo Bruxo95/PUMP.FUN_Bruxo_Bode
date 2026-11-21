@@ -115,7 +115,22 @@
   .cpcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
   .cpc{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
   .cpc .t{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.cpc .t b{font-size:17px;overflow-wrap:anywhere}.cpc .t span{font-family:var(--mono);font-size:16px;font-weight:600;white-space:nowrap}
-  .cphh{font-size:14px;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .sellres .srg,.chk,.chg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:8px 0}
+  .chk{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sellres .srg>div,.chk>div,.chg>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .sellres small,.chk small,.chg small{color:var(--muted);font-size:11.5px}
+  .sellres .srg b,.chk b,.chg b{font-family:var(--mono);font-size:14px;overflow-wrap:anywhere}.chk b{font-size:17px}
+  .sellres .srg>div>span,.chk>div>span,.chg>div>span{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+  .sellres b.up{color:#22c55e}
+  .chk>div{border:1px solid var(--line);border-radius:10px;padding:10px}
+  .chbar{margin:8px 0}.chbl{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted)}.chbl b{font-weight:500;text-align:right}
+  .chbt{height:6px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:4px}.chbt i{display:block;height:100%;background:#a78bfa}
+  .chsec{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:12px}.chsec>summary{cursor:pointer;font-weight:600}.chsec>summary small{color:var(--muted);font-weight:400;margin-left:6px}
+  .chvs{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;margin-top:8px}
+  .chv{border-top:1px solid var(--line);padding-top:8px}.chv:first-child{border-top:0}.chv.off{opacity:.7}
+  .chvh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.chvh span{color:var(--muted);font-size:12px}
+  .chtx{font-size:12px}
+  @media (max-width:560px){.chk,.sellres .srg,.chg{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .cpc .n{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
   .cpc .g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border-top:1px solid var(--line);padding-top:10px}
   .cpc .g.q{grid-template-columns:repeat(4,minmax(0,1fr))}

@@ -830,33 +830,38 @@
     const x = (CP_ITENS || []).find((i) => i.id === id); if (!x) return;
     if (BUY && BUY.timer) clearInterval(BUY.timer);
     BUY = { hist: id };
-    const m = esc(x.moeda || ""), line = (a, b) => "<tr><td>" + a + "</td><td>" + b + "</td></tr>";
-    const tx = (o) => (o.tx && o.expl ? ' · <a href="' + esc(o.expl + o.tx) + '" target="_blank" rel="noopener">ver</a>' : "");
+    const m = esc(x.moeda || ""), sim = esc(x.simbolo || "");
+    const tx = (o) => (o.tx && o.expl ? '<a href="' + esc(o.expl + o.tx) + '" target="_blank" rel="noopener">ver na blockchain</a>' : "");
     const usd = (v) => (v == null ? "—" : "$" + num(v, 2));
-    const custo = Number(x.custo || 0), qty = Number(x.qty || 0);
-    let h = '<h3 class="cphh">Compra</h3><div class="tbl-wrap"><table class="systbl nocard"><tbody>' +
-      line("Quando", new Date(x.t * 1000).toLocaleString("pt-BR") + tx(x)) +
-      line("Quantidade", "<b>" + qtd(x.qty) + " " + esc(x.simbolo || "") + "</b>") +
-      line("Pagou", (x.nativo != null ? num(x.nativo, 8) + " " + m + " · " : "") + usd(x.usd_in)) +
-      line("Gás", usd(x.gas_usd)) + line("Investido (com gás)", "<b>" + usd(custo) + "</b>") +
-      line("Preço pago", price(x.px_in)) + line("Onde", esc(x.dex || "—") + (x.rota ? " · " + esc(x.rota) : "")) + "</tbody></table></div>";
-    const vs = cpVendas(x).slice().sort((a, b) => a.t - b.t);
-    h += '<h3 class="cphh">Vendas</h3>';
-    if (!vs.length) h += '<div class="muted small">Nenhuma venda desta compra ainda.</div>';
-    else h += '<div class="tbl-wrap"><table class="systbl"><thead><tr><th>Quando</th><th>Vendeu</th><th>Recebeu</th><th>Ganho</th><th>Situação</th></tr></thead><tbody>' +
-      vs.map((v) => {
-        const ok = v.status === "confirmada", rec = Number(v.usd_out || 0) - Number(v.gas_usd || 0), base = qty ? custo * Number(v.qty || 0) / qty : 0, g = rec - base;
-        return '<tr><td data-l="Quando">' + hora(v.t) + tx(v) + '</td><td data-l="Vendeu">' + qtd(v.qty) + (qty ? ' <small class="muted">(' + num(Number(v.qty || 0) / qty * 100, 1) + "% da compra)</small>" : "") + '</td><td data-l="Recebeu">' +
-          (v.nativo_out != null ? num(v.nativo_out, 8) + " " + m + "<br>" : "") + usd(v.usd_out) + '</td><td data-l="Ganho">' +
-          (ok && base ? '<span class="' + cls(g) + '">' + (g < 0 ? "-" : "+") + "$" + num(Math.abs(g), 2) + "</span> " + pc((rec / base - 1) * 100) : "—") + '</td><td data-l="Situação">' + esc(v.status) + (v.motivo ? '<br><small class="muted">' + esc(v.motivo) + "</small>" : "") + "</td></tr>";
-      }).join("") + "</tbody></table></div>";
-    const ficou = qty ? Number(x.resto || 0) / qty * 100 : null;
-    h += '<h3 class="cphh">Resultado</h3><div class="tbl-wrap"><table class="systbl nocard"><tbody>' +
-      line("Investido", usd(custo)) + line("Recebido nas vendas (sem gás)", usd(x.recebido)) +
-      line("Ainda tem", qtd(x.resto) + " " + esc(x.simbolo || "") + (ficou != null ? " · " + num(ficou, 1) + "% da compra" : "") + (x.valor != null ? " · vale " + usd(x.valor) : "")) +
-      line("Ganho total", x.ganho == null ? "—" : '<b class="' + cls(x.ganho) + '">' + (x.ganho < 0 ? "-" : "+") + "$" + num(Math.abs(x.ganho), 2) + "</b>") +
-      line("Total", pc(x.total)) + "</tbody></table></div>" +
-      '<div class="muted small" style="margin-top:8px">ganho de cada venda = recebido menos o gás da venda, contra a parte do investido daquela quantidade · ainda tem vale o preço da CoinGecko</div>';
+    const sg = (v) => (v == null ? "—" : '<span class="' + cls(v) + '">' + (v < 0 ? "-" : v > 0 ? "+" : "") + "$" + num(Math.abs(v), 2) + "</span>");
+    const kv = (l, v, d) => "<div><small>" + l + "</small><b>" + v + "</b>" + (d ? "<span>" + d + "</span>" : "") + "</div>";
+    const custo = Number(x.custo || 0), qty = Number(x.qty || 0), nat = Number(x.nativo || 0);
+    const vs = cpVendas(x).slice().sort((a, b) => a.t - b.t), okv = vs.filter((v) => v.status === "confirmada");
+    const volta = okv.reduce((a, v) => a + Number(v.nativo_out || 0), 0), vendPct = qty ? Number(x.vendido || 0) / qty * 100 : 0, recPct = nat ? Math.min(100, volta / nat * 100) : null;
+    // 0.32.412 (pedido do dono): resultado em cima, barras, compra e vendas em blocos que fecham; cada venda em um bloco próprio
+    let h = '<div class="chk">' + kv("Investido", usd(custo), nat ? num(nat, 8) + " " + m : "") + kv("Recebido", usd(x.recebido), volta ? num(volta, 8) + " " + m : "nada vendido") +
+      kv("Ainda tem", x.valor == null ? "—" : usd(x.valor), qtd(x.resto) + " " + sim) + kv("Ganho total", sg(x.ganho), pc(x.total)) + "</div>";
+    const bar = (l, p, d) => '<div class="chbar"><div class="chbl"><span>' + l + "</span><b>" + d + '</b></div><div class="chbt"><i style="width:' + Math.max(0, Math.min(100, p)).toFixed(1) + '%"></i></div></div>';
+    h += bar("Moeda vendida", vendPct, num(vendPct, 1) + "% vendido · " + num(100 - vendPct, 1) + "% ainda na carteira") +
+      (recPct != null ? bar("Investido que já voltou", recPct, num(recPct, 1) + "%" + (recPct >= 99.5 ? " · o que sobrou é lucro" : "")) : "");
+    h += '<details class="chsec" open><summary>Compra <small>' + hora(x.t) + '</small></summary><div class="chg">' +
+      kv("Quando", new Date(x.t * 1000).toLocaleString("pt-BR")) + kv("Quantidade", qtd(x.qty) + " " + sim) + kv("Pagou", nat ? num(nat, 8) + " " + m : usd(x.usd_in), nat ? usd(x.usd_in) : "") +
+      kv("Gás", usd(x.gas_usd)) + kv("Preço pago", price(x.px_in)) + kv("Preço agora", price(x.px_agora)) + kv("Onde", esc(x.dex || "—") + (x.rota ? " · " + esc(x.rota) : "")) +
+      "</div>" + (tx(x) ? '<div class="chtx">' + tx(x) + "</div>" : "") + "</details>";
+    let acum = 0;
+    const linhas = vs.map((v, i) => {
+      const ok = v.status === "confirmada", rec = Number(v.usd_out || 0) - Number(v.gas_usd || 0), base = qty ? custo * Number(v.qty || 0) / qty : 0;
+      if (ok) acum += Number(v.nativo_out || 0);
+      return '<div class="chv' + (ok ? "" : " off") + '"><div class="chvh"><b>Venda ' + (i + 1) + "</b><span>" + hora(v.t) + "</span>" + (ok ? "" : '<em class="dmst dump">' + esc(v.status) + "</em>") + "</div>" +
+        '<div class="chg">' + kv("Vendeu", qtd(v.qty) + " " + sim, qty ? num(Number(v.qty || 0) / qty * 100, 1) + "% da compra" : "") +
+        kv("Recebeu", v.nativo_out != null ? num(v.nativo_out, 8) + " " + m : "—", usd(v.usd_out)) +
+        kv("Ganho desta venda", ok && base ? sg(rec - base) : "—", ok && base ? pc((rec / base - 1) * 100) : "") +
+        kv("Investido que voltou", ok && nat ? num(Math.min(100, acum / nat * 100), 1) + "%" : "—", "somando até aqui") + "</div>" +
+        (v.motivo ? '<div class="chtx muted">' + esc(v.motivo) + "</div>" : "") + (tx(v) ? '<div class="chtx">' + tx(v) + "</div>" : "") + "</div>";
+    }).reverse().join("");
+    h += '<details class="chsec" open><summary>Vendas <small>' + (vs.length ? vs.length + (vs.length === 1 ? " venda" : " vendas") + " · mais nova primeiro" : "nenhuma ainda") + "</small></summary>" +
+      (vs.length ? '<div class="chvs">' + linhas + "</div>" : '<div class="muted small">Nenhuma venda desta compra ainda.</div>') + "</details>";
+    h += '<div class="muted small" style="margin-top:10px">ganho de cada venda = recebido menos o gás da venda, contra a parte do investido daquela quantidade · ainda tem vale o preço da CoinGecko</div>';
     $("buyMT").textContent = (x.simbolo || x.nome) + " · compra e vendas";
     $("buyMS").innerHTML = esc(x.nome) + " · " + esc(x.rede_nome || "");
     $("buyMB").innerHTML = h;
@@ -897,6 +902,16 @@
       line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "$" + num(r.gas_usd, 4)) +
       line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") + "</tbody></table></div>" +
       list("buybad", "Não dá para vender:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
+    if (r.investido && r.vende && r.recebe) {
+      // 0.32.412 (pedido do dono): o que volta e o que fica; o resto vale o preço desta cotação (DEX), não o da CoinGecko
+      const fica = Math.max(0, Number(r.saldo || 0) - Number(r.vende)), un = r.usd && r.recebe ? r.usd / r.recebe : null;
+      const ficaN = fica * Number(r.recebe) / Number(r.vende), ficaU = un ? ficaN * un : null;
+      h = '<div class="buyok sellres"><b>Vendendo só o investido</b><div class="srg">' +
+        '<div><small>Recupera o investido</small><b>' + num(r.recebe, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (r.usd != null ? "$" + num(r.usd, 2) : "") + "</span></div>" +
+        '<div><small>Fica na carteira</small><b>' + qtd(fica) + " " + esc(r.moeda.simbolo) + "</b><span>" + (r.saldo ? num(fica / r.saldo * 100, 2) + "% do saldo" : "") + "</span></div>" +
+        '<div><small>Lucro que fica</small><b class="up">' + num(ficaN, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (ficaU != null ? "$" + num(ficaU, 2) : "") + "</span></div>" +
+        '</div><small class="muted">o que fica vale o preço desta cotação; sobe e desce com a moeda</small></div>' + h;
+    }
     if (r.quote_id) {
       h += '<div class="buyform"><div class="pwfield"><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
         '<div><label for="buyOk">Digite VENDER para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +

@@ -2815,6 +2815,11 @@
    "versao": "0.32.411",
    "inicio": "2026-11-21T07:48:24+00:00",
    "titulo": "Dormant: vender só o investido e janela compra e vendas"
+  },
+  {
+   "versao": "0.32.412",
+   "inicio": "2026-11-21T08:11:50+00:00",
+   "titulo": "Dormant: o que volta e o que fica na venda do investido"
   }
  ]
 }
