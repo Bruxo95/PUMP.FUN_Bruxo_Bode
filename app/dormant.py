@@ -350,7 +350,15 @@ class DormantWatch:
         m = CG_URL.search(q)
         achou: dict[str, str] = {}
         if m:
-            ids = [m.group(1).lower()] if m.group(1).lower() in self.cgnames else []
+            slug = m.group(1).lower()
+            ids = [slug] if slug in self.cgnames else []
+            if not ids:
+                # 0.32.420 (caso REKT do dono, 21/11): o endereço do site nem sempre é o id da API (site coins/rekt-2, API rekt-4).
+                # Sem o id, procura pelo nome do endereço sem o número do fim e mostra as candidatas
+                n = norm(re.sub(r"-\d+$", "", slug).replace("-", " "))
+                score = [(0 if norm(sym) == n or norm(name) == n else 1, len(name), cid) for cid, (name, sym, *_) in self.cgnames.items()
+                         if n and (norm(sym) == n or norm(name) == n or norm(name).startswith(n))]
+                ids = [c for _, _, c in sorted(score)[:12]]
         elif self.looks_like_contract(q) and (achou := self.by_contract(q)):
             ids = list(achou)[:12]                       # 0.32.408 (pedido do dono): colar o contrato acha a moeda
         else:
@@ -363,12 +371,16 @@ class DormantWatch:
             ids = [c for _, _, c in sorted(score)[:12]]
         if not ids:
             return []
-        rows = {}
-        try:
-            for r in await self.get("/coins/markets", {"vs_currency": "usd", "ids": ",".join(ids), "per_page": 50, "page": 1}) or []:
-                rows[r["id"]] = r
-        except RuntimeError:
-            pass
+        # 0.32.420 (caso REKT do dono): com a CoinGecko pedindo para esperar, a busca voltava sem preço, valor e ícone ("— · —"),
+        # mesmo para moeda que já está na lista e tem preço lido. Agora usa o que já foi lido e só pergunta pelas que faltam
+        rows = {c: self.rows[c] for c in ids if c in self.rows}
+        falta = [c for c in ids if c not in rows]
+        if falta:
+            try:
+                for r in await self.get("/coins/markets", {"vs_currency": "usd", "ids": ",".join(falta), "per_page": 50, "page": 1}) or []:
+                    rows[r["id"]] = r
+            except RuntimeError:
+                pass
         have = {e["cg"] for e in self.extras} | set(self.pick.values())
         out = []
         for cid in ids:

@@ -2855,6 +2855,11 @@
    "versao": "0.32.419",
    "inicio": "2026-11-21T12:02:06+00:00",
    "titulo": "Dormant: lucro realizado em verde, prejuízo em vermelho e 90% do investido já conta como realizado"
+  },
+  {
+   "versao": "0.32.420",
+   "inicio": "2026-11-21T12:11:46+00:00",
+   "titulo": "Dormant: busca mostra o preço já lido e acha a moeda pelo link do site"
   }
  ]
 }

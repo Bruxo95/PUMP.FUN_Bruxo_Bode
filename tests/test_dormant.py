@@ -115,6 +115,8 @@ def test_add_search_and_remove_keep_who_added():
     res = asyncio.run(w.search("BONK"))
     assert res[0]["id"] == "bonk" and res[0]["blockchains"] == ["Solana"] and not res[0]["ja_tem"]
     assert asyncio.run(w.search("https://www.coingecko.com/en/coins/pepe"))[0]["id"] == "pepe"
+    # 0.32.420: o endereço do site com outro número (site pepe-2, API pepe) acha pelo nome
+    assert asyncio.run(w.search("https://www.coingecko.com/en/coins/pepe-2?chart=x"))[0]["id"] == "pepe"
     e = asyncio.run(w.add("bonk", "Douglas", "u1"))
     assert e["por"] == "Douglas"
     try:
