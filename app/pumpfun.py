@@ -169,6 +169,7 @@ class PumpFun:
         # 0.31.63 (pedido do dono): aprendizado geral — o hub entrega aqui os trades automáticos de TODAS as contas
         self.learn_pool = None
         self.bm_growth_hook = None                    # 0.32.380: crescimento das compras de um token do BOOST (o hub liga)
+        self.bm_view_hook = None                      # 0.32.427: dados do BOOST para o card da posição (o hub liga)
         self.top_hook = None                          # 0.32.124: compra barrada do Top traders vira acompanhamento
         self.shadow_hook = None                       # 0.31.72: token "chance alta" barrado vira entrada sombra (hub)
         self._real_buying: _Buying = _Buying()
@@ -5740,6 +5741,18 @@ class PumpFun:
             p["vol"] = tkp.get("vol")
             p["mcap_now"] = tkp.get("mcap_sol")
             p["liq_usd"] = tkp.get("liq_usd")
+            # 0.32.427 (pedido do dono): no card, tempo no positivo × negativo (agora), o stop por tempo e os dados do BOOST
+            so = self.sign_out(p)
+            if so:
+                g = p.get("sinal") or {}
+                so["agora"] = "positivo" if g.get("up") else "negativo"
+                so["seguidos_s"] = round(time.time() - float(g["neg_since"])) if (g.get("up") is False and g.get("neg_since") is not None) else 0
+                p["sinal_now"] = so
+            if p.get("origem") == "boostmig" and self.bm_view_hook is not None:
+                try:
+                    p["bm"] = self.bm_view_hook(p["mint"])
+                except Exception:
+                    p["bm"] = None
         return {"enabled": getattr(c, "pump_enabled", True), "copy_enabled": getattr(c, "pump_copy_enabled", True),
                 "rpc": dict(self.rpc_status), "paid_stream": self._paid(),
                 "status": {**self.status, "followed": len(self.followed), "tracked_tokens": len(self.sub_tokens),

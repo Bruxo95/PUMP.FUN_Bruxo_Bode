@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "eadf6c9522208f525066a3ddb6a89a5be469badf",
-    "application_version": "0.32.426 · 2026-11-21 · BOOST: stop por tempo no negativo (somado e sem trocar)",
+    "repository_reference": "b047c42e030cba0586663ec99769ec21a7ceb174",
+    "application_version": "0.32.427 · 2026-11-21 · Card da posição: ao vivo, tempo no positivo × negativo, stop por tempo e BOOST",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "84366c866b025ccd3c1f80335913d4f50ebe2db5f81192bc2510c071630b510c",
+      "app/version.py": "7d42f9a2f47368208b81c4d04781824bb6f0c308f03ef2b7ab5b46de2f7d8245",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b10235b42712db8bcca6a79aaa7119bb65cf68cde43bc47d23571e551aee3e19"
+  "pdf_sha256": "66057070ce1909700cc6b9e27266eb15e913f62996d124c721d47553f3f3bb80"
 }

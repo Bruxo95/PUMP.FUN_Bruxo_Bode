@@ -5046,6 +5046,30 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const d = pts.map((q, k) => (k ? "L" : "M") + X(q[0]).toFixed(1) + " " + Y(q[1]).toFixed(1)).join(" ");
     return '<svg class="pc-spark ' + ((p.chg_pct || 0) >= 0 ? "up" : "down") + '" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true"><line x1="0" x2="' + W + '" y1="' + Y(0).toFixed(1) + '" y2="' + Y(0).toFixed(1) + '"/><path d="' + d + '"/></svg>';
   }
+  // 0.32.427 (pedido do dono): no card, ao vivo — tempo no positivo × negativo, stop por tempo e dados do BOOST
+  function posLive(p) {
+    const z = p.sinal_now, r = p.bm_tneg, b = p.bm, st = (k, v, w) => "<div" + (w ? ' class="wide"' : "") + "><dt>" + k + "</dt><dd>" + v + "</dd></div>";
+    const it = [];
+    if (z) {
+      it.push(st("Positivo × negativo", '<span class="up">+ ' + hms(z.pos_s || 0) + '</span> · <span class="down">− ' + hms(z.neg_s || 0) + "</span>"));
+      it.push(st("Agora", (z.agora === "positivo" ? '<span class="up">positivo</span>' : '<span class="down">negativo' + (z.seguidos_s ? " há " + hms(z.seguidos_s) : "") + "</span>") +
+        ' <span class="dim">· ' + (z.trocas || 0) + " troca(s)</span>"));
+    }
+    if (r) {
+      const arm = p.bm_tneg_why ? '<span class="down">armado</span> <span class="dim">· ' + esc(p.bm_tneg_why) + "</span>"
+        : [r.sum_s ? "somado " + hms((z && z.neg_s) || 0) + " / " + hms(r.sum_s) : null, r.streak_s ? "seguidos " + hms((z && z.seguidos_s) || 0) + " / " + hms(r.streak_s) : null].filter(Boolean).join(" · ");
+      it.push(st("Stop por tempo (−" + f(r.stop, 0) + "%)", arm || "–", true));
+    }
+    if (b) {
+      const g = b.growth_pct;
+      it.push(st("BOOST", f(b.progress || 0, 0) + "%" + (b.faltam_s ? ' <span class="dim">· faltam ' + hms(b.faltam_s) + "</span>" : ' <span class="dim">· acabou</span>')));
+      it.push(st("Compras × vendas 5 min", b.buys_m5 == null ? "–" : (b.buys_m5 || 0) + " × " + (b.sells_m5 || 0)));
+      it.push(st("Compras no último minuto", g == null ? "–" : '<span class="' + (g >= 0 ? "up" : "down") + '">' + (g >= 0 ? "▲ +" : "▼ ") + f(g, 1) + "%</span>"));
+      const tk = b.track || {};
+      it.push(st("Desde a migração", tk.now_pct == null ? "–" : "agora " + pc(tk.now_pct) + ' <span class="dim">· topo ' + pc(tk.top_pct) + " · queda do topo " + pc(tk.dump_pct) + "</span>", true));
+    }
+    return it.length ? '<p class="pc-lbl">Ao vivo</p><dl class="pc-grid pc-live">' + it.join("") + "</dl>" : "";
+  }
   function posCard(p, c) {
     const open = p.open_t || (p.opened_at ? new Date(p.opened_at).getTime() / 1000 : null), now = Date.now() / 1000;
     const chg = p.chg_pct, pnl = p.pnl_now_sol, up = (pnl != null ? pnl : chg || 0) >= 0;
@@ -5087,7 +5111,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<header class="pc-h"><div class="pc-tk">' + pfM(p.mint, p.symbol) + " " + tags + '</div><button class="btn sm ghost" data-posdet="' + esc(id) + '">Detalhes</button>' +
       '<div class="pc-sub">' + pfW(p.wallet, p) + ' · aberta há <b>' + agoIso(p.opened_at) + "</b></div>" + (thBtn(p) ? '<div class="pc-th">' + thBtn(p) + "</div>" : "") + "</header>" +
       '<div class="pc-box"><div><small>Ganho agora</small><b class="pc-big ' + (up ? "up" : "down") + '">' + (pnl == null ? "–" : (pnl > 0 ? "+" : "") + s4(pnl) + " SOL") + "</b><small>" + (p.pnl_now_pct == null ? "" : pc(p.pnl_now_pct) + " do investido") + "</small></div>" +
-      '<div class="pc-var"><small>Variação</small><b>' + pc(chg) + "</b>" + posSpark(p) + "</div></div>" + range +
+      '<div class="pc-var"><small>Variação</small><b>' + pc(chg) + "</b>" + posSpark(p) + "</div></div>" + range + posLive(p) +
       '<dl class="pc-grid">' + st("Investido", s4(p.sol_in) + " SOL") + st("Vale agora", p.value_sol == null ? "–" : s4(p.value_sol) + " SOL") +
       st("Já vendido", s4(p.proceeds || 0) + " SOL") + st("Melhor / pior", pc(p.best_pct) + " / " + pc(p.worst_pct)) +
       st("Mcap", (p.mcap_in ? f(p.mcap_in, 0) : "–") + " → " + (p.mcap_now ? f(p.mcap_now, 0) : "–") + " SOL") + st("Volume 1 h", v.h1 == null ? "–" : uk(v.h1) + ' <span class="dim">' + (v.buys_h1 || 0) + "c/" + (v.sells_h1 || 0) + "v</span>") +

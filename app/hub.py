@@ -190,6 +190,7 @@ class PumpHub:
         pf.sg_pool = self.sg_brain                                            # 0.32.332: stop de ganho com todas as contas
         pf.shadow_hook = self.shadow_note                                     # 0.31.72: entradas sombra
         pf.bm_growth_hook = lambda m, t: boostmig.BoostMig.buy_growth(self.bm.items.get(m), t)   # 0.32.380
+        pf.bm_view_hook = self.bm_pos_view                                                       # 0.32.427: card da posição
         pf.top_hook = self.top_note                                           # 0.32.124: compras barradas do Top traders
         # 0.31.28 (pedido do dono em 2026-10-27): o real ligado pelo usuário continua ligado depois de reiniciar o
         # servidor (cada versão nova reinicia). Antes desligava em todo deploy e parecia "desligar sozinho". Só volta
@@ -2206,6 +2207,18 @@ class PumpHub:
             if best and best[1] is not None:
                 out[key] = best[1]
         return out
+
+    def bm_pos_view(self, m: str) -> dict | None:
+        """0.32.427 (pedido do dono): o que o card da posição mostra de um token do BOOST — progresso, compras × vendas,
+        compras crescendo, tendência e queda do topo."""
+        b = self.bm.items.get(m)
+        if not b:
+            return None
+        now = time.time()
+        return {"progress": round(self.bm.progress(b, now), 1), "faltam_s": max(0, round(b["t0"] + boostmig.JANELA_S - now)),
+                "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"), "growth_pct": boostmig.BoostMig.buy_growth(b, now),
+                "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"), "mcap_sol": b.get("mcap_sol"),
+                "top10_pct": b.get("top10_pct"), "track": b.get("track")}
 
     def bm_state(self, pf: PumpFun, uid: str) -> dict:
         bm, now = self.bm, time.time()

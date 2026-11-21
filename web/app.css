@@ -1116,3 +1116,7 @@ label.chgrp{cursor:pointer}
 /* 0.32.394: BOOST — regras da FICTÍCIA × da REAL */
 .bmrsel{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
 .bmrsel p{flex-basis:100%;margin:0}
+
+/* 0.32.427: card da posição — bloco "Ao vivo" (tempo no positivo × negativo, stop por tempo, BOOST) quebra linha */
+.pc-live dd{white-space:normal;overflow:visible;text-overflow:clip}
+.pc-live .wide{grid-column:1/-1}

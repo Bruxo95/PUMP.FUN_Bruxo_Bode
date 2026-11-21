@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.426 · 2026-11-21 · BOOST: stop por tempo no negativo (somado e sem trocar)**.
-Referência Git na emissão: `eadf6c9522208f525066a3ddb6a89a5be469badf`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.427 · 2026-11-21 · Card da posição: ao vivo, tempo no positivo × negativo, stop por tempo e BOOST**.
+Referência Git na emissão: `b047c42e030cba0586663ec99769ec21a7ceb174`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

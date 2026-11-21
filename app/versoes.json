@@ -2890,6 +2890,11 @@
    "versao": "0.32.426",
    "inicio": "2026-11-21T16:30:00+00:00",
    "titulo": "BOOST: stop por tempo no negativo (somado e sem trocar)"
+  },
+  {
+   "versao": "0.32.427",
+   "inicio": "2026-11-21T16:45:00+00:00",
+   "titulo": "Card da posição: ao vivo, tempo no positivo × negativo, stop por tempo e BOOST"
   }
  ]
 }

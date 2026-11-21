@@ -614,3 +614,27 @@ def test_voce_entrou_volta_depois_do_reinicio(env):
     bm2 = BoostMig(Svc({}), clock=lambda: d["t0"] + 5)
     bm2.load([{"dados": d}], [])
     assert bm2.items[M]["users"][UA]["estado"] == "entrou"
+
+
+def test_card_da_posicao_recebe_os_dados_do_boost(env):
+    """0.32.427 (pedido do dono): o card da posição do BOOST mostra progresso, compras × vendas, compras no último minuto e o
+    tempo no positivo × negativo ao vivo."""
+    from tests.test_api import UA, tok
+    c, hub = env["c"], env["hub"]
+    A = tok(UA)
+    c.get("/api/pump", headers=A)
+    pf = hub.engines[UA]
+    hub.bm.on_migration({"mint": M, "txType": "migrate", "pool": "pump-amm"})
+    hub.bm.items[M].update(buys_m5=400, sells_m5=300)
+    v = hub.bm_pos_view(M)
+    assert v["buys_m5"] == 400 and v["progress"] >= 0 and "faltam_s" in v and hub.bm_pos_view("nada") is None
+    pf._save_pos({"id": "bp1", "mint": M, "symbol": "GTAVI", "origem": "boostmig", "wallet": "manual", "sol_in": 0.05, "tokens": 50000,
+                  "tokens_left": 50000, "price_in": 1e-6, "trader_px": 1e-6, "opened_at": "2026-11-21T16:00:00+00:00", "open_t": 1.0})
+    pf.tokens[M] = {"price": 9e-7, "last_t": time.time()}
+    p = [x for x in pf.positions() if x["id"] == "bp1"][0]
+    pf._sign_note(p, 1.1e-6, 100.0)
+    pf._sign_note(p, 9e-7, 110.0)
+    pf._save_pos(p)
+    snap = c.get("/api/pump", headers=A).json()
+    sp = [x for x in snap["positions"] if x["id"] == "bp1"][0]
+    assert sp["bm"]["buys_m5"] == 400 and sp["sinal_now"]["pos_s"] == 10 and sp["sinal_now"]["agora"] == "negativo"
