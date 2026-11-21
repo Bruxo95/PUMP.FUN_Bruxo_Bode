@@ -728,6 +728,12 @@ class BoostMig:
                 "hold_why": f"BOOST {ex:.0f}% (saída em {ex:.0f}%)", "bm_t0": b["t0"], "bm_sg_after": bool(g("pump_bm_sg_after", True))}
         if isinstance(c, RealCfg):
             out["bm_own"] = True                       # 0.32.394: REAL com regras próprias — não segue a fictícia
+        # 0.32.426 (pedido do dono): stop por tempo no negativo
+        t_sum, t_str = bool(g("pump_bm_tneg_on", True)), bool(g("pump_bm_tneg_streak_on", True))
+        if t_sum or t_str:
+            out["bm_tneg"] = {"sum_s": float(g("pump_bm_tneg_sum_s", 60)) if t_sum else None,
+                              "streak_s": float(g("pump_bm_tneg_streak_s", 30)) if t_str else None,
+                              "stop": float(g("pump_bm_tneg_stop_pct", 25))}
         # 0.32.380 (pedido do dono): no fim do BOOST, fica se as compras estão crescendo e/ou até ficar +X%; enquanto fica,
         # a perda máxima é a da opção (padrão 25%) e há um tempo extra máximo
         grow_on, prof_on = bool(g("pump_bm_ext_on", True)), bool(g("pump_bm_hold_profit_on", False))

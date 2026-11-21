@@ -31,3 +31,65 @@ def test_referencia_e_o_preco_de_mercado_na_entrada():
     for t, px in [(0, 1.01), (10, 1.02), (20, 1.02)]:
         PumpFun._sign_note(p, px, t)
     assert PumpFun.sign_out(p)["neg_s"] == 0 and PumpFun.sign_out(p)["pos_s"] == 20
+
+
+def _pos(**kw):
+    p = {"id": "p1", "mint": "M", "symbol": "TK", "price_in": 1.0, "trader_px": 1.0, "stop_pct": 0.0,
+         "bm_tneg": {"sum_s": 60.0, "streak_s": 30.0, "stop": 25.0}}
+    p.update(kw)
+    return p
+
+
+def _pf():
+    pf = PumpFun.__new__(PumpFun)
+    feed = []
+    pf._save_pos = lambda p: None
+    pf._feed = lambda **k: feed.append(k)
+    return pf, feed
+
+
+def test_stop_por_tempo_sem_trocar_liga_o_stop_de_25():
+    """0.32.426 (pedido do dono): 30 s seguidos no negativo, sem voltar ao positivo → liga o stop de perda de 25%."""
+    pf, feed = _pf()
+    p = _pos()
+    for t in range(0, 31, 2):
+        PumpFun._sign_note(p, 0.95, t)
+        pf._tneg_check(p, t)
+        if t < 30:
+            assert not p.get("bm_tneg_why")
+    assert p["stop_pct"] == 25.0 and "seguidos" in p["bm_tneg_why"] and feed[-1]["action"] == "stop por tempo armado"
+
+
+def test_stop_por_tempo_somado_conta_as_trocas():
+    """Negativo 20 s, positivo 5 s, negativo 20 s, positivo 5 s, negativo 20 s = 60 s somados → liga (nenhum trecho chega a 30 s)."""
+    pf, _ = _pf()
+    p = _pos()
+    t = 0
+    for dur, px in [(20, 0.9), (5, 1.1), (20, 0.9), (5, 1.1), (21, 0.9)]:
+        for _ in range(dur):
+            PumpFun._sign_note(p, px, t)
+            pf._tneg_check(p, t)
+            t += 1
+    assert p.get("bm_tneg_why") and "somando" in p["bm_tneg_why"] and p["stop_pct"] == 25.0
+
+
+def test_no_positivo_nao_liga_e_stop_mais_apertado_fica():
+    pf, _ = _pf()
+    p = _pos()
+    for t in range(0, 200, 5):
+        PumpFun._sign_note(p, 1.2, t)
+        pf._tneg_check(p, t)
+    assert not p.get("bm_tneg_why") and p["stop_pct"] == 0.0
+    q = _pos(stop_pct=15.0)
+    for t in range(0, 40, 2):
+        PumpFun._sign_note(q, 0.9, t)
+        pf._tneg_check(q, t)
+    assert q["bm_tneg_why"] and q["stop_pct"] == 15.0                 # já tinha stop de 15%: não afrouxa para 25%
+
+
+def test_regras_do_boost_gravam_o_stop_por_tempo():
+    import types
+    from app.boostmig import BoostMig
+    c = types.SimpleNamespace(pump_bm_tneg_on=True, pump_bm_tneg_sum_s=45, pump_bm_tneg_streak_on=False, pump_bm_tneg_stop_pct=20)
+    r = BoostMig.rules(c, {"t0": 0.0}, 10.0)
+    assert r["bm_tneg"] == {"sum_s": 45.0, "streak_s": None, "stop": 20.0}

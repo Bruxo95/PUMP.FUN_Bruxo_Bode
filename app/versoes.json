@@ -2885,6 +2885,11 @@
    "versao": "0.32.425",
    "inicio": "2026-11-21T16:06:00+00:00",
    "titulo": "Dormant: Alertas da blockchain, com as moedas de cada blockchain da CoinGecko"
+  },
+  {
+   "versao": "0.32.426",
+   "inicio": "2026-11-21T16:30:00+00:00",
+   "titulo": "BOOST: stop por tempo no negativo (somado e sem trocar)"
   }
  ]
 }

@@ -2147,7 +2147,35 @@ class PumpFun:
             g["pos_s" if last_up else "neg_s"] = round(float(g.get("pos_s" if last_up else "neg_s") or 0) + (t - last_t), 1)
         if last_up is not None and up != last_up:
             g["trocas"] = int(g.get("trocas") or 0) + 1
+        if up:
+            g.pop("neg_since", None)                   # 0.32.426: início do trecho negativo atual (para o "sem trocar")
+        elif last_up is not False or g.get("neg_since") is None:
+            g["neg_since"] = t
         g["t"], g["up"] = t, up
+
+    def _tneg_check(self, p: dict, t: float) -> None:
+        """0.32.426 (pedido do dono, 21/11): stop por tempo no negativo. Quando a posição SOMA `sum_s` no negativo (todas as
+        trocas) ou fica `streak_s` SEGUIDOS no negativo sem voltar ao positivo, o stop de perda (padrão 25%) é ligado nela —
+        se o preço já estiver abaixo, vende na próxima leitura. Só arma uma vez."""
+        r, g = p.get("bm_tneg") or {}, p.get("sinal") or {}
+        neg = float(g.get("neg_s") or 0)
+        streak = (t - float(g["neg_since"])) if (g.get("up") is False and g.get("neg_since") is not None) else 0.0
+        why = None
+        if r.get("sum_s") and neg >= float(r["sum_s"]):
+            why = f"{neg:.0f} s no negativo somando as trocas (limite {float(r['sum_s']):.0f} s)"
+        elif r.get("streak_s") and streak >= float(r["streak_s"]):
+            why = f"{streak:.0f} s seguidos no negativo sem voltar ao positivo (limite {float(r['streak_s']):.0f} s)"
+        if not why:
+            return
+        stop = float(r.get("stop") or 25)
+        cur = float(p.get("stop_pct") or 0)
+        p["bm_tneg_why"] = why
+        if cur <= 0 or cur > stop:
+            p["stop_pct"] = stop
+        self._save_pos(p)
+        self._feed(wallet=p.get("wallet") or "manual", short=short(p.get("wallet") or "manual"), mint=p["mint"], symbol=p.get("symbol"),
+                   kind="sell", action="stop por tempo armado", real=bool(p.get("real")),
+                   reason=f"{why}: stop de perda de {float(p.get('stop_pct') or stop):.0f}% ligado")
 
     @staticmethod
     def sign_out(p: dict) -> dict | None:
@@ -2204,6 +2232,8 @@ class PumpFun:
         for p in sorted([p for p in self.positions() if p["mint"] == mint], key=lambda q: not q.get("real")):   # 0.32.160: real primeiro
             if px:
                 self._sign_note(p, px, t)                  # 0.32.423: tempo no positivo × negativo (REAL e fictícia)
+                if p.get("bm_tneg") and not p.get("bm_tneg_why"):
+                    self._tneg_check(p, t)
             if self.bm_follows_sim(p):                     # 0.32.387: a REAL do BOOST não tem regra própria; segue a fictícia
                 continue
             if not px or p.get("selling"):

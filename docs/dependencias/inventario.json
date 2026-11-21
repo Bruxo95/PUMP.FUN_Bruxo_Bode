@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "67b363c01f6e458116a3f95ee3ff214ad1ddacea",
-    "application_version": "0.32.425 · 2026-11-21 · Dormant: Alertas da blockchain, com as moedas de cada blockchain da CoinGecko",
+    "repository_reference": "eadf6c9522208f525066a3ddb6a89a5be469badf",
+    "application_version": "0.32.426 · 2026-11-21 · BOOST: stop por tempo no negativo (somado e sem trocar)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "9672c0917b22624580ac990b62b37a70666e17fd1083fed9f072a3c26fcf7497",
+      "app/version.py": "84366c866b025ccd3c1f80335913d4f50ebe2db5f81192bc2510c071630b510c",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "5eeabb7e32b7cdcb9dba068eba2a847f63de8a3996bd78ecf9655cdd089fd45b",
+      "web/app.html": "89abbc3aeee4c46711dc09432163bf33fd1e80415079d7d9689ff34c978b2837",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "26a0b1539313148603d73e95e628f56d6fec25d6a646986602bdef7262bdbf25"
+  "pdf_sha256": "b10235b42712db8bcca6a79aaa7119bb65cf68cde43bc47d23571e551aee3e19"
 }

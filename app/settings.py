@@ -97,6 +97,13 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_max_top10": (float, 35.0, 0.0, 100.0),
     "pump_bm_no_stop": (bool, False, 0, 1),               # sem stop de perda até a saída do BOOST
     "pump_bm_stop_pct": (float, 40.0, 1.0, 95.0),
+    # 0.32.426 (pedido do dono, 21/11): stop por tempo no negativo — liga o stop de perda (padrão 25%) quando a posição soma
+    # X s no negativo (todas as trocas) ou fica Y s seguidos no negativo sem voltar ao positivo
+    "pump_bm_tneg_on": (bool, True, 0, 1),
+    "pump_bm_tneg_sum_s": (float, 60.0, 5.0, 3600.0),
+    "pump_bm_tneg_streak_on": (bool, True, 0, 1),
+    "pump_bm_tneg_streak_s": (float, 30.0, 5.0, 3600.0),
+    "pump_bm_tneg_stop_pct": (float, 25.0, 1.0, 95.0),
     "pump_bm_trail_start": (float, 10.0, 1.0, 1000.0),
     "pump_bm_trail_dist": (float, 5.0, 1.0, 90.0),
     "pump_bm_partial_on": (bool, True, 0, 1),
@@ -428,7 +435,8 @@ USER_KEYS: dict[str, tuple] = {
 BM_REAL_RULES = ("sol", "max_open", "enter_max_pct", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
                  "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
                  "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
-                 "sg_after", "hold_profit_on", "hold_profit_pct")
+                 "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s",
+                 "tneg_stop_pct")
 USER_KEYS["pump_bmr_on"] = (bool, False, 0, 1)
 USER_KEYS.update({"pump_bmr_" + _k: USER_KEYS["pump_bm_" + _k] for _k in BM_REAL_RULES})
 LB_DAYS = (1, 7, 30, 90)
