@@ -63,3 +63,40 @@ def test_real_junto_com_a_ficticia_respeita_a_espera():
     p = {"id": "r1", "sell_retry_at": time.time() + 300}
     assert pf._real_sell(p, 1.0, "junto com a fictícia: fechada por você") is False and not put
     assert pf._real_sell(p, 1.0, "fechada por você") is True and put        # pedido direto na tela não espera
+
+
+def _prb(results, real_on=True):
+    pr, calls = _pr([])
+    pr.cfg = type("C", (), {"pump_real_slippage_pct": 15, "pump_real_enabled": real_on, "pump_other_slip_pct": 1.0})()
+    bal = {"sol": 1.0, "tok": 0.0}
+
+    async def balances(mint):
+        return bal["sol"], bal["tok"]
+
+    async def tx(body):
+        calls.append(("pp", body["pool"], body.get("slippage")))
+        r = results.pop(0) if results else {"ok": False, "reason": "x"}
+        if r.get("ok"):
+            bal["tok"] = 100.0
+        return r
+
+    async def jup(a, b, amount, bps):
+        calls.append(("jupiter", None, bps / 100))
+        r = results.pop(0) if results else {"ok": False, "reason": "x"}
+        if r.get("ok"):
+            bal["tok"] = 100.0
+        return r
+
+    async def solc(sig):
+        return -0.05
+    pr.balances, pr._tx, pr._jup, pr._sol_change = balances, tx, jup, solc
+    return pr, calls
+
+
+def test_compra_de_graduado_vai_na_pumpswap_e_sobe_o_slippage():
+    """0.32.430 (DESPAIR do BOOST, 21/11 18:14): compra de token graduado não tenta a curva; PumpSwap 15% → 30%, depois Jupiter."""
+    pr, calls = _prb([{"ok": False, "reason": "{'Custom': 6004}"}, {"ok": False, "reason": "0x1774"},
+                      {"ok": False, "reason": "0x1771"}, {"ok": True, "signature": "j"}])
+    PumpReal.pool_hint[M] = "pump-amm"
+    r = asyncio.run(pr.buy(M, 0.05))
+    assert r["ok"] and calls == [("pp", "pump-amm", 15.0), ("pp", "pump-amm", 30.0), ("jupiter", None, 15.0), ("jupiter", None, 30.0)]

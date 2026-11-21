@@ -5437,6 +5437,10 @@ class PumpFun:
                 miss(chase)
                 return
             try:
+                tk_ = self.tokens.get(mint) or {}
+                hints = getattr(self.real, "pool_hint", None)
+                if isinstance(hints, dict) and (bm_buy or tk_.get("pool") == "pumpswap" or tk_.get("graduated")):
+                    hints[mint] = "pump-amm"               # 0.32.430: já graduou → compra direto na PumpSwap
                 res = await self.real.buy(mint, amt, other=not self.is_pump(mint))
             except Exception as e:
                 miss(f"erro ao enviar a compra: {type(e).__name__}: {str(e)[:120]}", "REAL falhou")
@@ -6115,7 +6119,7 @@ class PumpReal:
 
     # erros do programa da pump.fun (Anchor: 6000 + n)
     PUMP_ERRORS = {"0x1770": "não autorizado", "0x1772": "preço subiu além do slippage (SOL insuficiente)",
-                   "0x1773": "preço caiu além do slippage (SOL recebido baixo)", "0x1774": "token não bate com a curva",
+                   "0x1773": "preço caiu além do slippage (SOL recebido baixo)", "0x1774": "na pump.fun: token não bate com a curva; na PumpSwap: o pool recusou (provável preço andando além do slippage)",
                    "0x1775": "curva já completou — token graduou para a PumpSwap",
                    "0x1776": "curva ainda não completou", "0x1777": "programa da pump.fun não inicializado",
                    # 0.32.25: o mesmo código muda de sentido conforme o programa. IDL oficial pump.json (13/10/2026, conferido em
@@ -6256,20 +6260,34 @@ class PumpReal:
         jslip = int(float(getattr(self.cfg, "pump_other_slip_pct", 1.0)) * 100) + 100
         tried = []
         # pump.fun: curva → se a curva já completou (token graduou), PumpSwap → se ainda falhar, Jupiter
-        routes = [("jupiter", None)] if other else [("pumpportal", "auto"), ("pumpportal", "pump-amm"), ("jupiter", None)]
+        base = float(getattr(self.cfg, "pump_real_slippage_pct", 15))
+        hint = (getattr(self, "pool_hint", None) or {}).pop(mint, None)
+        if other:
+            routes = [("jupiter", None, None)]
+        elif hint == "pump-amm":
+            # 0.32.430 (DESPAIR do BOOST, 21/11 18:14): token que já graduou compra direto na PumpSwap — a "auto" tentava a curva
+            # (6005) e perdia o momento; PumpSwap e Jupiter recusaram pelo preço andando: tenta de novo com mais slippage
+            routes = [("pumpportal", "pump-amm", base), ("pumpportal", "pump-amm", max(30.0, base)),
+                      ("jupiter", None, base), ("jupiter", None, max(30.0, base))]
+        else:
+            routes = [("pumpportal", "auto", None), ("pumpportal", "pump-amm", None), ("jupiter", None, None)]
         r, sol1, tok1 = {}, sol0, tok0
-        for via, pool in routes:
+        for via, pool, slip in routes:
             if via == "jupiter":
                 # 0.31.48: token da pump.fun na Jupiter (reserva) usa a slippage da carteira real; com 3% fixo a compra do
                 # SPAWN falhou com "slippage excedido (0x1771)" em 27/10/2026
-                pslip = int(float(getattr(self.cfg, "pump_real_slippage_pct", 15)) * 100)
+                pslip = int(float(slip if slip is not None else base) * 100)
                 r = await self._jup(SOL_MINT, mint, int(amt * 1e9), jslip if other else max(jslip, pslip))
             else:
-                r = await self._tx({"action": "buy", "mint": mint, "amount": amt, "denominatedInSol": "true", "pool": pool})
+                body = {"action": "buy", "mint": mint, "amount": amt, "denominatedInSol": "true", "pool": pool}
+                if slip is not None:
+                    body["slippage"] = slip
+                r = await self._tx(body)
             if r.get("status") == "pendente":
                 await asyncio.sleep(3)
             (sol1, tok1), dsol = await asyncio.gather(self.balances(mint), self._sol_change(r.get("signature") if r.get("ok") else None))
-            tried.append(f"{via if via == 'jupiter' else 'PumpPortal ' + pool}: {self.explain(r.get('reason')) or r.get('status')}")
+            tried.append(f"{via if via == 'jupiter' else 'PumpPortal ' + pool}{f' {slip:.0f}%' if slip is not None else ''}: "
+                         f"{self.explain(r.get('reason')) or r.get('status')}")
             if tok1 - tok0 > 0:
                 break
             if r.get("status") == "pendente":     # SEC-04: ainda pode entrar — outra rota compraria duas vezes
