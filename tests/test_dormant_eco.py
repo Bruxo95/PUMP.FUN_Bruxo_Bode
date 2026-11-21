@@ -26,10 +26,15 @@ class Net:
 
     async def get(self, url, params=None, headers=None, timeout=None):
         self.calls.append((url, dict(params or {})))
-        if url.endswith("/coins/categories"):
-            return Resp([{"id": "meme-token", "name": "Meme", "market_cap": 9e9},
-                         {"id": "solana-ecosystem", "name": "Solana Ecosystem", "market_cap": 5e10, "volume_24h": 1e9, "market_cap_change_24h": 2.0},
-                         {"id": "tron-ecosystem", "name": "Tron Ecosystem", "market_cap": 9e10, "volume_24h": 2e9, "market_cap_change_24h": -1.0}])
+        if url.endswith("/coins/categories/list"):
+            return Resp([{"category_id": "meme-token", "name": "Meme"}, {"category_id": "x402-ecosystem", "name": "x402 Ecosystem"},
+                         {"category_id": "solana-ecosystem", "name": "Solana Ecosystem"}, {"category_id": "tron-ecosystem", "name": "Tron Ecosystem"},
+                         {"category_id": "binance-smart-chain", "name": "BNB Chain Ecosystem"}, {"category_id": "polygon-ecosystem", "name": "Polygon Ecosystem"}])
+        if url.endswith("/asset_platforms"):
+            return Resp([{"id": "solana", "name": "Solana"}, {"id": "tron", "name": "TRON"}, {"id": "binance-smart-chain", "name": "BNB Smart Chain"},
+                         {"id": "polygon-pos", "name": "Polygon", "shortname": "MATIC"}])
+        if url.endswith("/coins/list"):
+            return Resp([{"id": "a", "name": "A", "symbol": "a", "platforms": {"solana": "x", "tron": "y"}}, {"id": "b", "name": "B", "symbol": "b", "platforms": {"solana": "z"}}])
         if url.endswith("/coins/markets"):
             assert params["category"] == "tron-ecosystem"
             return Resp([_row("sobe", h1=9), _row("cai", h24=-30), _row("quieta", vol=10), _row("tron")])
@@ -40,10 +45,13 @@ def run(c):
     return asyncio.run(c)
 
 
-def test_only_ecosystems_listed_biggest_first_and_name_without_word():
+def test_only_real_networks_most_tokens_first():
+    # 0.32.426: só categorias que são rede (batem com /asset_platforms); x402 e Meme ficam fora; mais tokens primeiro
     w = dormant.DormantWatch(Net(), None)
     L = run(w.eco_list())
-    assert [e["id"] for e in L] == ["tron-ecosystem", "solana-ecosystem"] and L[0]["nome"] == "Tron"
+    ids = [e["id"] for e in L]
+    assert ids[:2] == ["solana-ecosystem", "tron-ecosystem"] and "x402-ecosystem" not in ids and "meme-token" not in ids
+    assert "binance-smart-chain" in ids and "polygon-ecosystem" in ids and L[0]["nome"] == "Solana" and L[0]["tokens"] == 2
 
 
 def test_coins_of_a_chain_use_the_same_rules_and_are_cached():
@@ -63,7 +71,7 @@ def test_coins_of_a_chain_use_the_same_rules_and_are_cached():
 
 def test_unknown_or_bad_category_is_refused():
     w = dormant.DormantWatch(Net(), None)
-    for bad in ("meme-token", "../x", "nada-ecosystem"):
+    for bad in ("meme-token", "../x", "nada-ecosystem", "x402-ecosystem"):
         try:
             run(w.eco_coins(bad))
             raise AssertionError("aceitou " + bad)

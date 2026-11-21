@@ -2895,6 +2895,11 @@
    "versao": "0.32.427",
    "inicio": "2026-11-21T16:45:00+00:00",
    "titulo": "Card da posição: ao vivo, tempo no positivo × negativo, stop por tempo e BOOST"
+  },
+  {
+   "versao": "0.32.428",
+   "inicio": "2026-11-21T16:50:40+00:00",
+   "titulo": "Dormant: Alertas da blockchain só com as redes (Tron, Cardano, Hyperliquid…)"
   }
  ]
 }

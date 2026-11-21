@@ -81,7 +81,7 @@ PV_AGAIN_S = 600                       # …cada pool lido de novo a cada 10 min
 PV_LOTE = 20
 VD_EVERY_S = 30                        # histórico de 30 dias: 1 moeda a cada 30 s, uma vez só (≈ 660 consultas no total)
 VD_DIAS = 31
-ECO_RE = re.compile(r"[a-z0-9-]{2,80}-ecosystem")      # categorias de blockchain da CoinGecko ("tron-ecosystem")
+ECO_RE = re.compile(r"[a-z0-9-]{2,80}")      # id de categoria da CoinGecko ("tron-ecosystem"; a BNB é "binance-smart-chain")
 ECO_LIST_S, ECO_COINS_S = 86400, 600
 CG_URL = re.compile(r"coingecko\.com/(?:[a-z-]+/)?coins/([a-z0-9-]+)", re.I)
 
@@ -90,6 +90,10 @@ def chain_name(k: str | None) -> str:
     if not k:
         return "?"
     return CHAIN_NAMES.get(k) or k.replace("-", " ").title()
+
+
+def slug(s) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(s or "").lower()).strip("-")
 
 
 def norm(s: str) -> str:
@@ -401,14 +405,43 @@ class DormantWatch:
     # Escolhendo uma, mostra as moedas dela com a mesma conta dos Alertas (pump, dump, acordando). A maioria não está na lista,
     # então é sob demanda: a lista de categorias 1×/dia e as moedas de uma categoria guardadas 10 min (1 consulta, até 250 moedas).
     async def eco_list(self) -> list[dict]:
+        """0.32.426 (dono: "Tron, Cardano, Hyperliquid… os tokens de cada rede"): só as categorias que são REDE. A CoinGecko tem 440+
+        categorias "Ecosystem" e muitas não são blockchain (x402, Morpho, Four.meme); fica só a que bate com uma rede da lista oficial
+        de redes (/asset_platforms) pelo id ou pelo nome. Essas categorias não têm valor de mercado na API: a ordem é pela quantidade
+        de tokens que a CoinGecko lista em cada rede (Ethereum, BNB, Solana, Base… primeiro)."""
         now = time.time()
         if self._eco and now - self._eco_t < ECO_LIST_S:
             return self._eco
-        rows = await self.get("/coins/categories", {"order": "market_cap_desc"}) or []
-        out = [{"id": r["id"], "nome": str(r.get("name") or r["id"]).replace(" Ecosystem", ""), "mcap": r.get("market_cap"),
-                "vol24": r.get("volume_24h"), "h24": r.get("market_cap_change_24h")}
-               for r in rows if isinstance(r, dict) and ECO_RE.fullmatch(str(r.get("id") or ""))]
-        out.sort(key=lambda e: -(e["mcap"] or 0))         # a CoinGecko nem sempre respeita a ordem pedida
+        cats = await self.get("/coins/categories/list") or []
+        plats = await self.get("/asset_platforms") or []
+        keys = {}
+        for p in plats:
+            if isinstance(p, dict) and p.get("id"):
+                for k in (p["id"], slug(p.get("name")), slug(p.get("shortname"))):
+                    if k:
+                        keys.setdefault(k, p["id"])
+        if not self.cgnames:
+            try:
+                await self._cglist()
+            except Exception:                          # sem a contagem a lista sai em ordem alfabética
+                pass
+        n_tok: dict[str, int] = {}
+        for _, _, pl, *_ in self.cgnames.values():
+            for p in pl:
+                n_tok[p] = n_tok.get(p, 0) + 1
+        out, seen = [], set()
+        for c in cats:
+            cid, name = str((c or {}).get("category_id") or ""), str((c or {}).get("name") or "")
+            if not name.endswith(" Ecosystem") or not ECO_RE.fullmatch(cid):
+                continue
+            nome = name[:-len(" Ecosystem")].strip()
+            pre = cid[:-len("-ecosystem")] if cid.endswith("-ecosystem") else cid
+            plat = next((keys[k] for k in (cid, pre, slug(nome)) if k in keys), None)
+            if not plat or plat in seen:
+                continue
+            seen.add(plat)
+            out.append({"id": cid, "nome": nome, "plat": plat, "tokens": n_tok.get(plat, 0)})
+        out.sort(key=lambda e: (-e["tokens"], e["nome"].lower()))
         if out:
             self._eco, self._eco_t = out, now
         return out or self._eco

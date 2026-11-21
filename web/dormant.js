@@ -232,7 +232,7 @@
     $("alLista").hidden = AL !== "lista"; $("alEco").hidden = AL !== "eco";
     $("alSub").textContent = AL === "lista"
       ? 'uma linha por moeda que mudou para pump, dump ou acordando · 1 h e 24 h são de agora, iguais à CoinGecko · "O que aconteceu" mostra cada alerta com a hora e quanto mexia naquela hora'
-      : "categorias de blockchain da CoinGecko · escolha uma para ver as moedas dela (até 250, por valor de mercado) com a mesma conta dos Alertas · a maioria não está na sua lista: use Adicionar para vigiar";
+      : "as redes da CoinGecko (Ethereum, BNB Chain, Solana, Tron, Cardano, Hyperliquid…), as com mais tokens primeiro · escolha uma para ver os tokens dela (até 250, por valor de mercado) com a mesma conta dos Alertas · a maioria não está na sua lista: use Adicionar para vigiar";
     if (AL === "eco") ecoOpen();
   }
   async function ecoOpen() {
@@ -252,8 +252,8 @@
     const vis = q ? L.filter((e) => fold(e.nome).includes(q) || e.id.includes(q)) : L.slice(0, ECO_TOP);
     if (ECO.sel && !vis.some((e) => e.id === ECO.sel)) { const s = L.find((e) => e.id === ECO.sel); if (s) vis.unshift(s); }
     $("ecoCh").innerHTML = vis.map((e) => '<button type="button" class="dmchip' + (ECO.sel === e.id ? " on" : "") + '" data-eco="' + esc(e.id) + '" aria-pressed="' + (ECO.sel === e.id) +
-      '" title="valor de mercado ' + esc(usd(e.mcap)) + " · volume 24 h " + esc(usd(e.vol24)) + '">' + chainTag(e.nome) + (e.h24 != null ? "<small>" + pc(e.h24) + "</small>" : "") + "</button>").join("") +
-      (!q && L.length > ECO_TOP ? '<span class="muted small">+' + (L.length - ECO_TOP) + " blockchains: use a busca</span>" : "") + (q && !vis.length ? '<span class="muted">nenhuma blockchain com esse nome</span>' : "");
+      '" title="' + num(e.tokens || 0, 0) + ' tokens desta rede na CoinGecko">' + chainTag(e.nome) + (e.tokens ? '<small class="muted">' + num(e.tokens, 0) + "</small>" : "") + "</button>").join("") +
+      (!q && L.length > ECO_TOP ? '<span class="muted small">+' + (L.length - ECO_TOP) + " redes: use a busca (ex.: Cardano, Hyperliquid)</span>" : "") + (q && !vis.length ? '<span class="muted">nenhuma blockchain com esse nome</span>' : "");
   }
   async function ecoLoad(id) {
     ECO.sel = id; alSave("dm_eco", id); ecoChips();
