@@ -2825,6 +2825,11 @@
    "versao": "0.32.413",
    "inicio": "2026-11-21T08:20:40+00:00",
    "titulo": "Dormant: venda sem digitar VENDER e lucro real sem as taxas"
+  },
+  {
+   "versao": "0.32.414",
+   "inicio": "2026-11-21T08:31:20+00:00",
+   "titulo": "Dormant: cartão da moeda depois da venda sem parecer prejuízo"
   }
  ]
 }

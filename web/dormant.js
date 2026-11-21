@@ -1181,7 +1181,12 @@
     const kv = (l, v) => "<div><small>" + l + "</small><b>" + v + "</b></div>";
     $("cpT").innerHTML = ok.length ? ok.map((x) => '<div class="cpc"><div class="t"><b' + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda" style="cursor:pointer"' : "") + '>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
       '<div>' + chainTag(x.rede_nome) + "</div>" + '<div class="n">' + esc(x.nome) + " · " + esc(x.dex || "") + (x.rota ? " · " + esc(x.rota) : "") + "</div>" +
-      '<div class="g">' + kv("Total", pc(x.total)) + kv("Investido", "$" + num(x.custo, 2)) + kv("Valor agora", x.valor == null ? "—" : "$" + num(x.valor, 2)) +
+      // 0.32.414 (pedido do dono): depois de vender, "Investido × Valor agora" parecia prejuízo; mostra quanto do investido já voltou
+      // e quanto vale o que sobrou. O investido continua na janela Compra e vendas
+      '<div class="g">' + kv("Total", pc(x.total)) + (x.vendido
+        ? kv("Investido que voltou", x.custo ? '<span title="recebeu $' + num(x.recebido, 2) + " de $" + num(x.custo, 2) + ' investidos; o investido conta o gás da compra e o recebido já desconta o gás da venda" class="' + (x.recebido >= x.custo ? "up" : "") + '">' + num(Math.min(999, x.recebido / x.custo * 100), 0) + "%" + (x.recebido >= x.custo ? " ✓" : "") + "</span>" : "—") +
+          kv("O que sobrou vale", x.valor == null ? "—" : "$" + num(x.valor, 2))
+        : kv("Investido", "$" + num(x.custo, 2)) + kv("Valor agora", x.valor == null ? "—" : "$" + num(x.valor, 2))) +
       kv("Quantidade", qtd(x.qty)) + kv("Preço pago", price(x.px_in)) + kv("Agora", price(x.px_agora)) + "</div>" +
       (x.vendido ? '<div class="g">' + kv("Vendido", qtd(x.vendido)) + kv("Recebeu", "$" + num(x.recebido, 2)) + kv("Ainda tem", qtd(x.resto)) + "</div>" : "") +
       '<div class="g q">' + kv("1 h", pc(x.h1)) + kv("12 h", pc(x.h12)) + kv("24 h", pc(x.h24)) + kv("7 dias", pc(x.h168)) + "</div>" +
