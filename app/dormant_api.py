@@ -43,6 +43,14 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
         w.refresh_now()
         return {"ok": True}
 
+    # 0.32.405: gráfico de 3 meses, 1 ano e tudo (carregado quando a pessoa clica no período)
+    @app.get("/api/dormant/grafico")
+    async def dormant_chart(key: str = "", dias: str = "", u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        return await w.chart_long(key[:200], dias[:5])
+
     @app.get("/api/dormant/moeda")
     async def dormant_coin(key: str = "", u: dict = Depends(admin_only)):
         w = get_watch()

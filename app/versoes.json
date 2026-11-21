@@ -2780,6 +2780,11 @@
    "versao": "0.32.404",
    "inicio": "2026-11-21T05:59:32+00:00",
    "titulo": "Dormant: venda automática ao chegar a +10% até +100%"
+  },
+  {
+   "versao": "0.32.405",
+   "inicio": "2026-11-21T06:05:23+00:00",
+   "titulo": "Dormant: gráfico da moeda com 1 mês, 3 meses, 1 ano e tudo"
   }
  ]
 }

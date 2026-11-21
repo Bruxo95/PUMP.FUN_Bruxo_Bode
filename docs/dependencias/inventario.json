@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "fb8219427af0d8f3623e3e59590dc008113386d3",
-    "application_version": "0.32.404 · 2026-11-21 · Dormant: venda automática ao chegar a +10% até +100%",
+    "repository_reference": "eea330e11e7fd359f3491baef8896dd4e58d9853",
+    "application_version": "0.32.405 · 2026-11-21 · Dormant: gráfico da moeda com 1 mês, 3 meses, 1 ano e tudo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "bdbf8c7d1df33399b4bdbe330a074c8e66155f8ca0979fbcb2751259c2f8fe34",
+      "app/version.py": "309d14df83e542a95e89153b6f7171e9c6dd707c1e4f1274b3d54f46e052055a",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e659659eadfd51bd2719afab47ff4365eaf43ad6172bc19b78edfc760c25b709"
+  "pdf_sha256": "38548fc71918ee25e1cee9d4d551096b630cf7d2667b5deaacdac3cad85a4051"
 }

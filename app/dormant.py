@@ -784,6 +784,48 @@ class DormantWatch:
             return it
 
     # 0.32.232 (pedido do dono): janela da moeda, com gráfico de 30 dias e as últimas negociações na blockchain (só quando abre)
+    # 0.32.405 (pedido do dono, 21/11): gráfico de 3 meses, 1 ano e tudo, carregado só quando a pessoa pede (a janela da moeda já traz 24 h, 7 dias e 30 dias).
+    # CoinGecko: 90 dias = pontos de hora em hora, 365 e max = um ponto por dia. A chave Demo só enxerga 1 ano para trás: se "max" for recusado, o gráfico
+    # de tudo vem do pool da DEX (velas diárias da GeckoTerminal, até 1.000 dias) e a tela diz de onde veio.
+    async def chart_long(self, key: str, dias: str) -> dict:
+        if dias not in ("90", "365", "max"):
+            return {"erro": "período inválido"}
+        m = next((x for x in self.todas() if x["cmc"] == key), None)
+        cid = self.item(m).get("cg") if m else None
+        if not cid:
+            return {"erro": "moeda sem par na CoinGecko"}
+        now = time.time()
+        cache = self.__dict__.setdefault("_det", {})
+        ck = ("long", cid, dias)
+        c = cache.get(ck)
+        if c and now - c[0] < (3600 if "erro" not in c[1] else 120):
+            return c[1]
+        out, why = None, None
+        try:
+            r = await self.get(f"/coins/{cid}/market_chart", {"vs_currency": "usd", "days": dias})
+            pr = [[int(p[0] / 1000), p[1]] for p in (r.get("prices") or []) if p and p[1] is not None]
+            if len(pr) < 2:
+                raise RuntimeError("a CoinGecko não devolveu pontos")
+            out = {"precos": pr, "volumes": [[int(p[0] / 1000), p[1]] for p in (r.get("total_volumes") or []) if p and p[1] is not None], "fonte": "CoinGecko"}
+        except Exception as e:
+            why = str(e)[:160]
+        if out is None:
+            tg, pool = self.target(cid), (self.gtpool.get(cid) or {}).get("pool")
+            if tg and pool:
+                try:
+                    r = await self.gt_get(f"/networks/{tg[1]}/pools/{pool}/ohlcv/day?limit={1000 if dias == 'max' else int(dias)}")
+                    lst = sorted(((r or {}).get("data") or {}).get("attributes", {}).get("ohlcv_list") or [], key=lambda v: v[0])
+                    pr = [[int(v[0]), v[4]] for v in lst if v and v[4] is not None]
+                    if len(pr) < 2:
+                        raise RuntimeError("o pool da DEX ainda não tem histórico")
+                    out = {"precos": pr, "volumes": [[int(v[0]), v[5]] for v in lst if v and v[5] is not None], "fonte": "DEX (GeckoTerminal)", "aviso": why}
+                except Exception as e:
+                    why = (why or "CoinGecko sem resposta") + " · DEX: " + str(e)[:80]
+            if out is None:
+                out = {"erro": why or "sem histórico para este período"}
+        cache[ck] = (now, out)
+        return out
+
     async def detail(self, key: str) -> dict | None:
         m = next((x for x in self.todas() if x["cmc"] == key), None)
         if m is None:

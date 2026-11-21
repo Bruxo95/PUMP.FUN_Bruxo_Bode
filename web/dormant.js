@@ -312,7 +312,7 @@
     h += '<div class="card" style="margin-top:12px"><header><div><h2>Gráfico</h2><div class="sub">' + esc(fonte === "CoinGecko" ? "preço em dólar (CoinGecko)" : "preço em dólar do pool da DEX (" + fonte + "), porque a CoinGecko pediu para esperar") +
       ' · passe o mouse ou o dedo para ver cada ponto</div></div><div class="sp"></div>' +
       '<div class="seg" id="cmSrc"><button data-cms="cg" class="on">Preço</button><button data-cms="gt">DEX · GeckoTerminal</button><button data-cms="ds">DEX · DexScreener</button></div>' +
-      '<div class="seg" id="cmRng"><button data-cmr="1">24 h</button><button data-cmr="7">7 dias</button><button data-cmr="30">30 dias</button></div></header>' +
+      '<div class="seg" id="cmRng"><button data-cmr="1">24 h</button><button data-cmr="7">7 dias</button><button data-cmr="30">1 mês</button><button data-cmr="90">3 meses</button><button data-cmr="365">1 ano</button><button data-cmr="0">Tudo</button></div></header>' +
       '<div class="cmchart" id="cmChart">' + (r ? "" : '<span class="muted">carregando…</span>') + '</div><div class="cmdexbox" id="cmDex" hidden></div>' +
       (r ? '<div style="margin-top:10px"><small class="muted">Ver esta moeda nos gráficos de DEX:</small>' + dexLinks(m, r) + "</div>" : "") + "</div>";
     const n = r && r.negocios;
@@ -338,12 +338,30 @@
     }, 0);
     return h;
   }
-  function drawCoinChart() {
+  // 0.32.405 (pedido do dono): 3 meses, 1 ano e tudo vêm de outra consulta, feita só quando clica (o resultado fica guardado enquanto a janela está aberta)
+  async function longChart(key, rng) {
+    CM.long = CM.long || {};
+    const id = rng === 0 ? "max" : String(rng);
+    if (CM.long[id]) return CM.long[id];
+    const r = await BB.api("/api/dormant/grafico?key=" + encodeURIComponent(key) + "&dias=" + id, { quiet: true });
+    const g = r && !r.error ? r : { erro: (r && r.error) || "não consegui carregar" };
+    if (CM && CM.key === key && !g.erro) CM.long[id] = g;
+    return g;
+  }
+  async function drawCoinChart() {
     const box = $("cmChart"); if (!box || !CM || !CM.r) return;
     document.querySelectorAll("#cmRng button").forEach((b) => b.classList.toggle("on", +b.dataset.cmr === CM.rng));
-    const g = CM.r.grafico || {};
+    const key = CM.key, rng = CM.rng;
+    let g = CM.r.grafico || {};
+    if (rng === 0 || rng > 30) {
+      const hit = CM.long && CM.long[rng === 0 ? "max" : String(rng)];
+      if (!hit) box.innerHTML = '<span class="muted">carregando o histórico…</span>';
+      g = hit || await longChart(key, rng);
+      if (!CM || CM.key !== key || CM.rng !== rng) return;           // clicou em outro período ou fechou enquanto carregava
+    }
     if (g.erro) { box.innerHTML = '<span class="down">' + esc(g.erro) + "</span>"; return; }
-    const lim = Date.now() / 1000 - CM.rng * 86400;
+    const lim = rng === 0 ? 0 : Date.now() / 1000 - rng * 86400;
+    const hh = (t) => (rng === 0 || rng > 90 ? new Date(t * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : hora(t));
     const P = (g.precos || []).filter((p) => p[0] >= lim), Vv = (g.volumes || []).filter((p) => p[0] >= lim);
     if (P.length < 2) { box.innerHTML = '<span class="muted">sem pontos suficientes neste período</span>'; return; }
     const W = 900, H = 220, top = 10, ph = 150, vh = 50;
@@ -358,8 +376,9 @@
       '<polygon points="0,' + (top + ph) + " " + line + " " + W + "," + (top + ph) + '" fill="' + cor + '" fill-opacity=".08"/>' +
       '<polyline points="' + line + '" fill="none" stroke="' + cor + '" stroke-width="2" vector-effect="non-scaling-stroke"/>' +
       '<line id="cmCur" x1="0" x2="0" y1="0" y2="' + H + '" stroke="var(--muted)" stroke-dasharray="3 3" visibility="hidden"/></svg>' +
-      '<div class="cmtip" id="cmTip"></div><div class="sub" style="display:flex;justify-content:space-between"><span>' + hora(t0) + "</span><span>mín " + price(lo) + " · máx " + price(hi) +
-      " · " + pc((P[P.length - 1][1] / P[0][1] - 1) * 100) + "</span><span>" + hora(t1) + "</span></div>";
+      '<div class="cmtip" id="cmTip"></div><div class="sub" style="display:flex;justify-content:space-between"><span>' + hh(t0) + "</span><span>mín " + price(lo) + " · máx " + price(hi) +
+      " · " + pc((P[P.length - 1][1] / P[0][1] - 1) * 100) + "</span><span>" + hh(t1) + "</span></div>" +
+      (g.fonte && g.fonte !== "CoinGecko" && (rng === 0 || rng > 30) ? '<div class="sub muted" style="margin-top:4px">histórico do pool da DEX (' + esc(g.fonte) + "), porque a CoinGecko não entregou este período" + (g.aviso ? ": " + esc(g.aviso) : "") + "</div>" : "");
     const svg = box.querySelector("svg");
     const move = (ev) => {
       const r = svg.getBoundingClientRect(), cx = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width;
@@ -367,7 +386,7 @@
       const cur = $("cmCur"), tip = $("cmTip"); if (!cur || !tip) return;
       cur.setAttribute("x1", X(best[0])); cur.setAttribute("x2", X(best[0])); cur.setAttribute("visibility", "visible");
       const vol = Vv.reduce((a, v) => (Math.abs(v[0] - best[0]) < Math.abs(a[0] - best[0]) ? v : a), Vv[0] || [0, null]);
-      tip.innerHTML = hora(best[0]) + " · <b>" + price(best[1]) + "</b>" + (vol && vol[1] != null ? " · vol. " + usd(vol[1]) : "");
+      tip.innerHTML = hh(best[0]) + " · <b>" + price(best[1]) + "</b>" + (vol && vol[1] != null ? " · vol. " + usd(vol[1]) : "");
       tip.style.display = "block";
       tip.style.left = Math.min(r.width - tip.offsetWidth, Math.max(0, cx * r.width - tip.offsetWidth / 2)) + "px"; tip.style.top = "0px";
     };
