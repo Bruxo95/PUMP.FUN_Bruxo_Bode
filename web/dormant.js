@@ -1196,6 +1196,7 @@
     return null;
   }
   const CP_OPEN = new Set();
+  const REALIZ_MIN = 0.9;          // parte do investido que precisa ter voltado para a compra ir para Lucro realizado
   let CPCH = (() => { try { return localStorage.getItem("dm_cpch") || ""; } catch (e) { return ""; } })();
   const cpChSave = () => { try { localStorage.setItem("dm_cpch", CPCH); } catch (e) { /* sem armazenamento: só não lembra */ } };
   async function drawCompras() {
@@ -1223,14 +1224,17 @@
     const kv = (l, v) => "<div><small>" + l + "</small><b>" + v + "</b></div>";
     // 0.32.418 (pedido do dono): cartão curto (Total, investido e valor + botões); a seta abre o resto. Mais lucro em cima,
     // e as compras em que o investido já voltou inteiro (ou vendidas de todo) vão para o quadro "Lucro realizado"
+    // 0.32.419 (pedido do dono): investido que voltou 90%+ já conta como realizado (caso WOLFI, 93%: sobra de arredondamento da venda);
+    // realizado ganha borda e fundo verdes, compra no prejuízo ganha borda vermelha
+    const realiz = (x) => !x.resto || (x.vendido && x.custo && x.recebido >= x.custo * REALIZ_MIN);
     const card = (x) => {
-      const aberto = CP_OPEN.has(x.id);
-      return '<div class="cpc"><div class="t"><b' + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda" style="cursor:pointer"' : "") + '>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
+      const aberto = CP_OPEN.has(x.id), tom = x.ganho < 0 ? " loss" : realiz(x) ? " win" : "";
+      return '<div class="cpc' + tom + '"><div class="t"><b' + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda" style="cursor:pointer"' : "") + '>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
       '<div class="cpch">' + chainTag(x.rede_nome) + '<button type="button" class="cparr" data-cpopen="' + esc(x.id) + '" aria-expanded="' + aberto + '" title="' + (aberto ? "mostrar menos" : "mostrar tudo") + '">' + (aberto ? "▴" : "▾") + "</button></div>" +
       // 0.32.414 (pedido do dono): depois de vender, "Investido × Valor agora" parecia prejuízo; mostra quanto do investido já voltou
       // e quanto vale o que sobrou. O investido continua na janela Compra e vendas
       '<div class="g">' + kv("Total", pc(x.total)) + (x.vendido
-        ? kv("Investido que voltou", x.custo ? '<span title="recebeu $' + num(x.recebido, 2) + " de $" + num(x.custo, 2) + ' investidos; o investido conta o gás da compra e o recebido já desconta o gás da venda" class="' + (x.recebido >= x.custo ? "up" : "") + '">' + num(Math.min(999, x.recebido / x.custo * 100), 0) + "%" + (x.recebido >= x.custo ? " ✓" : "") + "</span>" : "—") +
+        ? kv("Investido que voltou", x.custo ? '<span title="recebeu $' + num(x.recebido, 2) + " de $" + num(x.custo, 2) + ' investidos; o investido conta o gás da compra e o recebido já desconta o gás da venda" class="' + (x.recebido >= x.custo * REALIZ_MIN ? "up" : "") + '">' + num(Math.min(999, x.recebido / x.custo * 100), 0) + "%" + (x.recebido >= x.custo * REALIZ_MIN ? " ✓" : "") + "</span>" : "—") +
           kv("O que sobrou vale", x.valor == null ? "—" : "$" + num(x.valor, 2))
         : kv("Investido", "$" + num(x.custo, 2)) + kv("Valor agora", x.valor == null ? "—" : "$" + num(x.valor, 2))) + "</div>" +
       (aberto ? '<div class="n">' + esc(x.nome) + " · " + esc(x.dex || "") + (x.rota ? " · " + esc(x.rota) : "") + "</div>" +
@@ -1241,12 +1245,11 @@
       (x.cex ? '<span class="small">vender na exchange</span>' : x.resto ? asCoinBtn(x) + ' <button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') +
       ' <button type="button" class="btn sm" data-dmhist="' + esc(x.id) + '">Compra e vendas</button>' + "</div></div>";
     };
-    const realiz = (x) => !x.resto || (x.vendido && x.custo && x.recebido >= x.custo);
     const porLucro = (a, b) => (b.ganho ?? -Infinity) - (a.ganho ?? -Infinity) || (b.total ?? -Infinity) - (a.total ?? -Infinity);
     const abertas = ok.filter((x) => !realiz(x)).sort(porLucro), feitas = ok.filter(realiz).sort(porLucro);
     $("cpT").innerHTML = abertas.length ? abertas.map(card).join("")
       : '<div class="cpempty">' + (CPCH ? "Nenhuma compra em andamento em " + esc(CPCH) + "." : ok.length ? "Todas as compras já tiveram o investido de volta: veja Lucro realizado abaixo." : "Nenhuma compra ainda. Em Moedas, use o botão Comprar.") + "</div>";
-    $("cpRSub").textContent = feitas.length ? feitas.length + " compra" + (feitas.length > 1 ? "s" : "") + " · o investido já voltou inteiro (ou vendeu tudo); o que sobrar na carteira é lucro" : "";
+    $("cpRSub").textContent = feitas.length ? feitas.length + " compra" + (feitas.length > 1 ? "s" : "") + " · o investido já voltou (90% ou mais) ou vendeu tudo; o que sobrar na carteira é lucro" : "";
     $("cpR").innerHTML = feitas.length ? feitas.map(card).join("") : '<div class="cpempty">Ainda nenhuma: aqui entram as compras em que as vendas já devolveram todo o investido.</div>';
     const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira", cancelada: "cancelada" };
     // 0.32.273: ordem Cardano parada na Minswap (o preço saiu da folga) só volta cancelando

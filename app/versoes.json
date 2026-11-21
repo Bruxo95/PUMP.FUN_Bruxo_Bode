@@ -2850,6 +2850,11 @@
    "versao": "0.32.418",
    "inicio": "2026-11-21T11:43:22+00:00",
    "titulo": "Dormant: compras por lucro, lucro realizado separado e cartões que abrem na seta"
+  },
+  {
+   "versao": "0.32.419",
+   "inicio": "2026-11-21T12:02:06+00:00",
+   "titulo": "Dormant: lucro realizado em verde, prejuízo em vermelho e 90% do investido já conta como realizado"
   }
  ]
 }
