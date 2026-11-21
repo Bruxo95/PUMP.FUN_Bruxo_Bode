@@ -1518,7 +1518,7 @@
   // 0.32.435 (pedido do dono: economizar a API): consultas do BOOST por grupo — as mesmas chaves de Configurações → Consultas
   const BMQ = [["pump_q_boost_novos", "novos", "Tokens novos (curva)"], ["pump_q_boost_ativo", "ativo", "BOOST ativo (migrou)"], ["pump_q_boost_migrou", "migrou", "Depois do BOOST (migraram)"]];
   function renderBmQ(r) {
-    const el = $("bmQ"), q = ((r || {}).novos || {}).consultas; if (!el || !q) return;
+    const el = $("bmQ"), q = (r || {}).consultas || ((r || {}).novos || {}).consultas; if (!el || !q) return;   // 0.32.436: a API manda no topo
     const adm = !!(ME && ME.role === "admin" && !ME.view_by);
     el.innerHTML = '<span class="small muted">Consultas (servidor todo):</span>' + BMQ.map(([k, g, n]) => '<span class="bmqi"><span class="small">' + n + "</span>" +
       '<button type="button" class="btn sm tgl sw' + (q[g] ? " on" : "") + '" role="switch" aria-checked="' + (q[g] ? "true" : "false") + '" aria-label="Consultas: ' + n + '" data-bmq="' + k + '"' + (adm ? "" : " disabled") + ">" + (q[g] ? "Ligado" : "Desligado") + "</button></span>").join("");

@@ -191,3 +191,12 @@ def test_consultas_do_boost_por_grupo():
     assert not bm.q_ok(b, now) and bm.q_ok(old, now)
     bm.q.update(ativo=True, migrou=False)
     assert bm.q_ok(b, now) and not bm.q_ok(old, now)
+
+
+def test_tela_le_as_chaves_de_consulta_onde_a_api_manda():
+    """0.32.436: os botões não apareciam — a API manda "consultas" no topo da resposta e a tela lia dentro de "novos"."""
+    import pathlib
+    import inspect
+    js = pathlib.Path("web/app.js").read_text(encoding="utf-8")
+    assert "(r || {}).consultas ||" in js
+    assert '"consultas": dict(bm.q)' in inspect.getsource(PumpHub.bm_state)

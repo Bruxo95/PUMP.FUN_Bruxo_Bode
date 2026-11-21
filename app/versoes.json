@@ -2935,6 +2935,11 @@
    "versao": "0.32.435",
    "inicio": "2026-11-21T19:40:00+00:00",
    "titulo": "BOOST: botões para ligar e desligar as consultas de tokens novos, BOOST ativo e depois do BOOST"
+  },
+  {
+   "versao": "0.32.436",
+   "inicio": "2026-11-21T19:45:00+00:00",
+   "titulo": "BOOST: os botões das consultas aparecem no topo da lista"
   }
  ]
 }
