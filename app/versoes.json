@@ -2800,6 +2800,11 @@
    "versao": "0.32.408",
    "inicio": "2026-11-21T06:31:15+00:00",
    "titulo": "Dormant: buscar moeda pelo contrato e busca que filtra a cada letra na Visão geral"
+  },
+  {
+   "versao": "0.32.409",
+   "inicio": "2026-11-21T06:49:05+00:00",
+   "titulo": "Dormant: senha de compra desligável em Carteiras e compra"
   }
  ]
 }

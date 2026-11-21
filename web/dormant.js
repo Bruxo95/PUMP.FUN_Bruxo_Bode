@@ -629,7 +629,7 @@
       line("Chega na carteira", '<span class="cmaddr">' + esc(r.recebedor) + "</span>") + "</tbody></table></div>" +
       list("buybad", "Não dá para abastecer:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
     if (r.quote_id) {
-      h += '<div class="buyform"><div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+      h += '<div class="buyform"><div class="pwfield"><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
         '<div><label for="buyOk">Digite ABASTECER para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
         '<div class="row dmact"><button class="btn primary" type="button" id="gasGo">Abastecer agora</button><span class="muted small" id="buyTime"></span></div></div>';
     }
@@ -679,6 +679,7 @@
     if (w.trava_s) avisos.push("Senha errada muitas vezes: compras e chaves travadas por mais " + Math.max(1, Math.round(w.trava_s / 60)) + " min.");
     $("wWarn").hidden = !avisos.length; $("wWarn").textContent = avisos.join(" ");
     $("wLim").innerHTML = LIM.map((x) => '<div class="field"><label for="wl_' + x[0] + '">' + esc(x[1]) + '</label><div class="row"><input class="in w100" id="wl_' + x[0] + '" type="number" step="any" min="' + esc(w.limites[x[0]][0]) + '" max="' + esc(w.limites[x[0]][1]) + '" value="' + esc(c[x[0]]) + '"><span class="muted">' + esc(x[2]) + "</span></div></div>").join("");
+    setPwMode(!!(w.cfg && w.cfg.sem_senha)); drawPwMode();
     $("wPassT").textContent = w.tem_senha ? "Senha de compra" : "Crie a senha de compra";
     $("wPassS").textContent = w.tem_senha ? "digite aqui para salvar uma carteira ou subir um limite" : "mínimo de " + w.senha_min + " caracteres · vale para todas as carteiras · não dá para recuperar, guarde num lugar seguro";
     $("wPass").placeholder = w.tem_senha ? "senha de compra" : "senha nova"; $("wPass2").hidden = w.tem_senha; $("wPassCh").hidden = !w.tem_senha;
@@ -705,7 +706,7 @@
     const f = $("askMB").querySelector("input"); if (f) setTimeout(() => f.focus(), 50);
   }
   const closeAsk = () => { $("askM").hidden = true; $("askMB").innerHTML = ""; ASK = null; };
-  const askPass = (label) => '<div class="buyform"><div><label for="askSenha">' + esc(label) + '</label><input class="in" id="askSenha" type="password" autocomplete="off" spellcheck="false"></div>';
+  const askPass = (label) => '<div class="buyform"><div class="pwfield"><label for="askSenha">' + esc(label) + '</label><input class="in" id="askSenha" type="password" autocomplete="off" spellcheck="false"></div>';
   // compra: passo 1 valor, passo 2 confere e confirma, passo 3 resultado
   let BUY = null;
   function closeBuy() { clearPass(); if (BUY && BUY.timer) clearInterval(BUY.timer); BUY = null; $("buyM").hidden = true; $("buyMB").innerHTML = ""; }
@@ -780,7 +781,7 @@
     if (r.quote_id) {
       // 0.32.263 (pedido do dono): "o dono pode mudar o saldo" não barra mais; a compra só sai marcando que entende o risco (o servidor confere)
       h += '<div class="buyform">' + (r.risco ? '<label class="buyrisk"><input type="checkbox" id="buyRisk"> <span>Entendo o risco: quem controla este contrato pode apagar moedas da minha carteira. Quero comprar mesmo assim.</span></label>' : "") +
-        '<div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+        '<div class="pwfield"><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
         '<div class="row dmact"><button class="btn primary" type="button" id="buyGo">Comprar agora</button><span class="muted small" id="buyTime"></span></div></div>';
     }
     $("buyPrev").innerHTML = h;
@@ -852,7 +853,7 @@
       line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") + "</tbody></table></div>" +
       list("buybad", "Não dá para vender:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
     if (r.quote_id) {
-      h += '<div class="buyform"><div><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+      h += '<div class="buyform"><div class="pwfield"><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
         '<div><label for="buyOk">Digite VENDER para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
         '<div class="row dmact"><button class="btn primary" type="button" id="sellGo">Vender agora</button><span class="muted small" id="buyTime"></span></div></div>';
     }
@@ -984,7 +985,7 @@
     BUY.ex = ex;
     $("buyMB").innerHTML = '<div class="buyform"><div class="muted small">Comprando na <b>' + esc(nome) + '</b>, pagando em USDT.</div>' +
       '<div><label for="cxUsd">Quanto gastar, em USDT</label><input class="in" id="cxUsd" type="number" step="any" min="0" inputmode="decimal"></div>' +
-      '<div><label for="buySenha">Senha de compra (para ler o saldo na exchange)</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
+      '<div class="pwfield"><label for="buySenha">Senha de compra (para ler o saldo na exchange)</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
       '<div class="row dmact"><button class="btn primary" type="button" id="cxQuote">Ver cotação</button><span class="muted small">só mostra; nenhuma ordem é enviada neste passo</span></div></div><div id="buyPrev"></div>';
   }
   async function cxQuote() {
@@ -1035,6 +1036,21 @@
       '<div class="row dmact" style="margin-top:10px"><a class="btn primary" href="#compras" id="buyHist">Ver em Minhas compras</a></div>';
   }
   let CP_ITENS = [];
+  // 0.32.409 (pedido do dono): a senha de compra pode ser desligada em Carteiras e compra. NOPW = desligada: os campos de senha somem (.pwfield) e nada pede senha.
+  let NOPW = false;
+  function setPwMode(v) { NOPW = v === true; document.body.classList.toggle("nopw", NOPW); }
+  async function loadPwMode() { const r = await BB.api("/api/dormant/senha", { quiet: true }); if (r && !r.error) setPwMode(r.sem_senha); }
+  function drawPwMode() {
+    const box = $("pwModeCard"); if (!box) return;
+    box.innerHTML = NOPW
+      ? '<header><div><h2>Senha de compra: desligada</h2><div class="sub">comprar, vender, a venda automática e salvar chaves não pedem nada</div></div></header>' +
+        '<div class="pwwarn">Com a senha desligada as chaves ficam protegidas só pela chave mestra do servidor, e quem entrar na sua conta do painel consegue comprar e vender (os limites em dólar, a chave geral das compras e a trava do servidor continuam valendo). A venda automática passa a funcionar também depois que o servidor reinicia.</div>' +
+        '<button type="button" class="btn primary sm" data-pwmode="on">Ligar a senha de compra</button>'
+      : '<header><div><h2>Senha de compra: ligada</h2><div class="sub">cada compra, venda e troca de chave pede a senha</div></div></header>' +
+        '<p class="small muted" style="margin:0 0 10px">Desligar tira a senha de tudo: compra, venda, venda automática (que passa a continuar depois de reiniciar o servidor), chaves de exchange e carteiras. Você digita a senha atual uma vez, só para o servidor cifrar tudo de novo sem ela.</p>' +
+        '<button type="button" class="btn sm" data-pwmode="off">Desligar a senha de compra</button>';
+    const card = $("wPassT") && $("wPassT").closest(".card"); if (card) card.hidden = NOPW;
+  }
   // 0.32.404 (pedido do dono): venda automática. Escolhe o alvo (+10% … +100%); ligar pede a senha de compra numa janela, desligar não pede nada
   let AS_ST = null;
   function drawAutoSell(a) {
@@ -1050,7 +1066,7 @@
       a.pcts.map((p) => '<option value="' + p + '"' + (String(p) === sel ? " selected" : "") + ">" + p + "%</option>").join("") + "</select>" +
       (a.on ? '<button type="button" class="btn sm" data-asgo="off">Desligar</button>' : '<button type="button" class="btn primary sm" data-asgo="on">Ativar venda automática</button>') +
       (a.precisa_senha ? ' <button type="button" class="btn primary sm" data-asgo="back">Digitar a senha e voltar</button>' : "") + " " + estado + "</div>" +
-      '<p class="small muted" style="margin:10px 0 0">Cada quadrado abaixo também tem o seu botão <b>Venda automática</b>, com alvo próprio que vale no lugar do geral. A senha fica só na memória do servidor, nunca no banco: se o servidor reiniciar, a venda automática pausa até você digitar a senha de novo. Vender usa o mesmo caminho da venda manual (mesmas conferências); se alguma conferência barrar, ele espera e tenta de novo mais tarde. Só vende com preço da CoinGecko de menos de 45 minutos.</p>' +
+      '<p class="small muted" style="margin:10px 0 0">Cada quadrado abaixo também tem o seu botão <b>Venda automática</b>, com alvo próprio que vale no lugar do geral. ' + (a.sem_senha ? 'A senha de compra está desligada: a venda automática continua mesmo depois que o servidor reinicia.' : 'A senha fica só na memória do servidor, nunca no banco: se o servidor reiniciar, a venda automática pausa até você digitar a senha de novo.') + ' Vender usa o mesmo caminho da venda manual (mesmas conferências); se alguma conferência barrar, ele espera e tenta de novo mais tarde. Só vende com preço da CoinGecko de menos de 45 minutos.</p>' +
       (a.log && a.log.length ? '<div class="aslog">' + a.log.slice().reverse().map((x) => "<div>" + esc(hora(x.t)) + " · " + esc(x.msg) + "</div>").join("") + "</div>" : "");
   }
   // botão de venda automática de cada compra: alvo próprio, "usar a geral" ou "desligada nesta compra"
@@ -1066,7 +1082,7 @@
       (a.pcts || []).map((p) => '<option value="' + p + '"' + (v === p ? " selected" : "") + ">Vender quando chegar a +" + p + "%</option>").join("");
     ask("Venda automática de " + (x.simbolo || x.nome), '<p class="muted small">Vale só para esta compra e no lugar da venda automática geral. Quando o total dela chegar ao alvo, o servidor vende todo o saldo deste token na carteira.</p>' +
       '<div class="buyform"><div><label for="asCoinPct">Alvo</label><select class="in" id="asCoinPct">' + opts + "</select></div>" +
-      (need ? '<div><label for="askSenha">Senha de compra (só para ligar)</label><input class="in" id="askSenha" type="password" autocomplete="off" spellcheck="false"></div>' : "") +
+      (need ? '<div class="pwfield"><label for="askSenha">Senha de compra (só para ligar)</label><input class="in" id="askSenha" type="password" autocomplete="off" spellcheck="false"></div>' : "") +
       '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Salvar</button></div></div>', async (b) => {
       const sel = $("asCoinPct").value, pct = sel === "g" ? null : Number(sel);
       b.disabled = true;
@@ -1232,6 +1248,33 @@
     if (t.id === "cxQuote") { cxQuote(); return; }
     if (t.id === "cxGo") { cxGo(t); return; }
     if (t.dataset.ascoin) { askAsCoin(t.dataset.ascoin); return; }
+    if (t.dataset.pwmode === "off") {
+      ask("Desligar a senha de compra", '<p class="muted small">Depois disso nada mais pede senha. Digite a senha atual uma vez: o servidor abre cada chave com ela e cifra de novo só com a chave dele.</p>' +
+        (WAL && WAL.tem_senha ? '<div class="buyform"><div><label for="askSenha">Senha de compra atual</label><input class="in" id="askSenha" type="password" autocomplete="off" spellcheck="false"></div>' : '<div class="buyform">') +
+        '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Desligar a senha</button></div></div>', async (b) => {
+        b.disabled = true;
+        const r = await BB.api("/api/dormant/senha/modo", { body: { desligar: true, senha: $("askSenha") ? $("askSenha").value : "" } });
+        b.disabled = false; if ($("askSenha")) $("askSenha").value = "";
+        if (r && r.error) { alert(r.error); return; }
+        closeAsk(); setPwMode(true); loadWal(); if (VIEW === "compras") drawCompras();
+      });
+      return;
+    }
+    if (t.dataset.pwmode === "on") {
+      const tem = !!(WAL && WAL.tem_senha);
+      ask("Ligar a senha de compra", '<p class="muted small">' + (tem ? "Escolha uma senha nova: o servidor cifra de novo todas as chaves com ela. Não dá para recuperar se você esquecer." : "Daqui para a frente a senha será pedida em cada compra, venda e chave.") + "</p>" +
+        (tem ? '<div class="buyform"><div><label for="askSenha">Senha nova</label><input class="in" id="askSenha" type="password" autocomplete="new-password" spellcheck="false"></div>' +
+          '<div><label for="askSenha2">Repita a senha nova</label><input class="in" id="askSenha2" type="password" autocomplete="new-password" spellcheck="false"></div>' : '<div class="buyform">') +
+        '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Ligar a senha</button></div></div>', async (b) => {
+        if (tem && $("askSenha").value !== $("askSenha2").value) { alert("As duas senhas estão diferentes."); return; }
+        b.disabled = true;
+        const r = await BB.api("/api/dormant/senha/modo", { body: { desligar: false, nova: tem ? $("askSenha").value : "" } });
+        b.disabled = false; if ($("askSenha")) { $("askSenha").value = ""; $("askSenha2").value = ""; }
+        if (r && r.error) { alert(r.error); return; }
+        closeAsk(); setPwMode(false); loadWal(); if (VIEW === "compras") drawCompras();
+      });
+      return;
+    }
     if (t.dataset.asgo) {
       const pct = ($("asPct") || {}).value || 50;
       if (t.dataset.asgo === "back") {
@@ -1246,6 +1289,7 @@
         return;
       }
       if (t.dataset.asgo === "off") { const e = await autoSellSet(false, pct, ""); if (e) alert(e); return; }
+      if (NOPW) { const e = await autoSellSet(true, pct, ""); if (e) alert(e); return; }
       ask("Ativar a venda automática", '<p class="muted small">Quando uma compra chegar a <b>+' + esc(pct) + '%</b>, o servidor vende todo o saldo daquele token da carteira sozinho. Digite a senha de compra: ela fica só na memória do servidor, até você desligar ou o servidor reiniciar.</p>' + askPass("Senha de compra") +
         '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Ativar</button></div></div>', async (b) => {
         b.disabled = true;
@@ -1306,7 +1350,7 @@
     if (t.dataset.wsave) {
       const rede = t.dataset.wsave, f = $("wk_" + rede), senha = $("wPass").value, e2 = $("we_" + rede);
       if (!f.value.trim()) { alert(rede === "cardano" ? "Cole a frase de recuperação." : rede === "osmosis" ? "Cole a frase de recuperação ou a chave privada." : "Cole a chave privada."); return; }
-      if (!WAL.tem_senha && senha !== $("wPass2").value) { alert("As duas senhas estão diferentes."); return; }
+      if (!NOPW && !WAL.tem_senha && senha !== $("wPass2").value) { alert("As duas senhas estão diferentes."); return; }
       t.disabled = true;
       const r = await BB.api("/api/dormant/carteiras/salvar", { body: { rede, chave: f.value, senha, todas_evm: !!(e2 && e2.checked) } });
       t.disabled = false; f.value = "";
@@ -1315,7 +1359,7 @@
     }
     if (t.dataset.wcopy) {
       const senha = $("wPass").value;
-      if (!senha) { alert("Digite a senha de compra no campo acima."); $("wPass").focus(); return; }
+      if (!NOPW && !senha) { alert("Digite a senha de compra no campo acima."); $("wPass").focus(); return; }
       t.disabled = true;
       const r = await BB.api("/api/dormant/carteiras/copiar", { body: { senha } });
       t.disabled = false;
@@ -1421,6 +1465,7 @@
     READY = true;
     route();
     loadFav();
+    loadPwMode();
   }
   window.addEventListener("hashchange", route);
   document.addEventListener("visibilitychange", load);

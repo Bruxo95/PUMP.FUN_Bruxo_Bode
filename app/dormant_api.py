@@ -388,6 +388,21 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"ok": True, "autosell": r}
         return await run(go())
 
+    # 0.32.409: a senha de compra pode ser desligada. Ligar/desligar pede a senha atual (desligar) ou uma senha nova (ligar) uma vez, para cifrar tudo de novo
+    @app.get("/api/dormant/senha")
+    async def pw_state(u: dict = Depends(own)):
+        return {"sem_senha": (await buyer().cfg(u["id"]))["sem_senha"]}
+
+    @app.post("/api/dormant/senha/modo")
+    async def pw_mode(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            off = b.get("desligar") is True
+            r = await buyer().set_senha_mode(u["id"], off, b.get("senha"), b.get("nova"))
+            await audit(db, u["id"], "Dormant: senha de compra " + ("DESLIGADA" if off else "ligada"), f"{r.get('recifradas', 0)} chaves cifradas de novo")
+            return {"ok": True, **r}
+        return await run(go())
+
     # 0.32.407: alvo de venda automática só de uma compra (cada quadrado de Minhas compras)
     @app.post("/api/dormant/venda-auto/moeda")
     async def autosell_coin(body: dict, u: dict = Depends(own)):

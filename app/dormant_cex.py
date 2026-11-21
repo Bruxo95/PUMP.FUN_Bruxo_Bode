@@ -469,14 +469,17 @@ class CexBuyer:
             # 0.32.320 (pedido do dono): chave NOVA entra sem senha de compra; trocar uma chave já salva pede a senha.
             # Sem senha a chave fica só com a cifra do servidor (info.sem_senha) e a próxima troca/alteração de senha a passa para a senha.
             antiga = await b.db.select("dormant_cex_keys", {"user_id": uid, "exchange": ex}, limit=1) or []
-            sem = not antiga and not senha
-            if antiga and not senha:
-                if await b._any_secret(uid):
-                    raise BuyError("para trocar uma chave já salva, digite a senha de compra")
-            elif not sem:
-                await b._check_senha(uid, senha)
-            if antiga and not senha:
-                sem = True                                  # só chaves sem senha existem: não há senha para conferir
+            if await b._sem(uid):                           # 0.32.409: senha de compra desligada em Carteiras e compra
+                sem = True
+            else:
+                sem = not antiga and not senha
+                if antiga and not senha:
+                    if await b._any_secret(uid):
+                        raise BuyError("para trocar uma chave já salva, digite a senha de compra")
+                elif not sem:
+                    await b._check_senha(uid, senha)
+                if antiga and not senha:
+                    sem = True                              # só chaves sem senha existem: não há senha para conferir
             c = await conn.check_key(keys)                 # chave errada ou com saque nem chega ao cofre
             if c["saque"]:
                 raise BuyError("esta chave pode SACAR: não guardo. Crie outra só com permissão de negociar (spot), sem saque.")

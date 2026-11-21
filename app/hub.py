@@ -4233,11 +4233,29 @@ class PumpHub:
         """0.32.404: venda automática do Dormant. Só age para conta que ligou (a senha está na memória do servidor); depois de reiniciar, ninguém vende até ligar de novo."""
         while True:
             await asyncio.sleep(60)
-            b = getattr(getattr(self, "dormant", None), "buyer", None)
-            if b is None or not b._as_pw:
+            w = getattr(self, "dormant", None)
+            if w is None:
                 continue
-            for uid in list(b._as_pw):
+            b = getattr(w, "buyer", None)
+            if b is None:                                   # 0.32.409: com a senha desligada a venda automática vale sem ninguém abrir a página
+                from .dormant_buy import Buyer
+                b = w.buyer = Buyer(w.http, self.db, self.vault.box, w, allowed=lambda: self.real_allowed,
+                                    sys_key=lambda n: (getattr(self, "system_keys", None) or {}).get(n, ""))
+            try:
+                rows = await self.db.select("dormant_buy_cfg", None, columns="user_id,cfg") or []
+            except Exception as e:
+                log.warning("Dormant: venda automática não leu a configuração (%s)", type(e).__name__)
+                continue
+            for r in rows:
+                c, uid = r.get("cfg") or {}, r["user_id"]
+                if not (c.get("as_on") or any((c.get("as_coins") or {}).values())):
+                    continue
+                if not (c.get("sem_senha") is True or uid in b._as_pw):
+                    continue
                 try:
+                    prof = await self.db.select("profiles", {"user_id": uid}, columns="role,bloqueado")
+                    if not prof or prof[0].get("role") != "admin" or prof[0].get("bloqueado"):
+                        continue
                     await b.autosell_tick(uid)
                 except Exception as e:
                     log.warning("Dormant: venda automática falhou (%s): %s", type(e).__name__, str(e)[:120])

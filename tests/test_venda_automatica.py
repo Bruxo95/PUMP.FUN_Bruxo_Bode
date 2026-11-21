@@ -164,3 +164,77 @@ def test_after_restart_unlock_keeps_every_target_and_bad_inputs_are_refused():
     except db_.BuyError as e:
         assert "não encontrada" in str(e)
     assert db_.clean_cfg(None, {"as_coins": {"a": 50, "b": 7, "c": True, "d": 0, "e": "100"}})["as_coins"] == {"a": 50, "d": 0}
+
+
+# ------------------------------------------------------------------ 0.32.409: senha de compra desligável
+def test_turning_the_password_off_needs_the_current_one_once_and_reseals_everything():
+    b, net, db = bought_ready()
+    try:
+        run(b.set_senha_mode(UID, True, "", None))
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "senha" in str(e)
+    try:
+        run(b.set_senha_mode(UID, True, "senha-errada-99", None))
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "errada" in str(e)
+    assert run(b.cfg(UID))["sem_senha"] is False
+    r = run(b.set_senha_mode(UID, True, SENHA, None))
+    assert r == {"sem_senha": True, "recifradas": 1} and run(b.cfg(UID))["sem_senha"] is True
+    assert SENHA not in str(db.tables) and KEY not in str(db.tables)
+    p = run(b.preview_sell(UID, "c1", 100))                                    # vender sem digitar nada
+    assert p.get("quote_id"), p["bloqueia"]
+    assert run(b.sell(UID, p["quote_id"], "", "VENDER"))["status"] == "confirmada"
+
+
+def test_turning_it_back_on_asks_for_a_new_password_and_the_old_empty_one_stops_working():
+    b, net, db = bought_ready()
+    run(b.set_senha_mode(UID, True, SENHA, None))
+    for ruim in ("", "123"):
+        try:
+            run(b.set_senha_mode(UID, False, None, ruim))
+            raise AssertionError
+        except db_.BuyError:
+            pass
+    assert run(b.cfg(UID))["sem_senha"] is True                                 # nada mudou na tentativa ruim
+    run(b.set_senha_mode(UID, False, None, "senha-nova-123"))
+    p = run(b.preview_sell(UID, "c1", 100))
+    try:
+        run(b.sell(UID, p["quote_id"], "", "VENDER"))
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "senha" in str(e)
+    p = run(b.preview_sell(UID, "c1", 100))
+    assert run(b.sell(UID, p["quote_id"], "senha-nova-123", "VENDER"))["status"] == "confirmada"
+
+
+def test_without_password_new_wallets_and_exchange_keys_are_saved_with_nothing_typed():
+    from tests.test_dormant_cex import API, SEC, Net
+    from tests.test_dormant_compra import setup
+    import app.dormant_cex as cx
+    b, net, db = setup(Net())
+    run(b.set_senha_mode(UID, True, None, None))                                # sem nada cadastrado: só liga o modo
+    run(b.save_wallet(UID, "ethereum", KEY, ""))
+    assert db_.vault.unseal(b.box, UID, "ethereum", db.tables["dormant_wallets"][0]["endereco"], db.tables["dormant_wallets"][0]["cifra"], "") == KEY
+    c = cx.CexBuyer(b)
+    r = run(c.save_key(UID, "binance", API, SEC, "", "", False))
+    assert r["info"]["sem_senha"] is True
+    assert run(c._keys(UID, "binance", ""))["secret"] == SEC
+    try:
+        run(b.change_password(UID, "", "senha-nova-123"))
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "desligada" in str(e)
+
+
+def test_auto_sell_works_without_password_even_after_a_restart():
+    b, net, db = bought_ready(preco=0.02)
+    run(b.set_senha_mode(UID, True, SENHA, None))
+    st = run(b.save_autosell(UID, True, 100, ""))                               # ligar não pede senha
+    assert st["on"] is True and st["ativa"] is True and st["precisa_senha"] is False and st["sem_senha"] is True
+    assert UID not in b._as_pw                                                  # e nada de senha na memória
+    assert len(run(b.autosell_tick(UID))) == 1 and net.txs
+    st = run(b.save_autosell_coin(UID, "c1", 50, ""))
+    assert st["moedas"] == {"c1": 50}
+    assert run(b.autosell_unlock(UID, ""))["ativa"] is True

@@ -147,7 +147,7 @@ EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 # 0.32.329 (pedido do dono, 12/11): alertas do Dormant no Telegram, por conta (tg_on começa desligado)
 TG_TIPOS = ("acordando", "pump", "dump", "acordou_chain")
 CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0, "cex_max_usd": 25.0, "cex_dia_usd": 100.0,
-               "tg_on": False, "tg_tipos": list(TG_TIPOS), "as_on": False, "as_pct": 50, "as_coins": {}}
+               "tg_on": False, "tg_tipos": list(TG_TIPOS), "as_on": False, "as_pct": 50, "as_coins": {}, "sem_senha": False}
 CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0), "cex_max_usd": (1.0, 5000.0), "cex_dia_usd": (1.0, 20000.0)}
 CEX_NOMES = {"binance": "Binance", "bybit": "Bybit", "okx": "OKX", "kucoin": "KuCoin", "mexc": "MEXC", "nonkyc": "NonKYC"}
 QUOTE_TTL_S = 60                  # depois disso a cotação vale nada e o botão pede outra
@@ -203,6 +203,9 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = {**CFG_DEFAULT, **{k: v for k, v in (base or {}).items() if k in CFG_DEFAULT}}
     out["as_on"] = out.get("as_on") is True
     out["as_pct"] = out["as_pct"] if out.get("as_pct") in AS_PCTS else 50
+    # 0.32.409 (pedido do dono, 21/11): a senha de compra pode ser desligada em Carteiras e compra. Desligada, as chaves ficam só com a cifra do servidor
+    # (a chave mestra APP_ENCRYPTION_KEY), nada pede senha e a venda automática vale também depois de reiniciar o servidor. Começa LIGADA.
+    out["sem_senha"] = out.get("sem_senha") is True
     # 0.32.407: alvo próprio de cada compra {id da compra: 10…100, ou 0 = desligada nesta compra}; quem não está aqui segue a venda automática geral
     raw_coins = out.get("as_coins") if isinstance(out.get("as_coins"), dict) else {}
     out["as_coins"] = {str(k)[:64]: v for k, v in list(raw_coins.items())[:300] if isinstance(v, int) and not isinstance(v, bool) and (v == 0 or v in AS_PCTS)}
@@ -2135,6 +2138,11 @@ class Buyer:
     async def _open(self, uid: str, wal: dict, senha: str) -> str:
         """Abre a chave com a senha, contando as erradas. A trava fica no banco: reiniciar o servidor não zera."""
         row = await self._cfg_row(uid)
+        if (row.get("cfg") or {}).get("sem_senha") is True:      # senha desligada: a chave abre só com a cifra do servidor
+            try:
+                return await asyncio.to_thread(vault.unseal, self.box, uid, wal["rede"], wal["endereco"], wal["cifra"], "")
+            except (vault.WrongPassword, CryptoError):
+                raise BuyError("esta chave ainda está protegida por senha: ligue a senha de compra em Carteiras e compra ou cadastre a chave de novo") from None
         ate = _ts(row.get("trava_ate")) if row.get("trava_ate") else 0
         if ate > time.time():
             raise BuyError(f"senha errada demais: travado por mais {max(1, round((ate - time.time()) / 60))} min")
@@ -2166,8 +2174,13 @@ class Buyer:
                 return {"rede": "cex:" + r["exchange"], "endereco": r["rotulo"], "cifra": r["cifra"]}
         return None
 
+    async def _sem(self, uid: str) -> bool:
+        return (await self.cfg(uid))["sem_senha"]
+
     async def _check_senha(self, uid: str, senha: str) -> None:
         """Confere a senha contra o que já está guardado. Sem nada ainda: a senha nova vale como a primeira."""
+        if await self._sem(uid):
+            return
         row = await self._any_secret(uid)
         if row:
             await self._open(uid, row, senha)
@@ -2202,9 +2215,10 @@ class Buyer:
             raise BuyError("isso não parece uma chave privada") from None
         async with self.lock(uid):
             await self._check_senha(uid, senha)
+            sem = await self._sem(uid)
             alvo = EVM_CHAINS if todas_evm and CHAINS[chain]["tipo"] == "evm" else [chain]
             for k in alvo:
-                cifra = await asyncio.to_thread(vault.seal, self.box, uid, k, addr, secret, senha)
+                cifra = await asyncio.to_thread(vault.seal, self.box, uid, k, addr, secret, "" if sem else senha)
                 await self.db.insert("dormant_wallets", {"user_id": uid, "rede": k, "endereco": addr, "cifra": cifra, "em": _iso(time.time())},
                                      upsert=True, on_conflict="user_id,rede")
         return {"endereco": addr, "redes": alvo}
@@ -2226,8 +2240,9 @@ class Buyer:
                 raise BuyError("a chave guardada não bate com o endereço: nada foi copiado")
             tem = {r["rede"] for r in rows}
             novas = [k for k in EVM_CHAINS if k not in tem]
+            sem = await self._sem(uid)
             for k in novas:
-                cifra = await asyncio.to_thread(vault.seal, self.box, uid, k, addr, secret, senha)
+                cifra = await asyncio.to_thread(vault.seal, self.box, uid, k, addr, secret, "" if sem else senha)
                 await self.db.insert("dormant_wallets", {"user_id": uid, "rede": k, "endereco": addr, "cifra": cifra, "em": _iso(time.time())},
                                      upsert=True, on_conflict="user_id,rede")
         return {"endereco": addr, "redes": novas}
@@ -2238,7 +2253,59 @@ class Buyer:
             raise BuyError("rede inválida")
         await self.db.delete("dormant_wallets", {"user_id": uid, "rede": chain})
 
+    async def set_senha_mode(self, uid: str, off, senha, nova) -> dict:
+        """0.32.409 (pedido do dono): liga ou desliga a senha de compra. Desligar pede a senha atual UMA vez e cifra de novo tudo só com a chave do servidor;
+        ligar pede uma senha nova e cifra de novo tudo com ela. Abre tudo antes de gravar qualquer coisa: ou troca todas, ou nenhuma."""
+        off = off is True
+        async with self.lock(uid):
+            row = await self._cfg_row(uid)
+            base = clean_cfg(None, row.get("cfg") or {})
+            if base["sem_senha"] == off:
+                return {"sem_senha": off, "recifradas": 0}
+            rows = await self.db.select("dormant_wallets", {"user_id": uid}) or []
+            chaves = await self.db.select("dormant_cex_keys", {"user_id": uid}) or []
+            if rows or chaves:
+                if off:
+                    if not isinstance(senha, str) or not senha:
+                        raise BuyError("digite a senha de compra atual para desligá-la")
+                else:
+                    why = vault.check_new_password(nova if isinstance(nova, str) else "")
+                    if why:
+                        raise BuyError(why)
+            pw = "" if off else nova
+            novas, novas_cex = [], []
+            for r in rows:
+                secret = await self._open(uid, r, senha)           # com a senha ligada abre com ela; desligada, só com a cifra do servidor
+                novas.append({"user_id": uid, "rede": r["rede"], "endereco": r["endereco"], "em": r.get("em") or _iso(time.time()),
+                              "cifra": await asyncio.to_thread(vault.seal, self.box, uid, r["rede"], r["endereco"], secret, pw)})
+            for r in chaves:
+                pseudo = {"rede": "cex:" + r["exchange"], "endereco": r["rotulo"], "cifra": r["cifra"]}
+                info = dict(r.get("info") or {})
+                if info.get("sem_senha"):
+                    secret = await asyncio.to_thread(vault.unseal, self.box, uid, pseudo["rede"], pseudo["endereco"], pseudo["cifra"], "")
+                else:
+                    secret = await self._open(uid, pseudo, senha)
+                if off:
+                    info["sem_senha"] = True
+                else:
+                    info.pop("sem_senha", None)
+                novas_cex.append({"user_id": uid, "exchange": r["exchange"], "rotulo": r["rotulo"], "info": info, "em": r.get("em") or _iso(time.time()),
+                                  "cifra": await asyncio.to_thread(vault.seal, self.box, uid, pseudo["rede"], r["rotulo"], secret, pw)})
+            if novas:
+                await self.db.insert("dormant_wallets", novas, upsert=True, on_conflict="user_id,rede")
+            if novas_cex:
+                await self.db.insert("dormant_cex_keys", novas_cex, upsert=True, on_conflict="user_id,exchange")
+            base["sem_senha"] = off
+            row["cfg"] = base
+            row["erros"], row["trava_ate"] = 0, None
+            await self._put_cfg(row)
+            if not off:
+                self._as_pw.pop(uid, None)                          # com a senha de volta, a venda automática precisa dela na memória de novo
+        return {"sem_senha": off, "recifradas": len(novas) + len(novas_cex)}
+
     async def change_password(self, uid: str, atual: str, nova: str) -> int:
+        if await self._sem(uid):
+            raise BuyError("a senha de compra está desligada: ligue-a primeiro")
         why = vault.check_new_password(nova)
         if why:
             raise BuyError(why)
@@ -2312,11 +2379,15 @@ class Buyer:
     async def autosell_state(self, uid: str) -> dict:
         c = await self.cfg(uid)
         moedas = c["as_coins"]
-        return {"on": c["as_on"], "pct": c["as_pct"], "pcts": list(AS_PCTS), "ativa": uid in self._as_pw, "log": list(self._as_log.get(uid, []))[-8:],
-                "moedas": moedas, "n_moedas": sum(1 for v in moedas.values() if v), "precisa_senha": (c["as_on"] or any(moedas.values())) and uid not in self._as_pw}
+        sem = c["sem_senha"]
+        return {"on": c["as_on"], "pct": c["as_pct"], "pcts": list(AS_PCTS), "ativa": sem or uid in self._as_pw, "log": list(self._as_log.get(uid, []))[-8:],
+                "moedas": moedas, "n_moedas": sum(1 for v in moedas.values() if v), "sem_senha": sem,
+                "precisa_senha": (not sem) and (c["as_on"] or any(moedas.values())) and uid not in self._as_pw}
 
     async def autosell_unlock(self, uid: str, senha) -> dict:
         """Depois de o servidor reiniciar: confere a senha e a guarda de novo na memória, sem mudar nenhum alvo."""
+        if await self._sem(uid):
+            return await self.autosell_state(uid)
         if not isinstance(senha, str) or not senha:
             raise BuyError("digite a senha de compra")
         async with self.lock(uid):
@@ -2342,7 +2413,7 @@ class Buyer:
                 raise BuyError("escolha uma porcentagem da lista") from None
             if pct != 0 and pct not in AS_PCTS:
                 raise BuyError("escolha uma porcentagem da lista")
-        if pct and uid not in self._as_pw:
+        if pct and uid not in self._as_pw and not await self._sem(uid):
             await self.autosell_unlock(uid, senha)
         row = await self._cfg_row(uid)
         base = clean_cfg(None, row.get("cfg") or {})
@@ -2371,14 +2442,15 @@ class Buyer:
         row = await self._cfg_row(uid)
         base = clean_cfg(None, row.get("cfg") or {})
         if on is True:
-            if not isinstance(senha, str) or not senha:
-                raise BuyError("digite a senha de compra para ligar a venda automática")
-            async with self.lock(uid):
-                first = await self._any_secret(uid)
-                if not first:
-                    raise BuyError("cadastre uma carteira antes")
-                await self._open(uid, first, senha)          # senha errada conta nas 5 tentativas e trava, como em qualquer outra operação
-            self._as_pw[uid] = senha
+            if not base["sem_senha"]:
+                if not isinstance(senha, str) or not senha:
+                    raise BuyError("digite a senha de compra para ligar a venda automática")
+                async with self.lock(uid):
+                    first = await self._any_secret(uid)
+                    if not first:
+                        raise BuyError("cadastre uma carteira antes")
+                    await self._open(uid, first, senha)      # senha errada conta nas 5 tentativas e trava, como em qualquer outra operação
+                self._as_pw[uid] = senha
             self._as_fail = {k: v for k, v in self._as_fail.items() if k[0] != uid}
             self._note_as(uid, f"ligada: vende quando uma compra chegar a +{pct}%")
         else:
@@ -2397,10 +2469,10 @@ class Buyer:
 
     async def autosell_tick(self, uid: str) -> list[dict]:
         """Uma volta para uma conta: vende, com a senha guardada na memória, a compra que chegou ao alvo. Uma venda por vez por conta."""
-        pw = self._as_pw.get(uid)
         c = await self.cfg(uid)
+        pw = "" if c["sem_senha"] else self._as_pw.get(uid)          # senha desligada: vende sem ela, inclusive depois de reiniciar
         coins = c["as_coins"]
-        if not pw or not self.allowed() or not (c["as_on"] or any(coins.values())):
+        if pw is None or not self.allowed() or not (c["as_on"] or any(coins.values())):
             return []
         leitura = self.watch.stat.get("leitura_t")
         if not leitura or time.time() - float(leitura) > AS_STALE_S:
