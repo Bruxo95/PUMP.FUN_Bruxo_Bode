@@ -576,3 +576,13 @@ def test_solana_balance_authority_is_a_warning_too():
     assert gb == [] and db_.SALDO_TXT in ga
     gb, _ = db_.judge_goplus("ethereum", {"owner_change_balance": "1", "is_honeypot": "1"})
     assert gb == ["honeypot: não deixa vender"]                       # o resto das travas continua
+
+
+# 0.32.410 (caso KABOSU do dono, 21/11): 0,00040521 ETH na carteira, gás a 0,66 gwei; o máximo dava 0,00008 ETH (reserva de 390 mil de gás)
+def test_limit_info_gas_reserve_matches_the_real_send():
+    b, net, db = setup()
+    run(ready(b))
+    net.bal, net.gas = 405_210 * 10 ** 9, 660_000_000
+    r = run(b.limit_info(UID, "ethereum"))
+    custo = db_.gas_custo(db_.GAS_TIPICO, net.gas, db_.CHAINS["ethereum"])
+    assert abs(r["reserva_gas"] - custo / 1e18) < 1e-12 and r["max_nativo"] > 0.00015   # 0,0001 do print cabe

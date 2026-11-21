@@ -2805,6 +2805,11 @@
    "versao": "0.32.409",
    "inicio": "2026-11-21T06:49:05+00:00",
    "titulo": "Dormant: senha de compra desligável em Carteiras e compra"
+  },
+  {
+   "versao": "0.32.410",
+   "inicio": "2026-11-21T07:24:08+00:00",
+   "titulo": "Dormant: máximo da compra com o gás de verdade"
   }
  ]
 }

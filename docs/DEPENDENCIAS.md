@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.409 · 2026-11-21 · Dormant: senha de compra desligável em Carteiras e compra**.
-Referência Git na emissão: `ee63a075afc3e657a76916d91f9e6b6d7347c60f`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.410 · 2026-11-21 · Dormant: máximo da compra com o gás de verdade**.
+Referência Git na emissão: `29965eeea2697967760b1a9e4f2af4fcc3137df7`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

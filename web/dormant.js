@@ -746,7 +746,7 @@
     if (!(v > 0)) { el.textContent = ""; return; }
     if (!L || !L.usd_n) { el.textContent = "sem cotação em dólar agora"; return; }
     const pass = L.max_nativo != null && v > L.max_nativo;
-    el.innerHTML = "isso vale <b>$" + num(v * L.usd_n, 2) + "</b>" + (pass ? ' <span class="down">· acima do máximo agora ($' + num(L.max_usd, 2) + ")</span>" : "");
+    el.innerHTML = "isso vale <b>$" + num(v * L.usd_n, 2) + "</b>" + (pass ? ' <span class="down">· acima do máximo estimado ($' + num(L.max_usd, 2) + ")</span>" + (/saldo/.test(L.limitado_por || "") ? ' <span class="muted">· a cotação confere o gás de verdade</span>' : "") : "");
   }
   function qtd(v) {
     if (v == null) return "—";

@@ -74,6 +74,14 @@ GT_API = "https://api.geckoterminal.com/api/v2"
 V4_DEX = {"pons-v2-dex": "Pons (Uniswap V4)", "uniswap-v4-robinhood": "Uniswap V4"}
 V4_POOLS_MAX, V4_TTL_S, V4_LOG_SPAN = 4, 600, 400_000
 
+GAS_TIPICO = 200_000   # 0.32.410: gás de uma compra comum (troca na Uniswap/PancakeSwap fica entre ~130 e 180 mil); só para o máximo antes da cotação
+
+
+def gas_custo(est: int, gp: int, c: dict) -> int:
+    """Gás que o envio reserva (em wei): mesma conta de _buy_evm (estimativa × 1,3 + 20 mil, preço × gas_mult)."""
+    return (int(est * 1.3) + 20000) * int(gp * c.get("gas_mult", 1.1))
+
+
 # chave = id da rede na CoinGecko. Tudo conferido em 06/11/2026 (chain id, código do contrato, fábrica, moeda embrulhada, ponte).
 CHAINS = {
     "solana": {"nome": "Solana", "tipo": "solana", "moeda": "SOL", "cg": "solana", "dec": 9, "dex": "Jupiter", "expl": "https://solscan.io/tx/",
@@ -581,7 +589,10 @@ class Buyer:
                     saldo, reserva = await self._osmo_bal(wal["endereco"], osmosis.NATIVE) / 1e6, c["reserva"]
                 else:
                     saldo = int(await self.rpc(c["rpc"], "eth_getBalance", [wal["endereco"], "latest"]) or "0x0", 16) / 1e18
-                    reserva = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16) * c.get("gas_mult", 1.1) * 300000 * 1.3 / 1e18   # o gás da própria compra
+                    # 0.32.410 (caso KABOSU do dono, 21/11): antes 300 mil × 1,3 de gás, quase o dobro de uma troca de verdade (~130–180 mil),
+                    # e o máximo ficava em 1/5 do saldo. Agora a mesma conta do envio (_buy_evm) com GAS_TIPICO; a cotação confere o gás real
+                    gp = int(await self.rpc(c["rpc"], "eth_gasPrice", []) or "0x0", 16)
+                    reserva = gas_custo(c.get("gas_tipico", GAS_TIPICO), gp, c) / 1e18
             except (BuyError, KeyError, TypeError, ValueError):
                 saldo = None
         out = {"moeda": c["moeda"], "usd_n": usd_n, "tem_carteira": bool(wal), "saldo": saldo, "saldo_usd": saldo * usd_n if saldo is not None and usd_n else None, "reserva_gas": reserva,
@@ -811,8 +822,12 @@ class Buyer:
                 except BuyError as e:
                     bloq.append("a rede recusou na simulação: " + str(e))
             gas_nat = gas * gp / 1e18
-            if bal < q["value"] + int(gas * 1.3) * gp and bal >= q["value"]:
-                bloq.append(f"falta {c['moeda']} para pagar o gás: use Abastecer em Carteiras e compra")
+            # 0.32.410: mesma conta do envio (antes sem gas_mult e sem os 20 mil: passava aqui e falhava ao enviar) e diz o valor que cabe
+            custo = gas_custo(gas, gp, c)
+            if bal < q["value"] + custo and bal >= q["value"]:
+                cabe = max(0, bal - custo) / 1e18
+                bloq.append(f"falta {c['moeda']} para pagar o gás (~{custo / 1e18:.6f} {c['moeda']}): com o saldo de agora dá para gastar até "
+                            f"{cabe:.8f} {c['moeda']}, ou use Abastecer em Carteiras e compra")
         gas_usd = (gas_nat if gas_nat is not None else gas * gp / 1e18) * (q["usd_n"] or 0)
         if q["usd_in"] and gas_usd > q["usd_in"] * 0.25:
             avisos.append(f"o gás (${gas_usd:.2f}) passa de 25% do valor da compra")
