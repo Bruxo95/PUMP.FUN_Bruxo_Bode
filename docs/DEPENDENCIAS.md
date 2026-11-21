@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.422 · 2026-11-21 · Venda REAL de token graduado vai direto na PumpSwap (erro 6005)**.
-Referência Git na emissão: `7c8930c523c8865e9e226eaf5d8b69c32caac31b`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.423 · 2026-11-21 · BOOST: tempo no positivo e no negativo de cada token (somando as trocas)**.
+Referência Git na emissão: `ce79b4d52c8aa16095e37ae78f35aa371c5fc13b`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

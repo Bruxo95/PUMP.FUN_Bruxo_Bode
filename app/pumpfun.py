@@ -1995,6 +1995,8 @@ class PumpFun:
                           closed_t=t, closed_at=datetime.fromtimestamp(t, timezone.utc).isoformat(), exit_price=px)
             tr["pos_id"] = p["id"]                         # 0.31.38: par real × fictícia (espelho)
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60: motivo da entrada guardado junto com o da saída
+            if self.sign_out(p):
+                tr["sinal"] = self.sign_out(p)              # 0.32.423: tempo no positivo × negativo
             self._sg_trade(p, tr, pre, px, why, t)          # 0.32.332: stop de ganho (e a sombra, quando foi ele que vendeu)
             if p.get("follow_of"):
                 tr["follow_of"] = p["follow_of"]           # 0.31.63: cópia de outra conta não entra no aprendizado geral
@@ -2128,6 +2130,32 @@ class PumpFun:
                            kind="sell", action="preço suspeito", real=bool(p.get("real")),
                            reason=f"preço {x:,.0f}× a entrada em {'posição REAL' if p.get('real') else 'posição fictícia'} — provável leitura errada (token cotado em outra moeda)")
 
+    @staticmethod
+    def _sign_note(p: dict, px: float, t: float) -> None:
+        """0.32.423 (pedido do dono, 21/11): soma, a cada leitura de preço, quanto tempo a posição ficou no POSITIVO e no
+        NEGATIVO (preço acima/abaixo do preço de entrada, sem taxas) e quantas vezes trocou. O trecho entre duas leituras fica
+        com o estado da leitura anterior. Vai para o trade quando fecha."""
+        ref = float(p.get("price_in") or 0)
+        if not ref or not px or px <= 0:
+            return
+        g = p.setdefault("sinal", {"pos_s": 0.0, "neg_s": 0.0, "trocas": 0})
+        up = px >= ref
+        last_t, last_up = g.get("t"), g.get("up")
+        if last_t is not None and t > last_t:
+            g["pos_s" if last_up else "neg_s"] = round(float(g.get("pos_s" if last_up else "neg_s") or 0) + (t - last_t), 1)
+        if last_up is not None and up != last_up:
+            g["trocas"] = int(g.get("trocas") or 0) + 1
+        g["t"], g["up"] = t, up
+
+    @staticmethod
+    def sign_out(p: dict) -> dict | None:
+        g = p.get("sinal") or {}
+        if g.get("t") is None:
+            return None
+        pos, neg = float(g.get("pos_s") or 0), float(g.get("neg_s") or 0)
+        return {"pos_s": round(pos), "neg_s": round(neg), "trocas": int(g.get("trocas") or 0),
+                "neg_pct": round(neg / (pos + neg) * 100) if pos + neg else None}
+
     def _late_note(self, p: dict, px: float, t: float) -> None:
         """0.32.124: a cópia fictícia entra no preço do próprio trader, o que é otimista. Guarda o preço do mercado 5/15/30 s depois.
         Só registra: não muda entrada, saída nem resultado. Leitura muito atrasada fica vazia, em vez de valer como preço daquela marca."""
@@ -2172,6 +2200,8 @@ class PumpFun:
             self.sg_sombra.preco(mint, px, t)
         self._note_suspect_price(mint, px)
         for p in sorted([p for p in self.positions() if p["mint"] == mint], key=lambda q: not q.get("real")):   # 0.32.160: real primeiro
+            if px:
+                self._sign_note(p, px, t)                  # 0.32.423: tempo no positivo × negativo (REAL e fictícia)
             if self.bm_follows_sim(p):                     # 0.32.387: a REAL do BOOST não tem regra própria; segue a fictícia
                 continue
             if not px or p.get("selling"):
@@ -5515,6 +5545,8 @@ class PumpFun:
             tr["fora_do_robo"] = bool(p.get("fora_do_robo"))   # 0.32.182: vendido fora do robô (sem o SOL na conta)
             tr["conta_devolvida_sol"] = p.get("conta_devolvida_sol")   # 0.32.215: aluguel da conta do token devolvido
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60
+            if self.sign_out(p):
+                tr["sinal"] = self.sign_out(p)              # 0.32.423: tempo no positivo × negativo
             if p.get("origem"):
                 tr["origem"] = p["origem"]                 # 0.32.401: o trade REAL guarda a aba (BOOST etc.), como a fictícia
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:

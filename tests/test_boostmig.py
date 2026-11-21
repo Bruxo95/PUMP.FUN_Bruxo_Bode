@@ -568,6 +568,7 @@ def test_real_entra_primeiro_e_sai_primeiro(tmp_path):
     assert not [p for p in pf.positions() if p["id"] == sp["id"]]
     tr = [t for t in pf.trades(10) if t.get("mint") == M and not t.get("real")][0]
     assert abs(tr["sol_out"] - 0.024) < 0.003
+    assert tr.get("sinal") is not None                                  # 0.32.423: tempo no positivo × negativo no trade
 
 
 def test_sem_execucao_real_a_ficticia_entra_na_hora(tmp_path):

@@ -1968,6 +1968,8 @@ class PumpHub:
         from .sybil import compact
         for d, x in zip(ds[:500], out["lista"]):
             x["sybil"] = compact(d.get("sybil"))
+            # 0.32.423: tempo no positivo × negativo desde o início do BOOST (os antigos são calculados agora pela série salva)
+            x["sinal"] = d.get("sinal") or boostmig.sign_time(d.get("serie") or [], d.get("p0"))
         self._bm_hist_cache = (key, time.time(), out)
         return out
 
@@ -2217,6 +2219,12 @@ class PumpHub:
         for m, b in sorted(bm.items.items(), key=lambda x: -x[1]["t0"])[:400]:
             v = bm.view(b)
             v["entrou_sim"], v["entrou_real"] = m in in_sim, m in in_real
+            for side, real_ in (("sim", False), ("real", True)):      # 0.32.423: tempo no positivo × negativo de quem entrou
+                pp = next((p for p in mine_p if p["mint"] == m and bool(p.get("real")) == real_), None)
+                tt = next((t for t in mine_t if t.get("mint") == m and bool(t.get("real")) == real_), None)
+                sg = (PumpFun.sign_out(pp) if pp else None) or ((tt.get("sinal") or self._bm_sign_from_serie(tt)) if tt else None)
+                if sg:
+                    v["sinal_" + side] = sg
             v["progress"] = round(bm.progress(b, now), 1)
             u = (b.get("users") or {}).get(uid) or {}
             v["sua"] = {"estado": u.get("estado"), "motivo": u.get("motivo")}
@@ -2283,8 +2291,25 @@ class PumpHub:
                            "fechadas_real": len(fech_r), "ganhou_real": len([t for t in fech_r if (t.get("pnl_sol") or 0) > 0]),
                            "pnl_sol_real": round(sum(t.get("pnl_sol") or 0 for t in fech_r), 6),
                            "scam_devs": len(bm.scam_devs), "vip_devs": sum(1 for x in vip if x.get("vip"))},
-                "trades": [{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real")}
+                "trades": [{**{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real")},
+                            "sinal": t.get("sinal") or self._bm_sign_from_serie(t)}
                            for t in ([x for x in mine_t if not x.get("real")][:150] + [x for x in mine_t if x.get("real")][:150])]}
+
+    def _bm_sign_from_serie(self, t: dict) -> dict | None:
+        """0.32.423: trade antigo (sem a conta de segundo em segundo): tempo no positivo × negativo calculado pelos preços do
+        BOOST (uma leitura a cada ~15–20 s), entre a entrada e a saída. Marcado como aproximado."""
+        from datetime import datetime
+        b = self.bm.items.get(t.get("mint") or "")
+        ref = float(t.get("price_in") or 0) or (float(t.get("sol_in") or 0) / float(t.get("tokens") or 0) if t.get("tokens") else 0)
+        if not b or not ref:
+            return None
+        try:
+            a_ = datetime.fromisoformat(str(t["opened_at"]).replace("Z", "+00:00")).timestamp() - b["t0"]
+            z_ = datetime.fromisoformat(str(t["closed_at"]).replace("Z", "+00:00")).timestamp() - b["t0"]
+        except Exception:
+            return None
+        r = boostmig.sign_time(b.get("serie") or [], ref, a_ - 20, z_)
+        return {**r, "aprox": True} if r else None
 
     async def bruxo_loop(self) -> None:
         await asyncio.sleep(45)

@@ -188,6 +188,32 @@ def classe(top: float | None, dump: float | None, dump_s: float | None, fim: flo
     return "lateral"
 
 
+def sign_time(points: list, ref: float | None, t_from: float | None = None, t_to: float | None = None) -> dict | None:
+    """0.32.423 (pedido do dono, 21/11): quanto tempo o preço ficou no POSITIVO e no NEGATIVO em relação a `ref`, somando todos
+    os trechos (cada troca de estado conta), e quantas trocas houve. `points` = [[segundos, preço], …] em ordem. Cada trecho
+    entre duas leituras fica com o estado da leitura do começo."""
+    if not ref or ref <= 0:
+        return None
+    pts = [p for p in points or [] if p[1] and p[1] > 0 and (t_from is None or p[0] >= t_from) and (t_to is None or p[0] <= t_to)]
+    if len(pts) < 2:
+        return None
+    pos = neg = 0.0
+    trocas, prev = 0, None
+    for (ta, pa), (tb, _pb) in zip(pts, pts[1:]):
+        up = pa >= ref
+        if prev is not None and up != prev:
+            trocas += 1
+        prev = up
+        if up:
+            pos += max(0.0, tb - ta)
+        else:
+            neg += max(0.0, tb - ta)
+    if (pts[-1][1] >= ref) != prev:
+        trocas += 1
+    tot = pos + neg
+    return {"pos_s": round(pos), "neg_s": round(neg), "trocas": trocas, "neg_pct": round(neg / tot * 100) if tot else None}
+
+
 def history_row(b: dict, now: float, scam: dict | None = None) -> dict:
     """Registro permanente do token aos HIST_MIN min (entrando ou não)."""
     se = [p for p in (b.get("serie") or []) if p[0] <= HIST_MIN * 60 + 30]
@@ -215,7 +241,8 @@ def history_row(b: dict, now: float, scam: dict | None = None) -> dict:
            "scam": bool(scam), "scam_why": (scam or {}).get("why"), "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"),
            "entry": b.get("entry"), "sybil": b.get("sybil"), "entrou": len(entrou), "fora_motivo": fora[0] if fora else None,
            "pnl_sol": res.get("pnl_sol"), "pnl_pct": res.get("pnl_pct"), "saida": res.get("why"),
-           "serie": [[int(p[0]), p[1]] for p in se]}
+           "serie": [[int(p[0]), p[1]] for p in se],
+           "sinal": sign_time(se, p0)}                 # 0.32.423: tempo no positivo × negativo desde o início do BOOST
     return row
 
 

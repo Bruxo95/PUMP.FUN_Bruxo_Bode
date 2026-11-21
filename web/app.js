@@ -1256,6 +1256,12 @@
     return ["entrar", "esperar", "evitar"].map((k) => '<span class="' + (k === j.acao ? "" : "dim") + '">' + k.slice(0, 3) + " " + Math.round((p[k] || 0) * 100) + "%</span>").join(" · ");
   }
   // 0.32.373 (pedido do dono): BOOST da migração — token graduou para a PumpSwap; entra no começo dos ~5 min e sai antes do fim
+  // 0.32.423 (pedido do dono): tempo no POSITIVO × NEGATIVO (somando todas as trocas) e quantas trocas houve
+  function bmSinal(z) {
+    if (!z) return '<span class="dim">–</span>';
+    return '<span class="up">+ ' + hms(z.pos_s || 0) + '</span> · <span class="down">− ' + hms(z.neg_s || 0) + "</span>" +
+      '<small class="bmwhy">' + (z.trocas || 0) + " troca(s)" + (z.neg_pct != null ? " · " + z.neg_pct + "% no negativo" : "") + (z.aprox ? " · aprox. (leituras a cada ~20 s)" : "") + "</small>";
+  }
   const BM_EST = { entrou: ["entrou", "win"], esperar: ["observando", "neutral"], fora: ["fora", "loss"], entrar: ["entrando", "win"] };
   const bmBar = (x, ex) => { const p = Math.max(0, Math.min(100, x.progress || 0));
     return '<span class="bmbar' + (p >= 100 ? " done" : p > ex ? " late" : "") + '" title="' + f(p, 0) + '% do BOOST"><i style="width:' + p + '%"></i><b style="left:' + ex + '%"></b></span> ' + f(p, 0) + "%"; };
@@ -1320,11 +1326,11 @@
       '<span class="wrapcell">' + (d.symbols || []).map(esc).join(", ") + "</span>", dt(d.ult)]), "Nenhum DEV com 2+ tokens no período.");
     const F = $("bmHF").value;
     const L = (r.lista || []).filter((x) => !F || (F === "entrou" ? x.entrou > 0 : x.classe === F));
-    table("bmHL", ["Token", "Migrou", "Classe", "Topo", "Dump", "Aos 1 min", "Aos 5 min", "Fim", "Compras × vendas", "Trava", "Scam", "Carteiras", "Entrou / resultado"], L.map((x) => {
+    table("bmHL", ["Token", "Migrou", "Classe", "Topo", "Dump", "Aos 1 min", "Aos 5 min", "Fim", "Positivo × negativo (desde o início)", "Compras × vendas", "Trava", "Scam", "Carteiras", "Entrou / resultado"], L.map((x) => {
       const M = x.marks || {};
       return ['<a href="#" class="bmdl" data-bmtok="' + esc(x.mint) + '">' + esc(x.symbol || x.mint.slice(0, 6)) + "</a>" + (x.creator ? '<small class="bmwhy">DEV ' + bmDevLink(x.creator) + "</small>" : ""), dt(x.t0), bmCl(x.classe),
         x.top_pct == null ? "–" : pc(x.top_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.top_s) + "</small>", x.dump_pct == null ? "–" : pc(x.dump_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.dump_s) + "</small>",
-        M["1"] == null ? "–" : pc(M["1"], 0), M["5"] == null ? "–" : pc(M["5"], 0), x.fim_pct == null ? "–" : pc(x.fim_pct, 0), x.buys_m5 == null ? "–" : x.buys_m5 + " × " + (x.sells_m5 || 0),
+        M["1"] == null ? "–" : pc(M["1"], 0), M["5"] == null ? "–" : pc(M["5"], 0), x.fim_pct == null ? "–" : pc(x.fim_pct, 0), bmSinal(x.sinal), x.buys_m5 == null ? "–" : x.buys_m5 + " × " + (x.sells_m5 || 0),
         x.safety_ok === false ? '<span class="down">TRAVA</span>' : x.safety_ok === true ? '<span class="up">não</span>' : '<span class="dim">–</span>', x.scam ? '<span class="down">sim</span>' : "não", bmSy(x.sybil, x.mint),
         x.entrou ? x.entrou + " conta(s)" + (x.pnl_sol != null ? " · " + sg(x.pnl_sol) : "") : '<span class="dim">ninguém</span>'];
     }), "Nenhum token analisado no período ainda: o primeiro aparece 20 min depois da primeira migração.");
@@ -1474,13 +1480,14 @@
         x.safety_ok === true ? '<span class="up">sem trava</span>' : x.safety_ok === false ? '<span class="down">TRAVA</span>' : '<span class="dim">' + (x.safety_why || (x.progress || 0) > 60 ? "não conferido" : "conferindo…") + "</span>",
         bmSy(x.sybil, x.mint, r.sybil, x),
         x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
-        res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–"];
+        (res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–") +
+          ((RM ? x.sinal_real : x.sinal_sim) ? "<br>" + bmSinal(RM ? x.sinal_real : x.sinal_sim) : "")];
     }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhuma migração nas últimas 24 h ainda. Os tokens aparecem aqui assim que migrarem para a PumpSwap.");
     // 0.32.401 (pedido do dono): os trades do BOOST da REAL e da FICTÍCIA não se misturam — segue o botão FICTÍCIA / REAL do topo
     const bmTrs = (r.trades || []).filter((t) => !!t.real === RM);
     if ($("bmTrSub")) $("bmTrSub").textContent = (RM ? "Só a carteira REAL" : "Só a carteira FICTÍCIA") + " · resultado líquido (já com taxas) · troque no botão Fictícia / Real do topo";
-    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Motivo da saída"], bmTrs.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.real ? ' <span class="tag loss">REAL</span>' : ""),
-      f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", t.hold_s == null ? "–" : hms(t.hold_s), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
+    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Positivo × negativo", "Motivo da saída"], bmTrs.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.real ? ' <span class="tag loss">REAL</span>' : ""),
+      f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", t.hold_s == null ? "–" : hms(t.hold_s), bmSinal(t.sinal), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
       RM ? "Nenhum trade do BOOST na REAL ainda." : "Nenhum trade do BOOST na FICTÍCIA ainda.");
     table("bmVip", ["DEV", "Situação", "Tokens com resultado", "Ganhos", "Perdas", "Acerto", "Saldo", "Melhor", "Pior", "Último", "Tokens em 24 h", "Ações"],
       (r.vip || []).slice(0, 200).map((d) => [bmDevLink(d.creator, d.vip ? "👑 " : ""), d.scam ? '<span class="tag loss">SCAM</span>' : d.vip ? '<span class="tag win">VIP</span>' : '<span class="tag neutral">não é VIP</span>',
