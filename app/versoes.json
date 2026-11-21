@@ -2830,6 +2830,11 @@
    "versao": "0.32.414",
    "inicio": "2026-11-21T08:31:20+00:00",
    "titulo": "Dormant: cartão da moeda depois da venda sem parecer prejuízo"
+  },
+  {
+   "versao": "0.32.415",
+   "inicio": "2026-11-21T08:41:23+00:00",
+   "titulo": "Dormant: lucro e o que fica também na venda por porcentagem"
   }
  ]
 }

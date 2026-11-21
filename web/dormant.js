@@ -902,20 +902,26 @@
       line("Gás / taxa da rede, perto de", r.gas_usd == null ? "—" : "$" + num(r.gas_usd, 4)) +
       line("Carteira", r.carteira ? '<span class="cmaddr">' + esc(r.carteira) + "</span>" : "—") + "</tbody></table></div>" +
       list("buybad", "Não dá para vender:", r.bloqueia || []) + list("buywarn", "Atenção:", r.avisos || []);
-    if (r.investido && r.vende && r.recebe) {
-      // 0.32.412 (pedido do dono): o que volta e o que fica; o resto vale o preço desta cotação (DEX), não o da CoinGecko
+    if (r.vende && r.recebe) {
+      // 0.32.412/413/415 (pedido do dono): em toda venda (só o investido ou por %), o que entra, o ganho desta venda, o que fica
+      // e o resultado da compra já sem as taxas. O que fica vale o preço desta cotação (DEX), não o da CoinGecko
       const fica = Math.max(0, Number(r.saldo || 0) - Number(r.vende)), un = r.usd && r.recebe ? r.usd / r.recebe : null;
       const ficaN = fica * Number(r.recebe) / Number(r.vende), ficaU = un ? ficaN * un : null;
-      // 0.32.413 (pedido do dono): lucro de verdade = o que fica, menos o gás da compra e o gás desta venda
       const cx = (CP_ITENS || []).find((i) => i.id === BUY.sell) || {}, gC = Number(cx.gas_usd || 0), gV = Number(r.gas_usd || 0);
-      const real = ficaU != null ? ficaU - gC - gV : null;
-      h = '<div class="buyok sellres"><b>Vendendo só o investido</b><div class="srg">' +
-        '<div><small>Recupera o investido</small><b>' + num(r.recebe, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (r.usd != null ? "$" + num(r.usd, 2) : "") + "</span></div>" +
-        '<div><small>Fica na carteira</small><b>' + qtd(fica) + " " + esc(r.moeda.simbolo) + "</b><span>" + (r.saldo ? num(fica / r.saldo * 100, 2) + "% do saldo" : "") + "</span></div>" +
-        '<div><small>Lucro que fica</small><b class="up">' + num(ficaN, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (ficaU != null ? "$" + num(ficaU, 2) : "") + "</span></div>" +
+      const custo = Number(cx.custo || 0), qty = Number(cx.qty || 0), antes = Number(cx.recebido || 0);
+      const base = qty ? custo * Number(r.vende) / qty : null;                 // parte do investido (com o gás da compra) que esta venda leva
+      const ganho = base != null && r.usd != null ? r.usd - gV - base : null;
+      const total = custo && r.usd != null && ficaU != null ? antes + r.usd - gV + ficaU - custo : null;
+      const sg = (v) => (v == null ? "—" : '<b class="' + cls(v) + '">' + (v < 0 ? "-" : "+") + "$" + num(Math.abs(v), 2) + "</b>");
+      const ok = total == null || total >= 0;
+      h = '<div class="' + (ok ? "buyok" : "buywarn") + ' sellres"><b>' + (r.investido ? "Vendendo só o investido" : "Vendendo " + num(r.pct, 0) + "% do saldo") +
+        (total == null ? "" : total >= 0 ? " · dá lucro" : " · dá prejuízo") + '</b><div class="srg">' +
+        '<div><small>' + (r.investido ? "Recupera o investido" : "Recebe") + "</small><b>" + num(r.recebe, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (r.usd != null ? "$" + num(r.usd, 2) : "") + "</span></div>" +
+        "<div><small>Ganho nesta venda</small>" + sg(ganho) + "<span>" + (ganho != null && base ? pc((r.usd - gV) / base * 100 - 100) + " sobre o que pagou" : "") + "</span></div>" +
+        '<div><small>Fica na carteira</small><b>' + qtd(fica) + " " + esc(r.moeda.simbolo) + "</b><span>" + (r.saldo ? num(fica / r.saldo * 100, 2) + "% do saldo" : "") + (ficaU != null ? " · vale $" + num(ficaU, 2) : "") + "</span></div>" +
         '</div><div class="srt"><span>Taxas: gás da compra <b>$' + num(gC, 4) + "</b> + gás desta venda <b>$" + num(gV, 4) + "</b> = <b>$" + num(gC + gV, 4) + "</b></span>" +
-        '<span>Lucro real, já sem as taxas: <b class="' + cls(real) + '">' + (real == null ? "—" : (real < 0 ? "-" : "+") + "$" + num(Math.abs(real), 2)) + "</b></span></div>" +
-        '<small class="muted">o que fica vale o preço desta cotação; sobe e desce com a moeda</small></div>' + h;
+        "<span>Resultado da compra, já sem as taxas: " + sg(total) + (total != null && custo ? " " + pc(total / custo * 100) : "") + "</span></div>" +
+        '<small class="muted">resultado = ' + (antes ? "o que já recebeu antes + " : "") + 'esta venda + o que fica − o investido (com o gás da compra) · o que fica vale o preço desta cotação; sobe e desce com a moeda</small></div>' + h;
     }
     if (r.quote_id) {
       h += '<div class="buyform"><div class="pwfield"><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
