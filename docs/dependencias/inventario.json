@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "558c60e615cda6094b4b675606af0a2782f1b144",
-    "application_version": "0.32.415 · 2026-11-21 · Dormant: lucro e o que fica também na venda por porcentagem",
+    "repository_reference": "5be4b6ce3df3d2df4246d68030870c93c2421eb0",
+    "application_version": "0.32.416 · 2026-11-21 · Dormant: compra recusada explica o motivo e folga por compra",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "2a501359c5df301388760c8951c0ea5355f2a5cad4e392be83640273554d61f3",
+      "app/version.py": "f1564a7422bb6927c2c68e7632692caef64ead0350cf6961254d35127f2f39b6",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "8c8115e19e34ee1faa3ba05f3706da5f241c161f9a87ae37502e5a7b8e5f03f2"
+  "pdf_sha256": "f40093ff638a5a7c85f48d6853898e24556483a6e4a8f008c82de703ed251d0f"
 }

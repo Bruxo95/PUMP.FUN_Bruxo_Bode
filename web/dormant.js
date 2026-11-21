@@ -718,6 +718,7 @@
     $("buyMB").innerHTML = '<div class="buyform">' + '<div><label for="buyRede">Blockchain</label><select class="in" id="buyRede">' + m.comprar.map((k) => '<option value="' + esc(k) + '">' + esc(REDE[k] || k) + "</option>").join("") + "</select></div>" +
       '<div class="decbox" id="buyInfo">lendo a carteira…</div>' +
       '<div><label for="buyVal" id="buyValL">Quanto gastar</label><div class="buymax"><input class="in" id="buyVal" type="number" step="any" min="0" inputmode="decimal" placeholder="valor na moeda da rede"><button class="btn" type="button" id="buyMax">Máx</button></div><div class="buyusd" id="buyUsd"></div></div>' +
+      '<div><label for="buySlip">Folga de preço desta compra (slippage, %)</label><input class="in" id="buySlip" type="number" step="0.5" min="0.1" max="15" inputmode="decimal" placeholder="a da configuração"><div class="muted small">Se o preço mudar mais que isso até a compra entrar, a rede recusa e só o gás é gasto. Pool pequeno e agitado pede folga maior.</div></div>' +
       '<div class="row dmact"><button class="btn primary" type="button" id="buyQuote">Ver cotação</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
     buyUnit(); $("buyM").hidden = false; setTimeout(() => $("buyVal").focus(), 50);
   }
@@ -732,6 +733,7 @@
     if (!BUY || !$("buyRede") || $("buyRede").value !== k) return;
     if (!r || r.error) { $("buyInfo").textContent = (r && r.error) || "não consegui ler a carteira"; return; }
     BUY.lim = r;
+    const sl = $("buySlip"); if (sl && !sl.value && r.folga != null) sl.value = r.folga;
     const m = esc(r.moeda);
     const saldo = !r.tem_carteira ? 'sem carteira nesta rede: cadastre em <a href="#carteiras" id="buyGoW">Carteiras e compra</a>'
       : r.saldo == null ? "saldo não lido" : "<b>" + num(r.saldo, 8) + " " + m + "</b>" + (r.saldo_usd != null ? " ($" + num(r.saldo_usd, 2) + ")" : "");
@@ -754,13 +756,22 @@
     return num(v, a >= 1000 ? 2 : a >= 1 ? 4 : 8);
   }
   const emUsd = (qt, px) => (qt != null && px ? " · $" + num(qt * px, 2) : "");
+  // 0.32.416 (caso ELON do dono, 21/11): folga própria desta compra/venda; vazia = a da configuração (o servidor confere os limites)
+  const slipVal = () => { const el = $("buySlip"); const v = el ? Number(el.value) : NaN; return v > 0 ? v : null; };
+  const slipSug = (v) => Math.min(15, Math.max(v + 3, v * 2));
+  function retryBtn(c) {
+    if (c.status !== "falhou" || !/folga/.test(c.motivo || "") || !$("buySlip")) return "";
+    const cur = Number($("buySlip").value) || (BUY.q && BUY.q.slip) || 3, nv = slipSug(cur);
+    return nv > cur ? '<div class="row dmact" style="margin-top:10px"><button class="btn primary" type="button" data-slipretry="' + nv + '">Cotar de novo com folga de ' + num(nv, 1) + "%</button>" +
+      '<span class="muted small">só cota; nada é enviado sem você confirmar</span></div>' : "";
+  }
   async function buyQuote() {
     if (!BUY) return;
     const valor = $("buyVal").value;
     if (!(Number(valor) > 0)) { $("buyPrev").innerHTML = '<div class="buybad">Digite quanto quer gastar.</div>'; return; }
     if (BUY.timer) clearInterval(BUY.timer);
     $("buyPrev").innerHTML = '<div class="muted" style="margin-top:10px">cotando e conferindo o token…</div>';
-    const r = await BB.api("/api/dormant/compra/cotar", { body: { key: BUY.key, rede: $("buyRede").value, valor } });
+    const r = await BB.api("/api/dormant/compra/cotar", { body: { key: BUY.key, rede: $("buyRede").value, valor, slip: slipVal() } });
     if (!BUY) return;
     if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
     BUY.q = r;
@@ -814,7 +825,7 @@
       const vivo = ["enviando", "pendente"].includes(c.status);
       $("buyPrev").innerHTML = (c.status === "confirmada" ? '<div class="buyok"><b>Comprado.</b> ' + qtd(c.qty) + " " + esc(c.simbolo) + " por $" + num(c.usd_in, 2) + ". " + link + "</div>"
         : vivo ? '<div class="buywarn"><b>Transação enviada. Aguardando confirmar na blockchain.</b> Não precisa fazer mais nada: esta janela atualiza sozinha. ' + link + "</div>"
-        : '<div class="buybad"><b>' + esc(c.status === "falhou" ? "A compra não entrou." : "Confira esta compra.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>") +
+        : '<div class="buybad"><b>' + esc(c.status === "falhou" ? "A compra não entrou." : "Confira esta compra.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>" + retryBtn(c)) +
         '<div class="row dmact" style="margin-top:10px"><a class="btn primary" href="#compras" id="buyHist">Ver em Minhas compras</a></div>';
     };
     desenha(c0);
@@ -876,6 +887,7 @@
     const falta = x.cex ? 0 : Math.max(0, Number(x.nativo || 0) - cpVendas(x).reduce((a, v) => a + (v.status === "confirmada" && v.compra === x.id ? Number(v.nativo_out || 0) : 0), 0));
     const invOpt = falta > 0 ? '<option value="investido">Só o valor investido (' + num(falta, 8) + " " + esc(x.moeda || "") + ")</option>" : "";
     $("buyMB").innerHTML = '<div class="buyform"><div><label for="sellPct">Quanto do saldo do token na carteira</label><select class="in" id="sellPct">' + invOpt + '<option value="100">100% (tudo)</option><option value="75">75%</option><option value="50">50%</option><option value="25">25%</option></select></div>' +
+      '<div><label for="buySlip">Folga de preço desta venda (slippage, %)</label><input class="in" id="buySlip" type="number" step="0.5" min="0.1" max="15" inputmode="decimal" placeholder="a da configuração"><div class="muted small">Se o preço mudar mais que isso até a venda entrar, a rede recusa e só o gás é gasto. Pool pequeno e agitado pede folga maior.</div></div>' +
       '<div class="row dmact"><button class="btn primary" type="button" id="sellQuote">Ver cotação</button><span class="muted small">só mostra; nada é enviado neste passo</span></div></div><div id="buyPrev"></div>';
     $("buyM").hidden = false;
   }
@@ -883,7 +895,7 @@
     if (!BUY || !BUY.sell) return;
     if (BUY.timer) clearInterval(BUY.timer);
     $("buyPrev").innerHTML = '<div class="muted" style="margin-top:10px">cotando e lendo o saldo…</div>';
-    const r = await BB.api("/api/dormant/venda/cotar", { body: { compra: BUY.sell, pct: $("sellPct").value === "investido" ? "investido" : Number($("sellPct").value) } });
+    const r = await BB.api("/api/dormant/venda/cotar", { body: { compra: BUY.sell, pct: $("sellPct").value === "investido" ? "investido" : Number($("sellPct").value), slip: slipVal() } });
     if (!BUY) return;
     if (!r || r.error) { $("buyPrev").innerHTML = '<div class="buybad">' + esc((r && r.error) || "não consegui cotar") + "</div>"; return; }
     BUY.q = r;
@@ -954,7 +966,7 @@
       const link = c.tx && c.expl ? '<a href="' + esc(c.expl + c.tx) + '" target="_blank" rel="noopener">ver a transação na blockchain</a>' : "";
       $("buyPrev").innerHTML = c.status === "confirmada" ? '<div class="buyok"><b>Vendido.</b> Entraram ' + num(c.nativo_out, 6) + " " + esc(c.moeda) + " ($" + num(c.usd_out, 2) + "). " + link + "</div>"
         : ["enviando", "pendente"].includes(c.status) ? '<div class="buywarn"><b>Transação enviada. Aguardando confirmar na blockchain.</b> Não precisa fazer mais nada: esta janela atualiza sozinha. ' + link + "</div>"
-        : '<div class="buybad"><b>' + esc(c.status === "falhou" ? "A venda não entrou." : "Confira esta venda.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>";
+        : '<div class="buybad"><b>' + esc(c.status === "falhou" ? "A venda não entrou." : "Confira esta venda.") + "</b> " + esc(c.motivo || "") + " " + link + "</div>" + retryBtn(c);
       if (VIEW === "compras" && !["enviando", "pendente"].includes(c.status)) drawCompras();
     };
     desenha(c0);
@@ -1316,6 +1328,7 @@
     if (t.dataset.dmcopy) { copyText(t.dataset.dmcopy, t); return; }
     if (t.id === "buyMX") { closeBuy(); return; }
     if (t.id === "buyQuote") { buyQuote(); return; }
+    if (t.dataset.slipretry) { const el = $("buySlip"); if (el) el.value = t.dataset.slipretry; if (BUY && BUY.sell) sellQuote(); else buyQuote(); return; }
     if (t.id === "buyMax") { if (BUY && BUY.lim && BUY.lim.max_nativo != null) { $("buyVal").value = BUY.lim.max_nativo.toFixed(8).replace(/0+$/, "").replace(/\.$/, "") || "0"; buyUsdDraw(); $("buyPrev").innerHTML = ""; if (BUY.timer) clearInterval(BUY.timer); } return; }
     if (t.id === "buyGoW") { closeBuy(); $("coinM").hidden = true; CM = null; return; }
     if (t.id === "buyGo") { buyGo(t); return; }

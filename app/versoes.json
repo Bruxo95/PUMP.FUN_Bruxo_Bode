@@ -2835,6 +2835,11 @@
    "versao": "0.32.415",
    "inicio": "2026-11-21T08:41:23+00:00",
    "titulo": "Dormant: lucro e o que fica também na venda por porcentagem"
+  },
+  {
+   "versao": "0.32.416",
+   "inicio": "2026-11-21T09:55:35+00:00",
+   "titulo": "Dormant: compra recusada explica o motivo e folga por compra"
   }
  ]
 }

@@ -168,6 +168,76 @@ RESPOSTA_S = 8                    # 0.32.248: a tela recebe "enviada" depois dis
 PUBLICO_APOS_S = 30               # a MESMA transação assinada: mesmo hash, não compra duas vezes, e a folga de preço continua valendo
 PRECO_AVISO, PRECO_BLOQ = 10.0, 25.0     # % pagando acima da CoinGecko
 IMPACTO_AVISO, IMPACTO_BLOQ = 10.0, 25.0  # % que a própria compra move o preço (pool pequeno)
+# 0.32.416 (caso ELON do dono, 21/11, Polygon): a rede recusou com "Too little received". Outra compra de 14 POL entrou antes no mesmo bloco,
+# num pool pequeno, e o preço passou da folga de 3%. A tela só dizia "falhou na rede". Agora o motivo da recusa é lido (trace da transação)
+# e explicado, e cada compra/venda pode usar uma folga própria (a da configuração vem preenchida).
+IMPACTO_FOLGA = 2.0                       # a partir daqui o pool é pequeno o bastante para outra compra junto passar da folga
+TRACE_RPC = {"ethereum": "https://eth.drpc.org", "binance-smart-chain": "https://bsc.drpc.org", "base": "https://base.drpc.org",
+             "polygon-pos": "https://polygon.drpc.org", "avalanche": "https://avalanche.drpc.org", "arbitrum-one": "https://arbitrum.drpc.org",
+             "optimistic-ethereum": "https://optimism.drpc.org", "linea": "https://linea.drpc.org", "xdai": "https://gnosis.drpc.org",
+             "unichain": "https://unichain.drpc.org", "zksync": "https://zksync.drpc.org"}   # só o hash da transação, que é público
+REV_PRECO = ("too little received", "insufficient_output_amount", "insufficient output amount", "too much requested", "toolittlereceived",
+             "insufficient_a_amount", "insufficient_b_amount", "slippage", "price slippage check", "return amount is not enough")
+REV_PRAZO = ("transaction too old", "expired", "deadline")
+REV_TOKEN = ("transfer_from_failed", "transferhelper", "transfer_failed", "transfer failed", "transfer amount exceeds", "trading not",
+             "not enabled", "blacklist", "max tx", "maxtx", "max wallet", "cooldown")
+REV_TOKEN_CURTO = ("stf", "st", "tf")
+
+
+def folga_sugerida(slip: float) -> float:
+    return float(min(CFG_LIMITS["slip_pct"][1], max(slip + 3, slip * 2)))
+
+
+def clean_slip(v, base: float) -> float:
+    """Folga desta compra/venda, vinda da tela. Fora dos limites da configuração (ou vazia) fica a da configuração."""
+    if v is None or v == "":
+        return base
+    try:
+        f = round(float(v), 2)
+    except (TypeError, ValueError):
+        return base
+    lo, hi = CFG_LIMITS["slip_pct"]
+    return f if lo <= f <= hi else base
+
+
+def decode_revert(out) -> str | None:
+    """Error(string) e Panic(uint256) do retorno de uma transação recusada; erro próprio do contrato vira o seletor."""
+    o = str(out or "")
+    h = o[2:] if o.startswith("0x") else ""
+    if len(h) < 8:
+        return None
+    sel, body = h[:8], h[8:]
+    try:
+        if sel == "08c379a0" and len(body) >= 128:
+            n = int(body[64:128], 16)
+            return bytes.fromhex(body[128:128 + 2 * n]).decode("utf-8", "replace")
+        if sel == "4e487b71" and len(body) >= 64:
+            return f"panic 0x{int(body[:64], 16):x}"
+    except ValueError:
+        return None
+    return "erro 0x" + sel
+
+
+def revert_text(why: str | None, lado: str, slip: float, sem_gas: bool = False) -> str:
+    """Motivo em português. lado: compra ou venda. Sempre diz que só o gás foi gasto."""
+    gas = "só o gás foi gasto"
+    if sem_gas:
+        return f"a transação ficou sem gás no meio da troca e a rede desfez tudo ({gas}). Tente de novo: o painel calcula o gás na hora."
+    w = (why or "").strip()
+    lw = w.lower().replace("execution reverted:", "").replace("execution reverted", "").strip(" :")
+    if any(k in lw for k in REV_PRECO):
+        mexe = "subiu" if lado == "compra" else "caiu"
+        return (f"a rede recusou para proteger o seu preço: entre a cotação e a {lado} entrar, o preço {mexe} (outra negociação no mesmo pool, "
+                f"que é pequeno, passou na frente) e você receberia menos que o mínimo da folga de {slip:g}%. Nada foi trocado, {gas}. "
+                f"Peça outra cotação; se o pool estiver agitado, use uma folga maior (ex.: {folga_sugerida(slip):g}%).")
+    if any(k in lw for k in REV_PRAZO):
+        return f"a rede recusou porque a transação demorou demais para entrar e o prazo dela venceu ({gas}). Peça outra cotação."
+    if any(k in lw for k in REV_TOKEN) or lw in REV_TOKEN_CURTO:
+        return (f"a rede recusou porque o contrato do token não deixou a transferência ({w[:60]}): pode ser token com trava, lista negra, "
+                f"limite por carteira ou negociação ainda fechada ({gas}).")
+    if w:
+        return f"a rede recusou a {lado}: {w[:100]} ({gas})."
+    return f"a transação falhou na rede ({gas}); o motivo não pôde ser lido"
 TAXA_TOKEN_MAX = 10.0
 VENDA_BLOQ = 50.0                 # % abaixo da CoinGecko que barra a venda (dormente tem pool ruim: até aqui é só aviso)
 # campo da GoPlus → motivo. Bloqueia = não deixa vender ou o dono mexe no saldo. Aviso = aparece, a decisão é do dono.
@@ -496,6 +566,7 @@ class Buyer:
         self.allowed = allowed or (lambda: False)
         self.sys_key = sys_key or (lambda name: "")
         self.quotes: dict[str, dict] = {}
+        self._slip_tx: dict[str, float] = {}      # 0.32.416: folga usada em cada transação, para explicar a recusa
         self._locks: dict[str, asyncio.Lock] = {}
         self._gp: dict[tuple, tuple] = {}
         self._px: dict[str, tuple] = {}
@@ -608,7 +679,7 @@ class Buyer:
             except (BuyError, KeyError, TypeError, ValueError):
                 saldo = None
         out = {"moeda": c["moeda"], "usd_n": usd_n, "tem_carteira": bool(wal), "saldo": saldo, "saldo_usd": saldo * usd_n if saldo is not None and usd_n else None, "reserva_gas": reserva,
-               "limite_compra_usd": cfg["max_usd"], "limite_dia_usd": cfg["dia_usd"], "gasto_dia_usd": gasto, "resta_dia_usd": round(resta, 2), "ligado": cfg["on"], "max_nativo": None, "max_usd": None, "limitado_por": None}
+               "limite_compra_usd": cfg["max_usd"], "limite_dia_usd": cfg["dia_usd"], "gasto_dia_usd": gasto, "resta_dia_usd": round(resta, 2), "ligado": cfg["on"], "folga": cfg["slip_pct"], "max_nativo": None, "max_usd": None, "limitado_por": None}
         if usd_n:
             caps = [(cfg["max_usd"], "seu limite por compra"), (resta, "o que sobra do seu limite de 24 h")]
             if saldo is not None:
@@ -717,7 +788,7 @@ class Buyer:
         return {**best, "out": out} if best else None
 
     # ------------------------------------------------------------------ cotação
-    async def preview(self, uid: str, key: str, chain: str, amount) -> dict:
+    async def preview(self, uid: str, key: str, chain: str, amount, slip=None) -> dict:
         """Mostra tudo antes da compra. Só devolve quote_id se nada bloquear; quem compra não manda preço nenhum."""
         w = self.watch
         m = next((x for x in w.todas() if x["cmc"] == key), None)
@@ -766,7 +837,7 @@ class Buyer:
         bloq += gb
         avisos += ga
         q = {"uid": uid, "key": key, "cg": cid, "rede": chain, "token": token, "value": value, "amt": amt, "usd_n": usd_n, "usd_in": usd_in,
-             "nome": it.get("nome"), "simbolo": it.get("simbolo"), "t": time.time(), "slip": cfg["slip_pct"], "end": (wal or {}).get("endereco"),
+             "nome": it.get("nome"), "simbolo": it.get("simbolo"), "t": time.time(), "slip": clean_slip(slip, cfg["slip_pct"]), "end": (wal or {}).get("endereco"),
              "risco": SALDO_TXT in ga}
         if c["tipo"] == "solana":
             det = await self._preview_sol(q, wal, bloq, avisos)
@@ -793,8 +864,11 @@ class Buyer:
                 bloq.append(f"esta compra moveria o preço em {imp:.0f}%: pool pequeno para este valor")
             elif imp > IMPACTO_AVISO:
                 avisos.append(f"esta compra move o preço em {imp:.0f}%: pool pequeno para este valor")
+            if imp >= IMPACTO_FOLGA and q["slip"] < imp * 2 + 2 and q["slip"] < CFG_LIMITS["slip_pct"][1]:
+                avisos.append(f"pool pequeno: se outra compra entrar junto, o preço pode passar da folga de {q['slip']:g}% e a rede recusa a compra "
+                              f"(só o gás é gasto). Para evitar, use uma folga maior (ex.: {folga_sugerida(q['slip']):g}%).")
         out = {"moeda": {"nome": q["nome"], "simbolo": q["simbolo"], "img": it.get("img")}, "rede": chain, "rede_nome": c["nome"], "token": token,
-               "moeda_rede": c["moeda"], "valor": amt, "usd": usd_in, "carteira": q["end"], "slip": cfg["slip_pct"], "bloqueia": bloq, "avisos": avisos, "risco": q["risco"], **det}
+               "moeda_rede": c["moeda"], "valor": amt, "usd": usd_in, "carteira": q["end"], "slip": q["slip"], "folga_padrao": cfg["slip_pct"], "bloqueia": bloq, "avisos": avisos, "risco": q["risco"], **det}
         if not bloq:
             self._prune()
             qid = uuid.uuid4().hex
@@ -993,6 +1067,7 @@ class Buyer:
         nonce = int(await self.rpc(c["rpc"], "eth_getTransactionCount", [addr, "pending"]), 16)
         raw, h = evm.sign_tx(key, nonce, gp, gas, to, q["value"], data, c["id"])
         rt = q["route"]
+        self._slip_tx[h] = q.get("slip")
         # grava ANTES de enviar: se o servidor cair aqui, a compra aparece e o limite do dia conta
         row = self._row(q, wal, h, rt["dex"], rt["rota"])
         await self.db.insert("dormant_buys", row)
@@ -1043,12 +1118,54 @@ class Buyer:
                     pass                           # "já conhecida" ou já entrou: o recibo é quem decide
         return None
 
+    async def _revert_reason(self, chain: str, h: str, rc: dict) -> tuple[str | None, bool]:
+        """Por que a rede recusou: (texto do contrato, ficou sem gás). Primeiro o trace da transação (RPC da rede, depois um que tem trace);
+        sem trace, repete a chamada no bloco dela. O que falhar aqui só deixa o motivo sem detalhe."""
+        c = CHAINS[chain]
+        try:
+            tx = await self.rpc(c["rpc"], "eth_getTransactionByHash", [h]) or {}
+        except BuyError:
+            tx = {}
+        used, lim = int(rc.get("gasUsed") or "0x0", 16), int(tx.get("gas") or "0x0", 16)
+        if lim and used >= lim * 0.98:
+            return None, True
+        for url in dict.fromkeys(u for u in (c["rpc"], TRACE_RPC.get(chain)) if u):
+            try:
+                tr = await asyncio.wait_for(self.rpc(url, "debug_traceTransaction", [h, {"tracer": "callTracer"}]), 12)
+            except (BuyError, asyncio.TimeoutError):
+                continue
+            if isinstance(tr, dict):
+                why = tr.get("revertReason") or decode_revert(tr.get("output"))
+                if why:
+                    return why, False
+        if tx.get("to") and rc.get("blockNumber"):
+            call = {"from": tx.get("from"), "to": tx["to"], "value": tx.get("value") or "0x0", "data": tx.get("input") or "0x", "gas": tx.get("gas")}
+            try:
+                await asyncio.wait_for(self.rpc(c["rpc"], "eth_call", [call, rc["blockNumber"]]), 12)
+            except BuyError as e:
+                return str(e), False
+            except asyncio.TimeoutError:
+                pass
+        return None, False
+
+    async def _fail_why(self, row: dict, rc: dict, lado: str) -> str:
+        h = rc.get("transactionHash") or row.get("tx") or ""
+        slip = self._slip_tx.pop(h, None)
+        try:
+            if slip is None:
+                slip = (await self.cfg(row["user_id"]))["slip_pct"]
+            why, sem_gas = await self._revert_reason(row["rede"], h, rc)
+        except Exception:                          # o motivo é só explicação: nunca atrapalha gravar a falha
+            why, sem_gas = None, False
+            slip = slip if slip is not None else CFG_DEFAULT["slip_pct"]
+        return revert_text(why, lado, float(slip), sem_gas)[:400]
+
     async def _apply_evm(self, row: dict, rc: dict, gp: int | None = None) -> dict:
         c = CHAINS[row["rede"]]
         gas = int(rc.get("gasUsed") or "0x0", 16) * int(rc.get("effectiveGasPrice") or hex(gp or 0), 16) / 1e18
         gas_usd = round(gas * float(row.get("nativo_usd") or 0), 4)
         if int(rc.get("status") or "0x0", 16) != 1:
-            return await self._finish(row, status="falhou", motivo="a transação falhou na rede (só o gás foi gasto)", gas_usd=gas_usd)
+            return await self._finish(row, status="falhou", motivo=await self._fail_why(row, rc, "compra"), gas_usd=gas_usd)
         got = 0
         for lg in rc.get("logs") or []:
             tp = lg.get("topics") or []
@@ -1192,7 +1309,7 @@ class Buyer:
         w = evm.words(await self._call(c, PERMIT2, SEL_P2_ALLOW + evm.w_addr(addr) + evm.w_addr(q["token"]) + evm.w_addr(V4[q["rede"]]["ur"])) or "0x")
         return len(w) >= 2 and w[0] >= q["amount"] and w[1] > time.time() + 120
 
-    async def preview_sell(self, uid: str, compra_id: str, pct) -> dict:
+    async def preview_sell(self, uid: str, compra_id: str, pct, slip=None) -> dict:
         rows = await self.db.select("dormant_buys", {"id": str(compra_id or ""), "user_id": uid}, limit=1) or []
         if not rows or rows[0].get("status") != "confirmada":
             raise BuyError("compra não encontrada")
@@ -1226,7 +1343,7 @@ class Buyer:
         avisos += gb + ga                          # na venda não bloqueia: se der para sair, a decisão é do dono; a simulação recusa se não der
         cfg = await self.cfg(uid)
         q = {"lado": "venda", "uid": uid, "compra": r["id"], "key": r.get("cmc"), "cg": r.get("cg"), "rede": chain, "token": r["token"], "pct": 100 if investido else pct, "usd_n": usd_n,
-             "nome": r.get("nome"), "simbolo": r.get("simbolo"), "t": time.time(), "slip": cfg["slip_pct"], "end": r.get("endereco")}
+             "nome": r.get("nome"), "simbolo": r.get("simbolo"), "t": time.time(), "slip": clean_slip(slip, cfg["slip_pct"]), "end": r.get("endereco")}
         fn = {"solana": self._sell_preview_sol, "cardano": self._sell_preview_ada, "cosmos": self._sell_preview_osmo}.get(c["tipo"], self._sell_preview_evm)
         alvo = None
         if investido:
@@ -1263,7 +1380,7 @@ class Buyer:
         if imp is not None and imp > IMPACTO_AVISO:
             avisos.append(f"esta venda move o preço em {imp:.0f}%: pool pequeno para este valor")
         out = {"moeda": {"nome": q["nome"], "simbolo": q["simbolo"]}, "rede": chain, "rede_nome": c["nome"], "token": q["token"], "moeda_rede": c["moeda"], "carteira": q["end"],
-               "slip": cfg["slip_pct"], "pct": q["pct"], "investido": investido, "usd": usd_out, "bloqueia": bloq, "avisos": avisos, **det}
+               "slip": q["slip"], "folga_padrao": cfg["slip_pct"], "pct": q["pct"], "investido": investido, "usd": usd_out, "bloqueia": bloq, "avisos": avisos, **det}
         if not bloq:
             self._prune()
             qid = uuid.uuid4().hex
@@ -1462,6 +1579,7 @@ class Buyer:
         nonce = int(await self.rpc(c["rpc"], "eth_getTransactionCount", [addr, "pending"]), 16)
         raw, h = evm.sign_tx(key, nonce, gp, gas, to, 0, data, c["id"])
         rt = q["route"]
+        self._slip_tx[h] = q.get("slip")
         row = self._sell_row(q, wal, h, rt["dex"], rt["rota"])
         await self.db.insert("dormant_sells", row)      # grava ANTES de enviar, como na compra
         async def rest():
@@ -1483,7 +1601,7 @@ class Buyer:
         usd_n = float(row.get("nativo_usd") or 0)
         gas_usd = round(gas * usd_n, 4)
         if int(rc.get("status") or "0x0", 16) != 1:
-            return await self._sell_finish(row, status="falhou", motivo="a transação falhou na rede (só o gás foi gasto)", gas_usd=gas_usd)
+            return await self._sell_finish(row, status="falhou", motivo=await self._fail_why(row, rc, "venda"), gas_usd=gas_usd)
         got, sold, end = 0, 0, row["endereco"][2:]
         for lg in rc.get("logs") or []:
             tp, adr = lg.get("topics") or [], (lg.get("address") or "").lower()

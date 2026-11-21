@@ -214,7 +214,7 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
     @app.post("/api/dormant/compra/cotar")
     async def buy_quote(body: dict, u: dict = Depends(own)):
         b = body if isinstance(body, dict) else {}
-        return await run(buyer().preview(u["id"], str(b.get("key") or "")[:200], str(b.get("rede") or ""), b.get("valor")))
+        return await run(buyer().preview(u["id"], str(b.get("key") or "")[:200], str(b.get("rede") or ""), b.get("valor"), b.get("slip")))
 
     @app.post("/api/dormant/compra/confirmar")
     async def buy_go(body: dict, u: dict = Depends(own)):
@@ -229,7 +229,7 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
     @app.post("/api/dormant/venda/cotar")
     async def sell_quote(body: dict, u: dict = Depends(own)):
         b = body if isinstance(body, dict) else {}
-        return await run(buyer().preview_sell(u["id"], str(b.get("compra") or "")[:64], "investido" if b.get("pct") == "investido" else b.get("pct")))
+        return await run(buyer().preview_sell(u["id"], str(b.get("compra") or "")[:64], "investido" if b.get("pct") == "investido" else b.get("pct"), b.get("slip")))
 
     @app.post("/api/dormant/venda/confirmar")
     async def sell_go(body: dict, u: dict = Depends(own)):
