@@ -112,6 +112,7 @@
   .cpc .g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border-top:1px solid var(--line);padding-top:10px}
   .cpc .g.q{grid-template-columns:repeat(4,minmax(0,1fr))}
   .cpc .g small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}.cpc .g b{font-family:var(--mono);font-size:13px;font-weight:600;overflow-wrap:anywhere}
+  .asc .asrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.asc select.in{width:auto;min-width:96px}.asc .aslog{margin-top:10px;display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}.asc .asst{font-size:13px;overflow-wrap:anywhere}.asc .asst.on{color:#22c55e}.asc .asst.warn{color:#f59e0b}
   .cpc .f{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}.cpc .f .sp{flex:1}.cpc .f .dmbuy{margin-top:0}
   .cpempty{color:var(--muted);padding:10px 0}
   /* 0.32.248: estrela de favorita */
@@ -255,6 +256,7 @@
       </section>
       <section class="view" data-view="compras" hidden>
         <div class="kpis" id="cpK"></div>
+        <div class="card asc" id="asCard" style="margin-top:16px"></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Compras</h2><div class="sub" id="cpSub"></div></div></header>
           <div class="cpcards" id="cpT"></div></div>
         <div class="card"><header><div><h2>Vendas</h2><div class="sub">o que entrou na carteira em cada venda</div></div></header>

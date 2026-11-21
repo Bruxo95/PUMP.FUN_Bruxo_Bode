@@ -2775,6 +2775,11 @@
    "versao": "0.32.403",
    "inicio": "2026-11-21T05:45:00+00:00",
    "titulo": "BOOST: \"Você entrou\" volta do banco depois do reinício e continua gravando"
+  },
+  {
+   "versao": "0.32.404",
+   "inicio": "2026-11-21T05:59:32+00:00",
+   "titulo": "Dormant: venda automática ao chegar a +10% até +100%"
   }
  ]
 }

@@ -4229,6 +4229,19 @@ class PumpHub:
             except Exception as e:
                 log.warning("Dormant: aviso no Telegram falhou: %s", str(e)[:160])
 
+    async def dormant_autosell_loop(self) -> None:
+        """0.32.404: venda automática do Dormant. Só age para conta que ligou (a senha está na memória do servidor); depois de reiniciar, ninguém vende até ligar de novo."""
+        while True:
+            await asyncio.sleep(60)
+            b = getattr(getattr(self, "dormant", None), "buyer", None)
+            if b is None or not b._as_pw:
+                continue
+            for uid in list(b._as_pw):
+                try:
+                    await b.autosell_tick(uid)
+                except Exception as e:
+                    log.warning("Dormant: venda automática falhou (%s): %s", type(e).__name__, str(e)[:120])
+
     async def dormant_tg_tick(self, last: float | None) -> float | None:
         from .dormant import tg_text
         from .dormant_buy import TG_TIPOS
@@ -5446,6 +5459,7 @@ class PumpHub:
         self._tasks.append(run_as("Relatórios", self.result_loop()))         # 0.32.114: estudo do Resultado (dias fechados)
         self._tasks.append(run_as("Copiar igual", self.eq_report_loop()))      # 0.32.73: relatório do Copiar igual (6 h)     # 0.32.41: relatório de cada aba (30 min)
         self._tasks.append(run_as("Sistema", self.usage_loop()))          # 0.31.76: uso das APIs
+        self._tasks.append(run_as("Dormant", self.dormant_autosell_loop()))   # 0.32.404: venda automática do Dormant
         self._tasks.append(run_as("Dormant", self.dormant_tg_loop()))     # 0.32.329: alertas do Dormant no Telegram
         if getattr(self, "arquivo", None) is not None:                     # 0.32.225: histórico no Postgres da VPS
             self._tasks.append(run_as("Sistema", self.arquivo_loop()))

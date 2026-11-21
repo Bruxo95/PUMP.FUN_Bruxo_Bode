@@ -29,6 +29,7 @@ from . import osmosis
 from . import dormant_vault as vault
 from . import evm
 from .crypto import CryptoError
+from .db import audit
 
 log = logging.getLogger("pump.dormant.compra")
 
@@ -146,7 +147,7 @@ EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 # 0.32.329 (pedido do dono, 12/11): alertas do Dormant no Telegram, por conta (tg_on começa desligado)
 TG_TIPOS = ("acordando", "pump", "dump", "acordou_chain")
 CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0, "cex_max_usd": 25.0, "cex_dia_usd": 100.0,
-               "tg_on": False, "tg_tipos": list(TG_TIPOS)}
+               "tg_on": False, "tg_tipos": list(TG_TIPOS), "as_on": False, "as_pct": 50}
 CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0), "cex_max_usd": (1.0, 5000.0), "cex_dia_usd": (1.0, 20000.0)}
 CEX_NOMES = {"binance": "Binance", "bybit": "Bybit", "okx": "OKX", "kucoin": "KuCoin", "mexc": "MEXC", "nonkyc": "NonKYC"}
 QUOTE_TTL_S = 60                  # depois disso a cotação vale nada e o botão pede outra
@@ -191,8 +192,17 @@ class BuyError(Exception):
     """Motivo já em linguagem de usuário. Nunca leva chave nem senha."""
 
 
+# 0.32.404 (pedido do dono, 21/11): venda automática. Quando uma compra chega a +X% (total, no preço da CoinGecko) o servidor vende o token dela
+# sozinho. A senha de compra fica SÓ na memória do servidor, de quando a pessoa liga até desligar ou o servidor reiniciar (aí ela precisa ligar de novo).
+AS_PCTS = (10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+AS_BACKOFF = (300, 900, 3600)          # depois de uma tentativa que não deu: espera 5 min, 15 min, 1 h (e fica em 1 h)
+AS_STALE_S = 45 * 60                   # preço da CoinGecko mais velho que isto não dispara venda
+
+
 def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = {**CFG_DEFAULT, **{k: v for k, v in (base or {}).items() if k in CFG_DEFAULT}}
+    out["as_on"] = out.get("as_on") is True
+    out["as_pct"] = out["as_pct"] if out.get("as_pct") in AS_PCTS else 50
     for k, (lo, hi) in CFG_LIMITS.items():
         if k not in (raw or {}):
             continue
@@ -466,6 +476,9 @@ class Buyer:
         self._jq = None
         self._v4keys: dict[str, list | None] = {}           # id do pool → PoolKey conferida (não muda nunca)
         self._v4tok: dict[tuple, tuple] = {}                # (rede, token) → (quando, pools com ETH da GeckoTerminal)
+        self._as_pw: dict[str, str] = {}                    # uid → senha de compra, SÓ na memória (venda automática ligada)
+        self._as_fail: dict[tuple, tuple] = {}              # (uid, id da compra) → (quando pode tentar, quantas falhas)
+        self._as_log: dict[str, list] = {}                  # uid → últimas decisões da venda automática (só memória)
 
     def lock(self, uid: str) -> asyncio.Lock:
         return self._locks.setdefault(uid, asyncio.Lock())
@@ -2292,6 +2305,87 @@ class Buyer:
         await self._put_cfg(row)
         return base
 
+    # ------------------------------------------------------------------ venda automática (0.32.404)
+    async def autosell_state(self, uid: str) -> dict:
+        c = await self.cfg(uid)
+        return {"on": c["as_on"], "pct": c["as_pct"], "pcts": list(AS_PCTS), "ativa": uid in self._as_pw, "log": list(self._as_log.get(uid, []))[-8:]}
+
+    async def save_autosell(self, uid: str, on, pct, senha) -> dict:
+        """Ligar pede a senha de compra (conferida agora e guardada só na memória); desligar é sempre livre e apaga a senha da memória."""
+        try:
+            pct = int(pct)
+        except (TypeError, ValueError):
+            raise BuyError("escolha uma porcentagem da lista") from None
+        if pct not in AS_PCTS:
+            raise BuyError("escolha uma porcentagem da lista")
+        row = await self._cfg_row(uid)
+        base = clean_cfg(None, row.get("cfg") or {})
+        if on is True:
+            if not isinstance(senha, str) or not senha:
+                raise BuyError("digite a senha de compra para ligar a venda automática")
+            async with self.lock(uid):
+                first = await self._any_secret(uid)
+                if not first:
+                    raise BuyError("cadastre uma carteira antes")
+                await self._open(uid, first, senha)          # senha errada conta nas 5 tentativas e trava, como em qualquer outra operação
+            self._as_pw[uid] = senha
+            self._as_fail = {k: v for k, v in self._as_fail.items() if k[0] != uid}
+            self._note_as(uid, f"ligada: vende quando uma compra chegar a +{pct}%")
+        else:
+            self._as_pw.pop(uid, None)
+            self._note_as(uid, "desligada")
+        base["as_on"], base["as_pct"] = on is True, pct
+        row["cfg"] = base
+        await self._put_cfg(row)
+        return await self.autosell_state(uid)
+
+    def _note_as(self, uid: str, msg: str) -> None:
+        lg = self._as_log.setdefault(uid, [])
+        lg.append({"t": time.time(), "msg": msg[:200]})
+        del lg[:-20]
+
+    async def autosell_tick(self, uid: str) -> list[dict]:
+        """Uma volta para uma conta: vende, com a senha guardada na memória, a compra que chegou ao alvo. Uma venda por vez por conta."""
+        pw = self._as_pw.get(uid)
+        c = await self.cfg(uid)
+        if not c["as_on"] or not pw or not self.allowed():
+            return []
+        leitura = self.watch.stat.get("leitura_t")
+        if not leitura or time.time() - float(leitura) > AS_STALE_S:
+            return []                                        # sem preço fresco da CoinGecko não vende
+        rows = await self._rows(uid)
+        sells = await self.db.select("dormant_sells", {"user_id": uid}, order="em.desc", limit=500) or []
+        done: list[dict] = []
+        for it in holdings(rows, self.watch, time.time(), sells=sells)["itens"]:
+            if it.get("status") != "confirmada" or str(it.get("rede") or "").startswith("cex:") or it.get("rede") not in CHAINS:
+                continue
+            tot = it.get("total")
+            if not it.get("resto") or tot is None or tot < c["as_pct"]:
+                continue
+            k = (uid, it["id"])
+            when, n = self._as_fail.get(k, (0, 0))
+            if time.time() < when:
+                continue
+            nome = it.get("simbolo") or it.get("nome") or "token"
+            try:
+                q = await self.preview_sell(uid, it["id"], 100)
+                if q.get("bloqueia") or not q.get("quote_id"):
+                    raise BuyError("; ".join(q.get("bloqueia") or ["sem cotação"]))
+                r = await self.sell(uid, q["quote_id"], pw, "VENDER")
+            except BuyError as e:
+                self._as_fail[k] = (time.time() + AS_BACKOFF[min(n, len(AS_BACKOFF) - 1)], n + 1)
+                self._note_as(uid, f"{nome}: não vendeu ({str(e)[:120]})")
+                if "senha" in str(e).lower():                # senha mudou ou travou: para até a pessoa ligar de novo
+                    self._as_pw.pop(uid, None)
+                    return done
+                continue
+            self._as_fail.pop(k, None)
+            self._note_as(uid, f"{nome}: vendida em +{tot:.0f}% · US$ {float(r.get('usd_out') or 0):.2f} · {r.get('status')}")
+            await audit(self.db, uid, "Dormant: venda automática", f"{nome} · +{tot:.0f}% · US$ {float(r.get('usd_out') or 0):.2f} · {r.get('status')} · {r.get('tx')}")
+            done.append(r)
+            break                                            # uma por volta: a próxima só depois de a rede confirmar esta
+        return done
+
     # ------------------------------------------------------------------ histórico
     async def history(self, uid: str) -> dict:
         await self.resolve_pending(uid)
@@ -2299,6 +2393,7 @@ class Buyer:
         sells = await self.db.select("dormant_sells", {"user_id": uid}, order="em.desc", limit=500) or []
         self.watch.held.update(r["cg"] for r in rows if r.get("cg") and r.get("status") == "confirmada")
         out = holdings(rows, self.watch, time.time(), sells=sells)
+        out["autosell"] = await self.autosell_state(uid)
         out["vendas"] = [{**s, "t": _ts(s.get("em")), "rede_nome": (CHAINS.get(s.get("rede")) or {}).get("nome"), "moeda": (CHAINS.get(s.get("rede")) or {}).get("moeda"),
                           "expl": (CHAINS.get(s.get("rede")) or {}).get("expl")} for s in sells]
         return out

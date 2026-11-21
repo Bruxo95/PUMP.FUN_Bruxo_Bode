@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "4f0ff07bb0ddb6feae5a240a622ef082bb002db8",
-    "application_version": "0.32.403 · 2026-11-21 · BOOST: «Você entrou» volta do banco depois do reinício e continua gravando",
+    "repository_reference": "fb8219427af0d8f3623e3e59590dc008113386d3",
+    "application_version": "0.32.404 · 2026-11-21 · Dormant: venda automática ao chegar a +10% até +100%",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "31c11f0bf4aeee33bc6a9942381fe9343488c5a59b3622c13aaae97706394c21",
+      "app/version.py": "bdbf8c7d1df33399b4bdbe330a074c8e66155f8ca0979fbcb2751259c2f8fe34",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "196b1e3ee638d530f3de3edc52b2568c7bf8290bcd2a8473b5e1b33f7b9f06c9"
+  "pdf_sha256": "e659659eadfd51bd2719afab47ff4365eaf43ad6172bc19b78edfc760c25b709"
 }

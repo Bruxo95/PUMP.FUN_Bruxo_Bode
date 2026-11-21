@@ -994,11 +994,35 @@
       '<div class="row dmact" style="margin-top:10px"><a class="btn primary" href="#compras" id="buyHist">Ver em Minhas compras</a></div>';
   }
   let CP_ITENS = [];
+  // 0.32.404 (pedido do dono): venda automática. Escolhe o alvo (+10% … +100%); ligar pede a senha de compra numa janela, desligar não pede nada
+  let AS_ST = null;
+  function drawAutoSell(a) {
+    const box = $("asCard"); if (!box || !a) return;
+    AS_ST = a;
+    const sel = document.activeElement && document.activeElement.id === "asPct" ? $("asPct").value : String(a.pct);
+    const estado = a.on && a.ativa ? '<span class="asst on">LIGADA · vende cada compra que chegar a +' + a.pct + "% (todo o saldo daquele token na carteira)</span>"
+      : a.on ? '<span class="asst warn">PAUSADA · o servidor reiniciou: digite a senha de novo para voltar a vender sozinho</span>' : '<span class="asst muted">desligada</span>';
+    box.innerHTML = '<header><div><h2>Venda automática</h2><div class="sub">quando uma compra chegar ao alvo, o servidor vende sozinho, sem você precisar clicar · usa o total de cada compra (o número verde do quadrado)</div></div></header>' +
+      '<div class="asrow"><label for="asPct" class="small muted">Vender quando chegar a +</label><select class="in" id="asPct" aria-label="Alvo da venda automática">' +
+      a.pcts.map((p) => '<option value="' + p + '"' + (String(p) === sel ? " selected" : "") + ">" + p + "%</option>").join("") + "</select>" +
+      (a.on ? '<button type="button" class="btn sm" data-asgo="off">Desligar</button>' : '<button type="button" class="btn primary sm" data-asgo="on">Ativar venda automática</button>') +
+      (a.on && !a.ativa ? ' <button type="button" class="btn primary sm" data-asgo="on">Digitar a senha e voltar</button>' : "") + " " + estado + "</div>" +
+      '<p class="small muted" style="margin:10px 0 0">A senha fica só na memória do servidor, nunca no banco: se o servidor reiniciar, a venda automática pausa até você digitar a senha de novo. Vender usa o mesmo caminho da venda manual (mesmas conferências); se alguma conferência barrar, ele espera e tenta de novo mais tarde. Só vende com preço da CoinGecko de menos de 45 minutos.</p>' +
+      (a.log && a.log.length ? '<div class="aslog">' + a.log.slice().reverse().map((x) => "<div>" + esc(hora(x.t)) + " · " + esc(x.msg) + "</div>").join("") + "</div>" : "");
+  }
+  async function autoSellSet(on, pct, senha) {
+    const r = await BB.api("/api/dormant/venda-auto", { body: { on, pct: Number(pct), senha: senha || "" } });
+    if (r && r.error) return r.error;
+    if (r && r.autosell) drawAutoSell(r.autosell);
+    drawCompras();
+    return null;
+  }
   async function drawCompras() {
     const r = await BB.api("/api/dormant/compras", { quiet: true });
     if (VIEW !== "compras") return;
     if (!r || r.error) { $("cpT").innerHTML = '<div class="cpempty down">' + esc((r && r.error) || "não consegui ler as compras") + "</div>"; return; }
     CP_ITENS = r.itens;
+    drawAutoSell(r.autosell);
     const s = r.resumo, kp = (k, v, d) => '<div class="kpi"><div class="k"><span>' + esc(k) + '</span></div><div class="v">' + v + '</div><div class="d">' + esc(d) + "</div></div>";
     $("cpK").innerHTML = kp("Investido", "$" + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "$" + num(s.valor, 2), "o que ainda não vendeu, no preço da CoinGecko") + kp("Recebido", "$" + num(s.recebido, 2), "das vendas, já sem o gás") +
       kp("Ganho total", '<span class="' + cls(s.ganho) + '">$' + num(s.ganho, 2) + "</span>", "valor agora + recebido − investido") + kp("Total", pc(s.total), "desde as compras") +
@@ -1139,6 +1163,19 @@
     if (t.dataset.xgo) { openCexForm(t.dataset.xgo, t.dataset.xn); return; }
     if (t.id === "cxQuote") { cxQuote(); return; }
     if (t.id === "cxGo") { cxGo(t); return; }
+    if (t.dataset.asgo) {
+      const pct = ($("asPct") || {}).value || 50;
+      if (t.dataset.asgo === "off") { const e = await autoSellSet(false, pct, ""); if (e) alert(e); return; }
+      ask("Ativar a venda automática", '<p class="muted small">Quando uma compra chegar a <b>+' + esc(pct) + '%</b>, o servidor vende todo o saldo daquele token da carteira sozinho. Digite a senha de compra: ela fica só na memória do servidor, até você desligar ou o servidor reiniciar.</p>' + askPass("Senha de compra") +
+        '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Ativar</button></div></div>', async (b) => {
+        b.disabled = true;
+        const e = await autoSellSet(true, pct, $("askSenha").value);
+        b.disabled = false; if ($("askSenha")) $("askSenha").value = "";
+        if (e) { alert(e); return; }
+        closeAsk();
+      });
+      return;
+    }
     if (t.dataset.xsave) {
       const x = t.dataset.xsave, k = $("xk_" + x), s = $("xs_" + x), f = $("xf_" + x), c = $("xc_" + x);
       if (!k.value.trim() || !s.value.trim()) { alert("Cole a API key e o secret."); return; }

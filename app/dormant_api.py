@@ -365,6 +365,17 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"ok": True}
         return await run(go())
 
+    # 0.32.404: venda automática. A senha vem só ao ligar e fica na memória do servidor; desligar não pede nada
+    @app.post("/api/dormant/venda-auto")
+    async def autosell_set(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            on = b.get("on") is True
+            r = await buyer().save_autosell(u["id"], on, b.get("pct"), b.get("senha"))
+            await audit(db, u["id"], "Dormant: venda automática " + ("ligada" if on else "desligada"), f"alvo +{r['pct']}%")
+            return {"ok": True, "autosell": r}
+        return await run(go())
+
     @app.get("/api/dormant/compras")
     async def buy_hist(u: dict = Depends(own)):
         return await run(buyer().history(u["id"]))
