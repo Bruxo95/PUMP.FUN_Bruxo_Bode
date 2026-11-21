@@ -2790,6 +2790,11 @@
    "versao": "0.32.406",
    "inicio": "2026-11-21T06:22:22+00:00",
    "titulo": "Dormant: gráfico Tudo com o histórico completo (DefiLlama)"
+  },
+  {
+   "versao": "0.32.407",
+   "inicio": "2026-11-21T06:28:21+00:00",
+   "titulo": "Dormant: venda automática com alvo próprio em cada compra"
   }
  ]
 }

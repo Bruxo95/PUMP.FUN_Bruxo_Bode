@@ -92,3 +92,75 @@ def test_other_account_is_untouched_and_exchange_purchases_are_ignored():
     assert run(b.autosell_tick(OUTRO)) == []                                  # outra conta: sem senha na memória
     db.tables["dormant_buys"][0]["rede"] = "cex:binance"
     assert run(b.autosell_tick(UID)) == [] and not net.txs                    # compra em exchange não tem venda por aqui
+
+
+# ------------------------------------------------------------------ 0.32.407: alvo próprio de cada compra
+def bought_ready(preco=0.02):
+    b, net, db = bought()
+    b.watch.rows["tok-cg"]["current_price"] = preco
+    b.watch.stat["leitura_t"] = time.time()
+    run(b.set_on(UID, True, SENHA, "LIGAR"))
+    return b, net, db
+
+
+def test_one_purchase_can_have_its_own_target_with_the_general_switch_off():
+    b, net, db = bought_ready()
+    try:
+        run(b.save_autosell_coin(UID, "c1", 100, ""))                          # ligar uma compra pede a senha se ela não está na memória
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "senha" in str(e)
+    st = run(b.save_autosell_coin(UID, "c1", 100, SENHA))
+    assert st["moedas"] == {"c1": 100} and st["on"] is False and st["ativa"] is True and st["n_moedas"] == 1 and st["precisa_senha"] is False
+    assert len(run(b.autosell_tick(UID))) == 1 and net.txs                     # vendeu só por causa do alvo da compra, com a geral desligada
+    assert SENHA not in str(db.tables)
+
+
+def test_own_target_beats_the_general_one_and_zero_means_off_for_this_purchase():
+    b, net, db = bought_ready()
+    run(b.save_autosell(UID, True, 10, SENHA))                                 # geral: +10% (a compra está em +100%)
+    run(b.save_autosell_coin(UID, "c1", 0, None))                              # desligada só nesta compra
+    assert run(b.autosell_tick(UID)) == [] and not net.txs
+    run(b.save_autosell_coin(UID, "c1", None, None))                           # volta a seguir a geral
+    assert run(b.autosell_state(UID))["moedas"] == {}
+    assert len(run(b.autosell_tick(UID))) == 1
+
+
+def test_own_target_below_the_price_does_not_sell_and_password_leaves_memory_when_nothing_is_on():
+    b, net, db = bought_ready(preco=0.015)                                     # +50%
+    run(b.save_autosell_coin(UID, "c1", 100, SENHA))
+    assert run(b.autosell_tick(UID)) == [] and not net.txs
+    run(b.save_autosell_coin(UID, "c1", None, None))
+    assert UID not in b._as_pw                                                 # sem nenhum alvo ligado, a senha sai da memória
+    run(b.save_autosell(UID, True, 100, SENHA))
+    run(b.save_autosell_coin(UID, "c1", 50, None))
+    run(b.save_autosell(UID, False, 100, None))
+    assert UID in b._as_pw                                                     # a compra ainda tem alvo próprio: a senha fica
+
+
+def test_after_restart_unlock_keeps_every_target_and_bad_inputs_are_refused():
+    b, net, db = bought_ready()
+    run(b.save_autosell_coin(UID, "c1", 100, SENHA))
+    b._as_pw.clear()                                                           # servidor reiniciou
+    st = run(b.autosell_state(UID))
+    assert st["precisa_senha"] is True and st["moedas"] == {"c1": 100}
+    assert run(b.autosell_tick(UID)) == []
+    st = run(b.autosell_unlock(UID, SENHA))
+    assert st["precisa_senha"] is False and st["moedas"] == {"c1": 100}
+    for bad in (7, 101, "x"):
+        try:
+            run(b.save_autosell_coin(UID, "c1", bad, SENHA))
+            raise AssertionError
+        except db_.BuyError as e:
+            assert "porcentagem" in str(e)
+    try:
+        run(b.save_autosell_coin(UID, "naoexiste", 50, SENHA))
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "não encontrada" in str(e)
+    try:
+        run(b.save_autosell_coin(OUTRO, "c1", 50, SENHA))                      # compra de outra conta
+        raise AssertionError
+    except db_.BuyError as e:
+        assert "não encontrada" in str(e)
+    assert db_.clean_cfg(None, {"as_coins": {"a": 50, "b": 7, "c": True, "d": 0, "e": "100"}})["as_coins"] == {"a": 50, "d": 0}

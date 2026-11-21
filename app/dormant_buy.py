@@ -147,7 +147,7 @@ EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 # 0.32.329 (pedido do dono, 12/11): alertas do Dormant no Telegram, por conta (tg_on começa desligado)
 TG_TIPOS = ("acordando", "pump", "dump", "acordou_chain")
 CFG_DEFAULT = {"on": False, "max_usd": 50.0, "dia_usd": 200.0, "slip_pct": 3.0, "gas_max_usd": 10.0, "gas_dia_usd": 50.0, "cex_max_usd": 25.0, "cex_dia_usd": 100.0,
-               "tg_on": False, "tg_tipos": list(TG_TIPOS), "as_on": False, "as_pct": 50}
+               "tg_on": False, "tg_tipos": list(TG_TIPOS), "as_on": False, "as_pct": 50, "as_coins": {}}
 CFG_LIMITS = {"max_usd": (1.0, 10000.0), "dia_usd": (1.0, 50000.0), "slip_pct": (0.1, 15.0), "gas_max_usd": (1.0, 25.0), "gas_dia_usd": (1.0, 200.0), "cex_max_usd": (1.0, 5000.0), "cex_dia_usd": (1.0, 20000.0)}
 CEX_NOMES = {"binance": "Binance", "bybit": "Bybit", "okx": "OKX", "kucoin": "KuCoin", "mexc": "MEXC", "nonkyc": "NonKYC"}
 QUOTE_TTL_S = 60                  # depois disso a cotação vale nada e o botão pede outra
@@ -203,6 +203,9 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
     out = {**CFG_DEFAULT, **{k: v for k, v in (base or {}).items() if k in CFG_DEFAULT}}
     out["as_on"] = out.get("as_on") is True
     out["as_pct"] = out["as_pct"] if out.get("as_pct") in AS_PCTS else 50
+    # 0.32.407: alvo próprio de cada compra {id da compra: 10…100, ou 0 = desligada nesta compra}; quem não está aqui segue a venda automática geral
+    raw_coins = out.get("as_coins") if isinstance(out.get("as_coins"), dict) else {}
+    out["as_coins"] = {str(k)[:64]: v for k, v in list(raw_coins.items())[:300] if isinstance(v, int) and not isinstance(v, bool) and (v == 0 or v in AS_PCTS)}
     for k, (lo, hi) in CFG_LIMITS.items():
         if k not in (raw or {}):
             continue
@@ -2308,7 +2311,54 @@ class Buyer:
     # ------------------------------------------------------------------ venda automática (0.32.404)
     async def autosell_state(self, uid: str) -> dict:
         c = await self.cfg(uid)
-        return {"on": c["as_on"], "pct": c["as_pct"], "pcts": list(AS_PCTS), "ativa": uid in self._as_pw, "log": list(self._as_log.get(uid, []))[-8:]}
+        moedas = c["as_coins"]
+        return {"on": c["as_on"], "pct": c["as_pct"], "pcts": list(AS_PCTS), "ativa": uid in self._as_pw, "log": list(self._as_log.get(uid, []))[-8:],
+                "moedas": moedas, "n_moedas": sum(1 for v in moedas.values() if v), "precisa_senha": (c["as_on"] or any(moedas.values())) and uid not in self._as_pw}
+
+    async def autosell_unlock(self, uid: str, senha) -> dict:
+        """Depois de o servidor reiniciar: confere a senha e a guarda de novo na memória, sem mudar nenhum alvo."""
+        if not isinstance(senha, str) or not senha:
+            raise BuyError("digite a senha de compra")
+        async with self.lock(uid):
+            first = await self._any_secret(uid)
+            if not first:
+                raise BuyError("cadastre uma carteira antes")
+            await self._open(uid, first, senha)
+        self._as_pw[uid] = senha
+        self._as_fail = {k: v for k, v in self._as_fail.items() if k[0] != uid}
+        self._note_as(uid, "senha digitada de novo: a venda automática voltou a vender")
+        return await self.autosell_state(uid)
+
+    async def save_autosell_coin(self, uid: str, compra_id: str, pct, senha) -> dict:
+        """Alvo só desta compra. pct 10…100 = vende quando chegar; 0 = desligada nesta compra; None = segue a venda automática geral.
+        Ligar pede a senha se ela não está na memória do servidor; desligar ou voltar para a geral nunca pede."""
+        rows = await self.db.select("dormant_buys", {"id": str(compra_id or "")[:64], "user_id": uid}, limit=1) or []
+        if not rows or rows[0].get("status") != "confirmada" or str(rows[0].get("rede") or "").startswith("cex:") or rows[0].get("rede") not in CHAINS:
+            raise BuyError("compra não encontrada")
+        if pct is not None:
+            try:
+                pct = int(pct)
+            except (TypeError, ValueError):
+                raise BuyError("escolha uma porcentagem da lista") from None
+            if pct != 0 and pct not in AS_PCTS:
+                raise BuyError("escolha uma porcentagem da lista")
+        if pct and uid not in self._as_pw:
+            await self.autosell_unlock(uid, senha)
+        row = await self._cfg_row(uid)
+        base = clean_cfg(None, row.get("cfg") or {})
+        coins = dict(base["as_coins"])
+        if pct is None:
+            coins.pop(rows[0]["id"], None)
+        else:
+            coins[rows[0]["id"]] = pct
+        base["as_coins"] = coins
+        row["cfg"] = base
+        await self._put_cfg(row)
+        nome = rows[0].get("simbolo") or rows[0].get("nome") or "token"
+        self._note_as(uid, f"{nome}: " + ("segue a venda automática geral" if pct is None else "venda automática desta compra desligada" if pct == 0 else f"vende quando chegar a +{pct}%"))
+        if not base["as_on"] and not any(coins.values()):
+            self._as_pw.pop(uid, None)                                 # nada mais ligado: a senha sai da memória
+        return await self.autosell_state(uid)
 
     async def save_autosell(self, uid: str, on, pct, senha) -> dict:
         """Ligar pede a senha de compra (conferida agora e guardada só na memória); desligar é sempre livre e apaga a senha da memória."""
@@ -2332,7 +2382,8 @@ class Buyer:
             self._as_fail = {k: v for k, v in self._as_fail.items() if k[0] != uid}
             self._note_as(uid, f"ligada: vende quando uma compra chegar a +{pct}%")
         else:
-            self._as_pw.pop(uid, None)
+            if not any(base["as_coins"].values()):                    # alvos próprios de compras ainda precisam da senha na memória
+                self._as_pw.pop(uid, None)
             self._note_as(uid, "desligada")
         base["as_on"], base["as_pct"] = on is True, pct
         row["cfg"] = base
@@ -2348,7 +2399,8 @@ class Buyer:
         """Uma volta para uma conta: vende, com a senha guardada na memória, a compra que chegou ao alvo. Uma venda por vez por conta."""
         pw = self._as_pw.get(uid)
         c = await self.cfg(uid)
-        if not c["as_on"] or not pw or not self.allowed():
+        coins = c["as_coins"]
+        if not pw or not self.allowed() or not (c["as_on"] or any(coins.values())):
             return []
         leitura = self.watch.stat.get("leitura_t")
         if not leitura or time.time() - float(leitura) > AS_STALE_S:
@@ -2360,7 +2412,8 @@ class Buyer:
             if it.get("status") != "confirmada" or str(it.get("rede") or "").startswith("cex:") or it.get("rede") not in CHAINS:
                 continue
             tot = it.get("total")
-            if not it.get("resto") or tot is None or tot < c["as_pct"]:
+            alvo = coins.get(it["id"], c["as_pct"] if c["as_on"] else 0)      # alvo próprio da compra, senão o geral; 0 = não vende
+            if not alvo or not it.get("resto") or tot is None or tot < alvo:
                 continue
             k = (uid, it["id"])
             when, n = self._as_fail.get(k, (0, 0))

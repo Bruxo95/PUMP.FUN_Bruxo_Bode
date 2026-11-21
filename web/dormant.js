@@ -1019,15 +1019,40 @@
     const box = $("asCard"); if (!box || !a) return;
     AS_ST = a;
     const sel = document.activeElement && document.activeElement.id === "asPct" ? $("asPct").value : String(a.pct);
-    const estado = a.on && a.ativa ? '<span class="asst on">LIGADA · vende cada compra que chegar a +' + a.pct + "% (todo o saldo daquele token na carteira)</span>"
-      : a.on ? '<span class="asst warn">PAUSADA · o servidor reiniciou: digite a senha de novo para voltar a vender sozinho</span>' : '<span class="asst muted">desligada</span>';
+    const nm = a.n_moedas ? " · " + a.n_moedas + (a.n_moedas === 1 ? " compra com alvo próprio" : " compras com alvo próprio") : "";
+    const estado = a.precisa_senha ? '<span class="asst warn">PAUSADA · o servidor reiniciou: digite a senha de novo para voltar a vender sozinho' + esc(nm) + "</span>"
+      : a.on ? '<span class="asst on">LIGADA · vende cada compra que chegar a +' + a.pct + "% (todo o saldo daquele token na carteira)" + esc(nm) + "</span>"
+      : a.n_moedas ? '<span class="asst on">geral desligada' + esc(nm) + "</span>" : '<span class="asst muted">desligada</span>';
     box.innerHTML = '<header><div><h2>Venda automática</h2><div class="sub">quando uma compra chegar ao alvo, o servidor vende sozinho, sem você precisar clicar · usa o total de cada compra (o número verde do quadrado)</div></div></header>' +
       '<div class="asrow"><label for="asPct" class="small muted">Vender quando chegar a +</label><select class="in" id="asPct" aria-label="Alvo da venda automática">' +
       a.pcts.map((p) => '<option value="' + p + '"' + (String(p) === sel ? " selected" : "") + ">" + p + "%</option>").join("") + "</select>" +
       (a.on ? '<button type="button" class="btn sm" data-asgo="off">Desligar</button>' : '<button type="button" class="btn primary sm" data-asgo="on">Ativar venda automática</button>') +
-      (a.on && !a.ativa ? ' <button type="button" class="btn primary sm" data-asgo="on">Digitar a senha e voltar</button>' : "") + " " + estado + "</div>" +
-      '<p class="small muted" style="margin:10px 0 0">A senha fica só na memória do servidor, nunca no banco: se o servidor reiniciar, a venda automática pausa até você digitar a senha de novo. Vender usa o mesmo caminho da venda manual (mesmas conferências); se alguma conferência barrar, ele espera e tenta de novo mais tarde. Só vende com preço da CoinGecko de menos de 45 minutos.</p>' +
+      (a.precisa_senha ? ' <button type="button" class="btn primary sm" data-asgo="back">Digitar a senha e voltar</button>' : "") + " " + estado + "</div>" +
+      '<p class="small muted" style="margin:10px 0 0">Cada quadrado abaixo também tem o seu botão <b>Venda automática</b>, com alvo próprio que vale no lugar do geral. A senha fica só na memória do servidor, nunca no banco: se o servidor reiniciar, a venda automática pausa até você digitar a senha de novo. Vender usa o mesmo caminho da venda manual (mesmas conferências); se alguma conferência barrar, ele espera e tenta de novo mais tarde. Só vende com preço da CoinGecko de menos de 45 minutos.</p>' +
       (a.log && a.log.length ? '<div class="aslog">' + a.log.slice().reverse().map((x) => "<div>" + esc(hora(x.t)) + " · " + esc(x.msg) + "</div>").join("") + "</div>" : "");
+  }
+  // botão de venda automática de cada compra: alvo próprio, "usar a geral" ou "desligada nesta compra"
+  const asCoinBtn = (x) => {
+    const a = AS_ST || {}, v = (a.moedas || {})[x.id];
+    const txt = v === undefined ? (a.on ? "Auto +" + a.pct + "% (geral)" : "Venda automática") : v === 0 ? "Auto desligada" : "Auto +" + v + "%";
+    return '<button type="button" class="btn sm' + (v ? " primary" : "") + '" data-ascoin="' + esc(x.id) + '" title="Venda automática só desta compra">' + esc(txt) + "</button>";
+  };
+  function askAsCoin(id) {
+    const a = AS_ST || {}, x = (CP_ITENS || []).find((y) => y.id === id); if (!x) return;
+    const v = (a.moedas || {})[id], need = !a.ativa;
+    const opts = '<option value="g"' + (v === undefined ? " selected" : "") + ">Usar a venda automática geral" + (a.on ? " (+" + a.pct + "%)" : " (desligada)") + '</option><option value="0"' + (v === 0 ? " selected" : "") + ">Desligada nesta compra</option>" +
+      (a.pcts || []).map((p) => '<option value="' + p + '"' + (v === p ? " selected" : "") + ">Vender quando chegar a +" + p + "%</option>").join("");
+    ask("Venda automática de " + (x.simbolo || x.nome), '<p class="muted small">Vale só para esta compra e no lugar da venda automática geral. Quando o total dela chegar ao alvo, o servidor vende todo o saldo deste token na carteira.</p>' +
+      '<div class="buyform"><div><label for="asCoinPct">Alvo</label><select class="in" id="asCoinPct">' + opts + "</select></div>" +
+      (need ? '<div><label for="askSenha">Senha de compra (só para ligar)</label><input class="in" id="askSenha" type="password" autocomplete="off" spellcheck="false"></div>' : "") +
+      '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Salvar</button></div></div>', async (b) => {
+      const sel = $("asCoinPct").value, pct = sel === "g" ? null : Number(sel);
+      b.disabled = true;
+      const r = await BB.api("/api/dormant/venda-auto/moeda", { body: { compra: id, pct, senha: $("askSenha") ? $("askSenha").value : "" } });
+      b.disabled = false; if ($("askSenha")) $("askSenha").value = "";
+      if (r && r.error) { alert(r.error); return; }
+      closeAsk(); if (r && r.autosell) drawAutoSell(r.autosell); drawCompras();
+    });
   }
   async function autoSellSet(on, pct, senha) {
     const r = await BB.api("/api/dormant/venda-auto", { body: { on, pct: Number(pct), senha: senha || "" } });
@@ -1059,7 +1084,7 @@
       (x.vendido ? '<div class="g">' + kv("Vendido", qtd(x.vendido)) + kv("Recebeu", "$" + num(x.recebido, 2)) + kv("Ainda tem", qtd(x.resto)) + "</div>" : "") +
       '<div class="g q">' + kv("1 h", pc(x.h1)) + kv("12 h", pc(x.h12)) + kv("24 h", pc(x.h24)) + kv("7 dias", pc(x.h168)) + "</div>" +
       '<div class="f"><span>' + hora(x.t) + "</span> " + tx(x) + '<span class="sp"></span>' +
-      (x.cex ? '<span class="small">vender na exchange</span>' : x.resto ? '<button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') + "</div></div>").join("")
+      (x.cex ? '<span class="small">vender na exchange</span>' : x.resto ? asCoinBtn(x) + ' <button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') + "</div></div>").join("")
       : '<div class="cpempty">Nenhuma compra ainda. Em Moedas, use o botão Comprar.</div>';
     const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira", cancelada: "cancelada" };
     // 0.32.273: ordem Cardano parada na Minswap (o preço saiu da folga) só volta cancelando
@@ -1182,8 +1207,20 @@
     if (t.dataset.xgo) { openCexForm(t.dataset.xgo, t.dataset.xn); return; }
     if (t.id === "cxQuote") { cxQuote(); return; }
     if (t.id === "cxGo") { cxGo(t); return; }
+    if (t.dataset.ascoin) { askAsCoin(t.dataset.ascoin); return; }
     if (t.dataset.asgo) {
       const pct = ($("asPct") || {}).value || 50;
+      if (t.dataset.asgo === "back") {
+        ask("Voltar a vender sozinho", '<p class="muted small">O servidor reiniciou e esqueceu a senha. Digite de novo: ela fica só na memória do servidor. Nenhum alvo muda.</p>' + askPass("Senha de compra") +
+          '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Voltar</button></div></div>', async (b) => {
+          b.disabled = true;
+          const r = await BB.api("/api/dormant/venda-auto", { body: { reativar: true, senha: $("askSenha").value } });
+          b.disabled = false; if ($("askSenha")) $("askSenha").value = "";
+          if (r && r.error) { alert(r.error); return; }
+          closeAsk(); if (r && r.autosell) drawAutoSell(r.autosell); drawCompras();
+        });
+        return;
+      }
       if (t.dataset.asgo === "off") { const e = await autoSellSet(false, pct, ""); if (e) alert(e); return; }
       ask("Ativar a venda automática", '<p class="muted small">Quando uma compra chegar a <b>+' + esc(pct) + '%</b>, o servidor vende todo o saldo daquele token da carteira sozinho. Digite a senha de compra: ela fica só na memória do servidor, até você desligar ou o servidor reiniciar.</p>' + askPass("Senha de compra") +
         '<div class="row dmact"><button class="btn primary" type="button" id="askGo">Ativar</button></div></div>', async (b) => {

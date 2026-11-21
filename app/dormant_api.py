@@ -378,9 +378,23 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
     async def autosell_set(body: dict, u: dict = Depends(own)):
         async def go():
             b = body if isinstance(body, dict) else {}
+            if b.get("reativar") is True:                      # servidor reiniciou: só a senha de novo, nenhum alvo muda
+                r = await buyer().autosell_unlock(u["id"], b.get("senha"))
+                await audit(db, u["id"], "Dormant: venda automática reativada com a senha", "")
+                return {"ok": True, "autosell": r}
             on = b.get("on") is True
             r = await buyer().save_autosell(u["id"], on, b.get("pct"), b.get("senha"))
             await audit(db, u["id"], "Dormant: venda automática " + ("ligada" if on else "desligada"), f"alvo +{r['pct']}%")
+            return {"ok": True, "autosell": r}
+        return await run(go())
+
+    # 0.32.407: alvo de venda automática só de uma compra (cada quadrado de Minhas compras)
+    @app.post("/api/dormant/venda-auto/moeda")
+    async def autosell_coin(body: dict, u: dict = Depends(own)):
+        async def go():
+            b = body if isinstance(body, dict) else {}
+            r = await buyer().save_autosell_coin(u["id"], str(b.get("compra") or "")[:64], b.get("pct"), b.get("senha"))
+            await audit(db, u["id"], "Dormant: venda automática de uma compra", f"compra {str(b.get('compra'))[:12]} · alvo {b.get('pct')}")
             return {"ok": True, "autosell": r}
         return await run(go())
 
