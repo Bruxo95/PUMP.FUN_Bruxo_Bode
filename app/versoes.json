@@ -2910,6 +2910,11 @@
    "versao": "0.32.430",
    "inicio": "2026-11-21T17:20:00+00:00",
    "titulo": "Compra REAL de token graduado (BOOST) direto na PumpSwap, com mais slippage"
+  },
+  {
+   "versao": "0.32.431",
+   "inicio": "2026-11-21T17:45:00+00:00",
+   "titulo": "Compra e venda REAL mais rápidas (saldo em paralelo, confirmação a cada 0,25 s) e tempo de cada parte"
   }
  ]
 }

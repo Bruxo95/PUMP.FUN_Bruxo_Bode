@@ -5130,7 +5130,11 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<dl class="pc-grid">' + st("Preço de entrada", ex(p.price_in)) + st("Preço agora", ex(p.price_now || p.price_in) + (p.price_at ? ' <span class="dim">há ' + agoT(p.price_at) + "</span>" : "")) +
       st("Taxas pagas", p.fees_sol == null ? "–" : s4(p.fees_sol) + " SOL") + st("Nota da entrada", p.score == null ? "–" : f(p.score, 0) + " / 100") +
       st("Atraso na cópia", p.lag_s == null ? "–" : f(p.lag_s, 1) + " s") + st("Volume 5 min / 24 h", uk(v.m5) + " / " + uk(v.h24)) +
-      st("Onde comprou", esc(p.venue_in || "–")) + st("Antes da entrada", p.antes ? f(p.antes.pos_pct, 0) + "% da faixa de 15 min" : "sem dado") + "</dl>" +
+      st("Onde comprou", esc(p.venue_in || "–")) + st("Antes da entrada", p.antes ? f(p.antes.pos_pct, 0) + "% da faixa de 15 min" : "sem dado") +
+      // 0.32.431 (pedido do dono): quanto levou cada parte da compra REAL, em milissegundos
+      (p.lat && p.lat.total_ms != null ? st("Velocidade da compra", "<b>" + f(p.lat.total_ms / 1000, 2) + " s</b>" + '<small class="dim">' +
+        [["fila", p.lat.fila_ms], ["PumpPortal", p.lat.pumpportal_ms], ["saldo", p.lat.saldo_ms], ["simular", p.lat.simular_ms], ["enviar+confirmar", p.lat.confirmar_ms]]
+          .filter((x) => x[1] != null).map((x) => x[0] + " " + x[1] + " ms").join(" · ") + "</small>") : "") + "</dl>" +
       (p.auto && p.auto !== true ? '<p class="pc-why">' + esc(p.auto) + "</p>" : "") +
       (sells ? '<p class="pc-lbl">Vendas parciais</p><ul class="pc-list">' + sells + "</ul>" : "") +
       ((p.snaps || []).length ? '<p class="pc-lbl">Fotos a cada 15 min</p><p class="pc-why">' + p.snaps.map((x) => x.min + " min: " + (x.chg == null ? "–" : (x.chg > 0 ? "+" : "") + f(x.chg, 1) + "%")).join(" · ") + "</p>" : "") +

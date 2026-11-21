@@ -100,3 +100,34 @@ def test_compra_de_graduado_vai_na_pumpswap_e_sobe_o_slippage():
     PumpReal.pool_hint[M] = "pump-amm"
     r = asyncio.run(pr.buy(M, 0.05))
     assert r["ok"] and calls == [("pp", "pump-amm", 15.0), ("pp", "pump-amm", 30.0), ("jupiter", None, 15.0), ("jupiter", None, 30.0)]
+
+
+def test_saldo_lido_em_paralelo_com_a_montagem():
+    """0.32.431 (dono: "qualquer milissegundo de perda prejudica"): o saldo de antes da compra é lido enquanto a PumpPortal monta
+    a transação, e conferido só antes de assinar; saldo baixo não envia."""
+    order = []
+    pr, calls = _prb([])
+
+    async def balances(mint):
+        order.append("saldo:começou")
+        await asyncio.sleep(0.05)
+        order.append("saldo:terminou")
+        return pr._sol, 0.0 if not order.count("enviou") else 100.0
+
+    async def tx(body, gate=None):
+        order.append("montou")                            # a montagem não espera o saldo
+        why = await gate() if gate else None
+        if why:
+            return {"status": "não executou", "reason": why, "gate": True}
+        order.append("enviou")
+        return {"ok": True, "signature": "s", "status": "confirmada"}
+    pr.balances, pr._tx = balances, tx
+    pr._sol = 1.0
+    PumpReal.pool_hint[M] = "pump-amm"
+    r = asyncio.run(pr.buy(M, 0.05))
+    assert r["ok"] and order.index("montou") < order.index("saldo:terminou") < order.index("enviou")
+    order.clear()
+    pr._sol = 0.03
+    PumpReal.pool_hint[M] = "pump-amm"
+    r = asyncio.run(pr.buy(M, 0.05))
+    assert not r["ok"] and "saldo insuficiente" in r["reason"] and "enviou" not in order

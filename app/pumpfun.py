@@ -5363,6 +5363,7 @@ class PumpFun:
         return await apiusage.for_mints([it.get("mint")], self._real_buy_run(it))     # 0.32.220: gasto da compra REAL na moeda
 
     async def _real_buy_run(self, it: dict) -> None:
+        it.setdefault("t_run", time.time())             # 0.32.431: quanto a ordem esperou na fila (lat.fila_ms)
         mint, sym = it["mint"], it["symbol"]
         # 0.31.43 (sugestão do Bruxo + aprendizagem do bot: "a real não replica a fictícia"): toda desistência da compra
         # real fica no feed com o motivo e o par fictício (sim_id). A tela Real × fictícia junta isso e diz o que ajustar.
@@ -5457,7 +5458,8 @@ class PumpFun:
                  "trader_sol": it.get("trader_sol"), "proceeds": 0.0, "mcap_in": it.get("mcap_in"), "real": True,
                  "venue_in": fr["venue_name"], "signature": res.get("signature"), "fees_sol": 0.0,
                  "lag_s": round(max(0.0, time.time() - float(it.get("block_t") or it.get("t") or time.time())), 1),
-                 "lat": dict(res.get("lat") or {}, total_ms=round(max(0.0, time.time() - float(it.get("t") or time.time())) * 1000))}
+                 "lat": dict(res.get("lat") or {}, total_ms=round(max(0.0, time.time() - float(it.get("t") or time.time())) * 1000),
+                             fila_ms=round(max(0.0, float(it.get("t_run") or 0) - float(it.get("t") or 0)) * 1000) if it.get("t") else None)}
             self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"],
                          network=max(0.0, spent - amt * (1 + fr["venue"] + fr["portal"])))
             p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
@@ -5952,9 +5954,11 @@ class PumpReal:
         # Agora confere a cada 0,5 s; se o RPC da carteira recusar, confere no RPC público; reenvia a cada 2 s nos dois.
         own = await self.wallet.safe_rpc_url()
         pub = SOL_HTTP if own != SOL_HTTP else None
-        for i in range(120):
-            await asyncio.sleep(0.5)
-            if i % 4 == 3:
+        # 0.32.431: confere a cada 0,25 s nos primeiros 8 s (quando quase toda transação confirma) e depois a cada 0,5 s
+        t_send = time.monotonic()
+        for i in range(150):
+            await asyncio.sleep(0.25 if time.monotonic() - t_send < 8 else 0.5)
+            if i % 8 == 7:
                 for url in [own] + ([pub] if pub else []):
                     try:
                         await self._rpc("sendTransaction", [raw_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 0}],
@@ -5976,7 +5980,9 @@ class PumpReal:
                 return sig, "confirmada", None
         return sig, "pendente", "sem confirmação em 60 s"
 
-    async def _tx(self, body: dict) -> dict:
+    async def _tx(self, body: dict, gate=None) -> dict:
+        """gate (0.32.431): conferência que roda EM PARALELO com a montagem na PumpPortal (ex.: o saldo da carteira) e é
+        esperada só antes de assinar — economiza uma ida ao RPC em cada compra e venda."""
         if body.get("action") == "buy" and not getattr(self.cfg, "pump_real_enabled", False):
             return {"status": "não executou", "reason": "execução real desligada"}
         if not self.wallet or not self.wallet.keypair:
@@ -5996,6 +6002,12 @@ class PumpReal:
         except Exception as e:
             log.warning("PumpPortal: transação recusada antes de assinar (%s)", str(e)[:160])
             return {"status": "recusada", "reason": f"transação recusada pela verificação: {str(e)[:120]}"}
+        tb = time.monotonic()
+        if gate is not None:
+            stop = await gate()
+            if stop:
+                return {"status": "não executou", "reason": stop, "gate": True}
+        tg = time.monotonic()
         signed = VersionedTransaction(tx.message, [self.wallet.keypair])
         raw = base64.b64encode(bytes(signed)).decode()
         if summary.get("needs_simulation"):
@@ -6007,8 +6019,9 @@ class PumpReal:
         sig, st, err = await self._send_confirm(raw, simulated=bool(summary.get("needs_simulation")))
         if st == "pendente":                     # SEC-04: espera confirmar ou vencer antes de qualquer nova tentativa
             st, err = await txguard.reconcile(self._rpc_retry, sig, str(tx.message.recent_blockhash))
-        # 0.31.51: quanto tempo levou cada parte (montar+conferir na PumpPortal × enviar+confirmar na blockchain)
-        lat = {"montar_ms": round((t1 - t0) * 1000), "confirmar_ms": round((time.monotonic() - t1) * 1000)}
+        # 0.31.51: quanto tempo levou cada parte; 0.32.431: separado em montar (PumpPortal), saldo, simular e enviar+confirmar
+        lat = {"montar_ms": round((t1 - t0) * 1000), "confirmar_ms": round((time.monotonic() - t1) * 1000),
+               "pumpportal_ms": round((tb - t0) * 1000), "saldo_ms": round((tg - tb) * 1000), "simular_ms": round((t1 - tg) * 1000)}
         return {"status": st, "signature": sig, "reason": err, "ok": st == "confirmada", "lat": lat}
 
     async def _rpc_retry(self, method: str, params: list):
@@ -6250,13 +6263,15 @@ class PumpReal:
             return {"ok": False, "reason": "execução real desligada"}
         if not self.wallet or not self.wallet.keypair:
             return {"ok": False, "reason": "carteira Solana do bot não configurada"}
+        # 0.32.431 (dono: "qualquer milissegundo de perda prejudica"): o saldo de antes é lido EM PARALELO com a montagem da
+        # transação na PumpPortal e conferido antes de assinar (antes era uma ida ao RPC a mais, na frente de tudo)
         self._zero_ok = mint                             # 0.32.402: antes de comprar, não ter o token é o normal (leitura leve)
-        try:
-            sol0, tok0 = await self.balances(mint)
-        finally:
-            self._zero_ok = None
-        if sol0 < amt + 0.02:
-            return {"ok": False, "reason": f"saldo insuficiente: {sol0:.4f} SOL (precisa {amt:.3f} + 0,02 de reserva)"}
+        bal_task = asyncio.ensure_future(self.balances(mint))
+        bal_task.add_done_callback(lambda _t: setattr(self, "_zero_ok", None))
+
+        async def gate() -> str | None:
+            s0, _t0 = await bal_task
+            return None if s0 >= amt + 0.02 else f"saldo insuficiente: {s0:.4f} SOL (precisa {amt:.3f} + 0,02 de reserva)"
         jslip = int(float(getattr(self.cfg, "pump_other_slip_pct", 1.0)) * 100) + 100
         tried = []
         # pump.fun: curva → se a curva já completou (token graduou), PumpSwap → se ainda falhar, Jupiter
@@ -6271,8 +6286,13 @@ class PumpReal:
                       ("jupiter", None, base), ("jupiter", None, max(30.0, base))]
         else:
             routes = [("pumpportal", "auto", None), ("pumpportal", "pump-amm", None), ("jupiter", None, None)]
-        r, sol1, tok1 = {}, sol0, tok0
+        r, first = {}, True
+        sol0 = tok0 = sol1 = tok1 = None
         for via, pool, slip in routes:
+            if via == "jupiter" and first:
+                why = await gate()
+                if why:
+                    return {"ok": False, "reason": why}
             if via == "jupiter":
                 # 0.31.48: token da pump.fun na Jupiter (reserva) usa a slippage da carteira real; com 3% fixo a compra do
                 # SPAWN falhou com "slippage excedido (0x1771)" em 27/10/2026
@@ -6282,7 +6302,23 @@ class PumpReal:
                 body = {"action": "buy", "mint": mint, "amount": amt, "denominatedInSol": "true", "pool": pool}
                 if slip is not None:
                     body["slippage"] = slip
-                r = await self._tx(body)
+                import inspect
+                if first and "gate" in inspect.signature(self._tx).parameters:
+                    r = await self._tx(body, gate=gate)
+                else:
+                    if first:
+                        why = await gate()
+                        if why:
+                            return {"ok": False, "reason": why}
+                    r = await self._tx(body)
+                if r.get("gate"):
+                    return {"ok": False, "reason": r.get("reason")}
+            first = False
+            if sol0 is None:
+                sol0, tok0 = await bal_task
+                sol1, tok1 = sol0, tok0
+                if sol0 < amt + 0.02:                    # a 1ª rota falhou antes de conferir o saldo: as próximas não saem
+                    return {"ok": False, "reason": f"saldo insuficiente: {sol0:.4f} SOL (precisa {amt:.3f} + 0,02 de reserva)"}
             if r.get("status") == "pendente":
                 await asyncio.sleep(3)
             (sol1, tok1), dsol = await asyncio.gather(self.balances(mint), self._sol_change(r.get("signature") if r.get("ok") else None))
@@ -6317,9 +6353,16 @@ class PumpReal:
         como último recurso (a Jupiter não negocia tokens novos ainda na curva). Guarda o motivo de cada tentativa."""
         if not self.wallet or not self.wallet.keypair:
             return {"ok": False, "reason": "carteira Solana do bot não configurada"}
-        sol0, tok0 = await self.balances(mint)
-        if tok0 <= 0:
-            return {"ok": True, "sol_received": 0.0, "tokens_left": 0.0, "reason": "sem saldo do token"}
+        # 0.32.431: o saldo de antes é lido em paralelo com a montagem da 1ª venda e conferido antes de assinar
+        bal_task = asyncio.ensure_future(self.balances(mint))
+        NO_TOKEN = "sem saldo do token"
+
+        async def gate() -> str | None:
+            _s0, t0_ = await bal_task
+            return None if t0_ > 0 else NO_TOKEN
+        if other:
+            if await gate():
+                return {"ok": True, "sol_received": 0.0, "tokens_left": 0.0, "reason": NO_TOKEN}
         pct = f"{max(1, min(100, round(frac * 100)))}%"
         base_slip = float(getattr(self.cfg, "pump_real_slippage_pct", 15))
         tried, last, tries = [], {}, []                # 0.32.107: cada degrau medido (lote 11: escada parecida terminou em −84%)
@@ -6345,9 +6388,18 @@ class PumpReal:
                 label = f"Jupiter {slip:.0f}%"
             else:
                 pool = pool_override or pool
-                last = await self._tx({"action": "sell", "mint": mint, "amount": pct, "denominatedInSol": "false",
-                                       "slippage": slip, "pool": pool})
+                body_ = {"action": "sell", "mint": mint, "amount": pct, "denominatedInSol": "false", "slippage": slip, "pool": pool}
+                import inspect
+                if k == 1 and "gate" in inspect.signature(self._tx).parameters:
+                    last = await self._tx(body_, gate=gate)
+                else:
+                    if k == 1 and await gate():
+                        return {"ok": True, "sol_received": 0.0, "tokens_left": 0.0, "reason": NO_TOKEN}
+                    last = await self._tx(body_)
+                if last.get("gate"):
+                    return {"ok": True, "sol_received": 0.0, "tokens_left": 0.0, "reason": NO_TOKEN}
                 label = f"PumpPortal {pool} {slip:.0f}%"
+            sol0, tok0 = await bal_task
             if last.get("status") == "pendente":
                 await asyncio.sleep(3)
             sol1, tok1 = await self.balances(mint)
