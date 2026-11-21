@@ -229,7 +229,7 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
     @app.post("/api/dormant/venda/cotar")
     async def sell_quote(body: dict, u: dict = Depends(own)):
         b = body if isinstance(body, dict) else {}
-        return await run(buyer().preview_sell(u["id"], str(b.get("compra") or "")[:64], "investido" if b.get("pct") == "investido" else b.get("pct"), b.get("slip")))
+        return await run(buyer().preview_sell(u["id"], str(b.get("compra") or "")[:64], b.get("pct") if b.get("pct") in ("investido", "falta") else b.get("pct"), b.get("slip")))
 
     @app.post("/api/dormant/venda/confirmar")
     async def sell_go(body: dict, u: dict = Depends(own)):

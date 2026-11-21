@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "5be4b6ce3df3d2df4246d68030870c93c2421eb0",
-    "application_version": "0.32.416 · 2026-11-21 · Dormant: compra recusada explica o motivo e folga por compra",
+    "repository_reference": "14e37177daa5d891681767d7a94092373b0a9bd6",
+    "application_version": "0.32.417 · 2026-11-21 · Dormant: filtro por blockchain, vender o que falta do investido e investido em moeda da rede",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "f1564a7422bb6927c2c68e7632692caef64ead0350cf6961254d35127f2f39b6",
+      "app/version.py": "6665ac1cb404a4c71ff2ee029ca020655975523e5616c1bae81b976753ddb7d2",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f40093ff638a5a7c85f48d6853898e24556483a6e4a8f008c82de703ed251d0f"
+  "pdf_sha256": "540c784d63c4cf1636a446d1e5ddd0a40f081bd2f8817de668aa4f21caa9f04f"
 }

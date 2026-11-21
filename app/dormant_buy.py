@@ -1309,6 +1309,19 @@ class Buyer:
         w = evm.words(await self._call(c, PERMIT2, SEL_P2_ALLOW + evm.w_addr(addr) + evm.w_addr(q["token"]) + evm.w_addr(V4[q["rede"]]["ur"])) or "0x")
         return len(w) >= 2 and w[0] >= q["amount"] and w[1] > time.time() + 120
 
+    async def invested_gap(self, uid: str, r: dict) -> tuple[float | None, float | None]:
+        """(investido com o gás da compra, o que falta voltar) em dólar, a mesma conta do cartão de Minhas compras:
+        as vendas confirmadas do token abatem as compras mais antigas primeiro."""
+        rows = await self.db.select("dormant_buys", {"user_id": uid, "rede": r.get("rede"), "token": r.get("token")}, limit=500) or []
+        sells = await self.db.select("dormant_sells", {"user_id": uid, "rede": r.get("rede"), "token": r.get("token")}, limit=500) or []
+        if not any(x.get("id") == r.get("id") for x in rows):
+            rows.append(r)
+        h = holdings(rows, self.watch, time.time(), sells=sells)
+        it = next((x for x in h["itens"] if x.get("id") == r.get("id")), None)
+        if not it or it.get("custo") is None:
+            return None, None
+        return float(it["custo"]), round(float(it["custo"]) - float(it.get("recebido") or 0), 6)
+
     async def preview_sell(self, uid: str, compra_id: str, pct, slip=None) -> dict:
         rows = await self.db.select("dormant_buys", {"id": str(compra_id or ""), "user_id": uid}, limit=1) or []
         if not rows or rows[0].get("status") != "confirmada":
@@ -1317,7 +1330,8 @@ class Buyer:
         chain = r.get("rede")
         if chain not in CHAINS:
             raise BuyError("rede inválida")
-        investido = pct == "investido"       # 0.32.411 (pedido do dono): vender só o que foi investido nesta compra
+        investido = pct in ("investido", "falta")       # 0.32.411 (pedido do dono): vender só o que foi investido nesta compra
+        falta = pct == "falta"               # 0.32.417: o que falta para o investido (em dólar, como o cartão "Investido que voltou") voltar inteiro
         if not investido:
             try:
                 pct = int(pct)
@@ -1345,16 +1359,26 @@ class Buyer:
         q = {"lado": "venda", "uid": uid, "compra": r["id"], "key": r.get("cmc"), "cg": r.get("cg"), "rede": chain, "token": r["token"], "pct": 100 if investido else pct, "usd_n": usd_n,
              "nome": r.get("nome"), "simbolo": r.get("simbolo"), "t": time.time(), "slip": clean_slip(slip, cfg["slip_pct"]), "end": r.get("endereco")}
         fn = {"solana": self._sell_preview_sol, "cardano": self._sell_preview_ada, "cosmos": self._sell_preview_osmo}.get(c["tipo"], self._sell_preview_evm)
-        alvo = None
+        alvo, falta_usd, custo_usd = None, None, None
         if investido:
-            sells = await self.db.select("dormant_sells", {"user_id": uid, "compra": r["id"]}, limit=200) or []
-            alvo = invested_left(r, sells)
-            if alvo <= 0:
+            if falta:
+                # 0.32.417 (caso WOLFI do dono, 21/11): o cartão dizia "Investido que voltou 93%" (dólar: recebido das vendas sem o gás
+                # ÷ compra com o gás). Esta opção vende o que falta para chegar a 100%, contando o gás desta venda, na cotação de agora
+                custo_usd, falta_usd = await self.invested_gap(uid, r)
+                alvo = None if falta_usd is None or not usd_n else falta_usd / usd_n
+            else:
+                sells = await self.db.select("dormant_sells", {"user_id": uid, "compra": r["id"]}, limit=200) or []
+                alvo = invested_left(r, sells)
+            if alvo is None:
+                bloq.append("sem a cotação em dólar para calcular o que falta do investido")
+            elif alvo <= 0:
                 bloq.append("o valor investido nesta compra já voltou nas vendas: o que sobrou é só lucro")
             else:
                 # cota o saldo inteiro e vende a fração que devolve o investido; vender menos move menos o preço, então volta um pouco mais
                 tudo = await fn(dict(q), [], [])
                 rec = float(tudo.get("recebe") or 0)
+                if falta and tudo.get("gas_usd") and usd_n:
+                    alvo += float(tudo["gas_usd"]) / usd_n          # o gás desta venda sai do que entra: vende um pouco mais para cobrir
                 if rec <= 0:
                     bloq.append("não consegui cotar o saldo do token para achar a parte do investido")
                 else:
@@ -1366,6 +1390,8 @@ class Buyer:
         det = await fn(q, bloq, avisos)
         if alvo is not None:
             det["investido_nativo"] = round(alvo, 12)
+        if falta:
+            det["falta"], det["falta_usd"], det["custo_usd"] = True, falta_usd, custo_usd
         row = self.watch.rows.get(r.get("cg")) or {}
         px = row.get("current_price")
         usd_out = det.get("recebe") * usd_n if det.get("recebe") and usd_n else None

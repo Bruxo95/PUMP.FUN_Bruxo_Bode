@@ -233,3 +233,17 @@ def test_sell_amount_uses_bps_and_falls_back_to_pct():
     assert db_.sell_amount(10_000, {"pct": 50}) == 5_000
     assert db_.sell_amount(10_000, {"bps": 1234, "pct": 12.34}) == 1_234
     assert db_.sell_amount(10_000, {"bps": 10_000}) == 10_000
+
+
+# 0.32.417 (caso WOLFI do dono): o cartão diz "Investido que voltou 93%"; a opção "falta" vende o que falta para 100%, na mesma conta (dólar)
+def test_sell_what_is_missing_of_the_invested_value():
+    b, net, db = bought()
+    db.tables.setdefault("dormant_sells", []).append({"id": "v1", "user_id": UID, "compra": "c1", "status": "confirmada", "em": db_._iso(time.time() - 60),
+                                                      "qty": 500.0, "usd_out": 9.3, "gas_usd": 0.0, "nativo_out": 0.00465, "token": TOKEN, "rede": "ethereum"})
+    p = run(b.preview_sell(UID, "c1", "falta"))
+    assert p.get("quote_id"), p["bloqueia"]
+    assert p["falta"] is True and p["custo_usd"] == 10.0 and abs(p["falta_usd"] - 0.7) < 1e-9
+    assert abs(p["usd"] - (0.7 + p["gas_usd"])) < 0.02                           # entra o que falta + o gás desta venda: o investido volta inteiro
+    db.tables["dormant_sells"][-1]["usd_out"] = 10.5
+    p = run(b.preview_sell(UID, "c1", "falta"))
+    assert not p.get("quote_id") and any("já voltou" in x for x in p["bloqueia"])
