@@ -123,13 +123,16 @@ def test_hub_novo_primeiro_parcial_em_20s_e_termina_depois(tmp_path, monkeypatch
             PumpHub.sybil_tick(hub, now)
             assert not b.get("sybil")                               # sem a chave da Alchemy nada roda
             hub.system_keys = {"alchemy_api_key": "k" * 20}
+            PumpHub.sybil_tick(hub, now)
+            assert not b.get("sybil") and not hub.sybil_st["rodando"]   # 0.32.434: só o token que vai ser comprado
+            b["sybil_want"] = now
             monkeypatch.setattr(sybil, "DEADLINE_S", 0.0)          # prazo estourado: só a parte básica
             PumpHub.sybil_tick(hub, now)
             await hub.sybil_st["task"]
             assert b["sybil"]["parcial"] > 0 and b["sybil"]["primeiro_s"] is not None
             # chega um token NOVO: ele vai antes das pendências do anterior
             b2 = bm.on_migration({"mint": "Mint2222", "pool": "pump-amm"}, _t.time() - 6)
-            b2["creator"] = DEV
+            b2["creator"], b2["sybil_want"] = DEV, _t.time()
             PumpHub.sybil_tick(hub, _t.time())
             assert hub.sybil_st["rodando"] == "Mint2222"
             await hub.sybil_st["task"]

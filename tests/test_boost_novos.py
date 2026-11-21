@@ -139,3 +139,31 @@ def test_nascimento_pela_dexscreener():
     pf.http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=js)))
     run(pf._fetch_prices([M], set_price=False))
     assert pf.tokens[M]["born_t"] == 1795284100.0
+
+
+def test_carteiras_so_antes_de_entrar_e_trava_com_alerta_alto(tmp_path):
+    """0.32.434 (pedido do dono, economizar a Alchemy): a análise das carteiras só começa quando o token passou nos filtros; a compra
+    espera o resultado (até 25 s) e, com a trava ligada, alerta ALTO não compra."""
+    from app import boostmig
+    from tests.test_boostmig import pronto
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "name": "GTA VI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False, pump_bm_sg_after=False, pump_bm_sybil_block=True)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    b = pronto(bm, M, now - 60, now)
+    hub = types.SimpleNamespace(bm=bm, system_keys={"alchemy_api_key": "k" * 20})
+    run(PumpHub._bm_user(hub, "u1", pf, now))
+    u = b["users"]["u1"]
+    assert u["estado"] == "esperar" and "conferindo as carteiras" in u["motivo"] and b["sybil_want"] == now
+    assert not [p for p in pf.positions() if p["mint"] == M]
+    b["sybil"] = {"nivel": "alto", "motivo": "bundle 40%"}
+    run(PumpHub._bm_user(hub, "u1", pf, now + 1))
+    assert u["estado"] == "fora" and "alerta ALTO" in u["motivo"]
+    u.clear()
+    b["sybil"] = {"nivel": "baixo"}
+    run(PumpHub._bm_user(hub, "u1", pf, now + 2))
+    assert u["estado"] == "entrou"
+    assert boostmig.SYBIL_WAIT_S == 25.0

@@ -43,6 +43,7 @@ SYBIL_ON, SYBIL_TOP, SYBIL_MAX_H, SYBIL_ALERT_PCT, SYBIL_BUNDLE_PCT = 1.0, 15.0,
 CFG_KEYS["pump_bm_alchemy_backup"] = ("ALCHEMY_BACKUP", 1.0)
 ALCHEMY_BACKUP = 1.0                # 0.32.384: Alchemy como reserva da leitura do DEV e da trava quando o RPC do sistema não responde
 DEV_WAIT_S = 30.0                   # 0.32.384: sem DEV lido depois disso, segue sem o filtro de DEV scam (antes esperava para sempre)
+SYBIL_WAIT_S = 25.0                 # 0.32.434: espera da análise das carteiras antes de entrar (depois entra sem ela)
 SAFETY_WAIT_S = 45.0                # 0.32.384: sem trava lida depois disso, vale como "não deu para conferir"
 
 
@@ -900,7 +901,7 @@ class BoostMig:
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
                 "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry",
-                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s", "born_t")
+                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s", "born_t", "sybil_want")
         out = {k: b.get(k) for k in keep}
         from .sybil import compact
         out["sybil"] = compact(b.get("sybil"))

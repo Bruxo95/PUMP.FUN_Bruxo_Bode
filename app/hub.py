@@ -1872,6 +1872,22 @@ class PumpHub:
                     bm.dirty.add(m)                    # 0.32.403: a decisão final vai para o banco
                 if est != "entrar":
                     continue
+                # 0.32.434 (pedido do dono): a análise das carteiras (Alchemy) é a confirmação ANTES de entrar — só começa aqui,
+                # quando o token passou em todos os filtros. Espera até SYBIL_WAIT_S; sem resposta, entra sem ela.
+                if (getattr(self, "system_keys", None) or {}).get("alchemy_api_key") and boostmig.SYBIL_ON:
+                    b.setdefault("sybil_want", now)
+                    bm.dirty.add(m)
+                    sy = b.get("sybil")
+                    if not sy:
+                        if now - float(b["sybil_want"]) < boostmig.SYBIL_WAIT_S:
+                            u.update(estado="esperar", motivo=why + " · conferindo as carteiras (Alchemy) antes de entrar", t=now)
+                            continue
+                        why += " · sem a análise das carteiras a tempo"
+                    elif sy.get("nivel") == "alto" and getattr(c, "pump_bm_sybil_block", False):
+                        u.update(estado="fora", motivo="carteiras: alerta ALTO — " + str(sy.get("motivo") or ""), t=now)
+                        continue
+                    else:
+                        why += f" · carteiras: {sy.get('nivel')}"
                 # 0.32.376: entra no preço da cotação da Jupiter da observação (até 10 s). O preço guardado do token pode ser o da
                 # curva, congelado depois da migração, e daria um ganho falso.
                 sm = b.get("samples") or []
@@ -2052,8 +2068,10 @@ class PumpHub:
         st["feitos"] = [t for t in st["feitos"] if now - t < 3600]
 
         def novos(t):
-            return [x for x in bm.items.values() if not x.get("sybil") and x.get("sybil_tries", 0) < 3 and 5 <= t - x["t0"] <= boostmig.JANELA_S
-                    and x.get("sybil_retry_t", 0) <= t]
+            # 0.32.434 (pedido do dono, para economizar a Alchemy): só o token que passou em todos os filtros e está para ser
+            # comprado (sybil_want, marcado em _bm_user) — DEV scam, descartado ou parado nos filtros não gasta nenhuma consulta
+            return [x for x in bm.items.values() if x.get("sybil_want") and not x.get("sybil") and x.get("sybil_tries", 0) < 3
+                    and t - x["t0"] <= boostmig.JANELA_S and x.get("sybil_retry_t", 0) <= t]
         cand = novos(now) if len(st["feitos"]) < int(boostmig.SYBIL_MAX_H) else []
         if cand:
             b = max(cand, key=lambda x: x["t0"])               # o mais novo primeiro (é o que ainda dá para comprar)

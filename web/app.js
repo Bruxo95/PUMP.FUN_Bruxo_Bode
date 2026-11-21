@@ -1417,7 +1417,7 @@
   const BM_SYN = { alto: ["ALERTA", "loss"], "médio": ["ATENÇÃO", "pause"], baixo: ["OK", "win"], "sem dados": ["SEM DADOS", "neutral"] };
   function bmSy(s, m, st, x) {
     if (!s) return '<span class="dim">' + (st && !st.chave ? "sem chave Alchemy" : st && !st.ligado ? "desligado" : st && st.rodando === m ? "analisando…" :
-      st && x && (x.progress || 0) < 100 ? "na fila" : "–") + "</span>";
+      st && x && x.sybil_want && (x.progress || 0) < 100 ? "na fila (antes de entrar)" : st && x && (x.progress || 0) < 100 ? "só antes de entrar" : "–") + "</span>";
     const N = BM_SYN[s.nivel] || [s.nivel || "?", "neutral"];
     return '<a href="#" class="bmdl" data-bmsy="' + esc(m) + '" title="' + esc(s.motivo || "") + '"><span class="tag ' + N[1] + '">' + N[0] + "</span></a>" +
       (s.real_dev_pct != null && s.nivel !== "sem dados" ? '<small class="bmwhy">DEV real ' + f(s.real_dev_pct, 1) + "% · bundle " + f(s.bundle_pct || 0, 1) + "%</small>" : "") +

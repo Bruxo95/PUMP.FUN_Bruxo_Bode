@@ -2925,6 +2925,11 @@
    "versao": "0.32.433",
    "inicio": "2026-11-21T18:30:00+00:00",
    "titulo": "BOOST: chave para entrar nas migrações e idade máxima do token (desde a criação)"
+  },
+  {
+   "versao": "0.32.434",
+   "inicio": "2026-11-21T18:45:00+00:00",
+   "titulo": "BOOST: análise das carteiras (Alchemy) só no token que passou nos filtros, antes de comprar"
   }
  ]
 }
