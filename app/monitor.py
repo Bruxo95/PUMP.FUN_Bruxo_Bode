@@ -131,6 +131,11 @@ class SharedMonitor:
         lab = getattr(self.hub, "lab", None)
         if lab is not None and ev.get("txType") == "create":
             lab.on_create(ev, t)                                  # base própria da pump.fun (0.21.0)
+        if ev.get("txType") == "create" and hasattr(self.hub, "bm_on_create"):
+            try:
+                self.hub.bm_on_create(ev, t)                      # 0.32.432: token novo vira candidato do BOOST
+            except Exception as e_:
+                log.warning("boost: token novo não registrado: %s", str(e_)[:120])
         info = self.svc.ingest(ev, t)
         if not info:
             return

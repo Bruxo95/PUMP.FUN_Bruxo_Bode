@@ -2915,6 +2915,11 @@
    "versao": "0.32.431",
    "inicio": "2026-11-21T17:45:00+00:00",
    "titulo": "Compra e venda REAL mais rápidas (saldo em paralelo, confirmação a cada 0,25 s) e tempo de cada parte"
+  },
+  {
+   "versao": "0.32.432",
+   "inicio": "2026-11-21T18:20:00+00:00",
+   "titulo": "BOOST: tokens novos (ainda na curva) com volume acima de US$ 2 mil entram na análise antes de migrar"
   }
  ]
 }

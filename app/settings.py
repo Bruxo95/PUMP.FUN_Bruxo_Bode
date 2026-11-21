@@ -84,6 +84,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_sol": (float, 0.05, 0.001, 5.0),
     "pump_bm_max_open": (int, 3, 1, 20),
     "pump_bm_enter_max_pct": (float, 40.0, 1.0, 60.0),
+    "pump_bm_new_on": (bool, True, 0, 1),                 # 0.32.432: tokens novos (curva) com volume entram na análise do BOOST
+    "pump_bm_new_vol_usd": (float, 2000.0, 0.0, 1000000.0),   # …volume mínimo dos últimos 5 min (US$, DexScreener)
+    "pump_bm_new_age_max_min": (float, 2.0, 0.5, 10.0),   # …idade máxima do token para entrar (min)
     "pump_bm_exit_pct": (float, 80.0, 10.0, 100.0),
     "pump_bm_watch_s": (float, 60.0, 0.0, 180.0),
     "pump_bm_min_trend_pct": (float, -3.0, -50.0, 50.0),
@@ -432,7 +435,7 @@ USER_KEYS: dict[str, tuple] = {
 }
 # 0.32.394 (pedido do dono, 20/11): regras próprias do BOOST para a carteira REAL — as mesmas opções das regras da fictícia,
 # com o prefixo pump_bmr_. Só valem com "REAL usa regras próprias" (pump_bmr_on) ligado. Tela: BOOST → Regras → REAL.
-BM_REAL_RULES = ("sol", "max_open", "enter_max_pct", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
+BM_REAL_RULES = ("sol", "max_open", "enter_max_pct", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
                  "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
                  "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
                  "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s",

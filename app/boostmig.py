@@ -72,6 +72,14 @@ SAFETY_TRIES = 4
 SOL_MINT = "So11111111111111111111111111111111111111112"
 QUOTE_LAMPORTS = 10_000_000        # 0,01 SOL: cotação de compra da observação (como no original)
 
+# 0.32.432 (pedido do dono, 21/11, caso Prayge: o topo veio 5 s depois da migração e a gente entrou 26 s depois — a subida
+# toda tinha sido na curva): tokens NOVOS, ainda na curva, entram na mesma lista e na mesma análise do BOOST quando o volume
+# dos últimos 5 min (DexScreener, em dólar) passa do mínimo antes da idade máxima. O t0 deles é a CRIAÇÃO do token; se
+# depois migrarem, viram um BOOST normal (t0 = migração) e quem não entrou volta a ser analisado.
+NOVO_POLL_S = 8.0                  # cada candidato é consultado na DexScreener a cada 8 s (até 30 por consulta, grátis)
+NOVO_AGE_CAP_S = 600.0             # nunca acompanha candidato com mais de 10 min de vida
+NOVO_CANDS_MAX = 1500
+
 
 def finite(x):
     """Troca infinito/NaN por None em toda a resposta (o JSON da API não aceita esses números)."""
@@ -242,6 +250,7 @@ def history_row(b: dict, now: float, scam: dict | None = None) -> dict:
            "entry": b.get("entry"), "sybil": b.get("sybil"), "entrou": len(entrou), "fora_motivo": fora[0] if fora else None,
            "pnl_sol": res.get("pnl_sol"), "pnl_pct": res.get("pnl_pct"), "saida": res.get("why"),
            "serie": [[int(p[0]), p[1]] for p in se],
+           "kind": b.get("kind") or "mig", "vol_m5": b.get("vol_m5"), "novo_info": b.get("novo_info"),     # 0.32.432
            "sinal": sign_time(se, p0)}                 # 0.32.423: tempo no positivo × negativo desde o início do BOOST
     return row
 
@@ -342,6 +351,10 @@ class BoostMig:
         self.st = {"migracoes": 0, "ultima": None, "erro": None, "rpc_falhou": 0, "cotacoes": 0, "sem_cotacao": 0}
         self.rpc_multi = None                  # 0.32.376: o hub põe aqui o RPC do sistema (Helius) na frente do público
         self.rpc_backup = None                 # 0.32.384: reserva pela Alchemy (só quando o do sistema não responde)
+        # 0.32.432: tokens novos (curva) — o hub põe aqui o que vale (menor volume e maior idade entre os admins que ligaram)
+        self.cands: dict[str, dict] = {}
+        self.novo_cfg = {"on": False, "vol": 2000.0, "age_s": 120.0}
+        self.st.update({"novos_vistos": 0, "novos_consultas": 0, "novos_sem_dados": 0, "novos_entraram_lista": 0})
 
     # ------------------------------------------------------------------ eventos
     @property
@@ -350,9 +363,15 @@ class BoostMig:
 
     def on_migration(self, ev: dict, t: float | None = None) -> dict | None:
         mint = str(ev.get("mint") or "")
-        if not mint or mint in self.items:
+        if not mint:
             return None
         t = t or self.clock()
+        self.cands.pop(mint, None)
+        old = self.items.get(mint)
+        if old is not None:
+            if old.get("kind") != "novo":
+                return None
+            return self._novo_migrou(old, ev, t)
         tk = self.tokens.get(mint) or {}
         b = {"mint": mint, "t0": t, "pool": ev.get("pool"), "signature": ev.get("signature"), "status": "BOOST ativo",
              "symbol": tk.get("symbol") or ev.get("symbol"), "name": tk.get("name") or ev.get("name"), "users": {}}
@@ -363,6 +382,90 @@ class BoostMig:
         self.st["migracoes"] += 1
         self.st["ultima"] = t
         self.dirty.add(mint)
+        return b
+
+    def _novo_migrou(self, b: dict, ev: dict, t: float) -> dict:
+        """Token novo (curva) que migrou: vira BOOST normal. O que se sabia dele como token novo fica em b["novo_info"]; quem
+        entrou continua "entrou" (não compra de novo), quem foi descartado volta a ser analisado no BOOST."""
+        b["novo_info"] = {k: b.get(k) for k in ("t0", "vol_m5", "track", "entry", "trend_pct", "drawdown_pct")}
+        b["novo_info"]["migrou_t"] = t
+        users = {}
+        for uid, u in (b.get("users") or {}).items():
+            keep = {k: v for k, v in u.items() if k != "real"} if u.get("estado") == "entrou" else {}
+            r = u.get("real") if isinstance(u.get("real"), dict) and u["real"].get("estado") == "entrou" else None
+            if r:
+                keep["real"] = r
+            if keep:
+                users[uid] = keep
+        for k in ("samples", "serie", "track", "trk_at", "hist_t", "buys_hist", "entry", "trend_pct", "drawdown_pct"):
+            b.pop(k, None)
+        b.update(kind="mig", t0=t, pool=ev.get("pool"), signature=ev.get("signature"), status="BOOST ativo", users=users)
+        if self.svc is not None:
+            tkm = self.svc.tokens.setdefault(b["mint"], {"created_t": t})
+            tkm["pool"] = "pumpswap"
+            tkm.pop("bm_curva", None)
+        self.st["migracoes"] += 1
+        self.st["ultima"] = t
+        self.dirty.add(b["mint"])
+        return b
+
+    # ------------------------------------------------------------------ 0.32.432: tokens novos (curva)
+    def on_create(self, ev: dict, t: float | None = None) -> None:
+        if not self.novo_cfg.get("on"):
+            return
+        m = str(ev.get("mint") or "")
+        if not m or m in self.items or m in self.cands:
+            return
+        t = t or self.clock()
+        if len(self.cands) >= NOVO_CANDS_MAX:
+            self.cands.pop(next(iter(self.cands)))
+        self.cands[m] = {"t": t, "symbol": ev.get("symbol"), "name": ev.get("name"), "creator": ev.get("traderPublicKey"), "q": 0.0}
+        self.st["novos_vistos"] += 1
+
+    async def _novos(self, now: float) -> None:
+        cfg = self.novo_cfg
+        if not cfg.get("on"):
+            self.cands.clear()
+            return
+        age = min(float(cfg.get("age_s") or 120), NOVO_AGE_CAP_S)
+        for m in [m for m, c in self.cands.items() if now - c["t"] > age or m in self.items]:
+            self.cands.pop(m, None)
+        due = [m for m, c in self.cands.items() if now - c["q"] >= NOVO_POLL_S]
+        if not due:
+            return
+        for m in due:
+            self.cands[m]["q"] = now
+        due = due[:150]
+        self.st["novos_consultas"] += (len(due) + 29) // 30
+        await self.svc._fetch_prices(due, set_price=False)
+        vmin = float(cfg.get("vol") or 0)
+        for m in due:
+            c = self.cands.get(m)
+            if c is None:
+                continue
+            tk = self.tokens.get(m) or {}
+            v = tk.get("vol") or {}
+            if not v or now - float(tk.get("vol_t") or 0) > 30:
+                c["sem"] = c.get("sem", 0) + 1
+                if c["sem"] == 1:
+                    self.st["novos_sem_dados"] += 1
+                continue
+            vol = float(v.get("m5") or 0)
+            c["vol"] = vol
+            if vol >= vmin:
+                self._novo_add(m, c, vol, now)
+
+    def _novo_add(self, m: str, c: dict, vol: float, now: float) -> dict:
+        self.cands.pop(m, None)
+        tk = self.tokens.get(m) or {}
+        b = {"mint": m, "t0": c["t"], "kind": "novo", "status": "token novo", "symbol": tk.get("symbol") or c.get("symbol"),
+             "name": tk.get("name") or c.get("name"), "creator": tk.get("creator") or c.get("creator"), "users": {},
+             "vol_m5": round(vol, 2), "novo_add_s": round(now - c["t"], 1)}
+        self.items[m] = b
+        if self.svc is not None:
+            self.svc.tokens.setdefault(m, {"created_t": c["t"]})["bm_curva"] = True
+        self.st["novos_entraram_lista"] += 1
+        self.dirty.add(m)
         return b
 
     def progress(self, b: dict, now: float | None = None) -> float:
@@ -498,7 +601,7 @@ class BoostMig:
             self.items.pop(m, None)
         if self.svc is None:
             return
-        for fn in (self._creators, self._track, self._safety, self._samples):
+        for fn in (self._novos, self._creators, self._track, self._safety, self._samples):
             try:
                 await fn(now)
             except Exception as e:
@@ -514,6 +617,10 @@ class BoostMig:
             v = tk.get("vol") or {}
             if v:
                 b["buys_m5"], b["sells_m5"] = int(v.get("buys_m5") or 0), int(v.get("sells_m5") or 0)
+                if v.get("m5") is not None:
+                    b["vol_m5"] = round(float(v.get("m5") or 0), 2)      # 0.32.432: volume em dólar dos últimos 5 min
+            if tk.get("boost_active"):
+                b["boost_pago"] = int(tk["boost_active"])               # 0.32.432: boost pago na DexScreener
             if tk.get("top10_pct") is not None:
                 b["top10_pct"] = tk["top10_pct"]
             b["status"] = self._status(m, b, now)
@@ -527,6 +634,8 @@ class BoostMig:
             return f"DEV scam — já fez {sc.get('symbol') or 'outro token'} com {sc.get('why')}"
         if self.twins(m, b):
             return "DEV scam — cópias com o mesmo nome migrando juntas"
+        if b.get("kind") == "novo":                  # 0.32.432
+            return f"token novo na curva ({(now - b['t0']):.0f} s de vida)"
         if p >= 100:
             return "BOOST terminou"
         return f"BOOST ativo ({p:.0f}%)"
@@ -654,9 +763,20 @@ class BoostMig:
         g = lambda k, d: getattr(c, k, d)                                    # noqa: E731
         m = b["mint"]
         prog = self.progress(b, now)
-        enter_max = float(g("pump_bm_enter_max_pct", 40))
-        if prog > enter_max:
-            return "fora", f"passou de {enter_max:.0f}% do BOOST sem confirmar"
+        if b.get("kind") == "novo":
+            # 0.32.432: token novo na curva — vale a idade máxima e o volume mínimo do usuário, não o "entrar até X% do BOOST"
+            if not g("pump_bm_new_on", True):
+                return "fora", "tokens novos desligados nas Regras do BOOST"
+            age, amax = now - b["t0"], float(g("pump_bm_new_age_max_min", 2)) * 60
+            if age > amax:
+                return "fora", f"passou de {amax / 60:g} min de vida sem confirmar"
+            vmin, vol = float(g("pump_bm_new_vol_usd", 2000)), float(b.get("vol_m5") or 0)
+            if vol < vmin:
+                return "esperar", f"volume US$ {vol:,.0f} de US$ {vmin:,.0f} em 5 min".replace(",", ".")
+        else:
+            enter_max = float(g("pump_bm_enter_max_pct", 40))
+            if prog > enter_max:
+                return "fora", f"passou de {enter_max:.0f}% do BOOST sem confirmar"
         if g("pump_bm_block_repeat", True) and not self.name_keys(m, b):
             return "esperar", "aguardando o nome do token (para conferir nome repetido)"
         if g("pump_bm_block_scam", True):
@@ -710,6 +830,8 @@ class BoostMig:
             return "esperar", f"10 maiores com {b['top10_pct']:.0f}% (máximo {mx:.0f}%)"
         if ja_aberto >= int(g("pump_bm_max_open", 3)):
             return "esperar", f"limite de {int(g('pump_bm_max_open', 3))} posições do BOOST"
+        if b.get("kind") == "novo":
+            return "entrar", f"token novo: passou nos filtros com {now - b['t0']:.0f} s de vida (volume US$ {float(b.get('vol_m5') or 0):,.0f})".replace(",", ".")
         return "entrar", f"passou nos filtros em {prog:.0f}% do BOOST"
 
     @staticmethod
@@ -755,7 +877,8 @@ class BoostMig:
 
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
-                "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry")
+                "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry",
+                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s")
         out = {k: b.get(k) for k in keep}
         from .sybil import compact
         out["sybil"] = compact(b.get("sybil"))

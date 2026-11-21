@@ -5440,7 +5440,7 @@ class PumpFun:
             try:
                 tk_ = self.tokens.get(mint) or {}
                 hints = getattr(self.real, "pool_hint", None)
-                if isinstance(hints, dict) and (bm_buy or tk_.get("pool") == "pumpswap" or tk_.get("graduated")):
+                if isinstance(hints, dict) and ((bm_buy and not tk_.get("bm_curva")) or tk_.get("pool") == "pumpswap" or tk_.get("graduated")):
                     hints[mint] = "pump-amm"               # 0.32.430: já graduou → compra direto na PumpSwap
                 res = await self.real.buy(mint, amt, other=not self.is_pump(mint))
             except Exception as e:
@@ -5518,7 +5518,8 @@ class PumpFun:
                 self._emit(f"[PUMP REAL] a venda pendente de {p['symbol']} confirmou depois; o saldo já reflete isso")
         tk_ = self.tokens.get(p["mint"]) or {}
         hints = getattr(self.real, "pool_hint", None)
-        if isinstance(hints, dict) and (p.get("origem") == "boostmig" or tk_.get("pool") == "pumpswap" or tk_.get("graduated")):
+        if isinstance(hints, dict) and ((p.get("origem") == "boostmig" and not tk_.get("bm_curva")) or tk_.get("pool") == "pumpswap"
+                                        or tk_.get("graduated")):
             hints[p["mint"]] = "pump-amm"              # 0.32.422: já graduou → PumpSwap direto
         res = await self.real.sell(p["mint"], frac, other=not self.is_pump(p["mint"]))
         p["sell_tries"] = (p.get("sell_tries") or []) + list(res.get("tentativas") or [])

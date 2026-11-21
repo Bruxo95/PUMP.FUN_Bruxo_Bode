@@ -1270,6 +1270,10 @@
     return '<span class="bmdev">' + (x.scam ? "💀 " : x.vip ? "👑 " : "") + "DEV " + bmDevLink(x.creator) + " · " + (x.dev_n || 1) + " token(s) em 24 h" +
       (r.n ? " · nosso resultado " + r.wins + "×" + r.losses + " (" + s4(r.pnl_sol || 0) + " SOL)" : "") +
       (h.length ? " · antes: " + h.slice(0, 3).map((o) => esc(o.symbol || "?") + (o.dump_pct != null ? " dump " + f(o.dump_pct, 0) + "%" : "") + (o.lock ? " (trava)" : "")).join(", ") : "") + "</span>"; };
+  // 0.32.432 (pedido do dono): token novo ainda na curva × token que migrou (BOOST), volume de 5 min e boost pago
+  const bmKind = (x) => ' <span class="tag ' + (x.kind === "novo" ? "warn" : "neutral") + '">' + (x.kind === "novo" ? "NOVO · curva" : x.novo_info ? "MIGROU · era novo" : "MIGROU") + "</span>" +
+    (x.vol_m5 != null ? ' <small class="muted">vol. 5 min US$ ' + f(x.vol_m5, 0) + "</small>" : "") + (x.boost_pago ? ' <span class="tag win" title="boost pago na DexScreener">⚡ boost ' + x.boost_pago + "</span>" : "");
+  const bmIni = (x) => dt(x.t0) + '<br><small class="muted">' + (x.kind === "novo" ? "criado" + (x.novo_add_s != null ? " · na lista com " + f(x.novo_add_s, 0) + " s" : "") : "migrou") + "</small>";
   const bmTrk = (k) => !k || !k.n ? '<span class="dim">–</span>' : pc(k.top_pct, 0) + " aos " + hms(k.top_s || 0) +
     (k.dump_pct != null && k.dump_pct < 0 ? '<br><small>dump ' + pc(k.dump_pct, 0) + " aos " + hms(k.dump_s || 0) + "</small>" : "");
   let BM = null, BM_T = null, BMT = "tokens";
@@ -1406,6 +1410,7 @@
   const bmSit = (x) => { const p = x.progress || 0, st = String(x.status || "");
     if (x.safety_ok === false) return '<span class="tag loss">TRAVA DE VENDA</span><small class="bmwhy">' + esc(x.safety_why || "") + "</small>";
     if (/scam/i.test(st)) return '<span class="tag loss">DEV SCAM</span><small class="bmwhy">' + esc(st.replace(/^DEV scam — /, "")) + "</small>";
+    if (x.kind === "novo" && p < 100) return '<span class="tag warn">NA CURVA</span><small class="bmwhy">' + hms(Math.round((p / 100) * ((BM && BM.janela_s) || 300))) + " de vida</small>";
     if (p < 100) return '<span class="tag bmlive">ATIVO</span><small class="bmwhy">faltam ' + hms(Math.max(0, ((100 - p) / 100) * ((BM && BM.janela_s) || 300))) + "</small>";
     return '<span class="tag neutral">TERMINOU</span>'; };
   // 0.32.382: carteiras ligadas ao DEV (Alchemy) — etiqueta e janela com cada carteira
@@ -1453,28 +1458,31 @@
     $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
       " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
       " · janela de " + Math.round((r.janela_s || 300) / 60) + " min · " + ((r.monitor || {}).cotacoes || 0) + " cotações Jupiter" +
+      ((r.novos || {}).on ? " · tokens novos: " + ((r.monitor || {}).novos_vistos || 0) + " vistos, " + ((r.monitor || {}).novos_entraram_lista || 0) + " passaram do volume, " + ((r.monitor || {}).novos_sem_dados || 0) + " sem dados na DexScreener" : "") +
       ((r.monitor || {}).rpc_falhou ? " · RPC sem resposta " + r.monitor.rpc_falhou + "x" : "") + ((r.monitor || {}).reserva ? " · lido pela reserva Alchemy " + r.monitor.reserva + "x" : "") + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "") +
       (r.pp_novo_s != null ? " · último token novo da PumpPortal há " + hmsTxt(r.pp_novo_s) : "") + (r.pp_silencios ? " · reconectou " + r.pp_silencios + "x por silêncio" : "") + (r.mig_reserva ? " · PumpPortal fora: reserva pela blockchain LIGADA" + (r.mig_ws ? " (" + r.mig_ws + ")" : (r.mig_ws_err ? " com erro: " + r.mig_ws_err : " conectando…")) + " · tenta a PumpPortal de novo a cada 10 min" : (r.mig_reserva_n ? " · reserva pela blockchain desligada (PumpPortal ok)" : "")) + (r.mig_ws_n ? " · " + r.mig_ws_n + " migração(ões) pela blockchain" + (r.mig_ws_s != null ? ", última há " + hmsTxt(r.mig_ws_s) : "") : "") +
       (!r.ws && r.pp_erro ? " · " + r.pp_erro : "");
     const ativos = (r.itens || []).filter((x) => (x.progress || 0) < 100).length;
     // 0.32.396 (pedido do dono): "Você entrou" e "Resultado" seguem o botão FICTÍCIA / REAL do topo; o resto é o mesmo para as duas
     const RM = realMode();
+    const NV = r.novos || {};
     kpis("bmK", [["Migrações", String(R.migracoes_24h || 0), "últimas 24 h · " + ativos + " com BOOST ativo agora", "tr"],
+      ["Tokens novos", String(R.novos_24h || 0), NV.on ? "volume ≥ US$ " + f(NV.vol, 0) + " até " + f((NV.age_s || 0) / 60, 1) + " min · " + (NV.candidatos || 0) + " olhando agora" : "desligado (Regras → Entrada)", "tr"],
       RM ? ["Você entrou (REAL)", String(R.entrou_real || 0), (R.abertas_real || 0) + " aberta(s) na REAL", "pos"]
         : ["Você entrou (FICTÍCIA)", String(R.entrou || 0), (R.abertas || 0) + " aberta(s) na FICTÍCIA", "pos"],
       RM ? ["Resultado (REAL)", sg(R.pnl_sol_real || 0), (R.fechadas_real || 0) + " fechadas · " + (R.ganhou_real || 0) + " ganharam", "pnl"]
         : ["Resultado (FICTÍCIA)", sg(R.pnl_sol || 0), (R.fechadas || 0) + " fechadas · " + (R.ganhou || 0) + " ganharam", "pnl"],
       ["DEVs", (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀", "VIP · scam", "hit"]]);
-    const TL = { tokens: "Tokens que migraram (" + (R.migracoes_24h || 0) + ")", trades: "Seus trades do BOOST (" + (r.trades || []).filter((t) => !!t.real === RM).length + (RM ? " REAL" : " FICTÍCIA") + ")",
+    const TL = { tokens: "Tokens (" + (R.migracoes_24h || 0) + " migraram · " + (R.novos_24h || 0) + " novos)", trades: "Seus trades do BOOST (" + (r.trades || []).filter((t) => !!t.real === RM).length + (RM ? " REAL" : " FICTÍCIA") + ")",
       dev: "DEV status (" + (R.vip_devs || 0) + " 👑 · " + (R.scam_devs || 0) + " 💀)" };
     document.querySelectorAll("#bmTabs [data-bmt]").forEach((b) => { if (TL[b.dataset.bmt]) b.textContent = TL[b.dataset.bmt]; });
     const F = $("bmF").value || "todos";
     const its = (r.itens || []).filter((x) => { const e = (x.sua || {}).estado;
-      return F === "todos" || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && (RM ? x.entrou_real : (x.entrou_sim || e === "entrou"))) || (F === "esperar" && e === "esperar") ||
+      return F === "todos" || (F === "novo" && x.kind === "novo") || (F === "mig" && x.kind !== "novo") || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && (RM ? x.entrou_real : (x.entrou_sim || e === "entrou"))) || (F === "esperar" && e === "esperar") ||
         (F === "fora" && e === "fora") || (F === "scam" && (x.scam || x.safety_ok === false)); });
-    table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Trava de venda", "Carteiras", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
+    table("bmT", ["Token", "Início", "BOOST", "Situação", "Você", "Trava de venda", "Carteiras", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
       const u = x.sua || {}, E = BM_EST[u.estado] || [u.estado ? u.estado : "–", "neutral"], res = x.result;
-      return ["<b>" + pfM(x.mint, x.symbol || x.name) + "</b>" + (x.name && x.symbol && x.name !== x.symbol ? ' <small class="muted">' + esc(x.name) + "</small>" : "") + bmDev(x), dt(x.t0), bmBar(x, ex), bmSit(x),
+      return ["<b>" + pfM(x.mint, x.symbol || x.name) + "</b>" + (x.name && x.symbol && x.name !== x.symbol ? ' <small class="muted">' + esc(x.name) + "</small>" : "") + bmKind(x) + bmDev(x), bmIni(x), bmBar(x, ex), bmSit(x),
         (u.estado ? '<span class="tag ' + E[1] + '">' + esc(E[0]) + "</span> " : "") + '<span class="wrapcell small">' + esc(u.motivo || ((cfg() || {}).pump_bm_on ? "" : "BOOST desligado para você")) + "</span>" +
           (x.sua_real && x.sua_real.estado ? '<br><span class="small muted">REAL:</span> <span class="tag ' + (BM_EST[x.sua_real.estado] || ["", "neutral"])[1] + '">' + esc((BM_EST[x.sua_real.estado] || [x.sua_real.estado])[0]) + '</span> <span class="wrapcell small">' + esc(x.sua_real.motivo || "") + "</span>" : ""),
         x.safety_ok === true ? '<span class="up">sem trava</span>' : x.safety_ok === false ? '<span class="down">TRAVA</span>' : '<span class="dim">' + (x.safety_why || (x.progress || 0) > 60 ? "não conferido" : "conferindo…") + "</span>",
@@ -1482,7 +1490,7 @@
         x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
         (res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–") +
           ((RM ? x.sinal_real : x.sinal_sim) ? "<br>" + bmSinal(RM ? x.sinal_real : x.sinal_sim) : "")];
-    }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhuma migração nas últimas 24 h ainda. Os tokens aparecem aqui assim que migrarem para a PumpSwap.");
+    }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhum token nas últimas 24 h ainda. Aparecem aqui os que migram para a PumpSwap e os novos (curva) que passam do volume mínimo.");
     // 0.32.401 (pedido do dono): os trades do BOOST da REAL e da FICTÍCIA não se misturam — segue o botão FICTÍCIA / REAL do topo
     const bmTrs = (r.trades || []).filter((t) => !!t.real === RM);
     if ($("bmTrSub")) $("bmTrSub").textContent = (RM ? "Só a carteira REAL" : "Só a carteira FICTÍCIA") + " · resultado líquido (já com taxas) · troque no botão Fictícia / Real do topo";
@@ -1508,7 +1516,7 @@
   const hmsTxt = (s) => (s < 60 ? Math.round(s) + " s" : hms(s));
   // 0.32.394 (pedido do dono): regras próprias do BOOST para a REAL (pump_bmr_*) — a aba "Regras da REAL" é uma cópia das regras
   // da fictícia com as chaves trocadas; só ficam as regras por conta (as do servidor e as chaves de ligar ficam só na fictícia).
-  const BMR = ["sol", "max_open", "enter_max_pct", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
+  const BMR = ["sol", "max_open", "enter_max_pct", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
     "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
     "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
     "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct"];
@@ -3040,7 +3048,7 @@
         pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
         pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true, pump_bm_scam_dump_pct: 70, pump_bm_scam_dump_min: 10,
-        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_real_follow: true, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25, pump_bm_tneg_on: true, pump_bm_tneg_sum_s: 60, pump_bm_tneg_streak_on: true, pump_bm_tneg_streak_s: 30, pump_bm_tneg_stop_pct: 25 };
+        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_real_follow: true, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25, pump_bm_tneg_on: true, pump_bm_tneg_sum_s: 60, pump_bm_tneg_streak_on: true, pump_bm_tneg_streak_s: 30, pump_bm_tneg_stop_pct: 25, pump_bm_new_on: true, pump_bm_new_vol_usd: 2000, pump_bm_new_age_max_min: 2 };
       // 0.32.394: na aba "Regras da REAL" o padrão vai para as regras da REAL
       const body = BMRS === "real" ? Object.fromEntries(Object.entries(P).filter(([k]) => BMR.includes(k.slice(8))).map(([k, v]) => ["pump_bmr_" + k.slice(8), v])) : P;
       setCfg(body).then(() => { if (VIEW === "boost") loadBm(); });
@@ -3918,7 +3926,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
   const TGL_REAL = ["pump_bmr_on", "pump_bm_real_follow", "pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
-  const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real", pump_bm_on: "pump_bm_real",
+  const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real", pump_bm_on: "pump_bm_real", pump_bm_new_on: "pump_bm_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_bm_alchemy_backup", "pump_bm_sybil_on", "pump_bm_sybil_alert", "pump_bm_fast", "pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
   function tglScope(k, c) {

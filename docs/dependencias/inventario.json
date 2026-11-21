@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "39b388f66a144b0294057c583eabd94aa3fd3b24",
-    "application_version": "0.32.431 · 2026-11-21 · Compra e venda REAL mais rápidas (saldo em paralelo, confirmação a cada 0,25 s) e tempo de cada parte",
+    "repository_reference": "3a59c8b38ebd25bcb11b154c91efd2dbca45de21",
+    "application_version": "0.32.432 · 2026-11-21 · BOOST: tokens novos (ainda na curva) com volume acima de US$ 2 mil entram na análise antes de migrar",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "8987f7799d198c54bb22ce8469cd69f0e5a6e51e1c78d842ef30dce2f0bdf286",
+      "app/version.py": "584f1bd5c60ff27e96914f8e44fee65c83ef6d2926d67e488f3492a4399b255c",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "89abbc3aeee4c46711dc09432163bf33fd1e80415079d7d9689ff34c978b2837",
+      "web/app.html": "e2c838ed91079c0c8e2a68b486e7328783a01a0238b75e77d6241b9e5217e507",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "d79ec12bfcd1c9b6f39bd7c9808c7a6d365378d3e31a0c2da48a7f97533a1b23"
+  "pdf_sha256": "3384aff471722372bf7c021f99c54cbf42344bb4013d73b6ecce11146d10899b"
 }

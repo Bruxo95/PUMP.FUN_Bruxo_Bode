@@ -1776,6 +1776,28 @@ class PumpHub:
         if b is not None:
             log.info("BOOST: migrou %s", b.get("symbol") or b["mint"][:8])
 
+    def bm_on_create(self, ev: dict, t: float | None = None) -> None:
+        """0.32.432: token novo da PumpPortal vira candidato do BOOST (só com algum admin com tokens novos ligados)."""
+        if consultas.on("pump_q_boost"):
+            self.bm.on_create(ev, t)
+
+    def bm_novo_cfg(self) -> dict:
+        """0.32.432: o que vale para o servidor achar tokens novos: o MENOR volume e a MAIOR idade entre os admins com o BOOST e os
+        tokens novos ligados (cada um decide depois com os próprios números)."""
+        vols, ages = [], []
+        for pf in self.engines.values():
+            c = getattr(pf, "cfg", None)
+            if getattr(pf, "role", "user") != "admin" or not getattr(c, "pump_bm_on", False) or not getattr(c, "pump_bm_new_on", True):
+                continue
+            vols.append(float(getattr(c, "pump_bm_new_vol_usd", 2000)))
+            ages.append(float(getattr(c, "pump_bm_new_age_max_min", 2)))
+            if getattr(c, "pump_bm_real", False) and getattr(c, "pump_bmr_on", False):
+                vols.append(float(getattr(c, "pump_bmr_new_vol_usd", 2000)))
+                ages.append(float(getattr(c, "pump_bmr_new_age_max_min", 2)))
+        if not vols:
+            return {"on": False, "vol": 2000.0, "age_s": 120.0}
+        return {"on": True, "vol": min(vols), "age_s": max(ages) * 60}
+
     async def bm_loop(self) -> None:
         await asyncio.sleep(20)
         saved = 0.0
@@ -1803,6 +1825,7 @@ class PumpHub:
         bm.rpc_backup = self._bm_rpc_alchemy if self.system_keys.get("alchemy_api_key") else None
         now = time.time()
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
+        bm.novo_cfg = self.bm_novo_cfg()                  # 0.32.432: tokens novos (curva)
         await bm.tick(now)
         self._bm_results(now)
         self.sybil_tick(now)                              # 0.32.382: carteiras ligadas ao DEV (Alchemy), em segundo plano
@@ -1855,10 +1878,15 @@ class PumpHub:
                 if not sm or now - sm[-1][0] > 10:
                     u.update(estado="esperar", motivo="aguardando cotação da Jupiter (preço de agora)")
                     continue
+                novo = b.get("kind") == "novo"                   # 0.32.432: token novo ainda na curva (não é PumpSwap)
                 tk = pf.tokens.setdefault(m, {"created_t": now})
-                tk.update(price=sm[-1][1], last_t=sm[-1][0], price_src="cotação Jupiter (compra de 0,01 SOL)", pool="pumpswap")
+                tk.update(price=sm[-1][1], last_t=sm[-1][0], price_src="cotação Jupiter (compra de 0,01 SOL)")
+                if novo:
+                    tk["bm_curva"] = True
+                else:
+                    tk["pool"] = "pumpswap"
                 target = leg if own else ("real" if real else "sim")
-                auto = "BOOST da migração · " + why + (" · regras da REAL" if leg == "real" else "")
+                auto = ("BOOST · token novo (curva) · " if novo else "BOOST da migração · ") + why + (" · regras da REAL" if leg == "real" else "")
                 rules = bm.rules(c, b, now)
                 amt = float(getattr(c, "pump_bm_sol", 0.05))
                 r = pf.manual_buy(m, t=now, auto=auto, origem="boostmig", target=target, amt_sol=amt, pos_rules=rules)
@@ -1883,8 +1911,9 @@ class PumpHub:
                 if r.get("error"):
                     u.update(estado="esperar", motivo="não comprou: " + str(r["error"]))
                 elif ok:
-                    u.update(estado="entrou", motivo=f"entrou em {bm.progress(b, now):.0f}% do BOOST", t=now)
-                    b.setdefault("entry", {"prog": round(bm.progress(b, now), 1), "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"),
+                    u.update(estado="entrou", motivo=(f"entrou com {now - b['t0']:.0f} s de vida (token novo)" if novo
+                                                      else f"entrou em {bm.progress(b, now):.0f}% do BOOST"), t=now)
+                    b.setdefault("entry", {"prog": round(bm.progress(b, now), 1), "idade_s": round(now - b["t0"], 1), "vol_m5": b.get("vol_m5"), "buys_m5": b.get("buys_m5"), "sells_m5": b.get("sells_m5"),
                                            "trend_pct": b.get("trend_pct"), "drawdown_pct": b.get("drawdown_pct"), "mcap_sol": b.get("mcap_sol")})
                     pos.append({"mint": m, "real": leg == "real" or later, "origem": "boostmig"})   # "later": já contada em bm_sim_after
                     bm.dirty.add(m)
@@ -2297,7 +2326,9 @@ class PumpHub:
                 "mig_ws_s": round(now - (self.market.status or {}).get("mig_ws_t")) if (self.market.status or {}).get("mig_ws_t") else None,
                 "mig_ws_err": (self.market.status or {}).get("mig_ws_err"),
                 "mig_reserva": bool((self.market.status or {}).get("mig_reserva")), "mig_reserva_n": (self.market.status or {}).get("mig_reserva_n") or 0,
-                "resumo": {"migracoes_24h": len(bm.items), "entrou": len(in_sim & set(bm.items)),
+                "novos": {**bm.novo_cfg, "candidatos": len(bm.cands)},                       # 0.32.432
+                "resumo": {"migracoes_24h": len([b for b in bm.items.values() if b.get("kind") != "novo"]),
+                           "novos_24h": len([b for b in bm.items.values() if b.get("kind") == "novo"]), "entrou": len(in_sim & set(bm.items)),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
                            "fechadas": len(fech), "ganhou": len(ganhos), "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in fech), 6),
                            # 0.32.396 (pedido do dono): a REAL com números próprios (entradas, fechadas, ganhos, resultado)
