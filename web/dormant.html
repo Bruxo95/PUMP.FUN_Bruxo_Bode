@@ -85,6 +85,8 @@
   /* 0.32.241: blockchains como botões pequenos em Moedas, no lugar da lista suspensa */
   .dmact{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid #a78bfa;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:13px;min-width:0;overflow-wrap:anywhere}.dmact[hidden]{display:none}
   .dmchips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+  .altabs{margin-bottom:8px;flex-wrap:wrap}.altabs button{font-size:15px;font-weight:600}
+  #ecoCh .dmchip small{margin-left:4px}#ecoBox .dmbar{margin-top:4px}
   .dmchip{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid transparent;border-radius:7px;padding:1px;color:var(--muted);font:inherit;font-size:10.5px;cursor:pointer}
   .dmchip .dmch{margin-left:0}
   .dmchip small{font-size:10.5px;padding-right:4px}
@@ -216,8 +218,14 @@
         <div class="kpis" id="ovK"></div>
         <div class="card" style="margin-top:16px" id="tgCard"><header><div><h2>Avisar no Telegram</h2><div class="sub">cada alerta novo chega no seu Telegram · usa o bot e o chat salvos em PUMP FUN → Carteiras → Chaves</div></div></header>
           <div id="tgBox"><span class="muted small">Carregando…</span></div></div>
-        <div class="card" style="margin-top:16px"><header><div><h2>Alertas</h2><div class="sub">uma linha por moeda que mudou para pump, dump ou acordando · 1 h e 24 h são de agora, iguais à CoinGecko · "O que aconteceu" mostra cada alerta com a hora e quanto mexia naquela hora</div></div></header>
-          <div class="tbl-wrap tall"><table id="ovAl"></table></div></div>
+        <div class="card" style="margin-top:16px"><header><div><div class="seg altabs" id="alTabs" role="tablist"><button type="button" data-alt="lista" role="tab">Alertas</button><button type="button" data-alt="eco" role="tab">Alertas da blockchain</button></div>
+          <div class="sub" id="alSub">uma linha por moeda que mudou para pump, dump ou acordando · 1 h e 24 h são de agora, iguais à CoinGecko · "O que aconteceu" mostra cada alerta com a hora e quanto mexia naquela hora</div></div></header>
+          <div id="alLista"><div class="tbl-wrap tall"><table id="ovAl"></table></div></div>
+          <div id="alEco" hidden>
+            <div class="dmbar"><input class="in" id="ecoQ" type="search" placeholder="Buscar blockchain (ex.: Tron, Solana, Base)" aria-label="Buscar blockchain"></div>
+            <div class="dmchips" id="ecoCh" role="group" aria-label="Escolher a blockchain"></div>
+            <div id="ecoBox"></div>
+          </div></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Mais se mexeram em 24 h</h2><div class="sub">as que mais subiram e mais caíram (com negócio de verdade)</div></div></header>
           <div class="tbl-wrap tall"><table id="ovMv"></table></div></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Últimas ações na blockchain</h2><div class="sub" id="ovBcSub">as negociações mais recentes das moedas da lista, lidas direto da blockchain (GeckoTerminal)</div></div></header>

@@ -81,6 +81,8 @@ PV_AGAIN_S = 600                       # …cada pool lido de novo a cada 10 min
 PV_LOTE = 20
 VD_EVERY_S = 30                        # histórico de 30 dias: 1 moeda a cada 30 s, uma vez só (≈ 660 consultas no total)
 VD_DIAS = 31
+ECO_RE = re.compile(r"[a-z0-9-]{2,80}-ecosystem")      # categorias de blockchain da CoinGecko ("tron-ecosystem")
+ECO_LIST_S, ECO_COINS_S = 86400, 600
 CG_URL = re.compile(r"coingecko\.com/(?:[a-z-]+/)?coins/([a-z0-9-]+)", re.I)
 
 
@@ -219,6 +221,7 @@ class DormantWatch:
         self._gt_n = 0
         self._info_at = 0.0
         self.cfg = dict(CFG_DEFAULT)
+        self._eco, self._eco_t, self._eco_coins = [], 0.0, {}         # 0.32.425: alertas da blockchain (sob demanda)
         self.map: dict[str, list[str]] = {}
         self.map_t = 0.0
         self.pick: dict[str, str] = {}               # moeda da CMC → id escolhido na CoinGecko
@@ -392,6 +395,59 @@ class DormantWatch:
                         "ja_tem": cid in have})
         out.sort(key=lambda x: -(x["mcap"] or 0))
         return out
+
+    # ------------------------------------------------------------------ alertas da blockchain (0.32.425)
+    # Pedido do dono (21/11): uma aba ao lado dos Alertas com as categorias de blockchain da CoinGecko ("Tron Ecosystem", ...).
+    # Escolhendo uma, mostra as moedas dela com a mesma conta dos Alertas (pump, dump, acordando). A maioria não está na lista,
+    # então é sob demanda: a lista de categorias 1×/dia e as moedas de uma categoria guardadas 10 min (1 consulta, até 250 moedas).
+    async def eco_list(self) -> list[dict]:
+        now = time.time()
+        if self._eco and now - self._eco_t < ECO_LIST_S:
+            return self._eco
+        rows = await self.get("/coins/categories", {"order": "market_cap_desc"}) or []
+        out = [{"id": r["id"], "nome": str(r.get("name") or r["id"]).replace(" Ecosystem", ""), "mcap": r.get("market_cap"),
+                "vol24": r.get("volume_24h"), "h24": r.get("market_cap_change_24h")}
+               for r in rows if isinstance(r, dict) and ECO_RE.fullmatch(str(r.get("id") or ""))]
+        out.sort(key=lambda e: -(e["mcap"] or 0))         # a CoinGecko nem sempre respeita a ordem pedida
+        if out:
+            self._eco, self._eco_t = out, now
+        return out or self._eco
+
+    async def eco_coins(self, cat: str) -> dict:
+        cat = (cat or "").strip().lower()
+        if not ECO_RE.fullmatch(cat):
+            raise ValueError("categoria inválida")
+        if cat not in {e["id"] for e in await self.eco_list()}:
+            raise ValueError("essa blockchain não está nas categorias da CoinGecko")
+        now = time.time()
+        hit = self._eco_coins.get(cat)
+        if hit and now - hit[0] < ECO_COINS_S:
+            rows = hit[1]
+        else:
+            rows = await self.get("/coins/markets", {"vs_currency": "usd", "category": cat, "order": "market_cap_desc", "per_page": 250, "page": 1,
+                                                     "sparkline": "true", "price_change_percentage": "1h,24h,7d,30d"}) or []
+            self._eco_coins[cat] = (now, rows)
+            for k in [k for k, v in self._eco_coins.items() if now - v[0] > ECO_COINS_S * 6]:
+                self._eco_coins.pop(k, None)
+        have = {e["cg"] for e in self.extras} | set(self.pick.values())
+        key_of = {v: k for k, v in self.pick.items()}
+        itens = []
+        for r in rows:
+            if not isinstance(r, dict) or not r.get("id"):
+                continue
+            cid = r["id"]
+            st, why = classify(r, self.cfg, self.vol_med(cid) if cid in have else None)
+            itens.append({"id": cid, "nome": r.get("name"), "simbolo": (r.get("symbol") or "").upper(), "img": r.get("image"),
+                          "preco": r.get("current_price"), "mcap": r.get("market_cap"), "rank": r.get("market_cap_rank"),
+                          "h1": r.get("price_change_percentage_1h_in_currency"), "h24": r.get("price_change_percentage_24h_in_currency"),
+                          "d7": r.get("price_change_percentage_7d_in_currency"), "vol": r.get("total_volume"),
+                          "v1": (self.pvol.get(cid) or {}).get("h1") if cid in have else None,
+                          "status": st, "por": why, "ja_tem": cid in have, "key": key_of.get(cid)})
+        cont = {}
+        for x in itens:
+            cont[x["status"]] = cont.get(x["status"], 0) + 1
+        nome = next((e["nome"] for e in self._eco if e["id"] == cat), cat)
+        return {"id": cat, "nome": nome, "itens": itens, "contagem": cont, "lido_t": (self._eco_coins.get(cat) or (now,))[0]}
 
     async def add(self, cid: str, por: str, por_id: str) -> dict:
         cid = (cid or "").strip().lower()

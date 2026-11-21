@@ -51,6 +51,27 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
             return {"error": "Dormant desligado no servidor"}
         return await w.chart_long(key[:200], dias[:5])
 
+    # 0.32.425 (pedido do dono): Alertas da blockchain — categorias de blockchain da CoinGecko e as moedas de cada uma
+    @app.get("/api/dormant/ecossistemas")
+    async def dormant_ecos(u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        try:
+            return {"itens": await w.eco_list()}
+        except RuntimeError as e:
+            return {"error": str(e)}
+
+    @app.get("/api/dormant/ecossistema")
+    async def dormant_eco(id: str = "", u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        try:
+            return await w.eco_coins(id[:100])
+        except (ValueError, RuntimeError) as e:
+            return {"error": str(e)}
+
     @app.get("/api/dormant/moeda")
     async def dormant_coin(key: str = "", u: dict = Depends(admin_only)):
         w = get_watch()

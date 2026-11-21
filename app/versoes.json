@@ -2880,6 +2880,11 @@
    "versao": "0.32.424",
    "inicio": "2026-11-21T15:35:00+00:00",
    "titulo": "BOOST: positivo × negativo só com a medição de segundo em segundo"
+  },
+  {
+   "versao": "0.32.425",
+   "inicio": "2026-11-21T16:06:00+00:00",
+   "titulo": "Dormant: Alertas da blockchain, com as moedas de cada blockchain da CoinGecko"
   }
  ]
 }

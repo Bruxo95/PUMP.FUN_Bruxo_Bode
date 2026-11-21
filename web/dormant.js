@@ -222,8 +222,69 @@
         '<span class="px">' + price(m.preco) + '</span><span class="st">' + tag(m.status) + '</span><span class="pcs"><span>1 h ' + pc(m.h1) + "</span><span>24 h " + pc(m.h24) + "</span></span>" +
         ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button>' : "<span></span>") + "</div>").join("");
   }
+  // 0.32.425 (pedido do dono): Alertas em abas — os da lista e os de cada blockchain (categorias "Ecosystem" da CoinGecko), na mesma conta
+  let AL = (() => { try { return localStorage.getItem("dm_alt") || "lista"; } catch (e) { return "lista"; } })();
+  let ECO = { list: null, sel: (() => { try { return localStorage.getItem("dm_eco") || ""; } catch (e) { return ""; } })(), data: null, st: "alerta", busy: false };
+  const ECO_TOP = 24;
+  const alSave = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento: só não lembra */ } };
+  function alTabs() {
+    document.querySelectorAll("#alTabs [data-alt]").forEach((b) => { const on = b.dataset.alt === AL; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+    $("alLista").hidden = AL !== "lista"; $("alEco").hidden = AL !== "eco";
+    $("alSub").textContent = AL === "lista"
+      ? 'uma linha por moeda que mudou para pump, dump ou acordando · 1 h e 24 h são de agora, iguais à CoinGecko · "O que aconteceu" mostra cada alerta com a hora e quanto mexia naquela hora'
+      : "categorias de blockchain da CoinGecko · escolha uma para ver as moedas dela (até 250, por valor de mercado) com a mesma conta dos Alertas · a maioria não está na sua lista: use Adicionar para vigiar";
+    if (AL === "eco") ecoOpen();
+  }
+  async function ecoOpen() {
+    if (!ECO.list && !ECO.busy) {
+      ECO.busy = true; $("ecoCh").innerHTML = '<span class="muted">lendo as blockchains da CoinGecko…</span>';
+      const r = await BB.api("/api/dormant/ecossistemas", { quiet: true });
+      ECO.busy = false;
+      if (!r || r.error) { $("ecoCh").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler as blockchains") + "</span>"; return; }
+      ECO.list = r.itens || [];
+    }
+    if (ECO.list) ecoChips();
+    if (ECO.sel && (!ECO.data || ECO.data.id !== ECO.sel)) ecoLoad(ECO.sel);
+    else ecoDraw();
+  }
+  function ecoChips() {
+    const q = fold(($("ecoQ") || {}).value || "").trim(), L = ECO.list || [];
+    const vis = q ? L.filter((e) => fold(e.nome).includes(q) || e.id.includes(q)) : L.slice(0, ECO_TOP);
+    if (ECO.sel && !vis.some((e) => e.id === ECO.sel)) { const s = L.find((e) => e.id === ECO.sel); if (s) vis.unshift(s); }
+    $("ecoCh").innerHTML = vis.map((e) => '<button type="button" class="dmchip' + (ECO.sel === e.id ? " on" : "") + '" data-eco="' + esc(e.id) + '" aria-pressed="' + (ECO.sel === e.id) +
+      '" title="valor de mercado ' + esc(usd(e.mcap)) + " · volume 24 h " + esc(usd(e.vol24)) + '">' + chainTag(e.nome) + (e.h24 != null ? "<small>" + pc(e.h24) + "</small>" : "") + "</button>").join("") +
+      (!q && L.length > ECO_TOP ? '<span class="muted small">+' + (L.length - ECO_TOP) + " blockchains: use a busca</span>" : "") + (q && !vis.length ? '<span class="muted">nenhuma blockchain com esse nome</span>' : "");
+  }
+  async function ecoLoad(id) {
+    ECO.sel = id; alSave("dm_eco", id); ecoChips();
+    $("ecoBox").innerHTML = '<span class="muted">lendo as moedas desta blockchain na CoinGecko…</span>';
+    const r = await BB.api("/api/dormant/ecossistema?id=" + encodeURIComponent(id), { quiet: true });
+    if (ECO.sel !== id) return;
+    if (!r || r.error) { ECO.data = null; $("ecoBox").innerHTML = '<span class="down">' + esc((r && r.error) || "não consegui ler esta blockchain") + "</span>"; return; }
+    ECO.data = r; ecoDraw();
+  }
+  function ecoDraw() {
+    const d = ECO.data, box = $("ecoBox"); if (!box) return;
+    if (!d) { box.innerHTML = '<span class="muted">' + (ECO.list ? "Escolha uma blockchain acima." : "") + "</span>"; return; }
+    const c = d.contagem || {}, all = d.itens || [], ALERTA = ["acordando", "pump", "dump"];
+    const L = ECO.st === "alerta" ? all.filter((x) => ALERTA.includes(x.status)) : ECO.st ? all.filter((x) => x.status === ECO.st) : all;
+    const nAl = ALERTA.reduce((a, k) => a + (c[k] || 0), 0);
+    const btn = (k, t, n) => '<button type="button" data-ecost="' + k + '"' + (ECO.st === k ? ' class="on"' : "") + ">" + t + " · " + num(n, 0) + "</button>";
+    const ord = L.slice().sort((a, b) => stV(a.status) - stV(b.status) || Math.abs(b.h24 || 0) - Math.abs(a.h24 || 0));
+    box.innerHTML = '<div class="dmbar"><div class="seg">' + btn("alerta", "Pump, dump e acordando", nAl) + ALERTA.map((k) => btn(k, ST[k], c[k] || 0)).join("") + btn("", "Todas", all.length) + "</div></div>" +
+      '<p class="muted small">' + esc(d.nome) + " · " + num(all.length, 0) + " moedas lidas há " + esc(ago(d.lido_t)) + " · Movimentou 1 h só existe para as moedas que já estão na sua lista (vem do pool na blockchain)</p>" +
+      '<div class="tbl-wrap tall"><table id="ecoT"></table></div>';
+    table("ecoT", ["Moeda", "Agora", "1 h agora", "24 h agora", "Movimentou 1 h", "Movimentou 24 h", "O que aconteceu"], ord.map((x) => [
+      V('<span class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<b" + (x.key ? ' data-dmcoin="' + esc(x.key) + '"' : "") + ">" + esc(x.nome) + '</b></span> <small class="muted">' + esc(x.simbolo) +
+        (x.rank ? " · #" + esc(x.rank) : "") + "</small>" + (x.preco != null ? '<small class="muted" style="display:block">' + price(x.preco) + "</small>" : "") +
+        (x.ja_tem ? '<span class="tag neutral">na sua lista</span>' : '<button class="btn sm primary" data-dmaddid="' + esc(x.id) + '">Adicionar</button>'), x.nome),
+      V(tag(x.status), stV(x.status)), V(pc(x.h1), x.h1), V(pc(x.h24), x.h24), V(usd(x.v1), x.v1), V(usd(x.vol), x.vol),
+      '<small class="muted">' + esc((x.por || []).join(" · ") || "—") + "</small>"]),
+      ECO.st ? "Nenhuma moeda desta blockchain está assim agora. Veja Todas." : "Nenhuma moeda nesta blockchain.");
+  }
   function drawVisao() {
     drawOvSearch();
+    alTabs();
     const c = (R && R.contagem) || {};
     $("ovK").innerHTML = ["acordando", "pump", "dump", "dormindo", "normal", "parada", "morta"].map((k) =>
       '<div class="kpi dmk" data-dmst="' + k + '" role="button" tabindex="0"><div class="k"><span>' + esc(ST[k]) + '</span></div><div class="v">' + num(c[k] || 0, 0) + '</div><div class="d">' +
@@ -1394,6 +1455,7 @@
     if (e.target && e.target.id === "vQ") { VQ = e.target.value; drawVol(); }
     if (e.target && e.target.id === "mQ") { F.q = e.target.value; saveF(); drawMoedas(); }
     if (e.target && e.target.id === "ovQ") drawOvSearch();
+    if (e.target && e.target.id === "ecoQ" && ECO.list) ecoChips();
     if (e.target && e.target.id === "gasUsd") gasConv();
     if (e.target && e.target.id === "buyVal") { buyUsdDraw(); if ($("buyPrev")) $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });
@@ -1627,6 +1689,9 @@
     if (t.dataset.cmr) { if (CM) { CM.rng = +t.dataset.cmr; dexEmbed("cg"); drawCoinChart(); } return; }
     if (t.dataset.cms) { dexEmbed(t.dataset.cms); return; }
     if (t.id === "addGo") { addSearch(); return; }
+    if (t.dataset.alt) { AL = t.dataset.alt; alSave("dm_alt", AL); alTabs(); return; }
+    if (t.dataset.eco) { ECO.st = "alerta"; ecoLoad(t.dataset.eco); return; }
+    if (t.dataset.ecost != null) { ECO.st = t.dataset.ecost; ecoDraw(); return; }
     if (t.id === "ovQX") { $("ovQ").value = ""; drawOvSearch(); $("ovQ").focus(); return; }
     if (t.dataset.dmaddid) {
       t.disabled = true;
