@@ -1195,6 +1195,7 @@
     drawCompras();
     return null;
   }
+  const CP_OPEN = new Set();
   let CPCH = (() => { try { return localStorage.getItem("dm_cpch") || ""; } catch (e) { return ""; } })();
   const cpChSave = () => { try { localStorage.setItem("dm_cpch", CPCH); } catch (e) { /* sem armazenamento: só não lembra */ } };
   async function drawCompras() {
@@ -1220,21 +1221,33 @@
     const tx = (x) => (x.tx && x.expl ? '<a href="' + esc(x.expl + x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—");
     const moeda = (x) => '<div class="dmcoin">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "<div><b" + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda"' : "") + ">" + esc(x.nome) + "</b> <small>" + esc(x.simbolo || "") + "</small></div></div>";
     const kv = (l, v) => "<div><small>" + l + "</small><b>" + v + "</b></div>";
-    $("cpT").innerHTML = ok.length ? ok.map((x) => '<div class="cpc"><div class="t"><b' + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda" style="cursor:pointer"' : "") + '>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
-      '<div>' + chainTag(x.rede_nome) + "</div>" + '<div class="n">' + esc(x.nome) + " · " + esc(x.dex || "") + (x.rota ? " · " + esc(x.rota) : "") + "</div>" +
+    // 0.32.418 (pedido do dono): cartão curto (Total, investido e valor + botões); a seta abre o resto. Mais lucro em cima,
+    // e as compras em que o investido já voltou inteiro (ou vendidas de todo) vão para o quadro "Lucro realizado"
+    const card = (x) => {
+      const aberto = CP_OPEN.has(x.id);
+      return '<div class="cpc"><div class="t"><b' + (x.cmc ? ' data-dmcoin="' + esc(x.cmc) + '" title="abrir a moeda" style="cursor:pointer"' : "") + '>' + esc(x.simbolo || x.nome) + '</b><span class="' + cls(x.ganho) + '">' + (x.ganho == null ? "—" : (x.ganho < 0 ? "-" : x.ganho > 0 ? "+" : "") + "$" + num(Math.abs(x.ganho), 2)) + "</span></div>" +
+      '<div class="cpch">' + chainTag(x.rede_nome) + '<button type="button" class="cparr" data-cpopen="' + esc(x.id) + '" aria-expanded="' + aberto + '" title="' + (aberto ? "mostrar menos" : "mostrar tudo") + '">' + (aberto ? "▴" : "▾") + "</button></div>" +
       // 0.32.414 (pedido do dono): depois de vender, "Investido × Valor agora" parecia prejuízo; mostra quanto do investido já voltou
       // e quanto vale o que sobrou. O investido continua na janela Compra e vendas
       '<div class="g">' + kv("Total", pc(x.total)) + (x.vendido
         ? kv("Investido que voltou", x.custo ? '<span title="recebeu $' + num(x.recebido, 2) + " de $" + num(x.custo, 2) + ' investidos; o investido conta o gás da compra e o recebido já desconta o gás da venda" class="' + (x.recebido >= x.custo ? "up" : "") + '">' + num(Math.min(999, x.recebido / x.custo * 100), 0) + "%" + (x.recebido >= x.custo ? " ✓" : "") + "</span>" : "—") +
           kv("O que sobrou vale", x.valor == null ? "—" : "$" + num(x.valor, 2))
-        : kv("Investido", "$" + num(x.custo, 2)) + kv("Valor agora", x.valor == null ? "—" : "$" + num(x.valor, 2))) +
-      kv("Quantidade", qtd(x.qty)) + kv("Preço pago", price(x.px_in)) + kv("Agora", price(x.px_agora)) + "</div>" +
-      (x.vendido ? '<div class="g">' + kv("Vendido", qtd(x.vendido)) + kv("Recebeu", "$" + num(x.recebido, 2)) + kv("Ainda tem", qtd(x.resto)) + "</div>" : "") +
-      '<div class="g q">' + kv("1 h", pc(x.h1)) + kv("12 h", pc(x.h12)) + kv("24 h", pc(x.h24)) + kv("7 dias", pc(x.h168)) + "</div>" +
-      '<div class="f"><span>' + hora(x.t) + "</span> " + tx(x) + '<span class="sp"></span>' +
+        : kv("Investido", "$" + num(x.custo, 2)) + kv("Valor agora", x.valor == null ? "—" : "$" + num(x.valor, 2))) + "</div>" +
+      (aberto ? '<div class="n">' + esc(x.nome) + " · " + esc(x.dex || "") + (x.rota ? " · " + esc(x.rota) : "") + "</div>" +
+        '<div class="g">' + kv("Quantidade", qtd(x.qty)) + kv("Preço pago", price(x.px_in)) + kv("Agora", price(x.px_agora)) + "</div>" +
+        (x.vendido ? '<div class="g">' + kv("Vendido", qtd(x.vendido)) + kv("Recebeu", "$" + num(x.recebido, 2)) + kv("Ainda tem", qtd(x.resto)) + "</div>" : "") +
+        '<div class="g q">' + kv("1 h", pc(x.h1)) + kv("12 h", pc(x.h12)) + kv("24 h", pc(x.h24)) + kv("7 dias", pc(x.h168)) + "</div>" : "") +
+      '<div class="f">' + (aberto ? "<span>" + hora(x.t) + "</span> " + tx(x) : "") + '<span class="sp"></span>' +
       (x.cex ? '<span class="small">vender na exchange</span>' : x.resto ? asCoinBtn(x) + ' <button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') +
-      ' <button type="button" class="btn sm" data-dmhist="' + esc(x.id) + '">Compra e vendas</button>' + "</div></div>").join("")
-      : '<div class="cpempty">' + (CPCH ? "Nenhuma compra confirmada em " + esc(CPCH) + "." : "Nenhuma compra ainda. Em Moedas, use o botão Comprar.") + "</div>";
+      ' <button type="button" class="btn sm" data-dmhist="' + esc(x.id) + '">Compra e vendas</button>' + "</div></div>";
+    };
+    const realiz = (x) => !x.resto || (x.vendido && x.custo && x.recebido >= x.custo);
+    const porLucro = (a, b) => (b.ganho ?? -Infinity) - (a.ganho ?? -Infinity) || (b.total ?? -Infinity) - (a.total ?? -Infinity);
+    const abertas = ok.filter((x) => !realiz(x)).sort(porLucro), feitas = ok.filter(realiz).sort(porLucro);
+    $("cpT").innerHTML = abertas.length ? abertas.map(card).join("")
+      : '<div class="cpempty">' + (CPCH ? "Nenhuma compra em andamento em " + esc(CPCH) + "." : ok.length ? "Todas as compras já tiveram o investido de volta: veja Lucro realizado abaixo." : "Nenhuma compra ainda. Em Moedas, use o botão Comprar.") + "</div>";
+    $("cpRSub").textContent = feitas.length ? feitas.length + " compra" + (feitas.length > 1 ? "s" : "") + " · o investido já voltou inteiro (ou vendeu tudo); o que sobrar na carteira é lucro" : "";
+    $("cpR").innerHTML = feitas.length ? feitas.map(card).join("") : '<div class="cpempty">Ainda nenhuma: aqui entram as compras em que as vendas já devolveram todo o investido.</div>';
     const ST_V = { confirmada: "confirmada", enviando: "enviando", pendente: "sem confirmação", falhou: "falhou", expirada: "não entrou", confira: "confira", cancelada: "cancelada" };
     // 0.32.273: ordem Cardano parada na Minswap (o preço saiu da folga) só volta cancelando
     const adaX = (x, tipo) => x.rede === "cardano" && x.status === "pendente" ? ' <button type="button" class="btn sm" data-adacancel="' + tipo + ":" + esc(x.id) + '">Cancelar ordem</button>' : "";
@@ -1351,6 +1364,7 @@
     if (t.dataset.dmcopy) { copyText(t.dataset.dmcopy, t); return; }
     if (t.id === "buyMX") { closeBuy(); return; }
     if (t.id === "buyQuote") { buyQuote(); return; }
+    if (t.dataset.cpopen) { const id = t.dataset.cpopen; if (CP_OPEN.has(id)) CP_OPEN.delete(id); else CP_OPEN.add(id); drawCompras(); return; }
     if (t.dataset.cpch != null) { CPCH = CPCH === t.dataset.cpch ? "" : t.dataset.cpch; cpChSave(); drawCompras(); return; }
     if (t.dataset.slipretry) { const el = $("buySlip"); if (el) el.value = t.dataset.slipretry; if (BUY && BUY.sell) sellQuote(); else buyQuote(); return; }
     if (t.id === "buyMax") { if (BUY && BUY.lim && BUY.lim.max_nativo != null) { $("buyVal").value = BUY.lim.max_nativo.toFixed(8).replace(/0+$/, "").replace(/\.$/, "") || "0"; buyUsdDraw(); $("buyPrev").innerHTML = ""; if (BUY.timer) clearInterval(BUY.timer); } return; }

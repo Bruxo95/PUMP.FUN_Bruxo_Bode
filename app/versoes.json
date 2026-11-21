@@ -2845,6 +2845,11 @@
    "versao": "0.32.417",
    "inicio": "2026-11-21T11:14:00+00:00",
    "titulo": "Dormant: filtro por blockchain, vender o que falta do investido e investido em moeda da rede"
+  },
+  {
+   "versao": "0.32.418",
+   "inicio": "2026-11-21T11:43:22+00:00",
+   "titulo": "Dormant: compras por lucro, lucro realizado separado e cartões que abrem na seta"
   }
  ]
 }

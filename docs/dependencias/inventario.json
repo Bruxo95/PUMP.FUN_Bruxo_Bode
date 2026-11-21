@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "14e37177daa5d891681767d7a94092373b0a9bd6",
-    "application_version": "0.32.417 · 2026-11-21 · Dormant: filtro por blockchain, vender o que falta do investido e investido em moeda da rede",
+    "repository_reference": "5255430ed3ecdbae59d88830d54c2687470b9f11",
+    "application_version": "0.32.418 · 2026-11-21 · Dormant: compras por lucro, lucro realizado separado e cartões que abrem na seta",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "6665ac1cb404a4c71ff2ee029ca020655975523e5616c1bae81b976753ddb7d2",
+      "app/version.py": "013da9aae277d0becd35d1c35c22789d14d1a75419ac67458825530e9484274c",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "540c784d63c4cf1636a446d1e5ddd0a40f081bd2f8817de668aa4f21caa9f04f"
+  "pdf_sha256": "b49e895773fd1bd57e103a637407afe317521877dca3ac520b661369503a3a97"
 }
