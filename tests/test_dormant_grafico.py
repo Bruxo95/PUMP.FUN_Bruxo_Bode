@@ -51,3 +51,42 @@ def test_bad_period_and_no_history_are_plain_errors():
     w.get = get
     w.target = lambda cid: None
     assert "esperar" in run(w.chart_long("tok", "90"))["erro"]
+
+
+def test_all_time_prefers_defillama_full_history_and_only_for_max():
+    w, usadas = watch(), []
+
+    async def get(path, params=None):
+        raise RuntimeError("CoinGecko respondeu HTTP 401")
+
+    async def llama(cid):
+        usadas.append(cid)
+        return [[1619000000, 1e-7], [1700000000, 2e-6], [1790000000, 1e-8]]
+    w.get, w.llama_all = get, llama
+    g = run(w.chart_long("tok", "max"))
+    assert g["fonte"] == "DefiLlama" and len(g["precos"]) == 3 and g["volumes"] == [] and usadas == ["tok-cg"]
+    run(w.chart_long("tok", "365"))                                           # 1 ano não usa a DefiLlama: cai direto na DEX ou no erro
+    assert usadas == ["tok-cg"]
+
+
+def test_defillama_history_that_stops_long_ago_is_refused():
+    w = watch()
+
+    class R:
+        status_code = 200
+
+        def __init__(self, pts):
+            self.pts = pts
+
+        def json(self):
+            return {"coins": {"coingecko:tok-cg": {"prices": [{"timestamp": t, "price": p} for t, p in self.pts]}}}
+
+    class H:
+        async def get(self, url, params=None, headers=None, timeout=None):
+            return R([(1646000000, 1e-9), (1646086400, 2e-9)])                # termina em 2022
+    w.http = H()
+    try:
+        run(w.llama_all("tok-cg"))
+        raise AssertionError
+    except RuntimeError as e:
+        assert "termina em" in str(e)

@@ -378,7 +378,7 @@
       '<line id="cmCur" x1="0" x2="0" y1="0" y2="' + H + '" stroke="var(--muted)" stroke-dasharray="3 3" visibility="hidden"/></svg>' +
       '<div class="cmtip" id="cmTip"></div><div class="sub" style="display:flex;justify-content:space-between"><span>' + hh(t0) + "</span><span>mín " + price(lo) + " · máx " + price(hi) +
       " · " + pc((P[P.length - 1][1] / P[0][1] - 1) * 100) + "</span><span>" + hh(t1) + "</span></div>" +
-      (g.fonte && g.fonte !== "CoinGecko" && (rng === 0 || rng > 30) ? '<div class="sub muted" style="margin-top:4px">histórico do pool da DEX (' + esc(g.fonte) + "), porque a CoinGecko não entregou este período" + (g.aviso ? ": " + esc(g.aviso) : "") + "</div>" : "");
+      (g.fonte && g.fonte !== "CoinGecko" && (rng === 0 || rng > 30) ? '<div class="sub muted" style="margin-top:4px">histórico de ' + esc(g.fonte) + ": a CoinGecko não entrega este período com a chave gratuita" + (g.aviso ? " (" + esc(g.aviso) + ")" : "") + "</div>" : "");
     const svg = box.querySelector("svg");
     const move = (ev) => {
       const r = svg.getBoundingClientRect(), cx = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width;

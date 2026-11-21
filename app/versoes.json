@@ -2785,6 +2785,11 @@
    "versao": "0.32.405",
    "inicio": "2026-11-21T06:05:23+00:00",
    "titulo": "Dormant: gráfico da moeda com 1 mês, 3 meses, 1 ano e tudo"
+  },
+  {
+   "versao": "0.32.406",
+   "inicio": "2026-11-21T06:22:22+00:00",
+   "titulo": "Dormant: gráfico Tudo com o histórico completo (DefiLlama)"
   }
  ]
 }

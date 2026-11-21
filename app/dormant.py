@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import statistics
@@ -787,6 +788,47 @@ class DormantWatch:
     # 0.32.405 (pedido do dono, 21/11): gráfico de 3 meses, 1 ano e tudo, carregado só quando a pessoa pede (a janela da moeda já traz 24 h, 7 dias e 30 dias).
     # CoinGecko: 90 dias = pontos de hora em hora, 365 e max = um ponto por dia. A chave Demo só enxerga 1 ano para trás: se "max" for recusado, o gráfico
     # de tudo vem do pool da DEX (velas diárias da GeckoTerminal, até 1.000 dias) e a tela diz de onde veio.
+    # 21/11 (caso Dogelon Mars): a CoinGecko recusa "max" na chave gratuita (erro 10012, só 365 dias) e o pool da DEX tem menos de 3 anos, então o Tudo ficava
+    # diferente do gráfico do site. A DefiLlama (coins.llama.fi, grátis, sem chave) entrega o histórico inteiro pelo id da CoinGecko, até 500 pontos por consulta:
+    # uma consulta grossa acha o primeiro dia da moeda e depois vêm pedaços de 500 pontos (1 por dia; 2 ou 3 dias se a moeda for muito antiga), no máx. 8 consultas.
+    LLAMA = "https://coins.llama.fi"
+
+    async def llama_all(self, cid: str) -> list[list]:
+        id_ = f"coingecko:{cid}"
+
+        async def pedaco(start: float, period: int) -> list[list]:
+            r = await self.http.get(f"{self.LLAMA}/chart/{id_}", params={"start": int(start), "span": 500, "period": f"{period}d"},
+                                    headers={"accept": "application/json", "User-Agent": "pump-fun-copy/1.0"}, timeout=30)
+            if r.status_code != 200:
+                raise RuntimeError(f"DefiLlama respondeu HTTP {r.status_code}")
+            ps = ((r.json().get("coins") or {}).get(id_) or {}).get("prices") or []
+            return [[int(p["timestamp"]), float(p["price"])] for p in ps if p and p.get("price") is not None and p.get("timestamp")]
+
+        first = await pedaco(1420070400, 30)                 # 2015, de 30 em 30 dias: só para achar o primeiro dia da moeda
+        if not first:
+            raise RuntimeError("a DefiLlama não tem histórico desta moeda")
+        now = time.time()
+        t0 = min(p[0] for p in first)
+        period = max(1, math.ceil((now - t0) / 86400 / (500 * 6)))
+        pts: dict[int, float] = {}
+        start = t0
+        for _ in range(8):
+            part = await pedaco(start, period)
+            for t, v in part:
+                pts[t] = v
+            if not part:
+                break
+            nxt = part[-1][0] + period * 86400
+            if nxt <= start or nxt >= now:                   # sem avanço ou já chegou em hoje
+                break
+            start = nxt
+        out = sorted([t, v] for t, v in pts.items())
+        if len(out) < 2:
+            raise RuntimeError("a DefiLlama devolveu poucos pontos")
+        if out[-1][0] < now - 30 * 86400:                    # moeda que a DefiLlama parou de acompanhar: o gráfico acabaria no meio do caminho
+            raise RuntimeError("o histórico da DefiLlama termina em " + datetime.fromtimestamp(out[-1][0], timezone.utc).strftime("%d/%m/%Y"))
+        return out
+
     async def chart_long(self, key: str, dias: str) -> dict:
         if dias not in ("90", "365", "max"):
             return {"erro": "período inválido"}
@@ -809,6 +851,11 @@ class DormantWatch:
             out = {"precos": pr, "volumes": [[int(p[0] / 1000), p[1]] for p in (r.get("total_volumes") or []) if p and p[1] is not None], "fonte": "CoinGecko"}
         except Exception as e:
             why = str(e)[:160]
+        if out is None and dias == "max":
+            try:
+                out = {"precos": await self.llama_all(cid), "volumes": [], "fonte": "DefiLlama", "aviso": why}
+            except Exception as e:
+                why = (why or "CoinGecko sem resposta") + " · DefiLlama: " + str(e)[:80]
         if out is None:
             tg, pool = self.target(cid), (self.gtpool.get(cid) or {}).get("pool")
             if tg and pool:
