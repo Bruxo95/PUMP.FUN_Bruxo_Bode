@@ -465,6 +465,18 @@ def holdings(rows: list[dict], watch, now: float, janelas=(1, 12, 24, 168), sell
     return {"itens": itens, "resumo": res, "leitura_t": watch.stat.get("leitura_t")}
 
 
+def sell_amount(saldo: int, q: dict) -> int:
+    """Quanto do saldo do token vende. 0.32.411: em décimos de milésimo (bps) para a venda só do investido; tudo = o saldo inteiro."""
+    bps = int(q.get("bps") or int(q.get("pct") or 0) * 100)
+    return saldo if bps >= 10000 else saldo * bps // 10000
+
+
+def invested_left(buy: dict, sells: list[dict]) -> float:
+    """Moeda da rede que ainda falta voltar desta compra: o que foi pago menos o que já entrou nas vendas confirmadas dela."""
+    volta = sum(float(x.get("nativo_out") or 0) for x in sells if x.get("compra") == buy.get("id") and x.get("status") == "confirmada")
+    return max(0.0, float(buy.get("nativo") or 0) - volta)
+
+
 def _ts(v) -> float:
     try:
         return datetime.fromisoformat(str(v).replace("Z", "+00:00")).timestamp()
@@ -1188,12 +1200,14 @@ class Buyer:
         chain = r.get("rede")
         if chain not in CHAINS:
             raise BuyError("rede inválida")
-        try:
-            pct = int(pct)
-        except (TypeError, ValueError):
-            raise BuyError("porcentagem inválida") from None
-        if not 1 <= pct <= 100:
-            raise BuyError("porcentagem inválida")
+        investido = pct == "investido"       # 0.32.411 (pedido do dono): vender só o que foi investido nesta compra
+        if not investido:
+            try:
+                pct = int(pct)
+            except (TypeError, ValueError):
+                raise BuyError("porcentagem inválida") from None
+            if not 1 <= pct <= 100:
+                raise BuyError("porcentagem inválida")
         c, bloq, avisos = CHAINS[chain], [], []
         await self.resolve_pending(uid)
         if not self.allowed():
@@ -1211,9 +1225,30 @@ class Buyer:
         gb, ga = judge_goplus(chain, await self.goplus(chain, r["token"]))
         avisos += gb + ga                          # na venda não bloqueia: se der para sair, a decisão é do dono; a simulação recusa se não der
         cfg = await self.cfg(uid)
-        q = {"lado": "venda", "uid": uid, "compra": r["id"], "key": r.get("cmc"), "cg": r.get("cg"), "rede": chain, "token": r["token"], "pct": pct, "usd_n": usd_n,
+        q = {"lado": "venda", "uid": uid, "compra": r["id"], "key": r.get("cmc"), "cg": r.get("cg"), "rede": chain, "token": r["token"], "pct": 100 if investido else pct, "usd_n": usd_n,
              "nome": r.get("nome"), "simbolo": r.get("simbolo"), "t": time.time(), "slip": cfg["slip_pct"], "end": r.get("endereco")}
-        det = await ({"solana": self._sell_preview_sol, "cardano": self._sell_preview_ada, "cosmos": self._sell_preview_osmo}.get(c["tipo"], self._sell_preview_evm))(q, bloq, avisos)
+        fn = {"solana": self._sell_preview_sol, "cardano": self._sell_preview_ada, "cosmos": self._sell_preview_osmo}.get(c["tipo"], self._sell_preview_evm)
+        alvo = None
+        if investido:
+            sells = await self.db.select("dormant_sells", {"user_id": uid, "compra": r["id"]}, limit=200) or []
+            alvo = invested_left(r, sells)
+            if alvo <= 0:
+                bloq.append("o valor investido nesta compra já voltou nas vendas: o que sobrou é só lucro")
+            else:
+                # cota o saldo inteiro e vende a fração que devolve o investido; vender menos move menos o preço, então volta um pouco mais
+                tudo = await fn(dict(q), [], [])
+                rec = float(tudo.get("recebe") or 0)
+                if rec <= 0:
+                    bloq.append("não consegui cotar o saldo do token para achar a parte do investido")
+                else:
+                    bps = math.ceil(alvo / rec * 10000)
+                    if bps >= 10000:
+                        bps = 10000
+                        avisos.append(f"o saldo todo vale {rec:.8g} {c['moeda']}, menos que o investido ({alvo:.8g}): vende tudo")
+                    q["bps"], q["pct"] = max(1, bps), round(max(1, bps) / 100, 2)
+        det = await fn(q, bloq, avisos)
+        if alvo is not None:
+            det["investido_nativo"] = round(alvo, 12)
         row = self.watch.rows.get(r.get("cg")) or {}
         px = row.get("current_price")
         usd_out = det.get("recebe") * usd_n if det.get("recebe") and usd_n else None
@@ -1228,7 +1263,7 @@ class Buyer:
         if imp is not None and imp > IMPACTO_AVISO:
             avisos.append(f"esta venda move o preço em {imp:.0f}%: pool pequeno para este valor")
         out = {"moeda": {"nome": q["nome"], "simbolo": q["simbolo"]}, "rede": chain, "rede_nome": c["nome"], "token": q["token"], "moeda_rede": c["moeda"], "carteira": q["end"],
-               "slip": cfg["slip_pct"], "pct": pct, "usd": usd_out, "bloqueia": bloq, "avisos": avisos, **det}
+               "slip": cfg["slip_pct"], "pct": q["pct"], "investido": investido, "usd": usd_out, "bloqueia": bloq, "avisos": avisos, **det}
         if not bloq:
             self._prune()
             qid = uuid.uuid4().hex
@@ -1247,7 +1282,7 @@ class Buyer:
         if saldo <= 0:
             bloq.append("a carteira não tem este token")
             return {"dex": c["dex"], "saldo": 0}
-        amount = saldo if q["pct"] == 100 else saldo * q["pct"] // 100
+        amount = sell_amount(saldo, q)
         rt = await self.evm_sell_best(q["rede"], q["token"], amount)
         if not rt:
             bloq.append(f"nenhum pool com a moeda da rede em {c['dex']} para este token")
@@ -1303,7 +1338,7 @@ class Buyer:
             return {"dex": "Jupiter", "saldo": 0}
         if sol < 3_000_000:
             bloq.append(f"falta SOL para pagar a taxa da venda: a carteira tem {sol / 1e9:.5f}; use Abastecer em Carteiras e compra")
-        amount = saldo if q["pct"] == 100 else saldo * q["pct"] // 100
+        amount = sell_amount(saldo, q)
         q.update(amount=amount, dec=dec)
         jq = await self._jup_quote(q, q["token"], WSOL, amount)
         if not jq or not int(jq.get("outAmount") or 0):
@@ -1726,7 +1761,7 @@ class Buyer:
         if saldo <= 0:
             bloq.append("a carteira não tem este token")
             return {"dex": "Minswap", "saldo": 0}
-        amount = saldo if q["pct"] == 100 else saldo * q["pct"] // 100
+        amount = sell_amount(saldo, q)
         try:                                               # casas do token pela própria Minswap (a cotação de 1 unidade traz)
             e0 = await self._mswap("/estimate", {"amount": "1", "token_in": q["token"], "token_out": "lovelace", "slippage": q["slip"], "amount_in_decimal": False})
             dec = int(((e0.get("tokens") or {}).get(q["token"]) or {}).get("decimals") or 0)
@@ -2009,7 +2044,7 @@ class Buyer:
         if osmo < int(CHAINS["osmosis"]["reserva"] * 1e6):
             bloq.append(f"falta OSMO para a taxa da venda: a carteira tem {osmo / 1e6:.4f} OSMO")
         dec = await self._osmo_dec(q["token"]) or 6
-        amount = saldo if q["pct"] == 100 else saldo * q["pct"] // 100
+        amount = sell_amount(saldo, q)
         q.update(amount=amount, dec=dec)
         try:
             out, routes, js = await self._osmo_quote(amount, q["token"], osmosis.NATIVE)

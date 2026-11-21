@@ -2810,6 +2810,11 @@
    "versao": "0.32.410",
    "inicio": "2026-11-21T07:24:08+00:00",
    "titulo": "Dormant: máximo da compra com o gás de verdade"
+  },
+  {
+   "versao": "0.32.411",
+   "inicio": "2026-11-21T07:48:24+00:00",
+   "titulo": "Dormant: vender só o investido e janela compra e vendas"
   }
  ]
 }

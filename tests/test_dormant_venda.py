@@ -208,3 +208,28 @@ def test_v3_sale_unwraps_to_own_wallet():
 def test_migration_keeps_sales_closed():
     sql = pathlib.Path("supabase/migrations/20261106000002_dormant_vendas.sql").read_text(encoding="utf-8")
     assert "enable row level security" in sql and "revoke all on public.dormant_sells from anon, authenticated" in sql and "create policy" not in sql
+
+
+# 0.32.411 (pedido do dono): vender só o valor investido desta compra, em moeda da rede
+def test_sell_only_the_invested_value():
+    b, net, db = bought()
+    db.tables["dormant_buys"][-1]["nativo"] = 0.0025                  # o saldo todo vale 0,01 ETH: vende 1/4
+    p = run(b.preview_sell(UID, "c1", "investido"))
+    assert p.get("quote_id"), p["bloqueia"]
+    assert p["investido"] is True and p["pct"] == 25 and p["vende"] == 250 and p["investido_nativo"] == 0.0025
+    db.tables.setdefault("dormant_sells", []).append({"id": "v1", "user_id": UID, "compra": "c1", "status": "confirmada", "nativo_out": 0.002, "token": TOKEN, "rede": "ethereum"})
+    p = run(b.preview_sell(UID, "c1", "investido"))                    # já voltaram 0,002: falta 0,0005 = 5%
+    assert p["pct"] == 5 and p["vende"] == 50
+    db.tables["dormant_sells"][-1]["nativo_out"] = 0.003
+    p = run(b.preview_sell(UID, "c1", "investido"))
+    assert not p.get("quote_id") and any("já voltou" in x for x in p["bloqueia"])
+    db.tables["dormant_sells"].clear()
+    db.tables["dormant_buys"][-1]["nativo"] = 0.05                    # vale menos que o investido: vende tudo e avisa
+    p = run(b.preview_sell(UID, "c1", "investido"))
+    assert p["pct"] == 100 and p["vende"] == 1000 and any("menos que o investido" in x for x in p["avisos"])
+
+
+def test_sell_amount_uses_bps_and_falls_back_to_pct():
+    assert db_.sell_amount(10_000, {"pct": 50}) == 5_000
+    assert db_.sell_amount(10_000, {"bps": 1234, "pct": 12.34}) == 1_234
+    assert db_.sell_amount(10_000, {"bps": 10_000}) == 10_000
