@@ -2865,6 +2865,11 @@
    "versao": "0.32.421",
    "inicio": "2026-11-21T12:44:20+00:00",
    "titulo": "Dormant: quadrados de Minhas compras em moeda da rede, Lucro realizado e janela de cada número"
+  },
+  {
+   "versao": "0.32.422",
+   "inicio": "2026-11-21T14:00:00+00:00",
+   "titulo": "Venda REAL de token graduado vai direto na PumpSwap (erro 6005)"
   }
  ]
 }

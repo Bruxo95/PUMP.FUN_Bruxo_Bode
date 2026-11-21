@@ -5181,7 +5181,10 @@ class PumpFun:
         na tela não espera. Devolve False quando não pôs na fila."""
         if p.get("selling"):
             return False
-        if time.time() < float(p.get("sell_retry_at") or 0) and "por você" not in why:
+        # 0.32.422 (FTL, 21/11 14:41: 9 tentativas em 20 s): só a venda pedida por você DIRETO na tela pula a espera; a REAL que
+        # acompanha uma fictícia fechada por você respeita a espera entre tentativas
+        by_you = "por você" in why and not why.startswith(("junto com a fictícia", "espelho do fictício"))
+        if time.time() < float(p.get("sell_retry_at") or 0) and not by_you:
             return False
         p["selling"] = True
         self._save_pos(p)
@@ -5444,6 +5447,10 @@ class PumpFun:
             p.pop("sell_pending", None)
             if st == "confirmada":
                 self._emit(f"[PUMP REAL] a venda pendente de {p['symbol']} confirmou depois; o saldo já reflete isso")
+        tk_ = self.tokens.get(p["mint"]) or {}
+        hints = getattr(self.real, "pool_hint", None)
+        if isinstance(hints, dict) and (p.get("origem") == "boostmig" or tk_.get("pool") == "pumpswap" or tk_.get("graduated")):
+            hints[p["mint"]] = "pump-amm"              # 0.32.422: já graduou → PumpSwap direto
         res = await self.real.sell(p["mint"], frac, other=not self.is_pump(p["mint"]))
         p["sell_tries"] = (p.get("sell_tries") or []) + list(res.get("tentativas") or [])
         p["sell_tries"] = p["sell_tries"][-40:]
@@ -5792,6 +5799,7 @@ class PumpReal:
         return sol, tok
 
     rpc_light: dict = {}                           # 0.32.402: quantas leituras leves × completas (servidor todo)
+    pool_hint: dict = {}                           # 0.32.422: mint → "pump-amm" quando já graduou (venda direto na PumpSwap)
     TACC_TTL_S = 60.0                              # 0.32.402: lista das contas de token da carteira guardada por 60 s
 
     async def _others_full(self, owner: str):
@@ -6220,8 +6228,13 @@ class PumpReal:
         pct = f"{max(1, min(100, round(frac * 100)))}%"
         base_slip = float(getattr(self.cfg, "pump_real_slippage_pct", 15))
         tried, last, tries = [], {}, []                # 0.32.107: cada degrau medido (lote 11: escada parecida terminou em −84%)
+        hint = (getattr(self, "pool_hint", None) or {}).pop(mint, None)
         if other:
             plan = [("jupiter", None, s_) for s_ in (3.0, 6.0, 10.0)]
+        elif hint == "pump-amm":
+            # 0.32.422 (FTL, 21/11): token que já graduou (BOOST etc.) vende direto na PumpSwap; a PumpPortal "auto" tentava a curva
+            # (erro 6005, curva já completou) três vezes. Jupiter no fim.
+            plan = [("pp", "pump-amm", base_slip), ("pp", "pump-amm", max(30.0, base_slip)), ("jupiter", None, 10.0), ("jupiter", None, 25.0)]
         else:
             plan = [("pp", "auto", base_slip), ("pp", "auto", max(30.0, base_slip)), ("pp", "auto", 50.0)]
         pool_override = None
@@ -6262,8 +6275,12 @@ class PumpReal:
                 plan = plan[:k] + ([("pp", "pump-amm", max(30.0, base_slip))] if (pool or "auto") != "pump-amm" else []) + \
                     [("jupiter", None, 10.0), ("jupiter", None, 25.0)]
                 continue
-            if via == "pp" and "0x1775" in why and pool_override is None:
-                pool_override = "pump-amm"                 # graduou: as próximas tentativas vão na PumpSwap
+            if via == "pp" and ("0x1775" in why or "'Custom': 6005}" in why) and pool_override is None:
+                # graduou: as próximas tentativas vão na PumpSwap (0.32.422: o código também vem em decimal, 6005) e a Jupiter
+                # entra no fim
+                pool_override = "pump-amm"
+                if not any(p_[0] == "jupiter" for p_ in plan):
+                    plan.append(("jupiter", None, 10.0))
             if via == "pp" and ("HTTP" in why or "0x1774" in why) and not any(p_[0] == "jupiter" for p_ in plan):
                 plan.append(("jupiter", None, 10.0))       # PumpPortal não montou: tenta a Jupiter no fim
         return {"ok": False, "status": last.get("status"), "attempts": tried, "tentativas": tries,

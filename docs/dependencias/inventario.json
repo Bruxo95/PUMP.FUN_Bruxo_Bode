@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "2eaa7e2120c67284de3288d5d91522589033a5e6",
-    "application_version": "0.32.421 · 2026-11-21 · Dormant: quadrados de Minhas compras em moeda da rede, Lucro realizado e janela de cada número",
+    "repository_reference": "7c8930c523c8865e9e226eaf5d8b69c32caac31b",
+    "application_version": "0.32.422 · 2026-11-21 · Venda REAL de token graduado vai direto na PumpSwap (erro 6005)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "9715cbea200cf6a34537de88d5ffec327c748a26a8e9a36c4068d46999a28f66",
+      "app/version.py": "8bad0d263ba47a532e630df04689584450a265a895b167468cb71e9e89de846e",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "cf4b38a7584e8ca218d9f7822c1d48ba0fd089b191718e69d0a38308b5d0f1ac"
+  "pdf_sha256": "28a03ae007c982b12b8f6a2247765a9897b791d7956f1aa75563c27d3c448aab"
 }
