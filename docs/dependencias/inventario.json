@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "d51ce9e20f152a2a23397e51a86063bc673302d7",
-    "application_version": "0.32.412 · 2026-11-21 · Dormant: o que volta e o que fica na venda do investido",
+    "repository_reference": "0158009c5e04e34690d6d1171fa9aa1f2a968af2",
+    "application_version": "0.32.413 · 2026-11-21 · Dormant: venda sem digitar VENDER e lucro real sem as taxas",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "f07927b7772396af147a7c3adc70768d442e829caf6910a8a867f9563b1db24e",
+      "app/version.py": "4eec685ceb9d39084db49e23784ce0c0d90b1e1a681918963cd0dc56ce40998c",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b83ad416998d06854261be56da1059a60718b15397d963805fca9c9de150ae68"
+  "pdf_sha256": "c4e70ddb94424e2f7c93cfa8bbdffbaec5927cf0af80b06b4d1983e14866775c"
 }

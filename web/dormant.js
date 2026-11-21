@@ -906,15 +906,19 @@
       // 0.32.412 (pedido do dono): o que volta e o que fica; o resto vale o preço desta cotação (DEX), não o da CoinGecko
       const fica = Math.max(0, Number(r.saldo || 0) - Number(r.vende)), un = r.usd && r.recebe ? r.usd / r.recebe : null;
       const ficaN = fica * Number(r.recebe) / Number(r.vende), ficaU = un ? ficaN * un : null;
+      // 0.32.413 (pedido do dono): lucro de verdade = o que fica, menos o gás da compra e o gás desta venda
+      const cx = (CP_ITENS || []).find((i) => i.id === BUY.sell) || {}, gC = Number(cx.gas_usd || 0), gV = Number(r.gas_usd || 0);
+      const real = ficaU != null ? ficaU - gC - gV : null;
       h = '<div class="buyok sellres"><b>Vendendo só o investido</b><div class="srg">' +
         '<div><small>Recupera o investido</small><b>' + num(r.recebe, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (r.usd != null ? "$" + num(r.usd, 2) : "") + "</span></div>" +
         '<div><small>Fica na carteira</small><b>' + qtd(fica) + " " + esc(r.moeda.simbolo) + "</b><span>" + (r.saldo ? num(fica / r.saldo * 100, 2) + "% do saldo" : "") + "</span></div>" +
         '<div><small>Lucro que fica</small><b class="up">' + num(ficaN, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (ficaU != null ? "$" + num(ficaU, 2) : "") + "</span></div>" +
-        '</div><small class="muted">o que fica vale o preço desta cotação; sobe e desce com a moeda</small></div>' + h;
+        '</div><div class="srt"><span>Taxas: gás da compra <b>$' + num(gC, 4) + "</b> + gás desta venda <b>$" + num(gV, 4) + "</b> = <b>$" + num(gC + gV, 4) + "</b></span>" +
+        '<span>Lucro real, já sem as taxas: <b class="' + cls(real) + '">' + (real == null ? "—" : (real < 0 ? "-" : "+") + "$" + num(Math.abs(real), 2)) + "</b></span></div>" +
+        '<small class="muted">o que fica vale o preço desta cotação; sobe e desce com a moeda</small></div>' + h;
     }
     if (r.quote_id) {
       h += '<div class="buyform"><div class="pwfield"><label for="buySenha">Senha de compra</label><input class="in" id="buySenha" type="password" autocomplete="off" spellcheck="false"></div>' +
-        '<div><label for="buyOk">Digite VENDER para confirmar</label><input class="in" id="buyOk" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>' +
         '<div class="row dmact"><button class="btn primary" type="button" id="sellGo">Vender agora</button><span class="muted small" id="buyTime"></span></div></div>';
     }
     $("buyPrev").innerHTML = h;
@@ -927,7 +931,7 @@
   }
   async function sellGo(btn) {
     if (!BUY || !BUY.q || !BUY.q.quote_id) return;
-    const senha = $("buySenha").value, confirmar = $("buyOk").value.trim();
+    const senha = $("buySenha").value, confirmar = "VENDER";       // 0.32.413: sem digitar VENDER; o servidor ainda confere
     sending(btn, "enviando: pode sair antes uma autorização; não precisa clicar de novo");
     const r = await BB.api("/api/dormant/venda/confirmar", { body: { quote_id: BUY.q.quote_id, senha, confirmar } });
     if (!BUY) return;

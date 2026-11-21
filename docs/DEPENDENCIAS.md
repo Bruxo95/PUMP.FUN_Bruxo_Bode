@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.412 · 2026-11-21 · Dormant: o que volta e o que fica na venda do investido**.
-Referência Git na emissão: `d51ce9e20f152a2a23397e51a86063bc673302d7`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.413 · 2026-11-21 · Dormant: venda sem digitar VENDER e lucro real sem as taxas**.
+Referência Git na emissão: `0158009c5e04e34690d6d1171fa9aa1f2a968af2`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
