@@ -1454,6 +1454,7 @@
   function renderBm() {
     const r = BM; if (!r) return;
     renderBmSySt();
+    renderBmQ(r);
     const R = r.resumo || {}, ex = Number((cfg() || {}).pump_bm_exit_pct || 80);
     $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
       " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
@@ -1514,6 +1515,23 @@
     $("bmScamSub").textContent = (r.scam || []).length + " DEVs · os próximos tokens deles são barrados, mesmo com outro nome · clique no DEV para ver tudo";
   }
   const hmsTxt = (s) => (s < 60 ? Math.round(s) + " s" : hms(s));
+  // 0.32.435 (pedido do dono: economizar a API): consultas do BOOST por grupo — as mesmas chaves de Configurações → Consultas
+  const BMQ = [["pump_q_boost_novos", "novos", "Tokens novos (curva)"], ["pump_q_boost_ativo", "ativo", "BOOST ativo (migrou)"], ["pump_q_boost_migrou", "migrou", "Depois do BOOST (migraram)"]];
+  function renderBmQ(r) {
+    const el = $("bmQ"), q = ((r || {}).novos || {}).consultas; if (!el || !q) return;
+    const adm = !!(ME && ME.role === "admin" && !ME.view_by);
+    el.innerHTML = '<span class="small muted">Consultas (servidor todo):</span>' + BMQ.map(([k, g, n]) => '<span class="bmqi"><span class="small">' + n + "</span>" +
+      '<button type="button" class="btn sm tgl sw' + (q[g] ? " on" : "") + '" role="switch" aria-checked="' + (q[g] ? "true" : "false") + '" aria-label="Consultas: ' + n + '" data-bmq="' + k + '"' + (adm ? "" : " disabled") + ">" + (q[g] ? "Ligado" : "Desligado") + "</button></span>").join("");
+  }
+  document.addEventListener("click", async (e) => {
+    const t = e.target && e.target.closest ? e.target.closest("[data-bmq]") : null; if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    const x = BMQ.find((y) => y[0] === t.dataset.bmq), on = t.getAttribute("aria-checked") === "true"; if (!x) return;
+    if (on && !confirm("Desligar as consultas de " + x[2] + "?\n\nVale para o servidor todo (todos os usuários). O BOOST não lê nem entra nesses tokens enquanto estiver desligado. Posições abertas seguem normais.")) return;
+    const r = await BB.api("/api/pump/settings", { body: { [x[0]]: !on } });
+    toast(r.error || ("Consultas de " + x[2] + (on ? ": desligadas" : ": ligadas")));
+    setTimeout(loadBm, 3500);
+  }, true);
   // 0.32.394 (pedido do dono): regras próprias do BOOST para a REAL (pump_bmr_*) — a aba "Regras da REAL" é uma cópia das regras
   // da fictícia com as chaves trocadas; só ficam as regras por conta (as do servidor e as chaves de ligar ficam só na fictícia).
   const BMR = ["sol", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
@@ -4196,7 +4214,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     e.preventDefault(); e.stopPropagation();
     if (t.id === "qOnly") {
       if (!confirm("Desligar as consultas de TODAS as abas, menos o BOOST?\n\nVale para o servidor todo (todos os usuários). A cópia de Top traders, o Explorar, a Base, o Estudo, a Aba do Bruxo, o Jev Trade, o JEV, as Calls, o Raio-X e os Maiores traders param. Posições abertas seguem normais.")) return;
-      const b = {}; QS.forEach((x) => { b[x.key] = x.key === "pump_q_boost"; }); setQ(b, "Só o BOOST consultando"); return;
+      const b = {}; QS.forEach((x) => { b[x.key] = x.key.startsWith("pump_q_boost"); }); setQ(b, "Só o BOOST consultando"); return;
     }
     if (t.id === "qAll") { const b = {}; QS.forEach((x) => { b[x.key] = true; }); setQ(b, "Todas as consultas ligadas"); return; }
     const x = QS.find((q) => q.key === t.dataset.qk); if (!x) return;

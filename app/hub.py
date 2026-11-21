@@ -1826,6 +1826,8 @@ class PumpHub:
         now = time.time()
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
         bm.novo_cfg = self.bm_novo_cfg()                  # 0.32.432: tokens novos (curva)
+        bm.q = {"novos": consultas.on("pump_q_boost_novos"), "ativo": consultas.on("pump_q_boost_ativo"),
+                "migrou": consultas.on("pump_q_boost_migrou")}   # 0.32.435
         await bm.tick(now)
         self._bm_results(now)
         self.sybil_tick(now)                              # 0.32.382: carteiras ligadas ao DEV (Alchemy), em segundo plano
@@ -2344,7 +2346,7 @@ class PumpHub:
                 "mig_ws_s": round(now - (self.market.status or {}).get("mig_ws_t")) if (self.market.status or {}).get("mig_ws_t") else None,
                 "mig_ws_err": (self.market.status or {}).get("mig_ws_err"),
                 "mig_reserva": bool((self.market.status or {}).get("mig_reserva")), "mig_reserva_n": (self.market.status or {}).get("mig_reserva_n") or 0,
-                "novos": {**bm.novo_cfg, "candidatos": len(bm.cands)},                       # 0.32.432
+                "novos": {**bm.novo_cfg, "candidatos": len(bm.cands)}, "consultas": dict(bm.q),                       # 0.32.432
                 "resumo": {"migracoes_24h": len([b for b in bm.items.values() if b.get("kind") != "novo"]),
                            "novos_24h": len([b for b in bm.items.values() if b.get("kind") == "novo"]), "entrou": len(in_sim & set(bm.items)),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),

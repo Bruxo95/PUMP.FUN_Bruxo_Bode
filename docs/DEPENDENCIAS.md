@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.434 · 2026-11-21 · BOOST: análise das carteiras (Alchemy) só no token que passou nos filtros, antes de comprar**.
-Referência Git na emissão: `f5474d0d52d5b99e27759f8b7c16b4fdb9b121d3`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.435 · 2026-11-21 · BOOST: botões para ligar e desligar as consultas de tokens novos, BOOST ativo e depois do BOOST**.
+Referência Git na emissão: `be0e60dbb775e887c0cdf97def9d01305847218f`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

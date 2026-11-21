@@ -2930,6 +2930,11 @@
    "versao": "0.32.434",
    "inicio": "2026-11-21T18:45:00+00:00",
    "titulo": "BOOST: análise das carteiras (Alchemy) só no token que passou nos filtros, antes de comprar"
+  },
+  {
+   "versao": "0.32.435",
+   "inicio": "2026-11-21T19:40:00+00:00",
+   "titulo": "BOOST: botões para ligar e desligar as consultas de tokens novos, BOOST ativo e depois do BOOST"
   }
  ]
 }

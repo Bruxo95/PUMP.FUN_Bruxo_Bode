@@ -14,6 +14,9 @@ import time
 # (opção, nome na tela, o que para quando desliga)
 LOOPS = [
     ("pump_q_boost", "BOOST da migração", "migrações, leitura do DEV e da trava de venda e cotação de cada token que migrou (PumpPortal, Helius, Jupiter)"),
+    ("pump_q_boost_novos", "BOOST · tokens novos (curva)", "busca dos tokens recém-criados com volume (DexScreener a cada 8 s) e as leituras deles (DEV, trava, cotação Jupiter, topo/dump): o BOOST não entra em token novo"),
+    ("pump_q_boost_ativo", "BOOST · BOOST ativo (migrou, janela aberta)", "leituras dos tokens nos ~5 min depois da migração (DEV, trava de venda, cotação Jupiter, compras × vendas): o BOOST não entra nas migrações"),
+    ("pump_q_boost_migrou", "BOOST · depois do BOOST (migraram)", "acompanhamento de topo e dump dos tokens que migraram, do fim do BOOST até 30 min (DexScreener a cada 15 s): o histórico desses tokens fica com menos pontos"),
     ("pump_q_top", "Top traders", "ranking da Solana Tracker a cada 10 min, leitura das carteiras do ranking e das carteiras manuais de Top traders e o laboratório das compras barradas: a cópia de Top traders para"),
     ("pump_q_explorar", "Explorar", "listas da Solana Tracker a cada 5 min, pools na DexScreener, checagem de carteiras novas e entradas sombra: a compra automática do Explorar para"),
     ("pump_q_base", "Base da pump.fun", "curva on-chain dos tokens novos (fotos de 1/5/15/60 min) e a compra automática da Base. O Jev Trade usa esta base"),

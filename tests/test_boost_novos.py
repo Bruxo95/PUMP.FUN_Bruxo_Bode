@@ -167,3 +167,27 @@ def test_carteiras_so_antes_de_entrar_e_trava_com_alerta_alto(tmp_path):
     run(PumpHub._bm_user(hub, "u1", pf, now + 2))
     assert u["estado"] == "entrou"
     assert boostmig.SYBIL_WAIT_S == 25.0
+
+
+def test_consultas_do_boost_por_grupo():
+    """0.32.435 (pedido do dono, economizar a API): chaves de consulta para tokens novos, BOOST ativo e depois do BOOST."""
+    from app import boostmig as bmod
+    from app import consultas
+    from tests.test_boostmig import pronto
+    assert {"pump_q_boost_novos", "pump_q_boost_ativo", "pump_q_boost_migrou"} <= set(consultas.KEYS)
+    now = time.time()
+    svc = Svc({}, {M: 9000.0})
+    bm = BoostMig(svc, clock=lambda: now)
+    bm.novo_cfg = {"on": True, "vol": 2000.0, "age_s": 120.0}
+    bm.q["novos"] = False
+    bm.on_create({"mint": M, "txType": "create"}, now - 20)
+    run(bm._novos(now))
+    assert svc.calls == 0 and M not in bm.items                       # tokens novos desligados: nenhuma consulta
+    b = pronto(bm, "Mig1".ljust(40, "1") + "pump", now - 60, now)
+    old = pronto(bm, "Mig2".ljust(40, "1") + "pump", now - bmod.JANELA_S - 100, now, symbol="OLD", name="Old")
+    assert bm.grupo(b, now) == "ativo" and bm.grupo(old, now) == "migrou"
+    bm.q.update(ativo=False)
+    assert bm.decide(cfg(), b, now, set(), 0)[0] == "fora"
+    assert not bm.q_ok(b, now) and bm.q_ok(old, now)
+    bm.q.update(ativo=True, migrou=False)
+    assert bm.q_ok(b, now) and not bm.q_ok(old, now)

@@ -354,6 +354,7 @@ class BoostMig:
         self.rpc_backup = None                 # 0.32.384: reserva pela Alchemy (só quando o do sistema não responde)
         # 0.32.432: tokens novos (curva) — o hub põe aqui o que vale (menor volume e maior idade entre os admins que ligaram)
         self.cands: dict[str, dict] = {}
+        self.q = {"novos": True, "ativo": True, "migrou": True}   # 0.32.435: consultas por grupo (Configurações → Consultas)
         self.born: dict[str, float] = {}        # 0.32.433: hora da criação de cada token visto na PumpPortal (idade nas migrações)
         self.novo_cfg = {"on": False, "vol": 2000.0, "age_s": 120.0}
         self.st.update({"novos_vistos": 0, "novos_consultas": 0, "novos_sem_dados": 0, "novos_entraram_lista": 0})
@@ -431,7 +432,7 @@ class BoostMig:
 
     async def _novos(self, now: float) -> None:
         cfg = self.novo_cfg
-        if not cfg.get("on"):
+        if not cfg.get("on") or not self.q.get("novos", True):
             self.cands.clear()
             return
         age = min(float(cfg.get("age_s") or 120), NOVO_AGE_CAP_S)
@@ -474,6 +475,16 @@ class BoostMig:
         self.st["novos_entraram_lista"] += 1
         self.dirty.add(m)
         return b
+
+    def grupo(self, b: dict, now: float) -> str:
+        """0.32.435: grupo do token para as chaves de consulta: token novo (curva), BOOST ativo (migrou, janela aberta) ou
+        migrou (depois da janela: acompanhamento de topo e dump até 30 min)."""
+        if b.get("kind") == "novo":
+            return "novos"
+        return "ativo" if self.progress(b, now) < 100 else "migrou"
+
+    def q_ok(self, b: dict, now: float) -> bool:
+        return bool(self.q.get(self.grupo(b, now), True))
 
     def progress(self, b: dict, now: float | None = None) -> float:
         return max(0.0, min(100.0, ((now or self.clock()) - b["t0"]) / JANELA_S * 100))
@@ -665,7 +676,8 @@ class BoostMig:
         return await self.svc._rpc_multi(keys, enc, True)
 
     async def _creators(self, now: float) -> None:
-        need = [m for m, b in self.items.items() if not b.get("creator") and b.get("creator_tries", 0) < 3 and now - b["t0"] < 3600]
+        need = [m for m, b in self.items.items() if not b.get("creator") and b.get("creator_tries", 0) < 3 and now - b["t0"] < 3600
+                and self.q_ok(b, now)]
         if not need:
             return
         pdas = {m: self.svc.curve_pda(m) for m in need[:100]}
@@ -689,7 +701,7 @@ class BoostMig:
                 self.dirty.add(m)
 
     async def _track(self, now: float) -> None:
-        trk = [m for m, b in self.items.items() if now - b["t0"] <= TRACK_S and now - b.get("trk_at", 0) >= TRACK_EVERY_S]
+        trk = [m for m, b in self.items.items() if now - b["t0"] <= TRACK_S and now - b.get("trk_at", 0) >= TRACK_EVERY_S and self.q_ok(b, now)]
         if not trk:
             return
         for m in trk:
@@ -720,7 +732,7 @@ class BoostMig:
         return round((c - o) / max(o, 1) * 100, 1)
 
     async def _safety(self, now: float) -> None:
-        need = [m for m, b in self.items.items() if b.get("safety_ok") is None and b.get("safety_tries", 0) < SAFETY_TRIES
+        need = [m for m, b in self.items.items() if b.get("safety_ok") is None and b.get("safety_tries", 0) < SAFETY_TRIES and self.q_ok(b, now)
                 and self.progress(b, now) <= OBS_MAX_PCT and now - b.get("safety_t", 0) > 10]
         if not need:
             return
@@ -743,7 +755,7 @@ class BoostMig:
         cada volta, como no original. Antes usava o preço guardado do token, que a Jupiter só atualiza para quem tem o token na
         carteira: as primeiras leituras vinham do preço congelado da curva (~4e-7 → salto falso) e havia buracos de 2 min."""
         jup = getattr(getattr(self.svc, "market", None), "jup", None)
-        obs = [m for m, b in self.items.items() if self.progress(b, now) <= OBS_MAX_PCT and b.get("safety_ok") is not False]
+        obs = [m for m, b in self.items.items() if self.progress(b, now) <= OBS_MAX_PCT and b.get("safety_ok") is not False and self.q_ok(b, now)]
         if not obs or jup is None:
             return
         for m in sorted(obs, key=lambda x: -self.items[x]["t0"])[:8]:
@@ -774,6 +786,9 @@ class BoostMig:
         g = lambda k, d: getattr(c, k, d)                                    # noqa: E731
         m = b["mint"]
         prog = self.progress(b, now)
+        if not self.q_ok(b, now):                     # 0.32.435: sem consulta não há dado novo para decidir
+            return "fora", ("consultas dos tokens novos desligadas" if b.get("kind") == "novo"
+                            else "consultas do BOOST ativo desligadas") + " (Configurações → Consultas)"
         if b.get("kind") == "novo":
             # 0.32.432: token novo na curva — vale a idade máxima e o volume mínimo do usuário, não o "entrar até X% do BOOST"
             if not g("pump_bm_new_on", True):

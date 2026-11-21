@@ -1120,3 +1120,7 @@ label.chgrp{cursor:pointer}
 /* 0.32.427: card da posição — bloco "Ao vivo" (tempo no positivo × negativo, stop por tempo, BOOST) quebra linha */
 .pc-live dd{white-space:normal;overflow:visible;text-overflow:clip}
 .pc-live .wide{grid-column:1/-1}
+
+/* 0.32.435: chaves de consulta do BOOST por grupo */
+.bmq{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:0 0 12px}
+.bmqi{display:inline-flex;gap:8px;align-items:center}
