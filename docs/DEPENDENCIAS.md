@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.428 · 2026-11-21 · Dormant: Alertas da blockchain só com as redes (Tron, Cardano, Hyperliquid…)**.
-Referência Git na emissão: `69784e85ae54c488500dd9ea414b53ab51f9c3c8`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.429 · 2026-11-21 · Dormant: Alertas da blockchain com as 30 maiores redes primeiro**.
+Referência Git na emissão: `66f78ab5d39a4f0ac7cb75e66ec059e4f3444073`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

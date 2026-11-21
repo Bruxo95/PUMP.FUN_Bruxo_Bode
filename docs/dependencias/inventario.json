@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "69784e85ae54c488500dd9ea414b53ab51f9c3c8",
-    "application_version": "0.32.428 · 2026-11-21 · Dormant: Alertas da blockchain só com as redes (Tron, Cardano, Hyperliquid…)",
+    "repository_reference": "66f78ab5d39a4f0ac7cb75e66ec059e4f3444073",
+    "application_version": "0.32.429 · 2026-11-21 · Dormant: Alertas da blockchain com as 30 maiores redes primeiro",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e8e5219d07c81b5b451071b61107b261db200d4717e919024f0a00fc3c1e5fc3",
+      "app/version.py": "c1d0973514752cdb1b8eb63dff8f7d54b3ee4d726e933c008bd4fb664c7b13c7",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5c8e55648436a5438cd3e430125f1fd0720d64f1e894a2a0641412a891430efa"
+  "pdf_sha256": "b2cb63900dc7f9e9e43dd2837f30e53ba6ea365a9c499a2176cae14084d9780b"
 }

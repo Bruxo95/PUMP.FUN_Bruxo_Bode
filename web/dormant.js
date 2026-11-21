@@ -225,14 +225,14 @@
   // 0.32.425 (pedido do dono): Alertas em abas — os da lista e os de cada blockchain (categorias "Ecosystem" da CoinGecko), na mesma conta
   let AL = (() => { try { return localStorage.getItem("dm_alt") || "lista"; } catch (e) { return "lista"; } })();
   let ECO = { list: null, sel: (() => { try { return localStorage.getItem("dm_eco") || ""; } catch (e) { return ""; } })(), data: null, st: "alerta", busy: false };
-  const ECO_TOP = 24;
+  const ECO_TOP = 30;
   const alSave = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento: só não lembra */ } };
   function alTabs() {
     document.querySelectorAll("#alTabs [data-alt]").forEach((b) => { const on = b.dataset.alt === AL; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     $("alLista").hidden = AL !== "lista"; $("alEco").hidden = AL !== "eco";
     $("alSub").textContent = AL === "lista"
       ? 'uma linha por moeda que mudou para pump, dump ou acordando · 1 h e 24 h são de agora, iguais à CoinGecko · "O que aconteceu" mostra cada alerta com a hora e quanto mexia naquela hora'
-      : "as redes da CoinGecko (Ethereum, BNB Chain, Solana, Tron, Cardano, Hyperliquid…), as com mais tokens primeiro · escolha uma para ver os tokens dela (até 250, por valor de mercado) com a mesma conta dos Alertas · a maioria não está na sua lista: use Adicionar para vigiar";
+      : "as 30 maiores redes da CoinGecko (Ethereum, BNB Chain, Solana, Tron, Cardano, Hyperliquid…); as outras pela busca · escolha uma para ver os tokens dela (até 250, por valor de mercado) com a mesma conta dos Alertas · a maioria não está na sua lista: use Adicionar para vigiar";
     if (AL === "eco") ecoOpen();
   }
   async function ecoOpen() {
@@ -253,7 +253,7 @@
     if (ECO.sel && !vis.some((e) => e.id === ECO.sel)) { const s = L.find((e) => e.id === ECO.sel); if (s) vis.unshift(s); }
     $("ecoCh").innerHTML = vis.map((e) => '<button type="button" class="dmchip' + (ECO.sel === e.id ? " on" : "") + '" data-eco="' + esc(e.id) + '" aria-pressed="' + (ECO.sel === e.id) +
       '" title="' + num(e.tokens || 0, 0) + ' tokens desta rede na CoinGecko">' + chainTag(e.nome) + (e.tokens ? '<small class="muted">' + num(e.tokens, 0) + "</small>" : "") + "</button>").join("") +
-      (!q && L.length > ECO_TOP ? '<span class="muted small">+' + (L.length - ECO_TOP) + " redes: use a busca (ex.: Cardano, Hyperliquid)</span>" : "") + (q && !vis.length ? '<span class="muted">nenhuma blockchain com esse nome</span>' : "");
+      (!q && L.length > ECO_TOP ? '<span class="muted small">+' + (L.length - ECO_TOP) + " redes menores: use a busca</span>" : "") + (q && !vis.length ? '<span class="muted">nenhuma blockchain com esse nome</span>' : "");
   }
   async function ecoLoad(id) {
     ECO.sel = id; alSave("dm_eco", id); ecoChips();

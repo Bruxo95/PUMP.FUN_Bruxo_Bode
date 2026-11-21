@@ -83,6 +83,11 @@ VD_EVERY_S = 30                        # histórico de 30 dias: 1 moeda a cada 3
 VD_DIAS = 31
 ECO_RE = re.compile(r"[a-z0-9-]{2,80}")      # id de categoria da CoinGecko ("tron-ecosystem"; a BNB é "binance-smart-chain")
 ECO_LIST_S, ECO_COINS_S = 86400, 600
+# 0.32.429 (dono: "top 30 maiores redes"): as categorias de rede não têm valor de mercado na API, e sem a lista completa de moedas
+# carregada a ordem caía em alfabética (0g, 8Bit Chain, Abstract...). Ordem fixa das 30 maiores (id da rede na CoinGecko); o resto vem depois, pela busca.
+ECO_TOP = ["ethereum", "binance-smart-chain", "solana", "tron", "base", "arbitrum-one", "ordinals", "hyperliquid", "avalanche", "polygon-pos",
+           "sui", "the-open-network", "cardano", "optimistic-ethereum", "aptos", "near-protocol", "sonic", "xrp", "stellar", "linea",
+           "mantle", "cronos", "algorand", "cosmos", "zksync", "osmosis", "blast", "unichain", "robinhood", "scroll"]
 CG_URL = re.compile(r"coingecko\.com/(?:[a-z-]+/)?coins/([a-z0-9-]+)", re.I)
 
 
@@ -420,11 +425,6 @@ class DormantWatch:
                 for k in (p["id"], slug(p.get("name")), slug(p.get("shortname"))):
                     if k:
                         keys.setdefault(k, p["id"])
-        if not self.cgnames:
-            try:
-                await self._cglist()
-            except Exception:                          # sem a contagem a lista sai em ordem alfabética
-                pass
         n_tok: dict[str, int] = {}
         for _, _, pl, *_ in self.cgnames.values():
             for p in pl:
@@ -441,7 +441,10 @@ class DormantWatch:
                 continue
             seen.add(plat)
             out.append({"id": cid, "nome": nome, "plat": plat, "tokens": n_tok.get(plat, 0)})
-        out.sort(key=lambda e: (-e["tokens"], e["nome"].lower()))
+        top = {p: i for i, p in enumerate(ECO_TOP)}
+        for e in out:
+            e["top"] = e["plat"] in top
+        out.sort(key=lambda e: (top.get(e["plat"], len(top)), -e["tokens"], e["nome"].lower()))
         if out:
             self._eco, self._eco_t = out, now
         return out or self._eco
@@ -456,6 +459,8 @@ class DormantWatch:
         hit = self._eco_coins.get(cat)
         if hit and now - hit[0] < ECO_COINS_S:
             rows = hit[1]
+        elif hit and time.time() < self._pause_until:
+            rows = hit[1]                                  # a CoinGecko pediu para esperar: mostra a última leitura desta rede
         else:
             rows = await self.get("/coins/markets", {"vs_currency": "usd", "category": cat, "order": "market_cap_desc", "per_page": 250, "page": 1,
                                                      "sparkline": "true", "price_change_percentage": "1h,24h,7d,30d"}) or []

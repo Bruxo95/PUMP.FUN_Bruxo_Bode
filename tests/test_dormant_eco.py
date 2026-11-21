@@ -50,8 +50,10 @@ def test_only_real_networks_most_tokens_first():
     w = dormant.DormantWatch(Net(), None)
     L = run(w.eco_list())
     ids = [e["id"] for e in L]
-    assert ids[:2] == ["solana-ecosystem", "tron-ecosystem"] and "x402-ecosystem" not in ids and "meme-token" not in ids
-    assert "binance-smart-chain" in ids and "polygon-ecosystem" in ids and L[0]["nome"] == "Solana" and L[0]["tokens"] == 2
+    assert "x402-ecosystem" not in ids and "meme-token" not in ids
+    # 0.32.429: as 30 maiores em ordem fixa (BNB antes de Solana, Tron, Polygon), sem precisar da lista inteira de moedas
+    assert ids == ["binance-smart-chain", "solana-ecosystem", "tron-ecosystem", "polygon-ecosystem"] and all(e["top"] for e in L)
+    assert L[1]["nome"] == "Solana"
 
 
 def test_coins_of_a_chain_use_the_same_rules_and_are_cached():
