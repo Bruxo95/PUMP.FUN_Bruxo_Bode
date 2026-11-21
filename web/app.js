@@ -1273,7 +1273,7 @@
   // 0.32.432 (pedido do dono): token novo ainda na curva × token que migrou (BOOST), volume de 5 min e boost pago
   const bmKind = (x) => ' <span class="tag ' + (x.kind === "novo" ? "warn" : "neutral") + '">' + (x.kind === "novo" ? "NOVO · curva" : x.novo_info ? "MIGROU · era novo" : "MIGROU") + "</span>" +
     (x.vol_m5 != null ? ' <small class="muted">vol. 5 min US$ ' + f(x.vol_m5, 0) + "</small>" : "") + (x.boost_pago ? ' <span class="tag win" title="boost pago na DexScreener">⚡ boost ' + x.boost_pago + "</span>" : "");
-  const bmIni = (x) => dt(x.t0) + '<br><small class="muted">' + (x.kind === "novo" ? "criado" + (x.novo_add_s != null ? " · na lista com " + f(x.novo_add_s, 0) + " s" : "") : "migrou") + "</small>";
+  const bmIni = (x) => dt(x.t0) + '<br><small class="muted">' + (x.kind === "novo" ? "criado" + (x.novo_add_s != null ? " · na lista com " + f(x.novo_add_s, 0) + " s" : "") : "migrou" + (x.born_t ? " com " + hms(Math.max(0, x.t0 - x.born_t)) + " de vida" : "")) + "</small>";
   const bmTrk = (k) => !k || !k.n ? '<span class="dim">–</span>' : pc(k.top_pct, 0) + " aos " + hms(k.top_s || 0) +
     (k.dump_pct != null && k.dump_pct < 0 ? '<br><small>dump ' + pc(k.dump_pct, 0) + " aos " + hms(k.dump_s || 0) + "</small>" : "");
   let BM = null, BM_T = null, BMT = "tokens";
@@ -1516,7 +1516,7 @@
   const hmsTxt = (s) => (s < 60 ? Math.round(s) + " s" : hms(s));
   // 0.32.394 (pedido do dono): regras próprias do BOOST para a REAL (pump_bmr_*) — a aba "Regras da REAL" é uma cópia das regras
   // da fictícia com as chaves trocadas; só ficam as regras por conta (as do servidor e as chaves de ligar ficam só na fictícia).
-  const BMR = ["sol", "max_open", "enter_max_pct", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
+  const BMR = ["sol", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
     "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
     "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
     "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct"];
@@ -3048,7 +3048,7 @@
         pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
         pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true, pump_bm_scam_dump_pct: 70, pump_bm_scam_dump_min: 10,
-        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_real_follow: true, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25, pump_bm_tneg_on: true, pump_bm_tneg_sum_s: 60, pump_bm_tneg_streak_on: true, pump_bm_tneg_streak_s: 30, pump_bm_tneg_stop_pct: 25, pump_bm_new_on: true, pump_bm_new_vol_usd: 2000, pump_bm_new_age_max_min: 2 };
+        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_real_follow: true, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25, pump_bm_tneg_on: true, pump_bm_tneg_sum_s: 60, pump_bm_tneg_streak_on: true, pump_bm_tneg_streak_s: 30, pump_bm_tneg_stop_pct: 25, pump_bm_new_on: true, pump_bm_new_vol_usd: 2000, pump_bm_new_age_max_min: 2, pump_bm_mig_on: true, pump_bm_mig_age_max_min: 0 };
       // 0.32.394: na aba "Regras da REAL" o padrão vai para as regras da REAL
       const body = BMRS === "real" ? Object.fromEntries(Object.entries(P).filter(([k]) => BMR.includes(k.slice(8))).map(([k, v]) => ["pump_bmr_" + k.slice(8), v])) : P;
       setCfg(body).then(() => { if (VIEW === "boost") loadBm(); });
@@ -3926,7 +3926,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
   const TGL_REAL = ["pump_bmr_on", "pump_bm_real_follow", "pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
-  const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real", pump_bm_on: "pump_bm_real", pump_bm_new_on: "pump_bm_real",
+  const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real", pump_bm_on: "pump_bm_real", pump_bm_new_on: "pump_bm_real", pump_bm_mig_on: "pump_bm_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_bm_alchemy_backup", "pump_bm_sybil_on", "pump_bm_sybil_alert", "pump_bm_fast", "pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
   function tglScope(k, c) {

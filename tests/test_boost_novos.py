@@ -108,3 +108,34 @@ def test_hub_junta_o_que_vale_dos_admins():
                                                                      pump_bm_new_age_max_min=10))
     assert PumpHub.bm_novo_cfg(types.SimpleNamespace(engines={"a": a, "b": b, "u": u})) == {"on": True, "vol": 1500.0, "age_s": 180.0}
     assert PumpHub.bm_novo_cfg(types.SimpleNamespace(engines={"u": u}))["on"] is False
+
+
+def test_migracao_com_chave_e_idade_maxima_desde_a_criacao():
+    """0.32.433 (caso PUMPANY: migrou com ~7 min de vida e o dono só quer até 2 min)."""
+    from tests.test_boostmig import pronto
+    now = time.time()
+    bm = BoostMig(Svc({}), clock=lambda: now)
+    bm.on_create({"mint": M, "txType": "create"}, now - 450)          # visto na PumpPortal: nasceu há 7,5 min
+    b = pronto(bm, M, now - 35, now)
+    b["born_t"] = bm.born[M]
+    assert bm.decide(cfg(), b, now, set(), 0)[0] == "entrar"           # sem limite (padrão 0)
+    assert bm.decide(cfg(pump_bm_mig_age_max_min=2), b, now, set(), 0) == ("fora", "token com 7.5 min de vida (máximo 2 min)")
+    assert bm.decide(cfg(pump_bm_mig_age_max_min=10), b, now, set(), 0)[0] == "entrar"
+    assert bm.decide(cfg(pump_bm_mig_on=False), b, now, set(), 0)[0] == "fora"
+    b.pop("born_t")
+    assert bm.decide(cfg(pump_bm_mig_age_max_min=2), b, now, set(), 0)[0] == "esperar"          # ainda lendo a idade
+    assert bm.decide(cfg(pump_bm_mig_age_max_min=2), b, now + 30, set(), 0)[0] == "fora"        # sem idade: não entra
+
+
+def test_nascimento_pela_dexscreener():
+    import httpx
+    from tests.test_espelho_real import _pf
+    import tempfile
+    pf = _pf(__import__("pathlib").Path(tempfile.mkdtemp()))
+    js = [{"chainId": "solana", "dexId": "pumpswap", "pairAddress": "P2", "pairCreatedAt": 1795284500000, "baseToken": {"address": M, "symbol": "X"},
+           "quoteToken": {"address": "So11111111111111111111111111111111111111112"}, "priceNative": "0.0000001", "liquidity": {"usd": 9000}},
+          {"chainId": "solana", "dexId": "pumpfun", "pairAddress": "P1", "pairCreatedAt": 1795284100000, "baseToken": {"address": M, "symbol": "X"},
+           "quoteToken": {"address": "So11111111111111111111111111111111111111112"}, "priceNative": "0.0000001", "liquidity": {"usd": 1}}]
+    pf.http = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=js)))
+    run(pf._fetch_prices([M], set_price=False))
+    assert pf.tokens[M]["born_t"] == 1795284100.0

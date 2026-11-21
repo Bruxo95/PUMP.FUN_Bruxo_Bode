@@ -353,6 +353,7 @@ class BoostMig:
         self.rpc_backup = None                 # 0.32.384: reserva pela Alchemy (só quando o do sistema não responde)
         # 0.32.432: tokens novos (curva) — o hub põe aqui o que vale (menor volume e maior idade entre os admins que ligaram)
         self.cands: dict[str, dict] = {}
+        self.born: dict[str, float] = {}        # 0.32.433: hora da criação de cada token visto na PumpPortal (idade nas migrações)
         self.novo_cfg = {"on": False, "vol": 2000.0, "age_s": 120.0}
         self.st.update({"novos_vistos": 0, "novos_consultas": 0, "novos_sem_dados": 0, "novos_entraram_lista": 0})
 
@@ -411,9 +412,14 @@ class BoostMig:
 
     # ------------------------------------------------------------------ 0.32.432: tokens novos (curva)
     def on_create(self, ev: dict, t: float | None = None) -> None:
+        m = str(ev.get("mint") or "")
+        if m:
+            if len(self.born) >= 20000:
+                for k in list(self.born)[:2000]:
+                    self.born.pop(k, None)
+            self.born.setdefault(m, t or self.clock())
         if not self.novo_cfg.get("on"):
             return
-        m = str(ev.get("mint") or "")
         if not m or m in self.items or m in self.cands:
             return
         t = t or self.clock()
@@ -619,6 +625,10 @@ class BoostMig:
                 b["buys_m5"], b["sells_m5"] = int(v.get("buys_m5") or 0), int(v.get("sells_m5") or 0)
                 if v.get("m5") is not None:
                     b["vol_m5"] = round(float(v.get("m5") or 0), 2)      # 0.32.432: volume em dólar dos últimos 5 min
+            if not b.get("born_t"):                                      # 0.32.433: nascimento do token
+                bt = (b.get("novo_info") or {}).get("t0") or self.born.get(m) or tk.get("born_t")
+                if bt:
+                    b["born_t"] = float(bt)
             if tk.get("boost_active"):
                 b["boost_pago"] = int(tk["boost_active"])               # 0.32.432: boost pago na DexScreener
             if tk.get("top10_pct") is not None:
@@ -774,6 +784,18 @@ class BoostMig:
             if vol < vmin:
                 return "esperar", f"volume US$ {vol:,.0f} de US$ {vmin:,.0f} em 5 min".replace(",", ".")
         else:
+            # 0.32.433 (pedido do dono, caso PUMPANY: migrou com ~7 min de vida): chave das migrações e idade máxima desde a criação
+            if not g("pump_bm_mig_on", True):
+                return "fora", "entrada nas migrações desligada nas Regras do BOOST"
+            amax = float(g("pump_bm_mig_age_max_min", 0) or 0)
+            if amax > 0:
+                bt = b.get("born_t")
+                if not bt:
+                    if now - b["t0"] < 60:                 # a DexScreener é lida a cada 15 s
+                        return "esperar", "aguardando a idade do token (criação)"
+                    return "fora", "não deu para saber a idade do token"
+                if now - float(bt) > amax * 60:
+                    return "fora", f"token com {(now - float(bt)) / 60:.1f} min de vida (máximo {amax:g} min)"
             enter_max = float(g("pump_bm_enter_max_pct", 40))
             if prog > enter_max:
                 return "fora", f"passou de {enter_max:.0f}% do BOOST sem confirmar"
@@ -878,7 +900,7 @@ class BoostMig:
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
                 "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry",
-                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s")
+                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s", "born_t")
         out = {k: b.get(k) for k in keep}
         from .sybil import compact
         out["sybil"] = compact(b.get("sybil"))

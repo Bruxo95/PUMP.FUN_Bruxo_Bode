@@ -4714,6 +4714,10 @@ class PumpFun:
                     tx_ = (p.get("txns") or {}).get(w_) or {}
                     v["buys_" + w_] += int(tx_.get("buys") or 0)
                     v["sells_" + w_] += int(tx_.get("sells") or 0)
+                pca = p.get("pairCreatedAt")                 # 0.32.433: nascimento do token (o par mais antigo = a curva)
+                if isinstance(pca, (int, float)) and pca > 0:
+                    tkb = self.tokens.setdefault(base, {"created_t": time.time()})
+                    tkb["born_t"] = min(float(tkb.get("born_t") or 1e12), pca / 1000.0)
                 dx = self.tokens.setdefault(base, {"created_t": time.time()}).setdefault("dexes", [])
                 if p.get("dexId") and p["dexId"] not in dx:
                     dx.append(p["dexId"])

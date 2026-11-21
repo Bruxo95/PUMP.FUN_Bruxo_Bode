@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.432 · 2026-11-21 · BOOST: tokens novos (ainda na curva) com volume acima de US$ 2 mil entram na análise antes de migrar**.
-Referência Git na emissão: `3a59c8b38ebd25bcb11b154c91efd2dbca45de21`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.433 · 2026-11-21 · BOOST: chave para entrar nas migrações e idade máxima do token (desde a criação)**.
+Referência Git na emissão: `0af0d2d20770dbae1e786973190d11ae8404fb29`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

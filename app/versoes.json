@@ -2920,6 +2920,11 @@
    "versao": "0.32.432",
    "inicio": "2026-11-21T18:20:00+00:00",
    "titulo": "BOOST: tokens novos (ainda na curva) com volume acima de US$ 2 mil entram na análise antes de migrar"
+  },
+  {
+   "versao": "0.32.433",
+   "inicio": "2026-11-21T18:30:00+00:00",
+   "titulo": "BOOST: chave para entrar nas migrações e idade máxima do token (desde a criação)"
   }
  ]
 }
