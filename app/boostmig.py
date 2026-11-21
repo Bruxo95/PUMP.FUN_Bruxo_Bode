@@ -732,6 +732,11 @@ class BoostMig:
         b = self.items[m]
         d = {k: v for k, v in b.items() if k not in ("users",)}
         d["samples"] = (b.get("samples") or [])[-60:]
+        # 0.32.403 (dono: "continuar gravando"): a decisão de cada conta (entrou / fora) vai junto, para voltar depois do
+        # reinício — sem isso o filtro "Você entrou" ficava vazio e o BOOST podia decidir de novo num token já operado
+        d["users"] = {uid: {k: u.get(k) for k in ("estado", "motivo", "t")} | ({"real": {k: u["real"].get(k) for k in ("estado", "motivo", "t")}}
+                                                                                if isinstance(u.get("real"), dict) else {})
+                      for uid, u in (b.get("users") or {}).items() if u.get("estado") in ("entrou", "fora")}
         return d
 
     def load(self, rows: list[dict], devs: list[dict]) -> None:
@@ -739,7 +744,7 @@ class BoostMig:
         for r in rows or []:
             d = r.get("dados") or {}
             if d.get("mint") and now - float(d.get("t0") or 0) <= KEEP_S:
-                d.setdefault("users", {})
+                d["users"] = {k: v for k, v in (d.get("users") or {}).items() if isinstance(v, dict)}   # 0.32.403: volta do banco
                 if not d.get("creator"):
                     d["creator_tries"] = 0          # 0.32.376: as tentativas gastas com o RPC sem resposta voltam a valer
                 self.items.setdefault(d["mint"], d)

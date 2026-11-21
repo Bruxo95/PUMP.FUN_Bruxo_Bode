@@ -1833,6 +1833,7 @@ class PumpHub:
                     continue
                 if bm.progress(b, now) >= 100:
                     u.update(estado="fora", motivo=u.get("motivo") or "BOOST terminou", t=now)
+                    bm.dirty.add(m)
                     continue
                 mine = [p for p in pos if bool(p.get("real")) == (leg == "real")] if own else pos
                 nomes = set()
@@ -1843,6 +1844,8 @@ class PumpHub:
                     [x for x in (getattr(pf, "bm_sim_after", None) or {}) if x != m])     # 0.32.400: fictícias que esperam a REAL
                 est, why = bm.decide(c, b, now, nomes, abertas)
                 u.update(estado=est, motivo=why, t=now)
+                if est == "fora":
+                    bm.dirty.add(m)                    # 0.32.403: a decisão final vai para o banco
                 if est != "entrar":
                     continue
                 # 0.32.376: entra no preço da cotação da Jupiter da observação (até 10 s). O preço guardado do token pode ser o da
@@ -2205,8 +2208,15 @@ class PumpHub:
     def bm_state(self, pf: PumpFun, uid: str) -> dict:
         bm, now = self.bm, time.time()
         itens = []
+        mine_t = [t for t in pf.trades(3000) if t.get("origem") == "boostmig"]
+        mine_p = [p for p in pf.positions() if p.get("origem") == "boostmig"]
+        # 0.32.403 (dono, 21/11 06:31: o filtro "Você entrou" ficou vazio depois do reinício): quem entrou vem dos trades e das
+        # posições salvos no banco, separado por carteira — não só da memória da decisão, que zera quando o servidor reinicia
+        in_sim = {t.get("mint") for t in mine_t if not t.get("real")} | {p["mint"] for p in mine_p if not p.get("real")}
+        in_real = {t.get("mint") for t in mine_t if t.get("real")} | {p["mint"] for p in mine_p if p.get("real")}
         for m, b in sorted(bm.items.items(), key=lambda x: -x[1]["t0"])[:400]:
             v = bm.view(b)
+            v["entrou_sim"], v["entrou_real"] = m in in_sim, m in in_real
             v["progress"] = round(bm.progress(b, now), 1)
             u = (b.get("users") or {}).get(uid) or {}
             v["sua"] = {"estado": u.get("estado"), "motivo": u.get("motivo")}
@@ -2217,9 +2227,11 @@ class PumpHub:
                 v["sua_real"] = {"estado": note["estado"], "motivo": note["motivo"]}   # 0.32.398: o que a compra REAL fez de verdade
             v["vip"] = bool((bm.dev_stats(b.get("creator")) or {}).get("vip"))
             v["scam"] = bool(b.get("creator") in bm.scam_devs)
+            if v["sua"].get("estado") is None and m in in_sim:
+                v["sua"] = {"estado": "entrou", "motivo": "entrou (do histórico salvo)"}
+            if m in in_real and not (v.get("sua_real") or {}).get("estado"):
+                v["sua_real"] = {"estado": "entrou", "motivo": "REAL entrou (do histórico salvo)"}
             itens.append(v)
-        mine_t = [t for t in pf.trades(3000) if t.get("origem") == "boostmig"]
-        mine_p = [p for p in pf.positions() if p.get("origem") == "boostmig"]
         fech = [t for t in mine_t if not t.get("real")]
         ganhos = [t for t in fech if (t.get("pnl_sol") or 0) > 0]
         fech_r = [t for t in mine_t if t.get("real")]
@@ -2263,7 +2275,7 @@ class PumpHub:
                 "mig_ws_s": round(now - (self.market.status or {}).get("mig_ws_t")) if (self.market.status or {}).get("mig_ws_t") else None,
                 "mig_ws_err": (self.market.status or {}).get("mig_ws_err"),
                 "mig_reserva": bool((self.market.status or {}).get("mig_reserva")), "mig_reserva_n": (self.market.status or {}).get("mig_reserva_n") or 0,
-                "resumo": {"migracoes_24h": len(bm.items), "entrou": sum(1 for b in bm.items.values() if ((b.get("users") or {}).get(uid) or {}).get("estado") == "entrou"),
+                "resumo": {"migracoes_24h": len(bm.items), "entrou": len(in_sim & set(bm.items)),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),
                            "fechadas": len(fech), "ganhou": len(ganhos), "pnl_sol": round(sum(t.get("pnl_sol") or 0 for t in fech), 6),
                            # 0.32.396 (pedido do dono): a REAL com números próprios (entradas, fechadas, ganhos, resultado)

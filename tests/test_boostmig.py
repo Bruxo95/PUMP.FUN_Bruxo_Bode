@@ -592,3 +592,24 @@ def test_trade_real_guarda_a_origem():
     assert 'tr["origem"] = p["origem"]' in src[i:i + 9000]
     sql = open(os.path.join("supabase", "migrations", "20261121000001_boost_real_origem.sql"), encoding="utf-8").read()
     assert "update public.pump_trades" in sql and "where r.real = true" in sql and "delete" not in sql.lower()
+
+
+def test_voce_entrou_volta_depois_do_reinicio(env):
+    """0.32.403 (dono, 21/11 06:31: o filtro "Você entrou" ficou vazio): quem entrou vem dos trades e posições salvos (por
+    carteira) e a decisão de cada conta vai para o banco junto com o token."""
+    from tests.test_api import UA, tok
+    c, hub = env["c"], env["hub"]
+    A = tok(UA)
+    c.get("/api/pump", headers=A)
+    pf = hub.engines[UA]
+    hub.bm.on_migration({"mint": M, "txType": "migrate", "pool": "pump-amm"})
+    pf.store.save_trade({"id": "f1", "mint": M, "origem": "boostmig", "real": False, "pnl_sol": 0.01, "closed_at": "2026-11-21T05:00:00+00:00"})
+    pf.store.save_trade({"id": "r1", "mint": M, "origem": "boostmig", "real": True, "pnl_sol": 0.01, "closed_at": "2026-11-21T05:00:00+00:00"})
+    r = c.get("/api/pump/boost-migracao", headers=A).json()
+    it = [x for x in r["itens"] if x["mint"] == M][0]
+    assert it["entrou_sim"] and it["entrou_real"] and it["sua"]["estado"] == "entrou" and r["resumo"]["entrou"] == 1
+    hub.bm.items[M]["users"] = {UA: {"estado": "entrou", "motivo": "entrou em 10% do BOOST", "t": 1.0}}
+    d = hub.bm.dump(M)
+    bm2 = BoostMig(Svc({}), clock=lambda: d["t0"] + 5)
+    bm2.load([{"dados": d}], [])
+    assert bm2.items[M]["users"][UA]["estado"] == "entrou"

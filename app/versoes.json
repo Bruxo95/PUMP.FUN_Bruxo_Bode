@@ -2770,6 +2770,11 @@
    "versao": "0.32.402",
    "inicio": "2026-11-20T23:45:00+00:00",
    "titulo": "Compra e venda REAL gastam menos RPC (menos erro 429)"
+  },
+  {
+   "versao": "0.32.403",
+   "inicio": "2026-11-21T05:45:00+00:00",
+   "titulo": "BOOST: \"Você entrou\" volta do banco depois do reinício e continua gravando"
   }
  ]
 }

@@ -1464,7 +1464,7 @@
     document.querySelectorAll("#bmTabs [data-bmt]").forEach((b) => { if (TL[b.dataset.bmt]) b.textContent = TL[b.dataset.bmt]; });
     const F = $("bmF").value || "todos";
     const its = (r.itens || []).filter((x) => { const e = (x.sua || {}).estado;
-      return F === "todos" || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && e === "entrou") || (F === "esperar" && e === "esperar") ||
+      return F === "todos" || (F === "ativo" && (x.progress || 0) < 100) || (F === "entrou" && (RM ? x.entrou_real : (x.entrou_sim || e === "entrou"))) || (F === "esperar" && e === "esperar") ||
         (F === "fora" && e === "fora") || (F === "scam" && (x.scam || x.safety_ok === false)); });
     table("bmT", ["Token", "Migrou", "BOOST", "Situação", "Você", "Trava de venda", "Carteiras", "Compras × vendas 5 min", "Topo / dump", "Resultado"], its.slice(0, 150).map((x) => {
       const u = x.sua || {}, E = BM_EST[u.estado] || [u.estado ? u.estado : "–", "neutral"], res = x.result;
