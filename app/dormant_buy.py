@@ -2715,4 +2715,16 @@ class Buyer:
         out["autosell"] = await self.autosell_state(uid)
         out["vendas"] = [{**s, "t": _ts(s.get("em")), "rede_nome": (CHAINS.get(s.get("rede")) or {}).get("nome"), "moeda": (CHAINS.get(s.get("rede")) or {}).get("moeda"),
                           "expl": (CHAINS.get(s.get("rede")) or {}).get("expl")} for s in sells]
+        # 0.32.421 (pedido do dono): preço de agora da moeda de cada rede, para a tela mostrar os totais também em ETH, AVAX…
+        px: dict[str, float] = {}
+        for ch in {r.get("rede") for r in rows if r.get("status") == "confirmada"}:
+            c = CHAINS.get(ch)
+            if c and c["moeda"] not in px:
+                try:
+                    v = await self.native_usd(ch)
+                except Exception:            # sem cotação: a tela mostra só o dólar dessa moeda
+                    v = None
+                if v:
+                    px[c["moeda"]] = v
+        out["px_moeda"] = px
         return out

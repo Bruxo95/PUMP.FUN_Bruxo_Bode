@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-21**; revisão documental **2.0**.
-Aplicação: **0.32.420 · 2026-11-21 · Dormant: busca mostra o preço já lido e acha a moeda pelo link do site**.
-Referência Git na emissão: `d85eb6c8758c80f020f1d1015940d41787634ac5`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.421 · 2026-11-21 · Dormant: quadrados de Minhas compras em moeda da rede, Lucro realizado e janela de cada número**.
+Referência Git na emissão: `2eaa7e2120c67284de3288d5d91522589033a5e6`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

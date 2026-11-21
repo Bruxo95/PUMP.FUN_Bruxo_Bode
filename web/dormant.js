@@ -1199,16 +1199,106 @@
   const REALIZ_MIN = 0.9;          // parte do investido que precisa ter voltado para a compra ir para Lucro realizado
   let CPCH = (() => { try { return localStorage.getItem("dm_cpch") || ""; } catch (e) { return ""; } })();
   const cpChSave = () => { try { localStorage.setItem("dm_cpch", CPCH); } catch (e) { /* sem armazenamento: só não lembra */ } };
+  // 0.32.421 (pedido do dono): os quadrados de Minhas compras também em moeda da rede (ETH, AVAX…), o quadrado Lucro realizado
+  // e uma janela curta em cada quadrado explicando o número e quais compras puxaram para cima ou para baixo.
+  // Em moeda da rede: investido = o que saiu (valor + gás da compra na cotação daquela hora); recebido = o que entrou nas vendas
+  // desta compra menos o gás delas; valor agora = valor em dólar dividido pela cotação de agora da moeda da rede.
+  let CPK = null;
+  const CPK_W = { h1: [1, "última hora"], h12: [12, "últimas 12 horas"], h24: [24, "últimas 24 horas"], h168: [168, "últimos 7 dias"] };
+  function cpNat(x, px) {
+    const m = x.cex ? "" : x.moeda || "", pm = px[m], nu = Number(x.nativo_usd || 0);
+    const inv = x.cex || x.nativo == null ? null : Number(x.nativo || 0) + (nu ? Number(x.gas_usd || 0) / nu : 0);
+    const vs = cpVendas(x).filter((v) => v.status === "confirmada" && v.compra === x.id);
+    const rec = x.cex ? null : vs.reduce((a, v) => a + Number(v.nativo_out || 0) - (Number(v.nativo_usd || 0) ? Number(v.gas_usd || 0) / Number(v.nativo_usd) : 0), 0);
+    const val = pm && x.valor != null ? Number(x.valor) / pm : null;
+    return { m, pm, inv, rec, val };
+  }
+  const cpNatLine = (o, sig) => Object.entries(o).filter((e) => e[0] && Math.abs(e[1]) > 1e-12).map((e) => "<span" + (sig ? ' class="' + cls(e[1]) + '"' : "") + ">" + (e[1] < 0 ? "-" : sig ? "+" : "") + num(Math.abs(e[1]), 6) + " " + esc(e[0]) + "</span>").join("");
+  const cpSg = (v) => (v == null ? "—" : '<span class="' + cls(v) + '">' + (v < 0 ? "-" : v > 0 ? "+" : "") + "$" + num(Math.abs(v), 2) + "</span>");
+  const cpWin = (x, h) => { const p = x["h" + h]; return p == null || !x.valor ? null : Number(x.valor) - Number(x.valor) / (1 + p / 100); };
+  const cpRealiz = (x) => !x.resto || (x.vendido && x.custo && x.recebido >= x.custo * REALIZ_MIN);
+  function cpKpis(r) {
+    const s = r.resumo, px = r.px_moeda || {}, ok = r.itens.filter((x) => x.status === "confirmada");
+    const inv = {}, rec = {}, val = {}, gan = {};
+    ok.forEach((x) => {
+      const n = cpNat(x, px); if (!n.m) return;
+      if (n.inv != null) inv[n.m] = (inv[n.m] || 0) + n.inv;
+      if (n.rec) rec[n.m] = (rec[n.m] || 0) + n.rec;
+      if (n.val != null) val[n.m] = (val[n.m] || 0) + n.val;
+      if (n.inv != null && n.val != null) gan[n.m] = (gan[n.m] || 0) + n.val + (n.rec || 0) - n.inv;
+    });
+    const win = {};
+    Object.entries(CPK_W).forEach(([k, w]) => {
+      const usd = ok.reduce((a, x) => a + (cpWin(x, w[0]) || 0), 0), nat = {};
+      ok.forEach((x) => { const d = cpWin(x, w[0]), pm = px[x.moeda]; if (d != null && pm && !x.cex) nat[x.moeda] = (nat[x.moeda] || 0) + d / pm; });
+      win[k] = { usd, nat };
+    });
+    const feitas = ok.filter(cpRealiz), rl = feitas.reduce((a, x) => a + Number(x.ganho || 0), 0), rlv = feitas.reduce((a, x) => a + Number(x.valor || 0), 0), rlr = feitas.reduce((a, x) => a + Number(x.recebido || 0), 0);
+    CPK = { r, ok, px, inv, rec, val, gan, win, feitas, rl, rlv, rlr };
+    const kp = (key, k, v, d, nat) => '<div class="kpi dmk" data-cpk="' + key + '" role="button" tabindex="0" title="ver o que é"><div class="k"><span>' + esc(k) + '</span></div><div class="v">' + v + "</div>" +
+      (nat ? '<div class="d cpnat">' + nat + "</div>" : "") + '<div class="d">' + esc(d) + "</div></div>";
+    const wk = (key, label) => { const w = win[key]; return kp(key, label, pc(s[key]), CPK_W[key][1], (w.usd ? "<span>" + cpSg(w.usd) + "</span>" : "") + cpNatLine(w.nat, 1)); };
+    $("cpK").innerHTML = kp("inv", "Investido", "$" + num(s.investido, 2), "o que saiu da carteira, com gás", cpNatLine(inv)) +
+      kp("val", "Valor agora", "$" + num(s.valor, 2), "o que ainda não vendeu, no preço da CoinGecko", cpNatLine(val)) +
+      kp("rec", "Recebido", "$" + num(s.recebido, 2), "das vendas, já sem o gás", cpNatLine(rec)) +
+      kp("gan", "Ganho total", cpSg(s.ganho), "valor agora + recebido − investido", cpNatLine(gan, 1)) +
+      kp("rl", "Lucro realizado", cpSg(feitas.length ? rl : null), feitas.length ? feitas.length + " compra" + (feitas.length > 1 ? "s" : "") + " com o investido de volta" : "nenhuma ainda", feitas.length ? "<span>$" + num(rlr, 2) + " já recebido</span>" + (rlv ? "<span>$" + num(rlv, 2) + " ainda na carteira</span>" : "") : "") +
+      kp("tot", "Total", pc(s.total), "desde as compras", s.ganho != null ? "<span>" + cpSg(s.ganho) + "</span>" : "") +
+      wk("h1", "1 h") + wk("h12", "12 h") + wk("h24", "24 h") + wk("h168", "7 dias");
+  }
+  // janela curta: o que é o número e as compras que mais pesaram nele (clique na linha abre Compra e vendas)
+  function openCpKpi(key) {
+    if (!CPK) return;
+    const { r, ok, px, inv, rec, val, gan, win, feitas, rl, rlv, rlr } = CPK, s = r.resumo;
+    const nm = (x) => esc(x.simbolo || x.nome) + ' <small class="muted">' + esc(x.rede_nome || "") + "</small>";
+    const lst = (rows, cols) => rows.length ? '<div class="tbl-wrap"><table class="systbl cpkt"><thead><tr>' + cols.map((c) => "<th>" + c + "</th>").join("") + "</tr></thead><tbody>" +
+      rows.map((c) => '<tr data-dmhist="' + esc(c[0]) + '" title="abrir Compra e vendas">' + c.slice(1).map((v, i) => '<td data-l="' + esc(cols[i]) + '">' + v + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>" : '<div class="muted small">Nada aqui.</div>';
+    const nat = (o, sig) => (cpNatLine(o) ? '<div class="cpknat">' + cpNatLine(o, sig) + "</div>" : "");
+    const top = (f, n) => ok.map((x) => [x, f(x)]).filter((e) => e[1] != null && Math.abs(e[1]) >= 0.005).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, n || 6);
+    let t = "", h = "";
+    if (key === "inv") {
+      t = "Investido"; h = "<p>Tudo o que saiu da carteira nas compras, <b>com o gás</b>: <b>$" + num(s.investido, 2) + "</b>.</p>" + nat(inv) +
+        lst(top((x) => Number(x.custo || 0)).map((e) => [e[0].id, nm(e[0]), "$" + num(e[1], 2), hora(e[0].t)]), ["Moeda", "Investido", "Quando"]);
+    } else if (key === "val") {
+      t = "Valor agora"; h = "<p>Quanto vale hoje o que você <b>ainda não vendeu</b>, no preço da CoinGecko: <b>$" + num(s.valor, 2) + "</b>. Não desconta a taxa de uma venda futura.</p>" + nat(val) +
+        lst(top((x) => (x.resto ? Number(x.valor || 0) : null)).map((e) => [e[0].id, nm(e[0]), "$" + num(e[1], 2), pc(e[0].total)]), ["Moeda", "Vale", "Total"]);
+    } else if (key === "rec") {
+      t = "Recebido"; h = "<p>O que entrou na carteira com as vendas, <b>já sem o gás</b> delas: <b>$" + num(s.recebido, 2) + "</b>.</p>" + nat(rec) +
+        lst(top((x) => (x.vendido ? Number(x.recebido || 0) : null)).map((e) => [e[0].id, nm(e[0]), "$" + num(e[1], 2), num(Math.min(999, e[0].custo ? e[1] / e[0].custo * 100 : 0), 0) + "% do investido"]), ["Moeda", "Recebeu", "Voltou"]);
+    } else if (key === "gan" || key === "tot") {
+      const pos = s.ganho >= 0;
+      t = key === "gan" ? "Ganho total" : "Total"; h = "<p>Valor agora + recebido − investido = " + cpSg(s.ganho) + " (" + pc(s.total) + "). " +
+        (pos ? "No conjunto as compras estão no lucro." : "No conjunto as compras estão no prejuízo: o que ainda tem na carteira vale menos do que custou, contando o gás.") + "</p>" + nat(gan, 1) +
+        "<h3 class=\"cphh\">" + (pos ? "Quem mais puxou para cima" : "Quem mais puxou para baixo") + "</h3>" +
+        lst(top((x) => (pos ? (x.ganho > 0 ? x.ganho : null) : (x.ganho < 0 ? x.ganho : null)), 5).map((e) => [e[0].id, nm(e[0]), cpSg(e[1]), pc(e[0].total)]), ["Moeda", "Ganho", "Total"]) +
+        "<h3 class=\"cphh\">" + (pos ? "Quem puxou para baixo" : "Quem segurou do outro lado") + "</h3>" +
+        lst(top((x) => (pos ? (x.ganho < 0 ? x.ganho : null) : (x.ganho > 0 ? x.ganho : null)), 3).map((e) => [e[0].id, nm(e[0]), cpSg(e[1]), pc(e[0].total)]), ["Moeda", "Ganho", "Total"]);
+    } else if (key === "rl") {
+      t = "Lucro realizado"; h = feitas.length ? "<p>Compras em que as vendas já devolveram o investido (90% ou mais) ou que foram vendidas inteiras. Lucro nelas (recebido + o que sobrou − investido com gás): " + cpSg(rl) + ". Já voltou para a carteira <b>$" + num(rlr, 2) + "</b>" +
+        (rlv ? " e ainda sobram <b>$" + num(rlv, 2) + "</b> na moeda, que é lucro enquanto não cair." : ".") + "</p>" +
+        lst(feitas.slice().sort((a, b) => (b.ganho || 0) - (a.ganho || 0)).map((x) => [x.id, nm(x), "$" + num(x.custo, 2), "$" + num(x.recebido, 2), x.resto ? "$" + num(x.valor, 2) : "vendida", cpSg(x.ganho)]), ["Moeda", "Investiu", "Recebeu", "Sobrou vale", "Ganho"])
+        : "<p>Ainda nenhuma. Entram aqui as compras em que as vendas já devolveram o investido (use \"Só o valor investido\" no Vender).</p>";
+    } else if (CPK_W[key]) {
+      const w = win[key], hh = CPK_W[key][0], neg = w.usd < 0;
+      t = (hh === 168 ? "7 dias" : hh + " h") + ": " + (neg ? "o que caiu" : "o que subiu");
+      h = "<p>" + (hh === 1 ? "Na " : "Nos " ).replace("Nos ", hh === 168 ? "Nos " : "Nas ") + CPK_W[key][1] + " o que você ainda tem " + (neg ? "perdeu" : "ganhou") + ' <b class="' + cls(w.usd) + '">$' + num(Math.abs(w.usd), 2) + "</b> (" + pc(s[key]) + "), pelo preço de cada moeda. Compra feita dentro do período conta desde a compra. Não mexe no que já foi vendido.</p>" +
+        nat(w.nat, 1) + lst(top((x) => cpWin(x, hh)).map((e) => [e[0].id, nm(e[0]), cpSg(e[1]), pc(e[0]["h" + hh])]), ["Moeda", "No período", "%"]);
+    }
+    if (!t) return;
+    if (BUY && BUY.timer) clearInterval(BUY.timer);
+    BUY = { kpi: key };
+    $("buyMT").textContent = t;
+    $("buyMS").textContent = "Minhas compras · " + (Object.keys(px).length ? "moeda da rede na cotação de agora" : "valores em dólar");
+    $("buyMB").innerHTML = '<div class="cpkm">' + h + '<div class="muted small">clique numa linha para ver a compra e as vendas</div></div>';
+    $("buyM").hidden = false;
+  }
   async function drawCompras() {
     const r = await BB.api("/api/dormant/compras", { quiet: true });
     if (VIEW !== "compras") return;
     if (!r || r.error) { $("cpT").innerHTML = '<div class="cpempty down">' + esc((r && r.error) || "não consegui ler as compras") + "</div>"; return; }
     CP_ITENS = r.itens; CP_VENDAS = r.vendas || [];
     drawAutoSell(r.autosell);
-    const s = r.resumo, kp = (k, v, d) => '<div class="kpi"><div class="k"><span>' + esc(k) + '</span></div><div class="v">' + v + '</div><div class="d">' + esc(d) + "</div></div>";
-    $("cpK").innerHTML = kp("Investido", "$" + num(s.investido, 2), "o que saiu da carteira, com gás") + kp("Valor agora", "$" + num(s.valor, 2), "o que ainda não vendeu, no preço da CoinGecko") + kp("Recebido", "$" + num(s.recebido, 2), "das vendas, já sem o gás") +
-      kp("Ganho total", '<span class="' + cls(s.ganho) + '">$' + num(s.ganho, 2) + "</span>", "valor agora + recebido − investido") + kp("Total", pc(s.total), "desde as compras") +
-      kp("1 h", pc(s.h1), "última hora") + kp("12 h", pc(s.h12), "últimas 12 horas") + kp("24 h", pc(s.h24), "últimas 24 horas") + kp("7 dias", pc(s.h168), "últimos 7 dias");
+    cpKpis(r);
     $("cpSub").textContent = "as porcentagens são do preço de cada moeda; quem foi comprada dentro do período conta desde a compra · preço da CoinGecko" + (r.leitura_t ? ", lido há " + ago(r.leitura_t) : "") +
       " · o valor agora não desconta a taxa de uma venda futura · vender vende o saldo do token na carteira, e as vendas abatem as compras mais antigas";
     // 0.32.417 (pedido do dono): filtrar por blockchain da compra (a rede onde a moeda foi comprada); a escolha fica guardada
@@ -1333,6 +1423,7 @@
         (/^0x[0-9a-f]{40}$/i.test(q) || q.length >= 26 ? " Se você colou um contrato: só aparecem moedas que a CoinGecko já lista com esse endereço." : "") + "</span>";
   }
   document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target && e.target.id === "addQ") { e.preventDefault(); addSearch(); } });
+  document.addEventListener("keydown", (e) => { const k = e.target && e.target.closest && e.target.closest("[data-cpk]"); if (k && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCpKpi(k.dataset.cpk); } });
   document.addEventListener("click", async (e) => {
     const fv = e.target.closest && e.target.closest("[data-dmfav]");
     if (fv) { e.preventDefault(); e.stopPropagation(); toggleFav(fv.dataset.dmfav); return; }
@@ -1344,6 +1435,8 @@
     if (bx) { e.preventDefault(); e.stopPropagation(); openCex(bx.dataset.dmcex); return; }
     const bs = e.target.closest && e.target.closest("[data-dmsell]");
     if (bs) { e.preventDefault(); openSell(bs.dataset.dmsell); return; }
+    const bk = e.target.closest && e.target.closest("[data-cpk]");
+    if (bk) { e.preventDefault(); openCpKpi(bk.dataset.cpk); return; }
     const bh = e.target.closest && e.target.closest("[data-dmhist]");
     if (bh) { e.preventDefault(); openCpHist(bh.dataset.dmhist); return; }
     const k = e.target.closest && e.target.closest("[data-dmst]");

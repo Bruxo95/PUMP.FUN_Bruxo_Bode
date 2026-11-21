@@ -2860,6 +2860,11 @@
    "versao": "0.32.420",
    "inicio": "2026-11-21T12:11:46+00:00",
    "titulo": "Dormant: busca mostra o preço já lido e acha a moeda pelo link do site"
+  },
+  {
+   "versao": "0.32.421",
+   "inicio": "2026-11-21T12:44:20+00:00",
+   "titulo": "Dormant: quadrados de Minhas compras em moeda da rede, Lucro realizado e janela de cada número"
   }
  ]
 }

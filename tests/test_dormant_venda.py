@@ -247,3 +247,10 @@ def test_sell_what_is_missing_of_the_invested_value():
     db.tables["dormant_sells"][-1]["usd_out"] = 10.5
     p = run(b.preview_sell(UID, "c1", "falta"))
     assert not p.get("quote_id") and any("já voltou" in x for x in p["bloqueia"])
+
+
+# 0.32.421 (pedido do dono): Minhas compras manda a cotação de agora da moeda de cada rede, para a tela mostrar ETH, AVAX…
+def test_history_sends_native_price_per_coin():
+    b, net, db = bought()
+    h = run(b.history(UID))
+    assert h["px_moeda"] == {"ETH": 2000}
