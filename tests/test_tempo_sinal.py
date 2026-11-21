@@ -23,3 +23,11 @@ def test_posicao_conta_de_segundo_em_segundo_e_vai_para_o_trade():
         PumpFun._sign_note(p, px, t)
     assert PumpFun.sign_out(p) == {"pos_s": 9, "neg_s": 5, "trocas": 3, "neg_pct": 36}
     assert PumpFun.sign_out({"price_in": 1.0}) is None
+
+
+def test_referencia_e_o_preco_de_mercado_na_entrada():
+    """0.32.424: a referência é o preço de mercado da entrada (trader_px), não o price_in com a taxa embutida."""
+    p = {"price_in": 1.03, "trader_px": 1.0}
+    for t, px in [(0, 1.01), (10, 1.02), (20, 1.02)]:
+        PumpFun._sign_note(p, px, t)
+    assert PumpFun.sign_out(p)["neg_s"] == 0 and PumpFun.sign_out(p)["pos_s"] == 20

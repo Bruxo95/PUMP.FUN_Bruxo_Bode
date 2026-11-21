@@ -2875,6 +2875,11 @@
    "versao": "0.32.423",
    "inicio": "2026-11-21T15:10:00+00:00",
    "titulo": "BOOST: tempo no positivo e no negativo de cada token (somando as trocas)"
+  },
+  {
+   "versao": "0.32.424",
+   "inicio": "2026-11-21T15:35:00+00:00",
+   "titulo": "BOOST: positivo × negativo só com a medição de segundo em segundo"
   }
  ]
 }

@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-21",
     "timezone": "Europe/Dublin",
-    "repository_reference": "ce79b4d52c8aa16095e37ae78f35aa371c5fc13b",
-    "application_version": "0.32.423 · 2026-11-21 · BOOST: tempo no positivo e no negativo de cada token (somando as trocas)",
+    "repository_reference": "80b3e04087d3b69b0f4826a3de28ae94a82fa91a",
+    "application_version": "0.32.424 · 2026-11-21 · BOOST: positivo × negativo só com a medição de segundo em segundo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "703eca214c63039692a516366ccae23651eacaf1a9cb0dacb12aaf80a5284292",
+      "app/version.py": "9210edf109bf96c49f70ce95c779f49db7b7a075b4e6971126cb234537d35dc9",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e07d45bba3909d8af3cdcb662549ed628c24c8109066c03eb4343f96db137796"
+  "pdf_sha256": "82d178b35cf914c4399f6fe30318e2303573766f7739488f9ed535ccd00df0c6"
 }

@@ -2135,7 +2135,9 @@ class PumpFun:
         """0.32.423 (pedido do dono, 21/11): soma, a cada leitura de preço, quanto tempo a posição ficou no POSITIVO e no
         NEGATIVO (preço acima/abaixo do preço de entrada, sem taxas) e quantas vezes trocou. O trecho entre duas leituras fica
         com o estado da leitura anterior. Vai para o trade quando fecha."""
-        ref = float(p.get("price_in") or 0)
+        # 0.32.424: referência = preço de mercado na entrada (trader_px), sem a taxa embutida no price_in; senão o começo da
+        # posição contava como negativo só por causa da taxa
+        ref = float(p.get("trader_px") or p.get("trader_price") or 0) or float(p.get("price_in") or 0)
         if not ref or not px or px <= 0:
             return
         g = p.setdefault("sinal", {"pos_s": 0.0, "neg_s": 0.0, "trocas": 0})

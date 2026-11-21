@@ -1258,7 +1258,7 @@
   // 0.32.373 (pedido do dono): BOOST da migração — token graduou para a PumpSwap; entra no começo dos ~5 min e sai antes do fim
   // 0.32.423 (pedido do dono): tempo no POSITIVO × NEGATIVO (somando todas as trocas) e quantas trocas houve
   function bmSinal(z) {
-    if (!z) return '<span class="dim">–</span>';
+    if (!z) return '<span class="dim" title="medido de segundo em segundo só nas posições abertas a partir da versão 0.32.423">sem medição</span>';
     return '<span class="up">+ ' + hms(z.pos_s || 0) + '</span> · <span class="down">− ' + hms(z.neg_s || 0) + "</span>" +
       '<small class="bmwhy">' + (z.trocas || 0) + " troca(s)" + (z.neg_pct != null ? " · " + z.neg_pct + "% no negativo" : "") + (z.aprox ? " · aprox. (leituras a cada ~20 s)" : "") + "</small>";
   }
@@ -1326,7 +1326,7 @@
       '<span class="wrapcell">' + (d.symbols || []).map(esc).join(", ") + "</span>", dt(d.ult)]), "Nenhum DEV com 2+ tokens no período.");
     const F = $("bmHF").value;
     const L = (r.lista || []).filter((x) => !F || (F === "entrou" ? x.entrou > 0 : x.classe === F));
-    table("bmHL", ["Token", "Migrou", "Classe", "Topo", "Dump", "Aos 1 min", "Aos 5 min", "Fim", "Positivo × negativo (desde o início)", "Compras × vendas", "Trava", "Scam", "Carteiras", "Entrou / resultado"], L.map((x) => {
+    table("bmHL", ["Token", "Migrou", "Classe", "Topo", "Dump", "Aos 1 min", "Aos 5 min", "Fim", "Positivo × negativo (desde o início · leituras a cada ~20 s)", "Compras × vendas", "Trava", "Scam", "Carteiras", "Entrou / resultado"], L.map((x) => {
       const M = x.marks || {};
       return ['<a href="#" class="bmdl" data-bmtok="' + esc(x.mint) + '">' + esc(x.symbol || x.mint.slice(0, 6)) + "</a>" + (x.creator ? '<small class="bmwhy">DEV ' + bmDevLink(x.creator) + "</small>" : ""), dt(x.t0), bmCl(x.classe),
         x.top_pct == null ? "–" : pc(x.top_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.top_s) + "</small>", x.dump_pct == null ? "–" : pc(x.dump_pct, 0) + '<small class="bmwhy">aos ' + bmMin(x.dump_s) + "</small>",

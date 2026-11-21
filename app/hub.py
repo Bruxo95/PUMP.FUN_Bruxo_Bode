@@ -2222,7 +2222,8 @@ class PumpHub:
             for side, real_ in (("sim", False), ("real", True)):      # 0.32.423: tempo no positivo × negativo de quem entrou
                 pp = next((p for p in mine_p if p["mint"] == m and bool(p.get("real")) == real_), None)
                 tt = next((t for t in mine_t if t.get("mint") == m and bool(t.get("real")) == real_), None)
-                sg = (PumpFun.sign_out(pp) if pp else None) or ((tt.get("sinal") or self._bm_sign_from_serie(tt)) if tt else None)
+                # 0.32.424: só a conta de segundo em segundo (a série do BOOST, a cada ~20 s, errava: GORDITO +14% aparecia 0 s positivo)
+                sg = (PumpFun.sign_out(pp) if pp else None) or ((tt or {}).get("sinal"))
                 if sg:
                     v["sinal_" + side] = sg
             v["progress"] = round(bm.progress(b, now), 1)
@@ -2292,24 +2293,8 @@ class PumpHub:
                            "pnl_sol_real": round(sum(t.get("pnl_sol") or 0 for t in fech_r), 6),
                            "scam_devs": len(bm.scam_devs), "vip_devs": sum(1 for x in vip if x.get("vip"))},
                 "trades": [{**{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real")},
-                            "sinal": t.get("sinal") or self._bm_sign_from_serie(t)}
+                            "sinal": t.get("sinal")}
                            for t in ([x for x in mine_t if not x.get("real")][:150] + [x for x in mine_t if x.get("real")][:150])]}
-
-    def _bm_sign_from_serie(self, t: dict) -> dict | None:
-        """0.32.423: trade antigo (sem a conta de segundo em segundo): tempo no positivo × negativo calculado pelos preços do
-        BOOST (uma leitura a cada ~15–20 s), entre a entrada e a saída. Marcado como aproximado."""
-        from datetime import datetime
-        b = self.bm.items.get(t.get("mint") or "")
-        ref = float(t.get("price_in") or 0) or (float(t.get("sol_in") or 0) / float(t.get("tokens") or 0) if t.get("tokens") else 0)
-        if not b or not ref:
-            return None
-        try:
-            a_ = datetime.fromisoformat(str(t["opened_at"]).replace("Z", "+00:00")).timestamp() - b["t0"]
-            z_ = datetime.fromisoformat(str(t["closed_at"]).replace("Z", "+00:00")).timestamp() - b["t0"]
-        except Exception:
-            return None
-        r = boostmig.sign_time(b.get("serie") or [], ref, a_ - 20, z_)
-        return {**r, "aprox": True} if r else None
 
     async def bruxo_loop(self) -> None:
         await asyncio.sleep(45)
