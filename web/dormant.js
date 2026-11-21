@@ -201,7 +201,29 @@
     if (r && r.ok) { TG = { ...TG, on: r.on, tipos: r.tipos }; drawTg(); }
     else alert((r && r.error) || "não salvou");
   }
+  // 0.32.408 (pedido do dono): busca na Visão geral que filtra a cada letra. As moedas já estão na tela, então não chama o servidor: Q mostra tudo com Q,
+  // depois Q + A mostra só o que tem "qa", e assim por diante (várias palavras = todas precisam aparecer; acento e maiúscula não importam).
+  const fold = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  function drawOvSearch() {
+    const inp = $("ovQ"), box = $("ovQR"); if (!inp || !box) return;
+    const q = fold(inp.value).trim(), words = q.split(/\s+/).filter(Boolean);
+    $("ovQX").hidden = !inp.value;
+    if (!words.length) { box.hidden = true; box.innerHTML = ""; return; }
+    const rank = (m) => {
+      const n = fold(m.nome), s = fold(m.simbolo), all = n + " " + s + " " + fold(m.cmc) + " " + fold(m.chain_nome) + " " + fold((m.cats || []).join(" "));
+      if (!words.every((w) => all.includes(w))) return null;
+      return s === q ? 0 : n === q ? 1 : s.startsWith(q) ? 2 : n.startsWith(q) ? 3 : words.every((w) => n.includes(w) || s.includes(w)) ? 4 : 5;
+    };
+    const L = M().map((m) => [rank(m), m]).filter((x) => x[0] !== null).sort((a, b) => a[0] - b[0] || (b[1].mcap || 0) - (a[1].mcap || 0) || String(a[1].nome).localeCompare(String(b[1].nome)));
+    box.hidden = false;
+    box.innerHTML = '<div class="ovn">' + (L.length ? num(L.length, 0) + (L.length === 1 ? " moeda" : " moedas") + (L.length > 30 ? " · mostrando as 30 primeiras: continue digitando para afinar" : "") : "Nenhuma moeda com “" + esc(inp.value.trim()) + "”. Para achar uma que não está na lista, use + Adicionar moeda (aceita o contrato).") + "</div>" +
+      L.slice(0, 30).map(([, m]) => '<div class="ovr"><div class="nm">' + star(m.cmc) + ' <b data-dmcoin="' + esc(m.cmc) + '" title="abrir a moeda" style="cursor:pointer">' + esc(m.nome) + "</b> <small style=\"display:inline\">" + esc(m.simbolo || "") + "</small>" +
+        (m.chain_nome ? " " + chainTag(m.chain_nome, (m.chains || []).join(", ")) : "") + "</div>" +
+        '<span class="px">' + price(m.preco) + '</span><span class="st">' + tag(m.status) + '</span><span class="pcs"><span>1 h ' + pc(m.h1) + "</span><span>24 h " + pc(m.h24) + "</span></span>" +
+        ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button>' : "<span></span>") + "</div>").join("");
+  }
   function drawVisao() {
+    drawOvSearch();
     const c = (R && R.contagem) || {};
     $("ovK").innerHTML = ["acordando", "pump", "dump", "dormindo", "normal", "parada", "morta"].map((k) =>
       '<div class="kpi dmk" data-dmst="' + k + '" role="button" tabindex="0"><div class="k"><span>' + esc(ST[k]) + '</span></div><div class="v">' + num(c[k] || 0, 0) + '</div><div class="d">' +
@@ -1138,6 +1160,7 @@
     if (e.target && e.target.closest && e.target.closest("#rCfg")) DIRTY = true;
     if (e.target && e.target.id === "vQ") { VQ = e.target.value; drawVol(); }
     if (e.target && e.target.id === "mQ") { F.q = e.target.value; saveF(); drawMoedas(); }
+    if (e.target && e.target.id === "ovQ") drawOvSearch();
     if (e.target && e.target.id === "gasUsd") gasConv();
     if (e.target && e.target.id === "buyVal") { buyUsdDraw(); if ($("buyPrev")) $("buyPrev").innerHTML = ""; if (BUY && BUY.timer) clearInterval(BUY.timer); }
   });
@@ -1160,10 +1183,11 @@
     if (r && r.error) { $("addR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
     const L = (r && r.itens) || [];
     $("addR").innerHTML = L.length ? L.map((x) => '<div class="r">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" width="22" height="22" style="border-radius:50%">' : "") +
-      "<div><b>" + esc(x.nome) + "</b> <small class=\"muted\">" + esc(x.simbolo) + '</small><div class="dmcats">' + (x.blockchains || []).map((b) => chainTag(b)).join(" ") + "</div></div>" +
+      "<div><b>" + esc(x.nome) + "</b> <small class=\"muted\">" + esc(x.simbolo) + "</small>" + (x.achado_por_contrato ? ' <span class="tag neutral">achada pelo contrato</span>' : "") + '<div class="dmcats">' + (x.blockchains || []).map((b) => chainTag(b)).join(" ") + "</div></div>" +
       '<span class="sp"></span><small class="muted">' + price(x.preco) + " · " + usd(x.mcap) + "</small>" +
       (x.ja_tem ? '<span class="tag neutral">já está na lista</span>' : '<button class="btn sm primary" data-dmaddid="' + esc(x.id) + '">Adicionar</button>') + "</div>").join("")
-      : '<span class="muted">Nada encontrado. Tente o símbolo (ex.: PEPE) ou cole o link da moeda na CoinGecko.</span>';
+      : '<span class="muted">Nada encontrado. Tente o símbolo (ex.: PEPE), o endereço do contrato do token ou cole o link da moeda na CoinGecko.' +
+        (/^0x[0-9a-f]{40}$/i.test(q) || q.length >= 26 ? " Se você colou um contrato: só aparecem moedas que a CoinGecko já lista com esse endereço." : "") + "</span>";
   }
   document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target && e.target.id === "addQ") { e.preventDefault(); addSearch(); } });
   document.addEventListener("click", async (e) => {
@@ -1334,6 +1358,7 @@
     if (t.dataset.cmr) { if (CM) { CM.rng = +t.dataset.cmr; dexEmbed("cg"); drawCoinChart(); } return; }
     if (t.dataset.cms) { dexEmbed(t.dataset.cms); return; }
     if (t.id === "addGo") { addSearch(); return; }
+    if (t.id === "ovQX") { $("ovQ").value = ""; drawOvSearch(); $("ovQ").focus(); return; }
     if (t.dataset.dmaddid) {
       t.disabled = true;
       const r = await BB.api("/api/dormant/adicionar", { body: { id: t.dataset.dmaddid } });

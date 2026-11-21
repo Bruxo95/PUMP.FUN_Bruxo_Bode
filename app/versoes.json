@@ -2795,6 +2795,11 @@
    "versao": "0.32.407",
    "inicio": "2026-11-21T06:28:21+00:00",
    "titulo": "Dormant: venda automática com alvo próprio em cada compra"
+  },
+  {
+   "versao": "0.32.408",
+   "inicio": "2026-11-21T06:31:15+00:00",
+   "titulo": "Dormant: buscar moeda pelo contrato e busca que filtra a cada letra na Visão geral"
   }
  ]
 }

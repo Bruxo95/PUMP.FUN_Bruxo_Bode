@@ -90,3 +90,22 @@ def test_defillama_history_that_stops_long_ago_is_refused():
         raise AssertionError
     except RuntimeError as e:
         assert "termina em" in str(e)
+
+
+# ------------------------------------------------------------------ 0.32.408: buscar a moeda pelo contrato
+def test_search_by_contract_finds_the_coin_with_any_casing_and_non_evm_exact():
+    w = watch()
+    w.cgnames = {"dogelon-mars": ("Dogelon Mars", "elon", ["ethereum"], {"ethereum": "0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3"}),
+                 "dogwifcoin": ("dogwifhat", "wif", ["solana"], {"solana": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"}),
+                 "pepe": ("Pepe", "pepe", ["ethereum"], {"ethereum": "0x6982508145454ce325ddbe47a25d4ec3d2311933"})}
+
+    async def get(path, params=None):
+        return []
+    w.get = get
+    r = run(w.search("0x761D38E5DDF6CCF6CF7C55759D5210750B5D60F3"))               # maiúsculas e minúsculas misturadas
+    assert [x["id"] for x in r] == ["dogelon-mars"] and r[0]["achado_por_contrato"] is True
+    assert [x["id"] for x in run(w.search("EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"))] == ["dogwifcoin"]
+    assert run(w.search("ekpqgsjtjmfqkz9kqansqyxrcf8fbopzlhyxdm65zcjm")) == []      # fora do 0x o endereço diferencia maiúscula
+    assert run(w.search("0x" + "ab" * 20)) == []                                    # contrato que a CoinGecko não lista
+    assert [x["id"] for x in run(w.search("pepe"))] == ["pepe"] and not run(w.search("pepe"))[0]["achado_por_contrato"]   # busca por nome segue igual
+    assert w.looks_like_contract("0x" + "a" * 40) and not w.looks_like_contract("Dogelon Mars") and not w.looks_like_contract("PEPE")

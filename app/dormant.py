@@ -324,6 +324,23 @@ class DormantWatch:
             await self._put("info", {"i": self.info})
 
     # ------------------------------------------------------------------ adicionar moedas (0.32.228)
+    @staticmethod
+    def looks_like_contract(q: str) -> bool:
+        """0x… de 40 letras/números (EVM), ou um endereço comprido sem espaços (Solana, Tron, Cardano…). Nome e símbolo nunca passam daqui."""
+        if re.fullmatch(r"0x[0-9a-fA-F]{40}", q):
+            return True
+        return len(q) >= 26 and bool(re.fullmatch(r"[A-Za-z0-9_.:\-]+", q))
+
+    def by_contract(self, q: str) -> dict[str, str]:
+        """{id da CoinGecko: blockchain onde o contrato bate}. EVM não diferencia maiúscula de minúscula; os outros endereços sim."""
+        evm = q.lower().startswith("0x")
+        ql, out = q.lower(), {}
+        for cid, (_, _, _, adr) in self.cgnames.items():
+            for plat, a in adr.items():
+                if (a.lower() == ql) if evm else (a == q):
+                    out.setdefault(cid, plat)
+        return out
+
     async def search(self, q: str) -> list[dict]:
         q = (q or "").strip()
         if not q:
@@ -331,8 +348,11 @@ class DormantWatch:
         if not self.cgnames:
             await self._cglist()
         m = CG_URL.search(q)
+        achou: dict[str, str] = {}
         if m:
             ids = [m.group(1).lower()] if m.group(1).lower() in self.cgnames else []
+        elif self.looks_like_contract(q) and (achou := self.by_contract(q)):
+            ids = list(achou)[:12]                       # 0.32.408 (pedido do dono): colar o contrato acha a moeda
         else:
             n, ql = norm(q), q.lower()
             score = []
@@ -354,7 +374,8 @@ class DormantWatch:
         for cid in ids:
             name, sym, plats = self.cgnames.get(cid, ("", "", [], {}))[:3]
             r = rows.get(cid) or {}
-            out.append({"id": cid, "nome": name, "simbolo": sym.upper(), "blockchains": [chain_name(p) for p in plats[:4]] or [chain_name(PROPRIA)],
+            bl = [chain_name(p) for p in sorted(plats[:4], key=lambda p: p != achou.get(cid))] or [chain_name(PROPRIA)]
+            out.append({"id": cid, "nome": name, "simbolo": sym.upper(), "blockchains": bl, "achado_por_contrato": cid in achou,
                         "preco": r.get("current_price"), "mcap": r.get("market_cap"), "vol": r.get("total_volume"), "img": r.get("image"),
                         "ja_tem": cid in have})
         out.sort(key=lambda x: -(x["mcap"] or 0))
