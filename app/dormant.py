@@ -89,6 +89,32 @@ ECO_TOP = ["ethereum", "binance-smart-chain", "solana", "tron", "base", "arbitru
            "sui", "the-open-network", "cardano", "optimistic-ethereum", "aptos", "near-protocol", "sonic", "xrp", "stellar", "linea",
            "mantle", "cronos", "algorand", "cosmos", "zksync", "osmosis", "blast", "unichain", "robinhood", "scroll"]
 CG_URL = re.compile(r"coingecko\.com/(?:[a-z-]+/)?coins/([a-z0-9-]+)", re.I)
+# 0.32.430 (pedido do dono, caso ASTEROID 22/11): colar o link da DEX (Jupiter, DexScreener, GeckoTerminal, pump.fun, Birdeye…) ou o
+# contrato para dar o par a uma moeda "sem par". Do link saem os endereços; moeda da rede e dólar no par (SOL, USDC, WETH…) não contam.
+DS_API = "https://api.dexscreener.com/latest/dex/search"
+ADDR_RE = re.compile(r"0x[0-9a-fA-F]{40}|[1-9A-HJ-NP-Za-km-z]{32,48}|T[1-9A-HJ-NP-Za-km-z]{33}")
+NAO_TOKEN = {"So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+             "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+             "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0xdac17f958d2ee523a2206206994597c13d831ec7",
+             "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", "0x55d398326f99059ff775485246999027b3197955",
+             "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", "0x4200000000000000000000000000000000000006",
+             "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"}
+DS_CHAIN = {"solana": "solana", "ethereum": "ethereum", "bsc": "binance-smart-chain", "base": "base", "arbitrum": "arbitrum-one",
+            "polygon": "polygon-pos", "avalanche": "avalanche", "tron": "tron", "optimism": "optimistic-ethereum", "sui": "sui",
+            "ton": "the-open-network", "cronos": "cronos", "fantom": "fantom", "sonic": "sonic", "mantle": "mantle", "linea": "linea",
+            "robinhood": "robinhood", "hyperevm": "hyperevm", "unichain": "unichain", "zksync": "zksync", "worldchain": "world-chain",
+            "aptos": "aptos", "cardano": "cardano", "celo": "celo"}
+
+
+def link_addrs(q: str) -> list[str]:
+    """Endereços de token/pool que aparecem num link ou texto colado (na ordem), sem SOL/USDC/WETH… (são a outra ponta do par)."""
+    out = []
+    ds = re.search(r"dexscreener\.com/[a-z0-9-]+/([A-Za-z0-9]{32,66})", q or "", re.I)   # a DexScreener escreve o pool em minúsculas
+    for a in ([ds.group(1)] if ds else []) + ADDR_RE.findall(q or ""):
+        if a in NAO_TOKEN or a.lower() in NAO_TOKEN or a in out:
+            continue
+        out.append(a)
+    return out[:3]
 
 
 def chain_name(k: str | None) -> str:
@@ -224,6 +250,8 @@ class DormantWatch:
         self.cgnames: dict[str, tuple] = {}          # última lista da CoinGecko (só memória, para a busca)
         self.addr: dict[str, dict] = {}              # 0.32.229: id → {blockchain: contrato}
         self.gtpool: dict[str, dict] = {}            # id → {"net", "pool", "t"} (pool principal na GeckoTerminal)
+        self.links: dict[str, str] = {}              # 0.32.430: moeda da lista → id da CoinGecko escolhido na mão ("Adicionar o par")
+        self._hints: dict[str, dict] = {}            # id → pool achado no link colado (só memória, 30 min; o navegador nunca manda o pool)
         self.chain: dict[str, dict] = {}             # id → últimas ações na blockchain ({"last3", "n24", "ultima_t", "t", …})
         self.gstat = {"consultas": 0, "erros": 0, "ultimo_erro": None, "ultimo_erro_t": None, "limite_429": 0, "ultima_t": None}
         self._gt_pause = 0.0
@@ -297,6 +325,7 @@ class DormantWatch:
         self.map = match(self.lista, cg)
         for e in self.extras:
             self.map["cg:" + e["cg"]] = [e["cg"]]
+        self.map.update({k: [c] for k, c in self.links.items()})
         self.plat = {i: list(self.cgnames.get(i, ("", "", []))[2]) for c in self.map.values() for i in c}
         self.addr = {i: dict(self.cgnames.get(i, ("", "", [], {}))[3]) for c in self.map.values() for i in c}
         await self._put("addr", {"a": self.addr})
@@ -373,6 +402,8 @@ class DormantWatch:
                 ids = [c for _, _, c in sorted(score)[:12]]
         elif self.looks_like_contract(q) and (achou := self.by_contract(q)):
             ids = list(achou)[:12]                       # 0.32.408 (pedido do dono): colar o contrato acha a moeda
+        elif (self.looks_like_contract(q) or "/" in q) and link_addrs(q) and (achou := await self.from_dex_link(q)):
+            ids = list(achou)[:12]                       # 0.32.430: link da DEX (Jupiter, DexScreener, GeckoTerminal…) ou endereço do pool
         else:
             n, ql = norm(q), q.lower()
             score = []
@@ -399,7 +430,9 @@ class DormantWatch:
             name, sym, plats = self.cgnames.get(cid, ("", "", [], {}))[:3]
             r = rows.get(cid) or {}
             bl = [chain_name(p) for p in sorted(plats[:4], key=lambda p: p != achou.get(cid))] or [chain_name(PROPRIA)]
+            hint = self._hints.get(cid) or {}
             out.append({"id": cid, "nome": name, "simbolo": sym.upper(), "blockchains": bl, "achado_por_contrato": cid in achou,
+                        "pool": {"nome": hint.get("nome"), "rede": chain_name(hint.get("ch"))} if hint.get("pool") and time.time() - hint.get("t", 0) < 1800 else None,
                         "preco": r.get("current_price"), "mcap": r.get("market_cap"), "vol": r.get("total_volume"), "img": r.get("image"),
                         "ja_tem": cid in have})
         out.sort(key=lambda x: -(x["mcap"] or 0))
@@ -505,6 +538,7 @@ class DormantWatch:
         self.addr[cid] = dict(adr)
         await self._put("extras", {"e": self.extras})
         await self._put_map()
+        await self._fetch_one("cg:" + cid, cid)       # 0.32.430 (caso ASTEROID): preço na hora, sem ficar "sem par" até a próxima leitura
         self.refresh_now()
         return e
 
@@ -597,6 +631,111 @@ class DormantWatch:
             except Exception as e:
                 log.warning("Dormant: foto da hora não gravou: %s", str(e)[:160])
 
+    # ------------------------------------------------------------------ par escolhido na mão (0.32.430)
+    async def from_dex_link(self, q: str) -> dict[str, str]:
+        """{id da CoinGecko: blockchain} a partir de um link de DEX ou endereço (token ou pool). Endereço que a CoinGecko conhece vale direto;
+        senão pergunta à DexScreener (grátis, sem chave, todas as redes) de qual token é aquele pool. O pool colado fica como dica 30 min."""
+        if not self.cgnames:
+            await self._cglist()
+        out: dict[str, str] = {}
+        for a in link_addrs(q) or ([q.strip()] if self.looks_like_contract(q.strip()) else []):
+            hit = self.by_contract(a)
+            if hit:
+                out.update(hit)
+                continue
+            try:
+                r = await self.http.get(DS_API, params={"q": a}, headers={"accept": "application/json", "User-Agent": "pump-fun-copy/1.0"}, timeout=20)
+                pairs = (r.json() or {}).get("pairs") or [] if r.status_code == 200 else []
+            except Exception:
+                pairs = []
+            for pr in sorted(pairs, key=lambda x: -float((x.get("liquidity") or {}).get("usd") or 0))[:20]:
+                base, quote = (pr.get("baseToken") or {}).get("address") or "", (pr.get("quoteToken") or {}).get("address") or ""
+                pool = pr.get("pairAddress") or ""
+                eh_pool = pool.lower() == a.lower()
+                if not (eh_pool or a.lower() in (base.lower(), quote.lower())):
+                    continue
+                tok = quote if (base in NAO_TOKEN or base.lower() in NAO_TOKEN or (not eh_pool and quote.lower() == a.lower())) else base
+                hit = self.by_contract(tok)
+                if not hit:
+                    continue
+                out.update(hit)
+                ch = DS_CHAIN.get(str(pr.get("chainId") or ""))
+                if eh_pool and ch in GT_NET:
+                    for cid in hit:
+                        self._hints[cid] = {"ch": ch, "net": GT_NET[ch], "pool": pool, "contrato": tok, "t": time.time(),
+                                            "nome": f"{(pr.get('baseToken') or {}).get('symbol') or '?'} / {(pr.get('quoteToken') or {}).get('symbol') or '?'}"
+                                                    + (f" ({pr.get('dexId')})" if pr.get("dexId") else "")}
+                break
+        return out
+
+    async def _fetch_one(self, key: str, cid: str) -> None:
+        """Preço da moeda nova na hora (1 consulta), para não ficar "sem par" até a próxima leitura de 20 min."""
+        try:
+            rows = await self.get("/coins/markets", {"vs_currency": "usd", "ids": cid, "per_page": 1, "page": 1, "sparkline": "true",
+                                                     "price_change_percentage": "1h,24h,7d,30d"})
+        except RuntimeError:
+            return
+        for r in rows or []:
+            if r.get("id") == cid:
+                self.rows[cid] = r
+                self.pick[key] = cid
+                self._classify(time.time())
+
+    async def set_link(self, key: str, cid: str, usar_pool: bool = False) -> dict:
+        m = next((x for x in self.todas() if x["cmc"] == key), None)
+        if m is None:
+            raise ValueError("moeda não está na lista")
+        cid = (cid or "").strip().lower()
+        if not re.fullmatch(r"[a-z0-9-]{1,100}", cid):
+            raise ValueError("id da CoinGecko inválido")
+        if not self.cgnames:
+            await self._cglist()
+        if cid not in self.cgnames:
+            raise ValueError("não achei essa moeda na CoinGecko")
+        outra = next((k for k, c in self.pick.items() if c == cid and k != key), None)
+        if outra:
+            raise ValueError("essa moeda da CoinGecko já está em outra linha da lista")
+        name, sym, plats, adr = self.cgnames[cid]
+        self.links[key] = cid
+        self.map[key] = [cid]
+        self.plat[cid], self.addr[cid] = list(plats), dict(adr)
+        hint = self._hints.get(cid) or {}
+        pool = None
+        if usar_pool and hint.get("pool") and time.time() - hint.get("t", 0) < 1800:
+            pool = self.gtpool[cid] = {"net": hint["net"], "pool": hint["pool"], "nome": hint.get("nome"), "t": time.time(),
+                                       "manual": True, "ch": hint["ch"], "contrato": hint["contrato"]}
+            self.chain.pop(cid, None)                # lê as negociações do pool novo na próxima volta
+            await self._put("gtpool", {"p": self.gtpool})
+        if key in self.pick and self.pick[key] != cid:
+            self.pick.pop(key, None)
+            self.status.pop(key, None)
+        await self._put("links", {"l": self.links})
+        await self._put_map()
+        await self._fetch_one(key, cid)
+        self.refresh_now()
+        return {"key": key, "id": cid, "nome": name, "simbolo": sym.upper(), "pool": pool}
+
+    async def clear_link(self, key: str) -> bool:
+        cid = self.links.pop(key, None)
+        if cid is None:
+            return False
+        mp = self.gtpool.get(cid) or {}
+        if mp.get("manual"):
+            self.gtpool.pop(cid, None)
+            await self._put("gtpool", {"p": self.gtpool})
+        self.pick.pop(key, None)
+        self.status.pop(key, None)
+        ex = next((e for e in self.extras if "cg:" + e["cg"] == key), None)
+        if ex:
+            self.map[key] = [ex["cg"]]
+        else:
+            self.map.pop(key, None)
+            self.map_t = 0.0                         # moeda da watchlist: a próxima volta casa pelo nome de novo
+        await self._put("links", {"l": self.links})
+        await self._put_map()
+        self.refresh_now()
+        return True
+
     # ------------------------------------------------------------------ banco
     async def _put(self, k: str, v: dict) -> None:
         if self.db is None:
@@ -628,6 +767,8 @@ class DormantWatch:
                         self.addr = dict(v.get("a") or {})
                     elif r.get("k") == "gtpool":
                         self.gtpool = dict(v.get("p") or {})
+                    elif r.get("k") == "links":
+                        self.links = {k: c for k, c in (v.get("l") or {}).items() if isinstance(c, str)}
                     elif r.get("k") == "chain":
                         self.chain = dict(v.get("c") or {})
                     elif r.get("k") == "pvol":
@@ -642,6 +783,7 @@ class DormantWatch:
                 log.warning("Dormant: estado guardado não carregou: %s", str(e)[:160])
         for e in self.extras:                        # 0.32.272: adicionada depois do último mapa salvo volta ao mapa
             self.map.setdefault("cg:" + e["cg"], [e["cg"]])
+        self.map.update({k: [c] for k, c in self.links.items()})
         if any(e["cg"] not in self.plat or e["cg"] not in self.addr for e in self.extras):
             self.map_t = 0.0                         # falta blockchain/contrato dela: refaz o mapa na 1ª volta (1 consulta à CoinGecko)
         self.loaded = True
@@ -756,6 +898,9 @@ class DormantWatch:
     # ------------------------------------------------------------------ últimas ações na blockchain (0.32.229)
     def target(self, cid: str) -> tuple[str, str, str] | None:
         """(blockchain da CoinGecko, rede da GeckoTerminal, contrato) da moeda; None = rede própria ou sem contrato."""
+        mp = self.gtpool.get(cid) or {}
+        if mp.get("manual") and mp.get("ch") and mp.get("contrato"):
+            return mp["ch"], mp["net"], mp["contrato"]
         ch = self.chain_of(cid)
         adr = self.addr.get(cid) or {}
         if not ch or ch == PROPRIA:
@@ -802,7 +947,7 @@ class DormantWatch:
         ch, net, adr = self.target(cid)
         old = self.chain.get(cid) or {}
         pool = self.gtpool.get(cid) or {}
-        if not pool or pool.get("net") != net or now - float(pool.get("t") or 0) > POOL_KEEP_S:
+        if not pool.get("manual") and (not pool or pool.get("net") != net or now - float(pool.get("t") or 0) > POOL_KEEP_S):
             r = await self.gt_get(f"/networks/{net}/tokens/{adr}/pools?page=1")
             ps = (r or {}).get("data") or []
             pool = {"net": net, "pool": ((ps[0].get("attributes") or {}).get("address") if ps else None), "t": now,
@@ -892,12 +1037,14 @@ class DormantWatch:
             st, why = self.status.get(m["cmc"]) or (("sem_cg", []) if self.stat["leitura_t"] and not cid else ("", []))
             if not row and m.get("morta_cmc"):
                 st = "morta"
-            ch = self.chain_of(cid)
             ex = m.get("extra") or {}
+            cid = cid or self.links.get(m["cmc"]) or ex.get("cg")     # 0.32.430: contrato, blockchain e DEX já antes do preço chegar
+            ch = self.chain_of(cid)
             it = {"cmc": m["cmc"], "nome": m["nome"], "simbolo": m.get("simbolo") or "", "status": st, "por": why,
                   "morta_cmc": bool(m.get("morta_cmc")), "cg": cid, "chain": ch, "chain_nome": chain_name(ch) if ch else None,
                   "chains": [chain_name(p) for p in (self.plat.get(cid) or [])[:6]], "cats": (self.info.get(cid) or {}).get("cats") or [],
                   "add_por": ex.get("por") or "watchlist da CoinMarketCap", "add_t": ex.get("t"), "extra": bool(ex),
+                  "par_manual": m["cmc"] in self.links, "pool_manual": bool((self.gtpool.get(cid) or {}).get("manual")),
                   "bc": self.chain.get(cid) if cid else None, "bc_alvo": bool(cid and self.target(cid)), "rede_propria": ch == PROPRIA,
                   "comprar": buyable(self, cid), **self.vols(cid, time.time())}
             if row:

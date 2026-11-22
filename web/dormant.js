@@ -390,6 +390,7 @@
       k("Volume 24 h", usd(m.vol), m.vol_x ? num(m.vol_x, 1) + "× o normal" : "") + k("Valor de mercado", usd(m.mcap)) +
       k("Máxima histórica", price(m.ath), (m.ath_t ? "em " + dia(m.ath_t) + " (há " + ago(m.ath_t) + ")<br>" : "") + (m.ath_pct != null ? pc(m.ath_pct) + " dela" : "")) +
       k("Mínima histórica", price(m.atl), (m.atl_t ? "em " + dia(m.atl_t) + " (há " + ago(m.atl_t) + ")<br>" : "") + (m.atl_pct != null ? pc(m.atl_pct) + " acima dela" : "")) + "</div>";
+    if (m.status === "sem_cg" || !m.cg) h += parCard(m, true);
     h += (m.por && m.por.length ? '<div class="decbox"><b>Por que está ' + esc((ST[m.status] || "").toLowerCase()) + ":</b> " + esc(m.por.join(" · ")) + "</div>" : "");
     const fonte = (r && r.grafico && r.grafico.fonte) || "CoinGecko";
     h += '<div class="card" style="margin-top:12px"><header><div><h2>Gráfico</h2><div class="sub">' + esc(fonte === "CoinGecko" ? "preço em dólar (CoinGecko)" : "preço em dólar do pool da DEX (" + fonte + "), porque a CoinGecko pediu para esperar") +
@@ -411,7 +412,9 @@
       "<p><b>Na lista desde:</b> " + (m.extra ? "adicionada por " + esc(m.add_por) + " em " + hora(m.add_t) : "watchlist da CoinMarketCap (05/11/2026)") + "</p>" +
       '<p class="dmlinks">' + (m.cg ? '<a href="https://www.coingecko.com/en/coins/' + esc(m.cg) + '" target="_blank" rel="noopener">CoinGecko</a>' : "") +
       (m.extra ? "" : '<a href="https://coinmarketcap.com/currencies/' + esc(m.cmc) + '/" target="_blank" rel="noopener">CoinMarketCap</a>') +
-      (r && r.pool && r.pool.pool ? '<a href="https://www.geckoterminal.com/' + esc(r.pool.net) + "/pools/" + esc(r.pool.pool) + '" target="_blank" rel="noopener">GeckoTerminal (pool)</a>' : "") + "</p></div></div>";
+      (r && r.pool && r.pool.pool ? '<a href="https://www.geckoterminal.com/' + esc(r.pool.net) + "/pools/" + esc(r.pool.pool) + '" target="_blank" rel="noopener">GeckoTerminal (pool)</a>' : "") + "</p>" +
+      (m.par_manual ? '<p><b>Par:</b> escolhido na mão' + (m.pool_manual ? " (com o pool da DEX)" : "") + ' <button type="button" class="btn sm" data-pardel="' + esc(m.cmc) + '">Voltar ao automático</button></p>' : "") +
+      (m.status === "sem_cg" || !m.cg ? "" : '<details class="parx"><summary>Par errado? Trocar o par</summary>' + parCard(m, false) + "</details>") + "</div></div>";
     setTimeout(() => {
       const L = (n && n.lista) || [];
       table("cmTr", ["Quando", "Ação", "Valor", "Carteira", "Transação"], L.map((x) => [V(hora(x.t) + ' <small class="muted">há ' + ago(x.t) + "</small>", x.t),
@@ -420,6 +423,27 @@
         x.tx && EXPL[n.net] ? '<a href="' + EXPL[n.net] + esc(x.tx) + '" target="_blank" rel="noopener">ver</a>' : "—"]), r ? "Sem negociações para mostrar." : "carregando…");
     }, 0);
     return h;
+  }
+  // 0.32.430 (pedido do dono, caso ASTEROID): dar o par na mão. Cola o link da CoinGecko, o link da DEX (Jupiter, DexScreener, GeckoTerminal,
+  // pump.fun…) ou o contrato; o servidor acha a moeda na CoinGecko e, se o link era de um pool, usa aquele pool para o gráfico e as negociações.
+  function parCard(m, big) {
+    return '<div class="' + (big ? "card parcard" : "parcard") + '"' + (big ? ' style="margin-top:12px"' : "") + ">" + (big ? "<header><div><h2>Adicionar o par</h2><div class=\"sub\">esta moeda está sem par: cole o link dela na CoinGecko, o link da DEX (Jupiter, DexScreener, GeckoTerminal, pump.fun…) ou o contrato do token</div></div></header>" : '<div class="sub" style="margin:6px 0">cole o link da CoinGecko, o link da DEX (Jupiter, DexScreener, GeckoTerminal…) ou o contrato</div>') +
+      '<div class="row" style="gap:8px;flex-wrap:wrap"><input class="in" id="parQ" type="search" placeholder="https://www.coingecko.com/... ou https://dexscreener.com/... ou o contrato" style="flex:1 1 240px;min-width:0"><button type="button" class="btn primary" data-parsearch="' + esc(m.cmc) + '">Procurar</button></div>' +
+      '<div class="dmres" id="parR"></div></div>';
+  }
+  async function parSearch(key) {
+    const q = ($("parQ") && $("parQ").value || "").trim(), box = $("parR"); if (!q || !box) return;
+    box.innerHTML = '<span class="muted">procurando…</span>';
+    const r = await BB.api("/api/dormant/buscar?q=" + encodeURIComponent(q), { quiet: true });
+    if (r && r.error) { box.innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
+    const L = (r && r.itens) || [];
+    box.innerHTML = L.length ? L.map((x) => '<div class="r">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" width="22" height="22" style="border-radius:50%">' : "") +
+      "<div><b>" + esc(x.nome) + '</b> <small class="muted">' + esc(x.simbolo) + "</small>" + (x.achado_por_contrato ? ' <span class="tag neutral">achada pelo contrato</span>' : "") +
+      '<div class="dmcats">' + (x.blockchains || []).map((b) => chainTag(b)).join(" ") + "</div>" +
+      (x.pool ? '<label class="sub" style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="checkbox" data-parpool="' + esc(x.id) + '" checked> usar o pool do link: ' + esc(x.pool.nome || "") + " · " + esc(x.pool.rede || "") + "</label>" : "") + "</div>" +
+      '<span class="sp"></span><small class="muted">' + price(x.preco) + " · " + usd(x.mcap) + "</small>" +
+      '<button type="button" class="btn sm primary" data-paruse="' + esc(x.id) + '" data-parkey="' + esc(key) + '">Usar este</button></div>').join("")
+      : '<span class="muted">Nada encontrado. A moeda precisa estar na CoinGecko: confira o link ou cole o contrato do token (não o da outra moeda do par, como SOL ou USDC).</span>';
   }
   // 0.32.405 (pedido do dono): 3 meses, 1 ano e tudo vêm de outra consulta, feita só quando clica (o resultado fica guardado enquanto a janela está aberta)
   async function longChart(key, rng) {
@@ -1485,6 +1509,7 @@
         (/^0x[0-9a-f]{40}$/i.test(q) || q.length >= 26 ? " Se você colou um contrato: só aparecem moedas que a CoinGecko já lista com esse endereço." : "") + "</span>";
   }
   document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target && e.target.id === "addQ") { e.preventDefault(); addSearch(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target && e.target.id === "parQ") { e.preventDefault(); const b = document.querySelector("[data-parsearch]"); if (b) parSearch(b.dataset.parsearch); } });
   document.addEventListener("keydown", (e) => { const k = e.target && e.target.closest && e.target.closest("[data-cpk]"); if (k && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCpKpi(k.dataset.cpk); } });
   document.addEventListener("click", async (e) => {
     const fv = e.target.closest && e.target.closest("[data-dmfav]");
@@ -1689,6 +1714,21 @@
     if (t.dataset.cmr) { if (CM) { CM.rng = +t.dataset.cmr; dexEmbed("cg"); drawCoinChart(); } return; }
     if (t.dataset.cms) { dexEmbed(t.dataset.cms); return; }
     if (t.id === "addGo") { addSearch(); return; }
+    if (t.dataset.parsearch) { parSearch(t.dataset.parsearch); return; }
+    if (t.dataset.paruse) {
+      t.disabled = true;
+      const pb = document.querySelector('[data-parpool="' + CSS.escape(t.dataset.paruse) + '"]');
+      const r = await BB.api("/api/dormant/par", { body: { key: t.dataset.parkey, id: t.dataset.paruse, pool: !!(pb && pb.checked) } });
+      if (r && r.error) { t.disabled = false; alert(r.error); return; }
+      t.outerHTML = '<span class="tag win">par salvo</span>';
+      await load(); openCoin(t.dataset.parkey); return;
+    }
+    if (t.dataset.pardel) {
+      if (!confirm("Tirar o par escolhido na mão? A moeda volta a ser casada sozinha pelo nome.")) return;
+      const k = t.dataset.pardel, r = await BB.api("/api/dormant/par/remover", { body: { key: k } });
+      if (r && r.error) { alert(r.error); return; }
+      await load(); openCoin(k); return;
+    }
     if (t.dataset.alt) { AL = t.dataset.alt; alSave("dm_alt", AL); alTabs(); return; }
     if (t.dataset.eco) { ECO.st = "alerta"; ecoLoad(t.dataset.eco); return; }
     if (t.dataset.ecost != null) { ECO.st = t.dataset.ecost; ecoDraw(); return; }

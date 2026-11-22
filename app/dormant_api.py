@@ -104,6 +104,32 @@ def add_routes(app, get_watch, admin_only, db, hub=None) -> None:
         await audit(db, u["id"], "Dormant: moeda adicionada", f"{e['nome']} ({e['cg']})")
         return {"ok": True, "moeda": e}
 
+    # 0.32.430 (pedido do dono, caso ASTEROID): moeda "sem par" (ou casada com a moeda errada) recebe o par na mão: o link da CoinGecko,
+    # o link da DEX ou o contrato passam pela mesma busca; aqui só chega o id escolhido. O pool vem da dica que o servidor guardou na busca.
+    @app.post("/api/dormant/par")
+    async def dormant_pair(body: dict, u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        b = body or {}
+        try:
+            r = await w.set_link(str(b.get("key") or "")[:200], str(b.get("id") or ""), bool(b.get("pool")))
+        except (ValueError, RuntimeError) as ex:
+            return {"error": str(ex)}
+        await audit(db, u["id"], "Dormant: par escolhido", f"{r['key']} → {r['id']}" + (f" (pool {r['pool']['pool']})" if r.get("pool") else ""))
+        return {"ok": True, **r}
+
+    @app.post("/api/dormant/par/remover")
+    async def dormant_pair_del(body: dict, u: dict = Depends(admin_only)):
+        w = get_watch()
+        if w is None:
+            return {"error": "Dormant desligado no servidor"}
+        key = str((body or {}).get("key") or "")[:200]
+        if not await w.clear_link(key):
+            return {"error": "essa moeda não tem par escolhido na mão"}
+        await audit(db, u["id"], "Dormant: par escolhido removido", key)
+        return {"ok": True}
+
     @app.post("/api/dormant/remover")
     async def dormant_remove(body: dict, u: dict = Depends(admin_only)):
         w = get_watch()
