@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-11-22",
+    "generated_date": "2026-11-23",
     "timezone": "Europe/Dublin",
-    "repository_reference": "b8c5ec1f2696fb7d097b596a245afc6fc3a1f558",
-    "application_version": "0.32.437 · 2026-11-22 · Dormant: adicionar o par de uma moeda sem par",
+    "repository_reference": "79b437b99a873276fb84d68ef193084594fd9a8c",
+    "application_version": "0.32.438 · 2026-11-23 · Dormant: venda mostra o total que volta (investido + lucro)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "19c0177de0a22f896b1781c467dc061bb2bcd94ae3d2f868a3fd4f00dee047c6",
+      "app/version.py": "9b0d1925cadf763e37a260e770e05b76dbd8ba881957eaf84422b9e302c1e352",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "c36a9c33f4daa42a3423fd0387126a3b2bb1a182118d776e27694058b9324b3d"
+  "pdf_sha256": "8e6ecffb27dd5fa737a64ac9d59c5325479449b922caf735f94298e922043300"
 }

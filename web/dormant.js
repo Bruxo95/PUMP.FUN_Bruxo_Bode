@@ -1023,14 +1023,28 @@
       const sgN = (v) => (v == null ? "" : '<span class="' + cls(v) + '">' + (v < 0 ? "-" : "+") + num(Math.abs(v), 8) + " " + M + "</span>");
       const parte = qty && Number(r.vende) < qty * 0.999;
       const ok = total == null || total >= 0;
-      h = '<div class="' + (ok ? "buyok" : "buywarn") + ' sellres"><b>' + (r.falta ? "Vendendo o que falta do investido (" + num(r.pct, 2) + "% do saldo)" : r.investido ? "Vendendo só o investido" : "Vendendo " + num(r.pct, 0) + "% do saldo") +
+      // 0.32.438 (pedido do dono): o total que volta, separado em investido + lucro, nesta venda e somando a compra toda
+      const usd = (v) => (v == null ? "—" : "<b>$" + num(v, 2) + "</b>");
+      const sellSum = () => {
+        if (r.usd == null) return "";
+        const net = r.usd - gV, netN = un ? Number(r.recebe) - gV / un : null, voltaB = base != null ? Math.min(base, Math.max(0, net)) : null;
+        let s = '<div class="srsum"><span>Nesta venda entra na carteira ' + usd(net) + (netN != null ? " (" + num(netN, 8) + " " + M + ")" : "") + ", já sem o gás desta venda" +
+          (base != null ? ": " + usd(voltaB) + " do que você investiu" + (ganho != null ? (ganho >= 0 ? " e " + sg(ganho) + " de lucro" : " · faltam " + usd(-ganho) + " para empatar") : "") : "") + "</span>";
+        if (custo && ficaU != null && total != null) {
+          const tudo = antes + net + ficaU;
+          s += "<span>Somando a compra toda: " + usd(tudo) + " = " + usd(custo) + " investido (com o gás da compra) e " + sg(total) + (total >= 0 ? " de lucro" : " de prejuízo") +
+            '<small class="muted">' + (antes ? "já voltou antes $" + num(antes, 2) + " + " : "") + "esta venda $" + num(net, 2) + " + fica na carteira $" + num(ficaU, 2) + "</small></span>";
+        }
+        return s + "</div>";
+      };
+      h ='<div class="' + (ok ? "buyok" : "buywarn") + ' sellres"><b>' + (r.falta ? "Vendendo o que falta do investido (" + num(r.pct, 2) + "% do saldo)" : r.investido ? "Vendendo só o investido" : "Vendendo " + num(r.pct, 0) + "% do saldo") +
         (total == null ? "" : total >= 0 ? " · dá lucro" : " · dá prejuízo") + '</b><div class="srg">' +
         '<div><small>' + (r.investido ? "Recupera o investido" : "Recebe") + "</small><b>" + num(r.recebe, 8) + " " + esc(r.moeda_rede) + "</b><span>" + (r.usd != null ? "$" + num(r.usd, 2) : "") + "</span></div>" +
         "<div><small>Você investiu" + (parte ? " nesta parte" : "") + "</small><b>" + (base == null ? "—" : "$" + num(base, 2)) + "</b><span>" + (baseN != null ? num(baseN, 8) + " " + M : "") +
           (parte && custo ? " · a compra toda: $" + num(custo, 2) + (invN != null ? " = " + num(invN, 8) + " " + M : "") : " · com o gás da compra") + "</span></div>" +
         "<div><small>Ganho nesta venda</small>" + sg(ganho) + "<span>" + sgN(ganhoN) + (ganho != null && base ? (ganhoN != null ? " · " : "") + pc((r.usd - gV) / base * 100 - 100) + " sobre o que pagou" : "") + "</span></div>" +
         '<div><small>Fica na carteira</small><b>' + qtd(fica) + " " + esc(r.moeda.simbolo) + "</b><span>" + (r.saldo ? num(fica / r.saldo * 100, 2) + "% do saldo" : "") + (ficaU != null ? " · vale $" + num(ficaU, 2) : "") + "</span></div>" +
-        '</div><div class="srt"><span>Taxas: gás da compra <b>$' + num(gC, 4) + "</b> + gás desta venda <b>$" + num(gV, 4) + "</b> = <b>$" + num(gC + gV, 4) + "</b></span>" +
+        '</div>' + sellSum() + '<div class="srt"><span>Taxas: gás da compra <b>$' + num(gC, 4) + "</b> + gás desta venda <b>$" + num(gV, 4) + "</b> = <b>$" + num(gC + gV, 4) + "</b></span>" +
         "<span>Resultado da compra, já sem as taxas: " + sg(total) + (total != null && un ? " (" + sgN(total / un) + ")" : "") + (total != null && custo ? " " + pc(total / custo * 100) : "") + "</span></div>" +
         '<small class="muted">resultado = ' + (antes ? "o que já recebeu antes + " : "") + 'esta venda + o que fica − o investido (com o gás da compra) · o que fica vale o preço desta cotação; sobe e desce com a moeda</small></div>' + h;
     }
