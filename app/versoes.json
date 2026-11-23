@@ -2945,6 +2945,11 @@
    "versao": "0.32.437",
    "inicio": "2026-11-22T23:38:56+00:00",
    "titulo": "Dormant: adicionar o par de uma moeda sem par"
+  },
+  {
+   "versao": "0.32.438",
+   "inicio": "2026-11-23T16:14:55+00:00",
+   "titulo": "Dormant: venda mostra o total que volta (investido + lucro)"
   }
  ]
 }
