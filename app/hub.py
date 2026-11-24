@@ -1910,6 +1910,17 @@ class PumpHub:
                 r = pf.manual_buy(m, t=now, auto=auto, origem="boostmig", target=target, amt_sol=amt, pos_rules=rules)
                 sim, rr = str(r.get("sim") or ""), str(r.get("real") or "")
                 later = False
+                if real and (leg == "real" or not own) and not rr.startswith("enviando") and not r.get("error"):
+                    # 0.32.442 (dono, BRUISER 24/11: "liguei a REAL e só comprou na fictícia"): a REAL não ser enviada era silencioso
+                    # (ex.: Execução real desligada). Agora vai para o Feed e para o sino, com o motivo.
+                    why_r = rr or "a REAL não foi pedida"
+                    sym_r = ((getattr(pf, "tokens", None) or {}).get(m) or {}).get("symbol") or m[:6]
+                    try:
+                        pf._feed(wallet="manual", short="automático", mint=m, symbol=sym_r, kind="buy", action="REAL não copiou",
+                                 reason="BOOST da migração: " + why_r)
+                        pf._emit(f"[PUMP REAL] BOOST não comprou {sym_r} na REAL: {why_r}")
+                    except Exception:
+                        pass
                 if real and not own:
                     # 0.32.400 (pedido do dono: "a real tem que entrar primeiro"): a REAL compra primeiro; a fictícia entra quando
                     # a REAL terminar (com a mesma entrada dela). Se a REAL nem foi enviada, a fictícia entra agora.

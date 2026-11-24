@@ -1451,8 +1451,23 @@
       " · " + S.hora + " de " + S.max_h + " na última hora · " + (S.chamadas || 0) + " pedidos desde que o servidor subiu" + (S.rodando ? " · analisando agora" : "") + (S.pendentes ? " · " + S.pendentes + " carteira(s) na fila" : "") + (S.ritmo_s ? " · 1 pedido a cada " + f(S.ritmo_s, 2) + " s" : "") +
       (S.ultimo ? " · último: " + esc(S.ultimo.symbol || S.ultimo.mint.slice(0, 6)) + " (" + esc(S.ultimo.nivel) + ")" : "") + (S.ultimo_erro ? ' · <span class="down">erro: ' + esc(S.ultimo_erro) + "</span>" : "");
   }
+  // 0.32.442 (dono, BRUISER 24/11): "Também na REAL" ligado sem a Execução real ligada (ou sem carteira) não compra nada na REAL
+  function bmRealWarn() {
+    const el = $("bmRealW"); if (!el) return;
+    const c = cfg() || {}, R = (D && D.real) || {}, why = !c.pump_bm_real ? "" : !R.wallet_configured ? "a carteira REAL não está configurada"
+      : !c.pump_real_enabled ? "a Execução real (chave geral da carteira REAL) está desligada" : !c.pump_bm_on ? "\"Entrar sozinho (FICTÍCIA)\" está desligado: o BOOST só decide entrar com ele ligado" : "";
+    el.hidden = !why;
+    if (why) el.innerHTML = '<div class="cmpbar bmrw"><span>⛔ <b>"Também na REAL" está ligado, mas nada vai comprar na REAL</b>: ' + why + '. As entradas do BOOST ficam só na FICTÍCIA.</span>' +
+      (/Execução|carteira/.test(why) ? '<a class="btn sm primary" href="#carteiras" data-gowal="real">Abrir Carteiras → REAL</a>' : "") + "</div>";
+  }
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("[data-gowal]"); if (!a) return;
+    e.preventDefault(); WALT = a.dataset.gowal; try { localStorage.setItem("pf_walt", WALT); } catch (er) { /* */ }
+    if (location.hash !== "#carteiras") location.hash = "#carteiras"; else walTab(WALT);
+  });
   function renderBm() {
     const r = BM; if (!r) return;
+    bmRealWarn();
     renderBmSySt();
     renderBmQ(r);
     const R = r.resumo || {}, ex = Number((cfg() || {}).pump_bm_exit_pct || 80);

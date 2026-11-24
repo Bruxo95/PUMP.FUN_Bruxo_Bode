@@ -638,3 +638,20 @@ def test_card_da_posicao_recebe_os_dados_do_boost(env):
     snap = c.get("/api/pump", headers=A).json()
     sp = [x for x in snap["positions"] if x["id"] == "bp1"][0]
     assert sp["bm"]["buys_m5"] == 400 and sp["sinal_now"]["pos_s"] == 10 and sp["sinal_now"]["agora"] == "negativo"
+
+
+def test_real_desligada_avisa_no_feed(tmp_path):
+    """0.32.442 (dono, BRUISER 24/11): "Também na REAL" ligado com a Execução real desligada comprava só na fictícia sem avisar."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_real=True)).items():
+        setattr(pf.cfg, k, v)
+    pf.cfg.pump_real_enabled = False
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    b = pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    assert b["users"]["u1"]["estado"] == "entrou"                     # a fictícia entra
+    feed = pf.store.feed_items()
+    assert any(f.get("action") == "REAL não copiou" and "execução real desligada" in f.get("reason", "") for f in feed)
