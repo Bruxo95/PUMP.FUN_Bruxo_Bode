@@ -1600,6 +1600,9 @@
     r.keys = Object.keys(V); r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), V[k]));
     return r;
   }
+  const bmcSig = (r) => r.user_id + "|" + r.dif.slice().sort().map((k) => k + "=" + JSON.stringify(cfgNow(k)) + ">" + JSON.stringify((r.valores || {})[k])).join(",");
+  const bmcSkip = () => { try { return localStorage.getItem("pf_bmc_skip") || ""; } catch (e) { return ""; } };
+  function bmcSkipSet(v) { try { if (v) localStorage.setItem("pf_bmc_skip", v); else localStorage.removeItem("pf_bmc_skip"); } catch (e) { /* */ } }
   async function bmcBar(force) {
     const box = $("bmCmp"); if (!box) return;
     if (!ME || ME.role !== "admin" || ME.view_by) { box.hidden = true; return; }
@@ -1612,13 +1615,22 @@
     const r = BMC.r, u = bmcUndo();
     if (r && !r.error) r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), (r.valores || {})[k]));   // sua config pode ter mudado na tela
     const undo = u && u.vals && Object.keys(u.vals).length ? "<small>Última cópia: de " + esc(u.de || "?") + " em " + dt(u.t) + " · " + Object.keys(u.vals).length + ' opções · <a href="#boost" data-bmc="changed">ver o que mudou</a> · <a href="#boost" data-bmc="undo">reverter</a></small>' : "";
+    // 0.32.442 (pedido do dono): Descartar = manter a sua configuração, sem copiar nada. O aviso some até as diferenças mudarem
+    // (outra pessoa, outra opção ou outro valor, de qualquer lado); fica só uma linha discreta com "mostrar de novo".
+    const sig = r && !r.error && r.dif.length ? bmcSig(r) : "";
+    if (sig && bmcSkip() === sig) {
+      box.innerHTML = '<div class="cmpbar bmcmp-bar skip"><span class="muted small">Você manteve a sua configuração do BOOST (descartou ' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + " da de " + esc(r.nome) + "). " + undo + "</span>" +
+        '<button type="button" class="btn sm" data-bmc="unskip">Mostrar de novo</button></div>';
+      return;
+    }
     let msg, ok = false;
     if (!r) msg = '<span class="muted">Nenhum outro usuário para comparar.</span>';
     else if (r.error) msg = '<span class="down">' + esc(r.error) + "</span>";
     else if (!r.dif.length) { ok = true; msg = '<span class="ok">✓ Você está usando a configuração do BOOST <b>idêntica</b> à de <b>' + esc(r.nome) + '</b></span> <span class="muted small">(' + r.keys.length + " opções conferidas)</span>"; }
     else msg = '<span class="dif">⚠ Sua configuração do BOOST tem <b>' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + "</b> da de <b>" + esc(r.nome) + '</b></span> <span class="muted small">(' + (r.keys.length - r.dif.length) + " iguais)</span>";
     box.innerHTML = '<div class="cmpbar bmcmp-bar' + (ok ? " ok" : "") + '"><span>' + msg + undo + "</span>" +
-      (r && !r.error && r.dif.length ? '<button type="button" class="btn sm" data-bmc="see">Ver diferenças</button>' : "") +
+      (r && !r.error && r.dif.length ? '<button type="button" class="btn sm" data-bmc="see">Ver diferenças</button>' +
+        '<button type="button" class="btn sm" data-bmc="skip" title="Mantém a sua configuração como está, sem copiar nada">Descartar</button>' : "") +
       '<button type="button" class="btn sm primary" data-bmc="open">Copiar tela BOOST</button></div>';
   }
   function bmcTable(keys, a, b, ha, hb) {
@@ -1642,7 +1654,7 @@
     $("bmcR").innerHTML = !r.dif.length ? '<div class="abcmp-ok">✓ Sua configuração do BOOST já é idêntica à de <b>' + nm + "</b> (" + r.keys.length + " opções).</div>"
       : '<div class="decbox">À esquerda o que <b>você</b> usa hoje; à direita o de <b>' + nm + "</b>. Salvando, " + r.dif.length + " opç" + (r.dif.length > 1 ? "ões mudam" : "ão muda") + " e o resto fica igual. Dá para reverter depois (no topo do BOOST e em Carteiras → Histórico de config). Não copia: ligar a REAL do BOOST e as opções que valem para o servidor todo.</div>" +
         bmcTable(r.dif, cfgNow, (k) => V[k], "O seu (agora)", "O de " + nm) +
-        '<p class="cxm-act"><button class="btn primary" data-bmc="save">Salvar: copiar a tela BOOST de ' + nm + '</button> <button class="btn" data-bmc="cancel">Cancelar</button></p>';
+        '<p class="cxm-act"><button class="btn primary" data-bmc="save">Salvar: copiar a tela BOOST de ' + nm + '</button> <button class="btn" data-bmc="skipm" title="Mantém a sua configuração como está, sem copiar nada">Descartar · manter a minha</button> <button class="btn" data-bmc="cancel">Cancelar</button></p>';
   }
   async function bmcSave() {
     const r = BMC.cand; if (!r || r.error || !r.dif.length) return;
@@ -1702,6 +1714,14 @@
     else if (a === "undo") bmcAskUndo();
     else if (a === "undogo") bmcUndoGo();
     else if (a === "cancel") { $("cfgDiff").hidden = true; BMC.view = null; bmcBar(true); }
+    else if (a === "skip" || a === "skipm") {
+      const r = a === "skipm" ? BMC.cand : BMC.r;
+      if (r && !r.error && r.dif.length) bmcSkipSet(bmcSig(r));
+      $("cfgDiff").hidden = true; BMC.view = null;
+      toast("Descartado: a sua configuração do BOOST ficou como estava.");
+      bmcBar();
+    }
+    else if (a === "unskip") { bmcSkipSet(""); bmcBar(); }
   });
   // 0.32.441 (pedido do dono): ao ligar "Também na REAL" do BOOST, a confirmação mostra com quanto a pessoa comparada (o
   // Bruxo) entra na REAL e deixa escolher: o mesmo valor ou outro. O valor vai para a opção que manda na REAL da sua conta:
