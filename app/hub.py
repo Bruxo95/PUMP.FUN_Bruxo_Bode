@@ -3843,6 +3843,13 @@ class PumpHub:
         pf.keys.set(name, value)
         self._wire_wallet(pf)
         await audit(self.db, pf.user_id, "salvar chave", name)
+        if name == "solanatracker_api_key" and (antes or "") != value:
+            # 0.32.439 (dono, 24/11: trocou a chave e o Status seguia "créditos do mês acabaram"): o erro era da chave antiga e
+            # só sumia na próxima volta do ranking. Agora a chave nova é testada na hora (uma consulta do ranking).
+            pf.lb_status.update(error=None)
+            pf._lb_at = 0.0
+            if pf.http is not None:
+                asyncio.ensure_future(pf.refresh_leaderboard(force=True))
 
     async def remove_secret(self, pf: PumpFun, name: str) -> None:
         await self.vault.delete(pf.user_id, name)

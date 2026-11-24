@@ -2950,6 +2950,11 @@
    "versao": "0.32.438",
    "inicio": "2026-11-23T16:14:55+00:00",
    "titulo": "Dormant: venda mostra o total que volta (investido + lucro)"
+  },
+  {
+   "versao": "0.32.439",
+   "inicio": "2026-11-24T06:00:00+00:00",
+   "titulo": "Solana Tracker: chave trocada é testada na hora e o Status deixa de mostrar o erro da chave antiga"
   }
  ]
 }
