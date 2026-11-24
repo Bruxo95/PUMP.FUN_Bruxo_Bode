@@ -1132,10 +1132,7 @@ label.chgrp{cursor:pointer}
 .bmc-user{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:inherit;cursor:pointer;min-width:0}
 .bmc-user b{overflow-wrap:anywhere}.bmc-user small{color:var(--muted);overflow-wrap:anywhere}.bmc-user.on{border-color:var(--accent,#7c3aed);box-shadow:0 0 0 1px var(--accent,#7c3aed) inset}
 .bmrq{margin:10px 0}.bmrq-opts{display:flex;flex-direction:column;gap:10px;margin:8px 0}.bmrq-opts label{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.bmrq-opts input.in{width:110px;height:32px}
-<<<<<<< Updated upstream
 
 /* 0.32.442: aviso do BOOST descartado (manteve a própria configuração) */
 .bmcmp-bar.skip{border-style:dashed;background:transparent}
-=======
 .bmrealw{margin:6px 0 0}.bmrw{border-color:#ef4444!important;background:rgba(239,68,68,.1)!important;color:#fca5a5}
->>>>>>> Stashed changes
