@@ -44,6 +44,9 @@ CFG_KEYS["pump_bm_alchemy_backup"] = ("ALCHEMY_BACKUP", 1.0)
 ALCHEMY_BACKUP = 1.0                # 0.32.384: Alchemy como reserva da leitura do DEV e da trava quando o RPC do sistema não responde
 DEV_WAIT_S = 30.0                   # 0.32.384: sem DEV lido depois disso, segue sem o filtro de DEV scam (antes esperava para sempre)
 SYBIL_WAIT_S = 12.0                 # 0.32.445: espera da análise das carteiras antes de entrar (era 25 s); depois entra sem ela
+NAME_WAIT_S = 30.0                  # 0.32.446: sem nome depois disso, segue sem conferir nome repetido (antes esperava para sempre)
+NAMES_MAX = 30000                   # 0.32.446: nomes guardados da criação (PumpPortal)
+META_PROG = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"   # Metaplex Token Metadata
 SAFETY_WAIT_S = 45.0                # 0.32.384: sem trava lida depois disso, vale como "não deu para conferir"
 
 
@@ -340,6 +343,49 @@ def hist_study(rows: list[dict]) -> dict:
     return out
 
 
+
+def _borsh_str(raw: bytes, i: int) -> tuple[str, int]:
+    n = int.from_bytes(raw[i:i + 4], "little")
+    if n > 200 or i + 4 + n > len(raw):
+        raise ValueError("texto inválido")
+    return raw[i + 4:i + 4 + n].decode("utf-8", "replace").replace("\x00", "").strip(), i + 4 + n
+
+
+def name_from_metaplex(raw: bytes) -> tuple[str, str] | None:
+    """Conta de metadados da Metaplex: chave(1) + autoridade(32) + mint(32) + nome + símbolo (texto borsh)."""
+    if len(raw) < 69 or raw[0] != 4:
+        return None
+    name, i = _borsh_str(raw, 65)
+    sym, _ = _borsh_str(raw, i)
+    return (sym, name) if (sym or name) else None
+
+
+def name_from_mint(raw: bytes) -> tuple[str, str] | None:
+    """Conta do token no Token-2022 com a extensão TokenMetadata (tipo 19): autoridade(32) + mint(32) + nome + símbolo."""
+    if len(raw) <= 166 or raw[165] != 1:
+        return None
+    i = 166
+    while i + 4 <= len(raw):
+        typ, ln = int.from_bytes(raw[i:i + 2], "little"), int.from_bytes(raw[i + 2:i + 4], "little")
+        d = raw[i + 4:i + 4 + ln]
+        if typ == 19 and len(d) >= 72:
+            name, j = _borsh_str(d, 64)
+            sym, _ = _borsh_str(d, j)
+            return (sym, name) if (sym or name) else None
+        if typ == 0 and ln == 0:
+            break
+        i += 4 + ln
+    return None
+
+
+def meta_pda(mint: str) -> str | None:
+    try:
+        from solders.pubkey import Pubkey
+        prog = Pubkey.from_string(META_PROG)
+        return str(Pubkey.find_program_address([b"metadata", bytes(prog), bytes(Pubkey.from_string(mint))], prog)[0])
+    except Exception:
+        return None
+
 class BoostMig:
     def __init__(self, svc=None, clock=time.time):
         self.svc = svc                         # PumpFun de serviço do monitor (tokens, RPC, DexScreener e cotação compartilhados)
@@ -355,6 +401,7 @@ class BoostMig:
         # 0.32.432: tokens novos (curva) — o hub põe aqui o que vale (menor volume e maior idade entre os admins que ligaram)
         self.cands: dict[str, dict] = {}
         self.q = {"novos": True, "ativo": True, "migrou": True}   # 0.32.435: consultas por grupo (Configurações → Consultas)
+        self.names: dict[str, tuple] = {}       # 0.32.446: (símbolo, nome) de cada token criado visto na PumpPortal
         self.born: dict[str, float] = {}        # 0.32.433: hora da criação de cada token visto na PumpPortal (idade nas migrações)
         self.novo_cfg = {"on": False, "vol": 2000.0, "age_s": 120.0}
         self.st.update({"novos_vistos": 0, "novos_consultas": 0, "novos_sem_dados": 0, "novos_entraram_lista": 0})
@@ -376,8 +423,12 @@ class BoostMig:
                 return None
             return self._novo_migrou(old, ev, t)
         tk = self.tokens.get(mint) or {}
+        nm = self.names.get(mint) or ("", "")
         b = {"mint": mint, "t0": t, "pool": ev.get("pool"), "signature": ev.get("signature"), "status": "BOOST ativo",
-             "symbol": tk.get("symbol") or ev.get("symbol"), "name": tk.get("name") or ev.get("name"), "users": {}}
+             "symbol": tk.get("symbol") or ev.get("symbol") or nm[0] or None, "name": tk.get("name") or ev.get("name") or nm[1] or None,
+             "users": {}}
+        if b["symbol"] or b["name"]:
+            b["name_src"], b["name_s"] = ("criação (PumpPortal)" if nm[0] or nm[1] else "mercado"), 0.0
         self.items[mint] = b
         if self.svc is not None:
             tkm = self.svc.tokens.setdefault(mint, {"created_t": t})
@@ -420,6 +471,11 @@ class BoostMig:
                 for k in list(self.born)[:2000]:
                     self.born.pop(k, None)
             self.born.setdefault(m, t or self.clock())
+            if ev.get("symbol") or ev.get("name"):          # 0.32.446: nome guardado já na criação (a migração não traz)
+                if len(self.names) >= NAMES_MAX:
+                    for k in list(self.names)[:3000]:
+                        self.names.pop(k, None)
+                self.names[m] = (str(ev.get("symbol") or "")[:40], str(ev.get("name") or "")[:80])
         if not self.novo_cfg.get("on"):
             return
         if not m or m in self.items or m in self.cands:
@@ -619,7 +675,7 @@ class BoostMig:
             self.items.pop(m, None)
         if self.svc is None:
             return
-        for fn in (self._novos, self._creators, self._track, self._safety, self._samples):
+        for fn in (self._names, self._novos, self._creators, self._track, self._safety, self._samples):
             try:
                 await fn(now)
             except Exception as e:
@@ -674,6 +730,67 @@ class BoostMig:
                 self.st["reserva"] = self.st.get("reserva", 0) + 1
                 return vals
         return await self.svc._rpc_multi(keys, enc, True)
+
+    async def _names(self, now: float) -> None:
+        """0.32.446 (pedido do dono: o nome levava do começo ao 23% do BOOST para chegar). Rota mais rápida, na ordem:
+        1) o que já está na memória: criação vista na PumpPortal, Base da pump.fun (lab) e DexScreener;
+        2) a própria blockchain, numa consulta só para todos os tokens sem nome: a conta do token (Token-2022 guarda o nome dentro
+           dela) e a conta de metadados da Metaplex (tokens antigos). Antes só vinha da DexScreener, lida de tempos em tempos."""
+        need = [m for m, b in self.items.items() if not (b.get("symbol") or b.get("name")) and now - b["t0"] < 3600]
+        if not need:
+            return
+        lab = getattr(self, "lab", None)
+        falta = []
+        for m in need:
+            b, tk = self.items[m], self.tokens.get(m) or {}
+            nm = self.names.get(m)
+            src = None
+            if nm and (nm[0] or nm[1]):
+                b["symbol"], b["name"], src = nm[0] or None, nm[1] or None, "criação (PumpPortal)"
+            elif tk.get("symbol") or tk.get("name"):
+                b["symbol"], b["name"], src = tk.get("symbol"), tk.get("name"), "DexScreener"
+            else:
+                r = None
+                if lab is not None:
+                    r = (getattr(lab, "live", {}) or {}).get(m)
+                if r and (r.get("symbol") or r.get("name")):
+                    b["symbol"], b["name"], src = r.get("symbol") or None, r.get("name") or None, "Base da pump.fun"
+            if src:
+                b["name_src"], b["name_s"] = src, round(now - b["t0"], 1)
+                self.dirty.add(m)
+            elif b.get("name_tries", 0) < 6 and now - b.get("name_at", 0) >= 2:
+                falta.append(m)
+        if not falta:
+            return
+        falta = falta[:50]
+        metas = {m: meta_pda(m) for m in falta}
+        keys = falta + [v for v in metas.values() if v]
+        for m in falta:
+            self.items[m]["name_at"] = now
+        vals = await self._rpc(keys, "base64")
+        if vals is None:
+            self.st["rpc_falhou"] += 1
+            return
+        by = dict(zip(keys, vals))
+        for m in falta:
+            b = self.items[m]
+            b["name_tries"] = b.get("name_tries", 0) + 1
+            got = None
+            for k, fn in ((m, name_from_mint), (metas.get(m), name_from_metaplex)):
+                acc = by.get(k) if k else None
+                if acc and not got:
+                    try:
+                        got = fn(base64.b64decode(acc["data"][0]))
+                    except Exception:
+                        got = None
+            if got and (got[0] or got[1]):
+                b["symbol"], b["name"] = got[0] or None, got[1] or None
+                b["name_src"], b["name_s"] = "blockchain", round(now - b["t0"], 1)
+                tk = self.tokens.get(m)
+                if tk is not None:
+                    tk.setdefault("symbol", b["symbol"])
+                    tk.setdefault("name", b["name"])
+                self.dirty.add(m)
 
     async def _creators(self, now: float) -> None:
         need = [m for m, b in self.items.items() if not b.get("creator") and b.get("creator_tries", 0) < 3 and now - b["t0"] < 3600
@@ -815,7 +932,7 @@ class BoostMig:
             enter_max = float(g("pump_bm_enter_max_pct", 40))
             if prog > enter_max:
                 return "fora", f"passou de {enter_max:.0f}% do BOOST sem confirmar"
-        if g("pump_bm_block_repeat", True) and not self.name_keys(m, b):
+        if g("pump_bm_block_repeat", True) and not self.name_keys(m, b) and now - b["t0"] < NAME_WAIT_S:
             return "esperar", "aguardando o nome do token (para conferir nome repetido)"
         if g("pump_bm_block_scam", True):
             if not b.get("creator") and b.get("creator_tries", 0) < 3 and now - b["t0"] < DEV_WAIT_S:
@@ -916,7 +1033,7 @@ class BoostMig:
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
                 "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry",
-                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s", "born_t", "sybil_want")
+                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s", "born_t", "sybil_want", "name_src", "name_s")
         out = {k: b.get(k) for k in keep}
         from .sybil import compact
         out["sybil"] = compact(b.get("sybil"))

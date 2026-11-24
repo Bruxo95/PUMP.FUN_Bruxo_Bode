@@ -1835,6 +1835,7 @@ class PumpHub:
         bm.rpc_backup = self._bm_rpc_alchemy if self.system_keys.get("alchemy_api_key") else None
         now = time.time()
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
+        bm.lab = getattr(self, "lab", None)                # 0.32.446: nome do token pela Base da pump.fun
         bm.novo_cfg = self.bm_novo_cfg()                  # 0.32.432: tokens novos (curva)
         bm.q = {"novos": consultas.on("pump_q_boost_novos"), "ativo": consultas.on("pump_q_boost_ativo"),
                 "migrou": consultas.on("pump_q_boost_migrou")}   # 0.32.435

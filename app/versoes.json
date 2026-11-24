@@ -2985,6 +2985,11 @@
    "versao": "0.32.445",
    "inicio": "2026-11-24T20:30:00+00:00",
    "titulo": "BOOST: análise das carteiras começa na hora e sai em poucos segundos"
+  },
+  {
+   "versao": "0.32.446",
+   "inicio": "2026-11-24T20:10:00+00:00",
+   "titulo": "BOOST: nome do token chega em segundos (memória e blockchain)"
   }
  ]
 }
