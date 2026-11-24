@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-24",
     "timezone": "Europe/Dublin",
-    "repository_reference": "3d91be7443f088b32315508c1fb2d7b74bee99a2",
-    "application_version": "0.32.444 · 2026-11-24 · REAL: PumpPortal sem resposta não derruba mais a compra (vai para a Jupiter)",
+    "repository_reference": "c42970e623ace95000f63acfc6949fbb7e6885b4",
+    "application_version": "0.32.445 · 2026-11-24 · BOOST: análise das carteiras começa na hora e sai em poucos segundos",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "0af6579021dda0b90164a21b30637ddc245b25b6dff9c77eea400395006be697",
+      "app/version.py": "d89bd6d38a2e00150a560f84ed27f7b7e03177f40ae76dc780676fbb058a0677",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "0972937caf1e14b3626a1f5151b0b9aa8c112a4f1929987fdfd9b823d591ccc8",
+      "web/app.html": "b953bc349f731944140d88f0fbac613339aeea7fba8b73b7c340d6da417611b8",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "3b4dd6918b61a107422e9aaabc1013c477fb433fcb075b63d5daafd308336534"
+  "pdf_sha256": "86ef3fc0dc63ccfb17b66eec489ce4aedb7c2d43a645d965c2d3644306a50894"
 }

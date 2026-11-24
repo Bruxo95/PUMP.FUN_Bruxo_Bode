@@ -127,6 +127,7 @@ def test_hub_novo_primeiro_parcial_em_20s_e_termina_depois(tmp_path, monkeypatch
             assert not b.get("sybil") and not hub.sybil_st["rodando"]   # 0.32.434: só o token que vai ser comprado
             b["sybil_want"] = now
             monkeypatch.setattr(sybil, "DEADLINE_S", 0.0)          # prazo estourado: só a parte básica
+            monkeypatch.setattr(sybil, "FAST_FUNDERS", 0)
             PumpHub.sybil_tick(hub, now)
             await hub.sybil_st["task"]
             assert b["sybil"]["parcial"] > 0 and b["sybil"]["primeiro_s"] is not None
@@ -224,3 +225,62 @@ def test_boost_sem_rpc_usa_reserva_e_nao_espera_para_sempre():
     except Exception:
         pass
     boostmig.ALCHEMY_BACKUP = 1.0
+
+
+def test_pedidos_saem_juntos_e_terminam_mais_rapido(monkeypatch):
+    """0.32.445 (pedido do dono: análise das carteiras o mais rápido possível depois da validação): os pedidos independentes saem
+    juntos; com cada resposta levando 0,1 s, a análise inteira fica bem abaixo da soma em fila e o resultado é o mesmo."""
+    import time as _t
+    monkeypatch.setattr(sybil, "START_GAP_S", 0.0)
+    monkeypatch.setattr(sybil, "MIN_GAP_S", 0.0)
+    base = _fake()
+
+    async def lento(req):
+        await asyncio.sleep(0.1)
+        return base.handle_request(req)
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lento)) as h:
+            rpc = sybil.Rpc(h, sybil.alchemy_url("k" * 20))
+            t0 = _t.monotonic()
+            r = await sybil.analyze(rpc, MINT, DEV, top_n=15, now=5000)
+            return r, _t.monotonic() - t0, rpc.n
+    r, dur, n = asyncio.run(go())
+    assert r["nivel"] == "médio" and r["creator_funder"] == FUND and r["parcial"] == 0
+    assert dur < n * 0.1 * 0.6                                     # em fila levaria n × 0,1 s
+
+
+def test_token_para_comprar_interrompe_a_pendencia(tmp_path, monkeypatch):
+    """0.32.445: a pendência de um token antigo é cancelada na hora em que um token passa nos filtros; ela continua depois."""
+    from tests.test_boostmig import Svc, _pf
+    from app.boostmig import BoostMig
+    from app.hub import PumpHub
+    import time as _t
+    pf = _pf(tmp_path)
+    now = _t.time()
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    b = bm.on_migration({"mint": MINT, "pool": "pump-amm"}, now - 30)
+    hub = PumpHub.__new__(PumpHub)
+    hub.bm, hub.system_keys, hub.engines = bm, {"alchemy_api_key": "k" * 20}, {"u1": pf}
+
+    async def go():
+        parada = asyncio.Event()
+
+        async def pendencia():
+            try:
+                await asyncio.sleep(30)
+            finally:
+                parada.set()
+        st = hub.sybil_state()
+        st["rodando"], st["fase"] = "Velho111", "b"
+        st["task"] = asyncio.create_task(pendencia())
+        await asyncio.sleep(0)
+        b["sybil_want"], b["creator"] = now, DEV
+        async with httpx.AsyncClient(transport=_fake()) as h:
+            hub.http = h
+            PumpHub.sybil_tick(hub, now)
+            assert st["rodando"] == MINT and st["fase"] == "a"
+            await asyncio.wait_for(parada.wait(), 1)
+            await st["task"]
+        assert b["sybil"]["nivel"] in ("médio", "alto", "baixo")
+    asyncio.run(go())

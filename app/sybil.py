@@ -33,7 +33,9 @@ import time
 SYSTEM_PROGRAM = "11111111111111111111111111111111"
 LAUNCH_SLOTS = 2                    # recebeu o token até 2 blocos depois do lançamento = comprou junto (bundle)
 SIG_LIMIT = 200                     # 0.32.385: 1.000 pesava demais no plano grátis; carteira com 200+ transações = antiga
-PARALLEL = 1                        # 0.32.385: um pedido por vez (com 3 a Alchemy seguia respondendo 429)
+PARALLEL = 4                        # 0.32.445: até 4 pedidos esperando resposta ao mesmo tempo. O RITMO de envio continua o mesmo
+                                    # (um pedido a cada `gap`, que sobe sozinho com 429): só a espera da resposta deixou de ser em fila.
+                                    # (0.32.385 tinha 1 porque com 3 e o ritmo fixo de 0,12 s a Alchemy respondia 429.)
 MIN_GAP_S, MAX_GAP_S = 0.15, 2.0    # 0.32.385: ritmo que se ajusta sozinho: 429 → mais devagar (×1,5); sucesso → mais rápido (×0,97)
 START_GAP_S = 0.3
 RETRY_429 = 4                       # 0.32.384: em 429 espera e tenta de novo (1, 2, 3, 4 s)
@@ -242,73 +244,130 @@ async def _funder(rpc: Rpc, wallet: str, now: float) -> dict:
     return {"funder": funder_of(tx, wallet), "age_s": (now - bt) if bt else None}
 
 
-DEADLINE_S = 20.0                   # 0.32.385 (pedido do dono): o primeiro resultado sai em até 20 s; o resto fica para depois
+DEADLINE_S = 8.0                    # 0.32.445: prazo da parte antes da compra (era 20 s na 0.32.385); o resto fica para depois
+
+
+FAST_FUNDERS = 5                    # 0.32.445: na parte antes da compra, a origem do dinheiro só das 5 maiores (+ a do DEV; o pool costuma ser a 1ª)
+
+
+async def _until(coros: list, deadline: float, clock) -> list:
+    """Roda os pedidos juntos (o Rpc cuida do ritmo) e devolve o resultado de cada um; o que passar do prazo volta como None
+    (e é cancelado). Erro de um pedido volta como a própria exceção, sem derrubar os outros."""
+    if not coros:
+        return []
+    tasks = [asyncio.ensure_future(c) for c in coros]
+    wait = max(0.0, deadline - clock())
+    done, pend = await asyncio.wait(tasks, timeout=None if wait == float("inf") else wait)
+    for t in pend:
+        t.cancel()
+    out = []
+    for t in tasks:
+        if t in pend or t.cancelled():
+            out.append(None)
+        else:
+            e = t.exception()
+            out.append(e if e is not None else t.result())
+    return out
 
 
 async def stage_a(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, now: float | None = None,
                   curve_pda: str | None = None, deadline: float | None = None, clock=time.monotonic) -> dict:
-    """0.32.385: parte rápida (até DEADLINE_S): maiores detentores, donos, DEV, bloco de cada um (bundle) e quem financiou o DEV e
-    as maiores carteiras enquanto der tempo. O que não coube fica em `pend` e termina depois (stage_b), sempre atrás dos tokens novos."""
+    """Parte rápida, feita logo depois que o token passou nos filtros (antes da compra).
+    0.32.445 (pedido do dono: "o mais rápido possível, a melhor rota"): os pedidos que não dependem um do outro saem juntos:
+      1) total do token + maiores detentores + conta do DEV (+ conta da curva se o DEV não é conhecido);
+      2) donos das contas + bloco de lançamento do DEV + origem do dinheiro do DEV;
+      3) tipo de cada dono (pessoa ou programa) e, ao mesmo tempo, o bloco da 1ª compra de cada carteira (bundle) e a origem do
+         dinheiro das FAST_FUNDERS maiores.
+    O que não coube no prazo fica em `pend` e termina depois da decisão (stage_b), sempre atrás dos tokens novos."""
     now = now or time.time()
     deadline = deadline if deadline is not None else clock() + DEADLINE_S
     st = {"mint": mint, "creator": creator, "creator_src": "boost" if creator else None, "now": now, "n0": rpc.n,
           "launch_slot": None, "creator_pct": 0.0, "creator_funder": None, "creator_done": not creator, "rows": [], "pend": []}
-    if not creator and curve_pda:        # 0.32.383: o BOOST ainda não leu o DEV → lê aqui, na conta da curva (pela Alchemy)
+
+    async def curve_creator():
+        import base64
+        from .boostmig import creator_of
+        acc = ((await rpc.call("getAccountInfo", [curve_pda, {"encoding": "base64"}])) or {}).get("value")
+        return creator_of(base64.b64decode(acc["data"][0])) if acc else None
+
+    async def dev_accounts(c):
+        return ((await rpc.call("getTokenAccountsByOwner", [c, {"mint": mint}, {"encoding": "jsonParsed"}])) or {}).get("value") or []
+
+    # 1) tudo o que só depende do token
+    first = [rpc.call("getTokenSupply", [mint]), rpc.call("getTokenLargestAccounts", [mint, {"commitment": "confirmed"}])]
+    first.append(dev_accounts(creator) if creator else (curve_creator() if curve_pda else asyncio.sleep(0)))
+    sup, la, third = await asyncio.gather(*first, return_exceptions=True)
+    for x in (sup, la):
+        if isinstance(x, BaseException):
+            raise x
+    if not creator and curve_pda and isinstance(third, str):
+        st.update(creator=third, creator_src="alchemy", creator_done=False)
+        creator = third
         try:
-            import base64
-            from .boostmig import creator_of
-            acc = ((await rpc.call("getAccountInfo", [curve_pda, {"encoding": "base64"}])) or {}).get("value")
-            c = creator_of(base64.b64decode(acc["data"][0])) if acc else None
-            if c:
-                st.update(creator=c, creator_src="alchemy", creator_done=False)
+            third = await dev_accounts(creator)
         except RpcError:
-            raise
-        except Exception:
-            pass
-    creator = st["creator"]
-    sup = await rpc.call("getTokenSupply", [mint])
+            third = []
+    elif isinstance(third, RpcError) and creator:
+        raise third
+    ca = third if (creator and isinstance(third, list)) else []
     supply = float(((sup or {}).get("value") or {}).get("uiAmountString") or 0)
     if supply <= 0:
         raise RpcError("não li o total do token")
-    la = ((await rpc.call("getTokenLargestAccounts", [mint, {"commitment": "confirmed"}])) or {}).get("value") or []
-    la = la[:max(1, int(top_n))]
+    la = ((la or {}).get("value") or [])[:max(1, int(top_n))]
     atas = [x["address"] for x in la]
-    infos = ((await rpc.call("getMultipleAccounts", [atas, {"encoding": "jsonParsed"}])) or {}).get("value") or []
+    for a in ca:
+        amt = (((((a.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}).get("tokenAmount") or {})
+        st["creator_pct"] += float(amt.get("uiAmountString") or 0) / supply * 100
+
+    # 2) donos das contas + lançamento e origem do dinheiro do DEV, juntos
+    async def dev_launch():
+        f, _ = await _first(rpc, ca[0]["pubkey"])
+        return (f or {}).get("slot")
+    step2 = [rpc.call("getMultipleAccounts", [atas, {"encoding": "jsonParsed"}]),
+             dev_launch() if ca else asyncio.sleep(0),
+             _funder(rpc, creator, now) if creator else asyncio.sleep(0)]
+    infos, launch, dfund = await asyncio.gather(*step2, return_exceptions=True)
+    if isinstance(infos, BaseException):
+        raise infos
+    if ca and isinstance(launch, int):
+        st["launch_slot"] = launch
+    if creator and isinstance(dfund, dict):
+        st["creator_funder"] = dfund.get("funder")
+        st["creator_done"] = True
     rows = []
-    for x, inf in zip(la, infos):
+    for x, inf in zip(la, (infos or {}).get("value") or []):
         own = ((((inf or {}).get("data") or {}).get("parsed") or {}).get("info") or {}).get("owner")
         if own:
             rows.append({"ata": x["address"], "wallet": own, "pct": float(x.get("uiAmountString") or x.get("uiAmount") or 0) / supply * 100})
+    st["rows"] = rows
     owners = list({r["wallet"] for r in rows})
-    oinf = ((await rpc.call("getMultipleAccounts", [owners, {"encoding": "base64", "dataSlice": {"offset": 0, "length": 0}}])) or {}).get("value") or []
-    prog = {w: (i or {}).get("owner") for w, i in zip(owners, oinf)}
+
+    # 3) tipo dos donos + bloco da 1ª compra de cada uma + origem das maiores, tudo junto
+    async def kinds():
+        oinf = ((await rpc.call("getMultipleAccounts", [owners, {"encoding": "base64", "dataSlice": {"offset": 0, "length": 0}}])) or {}).get("value") or []
+        return {w: (i or {}).get("owner") for w, i in zip(owners, oinf)}
+    ordem = sorted(rows, key=lambda r: -r["pct"])
+    jobs = [kinds()] + [_first(rpc, r["ata"]) for r in ordem] + [_funder(rpc, r["wallet"], now) for r in ordem[:FAST_FUNDERS]]
+    res = await _until(jobs, deadline, clock)
+    prog = res[0] if isinstance(res[0], dict) else {}
     for r in rows:                      # dono = programa (pool, curva, PDA) → fora da conta das pessoas
         r["kind"] = "carteira" if prog.get(r["wallet"]) in (None, SYSTEM_PROGRAM) else "programa"
-    st["rows"] = rows
-    if creator:                         # conta de token do DEV: primeiro bloco = lançamento; saldo dele (mesmo fora dos maiores)
-        ca = ((await rpc.call("getTokenAccountsByOwner", [creator, {"mint": mint}, {"encoding": "jsonParsed"}])) or {}).get("value") or []
-        for a in ca:
-            amt = (((((a.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}).get("tokenAmount") or {})
-            st["creator_pct"] += float(amt.get("uiAmountString") or 0) / supply * 100
-        if ca:
-            f, _ = await _first(rpc, ca[0]["pubkey"])
-            st["launch_slot"] = (f or {}).get("slot")
-    people = sorted([r for r in rows if r["kind"] == "carteira"], key=lambda r: -r["pct"])
-    for r in people:                    # bloco de cada carteira (bundle): 1 pedido cada
-        if clock() > deadline:
-            break
-        try:
-            f, full = await _first(rpc, r["ata"])
+    for r, x in zip(ordem, res[1:1 + len(ordem)]):
+        if isinstance(x, tuple):
+            f, full = x
             r["first_slot"] = None if full else (f or {}).get("slot")
             r["slot_ok"] = True
-        except RpcError:
-            break
+    for r, x in zip(ordem[:FAST_FUNDERS], res[1 + len(ordem):]):
+        if isinstance(x, dict) and r["kind"] == "carteira":
+            r.update(x)
+            r["fund_ok"] = True
+    people = [r for r in ordem if r["kind"] == "carteira"]
     if st["launch_slot"] is None:
         slots = [r["first_slot"] for r in people if r.get("first_slot") is not None]
         st["launch_slot"] = min(slots) if slots else None
-    st["pend"] = (["__dev__"] if not st["creator_done"] else []) + [r["wallet"] for r in people]
+    st["pend"] = (["__dev__"] if not st["creator_done"] else []) + [r["wallet"] for r in people if not r.get("fund_ok")]
     for r in people:
-        r["pend"] = True
+        r["pend"] = not r.get("fund_ok")
     await stage_b(rpc, st, should_stop=lambda: clock() > deadline)
     return st
 

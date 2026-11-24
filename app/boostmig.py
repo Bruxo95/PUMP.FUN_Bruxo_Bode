@@ -43,7 +43,7 @@ SYBIL_ON, SYBIL_TOP, SYBIL_MAX_H, SYBIL_ALERT_PCT, SYBIL_BUNDLE_PCT = 1.0, 15.0,
 CFG_KEYS["pump_bm_alchemy_backup"] = ("ALCHEMY_BACKUP", 1.0)
 ALCHEMY_BACKUP = 1.0                # 0.32.384: Alchemy como reserva da leitura do DEV e da trava quando o RPC do sistema não responde
 DEV_WAIT_S = 30.0                   # 0.32.384: sem DEV lido depois disso, segue sem o filtro de DEV scam (antes esperava para sempre)
-SYBIL_WAIT_S = 25.0                 # 0.32.434: espera da análise das carteiras antes de entrar (depois entra sem ela)
+SYBIL_WAIT_S = 12.0                 # 0.32.445: espera da análise das carteiras antes de entrar (era 25 s); depois entra sem ela
 SAFETY_WAIT_S = 45.0                # 0.32.384: sem trava lida depois disso, vale como "não deu para conferir"
 
 

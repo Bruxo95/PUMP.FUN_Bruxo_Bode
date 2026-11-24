@@ -166,7 +166,7 @@ def test_carteiras_so_antes_de_entrar_e_trava_com_alerta_alto(tmp_path):
     b["sybil"] = {"nivel": "baixo"}
     run(PumpHub._bm_user(hub, "u1", pf, now + 2))
     assert u["estado"] == "entrou"
-    assert boostmig.SYBIL_WAIT_S == 25.0
+    assert boostmig.SYBIL_WAIT_S == 12.0
 
 
 def test_consultas_do_boost_por_grupo():

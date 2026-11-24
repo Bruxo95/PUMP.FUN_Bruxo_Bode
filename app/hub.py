@@ -1813,7 +1813,17 @@ class PumpHub:
                     await self.bm_save()
                 except Exception as e:
                     log.warning("boost da migração (banco): %s", str(e)[:160])
-            await asyncio.sleep(3)
+            ev = self.__dict__.setdefault("_bm_wake", asyncio.Event())
+            try:
+                await asyncio.wait_for(ev.wait(), 3)    # 0.32.445: a análise das carteiras terminou → volta antes dos 3 s
+            except asyncio.TimeoutError:
+                pass
+            ev.clear()
+
+    def bm_wake(self) -> None:
+        ev = self.__dict__.get("_bm_wake")
+        if ev is not None:
+            ev.set()
 
     async def bm_tick(self) -> None:
         bm = self.bm
@@ -1877,7 +1887,11 @@ class PumpHub:
                 # 0.32.434 (pedido do dono): a análise das carteiras (Alchemy) é a confirmação ANTES de entrar — só começa aqui,
                 # quando o token passou em todos os filtros. Espera até SYBIL_WAIT_S; sem resposta, entra sem ela.
                 if (getattr(self, "system_keys", None) or {}).get("alchemy_api_key") and boostmig.SYBIL_ON:
-                    b.setdefault("sybil_want", now)
+                    if not b.get("sybil_want"):
+                        b["sybil_want"] = now
+                        kick = getattr(self, "sybil_tick", None)
+                        if kick is not None:
+                            kick(now)              # 0.32.445: começa NA HORA (antes esperava a próxima volta de 3 s)
                     bm.dirty.add(m)
                     sy = b.get("sybil")
                     if not sy:
@@ -2073,7 +2087,13 @@ class PumpHub:
         from . import sybil
         st, bm = self.sybil_state(), self.bm
         key = self.system_keys.get("alchemy_api_key")
-        if not key or not boostmig.SYBIL_ON or st["rodando"]:
+        if not key or not boostmig.SYBIL_ON:
+            return
+        if st["rodando"] and st.get("fase") == "b" and st.get("task") is not None and any(
+                x.get("sybil_want") and not x.get("sybil") for x in bm.items.values()):
+            st["task"].cancel()                                # 0.32.445: token para comprar chegou → para a pendência na hora
+            st["rodando"] = None                               # (a carteira que estava no meio continua na lista de pendentes)
+        if st["rodando"]:
             return
         states = self.__dict__.setdefault("_sy_states", {})
         for m in [m for m in states if m not in bm.items or now - bm.items[m]["t0"] > boostmig.TRACK_S]:
@@ -2089,7 +2109,7 @@ class PumpHub:
         if cand:
             b = max(cand, key=lambda x: x["t0"])               # o mais novo primeiro (é o que ainda dá para comprar)
             b["sybil_tries"] = b.get("sybil_tries", 0) + 1
-            st["rodando"], st["inicio"] = b["mint"], now
+            st["rodando"], st["inicio"], st["fase"] = b["mint"], now, "a"
             st["feitos"].append(now)
 
             async def run_a():
@@ -2115,8 +2135,10 @@ class PumpHub:
                         b["sybil"] = {"t": round(time.time()), "nivel": "sem dados", "motivo": ("falhou: " + str(e)[:120]).replace(key, "***"), "erro": True}
                 finally:
                     st["chamadas"] += rpc.n - n0
-                    st["rodando"] = None
+                    if st.get("task") is asyncio.current_task():
+                        st["rodando"] = None
                     bm.dirty.add(b["mint"])
+                    self.bm_wake()                     # 0.32.445: decide a compra já, sem esperar a volta de 3 s
             st["task"] = asyncio.create_task(run_a())
             return
         pend = [m for m, x in states.items() if x["pend"] and m in bm.items]
@@ -2124,7 +2146,7 @@ class PumpHub:
             return
         m = max(pend, key=lambda k: bm.items[k]["t0"])         # entre as pendências, também a mais nova primeiro
         b, stt = bm.items[m], states[m]
-        st["rodando"] = m
+        st["rodando"], st["fase"] = m, "b"
 
         async def run_b():
             ORIGIN.set("BOOST (carteiras, Alchemy)")
@@ -2146,7 +2168,8 @@ class PumpHub:
                 st["ultimo_erro"] = f"{type(e).__name__}: {str(e)[:160]}".replace(key, "***")
             finally:
                 st["chamadas"] += rpc.n - n0
-                st["rodando"] = None
+                if st.get("task") is asyncio.current_task():
+                    st["rodando"] = None
                 bm.dirty.add(m)
         st["task"] = asyncio.create_task(run_b())
 

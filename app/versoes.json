@@ -2980,6 +2980,11 @@
    "versao": "0.32.444",
    "inicio": "2026-11-24T19:30:00+00:00",
    "titulo": "REAL: PumpPortal sem resposta não derruba mais a compra (vai para a Jupiter)"
+  },
+  {
+   "versao": "0.32.445",
+   "inicio": "2026-11-24T20:30:00+00:00",
+   "titulo": "BOOST: análise das carteiras começa na hora e sai em poucos segundos"
   }
  ]
 }
