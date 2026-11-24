@@ -2975,6 +2975,11 @@
    "versao": "0.32.443",
    "inicio": "2026-11-24T19:05:54+00:00",
    "titulo": "BOOST: avisa quando a REAL não compra e por quê"
+  },
+  {
+   "versao": "0.32.444",
+   "inicio": "2026-11-24T19:30:00+00:00",
+   "titulo": "REAL: PumpPortal sem resposta não derruba mais a compra (vai para a Jupiter)"
   }
  ]
 }

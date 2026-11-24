@@ -37,6 +37,8 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 
+import httpx
+
 from . import apiusage, stkeys, stopganho, txguard
 from .settings import USER_KEYS
 
@@ -5996,7 +5998,14 @@ class PumpReal:
                 "priorityFee": float(getattr(self.cfg, "pump_priority_sol", 0.0005)), "pool": "auto", **body}
         body = {k: (str(v) if not isinstance(v, str) else v) for k, v in body.items()}
         t0 = time.monotonic()
-        r = await self.http.post(TRADE_LOCAL_URL, data=body, timeout=15)
+        try:
+            # 0.32.443 (BRUISER, 24/11 19:59: a PumpPortal não respondeu em 15 s e a compra REAL inteira caiu com
+            # ReadTimeout, sem tentar outra rota). Sem resposta aqui nenhuma transação foi montada, então é seguro ir
+            # para a próxima rota; espera no máx. PP_TIMEOUT_S para não perder o momento.
+            r = await self.http.post(TRADE_LOCAL_URL, data=body, timeout=httpx.Timeout(self.PP_TIMEOUT_S, connect=3.0))
+        except (httpx.TimeoutException, httpx.TransportError) as e:
+            return {"status": "falhou", "pp_down": True,
+                    "reason": f"PumpPortal não respondeu em {self.PP_TIMEOUT_S:.0f} s ({type(e).__name__})"}
         if r.status_code != 200:
             return {"status": "falhou", "reason": f"PumpPortal HTTP {r.status_code}: {r.text[:120]}"}
         from solders.transaction import VersionedTransaction
@@ -6046,6 +6055,8 @@ class PumpReal:
                     lim = "429" in str(e) or "Too many requests" in str(e) or "limite de pedidos" in str(e)
                     await asyncio.sleep((1.0 if lim else 0.15) * (i + 1))
         raise last
+
+    PP_TIMEOUT_S = 6.0                             # 0.32.443: espera máxima pela PumpPortal montar a transação
 
     SIM_BATCH = 19                                 # contas de token por simulação (+ a carteira); diminui sozinho se o RPC pedir
 
@@ -6170,9 +6181,9 @@ class PumpReal:
 
     @staticmethod
     def retryable(reason) -> bool:
-        """Vale tentar outro caminho? (curva completa, rota errada, slippage)"""
+        """Vale tentar outro caminho? (curva completa, rota errada, slippage, PumpPortal sem resposta)"""
         r = str(reason or "")
-        return any(c in r for c in ("0x1775", "0x1774", "0x1772", "0x1773", "0x1771", "HTTP 400", "HTTP 500",
+        return any(c in r for c in ("PumpPortal não respondeu", "0x1775", "0x1774", "0x1772", "0x1773", "0x1771", "HTTP 400", "HTTP 500",
                                     "'Custom': 6005}", "'Custom': 6004}", "'Custom': 6002}", "'Custom': 6003}"))
 
     @staticmethod
@@ -6291,9 +6302,11 @@ class PumpReal:
                       ("jupiter", None, base), ("jupiter", None, max(30.0, base))]
         else:
             routes = [("pumpportal", "auto", None), ("pumpportal", "pump-amm", None), ("jupiter", None, None)]
-        r, first = {}, True
+        r, first, pp_down = {}, True, False
         sol0 = tok0 = sol1 = tok1 = None
         for via, pool, slip in routes:
+            if via == "pumpportal" and pp_down:          # 0.32.443: PumpPortal sem resposta → vai direto para a Jupiter
+                continue
             if via == "jupiter" and first:
                 why = await gate()
                 if why:
@@ -6318,6 +6331,7 @@ class PumpReal:
                     r = await self._tx(body)
                 if r.get("gate"):
                     return {"ok": False, "reason": r.get("reason")}
+                pp_down = pp_down or bool(r.get("pp_down"))
             first = False
             if sol0 is None:
                 sol0, tok0 = await bal_task

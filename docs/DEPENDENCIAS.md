@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-24**; revisão documental **2.0**.
-Aplicação: **0.32.443 · 2026-11-24 · BOOST: avisa quando a REAL não compra e por quê**.
-Referência Git na emissão: `3817533dc72ec4ba0817977bf19b2d59564ce239`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.444 · 2026-11-24 · REAL: PumpPortal sem resposta não derruba mais a compra (vai para a Jupiter)**.
+Referência Git na emissão: `3d91be7443f088b32315508c1fb2d7b74bee99a2`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|
