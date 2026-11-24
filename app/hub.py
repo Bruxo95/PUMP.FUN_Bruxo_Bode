@@ -1832,8 +1832,9 @@ class PumpHub:
                     hot = self.bm.any_hot(time.time())
                 except Exception:
                     pass
-                # 0.32.447: perto do limite de entrada de alguém a volta é de 1 s (compras, vendas e decisão); senão 3 s
-                await asyncio.wait_for(ev.wait(), boostmig.FAST_EVERY_S if hot else 3)
+                # 0.32.447: com token em confirmação perto do limite a volta é de 1 s (só a decisão; a leitura de compras e
+                # vendas segue no máx. a cada FAST_EVERY_S); senão 3 s
+                await asyncio.wait_for(ev.wait(), 1 if hot else 3)
             except asyncio.TimeoutError:
                 pass
             ev.clear()

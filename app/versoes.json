@@ -2995,6 +2995,11 @@
    "versao": "0.32.447",
    "inicio": "2026-11-24T21:45:00+00:00",
    "titulo": "BOOST: compras e vendas a cada 1 s perto do limite de entrada"
+  },
+  {
+   "versao": "0.32.448",
+   "inicio": "2026-11-24T21:55:00+00:00",
+   "titulo": "BOOST: leitura rápida só em token esperando confirmação, a cada 5 s"
   }
  ]
 }

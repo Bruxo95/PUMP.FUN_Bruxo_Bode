@@ -24,8 +24,8 @@ JANELA_S = 300                     # duração estimada do BOOST
 BUYS_HIST_MAX = 130                # 0.32.380: leituras das compras guardadas por token (~30 min a cada 15 s)
 TRACK_S = 30 * 60                  # acompanha topo e dump de todo token por 30 min (entrando ou não)
 TRACK_EVERY_S = 15
-FAST_LAST_PCT = 5.0                # 0.32.447: nos últimos 5 pontos antes do "entrar até X%" de alguém, compras/vendas a cada 1 s
-FAST_EVERY_S = 1.0
+FAST_LAST_PCT = 5.0                # 0.32.447: nos últimos 5 pontos antes do "entrar até X%" de alguém, leitura mais rápida
+FAST_EVERY_S = 5.0                 # 0.32.448 (pedido do dono): compras/vendas a cada 5 s nessa faixa (era 1 s), para economizar
 KEEP_S = 86400                     # histórico de 24 h
 OBS_MAX_PCT = 60                   # amostra o preço até 60% da janela (o limite de entrada do usuário vai até 60)
 SCAM_DUMP_PCT, SCAM_DUMP_MIN = 70.0, 10.0
@@ -828,12 +828,11 @@ class BoostMig:
         p = self.progress(b, now)
         if not any(e - FAST_LAST_PCT <= p <= e + 0.5 for e in self.enter_max):
             return False
-        us = list((b.get("users") or {}).values())
-        if not us:
-            return True
-        for u in us:
+        # 0.32.448 (pedido do dono): só token em confirmação de entrada — alguém com "esperar" (passou nos filtros até aqui e falta
+        # confirmar); token já descartado (fora), já comprado ou que ninguém analisou ainda não ganha leitura mais rápida
+        for u in (b.get("users") or {}).values():
             for x in (u, u.get("real") or {}):
-                if x and x.get("estado") not in ("entrou", "fora"):
+                if x and x.get("estado") == "esperar":
                     return True
         return False
 

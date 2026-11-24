@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-24",
     "timezone": "Europe/Dublin",
-    "repository_reference": "ce03de6e835e1487e348b535df7f4aabced59a69",
-    "application_version": "0.32.447 · 2026-11-24 · BOOST: compras e vendas a cada 1 s perto do limite de entrada",
+    "repository_reference": "ebe18e4409035c52a54790d602f2a302a853210a",
+    "application_version": "0.32.448 · 2026-11-24 · BOOST: leitura rápida só em token esperando confirmação, a cada 5 s",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e3163139d1a2eac673b7850c709186da21172c17a60e7cb173fd628fe063a099",
+      "app/version.py": "264a2b9685ece06160797b434734868898c390cf7880f1c209a22d4af1479b70",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "9b64d485cb46f830a03d7012c138041822bbd2ae4aab145ecc7e45b356c8862b"
+  "pdf_sha256": "257964901d05007b5e9b3aa1908f718dcfabad1a98d2f5a03ece34e12c52ca57"
 }
