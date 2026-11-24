@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-24**; revisão documental **2.0**.
-Aplicação: **0.32.439 · 2026-11-24 · Solana Tracker: chave trocada é testada na hora e o Status deixa de mostrar o erro da chave antiga**.
-Referência Git na emissão: `f8bc950574e45594246eea5e6530c9b095ad0f5c`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.440 · 2026-11-24 · BOOST: copiar a tela de outro usuário, ver o que mudou e reverter**.
+Referência Git na emissão: `49aaa95b7fcfd762c4a3a0790f68cf604e33c1e4`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

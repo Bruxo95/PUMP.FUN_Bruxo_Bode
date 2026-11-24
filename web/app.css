@@ -1124,3 +1124,10 @@ label.chgrp{cursor:pointer}
 /* 0.32.435: chaves de consulta do BOOST por grupo */
 .bmq{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:0 0 12px}
 .bmqi{display:inline-flex;gap:8px;align-items:center}
+
+/* 0.32.440: Copiar tela BOOST (faixa no topo e janela de escolha) */
+.bmcmp{margin:6px 0 10px}.bmcmp .cmpbar{margin-bottom:0}.bmcmp-bar.ok{border-color:#22c55e;background:rgba(34,197,94,.08)}
+.bmcmp-bar .ok{color:#4ade80}.bmcmp-bar .dif{color:#fbbf24}.bmcmp-bar small{display:block;color:var(--muted);margin-top:2px}
+.bmc-users{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:8px;margin:8px 0 12px}
+.bmc-user{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:inherit;cursor:pointer;min-width:0}
+.bmc-user b{overflow-wrap:anywhere}.bmc-user small{color:var(--muted);overflow-wrap:anywhere}.bmc-user.on{border-color:var(--accent,#7c3aed);box-shadow:0 0 0 1px var(--accent,#7c3aed) inset}

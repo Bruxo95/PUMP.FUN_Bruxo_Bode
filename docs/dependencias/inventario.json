@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-24",
     "timezone": "Europe/Dublin",
-    "repository_reference": "f8bc950574e45594246eea5e6530c9b095ad0f5c",
-    "application_version": "0.32.439 · 2026-11-24 · Solana Tracker: chave trocada é testada na hora e o Status deixa de mostrar o erro da chave antiga",
+    "repository_reference": "49aaa95b7fcfd762c4a3a0790f68cf604e33c1e4",
+    "application_version": "0.32.440 · 2026-11-24 · BOOST: copiar a tela de outro usuário, ver o que mudou e reverter",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "feaf5713ab7433270e8a58ea6d6f07d7612b6f0c5de718e5a90d2a6017dd180d",
+      "app/version.py": "62d5280fd84fa5f06a15635098b7e81de8de2cdb7491c9faf2a4e78e3470c14d",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "59364210cc7bb49960f127830f425dfe2de3d8bf49ecee95e1855db104c9fdbb",
+      "web/app.html": "a19f0411d5695d0c2d2b4e0d33d97b9bd6e0690b105ff85029e94b4d76a25dfa",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "ac520e512ab26705a4094db4c42269cb046cab4720b7bb83731d959c66b3f166"
+  "pdf_sha256": "d17f437f78546ab17b70032d88af4b0c9d9f78f1857bac9d7d1f1c310b3b7229"
 }

@@ -5169,9 +5169,20 @@ class PumpHub:
         await audit(self.db, pf.user_id, "convite de configuração", f"{parte} para {to_uid}")
         return {"ok": True, "opcoes": len(keys)}
 
-    async def config_peer(self, uid: str, peer: str, keys) -> dict:
+    @staticmethod
+    def boost_keys() -> list[str]:
+        """0.32.440 (pedido do dono): opções da tela BOOST que dá para copiar de outra conta. Fora as que valem para o servidor
+        todo (boostmig.CFG_KEYS: o último admin que mudou manda) e, pelo share_filter, as da carteira REAL (ligar a REAL é de cada um)."""
+        from .settings import USER_KEYS
+        from .boostmig import CFG_KEYS
+        return [k for k in USER_KEYS if (k.startswith("pump_bm_") or k.startswith("pump_bmr_")) and k not in CFG_KEYS]
+
+    async def config_peer(self, uid: str, peer: str, keys, tela: str = "") -> dict:
         """0.32.151 (pedido do dono): Abas de trades → Ajustes compara as opções da aba com as de outro usuário (só admin,
-        só leitura). Mesmas regras do compartilhar: nada da carteira real nem do Telegram."""
+        só leitura). Mesmas regras do compartilhar: nada da carteira real nem do Telegram.
+        tela="boost" (0.32.440): as opções vêm do servidor (todas as do BOOST), não do navegador."""
+        if tela == "boost":
+            keys = self.boost_keys()
         if peer == uid:
             return {"error": "escolha outro usuário"}
         rows = await self.db.select("profiles", {"user_id": peer}, columns="user_id,bloqueado,role,nome,email")

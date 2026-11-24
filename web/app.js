@@ -1578,8 +1578,133 @@
     const s = e.target.closest("#bmRS [data-bmrs]"); if (s) { bmRealShow(s.dataset.bmrs); return; }
     if (e.target.id === "bmCpSR") bmCopy("sr"); else if (e.target.id === "bmCpRS") bmCopy("rs");
   });
+  // 0.32.440 (pedido do dono): "Copiar tela BOOST" — escolher qualquer usuário, ver as diferenças, salvar, ver o que foi
+  // alterado e reverter; no topo do BOOST sempre diz se a sua está idêntica à da pessoa escolhida. Ficam fora a carteira REAL
+  // (ligar a REAL é de cada um) e as opções que valem para o servidor todo. Revertendo, voltam os valores de antes da cópia.
+  const BMC = { users: null, peer: null, r: null, t: 0, sel: null, view: null, cand: null };
+  const bmcLabel = (k) => (k.startsWith("pump_bmr_") ? "REAL · " : "") + cfgLabel(k);
+  const bmcVal = (k, v) => cxVal({ k, unit: cfgUnit(k) }, v);
+  const bmcUndo = () => { try { return JSON.parse(localStorage.getItem("pf_bmc_undo") || "null"); } catch (e) { return null; } };
+  async function bmcUsers() {
+    if (!BMC.users) { try { BMC.users = ((await BB.api("/api/pump/config/share-targets", { quiet: true })) || {}).users || []; } catch (e) { BMC.users = []; } }
+    return BMC.users;
+  }
+  function bmcPick(users) {
+    let p = ""; try { p = localStorage.getItem("pf_bmcp") || ""; } catch (e) { /* */ }
+    return users.some((u) => u.user_id === p) ? p : cxaPick(users);
+  }
+  async function bmcFetch(uid) {
+    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, tela: "boost" }, quiet: true }).catch(() => null);
+    if (!r || r.error) return r || { error: "não consegui comparar agora" };
+    const V = r.valores || {};
+    r.keys = Object.keys(V); r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), V[k]));
+    return r;
+  }
+  async function bmcBar(force) {
+    const box = $("bmCmp"); if (!box) return;
+    if (!ME || ME.role !== "admin" || ME.view_by) { box.hidden = true; return; }
+    box.hidden = false;
+    if (force || !BMC.r || Date.now() - BMC.t > 60000) {
+      const users = await bmcUsers(), pick = BMC.peer || bmcPick(users);
+      if (pick) { BMC.peer = pick; BMC.r = await bmcFetch(pick); BMC.t = Date.now(); }
+    }
+    const r = BMC.r, u = bmcUndo();
+    if (r && !r.error) r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), (r.valores || {})[k]));   // sua config pode ter mudado na tela
+    const undo = u && u.vals && Object.keys(u.vals).length ? "<small>Última cópia: de " + esc(u.de || "?") + " em " + dt(u.t) + " · " + Object.keys(u.vals).length + ' opções · <a href="#boost" data-bmc="changed">ver o que mudou</a> · <a href="#boost" data-bmc="undo">reverter</a></small>' : "";
+    let msg, ok = false;
+    if (!r) msg = '<span class="muted">Nenhum outro usuário para comparar.</span>';
+    else if (r.error) msg = '<span class="down">' + esc(r.error) + "</span>";
+    else if (!r.dif.length) { ok = true; msg = '<span class="ok">✓ Você está usando a configuração do BOOST <b>idêntica</b> à de <b>' + esc(r.nome) + '</b></span> <span class="muted small">(' + r.keys.length + " opções conferidas)</span>"; }
+    else msg = '<span class="dif">⚠ Sua configuração do BOOST tem <b>' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + "</b> da de <b>" + esc(r.nome) + '</b></span> <span class="muted small">(' + (r.keys.length - r.dif.length) + " iguais)</span>";
+    box.innerHTML = '<div class="cmpbar bmcmp-bar' + (ok ? " ok" : "") + '"><span>' + msg + undo + "</span>" +
+      (r && !r.error && r.dif.length ? '<button type="button" class="btn sm" data-bmc="see">Ver diferenças</button>' : "") +
+      '<button type="button" class="btn sm primary" data-bmc="open">Copiar tela BOOST</button></div>';
+  }
+  function bmcTable(keys, a, b, ha, hb) {
+    return '<div class="tbl-wrap"><table class="daytbl nocard cxm"><thead><tr><th>Opção</th><th>' + ha + "</th><th>" + hb + "</th></tr></thead><tbody>" +
+      keys.map((k) => "<tr><td>" + esc(bmcLabel(k)) + "</td><td>" + bmcVal(k, a(k)) + '</td><td class="cxm-new">' + bmcVal(k, b(k)) + "</td></tr>").join("") + "</tbody></table></div>";
+  }
+  async function bmcOpen(uid) {
+    const users = await bmcUsers();
+    BMC.sel = uid || BMC.sel || BMC.peer || bmcPick(users); BMC.view = "pick"; BMC.cand = null;
+    $("cfgDiffT").textContent = "Copiar tela BOOST";
+    $("cfgDiffS").textContent = "escolha de quem copiar · nada muda até você clicar em Salvar";
+    const list = users.length ? '<div class="bmc-users">' + users.map((u) => '<button type="button" class="bmc-user' + (u.user_id === BMC.sel ? " on" : "") + '" data-bmcu="' + esc(u.user_id) + '"><b>' + esc(u.nome || u.email || "usuário") + "</b><small>" + esc(u.email || "") + (u.admin ? " · admin" : "") + "</small></button>").join("") + "</div>" : '<p class="muted">Nenhum outro usuário.</p>';
+    $("cfgDiffB").innerHTML = list + '<div id="bmcR" class="small">' + (BMC.sel ? "comparando…" : "") + "</div>";
+    $("cfgDiff").hidden = false; $("cfgDiffX").focus();
+    if (!BMC.sel) return;
+    const sel = BMC.sel, r = await bmcFetch(sel);
+    if (BMC.view !== "pick" || BMC.sel !== sel || !$("bmcR")) return;
+    BMC.cand = r;
+    if (r.error) { $("bmcR").innerHTML = '<span class="down">' + esc(r.error) + "</span>"; return; }
+    const V = r.valores || {}, nm = esc(r.nome);
+    $("bmcR").innerHTML = !r.dif.length ? '<div class="abcmp-ok">✓ Sua configuração do BOOST já é idêntica à de <b>' + nm + "</b> (" + r.keys.length + " opções).</div>"
+      : '<div class="decbox">À esquerda o que <b>você</b> usa hoje; à direita o de <b>' + nm + "</b>. Salvando, " + r.dif.length + " opç" + (r.dif.length > 1 ? "ões mudam" : "ão muda") + " e o resto fica igual. Dá para reverter depois (no topo do BOOST e em Carteiras → Histórico de config). Não copia: ligar a REAL do BOOST e as opções que valem para o servidor todo.</div>" +
+        bmcTable(r.dif, cfgNow, (k) => V[k], "O seu (agora)", "O de " + nm) +
+        '<p class="cxm-act"><button class="btn primary" data-bmc="save">Salvar: copiar a tela BOOST de ' + nm + '</button> <button class="btn" data-bmc="cancel">Cancelar</button></p>';
+  }
+  async function bmcSave() {
+    const r = BMC.cand; if (!r || r.error || !r.dif.length) return;
+    const V = r.valores || {}, vals = {}, antes = {};
+    r.dif.forEach((k) => { vals[k] = V[k]; antes[k] = cfgNow(k); });
+    if ($("bmcR")) $("bmcR").innerHTML = "salvando…";
+    const res = await BB.api("/api/pump/settings", { body: { ...vals, _why: "copiou a tela BOOST de " + r.nome } });
+    if (res.error) { toast(res.error); return; }
+    const errs = Object.keys(res.errors || {});
+    errs.forEach((k) => { delete vals[k]; delete antes[k]; });
+    const u = { t: Date.now(), de: r.nome, de_id: r.user_id, vals: antes, para: vals };
+    try { localStorage.setItem("pf_bmc_undo", JSON.stringify(u)); localStorage.setItem("pf_bmcp", r.user_id); } catch (e) { /* */ }
+    BMC.peer = r.user_id;
+    await poll(true);
+    bmcChanged(u, errs);
+    bmcBar(true);
+  }
+  function bmcChanged(u, errs) {
+    u = u || bmcUndo(); if (!u || !u.vals) return;
+    BMC.view = "changed";
+    const keys = Object.keys(u.vals), para = u.para || {};
+    $("cfgDiffT").textContent = "O que foi alterado";
+    $("cfgDiffS").textContent = keys.length + " opç" + (keys.length > 1 ? "ões copiadas" : "ão copiada") + " de " + (u.de || "?") + " em " + dt(u.t);
+    $("cfgDiffB").innerHTML = (errs && errs.length ? '<p class="down small">Não aplicadas (valor fora do limite): ' + errs.map((k) => esc(bmcLabel(k))).join(", ") + "</p>" : "") +
+      (keys.length ? bmcTable(keys, (k) => u.vals[k], (k) => (k in para ? para[k] : cfgNow(k)), "Antes", "Agora") : '<p class="muted">Nada mudou.</p>') +
+      '<p class="cxm-act">' + (keys.length ? '<button class="btn" data-bmc="undo">Reverter · voltar como estava</button> ' : "") + '<button class="btn primary" data-bmc="cancel">Ok</button></p>';
+    $("cfgDiff").hidden = false; $("cfgDiffX").focus();
+  }
+  function bmcAskUndo() {
+    const u = bmcUndo(); if (!u || !u.vals) return;
+    BMC.view = "undo";
+    const keys = Object.keys(u.vals);
+    $("cfgDiffT").textContent = "Reverter a cópia da tela BOOST";
+    $("cfgDiffS").textContent = keys.length + " opç" + (keys.length > 1 ? "ões voltam" : "ão volta") + " ao valor de antes da cópia de " + dt(u.t);
+    $("cfgDiffB").innerHTML = bmcTable(keys, cfgNow, (k) => u.vals[k], "Agora", "Volta para") +
+      '<p class="cxm-act"><button class="btn primary" data-bmc="undogo">Reverter</button> <button class="btn" data-bmc="cancel">Cancelar</button></p>';
+    $("cfgDiff").hidden = false; $("cfgDiffX").focus();
+  }
+  async function bmcUndoGo() {
+    const u = bmcUndo(); if (!u || !u.vals) return;
+    const res = await BB.api("/api/pump/settings", { body: { ...u.vals, _why: "reverteu a cópia da tela BOOST de " + (u.de || "outra conta") } });
+    if (res.error) { toast(res.error); return; }
+    try { localStorage.removeItem("pf_bmc_undo"); } catch (e) { /* */ }
+    $("cfgDiff").hidden = true; BMC.view = null; toast("Revertido: " + Object.keys(u.vals).length + " opções voltaram.");
+    await poll(true); bmcBar(true);
+  }
+  document.addEventListener("click", (e) => {
+    const u = e.target.closest && e.target.closest("[data-bmcu]");
+    if (u) { e.preventDefault(); bmcOpen(u.dataset.bmcu); return; }
+    const t = e.target.closest && e.target.closest("[data-bmc]"); if (!t) return;
+    e.preventDefault();
+    const a = t.dataset.bmc;
+    if (a === "open") bmcOpen();
+    else if (a === "see") bmcOpen(BMC.peer);
+    else if (a === "save") bmcSave();
+    else if (a === "changed") bmcChanged();
+    else if (a === "undo") bmcAskUndo();
+    else if (a === "undogo") bmcUndoGo();
+    else if (a === "cancel") { $("cfgDiff").hidden = true; BMC.view = null; bmcBar(true); }
+  });
   async function loadBm() {
     bmRealInit(); bmRealShow(BMRS);
+    bmcBar();
     clearTimeout(BM_T); BM_T = setTimeout(() => { if (VIEW === "boost") loadBm(); }, 5000);
     if (document.hidden) return;
     const r = await BB.api("/api/pump/boost-migracao", { quiet: true }); if (r.error) { $("bmSub").textContent = r.error; return; }

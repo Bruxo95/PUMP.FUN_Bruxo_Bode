@@ -2955,6 +2955,11 @@
    "versao": "0.32.439",
    "inicio": "2026-11-24T06:00:00+00:00",
    "titulo": "Solana Tracker: chave trocada é testada na hora e o Status deixa de mostrar o erro da chave antiga"
+  },
+  {
+   "versao": "0.32.440",
+   "inicio": "2026-11-24T17:29:32+00:00",
+   "titulo": "BOOST: copiar a tela de outro usuário, ver o que mudou e reverter"
   }
  ]
 }
