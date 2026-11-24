@@ -2990,6 +2990,11 @@
    "versao": "0.32.446",
    "inicio": "2026-11-24T20:10:00+00:00",
    "titulo": "BOOST: nome do token chega em segundos (memória e blockchain)"
+  },
+  {
+   "versao": "0.32.447",
+   "inicio": "2026-11-24T21:45:00+00:00",
+   "titulo": "BOOST: compras e vendas a cada 1 s perto do limite de entrada"
   }
  ]
 }

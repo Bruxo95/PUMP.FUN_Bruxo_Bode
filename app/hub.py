@@ -1781,6 +1781,18 @@ class PumpHub:
         if consultas.on("pump_q_boost"):
             self.bm.on_create(ev, t)
 
+    def bm_enter_max(self) -> list:
+        """0.32.447: o "entrar até X% do BOOST" de cada admin com o BOOST ligado (FICTÍCIA e, com regras próprias, REAL)."""
+        out = set()
+        for pf in self.engines.values():
+            c = getattr(pf, "cfg", None)
+            if getattr(pf, "role", "user") != "admin" or not getattr(c, "pump_bm_on", False):
+                continue
+            out.add(float(getattr(c, "pump_bm_enter_max_pct", 40)))
+            if getattr(c, "pump_bm_real", False) and getattr(c, "pump_bmr_on", False):
+                out.add(float(getattr(c, "pump_bmr_enter_max_pct", 40)))
+        return sorted(out)
+
     def bm_novo_cfg(self) -> dict:
         """0.32.432: o que vale para o servidor achar tokens novos: o MENOR volume e a MAIOR idade entre os admins com o BOOST e os
         tokens novos ligados (cada um decide depois com os próprios números)."""
@@ -1815,7 +1827,13 @@ class PumpHub:
                     log.warning("boost da migração (banco): %s", str(e)[:160])
             ev = self.__dict__.setdefault("_bm_wake", asyncio.Event())
             try:
-                await asyncio.wait_for(ev.wait(), 3)    # 0.32.445: a análise das carteiras terminou → volta antes dos 3 s
+                hot = False
+                try:
+                    hot = self.bm.any_hot(time.time())
+                except Exception:
+                    pass
+                # 0.32.447: perto do limite de entrada de alguém a volta é de 1 s (compras, vendas e decisão); senão 3 s
+                await asyncio.wait_for(ev.wait(), boostmig.FAST_EVERY_S if hot else 3)
             except asyncio.TimeoutError:
                 pass
             ev.clear()
@@ -1836,7 +1854,8 @@ class PumpHub:
         now = time.time()
         boostmig.apply_cfg(self.bm_cfg())                 # 0.32.375: regras do DEV scam/VIP (último admin que mudou)
         bm.lab = getattr(self, "lab", None)                # 0.32.446: nome do token pela Base da pump.fun
-        bm.novo_cfg = self.bm_novo_cfg()                  # 0.32.432: tokens novos (curva)
+        bm.novo_cfg = self.bm_novo_cfg()
+        bm.enter_max = self.bm_enter_max()                # 0.32.447: janela de 1 s antes do limite de entrada                  # 0.32.432: tokens novos (curva)
         bm.q = {"novos": consultas.on("pump_q_boost_novos"), "ativo": consultas.on("pump_q_boost_ativo"),
                 "migrou": consultas.on("pump_q_boost_migrou")}   # 0.32.435
         await bm.tick(now)

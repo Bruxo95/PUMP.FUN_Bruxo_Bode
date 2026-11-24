@@ -24,6 +24,8 @@ JANELA_S = 300                     # duração estimada do BOOST
 BUYS_HIST_MAX = 130                # 0.32.380: leituras das compras guardadas por token (~30 min a cada 15 s)
 TRACK_S = 30 * 60                  # acompanha topo e dump de todo token por 30 min (entrando ou não)
 TRACK_EVERY_S = 15
+FAST_LAST_PCT = 5.0                # 0.32.447: nos últimos 5 pontos antes do "entrar até X%" de alguém, compras/vendas a cada 1 s
+FAST_EVERY_S = 1.0
 KEEP_S = 86400                     # histórico de 24 h
 OBS_MAX_PCT = 60                   # amostra o preço até 60% da janela (o limite de entrada do usuário vai até 60)
 SCAM_DUMP_PCT, SCAM_DUMP_MIN = 70.0, 10.0
@@ -404,6 +406,7 @@ class BoostMig:
         self.names: dict[str, tuple] = {}       # 0.32.446: (símbolo, nome) de cada token criado visto na PumpPortal
         self.born: dict[str, float] = {}        # 0.32.433: hora da criação de cada token visto na PumpPortal (idade nas migrações)
         self.novo_cfg = {"on": False, "vol": 2000.0, "age_s": 120.0}
+        self.enter_max: list = []              # 0.32.447: "entrar até X% do BOOST" de cada admin (o hub põe a cada volta)
         self.st.update({"novos_vistos": 0, "novos_consultas": 0, "novos_sem_dados": 0, "novos_entraram_lista": 0})
 
     # ------------------------------------------------------------------ eventos
@@ -817,8 +820,29 @@ class BoostMig:
                 b["creator"] = cr
                 self.dirty.add(m)
 
+    def hot(self, b: dict, now: float) -> bool:
+        """0.32.447 (pedido do dono, caso PAPU: ficou fora por 1 s em 25% sem a contagem de compras chegar): o token está nos
+        últimos FAST_LAST_PCT pontos antes do limite de entrada de algum admin e ainda tem alguém esperando para decidir."""
+        if b.get("kind") == "novo" or not self.enter_max:
+            return False
+        p = self.progress(b, now)
+        if not any(e - FAST_LAST_PCT <= p <= e + 0.5 for e in self.enter_max):
+            return False
+        us = list((b.get("users") or {}).values())
+        if not us:
+            return True
+        for u in us:
+            for x in (u, u.get("real") or {}):
+                if x and x.get("estado") not in ("entrou", "fora"):
+                    return True
+        return False
+
+    def any_hot(self, now: float) -> bool:
+        return any(self.hot(b, now) for b in self.items.values())
+
     async def _track(self, now: float) -> None:
-        trk = [m for m, b in self.items.items() if now - b["t0"] <= TRACK_S and now - b.get("trk_at", 0) >= TRACK_EVERY_S and self.q_ok(b, now)]
+        trk = [m for m, b in self.items.items() if now - b["t0"] <= TRACK_S and self.q_ok(b, now)
+               and now - b.get("trk_at", 0) >= (FAST_EVERY_S if self.hot(b, now) else TRACK_EVERY_S)]
         if not trk:
             return
         for m in trk:
@@ -872,7 +896,10 @@ class BoostMig:
         cada volta, como no original. Antes usava o preço guardado do token, que a Jupiter só atualiza para quem tem o token na
         carteira: as primeiras leituras vinham do preço congelado da curva (~4e-7 → salto falso) e havia buracos de 2 min."""
         jup = getattr(getattr(self.svc, "market", None), "jup", None)
-        obs = [m for m, b in self.items.items() if self.progress(b, now) <= OBS_MAX_PCT and b.get("safety_ok") is not False and self.q_ok(b, now)]
+        # 0.32.447: no máximo 1 cotação a cada 2,5 s por token (a volta pode ser de 1 s perto do limite de entrada; a observação guarda
+        # 60 leituras e precisa cobrir o tempo de observação)
+        obs = [m for m, b in self.items.items() if self.progress(b, now) <= OBS_MAX_PCT and b.get("safety_ok") is not False and self.q_ok(b, now)
+               and now - ((b.get("samples") or [[0]])[-1][0]) >= 2.5]
         if not obs or jup is None:
             return
         for m in sorted(obs, key=lambda x: -self.items[x]["t0"])[:8]:
