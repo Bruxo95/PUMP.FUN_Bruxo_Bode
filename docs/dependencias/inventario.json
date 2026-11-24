@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-24",
     "timezone": "Europe/Dublin",
-    "repository_reference": "49aaa95b7fcfd762c4a3a0790f68cf604e33c1e4",
-    "application_version": "0.32.440 · 2026-11-24 · BOOST: copiar a tela de outro usuário, ver o que mudou e reverter",
+    "repository_reference": "6a282f15a328e1c85ec116dc455b93ed5b59fdf7",
+    "application_version": "0.32.441 · 2026-11-24 · BOOST: ao ligar a REAL, mostra com quanto o Bruxo entra e pergunta se copia o mesmo valor",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "62d5280fd84fa5f06a15635098b7e81de8de2cdb7491c9faf2a4e78e3470c14d",
+      "app/version.py": "0c8dbf179bd9f6b778722de5d2b9af3cb8d6e6b63127b96d031caa63acf23191",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "d17f437f78546ab17b70032d88af4b0c9d9f78f1857bac9d7d1f1c310b3b7229"
+  "pdf_sha256": "de503782d489078c9be3d979338c34518072b3dec2368b6e9b9f674a3d811ecf"
 }

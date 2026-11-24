@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-24**; revisão documental **2.0**.
-Aplicação: **0.32.440 · 2026-11-24 · BOOST: copiar a tela de outro usuário, ver o que mudou e reverter**.
-Referência Git na emissão: `49aaa95b7fcfd762c4a3a0790f68cf604e33c1e4`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.441 · 2026-11-24 · BOOST: ao ligar a REAL, mostra com quanto o Bruxo entra e pergunta se copia o mesmo valor**.
+Referência Git na emissão: `6a282f15a328e1c85ec116dc455b93ed5b59fdf7`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -2960,6 +2960,11 @@
    "versao": "0.32.440",
    "inicio": "2026-11-24T17:29:32+00:00",
    "titulo": "BOOST: copiar a tela de outro usuário, ver o que mudou e reverter"
+  },
+  {
+   "versao": "0.32.441",
+   "inicio": "2026-11-24T17:38:29+00:00",
+   "titulo": "BOOST: ao ligar a REAL, mostra com quanto o Bruxo entra e pergunta se copia o mesmo valor"
   }
  ]
 }

@@ -1605,8 +1605,9 @@
     if (!ME || ME.role !== "admin" || ME.view_by) { box.hidden = true; return; }
     box.hidden = false;
     if (force || !BMC.r || Date.now() - BMC.t > 60000) {
-      const users = await bmcUsers(), pick = BMC.peer || bmcPick(users);
-      if (pick) { BMC.peer = pick; BMC.r = await bmcFetch(pick); BMC.t = Date.now(); }
+      try { const users = await bmcUsers(), pick = BMC.peer || bmcPick(users);
+        if (pick) { BMC.peer = pick; BMC.r = await bmcFetch(pick); BMC.t = Date.now(); }
+      } catch (e) { BMC.r = { error: "não consegui comparar agora" }; BMC.t = Date.now(); }
     }
     const r = BMC.r, u = bmcUndo();
     if (r && !r.error) r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), (r.valores || {})[k]));   // sua config pode ter mudado na tela
@@ -1702,6 +1703,44 @@
     else if (a === "undogo") bmcUndoGo();
     else if (a === "cancel") { $("cfgDiff").hidden = true; BMC.view = null; bmcBar(true); }
   });
+  // 0.32.441 (pedido do dono): ao ligar "Também na REAL" do BOOST, a confirmação mostra com quanto a pessoa comparada (o
+  // Bruxo) entra na REAL e deixa escolher: o mesmo valor ou outro. O valor vai para a opção que manda na REAL da sua conta:
+  // "Valor por entrada (REAL)" com "REAL usa regras próprias" ligado; senão o "Valor por entrada" (que também é o da FICTÍCIA).
+  const bmRealSol = (v) => (v.pump_bmr_on ? v.pump_bmr_sol : v.pump_bm_sol);
+  async function bmRealAsk(btn) {
+    const c = cfg() || {}, mine = c.pump_bmr_on ? "pump_bmr_sol" : "pump_bm_sol", now = +c[mine] || 0.05;
+    let r = BMC.r;
+    if (!r || r.error) { try { await bmcBar(true); } catch (e) { /* */ } r = BMC.r; }
+    const V = (r && !r.error && r.valores) || null, his = V ? +bmRealSol(V) : null, nm = V ? esc(r.nome) : "";
+    BMC.view = "real";
+    $("cfgDiffT").textContent = "Ligar o BOOST na REAL";
+    $("cfgDiffS").textContent = "dinheiro de verdade · só funciona com a Execução real ligada";
+    $("cfgDiffB").innerHTML = '<div class="decbox">' + esc(btn.dataset.confirm || "Cada entrada do BOOST também compra na carteira REAL (dinheiro de verdade).") + "</div>" +
+      (V ? '<p class="bmrq"><b>' + nm + "</b> está entrando com <b>" + s4(his) + " SOL</b> por entrada na REAL" + (V.pump_bm_real ? "" : ' <span class="muted">(com a REAL do BOOST desligada)</span>') + ". Você hoje: <b>" + s4(now) + " SOL</b>.</p>" : '<p class="muted">Não consegui ler o valor de outro usuário agora.</p>') +
+      '<div class="bmrq-opts">' +
+      (V ? '<label><input type="radio" name="bmrq" value="same" checked> Copiar o mesmo de ' + nm + " (" + s4(his) + " SOL)</label>" : "") +
+      '<label><input type="radio" name="bmrq" value="other"' + (V ? "" : " checked") + '> Valor diferente: <input class="in" id="bmrqV" type="number" min="0.001" max="5" step="0.01" value="' + now + '" aria-label="Valor por entrada na REAL"> SOL</label></div>' +
+      (mine === "pump_bm_sol" ? '<p class="small muted">Com "REAL usa regras próprias" desligado, este valor também vale para a FICTÍCIA do BOOST.</p>' : "") +
+      '<p class="cxm-act"><button class="btn primary" data-bmrq="go">Ligar a REAL</button> <button class="btn" data-bmc="cancel">Cancelar</button></p>';
+    $("cfgDiff").hidden = false; $("cfgDiffX").focus();
+    BMC.realHis = his; BMC.realKey = mine;
+  }
+  async function bmRealGo() {
+    const pick = (document.querySelector('input[name="bmrq"]:checked') || {}).value;
+    const v = pick === "same" ? BMC.realHis : parseFloat(($("bmrqV") || {}).value);
+    if (!(v >= 0.001 && v <= 5)) { toast("Valor entre 0.001 e 5 SOL."); return; }
+    $("cfgDiff").hidden = true; BMC.view = null;
+    await setCfg({ pump_bm_real: true, [BMC.realKey]: v });
+    if (VIEW === "boost") { loadBm(); bmcBar(true); }
+  }
+  document.addEventListener("click", (e) => {
+    const g = e.target.closest && e.target.closest('[data-bmrq="go"]');
+    if (g) { e.preventDefault(); bmRealGo(); return; }
+    const b = e.target.closest && e.target.closest('[data-toggle="pump_bm_real"]');
+    if (!b || b.disabled || (cfg() || {}).pump_bm_real) return;           // desligar segue o caminho normal
+    e.preventDefault(); e.stopImmediatePropagation();
+    bmRealAsk(b);
+  }, true);
   async function loadBm() {
     bmRealInit(); bmRealShow(BMRS);
     bmcBar();
