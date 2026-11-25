@@ -5466,8 +5466,11 @@ class PumpFun:
                  "lag_s": round(max(0.0, time.time() - float(it.get("block_t") or it.get("t") or time.time())), 1),
                  "lat": dict(res.get("lat") or {}, total_ms=round(max(0.0, time.time() - float(it.get("t") or time.time())) * 1000),
                              fila_ms=round(max(0.0, float(it.get("t_run") or 0) - float(it.get("t") or 0)) * 1000) if it.get("t") else None)}
-            self._addfee(p, platform=amt * fr["venue"], portal=amt * fr["portal"],
-                         network=max(0.0, spent - amt * (1 + fr["venue"] + fr["portal"])))
+            # 0.32.449 (dono, Zeus 25/11): a PumpPortal na PumpSwap gasta mais SOL que o pedido (0,126 com 0,1 configurado) e
+            # esse excesso entrava como "taxa de rede" (0,025 SOL), embora tenha virado token. A rede é só a da transação; as
+            # taxas do pool contam sobre o que de fato foi trocado. O aluguel da conta do token volta no fechamento.
+            swap = max(0.0, spent - fr["prio"]) / (1 + fr["venue"] + fr["portal"])
+            self._addfee(p, platform=swap * fr["venue"], portal=swap * fr["portal"], network=fr["prio"])
             p["fees_sol"] = sum((p.get("fee_parts") or {}).values())
             p.update(it.get("pos_cfg") or {})              # compra do botão: stop/alvo próprios (0.26.0)
             if own_auto:
@@ -5562,13 +5565,14 @@ class PumpFun:
                 back = (await fn(p["mint"])) if fn else 0.0
             if back > 0:
                 p["proceeds"] += back
-                fp = p.setdefault("fee_parts", {})
-                fp["network"] = max(0.0, float(fp.get("network") or 0) - back)
-                p["fees_sol"] = max(0.0, float(p.get("fees_sol") or 0) - back)
                 p["conta_devolvida_sol"] = round(back, 6)
                 self._feed(wallet=p.get("wallet") or "manual", short=short(p.get("wallet") or "manual"), mint=p["mint"],
                            symbol=p.get("symbol"), kind="sell", action="conta do token fechada", real=True,
                            reason=f"{back:.5f} SOL de aluguel devolvidos para a carteira")
+            # 0.32.449: rede = uma taxa por transação (compra + cada venda); vale também para posição aberta antes desta versão
+            fp = p.setdefault("fee_parts", {})
+            fp["network"] = fr["prio"] * (1 + len(p.get("sells") or []))
+            p["fees_sol"] = sum(float(v or 0) for v in fp.values())
             pnl = p["proceeds"] - p["sol_in"]          # diferença REAL de SOL na carteira: já com todas as taxas
             tr = {"opened_at": p["opened_at"], "closed_at": now_iso(), "wallet": p["wallet"], "mint": p["mint"],
                   "symbol": p["symbol"], "sol_in": p["sol_in"], "sol_out": round(p["proceeds"], 6),

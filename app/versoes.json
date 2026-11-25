@@ -3000,6 +3000,11 @@
    "versao": "0.32.448",
    "inicio": "2026-11-24T21:55:00+00:00",
    "titulo": "BOOST: leitura rápida só em token esperando confirmação, a cada 5 s"
+  },
+  {
+   "versao": "0.32.449",
+   "inicio": "2026-11-25T01:45:00+00:00",
+   "titulo": "Taxas da carteira REAL: SOL gasto a mais na compra não conta mais como taxa"
   }
  ]
 }
