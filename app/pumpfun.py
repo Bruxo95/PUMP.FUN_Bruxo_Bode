@@ -2238,6 +2238,16 @@ class PumpFun:
                 if p.get("bm_tneg") and not p.get("bm_tneg_why"):
                     self._tneg_check(p, t)
             if self.bm_follows_sim(p):                     # 0.32.387: a REAL do BOOST não tem regra própria; segue a fictícia
+                # 0.32.463 (dono: "positivo × negativo sem medição" nas REAIS do BOOST): a posição vem como CÓPIA da memória;
+                # sem gravar, o tempo no positivo × negativo, o melhor e o pior momento da REAL se perdiam a cada leitura
+                if px and p.get("tokens") and not p.get("selling"):
+                    left_cost = p["sol_in"] * (p["tokens_left"] / p["tokens"])
+                    if left_cost:
+                        chg = (self._exit_value(p, px) / left_cost - 1) * 100
+                        p["price_now"], p["chg_pct"] = px, round(chg, 2)
+                        p["best_pct"] = round(max(chg, p.get("best_pct", chg)), 2)
+                        p["worst_pct"] = round(min(chg, p.get("worst_pct", chg)), 2)
+                    self._save_pos(p)
                 continue
             if not px or p.get("selling"):
                 continue

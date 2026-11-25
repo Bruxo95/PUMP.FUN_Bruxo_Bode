@@ -1513,8 +1513,14 @@
     // 0.32.401 (pedido do dono): os trades do BOOST da REAL e da FICTÍCIA não se misturam — segue o botão FICTÍCIA / REAL do topo
     const bmTrs = (r.trades || []).filter((t) => !!t.real === RM); BM_TRS = bmTrs;
     if ($("bmTrSub")) $("bmTrSub").textContent = (RM ? "Só a carteira REAL" : "Só a carteira FICTÍCIA") + " · resultado líquido (já com taxas) · troque no botão Fictícia / Real do topo";
-    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Positivo × negativo", "Motivo da saída"], bmTrs.map((t, i) => [dt(t.closed_at), pfM(t.mint, t.symbol) + ' <button class="btn sm bmtd" type="button" data-bmtd="' + i + '" title="Abrir os detalhes deste trade (a mesma janela do Histórico)">Detalhes</button>' + (t.real ? ' <span class="tag real">REAL</span>' : ""),
-      f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", t.hold_s == null ? "–" : hms(t.hold_s), bmSinal(t.sinal), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
+    // 0.32.463 (pedido do dono): o maior positivo e o maior negativo de cada trade, para ver se dava para ter saído com resultado
+    const bmPk = (t) => t.best_pct == null && t.worst_pct == null ? '<span class="dim">sem medição</span>' : bmPkV(t);
+    const bmPkV = (t) =>
+      '<span class="up">' + pc(t.best_pct) + '</span> / <span class="down">' + pc(t.worst_pct) + "</span>" +
+      (t.best_pct != null && t.pnl_pct != null && t.best_pct - t.pnl_pct >= 5 ? '<small class="muted">deixou ' + f(t.best_pct - t.pnl_pct, 1) + " pts na mesa</small>" : "");
+    const bmBy = (t) => t.medido_por ? ' <small class="muted" title="Trade REAL de antes da 0.32.463: a REAL não guardava esta medição; o número é da FICTÍCIA par (mesma entrada e saída)">pela fictícia</small>' : "";
+    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Melhor / pior momento", "Tempo", "Positivo × negativo", "Motivo da saída"], bmTrs.map((t, i) => [dt(t.closed_at), pfM(t.mint, t.symbol) + ' <button class="btn sm bmtd" type="button" data-bmtd="' + i + '" title="Abrir os detalhes deste trade (a mesma janela do Histórico)">Detalhes</button>' + (t.real ? ' <span class="tag real">REAL</span>' : ""),
+      f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", bmPk(t) + bmBy(t), t.hold_s == null ? "–" : hms(t.hold_s), bmSinal(t.sinal) + (t.sinal ? bmBy(t) : ""), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
       RM ? "Nenhum trade do BOOST na REAL ainda." : "Nenhum trade do BOOST na FICTÍCIA ainda.");
     table("bmVip", ["DEV", "Situação", "Tokens com resultado", "Ganhos", "Perdas", "Acerto", "Saldo", "Melhor", "Pior", "Último", "Tokens em 24 h", "Ações"],
       (r.vip || []).slice(0, 200).map((d) => [bmDevLink(d.creator, d.vip ? "👑 " : ""), d.scam ? '<span class="tag loss">SCAM</span>' : d.vip ? '<span class="tag win">VIP</span>' : '<span class="tag neutral">não é VIP</span>',

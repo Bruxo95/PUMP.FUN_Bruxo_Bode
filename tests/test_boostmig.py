@@ -708,3 +708,36 @@ def test_queda_de_uma_vez_marca_o_dev_mesmo_sem_preco_da_dexscreener():
     assert bm2.scam_from_loss(M, -90.0, now + 120, now)
     assert "queda de -90%" in bm2.scam_devs[DEV]["why"] and DEV in bm2.dirty_devs
     assert not bm2.scam_from_loss(M, -95.0, now + 130, now)           # já marcado por esse token
+
+
+def test_real_que_segue_a_ficticia_mede_positivo_negativo_e_melhor_pior(tmp_path):
+    """0.32.463 (dono, 25/11: REAL do BOOST com "sem medição"): a posição vem como cópia da memória; a REAL que segue a
+    fictícia passou a ser gravada a cada leitura, com o tempo no positivo × negativo e o melhor/pior momento."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False, pump_bm_sg_after=False, pump_real_mirror=False, pump_bm_no_stop=True,
+                         pump_bm_partial_on=False, pump_bm_trail_start=500)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    f = [p for p in pf.positions() if p["mint"] == M][0]
+    pf._save_pos(dict(f, id="real-1", real=True, wallet="manual"))
+    ref = float(f.get("trader_px") or f.get("trader_price") or f["price_in"])
+    for i, px in enumerate((ref * 1.3, ref * 0.5, ref * 1.1)):
+        pf.tokens[M].update(price=px, last_t=now + 2 + i)
+        pf._check_stops(M, now + 2 + i)
+    r = [p for p in pf.positions() if p["id"] == "real-1"][0]
+    assert pf.sign_out(r) and pf.sign_out(r)["trocas"] >= 1
+    assert r["best_pct"] > 0 > r["worst_pct"]
+
+
+def test_trade_real_antigo_usa_a_medicao_da_ficticia_par():
+    fic = {"id": 7, "mint": M, "real": False, "best_pct": 23.0, "worst_pct": -21.9, "sinal": {"pos_s": 83, "neg_s": 20}, "closed_at": "2026-11-25T22:34:54+00:00"}
+    real = {"id": 8, "mint": M, "real": True, "sim_id": None, "closed_at": "2026-11-25T22:34:55+00:00"}
+    row = PumpHub._bm_twin_fill({"best_pct": None, "worst_pct": None, "sinal": None}, real, [real, fic])
+    assert row["best_pct"] == 23.0 and row["sinal"]["pos_s"] == 83 and row["medido_por"] == "fictícia"
+    longe = dict(real, closed_at="2026-11-25T23:34:55+00:00")
+    assert "medido_por" not in PumpHub._bm_twin_fill({"best_pct": None, "sinal": None}, longe, [longe, fic])
