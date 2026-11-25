@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "5d194fd89a6e7acebe2c000516526f5918831632",
-    "application_version": "0.32.459 · 2026-11-25 · Venda REAL feita fora do robô entra no resultado (SOL e aluguel da conta)",
+    "repository_reference": "adfa166cb9b0f4dc19c8a84a7714be675f24af66",
+    "application_version": "0.32.460 · 2026-11-25 · Períodos diários do BOOST, gráfico da moeda na Sala e notificações em cartões",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "6ce9d9592da6ef0dd6dfbacdd8590b06dbb0b25d2bf64136eee7885b25d9ccab",
+      "app/version.py": "ce95e4800f1711521878f47c3e2f8840cfd529c4654ffe83cbc65b5fac738ab1",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "aee974b66b5676e687cfa8e1ad436a29d45a6419fc86e1f5f787ea6d41ba851d",
+      "web/app.html": "93d0a5075d43c7d63d3165e2221102eb6ac17c03ea5415724c2216a0ba0b9b3a",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.1",
+        "version": "5.0.0",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "c384af7139666c561c04b03766ef7774140a6d581c0781ff2961b074dfdf08d4"
+  "pdf_sha256": "9d812be94ef0f55dcc4b2f76c3abaa02c3b9dd1233b0678bfc93e533fadf211c"
 }

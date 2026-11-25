@@ -300,6 +300,14 @@ def create_app(hub, auth, cfg) -> FastAPI:
         L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
         return {"abas": pf.tabs(L, pf.aba_of), "semanas": weekparts.por_aba(L, pf.aba_of)}   # 0.32.161: fim de semana × dias de semana
 
+    @app.get("/api/pump/boost-periodos")
+    async def boost_periodos(real: int = 0, pf=Depends(engine)):
+        """0.32.459 (pedido do dono): períodos diários do BOOST (01, 02, 03…), fechando à meia-noite. Saem dos trades fechados da conta;
+        o user_id vem só do token (ou da visualização do admin)."""
+        from . import boostperiodos
+        L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
+        return boostperiodos.build(L, pf.aba_of)
+
     @app.get("/api/pump/trader-hist")
     async def trader_hist(real: int = 0, pf=Depends(engine)):
         """0.32.163 (pedido do dono): todos os traders que esta conta copiou, com o resultado de cada um. Os que só existem no

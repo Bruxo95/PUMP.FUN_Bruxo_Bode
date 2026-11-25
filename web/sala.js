@@ -937,6 +937,8 @@
   }
   // 0.32.314 (pedido do dono): token em que o criador pode travar a venda (Robinhood) aparece em amarelo, com ⚠
   const sym = (x) => (x.risco ? '<span class="risk" title="' + esc(x.risco) + '">⚠ ' : "") + esc(x.symbol || (x.mint || "").slice(0, 6)) + (x.risco ? "</span>" : "");
+  // 0.32.459 (pedido do dono): na Sala da pump.fun, clicar no nome da moeda abre o gráfico dela na pump.fun (as outras redes não têm esse link)
+  const symL = (x) => (!HOOD && x.mint && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(x.mint) ? '<a class="tkl" href="https://pump.fun/coin/' + encodeURIComponent(x.mint) + '" target="_blank" rel="noopener" title="' + tr("abrir o gráfico na pump.fun", "open the chart on pump.fun") + '">' + sym(x) + "</a>" : sym(x));
   const symTxt = (x) => String(x.symbol || (x.mint || "").slice(0, 6)).toUpperCase();
   const pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%");
   const sol = (v) => (v == null ? "–" : PRIV() ? "•••" : FOREX ? fxUsd(v) : (v > 0 ? "+" : "") + Number(v).toFixed(DEC2) + " " + U);
@@ -1223,7 +1225,7 @@
       const hr = (p) => { const t = tms(p.opened_at); return t ? hms(t, { hour: "2-digit", minute: "2-digit" }) : "–"; };
       box.innerHTML = '<div class="ph"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Hora", "Time") + "</span><span>" + tr("Entrada", "In") + "</span><span>" + tr("Agora", "Now") + "</span><span>%</span></div>" +
         sorted.map((p) => { const ins = +p.sol_in || 0, nowv = ins + (+p.pnl_now_sol || 0);
-          return '<div class="pr"><span>' + sym(p) + '</span><span class="hr" title="' + tr("entrou às ", "bought at ") + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
+          return '<div class="pr"><span>' + symL(p) + '</span><span class="hr" title="' + tr("entrou às ", "bought at ") + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
             '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
     }
     // 0.32.305 (pedido do dono): Histórico das posições fechadas embaixo das abertas
@@ -1233,7 +1235,7 @@
     hb.innerHTML = !HS.length ? '<div class="empty">' + tr("nenhuma posição fechada ainda", "no closed positions yet") + "</div>" :
       '<div class="ph"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Saiu", "Out") + "</span><span>" + tr("Entrada", "In") + "</span><span>" + tr("Saída", "Exit") + "</span><span>%</span></div>" +
       HS.map((t) => { const ins = +t.sol_in || 0, out = ins + (+t.pnl_sol || 0);
-        return '<div class="pr" title="' + esc((EN() ? motivo(t.motivo) : (t.motivo || "")) + tr(" · entrou ", " · in ") + hm(t.opened_at) + tr(", saiu ", ", out ") + hm(t.closed_at)) + '"><span>' + sym(t) + '</span><span class="hr">' + hm(t.closed_at) +
+        return '<div class="pr" title="' + esc((EN() ? motivo(t.motivo) : (t.motivo || "")) + tr(" · entrou ", " · in ") + hm(t.opened_at) + tr(", saiu ", ", out ") + hm(t.closed_at)) + '"><span>' + symL(t) + '</span><span class="hr">' + hm(t.closed_at) +
           "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>"; }).join("");
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">' + icon((t.pnl_sol || 0) > 0 ? "trophy" : "skull", 1) + "SELL " + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
       .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">' + icon("coin", 1) + "BUY " + sym(p) + (PRIV() ? "" : " " + Number(p.sol_in || 0).toFixed(DEC) + " " + U) + "</span>" })))

@@ -1511,9 +1511,9 @@
           ((RM ? x.sinal_real : x.sinal_sim) ? "<br>" + bmSinal(RM ? x.sinal_real : x.sinal_sim) : "")];
     }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhum token nas últimas 24 h ainda. Aparecem aqui os que migram para a PumpSwap e os novos (curva) que passam do volume mínimo.");
     // 0.32.401 (pedido do dono): os trades do BOOST da REAL e da FICTÍCIA não se misturam — segue o botão FICTÍCIA / REAL do topo
-    const bmTrs = (r.trades || []).filter((t) => !!t.real === RM);
+    const bmTrs = (r.trades || []).filter((t) => !!t.real === RM); BM_TRS = bmTrs;
     if ($("bmTrSub")) $("bmTrSub").textContent = (RM ? "Só a carteira REAL" : "Só a carteira FICTÍCIA") + " · resultado líquido (já com taxas) · troque no botão Fictícia / Real do topo";
-    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Positivo × negativo", "Motivo da saída"], bmTrs.map((t) => [dt(t.closed_at), pfM(t.mint, t.symbol) + (t.real ? ' <span class="tag loss">REAL</span>' : ""),
+    table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Tempo", "Positivo × negativo", "Motivo da saída"], bmTrs.map((t, i) => [dt(t.closed_at), pfM(t.mint, t.symbol) + ' <button class="btn sm bmtd" type="button" data-bmtd="' + i + '" title="Abrir os detalhes deste trade (a mesma janela do Histórico)">Detalhes</button>' + (t.real ? ' <span class="tag real">REAL</span>' : ""),
       f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", t.hold_s == null ? "–" : hms(t.hold_s), bmSinal(t.sinal), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
       RM ? "Nenhum trade do BOOST na REAL ainda." : "Nenhum trade do BOOST na FICTÍCIA ainda.");
     table("bmVip", ["DEV", "Situação", "Tokens com resultado", "Ganhos", "Perdas", "Acerto", "Saldo", "Melhor", "Pior", "Último", "Tokens em 24 h", "Ações"],
@@ -1816,11 +1816,15 @@
     const bal = rm ? (W && W.sol != null ? +W.sol : null) : Wt.equity_sol;
     $("bmWalT").textContent = "Carteira " + (rm ? "REAL" : "FICTÍCIA");
     $("bmWalS").textContent = rm ? "saldo na blockchain · a linha é o saldo estimado: o de agora menos o resultado dos trades REAL fechados depois (depósitos e saques não entram) · passe o mouse para ver cada momento" : "saldo fictício · a linha é o saldo depois de cada trade fechado (todas as telas) · passe o mouse para ver cada momento";
+    // 0.32.460 (pedido do dono): endereço da carteira REAL com botão nas cores da Solana, abre no Solscan
+    const addr = rm ? (W && W.address) || (D.real && D.real.address) : null, ab = $("bmWalA");
+    if (ab) { ab.hidden = !addr; if (addr) { ab.href = "https://solscan.io/account/" + encodeURIComponent(addr); ab.title = addr + " · abrir no Solscan"; ab.innerHTML = '<i></i>SOL <b>' + esc(addr.slice(0, 4) + "…" + addr.slice(-4)) + "</b> ↗"; } }
     document.querySelectorAll("#bmWalR [data-bmwr]").forEach((b) => b.classList.toggle("on", +b.dataset.bmwr === BMWR));
     const bm = rm ? R.pnl_sol_real : R.pnl_sol;
     kpis("bmWalK", [["Saldo da carteira", bal == null ? "–" : s4(bal) + "<small> SOL</small>", bal != null && p ? "≈ " + usd(bal * p, 2) : rm && !(W && W.configured) ? "carteira não configurada" : "", "wallet"],
       ["Resultado da carteira", sg(Wt.pnl_sol || 0, "") + ' <small class="usdv">' + solUsd(Wt.pnl_sol || 0) + "</small>", (Wt.count || 0) + " trades fechados · todas as telas", "pnl"],
       ["Resultado do BOOST", sg(bm || 0, "") + ' <small class="usdv">' + solUsd(bm || 0) + "</small>", "só os trades do BOOST", "pnl"]]);
+    bmPerNow();
     const el = $("bmCurve"), pts = ((rm ? D.real_curve : D.curve) || []).map((x) => [new Date(x[0]).getTime(), +x[1]]);
     const t1 = Date.now(), t0 = t1 - BMWR * 86400000, start = rm ? 0 : +Wt.start_sol || 0;
     const before = pts.filter((x) => x[0] < t0); let base = before.length ? before[before.length - 1][1] : start;
@@ -1860,6 +1864,68 @@
       return ["BOOST " + h + " h (" + (rm ? "REAL" : "FICTÍCIA") + ")", sg(q.saldo_sol || 0, "") + ' <small class="usdv">' + solUsd(q.saldo_sol || 0) + "</small>",
         q.trades ? pc(q.investido_sol ? q.saldo_sol / q.investido_sol * 100 : null) + " sobre o investido · " + q.trades + " fechados · " + (q.ganhos || 0) + " ganharam" : "sem trades fechados", "pnl"]; }));
   }
+  // 0.32.459 (pedido do dono): períodos diários do BOOST (01, 02, 03…). Fecham à meia-noite (Berlim) e ficam no histórico; saem dos
+  // trades fechados da conta (/api/pump/boost-periodos), então nada se perde ao reiniciar. Botão abre a janela com cada período.
+  const BMPH = { r: {}, t: {}, busy: false };
+  let BM_TRS = [];
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-bmtd]"); if (b && BM_TRS[+b.dataset.bmtd]) { e.preventDefault(); openTradeDet(BM_TRS[+b.dataset.bmtd]); } });
+  async function bmPerData(force) {
+    const rm = realMode();
+    if (!force && BMPH.r[rm] && Date.now() - (BMPH.t[rm] || 0) < 30000) return BMPH.r[rm];
+    let r = null; try { r = await BB.api("/api/pump/boost-periodos?real=" + (rm ? 1 : 0), { quiet: true }); } catch (e) { /* */ }
+    if (r && !r.error) { BMPH.r[rm] = r; BMPH.t[rm] = Date.now(); }
+    return BMPH.r[rm] || null;
+  }
+  async function bmPerNow() {
+    if (!$("bmPerNow") || BMPH.busy) return; BMPH.busy = true;
+    try {
+      const rm = realMode(), r = await bmPerData(false); if (!r || rm !== realMode()) return;
+      const p = (r.periodos || [])[0];
+      $("bmPerNow").innerHTML = p ? "Período <b>" + p.rotulo + "</b> em andamento · " + (p.trades ? sg(p.saldo_sol, " SOL") + " · " + p.trades + " trades" : "sem trades ainda") + " · fecha à meia-noite (Berlim)" : "Período 01 começa no primeiro trade fechado do BOOST.";
+    } finally { BMPH.busy = false; }
+  }
+  function perSpark(serie, w, h) {
+    if (!serie || serie.length < 1) return '<p class="muted small">Sem trades neste período.</p>';
+    const S = [[serie[0][0] - 1, 0]].concat(serie), xs = S.map((x) => x[0]), ys = S.map((x) => x[1]);
+    const t0 = Math.min(...xs), t1 = Math.max(...xs) || t0 + 1; let lo = Math.min(0, ...ys), hi = Math.max(0, ...ys); if (hi - lo < 1e-6) { hi += 0.01; lo -= 0.01; }
+    const X = (t) => 4 + (t - t0) / ((t1 - t0) || 1) * (w - 8), Y = (v) => 4 + (hi - v) / (hi - lo) * (h - 8);
+    let d = ""; S.forEach((x, i) => { d += (i ? " L" : "M") + X(x[0]).toFixed(1) + " " + Y(x[1]).toFixed(1); });
+    const col = ys[ys.length - 1] >= 0 ? "#22c55e" : "#ef4444";
+    return '<svg class="perspark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" role="img" aria-label="Resultado acumulado do período"><line x1="4" x2="' + (w - 4) + '" y1="' + Y(0).toFixed(1) + '" y2="' + Y(0).toFixed(1) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
+      '<path d="' + d + " L" + X(t1).toFixed(1) + " " + Y(0).toFixed(1) + " L" + X(t0).toFixed(1) + " " + Y(0).toFixed(1) + 'Z" fill="' + col + '" opacity=".14"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+  }
+  function perCard(p, anchor) {
+    const ini = anchor == null ? null : anchor + (p.antes_sol || 0), fim = ini == null ? null : ini + (p.saldo_sol || 0), cp = ini ? (fim - ini) / ini * 100 : null;
+    const dia = new Date(p.ini * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
+    const kp = (l, v, s) => '<div class="perk"><small>' + l + "</small><b>" + v + "</b>" + (s ? "<span>" + s + "</span>" : "") + "</div>";
+    return '<section class="percard ' + (p.fechado ? "" : "now") + '"><header><h3>Período ' + p.rotulo + '</h3><span class="muted">' + dia + "</span>" +
+      (p.fechado ? '<span class="tag neutral">ENCERRADO</span>' : '<span class="tag win">EM ANDAMENTO</span>') + '<span class="sp"></span><b class="perres">' + (p.trades ? sg(p.saldo_sol, " SOL") : '<span class="muted">sem trades</span>') + "</b></header>" +
+      '<div class="perg">' +
+      kp("Carteira no início", ini == null ? "–" : s4(ini) + " SOL", ini == null ? "carteira REAL: saldo do começo não é guardado" : "") +
+      kp("Carteira no fim", fim == null ? "–" : s4(fim) + " SOL", cp == null ? "" : pc(cp) + " no período") +
+      kp("Resultado do BOOST", p.trades ? sg(p.saldo_sol, "") + " SOL" : "–", p.pct_sobre_investido == null ? "" : pc(p.pct_sobre_investido) + " sobre o investido (" + s4(p.investido_sol) + " SOL)") +
+      kp("Trades", String(p.trades), p.acerto == null ? "" : p.acerto + "% de acerto") +
+      kp("Acertos", '<span class="up">' + p.ganhos + "</span>", p.ganhos ? "soma dos ganhos <b class=\"up\">+" + f(p.pct_ganhos_soma, 1) + "%</b> · " + sg(p.ganhos_sol, " SOL") : "") +
+      kp("Erros", '<span class="down">' + p.perdas + "</span>", p.perdas ? "soma das perdas <b class=\"down\">" + f(p.pct_perdas_soma, 1) + "%</b> · " + sg(p.perdas_sol, " SOL") : "") +
+      kp("Melhor trade", p.melhor ? esc(p.melhor.symbol || "") : "–", p.melhor ? sg(p.melhor.sol, " SOL") + " (" + pc(p.melhor.pct) + ")" : "") +
+      kp("Pior trade", p.pior ? esc(p.pior.symbol || "") : "–", p.pior ? sg(p.pior.sol, " SOL") + " (" + pc(p.pior.pct) + ")" : "") + "</div>" +
+      '<div class="perchart"><small class="muted">resultado acumulado do período, trade a trade</small>' + perSpark(p.serie, 420, 70) + "</div>" +
+      (p.lista && p.lista.length ? '<details class="perdet"><summary>Ver os ' + p.lista.length + " trades</summary><ul>" + p.lista.slice().reverse().map((t) => "<li><span>" + pfM(t.mint || "", t.symbol) + "</span><span>" + sg(t.pnl_sol, "") + " <small>" + pc(t.pnl_pct) + "</small></span></li>").join("") + "</ul></details>" : "") + "</section>";
+  }
+  async function openBmPer() {
+    const rm = realMode();
+    ovShow("Histórico dos períodos do BOOST · " + (rm ? "REAL" : "FICTÍCIA"), "carregando…", "");
+    const r = await bmPerData(true);
+    if (!r) { $("jtMS").textContent = "Não consegui carregar os períodos."; return; }
+    const bal = rm ? (typeof W !== "undefined" && W && W.sol != null ? +W.sol : null) : null, Wt = (rm ? D.real_wallet : D.wallet) || {};
+    const anchor = rm ? (bal == null ? null : bal - (r.total_sol || 0)) : (+Wt.start_sol || 0);
+    $("jtMS").textContent = "Cada período é um dia e fecha à meia-noite (horário de Berlim). O 01 começa no primeiro trade do BOOST. Resultado líquido, já com taxas.";
+    const L = r.periodos || [];
+    const tot = L.reduce((a, p) => a + (p.saldo_sol || 0), 0), g = L.reduce((a, p) => a + (p.ganhos || 0), 0), e = L.reduce((a, p) => a + (p.perdas || 0), 0);
+    $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '</b></div><div><small>Acertos</small><b class="up">' + g + '</b></div><div><small>Erros</small><b class="down">' + e + "</b></div></div>" + L.map((p) => perCard(p, anchor)).join("")
+      : '<p class="muted">Ainda não há trade fechado do BOOST nesta carteira. O período 01 começa no primeiro.</p>';
+  }
+  document.addEventListener("click", (e) => { if (e.target.closest("#bmPerBtn")) openBmPer(); });
   document.addEventListener("change", (e) => { if (e.target.id === "bmF") renderBm(); });
   document.addEventListener("click", (e) => { const a = e.target.closest("[data-bmdev1]"); if (!a) return; e.preventDefault(); openBmDev(a.dataset.bmdev1); });
   document.addEventListener("click", async (e) => {
@@ -3682,8 +3748,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   // 0.32.34 (pedido do dono): clicar numa notificação abre o que aconteceu — a posição aberta, ou o trade fechado com o motivo
   function ntfSymbol(msg) {
-    const m = /fechou (\S+) copiado|compra (?:automática|manual)[^:]*: (\S+)|copiou [^:]+: compra (\S+)|\] (\S+): (?:vendendo|trader saiu|saída)|compra (\S+) NÃO feita/i.exec(msg || "");
-    return m ? (m[1] || m[2] || m[3] || m[4] || m[5]) : null;
+    const m = /fechou (\S+) copiado|compra (?:automática|manual)[^:]*: (\S+)|copiou [^:]+: compra (\S+)|\] (\S+): (?:vendendo|trader saiu|saída)|compra (\S+) NÃO feita|fechou ([^\s(]+)|^(?:\[PUMP (?:SIM|REAL)\]\s*)?([^\s:(]+): (?:vendeu|saída|vendendo|trader saiu|comprou)/i.exec(msg || "");
+    return m ? (m[1] || m[2] || m[3] || m[4] || m[5] || m[6] || m[7]) : null;
   }
   // 0.32.201 (pedido do dono): ganho antes das taxas, taxas pagas e líquido de cada trade. Trade antigo sem taxa guardada fica "–"
   const hGross = (t) => (t.gross_sol != null ? t.gross_sol : t.fees_sol != null ? (t.pnl_sol || 0) + t.fees_sol : null);
@@ -3729,12 +3795,10 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   function ntfMoney(msg) {
     const num = (x) => Number(String(x).replace("−", "-"));
     const m = /→\s*([+\-−]?[0-9.]+)\s*SOL\s*\(([+\-−]?[0-9.]+)%\)/.exec(msg || "");
-    if (m) { const pnl = num(m[1]), pct = num(m[2]), inv = pct ? Math.abs(pnl / (pct / 100)) : null, up = pnl > 0;
-      return '<div class="ntfmoney ' + (up ? "up" : "down") + '"><b>' + (up ? "LUCRO " : "PREJUÍZO ") + (up ? "+" : "") + s4(pnl) + " SOL</b> (" + (up ? "+" : "") + f(pct, 1) + "%)" +
-        (inv ? ' <span class="muted">· investiu ' + s4(inv) + " SOL · recebeu " + s4(inv + pnl) + " SOL</span>" : "") + "</div>"; }
+    if (m) { const pnl = num(m[1]), pct = num(m[2]), inv = pct ? Math.abs(pnl / (pct / 100)) : null;
+      return { pnl, pct, inv, out: inv ? inv + pnl : null, up: pnl > 0 }; }
     const b = /compra (?:automática|manual)[^:]*:\s*\S+\s+([0-9.]+)\s*SOL/i.exec(msg || "");
-    if (b) return '<div class="ntfmoney"><b>Investiu ' + s4(num(b[1])) + " SOL</b></div>";
-    return "";
+    return b ? { buy: num(b[1]) } : null;
   }
   // 0.32.56 (pedido do dono): a notificação diz de qual aba veio o trade (Explorar, barrados, Aba do Bruxo, Top traders…)
   function ntfAba(n) {
@@ -3748,17 +3812,25 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (NTAB === "traders") {
       NTF_TNEW = 0; if ($("ntfTabT")) $("ntfTabT").textContent = "Traders copiados";
       const L = (D && D.live) || [];
-      $("ntfL").innerHTML = L.length ? L.slice(0, 100).map((e) => '<div class="ntfi">' + (MON_AC[e.action] || '<span class="tag">' + esc(e.action) + "</span>") + ' <span class="tag aba">TRADER</span> <span class="muted">' + esc(dt(e.t * 1000)) + "</span>" +
-        "<div>" + pfW(e.wallet, e) + " · " + pfM(e.mint, e.symbol) + " · " + s4(e.sol) + " SOL" + (e.kind === "sell" && e.pnl_pct != null ? " · resultado dele " + pc(e.pnl_pct) : "") + "</div></div>").join("")
+      $("ntfL").innerHTML = L.length ? L.slice(0, 100).map((e) => '<div class="ntfc k-' + (e.kind === "sell" ? "sell" : "buy") + '"><div class="nc-top"><span class="nc-tk">' + pfM(e.mint, e.symbol) + '</span><span class="tag aba">TRADER</span><span class="sp"></span><time>' + esc(dt(e.t * 1000)) + "</time></div>" +
+        '<div class="nc-act">' + (MON_AC[e.action] || '<span class="tag">' + esc(e.action) + "</span>") + '<span class="muted">' + pfW(e.wallet, e) + "</span></div>" +
+        '<div class="nc-money"><b>' + s4(e.sol) + " SOL</b>" + (e.kind === "sell" && e.pnl_pct != null ? "<span>resultado dele " + pc(e.pnl_pct) + "</span>" : "") + "</div></div>").join("")
         : '<p class="muted">Nenhum movimento dos traders copiados ainda (aparece quando um deles compra ou vende).</p>';
       return;
     }
     const KN = { buy: ["Compra", "sim"], win: ["Lucro", "win"], loss: ["Prejuízo", "loss"], sell: ["Venda", "neutral"], alert: ["Aviso", "pause"], error: ["Erro", "loss"], stop: ["Stop", "loss"], trader: ["Traders", "neutral"] };
-    // 0.31.58 (pedido do dono): toda notificação diz se é da carteira REAL ou da FICTÍCIA
+    // 0.32.459 (pedido do dono): cada notificação é um cartão — moeda grande, resultado em destaque, REAL/FICTÍCIA, aba e a explicação embaixo
+    const ICO = { win: "▲", loss: "▼", buy: "＋", sell: "–", alert: "!", error: "!", stop: "▼" };
     $("ntfL").innerHTML = NTFL.length ? NTFL.map((n) => { const kk = /compra autom|comprou|compra manual/i.test(n.msg) && !/NÃO feita|não copiou/i.test(n.msg) && !n.k ? ["Compra", "sim"] : KN[n.k] || ["Aviso", "neutral"];
-      const isReal = /^\[PUMP REAL\]/.test(n.msg || ""), mk = mascKind(n.msg);
-      const nome = mk ? String(mk[2]).replace(/ \(REAL\)$/, "") : kk[0];
-      return '<div class="ntfi" data-ntfi="' + NTFL.indexOf(n) + '" title="Clique para ver o que aconteceu"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span> " + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="muted">' + esc(n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "") + "</span>" + ntfAba(n) + ntfMoney(n.msg) + "<div>" + esc(String(n.msg || "").replace(/^\[PUMP (SIM|REAL)\]\s*/, "")) + "</div></div>"; }).join("")
+      const isReal = /^\[PUMP REAL\]/.test(n.msg || ""), mk = mascKind(n.msg), kind = /compra autom|comprou|compra manual/i.test(n.msg) && !n.k ? "buy" : (n.k || "info");
+      const nome = mk ? String(mk[2]).replace(/ \(REAL\)$/, "") : kk[0], sym = ntfSymbol(n.msg), M = ntfMoney(n.msg);
+      const when = n.at ? new Date(n.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+      const money = !M ? "" : M.buy != null ? '<div class="nc-money"><b>Investiu ' + s4(M.buy) + ' SOL</b></div>'
+        : '<div class="nc-money ' + (M.up ? "up" : "down") + '"><b>' + (M.up ? "+" : "") + s4(M.pnl) + " SOL</b><span>" + (M.up ? "+" : "") + f(M.pct, 1) + "%</span>" + (M.inv ? "<small>investiu " + s4(M.inv) + " → recebeu " + s4(M.out) + " SOL</small>" : "") + "</div>";
+      return '<div class="ntfc k-' + kind + (isReal ? " is-real" : "") + '" data-ntfi="' + NTFL.indexOf(n) + '" title="Clique para ver o que aconteceu">' +
+        '<div class="nc-top"><span class="nc-ico">' + (ICO[kind] || "•") + '</span><span class="nc-tk">' + (sym ? esc(sym) : esc(nome)) + '</span>' + (isReal ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + '<span class="sp"></span><time>' + esc(when) + "</time></div>" +
+        '<div class="nc-act"><span class="tag ' + kk[1] + '">' + esc(nome) + "</span>" + ntfAba(n) + "</div>" + money +
+        '<div class="nc-why">' + esc(String(n.msg || "").replace(/^\[PUMP (SIM|REAL)\]\s*/, "")) + "</div></div>"; }).join("")
       : '<p class="muted">Nenhuma notificação ainda.</p>';
   }
   function tone(C, t0, fr, dur, type, vol) { const o = C.createOscillator(), g = C.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(C.destination); o.start(t0); o.stop(t0 + dur + 0.02); }

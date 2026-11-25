@@ -2418,8 +2418,11 @@ class PumpHub:
                            "fechadas_real": len(fech_r), "ganhou_real": len([t for t in fech_r if (t.get("pnl_sol") or 0) > 0]),
                            "pnl_sol_real": round(sum(t.get("pnl_sol") or 0 for t in fech_r), 6),
                            "scam_devs": len(bm.scam_devs), "vip_devs": sum(1 for x in vip if x.get("vip"))},
-                "trades": [{**{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real")},
-                            "sinal": t.get("sinal")}
+                "trades": [{**{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real",
+                                                            # 0.32.460: o que a janela do trade (Histórico) precisa para abrir também no BOOST
+                                                            "opened_at", "sol_out", "price_in", "price_out", "best_pct", "worst_pct", "gross_sol",
+                                                            "fees_sol", "fee_parts", "entrou_porque", "lag_s", "sells", "venue", "wallet", "api", "origem", "auto")},
+                            "sinal": t.get("sinal"), "aba": pf.aba_of(t)}
                            for t in ([x for x in mine_t if not x.get("real")][:150] + [x for x in mine_t if x.get("real")][:150])]}
 
     async def bruxo_loop(self) -> None:
