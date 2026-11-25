@@ -3035,6 +3035,11 @@
    "versao": "0.32.455",
    "inicio": "2026-11-25T11:49:37+00:00",
    "titulo": "Carteira REAL com o valor e o estado de cada tela; comparação com o Bruxo inclui as chaves REAL e aparece no Top traders; dica no gráfico do BOOST"
+  },
+  {
+   "versao": "0.32.456",
+   "inicio": "2026-11-25T19:35:47+00:00",
+   "titulo": "BOOST: tempo máximo no token conta da compra"
   }
  ]
 }

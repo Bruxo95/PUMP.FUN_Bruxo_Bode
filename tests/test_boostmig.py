@@ -319,7 +319,7 @@ def test_fim_do_boost_continua_com_compras_crescendo_e_sai_com_perda_maxima(tmp_
     pronto(bm, M, now - 60, now)
     run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
     p = [p for p in pf.positions() if p["mint"] == M][0]
-    assert p["bm_ext"]["grow"] == 10 and abs(p["max_hold_s"] - (bmod.JANELA_S * 0.9 - 60 + 1200)) < 2
+    assert p["bm_ext"]["grow"] == 10 and p["max_hold_s"] == 1200      # 0.32.456: conta da compra
     growth = {"v": 40.0}
     pf.bm_growth_hook = lambda m, t: growth["v"]
     end = p["bm_ext"]["end_t"]
@@ -655,3 +655,28 @@ def test_real_desligada_avisa_no_feed(tmp_path):
     assert b["users"]["u1"]["estado"] == "entrou"                     # a fictícia entra
     feed = pf.store.feed_items()
     assert any(f.get("action") == "REAL não copiou" and "execução real desligada" in f.get("reason", "") for f in feed)
+
+
+def test_tempo_maximo_no_token_conta_da_compra(tmp_path):
+    """0.32.456 (pedido do dono): "tempo máximo no token" é o limite total desde a compra, não minutos extras depois do BOOST."""
+    pf = _pf(tmp_path)
+    pf.role = "admin"
+    now = time.time()
+    pf.tokens[M] = {"price": 1e-6, "last_t": now, "symbol": "GTAVI", "name": "GTA VI", "pool": "pumpswap"}
+    for k, v in vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=True, pump_bm_ext_grow_pct=10, pump_bm_ext_stop_pct=25,
+                         pump_bm_ext_max_min=2, pump_bm_hold_profit_on=False, pump_bm_trail_start=500, pump_bm_partial_on=False)).items():
+        setattr(pf.cfg, k, v)
+    bm = BoostMig(Svc(pf.tokens), clock=lambda: now)
+    pronto(bm, M, now - 60, now)
+    run(PumpHub._bm_user(types.SimpleNamespace(bm=bm), "u1", pf, now))
+    p = [p for p in pf.positions() if p["mint"] == M][0]
+    assert p["max_hold_s"] == 120 and p["hold_why"] == "tempo máximo no token (2 min)"
+    pf.bm_growth_hook = lambda m, t: 80.0                       # compras crescendo não seguram além do tempo máximo
+    open_t = p["open_t"]
+    assert [x for x in pf.positions() if x["mint"] == M] and not pf.check_timeouts(open_t + 100)
+    pf.check_timeouts(open_t + 121)                             # 2 min depois da compra, ainda dentro do BOOST: vende
+    assert not [x for x in pf.positions() if x["mint"] == M]
+    tr = [t for t in pf.trades(50) if t.get("mint") == M][0]
+    assert tr["reason"].startswith("tempo máximo no token")
+    assert BoostMig.rules(cfg(pump_bm_ext_on=False, pump_bm_hold_profit_on=False, pump_bm_sg_after=False, pump_bm_ext_max_min=1,
+                              pump_bm_exit_pct=90), {"t0": now - 10}, now)["max_hold_s"] == 60

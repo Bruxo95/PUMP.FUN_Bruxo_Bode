@@ -1038,13 +1038,18 @@ class BoostMig:
                               "streak_s": float(g("pump_bm_tneg_streak_s", 30)) if t_str else None,
                               "stop": float(g("pump_bm_tneg_stop_pct", 25))}
         # 0.32.380 (pedido do dono): no fim do BOOST, fica se as compras estão crescendo e/ou até ficar +X%; enquanto fica,
-        # a perda máxima é a da opção (padrão 25%) e há um tempo extra máximo
+        # a perda máxima é a da opção (padrão 25%) até o tempo máximo no token
         grow_on, prof_on = bool(g("pump_bm_ext_on", True)), bool(g("pump_bm_hold_profit_on", False))
         sg_after = bool(g("pump_bm_sg_after", True))       # 0.32.386: precisa da conferência do fim do BOOST para armar o autônomo
+        # 0.32.456 (pedido do dono): "tempo máximo no token" conta da COMPRA (antes eram minutos extras depois do fim do BOOST).
+        # É o limite total: vale com ou sem o fim do BOOST, e com a conferência do fim do BOOST desligada também.
+        mx = float(g("pump_bm_ext_max_min", 20))
+        if mx * 60 < hold:
+            out["max_hold_s"] = round(mx * 60, 1)
+            out["hold_why"] = f"tempo máximo no token ({mx:g} min)"
         if grow_on or prof_on or sg_after:
-            mx = float(g("pump_bm_ext_max_min", 20))
-            out["max_hold_s"] = round(hold + mx * 60, 1)
-            out["hold_why"] = f"BOOST {ex:.0f}% + {mx:g} min extras (tempo máximo)"
+            out["max_hold_s"] = round(mx * 60, 1)
+            out["hold_why"] = f"tempo máximo no token ({mx:g} min)"
             out["bm_ext"] = {"end_t": round(end_t, 1), "ex": ex, "max_min": mx, "stop": float(g("pump_bm_ext_stop_pct", 25)),
                              "grow": float(g("pump_bm_ext_grow_pct", 10)) if grow_on else None,
                              "profit": float(g("pump_bm_hold_profit_pct", 10)) if prof_on else None}
