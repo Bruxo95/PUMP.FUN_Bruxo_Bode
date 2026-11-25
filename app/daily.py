@@ -170,7 +170,9 @@ def build(pf, day: str, points: list[dict] | None = None, real: bool = False, al
         add("info", "Sem problema claro hoje (ou poucos trades para concluir). As sugestões aparecem com base mínima.", n, tipo="info")
     start = float(pf._c("pump_sim_balance_sol", 5.0))
     end_t = datetime.fromisoformat(day + "T23:59:59+00:00").timestamp()
-    equity_end = None if real else round(start + sum(t.get("pnl_sol") or 0 for t in trades if (_ts(t.get("closed_at")) or 0) <= end_t), 6)
+    since = getattr(pf, "sim_since", None)                                    # 0.32.465: fictícia recomeçada
+    equity_end = None if real or (since and end_t < since) else round(
+        start + sum(t.get("pnl_sol") or 0 for t in trades if (_ts(t.get("closed_at")) or 0) <= end_t and pf.sim_counts(t)), 6)
     # 0.31.8: cada trade com horário de entrada e saída, e o resultado por hora do dia (pedido do dono)
     tl = []
     for t in sorted(T, key=lambda x: _ts(x.get("closed_at")) or 0):

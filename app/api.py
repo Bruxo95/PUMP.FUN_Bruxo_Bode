@@ -306,7 +306,8 @@ def create_app(hub, auth, cfg) -> FastAPI:
         o user_id vem só do token (ou da visualização do admin)."""
         from . import boostperiodos
         L = [t for t in pf.trades(100000) if bool(t.get("real")) == bool(real)]
-        return boostperiodos.build(L, pf.aba_of)
+        since = None if real else getattr(pf, "sim_since", None)           # 0.32.465: carteira recomeçada
+        return boostperiodos.build(L, pf.aba_of, since=since, conta=pf.sim_counts if since else None)
 
     @app.get("/api/pump/trader-hist")
     async def trader_hist(real: int = 0, pf=Depends(engine)):
@@ -1256,6 +1257,13 @@ def create_app(hub, auth, cfg) -> FastAPI:
         if wait:
             return {"ok": False, "error": wait, **{k: v for k, v in pf.lb_status.items() if k != "error"}}
         return {"ok": not pf.lb_status.get("error"), **pf.lb_status}
+
+    @app.post("/api/pump/sim-restart")
+    async def pump_sim_restart(body: dict, u: dict = Depends(user)):
+        """0.32.465 (pedido do dono): recomeça a carteira FICTÍCIA com o saldo escolhido sem apagar o histórico (ou desfaz)."""
+        pf = await hub.engine(u["id"])
+        hub.check_active(u["id"], pf)
+        return await hub.sim_restart(pf, (body or {}).get("sol"), undo=bool((body or {}).get("undo")))
 
     @app.post("/api/pump/reset")
     async def pump_reset(pf=Depends(engine)):

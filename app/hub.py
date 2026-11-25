@@ -197,6 +197,8 @@ class PumpHub:
         # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
         # carteira) grava OFF.
         pf.real_on_at, pf.real_off_at = saved.get("_real_on_at"), saved.get("_real_off_at")
+        pf.sim_since = saved.get("_sim_since")             # 0.32.465: carteira fictícia recomeçada (sem apagar o histórico)
+        pf.sim_prev = saved.get("_sim_prev") if isinstance(saved.get("_sim_prev"), dict) else None
         if saved.get("_real_on") and self.real_allowed and pf.sol_wallet and pf.sol_wallet.keypair and uid not in self._blocked:
             pf.cfg.pump_real_enabled = True
             if not pf.real_on_at:                      # ligada antes da 0.32.103: a hora está no registro de atividades
@@ -3791,9 +3793,43 @@ class PumpHub:
             s["_eq_mode"] = dict(pf.eq_mode)           # 0.32.65: Copiar igual por carteira (fictícia / fictícia e REAL / parado)
         if getattr(pf, "brain_freeze", None):
             s["_brain_freeze"] = pf.brain_freeze       # 0.31.85: evolução para a qual o dono voltou
+        if getattr(pf, "sim_since", None):
+            s["_sim_since"] = pf.sim_since             # 0.32.465
+        if getattr(pf, "sim_prev", None):
+            s["_sim_prev"] = dict(pf.sim_prev)
         await self.db.update("user_settings", {"user_id": pf.user_id},
                              {"settings": s, "atualizado_em": datetime.now(timezone.utc).isoformat()})
         await self.cfg_hist_note(pf)
+
+    # ------------------------------------------------------------------ recomeçar a fictícia (0.32.465)
+    async def sim_restart(self, pf: PumpFun, sol=None, undo: bool = False) -> dict:
+        """0.32.465 (pedido do dono): a carteira FICTÍCIA passa a contar de agora, com o saldo escolhido, sem apagar trade nenhum.
+        undo volta a contar como antes do último recomeço (saldo inicial e data). Não toca na REAL."""
+        antes = float(pf.cfg.pump_sim_balance_sol)
+        if undo:
+            prev = getattr(pf, "sim_prev", None)
+            if not prev:
+                return {"error": "não há recomeço para desfazer"}
+            sol, since, novo_prev = prev.get("sol"), prev.get("since"), None
+        else:
+            since, novo_prev = time.time(), {"sol": antes, "since": getattr(pf, "sim_since", None)}
+        try:
+            sol = float(sol)
+        except (TypeError, ValueError):
+            return {"error": "saldo inválido"}
+        if not 0.01 <= sol <= 100000:
+            return {"error": "o saldo precisa ficar entre 0,01 e 100000 SOL"}
+        _applied, errors = pf.cfg.apply({"pump_sim_balance_sol": sol})
+        if errors:
+            return {"error": "saldo inválido"}
+        pf.sim_since, pf.sim_prev = since, novo_prev
+        pf.__dict__.setdefault("_ov_user", {})["pump_sim_balance_sol"] = datetime.now(timezone.utc).isoformat()
+        pf._cfg_why = "você desfez o recomeço da fictícia" if undo else "você recomeçou a carteira fictícia"
+        await self.save_settings(pf)
+        await audit(self.db, pf.user_id, "carteira fictícia: desfez o recomeço" if undo else "carteira fictícia: recomeçou",
+                    f"saldo inicial {antes:g} → {sol:g} SOL · histórico mantido")
+        pf._emit(f"Pump.fun: carteira fictícia {'voltou a contar como antes' if undo else 'recomeçou'} com {sol:g} SOL (histórico mantido)")
+        return {"ok": True, "sol": sol, "since": since}
 
     # ------------------------------------------------------------------ histórico de configuração (0.32.199)
     async def cfg_hist_load(self, pf: PumpFun) -> None:

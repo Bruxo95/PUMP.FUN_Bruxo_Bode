@@ -31,10 +31,11 @@ def _open(t: dict) -> float | None:
         return None
 
 
-def build(trades: list[dict], aba_of, now: float | None = None) -> dict:
+def build(trades: list[dict], aba_of, now: float | None = None, since: float | None = None, conta=None) -> dict:
     """`trades` = todos os trades fechados de UMA carteira (fictícia ou real) da conta. Devolve os períodos do mais novo para o mais
     antigo. `antes_sol` = resultado de todos os trades (qualquer aba) fechados antes do período: serve para a carteira inicial."""
     now = time.time() if now is None else now
+    conta = conta or (lambda _t: True)           # 0.32.465: carteira fictícia recomeçada — o saldo conta só desde o recomeço
     todos = []
     for t in trades:
         c = ts(t)
@@ -59,7 +60,7 @@ def build(trades: list[dict], aba_of, now: float | None = None) -> dict:
             o = _open(L[0][1])
             if o is not None and o < ini + 86400:
                 ini = min(o, L[0][0])
-        antes = sum(float(t.get("pnl_sol") or 0) for c, t in todos if c < _t0(d))
+        antes = sum(float(t.get("pnl_sol") or 0) for c, t in todos if c < _t0(d) and conta(t))
         g = [float(t.get("pnl_sol") or 0) for _, t in L]
         pcts = [float(t.get("pnl_pct") or 0) for _, t in L]
         inv = sum(float(t.get("sol_in") or 0) for _, t in L)
@@ -84,6 +85,8 @@ def build(trades: list[dict], aba_of, now: float | None = None) -> dict:
             "melhor": {"symbol": mel.get("symbol"), "sol": mel.get("pnl_sol"), "pct": mel.get("pnl_pct")} if mel else None,
             "pior": {"symbol": pio.get("symbol"), "sol": pio.get("pnl_sol"), "pct": pio.get("pnl_pct")} if pio else None,
             "antes_sol": round(antes, 6), "serie": serie, "lista": lista[-60:],
+            "saldo_carteira_sol": round(sum(s for (_c, t), s in zip(L, g) if conta(t)), 6),
+            "antes_do_recomeco": bool(since and fim <= since), "recomecou_em": since if since and ini <= since < fim else None,
         })
     out.reverse()
     return {"periodos": out[:MAX_PERIODOS], "atual": out[0]["n"], "total_sol": round(sum(float(t.get("pnl_sol") or 0) for _, t in todos), 6),

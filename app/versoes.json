@@ -3075,6 +3075,11 @@
    "versao": "0.32.464",
    "inicio": "2026-11-25T23:37:32+00:00",
    "titulo": "BOOST avisa quando o Bruxo desliga e pergunta se quer desligar o seu"
+  },
+  {
+   "versao": "0.32.465",
+   "inicio": "2026-11-25T23:59:42+00:00",
+   "titulo": "Regras do BOOST em blocos, histórico com voltar, recomeçar a fictícia sem apagar e dólar nos períodos"
   }
  ]
 }

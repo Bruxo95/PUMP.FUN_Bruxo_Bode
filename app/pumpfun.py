@@ -1178,10 +1178,24 @@ class PumpFun:
                 m["itens"] = por[m["nome"]][:cls.TAB_ITENS]
         return sorted(out, key=lambda x: -x["saldo_sol"])
 
+    def sim_counts(self, x: dict) -> bool:
+        """0.32.465 (pedido do dono, 25/11/2026: "resetar o saldo e colocar 1 SOL, mantendo o histórico"): depois de recomeçar, a
+        carteira FICTÍCIA conta só o que ABRIU a partir do recomeço. Nada é apagado: os trades antigos seguem no Histórico."""
+        since = getattr(self, "sim_since", None)
+        if not since:
+            return True
+        t = x.get("open_t")
+        if t is None:
+            try:
+                t = datetime.fromisoformat(str(x.get("opened_at") or x.get("closed_at")).replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                return False
+        return float(t) >= float(since)
+
     def wallet(self, real: bool = False) -> dict:
         start = 0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))
-        closed = [t for t in self.trades(100000) if bool(t.get("real")) == real]
-        pos = [p for p in self.positions() if bool(p.get("real")) == real]
+        closed = [t for t in self.trades(100000) if bool(t.get("real")) == real and (real or self.sim_counts(t))]
+        pos = [p for p in self.positions() if bool(p.get("real")) == real and (real or self.sim_counts(p))]
         realized = sum(t["pnl_sol"] for t in closed)
         open_cash = sum(p.get("proceeds", 0.0) - p["sol_in"] for p in pos)
         mark = sum(self._exit_value(p, p.get("price_now") or p["price_in"]) for p in pos)
@@ -1194,11 +1208,12 @@ class PumpFun:
                 "losses": len(closed) - len(wins), "win_rate": round(len(wins) / len(closed), 3) if closed else None,
                 "gains_sol": round(sum(t["pnl_sol"] for t in wins), 6),
                 "losses_sol": round(sum(t["pnl_sol"] for t in closed if t["pnl_sol"] <= 0), 6),
-                "sol_usd": self.sol_usd, "periodos": self.periods(closed, start + realized)}
+                "sol_usd": self.sol_usd, "periodos": self.periods(closed, start + realized),
+                "since": None if real else getattr(self, "sim_since", None)}
 
     def curve(self, real: bool = False) -> list[list]:
         bal, pts = (0.0 if real else float(self._c("pump_sim_balance_sol", 5.0))), []
-        for t in reversed([t for t in self.trades(5000) if bool(t.get("real")) == real]):
+        for t in reversed([t for t in self.trades(5000) if bool(t.get("real")) == real and (real or self.sim_counts(t))]):
             bal += t["pnl_sol"]
             pts.append([t["closed_at"], round(bal, 6)])
         return pts
@@ -2702,6 +2717,7 @@ class PumpFun:
                 or any(not row.get("real") and not row.get("saida_em") for row in self.auto_rows.values())):
             return {"error": "feche as posições automáticas simuladas antes de zerar a carteira fictícia"}
         self.store.reset_sim()
+        self.sim_since = None                              # apagou tudo: não há mais o que separar
         self.store.feed_clear()
         self.ghosts.reset()
         self.ghosts_auto.reset()

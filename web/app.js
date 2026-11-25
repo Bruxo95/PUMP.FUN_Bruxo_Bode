@@ -1602,6 +1602,119 @@
     const s = e.target.closest("#bmRS [data-bmrs]"); if (s) { bmRealShow(s.dataset.bmrs); return; }
     if (e.target.id === "bmCpSR") bmCopy("sr"); else if (e.target.id === "bmCpRS") bmCopy("rs");
   });
+  // 0.32.465 (pedido do dono, 25/11: "muita informação, botão"): as regras viram blocos que abrem e fecham, com o resumo do que
+  // está valendo; a opção que depende de uma chave desligada some. Só a tela: as chaves e os campos são os mesmos.
+  const BM_SECS = [["ligar", "Ligar e valor", ["on", "real", "real_follow", "sol", "max_open"]],
+    ["entrada", "Quando entrar", ["mig_on", "mig_age_max_min", "enter_max_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys"]],
+    ["novos", "Tokens novos (curva)", ["new_on", "new_vol_usd", "new_age_max_min"]],
+    ["golpe", "Proteção contra golpe", ["require_safety", "max_top10", "block_repeat", "block_scam", "scam_dump_pct", "scam_dump_min", "twin_min", "scam_keep_d", "vip_skip_repeat", "vip_keep_d"]],
+    ["fim", "Fim do BOOST", ["exit_pct", "ext_on", "ext_grow_pct", "hold_profit_on", "hold_profit_pct", "sg_after", "ext_stop_pct", "ext_max_min"]],
+    ["perda", "Stop de perda", ["no_stop", "stop_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct"]],
+    ["lucro", "Proteger o lucro", ["trail_start", "trail_dist", "partial_on", "partial_at", "partial_frac"]],
+    ["avancado", "Avançado", ["hist_min", "fast"]]];
+  // opção → chaves que precisam estar ligadas (uma basta) para ela aparecer; "!" = precisa estar desligada
+  const BM_DEP = { mig_age_max_min: ["mig_on"], new_vol_usd: ["new_on"], new_age_max_min: ["new_on"], scam_dump_pct: ["block_scam"], scam_dump_min: ["block_scam"],
+    scam_keep_d: ["block_scam"], vip_keep_d: ["vip_skip_repeat"], ext_grow_pct: ["ext_on"], hold_profit_pct: ["hold_profit_on"], ext_stop_pct: ["ext_on", "hold_profit_on", "sg_after"],
+    stop_pct: ["!no_stop"], tneg_sum_s: ["tneg_on"], tneg_streak_s: ["tneg_streak_on"], tneg_stop_pct: ["tneg_on", "tneg_streak_on"], partial_at: ["partial_on"], partial_frac: ["partial_on"] };
+  const bmKey = (row) => { const el = row.querySelector("[data-cfg],[data-toggle]"); return ((el && (el.dataset.cfg || el.dataset.toggle)) || "").replace(/^pump_bmr?_/, ""); };
+  let BMOPEN = null;
+  function bmOpenSet() {
+    if (!BMOPEN) { try { BMOPEN = new Set(JSON.parse(localStorage.getItem("pf_bms") || '["ligar","fim"]')); } catch (e) { BMOPEN = new Set(["ligar", "fim"]); } }
+    return BMOPEN;
+  }
+  function bmOrg(box) {
+    if (!box || box.dataset.org) return;
+    box.dataset.org = "1";
+    const rows = [...box.querySelectorAll(".bmrow")], note = box.querySelector(".bmnote"), by = {}, frag = document.createDocumentFragment();
+    rows.forEach((r) => { by[bmKey(r)] = r; });
+    BM_SECS.forEach(([id, nome, keys]) => {
+      const L = keys.map((k) => by[k]).filter(Boolean);
+      if (id === "avancado") rows.forEach((r) => { if (!BM_SECS.some((s) => s[2].includes(bmKey(r)))) L.push(r); });   // opção nova nunca some
+      if (!L.length) return;
+      const d = document.createElement("details"); d.className = "bmsec"; d.dataset.bms = id; d.open = bmOpenSet().has(id);
+      d.innerHTML = "<summary><b>" + nome + '</b><span class="bmsum"></span></summary><div class="bmsec-b"></div>';
+      L.forEach((r) => d.lastChild.appendChild(r));
+      if (id === "ligar" && note) d.lastChild.appendChild(note);
+      frag.appendChild(d);
+    });
+    box.innerHTML = ""; box.classList.add("bmorg"); box.appendChild(frag);
+  }
+  function bmSum(id, g, real) {
+    const n = (v) => String(v).replace(".", ",");
+    if (id === "ligar") return (real ? "" : "fictícia " + (g("on") ? "ligada" : "desligada") + " · real " + (g("real") ? "ligada" : "desligada") + " · ") + n(g("sol")) + " SOL por entrada · até " + g("max_open") + " posições";
+    if (id === "entrada") return g("mig_on") ? "até " + n(g("enter_max_pct")) + "% do BOOST · observa " + n(g("watch_s")) + " s · mín. " + g("min_buys") + " compras" : "migrações desligadas";
+    if (id === "novos") return g("new_on") ? "ligado · volume US$ " + n(g("new_vol_usd")) + " · até " + n(g("new_age_max_min")) + " min" : "desligado";
+    if (id === "golpe") { const L = []; if (g("block_scam")) L.push("DEV scam"); if (g("block_repeat")) L.push("nome repetido"); if (g("require_safety")) L.push("sem trava conferida"); if (+g("max_top10")) L.push("top 10 acima de " + n(g("max_top10")) + "%"); return L.length ? "barra: " + L.join(", ") : "nada barrado"; }
+    if (id === "fim") { const F = []; if (g("ext_on")) F.push("compras crescendo"); if (g("hold_profit_on")) F.push("até +" + n(g("hold_profit_pct")) + "%"); if (g("sg_after")) F.push("stop de ganho no fim"); return "sai aos " + n(g("exit_pct")) + "% · " + (F.length ? "pode ficar: " + F.join(", ") : "não fica depois do fim") + " · máx. " + n(g("ext_max_min")) + " min"; }
+    if (id === "perda") { const T = []; if (g("tneg_on")) T.push(n(g("tneg_sum_s")) + " s somados"); if (g("tneg_streak_on")) T.push(n(g("tneg_streak_s")) + " s seguidos"); return (g("no_stop") ? "sem stop no começo" : "stop −" + n(g("stop_pct")) + "%") + (T.length ? " · liga −" + n(g("tneg_stop_pct")) + "% após " + T.join(" ou ") + " no negativo" : ""); }
+    if (id === "lucro") return "stop móvel em +" + n(g("trail_start")) + "% (sai " + n(g("trail_dist")) + " pts abaixo)" + (g("partial_on") ? " · vende " + n(g("partial_frac")) + "% em +" + n(g("partial_at")) + "%" : "");
+    return "histórico e velocidade do preço";
+  }
+  function bmOrgSync() {
+    const card = document.querySelector('.card[data-bmt="regras"]:not(#bmSyCard)'), c = cfg();
+    if (!card || !c || c.pump_bm_sol === undefined) return;
+    card.querySelectorAll(":scope > .bmrules").forEach((box) => {
+      bmOrg(box);
+      const real = box.classList.contains("bmreal"), g = (k) => (real && c["pump_bmr_" + k] !== undefined ? c["pump_bmr_" + k] : c["pump_bm_" + k]);
+      box.querySelectorAll(".bmrow").forEach((row) => { const dep = BM_DEP[bmKey(row)]; if (dep) row.hidden = !dep.some((d) => (d[0] === "!" ? !g(d.slice(1)) : !!g(d))); });
+      box.querySelectorAll(".bmsec").forEach((s) => { const t = bmSum(s.dataset.bms, g, real), el = s.querySelector(".bmsum"); if (el.textContent !== t) el.textContent = t; });
+    });
+  }
+  document.addEventListener("toggle", (e) => {
+    const d = e.target; if (!d.classList || !d.classList.contains("bmsec")) return;
+    const S = bmOpenSet(); if (d.open) S.add(d.dataset.bms); else S.delete(d.dataset.bms);
+    try { localStorage.setItem("pf_bms", JSON.stringify([...S])); } catch (err) { /* */ }
+  }, true);
+  // 0.32.465 (pedido do dono: "salvar o histórico para voltar se eu esquecer o que fiz"): as versões que mexeram nas regras do
+  // BOOST, na própria tela, com o botão de desfazer cada uma. O histórico é o de sempre (guardado no banco a cada mudança).
+  const bmHLabel = (k) => (k.startsWith("pump_bmr_") ? "REAL · " : "") + String(cfgLabel(k)).replace(/^REAL: /, "");
+  async function bmHistOpen() {
+    ovShow("Histórico das regras do BOOST", "carregando…", "");
+    const r = await BB.api("/api/pump/config/historico", { quiet: true }).catch(() => null);
+    if (!r || r.error) { $("jtMS").textContent = (r && r.error) || "Não consegui carregar."; return; }
+    const V = r.versoes || [], has = new Set(V.map((v) => v.n));
+    const L = V.map((v) => ({ v, m: (v.mudou || []).filter((x) => /^pump_bmr?_/.test(x.k)) })).filter((x) => x.m.length);
+    $("jtMS").textContent = "Toda mudança é guardada sozinha. Desfazer mostra antes o que vai mudar; a chave da REAL nunca volta por aqui.";
+    $("jtMB").innerHTML = L.length ? L.map(({ v, m }) => {
+      const ks = m.filter((x) => x.volta !== false).map((x) => x.k);
+      return '<section class="bmhv"><header><b>Versão ' + v.n + "</b>" + (v.n === r.atual ? ' <span class="tag win">atual</span>' : "") + '<span class="muted small">' + esc(dt(v.em)) + " · " + esc(v.origem || "–") + "</span></header>" +
+        '<ul class="chlist">' + m.map((x) => "<li>" + esc(bmHLabel(x.k)) + ": " + chVal(x.de) + " → <b>" + chVal(x.para) + "</b></li>").join("") + "</ul>" +
+        (ks.length && has.has(v.n - 1) ? '<button type="button" class="btn sm" data-bmundo="' + (v.n - 1) + '" data-keys="' + esc(ks.join(",")) + '">Desfazer esta mudança</button>' : "") + "</section>";
+    }).join("") : '<p class="muted">Nenhuma mudança nas regras do BOOST guardada ainda.</p>';
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#bmHistBtn")) { bmHistOpen(); return; }
+    const u = e.target.closest("[data-bmundo]"); if (u) { chAsk("n=" + encodeURIComponent(u.dataset.bmundo), { n: +u.dataset.bmundo }, u.dataset.keys.split(",")); return; }
+    const a = e.target.closest("[data-bmall]");
+    if (a) { document.querySelectorAll('.card[data-bmt="regras"] details.bmsec').forEach((d) => { d.open = a.dataset.bmall === "1"; }); const m = a.closest("details.bmmore"); if (m) m.open = false; return; }
+    document.querySelectorAll("details.bmmore[open]").forEach((m) => { if (!m.contains(e.target) || e.target.closest(".bmmore-m button")) m.open = false; });
+  });
+  // 0.32.465 (pedido do dono): recomeçar a carteira FICTÍCIA com outro saldo sem apagar o histórico, com volta
+  function simSinceDraw() {
+    const el = $("simSince"); if (!el) return;
+    const s = D && D.wallet && D.wallet.since; el.hidden = !s; if (!s) return;
+    const h = "Contando desde <b>" + esc(dt(s)) + '</b>. Os trades de antes continuam no Histórico. <button type="button" class="btn sm" id="simUndo">Voltar a contar como antes</button>';
+    if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
+  }
+  document.addEventListener("click", async (e) => {
+    if (e.target.closest("#simRestart")) {
+      ovShow("Recomeçar a carteira FICTÍCIA", "nada é apagado",
+        '<div class="field"><label for="simVal">Começar com</label><div class="row"><input class="in w100" id="simVal" type="number" min="0.01" step="0.5" value="1"><span class="muted">SOL</span></div></div>' +
+        '<ul class="chlist"><li>O saldo, o resultado e o gráfico da carteira passam a contar de agora.</li><li>Os trades e os períodos de antes continuam no Histórico.</li><li>Posições abertas agora terminam normalmente, mas não entram no saldo novo.</li><li>A carteira REAL não muda. Dá para voltar em Carteiras → FICTÍCIA.</li></ul>' +
+        '<div class="row" style="margin-top:12px"><button type="button" class="btn primary" id="simGo">Recomeçar</button></div>');
+      return;
+    }
+    const go = e.target.closest("#simGo"), undo = e.target.closest("#simUndo"); if (!go && !undo) return;
+    if (undo && !confirm("Voltar a contar a carteira fictícia como antes do recomeço (saldo inicial e data de antes)?")) return;
+    const body = undo ? { undo: true } : { sol: +String($("simVal").value).replace(",", ".") };
+    (go || undo).disabled = true;
+    const r = await BB.api("/api/pump/sim-restart", { body });
+    (go || undo).disabled = false;
+    if (r.error) { toast(r.error); return; }
+    if (go) $("jtM").hidden = true;
+    toast(undo ? "A carteira fictícia voltou a contar como antes." : "Carteira fictícia recomeçada com " + s4(r.sol) + " SOL.");
+    BMPH.t = {}; BMP.t = {}; await poll(true); if (VIEW === "boost") loadBm();
+  });
   // 0.32.440 (pedido do dono): "Copiar tela BOOST" — escolher qualquer usuário, ver as diferenças, salvar, ver o que foi
   // alterado e reverter; no topo do BOOST sempre diz se a sua está idêntica à da pessoa escolhida. Ficam fora a carteira REAL
   // (ligar a REAL é de cada um) e as opções que valem para o servidor todo. Revertendo, voltam os valores de antes da cópia.
@@ -1822,7 +1935,7 @@
     bmRealAsk(b);
   }, true);
   async function loadBm() {
-    bmRealInit(); bmRealShow(BMRS);
+    bmRealInit(); bmRealShow(BMRS); bmOrgSync();
     bmcBar();
     clearTimeout(BM_T); BM_T = setTimeout(() => { if (VIEW === "boost") loadBm(); }, 5000);
     if (document.hidden) return;
@@ -1937,15 +2050,18 @@
       '<path d="' + d + " L" + X(t1).toFixed(1) + " " + Y(0).toFixed(1) + " L" + X(t0).toFixed(1) + " " + Y(0).toFixed(1) + 'Z" fill="' + col + '" opacity=".14"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
   }
   function perCard(p, anchor) {
-    const ini = anchor == null ? null : anchor + (p.antes_sol || 0), fim = ini == null ? null : ini + (p.saldo_sol || 0), cp = ini ? (fim - ini) / ini * 100 : null;
+    const velho = !!p.antes_do_recomeco, delta = p.saldo_carteira_sol == null ? p.saldo_sol || 0 : p.saldo_carteira_sol;     // 0.32.465
+    const ini = anchor == null || velho ? null : anchor + (p.antes_sol || 0), fim = ini == null ? null : ini + delta, cp = ini ? (fim - ini) / ini * 100 : null;
+    const preco = (D && D.sol_usd) || 0, bal = (v) => s4(v) + " SOL" + (preco ? '<small class="perusd muted">≈ ' + usd(v * preco, 2) + "</small>" : "");
+    const res = (v) => '<small class="perusd">' + solUsd(v) + "</small>";                                 // 0.32.465 (pedido do dono): dólar
     const dia = new Date(p.ini * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
     const kp = (l, v, s) => '<div class="perk"><small>' + l + "</small><b>" + v + "</b>" + (s ? "<span>" + s + "</span>" : "") + "</div>";
     return '<section class="percard ' + (p.fechado ? "" : "now") + '"><header><h3>Período ' + p.rotulo + '</h3><span class="muted">' + dia + "</span>" +
-      (p.fechado ? '<span class="tag neutral">ENCERRADO</span>' : '<span class="tag win">EM ANDAMENTO</span>') + '<span class="sp"></span><b class="perres">' + (p.trades ? sg(p.saldo_sol, " SOL") : '<span class="muted">sem trades</span>') + "</b></header>" +
+      (p.fechado ? '<span class="tag neutral">ENCERRADO</span>' : '<span class="tag win">EM ANDAMENTO</span>') + '<span class="sp"></span><b class="perres">' + (p.trades ? sg(p.saldo_sol, " SOL") + res(p.saldo_sol) : '<span class="muted">sem trades</span>') + "</b></header>" +
       '<div class="perg">' +
-      kp("Carteira no início", ini == null ? "–" : s4(ini) + " SOL", ini == null ? "carteira REAL: saldo do começo não é guardado" : "") +
-      kp("Carteira no fim", fim == null ? "–" : s4(fim) + " SOL", cp == null ? "" : pc(cp) + " no período") +
-      kp("Resultado do BOOST", p.trades ? sg(p.saldo_sol, "") + " SOL" : "–", p.pct_sobre_investido == null ? "" : pc(p.pct_sobre_investido) + " sobre o investido (" + s4(p.investido_sol) + " SOL)") +
+      kp("Carteira no início", ini == null ? "–" : bal(ini), velho ? "antes do recomeço da carteira" : ini == null ? "carteira REAL: saldo do começo não é guardado" : p.recomecou_em ? "recomeçada em " + esc(dt(p.recomecou_em)) : "") +
+      kp("Carteira no fim", fim == null ? "–" : bal(fim), cp == null ? "" : pc(cp) + " no período") +
+      kp("Resultado do BOOST", p.trades ? sg(p.saldo_sol, "") + " SOL" + res(p.saldo_sol) : "–", p.pct_sobre_investido == null ? "" : pc(p.pct_sobre_investido) + " sobre o investido (" + s4(p.investido_sol) + " SOL)") +
       kp("Trades", String(p.trades), p.acerto == null ? "" : p.acerto + "% de acerto") +
       kp("Acertos", '<span class="up">' + p.ganhos + "</span>", p.ganhos ? "soma dos ganhos <b class=\"up\">+" + f(p.pct_ganhos_soma, 1) + "%</b> · " + sg(p.ganhos_sol, " SOL") : "") +
       kp("Erros", '<span class="down">' + p.perdas + "</span>", p.perdas ? "soma das perdas <b class=\"down\">" + f(p.pct_perdas_soma, 1) + "%</b> · " + sg(p.perdas_sol, " SOL") : "") +
@@ -1961,10 +2077,10 @@
     if (!r) { $("jtMS").textContent = "Não consegui carregar os períodos."; return; }
     const bal = rm ? (typeof W !== "undefined" && W && W.sol != null ? +W.sol : null) : null, Wt = (rm ? D.real_wallet : D.wallet) || {};
     const anchor = rm ? (bal == null ? null : bal - (r.total_sol || 0)) : (+Wt.start_sol || 0);
-    $("jtMS").textContent = "Cada período é um dia e fecha à meia-noite (horário de Berlim). O 01 começa no primeiro trade do BOOST. Resultado líquido, já com taxas.";
+    $("jtMS").textContent = "Cada período é um dia e fecha à meia-noite (horário de Berlim). O 01 começa no primeiro trade do BOOST. Resultado líquido, já com taxas. O dólar é pela cotação do SOL de agora.";
     const L = r.periodos || [];
     const tot = L.reduce((a, p) => a + (p.saldo_sol || 0), 0), g = L.reduce((a, p) => a + (p.ganhos || 0), 0), e = L.reduce((a, p) => a + (p.perdas || 0), 0);
-    $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '</b></div><div><small>Acertos</small><b class="up">' + g + '</b></div><div><small>Erros</small><b class="down">' + e + "</b></div></div>" + L.map((p) => perCard(p, anchor)).join("")
+    $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '<small class="perusd">' + solUsd(tot) + '</small></b></div><div><small>Acertos</small><b class="up">' + g + '</b></div><div><small>Erros</small><b class="down">' + e + "</b></div></div>" + L.map((p) => perCard(p, anchor)).join("")
       : '<p class="muted">Ainda não há trade fechado do BOOST nesta carteira. O período 01 começa no primeiro.</p>';
   }
   document.addEventListener("click", (e) => { if (e.target.closest("#bmPerBtn")) openBmPer(); });
@@ -3445,6 +3561,7 @@
     // 0.32.19: Configuração do Trader
     if (t.id === "tcSave") { await poll(true); toast("Configurações gravadas (cada campo já grava ao mudar)."); return; }
     if (t.id === "bmReset") {          // 0.32.373: regras do BOOST de volta ao padrão do guia
+      if (!confirm("Voltar as regras do BOOST " + (BMRS === "real" ? "da REAL" : "da FICTÍCIA") + " ao padrão do guia? Dá para desfazer em Histórico e voltar.")) return;
       const P = { pump_bm_sol: 0.05, pump_bm_max_open: 3, pump_bm_enter_max_pct: 40, pump_bm_exit_pct: 80, pump_bm_watch_s: 60, pump_bm_min_trend_pct: -3,
         pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
@@ -4296,7 +4413,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     document.querySelectorAll("[data-hcfg]").forEach((el) => { const v = isAutoCfg(el.dataset.hcfg) ? autoValue(el.dataset.hcfg, c) : c[el.dataset.hcfg];
       if (document.activeElement !== el && v != null) el.value = +(v / 60).toFixed(2);
       if (el.id === "exAutoHold" && v != null) $("exAutoHoldN").textContent = "= " + f(v, 0) + " min · máximo 24 h"; });
-    abasSync(); keysSync();
+    abasSync(); keysSync(); bmOrgSync();                 // 0.32.465: blocos e resumos do BOOST acompanham a chave na hora
     document.querySelectorAll("[data-toggle]").forEach((b) => { const on = !!(isAutoCfg(b.dataset.toggle) ? autoValue(b.dataset.toggle, c) : c[b.dataset.toggle]); const sc = tglScope(b.dataset.toggle, c); b.textContent = (on ? "Ligado" : "Desligado") + " · " + sc[0]; b.title = sc[1]; b.classList.add("tgl", "sw"); b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(on)); b.classList.toggle("on", on); b.classList.toggle("off", !on); if (isAutoCfg(b.dataset.toggle)) b.setAttribute("aria-pressed", String(on)); });
     if (APPLIED.length && (VIEW === "carteiras" || VIEW === "explorar")) { try { renderApplied(); } catch (e) { /* nunca derruba o painel */ } }
     if (VIEW === "carteiras" || VIEW === "explorar") { try { renderCfgVer(); } catch (e) { /* nunca derruba o painel */ } }
@@ -5832,6 +5949,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const on = c.pump_sim_on !== false, sb = $("simB");
     sb.textContent = on ? "Ligado" : "Desligado"; sb.className = "btn tgl sw " + (on ? "on" : "off"); sb.setAttribute("aria-checked", String(on));
     $("simBarS").textContent = on ? "ligada · dinheiro de mentira, para medir sem risco" : "desligada · não abre compra nova; as abertas seguem até sair. As telas automáticas (Explorar, Base…) também não compram na REAL; a cópia de traders continua na REAL, se ela estiver ligada";
+    simSinceDraw();
     kpis("wKpisS", [["Saldo da carteira", s4(cash) + " SOL", p ? "≈ $" + f(cash * p, 2) : "", "wallet"],
       ["USDC na carteira", "0 SOL", "a carteira fictícia só usa SOL", "pnl"],
       ["Compras possíveis", sol ? String(Math.max(0, Math.floor(cash / (sol * 1.02 + (+c.pump_priority_sol || 0))))) : "–", "de " + s4(sol) + " SOL", "pos"],
@@ -5980,10 +6098,10 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     CHM = { body, G, only: !!only };
     const grupo = (g, i) => (marcar ? '<label class="chgrp"><input type="checkbox" data-chsel="' + i + '"> <b>' + esc(g.aba) + '</b> <span class="muted">' + chOpts(g.items.length) + "</span></label>" : '<div class="chgrp"><b>' + esc(g.aba) + '</b> <span class="muted">' + chOpts(g.items.length) + "</span></div>") +
       '<ul class="chlist">' + g.items.map((x) => "<li>" + chItem(x) + "</li>").join("") + "</ul>";
-    const botoes = !M.length ? "" : only ? '<button type="button" class="btn primary" data-chgo="only">Voltar esta aba</button>'
+    const botoes = !M.length ? "" : only ? '<button type="button" class="btn primary" data-chgo="only">Voltar estas opções</button>'
       : (marcar ? '<button type="button" class="btn primary" data-chgo="sel" id="chSel" disabled>Marque as abas para voltar</button> ' : "") + '<button type="button" class="btn' + (marcar ? "" : " primary") + '" data-chgo="all">Voltar tudo (' + chOpts(M.length) + ")</button>";
-    ovShow("Voltar: " + d.nome, !M.length ? "nenhuma opção muda" : only ? "só esta aba · " + chOpts(M.length) : chOpts(M.length) + " em " + G.length + (G.length === 1 ? " aba" : " abas") + (marcar ? " · escolha quais voltar ou volte tudo" : ""),
-      (M.length ? G.map(grupo).join("") : '<p class="muted">' + (only ? "Esta aba já está igual a essa versão." : "Esta versão já é igual à configuração de agora.") + "</p>") +
+    ovShow("Voltar: " + d.nome, !M.length ? "nenhuma opção muda" : only ? "só estas opções · " + chOpts(M.length) : chOpts(M.length) + " em " + G.length + (G.length === 1 ? " aba" : " abas") + (marcar ? " · escolha quais voltar ou volte tudo" : ""),
+      (M.length ? G.map(grupo).join("") : '<p class="muted">' + (only ? "Estas opções já estão iguais a essa versão." : "Esta versão já é igual à configuração de agora.") + "</p>") +
       (F.length ? '<p class="muted small">' + F.length + " opção(ões) ficam como estão: valores e chaves da REAL, Telegram e a chave da FICTÍCIA nunca voltam por aqui.</p>" : "") +
       (botoes ? '<div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">' + botoes + "</div>" : ""));
   }
@@ -6558,7 +6676,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       t.disabled = true;
       const r = await BB.api("/api/pump/close", { body: { id: t.dataset.id, frac: fr } }); toast(r.error || r.msg || (fr >= 1 ? "Fechada." : "Vendido " + pct + "%.")); return poll(true);
     }
-    if (a === "reset") { if (!confirm("Zerar a carteira fictícia? Apaga posições e histórico simulados.")) return; const r = await BB.api("/api/pump/reset", { body: {} }); toast(r.error || "Carteira fictícia zerada."); return poll(true); }
+    if (a === "reset") { if (!confirm("APAGAR para sempre as posições, os trades fictícios e o Feed? Não tem volta.\n\nPara só recomeçar o saldo sem apagar, use \"Recomeçar (guarda o histórico)\".")) return; const r = await BB.api("/api/pump/reset", { body: {} }); toast(r.error || "Carteira fictícia zerada."); return poll(true); }
     if (a === "swap") return swap(t);
     if (a === "swapmax") { $("cvU").value = Math.floor(((W && W.usdc) || 0) * 100) / 100; return conv("u"); }
     if (a === "secret-save") {

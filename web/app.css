@@ -1215,3 +1215,29 @@ label.chgrp{cursor:pointer}
 
 /* 0.32.462: melhor / pior das Posições não corta no celular */
 @media (max-width:860px){#posK .kpi .v,#posKC .kpi .v{white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}}
+/* 0.32.465: regras do BOOST em blocos que abrem e fecham */
+.bmrules.bmorg{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.bmrules.bmorg[hidden]{display:none}
+.bmsec{border:1px solid var(--line);border-radius:12px;background:var(--bg2);min-width:0}
+.bmsec>summary{list-style:none;cursor:pointer;padding:12px 40px 12px 16px;position:relative;display:flex;flex-direction:column;gap:3px;min-height:44px}
+.bmsec>summary::-webkit-details-marker{display:none}
+.bmsec>summary::after{content:"+";position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;color:var(--muted)}
+.bmsec[open]>summary::after{content:"\2212"}
+.bmsec>summary b{font-size:14px}
+.bmsum{font-size:12px;color:var(--muted);line-height:1.4}
+.bmsec-b{padding:0 16px 8px;border-top:1px solid var(--line)}
+.bmsec>.bmrules{padding:12px;border-top:1px solid var(--line)}
+.bmrow[hidden]{display:none}
+.bmmore{position:relative}
+.bmmore>summary{list-style:none;cursor:pointer}
+.bmmore>summary::-webkit-details-marker{display:none}
+.bmmore-m{position:absolute;right:0;top:calc(100% + 6px);z-index:20;display:flex;flex-direction:column;gap:6px;padding:10px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.55);width:max-content;max-width:78vw}
+.bmhv{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.bmhv>header{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.perusd{display:block;font-size:12px;font-weight:400;font-family:var(--mono)}
+.percard>header .perres{text-align:right}
+@media (max-width:1100px){.bmrules.bmorg{grid-template-columns:1fr}}
+@media (max-width:860px){.bmmore-m{right:auto;left:0}}
+.perk b span,.perk small.perusd span{font-size:inherit;line-height:inherit}
+.perk span.up{color:#22c55e}.perk span.down{color:#ef4444}
+@media (max-width:860px){.percard>header .perres{text-align:left;flex-basis:100%}}

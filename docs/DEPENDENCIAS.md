@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-25**; revisão documental **2.0**.
-Aplicação: **0.32.464 · 2026-11-25 · BOOST avisa quando o Bruxo desliga e pergunta se quer desligar o seu**.
-Referência Git na emissão: `f790094f8edfd71829c47ca4fa0f58deb074fd9b`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.465 · 2026-11-25 · Regras do BOOST em blocos, histórico com voltar, recomeçar a fictícia sem apagar e dólar nos períodos**.
+Referência Git na emissão: `553ff91a18dba058d8be9ccfa1665af5f0c5373e`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
