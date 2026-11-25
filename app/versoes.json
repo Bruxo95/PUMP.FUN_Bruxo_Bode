@@ -3060,6 +3060,11 @@
    "versao": "0.32.461",
    "inicio": "2026-11-25T21:49:16+00:00",
    "titulo": "Posições de volta no menu, entre Visão geral e BOOST"
+  },
+  {
+   "versao": "0.32.462",
+   "inicio": "2026-11-25T22:41:03+00:00",
+   "titulo": "Posições: resumo das fechadas (resultado, acerto, melhor e pior) mesmo sem posição aberta"
   }
  ]
 }

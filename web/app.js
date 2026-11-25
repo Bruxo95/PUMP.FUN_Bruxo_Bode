@@ -5550,6 +5550,21 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       ["Ganho agora", sg(tot), "sobre " + s4(inv) + " SOL investidos" + (inv ? " (" + pc(tot / inv * 100) + ")" : ""), "pnl"],
       ["Ganhando × perdendo", win.length + " × " + los.length, V.length ? f(win.length / V.length * 100, 0) + "% no verde" : "–", "hit"],
       ["Melhor / pior", V.length ? pc(posPct(best)) + " / " + pc(posPct(worst)) : "–", V.length ? esc(best.symbol || "") + " · " + esc(worst.symbol || "") : "", "mon"]]);
+    // 0.32.462 (pedido do dono: "posições não está mostrando melhor/pior… pegue as informações para mostrar"): sem posição
+    // aberta os quadrados ficavam vazios. Segunda linha com as FECHADAS no mesmo período, aba e busca (trades do painel).
+    const rm = realMode(), tc = hc;
+    const C = (D.trades || []).filter((t) => !!t.real === rm && !String(t.reason || "").startsWith("desfeita") && t.pnl_sol != null &&
+      (!tc || (t.closed_at ? new Date(t.closed_at).getTime() / 1000 : 0) >= tc) && (!POSF.aba || (t.aba || "Outras") === POSF.aba) &&
+      (!q || [t.symbol, t.mint, t.wallet, t.aba].some((v) => v && String(v).toLowerCase().includes(q))));
+    const ctot = C.reduce((s, t) => s + (t.pnl_sol || 0), 0), cinv = C.reduce((s, t) => s + (t.sol_in || 0), 0);
+    const cw = C.filter((t) => t.pnl_sol > 0), cl = C.filter((t) => t.pnl_sol < 0);
+    const cb = C.reduce((b, t) => (t.pnl_pct ?? -1e9) > (b.pnl_pct ?? -1e9) ? t : b, C[0]), cp = C.reduce((b, t) => (t.pnl_pct ?? 1e9) < (b.pnl_pct ?? 1e9) ? t : b, C[0]);
+    const per = POSF.h ? (POSF.h > 1 ? "nas últimas " + POSF.h + " h" : "na última 1 h") : "nos últimos " + (D.trades || []).length + " trades do painel";
+    $("posKCt").textContent = "Fechadas " + per + (POSF.aba ? " · " + POSF.aba : "") + (rm ? " · REAL" : " · FICTÍCIA");
+    kpis("posKC", [["Fechadas", String(C.length), C.length ? "última " + dt(C.reduce((m, t) => (t.closed_at || "") > (m || "") ? t.closed_at : m, "")) : "nenhuma no período", "tr"],
+      ["Resultado", sg(ctot), "sobre " + s4(cinv) + " SOL investidos" + (cinv ? " (" + pc(ctot / cinv * 100) + ")" : ""), "pnl", ctot > 0 ? "up" : ctot < 0 ? "down" : ""],
+      ["Ganhou × perdeu", cw.length + " × " + cl.length, C.length ? f(cw.length / C.length * 100, 0) + "% de acerto · ganhos " + sg(cw.reduce((s, t) => s + t.pnl_sol, 0)) + " · perdas " + sg(cl.reduce((s, t) => s + t.pnl_sol, 0)) : "–", "hit"],
+      ["Melhor / pior", C.length ? pc(cb.pnl_pct) + " / " + pc(cp.pnl_pct) : "–", C.length ? esc(cb.symbol || "") + " " + sg(cb.pnl_sol) + " · " + esc(cp.symbol || "") + " " + sg(cp.pnl_sol) : "", "mon"]]);
     table("posAbaT", ["Aba de origem", "Abertas", "Ganhando", "Perdendo", "Investido", "Ganho agora"], abas.map((a) => [esc(a), String(by[a].n), String(by[a].g), String(by[a].l), s4(by[a].inv) + " SOL", '<b class="' + (by[a].sol >= 0 ? "up" : "down") + '">' + sg(by[a].sol) + "</b>"]), "");
     if ($("posQ") && document.activeElement !== $("posQ")) $("posQ").value = POSF.q || "";
     if ($("posSort")) $("posSort").value = POSF.sort;

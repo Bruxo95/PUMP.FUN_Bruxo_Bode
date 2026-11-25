@@ -1211,3 +1211,6 @@ label.chgrp{cursor:pointer}
 .solbtn{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;color:#0b0b0d;text-decoration:none;background:linear-gradient(90deg,#9945ff,#19fb9b);box-shadow:0 0 0 1px rgba(255,255,255,.12)}
 .solbtn[hidden]{display:none}.solbtn i{width:8px;height:8px;border-radius:50%;background:#0b0b0d;opacity:.75}.solbtn b{font-family:var(--mono);font-weight:700}.solbtn:hover{filter:brightness(1.1)}
 .bmtd{height:22px;padding:0 8px;font-size:11px;margin-left:4px;vertical-align:middle}
+
+/* 0.32.462: melhor / pior das Posições não corta no celular */
+@media (max-width:860px){#posK .kpi .v,#posKC .kpi .v{white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}}
