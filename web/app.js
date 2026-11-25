@@ -6104,7 +6104,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // Configurações e da Administração). A aba escolhida fica neste navegador.
   const USAR_V = ["usar", "estudo", "relatorios", "aprendizado", "fantasma", "elite", "igual", "base", "listanegra", "comparar", "novas",
     "tradershist", "explorar", "abas", "basegeral", "logs", "bruxo", "jevtrade", "jev", "calls"];
-  const LIMPA_V = ["limpeza", "traders", "posicoes", "semanas", "ajuda"];
+  const LIMPA_V = ["limpeza", "traders", "semanas", "ajuda"];
   let CFT = "copia", LGT = "conta", WALT = "sim";
   try { CFT = localStorage.getItem("pf_cfgtab") || "copia"; LGT = localStorage.getItem("pf_lgtab") || "conta"; WALT = ["real", "ambas", "espelho", "hist"].includes(localStorage.getItem("pf_walt")) ? localStorage.getItem("pf_walt") : "sim"; } catch (e) { /* */ }
   function cfgTab(t) {

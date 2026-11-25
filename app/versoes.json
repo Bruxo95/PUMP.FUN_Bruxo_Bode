@@ -3055,6 +3055,11 @@
    "versao": "0.32.459",
    "inicio": "2026-11-25T20:47:22+00:00",
    "titulo": "Venda REAL feita fora do robô entra no resultado (SOL e aluguel da conta)"
+  },
+  {
+   "versao": "0.32.461",
+   "inicio": "2026-11-25T21:49:16+00:00",
+   "titulo": "Posições de volta no menu, entre Visão geral e BOOST"
   }
  ]
 }

@@ -120,9 +120,12 @@ def test_limpeza_real_key_and_usd():
     """0.32.444 (pedido do dono): menu Limpeza, chave da carteira no topo da REAL, valor de cada tela na REAL, dólar e BOOST por período."""
     nav = H[H.index('<nav class="nav"'):H.index("</nav>")]
     lim = _sec("limpeza")
-    for v in ("traders", "posicoes", "feed", "semanas", "ajuda"):
+    for v in ("traders", "feed", "semanas", "ajuda"):
         assert f'href="#{v}" data-v=' not in nav and f'href="#{v}" data-lv="{v}"' in lim
-    assert 'id="nbTr"' in lim and 'id="nbPos"' in lim and 'const LIMPA_V' in JS
+    # 0.32.460 (pedido do dono): Posições voltou ao menu, abaixo da Visão geral e acima do BOOST
+    assert nav.index('href="#visao"') < nav.index('href="#posicoes" data-v="posicoes"') < nav.index('href="#boost"')
+    assert 'href="#posicoes"' not in lim and 'id="nbPos"' in nav and H.count('id="nbPos"') == 1
+    assert 'id="nbTr"' in lim and 'const LIMPA_V' in JS and '"posicoes"' not in JS[JS.index("const LIMPA_V"):JS.index("const LIMPA_V") + 80]
     cart = _sec("carteiras")
     real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
     assert real.index('id="rwKey"') < real.index('id="rwAmt"') < real.index('data-toggle="pump_real_mirror"')
