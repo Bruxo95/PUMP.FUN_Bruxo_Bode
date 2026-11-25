@@ -5232,7 +5232,12 @@ class PumpHub:
         from .boostmig import CFG_KEYS
         return [k for k in USER_KEYS if (k.startswith("pump_bm_") or k.startswith("pump_bmr_")) and k not in CFG_KEYS]
 
-    async def config_peer(self, uid: str, peer: str, keys, tela: str = "") -> dict:
+    # 0.32.455 (pedido do dono): na comparação aparecem também as chaves REAL de cada tela, só ligada/desligada. Não entram no
+    # compartilhar (share_filter); quem aplica é a própria pessoa, clicando na conta dela.
+    REAL_VIEW = ("pump_real_enabled", "pump_real_mirror", "pump_ex_real_on", "pump_bar_real", "pump_auto_real", "pump_el_real",
+                 "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real")
+
+    async def config_peer(self, uid: str, peer: str, keys, tela: str = "", reais: bool = False) -> dict:
         """0.32.151 (pedido do dono): Abas de trades → Ajustes compara as opções da aba com as de outro usuário (só admin,
         só leitura). Mesmas regras do compartilhar: nada da carteira real nem do Telegram.
         tela="boost" (0.32.440): as opções vêm do servidor (todas as do BOOST), não do navegador."""
@@ -5246,7 +5251,10 @@ class PumpHub:
         keys = self.share_filter(keys, True)
         other = self.engines.get(peer) or await self.engine(peer)
         nome = rows[0].get("nome") or (rows[0].get("email") or "").split("@")[0] or "outro usuário"
-        return {"user_id": peer, "nome": nome, "valores": {k: getattr(other.cfg, k) for k in keys}}
+        out = {"user_id": peer, "nome": nome, "valores": {k: getattr(other.cfg, k) for k in keys}}
+        if reais:
+            out["reais"] = {k: bool(getattr(other.cfg, k, False)) for k in self.REAL_VIEW}
+        return out
 
     async def buy_diff(self, uid: str, peer: str, horas: float) -> dict:
         """0.32.167 (pedido do dono): compras FICTÍCIAS de duas contas lado a lado e, moeda a moeda, por que a outra não

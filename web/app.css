@@ -1159,3 +1159,11 @@ label.chgrp{cursor:pointer}
 .bmcurve{margin-top:8px}.bmcurve svg{width:100%;height:180px;display:block}
 .bmcres{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:6px}.bmcres b{color:var(--text);font-family:var(--mono)}
 #bmWalR{flex-wrap:wrap}
+/* 0.32.455: etiquetas de valor por tela na carteira REAL e dica do gráfico do BOOST */
+.rtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.rtg{font-size:12px;border:1px solid var(--line2);border-radius:999px;padding:2px 9px;color:var(--muted);background:var(--card2)}
+.rtg b{color:var(--text);font-weight:600}
+.rtg.on{border-color:#22c55e88;background:rgba(34,197,94,.08)}.rtg.sim{border-color:#9aa4ff66;background:var(--sim-bg)}.rtg.off{opacity:.75}
+.rwa small+small{margin-top:4px}
+#bmCurve{position:relative}#bmCurve .ctip{top:6px}
+.walbar > div:first-child{flex:1 1 260px;min-width:0}.walbar .rtg b{display:inline;font-size:12px}

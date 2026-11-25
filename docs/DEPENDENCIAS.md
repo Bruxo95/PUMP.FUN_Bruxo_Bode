@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-25**; revisão documental **2.0**.
-Aplicação: **0.32.454 · 2026-11-25 · Cópia de traders: valor e chave na tela de Top traders e no Usar ou descartar; carteira e gráfico no BOOST**.
-Referência Git na emissão: `c97cad2cbaed032dbb21ecd3d5062ccaa8abf180`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.455 · 2026-11-25 · Carteira REAL com o valor e o estado de cada tela; comparação com o Bruxo inclui as chaves REAL e aparece no Top traders; dica no gráfico do BOOST**.
+Referência Git na emissão: `ec385bd82d134224b78497d4583714145b1934d0`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

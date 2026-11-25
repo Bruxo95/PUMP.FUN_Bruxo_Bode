@@ -27,3 +27,16 @@ def test_peer_config_tela_boost(env):
     assert all(k.startswith(("pump_bm_", "pump_bmr_")) for k in v)
     assert "pump_bm_real" not in v and "pump_bm_real_follow" not in v # ligar a REAL é de cada um
     assert "pump_bm_hist_min" not in v and "pump_bm_sybil_on" not in v  # valem para o servidor todo
+
+
+def test_peer_config_shows_real_switches_read_only(env):
+    """0.32.455: a comparação mostra as chaves REAL da outra conta só como ligada/desligada; valores da REAL continuam fora."""
+    c, hub = env["c"], env["hub"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=A)
+    c.post("/api/pump/settings", json={"pump_real_mirror": False, "pump_real_max_sol": 0.7}, headers=B)
+    r = c.post("/api/pump/config/peer", json={"user": UB, "keys": ["pump_copy_enabled", "pump_real_mirror"], "reais": 1}, headers=A).json()
+    assert "pump_real_mirror" not in r["valores"] and r["reais"]["pump_real_mirror"] is False
+    assert set(r["reais"]) == set(hub.REAL_VIEW) and all(isinstance(v, bool) for v in r["reais"].values())
+    assert "pump_real_max_sol" not in r["reais"]
+    assert "reais" not in c.post("/api/pump/config/peer", json={"user": UB, "keys": ["pump_copy_enabled"]}, headers=A).json()

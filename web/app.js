@@ -1790,12 +1790,31 @@
   // Na REAL a linha é o resultado acumulado dos trades REAL fechados (a carteira de verdade não tem "saldo inicial" guardado).
   let BMWR = 7; try { BMWR = +localStorage.getItem("pf_bmwr") || 7; } catch (e) { /* */ }
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("[data-bmwr]"); if (!b) return; BMWR = +b.dataset.bmwr; try { localStorage.setItem("pf_bmwr", BMWR); } catch (er) { /* */ } renderBmWal(); });
+  let BMCV = null;
+  function bmTip(ev) {
+    const el = $("bmCurve"), c = BMCV, sv = el && el.querySelector("svg"); if (!c || !sv) return;
+    const r = sv.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    if (cx < 0 || cx > r.width) { bmTipOff(); return; }
+    const k = r.width / c.Wd, t = c.t0 + Math.max(0, Math.min(1, (cx / k - c.P) / (c.Wd - c.P - 8))) * (c.t1 - c.t0);
+    let i = 0; for (let j = 0; j < c.S.length; j++) { if (c.S[j][0] <= t) i = j; else break; }
+    const v = c.S[i][1], p = (D && D.sol_usd) || 0, x = c.X(t) * k, y = c.Y(v) * (r.height / c.Hh);
+    const L = $("bmCl"), Dt = $("bmCd"), T = $("bmCt"); if (!L) return;
+    L.hidden = Dt.hidden = T.hidden = false;
+    L.style.left = x + "px"; L.style.height = r.height + "px"; Dt.style.left = x + "px"; Dt.style.top = y + "px";
+    T.innerHTML = "<b>" + new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) + "</b>" +
+      "<span>" + (c.est ? "Saldo estimado" : "Saldo") + " <b>" + s4(v) + " SOL</b></span>" + (p ? "<span>Em dólar <b>" + usd(v * p, 2) + "</b></span>" : "") +
+      "<span>Desde o início do período " + sg(v - c.base, " SOL") + "</span>" + (p ? '<span class="muted">dólar pelo preço do SOL de agora</span>' : "");
+    T.style.left = Math.min(Math.max(0, x + 12), r.width - T.offsetWidth - 4) + "px";
+  }
+  function bmTipOff() { ["bmCl", "bmCd", "bmCt"].forEach((id) => { if ($(id)) $(id).hidden = true; }); }
+  document.addEventListener("mousemove", (e) => { if (e.target.closest && e.target.closest("#bmCurve")) bmTip(e); else if (BMCV && $("bmCt") && !$("bmCt").hidden) bmTipOff(); });
+  document.addEventListener("touchstart", (e) => { if (e.target.closest && e.target.closest("#bmCurve")) bmTip(e); }, { passive: true });
   function renderBmWal() {
     if (!$("bmWalK") || !D) return;
     const rm = realMode(), Wt = (rm ? D.real_wallet : D.wallet) || {}, p = D.sol_usd || 0, R = (BM && BM.resumo) || {};
     const bal = rm ? (W && W.sol != null ? +W.sol : null) : Wt.equity_sol;
     $("bmWalT").textContent = "Carteira " + (rm ? "REAL" : "FICTÍCIA");
-    $("bmWalS").textContent = rm ? "saldo na blockchain · a linha é o resultado acumulado dos trades REAL fechados (todas as telas)" : "saldo fictício · a linha é o saldo depois de cada trade fechado (todas as telas)";
+    $("bmWalS").textContent = rm ? "saldo na blockchain · a linha é o saldo estimado: o de agora menos o resultado dos trades REAL fechados depois (depósitos e saques não entram) · passe o mouse para ver cada momento" : "saldo fictício · a linha é o saldo depois de cada trade fechado (todas as telas) · passe o mouse para ver cada momento";
     document.querySelectorAll("#bmWalR [data-bmwr]").forEach((b) => b.classList.toggle("on", +b.dataset.bmwr === BMWR));
     const bm = rm ? R.pnl_sol_real : R.pnl_sol;
     kpis("bmWalK", [["Saldo da carteira", bal == null ? "–" : s4(bal) + "<small> SOL</small>", bal != null && p ? "≈ " + usd(bal * p, 2) : rm && !(W && W.configured) ? "carteira não configurada" : "", "wallet"],
@@ -1803,9 +1822,15 @@
       ["Resultado do BOOST", sg(bm || 0, "") + ' <small class="usdv">' + solUsd(bm || 0) + "</small>", "só os trades do BOOST", "pnl"]]);
     const el = $("bmCurve"), pts = ((rm ? D.real_curve : D.curve) || []).map((x) => [new Date(x[0]).getTime(), +x[1]]);
     const t1 = Date.now(), t0 = t1 - BMWR * 86400000, start = rm ? 0 : +Wt.start_sol || 0;
-    const before = pts.filter((x) => x[0] < t0), base = before.length ? before[before.length - 1][1] : start;
-    const S = [[t0, base]].concat(pts.filter((x) => x[0] >= t0)); S.push([t1, S[S.length - 1][1]]);
-    if (S.length <= 2) { el.innerHTML = '<p class="muted small">Nenhum trade fechado no período.</p>'; return; }
+    const before = pts.filter((x) => x[0] < t0); let base = before.length ? before[before.length - 1][1] : start;
+    let S = [[t0, base]].concat(pts.filter((x) => x[0] >= t0)); S.push([t1, S[S.length - 1][1]]);
+    // 0.32.455 (pedido do dono): na REAL a linha vira o SALDO estimado em cada momento = saldo de agora menos o resultado dos trades
+    // fechados depois (depósitos e saques fora do robô não entram na conta)
+    const est = rm && bal != null;
+    if (est) { const sh = bal - S[S.length - 1][1]; S = S.map((x) => [x[0], x[1] + sh]); base += sh; }
+    if (S.length <= 2) { el.innerHTML = '<p class="muted small">Nenhum trade fechado no período.</p>'; el.dataset.sig = ""; BMCV = null; return; }
+    const sig = [rm, BMWR, S.length, S[S.length - 2][0], S[S.length - 1][1], el.clientWidth].join("|");   // redesenhar a cada 5 s apagava a dica do mouse
+    if (el.dataset.sig === sig) return; el.dataset.sig = sig;
     const Wd = el.clientWidth || 600, Hh = 180, P = 52, ys = S.map((x) => x[1]);
     let lo = Math.min(...ys), hi = Math.max(...ys); if (hi - lo < 0.01) { lo -= 0.005; hi += 0.005; } const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
     const X = (t) => P + (t - t0) / (t1 - t0) * (Wd - P - 8), Y = (v) => 8 + (hi - v) / (hi - lo) * (Hh - 30);
@@ -1816,8 +1841,10 @@
     el.innerHTML = '<svg viewBox="0 0 ' + Wd + " " + Hh + '" preserveAspectRatio="none" role="img" aria-label="Evolução da carteira">' + grid +
       '<line x1="' + P + '" x2="' + Wd + '" y1="' + Y(base) + '" y2="' + Y(base) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
       '<path d="' + d + " V" + (Hh - 22) + " H" + X(t0) + 'Z" fill="' + col + '" opacity=".12"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2"/>' +
-      '<text x="' + P + '" y="' + (Hh - 4) + '" font-size="10.5" fill="#5d5d66">' + lab(t0) + '</text><text x="' + (Wd - 44) + '" y="' + (Hh - 4) + '" font-size="10.5" fill="#5d5d66">' + lab(t1) + "</text></svg>" +
-      '<div class="bmcres"><span>Início do período <b>' + s4(base) + " SOL</b></span><span>Agora <b>" + s4(fim) + " SOL</b></span><span>Diferença <b>" + sg(fim - base, " SOL") + "</b> " + solUsd(fim - base) + "</span></div>";
+      '<text x="' + P + '" y="' + (Hh - 4) + '" font-size="10.5" fill="#5d5d66">' + lab(t0) + '</text><text x="' + (Wd - 44) + '" y="' + (Hh - 4) + '" font-size="10.5" fill="#5d5d66">' + lab(t1) + "</text></svg>" + '<i class="cline" id="bmCl" hidden></i><i class="cdot" id="bmCd" hidden></i><div class="ctip" id="bmCt" hidden></div>' +
+      '';
+    BMCV = { S, X, Y, t0, t1, Wd, Hh, P, base, est };
+    el.innerHTML += '<div class="bmcres"><span>Início do período <b>' + s4(base) + " SOL</b></span><span>Agora <b>" + s4(fim) + " SOL</b></span><span>Diferença <b>" + sg(fim - base, " SOL") + "</b> " + solUsd(fim - base) + "</span></div>";
   }
   // 0.32.444 (pedido do dono): ganhos do BOOST em 24, 12, 6 e 1 h, como na Visão geral (trades fechados, FICTÍCIA ou REAL do topo)
   const BMP = { r: {}, t: {} };
@@ -4122,7 +4149,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     if (!D) return;
     if (VIEW === "carteiras") cfgTab();                  // 0.32.184: a aba aparece quando o cartão dela aparece
     if (VIEW === "usar" && Date.now() - US.at > 60000) loadUsar();
-    if (VIEW === "usar") usCmpBar();
+    if (VIEW === "usar" || VIEW === "traders") usCmpBar();
     const fh = $("feeHint"); if (fh) fh.hidden = !!cfg().pump_swap_fee_official;
     const c = cfg(), R = D.real || {}, RP = D.rpc || {};
     const rm = realMode();
@@ -5687,19 +5714,37 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   // 0.32.444 (pedido do dono: "0,008 aqui e 0,10 no BOOST, está confuso"): o valor que cada tela usa na REAL, igual ao servidor
   // (PumpFun._real_buy_run): BOOST = Valor por entrada das Regras do BOOST (o da REAL se ela usa regras próprias); Explorar = valor
   // próprio, nunca acima do da cópia; o resto = "SOL por compra de trader copiado" (pode ficar menor pela confiança no trader).
+  // 0.32.455 (pedido do dono: "pra mim fala REAL ligada e a cópia está desligada"): cada linha diz se a tela COMPRA e se vai para a
+  // REAL. A cópia de traders vai para a REAL sempre que a carteira REAL está ligada (o "Espelhar 100%" só muda o jeito: com ele a
+  // REAL acompanha a fictícia, sem ele compra direto).
+  function realLines(c) {
+    const on = !!((D && D.real) || {}).enabled, mx = +c.pump_real_max_sol || 0, ar = +c.pump_ar_real_sol || 0, bm = +(c.pump_bmr_on ? c.pump_bmr_sol : c.pump_bm_sol) || 0;
+    const any = (ks) => ks.some((k) => !!c[k]);
+    return [
+      { n: "Cópia de traders", d: "Top traders, Maiores traders, Carteiras em estudo, Copiar igual", v: mx, buy: !!c.pump_copy_enabled, real: on, h: "#traders",
+        bk: "chave Cópia de traders (Top traders)", rk: "carteira REAL ligada", w: "Top traders → Cópia de traders → SOL por compra na REAL" },
+      { n: "BOOST da migração", d: c.pump_bmr_on ? "usa as Regras da REAL do BOOST" : "usa as Regras da FICTÍCIA do BOOST", v: bm, buy: !!c.pump_bm_on, real: on && !!c.pump_bm_real, h: "#boost",
+        bk: "BOOST → Entrar sozinho", rk: "BOOST → Também na REAL", w: "BOOST → Regras do BOOST → Valor por entrada" + (c.pump_bmr_on ? " (Regras da REAL)" : "") },
+      { n: "Explorar", d: ar > 0 ? "valor próprio, nunca acima do da cópia de traders" : "sem valor próprio: usa o da cópia de traders", v: ar > 0 ? Math.min(ar, mx) : mx, buy: !!c.pump_ex_auto_on, real: on && !!c.pump_ex_real_on, h: "#explorar",
+        bk: "Explorar → compra automática", rk: "Explorar → também na REAL", w: "Explorar → Proteções → valor na real" },
+      { n: "As outras telas", d: "Base, Aba do Bruxo, Jev Trade, Calls e o botão Comprar", v: mx, buy: any(["pump_auto_on", "pump_bx_on", "pump_jt_wallet", "pump_calls_auto_on"]), real: on && any(["pump_auto_real", "pump_bx_real", "pump_jt_real", "pump_calls_real"]), h: "#traders",
+        bk: "a chave de cada tela", rk: "o \"também na REAL\" de cada tela", w: "o mesmo da cópia de traders (Top traders → Cópia de traders)" }];
+  }
+  const rlState = (x) => !x.buy ? ["off", "não compra"] : x.real ? ["on", "comprando na REAL"] : ["sim", "só na FICTÍCIA"];
   let RWA_SIG = "";
   function renderRwAmt(c, p) {
-    const box = $("rwAmt"); if (!box) return;
-    const mx = +c.pump_real_max_sol || 0, ar = +c.pump_ar_real_sol || 0, bm = +(c.pump_bmr_on ? c.pump_bmr_sol : c.pump_bm_sol) || 0;
-    const on = (nomes) => ABAS_TR.filter((a) => nomes.includes(a[0])).some((a) => !!c[a[2]]);
-    const L = [["Cópia de traders", "Top traders, Maiores traders, Carteiras em estudo, Copiar igual e o espelho da fictícia", mx, "Top traders → Cópia de traders → SOL por compra na REAL", "#traders", ["Top traders", "Maiores traders", "Maiores traders (80%+)", "Carteiras em estudo", "Copiar igual", "Estudo · deram lucro"]],
-      ["BOOST da migração", c.pump_bmr_on ? "usa as Regras da REAL do BOOST" : "usa as Regras da FICTÍCIA do BOOST", bm, "BOOST → Regras do BOOST → Valor por entrada" + (c.pump_bmr_on ? " (Regras da REAL)" : ""), "#boost", ["BOOST da migração"]],
-      ["Explorar", ar > 0 ? "valor próprio, nunca acima do da cópia de traders" : "sem valor próprio: usa o da cópia de traders", ar > 0 ? Math.min(ar, mx) : mx, "Explorar → Proteções → valor na real", "#explorar", ["Explorar", "Explorar · barrados"]],
-      ["As outras telas", "Base, Aba do Bruxo, Jev Trade, Calls e o botão Comprar", mx, "o mesmo da cópia de traders (Top traders → Cópia de traders)", "#traders", ["Base da pump.fun", "Aba do Bruxo", "Jev Trade", "Calls quentes"]]];
-    const sig = JSON.stringify([mx, ar, bm, p, L.map((x) => on(x[5]))]); if (sig === RWA_SIG) return; RWA_SIG = sig;
-    box.innerHTML = '<div class="rwamt">' + L.map((x) => '<a class="rwa" href="' + x[4] + '"' + (x[4] === "#traders" ? ' data-gotrt="top"' : "") + '><div><b>' + esc(x[0]) + '</b> <span class="tag ' + (on(x[5]) ? "win" : "neutral") + '">REAL ' + (on(x[5]) ? "ligada" : "desligada") + "</span><small>" + esc(x[1]) + "</small></div>" +
-      '<div class="rwa-v"><b>' + s4(x[2]) + " SOL</b><small>" + (p ? "≈ $" + f(x[2] * p, 2) : "") + "</small></div><div class=\"rwa-w\">Onde muda: " + esc(x[3]) + " →</div></a>").join("") + "</div>" +
-      '<p class="muted small" style="margin:8px 0 0">"REAL ligada" é a chave "Também na REAL" de cada tela; a carteira REAL também precisa estar ligada (chave no topo).</p>';
+    const L = realLines(c), sig = JSON.stringify([L.map((x) => [x.v, x.buy, x.real, x.d]), p]);
+    const tg = $("realTags");
+    if (tg && tg.dataset.sig !== sig) {
+      tg.dataset.sig = sig;
+      tg.innerHTML = L.map((x) => { const s = rlState(x); return '<span class="rtg ' + s[0] + '" title="' + esc(x.d) + '"><b>' + esc(x.n) + "</b> " + s4(x.v) + " SOL · " + s[1] + "</span>"; }).join("");
+    }
+    const box = $("rwAmt"); if (!box || sig === RWA_SIG) return; RWA_SIG = sig;
+    box.innerHTML = '<div class="rwamt">' + L.map((x) => { const s = rlState(x);
+      return '<a class="rwa" href="' + x.h + '"' + (x.h === "#traders" ? ' data-gotrt="top"' : "") + '><div><b>' + esc(x.n) + '</b> <span class="tag ' + (s[0] === "on" ? "win" : s[0] === "sim" ? "sim" : "neutral") + '">' + s[1] + "</span><small>" + esc(x.d) + "</small>" +
+        '<small>Compra: ' + (x.buy ? '<span class="up">ligada</span>' : '<span class="down">desligada</span>') + " (" + esc(x.bk) + ") · REAL: " + (x.real ? '<span class="up">ligada</span>' : '<span class="down">desligada</span>') + " (" + esc(x.rk) + ")</small></div>" +
+        '<div class="rwa-v"><b>' + s4(x.v) + " SOL</b><small>" + (p ? "≈ $" + f(x.v * p, 2) : "") + "</small></div><div class=\"rwa-w\">Onde muda o valor: " + esc(x.w) + " →</div></a>"; }).join("") + "</div>" +
+      '<p class="muted small" style="margin:8px 0 0">"Comprando na REAL" = a tela está ligada e a REAL dela também, com a carteira REAL ligada. As travas da REAL (lucro na fictícia, idade mínima do token, perda do dia) ainda podem barrar uma compra.</p>';
   }
   // ------------------------------------------------------------------ execução real
   function renderReal() {
@@ -5715,7 +5760,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       : [["Saldo da carteira", "–", "cole a chave no topo desta aba", "wallet"], ["USDC na carteira", "–", "carteira não configurada", "pnl"], ["Compras possíveis", "–", "de " + s4(c.pump_real_max_sol) + " SOL", "pos"],
         ["Resultado real", sg(Rw.pnl_sol, ""), (Rw.count || 0) + " trades · " + (Rw.open || 0) + " abertas", "tr"]]);
     const b = $("realB"); b.textContent = R.enabled ? "Ligado" : "Desligado"; b.title = R.enabled ? "Clique para desligar" : "Clique para ligar"; b.className = "btn tgl sw " + (R.enabled ? "on" : "off"); b.setAttribute("aria-checked", String(!!R.enabled));
-    $("realSub").textContent = R.enabled ? "LIGADA — compras de verdade com até " + s4(c.pump_real_max_sol) + " SOL cada" : "desligada";
+    $("realSub").textContent = R.enabled ? "LIGADA — compras de verdade · quanto cada tela compra:" : "desligada · nada compra na REAL · valores de cada tela quando ligar:";
     $("realInfo").innerHTML = '<div class="cfgs" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">' +
       [["Carteira do bot", R.wallet_configured ? '<span class="up">configurada</span>' : '<span class="down">não configurada</span>'], ["Endereço", R.address ? '<a href="https://solscan.io/account/' + encodeURIComponent(R.address) + '" target="_blank" rel="noopener">' + esc(shortW(R.address)) + "</a>" : "–"],
         ["Chave PumpPortal (opcional)", R.api_key_set ? "salva" : "não"], ["Trava do servidor", R.allowed ? '<span class="up">liberado</span>' : '<span class="down">travado (.env)</span>'], ["Fila real", ((D && D.real_pending) || {}).queue || 0]]
@@ -6051,60 +6096,73 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     }
     drawUsar();
   }
-  // 0.32.444 (pedido do dono): no topo do Usar ou descartar, se as telas que compram estão ligadas e desligadas igual às do Bruxo
-  // (ou de quem for escolhido). A chave REAL de cada tela não entra: o servidor não devolve opção REAL de outra conta.
-  // "Deixar igual" grava pela rota normal, com a origem, então fica no Histórico de config e dá para voltar.
-  const USC = { r: null, t: 0, peer: null };
-  // a chave geral da cópia de traders também entra na comparação (0.32.454)
-  const USC_L = () => [["Cópia de traders", "pump_copy_enabled"]].concat(ABAS_TR);
+  // 0.32.444 (pedido do dono): no topo do Usar ou descartar, se as telas estão ligadas e desligadas igual às do Bruxo (ou de quem for escolhido).
+  // 0.32.455 (pedido do dono: "meu estava ligado e o do Bruxo não e não acusou"): além da compra de cada tela, entram as chaves
+  // REAL (o servidor devolve só ligada/desligada, em "reais"). A carteira REAL ligada/desligada só aparece, não se copia.
+  const REAL_NOME = { pump_real_mirror: "Espelhar 100% a fictícia na REAL (Top traders e 80%+)" };
+  const USC_L = () => {
+    const L = [["Cópia de traders", "pump_copy_enabled"]].concat(ABAS_TR.map((a) => [a[0], a[1]]));
+    ABAS_TR.forEach((a) => { if (!L.some((x) => x[1] === a[2])) L.push([REAL_NOME[a[2]] || a[0] + " · também na REAL", a[2], true]); });
+    return L.filter((x, i) => L.findIndex((y) => y[1] === x[1]) === i);
+  };
+  const USC = { r: null, t: 0, peer: null, html: {} };
+  const TR_CMP = ["pump_copy_enabled", "pump_top_on", "pump_el_copy80", "pump_real_mirror"];
   async function usCmpBar(force) {
-    const box = $("usCmp"); if (!box) return;
-    if (!ME || ME.role !== "admin" || ME.view_by) { box.hidden = true; return; }
-    box.hidden = false;
-    const keys = [...new Set(USC_L().map((a) => a[1]))];
+    if (!ME || ME.role !== "admin" || ME.view_by) { ["usCmp", "trCmp"].forEach((id) => { if ($(id)) $(id).hidden = true; }); return; }
+    const L0 = USC_L(), keys = L0.map((x) => x[1]);
     if ((force || !USC.r || Date.now() - USC.t > 60000) && !USC.busy) {
       USC.busy = true;
       try {
         const users = await cxaUsers(); USC.users = users; USC.peer = USC.peer || cxaPick(users);
-        if (USC.peer) { USC.r = await BB.api("/api/pump/config/peer", { body: { user: USC.peer, keys }, quiet: true }); USC.t = Date.now(); }
+        if (USC.peer) { USC.r = await BB.api("/api/pump/config/peer", { body: { user: USC.peer, keys, reais: 1 }, quiet: true }); USC.t = Date.now(); }
       } catch (e) { USC.r = { error: "não consegui comparar agora" }; USC.t = Date.now(); }
       USC.busy = false;
     }
     if (!USC.r && USC.busy) return;
-    const r = USC.r, V = (r && r.valores) || {};
-    const L = USC_L().filter((a, i) => USC_L().findIndex((b) => b[1] === a[1]) === i && a[1] in V);
-    const dif = L.filter((a) => !!cfgNow(a[1]) !== !!V[a[1]]);
-    const nm = r && !r.error ? esc(r.nome || "outro usuário") : "";
-    const sel = (USC.users || []).length > 1 ? ' <select class="in" id="usCmpU" aria-label="Comparar com">' + USC.users.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === USC.peer ? " selected" : "") + ">" + esc(u.nome || u.email || "usuário") + "</option>").join("") + "</select>" : "";
-    const st = (on) => on ? '<span class="up">ligada</span>' : '<span class="down">desligada</span>';
-    let html;
-    if (!r) html = '<div class="cmpbar bmcmp-bar"><span class="muted">Nenhum outro usuário para comparar.</span></div>';
-    else if (r.error) html = '<div class="cmpbar bmcmp-bar"><span class="down">' + esc(r.error) + "</span>" + sel + "</div>";
-    else if (!dif.length) html = '<div class="cmpbar bmcmp-bar ok"><span><span class="ok">✓ Suas telas estão ligadas e desligadas <b>igual</b> às de <b>' + nm + '</b></span> <span class="muted small">(' + L.length + " telas conferidas · a chave REAL de cada uma não entra)</span></span>" + sel + "</div>";
-    else html = '<div class="cmpbar bmcmp-bar"><span><span class="dif">⚠ <b>' + dif.length + " tela" + (dif.length > 1 ? "s" : "") + "</b> diferente" + (dif.length > 1 ? "s" : "") + " de <b>" + nm + '</b></span> <span class="muted small">(' + (L.length - dif.length) + " iguais)</span></span>" + sel +
-      '<button type="button" class="btn sm primary" data-usc="all">Deixar igual a ' + nm + "</button></div>" +
-      '<div class="usdif">' + dif.map((a) => '<div class="usdifr"><b>' + esc(a[0]) + "</b><span>" + nm + ": " + st(V[a[1]]) + " · você: " + st(cfgNow(a[1])) + '</span><button type="button" class="btn sm" data-usc="' + esc(a[1]) + '">' + (V[a[1]] ? "Ligar" : "Desligar") + " também</button></div>").join("") + "</div>";
-    if (USC.html !== html) { USC.html = html; box.innerHTML = html; }
+    const r = USC.r, V = Object.assign({}, (r && r.valores) || {}, (r && r.reais) || {});
+    const L = L0.filter((x) => x[1] in V), dif = L.filter((x) => !!cfgNow(x[1]) !== !!V[x[1]]);
+    usCmpDraw("usCmp", r, V, L, dif);
+    usCmpDraw("trCmp", r, V, L.filter((x) => TR_CMP.includes(x[1])), dif.filter((x) => TR_CMP.includes(x[1])));
     // no quadrado de cada tela, um aviso quando ela está diferente
     document.querySelectorAll("#usGrid .uscard").forEach((c) => {
       const nomes = USAR_ABAS[c.dataset.us]; let el = c.querySelector(".uscmpc");
-      const d = Array.isArray(nomes) ? dif.filter((a) => nomes.includes(a[0])) : [];
+      const keysOf = Array.isArray(nomes) ? ABAS_TR.filter((a) => nomes.includes(a[0])).flatMap((a) => [a[1], a[2]]).concat(nomes.includes("Cópia de traders") ? ["pump_copy_enabled"] : []) : [];
+      const d = dif.filter((x) => keysOf.includes(x[1]));
       if (!d.length) { if (el) el.remove(); return; }
       if (!el) { el = document.createElement("div"); el.className = "uscmpc"; c.insertBefore(el, c.querySelector("i")); }
-      el.textContent = "≠ " + (r.nome || "outro") + ": " + d.map((a) => a[0] + (V[a[1]] ? " ligada" : " desligada")).join(" · ");
+      el.textContent = "≠ " + (r.nome || "outro") + ": " + d.map((x) => x[0] + (V[x[1]] ? " ligada" : " desligada")).join(" · ");
     });
   }
-  document.addEventListener("change", (e) => { if (e.target.id === "usCmpU") { USC.peer = e.target.value; try { localStorage.setItem("pf_abcmp", USC.peer); } catch (er) { /* */ } usCmpBar(true); } });
+  function usCmpDraw(id, r, V, L, dif) {
+    const box = $(id); if (!box) return;
+    box.hidden = false;
+    const nm = r && !r.error ? esc(r.nome || "outro usuário") : "";
+    const sel = (USC.users || []).length > 1 ? ' <select class="in" data-uscu aria-label="Comparar com">' + USC.users.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === USC.peer ? " selected" : "") + ">" + esc(u.nome || u.email || "usuário") + "</option>").join("") + "</select>" : "";
+    const st = (on) => on ? '<span class="up">ligada</span>' : '<span class="down">desligada</span>';
+    const rc = (r && r.reais) || {}, cart = "pump_real_enabled" in rc ? '<span class="muted small"> · carteira REAL de ' + nm + ": " + st(rc.pump_real_enabled) + " · a sua: " + st(!!(D && D.real && D.real.enabled)) + "</span>" : "";
+    let html;
+    if (!r) html = '<div class="cmpbar bmcmp-bar"><span class="muted">Nenhum outro usuário para comparar.</span></div>';
+    else if (r.error) html = '<div class="cmpbar bmcmp-bar"><span class="down">' + esc(r.error) + "</span>" + sel + "</div>";
+    else if (!dif.length) html = '<div class="cmpbar bmcmp-bar ok"><span><span class="ok">✓ Ligadas e desligadas <b>igual</b> às de <b>' + nm + '</b></span> <span class="muted small">(' + L.length + " chaves conferidas, compra e REAL)</span>" + cart + "</span>" + sel + "</div>";
+    else html = '<div class="cmpbar bmcmp-bar"><span><span class="dif">⚠ <b>' + dif.length + " chave" + (dif.length > 1 ? "s" : "") + "</b> diferente" + (dif.length > 1 ? "s" : "") + " de <b>" + nm + '</b></span> <span class="muted small">(' + (L.length - dif.length) + " iguais)</span>" + cart + "</span>" + sel +
+      '<button type="button" class="btn sm primary" data-usc="all" data-uscbox="' + id + '">Deixar igual a ' + nm + "</button></div>" +
+      '<div class="usdif">' + dif.map((x) => '<div class="usdifr"><b>' + esc(x[0]) + (x[2] ? ' <span class="tag real">REAL</span>' : "") + "</b><span>" + nm + ": " + st(V[x[1]]) + " · você: " + st(cfgNow(x[1])) + '</span><button type="button" class="btn sm" data-usc="' + esc(x[1]) + '">' + (V[x[1]] ? "Ligar" : "Desligar") + " também</button></div>").join("") + "</div>";
+    if (USC.html[id] !== html) { USC.html[id] = html; box.innerHTML = html; }
+  }
+  document.addEventListener("change", (e) => { if (e.target.matches && e.target.matches("[data-uscu]")) { USC.peer = e.target.value; try { localStorage.setItem("pf_abcmp", USC.peer); } catch (er) { /* */ } usCmpBar(true); } });
   document.addEventListener("click", async (e) => {
     const b = e.target.closest && e.target.closest("[data-usc]"); if (!b) return;
-    const r = USC.r, V = (r && r.valores) || {}; if (!r || r.error) return;
-    const ks = b.dataset.usc === "all" ? USC_L().map((a) => a[1]).filter((k) => k in V && !!cfgNow(k) !== !!V[k]) : [b.dataset.usc];
-    const vals = {}; ks.forEach((k) => { vals[k] = !!V[k]; });
+    const r = USC.r, V = Object.assign({}, (r && r.valores) || {}, (r && r.reais) || {}); if (!r || r.error) return;
+    const L = USC_L(), only = b.dataset.uscbox === "trCmp" ? TR_CMP : null;
+    const ks = b.dataset.usc === "all" ? L.map((x) => x[1]).filter((k) => k in V && (!only || only.includes(k)) && !!cfgNow(k) !== !!V[k]) : [b.dataset.usc];
     if (!ks.length) return;
-    if (!confirm("Deixar igual a " + (r.nome || "outro usuário") + "?\n\n" + ks.map((k) => (USC_L().find((a) => a[1] === k) || [k])[0] + ": " + (vals[k] ? "ligar" : "desligar")).join("\n") +
-      "\n\nSó a compra de cada tela; a chave REAL de cada uma não muda. Fica salvo no Histórico de config e dá para voltar.")) return;
-    const res = await BB.api("/api/pump/settings", { body: { ...vals, _why: "deixou as telas do Usar ou descartar iguais às de " + (r.nome || "outro usuário") } });
-    toast(res.error || "Salvo: " + ks.length + " tela" + (ks.length > 1 ? "s" : "") + " igual" + (ks.length > 1 ? "is" : "") + " às de " + (r.nome || "outro usuário") + ".");
+    const vals = {}; ks.forEach((k) => { vals[k] = !!V[k]; });
+    const nome = (k) => (L.find((x) => x[1] === k) || [k])[0], liga = ks.filter((k) => vals[k] && L.some((x) => x[1] === k && x[2]));
+    if (!confirm("Deixar igual a " + (r.nome || "outro usuário") + "?\n\n" + ks.map((k) => nome(k) + ": " + (vals[k] ? "ligar" : "desligar")).join("\n") +
+      (liga.length ? "\n\nAtenção: isso LIGA compra na carteira REAL (dinheiro de verdade) em: " + liga.map(nome).join(", ") + "." : "") +
+      "\n\nA carteira REAL em si (ligada/desligada) não muda. Fica salvo no Histórico de config e dá para voltar.")) return;
+    const res = await BB.api("/api/pump/settings", { body: { ...vals, _why: "deixou as chaves iguais às de " + (r.nome || "outro usuário") } });
+    toast(res.error || "Salvo: " + ks.length + " chave" + (ks.length > 1 ? "s" : "") + " igual" + (ks.length > 1 ? "is" : "") + " às de " + (r.nome || "outro usuário") + ".");
     await poll(true); usCmpBar();
   });
   function usPer(abas, nome, h) {

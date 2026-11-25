@@ -133,4 +133,11 @@ def test_limpeza_real_key_and_usd():
     assert 'data-cfg="pump_real_max_sol"' not in cart and 'data-cfg="pump_copy_sol"' not in cart
     assert 'data-us="copia"' in _sec("usar") and 'USC_L()' in JS and 'id="bmCurve"' in _sec("boost") and 'function renderBmWal' in JS
     assert 'id="bmPer"' in _sec("boost") and 'function loadBmPer' in JS and 'solUsd(t.pnl_sol)' in JS and 'class="hsqs"' in JS
-    assert 'id="usCmp"' in _sec("usar") and 'function usCmpBar' in JS and '_why: "deixou as telas do Usar' in JS
+    assert 'id="usCmp"' in _sec("usar") and 'function usCmpBar' in JS and '_why: "deixou as chaves iguais' in JS
+
+
+def test_real_tags_and_compare_in_top_traders():
+    """0.32.455: valor de cada tela na barra da carteira REAL, comparação também no Top traders, dica no gráfico do BOOST."""
+    assert 'id="realTags"' in _sec("carteiras") and "function realLines" in JS and "comprando na REAL" in JS
+    assert 'id="trCmp"' in _sec("traders") and 'VIEW === "usar" || VIEW === "traders") usCmpBar()' in JS and "reais: 1" in JS
+    assert "function bmTip" in JS and 'id="bmCt"' in JS

@@ -3030,6 +3030,11 @@
    "versao": "0.32.454",
    "inicio": "2026-11-25T10:54:57+00:00",
    "titulo": "Cópia de traders: valor e chave na tela de Top traders e no Usar ou descartar; carteira e gráfico no BOOST"
+  },
+  {
+   "versao": "0.32.455",
+   "inicio": "2026-11-25T11:49:37+00:00",
+   "titulo": "Carteira REAL com o valor e o estado de cada tela; comparação com o Bruxo inclui as chaves REAL e aparece no Top traders; dica no gráfico do BOOST"
   }
  ]
 }

@@ -221,6 +221,7 @@
       <section class="view" data-view="traders" hidden>
         <a class="thgo" href="#tradershist" data-novo-ate="2026-11-16"><b>Traders copiados</b><span>o histórico guardado de cada carteira que você copiou: ganhos, perdas e cada trade, com o botão Resultados do trader</span><i>Abrir →</i></a>
         <div class="seg ctabs" id="trTabs" data-novo-ate="2026-11-18"><button data-trt="top">Top traders da pump.fun</button><button data-trt="copiados">Copiados agora</button><button data-trt="manual">Copiados manualmente</button><button data-trt="monitor">Monitor ao vivo</button><button data-trt="inativos">Inativos</button><button data-trt="porque">Por que não copiou</button><button data-trt="dif" data-adm>Por que compramos diferente</button><button data-trt="lab" data-adm>Laboratório</button><button data-trt="ranking">Ranking próprio</button></div>
+        <div id="trCmp" class="bmcmp" data-trt="top" hidden></div>
         <div class="card" data-trt="top" id="ctCard" data-nosanf data-noshare data-novo-ate="2026-12-09"><header><div><h2>Cópia de traders</h2><div class="sub">liga e desliga a cópia dos traders e quanto cada cópia compra · o BOOST e o Explorar têm o valor deles</div></div></header>
           <div class="form">
             <div class="field"><label>Cópia de traders</label><div class="row"><button class="btn sm tgl" data-clone="1" data-toggle="pump_copy_enabled">…</button></div><div class="hint">Desligada, nenhuma cópia de trader abre, nem na FICTÍCIA nem na REAL. A mesma chave está em Carteiras e no Usar ou descartar.</div></div>
@@ -928,7 +929,7 @@
           </div></div>
         </div>
         <div data-wp="real" hidden>
-        <div class="walbar"><div><b>Carteira REAL</b><small id="realSub"></small></div><button class="btn tgl sw off" id="realB" role="switch" aria-label="Ligar a carteira REAL">Desligado</button></div>
+        <div class="walbar"><div><b>Carteira REAL</b><small id="realSub"></small><div class="rtags" id="realTags"></div></div><button class="btn tgl sw off" id="realB" role="switch" aria-label="Ligar a carteira REAL">Desligado</button></div>
         <div class="alert red" id="rwAlert" hidden></div>
         <div class="card" data-nosanf data-noshare id="rwKeyCard" data-novo-ate="2026-12-09"><header><div><h2>Chave da carteira REAL</h2><div class="sub">a carteira Solana do bot · fica guardada criptografada e nunca volta para a tela · a chave Ligado/Desligado logo acima liga a Execução real</div></div></header><div id="rwKey"></div></div>
         <div class="card" data-nosanf data-noshare id="rwAmtCard" data-novo-ate="2026-12-09"><header><div><h2>Quanto cada tela compra na REAL</h2><div class="sub">cada tela tem o próprio valor: aqui está o que vale de fato e onde se muda</div></div></header><div id="rwAmt"></div></div>
