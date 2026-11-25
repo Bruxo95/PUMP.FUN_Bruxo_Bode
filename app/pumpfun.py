@@ -5541,7 +5541,22 @@ class PumpFun:
         p.pop("sell_retry_at", None)
         p.pop("sell_fails", None)
         got, left = res["sol_received"], res["tokens_left"]
-        if res.get("reason") == "sem saldo do token":
+        ext = None
+        if res.get("reason") == "sem saldo do token" and hasattr(self.real, "external_sold"):
+            try:                                          # 0.32.459: o SOL que entrou na venda feita fora do robô
+                ext = await self.real.external_sold(p["mint"], float(p.get("open_t") or 0) - 5,
+                                                    {p.get("signature")} | {x.get("signature") for x in p.get("sells") or []})
+            except Exception:
+                ext = None
+        if ext and ext[0] > 0:
+            got = ext[0]
+            why = why + f" · vendido fora do robô (na carteira): {ext[0]:.6f} SOL"
+            p["fora_do_robo"] = True
+            p["fora_sigs"] = ext[2]
+            if len(ext) > 3 and ext[3] > 0:               # aluguel da conta do token fechada na carteira
+                p["proceeds"] = p.get("proceeds", 0.0) + ext[3]
+                p["conta_devolvida_sol"] = round(ext[3], 6)
+        elif res.get("reason") == "sem saldo do token":
             # 0.32.182: o token já não estava na carteira (vendido no app da carteira, por exemplo). O robô não sabe quanto
             # SOL entrou nessa venda: o resultado fica −100% no histórico, mas o motivo diz isso para não parecer perda.
             why = why + " · o token já não estava na carteira (vendido fora do robô?): o SOL dessa venda não entra na conta"
@@ -5594,6 +5609,8 @@ class PumpFun:
             tr["sell_tries"] = p.get("sell_tries")         # 0.32.107: cada tentativa de venda
             tr["fora_do_robo"] = bool(p.get("fora_do_robo"))   # 0.32.182: vendido fora do robô (sem o SOL na conta)
             tr["conta_devolvida_sol"] = p.get("conta_devolvida_sol")   # 0.32.215: aluguel da conta do token devolvido
+            if p.get("fora_sigs"):
+                tr["fora_sigs"] = p["fora_sigs"]           # 0.32.459: assinaturas das vendas feitas fora do robô
             tr["entrou_porque"] = self.entry_why(p)         # 0.32.60
             if self.sign_out(p):
                 tr["sinal"] = self.sign_out(p)              # 0.32.423: tempo no positivo × negativo
@@ -6256,6 +6273,58 @@ class PumpReal:
             dec = int(ta.get("decimals") or 0)
         return raw, dec
 
+    async def external_sold(self, mint: str, since_t: float, skip=()) -> tuple[float, float, list, float]:
+        """0.32.459 (BAH do dono, 25/11: vendeu no app da carteira e o robô não viu): procura nas últimas transações da carteira
+        as vendas deste token feitas fora do robô depois de `since_t` (as do robô, em `skip`, ficam de fora). Devolve o SOL que
+        entrou, os tokens que saíram, as assinaturas e o aluguel da conta do token fechada fora do robô. Só leitura; até 25."""
+        owner = self.wallet.address
+        sol = tok = rent = 0.0
+        found = []
+        try:
+            sigs = await self._rpc_retry("getSignaturesForAddress", [owner, {"limit": 25, "commitment": "confirmed"}]) or []
+        except Exception:
+            return 0.0, 0.0, [], 0.0
+        for x in sigs:
+            sig = x.get("signature")
+            if not sig or x.get("err") or sig in skip:
+                continue
+            if x.get("blockTime") and float(x["blockTime"]) < since_t:
+                break                                    # a lista vem da mais nova para a mais velha
+            try:
+                tx = await self._rpc_retry("getTransaction", [sig, {"encoding": "jsonParsed", "commitment": "confirmed",
+                                                                    "maxSupportedTransactionVersion": 1}])
+            except Exception:
+                continue
+            meta = (tx or {}).get("meta") or {}
+            if not meta or meta.get("err"):
+                continue
+
+            def amt(bals):
+                return sum(float(((b.get("uiTokenAmount") or {}).get("uiAmountString")) or 0) for b in bals or []
+                           if b.get("owner") == owner and b.get("mint") == mint)
+            dt = amt(meta.get("postTokenBalances")) - amt(meta.get("preTokenBalances"))
+            keys = [(k.get("pubkey") if isinstance(k, dict) else k)
+                    for k in ((((tx or {}).get("transaction") or {}).get("message") or {}).get("accountKeys") or [])]
+            if owner not in keys:
+                continue
+            i = keys.index(owner)
+            ds = (int(meta["postBalances"][i]) - int(meta["preBalances"][i])) / 1e9
+
+            def has(bals):
+                return any(b.get("owner") == owner and b.get("mint") == mint for b in bals or [])
+            if dt == 0 and ds > 0 and has(meta.get("preTokenBalances")) and not has(meta.get("postTokenBalances")):
+                rent += ds                               # conta do token vazia fechada fora do robô: o aluguel voltou
+                found.append(sig)
+                continue
+            if dt >= 0:
+                continue
+            if ds <= 0:
+                continue                                 # token saiu sem SOL entrar (transferência): não é venda
+            sol += ds
+            tok += -dt
+            found.append(sig)
+        return sol, tok, found, rent
+
     async def _sol_change(self, sig: str | None) -> float | None:
         """Quanto SOL a carteira do bot ganhou (+) ou gastou (−) NESSA transação (meta pré/pós da conta que paga).
         0.31.46: com as ordens em paralelo, a diferença de saldo da carteira misturaria duas ordens."""
@@ -6429,6 +6498,11 @@ class PumpReal:
             tried.append(f"{label}: {self.explain(last.get('reason')) or last.get('status')}")
             res_ = "entrou" if tok1 < tok0 * 0.999 else "pendente" if last.get("status") == "pendente" else "falhou"
             tries.append({"via": label, "res": res_, "ms": round((time.monotonic() - t0) * 1000), "erro": None if res_ == "entrou" else str(self.explain(last.get("reason")) or last.get("status"))[:100]})
+            if tok0 <= 0 and tok1 <= 0 and last.get("status") != "pendente":
+                # 0.32.459 (BAH do dono, 25/11): o token foi vendido no app da carteira. A PumpPortal respondia 400 e a Jupiter "sem
+                # cotação" antes de conferir o saldo, e o robô tentava vender de novo para sempre. Duas leituras com saldo zero
+                # (antes e depois da tentativa) = o token já não está na carteira.
+                return {"ok": True, "sol_received": 0.0, "tokens_left": 0.0, "reason": NO_TOKEN, "attempts": tried, "tentativas": tries}
             if tok1 < tok0 * 0.999:
                 d = await self._sol_change(last.get("signature"))
                 return {"ok": True, "signature": last.get("signature"), "sol_received": max(0.0, d if d is not None else sol1 - sol0),
