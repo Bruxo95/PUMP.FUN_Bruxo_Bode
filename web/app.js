@@ -1618,7 +1618,7 @@
     return users.some((u) => u.user_id === p) ? p : cxaPick(users);
   }
   async function bmcFetch(uid) {
-    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, tela: "boost" }, quiet: true }).catch(() => null);
+    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, tela: "boost", reais: 1 }, quiet: true }).catch(() => null);
     if (!r || r.error) return r || { error: "não consegui comparar agora" };
     const V = r.valores || {};
     r.keys = Object.keys(V); r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), V[k]));
@@ -1627,6 +1627,38 @@
   const bmcSig = (r) => r.user_id + "|" + r.dif.slice().sort().map((k) => k + "=" + JSON.stringify(cfgNow(k)) + ">" + JSON.stringify((r.valores || {})[k])).join(",");
   const bmcSkip = () => { try { return localStorage.getItem("pf_bmc_skip") || ""; } catch (e) { return ""; } };
   function bmcSkipSet(v) { try { if (v) localStorage.setItem("pf_bmc_skip", v); else localStorage.removeItem("pf_bmc_skip"); } catch (e) { /* */ } }
+  // 0.32.464 (pedido do dono): se a pessoa comparada desligou o BOOST (ou só a REAL) e o seu está ligado, o aviso diz isso
+  // e pergunta se quer desligar o seu. Nada desliga sozinho; "Manter ligado" guarda a resposta até a situação mudar.
+  // A REAL dela só compra com as três ligadas: entrar sozinho, "Também na REAL" e a Execução real.
+  function bmcPeer(r) {
+    const sim = !!(r.valores || {}).pump_bm_on, R = r.reais || {};
+    return { sim, real: sim && !!R.pump_bm_real && !!R.pump_real_enabled, semExec: !R.pump_real_enabled };
+  }
+  function bmcOffKind(r) {
+    if (!r || r.error || !r.reais) return "";
+    const p = bmcPeer(r), c = cfg() || {};
+    return !p.sim && c.pump_bm_on ? "all" : !p.real && c.pump_bm_real ? "real" : "";
+  }
+  function bmcOffBox(r) {
+    const k = bmcOffKind(r);
+    let kept = ""; try { kept = localStorage.getItem("pf_bmc_keepon") || ""; if (!k && kept && r && !r.error) localStorage.removeItem("pf_bmc_keepon"); } catch (e) { /* */ }
+    if (!k || kept === r.user_id + "|" + k) return "";
+    const c = cfg() || {}, p = bmcPeer(r), nm = "<b>" + esc(r.nome) + "</b>";
+    const msg = k === "all" ? "⛔ " + nm + " está com o BOOST <b>desligado</b>. O seu está ligado (" + (c.pump_bm_real ? "FICTÍCIA e REAL" : "FICTÍCIA") + "). <b>Quer desligar o seu também?</b>"
+      : "⛔ " + nm + " está com a REAL do BOOST <b>desligada</b>" + (p.sim && p.semExec ? " (Execução real desligada)" : "") + ". A sua está ligada. <b>Quer desligar a sua REAL também?</b>";
+    return '<div class="cmpbar bmcmp-off" role="alert"><span>' + msg + '<small>Posições já abertas continuam e saem pelas regras de saída.</small></span>' +
+      '<button type="button" class="btn sm primary" data-bmc="peeroff">' + (k === "all" ? "Desligar o meu BOOST" : "Desligar a minha REAL") + "</button>" +
+      '<button type="button" class="btn sm" data-bmc="peerkeep">' + (k === "all" ? "Manter ligado" : "Manter ligada") + "</button></div>";
+  }
+  async function bmcPeerOff() {
+    const r = BMC.r, k = bmcOffKind(r); if (!k) return;
+    const c = cfg() || {}, body = k === "all" ? { pump_bm_on: false } : {};
+    if (c.pump_bm_real) body.pump_bm_real = false;
+    const res = await BB.api("/api/pump/settings", { body: { ...body, _why: (k === "all" ? "desligou o BOOST" : "desligou a REAL do BOOST") + " como " + r.nome } });
+    if (res.error) { toast(res.error); return; }
+    toast(k === "all" ? "Seu BOOST foi desligado." : "Sua REAL do BOOST foi desligada.");
+    await poll(true); if (VIEW === "boost") loadBm(); bmcBar(true);
+  }
   async function bmcBar(force) {
     const box = $("bmCmp"); if (!box) return;
     if (!ME || ME.role !== "admin" || ME.view_by) { box.hidden = true; return; }
@@ -1639,20 +1671,22 @@
     const r = BMC.r, u = bmcUndo();
     if (r && !r.error) r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), (r.valores || {})[k]));   // sua config pode ter mudado na tela
     const undo = u && u.vals && Object.keys(u.vals).length ? "<small>Última cópia: de " + esc(u.de || "?") + " em " + dt(u.t) + " · " + Object.keys(u.vals).length + ' opções · <a href="#boost" data-bmc="changed">ver o que mudou</a> · <a href="#boost" data-bmc="undo">reverter</a></small>' : "";
+    const off = bmcOffBox(r);
+    const peerNow = r && !r.error && r.reais ? " · " + esc(r.nome) + " agora: BOOST " + (bmcPeer(r).sim ? "ligado" : "desligado") + " · REAL " + (bmcPeer(r).real ? "ligada" : "desligada") : "";
     // 0.32.442 (pedido do dono): Descartar = manter a sua configuração, sem copiar nada. O aviso some até as diferenças mudarem
     // (outra pessoa, outra opção ou outro valor, de qualquer lado); fica só uma linha discreta com "mostrar de novo".
     const sig = r && !r.error && r.dif.length ? bmcSig(r) : "";
     if (sig && bmcSkip() === sig) {
-      box.innerHTML = '<div class="cmpbar bmcmp-bar skip"><span class="muted small">Você manteve a sua configuração do BOOST (descartou ' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + " da de " + esc(r.nome) + "). " + undo + "</span>" +
+      box.innerHTML = off + '<div class="cmpbar bmcmp-bar skip"><span class="muted small">Você manteve a sua configuração do BOOST (descartou ' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + " da de " + esc(r.nome) + ")" + peerNow + ". " + undo + "</span>" +
         '<button type="button" class="btn sm" data-bmc="unskip">Mostrar de novo</button></div>';
       return;
     }
     let msg, ok = false;
     if (!r) msg = '<span class="muted">Nenhum outro usuário para comparar.</span>';
     else if (r.error) msg = '<span class="down">' + esc(r.error) + "</span>";
-    else if (!r.dif.length) { ok = true; msg = '<span class="ok">✓ Você está usando a configuração do BOOST <b>idêntica</b> à de <b>' + esc(r.nome) + '</b></span> <span class="muted small">(' + r.keys.length + " opções conferidas)</span>"; }
-    else msg = '<span class="dif">⚠ Sua configuração do BOOST tem <b>' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + "</b> da de <b>" + esc(r.nome) + '</b></span> <span class="muted small">(' + (r.keys.length - r.dif.length) + " iguais)</span>";
-    box.innerHTML = '<div class="cmpbar bmcmp-bar' + (ok ? " ok" : "") + '"><span>' + msg + undo + "</span>" +
+    else if (!r.dif.length) { ok = true; msg = '<span class="ok">✓ Você está usando a configuração do BOOST <b>idêntica</b> à de <b>' + esc(r.nome) + '</b></span> <span class="muted small">(' + r.keys.length + " opções conferidas" + peerNow + ")</span>"; }
+    else msg = '<span class="dif">⚠ Sua configuração do BOOST tem <b>' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + "</b> da de <b>" + esc(r.nome) + '</b></span> <span class="muted small">(' + (r.keys.length - r.dif.length) + " iguais" + peerNow + ")</span>";
+    box.innerHTML = off + '<div class="cmpbar bmcmp-bar' + (ok ? " ok" : "") + '"><span>' + msg + undo + "</span>" +
       (r && !r.error && r.dif.length ? '<button type="button" class="btn sm" data-bmc="see">Ver diferenças</button>' +
         '<button type="button" class="btn sm" data-bmc="skip" title="Mantém a sua configuração como está, sem copiar nada">Descartar</button>' : "") +
       '<button type="button" class="btn sm primary" data-bmc="open">Copiar tela BOOST</button></div>';
@@ -1746,6 +1780,8 @@
       bmcBar();
     }
     else if (a === "unskip") { bmcSkipSet(""); bmcBar(); }
+    else if (a === "peeroff") bmcPeerOff();
+    else if (a === "peerkeep") { const k = bmcOffKind(BMC.r); if (k) { try { localStorage.setItem("pf_bmc_keepon", BMC.r.user_id + "|" + k); } catch (er) { /* */ } } bmcBar(); }
   });
   // 0.32.441 (pedido do dono): ao ligar "Também na REAL" do BOOST, a confirmação mostra com quanto a pessoa comparada (o
   // Bruxo) entra na REAL e deixa escolher: o mesmo valor ou outro. O valor vai para a opção que manda na REAL da sua conta:
@@ -1760,7 +1796,7 @@
     $("cfgDiffT").textContent = "Ligar o BOOST na REAL";
     $("cfgDiffS").textContent = "dinheiro de verdade · só funciona com a Execução real ligada";
     $("cfgDiffB").innerHTML = '<div class="decbox">' + esc(btn.dataset.confirm || "Cada entrada do BOOST também compra na carteira REAL (dinheiro de verdade).") + "</div>" +
-      (V ? '<p class="bmrq"><b>' + nm + "</b> está entrando com <b>" + s4(his) + " SOL</b> por entrada na REAL" + (V.pump_bm_real ? "" : ' <span class="muted">(com a REAL do BOOST desligada)</span>') + ". Você hoje: <b>" + s4(now) + " SOL</b>.</p>" : '<p class="muted">Não consegui ler o valor de outro usuário agora.</p>') +
+      (V ? '<p class="bmrq"><b>' + nm + "</b> está entrando com <b>" + s4(his) + " SOL</b> por entrada na REAL" + ((r.reais || {}).pump_bm_real ? "" : ' <span class="muted">(com a REAL do BOOST desligada)</span>') + ". Você hoje: <b>" + s4(now) + " SOL</b>.</p>" : '<p class="muted">Não consegui ler o valor de outro usuário agora.</p>') +
       '<div class="bmrq-opts">' +
       (V ? '<label><input type="radio" name="bmrq" value="same" checked> Copiar o mesmo de ' + nm + " (" + s4(his) + " SOL)</label>" : "") +
       '<label><input type="radio" name="bmrq" value="other"' + (V ? "" : " checked") + '> Valor diferente: <input class="in" id="bmrqV" type="number" min="0.001" max="5" step="0.01" value="' + now + '" aria-label="Valor por entrada na REAL"> SOL</label></div>' +

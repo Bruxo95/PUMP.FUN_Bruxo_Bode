@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-25**; revisão documental **2.0**.
-Aplicação: **0.32.463 · 2026-11-25 · BOOST: maior positivo e negativo de cada trade e medição da REAL**.
-Referência Git na emissão: `42fab944137bbdd5c3ac2059ca4a8c098c1f9eac`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.464 · 2026-11-25 · BOOST avisa quando o Bruxo desliga e pergunta se quer desligar o seu**.
+Referência Git na emissão: `f790094f8edfd71829c47ca4fa0f58deb074fd9b`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

@@ -1135,6 +1135,7 @@ label.chgrp{cursor:pointer}
 
 /* 0.32.442: aviso do BOOST descartado (manteve a própria configuração) */
 .bmcmp-bar.skip{border-style:dashed;background:transparent}
+.bmcmp .bmcmp-off{margin-bottom:8px;border-color:#ef4444;background:rgba(239,68,68,.1)}.bmcmp-off small{display:block;color:var(--muted);margin-top:2px}
 .bmrealw{margin:6px 0 0}.bmrw{border-color:#ef4444!important;background:rgba(239,68,68,.1)!important;color:#fca5a5}
 
 /* 0.32.444: dólar ao lado do SOL, resumo do Histórico em quadrados, valor de cada tela na REAL, comparação do Usar ou descartar */
