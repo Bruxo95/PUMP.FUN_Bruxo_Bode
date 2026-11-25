@@ -61,13 +61,13 @@ def test_carteiras_is_the_only_place_to_run_the_wallets():
         assert f'{v}: "' in JS[JS.index("const MOVED"):JS.index("const MOVED") + 140]     # link antigo continua funcionando
     assert 'data-wm="sim"' in cart and 'data-wm="real"' in cart and 'data-wm="ambas"' in cart
     sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
-    assert 'data-toggle="pump_copy_enabled"' in sim and 'data-cfg="pump_copy_sol"' in sim and 'data-cfg="pump_sim_balance_sol"' in sim
+    assert 'data-toggle="pump_copy_enabled"' in sim and 'data-cfg="pump_sim_balance_sol"' in sim
     real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
     assert 'id="rmT"' in cart[cart.index('<div data-wp="espelho"'):cart.index('<div data-wp="ambas"')] and 'id="rmT"' not in real
     assert 'id="wKpisS"' in sim and 'id="cfgTabs"' not in real and 'Conversor' in real
     for k in ("pump_copy_enabled", "pump_other_min_liq_usd"):                                 # a REAL mostra a mesma opção (cópia)
         assert f'data-clone="1" data-{"toggle" if k.endswith("enabled") else "cfg"}="{k}"' in real
-    assert 'id="realB"' in real and 'data-cfg="pump_real_max_sol"' in real and 'data-toggle="pump_real_mirror"' in real
+    assert 'id="realB"' in real and 'data-toggle="pump_real_mirror"' in real
     for k in ("pump_stop_pct", "pump_tp1_pct", "pump_min_winrate", "pump_copy_delay_s"):      # valem para as duas: uma vez só
         assert H.count(f' data-cfg="{k}"') - H.count(f'data-clone="1" data-cfg="{k}"') == 1 and f'data-cfg="{k}"' in cart[cart.index('<div data-wp="ambas"'):]
 
@@ -94,7 +94,7 @@ def test_both_wallet_screens_start_the_same():
     sim = cart[cart.index('<div data-wp="sim">'):cart.index('<div data-wp="real"')]
     real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
     labels = lambda s: re.findall(r"<label>(.*?)</label>", s[:s.index("<h2>Só na")])
-    assert labels(sim) == labels(real) and len(labels(sim)) == 5
+    assert labels(sim) == labels(real) and len(labels(sim)) == 4
     assert "<h2>Só na FICTÍCIA</h2>" in sim and "<h2>Só na REAL</h2>" in real
     so = lambda s: s[s.index("<h2>Só na"):]
     assert "pump_sim_balance_sol" in so(sim) and "pump_real_daily_loss_sol" in so(real) and "Só aqui:" in so(sim) and "Só aqui:" in so(real)
@@ -125,7 +125,12 @@ def test_limpeza_real_key_and_usd():
     assert 'id="nbTr"' in lim and 'id="nbPos"' in lim and 'const LIMPA_V' in JS
     cart = _sec("carteiras")
     real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
-    assert real.index('id="rwKey"') < real.index('id="rwAmt"') < real.index('data-cfg="pump_real_max_sol"')
-    assert '$("rwKey").innerHTML' in JS and 'function renderRwAmt' in JS and 'SOL por compra de trader copiado' in real
+    assert real.index('id="rwKey"') < real.index('id="rwAmt"') < real.index('data-toggle="pump_real_mirror"')
+    assert '$("rwKey").innerHTML' in JS and 'function renderRwAmt' in JS
+    # 0.32.454: o valor da cópia de traders (FICTÍCIA e REAL) mora em Top traders → Cópia de traders, junto da chave
+    tr = _sec("traders")
+    assert 'id="ctCard"' in tr and 'data-cfg="pump_copy_sol"' in tr and 'data-cfg="pump_real_max_sol"' in tr and 'data-toggle="pump_copy_enabled"' in tr
+    assert 'data-cfg="pump_real_max_sol"' not in cart and 'data-cfg="pump_copy_sol"' not in cart
+    assert 'data-us="copia"' in _sec("usar") and 'USC_L()' in JS and 'id="bmCurve"' in _sec("boost") and 'function renderBmWal' in JS
     assert 'id="bmPer"' in _sec("boost") and 'function loadBmPer' in JS and 'solUsd(t.pnl_sol)' in JS and 'class="hsqs"' in JS
     assert 'id="usCmp"' in _sec("usar") and 'function usCmpBar' in JS and '_why: "deixou as telas do Usar' in JS

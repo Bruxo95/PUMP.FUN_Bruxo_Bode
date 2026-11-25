@@ -1155,3 +1155,7 @@ label.chgrp{cursor:pointer}
 #usCmp select.in{height:30px;max-width:220px}
 .uscmpc{font-size:12px;color:#fbbf24;border:1px dashed #fbbf2466;border-radius:6px;padding:3px 6px;margin-top:6px}
 .kpi .v .usdv{font-size:13px;font-family:var(--font)}
+/* 0.32.454: carteira e evolução dentro do BOOST */
+.bmcurve{margin-top:8px}.bmcurve svg{width:100%;height:180px;display:block}
+.bmcres{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:6px}.bmcres b{color:var(--text);font-family:var(--mono)}
+#bmWalR{flex-wrap:wrap}

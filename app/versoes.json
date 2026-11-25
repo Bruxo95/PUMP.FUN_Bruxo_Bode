@@ -3025,6 +3025,11 @@
    "versao": "0.32.453",
    "inicio": "2026-11-25T10:30:10+00:00",
    "titulo": "Menu Limpeza, chave da carteira no topo da REAL, valor de cada tela na REAL, dólar e BOOST por período"
+  },
+  {
+   "versao": "0.32.454",
+   "inicio": "2026-11-25T10:54:57+00:00",
+   "titulo": "Cópia de traders: valor e chave na tela de Top traders e no Usar ou descartar; carteira e gráfico no BOOST"
   }
  ]
 }
