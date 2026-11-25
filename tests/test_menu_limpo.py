@@ -55,7 +55,7 @@ def test_carteiras_is_the_only_place_to_run_the_wallets():
     nav = H[H.index('<nav class="nav"'):H.index("</nav>")]
     cart = _sec("carteiras")
     assert 'href="#carteiras"' in nav
-    assert 'href="#feed" data-v="feed"' in nav                                    # 0.32.219: Feed ao vivo voltou ao menu (abre o Histórico)
+    assert 'href="#feed" data-lv="feed"' in _sec("limpeza") and 'href="#limpeza" data-v="limpeza"' in nav   # 0.32.444: Feed ao vivo no menu Limpeza
     for v in ("real", "config", "tradercfg", "feed", "novidades"):
         assert (v == "feed" or f'href="#{v}" data-v' not in nav) and f'<section class="view" data-view="{v}"' not in H
         assert f'{v}: "' in JS[JS.index("const MOVED"):JS.index("const MOVED") + 140]     # link antigo continua funcionando
@@ -114,3 +114,18 @@ def test_config_history_tab():
     cart = _sec("carteiras")
     assert 'data-wm="hist"' in cart and 'data-wp="hist"' in cart and 'id="chT"' in cart and "loadCfgHist" in JS and "data-chgo" in JS
 
+
+
+def test_limpeza_real_key_and_usd():
+    """0.32.444 (pedido do dono): menu Limpeza, chave da carteira no topo da REAL, valor de cada tela na REAL, dólar e BOOST por período."""
+    nav = H[H.index('<nav class="nav"'):H.index("</nav>")]
+    lim = _sec("limpeza")
+    for v in ("traders", "posicoes", "feed", "semanas", "ajuda"):
+        assert f'href="#{v}" data-v=' not in nav and f'href="#{v}" data-lv="{v}"' in lim
+    assert 'id="nbTr"' in lim and 'id="nbPos"' in lim and 'const LIMPA_V' in JS
+    cart = _sec("carteiras")
+    real = cart[cart.index('<div data-wp="real"'):cart.index('<div data-wp="espelho"')]
+    assert real.index('id="rwKey"') < real.index('id="rwAmt"') < real.index('data-cfg="pump_real_max_sol"')
+    assert '$("rwKey").innerHTML' in JS and 'function renderRwAmt' in JS and 'SOL por compra de trader copiado' in real
+    assert 'id="bmPer"' in _sec("boost") and 'function loadBmPer' in JS and 'solUsd(t.pnl_sol)' in JS and 'class="hsqs"' in JS
+    assert 'id="usCmp"' in _sec("usar") and 'function usCmpBar' in JS and '_why: "deixou as telas do Usar' in JS
