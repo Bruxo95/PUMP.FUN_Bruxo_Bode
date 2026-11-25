@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "3edffadbf40dd31778be3a41406a50ae8b8be611",
-    "application_version": "0.32.456 · 2026-11-25 · BOOST: tempo máximo no token conta da compra",
+    "repository_reference": "1415e7aed061fffcbe10263c9d4ed0af9ff545d8",
+    "application_version": "0.32.457 · 2026-11-25 · BOOST: DEV de queda de uma vez vai para a lista de scam",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "fa29c1a671e55e968514ff8bf71d259a9875a2115b81a87891d850c52736f92b",
+      "app/version.py": "ded37cac21ce4d2738772b1e046c18ff7a384f3b788002028a3d2822ee6012c6",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b009c90f66aba5b8a6be490c5571c2f46afa01a6d8e39900cd4d896bc634aed8"
+  "pdf_sha256": "0bd3465ad342c1d35cf9381bad77c251301f32299e7683c5429a711388a61acb"
 }

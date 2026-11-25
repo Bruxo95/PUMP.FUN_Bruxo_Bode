@@ -2010,6 +2010,12 @@ class PumpHub:
                                "real": any(t.get("real") for t in ts), "why": ts[0].get("reason"),
                                "hold_s": max(int(t.get("hold_s") or 0) for t in ts)}
                 self.bm.vip_note(m, pnl, b["result"]["pnl_pct"], b["result"]["real"], now)
+                worst = min(ts, key=lambda t: float(t.get("pnl_pct") if t.get("pnl_pct") is not None else 0))
+                try:                                              # 0.32.457: queda de uma vez na nossa posição = DEV scam
+                    ct = datetime.fromisoformat(str(worst.get("closed_at")).replace("Z", "+00:00")).timestamp()
+                except Exception:
+                    ct = None
+                self.bm.scam_from_loss(m, worst.get("pnl_pct"), ct, now)
                 self.bm.dirty.add(m)
                 break
 

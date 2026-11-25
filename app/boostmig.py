@@ -631,6 +631,24 @@ class BoostMig:
                 else:
                     del self.dev_book[cr]
 
+    def scam_from_loss(self, mint: str, pct: float | None, close_t: float | None, now: float) -> bool:
+        """0.32.457 (pedido do dono): uma posição nossa do BOOST que fechou com perda de −SCAM_DUMP_PCT% ou pior até SCAM_DUMP_MIN
+        min depois da migração também marca o DEV como scam (a queda de uma vez que o acompanhamento de preço às vezes não vê)."""
+        b = self.items.get(mint) or {}
+        cr = b.get("creator")
+        if not cr or pct is None or close_t is None or pct > -SCAM_DUMP_PCT or close_t - b.get("t0", close_t) > SCAM_DUMP_MIN * 60:
+            return False
+        d = self.scam_devs.setdefault(cr, {"t": now, "mints": {}})
+        if (d.get("mints") or {}).get(mint):
+            return False
+        ago = max(0, round(close_t - b["t0"]))
+        why = f"queda de {pct:.0f}% na posição do BOOST aos {ago // 60} min {ago % 60} s"
+        d["t"] = now
+        d.setdefault("mints", {})[mint] = {"symbol": b.get("symbol"), "why": why, "t": now}
+        d["why"], d["symbol"] = why, b.get("symbol")
+        self.dirty_devs.add(cr)
+        return True
+
     def vip_note(self, mint: str, pnl_sol: float, pnl_pct: float | None, real: bool, now: float) -> None:
         """Resultado de um BOOST fechado (de qualquer conta) vai para o livro do DEV. VIP = 1+ ganho e saldo > 0."""
         b = self.items.get(mint) or {}
@@ -850,8 +868,18 @@ class BoostMig:
         for m in trk:
             tk = self.tokens.get(m) or {}
             px = tk.get("mkt_px") if now - float(tk.get("mkt_t") or 0) < 60 else None
+            # 0.32.457 (pedido do dono: PMKS, SIM, Claude AI, hopium… caíram −70% a −95% e o DEV não foi para a lista de scam):
+            # a DexScreener parava de responder (sem preço novo), o topo/dump do token ficava sem pontos e a queda não era vista.
+            # Sem preço dela, usa a cotação da Jupiter do BOOST ou o preço do motor (posição aberta), se forem de até 60 s.
+            if px is None:
+                for k, kt in (("bm_px", "bm_px_t"), ("price", "last_t")):
+                    if tk.get(k) and now - float(tk.get(kt) or 0) < 60:
+                        px = tk[k]
+                        break
             track_point(self.items[m], px, now)
             v = tk.get("vol") or {}
+            if now - float(tk.get("vol_t") or 0) > 60:         # 0.32.457: contagem velha (DexScreener sem responder) não entra
+                v = {}
             if v and v.get("buys_m5") is not None:            # 0.32.380: compras dos últimos 5 min a cada 15 s (crescimento)
                 bh = self.items[m].setdefault("buys_hist", [])
                 bh.append([round(now), int(v.get("buys_m5") or 0), int(v.get("sells_m5") or 0)])

@@ -3040,6 +3040,11 @@
    "versao": "0.32.456",
    "inicio": "2026-11-25T19:35:47+00:00",
    "titulo": "BOOST: tempo máximo no token conta da compra"
+  },
+  {
+   "versao": "0.32.457",
+   "inicio": "2026-11-25T19:54:39+00:00",
+   "titulo": "BOOST: DEV de queda de uma vez vai para a lista de scam"
   }
  ]
 }

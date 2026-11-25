@@ -680,3 +680,31 @@ def test_tempo_maximo_no_token_conta_da_compra(tmp_path):
     assert tr["reason"].startswith("tempo máximo no token")
     assert BoostMig.rules(cfg(pump_bm_ext_on=False, pump_bm_hold_profit_on=False, pump_bm_sg_after=False, pump_bm_ext_max_min=1,
                               pump_bm_exit_pct=90), {"t0": now - 10}, now)["max_hold_s"] == 60
+
+
+def test_queda_de_uma_vez_marca_o_dev_mesmo_sem_preco_da_dexscreener():
+    """0.32.457 (pedido do dono): tokens que caíram −70% a −95% de uma vez e o DEV não foi para a lista de scam. (a) sem a
+    DexScreener o acompanhamento usa a cotação da Jupiter; (b) contagem de compras velha não entra; (c) perda da nossa posição
+    de −70% ou pior até 10 min depois da migração marca o DEV."""
+    now = 3_000_000.0
+    tk = {M: {"bm_px": 1.0, "bm_px_t": now - 5, "vol": {"buys_m5": 50, "sells_m5": 10}, "vol_t": now - 300}}
+
+    class S(Svc):
+        async def _fetch_prices(self, *a, **k):
+            return None
+
+    bm = BoostMig(S(tk), clock=lambda: now)
+    b = pronto(bm, M, now - 60, now)
+    run(bm._track(now))
+    assert b["track"]["n"] == 1 and not b.get("buys_hist")           # preço da Jupiter; compras de 5 min atrás ficam fora
+    tk[M].update(bm_px=0.1, bm_px_t=now + 20)
+    run(bm._track(now + 20))
+    bm.scam_mark(now + 20)
+    assert DEV in bm.scam_devs and "full dump" in bm.scam_devs[DEV]["why"]
+    bm2 = BoostMig(Svc({}), clock=lambda: now)
+    pronto(bm2, M, now - 60, now)
+    assert not bm2.scam_from_loss(M, -50.0, now, now)                 # perda menor que 70%: não marca
+    assert not bm2.scam_from_loss(M, -90.0, now + 3600, now)          # 1 h depois da migração: não marca
+    assert bm2.scam_from_loss(M, -90.0, now + 120, now)
+    assert "queda de -90%" in bm2.scam_devs[DEV]["why"] and DEV in bm2.dirty_devs
+    assert not bm2.scam_from_loss(M, -95.0, now + 130, now)           # já marcado por esse token
