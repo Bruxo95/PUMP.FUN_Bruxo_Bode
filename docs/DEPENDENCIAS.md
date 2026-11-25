@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-25**; revisão documental **2.0**.
-Aplicação: **0.32.449 · 2026-11-25 · Taxas da carteira REAL: SOL gasto a mais na compra não conta mais como taxa**.
-Referência Git na emissão: `f8e7ceda2f4da4f3592d794c21b4b10312d8a209`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.450 · 2026-11-25 · Taxas da REAL: aluguel devolvido não desconta mais das taxas nos trades antigos**.
+Referência Git na emissão: `5d278bace0ed751a1f9d8868efda9837f138c2f4`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

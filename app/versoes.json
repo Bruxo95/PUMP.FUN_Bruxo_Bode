@@ -3005,6 +3005,11 @@
    "versao": "0.32.449",
    "inicio": "2026-11-25T01:45:00+00:00",
    "titulo": "Taxas da carteira REAL: SOL gasto a mais na compra não conta mais como taxa"
+  },
+  {
+   "versao": "0.32.450",
+   "inicio": "2026-11-25T02:05:00+00:00",
+   "titulo": "Taxas da REAL: aluguel devolvido não desconta mais das taxas nos trades antigos"
   }
  ]
 }
