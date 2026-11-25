@@ -1038,8 +1038,68 @@
         (x.n > 1 ? '<span class="nx">×' + x.n + "</span>" : "") + (one && x.r ? '<span class="lmot">· ' + esc(motivo(x.r)) + "</span>" : "") + "</div>";
     }).join("") + '<div class="cur">&gt; _</div>';
   }
+  // 0.32.451 (pedido do dono): na Sala da pump.fun (Solana) o LOG DO ROBÔ mostra os tokens do BOOST ativo — "analisando", o % do BOOST,
+  // compras × vendas, o DEV, a trava de venda e a decisão do VOCÊ (entrou, fora, esperando) — e o robozinho fala o nome do token
+  // e a resposta. Lê a mesma rota da tela do BOOST (só admin; para quem não é admin a lista fica vazia e o log segue como antes).
+  const BOOST = { list: [], i: 0, seen: null, said: {}, q: [], hold: 0, off: false };
+  const bmSym = (x) => String(x.symbol || x.name || (x.mint || "").slice(0, 6) || "?");
+  function bmVerdict(x) {
+    const u = (S.real ? x.sua_real : x.sua) || {}, e = String(u.estado || "");
+    if (e === "entrou") return { c: "ENTREI", k: "ok", m: u.motivo };
+    if (e === "fora") return { c: "FORA", k: "no", m: u.motivo };
+    if (e === "esperar") return { c: "ESPERANDO", k: "wait", m: u.motivo };
+    return { c: "ANALISANDO", k: "wait", m: u.motivo || "" };
+  }
+  function bmInfo(x) {
+    const out = [Math.round(+x.progress || 0) + "% do BOOST"];
+    if (x.kind === "novo") out[0] = "token novo na curva";
+    if (x.buys_m5 != null || x.sells_m5 != null) out.push((x.buys_m5 ?? "?") + " compras × " + (x.sells_m5 ?? "?") + " vendas");
+    out.push(x.dev_scam ? "DEV SCAM" : x.creator ? "DEV " + (x.dev_n ?? "?") + " token(s)" : "DEV lendo…");
+    out.push(x.safety_ok === false ? "TRAVA de venda" : x.safety_ok ? "venda livre" : "conferindo venda");
+    if (x.top10_pct != null) out.push("top10 " + Math.round(x.top10_pct) + "%");
+    if (x.sybil && x.sybil.nivel) out.push("carteiras " + x.sybil.nivel);
+    return out.join(" · ");
+  }
+  function bmSpeak() {
+    if (!BOOST.q.length || (S.botSay && Date.now() < S.botSay.until)) return;
+    botSay(BOOST.q.shift(), 2400);
+  }
+  async function loadBoost() {
+    if (HOOD || C().botlive || BOOST.off || document.hidden) return;
+    let r;
+    try { r = await BB._api("/api/pump/boost-migracao"); } catch (e) { return; }
+    if (r.error) { if (/403|admin|permiss/i.test(String(r.error))) BOOST.off = true; BOOST.list = []; return; }
+    const L = (r.itens || []).filter((x) => /BOOST ativo|token novo/i.test(String(x.status || "")) && !x.dev_scam && x.safety_ok !== false);
+    const first = BOOST.seen === null;
+    BOOST.seen = BOOST.seen || new Set();
+    L.forEach((x, i) => {
+      const v = bmVerdict(x), sym = bmSym(x).toUpperCase().slice(0, 10), was = BOOST.said[x.mint];
+      if (!BOOST.seen.has(x.mint)) {
+        BOOST.seen.add(x.mint);
+        if (!first || i === 0) BOOST.q.push("ANALISANDO " + sym);
+      }
+      if (was !== v.c) {
+        BOOST.said[x.mint] = v.c;
+        if (v.c !== "ANALISANDO" && (!first || i === 0)) BOOST.q.push(sym + ": " + (v.c === "ENTREI" ? "ENTREI!" : v.c === "FORA" ? "FORA" : "ESPERANDO"));
+      }
+    });
+    BOOST.q = BOOST.q.slice(-4);
+    BOOST.list = L.map((x) => ({ s: bmSym(x), v: bmVerdict(x), info: bmInfo(x) }));
+    renderLog();
+  }
+  function bmLine() {
+    const x = BOOST.list[BOOST.i % BOOST.list.length], v = x.v;
+    return '<div class="ll one ' + v.k + ' bst" title="' + esc(x.info + (v.m ? " · VOCÊ: " + v.m : "")) + '"><span class="bk">BOOST</span>' +
+      '<span class="tk">' + esc(x.s) + '</span><b>' + v.c + "</b>" +
+      '<span class="lmot">· ' + esc(x.info) + (v.m ? " · VOCÊ: " + esc(v.m) : "") + "</span></div>";
+  }
   function renderLog() {
     const L = S.log.slice(0, 40), box = $("log");
+    if (BOOST.list.length && box.classList.contains("logline") && !C().botlive && !(L[0] && L[0].fresh && Date.now() < BOOST.hold)) {
+      $("logN").textContent = "(" + BOOST.list.length + " no BOOST)";
+      box.innerHTML = bmLine() + '<div class="cur">&gt; _</div>';
+      return;
+    }
     $("logN").textContent = L.length ? "(" + L.length + ")" : "";
     if (!L.length) { box.innerHTML = '<div class="empty">' + tr("sem decisões recentes", "no recent decisions") + "</div>"; return; }
     if (C().botlive || box.classList.contains("logline")) { renderBotLog(L, box); return; }   // 0.32.362: faixa de uma linha também na Sala
@@ -1055,6 +1115,7 @@
     const fresh = S.seenLog && keys.length && !S.seenLog.has(keys[0]);
     S.seenLog = new Set(keys);
     S.log = items.map((x, i) => Object.assign(x, { fresh: i === 0 && fresh }));
+    if (fresh) BOOST.hold = Date.now() + 6000;                      // 0.32.451: decisão nova da carteira aparece 6 s antes do BOOST
     renderLog();
   }
 
@@ -1266,6 +1327,11 @@
       const pn = document.querySelector('.ctl a[href="/app"]'); if (pn) pn.href = "/hood";
     }
     await load();
-    setInterval(load, 2000);                         // 0.32.268: % das posições ao vivo
+    setInterval(load, 2000);
+    if (!HOOD && !C().botlive) {                     // 0.32.451: BOOST ativo no LOG DO ROBÔ
+      loadBoost(); setInterval(loadBoost, 5000);
+      setInterval(() => { if (BOOST.list.length) { BOOST.i++; renderLog(); } }, 4000);
+      setInterval(bmSpeak, 1000);
+    }                         // 0.32.268: % das posições ao vivo
   })();
 })();

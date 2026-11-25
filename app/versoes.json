@@ -3010,6 +3010,11 @@
    "versao": "0.32.450",
    "inicio": "2026-11-25T02:05:00+00:00",
    "titulo": "Taxas da REAL: aluguel devolvido não desconta mais das taxas nos trades antigos"
+  },
+  {
+   "versao": "0.32.451",
+   "inicio": "2026-11-25T06:55:00+00:00",
+   "titulo": "Sala: tokens do BOOST ativo no LOG DO ROBÔ e o robô dizendo o nome e a decisão"
   }
  ]
 }

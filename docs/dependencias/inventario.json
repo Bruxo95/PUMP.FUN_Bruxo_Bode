@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "5d278bace0ed751a1f9d8868efda9837f138c2f4",
-    "application_version": "0.32.450 · 2026-11-25 · Taxas da REAL: aluguel devolvido não desconta mais das taxas nos trades antigos",
+    "repository_reference": "f437ab145327e33ab5b8b53d234b868314b19a39",
+    "application_version": "0.32.451 · 2026-11-25 · Sala: tokens do BOOST ativo no LOG DO ROBÔ e o robô dizendo o nome e a decisão",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "1bf4884159ca8ba88bc71d07e768cb29cd9394efd571b394875ebf91875a6ba9",
+      "app/version.py": "5c95aa2c3a615464ff4b575c7d2c1c44951c96fcee2c2aade65c4961a493069f",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "746e5e098658f4aa4d7d4dc0f246c1986ac38d6af4ebe76d6ace354736bb14ed"
+  "pdf_sha256": "15b025bd3a39e3214cbcccd1e5baac86dc862caee99e262ef3155368d1673a8e"
 }
