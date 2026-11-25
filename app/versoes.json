@@ -3015,6 +3015,11 @@
    "versao": "0.32.451",
    "inicio": "2026-11-25T06:55:00+00:00",
    "titulo": "Sala: tokens do BOOST ativo no LOG DO ROBÔ e o robô dizendo o nome e a decisão"
+  },
+  {
+   "versao": "0.32.452",
+   "inicio": "2026-11-25T07:11:31+00:00",
+   "titulo": "Sala: personagem e robô conversam sobre o BOOST quando não há posição aberta"
   }
  ]
 }

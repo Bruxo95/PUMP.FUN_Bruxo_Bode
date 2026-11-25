@@ -1041,7 +1041,7 @@
   // 0.32.451 (pedido do dono): na Sala da pump.fun (Solana) o LOG DO ROBÔ mostra os tokens do BOOST ativo — "analisando", o % do BOOST,
   // compras × vendas, o DEV, a trava de venda e a decisão do VOCÊ (entrou, fora, esperando) — e o robozinho fala o nome do token
   // e a resposta. Lê a mesma rota da tela do BOOST (só admin; para quem não é admin a lista fica vazia e o log segue como antes).
-  const BOOST = { list: [], i: 0, seen: null, said: {}, q: [], hold: 0, off: false };
+  const BOOST = { list: [], raw: [], i: 0, seen: null, said: {}, q: [], hold: 0, off: false };
   const bmSym = (x) => String(x.symbol || x.name || (x.mint || "").slice(0, 6) || "?");
   function bmVerdict(x) {
     const u = (S.real ? x.sua_real : x.sua) || {}, e = String(u.estado || "");
@@ -1061,14 +1061,71 @@
     return out.join(" · ");
   }
   function bmSpeak() {
-    if (!BOOST.q.length || (S.botSay && Date.now() < S.botSay.until)) return;
+    if (!BOOST.q.length || (S.botSay && Date.now() < S.botSay.until) || CHAT.q.length) return;
     botSay(BOOST.q.shift(), 2400);
   }
+  // 0.32.452 (pedido do dono): sem posição aberta, o personagem e o robô conversam sobre os tokens do BOOST de agora
+  // (o que temos, scam, trava, esperando, entrei) e, sem token, jogam conversa fora. Com posição aberta, segue o normal.
+  const CHAT = { q: [], next: 0, last: "", t: 0 };
+  const cs = (s) => String(s).toUpperCase().slice(0, 9);
+  const CH_IDLE = [
+    [["e", "O CAFE ACABOU"], ["b", "EU SO BEBO VOLTS"], ["e", "ME EMPRESTA?"], ["b", "NEGATIVO. 220V"]],
+    [["e", "CADE AS MOEDAS?"], ["b", "DORMINDO. IGUAL VC"]],
+    [["e", "HOJE VAI!"], ["b", "VC DISSE ONTEM"], ["e", "E ANTEONTEM"]],
+    [["b", "SCAN COMPLETO"], ["e", "E AI?"], ["b", "NADA. SO MEMES"], ["e", "CLASSICO"]],
+    [["e", "COMPRO TUDO?"], ["b", "ERRO 404: JUIZO"]],
+    [["b", "BEEP. TEDIO"], ["e", "ROBO TEM TEDIO?"], ["b", "AGORA TENHO"]],
+    [["e", "MERCADO PARADO..."], ["b", "CALMARIA"], ["e", "ANTES DA PUMP?"], ["b", "OU DO DUMP"]],
+    [["e", "E O PLANO?"], ["b", "PACIENCIA"], ["e", "ODEIO ESSA"]],
+    [["b", "MIGRACAO A CAMINHO"], ["e", "SERIO?!"], ["b", "TALVEZ. EU ACHO"], ["e", "ROBO CHUTANDO?"]],
+    [["e", "VAMOS PRA LUA?"], ["b", "SEM TRADE, SEM LUA"], ["e", "TRISTE"]],
+    [["b", "LIMPEI O TECLADO"], ["e", "ACHOU O QUE?"], ["b", "3 MIGALHAS E UM FOMO"]],
+    [["e", "ME DA UM SINAL"], ["b", "SINAL: ESPERA"], ["e", "SO ISSO?"], ["b", "SO ISSO"]],
+  ];
+  function chatTalk(x) {
+    const u = (S.real ? x.sua_real : x.sua) || {}, e = String(u.estado || ""), sym = cs(bmSym(x)), m = String(u.motivo || "").toLowerCase();
+    const pct = Math.round(+x.progress || 0), b = x.buys_m5, v = x.sells_m5;
+    const out = [["e", pick(["ROBO, O QUE TEMOS?", "ALGUMA NOVIDADE?", "E AI, ROBO?", "ACHOU ALGO?"])],
+      ["b", x.kind === "novo" ? "NOVO: " + sym : pick(["TEMOS " + sym + "!", sym + " NO BOOST", "OLHA O " + sym])]];
+    if (x.dev_scam) return out.concat([["b", "DEV E SCAM!"], ["e", "CHEIRO DE GOLPE..."], ["b", "FICAMOS FORA"], ["e", pick(["NEM COM 1 SOL", "PASSO!", "PROXIMO!"])]]);
+    if (x.safety_ok === false) return out.concat([["b", "VENDA TRAVADA!"], ["e", "ENTRA E NAO SAI?"], ["b", "TIPO HOTEL CALIFORNIA"], ["e", "TO FORA"]]);
+    if (x.sybil && /alto/i.test(String(x.sybil.nivel || ""))) out.push(["b", "CARTEIRAS DO DEV..."], ["e", "O DEV E ELE MESMO?"], ["b", "10 VEZES"]);
+    else if (b != null && v != null && b > v * 2 && b > 5) out.push(["b", "COMPRA:" + b + " VENDA:" + v], ["e", "TA FERVENDO!"]);
+    else if (b != null && v != null && v > b) out.push(["b", "MAIS VENDA QUE COMPRA"], ["e", "HMM, DESCONFIO"]);
+    else if (x.kind !== "novo") out.push(["b", pct + "% DO BOOST"]);
+    if (e === "entrou") return out.concat([["e", pick(["JA ENTREI!", "TO DENTRO!"])], ["b", pick(["BORA!!", "RUMO A LUA!"])]]);
+    if (e === "fora") {
+      const why = /idade|vida|min/.test(m) ? "VELHO DEMAIS" : /compra/.test(m) ? "POUCA COMPRA" : /top|holder|concentr/.test(m) ? "BALEIA DEMAIS" : /nome|repet/.test(m) ? "NOME REPETIDO" : /scam|dev/.test(m) ? "DEV SUSPEITO" : "NAO PASSOU";
+      return out.concat([["e", "E AI, ENTRO?"], ["b", why], ["e", pick(["FICAMOS FORA", "PASSO ESSA", "FICA PRA PROXIMA"])]]);
+    }
+    if (e === "esperar") return out.concat([["e", "COMPRA LOGO!"], ["b", "CALMA, ESPERA"], ["e", "ESPERAR O QUE?"], ["b", "O FILTRO, HUMANO"]]);
+    return out.concat([["e", "E AGORA?"], ["b", "ANALISANDO"], ["e", "ANDA, ROBO!"], ["b", "PRESSA DA ERRO"]]);
+  }
+  function chatTick() {
+    if (C().botlive || HOOD || C().baloes === false) return;
+    const now = Date.now();
+    if ((S.positions || []).length) { CHAT.q = []; return; }
+    if (CHAT.q.length) {
+      if (now < CHAT.t) return;
+      const [who, txt] = CHAT.q.shift(), ms = 2300 + Math.min(1500, txt.length * 60);
+      if (who === "e") say(txt, ms, K); else botSay(txt, ms);
+      CHAT.t = now + ms + 250;
+      if (!CHAT.q.length) CHAT.next = now + ms + 7000 + Math.random() * 8000;
+      return;
+    }
+    if (now < CHAT.next || (S.say && now < S.say.until) || (S.botSay && now < S.botSay.until)) return;
+    const raw = BOOST.raw || [], x = raw.length && Math.random() < 0.75 ? raw[Math.floor(Math.random() * raw.length)] : null;
+    let d = x ? chatTalk(x) : null;
+    if (!d) { let k; do { k = Math.floor(Math.random() * CH_IDLE.length); } while (CH_IDLE.length > 1 && "i" + k === CHAT.last); CHAT.last = "i" + k; d = CH_IDLE[k]; }
+    CHAT.q = d.slice(); CHAT.t = now;
+  }
+  window.__salaChat = (n) => { if (n != null) BOOST.raw = n; CHAT.next = 0; CHAT.q = []; };   // só para conferir no teste
   async function loadBoost() {
     if (HOOD || C().botlive || BOOST.off || document.hidden) return;
     let r;
     try { r = await BB._api("/api/pump/boost-migracao"); } catch (e) { return; }
     if (r.error) { if (/403|admin|permiss/i.test(String(r.error))) BOOST.off = true; BOOST.list = []; return; }
+    BOOST.raw = (r.itens || []).filter((x) => /BOOST ativo|token novo/i.test(String(x.status || "")));
     const L = (r.itens || []).filter((x) => /BOOST ativo|token novo/i.test(String(x.status || "")) && !x.dev_scam && x.safety_ok !== false);
     const first = BOOST.seen === null;
     BOOST.seen = BOOST.seen || new Set();
@@ -1332,6 +1389,7 @@
       loadBoost(); setInterval(loadBoost, 5000);
       setInterval(() => { if (BOOST.list.length) { BOOST.i++; renderLog(); } }, 4000);
       setInterval(bmSpeak, 1000);
+      setInterval(chatTick, 400);
     }                         // 0.32.268: % das posições ao vivo
   })();
 })();

@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-25**; revisão documental **2.0**.
-Aplicação: **0.32.451 · 2026-11-25 · Sala: tokens do BOOST ativo no LOG DO ROBÔ e o robô dizendo o nome e a decisão**.
-Referência Git na emissão: `f437ab145327e33ab5b8b53d234b868314b19a39`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.452 · 2026-11-25 · Sala: personagem e robô conversam sobre o BOOST quando não há posição aberta**.
+Referência Git na emissão: `aea0dd0ffdc7d70f2578d4ff6b59c0f74964db0d`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
