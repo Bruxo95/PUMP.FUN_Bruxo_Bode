@@ -545,6 +545,95 @@ class SharedMonitor:
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
 
+    def _flow_url(self) -> tuple[str, str]:
+        """0.32.458: WebSocket das compras × vendas do BOOST — RPC do sistema (Helius), senão o do servidor, senão o público."""
+        sys_rpc = self.hub.system_keys.get("rpc_url") or ""
+        url = sys_rpc.replace("https://", "wss://").replace("http://", "ws://") if sys_rpc else str(self.hub.cfg.defaults.get("pump_rpc_ws") or "")
+        url = url or "wss://api.mainnet-beta.solana.com"
+        from .apiusage import classify as _cls
+        return _cls(url.split("//")[-1].split("/")[0].split("?")[0].split(":")[0]) or "RPC da Solana", url
+
+    async def boost_flow_run(self) -> None:
+        """0.32.458 (pedido do dono: "está demorando muito para mostrar os comprados; quando a análise começa já deve buscar os
+        compradores"): assim que o token entra no BOOST, assina os logs da blockchain que citam o token e conta cada compra e
+        venda na hora (boostflow). Sai quando o token deixa de estar em análise. A DexScreener continua como reserva."""
+        import websockets
+        bm = self.hub.bm
+        fl = bm.flow
+        backoff = 2.0
+        await asyncio.sleep(3)
+        while True:
+            if not (consultas.on("pump_q_boost") and consultas.on("pump_q_boost_fluxo")):
+                bm.flow_subs = set()
+                fl.st.update(on=False, assinados=0)
+                await asyncio.sleep(5)
+                continue
+            prov, url = self._flow_url()
+            subs: dict = {}            # id da assinatura → mint
+            pending: dict = {}         # id do pedido → mint
+            nid, wake_t = 0, 0.0
+            try:
+                async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
+                    fl.st.update(on=True, fonte=prov, erro=None)
+                    backoff = 2.0
+                    while True:
+                        if self._flow_url()[1] != url or not (consultas.on("pump_q_boost") and consultas.on("pump_q_boost_fluxo")):
+                            break
+                        now = time.time()
+                        want = set(bm.flow_want(now))
+                        have = set(subs.values()) | set(pending.values())
+                        for m in sorted(want - have):
+                            nid += 1
+                            pending[nid] = m
+                            fl.start(m, now)
+                            await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsSubscribe",
+                                                      "params": [{"mentions": [m]}, {"commitment": "confirmed"}]}))
+                            self._use(prov, "WebSocket: pedidos enviados")
+                        for sid, m in list(subs.items()):
+                            if m not in want:
+                                nid += 1
+                                del subs[sid]
+                                await ws.send(json.dumps({"jsonrpc": "2.0", "id": nid, "method": "logsUnsubscribe", "params": [sid]}))
+                        bm.flow_subs = set(subs.values())
+                        fl.st["assinados"] = len(subs)
+                        fl.prune(now)
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                        except asyncio.TimeoutError:
+                            continue
+                        self._use(prov, "WebSocket: mensagens recebidas")
+                        try:
+                            msg = json.loads(raw)
+                        except ValueError:
+                            continue
+                        if "id" in msg and msg.get("id") in pending:
+                            m = pending.pop(msg["id"])
+                            if "result" in msg:
+                                subs[msg["result"]] = m
+                            else:
+                                fl.st["erro"] = str(msg.get("error"))[:120]
+                            continue
+                        if msg.get("method") != "logsNotification":
+                            continue
+                        prm = msg.get("params") or {}
+                        m = subs.get(prm.get("subscription"))
+                        val = ((prm.get("result") or {}).get("value")) or {}
+                        if not m:
+                            continue
+                        fl.st["msgs"] += 1
+                        b_, s_ = fl.note(m, val.get("signature"), val.get("logs"), val.get("err"))
+                        if (b_ or s_) and time.time() - wake_t > 2:    # alguém esperando a contagem: decide já
+                            wake_t = time.time()
+                            self.hub.bm_wake()
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                from .logsafe import redact
+                bm.flow_subs = set()
+                fl.st.update(on=False, assinados=0, erro=redact(f"{prov}: {type(e).__name__}: {str(e)[:100]}"))
+                await asyncio.sleep(backoff)
+                backoff = min(60.0, backoff * 2)
+
     async def _mig_from_sig(self, sig: str | None) -> None:
         if not sig:
             return
@@ -1259,7 +1348,7 @@ class SharedMonitor:
             ("Preços e stops das posições", self.tick_loop()), ("Ranking (Top traders)", self.lb_loop()),
             ("Base da pump.fun", self.lab_loop()), ("Boost e dados das carteiras", self.boost_loop()),
             ("Explorar", self.explore_loop()), ("Explorar (carteiras novas)", self.fresh_loop()),
-            ("BOOST da migração", self.migration_ws_run()))]
+            ("BOOST da migração", self.migration_ws_run()), ("BOOST da migração", self.boost_flow_run()))]
         self._tasks += [run_as("Cópia de traders", self.tx_worker()) for _ in range(4)]
         self._tasks += [run_as("Cópia de traders", self.tx_worker(hi=True)) for _ in range(4)]     # 0.32.4: só as copiadas
 

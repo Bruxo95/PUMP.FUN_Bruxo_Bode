@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-25",
     "timezone": "Europe/Dublin",
-    "repository_reference": "1415e7aed061fffcbe10263c9d4ed0af9ff545d8",
-    "application_version": "0.32.457 · 2026-11-25 · BOOST: DEV de queda de uma vez vai para a lista de scam",
+    "repository_reference": "18dc2ca8d54a7029ea6f13d0458fb8d227518ba9",
+    "application_version": "0.32.458 · 2026-11-25 · BOOST: compras × vendas ao vivo pela blockchain desde o início da análise",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "ded37cac21ce4d2738772b1e046c18ff7a384f3b788002028a3d2822ee6012c6",
+      "app/version.py": "ade42a7d34c8f3eb094f827769386975ca686cff61c2ccdd1b1f367bcd4fb8bf",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "0bd3465ad342c1d35cf9381bad77c251301f32299e7683c5429a711388a61acb"
+  "pdf_sha256": "cc884e19430de830b17a23e14f2fbe11a5bb1c90fa457be9e9184cde7468490d"
 }

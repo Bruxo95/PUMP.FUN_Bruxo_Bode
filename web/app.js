@@ -1479,7 +1479,8 @@
       ((r.novos || {}).on ? " · tokens novos: " + ((r.monitor || {}).novos_vistos || 0) + " vistos, " + ((r.monitor || {}).novos_entraram_lista || 0) + " passaram do volume, " + ((r.monitor || {}).novos_sem_dados || 0) + " sem dados na DexScreener" : "") +
       ((r.monitor || {}).rpc_falhou ? " · RPC sem resposta " + r.monitor.rpc_falhou + "x" : "") + ((r.monitor || {}).reserva ? " · lido pela reserva Alchemy " + r.monitor.reserva + "x" : "") + ((r.monitor || {}).erro ? " · erro: " + r.monitor.erro : "") +
       (r.pp_novo_s != null ? " · último token novo da PumpPortal há " + hmsTxt(r.pp_novo_s) : "") + (r.pp_silencios ? " · reconectou " + r.pp_silencios + "x por silêncio" : "") + (r.mig_reserva ? " · PumpPortal fora: reserva pela blockchain LIGADA" + (r.mig_ws ? " (" + r.mig_ws + ")" : (r.mig_ws_err ? " com erro: " + r.mig_ws_err : " conectando…")) + " · tenta a PumpPortal de novo a cada 10 min" : (r.mig_reserva_n ? " · reserva pela blockchain desligada (PumpPortal ok)" : "")) + (r.mig_ws_n ? " · " + r.mig_ws_n + " migração(ões) pela blockchain" + (r.mig_ws_s != null ? ", última há " + hmsTxt(r.mig_ws_s) : "") : "") +
-      (!r.ws && r.pp_erro ? " · " + r.pp_erro : "");
+      (!r.ws && r.pp_erro ? " · " + r.pp_erro : "") +
+      (r.fluxo ? (r.fluxo.on ? " · compras × vendas ao vivo pela blockchain (" + (r.fluxo.fonte || "RPC") + "): " + (r.fluxo.assinados || 0) + " token(s) agora, " + (r.fluxo.trades || 0) + " compras/vendas contadas" : (r.fluxo.erro ? " · compras ao vivo com erro: " + esc(r.fluxo.erro) : "")) : "");
     const ativos = (r.itens || []).filter((x) => (x.progress || 0) < 100).length;
     // 0.32.396 (pedido do dono): "Você entrou" e "Resultado" seguem o botão FICTÍCIA / REAL do topo; o resto é o mesmo para as duas
     const RM = realMode(); loadBmPer(); renderBmWal();
@@ -1505,7 +1506,7 @@
           (x.sua_real && x.sua_real.estado ? '<br><span class="small muted">REAL:</span> <span class="tag ' + (BM_EST[x.sua_real.estado] || ["", "neutral"])[1] + '">' + esc((BM_EST[x.sua_real.estado] || [x.sua_real.estado])[0]) + '</span> <span class="wrapcell small">' + esc(x.sua_real.motivo || "") + "</span>" : ""),
         x.safety_ok === true ? '<span class="up">sem trava</span>' : x.safety_ok === false ? '<span class="down">TRAVA</span>' : '<span class="dim">' + (x.safety_why || (x.progress || 0) > 60 ? "não conferido" : "conferindo…") + "</span>",
         bmSy(x.sybil, x.mint, r.sybil, x),
-        x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0), bmTrk(x.track),
+        x.buys_m5 == null ? "–" : (x.buys_m5 || 0) + " × " + (x.sells_m5 || 0) + (x.buys_src === "blockchain" ? ' <span class="tag up" title="Contado ao vivo pela blockchain desde que o token entrou no BOOST (0.32.458)">ao vivo</span>' : ""), bmTrk(x.track),
         (res ? sg(res.pnl_sol) + " <small>" + pc(res.pnl_pct) + (res.real ? " · REAL" : "") + "</small>" : "–") +
           ((RM ? x.sinal_real : x.sinal_sim) ? "<br>" + bmSinal(RM ? x.sinal_real : x.sinal_sim) : "")];
     }), (r.itens || []).length ? "Nenhum token neste filtro." : "Nenhum token nas últimas 24 h ainda. Aparecem aqui os que migram para a PumpSwap e os novos (curva) que passam do volume mínimo.");
@@ -1533,7 +1534,7 @@
   }
   const hmsTxt = (s) => (s < 60 ? Math.round(s) + " s" : hms(s));
   // 0.32.435 (pedido do dono: economizar a API): consultas do BOOST por grupo — as mesmas chaves de Configurações → Consultas
-  const BMQ = [["pump_q_boost_novos", "novos", "Tokens novos (curva)"], ["pump_q_boost_ativo", "ativo", "BOOST ativo (migrou)"], ["pump_q_boost_migrou", "migrou", "Depois do BOOST (migraram)"]];
+  const BMQ = [["pump_q_boost_novos", "novos", "Tokens novos (curva)"], ["pump_q_boost_ativo", "ativo", "BOOST ativo (migrou)"], ["pump_q_boost_migrou", "migrou", "Depois do BOOST (migraram)"], ["pump_q_boost_fluxo", "fluxo", "Compras × vendas ao vivo (blockchain)"]];
   function renderBmQ(r) {
     const el = $("bmQ"), q = (r || {}).consultas || ((r || {}).novos || {}).consultas; if (!el || !q) return;   // 0.32.436: a API manda no topo
     const adm = !!(ME && ME.role === "admin" && !ME.view_by);

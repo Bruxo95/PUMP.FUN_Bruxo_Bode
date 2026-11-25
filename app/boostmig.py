@@ -20,6 +20,8 @@ from __future__ import annotations
 import base64
 import time
 
+from .boostflow import merge
+
 JANELA_S = 300                     # duração estimada do BOOST
 BUYS_HIST_MAX = 130                # 0.32.380: leituras das compras guardadas por token (~30 min a cada 15 s)
 TRACK_S = 30 * 60                  # acompanha topo e dump de todo token por 30 min (entrando ou não)
@@ -66,6 +68,7 @@ def apply_cfg(cfg: dict) -> dict:
         out[key] = round(g[name] / mul, 2)
     return out
 SAFETY_TTL_S = 600
+FLOW_MAX = 25                       # 0.32.458: tokens assinados ao mesmo tempo na blockchain (compras × vendas ao vivo)
 
 # 0.32.378 (pedido do dono, 19/11): todo token que migra (entrando ou não) é analisado HIST_MIN minutos depois da migração e
 # guardado para sempre em boost_history: série de preço, preço em cada minuto (MARKS), topo, dump, compras/vendas, DEV, trava e
@@ -407,6 +410,9 @@ class BoostMig:
         self.born: dict[str, float] = {}        # 0.32.433: hora da criação de cada token visto na PumpPortal (idade nas migrações)
         self.novo_cfg = {"on": False, "vol": 2000.0, "age_s": 120.0}
         self.enter_max: list = []              # 0.32.447: "entrar até X% do BOOST" de cada admin (o hub põe a cada volta)
+        from .boostflow import Flow
+        self.flow = Flow(clock)                # 0.32.458: compras × vendas ao vivo pela blockchain (o monitor assina e alimenta)
+        self.flow_subs: set[str] = set()       # tokens assinados agora (o monitor atualiza)
         self.st.update({"novos_vistos": 0, "novos_consultas": 0, "novos_sem_dados": 0, "novos_entraram_lista": 0})
 
     # ------------------------------------------------------------------ eventos
@@ -710,8 +716,11 @@ class BoostMig:
             b["name"] = b.get("name") or tk.get("name")
             b["mcap_sol"] = tk.get("mcap_sol") or b.get("mcap_sol")
             v = tk.get("vol") or {}
+            # 0.32.458: compras × vendas = maior entre a blockchain (ao vivo, desde que o token entrou no BOOST) e a DexScreener
+            fb, fs, src = merge(self.flow.count(m, now), v)
+            if fb is not None:
+                b["buys_m5"], b["sells_m5"], b["buys_src"] = fb, int(fs or 0), src
             if v:
-                b["buys_m5"], b["sells_m5"] = int(v.get("buys_m5") or 0), int(v.get("sells_m5") or 0)
                 if v.get("m5") is not None:
                     b["vol_m5"] = round(float(v.get("m5") or 0), 2)      # 0.32.432: volume em dólar dos últimos 5 min
             if not b.get("born_t"):                                      # 0.32.433: nascimento do token
@@ -854,6 +863,33 @@ class BoostMig:
                     return True
         return False
 
+    # ------------------------------------------------------------------ 0.32.458: compras × vendas pela blockchain
+    def flow_want(self, now: float) -> list[str]:
+        """Tokens que o monitor deve assinar agora: em análise (janela do BOOST aberta, ou token novo na curva) com alguém
+        ainda decidindo, ou com alguém dentro (até 30 min, para o fim do BOOST). Fora: DEV scam, venda travada, todos já
+        descartaram. Os mais novos primeiro, no máximo MAX_SUBS."""
+        out = []
+        for m, b in self.items.items():
+            if not self.q_ok(b, now):
+                continue
+            us = [x for u in (b.get("users") or {}).values() for x in (u, u.get("real")) if isinstance(x, dict) and x]
+            dentro = any(x.get("estado") == "entrou" for x in us)
+            if b.get("kind") == "novo":
+                if now - b["t0"] > NOVO_AGE_CAP_S and not dentro:
+                    continue
+            elif self.progress(b, now) >= 100 and not (dentro and now - b["t0"] <= TRACK_S):
+                continue
+            if not dentro:
+                if (b.get("creator") and b["creator"] in self.scam_devs) or b.get("safety_ok") is False:
+                    continue
+                if us and all(x.get("estado") == "fora" for x in us):
+                    continue
+            out.append((b["t0"], m))
+        return [m for _t, m in sorted(out, reverse=True)[:FLOW_MAX]]
+
+    def flow_live(self, m: str) -> bool:
+        return m in self.flow_subs
+
     def any_hot(self, now: float) -> bool:
         return any(self.hot(b, now) for b in self.items.values())
 
@@ -880,9 +916,13 @@ class BoostMig:
             v = tk.get("vol") or {}
             if now - float(tk.get("vol_t") or 0) > 60:         # 0.32.457: contagem velha (DexScreener sem responder) não entra
                 v = {}
-            if v and v.get("buys_m5") is not None:            # 0.32.380: compras dos últimos 5 min a cada 15 s (crescimento)
+            fc = self.flow.count(m, now)                       # 0.32.458: contagem da blockchain (só enquanto assinado ou guardada)
+            if fc is not None and not self.flow_live(m):
+                fc = None
+            fb, fs, _src = merge(fc, v)
+            if fb is not None:                                 # 0.32.380: compras dos últimos 5 min a cada 15 s (crescimento)
                 bh = self.items[m].setdefault("buys_hist", [])
-                bh.append([round(now), int(v.get("buys_m5") or 0), int(v.get("sells_m5") or 0)])
+                bh.append([round(now), int(fb), int(fs or 0)])
                 del bh[:-BUYS_HIST_MAX]
             self.dirty.add(m)
 
@@ -1092,7 +1132,7 @@ class BoostMig:
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
                 "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry",
-                "kind", "vol_m5", "boost_pago", "novo_info", "novo_add_s", "born_t", "sybil_want", "name_src", "name_s")
+                "kind", "vol_m5", "boost_pago", "buys_src", "novo_info", "novo_add_s", "born_t", "sybil_want", "name_src", "name_s")
         out = {k: b.get(k) for k in keep}
         from .sybil import compact
         out["sybil"] = compact(b.get("sybil"))

@@ -1858,7 +1858,7 @@ class PumpHub:
         bm.novo_cfg = self.bm_novo_cfg()
         bm.enter_max = self.bm_enter_max()                # 0.32.447: janela de 1 s antes do limite de entrada                  # 0.32.432: tokens novos (curva)
         bm.q = {"novos": consultas.on("pump_q_boost_novos"), "ativo": consultas.on("pump_q_boost_ativo"),
-                "migrou": consultas.on("pump_q_boost_migrou")}   # 0.32.435
+                "migrou": consultas.on("pump_q_boost_migrou"), "fluxo": consultas.on("pump_q_boost_fluxo")}   # 0.32.435 / 0.32.458
         await bm.tick(now)
         self._bm_results(now)
         self.sybil_tick(now)                              # 0.32.382: carteiras ligadas ao DEV (Alchemy), em segundo plano
@@ -2408,6 +2408,7 @@ class PumpHub:
                 "mig_ws_err": (self.market.status or {}).get("mig_ws_err"),
                 "mig_reserva": bool((self.market.status or {}).get("mig_reserva")), "mig_reserva_n": (self.market.status or {}).get("mig_reserva_n") or 0,
                 "novos": {**bm.novo_cfg, "candidatos": len(bm.cands)}, "consultas": dict(bm.q),                       # 0.32.432
+                "fluxo": dict(bm.flow.st),                                                                             # 0.32.458
                 "resumo": {"migracoes_24h": len([b for b in bm.items.values() if b.get("kind") != "novo"]),
                            "novos_24h": len([b for b in bm.items.values() if b.get("kind") == "novo"]), "entrou": len(in_sim & set(bm.items)),
                            "abertas": len([p for p in mine_p if not p.get("real")]), "abertas_real": len([p for p in mine_p if p.get("real")]),

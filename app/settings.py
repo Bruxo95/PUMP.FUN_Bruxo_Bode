@@ -125,6 +125,7 @@ USER_KEYS: dict[str, tuple] = {
     "pump_q_boost_novos": (bool, True, 0, 1),                # 0.32.435: consultas do BOOST por grupo
     "pump_q_boost_ativo": (bool, True, 0, 1),
     "pump_q_boost_migrou": (bool, True, 0, 1),
+    "pump_q_boost_fluxo": (bool, True, 0, 1),                # 0.32.458: compras × vendas do BOOST ao vivo pela blockchain
     "pump_q_top": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
     "pump_q_explorar": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
     "pump_q_base": (bool, True, 0, 1),                      # 0.32.379: consultas do servidor (Configurações → Consultas)
