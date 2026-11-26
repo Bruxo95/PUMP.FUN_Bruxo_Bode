@@ -3105,6 +3105,11 @@
    "versao": "0.32.470",
    "inicio": "2026-11-26T20:48:21+00:00",
    "titulo": "Sala: botões para ver Posições e Histórico em dólar, SOL ou ETH"
+  },
+  {
+   "versao": "0.32.471",
+   "inicio": "2026-11-26T22:04:27+00:00",
+   "titulo": "BOOST: mudar o valor de entrada depois de 3, 4 ou 5 trades (ou sorteando)"
   }
  ]
 }

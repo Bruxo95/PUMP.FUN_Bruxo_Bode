@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "8b7afb6d5d8dbc98af0f19a4e0f212a7d650152d",
-    "application_version": "0.32.470 · 2026-11-26 · Sala: botões para ver Posições e Histórico em dólar, SOL ou ETH",
+    "repository_reference": "8c33d1c945065923bef5b531ec8a383b2a0802c1",
+    "application_version": "0.32.471 · 2026-11-26 · BOOST: mudar o valor de entrada depois de 3, 4 ou 5 trades (ou sorteando)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "1da80eb8c65cd03b07275cbf490763dd839338f18af43347e5a2227787df296d",
+      "app/version.py": "ff7a110a9a86ec988236593bca8c58b63abec745a8c2d7d3b89328f6f33f6a56",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "1328a12715ef32c32efb3b01086550bff2ff9464b1a4f4a7ec04d00ad253743f",
+      "web/app.html": "3c7f73fcdbd6ddca1856f6e24b88977327f7911d21ce8b74166052628d902036",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "411294317dd3cdd3d9f8039c8ba696f8e64a42ceef4af9d505a967b51c91c3d8"
+  "pdf_sha256": "155f91d9c829c1c0f49a44404f255aaf326c01f9ec8e884c6ac5739c0697eeeb"
 }

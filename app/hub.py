@@ -197,6 +197,7 @@ class PumpHub:
         # com a trava geral liberada, a carteira configurada e a conta liberada; desligar (usuário, admin, remover a
         # carteira) grava OFF.
         pf.real_on_at, pf.real_off_at = saved.get("_real_on_at"), saved.get("_real_off_at")
+        pf.bm_step = {k: dict(v) for k, v in (saved.get("_bm_step") or {}).items() if isinstance(v, dict)}   # 0.32.471
         pf.sim_since = saved.get("_sim_since")             # 0.32.465: carteira fictícia recomeçada (sem apagar o histórico)
         pf.sim_prev = saved.get("_sim_prev") if isinstance(saved.get("_sim_prev"), dict) else None
         if saved.get("_real_on") and self.real_allowed and pf.sol_wallet and pf.sol_wallet.keypair and uid not in self._blocked:
@@ -1869,9 +1870,18 @@ class PumpHub:
         except Exception as e:
             log.warning("boost (histórico): %s", str(e)[:160])
         for uid, pf in list(self.engines.items()):
-            if getattr(pf, "role", "user") != "admin" or not getattr(pf.cfg, "pump_bm_on", False) or not hasattr(pf, "manual_buy"):
+            if getattr(pf, "role", "user") != "admin" or not hasattr(pf, "manual_buy"):
                 continue
-            await self._bm_user(uid, pf, now)
+            if getattr(pf.cfg, "pump_bm_on", False):
+                if hasattr(pf, "bm_step_sync"):
+                    pf.bm_step_sync()
+                await self._bm_user(uid, pf, now)
+            if getattr(pf, "bm_step_dirty", False):       # 0.32.471: a contagem sobrevive ao reinício do servidor
+                try:
+                    await self.save_settings(pf)
+                except Exception as e:
+                    pf.bm_step_dirty = True
+                    log.warning("boost (contagem do valor): %s", str(e)[:160])
 
     async def _bm_user(self, uid: str, pf: PumpFun, now: float) -> None:
         from .boostmig import RealCfg
@@ -1953,6 +1963,15 @@ class PumpHub:
                 auto = ("BOOST · token novo (curva) · " if novo else "BOOST da migração · ") + why + (" · regras da REAL" if leg == "real" else "")
                 rules = bm.rules(c, b, now)
                 amt = float(getattr(c, "pump_bm_sol", 0.05))
+                # 0.32.471: "mudar o valor depois de N compras". Com regras próprias cada carteira conta a sua; sem elas há uma
+                # contagem só, que segue a REAL quando ela está operando (compra REAL que falha não conta).
+                step = None
+                if hasattr(pf, "bm_step_peek"):
+                    amt, step = pf.bm_step_peek(leg if own else "sim")
+                if step:
+                    rules = {**rules, "bm_step": step}
+                    auto += (f" · valor diferente (depois de {step['passo']}): {amt:g} SOL" if step["esp"] else
+                             f" · valor normal {amt:g} SOL ({step['feitos'] + 1}ª de {step['passo']})")
                 r = pf.manual_buy(m, t=now, auto=auto, origem="boostmig", target=target, amt_sol=amt, pos_rules=rules)
                 sim, rr = str(r.get("sim") or ""), str(r.get("real") or "")
                 later = False
@@ -1983,6 +2002,10 @@ class PumpHub:
                     pf.bm_real_note[m] = ({"estado": "esperar", "motivo": "compra REAL enviada, aguardando confirmar", "t": now}
                                           if rr.startswith("enviando") else {"estado": "fora", "motivo": rr or "a REAL não foi pedida", "t": now})
                 ok = rr.startswith("enviando") if leg == "real" else (sim.startswith("comprou") or (real and not own and rr.startswith("enviando")))
+                if step and not r.get("error"):
+                    segue_real = leg == "real" or (real and not own and bool(getattr(pf.cfg, "pump_real_enabled", False)))
+                    if rr.startswith("enviando") if segue_real else sim.startswith("comprou"):
+                        pf.bm_step_take(step)
                 if r.get("error"):
                     u.update(estado="esperar", motivo="não comprou: " + str(r["error"]))
                 elif ok:
@@ -2411,6 +2434,7 @@ class PumpHub:
                     "ritmo_s": round(self.alchemy_rpc().gap, 2) if self.system_keys.get("alchemy_api_key") else None}
         return {"itens": itens, "janela_s": boostmig.JANELA_S, "scam": scam, "vip": vip, "monitor": dict(bm.st), "sybil": sybil_st,
                 "regras_dev": boostmig.apply_cfg({}),
+                "rodizio": pf.bm_step_view() if hasattr(pf, "bm_step_view") else {},             # 0.32.471
                 "ws": bool((self.market.status or {}).get("ws")), "ultima_migracao_s": round(now - ult) if ult else None,
                 "pp_novo_s": round(now - (self.market.status or {}).get("pp_new_t")) if (self.market.status or {}).get("pp_new_t") else None,
                 "pp_silencios": (self.market.status or {}).get("pp_silencios") or 0, "pp_erro": (self.market.status or {}).get("error"),
@@ -3802,6 +3826,11 @@ class PumpHub:
             s["_eq_mode"] = dict(pf.eq_mode)           # 0.32.65: Copiar igual por carteira (fictícia / fictícia e REAL / parado)
         if getattr(pf, "brain_freeze", None):
             s["_brain_freeze"] = pf.brain_freeze       # 0.31.85: evolução para a qual o dono voltou
+        if hasattr(pf, "bm_step_sync"):
+            pf.bm_step_sync()                          # 0.32.471: qualquer mudança de opção acerta a contagem
+            pf.bm_step_dirty = False
+            if pf.bm_step:
+                s["_bm_step"] = copy.deepcopy(pf.bm_step)
         if getattr(pf, "sim_since", None):
             s["_sim_since"] = pf.sim_since             # 0.32.465
         if getattr(pf, "sim_prev", None):

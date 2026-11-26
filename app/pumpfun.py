@@ -39,7 +39,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from . import apiusage, stkeys, stopganho, txguard
+from . import apiusage, bmstep, stkeys, stopganho, txguard
 from .settings import USER_KEYS
 
 log = logging.getLogger("pumpfun")
@@ -177,6 +177,8 @@ class PumpFun:
         self._real_buying: _Buying = _Buying()
         self.bm_real_note: dict[str, dict] = {}           # 0.32.398: BOOST — o que aconteceu com a compra REAL de cada token
         self.bm_sim_after: dict[str, dict] = {}           # 0.32.400: BOOST — fictícia que entra quando a compra REAL terminar
+        self.bm_step: dict[str, dict] = {}                # 0.32.471: BOOST — contagem do "mudar o valor" ({"sim"|"real": estado})
+        self.bm_step_dirty = False
         self._pending: dict = {}                     # (trader, token) -> compra aguardando os X s de espera
         self.keys = None                           # KeyRing do usuário (chave da Solana Tracker etc.)
         self.leaderboard: list[dict] = []          # top traders da pump.fun (Solana Tracker), julgados p/ este usuário
@@ -2096,6 +2098,51 @@ class PumpFun:
         self._save_pos(sim)
         if sim.get("auto") is True and sim.get("origem") in AUTO_ORIGINS:
             self._auto_record(sim, False)
+
+    # ------------------------------------------------------------------ BOOST: mudar o valor depois de N compras (0.32.471)
+    def bm_step_cfg(self, key: str):
+        """Regras que valem para a contagem: "real" só existe com "REAL usa regras próprias"; "sim" vale para o resto."""
+        if key != "real":
+            return self.cfg
+        from .boostmig import RealCfg
+        return RealCfg(self.cfg) if getattr(self.cfg, "pump_bmr_on", False) else None
+
+    def bm_step_sync(self) -> None:
+        """Liga, desliga ou recomeça a contagem conforme as opções de agora (chamado a cada salvar e a cada volta do BOOST)."""
+        old = self.__dict__.get("bm_step") or {}
+        new = {}
+        for key in ("sim", "real"):
+            c = self.bm_step_cfg(key)
+            st = bmstep.sync(old.get(key), c) if c is not None else None
+            if st:
+                new[key] = st
+        if new.keys() != old.keys() or any(new[k] is not old[k] for k in new):
+            self.bm_step_dirty = True
+        self.bm_step = new
+
+    def bm_step_peek(self, key: str) -> tuple[float, dict | None]:
+        c = self.bm_step_cfg(key) or self.cfg
+        amt, t = bmstep.peek((self.__dict__.get("bm_step") or {}).get(key), c)
+        return amt, ({**t, "key": key} if t else None)
+
+    def bm_step_take(self, ticket: dict) -> None:
+        st = (self.__dict__.get("bm_step") or {}).get(ticket["key"])
+        if st:
+            bmstep.take(st, self.bm_step_cfg(ticket["key"]), ticket)
+            ticket["contada"] = True
+            self.bm_step_dirty = True
+
+    def bm_step_giveback(self, ticket: dict) -> None:
+        if ticket.pop("contada", False) and bmstep.giveback((self.__dict__.get("bm_step") or {}).get(ticket.get("key")), ticket):
+            self.bm_step_dirty = True
+
+    def bm_step_view(self) -> dict:
+        out = {}
+        for key, st in (self.__dict__.get("bm_step") or {}).items():
+            c = self.bm_step_cfg(key)
+            if c is not None:
+                out[key] = bmstep.view(st, c)
+        return out
 
     def _bm_open_sim(self, mint: str) -> None:
         """0.32.400 (pedido do dono: "a real tem que entrar primeiro"): no BOOST com a REAL ligada a compra REAL sai primeiro; quando
@@ -5402,6 +5449,8 @@ class PumpFun:
         mirrored = getattr(self.cfg, "pump_real_mirror", True) and it.get("sim_id") is not None
 
         bm_buy = (it.get("pos_cfg") or {}).get("origem") == "boostmig"
+        step = (it.get("pos_cfg") or {}).get("bm_step") if bm_buy else None     # 0.32.471: bilhete do "mudar o valor"
+        bought = False
 
         def miss(why: str, action: str = "REAL não copiou") -> None:
             self._feed(wallet=it["wallet"], short=short(it["wallet"]), mint=mint, symbol=sym, kind="buy",
@@ -5504,6 +5553,7 @@ class PumpFun:
             if it.get("sim_id") is not None:
                 p["sim_id"] = it["sim_id"]                 # 0.31.37: par na carteira fictícia (espelho)
             self._save_pos(p)
+            bought = True
             if bm_buy:
                 self.bm_real_note[mint] = {"estado": "entrou", "motivo": f"REAL comprou {spent:.4f} SOL", "t": time.time()}
             if it.get("sim_id") is not None:
@@ -5517,6 +5567,8 @@ class PumpFun:
         finally:
             self._real_buying.discard(mint)
             self._auto_pending.pop(mint, None)
+            if step and not bought:
+                self.bm_step_giveback(step)               # 0.32.471: compra REAL que não saiu não conta
             if bm_buy:
                 self._bm_open_sim(mint)                   # 0.32.400: no BOOST a fictícia entra DEPOIS da REAL
             if it.get("sim_id") is not None:

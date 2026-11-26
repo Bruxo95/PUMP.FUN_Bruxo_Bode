@@ -466,6 +466,7 @@
   // 0.31.22: o convite mostrava os códigos (pump_ar_stop_pct...). Pedido do dono em 2026-10-27 ("está muito sujo"):
   // agora mostra o nome que a opção tem na tela e "seu valor → valor enviado"; as iguais às suas só são contadas.
   function cfgLabel(k) {
+    if (bmStepName(k)) return bmStepName(k);
     const el = document.querySelector('[data-cfg="' + k + '"]:not([data-clone])') || document.querySelector('[data-hcfg="' + k + '"]') || document.querySelector('[data-toggle="' + k + '"]:not([data-clone])');
     const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
     if (!el) return clean(k.replace(/^pump_/, "").replace(/_/g, " "));
@@ -481,6 +482,7 @@
     return u.length <= 14 ? u : "";
   }
   function cfgVal(k, v) {
+    if (bmStepVal(k, v)) return bmStepVal(k, v);
     if (v === true) return "ON";
     if (v === false) return "OFF";
     if (v === null || v === undefined || v === "") return "—";
@@ -1562,7 +1564,7 @@
   }, true);
   // 0.32.394 (pedido do dono): regras próprias do BOOST para a REAL (pump_bmr_*) — a aba "Regras da REAL" é uma cópia das regras
   // da fictícia com as chaves trocadas; só ficam as regras por conta (as do servidor e as chaves de ligar ficam só na fictícia).
-  const BMR = ["sol", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
+  const BMR = ["sol", "step_on", "step_mode", "step_mix3", "step_mix4", "step_mix5", "step_sol3", "step_sol4", "step_sol5", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
     "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
     "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
     "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct", "cut_on", "cut_bundle_pct", "cut_sniper_pct", "cut_funder_pct", "cut_micro_pct"];
@@ -1581,6 +1583,7 @@
       row.querySelectorAll("[id]").forEach((x) => { x.id = x.id.replace("pump_bm_", "pump_bmr_"); });
       row.querySelectorAll("label[for]").forEach((x) => { x.htmlFor = x.htmlFor.replace("pump_bm_", "pump_bmr_"); x.innerHTML = x.innerHTML.replace("(FICTÍCIA)", "(REAL)").replace("Valor por entrada", "Valor por entrada (REAL)"); });
       row.querySelectorAll("small").forEach((x) => { if (/servidor todo/.test(x.textContent)) x.remove(); });
+      row.querySelectorAll("[data-bmstep]").forEach((x) => { x.dataset.bmstep = "pump_bmr_"; });
     });
     cl.querySelectorAll(".bmnote").forEach((x) => { x.textContent = "Valor e vagas da REAL do BOOST (as travas da Execução real não valem aqui). Só valem com \"REAL usa regras próprias\" ligado."; });
     orig.after(cl);
@@ -1608,7 +1611,7 @@
   });
   // 0.32.465 (pedido do dono, 25/11: "muita informação, botão"): as regras viram blocos que abrem e fecham, com o resumo do que
   // está valendo; a opção que depende de uma chave desligada some. Só a tela: as chaves e os campos são os mesmos.
-  const BM_SECS = [["ligar", "Ligar e valor", ["on", "real", "real_follow", "sol", "max_open"]],
+  const BM_SECS = [["ligar", "Ligar e valor", ["on", "real", "real_follow", "sol", "step_on", "max_open"]],
     ["entrada", "Quando entrar", ["mig_on", "mig_age_max_min", "enter_max_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys"]],
     ["novos", "Tokens novos (curva)", ["new_on", "new_vol_usd", "new_age_max_min"]],
     ["corte", "Corte pelas carteiras", ["cut_on", "cut_bundle_pct", "cut_sniper_pct", "max_top10", "cut_funder_pct", "cut_micro_pct"]],
@@ -1647,7 +1650,7 @@
   }
   function bmSum(id, g, real) {
     const n = (v) => String(v).replace(".", ",");
-    if (id === "ligar") return (real ? "" : "fictícia " + (g("on") ? "ligada" : "desligada") + " · real " + (g("real") ? "ligada" : "desligada") + " · ") + n(g("sol")) + " SOL por entrada · até " + g("max_open") + " posições";
+    if (id === "ligar") return (real ? "" : "fictícia " + (g("on") ? "ligada" : "desligada") + " · real " + (g("real") ? "ligada" : "desligada") + " · ") + n(g("sol")) + " SOL por entrada" + (g("step_on") ? " · muda " + bmStepWhen(g("step_mode"), (k) => g(k)) : "") + " · até " + g("max_open") + " posições";
     if (id === "entrada") return g("mig_on") ? "até " + n(g("enter_max_pct")) + "% do BOOST · observa " + n(g("watch_s")) + " s · mín. " + g("min_buys") + " compras" : "migrações desligadas";
     if (id === "novos") return g("new_on") ? "ligado · volume US$ " + n(g("new_vol_usd")) + " · até " + n(g("new_age_max_min")) + " min" : "desligado";
     if (id === "golpe") { const L = []; if (g("block_scam")) L.push("DEV scam"); if (g("block_repeat")) L.push("nome repetido"); if (g("require_safety")) L.push("sem trava conferida"); return L.length ? "barra: " + L.join(", ") : "nada barrado"; }
@@ -1666,6 +1669,121 @@
       box.querySelectorAll(".bmrow").forEach((row) => { const dep = BM_DEP[bmKey(row)]; if (dep) row.hidden = !dep.some((d) => (d[0] === "!" ? !g(d.slice(1)) : !!g(d))); });
       box.querySelectorAll(".bmsec").forEach((s) => { const t = bmSum(s.dataset.bms, g, real), el = s.querySelector(".bmsum"); if (el.textContent !== t) el.textContent = t; });
     });
+    bmStepDraw();
+  }
+  // 0.32.471 (pedido do dono, 26/11): mudar o valor depois de 3, 4 ou 5 compras (ou misturando por sorteio). A chave fica
+  // abaixo do valor; ligar abre a janela com as opções; a linha mostra em que ponto está e como está a pessoa comparada.
+  const BMST = { p: "pump_bm_", mode: 3, mix: { 3: true, 4: true, 5: true }, seed: [] };
+  const bmNum = (v) => String(+(+v || 0).toFixed(4)).replace(".", ",");
+  const bmStepList = (mode, g) => (+mode === 0 ? [3, 4, 5].filter((n) => g("step_mix" + n)) : [+mode].filter((n) => n >= 3));
+  const bmAnd = (L) => (L.length > 1 ? L.slice(0, -1).join(", ") + " ou " + L[L.length - 1] : String(L[0] || ""));
+  function bmStepWhen(mode, g) { const L = bmStepList(mode, g); return +mode === 0 ? "depois de " + bmAnd(L) + " trades (sorteio)" : "depois de " + bmAnd(L) + " trades"; }
+  // frase curta do que uma conta está usando; V = as opções dela, p = prefixo (fictícia ou REAL)
+  function bmStepText(V, p) {
+    const g = (k) => V[p + k]; if (!g("step_on")) return "desligado";
+    const L = bmStepList(g("step_mode"), g); if (!L.length) return "desligado";
+    return "ligado · " + bmStepWhen(g("step_mode"), g) + " → " + L.map((n) => bmNum(+g("step_sol" + n) || g("sol")) + " SOL").join(" / ") + " (normal " + bmNum(g("sol")) + ")";
+  }
+  function bmStepDraw() {
+    const c = cfg(); if (!c || c.pump_bm_step_on === undefined) return;
+    document.querySelectorAll(".bmsteprow").forEach((row) => {
+      const btn = row.querySelector("[data-bmstep]"), p = btn.dataset.bmstep, on = !!c[p + "step_on"], key = p === "pump_bmr_" ? "real" : "sim";
+      btn.hidden = !on;
+      const st = ((BM && BM.rodizio) || {})[key];
+      let me = on ? bmStepText(c, p) : "desligado · toda compra usa o valor por entrada";
+      if (on && st) me += st.especial ? " · a próxima compra vai com " + bmNum(st.prox_sol) + " SOL"
+        : " · agora " + st.feitos + " de " + st.alvo + " (depois vem " + bmNum(st.sol_especial) + " SOL)";
+      const m = row.querySelector(".bmstepme"), t = "Você: " + me; if (m.textContent !== t) m.textContent = t;
+      const r = BMC.r, V = r && !r.error ? r.valores : null, o = row.querySelector(".bmsteppeer");
+      o.hidden = !V || V[p + "step_on"] === undefined;
+      if (!o.hidden) { const x = r.nome + ": " + bmStepText(V, p) + (p === "pump_bmr_" && !V.pump_bmr_on ? " (sem regras próprias da REAL: usa as da fictícia)" : ""); if (o.textContent !== x) o.textContent = x; }
+    });
+  }
+  function bmStepRead() {
+    const v = (id) => { const e = $(id); return e ? parseFloat(String(e.value).replace(",", ".")) : NaN; };
+    const L = bmStepList(BMST.mode, (k) => BMST.mix[k.slice(-1)]);
+    return { L, base: v("bmst0"), sol: { 3: v("bmst3"), 4: v("bmst4"), 5: v("bmst5") } };
+  }
+  const bmStepOk = (r) => r.base >= 0.001 && r.base <= 5 && r.L.length > 0 && r.L.every((n) => r.sol[n] >= 0.001 && r.sol[n] <= 5);
+  function bmStepSync() {
+    const mix = BMST.mode === 0, r = bmStepRead();
+    document.querySelectorAll("[data-bmstm]").forEach((b) => b.classList.toggle("on", +b.dataset.bmstm === BMST.mode));
+    document.querySelectorAll("[data-bmstx]").forEach((b) => { const on = !!BMST.mix[b.dataset.bmstx]; b.classList.toggle("primary", on); b.setAttribute("aria-pressed", String(on)); });
+    if ($("bmstMix")) $("bmstMix").hidden = !mix;
+    [3, 4, 5].forEach((n) => { const row = $("bmstR" + n); if (row) row.hidden = !r.L.includes(n); });
+    const ok = bmStepOk(r);
+    $("bmstErr").hidden = ok;
+    if (!ok) { $("bmstSeq").innerHTML = ""; $("bmstNext").textContent = ""; return; }
+    let out = "", k = 0, c = 0;
+    const len = () => (mix ? r.L[BMST.seed[k % BMST.seed.length] % r.L.length] : r.L[0]);
+    for (let i = 1; i <= 15; i++) {
+      const n = len(), esp = c === n;
+      out += '<span class="' + (esp ? "esp" : "") + '">trade ' + i + "<b>" + bmNum(esp ? r.sol[n] : r.base) + "</b></span>";
+      if (esp) { c = 0; k++; } else c++;
+    }
+    $("bmstSeq").innerHTML = out;
+    $("bmstNext").textContent = (mix ? "A cada rodada o robô sorteia entre " + bmAnd(r.L) + " (acima, um exemplo)." : r.L[0] + " trades normais, 1 com o outro valor, e recomeça.") + " Só conta compra que entrou de verdade.";
+  }
+  function bmStepOpen(p) {
+    const c = cfg() || {}, on = !!c[p + "step_on"], base = +c[p + "sol"] || 0.05, real = p === "pump_bmr_";
+    BMST.p = p; BMST.mode = c[p + "step_mode"] === 0 ? 0 : (+c[p + "step_mode"] || 3);
+    [3, 4, 5].forEach((n) => { BMST.mix[n] = c[p + "step_mix" + n] !== false; });
+    BMST.seed = Array.from({ length: 15 }, () => Math.floor(Math.random() * 60));
+    const inp = (id, v) => '<span class="bmin"><input id="' + id + '" class="in" type="number" min="0.001" max="5" step="0.01" value="' + v + '"><em>SOL</em></span>';
+    const aviso = real ? "Vale só para a carteira <b>REAL</b> do BOOST (dinheiro de verdade)." : c.pump_bmr_on ? "Vale só para a <b>FICTÍCIA</b>. A REAL tem a dela na aba Regras da REAL."
+      : c.pump_bm_real ? "<b>Atenção:</b> a REAL do BOOST está ligada e usa estas mesmas regras: os valores abaixo valem para <b>dinheiro de verdade</b>." : "Vale para a FICTÍCIA do BOOST (e para a REAL, se você ligar a REAL sem regras próprias).";
+    const r = BMC.r, V = r && !r.error ? r.valores : null;
+    BMC.view = "step";
+    $("cfgDiffT").textContent = "Mudar o valor depois de alguns trades" + (real ? " · REAL" : "");
+    $("cfgDiffS").textContent = on ? 'ligado · trocar o "quando mudar" recomeça a contagem' : "nada muda até você clicar em Ligar";
+    $("cfgDiffB").innerHTML = '<div class="decbox">' + aviso + "</div>" +
+      '<p class="small bmstwho">Você: <b>' + esc(bmStepText(c, p)) + "</b>" + (V && V[p + "step_on"] !== undefined ? "<br>" + esc(r.nome) + ": <b>" + esc(bmStepText(V, p)) + "</b>" : "") + "</p>" +
+      '<div class="bmrow"><label for="bmst0">Valor por entrada (normal)</label>' + inp("bmst0", base) + "</div>" +
+      '<div class="bmrow"><span>Quando mudar</span><div class="seg bmstseg">' + [[3, "Depois de 3"], [4, "Depois de 4"], [5, "Depois de 5"], [0, "Misturar (sorteio)"]].map((m) => '<button type="button" data-bmstm="' + m[0] + '">' + m[1] + "</button>").join("") + "</div></div>" +
+      '<div class="bmrow" id="bmstMix"><span>Entram no sorteio<small>marque 2 ou 3</small></span><span class="bmstbtns">' + [3, 4, 5].map((n) => '<button type="button" class="btn sm" data-bmstx="' + n + '">' + n + "</button>").join("") + "</span></div>" +
+      [3, 4, 5].map((n) => '<div class="bmrow" id="bmstR' + n + '"><label for="bmst' + n + '">Valor depois de ' + n + " trades</label>" + inp("bmst" + n, +c[p + "step_sol" + n] || base) + "</div>").join("") +
+      '<p class="down small" id="bmstErr" hidden>Preencha os valores entre 0,001 e 5 SOL.</p>' +
+      '<p class="small bmsth">Exemplo dos próximos 15 trades (SOL)</p><div class="bmseq" id="bmstSeq"></div><p class="small muted" id="bmstNext"></p>' +
+      '<p class="cxm-act"><button type="button" class="btn primary" data-bmstgo="1">' + (on ? "Salvar" : "Ligar") + '</button> <button type="button" class="btn" data-bmc="cancel">Cancelar</button></p>';
+    $("cfgDiff").hidden = false; bmStepSync(); $("cfgDiffX").focus();
+  }
+  async function bmStepSave() {
+    const r = bmStepRead(), p = BMST.p;
+    if (!bmStepOk(r)) { toast("Valores entre 0,001 e 5 SOL."); return; }
+    const body = { [p + "sol"]: r.base, [p + "step_mode"]: BMST.mode, [p + "step_on"]: true };
+    [3, 4, 5].forEach((n) => { body[p + "step_mix" + n] = !!BMST.mix[n]; });
+    r.L.forEach((n) => { body[p + "step_sol" + n] = r.sol[n]; });
+    $("cfgDiff").hidden = true; BMC.view = null;
+    await setCfg(body); await poll(true);
+    if (VIEW === "boost") { loadBm(); bmcBar(true); }
+  }
+  document.addEventListener("input", (e) => { if (/^bmst[0345]$/.test(e.target.id || "")) bmStepSync(); });
+  document.addEventListener("click", (e) => {
+    const at = (s) => e.target.closest && e.target.closest(s);
+    let b;
+    if ((b = at("[data-bmstm]"))) { BMST.mode = +b.dataset.bmstm; bmStepSync(); }
+    else if ((b = at("[data-bmstx]"))) {
+      const n = b.dataset.bmstx; if (BMST.mix[n] && [3, 4, 5].filter((x) => BMST.mix[x]).length <= 2) { toast("O sorteio precisa de pelo menos 2."); return; }
+      BMST.mix[n] = !BMST.mix[n]; bmStepSync();
+    } else if (at("[data-bmstgo]")) bmStepSave();
+    else if ((b = at("[data-bmstep]"))) { e.preventDefault(); bmStepOpen(b.dataset.bmstep); }
+  });
+  // ligar a chave abre a janela (desligar segue o caminho normal)
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest('[data-toggle="pump_bm_step_on"],[data-toggle="pump_bmr_step_on"]');
+    if (!b || b.disabled || (cfg() || {})[b.dataset.toggle]) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    bmStepOpen(b.dataset.toggle.replace("step_on", ""));
+  }, true);
+  // nomes e valores destas opções nas tabelas de comparar, copiar e histórico (elas só têm campo na janela)
+  function bmStepName(k) {
+    const m = /^pump_bmr?_step_(mode|mix|sol)([345])?$/.exec(k); if (!m) return "";
+    return m[1] === "mode" ? "Mudar o valor: quando" : m[1] === "mix" ? "Mudar o valor: o " + m[2] + " entra no sorteio" : "Mudar o valor: valor depois de " + m[2] + " trades";
+  }
+  function bmStepVal(k, v) {
+    if (/^pump_bmr?_step_mode$/.test(k)) return +v === 0 ? "misturar (sorteio)" : "depois de " + v + " trades";
+    if (/^pump_bmr?_step_sol[345]$/.test(k)) return +v ? bmNum(v) + " SOL" : "o mesmo valor por entrada";
+    return "";
   }
   document.addEventListener("toggle", (e) => {
     const d = e.target; if (!d.classList || !d.classList.contains("bmsec")) return;
@@ -1685,7 +1803,7 @@
     $("jtMB").innerHTML = L.length ? L.map(({ v, m }) => {
       const ks = m.filter((x) => x.volta !== false).map((x) => x.k);
       return '<section class="bmhv"><header><b>Versão ' + v.n + "</b>" + (v.n === r.atual ? ' <span class="tag win">atual</span>' : "") + '<span class="muted small">' + esc(dt(v.em)) + " · " + esc(v.origem || "–") + "</span></header>" +
-        '<ul class="chlist">' + m.map((x) => "<li>" + esc(bmHLabel(x.k)) + ": " + chVal(x.de) + " → <b>" + chVal(x.para) + "</b></li>").join("") + "</ul>" +
+        '<ul class="chlist">' + m.map((x) => "<li>" + esc(bmHLabel(x.k)) + ": " + chVal(x.de, x.k) + " → <b>" + chVal(x.para, x.k) + "</b></li>").join("") + "</ul>" +
         (ks.length && has.has(v.n - 1) ? '<button type="button" class="btn sm" data-bmundo="' + (v.n - 1) + '" data-keys="' + esc(ks.join(",")) + '">Desfazer esta mudança</button>' : "") + "</section>";
     }).join("") : '<p class="muted">Nenhuma mudança nas regras do BOOST guardada ainda.</p>';
   }
@@ -1792,7 +1910,9 @@
     if (r && !r.error) r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), (r.valores || {})[k]));   // sua config pode ter mudado na tela
     const undo = u && u.vals && Object.keys(u.vals).length ? "<small>Última cópia: de " + esc(u.de || "?") + " em " + dt(u.t) + " · " + Object.keys(u.vals).length + ' opções · <a href="#boost" data-bmc="changed">ver o que mudou</a> · <a href="#boost" data-bmc="undo">reverter</a></small>' : "";
     const off = bmcOffBox(r);
-    const peerNow = r && !r.error && r.reais ? " · " + esc(r.nome) + " agora: BOOST " + (bmcPeer(r).sim ? "ligado" : "desligado") + " · REAL " + (bmcPeer(r).real ? "ligada" : "desligada") : "";
+    const stp = r && !r.error && (r.valores || {}).pump_bm_step_on !== undefined ? " · mudar o valor: " + esc(r.nome) + " " + (r.valores.pump_bm_step_on ? "ligado" : "desligado") + ", você " + ((cfg() || {}).pump_bm_step_on ? "ligado" : "desligado") : "";
+    const peerNow = (r && !r.error && r.reais ? " · " + esc(r.nome) + " agora: BOOST " + (bmcPeer(r).sim ? "ligado" : "desligado") + " · REAL " + (bmcPeer(r).real ? "ligada" : "desligada") : "") + stp;
+    bmStepDraw();
     // 0.32.442 (pedido do dono): Descartar = manter a sua configuração, sem copiar nada. O aviso some até as diferenças mudarem
     // (outra pessoa, outra opção ou outro valor, de qualquer lado); fica só uma linha discreta com "mostrar de novo".
     const sig = r && !r.error && r.dif.length ? bmcSig(r) : "";
@@ -1920,6 +2040,7 @@
       '<div class="bmrq-opts">' +
       (V ? '<label><input type="radio" name="bmrq" value="same" checked> Copiar o mesmo de ' + nm + " (" + s4(his) + " SOL)</label>" : "") +
       '<label><input type="radio" name="bmrq" value="other"' + (V ? "" : " checked") + '> Valor diferente: <input class="in" id="bmrqV" type="number" min="0.001" max="5" step="0.01" value="' + now + '" aria-label="Valor por entrada na REAL"> SOL</label></div>' +
+      (c[mine.replace("sol", "step_on")] ? '<p class="small"><b>"Mudar o valor" está ligado:</b> ' + esc(bmStepText(c, mine.replace("sol", ""))) + ".</p>" : "") +
       (mine === "pump_bm_sol" ? '<p class="small muted">Com "REAL usa regras próprias" desligado, este valor também vale para a FICTÍCIA do BOOST.</p>' : "") +
       '<p class="cxm-act"><button class="btn primary" data-bmrq="go">Ligar a REAL</button> <button class="btn" data-bmc="cancel">Cancelar</button></p>';
     $("cfgDiff").hidden = false; $("cfgDiffX").focus();
@@ -3610,7 +3731,8 @@
         pump_bm_max_dd_pct: 15, pump_bm_min_buy_ratio: 1.2, pump_bm_min_buys: 100, pump_bm_max_top10: 35, pump_bm_stop_pct: 40, pump_bm_trail_start: 10,
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
         pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true, pump_bm_scam_dump_pct: 70, pump_bm_scam_dump_min: 10,
-        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_real_follow: true, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25, pump_bm_tneg_on: true, pump_bm_tneg_sum_s: 60, pump_bm_tneg_streak_on: true, pump_bm_tneg_streak_s: 30, pump_bm_tneg_stop_pct: 25, pump_bm_new_on: true, pump_bm_new_vol_usd: 2000, pump_bm_new_age_max_min: 2, pump_bm_mig_on: true, pump_bm_mig_age_max_min: 0 };
+        pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_real_follow: true, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25, pump_bm_tneg_on: true, pump_bm_tneg_sum_s: 60, pump_bm_tneg_streak_on: true, pump_bm_tneg_streak_s: 30, pump_bm_tneg_stop_pct: 25, pump_bm_new_on: true, pump_bm_new_vol_usd: 2000, pump_bm_new_age_max_min: 2, pump_bm_mig_on: true, pump_bm_mig_age_max_min: 0,
+        pump_bm_step_on: false, pump_bm_step_mode: 3, pump_bm_step_mix3: true, pump_bm_step_mix4: true, pump_bm_step_mix5: true, pump_bm_step_sol3: 0, pump_bm_step_sol4: 0, pump_bm_step_sol5: 0 };
       // 0.32.394: na aba "Regras da REAL" o padrão vai para as regras da REAL
       const body = BMRS === "real" ? Object.fromEntries(Object.entries(P).filter(([k]) => BMR.includes(k.slice(8))).map(([k, v]) => ["pump_bmr_" + k.slice(8), v])) : P;
       setCfg(body).then(() => { if (VIEW === "boost") loadBm(); });
@@ -4496,7 +4618,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
 
   // 0.32.104 (pedido do dono: "sempre avisar o que está ligando"): cada chave diz onde vale. Aba nova com chave REAL entra em TGL_REAL.
   const NL2 = String.fromCharCode(10, 10);
-  const TGL_REAL = ["pump_bmr_on", "pump_bm_real_follow", "pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
+  const TGL_REAL = ["pump_bmr_on", "pump_bmr_step_on", "pump_bm_real_follow", "pump_tab_gate_on", "pump_real_no_curve", "pump_real_mirror", "pump_real_full_mirror", "pump_real_need_win", "pump_edge_real_only", "pump_real_exact", "pump_ex_real_on", "pump_auto_real", "pump_el_real", "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_bar_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real", "pump_copy_other_real", "pump_sg_real"];
   const TGL_ENTRY = { pump_ex_auto_on: "pump_ex_real_on", pump_auto_on: "pump_auto_real", pump_el_auto_on: "pump_el_real", pump_calls_auto_on: "pump_calls_real", pump_bx_on: "pump_bx_real", pump_jt_on: "pump_jt_real", pump_jt_wallet: "pump_jt_real", pump_bm_on: "pump_bm_real", pump_bm_new_on: "pump_bm_real", pump_bm_mig_on: "pump_bm_real",
     pump_bar_auto_on: "pump_bar_real", pump_eq_on: "pump_eq_real", pump_st_auto_copy: "pump_st_real", pump_copy_enabled: 1, pump_top_on: 1, pump_st_copy_on: "pump_st_real", pump_st_lucro_on: "pump_st_lucro_real", pump_el_copy80: 1, pump_copy_other: "pump_copy_other_real" };
   const TGL_NOBUY = ["pump_bm_alchemy_backup", "pump_bm_sybil_on", "pump_bm_sybil_alert", "pump_bm_fast", "pump_pp_copy", "pump_jev_on", "pump_tg_on", "pump_tg_all", "pump_lanc_on", "pump_base_hide_trash", "pump_st_auto_on", "pump_tune_on", "pump_swap_fee_official"];
@@ -4804,6 +4926,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   const CX_NOME = { pump_ex_min_age_min: "Idade MÍNIMA do token para o Explorar entrar", pump_ex_max_age_min: "Idade MÁXIMA do token para o Explorar entrar" };
   const cxLabel = (x) => CX_NOME[x.k] || x.label;
   function cxVal(x, v) {
+    if (bmStepVal(x.k, v)) return bmStepVal(x.k, v);
     if (x.k === "pump_ex_min_age_min" && +v < 0) return "usa a mínima geral";
     if (x.k === "pump_ex_max_age_min" && +v === 0) return "sem limite";
     if (v === true) return '<span class="tag win">ligado</span>';
@@ -6015,7 +6138,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     return [
       { n: "Cópia de traders", d: "Top traders, Maiores traders, Carteiras em estudo, Copiar igual", v: mx, buy: !!c.pump_copy_enabled, real: on, h: "#traders",
         bk: "chave Cópia de traders (Top traders)", rk: "carteira REAL ligada", w: "Top traders → Cópia de traders → SOL por compra na REAL" },
-      { n: "BOOST da migração", d: c.pump_bmr_on ? "usa as Regras da REAL do BOOST" : "usa as Regras da FICTÍCIA do BOOST", v: bm, buy: !!c.pump_bm_on, real: on && !!c.pump_bm_real, h: "#boost",
+      { n: "BOOST da migração", d: (c.pump_bmr_on ? "usa as Regras da REAL do BOOST" : "usa as Regras da FICTÍCIA do BOOST") + (c[c.pump_bmr_on ? "pump_bmr_step_on" : "pump_bm_step_on"] ? " · muda o valor depois de alguns trades" : ""), v: bm, buy: !!c.pump_bm_on, real: on && !!c.pump_bm_real, h: "#boost",
         bk: "BOOST → Entrar sozinho", rk: "BOOST → Também na REAL", w: "BOOST → Regras do BOOST → Valor por entrada" + (c.pump_bmr_on ? " (Regras da REAL)" : "") },
       { n: "Explorar", d: ar > 0 ? "valor próprio, nunca acima do da cópia de traders" : "sem valor próprio: usa o da cópia de traders", v: ar > 0 ? Math.min(ar, mx) : mx, buy: !!c.pump_ex_auto_on, real: on && !!c.pump_ex_real_on, h: "#explorar",
         bk: "Explorar → compra automática", rk: "Explorar → também na REAL", w: "Explorar → Proteções → valor na real" },
@@ -6085,7 +6208,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     walletLoad(true);
   }
   // 0.32.199 (pedido do dono): histórico da configuração, com Voltar para uma versão
-  const chVal = (v) => (v === true ? "Ligado" : v === false ? "Desligado" : v == null ? "–" : esc(String(v).replace(".", ",")));
+  const chVal = (v, k) => (k && bmStepVal(k, v) ? bmStepVal(k, v) : v === true ? "Ligado" : v === false ? "Desligado" : v == null ? "–" : esc(String(v).replace(".", ",")));
   const chItem = (x) => esc(cfgLabel(x.k) || x.k) + ": " + chVal(x.de) + " → " + chVal(x.para);
   // 0.32.200 (pedido do dono): cada versão diz quais abas mudaram, e dá para voltar só as abas escolhidas ou tudo
   let CHMAP = null, CHM = null;
