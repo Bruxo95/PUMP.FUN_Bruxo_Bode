@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "abfbaa3b35c713480086ab75458d42763209993d",
-    "application_version": "0.32.474 · 2026-11-26 · BOOST: etiqueta Reforço nos trades e no Histórico e quadrado Próximos trades",
+    "repository_reference": "4bbbcdeee72ad35d3e52b80140c535a219098f8f",
+    "application_version": "0.32.475 · 2026-11-26 · BOOST: etiqueta BOOST EXTRA piscando, com setas para cima",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "1b02bddaca3e2e909403c200eb403285b5e8e239adab6bfab09d078fa1890029",
+      "app/version.py": "e2e3f6d63790c7257b3fdc47fde0540da5b902a6692313e9c417a8ce760605da",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "a57e3e1fdf7a30c2abddf4ff9df9226cdc744a87028225f4ba65491667f41077"
+  "pdf_sha256": "35d30b5d115c69e2ae7b1820d28d1447c0c2f7a4c0e36266ae9211d4863a2c4c"
 }

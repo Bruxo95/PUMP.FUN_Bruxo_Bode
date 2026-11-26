@@ -1276,13 +1276,23 @@ label.chgrp{cursor:pointer}
 .bmstpr .bmstbtns{flex-wrap:wrap;justify-content:flex-end}
 @media (max-width:560px){.bmsteprow{flex-wrap:wrap}#cfgDiffB .bmrow{flex-wrap:wrap}.bmstseg,.bmstpr .bmstbtns{justify-content:flex-start}}
 
-/* 0.32.474: BOOST — etiqueta do reforço e quadrado dos próximos trades (roxo: não confunde com lucro/perda) */
-.tag.reforco{color:#c4b5fd;background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.55)}
+/* 0.32.474: BOOST — etiqueta do BOOST EXTRA e quadrado dos próximos trades (roxo: não confunde com lucro/perda) */
+.tag.bmextra{color:#ddd6fe;background:#2a1e4a;border-color:#8b5cf6;white-space:nowrap;animation:bmpisca 1.2s ease-in-out infinite}
+/* 0.32.475: duas setas subindo, desenhadas só com CSS */
+.bmup{display:inline-block;position:relative;width:14px;height:16px;overflow:hidden;flex:0 0 auto;vertical-align:middle}
+.bmup i{position:absolute;left:3px;top:5px;width:7px;height:7px;border-top:2.5px solid currentColor;border-left:2.5px solid currentColor;transform:rotate(45deg);animation:bmsobe .8s linear infinite}
+.bmup i+i{animation-delay:-.4s}
+.bmnx .bmup{color:inherit;margin-right:4px}
+@keyframes bmpisca{50%{opacity:.35}}
+@keyframes bmsobe{from{transform:translateY(11px) rotate(45deg)}to{transform:translateY(-13px) rotate(45deg)}}
+@keyframes bmborda{50%{border-color:#3b2a66;background:#16121f}}
 .bmnext{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
 .bmnx{border:1px solid var(--line2);border-radius:10px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;gap:4px;min-width:0}
 .bmnx small{font-size:11.5px;color:var(--muted)}.bmnx b{font-size:15px}.bmnx span{font-size:11px;color:var(--muted);font-weight:700}
 .bmnx.feito{opacity:.55}
 .bmnx.prox{border:2px solid var(--text)}.bmnx.prox span{color:var(--text)}
 .bmnx.ref{border-color:rgba(139,92,246,.55);background:rgba(139,92,246,.14)}.bmnx.ref small,.bmnx.ref b{color:#c4b5fd}
+.bmnx.ref{animation:bmborda 1.2s ease-in-out infinite}
 .bmnx.ref.prox{border:2px solid #a78bfa}.bmnx.ref.prox span{color:#c4b5fd}
+@media (prefers-reduced-motion:reduce){.tag.bmextra,.bmup i,.bmnx.ref{animation:none}}
 @media (max-width:560px){.bmnext{grid-template-columns:repeat(2,minmax(0,1fr))}.bmnx.ref:nth-child(odd){grid-column:1/-1}}

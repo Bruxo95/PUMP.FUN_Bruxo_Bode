@@ -1786,14 +1786,15 @@
     e.preventDefault(); e.stopImmediatePropagation();
     bmStepOpen(b.dataset.toggle.replace("step_on", ""));
   }, true);
-  // 0.32.474 (pedido do dono): etiqueta do trade que entrou com o valor a mais ("Reforço +25%"); com a opção ligada, os
-  // outros aparecem como "Normal". Trade de antes da opção (ou com ela desligada) não ganha etiqueta.
+  // 0.32.474/475 (pedido do dono): etiqueta do trade que entrou com o valor a mais ("BOOST EXTRA +25%", piscando com setas
+  // subindo — modelo A escolhido por ele); com a opção ligada, os outros aparecem como "Normal". Sem a opção, nada.
+  const BM_UP = '<span class="bmup" aria-hidden="true"><i></i><i></i></span>';
   function bmReforco(t) {
     if (!t || t.bm_pct == null) return "";
-    return +t.bm_pct > 0 ? '<span class="tag reforco" title="Entrou com ' + (+t.bm_pct) + "% a mais que o valor por entrada" + (t.bm_passo ? " (depois de " + (+t.bm_passo) + " compras normais)" : "") + '">▲ Reforço +' + (+t.bm_pct) + "%</span>"
+    return +t.bm_pct > 0 ? '<span class="tag bmextra" title="Entrou com ' + (+t.bm_pct) + "% a mais que o valor por entrada" + (t.bm_passo ? " (depois de " + (+t.bm_passo) + " compras normais)" : "") + '">' + BM_UP + "BOOST EXTRA +" + (+t.bm_pct) + "%</span>"
       : '<span class="tag neutral" title="Entrou com o valor por entrada normal">Normal</span>';
   }
-  // quadrado "Próximos trades": as compras normais da rodada e onde entra a de reforço. Só mostra o que o servidor contou.
+  // quadrado "Próximos trades": as compras normais da rodada e onde entra o BOOST EXTRA. Só mostra o que o servidor contou.
   function renderBmNext() {
     const card = $("bmNext"), c = cfg(); if (!card || !c) return;
     const rm = realMode(), own = !!c.pump_bmr_on, key = rm && own ? "real" : "sim", p = key === "real" ? "pump_bmr_" : "pump_bm_";
@@ -1807,10 +1808,10 @@
       out += q(feito ? "feito" : prox ? "prox" : "", "Normal " + (i + 1) + " de " + alvo, base, feito ? "✓ feito" : prox ? "PRÓXIMO" : "depois");
     }
     const falta = alvo - feitos;
-    out += q("ref" + (st.especial ? " prox" : ""), "▲ Reforço +" + (+st.pct_especial) + "%", bmNum(st.sol_especial), st.especial ? "PRÓXIMO" : "daqui a " + falta + (falta > 1 ? " compras" : " compra"));
+    out += q("ref" + (st.especial ? " prox" : ""), BM_UP + "BOOST EXTRA +" + (+st.pct_especial) + "%", bmNum(st.sol_especial), st.especial ? "PRÓXIMO" : "daqui a " + falta + (falta > 1 ? " compras" : " compra"));
     const aviso = !c.pump_bm_on ? "BOOST desligado: a contagem fica parada. " : rm && !c.pump_bm_real ? "A REAL do BOOST está desligada. " : "";
-    const sub = aviso + (devia ? "O reforço anterior não saiu: ele é a próxima compra." : st.especial ? "A próxima compra é a de reforço." : "Falta" + (falta > 1 ? "m " + falta + " compras normais" : " 1 compra normal") + " para o reforço.") +
-      (+c[p + "step_mode"] === 0 ? " Sorteio: nesta rodada saiu \"depois de " + alvo + "\"; a próxima é sorteada depois do reforço." : " Depois do reforço, recomeça.") +
+    const sub = aviso + (devia ? "O BOOST EXTRA anterior não saiu: ele é a próxima compra." : st.especial ? "A próxima compra é a do BOOST EXTRA." : "Falta" + (falta > 1 ? "m " + falta + " compras normais" : " 1 compra normal") + " para o BOOST EXTRA.") +
+      (+c[p + "step_mode"] === 0 ? " Sorteio: nesta rodada saiu \"depois de " + alvo + "\"; a próxima é sorteada depois do BOOST EXTRA." : " Depois do BOOST EXTRA, recomeça.") +
       (!own && c.pump_bm_real ? " A FICTÍCIA e a REAL usam a mesma contagem." : "");
     $("bmNextT").textContent = "Próximos trades do BOOST" + (key === "real" ? " (REAL)" : "");
     if ($("bmNextS").textContent !== sub) $("bmNextS").textContent = sub;
