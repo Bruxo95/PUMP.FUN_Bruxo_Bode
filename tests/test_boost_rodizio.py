@@ -137,6 +137,9 @@ def test_na_ficticia_o_quarto_trade_usa_o_outro_valor(tmp_path):
     assert [round(pos[m]["bm_step"]["sol"], 3) for m in MINTS[:5]] == [0.05, 0.05, 0.05, 0.1, 0.05]
     assert "+100% (depois de 3): 0.1 SOL" in pos[MINTS[3]]["auto"]
     assert pf.bm_step_view()["sim"]["feitos"] == 1
+    pf.check_timeouts(now + 3000)                              # 0.32.474: o trade fechado leva a etiqueta (reforço ou normal)
+    tr = {t["mint"]: t for t in pf.trades(50)}
+    assert (tr[MINTS[3]]["bm_pct"], tr[MINTS[3]]["bm_passo"], tr[MINTS[0]]["bm_pct"]) == (100, 3, 0)
 
 
 def test_token_descartado_nao_conta(tmp_path):

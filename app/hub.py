@@ -2466,7 +2466,7 @@ class PumpHub:
                 "trades": [self._bm_twin_fill({**{k: t.get(k) for k in ("id", "mint", "symbol", "sol_in", "pnl_sol", "pnl_pct", "reason", "closed_at", "hold_s", "real",
                                                             # 0.32.460: o que a janela do trade (Histórico) precisa para abrir também no BOOST
                                                             "opened_at", "sol_out", "price_in", "price_out", "best_pct", "worst_pct", "gross_sol",
-                                                            "fees_sol", "fee_parts", "entrou_porque", "lag_s", "sells", "venue", "wallet", "api", "origem", "auto")},
+                                                            "fees_sol", "fee_parts", "entrou_porque", "lag_s", "sells", "venue", "wallet", "api", "origem", "auto", "bm_pct", "bm_passo")},
                             "sinal": t.get("sinal"), "aba": pf.aba_of(t)}, t, mine_t)
                            for t in ([x for x in mine_t if not x.get("real")][:150] + [x for x in mine_t if x.get("real")][:150])]}
 

@@ -1478,6 +1478,7 @@
     bmRealWarn();
     renderBmSySt();
     renderBmQ(r);
+    renderBmNext();
     const R = r.resumo || {}, ex = Number((cfg() || {}).pump_bm_exit_pct || 80);
     $("bmSub").textContent = (r.ws ? "ouvindo as migrações (PumpPortal)" : "PumpPortal desconectada: nenhuma migração chega") +
       " · " + (r.ultima_migracao_s == null ? "nenhuma migração desde que o servidor subiu" : "última há " + hmsTxt(r.ultima_migracao_s)) +
@@ -1526,7 +1527,7 @@
       (t.best_pct != null && t.pnl_pct != null && t.best_pct - t.pnl_pct >= 5 ? '<small class="muted">deixou ' + f(t.best_pct - t.pnl_pct, 1) + " pts na mesa</small>" : "");
     const bmBy = (t) => t.medido_por ? ' <small class="muted" title="Trade REAL de antes da 0.32.463: a REAL não guardava esta medição; o número é da FICTÍCIA par (mesma entrada e saída)">pela fictícia</small>' : "";
     table("bmTr", ["Fechou", "Token", "Investido", "Resultado", "Melhor / pior momento", "Tempo", "Positivo × negativo", "Motivo da saída"], bmTrs.map((t, i) => [dt(t.closed_at), pfM(t.mint, t.symbol) + ' <button class="btn sm bmtd" type="button" data-bmtd="' + i + '" title="Abrir os detalhes deste trade (a mesma janela do Histórico)">Detalhes</button>' + (t.real ? ' <span class="tag real">REAL</span>' : ""),
-      f(t.sol_in, 4) + " SOL", sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", bmPk(t) + bmBy(t), t.hold_s == null ? "–" : hms(t.hold_s), bmSinal(t.sinal) + (t.sinal ? bmBy(t) : ""), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
+      f(t.sol_in, 4) + " SOL" + (t.bm_pct == null ? "" : "<br>" + bmReforco(t)), sg(t.pnl_sol) + " <small>" + pc(t.pnl_pct) + "</small>", bmPk(t) + bmBy(t), t.hold_s == null ? "–" : hms(t.hold_s), bmSinal(t.sinal) + (t.sinal ? bmBy(t) : ""), '<span class="wrapcell">' + esc(t.reason || "") + "</span>"]),
       RM ? "Nenhum trade do BOOST na REAL ainda." : "Nenhum trade do BOOST na FICTÍCIA ainda.");
     table("bmVip", ["DEV", "Situação", "Tokens com resultado", "Ganhos", "Perdas", "Acerto", "Saldo", "Melhor", "Pior", "Último", "Tokens em 24 h", "Ações"],
       (r.vip || []).slice(0, 200).map((d) => [bmDevLink(d.creator, d.vip ? "👑 " : ""), d.scam ? '<span class="tag loss">SCAM</span>' : d.vip ? '<span class="tag win">VIP</span>' : '<span class="tag neutral">não é VIP</span>',
@@ -1701,6 +1702,7 @@
       o.hidden = !V || V[p + "step_on"] === undefined;
       if (!o.hidden) { const x = r.nome + ": " + bmStepText(V, p) + (p === "pump_bmr_" && !V.pump_bmr_on ? " (sem regras próprias da REAL: usa as da fictícia)" : ""); if (o.textContent !== x) o.textContent = x; }
     });
+    renderBmNext();
   }
   function bmStepRead() {
     const v = (id) => { const e = $(id); return e ? parseFloat(String(e.value).replace(",", ".")) : NaN; };
@@ -1784,6 +1786,36 @@
     e.preventDefault(); e.stopImmediatePropagation();
     bmStepOpen(b.dataset.toggle.replace("step_on", ""));
   }, true);
+  // 0.32.474 (pedido do dono): etiqueta do trade que entrou com o valor a mais ("Reforço +25%"); com a opção ligada, os
+  // outros aparecem como "Normal". Trade de antes da opção (ou com ela desligada) não ganha etiqueta.
+  function bmReforco(t) {
+    if (!t || t.bm_pct == null) return "";
+    return +t.bm_pct > 0 ? '<span class="tag reforco" title="Entrou com ' + (+t.bm_pct) + "% a mais que o valor por entrada" + (t.bm_passo ? " (depois de " + (+t.bm_passo) + " compras normais)" : "") + '">▲ Reforço +' + (+t.bm_pct) + "%</span>"
+      : '<span class="tag neutral" title="Entrou com o valor por entrada normal">Normal</span>';
+  }
+  // quadrado "Próximos trades": as compras normais da rodada e onde entra a de reforço. Só mostra o que o servidor contou.
+  function renderBmNext() {
+    const card = $("bmNext"), c = cfg(); if (!card || !c) return;
+    const rm = realMode(), own = !!c.pump_bmr_on, key = rm && own ? "real" : "sim", p = key === "real" ? "pump_bmr_" : "pump_bm_";
+    const st = ((BM && BM.rodizio) || {})[key], on = !!c[p + "step_on"] && !!st;
+    card.hidden = !on; if (!on) return;
+    const base = bmNum(c[p + "sol"]), alvo = +st.alvo, feitos = Math.min(+st.feitos, alvo), devia = st.especial && feitos < alvo;
+    const q = (cls, top, val, bot) => '<div class="bmnx ' + cls + '"><small>' + top + "</small><b>" + val + " SOL</b><span>" + bot + "</span></div>";
+    let out = "";
+    if (!devia) for (let i = 0; i < alvo; i++) {
+      const feito = st.especial || i < feitos, prox = !st.especial && i === feitos;
+      out += q(feito ? "feito" : prox ? "prox" : "", "Normal " + (i + 1) + " de " + alvo, base, feito ? "✓ feito" : prox ? "PRÓXIMO" : "depois");
+    }
+    const falta = alvo - feitos;
+    out += q("ref" + (st.especial ? " prox" : ""), "▲ Reforço +" + (+st.pct_especial) + "%", bmNum(st.sol_especial), st.especial ? "PRÓXIMO" : "daqui a " + falta + (falta > 1 ? " compras" : " compra"));
+    const aviso = !c.pump_bm_on ? "BOOST desligado: a contagem fica parada. " : rm && !c.pump_bm_real ? "A REAL do BOOST está desligada. " : "";
+    const sub = aviso + (devia ? "O reforço anterior não saiu: ele é a próxima compra." : st.especial ? "A próxima compra é a de reforço." : "Falta" + (falta > 1 ? "m " + falta + " compras normais" : " 1 compra normal") + " para o reforço.") +
+      (+c[p + "step_mode"] === 0 ? " Sorteio: nesta rodada saiu \"depois de " + alvo + "\"; a próxima é sorteada depois do reforço." : " Depois do reforço, recomeça.") +
+      (!own && c.pump_bm_real ? " A FICTÍCIA e a REAL usam a mesma contagem." : "");
+    $("bmNextT").textContent = "Próximos trades do BOOST" + (key === "real" ? " (REAL)" : "");
+    if ($("bmNextS").textContent !== sub) $("bmNextS").textContent = sub;
+    if ($("bmNextB").dataset.h !== out) { $("bmNextB").dataset.h = out; $("bmNextB").innerHTML = out; }
+  }
   // nomes e valores destas opções nas tabelas de comparar, copiar e histórico (elas só têm campo na janela)
   function bmStepName(k) {
     const m = /^pump_bmr?_step_(mode|mix|pct)([345])?$/.exec(k); if (!m) return "";
@@ -4092,7 +4124,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const row = (k, v) => "<tr><td><b>" + k + "</b></td><td>" + v + "</td></tr>", gross = hGross(t), fp = t.fee_parts || {};
     const partes = [["plataforma", fp.platform], ["PumpPortal", fp.portal], ["rede", fp.network]].filter((x) => x[1] > 0).map((x) => x[0] + " " + s4(x[1])).join(" · ");
     $("posMT").innerHTML = (t.real ? '<span class="tag real">REAL</span> ' : '<span class="tag sim">FICTÍCIA</span> ') + esc(t.symbol || "") + " · fechada " +
-      '<span class="tag ' + ((t.pnl_sol || 0) > 0 ? "win" : "loss") + '">' + ((t.pnl_sol || 0) > 0 ? "LUCRO +" : "PREJUÍZO ") + s4(t.pnl_sol) + " SOL · investiu " + s4(t.sol_in) + " SOL</span>";
+      '<span class="tag ' + ((t.pnl_sol || 0) > 0 ? "win" : "loss") + '">' + ((t.pnl_sol || 0) > 0 ? "LUCRO +" : "PREJUÍZO ") + s4(t.pnl_sol) + " SOL · investiu " + s4(t.sol_in) + " SOL</span>" + (t.bm_pct == null ? "" : " " + bmReforco(t));
     $("posMS").textContent = "abriu " + dt(t.opened_at) + " · fechou " + dt(t.closed_at) + " · origem: " + whoLabel(t);
     $("posMB").innerHTML = '<div class="kpis" style="margin:4px 0 12px">' +
       [["Resultado", sg(t.pnl_sol), (t.pnl_pct == null ? "" : f(t.pnl_pct, 1) + "% do investido, já com taxas")], ["Investido", s4(t.sol_in) + " SOL", ""], ["Recebido", s4(t.sol_out) + " SOL", ""], ["Segurou", hms(t.hold_s), ""]]
@@ -6046,7 +6078,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<div class="hrep-s">Todo o tempo</div><div class="hreps">' + (rp(TR.todo) || '<span class="muted small">Nenhum trader com 2 trades ou mais.</span>') + '</div><div class="hrep-s">Últimas 24 h</div><div class="hreps">' + (rp(TR.h24) || '<span class="muted small">Nenhum trader com 2 trades ou mais nas últimas 24 h.</span>') + "</div>");
     HIST_C = NW; HIST_L = V;
     hSet("hCards", V.map((t, i) => '<div class="abc hc" data-htrade="' + i + '" role="button" tabindex="0"><div class="abc-t"><b>' + esc(t.symbol || "?") + '</b><span class="sp"></span><b class="hc-r">' + sg(t.pnl_sol, "") + '<small class="usdv">' + solUsd(t.pnl_sol) + "</small></b></div>" +
-      '<div class="hc-a">' + abaTag(t) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + "</b></div></div>" + hFees(hGross(t), t.fees_sol, t.pnl_sol) + '<div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">' + (HIST.w ? "Os trades deste trader são mais antigos que os " + A.length + " carregados no painel." : "Nenhum trade com esse filtro.") + "</p>");
+      '<div class="hc-a">' + abaTag(t) + (t.bm_pct == null ? "" : " " + bmReforco(t)) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + "</b></div></div>" + hFees(hGross(t), t.fees_sol, t.pnl_sol) + '<div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">' + (HIST.w ? "Os trades deste trader são mais antigos que os " + A.length + " carregados no painel." : "Nenhum trade com esse filtro.") + "</p>");
     $("hMore").hidden = T.length <= V.length; $("hMore").textContent = "Ver mais (" + (T.length - V.length) + " restantes)";
     hSet("hByC", BY.map((b) => '<div class="abc"><div class="abc-t"><div class="hc-w">' + abaTag(b.t) + hWho(b.t) + '</div><span class="sp"></span><b class="hc-r">' + sg(b.p, "") + '<small class="usdv">' + solUsd(b.p) + '</small></b></div><div class="abc-n"><div><small>%</small><b>' + (b.inv ? pc(b.p / b.inv * 100) : "–") + "</b></div><div><small>Trades</small><b>" + b.n + "</b></div><div><small>Acerto</small><b>" + f((b.w / b.n) * 100, 0) + "%</b></div></div>" + hFees(b.gn ? b.g : null, b.fn ? b.fee : null, b.p) + "</div>").join("") || '<p class="muted">Sem trades fechados ainda.</p>');
     if ($("tPart")) table("tPart", ["Quando", "Token", "Trader", "Vendeu", "Recebeu", "Motivo", "Transação"], PS, "Nenhuma venda parcial em posição aberta.");

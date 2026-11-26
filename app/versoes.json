@@ -3120,6 +3120,11 @@
    "versao": "0.32.473",
    "inicio": "2026-11-26T22:23:12+00:00",
    "titulo": "BOOST: o rodízio do valor fica isolado da lógica (DEV VIP e velocidade não mudam)"
+  },
+  {
+   "versao": "0.32.474",
+   "inicio": "2026-11-26T22:39:19+00:00",
+   "titulo": "BOOST: etiqueta Reforço nos trades e no Histórico e quadrado Próximos trades"
   }
  ]
 }

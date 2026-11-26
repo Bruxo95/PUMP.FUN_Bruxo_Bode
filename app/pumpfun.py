@@ -2024,6 +2024,7 @@ class PumpFun:
                 tr["origem"] = p["origem"]                 # 0.32.21: ex.: "barrado"
             if p.get("bm_step"):
                 tr["bm_pct"] = p["bm_step"].get("pct") or 0   # 0.32.473: quanto a mais este trade entrou (rodízio do BOOST)
+                tr["bm_passo"] = p["bm_step"].get("passo")
             if p.get("eq"):
                 tr["eq"] = True                            # 0.32.4: Copiar igual
             self._post_open(p, tr, px, t)                  # 0.32.33: segue o preço 15/30/60 min depois da saída
@@ -5712,6 +5713,7 @@ class PumpFun:
                 tr["origem"] = p["origem"]                 # 0.32.401: o trade REAL guarda a aba (BOOST etc.), como a fictícia
             if p.get("bm_step"):
                 tr["bm_pct"] = p["bm_step"].get("pct") or 0   # 0.32.473
+                tr["bm_passo"] = p["bm_step"].get("passo")
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),
