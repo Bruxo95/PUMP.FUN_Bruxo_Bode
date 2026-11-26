@@ -148,6 +148,12 @@ CHAINS = {
     "unichain": {"nome": "Unichain", "tipo": "evm", "id": 130, "moeda": "ETH", "cg": "ethereum", "dec": 18, "dex": "Uniswap", "expl": "https://uniscan.xyz/tx/",
                  "rpc": "https://mainnet.unichain.org", "router": "0x284f11109359a7e1306c3e447ef14d38400063ff",
                  "wrapped": "0x4200000000000000000000000000000000000006", "ponte": "0x078d782b760474a361dda0af3839290b0ef57ad6"},
+    # 0.32.467 (pedido do dono, 26/11/2026: "vamos incluir lá a carteira da Mantra"): SÓ CARTEIRA (so_carteira): guarda a chave EVM, mostra
+    # saldo e o endereço mantra1; não compra nem vende aqui e não recebe o Abastecer. A compra de MANTRA saindo da Base passa pela Squid, cuja
+    # API exige um ID liberado por eles e cobre a rota por "Squid Intents" (conferido em 26/11): enquanto não houver, é pelo site deles.
+    # Conferido em 26/11: chain id 5888 em evm.mantrachain.io; saldo EVM = saldo do banco Cosmos no mantra1 dos mesmos 20 bytes.
+    "mantra-evm": {"nome": "MANTRA", "tipo": "evm", "id": 5888, "moeda": "MANTRA", "cg": "mantra", "dec": 18, "dex": "QuickSwap", "expl": "https://blockscout.mantrascan.io/tx/",
+                   "rpc": "https://evm.mantrachain.io", "so_carteira": True, "hrp": "mantra"},
 }
 EVM_CHAINS = [k for k, c in CHAINS.items() if c["tipo"] == "evm"]
 
@@ -310,7 +316,7 @@ def buyable(watch, cid: str | None) -> list[str]:
 
 def valid_token(chain: str, adr: str) -> bool:
     c = CHAINS.get(chain)
-    if not c or not isinstance(adr, str):
+    if not c or c.get("so_carteira") or not isinstance(adr, str):    # só carteira: nenhuma moeda é comprável nela
         return False
     if c["tipo"] == "cardano":                      # policy (28 bytes) + nome (até 32 bytes), em hex, como a CoinGecko e a Minswap usam
         return bool(ADA_UNIT.match(adr.lower()))
@@ -329,6 +335,14 @@ def key_address(chain: str, text: str) -> str:
     if CHAINS[chain]["tipo"] == "cosmos":
         return osmosis.address_of(text)
     return evm.address_of(evm.parse_key(text))
+
+
+def cosmos_address(chain: str, addr: str | None) -> str | None:
+    """Rede EVM que também é Cosmos (MANTRA): o mesmo endereço no formato que as exchanges pedem no saque. Mesma conta, mesmos 20 bytes."""
+    hrp = (CHAINS.get(chain) or {}).get("hrp")
+    if not hrp or not addr or not ADDR_EVM.match(addr.lower()):
+        return None
+    return cardano.bech32_encode(hrp, bytes.fromhex(addr[2:]))
 
 
 def router_of(c: dict, wanted: str | None = None) -> str:
@@ -2389,7 +2403,8 @@ class Buyer:
         row = await self._cfg_row(uid)
         ate = _ts(row.get("trava_ate")) if row.get("trava_ate") else 0
         return {"redes": [{"rede": k, "nome": c["nome"], "tipo": c["tipo"], "moeda": c["moeda"], "dex": c["dex"], "endereco": (rows.get(k) or {}).get("endereco"),
-                           "em": _ts((rows.get(k) or {}).get("em")) or None} for k, c in CHAINS.items()],
+                           "em": _ts((rows.get(k) or {}).get("em")) or None, "so_carteira": bool(c.get("so_carteira")),
+                           "endereco_cosmos": cosmos_address(k, (rows.get(k) or {}).get("endereco"))} for k, c in CHAINS.items()],
                 "cfg": clean_cfg(None, row.get("cfg") or {}), "limites": CFG_LIMITS, "tem_senha": bool(rows) or bool(await self._any_secret(uid)), "trava_s": max(0, round(ate - time.time())),
                 "trava_geral": bool(self.allowed()), "senha_min": vault.SENHA_MIN}
 

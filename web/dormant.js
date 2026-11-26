@@ -39,7 +39,7 @@
     "Optimism": ["#FF0420", "op"], "TON": ["#0098EA", "ton"], "Blockchain própria": ["#9ca3af", "propria"], "Cronos": ["#5b8def", "dot"],
     "Sui": ["#4DA2FF", "dot"], "Fantom": ["#1969FF", "dot"], "Kaia": ["#BFF009", "dot"], "Chiliz": ["#ff4d6d", "dot"], "Cardano": ["#3468d1", "dot"],
     "Linea": ["#61DFFF", "dot"], "Mantle": ["#65b3ae", "dot"], "Sonic": ["#fe9a4c", "dot"], "Osmosis": ["#a855f7", "dot"], "Cosmos": ["#6f7390", "dot"],
-    "Robinhood Chain": ["#c3f53c", "dot"], "World Chain": ["#d4d4d8", "dot"], "Unichain": ["#f50db4", "dot"], "zkSync": ["#8c8dfc", "dot"], "Gnosis": ["#3e6957", "dot"], "Celo": ["#FCFF52", "dot"], "Near": ["#00ec97", "dot"], "NEAR": ["#00ec97", "dot"] };
+    "Robinhood Chain": ["#c3f53c", "dot"], "World Chain": ["#d4d4d8", "dot"], "Unichain": ["#f50db4", "dot"], "zkSync": ["#8c8dfc", "dot"], "Gnosis": ["#3e6957", "dot"], "Celo": ["#FCFF52", "dot"], "Near": ["#00ec97", "dot"], "NEAR": ["#00ec97", "dot"], "MANTRA": ["#ff9ac1", "dot"] };
   function chainTag(nome, extra) {
     if (!nome) return "";
     const c = CHS[nome] || ["#9ca3af", "dot"];
@@ -354,12 +354,15 @@
   }
   // 0.32.232 (pedido do dono): janela da moeda — gráfico de 30 dias, porcentagens, blockchain e as últimas negociações
   let CM = null;
+  // 0.32.467 (pedido do dono): comprar MANTRA saindo da Base é pela Squid; a API dela exige um ID liberado por eles, então por enquanto abre o site
+  const SQUID_MANTRA = "https://app.squidrouter.com/?chains=8453,5888&tokens=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+  const squidLink = () => '<a class="btn sm primary dmbuy" href="' + esc(SQUID_MANTRA) + '" target="_blank" rel="noopener noreferrer" title="abre o site da Squid: ETH da Base vira MANTRA, confirmado na sua MetaMask">Comprar na Squid ↗</a>';
   async function openCoin(key) {
     const m = M().find((x) => x.cmc === key); if (!m) return;
     CM = { key, r: null, rng: CM && CM.rng || 30 };
     $("coinMH").innerHTML = (m.img ? '<img src="' + esc(m.img) + '" alt="">' : "") + '<div style="min-width:0"><h2 id="coinMT">' + esc(m.nome) + ' <small class="muted">' + esc(m.simbolo || "") + "</small></h2>" +
       '<div class="sub">' + tag(m.status) + (m.chain_nome ? " " + chainTag(m.chain_nome) : "") + (m.rank ? " · #" + esc(m.rank) + " em valor de mercado" : "") + "</div>" +
-      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button> ' : "") + (m.cg ? '<button type="button" class="btn sm dmbuy" data-dmcex="' + esc(m.cmc) + '">Exchanges</button>' : "") + "</div>";
+      ((m.comprar || []).length ? '<button type="button" class="btn sm primary dmbuy" data-dmbuy="' + esc(m.cmc) + '">Comprar</button> ' : "") + (m.cg === "mantra" ? squidLink() + " " : "") + (m.cg ? '<button type="button" class="btn sm dmbuy" data-dmcex="' + esc(m.cmc) + '">Exchanges</button>' : "") + "</div>";
     $("coinMB").innerHTML = coinBody(m, null);
     $("coinM").hidden = false;
     const r = await BB.api("/api/dormant/moeda?key=" + encodeURIComponent(key), { quiet: true });
@@ -641,10 +644,12 @@
       const k = el.dataset.wbal, v = g.redes[k];
       if (!v || v.saldo == null) { el.textContent = "saldo não lido"; return; }
       const tagg = v.estado === "sem" ? '<span class="dmst dump">sem gás</span>' : v.estado === "pouco" ? '<span class="dmst acordando">pouco gás</span>' : '<span class="dmst pump">gás ok</span>';
-      el.innerHTML = "saldo: " + num(v.saldo, 6) + " " + esc(v.moeda) + (v.usd != null ? " ($" + num(v.usd, 2) + ")" : "") + " " + tagg + (v.ops != null ? ' <span class="muted">dá para ~' + num(Math.floor(v.ops), 0) + " operações</span>" : "") +
+      const saldo = "saldo: " + num(v.saldo, 6) + " " + esc(v.moeda) + (v.usd != null ? " ($" + num(v.usd, 2) + ")" : "");
+      if (v.abastece === false) { el.innerHTML = saldo; return; }                      // só carteira (MANTRA): sem operações aqui e sem Abastecer
+      el.innerHTML = saldo + " " + tagg + (v.ops != null ? ' <span class="muted">dá para ~' + num(Math.floor(v.ops), 0) + " operações</span>" : "") +
         (v.estado !== "ok" ? ' <button type="button" class="btn sm primary dmbuy" data-wgas="' + esc(k) + '"' + (temOrigem ? "" : ' disabled title="nenhuma carteira tem saldo em Ethereum, BNB Chain, Base ou Arbitrum para servir de origem"') + ">Abastecer</button>" : "");
     });
-    const sem = w => w.redes.filter((x) => x.endereco && g.redes[x.rede] && g.redes[x.rede].estado === "sem").map((x) => x.nome);
+    const sem = w => w.redes.filter((x) => x.endereco && g.redes[x.rede] && g.redes[x.rede].estado === "sem" && g.redes[x.rede].abastece !== false).map((x) => x.nome);
     const L = sem(WAL);
     $("wGasAl").hidden = !L.length;
     $("wGasAl").textContent = L.length ? "Sem gás: " + L.join(", ") + ". Sem gás a carteira não compra nem vende. Quer abastecer? Use o botão Abastecer na rede." : "";
@@ -774,9 +779,11 @@
       '<div class="muted small">A carteira ' + esc(evmCom[0].endereco.slice(0, 6) + "…" + evmCom[0].endereco.slice(-4)) + " já está salva em " + evmCom.length + (evmCom.length === 1 ? " rede EVM" : " redes EVM") + ". Falta em: " +
       esc(evmSem.map((x) => x.nome).join(", ")) + ". Digite a senha de compra acima e clique: a chave não é mostrada nem sai do servidor.</div>" +
       '<div class="f"><button type="button" class="btn primary sm" data-wcopy="1">Usar nas ' + evmSem.length + " redes sem carteira</button></div></div>" : "";
-    $("wList").innerHTML = cp + w.redes.map((r) => '<div class="dmwal"><div class="h">' + chainTag(r.nome) + ' <small class="muted">compra por ' + esc(r.dex) + " · paga em " + esc(r.moeda) + '</small><span class="sp"></span>' +
+    $("wList").innerHTML = cp + w.redes.map((r) => '<div class="dmwal"><div class="h">' + chainTag(r.nome) + ' <small class="muted">' + (r.so_carteira ? "só carteira: guarda a chave e mostra o saldo · moeda " + esc(r.moeda) : "compra por " + esc(r.dex) + " · paga em " + esc(r.moeda)) + '</small><span class="sp"></span>' +
       (r.endereco ? '<span class="tag win">configurada</span> <button type="button" class="btn sm tgl off" data-wdel="' + esc(r.rede) + '">Remover</button>' : '<span class="tag neutral">sem carteira</span>') + "</div>" +
       (r.endereco ? '<div class="ad">' + esc(r.endereco) + '</div><div class="muted small" data-wbal="' + esc(r.rede) + '" data-wm="' + esc(r.moeda) + '">lendo o saldo…</div>' : "") +
+      (r.endereco_cosmos ? '<div class="cmct"><small class="muted">Para sacar de exchange pela rede Mantra (é a mesma conta):</small> <span class="cmaddr">' + esc(r.endereco_cosmos) + "</span>" + copyBtn(r.endereco_cosmos) + "</div>" : "") +
+      (r.so_carteira && r.endereco ? '<div class="f">' + squidLink() + '<span class="small muted">ETH da Base vira MANTRA no site da Squid: confira que o destino é o endereço 0x acima</span></div>' : "") +
       '<div class="f"><input class="in" id="wk_' + esc(r.rede) + '" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + (r.tipo === "cardano" ? (r.endereco ? "trocar: cole a nova frase de recuperação" : "cole a frase de recuperação (12 a 24 palavras)") : r.tipo === "cosmos" ? (r.endereco ? "trocar: cole a nova frase ou chave privada" : "cole a frase de recuperação ou a chave privada da Keplr") : r.endereco ? "trocar: cole a nova chave privada" : "cole a chave privada") + '" aria-label="' + (r.tipo === "cardano" || r.tipo === "cosmos" ? "Frase de recuperação de " : "Chave privada de ") + esc(r.nome) + '">' +
       (r.tipo === "evm" ? '<label class="small muted"><input type="checkbox" id="we_' + esc(r.rede) + '"> usar nas ' + w.redes.filter((x) => x.tipo === "evm").length + ' redes EVM</label>' : "") +
       // 0.32.273: carteira Cardano (Eternl, Lace, Yoroi) exporta a frase, não uma chave. Usa o 1º endereço da conta 0: conferir que é o mesmo da carteira

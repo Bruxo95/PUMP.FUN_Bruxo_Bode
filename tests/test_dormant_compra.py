@@ -187,7 +187,7 @@ def test_second_wallet_needs_same_password_and_all_evm_option():
 def test_new_l2_chains_are_complete_and_unique():
     """0.32.256: Robinhood e as L2 conferidas na rede em 07/11/2026 (roteador oficial, fábrica, moeda embrulhada, dólar)."""
     novas = ["robinhood", "optimistic-ethereum", "linea", "world-chain", "xdai", "zksync", "unichain"]
-    assert all(k in db_.EVM_CHAINS for k in novas) and len(db_.EVM_CHAINS) == 13
+    assert all(k in db_.EVM_CHAINS for k in novas) and len(db_.EVM_CHAINS) == 14      # 13 que compram + MANTRA (só carteira)
     ids = [db_.CHAINS[k]["id"] for k in db_.EVM_CHAINS]
     assert len(ids) == len(set(ids))
     for k in novas:

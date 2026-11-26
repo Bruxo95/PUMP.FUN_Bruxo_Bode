@@ -28,7 +28,8 @@ RELAY = "https://api.relay.link"
 DEPOSITORY = "0x4cd00e387622c35bddb9b4c962c136462338bc31"     # 06/11/2026: é o que api.relay.link/chains lista como depository, e o que as cotações das 4 origens usam
 SEL_DEPOSIT = evm.selector("depositNative(address,bytes32)")
 ORIGENS = ("ethereum", "binance-smart-chain", "base", "arbitrum-one")
-RELAY_ID = {"solana": 792703809, **{k: CHAINS[k]["id"] for k in EVM_CHAINS}}
+RELAY_ID = {"solana": 792703809, **{k: CHAINS[k]["id"] for k in EVM_CHAINS if not CHAINS[k].get("so_carteira")}}   # MANTRA: a Relay não cobre (26/11)
+SEM_PONTE = "a ponte não leva gás para esta rede: mande a moeda direto para a carteira"
 SOL_NATIVE = "11111111111111111111111111111111"
 ZERO = "0x" + "0" * 40
 GAS_MAX_USD = 25.0                # teto fixo por abastecimento: é só para gás, e o destino não é verificável na rede
@@ -124,7 +125,8 @@ class GasFiller:
             alvo = max(MIN_SUGESTAO, op * OPS_ALVO * usd) if usd else MIN_SUGESTAO
             return k, {"saldo": saldo, "moeda": c["moeda"], "usd": saldo * usd if usd else None, "ops": ops,
                        "estado": "sem" if ops is not None and ops < 1 else "pouco" if ops is not None and ops < OPS_POUCO else "ok",
-                       "sugestao_usd": round(min(teto, alvo), 2), "pode_origem": k in ORIGENS and bool(usd) and saldo * usd >= MIN_SUGESTAO}
+                       "sugestao_usd": round(min(teto, alvo), 2), "pode_origem": k in ORIGENS and bool(usd) and saldo * usd >= MIN_SUGESTAO,
+                       "abastece": k in RELAY_ID}
         return {"redes": {k: v for k, v in await asyncio.gather(*[one(r) for r in rows])}, "teto_usd": teto, "gasto_dia_usd": gasto, "limite_dia_usd": cfg["gas_dia_usd"], "resta_dia_usd": round(max(0.0, cfg["gas_dia_usd"] - gasto), 2)}
 
     async def _relay_quote(self, origem: str, destino: str, addr: str, recebedor: str, value: int) -> dict:
@@ -149,7 +151,7 @@ class GasFiller:
         não dá (sem carteira, sem saldo, a Relay não cota). Só cota: nada é assinado nem enviado. Devolve também o preço das moedas."""
         b = self.b
         if destino not in CHAINS or destino not in RELAY_ID:
-            raise BuyError("a ponte não leva gás para esta rede: mande a moeda direto para a carteira")
+            raise BuyError(SEM_PONTE)
         d = await b.wallet_row(uid, destino)
         if not d:
             raise BuyError("cadastre a carteira desta rede primeiro: o gás só vai para uma carteira sua")
@@ -191,6 +193,8 @@ class GasFiller:
             raise BuyError("esta rede não serve de origem: use Ethereum, BNB Chain, Base ou Arbitrum")
         if destino not in CHAINS or destino == origem:
             raise BuyError("escolha outra rede de destino")
+        if destino not in RELAY_ID:
+            raise BuyError(SEM_PONTE)
         o, d = await self.b.wallet_row(uid, origem), await self.b.wallet_row(uid, destino)
         if not o or not d:
             raise BuyError("as duas redes precisam ter carteira cadastrada: o gás só vai para uma carteira sua")

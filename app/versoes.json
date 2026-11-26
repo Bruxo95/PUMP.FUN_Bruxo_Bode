@@ -3085,6 +3085,11 @@
    "versao": "0.32.466",
    "inicio": "2026-11-26T05:54:22+00:00",
    "titulo": "Corte do BOOST pela análise das carteiras: bundle, snipers, 10 maiores, mesma origem e valores repetidos"
+  },
+  {
+   "versao": "0.32.467",
+   "inicio": "2026-11-26T10:24:10+00:00",
+   "titulo": "Dormant: carteira da rede MANTRA, com o endereço mantra1 e o atalho para comprar pela Squid"
   }
  ]
 }
