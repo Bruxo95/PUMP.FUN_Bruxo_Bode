@@ -3115,6 +3115,11 @@
    "versao": "0.32.472",
    "inicio": "2026-11-26T22:18:38+00:00",
    "titulo": "BOOST: o valor diferente agora é uma % acima do valor de entrada (10, 25, 50, 75 ou 100)"
+  },
+  {
+   "versao": "0.32.473",
+   "inicio": "2026-11-26T22:23:12+00:00",
+   "titulo": "BOOST: o rodízio do valor fica isolado da lógica (DEV VIP e velocidade não mudam)"
   }
  ]
 }

@@ -174,3 +174,21 @@ def test_real_com_regras_proprias_conta_separado(tmp_path):
     it = pf._rq.get_nowait()[1]
     assert it["amt_sol"] == 0.02 and "bm_step" not in it["pos_cfg"]
     assert set(pf.bm_step_view()) == {"sim"}
+
+
+def test_saldo_do_dev_vip_nao_muda_com_o_rodizio():
+    """0.32.473: um ganho no valor normal e uma perda menor numa compra +100% continuam dando DEV VIP, como sem o rodízio."""
+    now = time.time()
+    bm = BoostMig(Svc({}), clock=lambda: now)
+    a, b = MINTS[0], MINTS[1]
+    pronto(bm, a, now - 600, now)
+    pronto(bm, b, now - 600, now)
+    bm.items[a]["users"] = {"u1": {"estado": "entrou"}}
+    bm.items[b]["users"] = {"u1": {"estado": "entrou"}}
+    trades = [{"mint": a, "origem": "boostmig", "sol_in": 0.25, "pnl_sol": 0.05},
+              {"mint": b, "origem": "boostmig", "sol_in": 0.5, "pnl_sol": -0.08, "bm_pct": 100}]
+    pf = types.SimpleNamespace(positions=lambda: [], trades=lambda n: trades)
+    PumpHub._bm_results(types.SimpleNamespace(bm=bm, engines={"u1": pf}), now)
+    st = bm.dev_stats(bm.items[a]["creator"])
+    assert st["pnl_sol"] == 0.01 and st["vip"] is True          # com os valores crus seria -0,03 e deixaria de ser VIP
+    assert bm.items[b]["result"]["pnl_sol"] == -0.08            # o resultado do token continua o de verdade

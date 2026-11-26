@@ -1876,12 +1876,19 @@ class PumpHub:
                 if hasattr(pf, "bm_step_sync"):
                     pf.bm_step_sync()
                 await self._bm_user(uid, pf, now)
-            if getattr(pf, "bm_step_dirty", False):       # 0.32.471: a contagem sobrevive ao reinício do servidor
-                try:
-                    await self.save_settings(pf)
-                except Exception as e:
-                    pf.bm_step_dirty = True
-                    log.warning("boost (contagem do valor): %s", str(e)[:160])
+            if getattr(pf, "bm_step_dirty", False) and not getattr(pf, "bm_step_saving", None):
+                # 0.32.473: a contagem é gravada POR FORA — o BOOST nunca espera o banco para procurar, entrar ou conferir
+                pf.bm_step_saving = asyncio.get_running_loop().create_task(self._bm_step_save(pf))
+
+    async def _bm_step_save(self, pf: PumpFun) -> None:
+        """0.32.471: a contagem do rodízio do valor sobrevive ao reinício do servidor."""
+        try:
+            await self.save_settings(pf)
+        except Exception as e:
+            pf.bm_step_dirty = True
+            log.warning("boost (contagem do valor): %s", str(e)[:160])
+        finally:
+            pf.bm_step_saving = None
 
     async def _bm_user(self, uid: str, pf: PumpFun, now: float) -> None:
         from .boostmig import RealCfg
@@ -2043,7 +2050,10 @@ class PumpHub:
                 b["result"] = {"pnl_sol": round(pnl, 6), "pnl_pct": round(pnl / sol_in * 100, 2) if sol_in else None,
                                "real": any(t.get("real") for t in ts), "why": ts[0].get("reason"),
                                "hold_s": max(int(t.get("hold_s") or 0) for t in ts)}
-                self.bm.vip_note(m, pnl, b["result"]["pnl_pct"], b["result"]["real"], now)
+                # 0.32.473 (pedido do dono: a lógica do BOOST não pode ser afetada): o saldo do DEV decide quem é VIP, e VIP muda
+                # o filtro de nome repetido das duas contas. Ele recebe o resultado como se a compra fosse do valor normal.
+                normal = sum(float(t.get("pnl_sol") or 0) / (1 + float(t.get("bm_pct") or 0) / 100) for t in ts)
+                self.bm.vip_note(m, normal, b["result"]["pnl_pct"], b["result"]["real"], now)
                 worst = min(ts, key=lambda t: float(t.get("pnl_pct") if t.get("pnl_pct") is not None else 0))
                 try:                                              # 0.32.457: queda de uma vez na nossa posição = DEV scam
                     ct = datetime.fromisoformat(str(worst.get("closed_at")).replace("Z", "+00:00")).timestamp()

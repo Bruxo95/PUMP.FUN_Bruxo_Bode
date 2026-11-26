@@ -2022,6 +2022,8 @@ class PumpFun:
                 tr["follow_of"] = p["follow_of"]           # 0.31.63: cópia de outra conta não entra no aprendizado geral
             if p.get("origem") and "origem" not in tr:
                 tr["origem"] = p["origem"]                 # 0.32.21: ex.: "barrado"
+            if p.get("bm_step"):
+                tr["bm_pct"] = p["bm_step"].get("pct") or 0   # 0.32.473: quanto a mais este trade entrou (rodízio do BOOST)
             if p.get("eq"):
                 tr["eq"] = True                            # 0.32.4: Copiar igual
             self._post_open(p, tr, px, t)                  # 0.32.33: segue o preço 15/30/60 min depois da saída
@@ -2111,30 +2113,44 @@ class PumpFun:
         """Liga, desliga ou recomeça a contagem conforme as opções de agora (chamado a cada salvar e a cada volta do BOOST)."""
         old = self.__dict__.get("bm_step") or {}
         new = {}
-        for key in ("sim", "real"):
-            c = self.bm_step_cfg(key)
-            st = bmstep.sync(old.get(key), c) if c is not None else None
-            if st:
-                new[key] = st
+        try:
+            for key in ("sim", "real"):
+                c = self.bm_step_cfg(key)
+                st = bmstep.sync(old.get(key), c) if c is not None else None
+                if st:
+                    new[key] = st
+        except Exception as e:                      # 0.32.473: erro no rodízio nunca derruba o BOOST (compra com o valor normal)
+            log.warning("boost (rodízio do valor): %s", str(e)[:160])
+            new = {}
         if new.keys() != old.keys() or any(new[k] is not old[k] for k in new):
             self.bm_step_dirty = True
         self.bm_step = new
 
     def bm_step_peek(self, key: str) -> tuple[float, dict | None]:
         c = self.bm_step_cfg(key) or self.cfg
-        amt, t = bmstep.peek((self.__dict__.get("bm_step") or {}).get(key), c)
+        try:
+            amt, t = bmstep.peek((self.__dict__.get("bm_step") or {}).get(key), c)
+        except Exception as e:
+            log.warning("boost (rodízio do valor): %s", str(e)[:160])
+            return float(getattr(c, "pump_bm_sol", 0.05)), None
         return amt, ({**t, "key": key} if t else None)
 
     def bm_step_take(self, ticket: dict) -> None:
-        st = (self.__dict__.get("bm_step") or {}).get(ticket["key"])
-        if st:
-            bmstep.take(st, self.bm_step_cfg(ticket["key"]), ticket)
-            ticket["contada"] = True
-            self.bm_step_dirty = True
+        try:
+            st = (self.__dict__.get("bm_step") or {}).get(ticket["key"])
+            if st:
+                bmstep.take(st, self.bm_step_cfg(ticket["key"]), ticket)
+                ticket["contada"] = True
+                self.bm_step_dirty = True
+        except Exception as e:
+            log.warning("boost (rodízio do valor): %s", str(e)[:160])
 
     def bm_step_giveback(self, ticket: dict) -> None:
-        if ticket.pop("contada", False) and bmstep.giveback((self.__dict__.get("bm_step") or {}).get(ticket.get("key")), ticket):
-            self.bm_step_dirty = True
+        try:                                        # roda no fim da compra REAL: um erro aqui não pode barrar a fictícia
+            if ticket.pop("contada", False) and bmstep.giveback((self.__dict__.get("bm_step") or {}).get(ticket.get("key")), ticket):
+                self.bm_step_dirty = True
+        except Exception as e:
+            log.warning("boost (rodízio do valor): %s", str(e)[:160])
 
     def bm_step_view(self) -> dict:
         out = {}
@@ -5694,6 +5710,8 @@ class PumpFun:
                 tr["sinal"] = self.sign_out(p)              # 0.32.423: tempo no positivo × negativo
             if p.get("origem"):
                 tr["origem"] = p["origem"]                 # 0.32.401: o trade REAL guarda a aba (BOOST etc.), como a fictícia
+            if p.get("bm_step"):
+                tr["bm_pct"] = p["bm_step"].get("pct") or 0   # 0.32.473
             if p.get("auto") is True and p.get("origem") in AUTO_ORIGINS:
                 closed = time.time()
                 tr.update(id=p["id"], auto=True, origem=p["origem"], auto_info=copy.deepcopy(p.get("auto_info") or {}),

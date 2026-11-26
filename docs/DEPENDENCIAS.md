@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-26**; revisão documental **2.0**.
-Aplicação: **0.32.472 · 2026-11-26 · BOOST: o valor diferente agora é uma % acima do valor de entrada (10, 25, 50, 75 ou 100)**.
-Referência Git na emissão: `d092e6cd9f3d7650d6333c78fb8cd02dbc9810b9`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.473 · 2026-11-26 · BOOST: o rodízio do valor fica isolado da lógica (DEV VIP e velocidade não mudam)**.
+Referência Git na emissão: `68cdb15044afe336086f27c3b5e3d72e5b5aa082`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

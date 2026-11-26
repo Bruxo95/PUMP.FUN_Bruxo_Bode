@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "d092e6cd9f3d7650d6333c78fb8cd02dbc9810b9",
-    "application_version": "0.32.472 · 2026-11-26 · BOOST: o valor diferente agora é uma % acima do valor de entrada (10, 25, 50, 75 ou 100)",
+    "repository_reference": "68cdb15044afe336086f27c3b5e3d72e5b5aa082",
+    "application_version": "0.32.473 · 2026-11-26 · BOOST: o rodízio do valor fica isolado da lógica (DEV VIP e velocidade não mudam)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "724885de0be4d37d376660c5f2dd764e4257ad418718358ed021e86f55db24c8",
+      "app/version.py": "a22a133256c68c3a0a4f835d18e380031d1ee848a48e27ecb7dd36ef796739f2",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "7edf7206afbc6e54075451980da79e82f170dbc46c0ff1a64c44bf66acda9932"
+  "pdf_sha256": "fca7879a44c95eccf43b3577b4fc3bddbf9201ab879badaa249513b5a433dc12"
 }
