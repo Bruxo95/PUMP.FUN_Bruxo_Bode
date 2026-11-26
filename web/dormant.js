@@ -950,7 +950,9 @@
     h += '<details class="chsec" open><summary>Compra <small>' + hora(x.t) + '</small></summary><div class="chg">' +
       kv("Quando", new Date(x.t * 1000).toLocaleString("pt-BR")) + kv("Quantidade", qtd(x.qty) + " " + sim) + kv("Pagou", nat ? num(nat, 8) + " " + m : usd(x.usd_in), nat ? usd(x.usd_in) : "") +
       kv("Gás", usd(x.gas_usd)) + kv("Preço pago", price(x.px_in)) + kv("Preço agora", price(x.px_agora)) + kv("Onde", esc(x.dex || "—") + (x.rota ? " · " + esc(x.rota) : "")) +
-      "</div>" + (tx(x) ? '<div class="chtx">' + tx(x) + "</div>" : "") + "</details>";
+      "</div>" + (tx(x) ? '<div class="chtx">' + tx(x) + "</div>" : "") +
+      // 0.32.468: compra feita no site da Squid tem duas transações: o pagamento (Base) e a entrega (MANTRA)
+      (x.fora && x.motivo ? (/^pago na Base: 0x[0-9a-f]{64}$/.test(x.motivo) ? '<div class="chtx"><a href="https://basescan.org/tx/' + esc(x.motivo.slice(14)) + '" target="_blank" rel="noopener">ver o pagamento na Base</a></div>' : '<div class="chtx muted">' + esc(x.motivo) + "</div>") : "") + "</details>";
     let acum = 0;
     const linhas = vs.map((v, i) => {
       const ok = v.status === "confirmada", rec = Number(v.usd_out || 0) - Number(v.gas_usd || 0), base = qty ? custo * Number(v.qty || 0) / qty : 0;
@@ -1406,7 +1408,8 @@
     drawAutoSell(r.autosell);
     cpKpis(r);
     $("cpSub").textContent = "as porcentagens são do preço de cada moeda; quem foi comprada dentro do período conta desde a compra · preço da CoinGecko" + (r.leitura_t ? ", lido há " + ago(r.leitura_t) : "") +
-      " · o valor agora não desconta a taxa de uma venda futura · vender vende o saldo do token na carteira, e as vendas abatem as compras mais antigas";
+      " · o valor agora não desconta a taxa de uma venda futura · vender vende o saldo do token na carteira, e as vendas abatem as compras mais antigas" +
+      (r.squid ? " · compras de MANTRA feitas na Squid entram sozinhas" + (r.squid.erro ? " (não consegui conferir agora: " + r.squid.erro + ")" : r.squid.t ? " (conferido há " + ago(r.squid.t) + ")" : " (conferindo…)") + "; venda feita fora daqui não é descontada" : "");
     // 0.32.417 (pedido do dono): filtrar por blockchain da compra (a rede onde a moeda foi comprada); a escolha fica guardada
     const chs = {};
     r.itens.forEach((x) => { if (x.rede_nome) chs[x.rede_nome] = (chs[x.rede_nome] || 0) + (x.status === "confirmada" ? 1 : 0); });
@@ -1438,7 +1441,7 @@
         (x.vendido ? '<div class="g">' + kv("Vendido", qtd(x.vendido)) + kv("Recebeu", "$" + num(x.recebido, 2)) + kv("Ainda tem", qtd(x.resto)) + "</div>" : "") +
         '<div class="g q">' + kv("1 h", pc(x.h1)) + kv("12 h", pc(x.h12)) + kv("24 h", pc(x.h24)) + kv("7 dias", pc(x.h168)) + "</div>" : "") +
       '<div class="f">' + (aberto ? "<span>" + hora(x.t) + "</span> " + tx(x) : "") + '<span class="sp"></span>' +
-      (x.cex ? '<span class="small">vender na exchange</span>' : x.resto ? asCoinBtn(x) + ' <button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') +
+      (x.cex ? '<span class="small">vender na exchange</span>' : x.fora ? '<span class="small muted">comprada na Squid · só acompanhar</span>' : x.resto ? asCoinBtn(x) + ' <button type="button" class="btn sm dmbuy sell" data-dmsell="' + esc(x.id) + '">Vender</button>' : '<span class="small">vendida</span>') +
       ' <button type="button" class="btn sm" data-dmhist="' + esc(x.id) + '">Compra e vendas</button>' + "</div></div>";
     };
     const porLucro = (a, b) => (b.ganho ?? -Infinity) - (a.ganho ?? -Infinity) || (b.total ?? -Infinity) - (a.total ?? -Infinity);

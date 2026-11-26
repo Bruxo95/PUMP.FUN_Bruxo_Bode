@@ -3090,6 +3090,11 @@
    "versao": "0.32.467",
    "inicio": "2026-11-26T10:24:10+00:00",
    "titulo": "Dormant: carteira da rede MANTRA, com o endereço mantra1 e o atalho para comprar pela Squid"
+  },
+  {
+   "versao": "0.32.468",
+   "inicio": "2026-11-26T11:20:02+00:00",
+   "titulo": "Dormant: compra de MANTRA feita no site da Squid entra sozinha em Minhas compras"
   }
  ]
 }

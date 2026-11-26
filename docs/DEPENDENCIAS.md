@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-26**; revisão documental **2.0**.
-Aplicação: **0.32.467 · 2026-11-26 · Dormant: carteira da rede MANTRA, com o endereço mantra1 e o atalho para comprar pela Squid**.
-Referência Git na emissão: `dd15a103eda1876875ea294fb60396526f63e185`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.468 · 2026-11-26 · Dormant: compra de MANTRA feita no site da Squid entra sozinha em Minhas compras**.
+Referência Git na emissão: `24e4dbd1032e02dcd4c0615582bfe66d6bd96eec`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

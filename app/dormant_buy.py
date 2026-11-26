@@ -516,6 +516,7 @@ def holdings(rows: list[dict], watch, now: float, janelas=(1, 12, 24, 168), sell
         d["t"] = _ts(r.get("em"))
         c = CHAINS.get(r.get("rede")) or {}
         d["rede_nome"], d["moeda"], d["expl"] = c.get("nome"), c.get("moeda"), c.get("expl")
+        d["fora"] = bool(c.get("so_carteira"))      # 0.32.468: comprada no site da Squid: só acompanhar, não dá para vender daqui
         if str(r.get("rede") or "").startswith("cex:"):      # 0.32.247: compra em exchange (não dá para vender daqui ainda)
             d["rede_nome"], d["moeda"], d["cex"] = CEX_NOMES.get(r["rede"][4:], r["rede"][4:]), "USDT", True
         if r.get("status") == "confirmada" and r.get("qty"):
@@ -1353,6 +1354,8 @@ class Buyer:
                 raise BuyError("porcentagem inválida") from None
             if not 1 <= pct <= 100:
                 raise BuyError("porcentagem inválida")
+        if CHAINS[chain].get("so_carteira"):
+            raise BuyError("esta compra foi feita fora do Dormant: venda pela Squid ou pela QuickSwap; daqui só dá para acompanhar")
         c, bloq, avisos = CHAINS[chain], [], []
         await self.resolve_pending(uid)
         if not self.allowed():
@@ -2313,7 +2316,8 @@ class Buyer:
     async def spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
         rows = await self.db.select("dormant_buys", {"user_id": uid}, gte={"em": since}, columns="usd_in,status,rede") or []
-        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada", "cancelada") and not str(r.get("rede") or "").startswith("cex:")), 4)   # exchange tem limite próprio
+        return round(sum(float(r.get("usd_in") or 0) for r in rows if r.get("status") not in ("falhou", "expirada", "cancelada") and not str(r.get("rede") or "").startswith("cex:")   # exchange tem limite próprio
+                         and not (CHAINS.get(r.get("rede")) or {}).get("so_carteira")), 4)                          # compra no site da Squid não é gasto do Dormant
 
     async def gas_spent_today(self, uid: str) -> float:
         since = _iso(time.time() - 86400)
@@ -2613,7 +2617,7 @@ class Buyer:
         """Alvo só desta compra. pct 10…100 = vende quando chegar; 0 = desligada nesta compra; None = segue a venda automática geral.
         Ligar pede a senha se ela não está na memória do servidor; desligar ou voltar para a geral nunca pede."""
         rows = await self.db.select("dormant_buys", {"id": str(compra_id or "")[:64], "user_id": uid}, limit=1) or []
-        if not rows or rows[0].get("status") != "confirmada" or str(rows[0].get("rede") or "").startswith("cex:") or rows[0].get("rede") not in CHAINS:
+        if not rows or rows[0].get("status") != "confirmada" or str(rows[0].get("rede") or "").startswith("cex:") or rows[0].get("rede") not in CHAINS or CHAINS[rows[0]["rede"]].get("so_carteira"):
             raise BuyError("compra não encontrada")
         if pct is not None:
             try:
@@ -2690,7 +2694,7 @@ class Buyer:
         sells = await self.db.select("dormant_sells", {"user_id": uid}, order="em.desc", limit=500) or []
         done: list[dict] = []
         for it in holdings(rows, self.watch, time.time(), sells=sells)["itens"]:
-            if it.get("status") != "confirmada" or str(it.get("rede") or "").startswith("cex:") or it.get("rede") not in CHAINS:
+            if it.get("status") != "confirmada" or str(it.get("rede") or "").startswith("cex:") or it.get("rede") not in CHAINS or it.get("fora"):
                 continue
             tot = it.get("total")
             alvo = coins.get(it["id"], c["as_pct"] if c["as_on"] else 0)      # alvo próprio da compra, senão o geral; 0 = não vende
@@ -2723,6 +2727,8 @@ class Buyer:
     # ------------------------------------------------------------------ histórico
     async def history(self, uid: str) -> dict:
         await self.resolve_pending(uid)
+        from .dormant_squid import SquidTracker      # 0.32.468: compras de MANTRA feitas no site da Squid entram sozinhas (só leitura)
+        squid = await SquidTracker(self).auto(uid)
         rows = await self._rows(uid)
         sells = await self.db.select("dormant_sells", {"user_id": uid}, order="em.desc", limit=500) or []
         self.watch.held.update(r["cg"] for r in rows if r.get("cg") and r.get("status") == "confirmada")
@@ -2742,4 +2748,5 @@ class Buyer:
                 if v:
                     px[c["moeda"]] = v
         out["px_moeda"] = px
+        out["squid"] = squid
         return out
