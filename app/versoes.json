@@ -3130,6 +3130,11 @@
    "versao": "0.32.475",
    "inicio": "2026-11-26T22:58:31+00:00",
    "titulo": "BOOST: etiqueta BOOST EXTRA piscando, com setas para cima"
+  },
+  {
+   "versao": "0.32.476",
+   "inicio": "2026-11-26T23:35:25+00:00",
+   "titulo": "BOOST: Próximos trades com ganhou ou perdeu em SOL e dólar, próximo em azul e Ver mais"
   }
  ]
 }

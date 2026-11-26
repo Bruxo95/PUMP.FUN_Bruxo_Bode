@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "4bbbcdeee72ad35d3e52b80140c535a219098f8f",
-    "application_version": "0.32.475 · 2026-11-26 · BOOST: etiqueta BOOST EXTRA piscando, com setas para cima",
+    "repository_reference": "7152cefa2965c8fe814e5245390b03df0ee20101",
+    "application_version": "0.32.476 · 2026-11-26 · BOOST: Próximos trades com ganhou ou perdeu em SOL e dólar, próximo em azul e Ver mais",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "e2e3f6d63790c7257b3fdc47fde0540da5b902a6692313e9c417a8ce760605da",
+      "app/version.py": "fcc4027d06f35a847aa4a12ae3b8b2939a270875c2dac55925363e7fd348b641",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -34,7 +34,7 @@
       "scripts/inventario_dependencias.py": "774132dc2e95ff640e9127b199f8aceb094709ee6a2f2a430945bc55ef031a4d",
       "scripts/pdf_dependencias.py": "0735f544e291bf01f56694ba4f6a24c4ea60d21e3b0b2cc6d83053387dab0cd8",
       "scripts/verificar_triagem_dependencias.py": "8b36735e5b4d8e91ff944647378894e45e8c85a01cd948ddd5b73f026cd5c977",
-      "web/app.html": "ddca2ee565ad8a49e5e94fd92a3797d5542e7433b65e4eb908be064f62b9a16a",
+      "web/app.html": "86e4759cf8a99d426a64aa45289b8759035a366c00f10905bf25be7693ad0977",
       "web/index.html": "adabfe6aefc807d52541f37480a51f41f4d2990244420b05d31052982b8f66a3"
     },
     "python_runtime_direct": [
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "35d30b5d115c69e2ae7b1820d28d1447c0c2f7a4c0e36266ae9211d4863a2c4c"
+  "pdf_sha256": "8c1e2b8f1f015dd3d595f931faebacf4de3a6ccafd355807f4f938eb2ef82515"
 }

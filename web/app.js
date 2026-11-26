@@ -1795,20 +1795,55 @@
       : '<span class="tag neutral" title="Entrou com o valor por entrada normal">Normal</span>';
   }
   // quadrado "Próximos trades": as compras normais da rodada e onde entra o BOOST EXTRA. Só mostra o que o servidor contou.
+  // 0.32.476 (pedido do dono): os que passaram mostram ganhou/perdeu em SOL e dólar; "Ver mais" abre as 2 rodadas anteriores.
+  let BMN_MORE = false;
+  // compras do BOOST desta carteira (fechadas e abertas) feitas com o rodízio ligado, da mais antiga para a mais nova
+  function bmNextTrades(real) {
+    const T = ((BM && BM.trades) || []).filter((t) => !!t.real === real && t.bm_pct != null);
+    const P = ((D && D.positions) || []).filter((p) => p.origem === "boostmig" && !!p.real === real && p.bm_step)
+      .map((p) => ({ mint: p.mint, symbol: p.symbol, sol_in: p.sol_in, pnl_sol: p.pnl_now_sol, opened_at: p.opened_at, bm_pct: p.bm_step.pct || 0, bm_passo: p.bm_step.passo, aberto: true }));
+    return T.concat(P).sort((a, b) => new Date(a.opened_at) - new Date(b.opened_at));
+  }
+  const bmUsd = (sol) => { const p = (D && D.sol_usd) || 0; return p && sol != null ? "$" + f(sol * p, 2) : ""; };
+  // um quadradinho; t = o trade daquela compra (quando já existe)
+  function bmNextQ(cl, top, sol, feito, t, bot) {
+    let res = "";
+    if (t && t.pnl_sol != null) {
+      const v = +t.pnl_sol, nome = t.aberto ? "Aberto" : v > 0 ? "Ganhou" : v < 0 ? "Perdeu" : "Zerou";
+      res = '<div class="bmnx-r ' + cls(v) + '"><em>' + nome + (t.symbol ? " · " + esc(t.symbol) : "") + "</em><strong>" + (v > 0 ? "+" : "") + s4(v) + " SOL</strong>" + (solUsd(v) ? "<strong>" + solUsd(v) + "</strong>" : "") + "</div>";
+    }
+    return '<div class="bmnx ' + cl + (feito ? " feito" : "") + '"><small>' + top + "</small><b>" + bmNum(sol) + " SOL</b>" + (bmUsd(sol) ? "<i>" + bmUsd(sol) + "</i>" : "") + "<span>" + (feito ? "✓ feito" : bot) + "</span>" + res + "</div>";
+  }
+  function bmNextOld(rest) {
+    const rodadas = []; let g = [];
+    rest.forEach((t) => { g.push(t); if (+t.bm_pct > 0) { rodadas.push(g); g = []; } });
+    if (g.length) rodadas.push(g);
+    if (!rodadas.length) return '<div class="sub bmnx-t">Ainda não há rodada anterior para mostrar.</div>';
+    return rodadas.slice(-2).reverse().map((r, k) => '<div class="sub bmnx-t">' + (k ? "2 rodadas atrás" : "Rodada anterior") + '</div><div class="bmnext">' +
+      r.map((t, i) => bmNextQ(+t.bm_pct > 0 ? "ref" : "", +t.bm_pct > 0 ? BM_UP + "BOOST EXTRA +" + (+t.bm_pct) + "%" : "Normal " + (i + 1) + (t.bm_passo ? " de " + (+t.bm_passo) : ""),
+        t.sol_in, !t.aberto, t, "agora")).join("") + "</div>").join("");
+  }
   function renderBmNext() {
     const card = $("bmNext"), c = cfg(); if (!card || !c) return;
     const rm = realMode(), own = !!c.pump_bmr_on, key = rm && own ? "real" : "sim", p = key === "real" ? "pump_bmr_" : "pump_bm_";
     const st = ((BM && BM.rodizio) || {})[key], on = !!c[p + "step_on"] && !!st;
     card.hidden = !on; if (!on) return;
-    const base = bmNum(c[p + "sol"]), alvo = +st.alvo, feitos = Math.min(+st.feitos, alvo), devia = st.especial && feitos < alvo;
-    const q = (cls, top, val, bot) => '<div class="bmnx ' + cls + '"><small>' + top + "</small><b>" + val + " SOL</b><span>" + bot + "</span></div>";
+    const base = c[p + "sol"], alvo = +st.alvo, feitos = Math.min(+st.feitos, alvo), devia = st.especial && feitos < alvo;
+    // os trades desta rodada são os que vieram depois do último BOOST EXTRA; com a contagem única seguindo a REAL, a fictícia
+    // cuja compra REAL falhou não entrou na conta
+    const all = bmNextTrades(rm);
+    let fim = all.length; while (fim && !(+all[fim - 1].bm_pct > 0)) fim--;
+    let cur = all.slice(fim);
+    if (!rm && !own && c.pump_bm_real && c.pump_real_enabled) { const R = new Set(bmNextTrades(true).map((t) => t.mint)); cur = cur.filter((t) => R.has(t.mint)); }
+    const n = devia ? 0 : st.especial ? alvo : Math.max(0, feitos);
+    cur = n ? cur.slice(-n) : [];
     let out = "";
     if (!devia) for (let i = 0; i < alvo; i++) {
-      const feito = st.especial || i < feitos, prox = !st.especial && i === feitos;
-      out += q(feito ? "feito" : prox ? "prox" : "", "Normal " + (i + 1) + " de " + alvo, base, feito ? "✓ feito" : prox ? "PRÓXIMO" : "depois");
+      const feito = st.especial || i < feitos, prox = !st.especial && i === feitos, t = feito ? cur[i] : null;
+      out += bmNextQ(prox ? "prox" : "", "Normal " + (i + 1) + " de " + alvo, t ? t.sol_in : base, feito, t, prox ? "PRÓXIMO" : "depois");
     }
     const falta = alvo - feitos;
-    out += q("ref" + (st.especial ? " prox" : ""), BM_UP + "BOOST EXTRA +" + (+st.pct_especial) + "%", bmNum(st.sol_especial), st.especial ? "PRÓXIMO" : "daqui a " + falta + (falta > 1 ? " compras" : " compra"));
+    out += bmNextQ("ref" + (st.especial ? " prox" : ""), BM_UP + "BOOST EXTRA +" + (+st.pct_especial) + "%", st.sol_especial, false, null, st.especial ? "PRÓXIMO" : "daqui a " + falta + (falta > 1 ? " compras" : " compra"));
     const aviso = !c.pump_bm_on ? "BOOST desligado: a contagem fica parada. " : rm && !c.pump_bm_real ? "A REAL do BOOST está desligada. " : "";
     const sub = aviso + (devia ? "O BOOST EXTRA anterior não saiu: ele é a próxima compra." : st.especial ? "A próxima compra é a do BOOST EXTRA." : "Falta" + (falta > 1 ? "m " + falta + " compras normais" : " 1 compra normal") + " para o BOOST EXTRA.") +
       (+c[p + "step_mode"] === 0 ? " Sorteio: nesta rodada saiu \"depois de " + alvo + "\"; a próxima é sorteada depois do BOOST EXTRA." : " Depois do BOOST EXTRA, recomeça.") +
@@ -1816,7 +1851,13 @@
     $("bmNextT").textContent = "Próximos trades do BOOST" + (key === "real" ? " (REAL)" : "");
     if ($("bmNextS").textContent !== sub) $("bmNextS").textContent = sub;
     if ($("bmNextB").dataset.h !== out) { $("bmNextB").dataset.h = out; $("bmNextB").innerHTML = out; }
+    const H = $("bmNextH"), M = $("bmNextM"), old = BMN_MORE ? bmNextOld(all.slice(0, all.length - cur.length)) : "";
+    H.hidden = !BMN_MORE;
+    if (H.dataset.h !== old) { H.dataset.h = old; H.innerHTML = old; }
+    M.textContent = BMN_MORE ? "Ver menos" : "Ver mais";
+    M.setAttribute("aria-expanded", String(BMN_MORE));
   }
+  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#bmNextM")) { BMN_MORE = !BMN_MORE; renderBmNext(); } });
   // nomes e valores destas opções nas tabelas de comparar, copiar e histórico (elas só têm campo na janela)
   function bmStepName(k) {
     const m = /^pump_bmr?_step_(mode|mix|pct)([345])?$/.exec(k); if (!m) return "";

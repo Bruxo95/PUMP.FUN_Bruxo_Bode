@@ -1289,10 +1289,18 @@ label.chgrp{cursor:pointer}
 .bmnext{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
 .bmnx{border:1px solid var(--line2);border-radius:10px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;gap:4px;min-width:0}
 .bmnx small{font-size:11.5px;color:var(--muted)}.bmnx b{font-size:15px}.bmnx span{font-size:11px;color:var(--muted);font-weight:700}
-.bmnx.feito{opacity:.55}
-.bmnx.prox{border:2px solid var(--text)}.bmnx.prox span{color:var(--text)}
 .bmnx.ref{border-color:rgba(139,92,246,.55);background:rgba(139,92,246,.14)}.bmnx.ref small,.bmnx.ref b{color:#c4b5fd}
 .bmnx.ref{animation:bmborda 1.2s ease-in-out infinite}
-.bmnx.ref.prox{border:2px solid #a78bfa}.bmnx.ref.prox span{color:#c4b5fd}
+/* 0.32.476: dólar e resultado em cada quadrado; "feito" em verde; o PRÓXIMO todo azul (também quando é o BOOST EXTRA) */
+.bmnx>i{font-style:normal;font-size:11.5px;color:var(--muted)}
+.bmnx.feito>span{color:#4ade80}
+.bmnx-r{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line2);padding-top:6px;margin-top:2px;overflow-wrap:anywhere}
+.bmnx-r em{font-style:normal;font-size:11px;font-weight:700}.bmnx-r strong{font-size:12.5px}
+.bmnx.prox,.bmnx.ref.prox{border:2px solid #3b82f6;background:rgba(59,130,246,.16);animation:none}
+.bmnx.prox small,.bmnx.prox b,.bmnx.prox>i,.bmnx.prox span{color:#60a5fa}
+.bmnx-r span{font-size:inherit;color:inherit}
+.bmnx.ref.feito{animation:none}
+.bmnx-t{margin:12px 0 6px}
+.bmnxmore{display:flex;justify-content:center;margin-top:12px}
 @media (prefers-reduced-motion:reduce){.tag.bmextra,.bmup i,.bmnx.ref{animation:none}}
 @media (max-width:560px){.bmnext{grid-template-columns:repeat(2,minmax(0,1fr))}.bmnx.ref:nth-child(odd){grid-column:1/-1}}
