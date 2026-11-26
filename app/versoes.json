@@ -3110,6 +3110,11 @@
    "versao": "0.32.471",
    "inicio": "2026-11-26T22:04:27+00:00",
    "titulo": "BOOST: mudar o valor de entrada depois de 3, 4 ou 5 trades (ou sorteando)"
+  },
+  {
+   "versao": "0.32.472",
+   "inicio": "2026-11-26T22:18:38+00:00",
+   "titulo": "BOOST: o valor diferente agora é uma % acima do valor de entrada (10, 25, 50, 75 ou 100)"
   }
  ]
 }

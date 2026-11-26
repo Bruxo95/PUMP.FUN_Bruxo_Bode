@@ -16,8 +16,8 @@ MINTS = [f"Rod{i}".ljust(40, "1") + "pump" for i in range(1, 10)]
 
 def regra(**kw):
     base = {"pump_bm_sol": 0.25, "pump_bm_step_on": True, "pump_bm_step_mode": 3, "pump_bm_step_mix3": True,
-            "pump_bm_step_mix4": True, "pump_bm_step_mix5": True, "pump_bm_step_sol3": 0.5, "pump_bm_step_sol4": 0.6,
-            "pump_bm_step_sol5": 0.75}
+            "pump_bm_step_mix4": True, "pump_bm_step_mix5": True, "pump_bm_step_pct3": 100, "pump_bm_step_pct4": 50,
+            "pump_bm_step_pct5": 25}
     base.update(kw)
     return types.SimpleNamespace(**base)
 
@@ -43,7 +43,8 @@ def test_depois_de_3_o_quarto_muda_e_recomeca():
     c = regra()
     st = bmstep.sync(None, c)
     assert anda(st, c, 9) == [0.25, 0.25, 0.25, 0.5, 0.25, 0.25, 0.25, 0.5, 0.25]
-    assert bmstep.view(st, c) == {"feitos": 1, "alvo": 3, "especial": False, "prox_sol": 0.25, "sol_especial": 0.5}
+    assert bmstep.view(st, c) == {"feitos": 1, "alvo": 3, "especial": False, "prox_sol": 0.25, "sol_especial": 0.5,
+                                  "pct_especial": 100}
 
 
 def test_misturar_sorteia_so_os_marcados():
@@ -58,13 +59,27 @@ def test_misturar_sorteia_so_os_marcados():
         else:
             rodadas.append((n, v))
             n = 0
-    assert set(rodadas) == {(3, 0.5), (5, 0.75)}
+    assert set(rodadas) == {(3, 0.5), (5, 0.3125)}
 
 
-def test_valor_zero_usa_o_normal():
-    c = regra(pump_bm_step_sol3=0.0)
-    st = bmstep.sync(None, c)
-    assert anda(st, c, 4) == [0.25] * 4
+def test_porcentagem_e_acima_do_valor_por_entrada():
+    for pct, sol in ((10, 0.275), (25, 0.3125), (50, 0.375), (75, 0.4375), (100, 0.5)):
+        c = regra(pump_bm_step_pct3=pct)
+        assert anda(bmstep.sync(None, c), c, 4) == [0.25, 0.25, 0.25, sol]
+    c = regra(pump_bm_sol=0.1, pump_bm_step_pct3=50)               # mudou o valor por entrada: a % acompanha
+    assert anda(bmstep.sync(None, c), c, 4)[-1] == 0.15
+    assert USER_KEYS["pump_bm_step_pct3"][1] == 10 and USER_KEYS["pump_bm_step_pct3"][3] == 100
+
+
+def test_desligado_a_compra_do_boost_fica_como_era(tmp_path):
+    """Pedido do dono: o extra não pode mexer no BOOST que já existe."""
+    pf, now = _conta(tmp_path, pump_bm_real=True, pump_bm_step_on=False)
+    for m in MINTS[:5]:
+        _entra(pf, m, now)
+    itens = [pf._rq.get_nowait()[1] for _ in range(5)]
+    for it in itens:
+        assert it["amt_sol"] == 0.05 and "bm_step" not in it["pos_cfg"]
+    assert pf.bm_step == {} and pf.bm_step_dirty is False
 
 
 def test_compra_que_falha_nao_conta():
@@ -85,7 +100,7 @@ def test_trocar_quando_mudar_recomeca_e_trocar_so_o_valor_nao():
     c = regra()
     st = bmstep.sync(None, c)
     anda(st, c, 2)
-    c.pump_bm_step_sol3 = 0.9
+    c.pump_bm_step_pct3 = 75
     assert bmstep.sync(st, c) is st
     c.pump_bm_step_mode = 5
     novo = bmstep.sync(st, c)
@@ -98,7 +113,7 @@ def _conta(tmp_path, **kw):
     now = time.time()
     base = vars(cfg(pump_bm_on=True, pump_bm_sol=0.05, pump_bm_ext_on=False, pump_bm_sg_after=False, pump_bm_max_open=20,
                     pump_real_mirror=False, pump_auto_real=False, pump_bm_block_repeat=False))
-    base.update(vars(regra(pump_bm_sol=0.05, pump_bm_step_sol3=0.1)))
+    base.update(vars(regra(pump_bm_sol=0.05)))
     base.update(kw)
     for k, v in base.items():
         setattr(pf.cfg, k, v)
@@ -120,7 +135,7 @@ def test_na_ficticia_o_quarto_trade_usa_o_outro_valor(tmp_path):
         _entra(pf, m, now)
     pos = {p["mint"]: p for p in pf.positions() if p.get("origem") == "boostmig"}
     assert [round(pos[m]["bm_step"]["sol"], 3) for m in MINTS[:5]] == [0.05, 0.05, 0.05, 0.1, 0.05]
-    assert [p for p in (pos[MINTS[3]],) if "valor diferente (depois de 3)" in p["auto"]]
+    assert "+100% (depois de 3): 0.1 SOL" in pos[MINTS[3]]["auto"]
     assert pf.bm_step_view()["sim"]["feitos"] == 1
 
 

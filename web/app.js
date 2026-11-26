@@ -1564,7 +1564,7 @@
   }, true);
   // 0.32.394 (pedido do dono): regras próprias do BOOST para a REAL (pump_bmr_*) — a aba "Regras da REAL" é uma cópia das regras
   // da fictícia com as chaves trocadas; só ficam as regras por conta (as do servidor e as chaves de ligar ficam só na fictícia).
-  const BMR = ["sol", "step_on", "step_mode", "step_mix3", "step_mix4", "step_mix5", "step_sol3", "step_sol4", "step_sol5", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
+  const BMR = ["sol", "step_on", "step_mode", "step_mix3", "step_mix4", "step_mix5", "step_pct3", "step_pct4", "step_pct5", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
     "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
     "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
     "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct", "cut_on", "cut_bundle_pct", "cut_sniper_pct", "cut_funder_pct", "cut_micro_pct"];
@@ -1673,7 +1673,10 @@
   }
   // 0.32.471 (pedido do dono, 26/11): mudar o valor depois de 3, 4 ou 5 compras (ou misturando por sorteio). A chave fica
   // abaixo do valor; ligar abre a janela com as opções; a linha mostra em que ponto está e como está a pessoa comparada.
-  const BMST = { p: "pump_bm_", mode: 3, mix: { 3: true, 4: true, 5: true }, seed: [] };
+  // o valor diferente é uma % ACIMA do valor por entrada (pedido do dono, 26/11): 10, 25, 50, 75 ou 100
+  const BM_PCTS = [10, 25, 50, 75, 100];
+  const BMST = { p: "pump_bm_", mode: 3, mix: { 3: true, 4: true, 5: true }, pct: { 3: 10, 4: 10, 5: 10 }, seed: [] };
+  const bmUp = (base, pct) => +(+base * (1 + (+pct || 0) / 100)).toFixed(6);
   const bmNum = (v) => String(+(+v || 0).toFixed(4)).replace(".", ",");
   const bmStepList = (mode, g) => (+mode === 0 ? [3, 4, 5].filter((n) => g("step_mix" + n)) : [+mode].filter((n) => n >= 3));
   const bmAnd = (L) => (L.length > 1 ? L.slice(0, -1).join(", ") + " ou " + L[L.length - 1] : String(L[0] || ""));
@@ -1682,7 +1685,7 @@
   function bmStepText(V, p) {
     const g = (k) => V[p + k]; if (!g("step_on")) return "desligado";
     const L = bmStepList(g("step_mode"), g); if (!L.length) return "desligado";
-    return "ligado · " + bmStepWhen(g("step_mode"), g) + " → " + L.map((n) => bmNum(+g("step_sol" + n) || g("sol")) + " SOL").join(" / ") + " (normal " + bmNum(g("sol")) + ")";
+    return "ligado · " + bmStepWhen(g("step_mode"), g) + " → " + L.map((n) => "+" + (+g("step_pct" + n) || 0) + "% (" + bmNum(bmUp(g("sol"), g("step_pct" + n))) + " SOL)").join(" / ") + " · normal " + bmNum(g("sol")) + " SOL";
   }
   function bmStepDraw() {
     const c = cfg(); if (!c || c.pump_bm_step_on === undefined) return;
@@ -1691,8 +1694,8 @@
       btn.hidden = !on;
       const st = ((BM && BM.rodizio) || {})[key];
       let me = on ? bmStepText(c, p) : "desligado · toda compra usa o valor por entrada";
-      if (on && st) me += st.especial ? " · a próxima compra vai com " + bmNum(st.prox_sol) + " SOL"
-        : " · agora " + st.feitos + " de " + st.alvo + " (depois vem " + bmNum(st.sol_especial) + " SOL)";
+      if (on && st) me += st.especial ? " · a próxima compra vai com +" + st.pct_especial + "% (" + bmNum(st.prox_sol) + " SOL)"
+        : " · agora " + st.feitos + " de " + st.alvo + " (depois vem +" + st.pct_especial + "%)";
       const m = row.querySelector(".bmstepme"), t = "Você: " + me; if (m.textContent !== t) m.textContent = t;
       const r = BMC.r, V = r && !r.error ? r.valores : null, o = row.querySelector(".bmsteppeer");
       o.hidden = !V || V[p + "step_on"] === undefined;
@@ -1702,9 +1705,10 @@
   function bmStepRead() {
     const v = (id) => { const e = $(id); return e ? parseFloat(String(e.value).replace(",", ".")) : NaN; };
     const L = bmStepList(BMST.mode, (k) => BMST.mix[k.slice(-1)]);
-    return { L, base: v("bmst0"), sol: { 3: v("bmst3"), 4: v("bmst4"), 5: v("bmst5") } };
+    const base = v("bmst0");
+    return { L, base, sol: { 3: bmUp(base, BMST.pct[3]), 4: bmUp(base, BMST.pct[4]), 5: bmUp(base, BMST.pct[5]) } };
   }
-  const bmStepOk = (r) => r.base >= 0.001 && r.base <= 5 && r.L.length > 0 && r.L.every((n) => r.sol[n] >= 0.001 && r.sol[n] <= 5);
+  const bmStepOk = (r) => r.base >= 0.001 && r.base <= 5 && r.L.length > 0;
   function bmStepSync() {
     const mix = BMST.mode === 0, r = bmStepRead();
     document.querySelectorAll("[data-bmstm]").forEach((b) => b.classList.toggle("on", +b.dataset.bmstm === BMST.mode));
@@ -1712,13 +1716,15 @@
     if ($("bmstMix")) $("bmstMix").hidden = !mix;
     [3, 4, 5].forEach((n) => { const row = $("bmstR" + n); if (row) row.hidden = !r.L.includes(n); });
     const ok = bmStepOk(r);
+    document.querySelectorAll("[data-bmstp]").forEach((b) => { const [n, p] = b.dataset.bmstp.split(":"), on = BMST.pct[n] === +p; b.classList.toggle("primary", on); b.setAttribute("aria-pressed", String(on)); });
+    [3, 4, 5].forEach((n) => { const el = $("bmstS" + n); if (el) el.textContent = ok ? "= " + bmNum(r.sol[n]) + " SOL" : ""; });
     $("bmstErr").hidden = ok;
     if (!ok) { $("bmstSeq").innerHTML = ""; $("bmstNext").textContent = ""; return; }
     let out = "", k = 0, c = 0;
     const len = () => (mix ? r.L[BMST.seed[k % BMST.seed.length] % r.L.length] : r.L[0]);
     for (let i = 1; i <= 15; i++) {
       const n = len(), esp = c === n;
-      out += '<span class="' + (esp ? "esp" : "") + '">trade ' + i + "<b>" + bmNum(esp ? r.sol[n] : r.base) + "</b></span>";
+      out += '<span class="' + (esp ? "esp" : "") + '">trade ' + i + (esp ? " · +" + BMST.pct[n] + "%" : "") + "<b>" + bmNum(esp ? r.sol[n] : r.base) + "</b></span>";
       if (esp) { c = 0; k++; } else c++;
     }
     $("bmstSeq").innerHTML = out;
@@ -1728,6 +1734,7 @@
     const c = cfg() || {}, on = !!c[p + "step_on"], base = +c[p + "sol"] || 0.05, real = p === "pump_bmr_";
     BMST.p = p; BMST.mode = c[p + "step_mode"] === 0 ? 0 : (+c[p + "step_mode"] || 3);
     [3, 4, 5].forEach((n) => { BMST.mix[n] = c[p + "step_mix" + n] !== false; });
+    [3, 4, 5].forEach((n) => { const x = +c[p + "step_pct" + n]; BMST.pct[n] = BM_PCTS.includes(x) ? x : 10; });
     BMST.seed = Array.from({ length: 15 }, () => Math.floor(Math.random() * 60));
     const inp = (id, v) => '<span class="bmin"><input id="' + id + '" class="in" type="number" min="0.001" max="5" step="0.01" value="' + v + '"><em>SOL</em></span>';
     const aviso = real ? "Vale só para a carteira <b>REAL</b> do BOOST (dinheiro de verdade)." : c.pump_bmr_on ? "Vale só para a <b>FICTÍCIA</b>. A REAL tem a dela na aba Regras da REAL."
@@ -1741,27 +1748,29 @@
       '<div class="bmrow"><label for="bmst0">Valor por entrada (normal)</label>' + inp("bmst0", base) + "</div>" +
       '<div class="bmrow"><span>Quando mudar</span><div class="seg bmstseg">' + [[3, "Depois de 3"], [4, "Depois de 4"], [5, "Depois de 5"], [0, "Misturar (sorteio)"]].map((m) => '<button type="button" data-bmstm="' + m[0] + '">' + m[1] + "</button>").join("") + "</div></div>" +
       '<div class="bmrow" id="bmstMix"><span>Entram no sorteio<small>marque 2 ou 3</small></span><span class="bmstbtns">' + [3, 4, 5].map((n) => '<button type="button" class="btn sm" data-bmstx="' + n + '">' + n + "</button>").join("") + "</span></div>" +
-      [3, 4, 5].map((n) => '<div class="bmrow" id="bmstR' + n + '"><label for="bmst' + n + '">Valor depois de ' + n + " trades</label>" + inp("bmst" + n, +c[p + "step_sol" + n] || base) + "</div>").join("") +
-      '<p class="down small" id="bmstErr" hidden>Preencha os valores entre 0,001 e 5 SOL.</p>' +
+      [3, 4, 5].map((n) => '<div class="bmrow bmstpr" id="bmstR' + n + '"><span>Depois de ' + n + ' trades: quanto a mais<small id="bmstS' + n + '"></small></span><span class="bmstbtns" role="group" aria-label="Porcentagem depois de ' + n + ' trades">' +
+        BM_PCTS.map((x) => '<button type="button" class="btn sm" data-bmstp="' + n + ":" + x + '">+' + x + "%</button>").join("") + "</span></div>").join("") +
+      '<p class="down small" id="bmstErr" hidden>Preencha o valor por entrada entre 0,001 e 5 SOL.</p>' +
       '<p class="small bmsth">Exemplo dos próximos 15 trades (SOL)</p><div class="bmseq" id="bmstSeq"></div><p class="small muted" id="bmstNext"></p>' +
       '<p class="cxm-act"><button type="button" class="btn primary" data-bmstgo="1">' + (on ? "Salvar" : "Ligar") + '</button> <button type="button" class="btn" data-bmc="cancel">Cancelar</button></p>';
     $("cfgDiff").hidden = false; bmStepSync(); $("cfgDiffX").focus();
   }
   async function bmStepSave() {
     const r = bmStepRead(), p = BMST.p;
-    if (!bmStepOk(r)) { toast("Valores entre 0,001 e 5 SOL."); return; }
+    if (!bmStepOk(r)) { toast("Valor por entrada entre 0,001 e 5 SOL."); return; }
     const body = { [p + "sol"]: r.base, [p + "step_mode"]: BMST.mode, [p + "step_on"]: true };
     [3, 4, 5].forEach((n) => { body[p + "step_mix" + n] = !!BMST.mix[n]; });
-    r.L.forEach((n) => { body[p + "step_sol" + n] = r.sol[n]; });
+    r.L.forEach((n) => { body[p + "step_pct" + n] = BMST.pct[n]; });
     $("cfgDiff").hidden = true; BMC.view = null;
     await setCfg(body); await poll(true);
     if (VIEW === "boost") { loadBm(); bmcBar(true); }
   }
-  document.addEventListener("input", (e) => { if (/^bmst[0345]$/.test(e.target.id || "")) bmStepSync(); });
+  document.addEventListener("input", (e) => { if (/^bmst0$/.test(e.target.id || "")) bmStepSync(); });
   document.addEventListener("click", (e) => {
     const at = (s) => e.target.closest && e.target.closest(s);
     let b;
     if ((b = at("[data-bmstm]"))) { BMST.mode = +b.dataset.bmstm; bmStepSync(); }
+    else if ((b = at("[data-bmstp]"))) { const [n, p] = b.dataset.bmstp.split(":"); BMST.pct[n] = +p; bmStepSync(); }
     else if ((b = at("[data-bmstx]"))) {
       const n = b.dataset.bmstx; if (BMST.mix[n] && [3, 4, 5].filter((x) => BMST.mix[x]).length <= 2) { toast("O sorteio precisa de pelo menos 2."); return; }
       BMST.mix[n] = !BMST.mix[n]; bmStepSync();
@@ -1777,12 +1786,12 @@
   }, true);
   // nomes e valores destas opções nas tabelas de comparar, copiar e histórico (elas só têm campo na janela)
   function bmStepName(k) {
-    const m = /^pump_bmr?_step_(mode|mix|sol)([345])?$/.exec(k); if (!m) return "";
-    return m[1] === "mode" ? "Mudar o valor: quando" : m[1] === "mix" ? "Mudar o valor: o " + m[2] + " entra no sorteio" : "Mudar o valor: valor depois de " + m[2] + " trades";
+    const m = /^pump_bmr?_step_(mode|mix|pct)([345])?$/.exec(k); if (!m) return "";
+    return m[1] === "mode" ? "Mudar o valor: quando" : m[1] === "mix" ? "Mudar o valor: o " + m[2] + " entra no sorteio" : "Mudar o valor: % a mais depois de " + m[2] + " trades";
   }
   function bmStepVal(k, v) {
     if (/^pump_bmr?_step_mode$/.test(k)) return +v === 0 ? "misturar (sorteio)" : "depois de " + v + " trades";
-    if (/^pump_bmr?_step_sol[345]$/.test(k)) return +v ? bmNum(v) + " SOL" : "o mesmo valor por entrada";
+    if (/^pump_bmr?_step_pct[345]$/.test(k)) return "+" + (+v || 0) + "%";
     return "";
   }
   document.addEventListener("toggle", (e) => {
@@ -3732,7 +3741,7 @@
         pump_bm_trail_dist: 5, pump_bm_partial_at: 15, pump_bm_partial_frac: 50, pump_bm_no_stop: false, pump_bm_partial_on: true, pump_bm_block_repeat: true,
         pump_bm_vip_skip_repeat: true, pump_bm_block_scam: true, pump_bm_require_safety: true, pump_bm_scam_dump_pct: 70, pump_bm_scam_dump_min: 10,
         pump_bm_twin_min: 10, pump_bm_scam_keep_d: 7, pump_bm_vip_keep_d: 30, pump_bm_fast: true, pump_bm_hist_min: 20, pump_bm_ext_on: true, pump_bm_ext_grow_pct: 10, pump_bm_ext_stop_pct: 25, pump_bm_ext_max_min: 20, pump_bm_real_follow: true, pump_bm_sg_after: true, pump_bm_hold_profit_on: false, pump_bm_hold_profit_pct: 10, pump_bm_sybil_on: true, pump_bm_alchemy_backup: true, pump_bm_sybil_alert: true, pump_bm_sybil_top: 15, pump_bm_sybil_max_h: 30, pump_bm_sybil_alert_pct: 20, pump_bm_sybil_bundle_pct: 25, pump_bm_tneg_on: true, pump_bm_tneg_sum_s: 60, pump_bm_tneg_streak_on: true, pump_bm_tneg_streak_s: 30, pump_bm_tneg_stop_pct: 25, pump_bm_new_on: true, pump_bm_new_vol_usd: 2000, pump_bm_new_age_max_min: 2, pump_bm_mig_on: true, pump_bm_mig_age_max_min: 0,
-        pump_bm_step_on: false, pump_bm_step_mode: 3, pump_bm_step_mix3: true, pump_bm_step_mix4: true, pump_bm_step_mix5: true, pump_bm_step_sol3: 0, pump_bm_step_sol4: 0, pump_bm_step_sol5: 0 };
+        pump_bm_step_on: false, pump_bm_step_mode: 3, pump_bm_step_mix3: true, pump_bm_step_mix4: true, pump_bm_step_mix5: true, pump_bm_step_pct3: 10, pump_bm_step_pct4: 10, pump_bm_step_pct5: 10 };
       // 0.32.394: na aba "Regras da REAL" o padrão vai para as regras da REAL
       const body = BMRS === "real" ? Object.fromEntries(Object.entries(P).filter(([k]) => BMR.includes(k.slice(8))).map(([k, v]) => ["pump_bmr_" + k.slice(8), v])) : P;
       setCfg(body).then(() => { if (VIEW === "boost") loadBm(); });

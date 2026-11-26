@@ -1970,7 +1970,7 @@ class PumpHub:
                     amt, step = pf.bm_step_peek(leg if own else "sim")
                 if step:
                     rules = {**rules, "bm_step": step}
-                    auto += (f" · valor diferente (depois de {step['passo']}): {amt:g} SOL" if step["esp"] else
+                    auto += (f" · +{step['pct']}% (depois de {step['passo']}): {amt:g} SOL" if step["esp"] else
                              f" · valor normal {amt:g} SOL ({step['feitos'] + 1}ª de {step['passo']})")
                 r = pf.manual_buy(m, t=now, auto=auto, origem="boostmig", target=target, amt_sol=amt, pos_rules=rules)
                 sim, rr = str(r.get("sim") or ""), str(r.get("real") or "")

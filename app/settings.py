@@ -89,9 +89,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_step_mix3": (bool, True, 0, 1),
     "pump_bm_step_mix4": (bool, True, 0, 1),
     "pump_bm_step_mix5": (bool, True, 0, 1),
-    "pump_bm_step_sol3": (float, 0.0, 0.0, 5.0),          # valor depois de 3 (0 = o mesmo valor por entrada)
-    "pump_bm_step_sol4": (float, 0.0, 0.0, 5.0),
-    "pump_bm_step_sol5": (float, 0.0, 0.0, 5.0),
+    "pump_bm_step_pct3": (int, 10, 0, 100),               # % ACIMA do valor por entrada, depois de 3 (tela: 10/25/50/75/100)
+    "pump_bm_step_pct4": (int, 10, 0, 100),
+    "pump_bm_step_pct5": (int, 10, 0, 100),
     "pump_bm_enter_max_pct": (float, 40.0, 1.0, 60.0),
     "pump_bm_mig_on": (bool, True, 0, 1),                 # 0.32.433: entrar nos tokens que migraram (BOOST da migração)
     "pump_bm_mig_age_max_min": (float, 0.0, 0.0, 1440.0), # …só se o token tiver até X min desde a CRIAÇÃO (0 = sem limite)
@@ -455,8 +455,8 @@ USER_KEYS: dict[str, tuple] = {
 }
 # 0.32.394 (pedido do dono, 20/11): regras próprias do BOOST para a carteira REAL — as mesmas opções das regras da fictícia,
 # com o prefixo pump_bmr_. Só valem com "REAL usa regras próprias" (pump_bmr_on) ligado. Tela: BOOST → Regras → REAL.
-BM_REAL_RULES = ("sol", "max_open", "step_on", "step_mode", "step_mix3", "step_mix4", "step_mix5", "step_sol3", "step_sol4",
-                 "step_sol5", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
+BM_REAL_RULES = ("sol", "max_open", "step_on", "step_mode", "step_mix3", "step_mix4", "step_mix5", "step_pct3", "step_pct4",
+                 "step_pct5", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
                  "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "cut_on", "cut_bundle_pct", "cut_sniper_pct", "cut_funder_pct",
                  "cut_micro_pct", "no_stop", "stop_pct", "trail_start",
                  "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",

@@ -1,7 +1,7 @@
 """0.32.471 (pedido do dono, 26/11/2026): "mudar o valor depois de alguns trades" no BOOST.
 
-Depois de N compras com o valor normal, a compra seguinte usa o valor de "depois de N" e a contagem recomeça. N é 3, 4 ou 5,
-fixo, ou sorteado a cada rodada entre os marcados. Só funções puras: o estado é um dicionário salvo junto das opções da conta.
+Depois de N compras com o valor normal, a compra seguinte vai com X% ACIMA do valor por entrada (o X de "depois de N") e a
+contagem recomeça. N é 3, 4 ou 5, fixo, ou sorteado a cada rodada entre os marcados. Só funções puras: o estado é um dicionário salvo junto das opções da conta.
 
 Estado: {"sig": regra que gerou a contagem, "n": compras normais da rodada, "alvo": N da rodada, "devido": [N de compras com
 valor diferente que falharam e ainda precisam sair]}.
@@ -41,12 +41,16 @@ def sync(state: dict | None, cfg, rnd=random) -> dict | None:
     return {"sig": sig, "n": 0, "alvo": rnd.choice(ok), "devido": []}
 
 
+def percent(cfg, passo: int | None) -> int:
+    """Quantos % acima do valor por entrada vai a compra de "depois de N" (0 numa compra normal)."""
+    return int(getattr(cfg, f"pump_bm_step_pct{passo}", 0) or 0) if passo else 0
+
+
 def amount(cfg, passo: int | None) -> float:
-    """Valor em SOL: o de "depois de N" (0 ou vazio = o mesmo valor normal)."""
+    """Valor em SOL: o valor por entrada, ou ele mais a % de "depois de N"."""
     base = float(getattr(cfg, "pump_bm_sol", 0.05))
-    if not passo:
-        return base
-    return float(getattr(cfg, f"pump_bm_step_sol{passo}", 0.0) or 0.0) or base
+    pct = percent(cfg, passo)
+    return round(base * (1 + pct / 100), 6) if pct else base
 
 
 def peek(state: dict | None, cfg) -> tuple[float, dict | None]:
@@ -60,7 +64,7 @@ def peek(state: dict | None, cfg) -> tuple[float, dict | None]:
         passo, esp = state["alvo"], int(state.get("n") or 0) >= state["alvo"]
     amt = amount(cfg, passo if esp else None)
     return amt, {"esp": esp, "passo": passo, "feitos": int(state.get("n") or 0), "sig": state["sig"], "sol": amt,
-                 "devia": bool(devido)}
+                 "pct": percent(cfg, passo if esp else None), "devia": bool(devido)}
 
 
 def take(state: dict, cfg, ticket: dict, rnd=random) -> None:
@@ -93,4 +97,4 @@ def view(state: dict | None, cfg) -> dict | None:
         return None
     amt, t = peek(state, cfg)
     return {"feitos": max(0, int(state.get("n") or 0)), "alvo": t["passo"], "especial": t["esp"], "prox_sol": amt,
-            "sol_especial": amount(cfg, t["passo"])}
+            "sol_especial": amount(cfg, t["passo"]), "pct_especial": percent(cfg, t["passo"])}
