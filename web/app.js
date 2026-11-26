@@ -1422,7 +1422,8 @@
       st && x && x.sybil_want && (x.progress || 0) < 100 ? "na fila (antes de entrar)" : st && x && (x.progress || 0) < 100 ? "só antes de entrar" : "–") + "</span>";
     const N = BM_SYN[s.nivel] || [s.nivel || "?", "neutral"];
     return '<a href="#" class="bmdl" data-bmsy="' + esc(m) + '" title="' + esc(s.motivo || "") + '"><span class="tag ' + N[1] + '">' + N[0] + "</span></a>" +
-      (s.real_dev_pct != null && s.nivel !== "sem dados" ? '<small class="bmwhy">DEV real ' + f(s.real_dev_pct, 1) + "% · bundle " + f(s.bundle_pct || 0, 1) + "%</small>" : "") +
+      (s.real_dev_pct != null && s.nivel !== "sem dados" ? '<small class="bmwhy">DEV real ' + f(s.real_dev_pct, 1) + "% · bundle " + f(s.bundle_pct || 0, 1) + "%" +
+        (s.sniper_pct != null ? " · snipers " + f(s.sniper_pct, 1) + "% · top 10 " + f(s.top10_pct || 0, 0) + "%" : "") + (s.micro_pct ? " · repetidas " + f(s.micro_pct, 0) + "%" : "") + "</small>" : "") +
       (s.parcial ? '<small class="bmwhy">parcial · ' + s.parcial + " carteira(s) na fila</small>" : "");
   }
   async function openBmSy(m) {
@@ -1437,12 +1438,15 @@
       (s.primeiro_s != null ? " · primeiro resultado " + f(s.primeiro_s, 0) + " s depois da migração" : "") + (s.parcial ? ' · <span class="dim">parcial: ' + s.parcial + " carteira(s) na fila (termina quando não houver token novo)</span>" : s.completo_s != null ? " · completo aos " + hms(s.completo_s) : "");
     $("jtMB").innerHTML = '<div class="kpis" id="bmSyK"></div><h3 class="small">Maiores detentores (só carteiras de pessoas; pool e programas ficam de fora)</h3><div class="tablewrap"><table id="bmSyW" class="daytbl"></table></div>' +
       '<h3 class="small">Mesma origem do dinheiro (2+ carteiras)</h3><div class="tablewrap"><table id="bmSyG" class="daytbl"></table></div>' +
-      '<p class="small muted">Bundle = recebeu o token até 2 blocos depois do lançamento. Ligada ao DEV = o DEV mandou o primeiro SOL, ou a mesma carteira que financiou o DEV, ou outra carteira do grupo. "Mesma origem" sem ligação com o DEV pode ser uma corretora. Carteira com 200+ transações = antiga (origem não procurada).</p>';
+      '<p class="small muted">Bundle = recebeu o token até 2 blocos depois do lançamento. Sniper = recebeu do 3º ao 25º bloco (~10 s) e ainda segura. Ligada ao DEV = o DEV mandou o primeiro SOL, ou a mesma carteira que financiou o DEV, ou outra carteira do grupo. "Mesma origem" sem ligação com o DEV pode ser uma corretora. Carteira com 200+ transações = antiga (origem não procurada).</p>';
     kpis("bmSyK", [["DEV real", pc(s.real_dev_pct || 0, 1).replace("+", ""), "DEV + ligadas + bundle", "hit"], ["Só o DEV", pc(s.dev_pct || 0, 1).replace("+", ""), (s.cluster_n || 0) + " carteira(s) ligada(s) ao DEV", "tr"],
-      ["Bundle", pc(s.bundle_pct || 0, 1).replace("+", ""), (s.bundle_n || 0) + " carteira(s) no bloco da criação", "pnl"], ["Mesma origem", pc(s.funder_max_pct || 0, 1).replace("+", ""), (s.funder_max_n || 0) + " carteiras · " + (s.novas_n || 0) + " nova(s) (<1 dia)", "pos"]]);
+      ["Bundle", pc(s.bundle_pct || 0, 1).replace("+", ""), (s.bundle_n || 0) + " carteira(s) no bloco da criação", "pnl"], ["Mesma origem", pc(s.funder_max_pct || 0, 1).replace("+", ""), (s.funder_max_n || 0) + " carteiras · " + (s.novas_n || 0) + " nova(s) (<1 dia)", "pos"],
+      ["Snipers segurando", s.sniper_pct == null ? "–" : pc(s.sniper_pct, 1).replace("+", ""), (s.sniper_n || 0) + " carteira(s) até ~10 s do lançamento", "pnl"],
+      ["10 maiores", s.top10_pct == null ? "–" : pc(s.top10_pct, 1).replace("+", ""), "só pessoas (sem curva e pool)", "tr"],
+      ["Valores repetidos", s.micro_pct == null ? "–" : pc(s.micro_pct, 0).replace("+", ""), s.micro_lidas ? (s.micro_n ? s.micro_n + " de " + s.micro_lidas + " com " + f(s.micro_sol, 3) + " SOL" : "de " + s.micro_lidas + " transações lidas") : "não lidas", "pos"]]);
     const sol = (w) => '<a href="https://solscan.io/account/' + encodeURIComponent(w) + '" target="_blank" rel="noopener">' + esc(shortW(w)) + "</a>";
     table("bmSyW", ["Carteira", "% do total", "Marcas", "Quem mandou o 1º SOL", "Bloco (desde o lançamento)", "Idade"], (s.carteiras || []).map((w) => [sol(w.w), f(w.pct, 2) + "%",
-      (w.tags || []).map((t) => '<span class="tag ' + (t === "dev" || t === "ligada ao dev" || t === "bundle" ? "loss" : t === "nova" ? "pause" : "neutral") + '">' + esc(t) + "</span>").join(" ") || '<span class="dim">–</span>',
+      (w.tags || []).map((t) => '<span class="tag ' + (t === "dev" || t === "ligada ao dev" || t === "bundle" || t === "sniper" ? "loss" : t === "nova" ? "pause" : "neutral") + '">' + esc(t) + "</span>").join(" ") || '<span class="dim">–</span>',
       w.funder ? sol(w.funder) : (w.pend ? '<span class="dim">na fila</span>' : w.antiga ? '<span class="dim">antiga</span>' : "–"), w.bloco == null ? "–" : "+" + w.bloco, w.idade_h == null ? (w.antiga ? "200+ transações" : "–") : (w.idade_h < 48 ? f(w.idade_h, 1) + " h" : f(w.idade_h / 24, 0) + " dias")]), "Nenhuma carteira de pessoa entre os maiores.");
     table("bmSyG", ["Origem", "Carteiras", "% do total", "Ligada ao DEV"], (s.grupos || []).map((g) => [sol(g.funder), String(g.n), f(g.pct, 2) + "%", g.dev ? '<span class="down">sim</span>' : "não"]), "Nenhuma origem comum.");
   }
@@ -1561,7 +1565,7 @@
   const BMR = ["sol", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
     "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
     "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
-    "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct"];
+    "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct", "cut_on", "cut_bundle_pct", "cut_sniper_pct", "cut_funder_pct", "cut_micro_pct"];
   let BMRS = "sim";
   function bmRealInit() {
     const card = document.querySelector('.card[data-bmt="regras"]:not(#bmSyCard)'), orig = card && card.querySelector(".bmrules:not(.bmreal)");
@@ -1607,7 +1611,8 @@
   const BM_SECS = [["ligar", "Ligar e valor", ["on", "real", "real_follow", "sol", "max_open"]],
     ["entrada", "Quando entrar", ["mig_on", "mig_age_max_min", "enter_max_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys"]],
     ["novos", "Tokens novos (curva)", ["new_on", "new_vol_usd", "new_age_max_min"]],
-    ["golpe", "Proteção contra golpe", ["require_safety", "max_top10", "block_repeat", "block_scam", "scam_dump_pct", "scam_dump_min", "twin_min", "scam_keep_d", "vip_skip_repeat", "vip_keep_d"]],
+    ["corte", "Corte pelas carteiras", ["cut_on", "cut_bundle_pct", "cut_sniper_pct", "max_top10", "cut_funder_pct", "cut_micro_pct"]],
+    ["golpe", "Proteção contra golpe", ["require_safety", "block_repeat", "block_scam", "scam_dump_pct", "scam_dump_min", "twin_min", "scam_keep_d", "vip_skip_repeat", "vip_keep_d"]],
     ["fim", "Fim do BOOST", ["exit_pct", "ext_on", "ext_grow_pct", "hold_profit_on", "hold_profit_pct", "sg_after", "ext_stop_pct", "ext_max_min"]],
     ["perda", "Stop de perda", ["no_stop", "stop_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct"]],
     ["lucro", "Proteger o lucro", ["trail_start", "trail_dist", "partial_on", "partial_at", "partial_frac"]],
@@ -1615,7 +1620,8 @@
   // opção → chaves que precisam estar ligadas (uma basta) para ela aparecer; "!" = precisa estar desligada
   const BM_DEP = { mig_age_max_min: ["mig_on"], new_vol_usd: ["new_on"], new_age_max_min: ["new_on"], scam_dump_pct: ["block_scam"], scam_dump_min: ["block_scam"],
     scam_keep_d: ["block_scam"], vip_keep_d: ["vip_skip_repeat"], ext_grow_pct: ["ext_on"], hold_profit_pct: ["hold_profit_on"], ext_stop_pct: ["ext_on", "hold_profit_on", "sg_after"],
-    stop_pct: ["!no_stop"], tneg_sum_s: ["tneg_on"], tneg_streak_s: ["tneg_streak_on"], tneg_stop_pct: ["tneg_on", "tneg_streak_on"], partial_at: ["partial_on"], partial_frac: ["partial_on"] };
+    stop_pct: ["!no_stop"], tneg_sum_s: ["tneg_on"], tneg_streak_s: ["tneg_streak_on"], tneg_stop_pct: ["tneg_on", "tneg_streak_on"], partial_at: ["partial_on"], partial_frac: ["partial_on"],
+    cut_bundle_pct: ["cut_on"], cut_sniper_pct: ["cut_on"], cut_funder_pct: ["cut_on"], cut_micro_pct: ["cut_on"] };
   const bmKey = (row) => { const el = row.querySelector("[data-cfg],[data-toggle]"); return ((el && (el.dataset.cfg || el.dataset.toggle)) || "").replace(/^pump_bmr?_/, ""); };
   let BMOPEN = null;
   function bmOpenSet() {
@@ -1644,7 +1650,8 @@
     if (id === "ligar") return (real ? "" : "fictícia " + (g("on") ? "ligada" : "desligada") + " · real " + (g("real") ? "ligada" : "desligada") + " · ") + n(g("sol")) + " SOL por entrada · até " + g("max_open") + " posições";
     if (id === "entrada") return g("mig_on") ? "até " + n(g("enter_max_pct")) + "% do BOOST · observa " + n(g("watch_s")) + " s · mín. " + g("min_buys") + " compras" : "migrações desligadas";
     if (id === "novos") return g("new_on") ? "ligado · volume US$ " + n(g("new_vol_usd")) + " · até " + n(g("new_age_max_min")) + " min" : "desligado";
-    if (id === "golpe") { const L = []; if (g("block_scam")) L.push("DEV scam"); if (g("block_repeat")) L.push("nome repetido"); if (g("require_safety")) L.push("sem trava conferida"); if (+g("max_top10")) L.push("top 10 acima de " + n(g("max_top10")) + "%"); return L.length ? "barra: " + L.join(", ") : "nada barrado"; }
+    if (id === "golpe") { const L = []; if (g("block_scam")) L.push("DEV scam"); if (g("block_repeat")) L.push("nome repetido"); if (g("require_safety")) L.push("sem trava conferida"); return L.length ? "barra: " + L.join(", ") : "nada barrado"; }
+    if (id === "corte") { const L = []; if (g("cut_on")) { if (+g("cut_bundle_pct")) L.push("bundle " + n(g("cut_bundle_pct")) + "%"); if (+g("cut_sniper_pct")) L.push("snipers " + n(g("cut_sniper_pct")) + "%"); if (+g("cut_funder_pct")) L.push("mesma origem " + n(g("cut_funder_pct")) + "%"); if (+g("cut_micro_pct")) L.push("repetidas " + n(g("cut_micro_pct")) + "%"); } if (+g("max_top10")) L.push("top 10 " + n(g("max_top10")) + "%"); return L.length ? "corta acima de: " + L.join(", ") : "desligado"; }
     if (id === "fim") { const F = []; if (g("ext_on")) F.push("compras crescendo"); if (g("hold_profit_on")) F.push("até +" + n(g("hold_profit_pct")) + "%"); if (g("sg_after")) F.push("stop de ganho no fim"); return "sai aos " + n(g("exit_pct")) + "% · " + (F.length ? "pode ficar: " + F.join(", ") : "não fica depois do fim") + " · máx. " + n(g("ext_max_min")) + " min"; }
     if (id === "perda") { const T = []; if (g("tneg_on")) T.push(n(g("tneg_sum_s")) + " s somados"); if (g("tneg_streak_on")) T.push(n(g("tneg_streak_s")) + " s seguidos"); return (g("no_stop") ? "sem stop no começo" : "stop −" + n(g("stop_pct")) + "%") + (T.length ? " · liga −" + n(g("tneg_stop_pct")) + "% após " + T.join(" ou ") + " no negativo" : ""); }
     if (id === "lucro") return "stop móvel em +" + n(g("trail_start")) + "% (sai " + n(g("trail_dist")) + " pts abaixo)" + (g("partial_on") ? " · vende " + n(g("partial_frac")) + "% em +" + n(g("partial_at")) + "%" : "");

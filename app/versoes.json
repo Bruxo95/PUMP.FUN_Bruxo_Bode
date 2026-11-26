@@ -3080,6 +3080,11 @@
    "versao": "0.32.465",
    "inicio": "2026-11-25T23:59:42+00:00",
    "titulo": "Regras do BOOST em blocos, histórico com voltar, recomeçar a fictícia sem apagar e dólar nos períodos"
+  },
+  {
+   "versao": "0.32.466",
+   "inicio": "2026-11-26T05:54:22+00:00",
+   "titulo": "Corte do BOOST pela análise das carteiras: bundle, snipers, 10 maiores, mesma origem e valores repetidos"
   }
  ]
 }

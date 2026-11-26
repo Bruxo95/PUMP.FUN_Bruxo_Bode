@@ -47,7 +47,7 @@ SYBIL_ON, SYBIL_TOP, SYBIL_MAX_H, SYBIL_ALERT_PCT, SYBIL_BUNDLE_PCT = 1.0, 15.0,
 CFG_KEYS["pump_bm_alchemy_backup"] = ("ALCHEMY_BACKUP", 1.0)
 ALCHEMY_BACKUP = 1.0                # 0.32.384: Alchemy como reserva da leitura do DEV e da trava quando o RPC do sistema não responde
 DEV_WAIT_S = 30.0                   # 0.32.384: sem DEV lido depois disso, segue sem o filtro de DEV scam (antes esperava para sempre)
-SYBIL_WAIT_S = 12.0                 # 0.32.445: espera da análise das carteiras antes de entrar (era 25 s); depois entra sem ela
+SYBIL_WAIT_S = 14.0                 # 0.32.466: 14 s (análise com mais consultas). 0.32.445: espera da análise das carteiras antes de entrar (era 25 s); depois entra sem ela
 NAME_WAIT_S = 30.0                  # 0.32.446: sem nome depois disso, segue sem conferir nome repetido (antes esperava para sempre)
 NAMES_MAX = 30000                   # 0.32.446: nomes guardados da criação (PumpPortal)
 META_PROG = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"   # Metaplex Token Metadata
@@ -330,7 +330,12 @@ def hist_study(rows: list[dict]) -> dict:
           grupo("Carteiras: alerta alto", lambda r: (r.get("sybil") or {}).get("nivel") == "alto"),
           grupo("Carteiras: alerta médio", lambda r: (r.get("sybil") or {}).get("nivel") == "médio"),
           grupo("Carteiras: sem alerta", lambda r: (r.get("sybil") or {}).get("nivel") == "baixo"),
-          grupo("Bundle 10%+ do total", lambda r: ((r.get("sybil") or {}).get("bundle_pct") or 0) >= 10)]
+          grupo("Bundle 10%+ do total", lambda r: ((r.get("sybil") or {}).get("bundle_pct") or 0) >= 10),
+          grupo("Bundle acima de 15%", lambda r: ((r.get("sybil") or {}).get("bundle_pct") or 0) > 15),
+          grupo("Snipers segurando acima de 10%", lambda r: ((r.get("sybil") or {}).get("sniper_pct") or 0) > 10),
+          grupo("10 maiores acima de 30%", lambda r: ((r.get("sybil") or {}).get("top10_pct") or 0) > 30),
+          grupo("Mesma origem acima de 20%", lambda r: ((r.get("sybil") or {}).get("funder_max_pct") or 0) > 20),
+          grupo("Valores repetidos acima de 50%", lambda r: ((r.get("sybil") or {}).get("micro_pct") or 0) > 50)]
     out["grupos"] = [g for g in gs if g]
     devs = {}
     for r in rows:

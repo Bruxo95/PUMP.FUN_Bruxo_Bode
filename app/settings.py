@@ -99,7 +99,12 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_block_scam": (bool, True, 0, 1),
     "pump_bm_vip_skip_repeat": (bool, True, 0, 1),
     "pump_bm_require_safety": (bool, True, 0, 1),
-    "pump_bm_max_top10": (float, 35.0, 0.0, 100.0),
+    "pump_bm_max_top10": (float, 30.0, 0.0, 100.0),       # 0.32.466: 30 (checklist do dono: 25–30%); também vale no corte das carteiras
+    "pump_bm_cut_on": (bool, True, 0, 1),                 # 0.32.466: corte pela análise das carteiras (checklist do dono)
+    "pump_bm_cut_bundle_pct": (float, 15.0, 0.0, 100.0),  # …bundle (comprou no bloco do lançamento) acima de X% = fora (0 = não usa)
+    "pump_bm_cut_sniper_pct": (float, 10.0, 0.0, 100.0),  # …snipers (até ~10 s do lançamento) ainda segurando acima de X%
+    "pump_bm_cut_funder_pct": (float, 20.0, 0.0, 100.0),  # …carteiras com a mesma origem do dinheiro juntas acima de X%
+    "pump_bm_cut_micro_pct": (float, 50.0, 0.0, 100.0),   # …X% das últimas transações com o mesmo valor (robô de volume)
     "pump_bm_no_stop": (bool, False, 0, 1),               # sem stop de perda até a saída do BOOST
     "pump_bm_stop_pct": (float, 40.0, 1.0, 95.0),
     # 0.32.426 (pedido do dono, 21/11): stop por tempo no negativo — liga o stop de perda (padrão 25%) quando a posição soma
@@ -442,7 +447,8 @@ USER_KEYS: dict[str, tuple] = {
 # 0.32.394 (pedido do dono, 20/11): regras próprias do BOOST para a carteira REAL — as mesmas opções das regras da fictícia,
 # com o prefixo pump_bmr_. Só valem com "REAL usa regras próprias" (pump_bmr_on) ligado. Tela: BOOST → Regras → REAL.
 BM_REAL_RULES = ("sol", "max_open", "enter_max_pct", "mig_age_max_min", "new_vol_usd", "new_age_max_min", "exit_pct", "watch_s", "min_trend_pct", "max_dd_pct", "min_buy_ratio", "min_buys",
-                 "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
+                 "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "cut_on", "cut_bundle_pct", "cut_sniper_pct", "cut_funder_pct",
+                 "cut_micro_pct", "no_stop", "stop_pct", "trail_start",
                  "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
                  "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s",
                  "tneg_stop_pct")
@@ -476,10 +482,11 @@ AJUSTES = {
         "pump_edge_on": False},
     3: {"pump_priority_sol": 0.0005, "pump_exit_migrate": False, "pump_nc_on": False, "pump_swap_fee_official": False},
     4: {"pump_extra_slip_pct": 3.0},
+    5: {"pump_bm_max_top10": 35.0, "pump_bmr_max_top10": 35.0},        # 0.32.466: checklist do dono (10 maiores > 30% = fora)
 }
 SAIDAS_V = max(AJUSTES)
 SAIDAS_OLD = {k: v for etapa in AJUSTES.values() for k, v in etapa.items()}      # todos os padrões antigos (os testes antigos usam)
-SAIDAS_WHY = "ajuste das versões 0.32.323, 0.32.324 e 0.32.335 (saídas, custo por trade, traders que não dá para copiar e slippage simulado da fictícia)"
+SAIDAS_WHY = "ajuste das versões 0.32.323, 0.32.324 0.32.335 e 0.32.466 (saídas, custo por trade, traders que não dá para copiar, slippage simulado da fictícia e 10 maiores do BOOST)"
 
 
 def saidas_upgrade(saved: dict | None, atual: dict, mexeu=()) -> dict:

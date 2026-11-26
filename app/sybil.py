@@ -32,6 +32,9 @@ import time
 
 SYSTEM_PROGRAM = "11111111111111111111111111111111"
 LAUNCH_SLOTS = 2                    # recebeu o token até 2 blocos depois do lançamento = comprou junto (bundle)
+SNIPER_SLOTS = 25                   # 0.32.466: comprou depois do bundle e até ~10 s (25 blocos) do lançamento = sniper
+MICRO_N = 12                        # 0.32.466: últimas N transações do token para ver valores repetidos (robô de volume)
+MICRO_MIN = 6                       # …com menos que isso lidas, não dá veredito
 SIG_LIMIT = 200                     # 0.32.385: 1.000 pesava demais no plano grátis; carteira com 200+ transações = antiga
 PARALLEL = 4                        # 0.32.445: até 4 pedidos esperando resposta ao mesmo tempo. O RITMO de envio continua o mesmo
                                     # (um pedido a cada `gap`, que sobe sozinho com 429): só a espera da resposta deixou de ser em fila.
@@ -167,6 +170,12 @@ def build(mint: str, creator: str | None, holders: list[dict], launch_slot: int 
         for h in ws:
             if h.get("first_slot") is not None and 0 <= h["first_slot"] - launch_slot <= LAUNCH_SLOTS and h["wallet"] != creator:
                 bundle.add(h["wallet"])
+    sniper = set()
+    if launch_slot is not None:
+        for h in ws:
+            d = (h["first_slot"] - launch_slot) if h.get("first_slot") is not None else None
+            if d is not None and LAUNCH_SLOTS < d <= SNIPER_SLOTS and h["wallet"] != creator and h["wallet"] not in bundle:
+                sniper.add(h["wallet"])
     groups: dict[str, list] = {}
     for h in ws:
         if h.get("funder"):
@@ -177,6 +186,8 @@ def build(mint: str, creator: str | None, holders: list[dict], launch_slot: int 
     dev_in_top = any(h["wallet"] == creator for h in ws)
     cluster_pct = pct(dev) + (0.0 if dev_in_top else round(creator_pct, 2))
     bundle_pct = pct(bundle)
+    sniper_pct = pct(sniper)
+    top10_pct = round(sum(h["pct"] for h in sorted(ws, key=lambda x: -x["pct"])[:10]), 2)
     real = pct(dev | bundle) + (0.0 if dev_in_top else round(creator_pct, 2))
     fmax = grupos[0] if grupos else None
     tem = [h for h in ws if h.get("first_slot") is not None or h.get("funder") or h.get("old")]
@@ -202,6 +213,8 @@ def build(mint: str, creator: str | None, holders: list[dict], launch_slot: int 
             tags.append("ligada ao dev")
         if h["wallet"] in bundle:
             tags.append("bundle")
+        if h["wallet"] in sniper:
+            tags.append("sniper")
         if h.get("funder") and len(groups.get(h["funder"]) or []) >= 2 and "ligada ao dev" not in tags:
             tags.append("mesma origem")
         if h.get("age_s") is not None and h["age_s"] < NEW_WALLET_S:
@@ -212,6 +225,7 @@ def build(mint: str, creator: str | None, holders: list[dict], launch_slot: int 
                       "pend": bool(h.get("pend"))})
     return {"t": round(now), "nivel": nivel, "motivo": motivo, "real_dev_pct": real, "dev_pct": round(creator_pct, 2),
             "cluster_pct": cluster_pct, "cluster_n": len(dev - {creator}), "bundle_pct": bundle_pct, "bundle_n": len(bundle),
+            "sniper_pct": sniper_pct, "sniper_n": len(sniper), "top10_pct": top10_pct,
             "funder_max_pct": fmax["pct"] if fmax else 0.0, "funder_max_n": fmax["n"] if fmax else 0,
             "novas_n": sum(1 for h in ws if h.get("age_s") is not None and h["age_s"] < NEW_WALLET_S),
             "programas_pct": round(sum(h["pct"] for h in progs), 2), "carteiras_n": len(ws), "launch_slot": launch_slot,
@@ -223,7 +237,51 @@ def compact(s: dict | None) -> dict | None:
     if not s:
         return None
     return {k: s.get(k) for k in ("t", "nivel", "motivo", "real_dev_pct", "dev_pct", "cluster_pct", "cluster_n", "bundle_pct", "bundle_n",
+                                  "sniper_pct", "sniper_n", "top10_pct", "micro_pct", "micro_n", "micro_sol", "micro_lidas",
                                   "funder_max_pct", "funder_max_n", "novas_n", "erro", "parcial", "chamadas")}
+
+
+def sol_of(tx: dict | None) -> float | None:
+    """SOL que quem assinou pagou (+) ou recebeu (−) na transação, sem a taxa da rede."""
+    meta = (tx or {}).get("meta") or {}
+    pre, post = meta.get("preBalances") or [], meta.get("postBalances") or []
+    if not pre or not post or meta.get("err"):
+        return None
+    return (pre[0] - post[0] - int(meta.get("fee") or 0)) / 1e9
+
+
+def micro(values: list) -> dict:
+    """0.32.466: das últimas transações do token, quantas têm o MESMO valor em SOL (arredondado em 0,001). Muitas iguais e
+    pequenas = robô de volume (micro-transações repetidas)."""
+    vs = [round(abs(v), 3) for v in values if v is not None and abs(v) >= 0.0005]
+    if len(vs) < MICRO_MIN:
+        return {"micro_lidas": len(vs), "micro_pct": None, "micro_n": 0, "micro_sol": None}
+    cnt: dict[float, int] = {}
+    for v in vs:
+        cnt[v] = cnt.get(v, 0) + 1
+    v, n = max(cnt.items(), key=lambda kv: (kv[1], -kv[0]))
+    return {"micro_lidas": len(vs), "micro_pct": round(n / len(vs) * 100, 1) if n >= 3 else 0.0, "micro_n": n if n >= 3 else 0,
+            "micro_sol": v if n >= 3 else None}
+
+
+def cuts(s: dict | None, lim: dict) -> list[str]:
+    """0.32.466 (checklist do dono): motivos de corte, um por limite estourado. lim: bundle, sniper, top10, funder, micro (0 = não usa)."""
+    if not s or s.get("erro"):
+        return []
+    out = []
+    def over(k, key, txt):
+        lv = float(lim.get(k) or 0)
+        v = s.get(key)
+        if lv > 0 and v is not None and float(v) > lv:
+            out.append(txt.format(v=_p(float(v)), l=_p(lv)))
+    over("bundle", "bundle_pct", "bundle com {v} (máximo {l})")
+    over("sniper", "sniper_pct", "snipers ainda segurando {v} (máximo {l})")
+    over("top10", "top10_pct", "10 maiores (sem curva/pool) com {v} (máximo {l})")
+    if float(lim.get("funder") or 0) > 0 and s.get("funder_max_n", 0) >= 2:
+        over("funder", "funder_max_pct", "carteiras com a mesma origem do dinheiro com {v} (máximo {l})")
+    if float(lim.get("micro") or 0) > 0 and s.get("micro_pct") is not None and s.get("micro_n", 0) >= 3:
+        over("micro", "micro_pct", "{v} das últimas transações com o mesmo valor (máximo {l})")
+    return out
 
 
 async def _first(rpc: Rpc, addr: str) -> tuple[dict | None, bool]:
@@ -244,10 +302,10 @@ async def _funder(rpc: Rpc, wallet: str, now: float) -> dict:
     return {"funder": funder_of(tx, wallet), "age_s": (now - bt) if bt else None}
 
 
-DEADLINE_S = 8.0                    # 0.32.445: prazo da parte antes da compra (era 20 s na 0.32.385); o resto fica para depois
+DEADLINE_S = 10.0                   # 0.32.466: 10 s (checklist do dono: mais origens + valores repetidos). 0.32.445: prazo da parte antes da compra (era 20 s na 0.32.385); o resto fica para depois
 
 
-FAST_FUNDERS = 5                    # 0.32.445: na parte antes da compra, a origem do dinheiro só das 5 maiores (+ a do DEV; o pool costuma ser a 1ª)
+FAST_FUNDERS = 8                    # 0.32.466: 8 (agrupar pela origem do dinheiro). 0.32.445: na parte antes da compra, a origem do dinheiro só das 5 maiores (+ a do DEV; o pool costuma ser a 1ª)
 
 
 async def _until(coros: list, deadline: float, clock) -> list:
@@ -325,8 +383,10 @@ async def stage_a(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, now
         return (f or {}).get("slot")
     step2 = [rpc.call("getMultipleAccounts", [atas, {"encoding": "jsonParsed"}]),
              dev_launch() if ca else asyncio.sleep(0),
-             _funder(rpc, creator, now) if creator else asyncio.sleep(0)]
-    infos, launch, dfund = await asyncio.gather(*step2, return_exceptions=True)
+             _funder(rpc, creator, now) if creator else asyncio.sleep(0),
+             rpc.call("getSignaturesForAddress", [mint, {"limit": MICRO_N, "commitment": "confirmed"}])]
+    infos, launch, dfund, msigs = await asyncio.gather(*step2, return_exceptions=True)
+    msigs = [x["signature"] for x in (msigs if isinstance(msigs, list) else []) if not x.get("err")][:MICRO_N]
     if isinstance(infos, BaseException):
         raise infos
     if ca and isinstance(launch, int):
@@ -347,8 +407,12 @@ async def stage_a(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, now
         oinf = ((await rpc.call("getMultipleAccounts", [owners, {"encoding": "base64", "dataSlice": {"offset": 0, "length": 0}}])) or {}).get("value") or []
         return {w: (i or {}).get("owner") for w, i in zip(owners, oinf)}
     ordem = sorted(rows, key=lambda r: -r["pct"])
-    jobs = [kinds()] + [_first(rpc, r["ata"]) for r in ordem] + [_funder(rpc, r["wallet"], now) for r in ordem[:FAST_FUNDERS]]
+    nf = len(ordem[:FAST_FUNDERS])
+    jobs = ([kinds()] + [_first(rpc, r["ata"]) for r in ordem] + [_funder(rpc, r["wallet"], now) for r in ordem[:FAST_FUNDERS]]
+            + [rpc.call("getTransaction", [sg, {"encoding": "json", "maxSupportedTransactionVersion": 0, "commitment": "confirmed"}])
+               for sg in msigs])
     res = await _until(jobs, deadline, clock)
+    st["micro"] = micro([sol_of(x) if isinstance(x, dict) else None for x in res[1 + len(ordem) + nf:]])
     prog = res[0] if isinstance(res[0], dict) else {}
     for r in rows:                      # dono = programa (pool, curva, PDA) → fora da conta das pessoas
         r["kind"] = "carteira" if prog.get(r["wallet"]) in (None, SYSTEM_PROGRAM) else "programa"
@@ -357,7 +421,7 @@ async def stage_a(rpc: Rpc, mint: str, creator: str | None, top_n: int = 15, now
             f, full = x
             r["first_slot"] = None if full else (f or {}).get("slot")
             r["slot_ok"] = True
-    for r, x in zip(ordem[:FAST_FUNDERS], res[1 + len(ordem):]):
+    for r, x in zip(ordem[:FAST_FUNDERS], res[1 + len(ordem):1 + len(ordem) + nf]):
         if isinstance(x, dict) and r["kind"] == "carteira":
             r.update(x)
             r["fund_ok"] = True
@@ -408,6 +472,7 @@ def result(st: dict, alert_pct: float = 20.0, bundle_lim: float = 25.0, rpc_n: i
     out["creator_funder"] = st["creator_funder"]
     out["creator"], out["creator_src"] = st["creator"], st["creator_src"]
     out["parcial"] = len(st["pend"])
+    out.update(st.get("micro") or {})
     if rpc_n is not None:
         out["chamadas"] = rpc_n - st["n0"]
     return out

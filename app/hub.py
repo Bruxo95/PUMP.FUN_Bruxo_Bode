@@ -1926,6 +1926,15 @@ class PumpHub:
                         u.update(estado="fora", motivo="carteiras: alerta ALTO — " + str(sy.get("motivo") or ""), t=now)
                         continue
                     else:
+                        from .sybil import cuts as _cuts
+                        corte = _cuts(sy, {
+                            "bundle": getattr(c, "pump_bm_cut_bundle_pct", 15.0), "sniper": getattr(c, "pump_bm_cut_sniper_pct", 10.0),
+                            "top10": getattr(c, "pump_bm_max_top10", 30.0), "funder": getattr(c, "pump_bm_cut_funder_pct", 20.0),
+                            "micro": getattr(c, "pump_bm_cut_micro_pct", 50.0)}) if getattr(c, "pump_bm_cut_on", True) else []
+                        if corte:                      # 0.32.466: checklist do dono — qualquer ponto estourado tira o token
+                            u.update(estado="fora", motivo="corte das carteiras: " + "; ".join(corte), t=now)
+                            bm.dirty.add(m)
+                            continue
                         why += f" · carteiras: {sy.get('nivel')}"
                 # 0.32.376: entra no preço da cotação da Jupiter da observação (até 10 s). O preço guardado do token pode ser o da
                 # curva, congelado depois da migração, e daria um ganho falso.
