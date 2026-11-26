@@ -3100,6 +3100,11 @@
    "versao": "0.32.469",
    "inicio": "2026-11-26T20:09:36+00:00",
    "titulo": "Histórico dos períodos do BOOST: horários, dica no gráfico em SOL e dólar e as moedas em Acertos e Erros"
+  },
+  {
+   "versao": "0.32.470",
+   "inicio": "2026-11-26T20:48:21+00:00",
+   "titulo": "Sala: botões para ver Posições e Histórico em dólar, SOL ou ETH"
   }
  ]
 }

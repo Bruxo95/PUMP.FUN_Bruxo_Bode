@@ -1,2 +1,2 @@
 """Versão mostrada no rodapé do painel e em /health (para conferir se o redeploy pegou)."""
-VERSION = "0.32.469 · 2026-11-26 · Histórico dos períodos do BOOST: horários, dica no gráfico em SOL e dólar e as moedas em Acertos e Erros"
+VERSION = "0.32.470 · 2026-11-26 · Sala: botões para ver Posições e Histórico em dólar, SOL ou ETH"

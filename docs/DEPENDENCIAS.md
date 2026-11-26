@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-26**; revisão documental **2.0**.
-Aplicação: **0.32.469 · 2026-11-26 · Histórico dos períodos do BOOST: horários, dica no gráfico em SOL e dólar e as moedas em Acertos e Erros**.
-Referência Git na emissão: `d8954feae63df2ef0f900bbebb41b58ffaf756ed`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.470 · 2026-11-26 · Sala: botões para ver Posições e Histórico em dólar, SOL ou ETH**.
+Referência Git na emissão: `8b7afb6d5d8dbc98af0f19a4e0f212a7d650152d`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

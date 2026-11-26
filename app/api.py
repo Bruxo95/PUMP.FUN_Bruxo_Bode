@@ -159,6 +159,7 @@ def create_app(hub, auth, cfg) -> FastAPI:
         snap["real"]["allowed"] = hub.real_allowed
         snap["version"] = VERSION
         snap["started_at"] = STARTED_AT
+        snap["eth_usd"] = getattr(getattr(hub, "hood", None), "eth_usd", None)   # 0.32.470: Sala em ETH (preço já lido)
         # 0.32.3 (sugestão do Bruxo): os contadores do monitor recomeçam a cada reinício; o painel mostra desde quando
         # e o estado de cada API (ok / com erro) embaixo do menu
         snap["uptime_s"] = round(time.time() - hub.started_at)

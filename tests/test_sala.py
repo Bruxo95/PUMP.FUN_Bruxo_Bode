@@ -144,3 +144,11 @@ def test_botao_sala_de_toda_pagina_abre_a_sala_e_trocar_rede_lista_todos():
     for href in re.findall(r'class="hub-card[^"]*" href="([^"]+)"', entrar):
         assert '"' + href + '", "#' in js, href + " falta no menu Trocar rede"
     assert "hubbtn" in open(os.path.join(WEB, "botlive.html"), encoding="utf-8").read()
+
+
+def test_sala_mostra_valores_em_dolar_ou_moeda():
+    """0.32.470 (pedido do dono): botões no título do Histórico para ver Posições e Histórico em US$, SOL ou ETH."""
+    html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
+    js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert 'id="cur"' in html and "function curBar(" in js and "data-cur" in js and "S.eth_usd = js.eth_usd" in js
+    assert '"eth_usd"' in open(os.path.join(WEB, "..", "app", "api.py"), encoding="utf-8").read()

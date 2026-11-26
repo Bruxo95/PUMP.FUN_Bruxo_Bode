@@ -1217,7 +1217,13 @@
     $("posN").textContent = P.length ? "(" + P.length + ")" : "";
     // 0.32.269 (pedido do dono): lista compacta — moeda, valor de entrada e valor atual em dólares e o %
     const box = $("pos"), usd = +w.sol_usd || 0;
-    const $v = (solv) => (PRIV() ? "•••" : usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(DEC) + " " + U);
+    const moeda = curBar(usd);
+    const $v = (solv) => {
+      if (PRIV()) return "•••";
+      if (moeda === "eth" && !HOOD) return (solv * usd / S.eth_usd).toFixed(4);
+      if (moeda !== "usd") return Number(solv).toFixed(DEC);           // moeda da rede, sem a sigla (o botão aceso já diz qual é)
+      return usd ? "$" + (solv * usd).toFixed(solv * usd >= 100 ? 0 : 2) : Number(solv).toFixed(DEC) + " " + U;
+    };
     if (!P.length) { box.innerHTML = '<div class="empty">' + tr("nenhuma posição aberta agora", "no open positions right now") + "</div>"; }
     else {
       const sorted = P.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0));
@@ -1242,6 +1248,33 @@
       .sort((a, b) => b.t - a.t).slice(0, 12);
     $("run").innerHTML = items.length ? items.map((x) => x.h).join("") : '<span class="flat">HOLD! HODL! HODL!</span>';
   }
+
+  // 0.32.470 (pedido do dono): Posições e Histórico em dólar ou em moeda — clique no título do Histórico. Na pump.fun: US$,
+  // SOL (a moeda dos trades) ou ETH (convertido pelo preço de agora); na Robinhood: US$ ou ETH. A escolha fica no navegador.
+  const CURKEY = HOOD ? "sala_moeda_hood" : "sala_moeda";
+  let CUR = "usd", CURSIG = "";
+  try { CUR = localStorage.getItem(CURKEY) || "usd"; } catch (e) { /* */ }
+  function curBar(usd) {
+    const el = $("cur");
+    if (!el || FOREX) return "usd";                                    // SALA LIVE (sem os botões) e Forex seguem em dólar
+    const eth = HOOD || (usd > 0 && +S.eth_usd > 0);
+    const ops = (HOOD ? [["usd", "US$", true]] : [["usd", "US$", true], ["sol", "SOL", true]]).concat([["eth", "ETH", eth]]);
+    const sel = ops.some((o) => o[0] === CUR && o[2]) ? CUR : "usd";
+    const sig = sel + ops.map((o) => o[2]).join();
+    if (sig !== CURSIG) {                                              // só redesenha se mudou: o painel atualiza a cada 2 s
+      CURSIG = sig;
+      el.innerHTML = ops.map(([k, n, ok]) => '<button type="button" data-cur="' + k + '"' + (k === sel ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') +
+        (ok ? ' title="ver os valores em ' + n + '"' : ' disabled title="preço do ' + n + ' indisponível agora"') + ">" + n + "</button>").join("");
+    }
+    return sel;
+  }
+  if ($("cur")) $("cur").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cur]");
+    if (!b || b.disabled) return;
+    CUR = b.getAttribute("data-cur");
+    try { localStorage.setItem(CURKEY, CUR); } catch (x) { /* */ }
+    if (S.ok) render();
+  });
 
   // Robinhood: posições e trades da cópia em ETH no formato que a cena já usa
   const iso = (t) => (t ? new Date(t * 1000).toISOString() : "");
@@ -1310,6 +1343,7 @@
       S.seenPos = new Set(P.map(pid)); S.seenTr = new Set(T.map(tid));
       P.forEach((p) => { const k = pid(p), a = (S.hist[k] = S.hist[k] || []); a.push(+p.pnl_now_pct || 0); if (a.length > 60) a.shift(); });
       S.ok = true;
+      S.eth_usd = js.eth_usd;
       S.positions = P; S.trades = T; S.wallet = real ? js.real_wallet : js.wallet; S.curve = (real ? js.real_curve : js.curve) || [];
       const log = HOOD ? (js._log || []) : (js.feed || []).filter((x) => !real || /real/i.test(String(x.action || "")) || x.sim_id != null)
         .map((x) => ({ k: (x.at || "") + "|" + (x.mint || "") + "|" + (x.action || ""), h: x.at ? new Date(tms(x.at)).toLocaleTimeString("pt-BR") : "",
