@@ -22,6 +22,8 @@ def test_periodos_numerados_por_dia_e_somas():
     p1 = r["periodos"][1]
     assert p1["fechado"] and p1["trades"] == 2 and p1["ganhos"] == 1 and p1["perdas"] == 1
     assert p1["pct_ganhos_soma"] == 30 and p1["pct_perdas_soma"] == -10 and p1["acerto"] == 50
+    assert [x[2:] for x in p1["serie"]] == [[0.03, "X", 30], [-0.01, "X", -10]]      # moeda e valores das dicas da tela
+    assert p1["serie"][-1][1] == 0.02
     p2 = r["periodos"][0]
     assert not p2["fechado"] and p2["trades"] == 1                       # o trade de outra aba não entra no BOOST
     assert p2["antes_sol"] == 0.02                                      # mas conta na carteira inicial do período

@@ -2046,15 +2046,51 @@
       $("bmPerNow").innerHTML = p ? "Período <b>" + p.rotulo + "</b> em andamento · " + (p.trades ? sg(p.saldo_sol, " SOL") + " · " + p.trades + " trades" : "sem trades ainda") + " · fecha à meia-noite (Berlim)" : "Período 01 começa no primeiro trade fechado do BOOST.";
     } finally { BMPH.busy = false; }
   }
-  function perSpark(serie, w, h) {
+  // 0.32.469 (pedido do dono): horário do período, dica no gráfico (SOL e dólar) e as moedas ao passar em Acertos / Erros
+  let PER_PLOT = [];
+  const perHm = (t) => new Date(t * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
+  function perHoras(p) {
+    const S = p.serie || [];
+    return (p.fechado ? "das " + perHm(p.ini) + " às " + perHm(p.fim - 60) : "das " + perHm(p.ini) + " até agora (" + perHm(Date.now() / 1000) + ")") +
+      (S.length ? " · " + (S.length > 1 ? "trades fechados das " + perHm(S[0][0]) + " às " + perHm(S[S.length - 1][0]) : "1 trade, fechado às " + perHm(S[0][0])) : "");
+  }
+  function perCoins(p, win) {
+    const L = (p.serie || []).filter((x) => (win ? x[2] > 0 : x[2] <= 0)).sort((a, b) => (win ? b[2] - a[2] : a[2] - b[2]));
+    if (!L.length) return "";
+    return '<div class="perpop" role="tooltip"><small>' + (win ? "Moedas com ganho" : "Moedas com perda") + "</small><ul>" +
+      L.map((x) => "<li><span><b>" + esc(x[3] || "–") + "</b><i>" + perHm(x[0]) + "</i></span><span><em>" + sg(x[2], " SOL") + " " + pc(x[4]) + "</em><i>" + solUsd(x[2]) + "</i></span></li>").join("") + "</ul></div>";
+  }
+  function perTip(ev) {
+    const el = ev.target.closest && ev.target.closest("[data-perplot]");
+    document.querySelectorAll("[data-perplot]").forEach((o) => { if (o !== el) o.querySelectorAll(".cline,.cdot,.ctip").forEach((n) => { n.hidden = true; }); });
+    const c = el && PER_PLOT[+el.dataset.perplot], sv = c && el.querySelector("svg"); if (!sv) return;
+    const r = sv.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left, kx = r.width / c.w, ky = r.height / c.h;
+    let i = 0, best = Infinity;
+    c.S.forEach((x, j) => { const d = Math.abs(c.X(x[0]) * kx - cx); if (d < best) { best = d; i = j; } });
+    const x = c.S[i], px = c.X(x[0]) * kx, py = c.Y(x[1]) * ky, p = (D && D.sol_usd) || 0;
+    const L = el.querySelector(".cline"), Dt = el.querySelector(".cdot"), T = el.querySelector(".ctip");
+    L.hidden = Dt.hidden = T.hidden = false;
+    L.style.left = px + "px"; L.style.height = r.height + "px"; Dt.style.left = px + "px"; Dt.style.top = py + "px";
+    const row = (l, v) => "<span>" + l + " <b>" + v + "</b></span>", dol = (v) => (p ? " · " + solUsd(v) : "");
+    T.innerHTML = "<b>" + (i ? esc(x[3] || "–") + " · " + perHm(x[0]) : "Início do período") + "</b>" +
+      (i ? row("Este trade", sg(x[2], " SOL") + dol(x[2])) : "") +
+      row("Acumulado", sg(x[1], " SOL") + dol(x[1])) +
+      (c.ini == null ? "" : row("Carteira", s4(c.ini + x[1]) + " SOL" + (p ? " · " + usd((c.ini + x[1]) * p, 2) : ""))) +
+      (p ? '<span class="muted">dólar pelo preço do SOL de agora</span>' : "");
+    T.style.left = Math.max(0, Math.min(px - T.offsetWidth / 2, r.width - T.offsetWidth)) + "px";
+  }
+  document.addEventListener("mousemove", perTip);
+  document.addEventListener("touchstart", perTip, { passive: true });
+  function perSpark(serie, w, h, ini) {
     if (!serie || serie.length < 1) return '<p class="muted small">Sem trades neste período.</p>';
     const S = [[serie[0][0] - 1, 0]].concat(serie), xs = S.map((x) => x[0]), ys = S.map((x) => x[1]);
     const t0 = Math.min(...xs), t1 = Math.max(...xs) || t0 + 1; let lo = Math.min(0, ...ys), hi = Math.max(0, ...ys); if (hi - lo < 1e-6) { hi += 0.01; lo -= 0.01; }
     const X = (t) => 4 + (t - t0) / ((t1 - t0) || 1) * (w - 8), Y = (v) => 4 + (hi - v) / (hi - lo) * (h - 8);
     let d = ""; S.forEach((x, i) => { d += (i ? " L" : "M") + X(x[0]).toFixed(1) + " " + Y(x[1]).toFixed(1); });
     const col = ys[ys.length - 1] >= 0 ? "#22c55e" : "#ef4444";
-    return '<svg class="perspark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" role="img" aria-label="Resultado acumulado do período"><line x1="4" x2="' + (w - 4) + '" y1="' + Y(0).toFixed(1) + '" y2="' + Y(0).toFixed(1) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
-      '<path d="' + d + " L" + X(t1).toFixed(1) + " " + Y(0).toFixed(1) + " L" + X(t0).toFixed(1) + " " + Y(0).toFixed(1) + 'Z" fill="' + col + '" opacity=".14"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+    const n = PER_PLOT.push({ S, X, Y, w, h, ini }) - 1;
+    return '<div class="perplot" data-perplot="' + n + '"><svg class="perspark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" role="img" aria-label="Resultado acumulado do período"><line x1="4" x2="' + (w - 4) + '" y1="' + Y(0).toFixed(1) + '" y2="' + Y(0).toFixed(1) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
+      '<path d="' + d + " L" + X(t1).toFixed(1) + " " + Y(0).toFixed(1) + " L" + X(t0).toFixed(1) + " " + Y(0).toFixed(1) + 'Z" fill="' + col + '" opacity=".14"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg><i class="cline" hidden></i><i class="cdot" hidden></i><div class="ctip" hidden></div></div>';
   }
   function perCard(p, anchor) {
     const velho = !!p.antes_do_recomeco, delta = p.saldo_carteira_sol == null ? p.saldo_sol || 0 : p.saldo_carteira_sol;     // 0.32.465
@@ -2062,19 +2098,19 @@
     const preco = (D && D.sol_usd) || 0, bal = (v) => s4(v) + " SOL" + (preco ? '<small class="perusd muted">≈ ' + usd(v * preco, 2) + "</small>" : "");
     const res = (v) => '<small class="perusd">' + solUsd(v) + "</small>";                                 // 0.32.465 (pedido do dono): dólar
     const dia = new Date(p.ini * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
-    const kp = (l, v, s) => '<div class="perk"><small>' + l + "</small><b>" + v + "</b>" + (s ? "<span>" + s + "</span>" : "") + "</div>";
-    return '<section class="percard ' + (p.fechado ? "" : "now") + '"><header><h3>Período ' + p.rotulo + '</h3><span class="muted">' + dia + "</span>" +
+    const kp = (l, v, s, pop) => '<div class="perk' + (pop ? ' hov" tabindex="0' : "") + '"><small>' + l + "</small><b>" + v + "</b>" + (s ? "<span>" + s + "</span>" : "") + (pop || "") + "</div>";
+    return '<section class="percard ' + (p.fechado ? "" : "now") + '"><header><h3>Período ' + p.rotulo + '</h3><span class="muted">' + dia + '</span><span class="muted small perhoras">' + perHoras(p) + "</span>" +
       (p.fechado ? '<span class="tag neutral">ENCERRADO</span>' : '<span class="tag win">EM ANDAMENTO</span>') + '<span class="sp"></span><b class="perres">' + (p.trades ? sg(p.saldo_sol, " SOL") + res(p.saldo_sol) : '<span class="muted">sem trades</span>') + "</b></header>" +
       '<div class="perg">' +
       kp("Carteira no início", ini == null ? "–" : bal(ini), velho ? "antes do recomeço da carteira" : ini == null ? "carteira REAL: saldo do começo não é guardado" : p.recomecou_em ? "recomeçada em " + esc(dt(p.recomecou_em)) : "") +
       kp("Carteira no fim", fim == null ? "–" : bal(fim), cp == null ? "" : pc(cp) + " no período") +
       kp("Resultado do BOOST", p.trades ? sg(p.saldo_sol, "") + " SOL" + res(p.saldo_sol) : "–", p.pct_sobre_investido == null ? "" : pc(p.pct_sobre_investido) + " sobre o investido (" + s4(p.investido_sol) + " SOL)") +
       kp("Trades", String(p.trades), p.acerto == null ? "" : p.acerto + "% de acerto") +
-      kp("Acertos", '<span class="up">' + p.ganhos + "</span>", p.ganhos ? "soma dos ganhos <b class=\"up\">+" + f(p.pct_ganhos_soma, 1) + "%</b> · " + sg(p.ganhos_sol, " SOL") : "") +
-      kp("Erros", '<span class="down">' + p.perdas + "</span>", p.perdas ? "soma das perdas <b class=\"down\">" + f(p.pct_perdas_soma, 1) + "%</b> · " + sg(p.perdas_sol, " SOL") : "") +
+      kp("Acertos", '<span class="up">' + p.ganhos + "</span>", p.ganhos ? "soma dos ganhos <b class=\"up\">+" + f(p.pct_ganhos_soma, 1) + "%</b> · " + sg(p.ganhos_sol, " SOL") : "", p.ganhos ? perCoins(p, true) : "") +
+      kp("Erros", '<span class="down">' + p.perdas + "</span>", p.perdas ? "soma das perdas <b class=\"down\">" + f(p.pct_perdas_soma, 1) + "%</b> · " + sg(p.perdas_sol, " SOL") : "", p.perdas ? perCoins(p, false) : "") +
       kp("Melhor trade", p.melhor ? esc(p.melhor.symbol || "") : "–", p.melhor ? sg(p.melhor.sol, " SOL") + " (" + pc(p.melhor.pct) + ")" : "") +
       kp("Pior trade", p.pior ? esc(p.pior.symbol || "") : "–", p.pior ? sg(p.pior.sol, " SOL") + " (" + pc(p.pior.pct) + ")" : "") + "</div>" +
-      '<div class="perchart"><small class="muted">resultado acumulado do período, trade a trade</small>' + perSpark(p.serie, 420, 70) + "</div>" +
+      '<div class="perchart"><small class="muted">resultado acumulado do período, trade a trade</small>' + perSpark(p.serie, 420, 70, ini) + "</div>" +
       (p.lista && p.lista.length ? '<details class="perdet"><summary>Ver os ' + p.lista.length + " trades</summary><ul>" + p.lista.slice().reverse().map((t) => "<li><span>" + pfM(t.mint || "", t.symbol) + "</span><span>" + sg(t.pnl_sol, "") + " <small>" + pc(t.pnl_pct) + "</small></span></li>").join("") + "</ul></details>" : "") + "</section>";
   }
   async function openBmPer() {
@@ -2086,6 +2122,7 @@
     const anchor = rm ? (bal == null ? null : bal - (r.total_sol || 0)) : (+Wt.start_sol || 0);
     $("jtMS").textContent = "Cada período é um dia e fecha à meia-noite (horário de Berlim). O 01 começa no primeiro trade do BOOST. Resultado líquido, já com taxas. O dólar é pela cotação do SOL de agora.";
     const L = r.periodos || [];
+    PER_PLOT = [];
     const tot = L.reduce((a, p) => a + (p.saldo_sol || 0), 0), g = L.reduce((a, p) => a + (p.ganhos || 0), 0), e = L.reduce((a, p) => a + (p.perdas || 0), 0);
     $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '<small class="perusd">' + solUsd(tot) + '</small></b></div><div><small>Acertos</small><b class="up">' + g + '</b></div><div><small>Erros</small><b class="down">' + e + "</b></div></div>" + L.map((p) => perCard(p, anchor)).join("")
       : '<p class="muted">Ainda não há trade fechado do BOOST nesta carteira. O período 01 começa no primeiro.</p>';

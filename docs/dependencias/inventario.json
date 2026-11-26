@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-26",
     "timezone": "Europe/Dublin",
-    "repository_reference": "24e4dbd1032e02dcd4c0615582bfe66d6bd96eec",
-    "application_version": "0.32.468 · 2026-11-26 · Dormant: compra de MANTRA feita no site da Squid entra sozinha em Minhas compras",
+    "repository_reference": "d8954feae63df2ef0f900bbebb41b58ffaf756ed",
+    "application_version": "0.32.469 · 2026-11-26 · Histórico dos períodos do BOOST: horários, dica no gráfico em SOL e dólar e as moedas em Acertos e Erros",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "90095aaef16918d3224be6242b22372928b3000c86d2bcc330b93e43addab8b8",
+      "app/version.py": "f709c2f769f53a1790a7f2d455fff0e175d1b5c02cc25790269aed1b73a87a7c",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f0fe12c284a8b4083a1a849761396aaad11be7e2b47663ad8586237d6639ebb6"
+  "pdf_sha256": "1e5cfd981493012be5b63dbdd4be2263cdc2deb414ba87203bf73b69fe6ccdac"
 }

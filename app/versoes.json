@@ -3095,6 +3095,11 @@
    "versao": "0.32.468",
    "inicio": "2026-11-26T11:20:02+00:00",
    "titulo": "Dormant: compra de MANTRA feita no site da Squid entra sozinha em Minhas compras"
+  },
+  {
+   "versao": "0.32.469",
+   "inicio": "2026-11-26T20:09:36+00:00",
+   "titulo": "Histórico dos períodos do BOOST: horários, dica no gráfico em SOL e dólar e as moedas em Acertos e Erros"
   }
  ]
 }

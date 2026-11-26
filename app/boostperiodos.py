@@ -67,9 +67,9 @@ def build(trades: list[dict], aba_of, now: float | None = None, since: float | N
         ganhos = [p for p, s in zip(pcts, g) if s > 0]
         perdas = [p for p, s in zip(pcts, g) if s <= 0]
         cum, serie = 0.0, []
-        for (c, _t), s in zip(L, g):
-            cum += s
-            serie.append([round(c, 1), round(cum, 6)])
+        for (c, t), s, pct in zip(L, g, pcts):
+            cum += s                                  # 0.32.469: [fechou, acumulado, resultado, moeda, %] de todos os trades (dicas da tela)
+            serie.append([round(c, 1), round(cum, 6), round(s, 6), str(t.get("symbol") or "")[:24], round(pct, 2)])
         lista = [{"symbol": t.get("symbol"), "mint": t.get("mint"), "pnl_sol": round(s, 6), "pnl_pct": round(p, 2), "closed": c,
                   "reason": str(t.get("reason") or "")[:90]} for (c, t), s, p in zip(L, g, pcts)]
         mel = max(L, key=lambda x: float(x[1].get("pnl_sol") or 0))[1] if L else None
