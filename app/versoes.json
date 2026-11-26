@@ -3135,6 +3135,11 @@
    "versao": "0.32.476",
    "inicio": "2026-11-26T23:35:25+00:00",
    "titulo": "BOOST: Próximos trades com ganhou ou perdeu em SOL e dólar, próximo em azul e Ver mais"
+  },
+  {
+   "versao": "0.32.477",
+   "inicio": "2026-11-26T23:42:48+00:00",
+   "titulo": "BOOST: melhor e pior horário e horas para não participar, em cada período e no geral"
   }
  ]
 }

@@ -2,10 +2,10 @@
   "inventory": {
     "schema_version": 2,
     "document_revision": "2.0",
-    "generated_date": "2026-11-26",
+    "generated_date": "2026-11-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "7152cefa2965c8fe814e5245390b03df0ee20101",
-    "application_version": "0.32.476 · 2026-11-26 · BOOST: Próximos trades com ganhou ou perdeu em SOL e dólar, próximo em azul e Ver mais",
+    "repository_reference": "8f4d4543666eb82916a1e0252f24b416eb4cc8da",
+    "application_version": "0.32.477 · 2026-11-27 · BOOST: melhor e pior horário e horas para não participar, em cada período e no geral",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "fcc4027d06f35a847aa4a12ae3b8b2939a270875c2dac55925363e7fd348b641",
+      "app/version.py": "80ae506b3d9708fb77e89413d2813ae3e44f024bf3c08258b447e42be6ba4758",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "8c1e2b8f1f015dd3d595f931faebacf4de3a6ccafd355807f4f938eb2ef82515"
+  "pdf_sha256": "a6143ab2eb07c127c1e881c1c003694aa216745ef42a7b29b2b456504be16fc7"
 }

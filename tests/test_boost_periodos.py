@@ -39,3 +39,30 @@ def test_dia_sem_trade_continua_contando_e_ganho_falso_fica_fora():
 
 def test_sem_trades_do_boost():
     assert boostperiodos.build([], lambda t: "x")["periodos"] == []
+
+
+def test_horarios_do_periodo_e_geral():
+    """0.32.477: melhor, médio e pior horário pela hora da compra; ficar de fora só com base no geral."""
+    L = []
+    for dia in (22, 23, 24):
+        L += [_trade(_t(dia, 10, 5), 0.03, 30), _trade(_t(dia, 14, 5), -0.001, -1)]
+        L += [_trade(_t(dia, 2, m), -0.01, -10) for m in (1, 2)]
+    L.append(_trade(_t(24, 18), -0.5, -50))                      # um dia só: fica em "observar"
+    r = boostperiodos.build(L, lambda t: t["aba"], now=_t(24, 23).timestamp())
+    g = r["horarios"]
+    assert (g["melhor"]["hora"], g["medio"]["hora"], g["pior"]["hora"]) == (10, 2, 18)
+    assert [x["hora"] for x in g["lucro"]] == [10]
+    assert [x["hora"] for x in g["sempre_perda"]] == [2, 14]
+    assert g["evitar"] == [[2, 3]] and [x["hora"] for x in g["observar"]] == [14, 18]       # 14h: só 3 trades
+    assert g["evitar_sol"] == -0.06 and round(g["sem_evitar_sol"] - g["total_sol"], 6) == 0.06
+    p = r["periodos"][0]["horarios"]                             # o período de um dia: toda hora no prejuízo
+    assert p["evitar"] == [[2, 3], [14, 15], [18, 19]] and p["observar"] == []
+    assert [x["hora"] for x in p["sempre_perda"]] == [2, 14, 18]
+
+
+def test_horarios_usa_a_hora_da_compra_e_junta_horas_seguidas():
+    t = _trade(_t(24, 11, 2), 0.01, 10)
+    t["opened_at"] = _t(24, 10, 58).isoformat()
+    assert boostperiodos.horarios([(_t(24, 11, 2).timestamp(), t)])["melhor"]["hora"] == 10
+    assert boostperiodos.faixas({5, 0, 1, 23}) == [[0, 2], [5, 6], [23, 24]]
+    assert boostperiodos.horarios([]) is None

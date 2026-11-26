@@ -2296,6 +2296,31 @@
     return '<div class="perplot" data-perplot="' + n + '"><svg class="perspark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" role="img" aria-label="Resultado acumulado do período"><line x1="4" x2="' + (w - 4) + '" y1="' + Y(0).toFixed(1) + '" y2="' + Y(0).toFixed(1) + '" stroke="#5d5d66" stroke-dasharray="3 4" opacity=".6"/>' +
       '<path d="' + d + " L" + X(t1).toFixed(1) + " " + Y(0).toFixed(1) + " L" + X(t0).toFixed(1) + " " + Y(0).toFixed(1) + 'Z" fill="' + col + '" opacity=".14"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg><i class="cline" hidden></i><i class="cdot" hidden></i><div class="ctip" hidden></div></div>';
   }
+  // 0.32.477 (pedido do dono, 27/11): em que horas o BOOST ganha e perde (melhor, médio, pior, só perda, ficar de fora), em cada
+  // período e no geral. A conta é do servidor (boostperiodos.horarios); aqui só mostra.
+  const perH = (h) => String(h % 24).padStart(2, "0") + "h";
+  const perFx = (a, b) => "das " + perH(a) + " às " + perH(b === undefined ? a + 1 : b);
+  function perHorarios(H, geral) {
+    if (!H) return "";
+    const nt = (x) => x.trades + (x.trades > 1 ? " trades" : " trade") + " · " + x.ganhos + (x.ganhos === 1 ? " ganhou" : " ganharam") + (geral ? " · " + x.dias + (x.dias > 1 ? " dias" : " dia") : "");
+    const box = (l, x, vazio) => '<div class="perk"><small>' + l + "</small><b>" + (x ? perFx(x.hora) : "–") + "</b><span>" +
+      (x ? sg(x.saldo_sol, " SOL") + (solUsd(x.saldo_sol) ? " · " + solUsd(x.saldo_sol) : "") + "<br>" + nt(x) : vazio) + "</span></div>";
+    const chips = (t, L, c, vazio) => '<div class="perhl"><small>' + t + "</small>" + (L.length ? '<ul class="perchips">' + L.map((x) => '<li class="' + c + '"><b>' + perH(x.hora) + "–" + perH(x.hora + 1) + "</b><span>" + sg(x.saldo_sol, " SOL") + (solUsd(x.saldo_sol) ? " · " + solUsd(x.saldo_sol) : "") + "</span>" +
+      "<i>" + x.ganhos + " de " + x.trades + (x.trades > 1 ? " ganharam" : " ganhou") + (geral ? " · " + x.dias + (x.dias > 1 ? " dias" : " dia") : "") + "</i></li>").join("") + "</ul>" : '<p class="muted small">' + vazio + "</p>") + "</div>";
+    const fora = (H.evitar || []).map((x) => perFx(x[0], x[1]));
+    const resumo = fora.length
+      ? '<div class="peravoid"><small>' + (geral ? "Resumo: horas para NÃO participar" : "Neste período, ficar de fora") + "</small><b>" + fora.join(" · ") + "</b><span>Esses horários somaram " + sg(H.evitar_sol, " SOL") + " (" + solUsd(H.evitar_sol) + ") em " + H.evitar_trades + (H.evitar_trades > 1 ? " trades" : " trade") +
+        ". Sem eles o resultado seria " + sg(H.sem_evitar_sol, " SOL") + " (" + solUsd(H.sem_evitar_sol) + ") em vez de " + sg(H.total_sol, " SOL") + ". Também ficariam de fora " + H.evitar_ganhos + (H.evitar_ganhos === 1 ? " trade que ganhou" : " trades que ganharam") + ".</span></div>"
+      : '<div class="peravoid ok"><small>' + (geral ? "Resumo: horas para NÃO participar" : "Neste período, ficar de fora") + "</small><b>Nenhum horário</b><span>" + (geral && H.regra ? "Nenhuma hora no prejuízo tem ainda a base mínima (" + H.regra.trades + " trades em " + H.regra.dias + " dias, perdendo em 2 de cada 3)." : "Nenhuma hora fechou no prejuízo.") + "</span></div>";
+    return '<div class="perhr"><h4>' + (geral ? "Horários no geral (todos os períodos)" : "Horários deste período") + "</h4>" +
+      '<div class="perhr3">' + box("Melhor horário", H.melhor, "") + box("Horário médio", H.medio, "precisa de 3 horas com trade") + box("Pior horário", H.pior, "só uma hora com trade") + "</div>" +
+      '<p class="muted small">Média por hora com trade: ' + sg(H.media_hora_sol, " SOL") + ". O horário médio é o do meio, do melhor para o pior.</p>" +
+      chips("Horas que mais dão lucro", H.lucro || [], "up", "Nenhuma hora no lucro.") +
+      chips(geral ? "Horas que deram prejuízo em todos os dias (2 ou mais)" : "Horas só com perda (nenhum ganho)", H.sempre_perda || [], "down", geral ? "Nenhuma hora perdeu em todos os dias." : "Nenhuma hora ficou só com perda.") +
+      resumo + (geral && (H.observar || []).length ? chips("No prejuízo, mas ainda com poucos dados ou sem repetir (só observar)", H.observar, "warn", "") : "") +
+      '<details class="perdet"><summary>Ver hora por hora</summary><ul>' + (H.horas || []).map((x) => "<li><span>" + perFx(x.hora) + ' <small class="muted">' + nt(x) + "</small></span><span>" + sg(x.saldo_sol, "") + " <small>" + solUsd(x.saldo_sol) + "</small></span></li>").join("") + "</ul></details>" +
+      (geral ? '<p class="muted small">Horário de Berlim, pela hora em que a compra entrou. É o que já aconteceu: não garante o que vai acontecer, e tirar horários olhando o passado sempre parece melhor do que será. Só mostra: o BOOST continua comprando em qualquer hora.</p>' : "") + "</div>";
+  }
   function perCard(p, anchor) {
     const velho = !!p.antes_do_recomeco, delta = p.saldo_carteira_sol == null ? p.saldo_sol || 0 : p.saldo_carteira_sol;     // 0.32.465
     const ini = anchor == null || velho ? null : anchor + (p.antes_sol || 0), fim = ini == null ? null : ini + delta, cp = ini ? (fim - ini) / ini * 100 : null;
@@ -2314,7 +2339,7 @@
       kp("Erros", '<span class="down">' + p.perdas + "</span>", p.perdas ? "soma das perdas <b class=\"down\">" + f(p.pct_perdas_soma, 1) + "%</b> · " + sg(p.perdas_sol, " SOL") : "", p.perdas ? perCoins(p, false) : "") +
       kp("Melhor trade", p.melhor ? esc(p.melhor.symbol || "") : "–", p.melhor ? sg(p.melhor.sol, " SOL") + " (" + pc(p.melhor.pct) + ")" : "") +
       kp("Pior trade", p.pior ? esc(p.pior.symbol || "") : "–", p.pior ? sg(p.pior.sol, " SOL") + " (" + pc(p.pior.pct) + ")" : "") + "</div>" +
-      '<div class="perchart"><small class="muted">resultado acumulado do período, trade a trade</small>' + perSpark(p.serie, 420, 70, ini) + "</div>" +
+      '<div class="perchart"><small class="muted">resultado acumulado do período, trade a trade</small>' + perSpark(p.serie, 420, 70, ini) + "</div>" + perHorarios(p.horarios, false) +
       (p.lista && p.lista.length ? '<details class="perdet"><summary>Ver os ' + p.lista.length + " trades</summary><ul>" + p.lista.slice().reverse().map((t) => "<li><span>" + pfM(t.mint || "", t.symbol) + "</span><span>" + sg(t.pnl_sol, "") + " <small>" + pc(t.pnl_pct) + "</small></span></li>").join("") + "</ul></details>" : "") + "</section>";
   }
   async function openBmPer() {
@@ -2328,7 +2353,7 @@
     const L = r.periodos || [];
     PER_PLOT = [];
     const tot = L.reduce((a, p) => a + (p.saldo_sol || 0), 0), g = L.reduce((a, p) => a + (p.ganhos || 0), 0), e = L.reduce((a, p) => a + (p.perdas || 0), 0);
-    $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '<small class="perusd">' + solUsd(tot) + '</small></b></div><div><small>Acertos</small><b class="up">' + g + '</b></div><div><small>Erros</small><b class="down">' + e + "</b></div></div>" + L.map((p) => perCard(p, anchor)).join("")
+    $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '<small class="perusd">' + solUsd(tot) + '</small></b></div><div><small>Acertos</small><b class="up">' + g + '</b></div><div><small>Erros</small><b class="down">' + e + "</b></div></div>" + (r.horarios ? '<section class="percard pergeral">' + perHorarios(r.horarios, true) + "</section>" : "") + L.map((p) => perCard(p, anchor)).join("")
       : '<p class="muted">Ainda não há trade fechado do BOOST nesta carteira. O período 01 começa no primeiro.</p>';
   }
   document.addEventListener("click", (e) => { if (e.target.closest("#bmPerBtn")) openBmPer(); });
