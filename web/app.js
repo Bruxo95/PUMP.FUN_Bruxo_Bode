@@ -18,6 +18,9 @@
   const usd = (v, d = 0) => (v == null ? "–" : "$" + f(v, d));
   // 0.32.444 (pedido do dono): o mesmo resultado em dólar, pelo preço do SOL de agora
   const solUsd = (sol) => { const p = (D && D.sol_usd) || 0; return p && sol != null && isFinite(sol) ? '<span class="' + cls(sol) + '">' + (sol > 0 ? "+" : sol < 0 ? "−" : "") + "$" + f(Math.abs(sol * p), 2) + "</span>" : ""; };
+  // 0.32.490 (pedido do dono): dólar embaixo de um valor sem sinal (investido, taxas pagas)
+  const usdN = (sol) => { const p = (D && D.sol_usd) || 0; return p && sol != null && isFinite(sol) ? "$" + f(Math.abs(sol * p), 2) : ""; };
+  const usdSub = (sol, neutro) => { const v = neutro ? usdN(sol) : solUsd(sol); return v ? '<small class="usdv">' + v + "</small>" : ""; };
   const usdS = (v) => (v == null ? "–" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : v < 0 ? "−" : "") + "$" + f(Math.abs(v), 0) + "</span>");
   const uk = (v) => (v == null ? "–" : v >= 1e6 ? "$" + f(v / 1e6, 2) + " M" : v >= 1e3 ? "$" + f(v / 1e3, 1) + " mil" : "$" + f(v, 0));
   // 0.32.51 (pedido do dono): preço pequeno com os zeros contados, como na pump.fun/DexScreener — 0,0₆3831 = 0,0000003831
@@ -2371,13 +2374,13 @@
       kp("Carteira no início", ini == null ? "–" : bal(ini), velho ? "antes do recomeço da carteira" : ini == null ? "carteira REAL: saldo do começo não é guardado" : p.recomecou_em ? "recomeçada em " + esc(dt(p.recomecou_em)) : "") +
       kp("Carteira no fim", fim == null ? "–" : bal(fim), cp == null ? "" : pc(cp) + " no período") +
       kp("Resultado do BOOST", p.trades ? sg(p.saldo_sol, "") + " SOL" + res(p.saldo_sol) : "–", p.pct_sobre_investido == null ? "" : pc(p.pct_sobre_investido) + " sobre o investido (" + s4(p.investido_sol) + " SOL)") +
-      kp("Trades", String(p.trades), p.acerto == null ? "" : p.acerto + "% de acerto") +
-      kp("Acertos", '<span class="up">' + p.ganhos + "</span>", p.ganhos ? "soma dos ganhos <b class=\"up\">+" + f(p.pct_ganhos_soma, 1) + "%</b> · " + sg(p.ganhos_sol, " SOL") : "", p.ganhos ? perCoins(p, true) : "") +
-      kp("Erros", '<span class="down">' + p.perdas + "</span>", p.perdas ? "soma das perdas <b class=\"down\">" + f(p.pct_perdas_soma, 1) + "%</b> · " + sg(p.perdas_sol, " SOL") : "", p.perdas ? perCoins(p, false) : "") +
-      kp("Melhor trade", p.melhor ? esc(p.melhor.symbol || "") : "–", p.melhor ? sg(p.melhor.sol, " SOL") + " (" + pc(p.melhor.pct) + ")" : "") +
-      kp("Pior trade", p.pior ? esc(p.pior.symbol || "") : "–", p.pior ? sg(p.pior.sol, " SOL") + " (" + pc(p.pior.pct) + ")" : "") + "</div>" +
+      kp("Trades", String(p.trades), (p.acerto == null ? "" : p.acerto + "% de acerto") + (p.investido_sol ? '<small class="perusd muted">investido ' + s4(p.investido_sol) + " SOL ≈ " + usdN(p.investido_sol) + "</small>" : "")) +
+      kp("Acertos", '<span class="up">' + p.ganhos + "</span>", p.ganhos ? "soma dos ganhos <b class=\"up\">+" + f(p.pct_ganhos_soma, 1) + "%</b> · " + sg(p.ganhos_sol, " SOL") + res(p.ganhos_sol) : "", p.ganhos ? perCoins(p, true) : "") +
+      kp("Erros", '<span class="down">' + p.perdas + "</span>", p.perdas ? "soma das perdas <b class=\"down\">" + f(p.pct_perdas_soma, 1) + "%</b> · " + sg(p.perdas_sol, " SOL") + res(p.perdas_sol) : "", p.perdas ? perCoins(p, false) : "") +
+      kp("Melhor trade", p.melhor ? esc(p.melhor.symbol || "") : "–", p.melhor ? sg(p.melhor.sol, " SOL") + " (" + pc(p.melhor.pct) + ")" + res(p.melhor.sol) : "") +
+      kp("Pior trade", p.pior ? esc(p.pior.symbol || "") : "–", p.pior ? sg(p.pior.sol, " SOL") + " (" + pc(p.pior.pct) + ")" + res(p.pior.sol) : "") + "</div>" +
       '<div class="perchart"><small class="muted">resultado acumulado do período, trade a trade</small>' + perSpark(p.serie, 420, 70, ini) + "</div>" + perHorarios(p.horarios, false) +
-      (p.lista && p.lista.length ? '<details class="perdet"><summary>Ver os ' + p.lista.length + " trades</summary><ul>" + p.lista.slice().reverse().map((t) => "<li><span>" + pfM(t.mint || "", t.symbol) + "</span><span>" + sg(t.pnl_sol, "") + " <small>" + pc(t.pnl_pct) + "</small></span></li>").join("") + "</ul></details>" : "") + "</section>";
+      (p.lista && p.lista.length ? '<details class="perdet"><summary>Ver os ' + p.lista.length + " trades</summary><ul>" + p.lista.slice().reverse().map((t) => "<li><span>" + pfM(t.mint || "", t.symbol) + "</span><span>" + sg(t.pnl_sol, "") + " <small>" + pc(t.pnl_pct) + "</small> <small>" + solUsd(t.pnl_sol) + "</small></span></li>").join("") + "</ul></details>" : "") + "</section>";
   }
   async function openBmPer() {
     const rm = realMode();
@@ -2390,7 +2393,8 @@
     const L = r.periodos || [];
     PER_PLOT = [];
     const tot = L.reduce((a, p) => a + (p.saldo_sol || 0), 0), g = L.reduce((a, p) => a + (p.ganhos || 0), 0), e = L.reduce((a, p) => a + (p.perdas || 0), 0);
-    $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '<small class="perusd">' + solUsd(tot) + '</small></b></div><div><small>Acertos</small><b class="up">' + g + '</b></div><div><small>Erros</small><b class="down">' + e + "</b></div></div>" + (r.horarios ? '<section class="percard pergeral">' + perHorarios(r.horarios, true) + "</section>" : "") + L.map((p) => perCard(p, anchor)).join("")
+    const gs = L.reduce((a, p) => a + (p.ganhos_sol || 0), 0), es = L.reduce((a, p) => a + (p.perdas_sol || 0), 0);   // 0.32.490: em dólar também
+    $("jtMB").innerHTML = L.length ? '<div class="perhead"><div><small>Períodos</small><b>' + L.length + '</b></div><div><small>Resultado de todos</small><b>' + sg(tot, " SOL") + '<small class="perusd">' + solUsd(tot) + '</small></b></div><div><small>Acertos</small><b class="up">' + g + '</b><small class="perusd">' + sg(gs, " SOL") + (solUsd(gs) ? " · " + solUsd(gs) : "") + '</small></div><div><small>Erros</small><b class="down">' + e + '</b><small class="perusd">' + sg(es, " SOL") + (solUsd(es) ? " · " + solUsd(es) : "") + "</small></div></div>" + (r.horarios ? '<section class="percard pergeral">' + perHorarios(r.horarios, true) + "</section>" : "") + L.map((p) => perCard(p, anchor)).join("")
       : '<p class="muted">Ainda não há trade fechado do BOOST nesta carteira. O período 01 começa no primeiro.</p>';
   }
   document.addEventListener("click", (e) => { if (e.target.closest("#bmPerBtn")) openBmPer(); });
@@ -4223,7 +4227,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   // 0.32.201 (pedido do dono): ganho antes das taxas, taxas pagas e líquido de cada trade. Trade antigo sem taxa guardada fica "–"
   const hGross = (t) => (t.gross_sol != null ? t.gross_sol : t.fees_sol != null ? (t.pnl_sol || 0) + t.fees_sol : null);
-  const hFees = (g, fee, net) => '<div class="abc-n hc-f"><div><small>' + (g != null && g < 0 ? "Perda geral" : "Ganho geral") + "</small><b>" + (g == null ? "–" : sg(g, "")) + "</b></div><div><small>Taxas pagas</small><b>" + (fee == null ? "–" : s4(fee)) + "</b></div><div><small>Líquido</small><b>" + sg(net, "") + "</b></div></div>";
+  const hFees = (g, fee, net) => '<div class="abc-n hc-f"><div><small>' + (g != null && g < 0 ? "Perda geral" : "Ganho geral") + "</small><b>" + (g == null ? "–" : sg(g, "") + usdSub(g)) + "</b></div><div><small>Taxas pagas</small><b>" + (fee == null ? "–" : s4(fee) + usdSub(fee, true)) + "</b></div><div><small>Líquido</small><b>" + sg(net, "") + usdSub(net) + "</b></div></div>";
   function openTradeDet(t) {
     const row = (k, v) => "<tr><td><b>" + k + "</b></td><td>" + v + "</td></tr>", gross = hGross(t), fp = t.fee_parts || {};
     const partes = [["plataforma", fp.platform], ["PumpPortal", fp.portal], ["rede", fp.network]].filter((x) => x[1] > 0).map((x) => x[0] + " " + s4(x[1])).join(" · ");
@@ -6193,7 +6197,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       '<div class="hrep-s">Todo o tempo</div><div class="hreps">' + (rp(TR.todo) || '<span class="muted small">Nenhum trader com 2 trades ou mais.</span>') + '</div><div class="hrep-s">Últimas 24 h</div><div class="hreps">' + (rp(TR.h24) || '<span class="muted small">Nenhum trader com 2 trades ou mais nas últimas 24 h.</span>') + "</div>");
     HIST_C = NW; HIST_L = V;
     hSet("hCards", V.map((t, i) => '<div class="abc hc" data-htrade="' + i + '" role="button" tabindex="0"><div class="abc-t"><b>' + esc(t.symbol || "?") + '</b><span class="sp"></span><b class="hc-r">' + sg(t.pnl_sol, "") + '<small class="usdv">' + solUsd(t.pnl_sol) + "</small></b></div>" +
-      '<div class="hc-a">' + abaTag(t) + (t.bm_pct == null ? "" : " " + bmReforco(t)) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + "</b></div></div>" + hFees(hGross(t), t.fees_sol, t.pnl_sol) + '<div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">' + (HIST.w ? "Os trades deste trader são mais antigos que os " + A.length + " carregados no painel." : "Nenhum trade com esse filtro.") + "</p>");
+      '<div class="hc-a">' + abaTag(t) + (t.bm_pct == null ? "" : " " + bmReforco(t)) + "</div>" + hWho(t) + '<div class="abc-d hc-m">' + esc(t.reason || "") + '</div><div class="abc-n"><div><small>%</small><b>' + pc(t.pnl_pct) + "</b></div><div><small>Investido</small><b>" + s4(t.sol_in) + usdSub(t.sol_in, true) + "</b></div><div><small>Segurou</small><b>" + hms(t.hold_s) + "</b></div></div>" + hFees(hGross(t), t.fees_sol, t.pnl_sol) + '<div class="muted small">' + dt(t.closed_at) + "</div></div>").join("") || '<p class="muted">' + (HIST.w ? "Os trades deste trader são mais antigos que os " + A.length + " carregados no painel." : "Nenhum trade com esse filtro.") + "</p>");
     $("hMore").hidden = T.length <= V.length; $("hMore").textContent = "Ver mais (" + (T.length - V.length) + " restantes)";
     hSet("hByC", BY.map((b) => '<div class="abc"><div class="abc-t"><div class="hc-w">' + abaTag(b.t) + hWho(b.t) + '</div><span class="sp"></span><b class="hc-r">' + sg(b.p, "") + '<small class="usdv">' + solUsd(b.p) + '</small></b></div><div class="abc-n"><div><small>%</small><b>' + (b.inv ? pc(b.p / b.inv * 100) : "–") + "</b></div><div><small>Trades</small><b>" + b.n + "</b></div><div><small>Acerto</small><b>" + f((b.w / b.n) * 100, 0) + "%</b></div></div>" + hFees(b.gn ? b.g : null, b.fn ? b.fee : null, b.p) + "</div>").join("") || '<p class="muted">Sem trades fechados ainda.</p>');
     if ($("tPart")) table("tPart", ["Quando", "Token", "Trader", "Vendeu", "Recebeu", "Motivo", "Transação"], PS, "Nenhuma venda parcial em posição aberta.");
