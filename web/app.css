@@ -1322,3 +1322,26 @@ label.chgrp{cursor:pointer}
 .peravoid span span{font-size:inherit}.peravoid span span.up{color:var(--up)}.peravoid span span.down{color:var(--down)}
 .pergeral{margin-bottom:12px}.pergeral .perhr{margin:0;border:0;padding:0}
 @media (max-width:640px){.perhr3{grid-template-columns:1fr}}
+
+/* 0.32.478 (pedido do dono, 27/11): horários fechados numa linha com a faixa das 24 h, e cada período com cor na lateral */
+.perhr>summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.perhr>summary::-webkit-details-marker{display:none}
+.perhrt{display:flex;align-items:center;gap:6px;flex-wrap:wrap;position:relative;padding-right:22px}.perhrt>b{font-size:14px;margin-right:4px}.perhrt .sp{flex:1}
+.perpill{font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.perpill.up{color:var(--up);background:var(--up-bg);border-color:rgba(34,197,94,.35)}
+.perpill.down{color:var(--down);background:var(--down-bg);border-color:rgba(239,68,68,.35)}
+.perarw{position:absolute;right:6px;top:6px;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 4px 3px;transition:transform .15s}
+.perhr[open] .perarw{transform:rotate(225deg);top:10px}
+.perhr>summary:hover .perarw{border-color:var(--text)}
+.perhr[open]>summary{margin-bottom:10px}
+.perfx{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px}
+.perfx i{height:18px;border-radius:3px;background:rgba(255,255,255,.05)}
+.perfx i.u1{background:rgba(34,197,94,.3)}.perfx i.u2{background:rgba(34,197,94,.5)}.perfx i.u3{background:rgba(34,197,94,.72)}.perfx i.u4{background:#22c55e}
+.perfx i.d1{background:rgba(239,68,68,.3)}.perfx i.d2{background:rgba(239,68,68,.5)}.perfx i.d3{background:rgba(239,68,68,.72)}.perfx i.d4{background:#ef4444}
+.perfxh{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);font-style:normal}.perfxh i{font-style:normal}
+.percard{border-left-width:4px}
+.percard.pos{border-left-color:#22c55e}.percard.neg{border-left-color:#ef4444}.percard.zero{border-left-color:var(--line2)}
+.percard+.percard{margin-top:18px}
+.pernum{font-family:var(--mono);font-size:13px;font-weight:700;min-width:30px;text-align:center;padding:3px 6px;border-radius:6px;background:rgba(255,255,255,.06)}
+.percard.pos .pernum{color:var(--up);background:var(--up-bg)}.percard.neg .pernum{color:var(--down);background:var(--down-bg)}
+.pergeral{border-left:1px solid var(--line,rgba(255,255,255,.1))}

@@ -2312,14 +2312,34 @@
       ? '<div class="peravoid"><small>' + (geral ? "Resumo: horas para NÃO participar" : "Neste período, ficar de fora") + "</small><b>" + fora.join(" · ") + "</b><span>Esses horários somaram " + sg(H.evitar_sol, " SOL") + " (" + solUsd(H.evitar_sol) + ") em " + H.evitar_trades + (H.evitar_trades > 1 ? " trades" : " trade") +
         ". Sem eles o resultado seria " + sg(H.sem_evitar_sol, " SOL") + " (" + solUsd(H.sem_evitar_sol) + ") em vez de " + sg(H.total_sol, " SOL") + ". Também ficariam de fora " + H.evitar_ganhos + (H.evitar_ganhos === 1 ? " trade que ganhou" : " trades que ganharam") + ".</span></div>"
       : '<div class="peravoid ok"><small>' + (geral ? "Resumo: horas para NÃO participar" : "Neste período, ficar de fora") + "</small><b>Nenhum horário</b><span>" + (geral && H.regra ? "Nenhuma hora no prejuízo tem ainda a base mínima (" + H.regra.trades + " trades em " + H.regra.dias + " dias, perdendo em 2 de cada 3)." : "Nenhuma hora fechou no prejuízo.") + "</span></div>";
-    return '<div class="perhr"><h4>' + (geral ? "Horários no geral (todos os períodos)" : "Horários deste período") + "</h4>" +
+    // 0.32.478 (pedido do dono, 27/11): o quadro aberto deixava a janela grande e poluída. Agora fica fechado numa linha
+    // (melhor, pior, ficar de fora) com a faixa das 24 horas, e a seta abre o detalhe.
+    const pill = (c, t) => '<span class="perpill ' + c + '">' + t + "</span>";
+    const topo = (H.melhor ? pill("up", "melhor " + perH(H.melhor.hora) + "–" + perH(H.melhor.hora + 1)) : "") +
+      (H.pior && (!H.melhor || H.pior.hora !== H.melhor.hora) ? pill(H.pior.saldo_sol < 0 ? "down" : "neutral", "pior " + perH(H.pior.hora) + "–" + perH(H.pior.hora + 1)) : "") +
+      (fora.length ? pill("down", "ficar de fora: " + fora.length + (fora.length > 1 ? " faixas" : " faixa")) : "");
+    return '<details class="perhr"><summary><span class="perhrt"><b>' + (geral ? "Horários no geral (todos os períodos)" : "Horários deste período") + "</b>" + topo +
+      '<span class="sp"></span><i class="perarw" aria-hidden="true"></i></span>' + perFaixa(H.horas || [], geral) + "</summary>" +
       '<div class="perhr3">' + box("Melhor horário", H.melhor, "") + box("Horário médio", H.medio, "precisa de 3 horas com trade") + box("Pior horário", H.pior, "só uma hora com trade") + "</div>" +
       '<p class="muted small">Média por hora com trade: ' + sg(H.media_hora_sol, " SOL") + ". O horário médio é o do meio, do melhor para o pior.</p>" +
       chips("Horas que mais dão lucro", H.lucro || [], "up", "Nenhuma hora no lucro.") +
       chips(geral ? "Horas que deram prejuízo em todos os dias (2 ou mais)" : "Horas só com perda (nenhum ganho)", H.sempre_perda || [], "down", geral ? "Nenhuma hora perdeu em todos os dias." : "Nenhuma hora ficou só com perda.") +
       resumo + (geral && (H.observar || []).length ? chips("No prejuízo, mas ainda com poucos dados ou sem repetir (só observar)", H.observar, "warn", "") : "") +
       '<details class="perdet"><summary>Ver hora por hora</summary><ul>' + (H.horas || []).map((x) => "<li><span>" + perFx(x.hora) + ' <small class="muted">' + nt(x) + "</small></span><span>" + sg(x.saldo_sol, "") + " <small>" + solUsd(x.saldo_sol) + "</small></span></li>").join("") + "</ul></details>" +
-      (geral ? '<p class="muted small">Horário de Berlim, pela hora em que a compra entrou. É o que já aconteceu: não garante o que vai acontecer, e tirar horários olhando o passado sempre parece melhor do que será. Só mostra: o BOOST continua comprando em qualquer hora.</p>' : "") + "</div>";
+      (geral ? '<p class="muted small">Horário de Berlim, pela hora em que a compra entrou. É o que já aconteceu: não garante o que vai acontecer, e tirar horários olhando o passado sempre parece melhor do que será. Só mostra: o BOOST continua comprando em qualquer hora.</p>' : "") + "</details>";
+  }
+  // 0.32.478: faixa das 24 horas (verde ganhou, vermelho perdeu, cinza sem trade); a cor fica mais forte quanto maior o valor
+  // perto da maior hora do quadro. Classes em vez de style="" porque a CSP do painel não deixa estilo inline.
+  function perFaixa(horas, geral) {
+    const M = {}; let mx = 0;
+    horas.forEach((x) => { M[x.hora % 24] = x; mx = Math.max(mx, Math.abs(x.saldo_sol || 0)); });
+    let h = '<span class="perfx" role="img" aria-label="Resultado por hora do dia">';
+    for (let i = 0; i < 24; i++) {
+      const x = M[i], v = x ? x.saldo_sol || 0 : 0, n = x && mx ? Math.min(4, Math.max(1, Math.ceil(Math.abs(v) / mx * 4))) : 0;
+      const t = perH(i) + "–" + perH(i + 1) + (x ? " · " + (v > 0 ? "+" : "") + s4(v) + " SOL · " + x.ganhos + " de " + x.trades + (x.trades > 1 ? " ganharam" : " ganhou") + (geral ? " · " + x.dias + (x.dias > 1 ? " dias" : " dia") : "") : " · sem trade");
+      h += '<i class="' + (x ? (v >= 0 ? "u" : "d") + n : "z") + '" title="' + t + '"></i>';
+    }
+    return h + '</span><span class="perfxh" aria-hidden="true"><i>00h</i><i>06h</i><i>12h</i><i>18h</i><i>24h</i></span>';
   }
   function perCard(p, anchor) {
     const velho = !!p.antes_do_recomeco, delta = p.saldo_carteira_sol == null ? p.saldo_sol || 0 : p.saldo_carteira_sol;     // 0.32.465
@@ -2328,7 +2348,10 @@
     const res = (v) => '<small class="perusd">' + solUsd(v) + "</small>";                                 // 0.32.465 (pedido do dono): dólar
     const dia = new Date(p.ini * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
     const kp = (l, v, s, pop) => '<div class="perk' + (pop ? ' hov" tabindex="0' : "") + '"><small>' + l + "</small><b>" + v + "</b>" + (s ? "<span>" + s + "</span>" : "") + (pop || "") + "</div>";
-    return '<section class="percard ' + (p.fechado ? "" : "now") + '"><header><h3>Período ' + p.rotulo + '</h3><span class="muted">' + dia + '</span><span class="muted small perhoras">' + perHoras(p) + "</span>" +
+    // 0.32.478 (pedido do dono): faixa de cor na lateral (verde lucro, vermelho prejuízo) e o número em destaque, para um período
+    // não se misturar com o outro.
+    const lado = !p.trades ? "zero" : (p.saldo_sol || 0) >= 0 ? "pos" : "neg";
+    return '<section class="percard ' + lado + (p.fechado ? "" : " now") + '"><header><span class="pernum">' + p.rotulo + '</span><h3>Período ' + p.rotulo + '</h3><span class="muted">' + dia + '</span><span class="muted small perhoras">' + perHoras(p) + "</span>" +
       (p.fechado ? '<span class="tag neutral">ENCERRADO</span>' : '<span class="tag win">EM ANDAMENTO</span>') + '<span class="sp"></span><b class="perres">' + (p.trades ? sg(p.saldo_sol, " SOL") + res(p.saldo_sol) : '<span class="muted">sem trades</span>') + "</b></header>" +
       '<div class="perg">' +
       kp("Carteira no início", ini == null ? "–" : bal(ini), velho ? "antes do recomeço da carteira" : ini == null ? "carteira REAL: saldo do começo não é guardado" : p.recomecou_em ? "recomeçada em " + esc(dt(p.recomecou_em)) : "") +
