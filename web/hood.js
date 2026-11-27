@@ -660,11 +660,22 @@
     const tagO = (x) => { const o = hiOrig(x);
       return o === "cacador" ? '<span class="tag pause">CAÇADOR' + (x.cz && x.cz.entrada ? " " + esc(x.cz.entrada) : "") + "</span>" + (x.cz ? ' <span class="tag neutral">entrada ' + esc(x.cz.entrada || "") + " · alvo +" + num(x.cz.alvo, 0) + "% · stop −" + num(x.cz.stop, 0) + "%</span>" : "")
         : o === "botao" ? '<span class="tag neutral">BOTÃO COMPRAR</span>' : '<span class="tag win">CÓPIA DE TRADER</span>'; };
+    // 0.32.500 (pedido do dono: "quando repetir, mostrar que entrou de novo"): conta as entradas pelo nome, da mais antiga para a mais
+    // nova; a 2ª em diante ganha "2ª ENTRADA" e borda âmbar. Mesmo nome em outro contrato = token copiado (outro endereço)
+    const symOf = (x) => String(x.simbolo || x.nome || (NOM[x.token] || {}).simbolo || "").trim().toUpperCase();
+    const rep = {}, first = {};
+    all.slice().sort((p, q) => (p.open_t || 0) - (q.open_t || 0)).forEach((x) => {
+      const k = symOf(x) || x.token; rep[k] = (rep[k] || 0) + 1; x._ord = rep[k];
+      if (!first[k]) first[k] = x.token; x._outro = first[k] !== x.token;
+    });
+    const repTag = (x) => { const k = symOf(x) || x.token, n = rep[k] || 1; if (n < 2) return "";
+      return '<span class="tag hirep" title="' + n + ' entradas em ' + esc(k) + ' no Histórico">' + x._ord + "ª ENTRADA de " + n + "</span>" +
+        (x._outro ? ' <span class="tag loss" title="mesmo nome, outro endereço: provavelmente um token copiado">OUTRO CONTRATO</span>' : ""); };
     const V = ts.slice(0, HI_N);
     $("hiCards").innerHTML = V.map((x) => {
       const sym = x.simbolo || x.nome || (NOM[x.token] || {}).simbolo || short(x.token);
-      return '<div class="abc hc"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + eth(x.pnl_eth, 5) + ul(x.pnl_eth, true) + "</b></div>" +
-        '<div class="hiorig">' + tagO(x) + "</div>" + (hiOrig(x) === "copia" ? '<div class="hc-t">' + addr(x.wallet) + "</div>" : "") +
+      return '<div class="abc hc' + ((rep[symOf(x) || x.token] || 1) > 1 ? " hcrep" : "") + '"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + eth(x.pnl_eth, 5) + ul(x.pnl_eth, true) + "</b></div>" +
+        '<div class="hiorig">' + tagO(x) + repTag(x) + "</div>" + (hiOrig(x) === "copia" ? '<div class="hc-t">' + addr(x.wallet) + "</div>" : "") +
         '<div class="hc-t">' + tok(x.token, x) + "</div>" +
         '<div class="abc-d hc-m">' + esc(x.motivo || "") + "</div>" +
         '<div class="abc-n"><div><small>%</small><b>' + pct(x.pnl_pct) + "</b></div><div><small>Investido</small><b>" + num(x.eth_in, 5) + ul(x.eth_in) + "</b></div><div><small>Segurou</small><b>" + dur(Math.max(0, (x.close_t || 0) - (x.open_t || 0))) + "</b></div></div>" +

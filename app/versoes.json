@@ -3250,6 +3250,11 @@
    "versao": "0.32.499",
    "inicio": "2026-11-27T23:52:21+00:00",
    "titulo": "Robinhood: Comparar abre o que está diferente; conversor saiu"
+  },
+  {
+   "versao": "0.32.500",
+   "inicio": "2026-11-27T23:54:56+00:00",
+   "titulo": "Robinhood: Histórico marca a entrada repetida"
   }
  ]
 }
