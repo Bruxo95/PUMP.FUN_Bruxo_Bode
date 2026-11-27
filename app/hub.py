@@ -1932,8 +1932,9 @@ class PumpHub:
                 if est != "entrar":
                     continue
                 # 0.32.434 (pedido do dono): a análise das carteiras (Alchemy) é a confirmação ANTES de entrar.
-                # 0.32.486 (pedido do dono, caso PODIUM): ela já pode ter começado cedo (sybil_early, no bm_tick) e tem prazo
-                # (sybil_dl). Com a trava ligada, só entra com a análise COMPLETA: incompleta, sem resposta ou sem dados = fora.
+                # 0.32.486 (pedido do dono, caso PODIUM): ela começa cedo (sybil_early, no bm_tick, assim que há nome, DEV e as
+                # compras) e tem prazo (sybil_dl). Alerta ALTO barra com a trava, mesmo parcial (a parte que falta só aumenta o
+                # número); análise que não fechou ou não respondeu no prazo NÃO barra: entra com o que deu para ver.
                 if (getattr(self, "system_keys", None) or {}).get("alchemy_api_key") and boostmig.SYBIL_ON:
                     block = bool(getattr(c, "pump_bm_sybil_block", False))
                     if not b.get("sybil_want"):
@@ -1949,16 +1950,7 @@ class PumpHub:
                         if now < dl:
                             u.update(estado="esperar", motivo=why + f" · conferindo as carteiras (Alchemy) antes de entrar, faltam {dl - now:.0f} s", t=now)
                             continue
-                        if block:
-                            u.update(estado="fora", motivo="carteiras: a análise não respondeu no prazo (trava ligada: sem análise completa não compra)", t=now)
-                            continue
                         why += " · sem a análise das carteiras a tempo"
-                    elif block and not boostmig.sybil_complete(sy):
-                        falta = int(sy.get("parcial") or 0)
-                        u.update(estado="fora", t=now, motivo="carteiras: a análise não fechou no prazo" + (
-                            f" (faltaram {falta} carteira(s))" if falta else f" ({sy.get('nivel') or 'sem dados'}: {str(sy.get('motivo') or '')[:80]})")
-                            + " — trava ligada: sem análise completa não compra")
-                        continue
                     elif sy.get("nivel") == "alto" and block:
                         u.update(estado="fora", motivo="carteiras: alerta ALTO — " + str(sy.get("motivo") or ""), t=now)
                         continue
@@ -1972,7 +1964,8 @@ class PumpHub:
                             u.update(estado="fora", motivo="corte das carteiras: " + "; ".join(corte), t=now)
                             bm.dirty.add(m)
                             continue
-                        why += f" · carteiras: {sy.get('nivel')}"
+                        why += f" · carteiras: {sy.get('nivel')}" + ("" if boostmig.sybil_complete(sy) else (
+                            f" (análise incompleta, faltaram {int(sy['parcial'])})" if sy.get("parcial") else " (análise incompleta)"))
                 # 0.32.376: entra no preço da cotação da Jupiter da observação (até 10 s). O preço guardado do token pode ser o da
                 # curva, congelado depois da migração, e daria um ganho falso.
                 sm = b.get("samples") or []

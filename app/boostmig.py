@@ -49,11 +49,12 @@ CFG_KEYS["pump_bm_alchemy_backup"] = ("ALCHEMY_BACKUP", 1.0)
 ALCHEMY_BACKUP = 1.0                # 0.32.384: Alchemy como reserva da leitura do DEV e da trava quando o RPC do sistema não responde
 DEV_WAIT_S = 30.0                   # 0.32.384: sem DEV lido depois disso, segue sem o filtro de DEV scam (antes esperava para sempre)
 # 0.32.486 (pedido do dono, caso PODIUM 27/11: comprou e o alerta ALTO só veio depois): a análise das carteiras começa CEDO, já
-# com nome, DEV, N compras e X s de observação, e tem de fechar até Y s de observação. Não fechou = a trava não deixa entrar.
+# com nome, DEV e N compras (X s de observação, padrão 0 = na hora), e para em Y s de observação. Não fechou = entra assim mesmo.
 CFG_KEYS["pump_bm_sybil_early_buys"] = ("SYBIL_EARLY_BUYS", 1.0)
 CFG_KEYS["pump_bm_sybil_early_s"] = ("SYBIL_EARLY_S", 1.0)
 CFG_KEYS["pump_bm_sybil_limit_s"] = ("SYBIL_LIMIT_S", 1.0)
-SYBIL_EARLY_BUYS, SYBIL_EARLY_S, SYBIL_LIMIT_S = 80.0, 10.0, 20.0
+SYBIL_EARLY_BUYS, SYBIL_EARLY_S, SYBIL_LIMIT_S = 80.0, 0.0, 20.0
+SYBIL_MIN_S = 10.0                  # 0.32.486: quem começa tarde (compras demoraram) ainda ganha 10 s de análise
 SYBIL_WAIT_S = 14.0                 # 0.32.466: 14 s (análise com mais consultas). 0.32.445: espera da análise das carteiras antes de entrar (era 25 s); depois entra sem ela
 NAME_WAIT_S = 30.0                  # 0.32.446: sem nome depois disso, segue sem conferir nome repetido (antes esperava para sempre)
 NAMES_MAX = 30000                   # 0.32.446: nomes guardados da criação (PumpPortal)
@@ -83,10 +84,9 @@ def sybil_obs0(b: dict, now: float) -> float:
 
 
 def sybil_deadline(b: dict, now: float) -> float:
-    """0.32.486: até quando a análise das carteiras pode rodar: Y s de observação (SYBIL_LIMIT_S), mas sempre com pelo menos
-    Y − X s de análise (quem começa tarde, porque as compras demoraram, ainda ganha o mesmo tempo)."""
-    win = max(3.0, SYBIL_LIMIT_S - SYBIL_EARLY_S)
-    return max(sybil_obs0(b, now) + SYBIL_LIMIT_S, now + win)
+    """0.32.486: até quando a análise das carteiras pode rodar: SYBIL_LIMIT_S s de observação, mas sempre com pelo menos
+    SYBIL_MIN_S s de análise (quem começa tarde, porque as compras demoraram)."""
+    return max(sybil_obs0(b, now) + SYBIL_LIMIT_S, now + SYBIL_MIN_S)
 
 
 def sybil_complete(s: dict | None) -> bool:
@@ -630,8 +630,10 @@ class BoostMig:
         if b.get("sybil_want") or b.get("sybil") or not b.get("creator") or not self.name_keys(b["mint"], b):
             return False
         sm = b.get("samples") or []
-        if not sm or now - float(sm[0][0]) < SYBIL_EARLY_S or int(b.get("buys_m5") or 0) < SYBIL_EARLY_BUYS:
+        if int(b.get("buys_m5") or 0) < SYBIL_EARLY_BUYS:
             return False
+        if SYBIL_EARLY_S > 0 and (not sm or now - float(sm[0][0]) < SYBIL_EARLY_S):
+            return False                               # 0 (padrão) = começa na hora, sem esperar a observação
         if b.get("safety_ok") is False or self.scam_of(b["mint"], b) or self.twins(b["mint"], b):
             return False
         us = b.get("users") or {}
