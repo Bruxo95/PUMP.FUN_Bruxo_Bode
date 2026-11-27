@@ -166,6 +166,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_sybil_max_h": (float, 30.0, 1.0, 200.0),     # …no máximo N tokens por hora (gasto da Alchemy)
     "pump_bm_alchemy_backup": (bool, True, 0, 1),         # 0.32.384: Alchemy como reserva do DEV e da trava do BOOST
     "pump_bm_sybil_block": (bool, False, 0, 1),           # …TRAVA: barrar a compra com alerta alto (0.32.434: análise antes de entrar)
+    "pump_bm_sybil_early_buys": (float, 80.0, 1.0, 1000.0), # 0.32.486: começa a análise com nome, DEV e N compras em 5 min…
+    "pump_bm_sybil_early_s": (float, 10.0, 0.0, 120.0),   # …e X s de observação
+    "pump_bm_sybil_limit_s": (float, 20.0, 5.0, 180.0),   # …e ela tem de fechar até Y s de observação (trava: incompleta = fora)
     "pump_bm_hist_min": (float, 20.0, 5.0, 30.0),         # 0.32.378: análise de cada token X min depois da migração (histórico)                   # posição do BOOST no laço rápido de preço (~1 s)
     # 0.32.102 (dono, 31/10): filtros do Jev Trade editáveis na tela; padrão = a regra que estava valendo
     "pump_jt_min_holders": (int, 40, 5, 5000),            # detentores mínimos na 1ª conferência

@@ -1866,6 +1866,7 @@ class PumpHub:
                 "migrou": consultas.on("pump_q_boost_migrou"), "fluxo": consultas.on("pump_q_boost_fluxo")}   # 0.32.435 / 0.32.458
         await bm.tick(now)
         self._bm_results(now)
+        self._sybil_early(now)                            # 0.32.486: começa a análise cedo (nome, DEV, N compras, X s)
         self.sybil_tick(now)                              # 0.32.382: carteiras ligadas ao DEV (Alchemy), em segundo plano
         try:
             await self._bm_hist(now)                      # 0.32.378: análise de cada token aos 20 min (entrando ou não)
@@ -1930,22 +1931,35 @@ class PumpHub:
                     bm.dirty.add(m)                    # 0.32.403: a decisão final vai para o banco
                 if est != "entrar":
                     continue
-                # 0.32.434 (pedido do dono): a análise das carteiras (Alchemy) é a confirmação ANTES de entrar — só começa aqui,
-                # quando o token passou em todos os filtros. Espera até SYBIL_WAIT_S; sem resposta, entra sem ela.
+                # 0.32.434 (pedido do dono): a análise das carteiras (Alchemy) é a confirmação ANTES de entrar.
+                # 0.32.486 (pedido do dono, caso PODIUM): ela já pode ter começado cedo (sybil_early, no bm_tick) e tem prazo
+                # (sybil_dl). Com a trava ligada, só entra com a análise COMPLETA: incompleta, sem resposta ou sem dados = fora.
                 if (getattr(self, "system_keys", None) or {}).get("alchemy_api_key") and boostmig.SYBIL_ON:
+                    block = bool(getattr(c, "pump_bm_sybil_block", False))
                     if not b.get("sybil_want"):
                         b["sybil_want"] = now
+                        b["sybil_dl"] = boostmig.sybil_deadline(b, now)
                         kick = getattr(self, "sybil_tick", None)
                         if kick is not None:
                             kick(now)              # 0.32.445: começa NA HORA (antes esperava a próxima volta de 3 s)
                     bm.dirty.add(m)
+                    dl = float(b.get("sybil_dl") or (float(b["sybil_want"]) + boostmig.SYBIL_WAIT_S))
                     sy = b.get("sybil")
                     if not sy:
-                        if now - float(b["sybil_want"]) < boostmig.SYBIL_WAIT_S:
-                            u.update(estado="esperar", motivo=why + " · conferindo as carteiras (Alchemy) antes de entrar", t=now)
+                        if now < dl:
+                            u.update(estado="esperar", motivo=why + f" · conferindo as carteiras (Alchemy) antes de entrar, faltam {dl - now:.0f} s", t=now)
+                            continue
+                        if block:
+                            u.update(estado="fora", motivo="carteiras: a análise não respondeu no prazo (trava ligada: sem análise completa não compra)", t=now)
                             continue
                         why += " · sem a análise das carteiras a tempo"
-                    elif sy.get("nivel") == "alto" and getattr(c, "pump_bm_sybil_block", False):
+                    elif block and not boostmig.sybil_complete(sy):
+                        falta = int(sy.get("parcial") or 0)
+                        u.update(estado="fora", t=now, motivo="carteiras: a análise não fechou no prazo" + (
+                            f" (faltaram {falta} carteira(s))" if falta else f" ({sy.get('nivel') or 'sem dados'}: {str(sy.get('motivo') or '')[:80]})")
+                            + " — trava ligada: sem análise completa não compra")
+                        continue
+                    elif sy.get("nivel") == "alto" and block:
                         u.update(estado="fora", motivo="carteiras: alerta ALTO — " + str(sy.get("motivo") or ""), t=now)
                         continue
                     else:
@@ -2152,6 +2166,22 @@ class PumpHub:
             log.warning("boost da migração não carregou: %s", str(e)[:120])
 
     # ------------------------------------------------------------------ 0.32.382: carteiras ligadas ao DEV (Alchemy)
+    def _sybil_early(self, now: float) -> None:
+        """0.32.486 (pedido do dono): com nome, DEV, SYBIL_EARLY_BUYS compras e SYBIL_EARLY_S s de observação, a análise das
+        carteiras já começa — assim, ao fim da observação, a decisão sai com tudo conferido. Só se algum admin usa o BOOST."""
+        if not self.system_keys.get("alchemy_api_key") or not boostmig.SYBIL_ON:
+            return
+        if not any(getattr(pf, "role", "user") == "admin" and getattr(pf.cfg, "pump_bm_on", False) for pf in self.engines.values()):
+            return
+        bm = self.bm
+        for b in list(bm.items.values()):
+            try:
+                if bm.progress(b, now) < 100 and bm.sybil_early(b, now):
+                    b["sybil_want"], b["sybil_dl"], b["sybil_cedo"] = now, boostmig.sybil_deadline(b, now), True
+                    bm.dirty.add(b["mint"])
+            except Exception as e:
+                log.warning("boost (carteiras cedo): %s", str(e)[:160])
+
     def sybil_state(self) -> dict:
         st = self.__dict__.setdefault("sybil_st", {"feitos": [], "chamadas": 0, "erros": 0, "ultimo_erro": None, "rodando": None,
                                                   "ultimo": None})
@@ -2181,7 +2211,8 @@ class PumpHub:
             # 0.32.434 (pedido do dono, para economizar a Alchemy): só o token que passou em todos os filtros e está para ser
             # comprado (sybil_want, marcado em _bm_user) — DEV scam, descartado ou parado nos filtros não gasta nenhuma consulta
             return [x for x in bm.items.values() if x.get("sybil_want") and not x.get("sybil") and x.get("sybil_tries", 0) < 3
-                    and t - x["t0"] <= boostmig.JANELA_S and x.get("sybil_retry_t", 0) <= t]
+                    and t - x["t0"] <= boostmig.JANELA_S and x.get("sybil_retry_t", 0) <= t
+                    and t < float(x.get("sybil_dl") or float("inf"))]          # 0.32.486: passou do prazo, não consulta mais
         cand = novos(now) if len(st["feitos"]) < int(boostmig.SYBIL_MAX_H) else []
         if cand:
             b = max(cand, key=lambda x: x["t0"])               # o mais novo primeiro (é o que ainda dá para comprar)
@@ -2196,14 +2227,26 @@ class PumpHub:
                 try:
                     svc = bm.svc
                     pda = svc.curve_pda(b["mint"]) if (svc is not None and not b.get("creator")) else None
-                    stt = await sybil.stage_a(rpc, b["mint"], b.get("creator"), int(boostmig.SYBIL_TOP), curve_pda=pda)
+                    # 0.32.486: o prazo é o do token (sybil_dl); o que não fechou até lá fica de fora — a consulta termina ali
+                    dl = float(b.get("sybil_dl") or 0)
+                    mono = time.monotonic() + (dl - time.time()) if dl else None
+                    job = sybil.stage_a(rpc, b["mint"], b.get("creator"), int(boostmig.SYBIL_TOP), curve_pda=pda, deadline=mono)
+                    # os primeiros pedidos não têm prazo próprio: a análise inteira para no prazo do token (+1 s de folga)
+                    stt = await (asyncio.wait_for(job, max(1.0, dl - time.time() + 1.0)) if dl else job)
                     res = sybil.result(stt, boostmig.SYBIL_ALERT_PCT, boostmig.SYBIL_BUNDLE_PCT, rpc.n)
                     res["primeiro_s"] = round(time.time() - b["t0"], 1)
+                    if not stt["pend"]:
+                        res["completo_s"] = res["primeiro_s"]
+                    res["cedo"] = bool(b.get("sybil_cedo"))
                     b["sybil"] = boostmig.finite(res)
-                    if stt["pend"]:
+                    # 0.32.486 (pedido do dono): com prazo (todo token novo), passou dele a consulta termina — nada fica pendente
+                    if stt["pend"] and not dl:
                         states[b["mint"]] = stt
                     st["ultimo"] = {"mint": b["mint"], "symbol": b.get("symbol"), "nivel": res["nivel"], "t": time.time(), "chamadas": res.get("chamadas")}
                     self._sybil_alert(b)
+                except asyncio.TimeoutError:
+                    b["sybil"] = {"t": round(time.time()), "nivel": "sem dados", "erro": True, "cedo": bool(b.get("sybil_cedo")),
+                                  "motivo": "a análise não fechou no prazo (a Alchemy demorou nos primeiros pedidos)"}
                 except Exception as e:
                     st["erros"] += 1
                     st["ultimo_erro"] = f"{type(e).__name__}: {str(e)[:160]}".replace(key, "***")

@@ -48,6 +48,12 @@ SYBIL_ON, SYBIL_TOP, SYBIL_MAX_H, SYBIL_ALERT_PCT, SYBIL_BUNDLE_PCT = 1.0, 15.0,
 CFG_KEYS["pump_bm_alchemy_backup"] = ("ALCHEMY_BACKUP", 1.0)
 ALCHEMY_BACKUP = 1.0                # 0.32.384: Alchemy como reserva da leitura do DEV e da trava quando o RPC do sistema não responde
 DEV_WAIT_S = 30.0                   # 0.32.384: sem DEV lido depois disso, segue sem o filtro de DEV scam (antes esperava para sempre)
+# 0.32.486 (pedido do dono, caso PODIUM 27/11: comprou e o alerta ALTO só veio depois): a análise das carteiras começa CEDO, já
+# com nome, DEV, N compras e X s de observação, e tem de fechar até Y s de observação. Não fechou = a trava não deixa entrar.
+CFG_KEYS["pump_bm_sybil_early_buys"] = ("SYBIL_EARLY_BUYS", 1.0)
+CFG_KEYS["pump_bm_sybil_early_s"] = ("SYBIL_EARLY_S", 1.0)
+CFG_KEYS["pump_bm_sybil_limit_s"] = ("SYBIL_LIMIT_S", 1.0)
+SYBIL_EARLY_BUYS, SYBIL_EARLY_S, SYBIL_LIMIT_S = 80.0, 10.0, 20.0
 SYBIL_WAIT_S = 14.0                 # 0.32.466: 14 s (análise com mais consultas). 0.32.445: espera da análise das carteiras antes de entrar (era 25 s); depois entra sem ela
 NAME_WAIT_S = 30.0                  # 0.32.446: sem nome depois disso, segue sem conferir nome repetido (antes esperava para sempre)
 NAMES_MAX = 30000                   # 0.32.446: nomes guardados da criação (PumpPortal)
@@ -68,6 +74,26 @@ def apply_cfg(cfg: dict) -> dict:
                 pass
         out[key] = round(g[name] / mul, 2)
     return out
+
+
+def sybil_obs0(b: dict, now: float) -> float:
+    """0.32.486: começo da observação (1ª cotação do token); sem cotação ainda, agora."""
+    sm = b.get("samples") or []
+    return float(sm[0][0]) if sm else now
+
+
+def sybil_deadline(b: dict, now: float) -> float:
+    """0.32.486: até quando a análise das carteiras pode rodar: Y s de observação (SYBIL_LIMIT_S), mas sempre com pelo menos
+    Y − X s de análise (quem começa tarde, porque as compras demoraram, ainda ganha o mesmo tempo)."""
+    win = max(3.0, SYBIL_LIMIT_S - SYBIL_EARLY_S)
+    return max(sybil_obs0(b, now) + SYBIL_LIMIT_S, now + win)
+
+
+def sybil_complete(s: dict | None) -> bool:
+    """0.32.486: a análise fechou tudo (nenhuma carteira pendente, sem erro e com dados)."""
+    return bool(s) and not s.get("parcial") and not s.get("erro") and s.get("nivel") not in (None, "sem dados")
+
+
 SAFETY_TTL_S = 600
 FLOW_MAX = 25                       # 0.32.458: tokens assinados ao mesmo tempo na blockchain (compras × vendas ao vivo)
 
@@ -596,6 +622,22 @@ class BoostMig:
 
     def q_ok(self, b: dict, now: float) -> bool:
         return bool(self.q.get(self.grupo(b, now), True))
+
+    def sybil_early(self, b: dict, now: float) -> bool:
+        """0.32.486 (pedido do dono): pode começar a análise das carteiras antes de o token passar em todos os filtros? Precisa do
+        nome, do DEV, de SYBIL_EARLY_BUYS compras em 5 min e de SYBIL_EARLY_S s de observação; DEV scam, cópias, trava de venda
+        ou alguém que ainda espere este token fora = não gasta a Alchemy."""
+        if b.get("sybil_want") or b.get("sybil") or not b.get("creator") or not self.name_keys(b["mint"], b):
+            return False
+        sm = b.get("samples") or []
+        if not sm or now - float(sm[0][0]) < SYBIL_EARLY_S or int(b.get("buys_m5") or 0) < SYBIL_EARLY_BUYS:
+            return False
+        if b.get("safety_ok") is False or self.scam_of(b["mint"], b) or self.twins(b["mint"], b):
+            return False
+        us = b.get("users") or {}
+        vivos = [u for u in us.values() if u.get("estado") not in ("fora", "entrou")]
+        vivos += [u["real"] for u in us.values() if isinstance(u.get("real"), dict) and u["real"].get("estado") not in ("fora", "entrou")]
+        return bool(vivos) or not us
 
     def progress(self, b: dict, now: float | None = None) -> float:
         return max(0.0, min(100.0, ((now or self.clock()) - b["t0"]) / JANELA_S * 100))
@@ -1242,7 +1284,7 @@ class BoostMig:
     def view(self, b: dict) -> dict:
         keep = ("mint", "t0", "status", "symbol", "name", "progress", "creator", "dev_n", "dev_hist", "dev_scam", "dev_rec", "safety_ok",
                 "safety_why", "trend_pct", "drawdown_pct", "buys_m5", "sells_m5", "mcap_sol", "track", "result", "top10_pct", "entry",
-                "kind", "vol_m5", "boost_pago", "buys_src", "novo_info", "novo_add_s", "born_t", "sybil_want", "name_src", "name_s")
+                "kind", "vol_m5", "boost_pago", "buys_src", "novo_info", "novo_add_s", "born_t", "sybil_want", "sybil_dl", "name_src", "name_s")
         out = {k: b.get(k) for k in keep}
         from .sybil import compact
         out["sybil"] = compact(b.get("sybil"))
