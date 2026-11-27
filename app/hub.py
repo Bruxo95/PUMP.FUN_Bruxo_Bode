@@ -1990,7 +1990,7 @@ class PumpHub:
                     amt, step = pf.bm_step_peek(leg if own else "sim")
                 if step:
                     rules = {**rules, "bm_step": step}
-                    auto += (f" · +{step['pct']}% (depois de {step['passo']}): {amt:g} SOL" if step["esp"] else
+                    auto += (f" · {step['pct']:+d}% (depois de {step['passo']}): {amt:g} SOL" if step["esp"] else
                              f" · valor normal {amt:g} SOL ({step['feitos'] + 1}ª de {step['passo']})")
                 r = pf.manual_buy(m, t=now, auto=auto, origem="boostmig", target=target, amt_sol=amt, pos_rules=rules)
                 sim, rr = str(r.get("sim") or ""), str(r.get("real") or "")
@@ -5326,9 +5326,15 @@ class PumpHub:
     # ------------------------------------------------------------------ convites de configuração (0.31.17)
     SHARE_BLOCK = ("real", "pump_tg_", "pump_q_")             # nunca vai junto: nada da carteira real nem do Telegram pessoal
 
+    # 0.32.488 (pedido do dono, 27/11): valor por entrada do BOOST e o "mudar o valor depois de alguns trades" são de cada pessoa:
+    # não entram na comparação nem no copiar configuração
+    PERSONAL = ("pump_bm_sol", "pump_bmr_sol")
+    PERSONAL_PREFIX = ("pump_bm_step_", "pump_bmr_step_")
+
     def share_filter(self, keys, admin: bool) -> list[str]:
         from .settings import USER_KEYS
-        out = [k for k in keys if k in USER_KEYS and k != "pump_sim_on" and not any(b in k for b in self.SHARE_BLOCK)]   # ligar a carteira é de cada um
+        out = [k for k in keys if k in USER_KEYS and k != "pump_sim_on" and not any(b in k for b in self.SHARE_BLOCK)   # ligar a carteira é de cada um
+               and k not in self.PERSONAL and not k.startswith(self.PERSONAL_PREFIX)]
         if not admin:                               # quem não é admin não usa as opções do "Usar ou descartar"
             out = [k for k in out if not k.startswith(("pump_ex_auto_", "pump_ar_"))]
         return out
@@ -5457,8 +5463,14 @@ class PumpHub:
         out["aviso"] = rec.get("sig") != sig
         if out["aviso"] and isinstance(rec.get("v"), dict):
             old = rec["v"]
-            out["mudou"] = [{"k": k, "de": old.get(k), "para": vals.get(k)} for k in sorted(set(old) | set(vals))
+            # 0.32.488: só as opções que ainda entram na comparação (tirar uma da lista não é "a outra pessoa mudou")
+            out["mudou"] = [{"k": k, "de": old.get(k), "para": vals.get(k)} for k in sorted(set(vals))
                             if old.get(k) != vals.get(k)][:50]
+            if not out["mudou"]:
+                seen[key] = {**rec, "sig": sig, "v": snap}
+                out["aviso"] = False
+                out.pop("mudou")
+                await self.save_settings(pf)
 
     async def buy_diff(self, uid: str, peer: str, horas: float) -> dict:
         """0.32.167 (pedido do dono): compras FICTÍCIAS de duas contas lado a lado e, moeda a moeda, por que a outra não

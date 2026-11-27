@@ -89,9 +89,9 @@ USER_KEYS: dict[str, tuple] = {
     "pump_bm_step_mix3": (bool, True, 0, 1),
     "pump_bm_step_mix4": (bool, True, 0, 1),
     "pump_bm_step_mix5": (bool, True, 0, 1),
-    "pump_bm_step_pct3": (int, 10, 0, 100),               # % ACIMA do valor por entrada, depois de 3 (tela: 10/25/50/75/100)
-    "pump_bm_step_pct4": (int, 10, 0, 100),
-    "pump_bm_step_pct5": (int, 10, 0, 100),
+    "pump_bm_step_pct3": (int, 10, -90, 100),             # % sobre o valor por entrada, depois de 3 (tela: −50/−25/−10/10/25/50/75/100)
+    "pump_bm_step_pct4": (int, 10, -90, 100),             # 0.32.488 (pedido do dono): aceita negativo (entrar com menos)
+    "pump_bm_step_pct5": (int, 10, -90, 100),
     "pump_bm_enter_max_pct": (float, 40.0, 1.0, 60.0),
     "pump_bm_mig_on": (bool, True, 0, 1),                 # 0.32.433: entrar nos tokens que migraram (BOOST da migração)
     "pump_bm_mig_age_max_min": (float, 0.0, 0.0, 1440.0), # …só se o token tiver até X min desde a CRIAÇÃO (0 = sem limite)

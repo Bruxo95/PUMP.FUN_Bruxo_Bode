@@ -42,7 +42,7 @@ def sync(state: dict | None, cfg, rnd=random) -> dict | None:
 
 
 def percent(cfg, passo: int | None) -> int:
-    """Quantos % acima do valor por entrada vai a compra de "depois de N" (0 numa compra normal)."""
+    """Quantos % sobre o valor por entrada vai a compra de "depois de N" (0 numa compra normal; 0.32.488: pode ser negativo)."""
     return int(getattr(cfg, f"pump_bm_step_pct{passo}", 0) or 0) if passo else 0
 
 
@@ -50,7 +50,7 @@ def amount(cfg, passo: int | None) -> float:
     """Valor em SOL: o valor por entrada, ou ele mais a % de "depois de N"."""
     base = float(getattr(cfg, "pump_bm_sol", 0.05))
     pct = percent(cfg, passo)
-    return round(base * (1 + pct / 100), 6) if pct else base
+    return round(base * (1 + max(-90, pct) / 100), 6) if pct else base
 
 
 def peek(state: dict | None, cfg) -> tuple[float, dict | None]:

@@ -71,6 +71,19 @@ def test_porcentagem_e_acima_do_valor_por_entrada():
     assert USER_KEYS["pump_bm_step_pct3"][1] == 10 and USER_KEYS["pump_bm_step_pct3"][3] == 100
 
 
+def test_porcentagem_negativa_entra_com_menos_e_cada_passo_tem_a_sua():
+    """0.32.488 (pedido do dono): % negativo ("caso eu me arrependa"), escolhido em cada "depois de N"."""
+    assert USER_KEYS["pump_bm_step_pct3"][2] == -90 and USER_KEYS["pump_bmr_step_pct5"][2] == -90
+    c = regra(pump_bm_step_pct3=-25)
+    assert anda(bmstep.sync(None, c), c, 4) == [0.25, 0.25, 0.25, 0.1875]
+    c = regra(pump_bm_step_mode=0, pump_bm_step_mix4=False, pump_bm_step_pct3=-50, pump_bm_step_pct5=25)
+    rnd = random.Random(7)
+    st = bmstep.sync(None, c, rnd)
+    vals = set(anda(st, c, 200, rnd))
+    assert vals == {0.25, 0.125, 0.3125}                           # depois de 3 = −50%, depois de 5 = +25%
+    assert bmstep.amount(regra(pump_bm_step_pct3=-200), 3) == 0.025  # nunca abaixo de −90%
+
+
 def test_desligado_a_compra_do_boost_fica_como_era(tmp_path):
     """Pedido do dono: o extra não pode mexer no BOOST que já existe."""
     pf, now = _conta(tmp_path, pump_bm_real=True, pump_bm_step_on=False)

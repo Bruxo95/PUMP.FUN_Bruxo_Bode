@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "6931fc4a5d24574fa424df903c0c6c1ef3a1bacd",
-    "application_version": "0.32.487 · 2026-11-27 · Sala: market cap na entrada × agora na mesa e na lista de posições",
+    "repository_reference": "360ec911c21beb00ecb7b9048f27d62ae6fd3dca",
+    "application_version": "0.32.488 · 2026-11-27 · BOOST: % negativo no mudar o valor; valor por entrada e mudar o valor saem do comparar",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "a830682bdcd95447926e67ab9e8befb28ef217e5d4462931e96030954e1f80f9",
+      "app/version.py": "d56a9253c33640bed8814a2497bc64d38804f5dec918fae66ec3c82ef8e6b62c",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "b74c0a573d2d3d860a9c41699b4f17ec13e364f9a986f14202f629903d06fe68"
+  "pdf_sha256": "f1ac3feb70caff030cf4ec9984a10148f1682a09213baa4d8333a3deec84f1ae"
 }

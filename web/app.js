@@ -1678,7 +1678,9 @@
   // 0.32.471 (pedido do dono, 26/11): mudar o valor depois de 3, 4 ou 5 compras (ou misturando por sorteio). A chave fica
   // abaixo do valor; ligar abre a janela com as opções; a linha mostra em que ponto está e como está a pessoa comparada.
   // o valor diferente é uma % ACIMA do valor por entrada (pedido do dono, 26/11): 10, 25, 50, 75 ou 100
-  const BM_PCTS = [10, 25, 50, 75, 100];
+  // 0.32.488 (pedido do dono): também negativo, para entrar com menos ("caso eu me arrependa"); cada "depois de N" tem o seu
+  const BM_PCTS = [-50, -25, -10, 10, 25, 50, 75, 100];
+  const bmSg = (x) => ((+x || 0) > 0 ? "+" : "") + (+x || 0) + "%";
   const BMST = { p: "pump_bm_", mode: 3, mix: { 3: true, 4: true, 5: true }, pct: { 3: 10, 4: 10, 5: 10 }, seed: [] };
   const bmUp = (base, pct) => +(+base * (1 + (+pct || 0) / 100)).toFixed(6);
   const bmNum = (v) => String(+(+v || 0).toFixed(4)).replace(".", ",");
@@ -1689,7 +1691,7 @@
   function bmStepText(V, p) {
     const g = (k) => V[p + k]; if (!g("step_on")) return "desligado";
     const L = bmStepList(g("step_mode"), g); if (!L.length) return "desligado";
-    return "ligado · " + bmStepWhen(g("step_mode"), g) + " → " + L.map((n) => "+" + (+g("step_pct" + n) || 0) + "% (" + bmNum(bmUp(g("sol"), g("step_pct" + n))) + " SOL)").join(" / ") + " · normal " + bmNum(g("sol")) + " SOL";
+    return "ligado · " + bmStepWhen(g("step_mode"), g) + " → " + L.map((n) => bmSg(g("step_pct" + n)) + " (" + bmNum(bmUp(g("sol"), g("step_pct" + n))) + " SOL)").join(" / ") + " · normal " + bmNum(g("sol")) + " SOL";
   }
   function bmStepDraw() {
     const c = cfg(); if (!c || c.pump_bm_step_on === undefined) return;
@@ -1698,12 +1700,12 @@
       btn.hidden = !on;
       const st = ((BM && BM.rodizio) || {})[key];
       let me = on ? bmStepText(c, p) : "desligado · toda compra usa o valor por entrada";
-      if (on && st) me += st.especial ? " · a próxima compra vai com +" + st.pct_especial + "% (" + bmNum(st.prox_sol) + " SOL)"
-        : " · agora " + st.feitos + " de " + st.alvo + " (depois vem +" + st.pct_especial + "%)";
+      if (on && st) me += st.especial ? " · a próxima compra vai com " + bmSg(st.pct_especial) + " (" + bmNum(st.prox_sol) + " SOL)"
+        : " · agora " + st.feitos + " de " + st.alvo + " (depois vem " + bmSg(st.pct_especial) + ")";
       const m = row.querySelector(".bmstepme"), t = "Você: " + me; if (m.textContent !== t) m.textContent = t;
-      const r = BMC.r, V = r && !r.error ? r.valores : null, o = row.querySelector(".bmsteppeer");
+      const o = row.querySelector(".bmsteppeer"), V = null;               // 0.32.488: é pessoal, não mostra a de outra pessoa
       o.hidden = !V || V[p + "step_on"] === undefined;
-      if (!o.hidden) { const x = r.nome + ": " + bmStepText(V, p) + (p === "pump_bmr_" && !V.pump_bmr_on ? " (sem regras próprias da REAL: usa as da fictícia)" : ""); if (o.textContent !== x) o.textContent = x; }
+      if (!o.hidden) { const x = BMC.r.nome + ": " + bmStepText(V, p) + (p === "pump_bmr_" && !V.pump_bmr_on ? " (sem regras próprias da REAL: usa as da fictícia)" : ""); if (o.textContent !== x) o.textContent = x; }
     });
     renderBmNext();
   }
@@ -1729,7 +1731,7 @@
     const len = () => (mix ? r.L[BMST.seed[k % BMST.seed.length] % r.L.length] : r.L[0]);
     for (let i = 1; i <= 15; i++) {
       const n = len(), esp = c === n;
-      out += '<span class="' + (esp ? "esp" : "") + '">trade ' + i + (esp ? " · +" + BMST.pct[n] + "%" : "") + "<b>" + bmNum(esp ? r.sol[n] : r.base) + "</b></span>";
+      out += '<span class="' + (esp ? (BMST.pct[n] < 0 ? "esp neg" : "esp") : "") + '">trade ' + i + (esp ? " · " + bmSg(BMST.pct[n]) : "") + "<b>" + bmNum(esp ? r.sol[n] : r.base) + "</b></span>";
       if (esp) { c = 0; k++; } else c++;
     }
     $("bmstSeq").innerHTML = out;
@@ -1744,17 +1746,17 @@
     const inp = (id, v) => '<span class="bmin"><input id="' + id + '" class="in" type="number" min="0.001" max="5" step="0.01" value="' + v + '"><em>SOL</em></span>';
     const aviso = real ? "Vale só para a carteira <b>REAL</b> do BOOST (dinheiro de verdade)." : c.pump_bmr_on ? "Vale só para a <b>FICTÍCIA</b>. A REAL tem a dela na aba Regras da REAL."
       : c.pump_bm_real ? "<b>Atenção:</b> a REAL do BOOST está ligada e usa estas mesmas regras: os valores abaixo valem para <b>dinheiro de verdade</b>." : "Vale para a FICTÍCIA do BOOST (e para a REAL, se você ligar a REAL sem regras próprias).";
-    const r = BMC.r, V = r && !r.error ? r.valores : null;
+    const V = null;                                                       // 0.32.488: pessoal, sem a de outra pessoa
     BMC.view = "step";
     $("cfgDiffT").textContent = "Mudar o valor depois de alguns trades" + (real ? " · REAL" : "");
     $("cfgDiffS").textContent = on ? 'ligado · trocar o "quando mudar" recomeça a contagem' : "nada muda até você clicar em Ligar";
     $("cfgDiffB").innerHTML = '<div class="decbox">' + aviso + "</div>" +
-      '<p class="small bmstwho">Você: <b>' + esc(bmStepText(c, p)) + "</b>" + (V && V[p + "step_on"] !== undefined ? "<br>" + esc(r.nome) + ": <b>" + esc(bmStepText(V, p)) + "</b>" : "") + "</p>" +
+      '<p class="small bmstwho">Você: <b>' + esc(bmStepText(c, p)) + "</b>" + (V ? "" : "") + "</p>" +
       '<div class="bmrow"><label for="bmst0">Valor por entrada (normal)</label>' + inp("bmst0", base) + "</div>" +
       '<div class="bmrow"><span>Quando mudar</span><div class="seg bmstseg">' + [[3, "Depois de 3"], [4, "Depois de 4"], [5, "Depois de 5"], [0, "Misturar (sorteio)"]].map((m) => '<button type="button" data-bmstm="' + m[0] + '">' + m[1] + "</button>").join("") + "</div></div>" +
       '<div class="bmrow" id="bmstMix"><span>Entram no sorteio<small>marque 2 ou 3</small></span><span class="bmstbtns">' + [3, 4, 5].map((n) => '<button type="button" class="btn sm" data-bmstx="' + n + '">' + n + "</button>").join("") + "</span></div>" +
-      [3, 4, 5].map((n) => '<div class="bmrow bmstpr" id="bmstR' + n + '"><span>Depois de ' + n + ' trades: quanto a mais<small id="bmstS' + n + '"></small></span><span class="bmstbtns" role="group" aria-label="Porcentagem depois de ' + n + ' trades">' +
-        BM_PCTS.map((x) => '<button type="button" class="btn sm" data-bmstp="' + n + ":" + x + '">+' + x + "%</button>").join("") + "</span></div>").join("") +
+      [3, 4, 5].map((n) => '<div class="bmrow bmstpr" id="bmstR' + n + '"><span>Depois de ' + n + ' trades: quanto muda<small id="bmstS' + n + '"></small></span><span class="bmstbtns" role="group" aria-label="Porcentagem depois de ' + n + ' trades">' +
+        BM_PCTS.map((x) => '<button type="button" class="btn sm' + (x < 0 ? " neg" : "") + '" data-bmstp="' + n + ":" + x + '">' + bmSg(x) + "</button>").join("") + "</span></div>").join("") +
       '<p class="down small" id="bmstErr" hidden>Preencha o valor por entrada entre 0,001 e 5 SOL.</p>' +
       '<p class="small bmsth">Exemplo dos próximos 15 trades (SOL)</p><div class="bmseq" id="bmstSeq"></div><p class="small muted" id="bmstNext"></p>' +
       '<p class="cxm-act"><button type="button" class="btn primary" data-bmstgo="1">' + (on ? "Salvar" : "Ligar") + '</button> <button type="button" class="btn" data-bmc="cancel">Cancelar</button></p>';
@@ -1794,6 +1796,7 @@
   const BM_UP = '<span class="bmup" aria-hidden="true"><i></i><i></i></span>';
   function bmReforco(t) {
     if (!t || t.bm_pct == null) return "";
+    if (+t.bm_pct < 0) return '<span class="tag bmless" title="Entrou com ' + (-t.bm_pct) + '% a menos que o valor por entrada">BOOST ' + (+t.bm_pct) + "%</span>";
     return +t.bm_pct > 0 ? '<span class="tag bmextra" title="Entrou com ' + (+t.bm_pct) + "% a mais que o valor por entrada" + (t.bm_passo ? " (depois de " + (+t.bm_passo) + " compras normais)" : "") + '">' + BM_UP + "BOOST EXTRA +" + (+t.bm_pct) + "%</span>"
       : '<span class="tag neutral" title="Entrou com o valor por entrada normal">Normal</span>';
   }
@@ -1819,11 +1822,11 @@
   }
   function bmNextOld(rest) {
     const rodadas = []; let g = [];
-    rest.forEach((t) => { g.push(t); if (+t.bm_pct > 0) { rodadas.push(g); g = []; } });
+    rest.forEach((t) => { g.push(t); if (+t.bm_pct !== 0) { rodadas.push(g); g = []; } });
     if (g.length) rodadas.push(g);
     if (!rodadas.length) return '<div class="sub bmnx-t">Ainda não há rodada anterior para mostrar.</div>';
     return rodadas.slice(-2).reverse().map((r, k) => '<div class="sub bmnx-t">' + (k ? "2 rodadas atrás" : "Rodada anterior") + '</div><div class="bmnext">' +
-      r.map((t, i) => bmNextQ(+t.bm_pct > 0 ? "ref" : "", +t.bm_pct > 0 ? BM_UP + "BOOST EXTRA +" + (+t.bm_pct) + "%" : "Normal " + (i + 1) + (t.bm_passo ? " de " + (+t.bm_passo) : ""),
+      r.map((t, i) => bmNextQ(+t.bm_pct !== 0 ? (+t.bm_pct < 0 ? "ref neg" : "ref") : "", +t.bm_pct > 0 ? BM_UP + "BOOST EXTRA +" + (+t.bm_pct) + "%" : +t.bm_pct < 0 ? "BOOST " + (+t.bm_pct) + "%" : "Normal " + (i + 1) + (t.bm_passo ? " de " + (+t.bm_passo) : ""),
         t.sol_in, !t.aberto, t, "agora")).join("") + "</div>").join("");
   }
   function renderBmNext() {
@@ -1835,7 +1838,7 @@
     // os trades desta rodada são os que vieram depois do último BOOST EXTRA; com a contagem única seguindo a REAL, a fictícia
     // cuja compra REAL falhou não entrou na conta
     const all = bmNextTrades(rm);
-    let fim = all.length; while (fim && !(+all[fim - 1].bm_pct > 0)) fim--;
+    let fim = all.length; while (fim && !(+all[fim - 1].bm_pct !== 0)) fim--;
     let cur = all.slice(fim);
     if (!rm && !own && c.pump_bm_real && c.pump_real_enabled) { const R = new Set(bmNextTrades(true).map((t) => t.mint)); cur = cur.filter((t) => R.has(t.mint)); }
     const n = devia ? 0 : st.especial ? alvo : Math.max(0, feitos);
@@ -1846,7 +1849,8 @@
       out += bmNextQ(prox ? "prox" : "", "Normal " + (i + 1) + " de " + alvo, t ? t.sol_in : base, feito, t, prox ? "PRÓXIMO" : "depois");
     }
     const falta = alvo - feitos;
-    out += bmNextQ("ref" + (st.especial ? " prox" : ""), BM_UP + "BOOST EXTRA +" + (+st.pct_especial) + "%", st.sol_especial, false, null, st.especial ? "PRÓXIMO" : "daqui a " + falta + (falta > 1 ? " compras" : " compra"));
+    const neg = +st.pct_especial < 0;                               // 0.32.488: com % negativo a compra diferente entra com menos
+    out += bmNextQ("ref" + (neg ? " neg" : "") + (st.especial ? " prox" : ""), neg ? "BOOST " + (+st.pct_especial) + "%" : BM_UP + "BOOST EXTRA +" + (+st.pct_especial) + "%", st.sol_especial, false, null, st.especial ? "PRÓXIMO" : "daqui a " + falta + (falta > 1 ? " compras" : " compra"));
     const aviso = !c.pump_bm_on ? "BOOST desligado: a contagem fica parada. " : rm && !c.pump_bm_real ? "A REAL do BOOST está desligada. " : "";
     const sub = aviso + (devia ? "O BOOST EXTRA anterior não saiu: ele é a próxima compra." : st.especial ? "A próxima compra é a do BOOST EXTRA." : "Falta" + (falta > 1 ? "m " + falta + " compras normais" : " 1 compra normal") + " para o BOOST EXTRA.") +
       (+c[p + "step_mode"] === 0 ? " Sorteio: nesta rodada saiu \"depois de " + alvo + "\"; a próxima é sorteada depois do BOOST EXTRA." : " Depois do BOOST EXTRA, recomeça.") +

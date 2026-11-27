@@ -53,3 +53,20 @@ def test_aviso_so_quando_a_outra_pessoa_muda_e_descartar_fica_na_conta(env):
     assert c2.post("/api/pump/config/peer", json=q, headers=A).json()["aviso"] is True
     assert c2.post("/api/pump/config/visto", json={"escopo": "x", "user": UB}, headers=A).json()["error"]
     assert c2.post("/api/pump/config/visto", json=q, headers=B).status_code == 403      # só admin
+
+
+def test_valor_por_entrada_e_mudar_o_valor_sao_pessoais(env):
+    """0.32.488 (pedido do dono): valor por entrada e "mudar o valor depois de alguns trades" do BOOST não são comparados nem
+    copiados, e mudar só eles não acende o aviso."""
+    c = env["c"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=A)
+    q = {"user": UB, "tela": "boost", "reais": 1, "escopo": "boost"}
+    r = c.post("/api/pump/config/peer", json=q, headers=A).json()
+    v = r["valores"]
+    assert not [k for k in v if k in ("pump_bm_sol", "pump_bmr_sol") or k.startswith(("pump_bm_step_", "pump_bmr_step_"))]
+    assert "pump_bm_stop_pct" in v
+    c.post("/api/pump/settings", json={"pump_bm_sol": 0.31, "pump_bm_step_on": True, "pump_bm_step_pct3": -25,
+                                       "pump_bmr_sol": 0.2}, headers=B)
+    assert c.post("/api/pump/config/peer", json=q, headers=A).json()["aviso"] is False
+
