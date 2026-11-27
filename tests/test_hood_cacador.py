@@ -216,3 +216,41 @@ def test_a_b_e_c_ligam_separadas_e_cada_uma_compra_o_mesmo_token():
     assert ws == ["cacador-a", "cacador-c"]                                  # B desligada: não comprou
     assert sorted(p["cz"]["entrada"] for p in b.pos.values()) == ["A", "C"]
 
+
+def test_real_do_cacador_so_compra_com_a_chave_da_entrada_e_a_carteira_real_ligada():
+    """0.32.495 (pedido do dono: "posso querer ligar somente a REAL"): cz_real_ents por entrada; a FICTÍCIA pode ficar desligada."""
+    import asyncio as _a
+    import types as _t
+    from app import hoodcopy
+    key = [hoodcopy.ZERO, TOKEN, 0, 60, hoodcopy.ZERO]
+    b = hoodcopy.Book("u", {"cz_on": False, "cz_ents": "", "cz_real_ents": "b", "slip_pct": 0, "gas_eth": 0})
+    b2 = hoodcopy.Book("u2", {"cz_on": False, "cz_real_ents": "b"})
+    pedidos, evs = [], []
+
+    async def pk(pid, tk):
+        return key
+
+    async def fl():
+        return None
+
+    async def chk(tk):
+        return {"ok": True}
+
+    async def rbuy(uid, tr, px, k):
+        pedidos.append((uid, tr["wallet"], tr["_cz"]["entrada"]))
+    rcfgs = {"u": {"real_on": True}, "u2": {"real_on": False}}
+    f = _t.SimpleNamespace(books={"u": b, "u2": b2}, pool_key=pk, stat={}, flush=fl, check_token=chk, _real_buy=rbuy,
+                           rcfg=lambda uid: rcfgs[uid], rbook=lambda uid: _t.SimpleNamespace(ev=lambda *x: evs.append((uid, x[3], x[4]))),
+                           _spawn=lambda c: _a.get_event_loop().run_until_complete(c) if False else _a.ensure_future(c))
+
+    async def go():
+        hp = {"id": POOL, "token": TOKEN, "px": 0.000001, "t": time.time(), "x_ini": 1.0}
+        await hoodcopy.Copier._cz_buy(f, hp, "b")
+        await hoodcopy.Copier._cz_buy(f, hp, "a")
+        await _a.sleep(0)
+    _a.run(go())
+    assert pedidos == [("u", "cacador-b", "B")]                                 # só a B, só na REAL, só quem tem a REAL ligada
+    assert not b.pos                                                           # a FICTÍCIA desligada não comprou
+    assert any(uid == "u2" and "REAL está desligada" in m for uid, _, m in evs)
+    assert hoodcopy.clean_cfg({"cz_real_ents": "zb"})["cz_real_ents"] == "b" and hoodcopy.CFG_DEFAULT["cz_real_ents"] == ""
+

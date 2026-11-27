@@ -59,7 +59,8 @@ CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloquead
                # 0.32.489 (pedido do Bruxo, áudio de 27/11): desligar a cópia dos top traders na FICTÍCIA e comprar na FICTÍCIA pelas
                # entradas do Caçador (sombra), com % de entrada e de saída próprios
                # 0.32.494 (pedido do dono: "poder desligar o A, B ou C"): cz_ents = as entradas que compram (uma ou mais de "abc")
-               "copia_traders": True, "cz_on": False, "cz_entrada": "b", "cz_ents": "b", "cz_eth": 0.002, "cz_entrada_max_pct": 0.0,
+               # 0.32.495 (pedido do dono: "posso querer ligar somente a REAL"): cz_real_ents = entradas que compram na REAL (começa vazio)
+               "copia_traders": True, "cz_on": False, "cz_entrada": "b", "cz_ents": "b", "cz_real_ents": "", "cz_eth": 0.002, "cz_entrada_max_pct": 0.0,
                "cz_alvo_pct": 100.0, "cz_stop_pct": 50.0, "cz_max_h": 24.0, "cfg_v": CFG_V}
 # valores que eram o padrão até a 0.32.321 → quem ainda está neles (não escolheu outro) passa para o padrão novo, uma vez só
 CFG_OLD = {"stop_pct": 0.0, "trader_so_lucro": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0, "gas_eth": 0.00002}
@@ -293,7 +294,7 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
         elif k == "cz_entrada":
             if str(v).lower() in CZ_ENTRADAS:
                 out[k] = str(v).lower()
-        elif k == "cz_ents":
+        elif k in ("cz_ents", "cz_real_ents"):
             out[k] = "".join(c for c in "abc" if c in str(v or "").lower())
         elif k in ("bloqueados", "tokens_bloqueados"):
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
@@ -1016,7 +1017,8 @@ class Copier:
     def cz_entry(self, hp: dict, kind: str) -> None:
         """Entrada nova do Caçador (A, B ou C): compra na FICTÍCIA de cada conta que ligou "Comprar pelo Caçador" com essa entrada.
         Nunca compra na REAL."""
-        if any(b.cfg.get("cz_on") and b.cfg.get("on") and kind in (b.cfg.get("cz_ents") or "") for b in self.books.values()):
+        if any((b.cfg.get("cz_on") and b.cfg.get("on") and kind in (b.cfg.get("cz_ents") or "")) or kind in (b.cfg.get("cz_real_ents") or "")
+               for b in self.books.values()):
             e = hp.get(kind) or {}
             self._spawn(self._cz_buy({"id": hp["id"], "token": hp["token"], "nome": hp.get("nome"), "simbolo": hp.get("simbolo"),
                                       "px": e.get("px"), "t": e.get("t"), "x_ini": e.get("x_ini")}, kind))
@@ -1030,8 +1032,24 @@ class Copier:
         tr = {"wallet": "cacador-" + kind, "token": tk, "t": hp.get("t") or now, "tx": None, "eth": None, "amount": 0, "_auto": False,
               "pool": hp["id"]}
         nome = {"a": "A", "b": "B", "c": "C"}[kind]
+        reais = [uid for uid, b in self.books.items() if kind in (b.cfg.get("cz_real_ents") or "") and self.rcfg(uid).get("real_on")]
+        if reais and key:                     # 0.32.495: a REAL só compra token com a conferência de golpe aprovada (como a cópia)
+            try:
+                await asyncio.wait_for(self.check_token(tk), 20)
+            except Exception:
+                pass
         for uid, b in list(self.books.items()):
             c = b.cfg
+            if uid in reais and key:
+                mx, xi = c.get("cz_entrada_max_pct") or 0, hp.get("x_ini")
+                rb = self.rbook(uid)
+                if mx and xi is not None and (xi - 1) * 100 > mx:
+                    rb.ev(now, "cacador-" + kind, tk, "REAL não copiou", f"Caçador {nome}: já subiu {(xi - 1) * 100:.0f}% desde o início do pool (máx. {mx:g}%)")
+                else:
+                    self._spawn(self._real_buy(uid, {**tr, "_cz": {"entrada": nome, "alvo": c["cz_alvo_pct"], "stop": c["cz_stop_pct"],
+                                                                 "max_h": c["cz_max_h"], "x_ini": xi}}, hp.get("px"), key))
+            elif kind in (c.get("cz_real_ents") or "") and not self.rcfg(uid).get("real_on"):
+                self.rbook(uid).ev(now, "cacador-" + kind, tk, "REAL não copiou", f"Caçador {nome}: a carteira REAL está desligada (ligue em Carteira)")
             if not (c.get("cz_on") and c.get("on") and kind in (c.get("cz_ents") or "")):
                 continue
             if not key:
@@ -1163,6 +1181,14 @@ class Copier:
             rb.dirty_pos.add(p["id"])
             if self.mirrored(uid, p):
                 continue
+            cz = p.get("cz")
+            if cz:                                 # 0.32.495: REAL do Caçador sai só pelo alvo, pelo stop e pelo tempo dele
+                why = (f"Caçador: alvo +{cz['alvo']:g}%" if pct >= cz["alvo"] else
+                       f"Caçador: stop −{cz['stop']:g}%" if cz["stop"] and pct <= -cz["stop"] else None)
+                if why and not p.get("selling") and (p.get("sell_retry_at") or 0) <= time.time():
+                    p["retry_frac"] = 1.0
+                    self._spawn(self._real_sell(uid, p, 1.0, why))
+                continue
             why = f"stop de {rc['real_stop_pct']:g}%" if rc["real_stop_pct"] and pct <= -rc["real_stop_pct"] else \
                 trail_hit(rc, p["best_pct"], pct, "real_")
             if not why and rc.get("real_sg_on") and p.get("aba") != "botao":
@@ -1186,7 +1212,9 @@ class Copier:
             return "trava geral do servidor fechada (PUMP_REAL_ALLOWED)"
         if any(p["wallet"] == tr["wallet"] and p["token"] == tr["token"] for p in rb.pos.values()) or (tr["wallet"], tr["token"]) in rb.busy:
             return "já tem a posição REAL deste trader neste token"
-        if rc.get("real_um_por_token") and (any(p["token"] == tr["token"] for p in rb.pos.values()) or any(t == tr["token"] for _, t in rb.busy)):
+        cz = str(tr.get("wallet") or "").startswith("cacador")
+        if rc.get("real_um_por_token") and not cz and (any(p["token"] == tr["token"] and not p.get("cz") for p in rb.pos.values())
+                                                       or any(t == tr["token"] and not str(w).startswith("cacador") for w, t in rb.busy)):
             return "já tem posição REAL neste token (de outro trader): uma entrada por token"
         if len(rb.pos) + len(rb.busy) >= rc["real_max_abertas"]:
             return f"limite de {rc['real_max_abertas']} posições REAL abertas"
@@ -1235,6 +1263,8 @@ class Copier:
             p = hoodreal.new_position(tr, res, t, px, pkey)
             if tr.get("_sim_id"):
                 p["sim_id"] = tr["_sim_id"]
+            if tr.get("_cz"):                      # 0.32.495: REAL do Caçador sai pelo alvo, stop e tempo do Caçador
+                p["cz"], p["aba"] = tr["_cz"], "cacador"
             rb.pos[p["id"]] = p
             sp = bk.pos.get(p["sim_id"]) if p.get("sim_id") and bk is not None else None
             if sp and sp.get("tokens") and sp["tokens_left"] < sp["tokens"] * 0.999:
@@ -1377,9 +1407,10 @@ class Copier:
                     elif p.get("sell_error") and (p.get("sell_retry_at") or 0) <= now and p.get("retry_frac"):
                         self._spawn(self._real_sell(uid, p, p["retry_frac"], "nova tentativa de venda"))
                     continue
-                if now - p["open_t"] >= cf["real_max_hold_h"] * 3600:
+                lim_h = float((p.get("cz") or {}).get("max_h") or cf["real_max_hold_h"])     # 0.32.495: Caçador tem o tempo dele
+                if now - p["open_t"] >= lim_h * 3600 and not p.get("selling"):
                     p["retry_frac"] = 1.0
-                    self._spawn(self._real_sell(uid, p, 1.0, f"tempo máximo de {cf['real_max_hold_h']:g} h"))
+                    self._spawn(self._real_sell(uid, p, 1.0, f"tempo máximo de {lim_h:g} h"))
                 elif p.get("sell_error") and (p.get("sell_retry_at") or 0) <= now and p.get("retry_frac"):
                     self._spawn(self._real_sell(uid, p, p["retry_frac"], "nova tentativa de venda"))
             if bal and (rb.address or self.rcfg(uid).get("real_on")):
@@ -2068,8 +2099,9 @@ class Copier:
                 v, pct = rb.pnl_now(p, rc["real_slip_pct"])
                 pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                       "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "sell_error", "selling",
-                                                      "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
-                            "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + rc["real_max_hold_h"] * 3600, "real": True})
+                                                      "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta", "aba", "cz")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
+                            "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "real": True,
+                            "fecha_em": p["open_t"] + float((p.get("cz") or {}).get("max_h") or rc["real_max_hold_h"]) * 3600})
             return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
                     "trades": rb.trades[:500], "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
         pos = []

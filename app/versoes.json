@@ -3225,6 +3225,11 @@
    "versao": "0.32.494",
    "inicio": "2026-11-27T23:14:35+00:00",
    "titulo": "Robinhood: Caçador com A, B e C ligáveis, saldo no Histórico e Sala só do Caçador"
+  },
+  {
+   "versao": "0.32.495",
+   "inicio": "2026-11-27T23:25:34+00:00",
+   "titulo": "Robinhood: FICTÍCIA e REAL dentro de cada entrada do Caçador"
   }
  ]
 }

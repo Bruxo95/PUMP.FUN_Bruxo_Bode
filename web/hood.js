@@ -829,28 +829,33 @@
     const sw = (k, on) => '<button class="btn tgl sw ' + (on ? "on" : "off") + '" type="button" role="switch" aria-checked="' + on + '" data-czk="' + k + '">' + (on ? "Ligado" : "Desligado") + "</button>";
     // 0.32.494 (pedido do dono: "poder desligar o A, B ou C"; "está confuso: desligado não compra nada?"): A, B e C são chaves
     // independentes, e o topo diz em uma frase o que está acontecendo de verdade na sua carteira
-    const ents = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents), E = ((CZ && CZ.estudo) || {}).estrategias || {};
+    // 0.32.495 (pedido do dono: "esses botões fazem mais sentido dentro de cada um, A, B e C; posso querer ligar somente a REAL"):
+    // cada entrada tem a chave da FICTÍCIA e a da REAL (a REAL começa desligada e precisa da carteira REAL ligada)
+    const ents = c.cz_on ? String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents) : "", rents = String(c.cz_real_ents || "");
+    const E = ((CZ && CZ.estudo) || {}).estrategias || {}, realOn = !!(P && P.real_cfg && P.real_cfg.real_on);
     const ps = ((P && P.posicoes) || []).filter((p) => p.aba === "cacador"), ts = ((P && P.trades) || []).filter((t) => t.aba === "cacador");
     const res = ts.reduce((x, t) => x + (+t.pnl_eth || 0), 0), win = ts.filter((t) => (+t.pnl_eth || 0) > 0).length;
-    const ligadas = ents.split("").map((k) => k.toUpperCase()).join(", ");
-    let estado;
-    if (REAL) estado = '<div class="czstate"><b>Você está vendo a carteira REAL.</b> O Caçador nunca compra na REAL. Troque para FICTÍCIA no topo para ver as compras dele.</div>';
-    else if (!c.cz_on) estado = '<div class="czstate off"><b>Hoje a sua FICTÍCIA não compra nada pelo Caçador</b> (a chave está desligada). Os números dos blocos 2 e 3 e das abas "sombra" do Histórico são <b>só simulação</b>: o robô finge entrar com US$ 0,10 para medir. Para a FICTÍCIA começar a comprar sozinha e você ver o resultado, ligue a chave abaixo.</div>';
-    else if (!ents) estado = '<div class="czstate off"><b>A chave está ligada, mas nenhuma entrada (A, B ou C) está ligada:</b> nada é comprado. Ligue pelo menos uma abaixo.</div>';
-    else estado = '<div class="czstate on"><b>Ligado: a sua FICTÍCIA compra sozinha</b> em cada entrada ' + ligadas + " do Caçador, com " + num(c.cz_eth, 4) + " ETH" + (usdOf(c.cz_eth) ? " (" + esc(usdOf(c.cz_eth)) + ")" : "") + " cada e as saídas abaixo. Agora: <b>" + ps.length + "</b> aberta" + (ps.length === 1 ? "" : "s") + " · <b>" + ts.length + "</b> fechada" + (ts.length === 1 ? "" : "s") +
-      (ts.length ? " · resultado " + eth(res, 5) + (usdOf(res) ? ' <span class="muted">(' + esc(usdOf(res)) + ")</span>" : "") + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#historico" data-hif="cacador">ver no Histórico</a></div>';
+    const L = (x) => x.split("").map((k) => k.toUpperCase()).join(", ");
+    const partes = [];
+    if (ents) partes.push("na <b>FICTÍCIA</b> nas entradas " + L(ents) + " (" + num(c.cz_eth, 4) + " ETH cada)");
+    if (rents) partes.push("na <b>REAL</b> nas entradas " + L(rents) + (realOn ? " (o valor por compra da carteira REAL)" : ' — <span class="down">mas a carteira REAL está desligada, então a REAL não compra</span>'));
+    let estado = partes.length
+      ? '<div class="czstate on"><b>O Caçador está comprando sozinho</b> ' + partes.join(" e ") + ", e sai pelo alvo, stop e tempo abaixo."
+      : '<div class="czstate off"><b>Nenhuma entrada está ligada: o Caçador não compra nada</b>, nem na FICTÍCIA nem na REAL. Os números dos blocos 2 e 3 e das abas "sombra" do Histórico são <b>só simulação</b> (o robô finge entrar com US$ 0,10). Para comprar, ligue a FICTÍCIA ou a REAL dentro de A, B ou C.';
+    estado += (REAL ? "" : " Na FICTÍCIA agora: <b>" + ps.length + "</b> aberta" + (ps.length === 1 ? "" : "s") + " · <b>" + ts.length + "</b> fechada" + (ts.length === 1 ? "" : "s") +
+      (ts.length ? " · resultado " + eth(res, 5) + (usdOf(res) ? ' <span class="muted">(' + esc(usdOf(res)) + ")</span>" : "") + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#historico" data-hif="cacador">ver no Histórico</a>') + "</div>";
     const cpOn = c.copia_traders !== false;
+    const swE = (k, tipo, on) => '<button class="btn sm tgl sw ' + (on ? "on" : "off") + (tipo === "real" ? " czreal" : "") + '" type="button" role="switch" aria-checked="' + on + '" data-czent="' + k + '" data-czt="' + tipo + '">' + (on ? "Ligado" : "Desligado") + "</button>";
     box.innerHTML = estado +
-      '<div class="czrow"><span><b>Comprar pelo Caçador</b><small>ligado: a sua carteira FICTÍCIA compra sozinha, com o saldo fictício, em cada entrada ligada abaixo · nunca na REAL</small></span>' + sw("cz_on", !!c.cz_on) + "</div>" +
-      '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>' + (cpOn ? "ligado: a FICTÍCIA também copia as compras dos top traders da Robinhood (aba Top traders). São as fechadas \"Cópia de traders\" do Histórico." : "desligado: a FICTÍCIA não copia mais os top traders; compra só pelo Caçador e pelo botão Comprar da lista Moedas.") + " Desligue para medir só o Caçador.</small></span>" + sw("copia_traders", cpOn) + "</div>" +
-      '<p class="small" style="margin:12px 0 4px"><b>Quais entradas compram</b> <span class="muted">· clique para ligar ou desligar · pode ligar mais de uma (cada uma compra e é medida separada)</span></p><div class="czents">' +
-      ["a", "b", "c"].map((k) => { const x = CZ_ENT[k], e = E[k] || {}, on = ents.includes(k);
-        return '<button type="button" class="czent' + (on ? " on" : "") + '" data-czent="' + k + '" aria-pressed="' + on + '"><b><i>' + k.toUpperCase() + "</i>" + esc(x[0]) + "</b><span>" + esc(x[1]) + "</span><span>" + esc(x[2]) + "</span>" +
+      '<p class="small" style="margin:12px 0 4px"><b>Entradas</b> <span class="muted">· ligue a FICTÍCIA, a REAL ou as duas em cada uma · cada entrada compra e é medida separada</span></p><div class="czents">' +
+      ["a", "b", "c"].map((k) => { const x = CZ_ENT[k], e = E[k] || {}, on = ents.includes(k), ron = rents.includes(k);
+        return '<div class="czent' + (on || ron ? " on" : "") + '"><b><i>' + k.toUpperCase() + "</i>" + esc(x[0]) + "</b><span>" + esc(x[1]) + "</span><span>" + esc(x[2]) + "</span>" +
           (e.entradas != null ? "<em>" + num(e.entradas, 0) + " entradas no período · " + num(e.x10 || 0, 0) + " chegaram a 10× · " + num(e.x100 || 0, 0) + " a 100×</em>" : "") +
-          (on ? '<span class="tag win">LIGADA</span>' : '<span class="tag neutral">desligada</span>') + "</button>"; }).join("") + "</div>" +
-      '<p class="small" style="margin:12px 0 0"><b>Valores e saída das compras</b> <span class="muted">· salva sozinho ao sair do campo · valem para A, B e C</span></p>' +
-      '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span>" +
-        (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>";
+          '<div class="czsws"><label><span class="tag sim">FICTÍCIA</span>' + swE(k, "sim", on) + '</label><label><span class="tag real">REAL</span>' + swE(k, "real", ron) + "</label></div></div>"; }).join("") + "</div>" +
+      '<p class="small" style="margin:12px 0 0"><b>Valores e saída das compras</b> <span class="muted">· salva sozinho ao sair do campo · valem para A, B e C · na REAL o valor de cada compra é o da carteira REAL</span></p>' +
+      '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + (x[0] === "cz_eth" ? " (FICTÍCIA)" : "") + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span>" +
+        (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>" +
+      '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>' + (cpOn ? "ligado: a FICTÍCIA também copia as compras dos top traders da Robinhood (aba Top traders). São as fechadas \"Cópia de traders\" do Histórico." : "desligado: a FICTÍCIA não copia mais os top traders; compra só pelo Caçador e pelo botão Comprar da lista Moedas.") + " Desligue para medir só o Caçador.</small></span>" + sw("copia_traders", cpOn) + "</div>";
   }
   async function czSave(body) {
     const r = await BB.api("/api/hood/conta", { body, quiet: true });
@@ -1083,16 +1088,23 @@
       if (k === "cz_on" && on && !confirm("Ligar as compras FICTÍCIAS pelo Caçador?\n\nCada entrada " + (ents.split("").map((x) => x.toUpperCase()).join(", ") || "(nenhuma ligada)") + " compra " + num(c.cz_eth, 4) + " ETH do saldo fictício, sozinha, e sai pelo alvo, stop e tempo que estão na tela. Nunca compra na REAL.")) return;
       czSave({ [k]: on });
     } else if (t.dataset.czent) {
-      const cur = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents), k = t.dataset.czent;
-      const nv = "abc".split("").filter((x) => (x === k ? !cur.includes(x) : cur.includes(x))).join("");
-      czSave({ cz_ents: nv, cz_entrada: nv[0] || c.cz_entrada || "b" });
+      const k = t.dataset.czent, real = t.dataset.czt === "real";
+      if (real) {
+        const cur = String(c.cz_real_ents || ""), liga = !cur.includes(k);
+        if (liga && !confirm("Ligar a REAL na entrada " + k.toUpperCase() + " do Caçador?\n\nIsto compra com DINHEIRO DE VERDADE: cada entrada " + k.toUpperCase() + " compra na carteira REAL o valor por compra da carteira REAL, sozinha, e vende pelo alvo, stop e tempo do Caçador.\n\nSó funciona com a carteira REAL ligada em Carteira.")) return;
+        czSave({ cz_real_ents: "abc".split("").filter((x) => (x === k ? liga : cur.includes(x))).join("") });
+      } else {
+        const cur = c.cz_on ? String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents) : "";
+        const nv = "abc".split("").filter((x) => (x === k ? !cur.includes(x) : cur.includes(x))).join("");
+        czSave({ cz_ents: nv, cz_on: nv.length > 0, cz_entrada: nv[0] || c.cz_entrada || "b" });
+      }
     }
     else if (t.dataset.czg) { CZG = t.dataset.czg; czGridDraw(); }
     else if (t.dataset.czuse) {
       const [mx, up, dn] = t.dataset.czuse.split(":").map(Number);
-      const cur = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents);
-      if (!confirm("Copiar estes números para as suas compras FICTÍCIAS do Caçador?\n\n• só entra até " + (mx ? "+" + mx + "%" : "qualquer altura") + " acima do preço inicial do pool\n• vende tudo no alvo de +" + up + "%\n• stop de perda de −" + dn + "%\n• liga a entrada " + CZG.toUpperCase() + "\n\nIsto NÃO compra nada agora: vale para as próximas compras, e só se \"Comprar pelo Caçador\" estiver ligado.")) return;
-      czSave({ cz_entrada_max_pct: mx, cz_alvo_pct: up, cz_stop_pct: dn, cz_ents: cur.includes(CZG) ? cur : "abc".split("").filter((x) => x === CZG || cur.includes(x)).join("") });
+      const cur = c.cz_on ? String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents) : "";
+      if (!confirm("Copiar estes números para as compras do Caçador?\n\n• só entra até " + (mx ? "+" + mx + "%" : "qualquer altura") + " acima do preço inicial do pool\n• vende tudo no alvo de +" + up + "%\n• stop de perda de −" + dn + "%\n• liga a FICTÍCIA da entrada " + CZG.toUpperCase() + "\n\nIsto NÃO compra nada agora: vale para as próximas compras. A REAL não é ligada por aqui.")) return;
+      czSave({ cz_entrada_max_pct: mx, cz_alvo_pct: up, cz_stop_pct: dn, cz_on: true, cz_ents: cur.includes(CZG) ? cur : "abc".split("").filter((x) => x === CZG || cur.includes(x)).join("") });
     }
   });
   document.addEventListener("change", (e) => {
