@@ -1,0 +1,19 @@
+{
+  "id": "/sala",
+  "name": "FUN BOT",
+  "short_name": "FUN BOT",
+  "description": "Sala ao vivo do robô de cópia da pump.fun",
+  "start_url": "/sala",
+  "scope": "/sala",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "lang": "pt-BR",
+  "icons": [
+    {"src": "/static/fun-bot-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/static/fun-bot-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/static/fun-bot-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "/static/fun-bot-180.png", "sizes": "180x180", "type": "image/png"}
+  ]
+}

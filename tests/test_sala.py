@@ -171,3 +171,20 @@ def test_sala_no_celular_vira_app_e_so_le_dados(env):
     assert ".sbar,.sapages,.sasheet{display:none}" in html and "html.sapp .sbar{" in html
     # a SALA LIVE do BOT LIVE (OBS) não recebe o modo app
     assert "salaapp.js" not in open(os.path.join(WEB, "botlive_sala.html"), encoding="utf-8").read()
+
+
+def test_sala_tem_icone_e_nome_fun_bot_para_tela_de_inicio(env):
+    """0.32.480: atalho do iPhone/Android abre a Sala com ícone próprio e o nome FUN BOT."""
+    import json
+    html = env["c"].get("/sala").text
+    assert 'name="apple-mobile-web-app-title" content="FUN BOT"' in html
+    assert 'rel="apple-touch-icon" href="/static/fun-bot-180.png' in html
+    assert 'rel="manifest" href="/static/sala.json' in html
+    man = json.loads(open(os.path.join(WEB, "sala.json"), encoding="utf-8").read())
+    assert man["name"] == man["short_name"] == "FUN BOT"
+    assert man["start_url"] == "/sala" and man["display"] == "standalone"
+    assert any(i.get("purpose") == "maskable" for i in man["icons"])
+    for i in man["icons"]:
+        nome = i["src"].replace("/static/", "")
+        assert os.path.exists(os.path.join(WEB, nome)), nome
+        assert env["c"].get(i["src"]).status_code == 200
