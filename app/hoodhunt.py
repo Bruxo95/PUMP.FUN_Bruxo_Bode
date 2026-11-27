@@ -354,6 +354,24 @@ def study(pools: list[dict], now: float, dias: float, eth_usd: float) -> dict:
     return out
 
 
+ENTRIES_MAX = 300
+
+
+def entries(pools: list[dict], now: float, dias: float, eth_usd: float, kind: str) -> list[dict]:
+    """0.32.492 (pedido do dono: "quero clicar em Fechadas 76 e ver"; "no Histórico, o Caçador A, B e C e ver as compras"): as entradas
+    de mentira da estratégia no período, mais novas primeiro, com o resultado de cada saída fixa (None = ainda aberta)."""
+    since = now - dias * 86400
+    out = []
+    for p in sorted((x for x in pools if x.get("t", 0) >= since and x.get(kind)), key=lambda x: -x[kind]["t"])[:ENTRIES_MAX]:
+        e, hp = p[kind], bool(p.get("hp"))
+        out.append({"pool": p["id"], "token": p["token"], "nome": p.get("nome"), "simbolo": p.get("simbolo"), "nasceu": p["t"], "t": e["t"],
+                    "x_ini": e.get("x_ini"), "x_pico": round(e["pk"] / e["px"], 2) if e.get("px") and e.get("pk") else None,
+                    "x_agora": round((0.0 if p.get("rug_t") or hp else (p.get("last_px") or 0)) / e["px"], 3) if e.get("px") else None,
+                    "venda_travada": hp, "liquidez_tirada": bool(p.get("rug_t")), "travas": traps(p),
+                    "r": {code: result(e, code, eth_usd, hp) for code, _ in EXITS}})
+    return out
+
+
 def row(p: dict, eth_usd: float) -> dict:
     """Linha da tela: um pool."""
     def ent(e):
@@ -597,4 +615,5 @@ class Hunter:
                 "status": {**self.stat, "observando": len(self.pools), "com_troca": sum(1 for p in self.pools.values() if p.get("first_t")),
                            "fechados": len(self.done), "arquivo": getattr(self.w, "arquivo", None) is not None},
                 "estudo": study(allp, now, dias, eth_usd), "agora": [row(p, eth_usd) for p in live], "eth_usd": eth_usd,
-                "grade": {k: grid(allp, now, dias, eth_usd, k) for k in ("a", "b", "c")}}
+                "grade": {k: grid(allp, now, dias, eth_usd, k) for k in ("a", "b", "c")},
+                "entradas": {k: entries(allp, now, dias, eth_usd, k) for k in ("a", "b", "c")}}

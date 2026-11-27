@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "e155ec7fa752dac9cdc142d6bbe113abb9f805ca",
-    "application_version": "0.32.491 · 2026-11-27 · Robinhood: Caçador em cartões (A, B e C explicadas, quais entradas contaram) e Histórico em cartões",
+    "repository_reference": "2db9be938030417939d708f9a824e135ea50d0e1",
+    "application_version": "0.32.492 · 2026-11-27 · Robinhood: saída fixa do Caçador em cartões com as entradas de cada uma; Histórico com o Caçador A, B e C",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "dce8035fe6f5934fbabbb6a86c231e746d692455633c001c46de4be6cf3c416e",
+      "app/version.py": "6780297c67d050d2c87f4b28ff4f02278063e4395bad16f9d1ed4f95c09e1914",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "a2c6108b37d8ca66bf0fad1fdd0c5986df598edc7a55db52214c7a9f2fd2ef4e"
+  "pdf_sha256": "8ee6c314ebc037f89ba9557173bae929a898a093a2b512a0ca117f931061fe0e"
 }

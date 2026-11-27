@@ -181,3 +181,14 @@ def test_desligar_a_copia_dos_top_traders_so_na_ficticia():
     assert hoodcopy.clean_cfg({"cz_entrada": "x"})["cz_entrada"] == "b" and hoodcopy.clean_cfg({"cz_entrada": "C"})["cz_entrada"] == "c"
     assert hoodcopy.CFG_DEFAULT["cz_on"] is False and hoodcopy.CFG_DEFAULT["copia_traders"] is True
 
+
+def test_entradas_do_cacador_com_o_resultado_de_cada_saida():
+    """0.32.492 (pedido do dono: clicar em "Fechadas" e ver; Histórico com o Caçador A, B e C)."""
+    p = H.parse_init(init_log(hook=ZERO), 1000.0)
+    p["px_ini"] = 0.000001
+    H.on_trade(p, tr(1010, "buy", 0.001, 1000, "0x1"))
+    H.on_trade(p, tr(1020, "buy", 0.003, 1000, "0x2"))                  # 3× a entrada A
+    L = H.entries([p], 1100, 7, 3000.0, "a")
+    assert len(L) == 1 and L[0]["x_pico"] == 3.0 and L[0]["r"]["x2"] > 0 and L[0]["r"]["24"] is None
+    assert H.entries([p], 1100, 7, 3000.0, "b") == []
+

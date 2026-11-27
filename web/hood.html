@@ -98,6 +98,10 @@
   .czdet{margin-top:10px}.czdet>summary{cursor:pointer;font-weight:600;font-size:13.5px;padding:6px 0}
   .hiorig{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .hifs{margin:10px 0 12px;flex-wrap:wrap}.hifs small{opacity:.7;margin-left:4px}
+  .czgr .abc.best{border-color:#a3e635}.czgr .czx{font-size:12px;color:var(--muted,#8b93a7)}
+  .czr5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;border-top:1px solid var(--line,#262a33);padding-top:6px}
+  .czr5 div{display:flex;flex-direction:column;gap:2px;font-size:12px;white-space:nowrap}.czr5 small{color:var(--muted,#8b93a7);font-size:11px}
+  .hisep{opacity:.35;margin:0 2px}
   @media (max-width:860px){.czents{grid-template-columns:1fr}}
   .czrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line2,#2a2f3a);flex-wrap:wrap}
   .czrow>span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 260px}.czrow small{color:var(--muted,#8b93a7);font-size:12px}
@@ -210,8 +214,9 @@
               <details class="czdet"><summary id="czGTh">Ver a tabela alvo × stop</summary><div class="tbl-wrap"><table id="czGT" class="czgt"></table></div></details></section>
             <section class="czcard"><header><span class="cznum">3</span><div><h3>Medição em sombra</h3><p class="muted small">cada entrada vale US$ 0,10 de mentira · as contas já tiram a taxa do pool e o gás</p></div></header>
               <div class="kpis" id="czK"></div>
-              <h4 class="czh">Quanto teria dado com saída fixa</h4>
-              <div class="tbl-wrap"><table id="czS"></table></div>
+              <h4 class="czh">Quanto teria dado com cada saída fixa</h4>
+              <div class="czper"><small class="muted">Entrada:</small><div class="seg" id="czSk"><button data-czs="a">A · cega</button><button data-czs="b">B · com sinais</button><button data-czs="c">C · sem olhar travas</button></div><small class="muted" id="czSSum"></small></div>
+              <div class="abgrid czgr" id="czS"></div>
               <details class="czdet"><summary>Explosões de 100× ou mais desde o início do pool</summary><div class="tbl-wrap"><table id="czX"></table></div></details>
               <details class="czdet"><summary>Pools novos com troca agora</summary><div class="tbl-wrap"><table id="czT"></table></div></details></section>
             <details class="czdet help"><summary>Como ler esta tela</summary><p><b>De onde vêm as explosões:</b> alguém cria um pool novo na Uniswap V4 com quase nenhum dinheiro (às vezes US$ 2 mil de valor total) e a moeda sobe porque compradores colocam ETH. O "+1 milhão %" da CoinGecko costuma comparar com pools minúsculos ou mortos. <b>Grade de %:</b> para cada entrada o robô guarda a hora em que o preço tocou cada alvo (+25% a +1000%) e cada stop (−20% a −70%) nas primeiras 24 h; a saída é o que vier primeiro, senão o preço das 24 h. "Entrada até X%" = só entra se o preço ainda está até X% acima do preço inicial do pool. Só entradas a partir da versão 0.32.489 têm essas marcas. <b>Travas:</b> liquidez na mão de uma carteira (ela pode tirar o ETH do pool a qualquer hora), token que já existia antes do pool, hook que pode cobrar nas trocas, funções perigosas no código, venda travada (honeypot) e liquidez tirada. Liquidez tirada ou venda travada = a entrada vale zero.</p></details>

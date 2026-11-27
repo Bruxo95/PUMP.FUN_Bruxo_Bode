@@ -3210,6 +3210,11 @@
    "versao": "0.32.491",
    "inicio": "2026-11-27T20:52:03+00:00",
    "titulo": "Robinhood: Caçador e Histórico em cartões"
+  },
+  {
+   "versao": "0.32.492",
+   "inicio": "2026-11-27T21:11:38+00:00",
+   "titulo": "Robinhood: entradas de cada saída e Caçador A, B e C no Histórico"
   }
  ]
 }

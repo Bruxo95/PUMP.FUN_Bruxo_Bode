@@ -538,15 +538,46 @@
   // origem (cópia de traders, Caçador, botão Comprar); os quadrados de cima seguem o filtro
   let HIF = "todas", HI_N = 40;
   try { HIF = localStorage.getItem("hood_hif") || "todas"; } catch (e) { /* */ }
-  const HI_ORIG = { todas: "Todas", copia: "Cópia de traders", cacador: "Caçador", botao: "Botão Comprar" };
+  const HI_ORIG = { todas: "Todas", copia: "Cópia de traders", cacador: "Caçador (compras)", botao: "Botão Comprar", sa: "Caçador A · sombra", sb: "Caçador B · sombra", sc: "Caçador C · sombra" };
+  const HI_SOMBRA = { sa: "a", sb: "b", sc: "c" };
+  // 0.32.492 (pedido do dono: "no Histórico, o Caçador A, B e C e ver as compras"): as entradas de mentira do Caçador (US$ 0,10 cada),
+  // com o resultado de cada saída fixa. Não são compras da carteira.
+  function hiSombra(k) {
+    if (!CZ) { loadCz(false); $("hiCards").innerHTML = '<p class="muted">Carregando o Caçador…</p>'; $("hiMore").hidden = true; return; }
+    const L = (CZ.entradas || {})[k] || [], E = (((CZ.estudo || {}).estrategias) || {})[k] || {};
+    const best = (E.saidas || []).filter((r) => r.n).reduce((a, r) => (!a || r.resultado_usd > a.resultado_usd ? r : a), null);
+    kpis("hiK", [["Entradas " + k.toUpperCase() + " (sombra)", num(E.entradas || 0, 0), "US$ " + num(CZ.estudo ? CZ.estudo.valor_usd || 0.1 : 0.1, 2) + " de mentira cada · período do Caçador", "tr"],
+      ["Chegaram a 10×", num(E.x10 || 0, 0), num(E.x100 || 0, 0) + " chegaram a 100×", "up"],
+      ["Liquidez tirada", num(E.liquidez_tirada || 0, 0), "a entrada vale zero", "mon"], ["Venda travada", num(E.venda_travada || 0, 0), "honeypot: vale zero", "mon"],
+      ["Melhor saída fixa", best ? usd(best.resultado_usd, 2) : "—", best ? best.nome + " · " + best.n + " fechadas · acerto " + num(best.acerto, 0) + "%" : "esperando entradas fecharem", "usr"]]);
+    $("hiSub").textContent = "entradas de mentira do Caçador " + k.toUpperCase() + " · não são compras da carteira · mais novas primeiro";
+    const V = L.slice(0, HI_N), R = [["1", "1 h"], ["24", "24 h"], ["x2", "2×"], ["x5", "5×"], ["x10", "10×"]];
+    $("hiCards").innerHTML = V.map((t) => {
+      const sym = t.simbolo || t.nome || short(t.token), ag = t.x_agora;
+      return '<div class="abc hc"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + (ag == null ? "—" : xx(ag)) + '<small class="usdv">agora</small></b></div>' +
+        '<div class="hiorig"><span class="tag pause">CAÇADOR ' + k.toUpperCase() + '</span><span class="tag neutral">SOMBRA · US$ 0,10</span></div>' +
+        '<div class="hc-t">' + tok(t.token, t) + "</div>" + '<div class="abc-d hc-m">' + czTraps(t.travas) + "</div>" +
+        '<div class="abc-n"><div><small>Entrou</small><b>' + (t.x_ini == null ? "—" : num(t.x_ini, 2) + "×") + '</b><small class="usdv">do preço inicial</small></div><div><small>Pico</small><b>' + (t.x_pico == null ? "—" : xx(t.x_pico)) +
+        '</b></div><div><small>Pool nasceu</small><b>há ' + ago(t.nasceu) + "</b></div></div>" +
+        '<div class="czr5">' + R.map((z) => "<div><small>" + z[1] + "</small><b>" + (t.r[z[0]] == null ? '<span class="muted">aberta</span>' : '<span class="' + cls(t.r[z[0]]) + '">' + (t.r[z[0]] > 0 ? "+" : t.r[z[0]] < 0 ? "−" : "") + "$" + num(Math.abs(t.r[z[0]]), 2) + "</span>") + "</b></div>").join("") + "</div>" +
+        '<div class="muted small">entrou ' + hora(t.t) + "</div></div>";
+    }).join("") || '<p class="muted">Nenhuma entrada ' + k.toUpperCase() + " no período do Caçador.</p>";
+    $("hiMore").hidden = L.length <= HI_N;
+  }
   const hiOrig = (x) => (x.aba === "cacador" || x.wallet === "cacador" ? "cacador" : x.aba === "botao" || x.wallet === "botao" ? "botao" : "copia");
   function drawHist() {
     const all = (P && P.trades) || [], w = (P && P.carteira) || {};
     const tx = (x) => (x.taxas_eth != null ? x.taxas_eth : (x.fees || 0));
     const cnt = { todas: all.length, copia: 0, cacador: 0, botao: 0 };
     all.forEach((x) => { cnt[hiOrig(x)]++; });
-    if (!cnt[HIF]) HIF = "todas";
-    $("hiF").innerHTML = Object.keys(HI_ORIG).filter((k) => k === "todas" || cnt[k]).map((k) => '<button type="button" class="' + (k === HIF ? "on" : "") + '" data-hif="' + k + '">' + HI_ORIG[k] + " <small>" + cnt[k] + "</small></button>").join("");
+    const som = REAL ? [] : ["sa", "sb", "sc"];                 // a sombra do Caçador não é carteira: só aparece na FICTÍCIA
+    som.forEach((k) => { cnt[k] = CZ && CZ.entradas ? ((CZ.entradas[HI_SOMBRA[k]]) || []).length : null; });
+    if (!HI_SOMBRA[HIF] && !cnt[HIF]) HIF = "todas";
+    if (HI_SOMBRA[HIF] && REAL) HIF = "todas";
+    $("hiF").innerHTML = ["todas", "copia", "cacador", "botao"].filter((k) => k === "todas" || cnt[k]).concat(som).map((k, i) => (k === "sa" ? '<span class="hisep">|</span>' : "") +
+      '<button type="button" class="' + (k === HIF ? "on" : "") + '" data-hif="' + k + '">' + HI_ORIG[k] + (cnt[k] == null ? "" : " <small>" + cnt[k] + "</small>") + "</button>").join("");
+    if (HI_SOMBRA[HIF]) { hiSombra(HI_SOMBRA[HIF]); drawWhy(); return; }
+    if (!REAL && !CZ) loadCz(false);
     const ts = HIF === "todas" ? all : all.filter((x) => hiOrig(x) === HIF);
     // 0.32.294 (pedido do Bruxo, 11/11): taxas pagas e lucro real (já sem as taxas) em cada fechada e no total
     const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length, txs = ts.reduce((a, x) => a + tx(x), 0);
@@ -724,6 +755,7 @@
     const r = await BB.api("/api/hood/cacador?dias=" + CZD, { quiet: true });
     if (r && !r.error) { CZ = r; (r.agora || []).forEach((x) => { if (x.simbolo || x.nome) NOM[x.token] = { nome: x.nome || "", simbolo: x.simbolo || "" }; }); }
     drawCz();
+    if (VIEW === "historico") drawHist();                       // 0.32.492: abas do Caçador A/B/C no Histórico
   }
   const usd = (v, d) => (v == null ? "—" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : v < 0 ? "−" : "") + "US$ " + num(Math.abs(v), d == null ? 2 : d) + "</span>");
   const xx = (v) => (v == null ? "—" : '<span class="' + (v >= 1 ? "up" : "down") + '">' + (v >= 100 ? num(v, 0) : v >= 10 ? num(v, 1) : num(v, 2)) + "×</span>");
@@ -809,6 +841,34 @@
     table("czGT", ["Alvo \\ Stop"].concat((t.stops || []).map((d) => "−" + d + "%")), (t.linhas || []).map((ln, i) => ["+" + t.alvos[i] + "%"].concat(ln.map((x) => (x ? usd(x.resultado_usd, 3) + '<br><small class="muted">' + x.n + " · " + num(x.acerto, 0) + "%</small>" : "—")))),
       "Ainda sem dados.");
   }
+  // 0.32.492 (pedido do dono: "Fechadas 76, 32, 14, 7: quero clicar para ver" e melhorar o visual): uma saída fixa por cartão, a melhor
+  // com borda; "Ver as N" abre as entradas que contaram, com o resultado de cada uma
+  let CZS = null;
+  const CZS_OPEN = {};
+  const CZ_SAIDA_TXT = { "1": "vende 1 h depois de entrar", "6": "vende 6 h depois de entrar", "24": "vende 24 h depois de entrar", x2: "vende quando dobrar; senão no preço das 24 h",
+    x5: "vende em 5×; senão no preço das 24 h", x10: "vende em 10×; senão no preço das 24 h", x100: "vende em 100×; senão no preço das 24 h" };
+  function czEntRow(t, code) {
+    return "<li><span>" + tok(t.token, t) + '<small class="muted">entrou há ' + ago(t.t) + (t.x_ini != null ? " · " + num(t.x_ini, 2) + "× do início" : "") + (t.x_pico != null ? " · pico " + num(t.x_pico, 2) + "×" : "") +
+      (t.liquidez_tirada ? ' · <span class="down">liquidez tirada</span>' : "") + (t.venda_travada ? ' · <span class="down">venda travada</span>' : "") + "</small></span><span><b>" + usd(t.r[code], 3) + "</b></span></li>";
+  }
+  function czSaidaDraw() {
+    const E = ((CZ && CZ.estudo) || {}).estrategias || {}, box = $("czS"); if (!box) return;
+    CZS = CZS || CZG || ((P && P.cfg_sim) || {}).cz_entrada || "a";
+    document.querySelectorAll("#czSk button").forEach((b) => b.classList.toggle("on", b.dataset.czs === CZS));
+    const x = E[CZS] || {}, L = (CZ && CZ.entradas && CZ.entradas[CZS]) || [];
+    $("czSSum").textContent = num(x.entradas || 0, 0) + " entradas · liquidez tirada em " + num(x.liquidez_tirada || 0, 0) + " · venda travada em " + num(x.venda_travada || 0, 0);
+    const S = (x.saidas || []), bestR = S.filter((r) => r.n).reduce((a, r) => (a == null || r.resultado_usd > a ? r.resultado_usd : a), null);
+    box.innerHTML = S.length ? S.map((r) => {
+      const k = CZS + ":" + r.saida, aberto = !!CZS_OPEN[k], its = L.filter((t) => t.r && t.r[r.saida] != null);
+      return '<div class="abc' + (r.n && r.resultado_usd === bestR ? " best" : "") + '"><div class="abc-t"><b>' + esc(r.nome) + '</b><span class="sp"></span><span class="czres">' + (r.n ? usd(r.resultado_usd, 2) : '<span class="muted">—</span>') + "</span></div>" +
+        '<div class="czx">' + esc(CZ_SAIDA_TXT[r.saida] || "") + (r.n && r.resultado_usd === bestR ? ' · <b class="up">a melhor</b>' : "") + "</div>" +
+        '<div class="abc-n"><div><small>Fechadas</small><b>' + num(r.n, 0) + '</b></div><div><small>Acerto</small><b>' + (r.acerto == null ? "—" : num(r.acerto, 0) + "%") + '</b></div><div><small>Investido</small><b>US$ ' + num(r.investido_usd, 2) + "</b></div></div>" +
+        (r.n ? '<div class="czx">melhor entrada: ' + usd(r.melhor_usd, 3) + "</div>" : '<div class="czx">nenhuma fechou ainda' + (/^\d/.test(r.saida) ? " (precisa de " + r.saida + " h depois da entrada)" : "") + "</div>") +
+        (r.n ? '<div class="row" style="gap:6px"><button class="btn sm" type="button" data-czsx="' + k + '" aria-expanded="' + aberto + '">' + (aberto ? "Esconder" : "Ver as " + num(r.n, 0)) + "</button></div>" : "") +
+        (aberto ? '<ul class="czits">' + its.slice(0, 60).map((t) => czEntRow(t, r.saida)).join("") + (its.length > 60 ? '<li class="muted">mostrando as 60 mais novas</li>' : "") +
+          (its.length < r.n ? '<li class="muted">a lista mostra as ' + its.length + " mais novas guardadas</li>" : "") + "</ul>" : "") + "</div>";
+    }).join("") : '<p class="muted">Nenhuma entrada fechou no período ainda.</p>';
+  }
   function drawCz() {
     czBuyDraw(); czGridDraw();
     document.querySelectorAll("#czD button").forEach((b) => b.classList.toggle("on", Number(b.dataset.czd) === CZD));
@@ -822,13 +882,7 @@
       ["Explosões de 100×+", num((es.explosoes || []).length, 0), "desde o preço inicial do pool", "up"],
       ["Entradas B (com sinais)", num((E.b || {}).entradas, 0), num((E.b || {}).x10, 0) + " chegaram a 10× · " + num((E.b || {}).x100, 0) + " a 100×", "usr"],
       ["Melhor saída da B", bb ? usd(bb.resultado_usd, 2) : "—", bb ? bb.nome + " · " + bb.n + " entradas · acerto " + num(bb.acerto, 0) + "%" : "esperando entradas fecharem", bb && bb.resultado_usd > 0 ? "up" : "down"]]);
-    const rows = [];
-    ["a", "b", "c"].forEach((k) => {
-      const x = E[k]; if (!x) return;
-      (x.saidas || []).forEach((r, i) => rows.push([i ? "" : "<b>" + esc(x.nome) + '</b><br><small class="muted">' + num(x.entradas, 0) + " entradas · liquidez tirada " + num(x.liquidez_tirada, 0) + " · venda travada " + num(x.venda_travada, 0) + "</small>",
-        esc(r.nome), num(r.n, 0), "US$ " + num(r.investido_usd, 2), r.n ? usd(r.resultado_usd, 3) : "—", r.acerto == null ? "—" : num(r.acerto, 0) + "%", usd(r.melhor_usd, 3)]));
-    });
-    table("czS", ["Entrada", "Saída", "Fechadas", "Investido", "Resultado", "Acerto", "Melhor"], rows, "Nenhuma entrada fechou no período ainda.");
+    czSaidaDraw();
     table("czX", ["Token", "Nasceu", "Pico desde o início", "A entrada B pegou?", "Travas"], (es.explosoes || []).map((x) => [tok(x.token, x), "há " + ago(x.t) + '<br><small class="muted">' + hora(x.t) + "</small>",
       xx(x.x_pico), x.b_entrou ? '<span class="tag win">sim</span> entrou em ' + xx(x.b_x_ini) : '<span class="tag neutral">não</span>', czTraps(x.travas)]), "Nenhuma explosão de 100× no período ainda.");
     table("czT", ["Token", "Nasceu", "Compras × vendas", "Agora", "Entrada A", "Entrada B", "Travas"], (CZ.agora || []).map((x) => [tok(x.token, x) + '<br><small class="muted">criação ' + txl(x.tx) + "</small>",
@@ -966,7 +1020,9 @@
   };
   const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
   document.addEventListener("click", (e) => {
-    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore") : null; if (!t) return;
+    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx]") : null; if (!t) return;
+    if (t.dataset.czs) { CZS = t.dataset.czs; czSaidaDraw(); return; }
+    if (t.dataset.czsx) { CZS_OPEN[t.dataset.czsx] = !CZS_OPEN[t.dataset.czsx]; czSaidaDraw(); return; }
     if (t.dataset.czits) { CZ_OPEN[t.dataset.czits] = !CZ_OPEN[t.dataset.czits]; czGridDraw(); return; }
     if (t.dataset.hif) { HIF = t.dataset.hif; HI_N = 40; try { localStorage.setItem("hood_hif", HIF); } catch (x) { /* */ } if (VIEW === "historico") drawHist(); return; }
     if (t.id === "hiMore") { HI_N += 40; drawHist(); return; }
