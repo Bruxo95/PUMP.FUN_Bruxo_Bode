@@ -3235,6 +3235,11 @@
    "versao": "0.32.496",
    "inicio": "2026-11-27T23:29:06+00:00",
    "titulo": "Robinhood: nome do token nas compras do Caçador e link na Sala"
+  },
+  {
+   "versao": "0.32.497",
+   "inicio": "2026-11-27T23:46:24+00:00",
+   "titulo": "Robinhood: Caçador primeiro, toggles alinhados, cópia dos traders em Top traders"
   }
  ]
 }

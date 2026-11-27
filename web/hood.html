@@ -92,7 +92,11 @@
   .czent span{font-size:12.5px;color:var(--muted,#8b93a7);line-height:1.4}.czent em{font-style:normal;font-size:12px;color:#d9f99d}
   .czent .tag{align-self:flex-start}
   .czsws{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line,#262a33);padding-top:8px;margin-top:4px}
-  .czsws label{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
+  .czsws label{display:grid;grid-template-columns:minmax(0,1fr) 158px;align-items:center;gap:8px;cursor:pointer}
+  .czsws .sw{justify-self:start;width:158px;justify-content:flex-start}
+  .czsws label>.tag{justify-self:start}
+  .czents{align-items:stretch}.czent{justify-content:flex-start}.czent .czsws{margin-top:auto}
+  .czrow.trcopia{border:1px solid var(--line,#262a33);border-radius:12px;padding:12px 16px;margin:10px 0 12px;background:var(--card,#121418)}
   .czgr .abc{gap:6px}.czgr .czres{font-size:20px;font-weight:700}.czgr .czsug{font-size:12.5px;line-height:1.45}
   .czits{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
   .czits li{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line,#262a33);padding-top:6px;font-size:12.5px}
@@ -209,7 +213,7 @@
       <section class="view" data-view="fluxo" hidden>
         <div class="card"><header><div><h2>As 30 moedas com mais dinheiro entrando</h2><div class="sub" id="fxSub">ETH que entrou nas compras menos o que saiu nas vendas, no período · só o que a leitura viu na rede</div></div><div class="sp"></div>
           <div class="seg" id="fxH"><button data-fxh="0.25">15 min</button><button data-fxh="1">1 h</button><button data-fxh="6">6 h</button><button data-fxh="24">24 h</button></div></header>
-          <div class="seg hdsub" id="fxTab" style="margin-top:4px"><button data-fxt="ok">Moedas</button><button data-fxt="hp" id="fxHpB">Honeypot e bloqueadas</button><button data-fxt="cz">Caçador (sombra)</button></div>
+          <div class="seg hdsub" id="fxTab" style="margin-top:4px"><button data-fxt="cz">Caçador</button><button data-fxt="ok">Moedas</button><button data-fxt="hp" id="fxHpB">Honeypot e bloqueadas</button></div>
           <div id="fxMain"><div class="kpis" id="fxK"></div>
           <div class="tbl-wrap" style="margin-top:12px"><table id="fxT"></table></div>
           <div class="help"><p><b>Como ler:</b> <b>Entrou líquido</b> = ETH das compras menos ETH das vendas no período (dinheiro novo que ficou no token). <b>Carteiras</b> = quantas carteiras diferentes compraram. <b>Top traders</b> = quantos dos 50 melhores do ranking compraram (e se algum está no Copiando agora). <b>Visto pela 1ª vez</b> = primeira troca que a leitura viu (a memória guarda 24 h; antes disso aparece "+24 h"). A Robinhood não tem a fase de curva da pump.fun: a moeda já nasce num pool. Dinheiro entrando não é garantia de alta: confira a segurança antes de comprar.</p></div></div>
@@ -297,6 +301,7 @@
       </section>
       <section class="view" data-view="traders" hidden>
         <div class="seg hdsub" id="trTab"><button data-trt="rank">Ranking</button><button data-trt="aj">Regra do ranking</button><button data-trt="bl" id="trBlB">Bloqueados</button></div>
+        <div class="czrow trcopia" id="trCopia"></div>
         <div id="trRank">
           <div class="card"><header><div><h2>Copiando agora</h2><div class="sub" id="hdSelSub">os melhores aptos que negociaram nos últimos minutos, pela regra do Top traders · quando um deles compra, a cópia FICTÍCIA compra junto (Visão geral → O que a cópia fez)</div></div></header>
             <div class="tbl-wrap"><table id="hdSel"></table></div></div>

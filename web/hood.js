@@ -189,7 +189,18 @@
         blk.has(w) ? '<button class="btn sm" data-block="' + esc(w) + '" data-on="0">Desbloquear</button>' : '<span class="muted small">automático</span>'];
     }), "Nenhum trader bloqueado.");
   }
+  // 0.32.497 (pedido do dono: "tira o top traders do Caçador e joga esse toggle para dentro de Top traders")
+  function drawTrCopia() {
+    const box = $("trCopia"), c = (P && P.cfg_sim) || null; if (!box) return;
+    if (!c) { box.hidden = true; return; }
+    box.hidden = false;
+    const on = c.copia_traders !== false;
+    box.innerHTML = '<span><b>Copiar os top traders na FICTÍCIA</b><small>' + (on ? "ligado: quando um trader do Copiando agora (ou um que você escolheu) compra, a carteira FICTÍCIA compra junto. São as fechadas \"Cópia de traders\" do Histórico."
+      : "desligado: a FICTÍCIA não copia os traders; compra só pelo Caçador e pelo botão Comprar da lista Moedas.") + " A REAL tem as regras dela (Carteira).</small></span>" +
+      '<button class="btn tgl sw ' + (on ? "on" : "off") + '" type="button" role="switch" aria-checked="' + on + '" data-czk="copia_traders">' + (on ? "Ligado" : "Desligado") + "</button>";
+  }
   function drawTraders() {
+    drawTrCopia();
     document.querySelectorAll("#trTab button").forEach((b) => b.classList.toggle("on", b.dataset.trt === TRT));
     $("trRank").hidden = TRT !== "rank"; $("trAj").hidden = TRT !== "aj"; $("trBl").hidden = TRT !== "bl";
     const rk = (R && R.ranking) || {}, all = rk.rows || [];
@@ -771,7 +782,7 @@
     drawFx();
   }
   // 0.32.303 (pedido do dono): conferência de cada moeda, aba Honeypot e bloqueadas, botões Bloquear e Comprar
-  let FXT = "ok";
+  let FXT = "cz";                                   // 0.32.497 (pedido do dono): o Caçador é a 1ª aba e já abre nela
   const fxHp = (x) => !!(x.seguranca && x.seguranca.venda_travada);
   function fxSafe(x) {
     const v = x.seguranca;
@@ -844,7 +855,6 @@
       : '<div class="czstate off"><b>Nenhuma entrada está ligada: o Caçador não compra nada</b>, nem na FICTÍCIA nem na REAL. Os números dos blocos 2 e 3 e das abas "sombra" do Histórico são <b>só simulação</b> (o robô finge entrar com US$ 0,10). Para comprar, ligue a FICTÍCIA ou a REAL dentro de A, B ou C.';
     estado += (REAL ? "" : " Na FICTÍCIA agora: <b>" + ps.length + "</b> aberta" + (ps.length === 1 ? "" : "s") + " · <b>" + ts.length + "</b> fechada" + (ts.length === 1 ? "" : "s") +
       (ts.length ? " · resultado " + eth(res, 5) + (usdOf(res) ? ' <span class="muted">(' + esc(usdOf(res)) + ")</span>" : "") + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#historico" data-hif="cacador">ver no Histórico</a>') + "</div>";
-    const cpOn = c.copia_traders !== false;
     const swE = (k, tipo, on) => '<button class="btn sm tgl sw ' + (on ? "on" : "off") + (tipo === "real" ? " czreal" : "") + '" type="button" role="switch" aria-checked="' + on + '" data-czent="' + k + '" data-czt="' + tipo + '">' + (on ? "Ligado" : "Desligado") + "</button>";
     box.innerHTML = estado +
       '<p class="small" style="margin:12px 0 4px"><b>Entradas</b> <span class="muted">· ligue a FICTÍCIA, a REAL ou as duas em cada uma · cada entrada compra e é medida separada</span></p><div class="czents">' +
@@ -855,13 +865,13 @@
       '<p class="small" style="margin:12px 0 0"><b>Valores e saída das compras</b> <span class="muted">· salva sozinho ao sair do campo · valem para A, B e C · na REAL o valor de cada compra é o da carteira REAL</span></p>' +
       '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + (x[0] === "cz_eth" ? " (FICTÍCIA)" : "") + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span>" +
         (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>" +
-      '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>' + (cpOn ? "ligado: a FICTÍCIA também copia as compras dos top traders da Robinhood (aba Top traders). São as fechadas \"Cópia de traders\" do Histórico." : "desligado: a FICTÍCIA não copia mais os top traders; compra só pelo Caçador e pelo botão Comprar da lista Moedas.") + " Desligue para medir só o Caçador.</small></span>" + sw("copia_traders", cpOn) + "</div>";
+      "";
   }
   async function czSave(body) {
     const r = await BB.api("/api/hood/conta", { body, quiet: true });
     if (r && r.error) { alert(r.error); return; }
     if (P && r && r.cfg) P.cfg_sim = r.cfg;
-    czBuyDraw();
+    czBuyDraw(); drawTrCopia();
   }
   // 0.32.491 (pedido do dono: "mostra Fechadas 2, mas quais 2?"): cada resultado vira um cartão; "ver as N" abre as entradas que contaram
   const CZ_OPEN = {};

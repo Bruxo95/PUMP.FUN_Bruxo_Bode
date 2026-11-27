@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "065c02652facef94938be565697df47265511ad8",
-    "application_version": "0.32.496 · 2026-11-28 · Robinhood: nome do token nas compras do Caçador e link da DexScreener na Sala",
+    "repository_reference": "d1f321dc7806fdade62d09bec61d24bda3a86aff",
+    "application_version": "0.32.497 · 2026-11-28 · Robinhood: Caçador primeiro em Dinheiro entrando, toggles alinhados e a cópia dos top traders em Top traders",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "38b10f61c674f4787b2fd5f2a49ce17cf5e90d4a43bfc1d461a21d1513a68149",
+      "app/version.py": "7eb42012d42ea01ac2091437f6a17ae3401da4e0330f88112db26a5cbab06eef",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "c3f8111658001737e0c024f299544fdefe592b02e412a0dc9b0f8bcc545b4aee"
+  "pdf_sha256": "e0f425242131263add98fc5225a8e99a3ce3ca4c7ec99d58f7a5befc400ee0f8"
 }
