@@ -58,7 +58,8 @@ CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloquead
                "sg_on": True, "sg_fixo_pct": 0.0,
                # 0.32.489 (pedido do Bruxo, áudio de 27/11): desligar a cópia dos top traders na FICTÍCIA e comprar na FICTÍCIA pelas
                # entradas do Caçador (sombra), com % de entrada e de saída próprios
-               "copia_traders": True, "cz_on": False, "cz_entrada": "b", "cz_eth": 0.002, "cz_entrada_max_pct": 0.0,
+               # 0.32.494 (pedido do dono: "poder desligar o A, B ou C"): cz_ents = as entradas que compram (uma ou mais de "abc")
+               "copia_traders": True, "cz_on": False, "cz_entrada": "b", "cz_ents": "b", "cz_eth": 0.002, "cz_entrada_max_pct": 0.0,
                "cz_alvo_pct": 100.0, "cz_stop_pct": 50.0, "cz_max_h": 24.0, "cfg_v": CFG_V}
 # valores que eram o padrão até a 0.32.321 → quem ainda está neles (não escolheu outro) passa para o padrão novo, uma vez só
 CFG_OLD = {"stop_pct": 0.0, "trader_so_lucro": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0, "gas_eth": 0.00002}
@@ -292,6 +293,8 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
         elif k == "cz_entrada":
             if str(v).lower() in CZ_ENTRADAS:
                 out[k] = str(v).lower()
+        elif k == "cz_ents":
+            out[k] = "".join(c for c in "abc" if c in str(v or "").lower())
         elif k in ("bloqueados", "tokens_bloqueados"):
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
             out[k] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
@@ -311,6 +314,8 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
             val = min(hi, max(lo, val))
             out[k] = int(val) if isinstance(CFG_DEFAULT[k], int) else round(val, 6)
     out["modo"] = {w: m for w, m in out["modo"].items() if w in out["manual"]}
+    if raw and "cz_ents" not in raw and "cz_entrada" in raw:    # configuração de antes da 0.32.494: só uma entrada
+        out["cz_ents"] = out.get("cz_entrada") or "b"
     return out
 
 
@@ -396,7 +401,7 @@ class Book:
             why = "sem preço do token"
         elif any(p["wallet"] == tr["wallet"] and p["token"] == tr["token"] for p in self.pos.values()):
             why = "já tem a posição deste trader neste token"
-        elif c.get("um_por_token") and any(p["token"] == tr["token"] for p in self.pos.values()):
+        elif c.get("um_por_token") and origem != "cacador" and any(p["token"] == tr["token"] and p.get("aba") != "cacador" for p in self.pos.values()):
             # 0.32.301 (pedido do dono: "não entrar mais de 1 vez no mesmo contrato do token se já estiver na posição")
             why = "já tem posição neste token (de outro trader): uma entrada por token"
         elif len(self.pos) >= c["max_abertas"]:
@@ -1011,7 +1016,7 @@ class Copier:
     def cz_entry(self, hp: dict, kind: str) -> None:
         """Entrada nova do Caçador (A, B ou C): compra na FICTÍCIA de cada conta que ligou "Comprar pelo Caçador" com essa entrada.
         Nunca compra na REAL."""
-        if any(b.cfg.get("cz_on") and b.cfg.get("on") and b.cfg.get("cz_entrada", "b") == kind for b in self.books.values()):
+        if any(b.cfg.get("cz_on") and b.cfg.get("on") and kind in (b.cfg.get("cz_ents") or "") for b in self.books.values()):
             e = hp.get(kind) or {}
             self._spawn(self._cz_buy({"id": hp["id"], "token": hp["token"], "nome": hp.get("nome"), "simbolo": hp.get("simbolo"),
                                       "px": e.get("px"), "t": e.get("t"), "x_ini": e.get("x_ini")}, kind))
@@ -1022,19 +1027,19 @@ class Copier:
             key = await self.pool_key(hp["id"], tk)
         except Exception:
             key = None
-        tr = {"wallet": "cacador", "token": tk, "t": hp.get("t") or now, "tx": None, "eth": None, "amount": 0, "_auto": False,
+        tr = {"wallet": "cacador-" + kind, "token": tk, "t": hp.get("t") or now, "tx": None, "eth": None, "amount": 0, "_auto": False,
               "pool": hp["id"]}
         nome = {"a": "A", "b": "B", "c": "C"}[kind]
         for uid, b in list(self.books.items()):
             c = b.cfg
-            if not (c.get("cz_on") and c.get("on") and c.get("cz_entrada", "b") == kind):
+            if not (c.get("cz_on") and c.get("on") and kind in (c.get("cz_ents") or "")):
                 continue
             if not key:
-                b.ev(now, "cacador", tk, "não copiou", "Caçador: não achei a chave do pool V4 pago em ETH")
+                b.ev(now, "cacador-" + kind, tk, "não copiou", f"Caçador {nome}: não achei a chave do pool V4 pago em ETH")
                 continue
             mx, xi = c.get("cz_entrada_max_pct") or 0, hp.get("x_ini")
             if mx and xi is not None and (xi - 1) * 100 > mx:
-                b.ev(now, "cacador", tk, "não copiou", f"Caçador: já subiu {(xi - 1) * 100:.0f}% desde o início do pool (máx. {mx:g}%)")
+                b.ev(now, "cacador-" + kind, tk, "não copiou", f"Caçador {nome}: já subiu {(xi - 1) * 100:.0f}% desde o início do pool (máx. {mx:g}%)")
                 continue
             p = b.buy(tr, hp.get("px"), now, key, "cacador")
             if p:

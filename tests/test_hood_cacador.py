@@ -192,3 +192,27 @@ def test_entradas_do_cacador_com_o_resultado_de_cada_saida():
     assert len(L) == 1 and L[0]["x_pico"] == 3.0 and L[0]["r"]["x2"] > 0 and L[0]["r"]["24"] is None
     assert H.entries([p], 1100, 7, 3000.0, "b") == []
 
+
+def test_a_b_e_c_ligam_separadas_e_cada_uma_compra_o_mesmo_token():
+    """0.32.494 (pedido do dono: "poder desligar o A, B ou C"): cz_ents liga uma ou mais entradas; cada uma é uma posição à parte."""
+    import asyncio as _a
+    import types as _t
+    from app import hoodcopy
+    assert hoodcopy.clean_cfg({"cz_ents": "CxA"})["cz_ents"] == "ac"
+    assert hoodcopy.clean_cfg({"cz_entrada": "c"})["cz_ents"] == "c"          # configuração antiga: a entrada escolhida continua ligada
+    key = [hoodcopy.ZERO, TOKEN, 0, 60, hoodcopy.ZERO]
+    b = hoodcopy.Book("u", {"cz_on": True, "cz_ents": "ac", "slip_pct": 0, "gas_eth": 0})
+
+    async def pk(pid, tk):
+        return key
+
+    async def fl():
+        return None
+    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl)
+    hp = {"id": POOL, "token": TOKEN, "px": 0.000001, "t": time.time(), "x_ini": 1.0}
+    for k in ("a", "b", "c"):
+        _a.run(hoodcopy.Copier._cz_buy(f, hp, k))
+    ws = sorted(p["wallet"] for p in b.pos.values())
+    assert ws == ["cacador-a", "cacador-c"]                                  # B desligada: não comprou
+    assert sorted(p["cz"]["entrada"] for p in b.pos.values()) == ["A", "C"]
+

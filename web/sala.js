@@ -1385,7 +1385,7 @@
     const curve = tr.slice().sort((a, b) => tms(a.closed_at) - tms(b.closed_at)).map((t) => { acc += +t.pnl_sol || 0; return [t.closed_at, acc]; });
     const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: 1,
       start_sol: w.inicial, equity_sol: w.total, pnl_pct: w.resultado_pct };
-    const log = (p.eventos || []).map((e) => ({ k: e.t + "|" + e.token + "|" + e.acao, h: e.t ? hms(e.t * 1000) : "", a: e.acao, s: e.token || "", r: e.motivo }));
+    const log = (p.eventos || []).filter((e) => !soCz || String(e.wallet || "").startsWith("cacador")).map((e) => ({ k: e.t + "|" + e.token + "|" + e.acao, h: e.t ? hms(e.t * 1000) : "", a: e.acao, s: e.token || "", r: e.motivo }));
     if (!log.length) log.push({ k: "fx-status", h: hms(Date.now()), a: "aguardando", s: "", r: "nenhum mestre conectado ainda · próxima etapa: conector cTrader" });
     S.seguindo = p.seguindo || 0;
     return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log };
@@ -1396,13 +1396,22 @@
     const p = await API(C().api ? C().api : "/api/hood/painel" + (real ? "?real=1" : ""));
     if (p.error) return p;
     if (p.ligado === false) return { error: p.motivo || "leitura da Robinhood desligada no servidor" };
-    const sy = (x) => x.simbolo || x.nome || (x.token || "").slice(0, 8);
+    // 0.32.494 (pedido do dono: "na Sala da Robinhood deixar ligado só o Caçador e dizer se é A, B ou C"): com SÓ CAÇADOR ligado
+    // (padrão), a Sala mostra só as compras do Caçador, com a letra da entrada no nome
+    const cz = (x) => x.aba === "cacador" || String(x.wallet || "").startsWith("cacador");
+    const letra = (x) => (x.cz && x.cz.entrada) || (String(x.wallet || "").startsWith("cacador-") ? String(x.wallet).slice(-1).toUpperCase() : "");
+    const sy = (x) => { const n = x.simbolo || x.nome || (x.token || "").slice(0, 8); return cz(x) && letra(x) ? n + " · " + letra(x) : n; };
     const rk = p.riscos || {}, nm = p.nomes || {};
-    const pos = (p.posicoes || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
+    const soCz = CZONLY && !C().botlive && !FOREX;
+    const pos = (p.posicoes || []).filter((x) => !soCz || cz(x)).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
       pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t) }));
-    const tr = (p.trades || []).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t),
+    const tr = (p.trades || []).filter((x) => !soCz || cz(x)).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t),
       opened_at: iso(x.open_t), sol_in: x.eth_in, motivo: x.motivo }));
-    const w = p.carteira || {};
+    let w = p.carteira || {};
+    if (soCz) {                                                       // a carteira da Sala vira a conta só do Caçador
+      const ganhou = tr.filter((t) => (+t.pnl_sol || 0) > 0).length, soma = tr.reduce((a, t) => a + (+t.pnl_sol || 0), 0);
+      w = { resultado: soma, acerto: tr.length ? 100 * ganhou / tr.length : null, fechadas: tr.length, inicial: null, total: null, resultado_pct: null };
+    }
     let acc = 0;
     const curve = tr.slice().sort((a, b) => tms(a.closed_at) - tms(b.closed_at)).map((t) => { acc += +t.pnl_sol || 0; return [t.closed_at, acc]; });
     const wal = { pnl_sol: w.resultado, win_rate: w.acerto == null ? null : w.acerto / 100, count: w.fechadas, sol_usd: p.eth_usd,
@@ -1454,6 +1463,13 @@
     try { localStorage.setItem(MKEY, real ? "real" : "sim"); } catch (e) { /* */ }
     $("mSim").classList.toggle("on", !real); $("mReal").classList.toggle("on", real);
     load();
+  }
+  // 0.32.494: SÓ CAÇADOR na Sala da Robinhood (começa ligado; lembrado no navegador)
+  let CZONLY = true;
+  try { CZONLY = localStorage.getItem("sala_hood_czonly") !== "0"; } catch (e) { /* */ }
+  if (HOOD && !FOREX && !C().botlive) {
+    $("mCz").hidden = false; $("mCz").classList.toggle("on", CZONLY);
+    $("mCz").addEventListener("click", () => { CZONLY = !CZONLY; try { localStorage.setItem("sala_hood_czonly", CZONLY ? "1" : "0"); } catch (e) { /* */ } $("mCz").classList.toggle("on", CZONLY); setMode(S.real); });
   }
   $("mSim").addEventListener("click", () => setMode(false));
   $("mReal").addEventListener("click", () => setMode(true));

@@ -104,6 +104,10 @@
   .hisep{opacity:.35;margin:0 2px}
   .hisum{margin:0 0 14px;grid-template-columns:repeat(4,minmax(0,1fr))}.hisum .perk b{font-size:18px}.hisum .perk .hiusd{display:block;font-size:12px;font-family:var(--mono)}
   .hisx b{font-family:var(--mono)}
+  .hiw{grid-template-columns:repeat(6,minmax(0,1fr));margin-bottom:12px}.hiw .perk b{font-size:16px}.hiw .hiusd{display:block;font-size:12px;font-family:var(--mono);color:var(--muted,#8b93a7)}
+  @media (max-width:1100px){.hiw{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:560px){.hiw{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .czstate{border-radius:10px;padding:10px 12px;margin:4px 0 10px;font-size:13.5px;line-height:1.5;border:1px solid #3a3f4b;background:rgba(255,255,255,.03)}
+  .czstate.off{border-color:#7f1d1d;background:rgba(220,38,38,.08)}.czstate.on{border-color:#4d7c0f;background:rgba(163,230,53,.08)}
   @media (max-width:860px){.hisum{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (max-width:860px){.czents{grid-template-columns:1fr}}
   .czrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line2,#2a2f3a);flex-wrap:wrap}
@@ -208,14 +212,14 @@
           <div class="tbl-wrap" style="margin-top:12px"><table id="fxT"></table></div>
           <div class="help"><p><b>Como ler:</b> <b>Entrou líquido</b> = ETH das compras menos ETH das vendas no período (dinheiro novo que ficou no token). <b>Carteiras</b> = quantas carteiras diferentes compraram. <b>Top traders</b> = quantos dos 50 melhores do ranking compraram (e se algum está no Copiando agora). <b>Visto pela 1ª vez</b> = primeira troca que a leitura viu (a memória guarda 24 h; antes disso aparece "+24 h"). A Robinhood não tem a fase de curva da pump.fun: a moeda já nasce num pool. Dinheiro entrando não é garantia de alta: confira a segurança antes de comprar.</p></div></div>
           <div id="czBox" hidden>
-            <div class="czsombra"><b>NUNCA NA REAL.</b> O Caçador olha todo pool novo da Uniswap V4 pago em ETH e finge entrar com US$ 0,10 para medir o que teria acontecido. Ligando "Comprar pelo Caçador", a sua carteira <b>FICTÍCIA</b> também compra nessas entradas.</div>
+            <div class="czsombra"><b>O que é o Caçador.</b> Ele olha todo pool novo da Uniswap V4 pago em ETH e marca 3 jeitos de entrar: <b>A</b> = na 1ª compra, sem olhar nada · <b>B</b> = quando junta 5 compradores e 0,05 ETH e nenhuma trava está acesa · <b>C</b> = o mesmo sinal da B, mesmo com trava. Em cada um ele <b>finge</b> entrar com US$ 0,10 e mede o que teria acontecido (blocos 2 e 3). Isso não é compra. Só o bloco 1, com a chave ligada, compra na sua carteira <b>FICTÍCIA</b>. Nunca na REAL.</div>
             <div class="czper"><small class="muted">Período:</small><div class="seg" id="czD"><button data-czd="1">24 h</button><button data-czd="7">7 dias</button><button data-czd="30">30 dias</button></div><small class="muted" id="czSt"></small></div>
             <section class="czcard"><header><span class="cznum">1</span><div><h3>Suas compras pelo Caçador <span class="tag sim">FICTÍCIA</span></h3><p class="muted small">o que a sua carteira fictícia faz com as entradas do Caçador</p></div></header><div id="czBuy"></div></section>
-            <section class="czcard"><header><span class="cznum">2</span><div><h3>Qual % de entrada e de saída teria dado mais</h3><p class="muted small">o robô testa 120 combinações (entrada × alvo × stop) em cada entrada e soma o resultado · combinações com o mesmo resultado ficam juntas</p></div></header>
+            <section class="czcard"><header><span class="cznum">2</span><div><h3>Qual % de entrada e de saída teria dado mais</h3><p class="muted small"><b>Simulação, nada foi comprado.</b> Para cada entrada de mentira o robô testou 120 combinações de "até quanto já subiu para entrar" × alvo × stop e somou o resultado (US$ 0,10 cada). Combinações com o mesmo resultado ficam juntas. <b>"Usar estes %"</b> copia a entrada, o alvo e o stop para o bloco 1: as próximas compras FICTÍCIAS passam a usar esses números (se a chave estiver ligada).</p></div></header>
               <div class="czper"><small class="muted">Entrada:</small><div class="seg" id="czGk"><button data-czg="a">A</button><button data-czg="b">B</button><button data-czg="c">C</button></div><small class="muted" id="czGSt"></small></div>
               <div class="abgrid czgr" id="czGr"></div>
               <details class="czdet"><summary id="czGTh">Ver a tabela alvo × stop</summary><div class="tbl-wrap"><table id="czGT" class="czgt"></table></div></details></section>
-            <section class="czcard"><header><span class="cznum">3</span><div><h3>Medição em sombra</h3><p class="muted small">cada entrada vale US$ 0,10 de mentira · as contas já tiram a taxa do pool e o gás</p></div></header>
+            <section class="czcard"><header><span class="cznum">3</span><div><h3>Medição em sombra</h3><p class="muted small"><b>Simulação, nada foi comprado.</b> Todo pool novo recebe entradas de mentira de US$ 0,10 (A, B e C) e o robô mede quanto cada saída fixa teria dado: segurar 1, 6 ou 24 h, ou vender em 2×, 5×, 10× ou 100×. As contas já tiram a taxa do pool e o gás. As mesmas entradas aparecem no Histórico, nas abas "sombra".</p></div></header>
               <div class="kpis" id="czK"></div>
               <h4 class="czh">Quanto teria dado com cada saída fixa</h4>
               <div class="czper"><small class="muted">Entrada:</small><div class="seg" id="czSk"><button data-czs="a">A · cega</button><button data-czs="b">B · com sinais</button><button data-czs="c">C · sem olhar travas</button></div><small class="muted" id="czSSum"></small></div>
@@ -230,6 +234,7 @@
           <div class="tbl-wrap"><table id="adT"></table></div></div>
       </section>
       <section class="view" data-view="historico" hidden>
+        <div class="perg hiw" id="hiW"></div>
         <div class="kpis" id="hiK"></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Posições fechadas</h2><div class="sub" id="hiSub">mais novas primeiro</div></div></header>
           <div class="seg hifs" id="hiF"></div>

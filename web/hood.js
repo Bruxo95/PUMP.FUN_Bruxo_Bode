@@ -88,7 +88,7 @@
     }
     return (BKY[a] = cv.toDataURL());
   }
-  const ORIG = { botao: "Botão Comprar", cacador: "Caçador" };
+  const ORIG = { botao: "Botão Comprar", cacador: "Caçador", "cacador-a": "Caçador A", "cacador-b": "Caçador B", "cacador-c": "Caçador C" };
   const addr = (a) => (ORIG[a] ? '<span class="tag neutral">' + ORIG[a] + "</span>" : a ? '<a class="hdwho" href="' + esc(ex()) + "/address/" + esc(a) + '" target="_blank" rel="noopener" title="' + esc(a) + '"><img class="bky" alt="" src="' + blockie(a) +
     '"><span><b>' + esc(nick(a)) + '</b><small class="hdaddr">' + esc(short(a)) + "</small></span></a>" : "—");
   // 0.32.290 (pedido do dono: "no token coloque o nome e endereço que nem você fez para os traders"): ícone, símbolo e endereço curto
@@ -595,7 +595,18 @@
     }).join("") || '<p class="muted">Nenhuma entrada ' + k.toUpperCase() + " no período do Caçador.</p>";
     $("hiMore").hidden = L.length <= HI_N;
   }
-  const hiOrig = (x) => (x.aba === "cacador" || x.wallet === "cacador" ? "cacador" : x.aba === "botao" || x.wallet === "botao" ? "botao" : "copia");
+  const hiOrig = (x) => (x.aba === "cacador" || String(x.wallet || "").startsWith("cacador") ? "cacador" : x.aba === "botao" || x.wallet === "botao" ? "botao" : "copia");
+  // 0.32.494 (pedido do dono: "no Histórico, o saldo da carteira e os ganhos em 1, 6, 12 e 24 h e o total"): sempre da carteira inteira
+  function hiWallet(w) {
+    const box = $("hiW"); if (!box) return;
+    const per = {}; (w.periodos || []).forEach((p) => { per[p.h] = p; });
+    const uS = (v, sinal) => { const r = usdRate(); if (!r || v == null) return ""; const d = v * r; return (sinal && d > 0 ? "+" : d < 0 ? "−" : "") + "US$ " + num(Math.abs(d), Math.abs(d) >= 100 ? 0 : 2); };
+    const pe = (h) => { const p = per[h]; return '<div class="perk"><small>Últimas ' + h + " h</small><b>" + (p && p.n ? eth(p.pnl, 5) : '<span class="muted">—</span>') + "</b>" +
+      (p && p.n ? '<span class="hiusd">' + uS(p.pnl, true) + "</span><span>" + p.n + " fechada" + (p.n > 1 ? "s" : "") + " · " + p.ganhos + " com lucro</span>" : "<span>nenhuma fechou</span>") + "</div>"; };
+    box.innerHTML = '<div class="perk"><small>Saldo da carteira ' + mtag() + "</small><b>" + (w.total == null ? "—" : num(w.total, 5) + " ETH") + '</b><span class="hiusd">' + esc(usdOf(w.total) || "") + "</span><span>" + (w.saldo == null ? "" : "livre " + num(w.saldo, 5) + " · em posições " + num(w.em_posicoes || 0, 5)) + "</span></div>" +
+      pe(1) + pe(6) + pe(12) + pe(24) +
+      '<div class="perk"><small>Total</small><b>' + (w.resultado == null ? eth(w.realizado, 5) : eth(w.resultado, 5)) + '</b><span class="hiusd">' + uS(w.resultado == null ? w.realizado : w.resultado, true) + "</span><span>" + (w.resultado_pct != null ? pct(w.resultado_pct) + " desde o saldo inicial (" + num(w.inicial, 3) + " ETH)" : "todas as fechadas") + "</span></div>";
+  }
   function drawHist() {
     const all = (P && P.trades) || [], w = (P && P.carteira) || {};
     const tx = (x) => (x.taxas_eth != null ? x.taxas_eth : (x.fees || 0));
@@ -610,6 +621,7 @@
     if (HI_SOMBRA[HIF]) { hiSombra(HI_SOMBRA[HIF]); drawWhy(); return; }
     $("hiSom").hidden = true;
     if (!REAL && !CZ) loadCz(false);
+    hiWallet(w);
     const ts = HIF === "todas" ? all : all.filter((x) => hiOrig(x) === HIF);
     // 0.32.294 (pedido do Bruxo, 11/11): taxas pagas e lucro real (já sem as taxas) em cada fechada e no total
     const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length, txs = ts.reduce((a, x) => a + tx(x), 0);
@@ -620,7 +632,7 @@
     $("hiSub").textContent = "mais novas primeiro · " + num(ts.length, 0) + " fechada" + (ts.length === 1 ? "" : "s") + (HIF === "todas" ? "" : " em " + HI_ORIG[HIF]);
     const ul = (v, s) => { const u = usdOf(Math.abs(v || 0)); return u ? '<small class="usdv">' + (s && v > 0 ? "+" : s && v < 0 ? "−" : "") + esc(u.replace("≈ ", "")) + "</small>" : ""; };
     const tagO = (x) => { const o = hiOrig(x);
-      return o === "cacador" ? '<span class="tag pause">CAÇADOR</span>' + (x.cz ? ' <span class="tag neutral">entrada ' + esc(x.cz.entrada || "") + " · alvo +" + num(x.cz.alvo, 0) + "% · stop −" + num(x.cz.stop, 0) + "%</span>" : "")
+      return o === "cacador" ? '<span class="tag pause">CAÇADOR' + (x.cz && x.cz.entrada ? " " + esc(x.cz.entrada) : "") + "</span>" + (x.cz ? ' <span class="tag neutral">entrada ' + esc(x.cz.entrada || "") + " · alvo +" + num(x.cz.alvo, 0) + "% · stop −" + num(x.cz.stop, 0) + "%</span>" : "")
         : o === "botao" ? '<span class="tag neutral">BOTÃO COMPRAR</span>' : '<span class="tag win">CÓPIA DE TRADER</span>'; };
     const V = ts.slice(0, HI_N);
     $("hiCards").innerHTML = V.map((x) => {
@@ -815,25 +827,30 @@
     if (!c) { box.innerHTML = '<p class="muted">carregando a sua carteira…</p>'; return; }
     if (document.activeElement && box.contains(document.activeElement) && document.activeElement.tagName === "INPUT") return;   // não apaga o que está digitando
     const sw = (k, on) => '<button class="btn tgl sw ' + (on ? "on" : "off") + '" type="button" role="switch" aria-checked="' + on + '" data-czk="' + k + '">' + (on ? "Ligado" : "Desligado") + "</button>";
-    const ent = c.cz_entrada || "b", E = ((CZ && CZ.estudo) || {}).estrategias || {};
-    let st = "";
-    if (!REAL) {
-      const ps = ((P && P.posicoes) || []).filter((p) => p.aba === "cacador"), ts = ((P && P.trades) || []).filter((t) => t.aba === "cacador");
-      const res = ts.reduce((a, t) => a + (+t.pnl_eth || 0), 0), win = ts.filter((t) => (+t.pnl_eth || 0) > 0).length;
-      st = "Na sua FICTÍCIA: <b>" + ps.length + "</b> aberta" + (ps.length === 1 ? "" : "s") + " · <b>" + ts.length + "</b> fechada" + (ts.length === 1 ? "" : "s") +
-        (ts.length ? " · resultado " + eth(res, 5) + (usdOf(res) ? ' <span class="muted">(' + esc(usdOf(res)) + ")</span>" : "") + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#historico" data-hif="cacador">ver no Histórico</a>';
-    } else st = "Troque para FICTÍCIA no topo para ver as compras do Caçador.";
-    box.innerHTML = '<div class="czrow"><span><b>Comprar pelo Caçador</b><small>compra na FICTÍCIA quando a entrada escolhida acontece · nunca na REAL</small></span>' + sw("cz_on", !!c.cz_on) + "</div>" +
-      '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>desligado, a FICTÍCIA só compra pelo Caçador e pelo botão (bom para medir só o Caçador)</small></span>' + sw("copia_traders", c.copia_traders !== false) + "</div>" +
-      '<p class="small" style="margin:12px 0 4px"><b>Qual entrada compra</b> <span class="muted">· clique para escolher</span></p><div class="czents">' +
-      ["a", "b", "c"].map((k) => { const x = CZ_ENT[k], e = E[k] || {};
-        return '<button type="button" class="czent' + (ent === k ? " on" : "") + '" data-czent="' + k + '" aria-pressed="' + (ent === k) + '"><b><i>' + k.toUpperCase() + "</i>" + esc(x[0]) + "</b><span>" + esc(x[1]) + "</span><span>" + esc(x[2]) + "</span>" +
+    // 0.32.494 (pedido do dono: "poder desligar o A, B ou C"; "está confuso: desligado não compra nada?"): A, B e C são chaves
+    // independentes, e o topo diz em uma frase o que está acontecendo de verdade na sua carteira
+    const ents = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents), E = ((CZ && CZ.estudo) || {}).estrategias || {};
+    const ps = ((P && P.posicoes) || []).filter((p) => p.aba === "cacador"), ts = ((P && P.trades) || []).filter((t) => t.aba === "cacador");
+    const res = ts.reduce((x, t) => x + (+t.pnl_eth || 0), 0), win = ts.filter((t) => (+t.pnl_eth || 0) > 0).length;
+    const ligadas = ents.split("").map((k) => k.toUpperCase()).join(", ");
+    let estado;
+    if (REAL) estado = '<div class="czstate"><b>Você está vendo a carteira REAL.</b> O Caçador nunca compra na REAL. Troque para FICTÍCIA no topo para ver as compras dele.</div>';
+    else if (!c.cz_on) estado = '<div class="czstate off"><b>Hoje a sua FICTÍCIA não compra nada pelo Caçador</b> (a chave está desligada). Os números dos blocos 2 e 3 e das abas "sombra" do Histórico são <b>só simulação</b>: o robô finge entrar com US$ 0,10 para medir. Para a FICTÍCIA começar a comprar sozinha e você ver o resultado, ligue a chave abaixo.</div>';
+    else if (!ents) estado = '<div class="czstate off"><b>A chave está ligada, mas nenhuma entrada (A, B ou C) está ligada:</b> nada é comprado. Ligue pelo menos uma abaixo.</div>';
+    else estado = '<div class="czstate on"><b>Ligado: a sua FICTÍCIA compra sozinha</b> em cada entrada ' + ligadas + " do Caçador, com " + num(c.cz_eth, 4) + " ETH" + (usdOf(c.cz_eth) ? " (" + esc(usdOf(c.cz_eth)) + ")" : "") + " cada e as saídas abaixo. Agora: <b>" + ps.length + "</b> aberta" + (ps.length === 1 ? "" : "s") + " · <b>" + ts.length + "</b> fechada" + (ts.length === 1 ? "" : "s") +
+      (ts.length ? " · resultado " + eth(res, 5) + (usdOf(res) ? ' <span class="muted">(' + esc(usdOf(res)) + ")</span>" : "") + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#historico" data-hif="cacador">ver no Histórico</a></div>';
+    const cpOn = c.copia_traders !== false;
+    box.innerHTML = estado +
+      '<div class="czrow"><span><b>Comprar pelo Caçador</b><small>ligado: a sua carteira FICTÍCIA compra sozinha, com o saldo fictício, em cada entrada ligada abaixo · nunca na REAL</small></span>' + sw("cz_on", !!c.cz_on) + "</div>" +
+      '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>' + (cpOn ? "ligado: a FICTÍCIA também copia as compras dos top traders da Robinhood (aba Top traders). São as fechadas \"Cópia de traders\" do Histórico." : "desligado: a FICTÍCIA não copia mais os top traders; compra só pelo Caçador e pelo botão Comprar da lista Moedas.") + " Desligue para medir só o Caçador.</small></span>" + sw("copia_traders", cpOn) + "</div>" +
+      '<p class="small" style="margin:12px 0 4px"><b>Quais entradas compram</b> <span class="muted">· clique para ligar ou desligar · pode ligar mais de uma (cada uma compra e é medida separada)</span></p><div class="czents">' +
+      ["a", "b", "c"].map((k) => { const x = CZ_ENT[k], e = E[k] || {}, on = ents.includes(k);
+        return '<button type="button" class="czent' + (on ? " on" : "") + '" data-czent="' + k + '" aria-pressed="' + on + '"><b><i>' + k.toUpperCase() + "</i>" + esc(x[0]) + "</b><span>" + esc(x[1]) + "</span><span>" + esc(x[2]) + "</span>" +
           (e.entradas != null ? "<em>" + num(e.entradas, 0) + " entradas no período · " + num(e.x10 || 0, 0) + " chegaram a 10× · " + num(e.x100 || 0, 0) + " a 100×</em>" : "") +
-          (ent === k ? '<span class="tag win">escolhida</span>' : "") + "</button>"; }).join("") + "</div>" +
-      '<p class="small" style="margin:12px 0 0"><b>Valores e saída</b> <span class="muted">· salva sozinho ao sair do campo</span></p>' +
+          (on ? '<span class="tag win">LIGADA</span>' : '<span class="tag neutral">desligada</span>') + "</button>"; }).join("") + "</div>" +
+      '<p class="small" style="margin:12px 0 0"><b>Valores e saída das compras</b> <span class="muted">· salva sozinho ao sair do campo · valem para A, B e C</span></p>' +
       '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span>" +
-        (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>" +
-      '<p class="small czst">' + st + "</p>";
+        (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>";
   }
   async function czSave(body) {
     const r = await BB.api("/api/hood/conta", { body, quiet: true });
@@ -862,7 +879,7 @@
         '<div class="czsug"><b>' + esc(czCombo(s)) + "</b>" + (mais > 0 ? '<br><small class="muted">e mais ' + mais + " combinaç" + (mais > 1 ? "ões" : "ão") + " com o mesmo resultado</small>" : "") + "</div>" +
         '<div class="abc-n"><div><small>Fechadas</small><b>' + num(x.n, 0) + '</b></div><div><small>Acerto</small><b>' + num(x.acerto, 0) + '%</b></div><div><small>Por entrada</small><b>' + usd(x.por_entrada_usd, 3) + "</b></div></div>" +
         '<div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm" type="button" data-czits="' + k + '" aria-expanded="' + aberto + '">' + (aberto ? "Esconder" : "Ver as " + num(x.n, 0)) + "</button>" +
-        '<button class="btn sm primary" type="button" data-czuse="' + s.join(":") + '" title="Põe estes % nas suas compras FICTÍCIAS do Caçador">Usar estes %</button></div>' +
+        '<button class="btn sm primary" type="button" data-czuse="' + s.join(":") + '" title="Copia esta entrada, alvo e stop para as suas compras FICTÍCIAS do Caçador (bloco 1). Não compra nada agora.">Usar estes %</button></div>' +
         (aberto ? '<ul class="czits">' + (x.itens || []).map((t) => "<li><span>" + tok(t.token, t) + '<small class="muted">entrou há ' + ago(t.t) + (t.x_ini != null ? " · " + num(t.x_ini, 2) + "× do início" : "") +
           (t.x_pico != null ? " · pico " + num(t.x_pico, 2) + "×" : "") + '</small></span><span><b>' + usd(t.resultado_usd, 3) + '</b><small class="muted">' + esc(t.saida) + "</small></span></li>").join("") +
           (x.n > (x.itens || []).length ? '<li class="muted">mostrando as ' + (x.itens || []).length + " mais novas</li>" : "") + "</ul>" +
@@ -1062,14 +1079,20 @@
     const c = (P && P.cfg_sim) || {};
     if (t.dataset.czk) {
       const k = t.dataset.czk, on = k === "copia_traders" ? c.copia_traders === false : !c.cz_on;
-      if (k === "cz_on" && on && !confirm("Ligar as compras FICTÍCIAS pelo Caçador? Cada entrada " + String(c.cz_entrada || "b").toUpperCase() + " compra " + num(c.cz_eth, 4) + " ETH na sua FICTÍCIA (nunca na REAL).")) return;
+      const ents = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents);
+      if (k === "cz_on" && on && !confirm("Ligar as compras FICTÍCIAS pelo Caçador?\n\nCada entrada " + (ents.split("").map((x) => x.toUpperCase()).join(", ") || "(nenhuma ligada)") + " compra " + num(c.cz_eth, 4) + " ETH do saldo fictício, sozinha, e sai pelo alvo, stop e tempo que estão na tela. Nunca compra na REAL.")) return;
       czSave({ [k]: on });
-    } else if (t.dataset.czent) czSave({ cz_entrada: t.dataset.czent });
+    } else if (t.dataset.czent) {
+      const cur = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents), k = t.dataset.czent;
+      const nv = "abc".split("").filter((x) => (x === k ? !cur.includes(x) : cur.includes(x))).join("");
+      czSave({ cz_ents: nv, cz_entrada: nv[0] || c.cz_entrada || "b" });
+    }
     else if (t.dataset.czg) { CZG = t.dataset.czg; czGridDraw(); }
     else if (t.dataset.czuse) {
       const [mx, up, dn] = t.dataset.czuse.split(":").map(Number);
-      if (!confirm("Usar nas compras FICTÍCIAS do Caçador: entrada " + (mx ? "até +" + mx + "%" : "sem limite") + ", alvo +" + up + "%, stop −" + dn + "%, entrada " + CZG.toUpperCase() + "?")) return;
-      czSave({ cz_entrada_max_pct: mx, cz_alvo_pct: up, cz_stop_pct: dn, cz_entrada: CZG });
+      const cur = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents);
+      if (!confirm("Copiar estes números para as suas compras FICTÍCIAS do Caçador?\n\n• só entra até " + (mx ? "+" + mx + "%" : "qualquer altura") + " acima do preço inicial do pool\n• vende tudo no alvo de +" + up + "%\n• stop de perda de −" + dn + "%\n• liga a entrada " + CZG.toUpperCase() + "\n\nIsto NÃO compra nada agora: vale para as próximas compras, e só se \"Comprar pelo Caçador\" estiver ligado.")) return;
+      czSave({ cz_entrada_max_pct: mx, cz_alvo_pct: up, cz_stop_pct: dn, cz_ents: cur.includes(CZG) ? cur : "abc".split("").filter((x) => x === CZG || cur.includes(x)).join("") });
     }
   });
   document.addEventListener("change", (e) => {
