@@ -152,3 +152,22 @@ def test_sala_mostra_valores_em_dolar_ou_moeda():
     js = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
     assert 'id="cur"' in html and "function curBar(" in js and "data-cur" in js and "S.eth_usd = js.eth_usd" in js
     assert '"eth_usd"' in open(os.path.join(WEB, "..", "app", "api.py"), encoding="utf-8").read()
+
+
+def test_sala_no_celular_vira_app_e_so_le_dados(env):
+    """0.32.479 (pedido do dono): no celular em pé a Sala ganha barra de baixo (ao vivo, abertas, histórico, log, menu),
+    histórico completo com filtros e janela de detalhes. Só lê o que o sala.js já buscou; não manda ordem nem chama API."""
+    r = env["c"].get("/sala")
+    assert "/static/salaapp.js?v=" in r.text and r.text.index("/static/sala.js?v=") < r.text.index("/static/salaapp.js?v=")
+    assert env["c"].get("/static/salaapp.js").status_code == 200
+    js = open(os.path.join(WEB, "salaapp.js"), encoding="utf-8").read()
+    for t in ('"vivo"', '"abertas"', '"hist"', '"log"', '"menu"', "data-sadet", "data-samore", "#historico"):
+        assert t in js
+    assert "fetch(" not in js and "_api(" not in js and "method:" not in js and "onclick" not in js
+    assert "max-width:700px" in js                                  # só no celular; no PC a Sala fica igual
+    sala = open(os.path.join(WEB, "sala.js"), encoding="utf-8").read()
+    assert "rede: REDE, unit: U" in sala and "logKind };" in sala
+    html = open(os.path.join(WEB, "sala.html"), encoding="utf-8").read()
+    assert ".sbar,.sapages,.sasheet{display:none}" in html and "html.sapp .sbar{" in html
+    # a SALA LIVE do BOT LIVE (OBS) não recebe o modo app
+    assert "salaapp.js" not in open(os.path.join(WEB, "botlive_sala.html"), encoding="utf-8").read()

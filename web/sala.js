@@ -1372,7 +1372,9 @@
   ["mousemove", "touchstart", "keydown"].forEach((ev) => document.addEventListener(ev, wake, { passive: true }));
   wake();
   window.SALA = { state: S, setSound: (v) => { S.sound = !!v; $("snd").textContent = tr("SOM: ", "SOUND: ") + (S.sound ? "ON" : "OFF"); $("snd").classList.toggle("on", S.sound); },
-    setMode, rerender: () => { if (S.ok) render(); renderLog(); } };
+    setMode, rerender: () => { if (S.ok) render(); renderLog(); },
+    // 0.32.479: o modo app do celular (salaapp.js) lê os mesmos dados e desenha as próprias telas
+    rede: REDE, unit: U, dec: DEC, hood: HOOD, forex: FOREX, icon, pid, tid, logKind };
   // ícones nos títulos das janelas do painel
   document.querySelectorAll("[data-ico]").forEach((el) => { el.insertAdjacentHTML("afterbegin", icon(el.getAttribute("data-ico"), 2)); });
 

@@ -3145,6 +3145,11 @@
    "versao": "0.32.478",
    "inicio": "2026-11-27T00:07:18+00:00",
    "titulo": "BOOST: horários fechados com a faixa das 24 horas e cor em cada período"
+  },
+  {
+   "versao": "0.32.479",
+   "inicio": "2026-11-27T08:22:23+00:00",
+   "titulo": "Sala no celular em formato de app: barra de baixo, histórico completo e detalhes"
   }
  ]
 }

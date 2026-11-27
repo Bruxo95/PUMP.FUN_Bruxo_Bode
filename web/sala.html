@@ -145,6 +145,84 @@
   @media (max-height:520px) and (orientation:landscape){.sub{display:none}.top{padding:4px 10px}.grid{padding:6px 10px;gap:8px}.tick{margin:0 10px 6px}.tick .lab{padding:6px}}
   @media (max-width:520px){.stats{display:none}.alert{width:62%}.brand{font-size:11px}.top{gap:8px;padding:8px 10px}.grid{padding:10px}.tick{margin:0 10px 10px}.hud{font-size:9px;padding:5px 7px;order:3}}
   @media (prefers-reduced-motion:reduce){.tick .run{animation-duration:90s}}
+  /* 0.32.479 (pedido do dono): Sala no celular em formato de app (salaapp.js põe html.sapp só no celular em pé). Barra de baixo,
+     telas que rolam, cartões e janela de detalhes no mesmo visual pixel. Fora do celular nada disso aparece. */
+  .sbar,.sapages,.sasheet{display:none}
+  html.sapp body{display:block;height:auto;min-height:100dvh;padding-bottom:calc(74px + env(safe-area-inset-bottom))}
+  html.sapp .top{position:sticky;top:0;z-index:5;padding:calc(6px + env(safe-area-inset-top)) 10px 6px;gap:6px 8px}
+  html.sapp .ctl,html.sapp .side,html.sapp .stage .alert ~ .stats{display:none}
+  html.sapp .brand{font-size:10px}html.sapp .live{font-size:8px;padding:4px 6px}
+  html.sapp .hud{font-size:8px;padding:4px 6px;order:3}html.sapp #mood{order:4}
+  html.sapp .sub{font-size:13px;padding:4px 10px}
+  html.sapp .grid{padding:8px 8px 4px;gap:8px}
+  html.sapp .tick{margin:0 8px 8px}
+  html.sapp body:not([data-tab="vivo"]) .grid,html.sapp body:not([data-tab="vivo"]) .tick,html.sapp body:not([data-tab="vivo"]) #saKpi,
+  html.sapp body:not([data-tab="vivo"]) .sub{display:none}
+  html.sapp .sapages{display:block;padding:0 8px}
+  html.sapp .sapg{display:none}
+  html.sapp body[data-tab="abertas"] #pg_abertas,html.sapp body[data-tab="hist"] #pg_hist,html.sapp body[data-tab="log"] #pg_log,
+  html.sapp body[data-tab="menu"] #pg_menu{display:block;padding-top:8px}
+  .sakpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 8px}
+  .sakpis.in{margin:8px 0}
+  .sak{background:#060c1c;border:2px solid var(--line);padding:6px 8px;min-width:0;box-shadow:3px 3px 0 #050914}
+  .sak small{display:block;font-family:"Press Start 2P",monospace;font-size:7px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sak b{display:block;font-size:22px;line-height:1.05;margin-top:3px;overflow-wrap:anywhere}.sak b.rl{color:var(--yellow)}.sak b.fc{color:var(--neon)}
+  .sau{display:block;font-size:15px;color:var(--muted);font-weight:normal}
+  .sabox{margin:6px 4px 16px;background:var(--panel);box-shadow:0 0 0 3px #0a0f20,0 0 0 6px var(--line),6px 6px 0 6px #050914}
+  .sabox h3{margin:0;display:flex;align-items:center;gap:6px;padding:8px 10px;font-size:10px;background:linear-gradient(#24407e,#1a2f5e);color:#fff;text-shadow:2px 2px 0 #0a0f20;border-bottom:3px solid #0a0f20}
+  .sabox h3 .ico{height:16px}.sabox h3 .dots{margin-left:auto;display:flex;gap:4px}
+  .sabox h3 .dots b{width:8px;height:8px;background:#3df2c4;box-shadow:0 0 0 2px #0a0f20}.sabox h3 .dots b:nth-child(2){background:#ffd23f}.sabox h3 .dots b:nth-child(3){background:#ff4d5e}
+  .sabd{padding:10px}
+  .salist{display:flex;flex-direction:column;gap:8px}
+  .sacard{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;width:100%;padding:8px 10px;cursor:pointer;
+    background:#0b1430;border:2px solid #22365f;border-left:6px solid var(--yellow);font-family:"VT323",monospace;color:var(--text)}
+  .sacard.up{border-left-color:var(--green)}.sacard.down{border-left-color:var(--red)}
+  .sacard:active{transform:translate(2px,2px)}.sacard:focus-visible{outline:2px solid var(--neon)}
+  .sct{display:flex;align-items:center;gap:6px;min-width:0;font-size:22px}.sct b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .saab{font-style:normal;font-size:14px;color:#c4b5fd;border:1px solid #4c3b8a;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .scp{font-size:24px;font-weight:bold;text-align:right}
+  .scl{grid-column:1/-1;color:var(--muted);font-size:16px;overflow-wrap:anywhere}
+  .scv{grid-column:1/-1;font-size:17px;overflow-wrap:anywhere}.scv .sau{display:inline;font-size:14px}
+  .saday{margin:10px 0 2px;font-size:9px;color:var(--neon)}
+  .sachips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .sachips button,.saseg button{font-size:9px;background:#0a1226;color:var(--muted);border:2px solid var(--line);padding:9px 10px;cursor:pointer;border-radius:3px;min-height:38px}
+  .sachips button.on,.saseg button.on{background:var(--neon);color:#06221b;border-color:var(--neon)}
+  .saseg button.real.on{background:var(--yellow);border-color:var(--yellow);color:#2a1d00}
+  .saseg{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}.saseg button{flex:1 1 0}.saseg button:disabled{opacity:.4}
+  .saq{width:100%;font-family:"VT323",monospace;font-size:18px;background:#060c1c;color:var(--text);border:2px solid var(--line);padding:8px 10px;margin-bottom:4px}
+  .saempty{color:var(--muted);font-size:18px;margin:8px 0}
+  .sanote{color:var(--muted);font-size:16px;margin:4px 4px 10px}
+  .sabtn{display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;text-decoration:none;font-size:9px;background:#18264a;color:var(--text);
+    border:2px solid var(--line);padding:12px 10px;margin:8px 4px 14px;cursor:pointer;box-shadow:3px 3px 0 #050914;min-height:44px}
+  .sabtn .ico{height:16px;margin:0}
+  .sagrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sagrid .sabtn{margin:0}
+  .salog{background:#020a06;padding:6px 8px;font-size:17px;line-height:1.1;color:#3ee66b;max-height:none}
+  .sall{padding:4px 0;border-bottom:1px dashed #0c2a18;overflow-wrap:anywhere}
+  .sall .lt{color:#4f7a5e}.sall .lr{display:block;color:#7fa58c}
+  .sall.no b{color:#8fa3d1}.sall.wait b{color:#6fd3ff}.sall.real b{color:#ffd23f}.sall.bad b{color:#ff4d5e}.sall.sell b{color:#ff9f1c}.sall.ok b{color:#3ee66b}
+  .salog .cur{color:#3ee66b;animation:blink 1s steps(2) infinite}
+  html.sapp .sbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:8;background:#0e1730;
+    border-top:3px solid var(--line);box-shadow:0 -4px 0 #050914;padding:4px 2px calc(4px + env(safe-area-inset-bottom))}
+  .sbar button{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;color:var(--muted);padding:6px 0;cursor:pointer;min-height:54px}
+  .sbar button .ico{height:22px;width:auto;margin:0;filter:grayscale(.7) brightness(.8)}
+  .sbar button span{font-size:7px;letter-spacing:0}
+  .sbar button.on{color:var(--neon);background:#18264a;box-shadow:inset 0 3px 0 var(--neon)}.sbar button.on .ico{filter:none}
+  .sbar em{position:absolute;top:2px;right:calc(50% - 22px);font-style:normal;font-size:14px;line-height:1;background:var(--red);color:#fff;padding:1px 4px;border:2px solid #0a0f20}
+  html.sapp .sasheet:not([hidden]){display:block;position:fixed;inset:0;z-index:20}
+  .sashd{position:absolute;inset:0;background:rgba(2,5,14,.75)}
+  .sasp{position:absolute;left:0;right:0;bottom:0;max-height:85dvh;overflow:auto;background:var(--panel);border-top:4px solid var(--neon);
+    box-shadow:0 -6px 0 #050914;padding-bottom:env(safe-area-inset-bottom);animation:sasu .25s steps(4)}
+  @keyframes sasu{from{transform:translateY(40%)}to{transform:none}}
+  .sasp h3{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:10px 12px;font-size:10px;background:linear-gradient(#24407e,#1a2f5e);color:#fff}
+  .sasp h3 button{font-size:10px;background:var(--red);color:#fff;border:2px solid #0a0f20;padding:8px 11px;cursor:pointer}
+  .sasb{padding:12px}
+  .sabig{font-size:44px;font-weight:bold;line-height:1;margin-bottom:10px}.sabig small{display:block;font-size:20px;margin-top:4px}
+  .sadr{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #1a2850;font-size:18px}
+  .sadr small{color:var(--muted);font-size:16px;flex:0 0 auto}.sadr span{text-align:right;overflow-wrap:anywhere;min-width:0}
+  .sadr code{font-family:"VT323",monospace}
+  .sasb .sagrid{margin-top:12px}
+  body.sashow{overflow:hidden}
+  @media (prefers-reduced-motion:reduce){.sasp{animation:none}}
 </style>
 </head>
 <body>
@@ -182,5 +260,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="/static/common.js?v=__V__"></script>
 <script src="/static/sala.js?v=__V__"></script>
+<script src="/static/salaapp.js?v=__V__"></script>
 </body>
 </html>
