@@ -3165,6 +3165,11 @@
    "versao": "0.32.482",
    "inicio": "2026-11-27T15:50:26+00:00",
    "titulo": "PumpPortal fora do ar: conecta sem a chave e explica; Histórico mostra o motivo do erro"
+  },
+  {
+   "versao": "0.32.483",
+   "inicio": "2026-11-27T16:05:31+00:00",
+   "titulo": "BOOST confirma mais rápido e diz o que faltou"
   }
  ]
 }

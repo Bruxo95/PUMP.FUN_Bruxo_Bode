@@ -1921,6 +1921,10 @@ class PumpHub:
                 abertas = len(mine) if own else len([p for p in pos if not p.get("real")]) + len(
                     [x for x in (getattr(pf, "bm_sim_after", None) or {}) if x != m])     # 0.32.400: fictícias que esperam a REAL
                 est, why = bm.decide(c, b, now, nomes, abertas)
+                if est == "fora" and why.startswith("passou de ") and "sem confirmar" in why:
+                    # 0.32.483 (pedido do dono: "quando não confirma tem que dizer o motivo"): o que faltava na última volta
+                    prev = u.get("motivo") if u.get("estado") == "esperar" else None
+                    why += " — faltou: " + (prev or "nenhuma volta de análise antes do limite (o token chegou tarde)")
                 u.update(estado=est, motivo=why, t=now)
                 if est == "fora":
                     bm.dirty.add(m)                    # 0.32.403: a decisão final vai para o banco

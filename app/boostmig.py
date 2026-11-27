@@ -17,6 +17,7 @@ Divisão (diferente do original, que era de um usuário só)
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import time
 
@@ -80,6 +81,46 @@ SERIE_MAX = 200
 SAFETY_TRIES = 4
 SOL_MINT = "So11111111111111111111111111111111111111112"
 QUOTE_LAMPORTS = 10_000_000        # 0,01 SOL: cotação de compra da observação (como no original)
+POOL_TRIES = 4                     # 0.32.483: tentativas de achar as contas do pool pela transação da migração
+POOL_EVERY_S = 1.5                 # 0.32.483: preço do pool direto da blockchain (uma consulta para todos os tokens)
+
+
+def vaults_from_tx(tx: dict | None, mint: str) -> dict | None:
+    """0.32.483 (pedido do dono: confirmação mais rápida no começo do BOOST): na transação da migração, as contas do pool novo
+    (token e SOL) aparecem nos saldos de token, com o mesmo dono (o pool). Devolve as duas contas, as casas e o preço inicial
+    (SOL por token) — sem esperar a Jupiter indexar o pool (levava de 15 s a 60 s)."""
+    meta = (tx or {}).get("meta") or {}
+    keys = (((tx or {}).get("transaction") or {}).get("message") or {}).get("accountKeys") or []
+    keys = [k.get("pubkey") if isinstance(k, dict) else k for k in keys]
+    if meta.get("err") or not keys:
+        return None
+    by_owner: dict = {}
+    for e in meta.get("postTokenBalances") or []:
+        try:
+            acc = keys[int(e["accountIndex"])]
+            amt = (e.get("uiTokenAmount") or {})
+            by_owner.setdefault(e.get("owner"), {})[e.get("mint")] = (acc, int(amt.get("amount") or 0), int(amt.get("decimals") or 0))
+        except (KeyError, ValueError, IndexError, TypeError):
+            continue
+    best = None
+    for owner, d in by_owner.items():
+        if mint in d and SOL_MINT in d and d[mint][1] > 0 and d[SOL_MINT][1] > 0:
+            if best is None or d[mint][1] > best[1][mint][1]:
+                best = (owner, d)
+    if not best:
+        return None
+    owner, d = best
+    (ba, bamt, bd), (qa, qamt, qd) = d[mint], d[SOL_MINT]
+    return {"pool": owner, "base": ba, "quote": qa, "bd": bd, "qd": qd, "px": (qamt / 10 ** qd) / (bamt / 10 ** bd)}
+
+
+def vault_amount(acc: dict | None) -> int | None:
+    """Saldo de uma conta de token (getMultipleAccounts em base64): u64 nos bytes 64..72."""
+    try:
+        raw = base64.b64decode(((acc or {}).get("data") or [""])[0])
+        return int.from_bytes(raw[64:72], "little") if len(raw) >= 72 else None
+    except Exception:
+        return None
 
 # 0.32.432 (pedido do dono, 21/11, caso Prayge: o topo veio 5 s depois da migração e a gente entrou 26 s depois — a subida
 # toda tinha sido na curva): tokens NOVOS, ainda na curva, entram na mesma lista e na mesma análise do BOOST quando o volume
@@ -707,7 +748,7 @@ class BoostMig:
             self.items.pop(m, None)
         if self.svc is None:
             return
-        for fn in (self._names, self._novos, self._creators, self._track, self._safety, self._samples):
+        for fn in (self._names, self._novos, self._creators, self._track, self._safety, self._pool_find, self._pool_prices, self._samples):
             try:
                 await fn(now)
             except Exception as e:
@@ -963,6 +1004,62 @@ class BoostMig:
             b["safety_ok"], b["safety_why"] = r["ok"], r["why"]
             self.dirty.add(m)
 
+    async def _pool_find(self, now: float) -> None:
+        """0.32.483: acha as contas do pool pela transação da migração (assinatura que veio da PumpPortal ou da blockchain)."""
+        need = [m for m, b in self.items.items() if b.get("kind") != "novo" and b.get("signature") and not b.get("vaults")
+                and b.get("pool_tries", 0) < POOL_TRIES and self.progress(b, now) <= OBS_MAX_PCT and self.q_ok(b, now)]
+        if not need:
+            return
+
+        async def one(m):
+            b = self.items[m]
+            b["pool_tries"] = b.get("pool_tries", 0) + 1
+            tx = await self.svc._get_tx(b["signature"])
+            v = vaults_from_tx(tx, m)
+            if v:
+                b["vaults"] = v
+                self.st["pool_achado"] = self.st.get("pool_achado", 0) + 1
+        await asyncio.gather(*(one(m) for m in need[:6]), return_exceptions=True)
+
+    async def _pool_prices(self, now: float) -> None:
+        """0.32.483: preço de todos os pools da observação numa consulta só à blockchain (saldo de token e de SOL do pool), a cada
+        1,5 s. É o preço do pool (sem a taxa e sem o impacto de 0,01 SOL da cotação da Jupiter), e chega desde o primeiro segundo."""
+        obs = [m for m, b in self.items.items() if b.get("vaults") and self.progress(b, now) <= OBS_MAX_PCT and self.q_ok(b, now)
+               and now - float(b.get("pool_t") or 0) >= POOL_EVERY_S]
+        if not obs:
+            return
+        keys = []
+        for m in obs[:50]:
+            v = self.items[m]["vaults"]
+            keys += [v["base"], v["quote"]]
+        vals = await self._rpc(keys, "base64")
+        if not vals:
+            self.st["pool_falhou"] = self.st.get("pool_falhou", 0) + 1
+            return
+        for i, m in enumerate(obs[:50]):
+            b, v = self.items[m], self.items[m]["vaults"]
+            ba, qa = vault_amount(vals[2 * i] if 2 * i < len(vals) else None), vault_amount(vals[2 * i + 1] if 2 * i + 1 < len(vals) else None)
+            if not ba or not qa:
+                continue
+            px = (qa / 10 ** v["qd"]) / (ba / 10 ** v["bd"])
+            b["pool_t"] = now
+            sm = b.setdefault("samples", [])
+            if sm and b.get("px_src") != "pool (blockchain)":
+                # as leituras de antes eram da Jupiter (compra de 0,01 SOL, com taxa): põe na mesma régua do pool para não
+                # aparecer um salto falso; se a diferença for grande demais, recomeça só com o pool
+                k = px / sm[-1][1] if sm[-1][1] else 0
+                if 0.8 < k < 1.2:
+                    for x in sm:
+                        x[1] = x[1] * k
+                else:
+                    sm.clear()
+            sm.append([round(now, 1), px])
+            del sm[:-60]
+            b["px_src"] = "pool (blockchain)"
+            self.st["pool_precos"] = self.st.get("pool_precos", 0) + 1
+            tk = self.tokens.setdefault(m, {"created_t": now})
+            tk["bm_px"], tk["bm_px_t"] = px, now
+
     async def _samples(self, now: float) -> None:
         """Preço de cada token nos primeiros 60% da janela, para a observação. 0.32.376: cotação de COMPRA de 0,01 SOL na Jupiter a
         cada volta, como no original. Antes usava o preço guardado do token, que a Jupiter só atualiza para quem tem o token na
@@ -970,15 +1067,19 @@ class BoostMig:
         jup = getattr(getattr(self.svc, "market", None), "jup", None)
         # 0.32.447: no máximo 1 cotação a cada 2,5 s por token (a volta pode ser de 1 s perto do limite de entrada; a observação guarda
         # 60 leituras e precisa cobrir o tempo de observação)
+        # 0.32.483: token com o preço do pool lido na blockchain não usa a Jupiter (misturar as duas fontes faria saltos falsos);
+        # as cotações dos outros saem juntas (antes uma por vez, até 8 em fila)
         obs = [m for m, b in self.items.items() if self.progress(b, now) <= OBS_MAX_PCT and b.get("safety_ok") is not False and self.q_ok(b, now)
+               and not (b.get("vaults") and now - float(b.get("pool_t") or 0) < 10)
                and now - ((b.get("samples") or [[0]])[-1][0]) >= 2.5]
         if not obs or jup is None:
             return
-        for m in sorted(obs, key=lambda x: -self.items[x]["t0"])[:8]:
+
+        async def one(m):
             b = self.items[m]
             dec = await self.svc.token_decimals(m)
             if dec is None:
-                continue
+                return
             try:
                 q = await jup._quote(SOL_MINT, m, QUOTE_LAMPORTS, None, direct=False)
             except Exception:
@@ -986,14 +1087,18 @@ class BoostMig:
             out = int((q or {}).get("outAmount") or 0) / (10 ** dec)
             if out <= 0:
                 self.st["sem_cotacao"] += 1
-                continue
+                return
+            if b.get("vaults") and now - float(b.get("pool_t") or 0) < 10:
+                return                                # o pool respondeu enquanto isso
             self.st["cotacoes"] += 1
             px = QUOTE_LAMPORTS / 1e9 / out
             sm = b.setdefault("samples", [])
             sm.append([round(now, 1), px])
             del sm[:-60]
+            b.setdefault("px_src", "cotação Jupiter")
             tk = self.tokens.setdefault(m, {"created_t": now})
             tk["bm_px"], tk["bm_px_t"] = px, now
+        await asyncio.gather(*(one(m) for m in sorted(obs, key=lambda x: -self.items[x]["t0"])[:8]), return_exceptions=True)
 
     # ------------------------------------------------------------------ decisão de cada usuário
     def decide(self, c, b: dict, now: float, abertas_nomes: set, ja_aberto: int) -> tuple[str, str]:

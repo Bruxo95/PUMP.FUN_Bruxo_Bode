@@ -485,7 +485,12 @@ class SharedMonitor:
         """0.32.390: a PumpPortal está fora quando não manda token novo nem migração há mais de PP_SILENT_S (3 min). Em dia normal
         chegam dezenas de tokens novos por minuto."""
         now = time.time() if now is None else now
-        last = self.market.status.get("pp_new_t") or getattr(self, "_mig_t0", now)
+        st = self.market.status
+        # 0.32.483: conexão recusada (ex.: HTTP 502) = fora na hora, sem esperar os 3 min de silêncio: as migrações do BOOST passam
+        # a vir da blockchain logo (as que caíssem nesses 3 min chegavam tarde ou se perdiam)
+        if st.get("ws") is False and st.get("error") and st.get("error") != "desligado":
+            return True
+        last = st.get("pp_new_t") or getattr(self, "_mig_t0", now)
         return now - last > self.PP_SILENT_S
 
     async def migration_ws_run(self) -> None:
