@@ -196,6 +196,6 @@ def test_sala_market_cap_entrada_e_agora():
     js = pathlib.Path("web/sala.js").read_text(encoding="utf-8")
     assert "const MCDESK = !HOOD && !C().botlive;" in js
     assert "function mcDesk(f)" in js and "if (MCDESK) mcDesk(f);" in js
-    assert "mcLine(p)" in js and "mcLine };" in js
+    assert "mcLine(p)" in js and "mcLine, logKind };" in js
     assert "SA().mcLine" in pathlib.Path("web/salaapp.js").read_text(encoding="utf-8")
     assert ".prmc" in pathlib.Path("web/sala.html").read_text(encoding="utf-8")
