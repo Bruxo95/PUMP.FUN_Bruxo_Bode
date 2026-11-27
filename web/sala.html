@@ -82,6 +82,9 @@
   .pr{border-bottom:1px solid #1a2850;font-size:clamp(13px,calc((100cqi - 36px) / 14),32px);line-height:1.05}
   .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:clamp(13px,calc((100cqi - 36px) / 14),32px);border-bottom:2px solid #1c2c57}
   .ph span{white-space:nowrap;overflow:hidden}
+  /* 0.32.498 (pedido do dono): Histórico com a coluna Lucro (6 colunas, letra um pouco menor para caber) */
+  .ph.h6,.pr.h6{grid-template-columns:minmax(4ch,1fr) 5ch 6ch 6ch 6.6ch 6.8ch;font-size:clamp(11px,calc((100cqi - 36px) / 21),26px)}
+  .fx .ph.h6,.fx .pr.h6{grid-template-columns:minmax(6.2ch,1fr) 5ch 6.4ch 6.4ch 7ch 5.6ch}
   .pr .hr{color:var(--muted)}
   .prmc{font-size:clamp(11px,calc((100cqi - 36px) / 20),22px);color:var(--muted);padding:0 .3em .25em;border-bottom:1px solid #1a2850;margin-top:-1px}
   .pr:has(+.prmc){border-bottom:0}

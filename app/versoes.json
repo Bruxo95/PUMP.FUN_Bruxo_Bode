@@ -3240,6 +3240,11 @@
    "versao": "0.32.497",
    "inicio": "2026-11-27T23:46:24+00:00",
    "titulo": "Robinhood: Caçador primeiro, toggles alinhados, cópia dos traders em Top traders"
+  },
+  {
+   "versao": "0.32.498",
+   "inicio": "2026-11-27T23:49:00+00:00",
+   "titulo": "Sala: coluna Lucro no Histórico"
   }
  ]
 }

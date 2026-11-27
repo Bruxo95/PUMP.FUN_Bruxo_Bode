@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "d1f321dc7806fdade62d09bec61d24bda3a86aff",
-    "application_version": "0.32.497 · 2026-11-28 · Robinhood: Caçador primeiro em Dinheiro entrando, toggles alinhados e a cópia dos top traders em Top traders",
+    "repository_reference": "25af82100c8c3eee12a2a8e1f2c9df54296de4ad",
+    "application_version": "0.32.498 · 2026-11-28 · Sala: coluna Lucro no Histórico, na moeda escolhida (US$, SOL ou ETH)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "7eb42012d42ea01ac2091437f6a17ae3401da4e0330f88112db26a5cbab06eef",
+      "app/version.py": "2f48558f3d4a0e359250e933208f2f2eb38285a90064775bc4266413ab402a52",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "e0f425242131263add98fc5225a8e99a3ce3ca4c7ec99d58f7a5befc400ee0f8"
+  "pdf_sha256": "802c77cfba7ad02a46aaf8d777d47fd27220b31a9b2611bf6441db3bb2140e81"
 }

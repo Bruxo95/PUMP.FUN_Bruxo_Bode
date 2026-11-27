@@ -1328,10 +1328,12 @@
     $("hisN").textContent = S.trades.length ? "(" + S.trades.length + ")" : "";
     const hm = (s) => { const t = tms(s); return t ? hms(t, { hour: "2-digit", minute: "2-digit" }) : "–"; };
     hb.innerHTML = !HS.length ? '<div class="empty">' + tr("nenhuma posição fechada ainda", "no closed positions yet") + "</div>" :
-      '<div class="ph"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Saiu", "Out") + "</span><span>" + tr("Entrada", "In") + "</span><span>" + tr("Saída", "Exit") + "</span><span>%</span></div>" +
-      HS.map((t) => { const ins = +t.sol_in || 0, out = ins + (+t.pnl_sol || 0);
-        return '<div class="pr" title="' + esc((EN() ? motivo(t.motivo) : (t.motivo || "")) + tr(" · entrou ", " · in ") + hm(t.opened_at) + tr(", saiu ", ", out ") + hm(t.closed_at)) + '"><span>' + symL(t) + '</span><span class="hr">' + hm(t.closed_at) +
-          "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>"; }).join("");
+      '<div class="ph h6"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Saiu", "Out") + "</span><span>" + tr("Entrou", "In") + "</span><span>" + tr("Saída", "Exit") + "</span><span>" + tr("Lucro", "Profit") + "</span><span>%</span></div>" +
+      HS.map((t) => { const ins = +t.sol_in || 0, out = ins + (+t.pnl_sol || 0), lu = +t.pnl_sol || 0;
+        // 0.32.498 (pedido do dono): lucro na mesma moeda escolhida (US$, SOL ou ETH), com o sinal
+        const luTxt = PRIV() ? "•••" : (lu > 0 ? "+" : lu < 0 ? "−" : "") + $v(Math.abs(lu));
+        return '<div class="pr h6" title="' + esc((EN() ? motivo(t.motivo) : (t.motivo || "")) + tr(" · entrou ", " · in ") + hm(t.opened_at) + tr(", saiu ", ", out ") + hm(t.closed_at)) + '"><span>' + symL(t) + '</span><span class="hr">' + hm(t.closed_at) +
+          "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="' + cls(lu) + '">' + luTxt + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>"; }).join("");
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">' + icon((t.pnl_sol || 0) > 0 ? "trophy" : "skull", 1) + "SELL " + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
       .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">' + icon("coin", 1) + "BUY " + sym(p) + (PRIV() ? "" : " " + Number(p.sol_in || 0).toFixed(DEC) + " " + U) + "</span>" })))
       .sort((a, b) => b.t - a.t).slice(0, 12);
