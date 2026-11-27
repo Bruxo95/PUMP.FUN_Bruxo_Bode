@@ -254,3 +254,16 @@ def test_real_do_cacador_so_compra_com_a_chave_da_entrada_e_a_carteira_real_liga
     assert any(uid == "u2" and "REAL está desligada" in m for uid, _, m in evs)
     assert hoodcopy.clean_cfg({"cz_real_ents": "zb"})["cz_real_ents"] == "b" and hoodcopy.CFG_DEFAULT["cz_real_ents"] == ""
 
+
+def test_compra_sem_nome_ganha_o_nome_quando_ele_chega():
+    """0.32.496 (caso MoonBoy, 28/11): a compra do Caçador saiu antes do nome do token e aparecia como "0xcbbb23"."""
+    import types as _t
+    from app import hoodcopy
+    key = [hoodcopy.ZERO, TOKEN, 0, 60, hoodcopy.ZERO]
+    b = hoodcopy.Book("u", {"slip_pct": 0, "gas_eth": 0})
+    p = b.buy({"wallet": "cacador-a", "token": TOKEN, "t": time.time(), "eth": None, "amount": 0}, 0.000001, time.time(), key, "cacador")
+    b.trades.insert(0, {"token": TOKEN, "pnl_eth": 0.001})
+    f = _t.SimpleNamespace(meta={TOKEN: {"nome": "MoonBoy", "simbolo": "MOONBOY"}})
+    hoodcopy.Copier._fill_names(f, b)
+    assert p["simbolo"] == "MOONBOY" and b.trades[0]["nome"] == "MoonBoy" and p["id"] in b.dirty_pos
+

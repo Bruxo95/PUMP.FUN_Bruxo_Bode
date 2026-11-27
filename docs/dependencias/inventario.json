@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "0158a69bcaec4a42e99426ddf8ff013cf034fca3",
-    "application_version": "0.32.495 · 2026-11-28 · Robinhood: chaves FICTÍCIA e REAL dentro de cada entrada A, B e C do Caçador",
+    "repository_reference": "065c02652facef94938be565697df47265511ad8",
+    "application_version": "0.32.496 · 2026-11-28 · Robinhood: nome do token nas compras do Caçador e link da DexScreener na Sala",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "afa013d8572708b8f3f8a59a824558ba12136ea0de0920ece111ef3b1a5244a0",
+      "app/version.py": "38b10f61c674f4787b2fd5f2a49ce17cf5e90d4a43bfc1d461a21d1513a68149",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "2aa7ebfc34299ee21ad069e0794025cc758f2a0b84239d2dde1ca40a6694bec3"
+  "pdf_sha256": "c3f8111658001737e0c024f299544fdefe592b02e412a0dc9b0f8bcc545b4aee"
 }

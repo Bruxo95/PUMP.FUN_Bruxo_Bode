@@ -3230,6 +3230,11 @@
    "versao": "0.32.495",
    "inicio": "2026-11-27T23:25:34+00:00",
    "titulo": "Robinhood: FICTÍCIA e REAL dentro de cada entrada do Caçador"
+  },
+  {
+   "versao": "0.32.496",
+   "inicio": "2026-11-27T23:29:06+00:00",
+   "titulo": "Robinhood: nome do token nas compras do Caçador e link na Sala"
   }
  ]
 }

@@ -1026,7 +1026,8 @@
   // 0.32.314 (pedido do dono): token em que o criador pode travar a venda (Robinhood) aparece em amarelo, com ⚠
   const sym = (x) => (x.risco ? '<span class="risk" title="' + esc(x.risco) + '">⚠ ' : "") + esc(x.symbol || (x.mint || "").slice(0, 6)) + (x.risco ? "</span>" : "");
   // 0.32.459 (pedido do dono): na Sala da pump.fun, clicar no nome da moeda abre o gráfico dela na pump.fun (as outras redes não têm esse link)
-  const symL = (x) => (!HOOD && x.mint && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(x.mint) ? '<a class="tkl" href="https://pump.fun/coin/' + encodeURIComponent(x.mint) + '" target="_blank" rel="noopener" title="' + tr("abrir o gráfico na pump.fun", "open the chart on pump.fun") + '">' + sym(x) + "</a>" : sym(x));
+  // 0.32.496 (pedido do dono): na Sala da Robinhood a moeda abre na DexScreener
+  const symL = (x) => (HOOD && !FOREX && /^0x[0-9a-fA-F]{40}$/.test(x.mint || "") ? '<a class="tkl" href="https://dexscreener.com/robinhood/' + encodeURIComponent(x.mint) + '" target="_blank" rel="noopener" title="' + tr("abrir o gráfico na DexScreener", "open the chart on DexScreener") + '">' + sym(x) + "</a>" : !HOOD && x.mint && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(x.mint) ? '<a class="tkl" href="https://pump.fun/coin/' + encodeURIComponent(x.mint) + '" target="_blank" rel="noopener" title="' + tr("abrir o gráfico na pump.fun", "open the chart on pump.fun") + '">' + sym(x) + "</a>" : sym(x));
   const symTxt = (x) => String(x.symbol || (x.mint || "").slice(0, 6)).toUpperCase();
   const pct = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%");
   const sol = (v) => (v == null ? "–" : PRIV() ? "•••" : FOREX ? fxUsd(v) : (v > 0 ? "+" : "") + Number(v).toFixed(DEC2) + " " + U);

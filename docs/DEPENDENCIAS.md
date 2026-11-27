@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-28**; revisão documental **2.0**.
-Aplicação: **0.32.495 · 2026-11-28 · Robinhood: chaves FICTÍCIA e REAL dentro de cada entrada A, B e C do Caçador**.
-Referência Git na emissão: `0158a69bcaec4a42e99426ddf8ff013cf034fca3`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.496 · 2026-11-28 · Robinhood: nome do token nas compras do Caçador e link da DexScreener na Sala**.
+Referência Git na emissão: `065c02652facef94938be565697df47265511ad8`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

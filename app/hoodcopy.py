@@ -2081,10 +2081,27 @@ class Copier:
         """Nome e símbolo dos tokens citados nos eventos (as posições e os trades já levam o seu)."""
         return {e["token"]: self.meta[e["token"]] for e in evs if e.get("token") in self.meta}
 
+    def _fill_names(self, book) -> None:
+        """0.32.496 (caso MoonBoy, 28/11: a compra do Caçador saiu antes de o nome do token chegar e ficou "0xcbbb23"): posição e trade
+        sem nome ganham o nome e o símbolo da DexScreener assim que eles chegam (a posição aberta fica guardada com o nome)."""
+        if book is None:
+            return
+        for p in list(book.pos.values()):
+            m = self.meta.get(p.get("token"))
+            if m and not p.get("simbolo") and (m.get("simbolo") or m.get("nome")):
+                p["nome"], p["simbolo"] = m.get("nome"), m.get("simbolo")
+                book.dirty_pos.add(p["id"])
+        for t in book.trades[:500]:
+            m = self.meta.get(t.get("token"))
+            if m and not t.get("simbolo") and (m.get("simbolo") or m.get("nome")):
+                t["nome"], t["simbolo"] = m.get("nome"), m.get("simbolo")
+
     def painel(self, uid: str, now: float | None = None, real: bool = False) -> dict:
         now = now or time.time()
         b = self.book(uid)
         rc = self.rcfg(uid)
+        self._fill_names(b)
+        self._fill_names(self.real.get(uid))
         base = {"cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
                 "stop_ganho": self.sg_view(uid),
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
