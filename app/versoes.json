@@ -3140,6 +3140,11 @@
    "versao": "0.32.477",
    "inicio": "2026-11-26T23:42:48+00:00",
    "titulo": "BOOST: melhor e pior horário e horas para não participar, em cada período e no geral"
+  },
+  {
+   "versao": "0.32.478",
+   "inicio": "2026-11-27T00:07:18+00:00",
+   "titulo": "BOOST: horários fechados com a faixa das 24 horas e cor em cada período"
   }
  ]
 }

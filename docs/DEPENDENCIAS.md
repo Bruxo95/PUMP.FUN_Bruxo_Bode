@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-27**; revisão documental **2.0**.
-Aplicação: **0.32.477 · 2026-11-27 · BOOST: melhor e pior horário e horas para não participar, em cada período e no geral**.
-Referência Git na emissão: `8f4d4543666eb82916a1e0252f24b416eb4cc8da`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.478 · 2026-11-27 · BOOST: horários fechados com a faixa das 24 horas e cor em cada período**.
+Referência Git na emissão: `72858e3c7f6a76a3840bdacbd2c6a80fb18f8c3d`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
