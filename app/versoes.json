@@ -3160,6 +3160,11 @@
    "versao": "0.32.481",
    "inicio": "2026-11-27T15:35:47+00:00",
    "titulo": "Comparar configurações só no botão; aviso só quando a outra pessoa muda"
+  },
+  {
+   "versao": "0.32.482",
+   "inicio": "2026-11-27T15:50:26+00:00",
+   "titulo": "PumpPortal fora do ar: conecta sem a chave e explica; Histórico mostra o motivo do erro"
   }
  ]
 }

@@ -79,7 +79,7 @@
     const r = await fetch(path, { method: opts.method || (body !== undefined ? "POST" : "GET"), headers: h, body: body, cache: "no-store" });
     if (r.status === 401) { location.href = "/?sessao=expirada"; throw new Error("sessão expirada"); }
     let js = {};
-    try { js = await r.json(); } catch (e) { js = { error: "resposta inválida do servidor" }; }
+    try { js = await r.json(); } catch (e) { js = { error: "resposta inválida do servidor (erro " + r.status + (r.status >= 502 && r.status <= 504 ? ": o servidor demorou ou estava reiniciando" : "") + ")" }; }
     if (!r.ok && !js.error) js.error = "erro " + r.status;
     return js;
   };

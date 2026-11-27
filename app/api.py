@@ -1504,7 +1504,11 @@ def create_app(hub, auth, cfg) -> FastAPI:
     async def boost_migracao_hist(dias: float = 7, u: dict = Depends(admin_only)):
         """0.32.378: histórico de todo token que migrou (análise aos 20 min) e as métricas."""
         from .boostmig import finite
-        return finite(await hub.bm_hist(max(0.04, min(90.0, float(dias)))))
+        try:
+            return finite(await hub.bm_hist(max(0.04, min(90.0, float(dias)))))
+        except Exception as e:                       # 0.32.481: a tela mostra o motivo (antes: "resposta inválida do servidor")
+            log.exception("BOOST histórico: falhou")
+            return {"error": f"não consegui montar o histórico agora ({type(e).__name__}: {str(e)[:160]})"}
 
     @app.get("/api/pump/boost-migracao/historico/{mint}")
     async def boost_migracao_hist_one(mint: str, u: dict = Depends(admin_only)):

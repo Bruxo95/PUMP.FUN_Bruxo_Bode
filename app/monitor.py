@@ -44,6 +44,7 @@ class SharedMonitor:
     def __init__(self, hub):
         self.hub = hub
         self.market = hub.market
+        self._pp_5xx, self._pp_nokey_t = 0, 0.0       # 0.32.481: PumpPortal fora do ar (5xx) → tenta sem a chave
         # "motor de serviço": mesma classe do usuário, sem dados de usuário — usado só para as funções públicas
         # (preços, curva, transações, robôs, saldo de trader, leaderboard)
         cfg = PumpSettings(None, hub.cfg.defaults)
@@ -675,11 +676,21 @@ class SharedMonitor:
             try:
                 url = str(self.hub.cfg.defaults.get("pump_ws_url") or "wss://pumpportal.fun/api/data")
                 pk = self.hub.system_keys.get("pumpportal_api_key")
-                if pk:
+                # 0.32.481 (dono, 27/11: "HTTP 502, troquei a chave e nada"): 502/503/504 é o servidor da PumpPortal, não a chave.
+                # Depois de 2 recusas assim com a chave, tenta sem ela (tokens novos e migrações são grátis); a cada 10 min volta a
+                # tentar com a chave.
+                sem_chave = bool(pk) and self._pp_5xx >= 2 and time.time() - self._pp_nokey_t < 600
+                if pk and self._pp_5xx >= 2 and not sem_chave:
+                    self._pp_nokey_t = time.time()
+                    sem_chave = True
+                st["pp_sem_chave"] = sem_chave
+                if pk and not sem_chave:
                     url += ("&" if "?" in url else "?") + "api-key=" + pk
                 async with websockets.connect(url, open_timeout=15, ping_interval=20, max_size=2 ** 22) as ws:
-                    st.update(ws=True, connected_at=now_iso(), error=None)
+                    st.update(ws=True, connected_at=now_iso(), error=None, pp_falha=None)
                     backoff = 2.0
+                    if not st.get("pp_sem_chave"):
+                        self._pp_5xx = 0
                     await ws.send(json.dumps({"method": "subscribeNewToken"}))
                     await ws.send(json.dumps({"method": "subscribeMigration"}))    # 0.32.373: BOOST da migração (grátis)
                     self._pp_subs = set()                     # conexão nova: assina de novo
@@ -733,6 +744,18 @@ class SharedMonitor:
             except Exception as e:
                 from .logsafe import redact
                 st.update(ws=False, error=redact(f"{type(e).__name__}: {str(e)[:120]}"))
+                code = getattr(getattr(e, "response", None), "status_code", None) or getattr(e, "status_code", None)
+                if code is None:
+                    import re as _re
+                    m_ = _re.search(r"HTTP (\d{3})", str(e))
+                    code = int(m_.group(1)) if m_ else None
+                if code and 500 <= int(code) < 600:
+                    self._pp_5xx += 1
+                    st["pp_falha"] = "servidor"          # fora do ar do lado da PumpPortal: trocar a chave não resolve
+                elif code in (401, 403):
+                    st["pp_falha"] = "chave"
+                else:
+                    st["pp_falha"] = None
                 self._pp_subs = set()                  # 0.32.107: conexão caiu: as copiadas voltam ao RPC na hora, sem esperar os 2 min
                 await asyncio.sleep(backoff)
                 backoff = min(60.0, backoff * 2)
