@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import copy
+import json
 import logging
 import math
 import os
@@ -198,6 +199,7 @@ class PumpHub:
         # carteira) grava OFF.
         pf.real_on_at, pf.real_off_at = saved.get("_real_on_at"), saved.get("_real_off_at")
         pf.bm_step = {k: dict(v) for k, v in (saved.get("_bm_step") or {}).items() if isinstance(v, dict)}   # 0.32.471
+        pf.cmp_seen = {str(k): dict(v) for k, v in (saved.get("_cmp_seen") or {}).items() if isinstance(v, dict)}   # 0.32.481
         pf.sim_since = saved.get("_sim_since")             # 0.32.465: carteira fictícia recomeçada (sem apagar o histórico)
         pf.sim_prev = saved.get("_sim_prev") if isinstance(saved.get("_sim_prev"), dict) else None
         if saved.get("_real_on") and self.real_allowed and pf.sol_wallet and pf.sol_wallet.keypair and uid not in self._blocked:
@@ -3841,6 +3843,8 @@ class PumpHub:
             pf.bm_step_dirty = False
             if pf.bm_step:
                 s["_bm_step"] = copy.deepcopy(pf.bm_step)
+        if getattr(pf, "cmp_seen", None):
+            s["_cmp_seen"] = copy.deepcopy(pf.cmp_seen)   # 0.32.481: como estava a config de cada pessoa comparada quando você olhou
         if getattr(pf, "sim_since", None):
             s["_sim_since"] = pf.sim_since             # 0.32.465
         if getattr(pf, "sim_prev", None):
@@ -5358,7 +5362,7 @@ class PumpHub:
     REAL_VIEW = ("pump_real_enabled", "pump_real_mirror", "pump_ex_real_on", "pump_bar_real", "pump_auto_real", "pump_el_real",
                  "pump_calls_real", "pump_bx_real", "pump_jt_real", "pump_bm_real", "pump_eq_real", "pump_st_real", "pump_st_lucro_real")
 
-    async def config_peer(self, uid: str, peer: str, keys, tela: str = "", reais: bool = False) -> dict:
+    async def config_peer(self, uid: str, peer: str, keys, tela: str = "", reais: bool = False, escopo: str = "", mark: bool = False) -> dict:
         """0.32.151 (pedido do dono): Abas de trades → Ajustes compara as opções da aba com as de outro usuário (só admin,
         só leitura). Mesmas regras do compartilhar: nada da carteira real nem do Telegram.
         tela="boost" (0.32.440): as opções vêm do servidor (todas as do BOOST), não do navegador."""
@@ -5375,7 +5379,46 @@ class PumpHub:
         out = {"user_id": peer, "nome": nome, "valores": {k: getattr(other.cfg, k) for k in keys}}
         if reais:
             out["reais"] = {k: bool(getattr(other.cfg, k, False)) for k in self.REAL_VIEW}
+        if escopo:
+            await self._cmp_seen(uid, escopo, out, mark)
         return out
+
+    CMP_ESCOPOS = ("geral", "boost", "chaves")
+    CMP_SNAP_MAX = 400          # opções guardadas para dizer O QUE a outra pessoa mudou (acima disso, só a assinatura)
+
+    @staticmethod
+    def _cmp_sig(out: dict) -> str:
+        import hashlib
+        raw = json.dumps({"v": out.get("valores") or {}, "r": out.get("reais") or {}}, sort_keys=True, default=str)
+        return hashlib.sha1(raw.encode()).hexdigest()[:16]
+
+    async def _cmp_seen(self, uid: str, escopo: str, out: dict, mark: bool) -> None:
+        """0.32.481 (pedido do dono, 27/11: "não é para ficar mostrando diferenças toda vez que loga; uma vez descartado não
+        mostra até uma nova alteração"): guarda, na conta (banco, não no navegador), como estava a configuração da outra pessoa
+        quando você olhou/descartou. O aviso (`aviso`) só aparece quando a configuração DELA muda depois disso. Na primeira
+        comparação guarda em silêncio (sem aviso). `mark` = você descartou ou copiou: passa a valer a de agora."""
+        if escopo not in self.CMP_ESCOPOS:
+            return
+        pf = self.engines.get(uid) or await self.engine(uid)
+        seen = pf.__dict__.setdefault("cmp_seen", {})
+        key = escopo + ":" + str(out.get("user_id"))
+        sig, rec = self._cmp_sig(out), seen.get(key)
+        vals = dict(out.get("valores") or {}, **{"_real:" + k: v for k, v in (out.get("reais") or {}).items()})
+        snap = vals if len(vals) <= self.CMP_SNAP_MAX else None
+        if not rec or mark:
+            seen[key] = {"sig": sig, "t": time.time(), "v": snap}
+            if len(seen) > 60:                                     # só as comparações mais recentes
+                for k in sorted(seen, key=lambda x: seen[x].get("t") or 0)[:len(seen) - 60]:
+                    seen.pop(k, None)
+            await self.save_settings(pf)
+            out["aviso"], out["visto_t"] = False, seen[key]["t"]
+            return
+        out["visto_t"] = rec.get("t")
+        out["aviso"] = rec.get("sig") != sig
+        if out["aviso"] and isinstance(rec.get("v"), dict):
+            old = rec["v"]
+            out["mudou"] = [{"k": k, "de": old.get(k), "para": vals.get(k)} for k in sorted(set(old) | set(vals))
+                            if old.get(k) != vals.get(k)][:50]
 
     async def buy_diff(self, uid: str, peer: str, horas: float) -> dict:
         """0.32.167 (pedido do dono): compras FICTÍCIAS de duas contas lado a lado e, moeda a moeda, por que a outra não

@@ -968,10 +968,26 @@ def create_app(hub, auth, cfg) -> FastAPI:
         """0.32.151: opções de outro usuário para comparar na janela Ajustes de Abas de trades (só leitura)."""
         try:
             return await hub.config_peer(u["id"], str(body.get("user") or ""), [str(k) for k in (body.get("keys") or [])][:1000],
-                                         str(body.get("tela") or ""), bool(body.get("reais")))
+                                         str(body.get("tela") or ""), bool(body.get("reais")), str(body.get("escopo") or ""))
         except Exception as e:
             log.warning("comparar configuração: %s", str(e)[:120])
             return {"error": "não consegui ler a configuração agora"}
+
+    @app.post("/api/pump/config/visto")
+    async def config_seen(body: dict, u: dict = Depends(admin_only)):
+        """0.32.481: descartar o aviso de diferença (ou depois de copiar): guarda a configuração da outra pessoa como está agora;
+        o aviso só volta quando ela mudar de novo. Não muda nenhuma opção da sua conta."""
+        escopo = str(body.get("escopo") or "")
+        if escopo not in hub.CMP_ESCOPOS:
+            return {"error": "escopo inválido"}
+        await hub.engine(u["id"])
+        try:
+            r = await hub.config_peer(u["id"], str(body.get("user") or ""), [str(k) for k in (body.get("keys") or [])][:1000],
+                                      str(body.get("tela") or ""), bool(body.get("reais")), escopo, mark=True)
+        except Exception as e:
+            log.warning("descartar comparação: %s", str(e)[:120])
+            return {"error": "não consegui guardar agora"}
+        return {"ok": not r.get("error"), "error": r.get("error"), "visto_t": r.get("visto_t")}
 
     @app.get("/api/pump/buy-diff")
     async def buy_diff(peer: str = "", horas: float = 24, u: dict = Depends(admin_only)):

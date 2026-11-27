@@ -1569,7 +1569,9 @@
     "block_repeat", "block_scam", "vip_skip_repeat", "require_safety", "max_top10", "no_stop", "stop_pct", "trail_start",
     "trail_dist", "partial_on", "partial_at", "partial_frac", "ext_on", "ext_grow_pct", "ext_stop_pct", "ext_max_min",
     "sg_after", "hold_profit_on", "hold_profit_pct", "tneg_on", "tneg_sum_s", "tneg_streak_on", "tneg_streak_s", "tneg_stop_pct", "cut_on", "cut_bundle_pct", "cut_sniper_pct", "cut_funder_pct", "cut_micro_pct"];
-  let BMRS = "sim";
+  // 0.32.481: lembra se você estava vendo as regras da REAL ou da FICTÍCIA. Antes, depois de um deploy a página recarregava
+  // sempre na FICTÍCIA e as regras da REAL que você tinha mudado pareciam ter "voltado".
+  let BMRS = (() => { try { return localStorage.getItem("pf_bmrs") === "real" ? "real" : "sim"; } catch (e) { return "sim"; } })();
   function bmRealInit() {
     const card = document.querySelector('.card[data-bmt="regras"]:not(#bmSyCard)'), orig = card && card.querySelector(".bmrules:not(.bmreal)");
     if (!orig || card.querySelector(".bmreal")) return;
@@ -1591,6 +1593,7 @@
   }
   function bmRealShow(w) {
     BMRS = w === "real" ? "real" : "sim";
+    try { localStorage.setItem("pf_bmrs", BMRS); } catch (e) { /* */ }
     document.querySelectorAll("#bmRS [data-bmrs]").forEach((b) => b.classList.toggle("on", b.dataset.bmrs === BMRS));
     const card = document.querySelector('.card[data-bmt="regras"]:not(#bmSyCard)'); if (!card) return;
     const o = card.querySelector(".bmrules:not(.bmreal)"), r = card.querySelector(".bmreal");
@@ -1939,15 +1942,12 @@
     return users.some((u) => u.user_id === p) ? p : cxaPick(users);
   }
   async function bmcFetch(uid) {
-    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, tela: "boost", reais: 1 }, quiet: true }).catch(() => null);
+    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, tela: "boost", reais: 1, escopo: "boost" }, quiet: true }).catch(() => null);
     if (!r || r.error) return r || { error: "não consegui comparar agora" };
     const V = r.valores || {};
     r.keys = Object.keys(V); r.dif = r.keys.filter((k) => !abcSame(cfgNow(k), V[k]));
     return r;
   }
-  const bmcSig = (r) => r.user_id + "|" + r.dif.slice().sort().map((k) => k + "=" + JSON.stringify(cfgNow(k)) + ">" + JSON.stringify((r.valores || {})[k])).join(",");
-  const bmcSkip = () => { try { return localStorage.getItem("pf_bmc_skip") || ""; } catch (e) { return ""; } };
-  function bmcSkipSet(v) { try { if (v) localStorage.setItem("pf_bmc_skip", v); else localStorage.removeItem("pf_bmc_skip"); } catch (e) { /* */ } }
   // 0.32.464 (pedido do dono): se a pessoa comparada desligou o BOOST (ou só a REAL) e o seu está ligado, o aviso diz isso
   // e pergunta se quer desligar o seu. Nada desliga sozinho; "Manter ligado" guarda a resposta até a situação mudar.
   // A REAL dela só compra com as três ligadas: entrar sozinho, "Também na REAL" e a Execução real.
@@ -1996,23 +1996,31 @@
     const stp = r && !r.error && (r.valores || {}).pump_bm_step_on !== undefined ? " · mudar o valor: " + esc(r.nome) + " " + (r.valores.pump_bm_step_on ? "ligado" : "desligado") + ", você " + ((cfg() || {}).pump_bm_step_on ? "ligado" : "desligado") : "";
     const peerNow = (r && !r.error && r.reais ? " · " + esc(r.nome) + " agora: BOOST " + (bmcPeer(r).sim ? "ligado" : "desligado") + " · REAL " + (bmcPeer(r).real ? "ligada" : "desligada") : "") + stp;
     bmStepDraw();
-    // 0.32.442 (pedido do dono): Descartar = manter a sua configuração, sem copiar nada. O aviso some até as diferenças mudarem
-    // (outra pessoa, outra opção ou outro valor, de qualquer lado); fica só uma linha discreta com "mostrar de novo".
-    const sig = r && !r.error && r.dif.length ? bmcSig(r) : "";
-    if (sig && bmcSkip() === sig) {
-      box.innerHTML = off + '<div class="cmpbar bmcmp-bar skip"><span class="muted small">Você manteve a sua configuração do BOOST (descartou ' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + " da de " + esc(r.nome) + ")" + peerNow + ". " + undo + "</span>" +
-        '<button type="button" class="btn sm" data-bmc="unskip">Mostrar de novo</button></div>';
+    // 0.32.481 (pedido do dono, 27/11): as diferenças não aparecem mais sozinhas a cada login. Fica só o botão Comparar; o aviso
+    // aparece quando a configuração da OUTRA pessoa mudou desde a última vez que você olhou/descartou (guardado na conta, no
+    // servidor, vale em qualquer navegador e celular). Descartar = some até ela mudar de novo; nada da sua config muda.
+    const cmpBtn = '<button type="button" class="btn sm primary" data-bmc="open">Comparar configurações</button>';
+    if (!r || r.error || !r.aviso) {
+      const why = !r ? "Nenhum outro usuário para comparar." : r.error ? esc(r.error) : "";
+      box.innerHTML = '<div class="cmpbar bmcmp-bar quiet"><span class="muted small">' + (why || "Comparar a sua configuração do BOOST com a de outro usuário (e copiar, se quiser).") + " " + undo + "</span>" + cmpBtn + "</div>";
       return;
     }
-    let msg, ok = false;
-    if (!r) msg = '<span class="muted">Nenhum outro usuário para comparar.</span>';
-    else if (r.error) msg = '<span class="down">' + esc(r.error) + "</span>";
-    else if (!r.dif.length) { ok = true; msg = '<span class="ok">✓ Você está usando a configuração do BOOST <b>idêntica</b> à de <b>' + esc(r.nome) + '</b></span> <span class="muted small">(' + r.keys.length + " opções conferidas" + peerNow + ")</span>"; }
-    else msg = '<span class="dif">⚠ Sua configuração do BOOST tem <b>' + r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + "</b> da de <b>" + esc(r.nome) + '</b></span> <span class="muted small">(' + (r.keys.length - r.dif.length) + " iguais" + peerNow + ")</span>";
-    box.innerHTML = off + '<div class="cmpbar bmcmp-bar' + (ok ? " ok" : "") + '"><span>' + msg + undo + "</span>" +
-      (r && !r.error && r.dif.length ? '<button type="button" class="btn sm" data-bmc="see">Ver diferenças</button>' +
-        '<button type="button" class="btn sm" data-bmc="skip" title="Mantém a sua configuração como está, sem copiar nada">Descartar</button>' : "") +
-      '<button type="button" class="btn sm primary" data-bmc="open">Copiar tela BOOST</button></div>';
+    box.innerHTML = '<div class="cmpbar bmcmp-bar notif" role="status"><span><span class="dif">🔔 <b>' + esc(r.nome) + "</b> alterou a configuração do BOOST</span>" +
+      (r.visto_t ? ' <span class="muted small">desde que você olhou (' + dt(r.visto_t * 1000) + ")</span>" : "") + cmpMudou(r.mudou, bmcLabel, bmcVal) +
+      '<small class="muted">Agora: ' + (r.dif.length ? r.dif.length + " diferença" + (r.dif.length > 1 ? "s" : "") + " com a sua" : "igual à sua") + peerNow + ". " + undo + "</small></span>" +
+      '<button type="button" class="btn sm primary" data-bmc="see">Ver e comparar</button>' +
+      '<button type="button" class="btn sm" data-bmc="skip" title="Some até ' + esc(r.nome) + ' mudar de novo. Não muda nada na sua configuração.">Descartar</button></div>' + off;
+  }
+  // 0.32.481: lista curta do que a outra pessoa mudou (de → para), para os avisos de comparação
+  function cmpMudou(m, lab, val) {
+    if (!m || !m.length) return "";
+    const nm = (k) => (k.startsWith("_real:") ? "REAL: " + lab(k.slice(6)) : lab(k)), vv = (k, v) => (val ? val(k.replace(/^_real:/, ""), v) : esc(v === true ? "ligada" : v === false ? "desligada" : v == null ? "–" : String(v)));
+    return '<span class="cmpmud">' + m.slice(0, 4).map((x) => "<span><b>" + esc(nm(x.k)) + "</b>: " + vv(x.k, x.de) + " → " + vv(x.k, x.para) + "</span>").join("") + (m.length > 4 ? "<span>e mais " + (m.length - 4) + "</span>" : "") + "</span>";
+  }
+  async function cmpVisto(escopo, body) {
+    const r = await BB.api("/api/pump/config/visto", { body: Object.assign({ escopo }, body), quiet: true }).catch(() => null);
+    if (!r || r.error) toast((r && r.error) || "Não consegui descartar agora.");
+    return !!(r && r.ok);
   }
   function bmcTable(keys, a, b, ha, hb) {
     return '<div class="tbl-wrap"><table class="daytbl nocard cxm"><thead><tr><th>Opção</th><th>' + ha + "</th><th>" + hb + "</th></tr></thead><tbody>" +
@@ -2050,6 +2058,7 @@
     try { localStorage.setItem("pf_bmc_undo", JSON.stringify(u)); localStorage.setItem("pf_bmcp", r.user_id); } catch (e) { /* */ }
     BMC.peer = r.user_id;
     await poll(true);
+    cmpVisto("boost", { user: r.user_id, tela: "boost", reais: 1 });     // 0.32.481: copiou = já viu como está a dela
     bmcChanged(u, errs);
     bmcBar(true);
   }
@@ -2082,7 +2091,7 @@
     $("cfgDiff").hidden = true; BMC.view = null; toast("Revertido: " + Object.keys(u.vals).length + " opções voltaram.");
     await poll(true); bmcBar(true);
   }
-  document.addEventListener("click", (e) => {
+  document.addEventListener("click", async (e) => {
     const u = e.target.closest && e.target.closest("[data-bmcu]");
     if (u) { e.preventDefault(); bmcOpen(u.dataset.bmcu); return; }
     const t = e.target.closest && e.target.closest("[data-bmc]"); if (!t) return;
@@ -2097,12 +2106,13 @@
     else if (a === "cancel") { $("cfgDiff").hidden = true; BMC.view = null; bmcBar(true); }
     else if (a === "skip" || a === "skipm") {
       const r = a === "skipm" ? BMC.cand : BMC.r;
-      if (r && !r.error && r.dif.length) bmcSkipSet(bmcSig(r));
       $("cfgDiff").hidden = true; BMC.view = null;
-      toast("Descartado: a sua configuração do BOOST ficou como estava.");
+      if (r && !r.error && await cmpVisto("boost", { user: r.user_id, tela: "boost", reais: 1 })) {
+        toast("Descartado. Só volta a avisar quando " + r.nome + " mudar a configuração do BOOST de novo.");
+        if (BMC.r && BMC.r.user_id === r.user_id) BMC.r.aviso = false;
+      }
       bmcBar();
     }
-    else if (a === "unskip") { bmcSkipSet(""); bmcBar(); }
     else if (a === "peeroff") bmcPeerOff();
     else if (a === "peerkeep") { const k = bmcOffKind(BMC.r); if (k) { try { localStorage.setItem("pf_bmc_keepon", BMC.r.user_id + "|" + k); } catch (er) { /* */ } } bmcBar(); }
   });
@@ -4986,7 +4996,8 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
   }
   async function cxaFetch(uid) {
     const L = cfgItems(); if (!L.length || !uid) return null;
-    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, keys: L.map((x) => x.k) }, quiet: true });
+    const r = await BB.api("/api/pump/config/peer", { body: { user: uid, keys: L.map((x) => x.k), escopo: "geral" }, quiet: true });
+    if (r && !r.error) r.sent = L.map((x) => x.k);
     if (!r || r.error) { CXA.r = r; return r; }
     const V = r.valores || {};
     r.L = L.filter((x) => x.k in V); r.dif = r.L.filter((x) => !abcSame(cfgNow(x.k), V[x.k]));
@@ -5098,6 +5109,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       let n = null;
       try { const h = await BB.api("/api/pump/config/historico", { quiet: true }); n = (h && h.atual) || null; } catch (e) { /* */ }
       try { localStorage.setItem("pf_cxundo", JSON.stringify({ t: Date.now(), de: pd.de, vals: antes, n })); } catch (e) { /* */ }
+      if (CXA.r && !CXA.r.error) cmpVisto("geral", { user: CXA.r.user_id, keys: CXA.r.sent || [] });   // 0.32.481: já viu
     } else if (!r.error) { try { localStorage.removeItem("pf_cxundo"); } catch (e) { /* */ } }
     poll(true);
     setTimeout(() => { loadCmpAll(true); checkCmpBar(true); }, 1500);
@@ -5108,7 +5120,11 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     const a = t.dataset.cxa;
     if (a === "reload") { loadCmpAll(true); return; }
     if (a === "go") { e.preventDefault(); WALT = "ambas"; CFT = "cmp"; if (location.hash !== "#carteiras") location.hash = "#carteiras"; walTab("ambas"); cfgTab("cmp"); loadCmpAll(true); return; }
-    if (a === "ok") { try { localStorage.setItem("pf_cxok", (CXA.r && CXA.r.sig) || ""); } catch (er) { /* */ } $("cmpBar").hidden = true; return; }
+    if (a === "ok") {                     // 0.32.481: descartar fica na conta (servidor); só volta quando a outra pessoa mudar
+      const r = CXA.r; $("cmpBar").hidden = true;
+      if (r && !r.error && await cmpVisto("geral", { user: r.user_id, keys: r.sent || [] })) { r.aviso = false; toast("Descartado. Só volta a avisar quando " + r.nome + " mudar a configuração de novo."); }
+      return;
+    }
     if (a === "undo") {
       let u = null; try { u = JSON.parse(localStorage.getItem("pf_cxundo") || "null"); } catch (er) { u = null; }
       if (!u || !u.vals) return;
@@ -5129,12 +5145,16 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     try {
       if (force || !CXA.r || Date.now() - CXA.t > 240000) { const users = await cxaUsers(); await cxaFetch(CXA.peer || cxaPick(users)); }
     } catch (e) { return; }
-    const r = CXA.r; let ok = ""; try { ok = localStorage.getItem("pf_cxok") || ""; } catch (e) { /* */ }
-    if (!r || r.error || !r.dif || !r.dif.length || ok === r.sig) { bar.hidden = true; return; }
-    const g = cxaGroups(r.dif), telas = {};
-    r.dif.forEach((x) => { telas[x.vt] = (telas[x.vt] || 0) + 1; });
-    const partes = Object.keys(telas).slice(0, 4).map((n) => esc(n) + " " + telas[n]).join(", ");
-    bar.innerHTML = '<div class="cmpbar"><span>⚠ Sua configuração está <b>diferente da de ' + esc(r.nome) + "</b> em " + r.dif.length + " opç" + (r.dif.length > 1 ? "ões" : "ão") + (partes ? ' <small class="muted">(' + partes + (Object.keys(telas).length > 4 ? ", …" : "") + ")</small>" : "") + '</span><a class="btn sm primary" href="#carteiras" data-cxa="go">Ver diferenças</a><button class="btn sm ghost" data-cxa="ok" title="esconde até mudar alguma coisa">Ok, sei</button></div>';
+    // 0.32.481 (pedido do dono): este aviso só aparece quando a configuração da OUTRA pessoa mudou desde a última vez que você
+    // olhou/descartou (fica guardado na sua conta). Diferenças que você já conhece não aparecem a cada login: para ver, use
+    // Carteiras → Comparar.
+    const r = CXA.r;
+    if (!r || r.error || !r.aviso) { bar.hidden = true; return; }
+    const lab = (k) => { const x = (r.L || []).find((y) => y.k === k); return x ? x.label : cfgLabel(k); };
+    bar.innerHTML = '<div class="cmpbar notif" role="status"><span>🔔 <b>' + esc(r.nome) + "</b> alterou a configuração dela" +
+      (r.visto_t ? ' <small class="muted">desde que você olhou (' + dt(r.visto_t * 1000) + ")</small>" : "") + cmpMudou(r.mudou, lab) +
+      '<small class="muted">Agora: ' + (r.dif.length ? r.dif.length + " opç" + (r.dif.length > 1 ? "ões diferentes" : "ão diferente") + " da sua" : "igual à sua") + "</small></span>" +
+      '<a class="btn sm primary" href="#carteiras" data-cxa="go">Ver e comparar</a><button class="btn sm ghost" data-cxa="ok" title="Some até a outra pessoa mudar de novo. Não muda nada na sua configuração.">Descartar</button></div>';
     bar.hidden = false;
     if ($("cxaR") && VIEW === "carteiras") cxaDraw();
   }
@@ -6651,7 +6671,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     ABAS_TR.forEach((a) => { if (!L.some((x) => x[1] === a[2])) L.push([REAL_NOME[a[2]] || a[0] + " · também na REAL", a[2], true]); });
     return L.filter((x, i) => L.findIndex((y) => y[1] === x[1]) === i);
   };
-  const USC = { r: null, t: 0, peer: null, html: {} };
+  const USC = { r: null, t: 0, peer: null, html: {}, open: {} };
   const TR_CMP = ["pump_copy_enabled", "pump_top_on", "pump_el_copy80", "pump_real_mirror"];
   async function usCmpBar(force) {
     if (!ME || ME.role !== "admin" || ME.view_by) { ["usCmp", "trCmp"].forEach((id) => { if ($(id)) $(id).hidden = true; }); return; }
@@ -6660,7 +6680,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       USC.busy = true;
       try {
         const users = await cxaUsers(); USC.users = users; USC.peer = USC.peer || cxaPick(users);
-        if (USC.peer) { USC.r = await BB.api("/api/pump/config/peer", { body: { user: USC.peer, keys, reais: 1 }, quiet: true }); USC.t = Date.now(); }
+        if (USC.peer) { USC.r = await BB.api("/api/pump/config/peer", { body: { user: USC.peer, keys, reais: 1, escopo: "chaves" }, quiet: true }); USC.keys = keys; USC.t = Date.now(); }
       } catch (e) { USC.r = { error: "não consegui comparar agora" }; USC.t = Date.now(); }
       USC.busy = false;
     }
@@ -6673,7 +6693,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     document.querySelectorAll("#usGrid .uscard").forEach((c) => {
       const nomes = USAR_ABAS[c.dataset.us]; let el = c.querySelector(".uscmpc");
       const keysOf = Array.isArray(nomes) ? ABAS_TR.filter((a) => nomes.includes(a[0])).flatMap((a) => [a[1], a[2]]).concat(nomes.includes("Cópia de traders") ? ["pump_copy_enabled"] : []) : [];
-      const d = dif.filter((x) => keysOf.includes(x[1]));
+      const d = USC.open.usCmp ? dif.filter((x) => keysOf.includes(x[1])) : [];     // 0.32.481: só com a comparação aberta
       if (!d.length) { if (el) el.remove(); return; }
       if (!el) { el = document.createElement("div"); el.className = "uscmpc"; c.insertBefore(el, c.querySelector("i")); }
       el.textContent = "≠ " + (r.nome || "outro") + ": " + d.map((x) => x[0] + (V[x[1]] ? " ligada" : " desligada")).join(" · ");
@@ -6684,17 +6704,36 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
     box.hidden = false;
     const nm = r && !r.error ? esc(r.nome || "outro usuário") : "";
     const sel = (USC.users || []).length > 1 ? ' <select class="in" data-uscu aria-label="Comparar com">' + USC.users.map((u) => '<option value="' + esc(u.user_id) + '"' + (u.user_id === USC.peer ? " selected" : "") + ">" + esc(u.nome || u.email || "usuário") + "</option>").join("") + "</select>" : "";
+    const fechar = ' <button type="button" class="btn sm ghost" data-uscopen="' + id + '" data-close="1">Fechar</button>';
     const st = (on) => on ? '<span class="up">ligada</span>' : '<span class="down">desligada</span>';
     const rc = (r && r.reais) || {}, cart = "pump_real_enabled" in rc ? '<span class="muted small"> · carteira REAL de ' + nm + ": " + st(rc.pump_real_enabled) + " · a sua: " + st(!!(D && D.real && D.real.enabled)) + "</span>" : "";
     let html;
+    // 0.32.481 (pedido do dono): fechado por padrão (sem lista de diferenças a cada login). Abre no botão; o aviso aparece só
+    // quando as chaves da OUTRA pessoa mudaram desde que você olhou/descartou.
+    const lab = (k) => (USC_L().find((x) => x[1] === k) || [k])[0];
+    if (r && !r.error && !USC.open[id]) {
+      html = r.aviso ? '<div class="cmpbar bmcmp-bar notif" role="status"><span><span class="dif">🔔 <b>' + nm + "</b> ligou ou desligou chaves</span>" +
+          (r.visto_t ? ' <span class="muted small">desde que você olhou (' + dt(r.visto_t * 1000) + ")</span>" : "") + cmpMudou(r.mudou, (k) => lab(k)) + "</span>" +
+          '<button type="button" class="btn sm primary" data-uscopen="' + id + '">Ver e comparar</button><button type="button" class="btn sm" data-uscskip="1" title="Some até ' + nm + ' mudar de novo">Descartar</button></div>'
+        : '<div class="cmpbar bmcmp-bar quiet"><span class="muted small">Comparar as chaves ligadas e desligadas com as de outro usuário.</span><button type="button" class="btn sm primary" data-uscopen="' + id + '">Comparar configurações</button></div>';
+      if (USC.html[id] !== html) { USC.html[id] = html; box.innerHTML = html; }
+      return;
+    }
     if (!r) html = '<div class="cmpbar bmcmp-bar"><span class="muted">Nenhum outro usuário para comparar.</span></div>';
     else if (r.error) html = '<div class="cmpbar bmcmp-bar"><span class="down">' + esc(r.error) + "</span>" + sel + "</div>";
-    else if (!dif.length) html = '<div class="cmpbar bmcmp-bar ok"><span><span class="ok">✓ Ligadas e desligadas <b>igual</b> às de <b>' + nm + '</b></span> <span class="muted small">(' + L.length + " chaves conferidas, compra e REAL)</span>" + cart + "</span>" + sel + "</div>";
+    else if (!dif.length) html = '<div class="cmpbar bmcmp-bar ok"><span><span class="ok">✓ Ligadas e desligadas <b>igual</b> às de <b>' + nm + '</b></span> <span class="muted small">(' + L.length + " chaves conferidas, compra e REAL)</span>" + cart + "</span>" + sel + fechar + "</div>";
     else html = '<div class="cmpbar bmcmp-bar"><span><span class="dif">⚠ <b>' + dif.length + " chave" + (dif.length > 1 ? "s" : "") + "</b> diferente" + (dif.length > 1 ? "s" : "") + " de <b>" + nm + '</b></span> <span class="muted small">(' + (L.length - dif.length) + " iguais)</span>" + cart + "</span>" + sel +
-      '<button type="button" class="btn sm primary" data-usc="all" data-uscbox="' + id + '">Deixar igual a ' + nm + "</button></div>" +
+      '<button type="button" class="btn sm primary" data-usc="all" data-uscbox="' + id + '">Deixar igual a ' + nm + "</button>" + fechar + "</div>" +
       '<div class="usdif">' + dif.map((x) => '<div class="usdifr"><b>' + esc(x[0]) + (x[2] ? ' <span class="tag real">REAL</span>' : "") + "</b><span>" + nm + ": " + st(V[x[1]]) + " · você: " + st(cfgNow(x[1])) + '</span><button type="button" class="btn sm" data-usc="' + esc(x[1]) + '">' + (V[x[1]] ? "Ligar" : "Desligar") + " também</button></div>").join("") + "</div>";
     if (USC.html[id] !== html) { USC.html[id] = html; box.innerHTML = html; }
   }
+  document.addEventListener("click", async (e) => {
+    const o = e.target.closest && e.target.closest("[data-uscopen],[data-uscskip]"); if (!o) return;
+    e.preventDefault();
+    if (o.dataset.uscopen) { USC.open[o.dataset.uscopen] = !o.dataset.close; USC.html = {}; usCmpBar(); return; }
+    const r = USC.r; if (!r || r.error) return;
+    if (await cmpVisto("chaves", { user: r.user_id, keys: USC.keys || [], reais: 1 })) { r.aviso = false; USC.html = {}; toast("Descartado. Só volta a avisar quando " + (r.nome || "a outra pessoa") + " mudar de novo."); usCmpBar(); }
+  });
   document.addEventListener("change", (e) => { if (e.target.matches && e.target.matches("[data-uscu]")) { USC.peer = e.target.value; try { localStorage.setItem("pf_abcmp", USC.peer); } catch (er) { /* */ } usCmpBar(true); } });
   document.addEventListener("click", async (e) => {
     const b = e.target.closest && e.target.closest("[data-usc]"); if (!b) return;
@@ -6708,6 +6747,7 @@ usar: ["Usar ou descartar", "telas novas em teste: abra cada uma e decida se fic
       (liga.length ? "\n\nAtenção: isso LIGA compra na carteira REAL (dinheiro de verdade) em: " + liga.map(nome).join(", ") + "." : "") +
       "\n\nA carteira REAL em si (ligada/desligada) não muda. Fica salvo no Histórico de config e dá para voltar.")) return;
     const res = await BB.api("/api/pump/settings", { body: { ...vals, _why: "deixou as chaves iguais às de " + (r.nome || "outro usuário") } });
+    if (!res.error) cmpVisto("chaves", { user: r.user_id, keys: USC.keys || [], reais: 1 });   // 0.32.481
     toast(res.error || "Salvo: " + ks.length + " chave" + (ks.length > 1 ? "s" : "") + " igual" + (ks.length > 1 ? "is" : "") + " às de " + (r.nome || "outro usuário") + ".");
     await poll(true); usCmpBar();
   });

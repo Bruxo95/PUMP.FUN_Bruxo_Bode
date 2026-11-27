@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "3c4573a90ab9a40797f7ea2ac1efe2ceb683f5be",
-    "application_version": "0.32.480 · 2026-11-27 · Sala no celular em formato de app: barra de baixo, histórico completo e detalhes",
+    "repository_reference": "71be7b46868cd0cea4a0cf9be817cf1f5ea12181",
+    "application_version": "0.32.481 · 2026-11-27 · Sala no celular em formato de app: barra de baixo, histórico completo e detalhes",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "bee8e7816825eac0d09a2339e24e795a143815dd3f79253179bd6893b8d2ae63",
+      "app/version.py": "7a854cb6b6128034bfb379a555519cd3ac64c13296cda20027482bba26b63ebf",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "51effea29e0f3b1811133ca9caa043805254451db2e535e65a1853cb50a8b467"
+  "pdf_sha256": "1bd2c90df6673790390f1e629d5d0f95878cfd319fbc463d573d9aa1daf7c0e6"
 }
