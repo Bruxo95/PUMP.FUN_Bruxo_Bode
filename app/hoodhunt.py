@@ -37,6 +37,12 @@ MIN_BUYERS = 5
 MIN_ETH = 0.05
 MARKS_H = (1, 6, 24)
 TARGETS = (2, 5, 10, 100)
+# 0.32.489 (pedido do Bruxo, áudio de 27/11: "parâmetros de porcentagem para saber a melhor porcentagem de entrada e saída"):
+# cada entrada guarda a hora em que o preço tocou pela 1ª vez cada alvo (+%) e cada stop (−%), nas primeiras 24 h. A grade junta
+# entrada (até quantos % acima do preço inicial do pool) × alvo × stop e diz qual combinação teria dado mais.
+GRID_UP = (25, 50, 100, 200, 500, 1000)
+GRID_DN = (20, 30, 50, 70)
+GRID_IN = (0, 50, 100, 300, 1000)          # 0 = sem limite (entra em qualquer altura)
 GAS_ETH = 0.000008             # mesmo gás por transação da cópia da Robinhood (hoodcopy cfg gas_eth)
 RUG_FRAC = 0.5
 NO_TRADE_DROP_S = 2 * 3600     # pool sem nenhuma troca em 2 h sai da observação
@@ -151,6 +157,8 @@ def on_trade(p: dict, tr: dict) -> None:
         e = p.get(k)
         if e and t <= e["t"] + 24 * 3600 and px > e["pk"]:
             e["pk"], e["pk_t"] = px, round(t, 1)
+        if e and e.get("px") and t <= e["t"] + 24 * 3600:
+            hits(e, px, t)
     young = t - p["t"] <= ENTRY_WINDOW_S
     fee = _fee(p, tr.get("fee"))
     if p["a"] is None and side == "buy" and young:
@@ -160,6 +168,67 @@ def on_trade(p: dict, tr: dict) -> None:
         p["c"] = entry(p, px, t, fee)
     if p["b"] is None and sinal and p.get("checks") is not None and not traps(p):
         p["b"] = entry(p, px, t, fee)
+
+
+def hits(e: dict, px: float, t: float) -> None:
+    """0.32.489: 1ª vez que o preço tocou cada alvo e cada stop da grade (só entradas novas guardam)."""
+    h = e.setdefault("h", {})
+    r = px / e["px"]
+    for u in GRID_UP:
+        if "u%d" % u not in h and r >= 1 + u / 100:
+            h["u%d" % u] = round(t, 1)
+    for d in GRID_DN:
+        if "d%d" % d not in h and r <= 1 - d / 100:
+            h["d%d" % d] = round(t, 1)
+
+
+def grid_result(p: dict, e: dict, up: int, dn: int, eth_usd: float) -> float | None:
+    """Resultado em US$ de uma entrada de ENTRY_USD saindo no alvo +up% ou no stop −dn% (o que vier primeiro); nenhum dos dois em
+    24 h = preço da marca de 24 h. Venda travada = zero; liquidez tirada antes da saída = zero. None = ainda aberta ou entrada antiga."""
+    h = e.get("h")
+    if h is None or not e.get("px"):
+        return None
+    tu, td = h.get("u%d" % up), h.get("d%d" % dn)
+    if p.get("hp"):
+        mult = 0.0
+    elif tu is not None and (td is None or tu <= td):
+        mult = 1 + up / 100
+    elif td is not None:
+        mult = 1 - dn / 100
+    else:
+        m24 = e["m"].get("24")
+        if m24 is None:
+            return None
+        mult = m24 / e["px"]
+    sai = tu if (tu is not None and (td is None or tu <= td)) else td
+    if p.get("rug_t") and (sai is None or p["rug_t"] <= sai):
+        mult = 0.0
+    f = e.get("fee") if e.get("fee") is not None else 0.01
+    return round(ENTRY_USD * mult * (1 - f) ** 2 - ENTRY_USD - 2 * GAS_ETH * (eth_usd or 0), 6)
+
+
+def grid(pools: list[dict], now: float, dias: float, eth_usd: float, kind: str = "b") -> dict:
+    """0.32.489: entrada × alvo × stop da entrada `kind`. Devolve as 10 melhores combinações e a tabela alvo × stop da melhor entrada."""
+    since = now - dias * 86400
+    es = [(p, p[kind]) for p in pools if p.get("t", 0) >= since and p.get(kind) and p[kind].get("h") is not None]
+    combos = []
+    for lim in GRID_IN:
+        sel = [(p, e) for p, e in es if not lim or (e.get("x_ini") is not None and (e["x_ini"] - 1) * 100 <= lim)]
+        for up in GRID_UP:
+            for dn in GRID_DN:
+                vals = [v for v in (grid_result(p, e, up, dn, eth_usd) for p, e in sel) if v is not None]
+                if not vals:
+                    continue
+                combos.append({"entrada_max_pct": lim, "alvo_pct": up, "stop_pct": dn, "n": len(vals),
+                               "resultado_usd": round(sum(vals), 4), "por_entrada_usd": round(sum(vals) / len(vals), 5),
+                               "acerto": round(100 * sum(1 for v in vals if v > 0) / len(vals), 1)})
+    combos.sort(key=lambda c: (-c["resultado_usd"], -c["n"]))
+    best_in = combos[0]["entrada_max_pct"] if combos else 0
+    tab = {"entrada_max_pct": best_in, "alvos": list(GRID_UP), "stops": list(GRID_DN),
+           "linhas": [[next((c for c in combos if c["entrada_max_pct"] == best_in and c["alvo_pct"] == up and c["stop_pct"] == dn), None)
+                       for dn in GRID_DN] for up in GRID_UP]}
+    return {"entrada": kind, "entradas": len(es), "melhores": combos[:10], "tabela": tab, "valor_usd": ENTRY_USD,
+            "entradas_grade": list(GRID_IN)}
 
 
 def marks(p: dict, now: float) -> bool:
@@ -322,9 +391,17 @@ class Hunter:
         p = self.pools.get(str(tr.get("pool") or "").lower())
         if not p or p["fechado"] or tr.get("quote") == "USD":
             return
+        antes = {k: p.get(k) is None for k in ("a", "b", "c")}
         on_trade(p, tr)
         if p.get("first_t"):
             self._dirty.add(p["id"])
+        cop = getattr(self.w, "copier", None)
+        for k, era in antes.items():                  # 0.32.489: entrada nova → compra FICTÍCIA nas contas com o Caçador ligado
+            if era and p.get(k) and cop is not None and hasattr(cop, "cz_entry"):
+                try:
+                    cop.cz_entry(p, k)
+                except Exception as e:
+                    log.warning("Robinhood: compra fictícia do caçador falhou: %s", str(e)[:160])
 
     def held(self) -> set:
         return {p["token"] for p in self.pools.values() if p.get("first_t") and not p["fechado"]}
@@ -475,4 +552,5 @@ class Hunter:
                                                           "min_eth": MIN_ETH, "marcas_h": list(MARKS_H), "alvos": list(TARGETS), "gas_eth": GAS_ETH},
                 "status": {**self.stat, "observando": len(self.pools), "com_troca": sum(1 for p in self.pools.values() if p.get("first_t")),
                            "fechados": len(self.done), "arquivo": getattr(self.w, "arquivo", None) is not None},
-                "estudo": study(allp, now, dias, eth_usd), "agora": [row(p, eth_usd) for p in live], "eth_usd": eth_usd}
+                "estudo": study(allp, now, dias, eth_usd), "agora": [row(p, eth_usd) for p in live], "eth_usd": eth_usd,
+                "grade": {k: grid(allp, now, dias, eth_usd, k) for k in ("a", "b", "c")}}

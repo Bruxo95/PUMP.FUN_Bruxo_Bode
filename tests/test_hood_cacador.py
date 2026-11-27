@@ -108,3 +108,71 @@ def test_pool_without_trade_leaves_and_closed_goes_to_done():
     hu.pools[POOL]["t"] = time.time() - 26 * 3600                       # já passou da janela + 24 h
     asyncio.run(hu.tick())
     assert POOL not in hu.pools and hu.done and hu.done[0]["fechado"]
+
+
+# ------------------------------------------------------------------ 0.32.489 (pedido do Bruxo, áudio de 27/11)
+def test_grade_alvo_ou_stop_o_que_vier_primeiro():
+    p = H.parse_init(init_log(hook=ZERO), 1000.0)
+    p["px_ini"] = 0.000001
+    H.on_trade(p, tr(1010, "buy", 0.001, 1000, "0x1"))                  # entrada A no preço 0,000001
+    H.on_trade(p, tr(1020, "buy", 0.0016, 1000, "0x2"))                 # +60%: tocou o alvo de 50%
+    H.on_trade(p, tr(1030, "sell", 0.0004, 1000, "0x2"))                # −60%: tocou os stops de 20, 30 e 50%
+    h = p["a"]["h"]
+    assert h["u50"] == 1020 and "u100" not in h and h["d30"] == 1030 and "d70" not in h
+    gas = 2 * H.GAS_ETH * 3000
+    assert abs(H.grid_result(p, p["a"], 50, 30, 3000.0) - (0.10 * 1.5 - 0.10 - gas)) < 1e-9     # alvo veio antes
+    assert abs(H.grid_result(p, p["a"], 100, 30, 3000.0) - (0.10 * 0.7 - 0.10 - gas)) < 1e-9    # alvo nunca veio: stop
+    assert H.grid_result(p, p["a"], 100, 70, 3000.0) is None            # nenhum dos dois e a marca de 24 h ainda aberta
+    g = H.grid([p], 1100, 7, 3000.0, "a")
+    assert g["entradas"] == 1 and g["melhores"][0]["alvo_pct"] == 50
+    assert len(g["tabela"]["linhas"]) == len(H.GRID_UP)
+    p["a"].pop("h")
+    assert H.grid([p], 1100, 7, 3000.0, "a")["entradas"] == 0           # entrada antiga, sem as marcas: fora da grade
+
+
+def test_entrada_nova_avisa_a_copia_para_comprar_na_ficticia():
+    vistos = []
+
+    class W2(W):
+        class copier:
+            meta = {}
+
+            @staticmethod
+            def cz_entry(p, k):
+                vistos.append(k)
+
+    hu = H.Hunter(W2())
+    hu.note_init([init_log(hook=ZERO)])
+    hu.on_trade(tr(1001, "buy", 0.001, 1000, "0x1"))
+    hu.on_trade(tr(1002, "buy", 0.001, 1000, "0x1"))                    # a mesma entrada não avisa de novo
+    assert vistos == ["a"]
+
+
+def test_ficticia_do_cacador_sai_pelo_alvo_stop_e_tempo_dela():
+    from app import hoodcopy
+    key = [hoodcopy.ZERO, TOKEN, 0, 60, hoodcopy.ZERO]
+    b = hoodcopy.Book("u", {"slip_pct": 0, "gas_eth": 0, "cz_eth": 0.003, "eth_por_compra": 0.05, "stop_pct": 10})
+    t = time.time()
+    tr_ = {"wallet": "cacador", "token": TOKEN, "t": t, "tx": None, "eth": None, "amount": 0}
+    p = b.buy(tr_, 0.000001, t, key, "cacador")
+    assert p and p["eth_in"] == 0.003 and p["aba"] == "cacador"         # usa o valor do Caçador, não o da cópia
+    p["cz"] = {"entrada": "B", "alvo": 100.0, "stop": 50.0, "max_h": 2.0}
+    assert b.on_price(TOKEN, 0.00000085, t + 5) == []                   # −15%: o stop geral (10%) não vale para o Caçador
+    r = b.on_price(TOKEN, 0.0000021, t + 10)
+    assert r and r[0]["motivo"] == "Caçador: alvo +100%" and r[0]["cz"]["alvo"] == 100.0
+    p2 = b.buy({**tr_, "token": "0x" + "cd" * 20}, 0.000001, t, key, "cacador")
+    p2["cz"] = {"entrada": "B", "alvo": 100.0, "stop": 50.0, "max_h": 2.0}
+    assert b.timeouts(t + 3600) == [] and b.timeouts(t + 7201)[0]["motivo"] == "tempo máximo de 2 h"
+
+
+def test_desligar_a_copia_dos_top_traders_so_na_ficticia():
+    from app import hoodcopy
+    w = "0x" + "11" * 20
+    b = hoodcopy.Book("u", {"copia_traders": False})
+    assert b.follows(w, True) is None and b.real_follows(w, True)       # a REAL continua com as regras dela
+    key = [hoodcopy.ZERO, TOKEN, 0, 60, hoodcopy.ZERO]
+    assert b.buy({"wallet": w, "token": TOKEN, "t": time.time(), "eth": 0.1, "amount": 1}, 0.000001, time.time(), key, "top") is None
+    assert "desligada" in b.events[0]["motivo"]
+    assert hoodcopy.clean_cfg({"cz_entrada": "x"})["cz_entrada"] == "b" and hoodcopy.clean_cfg({"cz_entrada": "C"})["cz_entrada"] == "c"
+    assert hoodcopy.CFG_DEFAULT["cz_on"] is False and hoodcopy.CFG_DEFAULT["copia_traders"] is True
+

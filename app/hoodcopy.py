@@ -55,7 +55,11 @@ CFG_DEFAULT = {"on": True, "auto_top": True, "manual": [], "modo": {}, "bloquead
                "trail_on": True, "trail_ativa_pct": 25.0, "trail_dist_pct": 20.0,
                "max_acima_pct": 15.0, "max_atraso_s": 45.0, "pausa_trader": True,
                # 0.32.332 (pedido do dono, 13/11/2026): stop de ganho autônomo (app/stopganho.py); 0 = o robô escolhe o nível
-               "sg_on": True, "sg_fixo_pct": 0.0, "cfg_v": CFG_V}
+               "sg_on": True, "sg_fixo_pct": 0.0,
+               # 0.32.489 (pedido do Bruxo, áudio de 27/11): desligar a cópia dos top traders na FICTÍCIA e comprar na FICTÍCIA pelas
+               # entradas do Caçador (sombra), com % de entrada e de saída próprios
+               "copia_traders": True, "cz_on": False, "cz_entrada": "b", "cz_eth": 0.002, "cz_entrada_max_pct": 0.0,
+               "cz_alvo_pct": 100.0, "cz_stop_pct": 50.0, "cz_max_h": 24.0, "cfg_v": CFG_V}
 # valores que eram o padrão até a 0.32.321 → quem ainda está neles (não escolheu outro) passa para o padrão novo, uma vez só
 CFG_OLD = {"stop_pct": 0.0, "trader_so_lucro": True, "trail_ativa_pct": 20.0, "trail_dist_pct": 10.0, "gas_eth": 0.00002}
 REAL_OLD = {"real_stop_pct": 0.0, "real_trader_so_lucro": True, "real_trail_ativa_pct": 20.0, "real_trail_dist_pct": 10.0}
@@ -64,8 +68,12 @@ AJUSTE = "ajuste da versão 0.32.322 (saídas que cortavam o ganho e seguravam a
 # 0.32.310: mínimo de 0,0001 ETH por compra, para a FICTÍCIA poder ficar igual a uma REAL pequena
 CFG_LIMITS = {"eth_por_compra": (0.0001, 5), "max_abertas": (1, 100), "max_hold_h": (0.1, 168), "stop_pct": (0, 100),
               "slip_pct": (0, 50), "gas_eth": (0, 0.01), "saldo_inicial": (0.001, 1000), "trail_ativa_pct": (1, 10000),
-              "trail_dist_pct": (1, 1000), "max_acima_pct": (0, 500), "max_atraso_s": (5, 90), "sg_fixo_pct": (0, 500)}
-CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_liquidez", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader", "sg_on")
+              "trail_dist_pct": (1, 1000), "max_acima_pct": (0, 500), "max_atraso_s": (5, 90), "sg_fixo_pct": (0, 500),
+              "cz_eth": (0.0001, 5), "cz_entrada_max_pct": (0, 100000), "cz_alvo_pct": (1, 100000), "cz_stop_pct": (0, 100),
+              "cz_max_h": (0.1, 168)}
+CFG_BOOLS = ("on", "auto_top", "so_verificado", "so_lp_presa", "sair_liquidez", "sair_travado", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader", "sg_on",
+             "copia_traders", "cz_on")
+CZ_ENTRADAS = ("a", "b", "c")
 TRAIL_MIN_LOCK = 2.0
 LIQ_EXIT = 0.30              # 0.32.327: retirada de 30% ou mais da liquidez de um pool com posição aberta = sai
 # 0.32.319: histórico da configuração. Nunca entra: ligar a fictícia, ligar a REAL e o saldo inicial (voltar nunca liga nada)
@@ -190,7 +198,7 @@ def upgrade_cfg(raw: dict | None) -> tuple[dict, dict | None, bool]:
 
 def entry_block(cfg: dict, tr: dict, t: float, acima: float | None, origem: str, trades: list[dict]) -> str | None:
     """0.32.322: motivos de não entrar que valem para a FICTÍCIA e para a REAL. A compra pelo botão não passa por aqui."""
-    if origem == "botao":
+    if origem in ("botao", "cacador"):            # 0.32.489: a compra do Caçador tem as regras dela (entrada máx. %)
         return None
     lag = t - (tr.get("t") or t)
     if lag > cfg.get("max_atraso_s", 45):          # o atraso conta a leitura da rede e a conferência do token
@@ -281,6 +289,9 @@ def clean_cfg(raw: dict | None, base: dict | None = None) -> dict:
             out[k] = bool(v)
         elif k == "cfg_v":
             out[k] = CFG_V if str(v) == str(CFG_V) else 1
+        elif k == "cz_entrada":
+            if str(v).lower() in CZ_ENTRADAS:
+                out[k] = str(v).lower()
         elif k in ("bloqueados", "tokens_bloqueados"):
             ws = [str(x).strip().lower() for x in (v if isinstance(v, list) else [])]
             out[k] = list(dict.fromkeys(x for x in ws if len(x) == 42 and x.startswith("0x")
@@ -338,6 +349,8 @@ class Book:
 
     def follows(self, wallet: str, auto: bool) -> str | None:
         """Por que a FICTÍCIA desta conta copia o trader: 'manual' (botão), 'top' (Copiando agora) ou None."""
+        if not self.cfg.get("copia_traders", True):      # 0.32.489: cópia dos top traders desligada só na FICTÍCIA
+            return None
         m = self.mode_of(wallet, auto)
         if m not in ("sim", "ambas"):
             return None
@@ -358,7 +371,7 @@ class Book:
 
     def sg_nivel(self, p: dict) -> float | None:
         """0.32.332: nível do stop de ganho desta posição (None = não age). A compra pelo botão segue a regra que você escolheu."""
-        if not self.cfg.get("sg_on") or p.get("aba") == "botao":
+        if not self.cfg.get("sg_on") or p.get("aba") in ("botao", "cacador"):
             nv, fonte = None, "desligado" if not self.cfg.get("sg_on") else "fora"
         else:
             nv, fonte = stopganho.nivel_de(self.sg_dec() if self.sg_dec else None, self.cfg.get("sg_fixo_pct") or 0)
@@ -372,9 +385,11 @@ class Book:
         acima = quanto px está acima de trader_px, em %."""
         c = self.cfg
         why = None
-        amt = c["eth_por_compra"]
+        amt = c["cz_eth"] if origem == "cacador" else c["eth_por_compra"]
         if tr["token"] in (c.get("tokens_bloqueados") or []):
             why = "moeda bloqueada por você (Dinheiro entrando → Honeypot e bloqueadas)"
+        elif origem in ("top", "manual") and not c.get("copia_traders", True):
+            why = "cópia dos top traders desligada na FICTÍCIA"
         elif not c["on"] and origem != "botao":
             why = "cópia fictícia desligada nesta conta"
         elif not px or px <= 0:
@@ -444,7 +459,7 @@ class Book:
             return None
         pnl = p["proceeds"] - p["eth_in"]
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "fees",
-                                        "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas", "nome", "simbolo", "px_src", "acima_pct")},
+                                        "best_pct", "worst_pct", "lag_s", "tx_in", "aba", "vendas", "nome", "simbolo", "px_src", "acima_pct", "cz")},
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo,
               "taxas_eth": round(p.get("fees") or 0.0, 9)}
@@ -501,6 +516,15 @@ class Book:
             p["best_pct"], p["worst_pct"] = max(p["best_pct"], pct), min(p["worst_pct"], pct)
             stopganho.marcar(p, pct, t)
             self.dirty_pos.add(p["id"])
+            cz = p.get("cz")
+            if cz:                                      # 0.32.489: posição do Caçador sai só pelo alvo, pelo stop e pelo tempo dela
+                why = (f"Caçador: alvo +{cz['alvo']:g}%" if pct >= cz["alvo"] else
+                       f"Caçador: stop −{cz['stop']:g}%" if cz["stop"] and pct <= -cz["stop"] else None)
+                if why:
+                    r = self.sell(p, 1.0, px, t, why)
+                    if r:
+                        out.append(r)
+                continue
             why = f"stop de {self.cfg['stop_pct']:.0f}%" if self.cfg["stop_pct"] and pct <= -self.cfg["stop_pct"] else \
                 trail_hit(self.cfg, p["best_pct"], pct)
             if not why:                                 # 0.32.332 (pedido do dono): stop de ganho autônomo
@@ -520,9 +544,10 @@ class Book:
         return out
 
     def timeouts(self, t: float) -> list[dict]:
-        lim = self.cfg["max_hold_h"] * 3600
-        return [r for p in list(self.pos.values()) if t - p["open_t"] >= lim
-                for r in [self.sell(p, 1.0, None, t, f"tempo máximo de {self.cfg['max_hold_h']:g} h")] if r]
+        def lim(p):
+            return float((p.get("cz") or {}).get("max_h") or self.cfg["max_hold_h"]) * 3600
+        return [r for p in list(self.pos.values()) if t - p["open_t"] >= lim(p)
+                for r in [self.sell(p, 1.0, None, t, f"tempo máximo de {lim(p) / 3600:g} h")] if r]
 
     def wallet(self, now: float) -> dict:
         open_val = sum(max(0.0, self.value_now(p)) for p in self.pos.values())
@@ -981,6 +1006,45 @@ class Copier:
         if key and v.get("ok") and px:
             px_now, acima = await self.entry_price(tr, key, px)
         self._buy_all(tr, v, key, px, px_now, acima)
+
+    # ------------------------------------------------------------------ 0.32.489: compras FICTÍCIAS pelo Caçador
+    def cz_entry(self, hp: dict, kind: str) -> None:
+        """Entrada nova do Caçador (A, B ou C): compra na FICTÍCIA de cada conta que ligou "Comprar pelo Caçador" com essa entrada.
+        Nunca compra na REAL."""
+        if any(b.cfg.get("cz_on") and b.cfg.get("on") and b.cfg.get("cz_entrada", "b") == kind for b in self.books.values()):
+            e = hp.get(kind) or {}
+            self._spawn(self._cz_buy({"id": hp["id"], "token": hp["token"], "nome": hp.get("nome"), "simbolo": hp.get("simbolo"),
+                                      "px": e.get("px"), "t": e.get("t"), "x_ini": e.get("x_ini")}, kind))
+
+    async def _cz_buy(self, hp: dict, kind: str) -> None:
+        now, tk = time.time(), hp["token"]
+        try:
+            key = await self.pool_key(hp["id"], tk)
+        except Exception:
+            key = None
+        tr = {"wallet": "cacador", "token": tk, "t": hp.get("t") or now, "tx": None, "eth": None, "amount": 0, "_auto": False,
+              "pool": hp["id"]}
+        nome = {"a": "A", "b": "B", "c": "C"}[kind]
+        for uid, b in list(self.books.items()):
+            c = b.cfg
+            if not (c.get("cz_on") and c.get("on") and c.get("cz_entrada", "b") == kind):
+                continue
+            if not key:
+                b.ev(now, "cacador", tk, "não copiou", "Caçador: não achei a chave do pool V4 pago em ETH")
+                continue
+            mx, xi = c.get("cz_entrada_max_pct") or 0, hp.get("x_ini")
+            if mx and xi is not None and (xi - 1) * 100 > mx:
+                b.ev(now, "cacador", tk, "não copiou", f"Caçador: já subiu {(xi - 1) * 100:.0f}% desde o início do pool (máx. {mx:g}%)")
+                continue
+            p = b.buy(tr, hp.get("px"), now, key, "cacador")
+            if p:
+                p["cz"] = {"entrada": nome, "alvo": c["cz_alvo_pct"], "stop": c["cz_stop_pct"], "max_h": c["cz_max_h"],
+                           "x_ini": xi}
+                if hp.get("simbolo") or hp.get("nome"):
+                    p["nome"], p["simbolo"] = hp.get("nome"), hp.get("simbolo")
+                b.dirty_pos.add(p["id"])
+        self.stat["cacador_entradas"] = self.stat.get("cacador_entradas", 0) + 1
+        await self.flush()
 
     async def entry_price(self, tr: dict, key: list, px: float) -> tuple[float | None, float | None]:
         """0.32.322: o preço que a cópia paga de verdade. O trader já comprou e empurrou o preço do pool; a fictícia entrava no preço
@@ -1491,6 +1555,8 @@ class Copier:
         self._spawn(self._real_sell(uid, p, frac, motivo))
 
     def _exit(self, uid: str, p: dict, real: bool, regra: str, motivo: str, now: float) -> None:
+        if p.get("cz") and regra in ("sair_trader", "sair_dev"):
+            return                                   # 0.32.489: posição do Caçador sai só pelo alvo, pelo stop e pelo tempo dela
         so_trader = regra == "sair_trader"
         if real:
             if self.mirrored(uid, p):
@@ -1533,7 +1599,7 @@ class Copier:
         self._follow_i = i + len(tks)
         for tk in tks:
             pos = self._positions(tk)
-            for who in sorted({p["wallet"] for _, p, _ in pos}):
+            for who in sorted({p["wallet"] for _, p, _ in pos if str(p["wallet"]).startswith("0x")}):   # botão e Caçador: sem trader
                 bal = await self._balance(tk, who)
                 if bal is None:
                     continue
@@ -2006,8 +2072,9 @@ class Copier:
             v, pct = b.pnl_now(p)
             pos.append({**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "px_now", "px_t", "eth_in", "proceeds",
                                                   "best_pct", "worst_pct", "lag_s", "tx_in", "vendas", "nome", "simbolo",
-                                                  "px_src", "dev", "espera")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
-                        "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "fecha_em": p["open_t"] + b.cfg["max_hold_h"] * 3600})
+                                                  "px_src", "dev", "espera", "aba", "cz")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
+                        "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2),
+                        "fecha_em": p["open_t"] + float((p.get("cz") or {}).get("max_h") or b.cfg["max_hold_h"]) * 3600})
         return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100],
                 "nomes": self._names(b.events[:100])}
 

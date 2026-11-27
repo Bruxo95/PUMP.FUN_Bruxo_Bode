@@ -25,7 +25,7 @@
     ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],
   ];
   // 0.32.290 (pedido do dono: "sair quando o desenvolvedor sai da moeda ... stop móvel ... botão de ativar"): opções liga/desliga
-  const CF_BOOL = ["sair_travado", "so_verificado", "so_lp_presa", "sair_liquidez", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader", "sg_on"], RL_BOOL = ["real_sg_on", "real_sair_travado", "real_espelho", "real_so_lp_presa", "real_sair_liquidez", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
+  const CF_BOOL = ["copia_traders", "sair_travado", "so_verificado", "so_lp_presa", "sair_liquidez", "um_por_token", "sair_trader", "trader_so_lucro", "sair_dev", "trail_on", "pausa_trader", "sg_on"], RL_BOOL = ["real_sg_on", "real_sair_travado", "real_espelho", "real_so_lp_presa", "real_sair_liquidez", "real_um_por_token", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on"];
   const NOM = {};
   let P = null, REAL = false, PBUSY = false, CF_DIRTY = false, RL_DIRTY = false;
   try { REAL = localStorage.getItem("hood_mode") === "real"; } catch (e) { /* */ }
@@ -88,7 +88,8 @@
     }
     return (BKY[a] = cv.toDataURL());
   }
-  const addr = (a) => (a ? '<a class="hdwho" href="' + esc(ex()) + "/address/" + esc(a) + '" target="_blank" rel="noopener" title="' + esc(a) + '"><img class="bky" alt="" src="' + blockie(a) +
+  const ORIG = { botao: "Botão Comprar", cacador: "Caçador" };
+  const addr = (a) => (ORIG[a] ? '<span class="tag neutral">' + ORIG[a] + "</span>" : a ? '<a class="hdwho" href="' + esc(ex()) + "/address/" + esc(a) + '" target="_blank" rel="noopener" title="' + esc(a) + '"><img class="bky" alt="" src="' + blockie(a) +
     '"><span><b>' + esc(nick(a)) + '</b><small class="hdaddr">' + esc(short(a)) + "</small></span></a>" : "—");
   // 0.32.290 (pedido do dono: "no token coloque o nome e endereço que nem você fez para os traders"): ícone, símbolo e endereço curto
   // 0.32.314 (pedido do dono): token em que o criador pode travar a venda aparece com o nome em amarelo, em todas as telas
@@ -258,6 +259,8 @@
     // 0.32.322 (revisão "por que estamos sempre no negativo"): três travas de entrada; a REAL usa o valor da FICTÍCIA
     ["Não entrar se o preço já subiu mais que", "% acima do que o trader pagou, medido no pool na hora (0 = desligado)", "max_acima_pct", null, "a REAL usa o valor da FICTÍCIA"],
     ["Atraso máximo para copiar", "segundos depois da compra do trader; mais que isso não copia", "max_atraso_s", null, "a REAL usa o valor da FICTÍCIA"],
+    // 0.32.489 (pedido do Bruxo, áudio de 27/11): desligar a cópia dos top traders na FICTÍCIA (para medir só o Caçador)
+    ["Copiar os top traders", "compra quando os traders do ranking ou os escolhidos por você compram · desligado, a FICTÍCIA só compra pelo Caçador e pelo botão (com o espelho, a REAL também para)", "copia_traders", null, "a REAL tem as dela", "bool"],
     ["Parar de copiar trader que dá prejuízo", "no Copiando agora: 3 cópias ou mais em 7 dias somando prejuízo; quem você escolheu no botão continua", "pausa_trader", null, "a REAL usa o valor da FICTÍCIA", "bool"],
     ["Token com trava do criador: sair no lucro", "nome em amarelo; vende assim que ficar positivo (em partes, se o pool não aceitar tudo)", "sair_travado", "real_sair_travado", "", "bool"],
     ["Só token com a liquidez presa", "não compra se uma carteira comum tem metade ou mais da liquidez do pool (pode tirar tudo a qualquer hora, como no TEXEL e no mihao)", "so_lp_presa", "real_so_lp_presa", "", "bool"],
@@ -707,7 +710,56 @@
     return "entrou " + xx(e.x_ini) + ' do início<br><small class="muted">pico ' + (e.x_pico == null ? "—" : num(e.x_pico, 2) + "×") + " · agora " + (e.x_agora == null ? "—" : num(e.x_agora, 2) + "×") +
       (e.r24 != null ? " · 24 h " + usd(e.r24, 3) : "") + "</small>";
   }
+  // 0.32.489 (pedido do Bruxo, áudio de 27/11): compras FICTÍCIAS pelas entradas do Caçador e a grade de % de entrada e saída
+  const CZ_IN = [["cz_eth", "Valor por compra", "ETH", 0.0001, 5, 0.0001], ["cz_entrada_max_pct", "Só entra até (acima do preço inicial do pool; 0 = sem limite)", "%", 0, 100000, 10],
+    ["cz_alvo_pct", "Vende tudo no alvo", "%", 1, 100000, 5], ["cz_stop_pct", "Stop de perda (0 = sem stop)", "%", 0, 100, 5], ["cz_max_h", "Tempo máximo", "h", 0.1, 168, 1]];
+  let CZG = null;
+  function czBuyDraw() {
+    const box = $("czBuy"); if (!box) return;
+    const c = (P && P.cfg_sim) || null;
+    if (!c) { box.innerHTML = '<p class="muted">carregando a sua carteira…</p>'; return; }
+    if (document.activeElement && box.contains(document.activeElement) && document.activeElement.tagName === "INPUT") return;   // não apaga o que está digitando
+    const sw = (k, on, txt) => '<button class="btn tgl sw ' + (on ? "on" : "off") + '" type="button" role="switch" aria-checked="' + on + '" data-czk="' + k + '">' + (on ? "Ligado" : "Desligado") + "</button>" + (txt ? " <small class=\"muted\">" + txt + "</small>" : "");
+    const ent = c.cz_entrada || "b";
+    let st = "";
+    if (!REAL) {
+      const ps = ((P && P.posicoes) || []).filter((p) => p.aba === "cacador"), ts = ((P && P.trades) || []).filter((t) => t.aba === "cacador");
+      const res = ts.reduce((a, t) => a + (+t.pnl_eth || 0), 0), win = ts.filter((t) => (+t.pnl_eth || 0) > 0).length;
+      st = "Na sua FICTÍCIA: <b>" + ps.length + "</b> aberta" + (ps.length === 1 ? "" : "s") + " · <b>" + ts.length + "</b> fechada" + (ts.length === 1 ? "" : "s") +
+        (ts.length ? " · resultado " + eth(res, 5) + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#posicoes">ver nas Posições</a>';
+    } else st = "Troque para FICTÍCIA no topo para ver as compras do Caçador.";
+    box.innerHTML = '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>desligado, a FICTÍCIA só compra pelo Caçador e pelo botão</small></span>' + sw("copia_traders", c.copia_traders !== false) + "</div>" +
+      '<div class="czrow"><span><b>Comprar pelo Caçador (FICTÍCIA)</b><small>compra quando a entrada escolhida acontece · nunca na REAL</small></span>' + sw("cz_on", !!c.cz_on) + "</div>" +
+      '<div class="czrow"><span><b>Entrada que compra</b><small>A = 1ª compra do pool · B = 5 compradores, 0,05 ETH e nenhuma trava · C = o mesmo sinal da B sem olhar as travas</small></span><span class="seg">' +
+        [["a", "A"], ["b", "B"], ["c", "C"]].map((x) => '<button type="button" data-czent="' + x[0] + '" class="' + (ent === x[0] ? "on" : "") + '">' + x[1] + "</button>").join("") + "</span></div>" +
+      '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span></label>").join("") + "</div>" +
+      '<p class="small czst">' + st + "</p>";
+  }
+  async function czSave(body) {
+    const r = await BB.api("/api/hood/conta", { body, quiet: true });
+    if (r && r.error) { alert(r.error); return; }
+    if (P && r && r.cfg) P.cfg_sim = r.cfg;
+    czBuyDraw();
+  }
+  function czGridDraw() {
+    const G = (CZ && CZ.grade) || {}, c = (P && P.cfg_sim) || {};
+    CZG = CZG || c.cz_entrada || "b";
+    document.querySelectorAll("#czGk button").forEach((b) => b.classList.toggle("on", b.dataset.czg === CZG));
+    const g = G[CZG];
+    if (!g) { table("czG", ["Combinação"], [], "Grade ainda vazia."); return; }
+    $("czGSt").textContent = num(g.entradas, 0) + " entradas com as marcas de alvo e stop no período";
+    const lim = (v) => (v ? "até +" + num(v, 0) + "%" : "sem limite");
+    table("czG", ["#", "Entrada", "Alvo", "Stop", "Fechadas", "Resultado", "Por entrada", "Acerto", ""], (g.melhores || []).map((x, i) => [String(i + 1), lim(x.entrada_max_pct),
+      "+" + num(x.alvo_pct, 0) + "%", "−" + num(x.stop_pct, 0) + "%", num(x.n, 0), usd(x.resultado_usd, 3), usd(x.por_entrada_usd, 4), num(x.acerto, 0) + "%",
+      '<button class="btn sm" type="button" data-czuse="' + x.entrada_max_pct + ":" + x.alvo_pct + ":" + x.stop_pct + '" title="Põe estes % nas compras FICTÍCIAS do Caçador">Usar estes %</button>']),
+      "Ainda sem entradas fechadas com as marcas novas (precisam de até 24 h depois da entrada).");
+    const t = g.tabela || {};
+    $("czGTh").textContent = "Alvo × stop · entrada " + lim(t.entrada_max_pct) + " (cada célula = resultado de todas as entradas, US$ " + num(g.valor_usd || 0.1, 2) + " cada)";
+    table("czGT", ["Alvo \\ Stop"].concat((t.stops || []).map((d) => "−" + d + "%")), (t.linhas || []).map((ln, i) => ["+" + t.alvos[i] + "%"].concat(ln.map((x) => (x ? usd(x.resultado_usd, 3) + '<br><small class="muted">' + x.n + " · " + num(x.acerto, 0) + "%</small>" : "—")))),
+      "Ainda sem dados.");
+  }
   function drawCz() {
+    czBuyDraw(); czGridDraw();
     document.querySelectorAll("#czD button").forEach((b) => b.classList.toggle("on", Number(b.dataset.czd) === CZD));
     if (!CZ) { kpis("czK", [["Caçador", "carregando…", "", ""]]); return; }
     if (CZ.ligado === false) { kpis("czK", [["Caçador", "desligado", "leitura da Robinhood desligada no servidor", ""]]); return; }
@@ -862,6 +914,28 @@
     return b;
   };
   const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse]") : null; if (!t) return;
+    const c = (P && P.cfg_sim) || {};
+    if (t.dataset.czk) {
+      const k = t.dataset.czk, on = k === "copia_traders" ? c.copia_traders === false : !c.cz_on;
+      if (k === "cz_on" && on && !confirm("Ligar as compras FICTÍCIAS pelo Caçador? Cada entrada " + String(c.cz_entrada || "b").toUpperCase() + " compra " + num(c.cz_eth, 4) + " ETH na sua FICTÍCIA (nunca na REAL).")) return;
+      czSave({ [k]: on });
+    } else if (t.dataset.czent) czSave({ cz_entrada: t.dataset.czent });
+    else if (t.dataset.czg) { CZG = t.dataset.czg; czGridDraw(); }
+    else if (t.dataset.czuse) {
+      const [mx, up, dn] = t.dataset.czuse.split(":").map(Number);
+      if (!confirm("Usar nas compras FICTÍCIAS do Caçador: entrada " + (mx ? "até +" + mx + "%" : "sem limite") + ", alvo +" + up + "%, stop −" + dn + "%, entrada " + CZG.toUpperCase() + "?")) return;
+      czSave({ cz_entrada_max_pct: mx, cz_alvo_pct: up, cz_stop_pct: dn, cz_entrada: CZG });
+    }
+  });
+  document.addEventListener("change", (e) => {
+    const k = e.target && e.target.dataset && e.target.dataset.czn; if (!k) return;
+    const v = parseFloat(String(e.target.value).replace(",", "."));
+    if (!isFinite(v)) return;
+    e.target.blur();
+    czSave({ [k]: v });
+  });
   async function post(url, body, btn) {
     if (btn) btn.disabled = true;
     try { return await BB.api(url, { body }); } finally { if (btn) btn.disabled = false; }
