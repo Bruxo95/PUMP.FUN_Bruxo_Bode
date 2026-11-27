@@ -480,10 +480,11 @@
   // 0.32.487 (pedido do dono, 27/11): market cap de quando entramos × agora, na mesa e na lista de posições (só na Sala da pump.fun).
   // MC = preço × tokens no total × dólar do SOL. O total vem do market cap que o robô já guarda (mcap_now ÷ preço); sem ele, 1 bilhão
   // (todo token da pump.fun nasce com 1 bilhão). Nenhuma consulta nova.
-  const MCDESK = !HOOD && !C().botlive;
+  const MCDESK = !FOREX && !C().botlive;          // 0.32.501: também na Sala da Robinhood (total de tokens vindo da DexScreener)
   function mcOf(p) {
     const usd = +(S.wallet || {}).sol_usd || 0, pin = +p.price_in || 0, pnow = +p.price_now || 0;
     if (!usd || !pin || !pnow) return null;
+    if (HOOD && !p.mcap_now) return null;            // Robinhood: sem o total de tokens ainda, não inventa
     const sup = p.mcap_now ? +p.mcap_now / pnow : 1e9;
     if (!(sup > 0) || !isFinite(sup)) return null;
     return { in: pin * sup * usd, now: pnow * sup * usd };
@@ -505,7 +506,7 @@
     }
     const i = Math.floor(Date.now() / 6000) % P.length, p = P[i], mc = mcOf(p);
     const up = mc.now >= mc.in, col = up ? "#3ee66b" : "#ff4d5e", d = (mc.now / mc.in - 1) * 100;
-    const nm = String(p.symbol || (p.mint || "").slice(0, 6)).toUpperCase().slice(0, 10);
+    const nm = String(p.symbol || (p.mint || "").slice(0, 6)).split(" · ")[0].toUpperCase().slice(0, 10);
     TXT("MC " + nm + (P.length > 1 ? " " + (i + 1) + "/" + P.length : ""), x0 + 3, y0 + 2, "#e8f0ff", 5);
     const ds = (d > 0 ? "+" : "") + d.toFixed(1) + "%";
     TXT(ds, x0 + w - 3 - TW(ds, 5), y0 + 2, col, 5);
@@ -535,6 +536,13 @@
     ny = Math.max(py0, Math.min(py0 + ph - 6, ny));
     R(nx, ny, nw, 6, col);
     TXT(nl, nx + 2, ny, up ? "#06301a" : "#3a0710", 5);
+  }
+  // 0.32.501 (pedido do dono): no Histórico, o market cap de quando entrou e de quando saiu (Robinhood: total de tokens da DexScreener)
+  function mcLineT(t) {
+    if (!MCDESK || !t.supply || !t.price_in || !t.price_out) return "";
+    const usd = +(S.wallet || {}).sol_usd || 0; if (!usd) return "";
+    const a = t.price_in * t.supply * usd, b = t.price_out * t.supply * usd, up = b >= a;
+    return '<div class="prmc">MC ' + kfmt(a) + ' → <span class="' + (up ? "up" : "down") + '">' + kfmt(b) + (up ? " ▲" : " ▼") + "</span></div>";
   }
   function mcLine(p) {
     if (!MCDESK) return "";
@@ -1333,7 +1341,7 @@
         // 0.32.498 (pedido do dono): lucro na mesma moeda escolhida (US$, SOL ou ETH), com o sinal
         const luTxt = PRIV() ? "•••" : (lu > 0 ? "+" : lu < 0 ? "−" : "") + $v(Math.abs(lu));
         return '<div class="pr h6" title="' + esc((EN() ? motivo(t.motivo) : (t.motivo || "")) + tr(" · entrou ", " · in ") + hm(t.opened_at) + tr(", saiu ", ", out ") + hm(t.closed_at)) + '"><span>' + symL(t) + '</span><span class="hr">' + hm(t.closed_at) +
-          "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="' + cls(lu) + '">' + luTxt + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>"; }).join("");
+          "</span><span>" + (ins ? $v(ins) : "–") + '</span><span class="' + cls(t.pnl_sol) + '">' + (ins ? $v(out) : sol(t.pnl_sol)) + '</span><span class="' + cls(lu) + '">' + luTxt + '</span><span class="pc ' + cls(t.pnl_pct) + '">' + pct(t.pnl_pct) + "</span></div>" + mcLineT(t); }).join("");
     const items = S.trades.slice(0, 8).map((t) => ({ t: tms(t.closed_at), h: '<span class="' + cls(t.pnl_sol) + '">' + icon((t.pnl_sol || 0) > 0 ? "trophy" : "skull", 1) + "SELL " + sym(t) + " " + pct(t.pnl_pct) + " (" + sol(t.pnl_sol) + ")</span>" }))
       .concat(P.slice(0, 8).map((p) => ({ t: tms(p.opened_at), h: '<span class="up">' + icon("coin", 1) + "BUY " + sym(p) + (PRIV() ? "" : " " + Number(p.sol_in || 0).toFixed(DEC) + " " + U) + "</span>" })))
       .sort((a, b) => b.t - a.t).slice(0, 12);
@@ -1407,9 +1415,9 @@
     const rk = p.riscos || {}, nm = p.nomes || {};
     const soCz = CZONLY && !C().botlive && !FOREX;
     const pos = (p.posicoes || []).filter((x) => !soCz || cz(x)).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
-      pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t) }));
+      pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t), price_in: x.px_in, price_now: x.px_now, mcap_now: x.supply && x.px_now ? x.supply * x.px_now : null }));
     const tr = (p.trades || []).filter((x) => !soCz || cz(x)).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t),
-      opened_at: iso(x.open_t), sol_in: x.eth_in, motivo: x.motivo }));
+      opened_at: iso(x.open_t), sol_in: x.eth_in, motivo: x.motivo, price_in: x.px_in, price_out: x.px_out, supply: x.supply }));
     let w = p.carteira || {};
     if (soCz) {                                                       // a carteira da Sala vira a conta só do Caçador
       const ganhou = tr.filter((t) => (+t.pnl_sol || 0) > 0).length, soma = tr.reduce((a, t) => a + (+t.pnl_sol || 0), 0);

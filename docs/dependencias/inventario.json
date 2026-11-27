@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "2ad1de537686c69d95769095df936db7eea32fce",
-    "application_version": "0.32.500 · 2026-11-28 · Robinhood: Histórico marca a entrada repetida (2ª entrada, outro contrato)",
+    "repository_reference": "8b285b3e4dea983cf58e4aaec1713e8e9f789ff8",
+    "application_version": "0.32.501 · 2026-11-28 · Sala da Robinhood: market cap da entrada e de agora, ao vivo, na mesa, nas posições e no histórico",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "3b6232f640689d8e13cc93a94a79951bb0f6cafd8bb830ddd02d47321a8b64f8",
+      "app/version.py": "476523c65a1915fbfdcf7a2f38b2bb173a445d7b22a7ed05269d0d9ce1de50d6",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "5f6a45fc5b3698e015580e056d746f687c23764d3216961a5df836e42d2c67da"
+  "pdf_sha256": "13bf3e6dd1e362a43a397c0e1c96414ca26644a135bf0fa134b185d3db187f36"
 }

@@ -3255,6 +3255,11 @@
    "versao": "0.32.500",
    "inicio": "2026-11-27T23:54:56+00:00",
    "titulo": "Robinhood: Histórico marca a entrada repetida"
+  },
+  {
+   "versao": "0.32.501",
+   "inicio": "2026-11-27T23:58:33+00:00",
+   "titulo": "Sala da Robinhood: market cap da entrada e de agora"
   }
  ]
 }

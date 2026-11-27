@@ -1519,6 +1519,12 @@ class Copier:
                     for k in list(self.meta)[:1000]:
                         self.meta.pop(k, None)
                 self.meta[tk] = {"nome": str(base.get("name") or "")[:40], "simbolo": str(base.get("symbol") or "")[:20]}
+            try:                                   # 0.32.501: total de tokens (valor de mercado ÷ preço) para o market cap da Sala
+                fdv, pu = float(pr.get("fdv") or pr.get("marketCap") or 0), float(pr.get("priceUsd") or 0)
+                if fdv > 0 and pu > 0 and tk in self.meta:
+                    self.meta[tk]["supply"] = fdv / pu
+            except (TypeError, ValueError):
+                pass
             q = ((pr.get("quoteToken") or {}).get("address") or "").lower()
             try:
                 px, liq = float(pr.get("priceNative") or 0), float((pr.get("liquidity") or {}).get("usd") or 0)
@@ -2081,6 +2087,15 @@ class Copier:
         """Nome e símbolo dos tokens citados nos eventos (as posições e os trades já levam o seu)."""
         return {e["token"]: self.meta[e["token"]] for e in evs if e.get("token") in self.meta}
 
+    def _supply(self, items: list[dict]) -> list[dict]:
+        """0.32.501 (pedido do dono: market cap da entrada e de agora na Sala da Robinhood): põe o total de tokens (da DexScreener) em
+        cada posição ou trade da resposta, sem guardar."""
+        for x in items:
+            s = (self.meta.get(x.get("token")) or {}).get("supply")
+            if s:
+                x["supply"] = s
+        return items
+
     def _fill_names(self, book) -> None:
         """0.32.496 (caso MoonBoy, 28/11: a compra do Caçador saiu antes de o nome do token chegar e ficou "0xcbbb23"): posição e trade
         sem nome ganham o nome e o símbolo da DexScreener assim que eles chegam (a posição aberta fica guardada com o nome)."""
@@ -2119,8 +2134,8 @@ class Copier:
                                                       "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta", "aba", "cz")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
                             "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "real": True,
                             "fecha_em": p["open_t"] + float((p.get("cz") or {}).get("max_h") or rc["real_max_hold_h"]) * 3600})
-            return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": pos,
-                    "trades": rb.trades[:500], "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
+            return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": self._supply(pos),
+                    "trades": self._supply([dict(t) for t in rb.trades[:500]]), "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
         pos = []
         for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
             v, pct = b.pnl_now(p)
@@ -2129,7 +2144,7 @@ class Copier:
                                                   "px_src", "dev", "espera", "aba", "cz")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
                         "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2),
                         "fecha_em": p["open_t"] + float((p.get("cz") or {}).get("max_h") or b.cfg["max_hold_h"]) * 3600})
-        return {**base, "real": False, "carteira": b.wallet(now), "posicoes": pos, "trades": b.trades[:500], "eventos": b.events[:100],
+        return {**base, "real": False, "carteira": b.wallet(now), "posicoes": self._supply(pos), "trades": self._supply([dict(t) for t in b.trades[:500]]), "eventos": b.events[:100],
                 "nomes": self._names(b.events[:100])}
 
     # ------------------------------------------------------------------ banco (hood_books, hood_positions, hood_trades)
