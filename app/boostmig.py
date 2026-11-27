@@ -348,7 +348,7 @@ def hist_study(rows: list[dict]) -> dict:
             v = []
             for r in rs:
                 pe, px = (r.get("marks") or {}).get(str(e)), (r.get("marks") or {}).get(str(x))
-                if pe is not None and px is not None:
+                if pe is not None and px is not None and pe > -100:
                     v.append(((1 + px / 100) / (1 + pe / 100) - 1) * 100 - CUSTO_PCT)
             if v:
                 linha["sai"][str(x)] = {"n": len(v), "media": round(sum(v) / len(v), 1), "med": _q(v, .5), "pos": round(sum(1 for y in v if y > 0) / len(v) * 100)}

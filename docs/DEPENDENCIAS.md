@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-27**; revisão documental **2.0**.
-Aplicação: **0.32.484 · 2026-11-27 · Robinhood: Caçador de explosões em sombra (pools novos, sem comprar nada)**.
-Referência Git na emissão: `99abae11c8ace2f0f47e8f9304c8811a751ebcf2`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.485 · 2026-11-27 · BOOST: Histórico e análise volta a abrir (token que foi a zero quebrava a conta)**.
+Referência Git na emissão: `da62cefd69315db56bb229a5bc1837f7b498375d`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado
@@ -91,7 +91,7 @@ Dependências transitivas de JavaScript e pacotes de sistema da imagem não têm
 - Base Docker: `python:3.12-slim` (tag mutável).
 - Python no CI: `3.12`; patch não fixado.
 - Fontes: Inter, JetBrains Mono; versões não declaradas no código.
-- Geração opcional do PDF: ReportLab 5.0.0. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
+- Geração opcional do PDF: ReportLab 5.0.1. Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa. Fora da contagem de execução da aplicação.
 
 | GitHub Action | Referência declarada |
 |---|---|

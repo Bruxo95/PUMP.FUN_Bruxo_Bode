@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "99abae11c8ace2f0f47e8f9304c8811a751ebcf2",
-    "application_version": "0.32.484 · 2026-11-27 · Robinhood: Caçador de explosões em sombra (pools novos, sem comprar nada)",
+    "repository_reference": "da62cefd69315db56bb229a5bc1837f7b498375d",
+    "application_version": "0.32.485 · 2026-11-27 · BOOST: Histórico e análise volta a abrir (token que foi a zero quebrava a conta)",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "051df0a398cda64af1262216cbe05100fa99c1fcb81c3418e3785ae90eeff197",
+      "app/version.py": "fac0d4f201d27d47642a59ff87381cf0d05c36e43dec7dcbba8464c69b407834",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8392,7 +8392,7 @@
       ],
       "pdf_generator": {
         "name": "ReportLab",
-        "version": "5.0.0",
+        "version": "5.0.1",
         "role": "Ferramenta opcional de documentação, preexistente no runtime do app; não instalada nesta tarefa."
       }
     },
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "7643445d2a560a132c05add69239eb599fbd11c9379b5634fde348b81e7555e8"
+  "pdf_sha256": "ac5d0e91fecd56c36c279983af115ea385af829aa55e72f13193efc02ac34a33"
 }
