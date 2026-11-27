@@ -3180,6 +3180,31 @@
    "versao": "0.32.485",
    "inicio": "2026-11-27T17:35:12.000532+00:00",
    "titulo": "BOOST: Histórico e análise volta a abrir"
+  },
+  {
+   "versao": "0.32.486",
+   "inicio": "2026-11-27T18:28:03+00:00",
+   "titulo": "BOOST: análise das carteiras começa na hora e o alerta ALTO barra antes da compra"
+  },
+  {
+   "versao": "0.32.487",
+   "inicio": "2026-11-27T19:12:42+00:00",
+   "titulo": "Sala: market cap na entrada × agora"
+  },
+  {
+   "versao": "0.32.488",
+   "inicio": "2026-11-27T19:21:51+00:00",
+   "titulo": "BOOST: % negativo no mudar o valor; valor por entrada fora do comparar"
+  },
+  {
+   "versao": "0.32.489",
+   "inicio": "2026-11-27T19:37:35+00:00",
+   "titulo": "Robinhood: FICTÍCIA compra pelo Caçador com % de entrada e saída"
+  },
+  {
+   "versao": "0.32.490",
+   "inicio": "2026-11-27T19:44:32+00:00",
+   "titulo": "Dólar nos valores do Histórico e dos períodos do BOOST"
   }
  ]
 }
