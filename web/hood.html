@@ -70,6 +70,10 @@
   .cmpsel{gap:10px;flex-wrap:wrap}.cmpsel select{min-width:0;max-width:100%;flex:1 1 260px}
   .cmpsts{display:flex;flex-wrap:wrap;gap:8px 18px;margin:12px 0}.cmpst{font-size:13px}
   .cmplist{display:grid;gap:4px;font-size:13px;margin-bottom:10px;overflow-wrap:anywhere}
+  .cmpst button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--line,#262a33);border-radius:8px}
+  .cmpst button:hover,.cmpst button.on{border-color:#a3e635;background:rgba(163,230,53,.07)}.cmpst button i{font-style:normal;opacity:.7}
+  .cmpdet{border:1px solid var(--line,#262a33);border-radius:10px;padding:10px 12px;margin:0 0 12px}
+  .cmpdet table td{vertical-align:middle}.cmpver{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 12px;font-size:13px}
   .cmpbtns{gap:8px;flex-wrap:wrap}.cmpask ul{margin:8px 0 6px 18px;padding:0;font-size:13px;overflow-wrap:anywhere}
   @media (max-width:860px){.cfgrid{grid-template-columns:1fr 1fr;gap:0 8px}.cfgrid>*,.cfrows>*{padding:6px 8px}.cfgrid>.cfh:first-child,.cfgrid>.cfl:empty{display:none}
     .cfl{grid-column:1/-1;margin-top:8px}.cfc input{width:100%}.cfh{flex-wrap:wrap}}
@@ -255,14 +259,6 @@
 
       </section>
       <section class="view" data-view="carteira" hidden>
-        <div class="card" id="cvCard"><header><div><h2>Conversor ETH ↔ dólar</h2><div class="sub" id="cvRate">cotação do ETH carregando…</div></div></header>
-          <div class="cvrow">
-            <label class="cvf"><span>ETH</span><input class="in" id="cvEth" type="number" min="0" step="0.001" inputmode="decimal" placeholder="0,01" aria-label="Valor em ETH"></label>
-            <span class="cveq" aria-hidden="true">=</span>
-            <label class="cvf"><span>US$</span><input class="in" id="cvUsd" type="number" min="0" step="1" inputmode="decimal" placeholder="5" aria-label="Valor em dólar"></label>
-          </div>
-          <div class="cvq" id="cvQuick"></div>
-          <div class="help"><p>Digite em um dos lados e o outro muda sozinho, pela cotação real do ETH (DexScreener, renovada a cada 5 min). Nos campos em ETH abaixo também aparece quanto vale em dólar.</p></div></div>
         <div class="card" id="cmpCard" style="margin-bottom:16px"><header><div><h2>Comparar com outro usuário</h2><div class="sub">mostra o que está igual e o que está diferente da configuração de outra conta e copia só o que você escolher · a REAL nunca liga sozinha</div></div></header>
           <div id="cmpBox"></div></div>
         <div class="card" id="hiCard" style="margin-bottom:16px"><header><div><h2>Histórico da configuração</h2><div class="sub">cada mudança fica guardada (na tela, ao copiar de outro usuário, ao seguir ou bloquear) · "Voltar a esta" põe tudo como estava · nunca liga nem desliga a FICTÍCIA ou a REAL</div></div></header>

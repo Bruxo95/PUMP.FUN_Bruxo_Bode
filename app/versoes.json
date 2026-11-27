@@ -3245,6 +3245,11 @@
    "versao": "0.32.498",
    "inicio": "2026-11-27T23:49:00+00:00",
    "titulo": "Sala: coluna Lucro no Histórico"
+  },
+  {
+   "versao": "0.32.499",
+   "inicio": "2026-11-27T23:52:21+00:00",
+   "titulo": "Robinhood: Comparar abre o que está diferente; conversor saiu"
   }
  ]
 }

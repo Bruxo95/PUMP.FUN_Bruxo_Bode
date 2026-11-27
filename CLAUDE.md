@@ -1947,3 +1947,4 @@ Esta descrição não autoriza o agente a executar esses passos. Os arquivos do 
 - 0.32.496 (caso MoonBoy): `Copier._fill_names` (no `painel`) põe nome/símbolo de `self.meta` em posição e trade sem nome; Sala da hood abre a moeda na DexScreener (`symL`).
 - 0.32.497 (pedido do dono): /hood#fluxo abre no Caçador (`FXT = "cz"`, 1ª aba); chaves de A/B/C alinhadas (`.czsws`); "Copiar os top traders na FICTÍCIA" foi para Top traders (`#trCopia`, `drawTrCopia`).
 - 0.32.498 (pedido do dono): Histórico da Sala com a coluna Lucro (`.ph.h6`/`.pr.h6`, 6 colunas, letra `/ 21`), na moeda do botão US$/SOL/ETH (`$v`).
+- 0.32.499 (pedido do dono): Comparar da /hood com abas (`CMP_TAB`, `data-cmptab` sim/real/tr, `data-cmpone` = copiar uma opção via `cmpPlan("one:k")`) e atalho para o Histórico da configuração (`data-goversao`); o Conversor ETH ↔ dólar (`#cvCard`) saiu (as funções seguem, protegidas).

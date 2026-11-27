@@ -303,13 +303,14 @@
     usdHints();
   }
   function conv(from) {
-    const r = usdRate(); if (!r) return;
+    const r = usdRate(); if (!r || !$("cvEth")) return;
     if (from === "eth") { const v = parseFloat($("cvEth").value); $("cvUsd").value = isFinite(v) ? +(v * r).toFixed(2) : ""; }
     else { const v = parseFloat($("cvUsd").value); $("cvEth").value = isFinite(v) ? +(v / r).toFixed(6) : ""; }
   }
   // 0.32.313 (pedido do dono: "copiar config de outro usuário e na carteira mostrar se tá igual ou diferente", como na Solana).
   // Compara com outro admin, marca cada opção (= igual / ≠ dele), copia só depois de ver a lista e guarda o "desfazer" no navegador.
   let CMP = null, CMP_U = null, CMP_UID = null, CMP_AT = 0, CMP_PLAN = null, CMP_BUSY = false;
+  let CMP_TAB = null;                      // 0.32.499 (pedido do dono): clicar no "1 diferente" abre a lista do que está diferente
   try { CMP_UID = localStorage.getItem("hood_cmp") || null; } catch (e) { /* */ }
   const cmpName = () => { const u = (CMP_U || []).find((x) => x.user_id === CMP_UID); return u ? u.nome : "o outro"; };
   const cmpEq = (a, b) => (typeof a === "number" || typeof b === "number" ? Number(a) === Number(b) : !!a === !!b);
@@ -372,13 +373,23 @@
     if (CMP.error) { box.innerHTML = h + '<p class="down">' + esc(CMP.error) + "</p>" + undo; return; }
     const d = cmpDiffs(), n = cmpName();
     if (!d) { box.innerHTML = h; return; }
-    const st = (k, lst) => '<div class="cmpst"><span class="tag ' + k + '">' + (k === "sim" ? "FICTÍCIA" : "REAL") + "</span> " +
-      (lst.length ? '<b class="cmpne">' + lst.length + " diferente" + (lst.length > 1 ? "s" : "") + "</b>" : '<b class="cmpeq">100% igual</b>') + "</div>";
+    const mineTr = (P.cfg_sim || {}).manual || [], soEu = mineTr.filter((w) => !(CMP.manual || []).includes(w));
+    const st = (k, lst) => '<div class="cmpst"><button type="button" class="' + (CMP_TAB === k ? "on" : "") + '" data-cmptab="' + k + '" title="Ver o que está diferente"><span class="tag ' + k + '">' + (k === "sim" ? "FICTÍCIA" : "REAL") + "</span> " +
+      (lst.length ? '<b class="cmpne">' + lst.length + " diferente" + (lst.length > 1 ? "s" : "") + "</b>" : '<b class="cmpeq">100% igual</b>') + " <i>" + (CMP_TAB === k ? "▲" : "▼") + "</i></button></div>";
     h += '<div class="cmpsts">' + st("sim", d.sim) + st("real", d.real) +
-      '<div class="cmpst">Traders: você copia ' + ((P.cfg_sim || {}).manual || []).length + ", " + esc(n) + " copia " + (CMP.manual || []).length + " · " + d.comum + " em comum</div></div>";
+      '<div class="cmpst"><button type="button" class="' + (CMP_TAB === "tr" ? "on" : "") + '" data-cmptab="tr" title="Ver os traders de cada um">Traders: você copia ' + mineTr.length + ", " + esc(n) + " copia " + (CMP.manual || []).length + " · " + d.comum + " em comum <i>" + (CMP_TAB === "tr" ? "▲" : "▼") + "</i></button></div></div>";
     const all = d.sim.map((x) => ["sim", x]).concat(d.real.map((x) => ["real", x]));
-    if (all.length) h += '<div class="cmplist">' + all.map(([w, x]) => '<div><span class="tag ' + w + '">' + (w === "sim" ? "FICT." : "REAL") + "</span> " + esc(cmpLabel(x.k)) +
-      ': <span class="muted">você ' + esc(cmpShow(x.meu)) + "</span> → <b>" + esc(cmpShow(x.dele)) + "</b></div>").join("") + "</div>";
+    if (CMP_TAB === "sim" || CMP_TAB === "real") {
+      const L = CMP_TAB === "sim" ? d.sim : d.real;
+      h += '<div class="cmpdet"><b>' + (CMP_TAB === "sim" ? "FICTÍCIA" : "REAL") + ": o que está diferente da de " + esc(n) + "</b>" +
+        (L.length ? '<div class="tbl-wrap"><table><thead><tr><th>Opção</th><th>Sua</th><th>De ' + esc(n) + "</th><th></th></tr></thead><tbody>" +
+          L.map((x) => "<tr><td>" + esc(cmpLabel(x.k)) + '</td><td class="muted">' + esc(cmpShow(x.meu)) + "</td><td><b>" + esc(cmpShow(x.dele)) + '</b></td><td><button class="btn sm" type="button" data-cmpone="' + esc(x.k) + '">Copiar só esta</button></td></tr>').join("") + "</tbody></table></div>"
+          : '<p class="muted">Tudo igual: nenhuma opção ' + (CMP_TAB === "sim" ? "da FICTÍCIA" : "da REAL") + " está diferente.</p>") + "</div>";
+    } else if (CMP_TAB === "tr") {
+      const lst = (ws, vazio) => (ws.length ? '<div class="cmplist">' + ws.slice(0, 60).map((w) => "<div>" + addr(w) + "</div>").join("") + (ws.length > 60 ? '<div class="muted">e mais ' + (ws.length - 60) + "</div>" : "") + "</div>" : '<p class="muted">' + vazio + "</p>");
+      h += '<div class="cmpdet"><b>Só ' + esc(n) + " copia (" + d.tr.length + ")</b>" + lst(d.tr, "nenhum") + "<b>Só você copia (" + soEu.length + ")</b>" + lst(soEu, "nenhum") + "</div>";
+    }
+    h += '<div class="cmpver"><span class="muted">Toda cópia e toda mudança ficam guardadas como uma versão: dá para voltar a qualquer uma no</span><a class="btn sm" href="#carteira" data-goversao="1">Histórico da configuração ↓</a></div>';
     const btn = (k, txt, off) => '<button class="btn sm' + (k === "all" ? " primary" : "") + '" type="button" data-cmpgo="' + k + '"' + (off ? " disabled" : "") + ">" + txt + "</button>";
     h += '<div class="row cmpbtns">' + btn("all", "Ficar igual a " + esc(n) + " (FICTÍCIA e REAL)", !all.length) + btn("sim", "Só a FICTÍCIA", !d.sim.length) + btn("real", "Só a REAL", !d.real.length) +
       btn("tr", "Copiar os traders de " + esc(n) + (d.tr.length ? " (+" + d.tr.length + ")" : ""), !d.tr.length) + btn("bl", "Juntar os bloqueios" + (d.bl ? " (+" + d.bl + ")" : ""), !d.bl) + undo + "</div>";
@@ -392,6 +403,10 @@
     const d = cmpDiffs(); if (!d) return;
     const n = cmpName(), linhas = [], plan = { kind, keys: [], traders: kind === "tr", bloqueios: kind === "bl", linhas };
     const take = (w, lst) => lst.forEach((x) => { plan.keys.push(x.k); linhas.push('<span class="tag ' + w + '">' + (w === "sim" ? "FICT." : "REAL") + "</span> " + esc(cmpLabel(x.k)) + ": " + esc(cmpShow(x.meu)) + " → <b>" + esc(cmpShow(x.dele)) + "</b>"); });
+    if (kind.startsWith("one:")) {                 // 0.32.499: copiar só uma opção, a partir da lista de diferenças
+      const k = kind.slice(4);
+      take(d.sim.some((x) => x.k === k) ? "sim" : "real", d.sim.concat(d.real).filter((x) => x.k === k));
+    }
     if (kind === "all" || kind === "sim") take("sim", d.sim);
     if (kind === "all" || kind === "real") take("real", d.real);
     if (kind === "tr") linhas.push("Começa a copiar " + d.tr.length + " trader" + (d.tr.length > 1 ? "s" : "") + " que " + esc(n) + " copia (no mesmo modo FICTÍCIA/REAL dele; os que você bloqueou ficam de fora)");
@@ -1179,6 +1194,9 @@
       P = null; return load();
     }
     if (t.dataset.cmpgo) return cmpPlan(t.dataset.cmpgo);
+    if (t.dataset.cmptab) { CMP_TAB = CMP_TAB === t.dataset.cmptab ? null : t.dataset.cmptab; return drawCmp(); }
+    if (t.dataset.cmpone) return cmpPlan("one:" + t.dataset.cmpone);
+    if (t.dataset.goversao) { e.preventDefault(); const c = $("hiCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (t.id === "cmpOk") return cmpApply(t);
     if (t.id === "cmpNo") { CMP_PLAN = null; return drawCmp(); }
     if (t.dataset.hback) { await hBack(Number(t.dataset.hback), t); return; }

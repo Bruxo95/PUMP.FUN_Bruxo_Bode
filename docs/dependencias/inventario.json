@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "25af82100c8c3eee12a2a8e1f2c9df54296de4ad",
-    "application_version": "0.32.498 · 2026-11-28 · Sala: coluna Lucro no Histórico, na moeda escolhida (US$, SOL ou ETH)",
+    "repository_reference": "86413ec426a758bd4784b196e10b09f4e25a6801",
+    "application_version": "0.32.499 · 2026-11-28 · Robinhood: Comparar abre a lista do que está diferente, com copiar uma opção só; conversor saiu da Carteira",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "2f48558f3d4a0e359250e933208f2f2eb38285a90064775bc4266413ab402a52",
+      "app/version.py": "7e8ba17ecc602f8857892b4fb04efed0979a78609a3c60cb69040a26a5b367e3",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "802c77cfba7ad02a46aaf8d777d47fd27220b31a9b2611bf6441db3bb2140e81"
+  "pdf_sha256": "3eb65dd3fb1b7b339f0367c14e45927547e862f2aa081b87f81f76d2c292421b"
 }
