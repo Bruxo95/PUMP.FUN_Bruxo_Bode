@@ -477,6 +477,72 @@
       px = x; py = y;
     });
   }
+  // 0.32.487 (pedido do dono, 27/11): market cap de quando entramos × agora, na mesa e na lista de posições (só na Sala da pump.fun).
+  // MC = preço × tokens no total × dólar do SOL. O total vem do market cap que o robô já guarda (mcap_now ÷ preço); sem ele, 1 bilhão
+  // (todo token da pump.fun nasce com 1 bilhão). Nenhuma consulta nova.
+  const MCDESK = !HOOD && !C().botlive;
+  function mcOf(p) {
+    const usd = +(S.wallet || {}).sol_usd || 0, pin = +p.price_in || 0, pnow = +p.price_now || 0;
+    if (!usd || !pin || !pnow) return null;
+    const sup = p.mcap_now ? +p.mcap_now / pnow : 1e9;
+    if (!(sup > 0) || !isFinite(sup)) return null;
+    return { in: pin * sup * usd, now: pnow * sup * usd };
+  }
+  function kfmt(v) {
+    const a = Math.abs(v);
+    return a >= 1e9 ? (v / 1e9).toFixed(2) + "B" : a >= 1e6 ? (v / 1e6).toFixed(2) + "M" : a >= 1e3 ? (v / 1e3).toFixed(1) + "K" : Math.round(v).toString();
+  }
+  // gráfico da mesa: linha tracejada na altura da entrada, a linha do market cap e "AGORA" na ponta; com 2+ posições, troca a cada 6 s
+  function mcDesk(f) {
+    const x0 = 104, y0 = 138, w = 212, h = 38;
+    R(x0, y0, w, h, K); R(x0 + 1, y0 + 1, w - 2, h - 2, "#04121f");
+    R(x0 + 1, y0 + 1, w - 2, 7, "#1b2a5e");
+    const P = S.positions.filter((p) => mcOf(p));
+    if (!P.length) {
+      TXT("MARKET CAP", x0 + 3, y0 + 2, "#e8f0ff", 5);
+      TXT(S.positions.length ? tr("AGUARDANDO PRECO", "WAITING FOR PRICE") : tr("SEM POSICAO ABERTA", "NO OPEN POSITION"), x0 + 6, y0 + 20, "#8fa3d1", 5);
+      return;
+    }
+    const i = Math.floor(Date.now() / 6000) % P.length, p = P[i], mc = mcOf(p);
+    const up = mc.now >= mc.in, col = up ? "#3ee66b" : "#ff4d5e", d = (mc.now / mc.in - 1) * 100;
+    const nm = String(p.symbol || (p.mint || "").slice(0, 6)).toUpperCase().slice(0, 10);
+    TXT("MC " + nm + (P.length > 1 ? " " + (i + 1) + "/" + P.length : ""), x0 + 3, y0 + 2, "#e8f0ff", 5);
+    const ds = (d > 0 ? "+" : "") + d.toFixed(1) + "%";
+    TXT(ds, x0 + w - 3 - TW(ds, 5), y0 + 2, col, 5);
+    const arr = (S.mch[pid(p)] || []).slice(-90);
+    const px0 = x0 + 3, pw = w - 6, py0 = y0 + 10, ph = h - 13;
+    const vals = arr.length ? arr : [mc.now];
+    const lo = Math.min(mc.in, ...vals), hi = Math.max(mc.in, ...vals), sp = (hi - lo) || hi * 0.05 || 1;
+    const Y = (v) => py0 + ph - Math.round((v - lo + sp * 0.08) / (sp * 1.16) * ph);
+    const ey = Y(mc.in);
+    for (let x = px0; x < px0 + pw; x += 6) R(x, ey, 3, 1, "#e8f0ff");          // linha da entrada (tracejada)
+    let lx = null, ly = null;
+    vals.forEach((v, k) => {
+      const x = px0 + (vals.length > 1 ? Math.round(k * (pw - 1) / (vals.length - 1)) : pw - 1), y = Y(v);
+      if (lx !== null) { const st = Math.max(Math.abs(x - lx), Math.abs(y - ly), 1); for (let q = 0; q <= st; q++) R(lx + (x - lx) * q / st, ly + (y - ly) * q / st, 1, 1, col); }
+      lx = x; ly = y;
+    });
+    if (f % 8 < 5) R(lx - 1, ly - 1, 3, 3, "#ffffff");
+    // etiqueta da entrada do lado oposto ao da curva no começo (por cima da linha, não embaixo dela)
+    const el = tr("ENTRADA ", "ENTRY ") + kfmt(mc.in);
+    let ely = Y(vals[0]) <= ey ? ey + 2 : ey - 7;
+    ely = Math.max(py0, Math.min(py0 + ph - 6, ely));
+    R(px0, ely, TW(el, 5) + 4, 6, "#1b2a5e"); TXT(el, px0 + 2, ely, "#e8f0ff", 5);
+    const nl = tr("AGORA ", "NOW ") + kfmt(mc.now), nw = TW(nl, 5) + 4;
+    const nx = Math.max(px0, px0 + pw - nw);
+    let ny = ly > py0 + ph / 2 ? ly - 9 : ly + 3;
+    if (Math.abs(ny - ely) < 7) ny = ny < ely ? ely - 7 : ely + 7;
+    ny = Math.max(py0, Math.min(py0 + ph - 6, ny));
+    R(nx, ny, nw, 6, col);
+    TXT(nl, nx + 2, ny, up ? "#06301a" : "#3a0710", 5);
+  }
+  function mcLine(p) {
+    if (!MCDESK) return "";
+    const mc = mcOf(p);
+    if (!mc) return "";
+    const up = mc.now >= mc.in;
+    return '<div class="prmc">MC ' + kfmt(mc.in) + ' → <span class="' + (up ? "up" : "down") + '">' + kfmt(mc.now) + (up ? " ▲" : " ▼") + "</span></div>";
+  }
   function slot(p, label, y, col, f) {
     const v = +p.pnl_now_pct || 0, t = (v > 0 ? "+" : "") + v.toFixed(1) + "%";
     R(178, y, 128, 40, "#06141f");
@@ -864,6 +930,7 @@
     }
     // faixa de status no chão (na BOT LIVE com título, o letreiro da live ocupa esse lugar)
     if (C().botlive && (C().titulo || C().sub)) { R(4, 138, 164, 38, K); R(5, 139, 162, 36, "#140a2e"); return; }
+    if (MCDESK) { fxSmall(f); return; }
     R(4, 138, 164, 18, K); R(5, 139, 162, 16, "#0b1430");
     if (S.base === "dump") { spr("skull", 8, 142, 1); TXT(tr("CONSERTANDO", "FIXING IT"), 20, 143, f % 6 < 3 ? "#ffd23f" : "#ff7b1c", 8); }
     else if (S.base === "pump") { spr("rocket", 8, 141, 1); TXT("TO THE MOON!", 20, 143, f % 6 < 3 ? "#3ee66b" : "#ffd23f", 8); }
@@ -880,6 +947,26 @@
     TXT(String(n), 160 - TW(String(n)), 164, "#8fa3d1", 8);
   }
 
+  // 0.32.487 (pedido do dono): na Sala da pump.fun os 3 quadros da mesa ficam pequenos, numa coluna à esquerda (letra 5 no lugar de 8),
+  // e o resto da mesa vira o gráfico do market cap (mcDesk)
+  function fxSmall(f) {
+    const box = (y) => { R(4, y, 96, 12, K); R(5, y + 1, 94, 10, "#0b1430"); };
+    box(138);
+    if (S.base === "dump") TXT(tr("CONSERTANDO", "FIXING IT"), 8, 141, f % 6 < 3 ? "#ffd23f" : "#ff7b1c", 5);
+    else if (S.base === "pump") TXT("TO THE MOON!", 8, 141, f % 6 < 3 ? "#3ee66b" : "#ffd23f", 5);
+    else TXT(tr("CACANDO GEMS", "HUNTING GEMS"), 8, 141, "#3df2c4", 5);
+    const w = S.wallet || {}, n = +w.count || 0;
+    box(151);
+    TXT((w.win_rate == null ? "--" : Math.round(w.win_rate * 100) + "%") + tr(" ACERTO", " WIN RATE"), 8, 154, "#e8f0ff", 5);
+    TXT(String(n), 96 - TW(String(n), 5), 154, "#8fa3d1", 5);
+    box(164);
+    if (!S.ok) return;
+    const pnl = +w.pnl_sol || 0, col = pnl > 0 ? "#3ee66b" : pnl < 0 ? "#ff4d5e" : "#ffd23f";
+    TXT(S.real ? "REAL" : "FICT", 8, 167, S.real ? "#ffd23f" : "#3df2c4", 5);
+    const v = PRIV() ? "..." : (pnl > 0 ? "+" : pnl < 0 ? "-" : "") + money(Math.abs(pnl));
+    TXT(v, 96 - TW(v, 5), 167, f % 20 < 17 ? col : "#8fa3d1", 5);
+  }
+
   // 0.32.305 (pedido do dono: "na parte consertando, a evolução da carteira: valor que começou, % de lucro e valor em dólar")
   function money(v) {
     if (PRIV()) return "•••";
@@ -890,6 +977,7 @@
   function evo(f) {
     const w = S.wallet || {}, st = w.start_sol, eq = w.equity_sol, pnl = +w.pnl_sol || 0;
     if (!S.ok) return;
+    if (MCDESK) return;                                       // 0.32.487: a carteira foi para a coluna pequena (fxSmall)
     const pctv = w.pnl_pct != null ? +w.pnl_pct : st ? pnl / st * 100 : null;
     const col = pnl > 0 ? "#3ee66b" : pnl < 0 ? "#ff4d5e" : "#ffd23f";
     R(174, 138, 142, 38, K); R(175, 139, 140, 36, "#04121f");
@@ -903,7 +991,7 @@
   function draw() {
     const f = S.frame++;
     if (HI) g.setTransform(2, 0, 0, 2, 0, 0);
-    room(f); bigMonitor(f); trader(f); desk(f); const bp = botDraw(f); fx(f); evo(f); speech(f, bp);
+    room(f); bigMonitor(f); trader(f); desk(f); const bp = botDraw(f); fx(f); evo(f); if (MCDESK) mcDesk(f); speech(f, bp);
   }
   setInterval(draw, 83);
 
@@ -1232,7 +1320,7 @@
       box.innerHTML = '<div class="ph"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Hora", "Time") + "</span><span>" + tr("Entrada", "In") + "</span><span>" + tr("Agora", "Now") + "</span><span>%</span></div>" +
         sorted.map((p) => { const ins = +p.sol_in || 0, nowv = ins + (+p.pnl_now_sol || 0);
           return '<div class="pr"><span>' + symL(p) + '</span><span class="hr" title="' + tr("entrou às ", "bought at ") + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
-            '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
+            '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>" + mcLine(p); }).join("");
     }
     // 0.32.305 (pedido do dono): Histórico das posições fechadas embaixo das abertas
     const hb = $("his"), HS = S.trades.slice(0, 40);
@@ -1342,6 +1430,9 @@
       }
       S.seenPos = new Set(P.map(pid)); S.seenTr = new Set(T.map(tid));
       P.forEach((p) => { const k = pid(p), a = (S.hist[k] = S.hist[k] || []); a.push(+p.pnl_now_pct || 0); if (a.length > 60) a.shift(); });
+      S.wallet = real ? js.real_wallet : js.wallet;
+      S.mch = S.mch || {};
+      P.forEach((p) => { const mc = mcOf(p); if (!mc) return; const k = pid(p), a = (S.mch[k] = S.mch[k] || []); a.push(mc.now); if (a.length > 120) a.shift(); });
       S.ok = true;
       S.eth_usd = js.eth_usd;
       S.positions = P; S.trades = T; S.wallet = real ? js.real_wallet : js.wallet; S.curve = (real ? js.real_curve : js.curve) || [];
@@ -1359,7 +1450,7 @@
 
   // ------------------------------------------------------------------ controles
   function setMode(real) {
-    S.real = real; S.seenPos = null; S.seenTr = null; S.seenLog = null; S.hist = {}; S.ok = false;
+    S.real = real; S.seenPos = null; S.seenTr = null; S.seenLog = null; S.hist = {}; S.mch = {}; S.ok = false;
     try { localStorage.setItem(MKEY, real ? "real" : "sim"); } catch (e) { /* */ }
     $("mSim").classList.toggle("on", !real); $("mReal").classList.toggle("on", real);
     load();
@@ -1374,7 +1465,7 @@
   window.SALA = { state: S, setSound: (v) => { S.sound = !!v; $("snd").textContent = tr("SOM: ", "SOUND: ") + (S.sound ? "ON" : "OFF"); $("snd").classList.toggle("on", S.sound); },
     setMode, rerender: () => { if (S.ok) render(); renderLog(); },
     // 0.32.479: o modo app do celular (salaapp.js) lê os mesmos dados e desenha as próprias telas
-    rede: REDE, unit: U, dec: DEC, hood: HOOD, forex: FOREX, icon, pid, tid, logKind };
+    rede: REDE, unit: U, dec: DEC, hood: HOOD, forex: FOREX, icon, pid, tid, logKind, mcLine };
   // ícones nos títulos das janelas do painel
   document.querySelectorAll("[data-ico]").forEach((el) => { el.insertAdjacentHTML("afterbegin", icon(el.getAttribute("data-ico"), 2)); });
 

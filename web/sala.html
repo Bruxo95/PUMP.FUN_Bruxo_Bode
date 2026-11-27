@@ -83,6 +83,10 @@
   .ph{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:clamp(13px,calc((100cqi - 36px) / 14),32px);border-bottom:2px solid #1c2c57}
   .ph span{white-space:nowrap;overflow:hidden}
   .pr .hr{color:var(--muted)}
+  .prmc{font-size:clamp(11px,calc((100cqi - 36px) / 20),22px);color:var(--muted);padding:0 .3em .25em;border-bottom:1px solid #1a2850;margin-top:-1px}
+  .pr:has(+.prmc){border-bottom:0}
+  .sacard .prmc{grid-column:1/-1;border:0;padding:0;margin:0;font-size:12px}
+  .prmc .up{color:var(--green)}.prmc .down{color:var(--red)}
   .pr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ph span:not(:first-child),.pr span:not(:first-child){text-align:right}
   .pr .pc{font-weight:bold;overflow:visible}

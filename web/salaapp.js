@@ -102,7 +102,8 @@
         return '<button type="button" class="sacard ' + cls(p.pnl_now_pct) + '" data-sadet="' + esc(id) + '"><span class="sct"><b>' + sy(p) + "</b>" +
           (p.aba ? '<em class="saab">' + esc(p.aba) + "</em>" : "") + '</span><span class="scp ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span>" +
           '<span class="scl">entrou ' + hm(t) + " · há " + dur((Date.now() - t) / 1000) + "</span>" +
-          '<span class="scv">' + amt(ins) + ' → <span class="' + cls(p.pnl_now_sol) + '">' + amt(ins + (+p.pnl_now_sol || 0)) + "</span></span></button>";
+          '<span class="scv">' + amt(ins) + ' → <span class="' + cls(p.pnl_now_sol) + '">' + amt(ins + (+p.pnl_now_sol || 0)) + "</span></span>" +
+          (SA().mcLine ? SA().mcLine(p) : "") + "</button>";                    // 0.32.487: market cap na entrada × agora
       }).join("");
     $("pg_abertas").innerHTML = box("POSIÇÕES ABERTAS", "coin", head + '<div class="salist">' + list + "</div>");
     badge("abertas", P.length);

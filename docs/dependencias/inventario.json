@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-27",
     "timezone": "Europe/Dublin",
-    "repository_reference": "88fa74104b01646ae948ca0c7790e8d8bb6b0045",
-    "application_version": "0.32.486 · 2026-11-27 · BOOST: análise das carteiras começa na hora (nome, DEV e 80 compras); ALTO barra, incompleta compra",
+    "repository_reference": "6931fc4a5d24574fa424df903c0c6c1ef3a1bacd",
+    "application_version": "0.32.487 · 2026-11-27 · Sala: market cap na entrada × agora na mesa e na lista de posições",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "2cb39c05ed8d8aa1bc21305bb1624592ec9f1edddca6e8ddb9c1534883a82da9",
+      "app/version.py": "a830682bdcd95447926e67ab9e8befb28ef217e5d4462931e96030954e1f80f9",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "2a31ea31d1491bb22906247806fec0d4dd3171fa021769c423ebe5507553f07a"
+  "pdf_sha256": "b74c0a573d2d3d860a9c41699b4f17ec13e364f9a986f14202f629903d06fe68"
 }

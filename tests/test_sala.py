@@ -188,3 +188,14 @@ def test_sala_tem_icone_e_nome_fun_bot_para_tela_de_inicio(env):
         nome = i["src"].replace("/static/", "")
         assert os.path.exists(os.path.join(WEB, nome)), nome
         assert env["c"].get(i["src"]).status_code == 200
+
+
+def test_sala_market_cap_entrada_e_agora():
+    """0.32.487 (pedido do dono): market cap da entrada × agora na mesa e na lista, só na Sala da pump.fun."""
+    import pathlib
+    js = pathlib.Path("web/sala.js").read_text(encoding="utf-8")
+    assert "const MCDESK = !HOOD && !C().botlive;" in js
+    assert "function mcDesk(f)" in js and "if (MCDESK) mcDesk(f);" in js
+    assert "mcLine(p)" in js and "mcLine };" in js
+    assert "SA().mcLine" in pathlib.Path("web/salaapp.js").read_text(encoding="utf-8")
+    assert ".prmc" in pathlib.Path("web/sala.html").read_text(encoding="utf-8")
