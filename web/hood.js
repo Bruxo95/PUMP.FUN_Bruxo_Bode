@@ -687,7 +687,55 @@
       (bloq ? '<button class="btn sm" data-fxblock="' + esc(x.token) + '" data-on="0">Desbloquear</button>'
         : '<button class="btn sm blk" data-fxblock="' + esc(x.token) + '" data-on="1" title="Nunca comprar esta moeda (cópia e botão)">Bloquear</button>') + "</span>";
   }
+  // 0.32.484 (pedido do dono, caso Super Iguana): Caçador de explosões, só em sombra (nunca compra)
+  let CZ = null, CZD = 7, CZ_AT = 0;
+  try { CZD = Number(localStorage.getItem("hood_czd")) || 7; } catch (e) { /* */ }
+  async function loadCz(force) {
+    if (!force && Date.now() - CZ_AT < 20000) return drawCz();
+    CZ_AT = Date.now();
+    const r = await BB.api("/api/hood/cacador?dias=" + CZD, { quiet: true });
+    if (r && !r.error) { CZ = r; (r.agora || []).forEach((x) => { if (x.simbolo || x.nome) NOM[x.token] = { nome: x.nome || "", simbolo: x.simbolo || "" }; }); }
+    drawCz();
+  }
+  const usd = (v, d) => (v == null ? "—" : '<span class="' + cls(v) + '">' + (v > 0 ? "+" : v < 0 ? "−" : "") + "US$ " + num(Math.abs(v), d == null ? 2 : d) + "</span>");
+  const xx = (v) => (v == null ? "—" : '<span class="' + (v >= 1 ? "up" : "down") + '">' + (v >= 100 ? num(v, 0) : v >= 10 ? num(v, 1) : num(v, 2)) + "×</span>");
+  function czTraps(list) {
+    return (list || []).length ? list.map((t) => '<span class="tag ' + (/tirada|travada/.test(t) ? "loss" : "pause") + '">' + esc(t) + "</span>").join(" ") : '<span class="tag win">nenhuma trava</span>';
+  }
+  function czEnt(e) {
+    if (!e) return '<span class="muted">não entrou</span>';
+    return "entrou " + xx(e.x_ini) + ' do início<br><small class="muted">pico ' + (e.x_pico == null ? "—" : num(e.x_pico, 2) + "×") + " · agora " + (e.x_agora == null ? "—" : num(e.x_agora, 2) + "×") +
+      (e.r24 != null ? " · 24 h " + usd(e.r24, 3) : "") + "</small>";
+  }
+  function drawCz() {
+    document.querySelectorAll("#czD button").forEach((b) => b.classList.toggle("on", Number(b.dataset.czd) === CZD));
+    if (!CZ) { kpis("czK", [["Caçador", "carregando…", "", ""]]); return; }
+    if (CZ.ligado === false) { kpis("czK", [["Caçador", "desligado", "leitura da Robinhood desligada no servidor", ""]]); return; }
+    const st = CZ.status || {}, es = CZ.estudo || {}, E = es.estrategias || {};
+    $("czSt").textContent = "observando " + num(st.observando, 0) + " pools · " + num(st.fechados, 0) + " já fechados (24 h)" + (st.arquivo ? "" : " · sem arquivo: zera no reinício") + (st.erro ? " · " + st.erro : "");
+    const best = (k) => { const r = ((E[k] || {}).saidas || []).filter((x) => x.n); return r.length ? r.reduce((a, b) => (b.resultado_usd > a.resultado_usd ? b : a)) : null; };
+    const bb = best("b");
+    kpis("czK", [["Pools novos pagos em ETH", num(es.pools, 0), num(es.com_troca, 0) + " tiveram troca", "tr"],
+      ["Explosões de 100×+", num((es.explosoes || []).length, 0), "desde o preço inicial do pool", "up"],
+      ["Entradas B (com sinais)", num((E.b || {}).entradas, 0), num((E.b || {}).x10, 0) + " chegaram a 10× · " + num((E.b || {}).x100, 0) + " a 100×", "usr"],
+      ["Melhor saída da B", bb ? usd(bb.resultado_usd, 2) : "—", bb ? bb.nome + " · " + bb.n + " entradas · acerto " + num(bb.acerto, 0) + "%" : "esperando entradas fecharem", bb && bb.resultado_usd > 0 ? "up" : "down"]]);
+    const rows = [];
+    ["a", "b", "c"].forEach((k) => {
+      const x = E[k]; if (!x) return;
+      (x.saidas || []).forEach((r, i) => rows.push([i ? "" : "<b>" + esc(x.nome) + '</b><br><small class="muted">' + num(x.entradas, 0) + " entradas · liquidez tirada " + num(x.liquidez_tirada, 0) + " · venda travada " + num(x.venda_travada, 0) + "</small>",
+        esc(r.nome), num(r.n, 0), "US$ " + num(r.investido_usd, 2), r.n ? usd(r.resultado_usd, 3) : "—", r.acerto == null ? "—" : num(r.acerto, 0) + "%", usd(r.melhor_usd, 3)]));
+    });
+    table("czS", ["Entrada", "Saída", "Fechadas", "Investido", "Resultado", "Acerto", "Melhor"], rows, "Nenhuma entrada fechou no período ainda.");
+    table("czX", ["Token", "Nasceu", "Pico desde o início", "A entrada B pegou?", "Travas"], (es.explosoes || []).map((x) => [tok(x.token, x), "há " + ago(x.t) + '<br><small class="muted">' + hora(x.t) + "</small>",
+      xx(x.x_pico), x.b_entrou ? '<span class="tag win">sim</span> entrou em ' + xx(x.b_x_ini) : '<span class="tag neutral">não</span>', czTraps(x.travas)]), "Nenhuma explosão de 100× no período ainda.");
+    table("czT", ["Token", "Nasceu", "Compras × vendas", "Agora", "Entrada A", "Entrada B", "Travas"], (CZ.agora || []).map((x) => [tok(x.token, x) + '<br><small class="muted">criação ' + txl(x.tx) + "</small>",
+      "há " + ago(x.t), num(x.compras, 0) + " × " + num(x.vendas, 0) + '<br><small class="muted">' + num(x.compradores, 0) + " compradores · " + num(x.entrou_eth, 4) + " ETH</small>",
+      xx(x.x_agora) + (x.valor_usd != null ? '<br><small class="muted">valor ≈ US$ ' + num(x.valor_usd, 0) + "</small>" : ""), czEnt(x.a), czEnt(x.b), czTraps(x.travas)]), "Nenhum pool novo com troca ainda (a lista começa a encher depois que o servidor sobe).");
+  }
   function drawFx() {
+    const cz = FXT === "cz";
+    $("fxMain").hidden = cz; $("czBox").hidden = !cz; $("fxH").hidden = cz;
+    if (cz) { document.querySelectorAll("#fxTab button").forEach((b) => b.classList.toggle("on", b.dataset.fxt === FXT)); loadCz(false); return; }
     document.querySelectorAll("#fxH button").forEach((b) => b.classList.toggle("on", Number(b.dataset.fxh) === FXH));
     document.querySelectorAll("#fxTab button").forEach((b) => b.classList.toggle("on", b.dataset.fxt === FXT));
     const bl = new Set(((P && P.cfg_sim && P.cfg_sim.tokens_bloqueados) || []));
@@ -918,6 +966,7 @@
       $("rlAsk").hidden = true; toast("REAL ligada."); return load();
     }
     if (t.dataset.fxt) { FXT = t.dataset.fxt; return drawFx(); }
+    if (t.dataset.czd) { CZD = Number(t.dataset.czd) || 7; try { localStorage.setItem("hood_czd", String(CZD)); } catch (e) { /* */ } CZ_AT = 0; return loadCz(true); }
     if (t.dataset.fxblock) {
       const on = t.dataset.on === "1";
       if (on && !confirm("Bloquear esta moeda? A cópia e o botão Comprar nunca mais compram ela (vai para Honeypot e bloqueadas).")) return;

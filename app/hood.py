@@ -326,6 +326,7 @@ class HoodWatch:
         self.stat.update(salvos=0, do_arquivo=0, arquivo_erro=None)
         from .hoodcopy import Copier
         self.copier = Copier(self, http, db)
+        self.hunter = None       # 0.32.484: Caçador de explosões (só sombra), ligado no main.py; também vai em extra
         self.extra = []          # 0.32.338: outros motores que recebem os mesmos trades (BOT LIVE, lógica da 0.32.308); nunca a /hood
 
     # ------------------------------------------------------------------ RPC
@@ -425,6 +426,12 @@ class HoodWatch:
                     log.warning("Robinhood: BOT LIVE falhou ao ler pool novo: %s", str(e)[:160])
         if mls:
             self.copier.note_liq(mls)
+            for c in self.extra:                          # 0.32.484: o caçador (sombra) também vê a liquidez entrando e saindo
+                if hasattr(c, "note_liq"):
+                    try:
+                        c.note_liq(mls)
+                    except Exception as e:
+                        log.warning("Robinhood: motor extra falhou na liquidez: %s", str(e)[:160])
         for s in swaps:
             self.routers[_topic_addr((s.get("topics") or ["", "", ""])[2])] += 1
         if not swaps:

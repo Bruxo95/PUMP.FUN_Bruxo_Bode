@@ -3170,6 +3170,11 @@
    "versao": "0.32.483",
    "inicio": "2026-11-27T16:05:31+00:00",
    "titulo": "BOOST confirma mais rápido e diz o que faltou"
+  },
+  {
+   "versao": "0.32.484",
+   "inicio": "2026-11-27T16:12:06+00:00",
+   "titulo": "Robinhood: Caçador de explosões em sombra"
   }
  ]
 }

@@ -63,6 +63,10 @@ def build_app():
         from .botlive import BotLive
         hub.botlive = BotLive(hub.hood, http, db)
         hub.hood.extra.append(hub.botlive)
+        # 0.32.484 (pedido do dono): Caçador de explosões, SÓ EM SOMBRA (nunca compra): mede pools novos da V4 pagos em ETH
+        from .hoodhunt import Hunter
+        hub.hood.hunter = Hunter(hub.hood)
+        hub.hood.extra.append(hub.hood.hunter)
         hub.botlive.yt.vault = hub.vault             # 0.32.349: chaves do YouTube do BOT LIVE (cofre criptografado)
         hub.botlive.box = hub.vault.box               # 0.32.363: código dos links do OBS cifrado (o mesmo link em qualquer PC)
         from .botmusic import Music, SupaStorage

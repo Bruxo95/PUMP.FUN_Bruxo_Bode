@@ -15,6 +15,24 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         return w.state()
 
     # 0.32.294 (pedido do dono): moedas com mais dinheiro entrando e a lista de usuários (só admin, como todo o /hood)
+    @app.get("/api/hood/cacador")
+    async def hood_cacador(dias: float = 7.0, u: dict = Depends(admin_only)):
+        """0.32.484: Caçador de explosões, só em sombra (nenhuma compra): pools novos pagos em ETH e o resultado das entradas de mentira."""
+        w = get_watch()
+        hu = getattr(w, "hunter", None) if w is not None else None
+        if hu is None:
+            return {"ligado": False}
+        st = hu.state(max(0.25, min(30.0, dias)))
+        try:
+            await w.fill_names([r["token"] for r in st["agora"] if not r.get("simbolo")][:30])
+        except Exception:
+            pass
+        meta = w.copier.meta
+        for r in st["agora"] + st["estudo"]["explosoes"]:
+            m = meta.get(r["token"]) or {}
+            r["nome"], r["simbolo"] = r.get("nome") or m.get("nome"), r.get("simbolo") or m.get("simbolo")
+        return st
+
     @app.get("/api/hood/fluxo")
     async def hood_fluxo(h: float = 1.0, u: dict = Depends(admin_only)):
         w = get_watch()
