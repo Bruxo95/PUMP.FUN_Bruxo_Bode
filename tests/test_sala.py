@@ -46,10 +46,10 @@ def test_sala_do_forex_le_o_painel_do_forex():
 
 
 def test_hood_tem_conversor_eth_dolar():
-    """0.32.296 (pedido do dono): conversor ETH ↔ dólar na Carteira do /hood e "≈ US$" nos campos em ETH."""
+    """0.32.296: "≈ US$" nos campos em ETH. 0.32.499 (pedido do dono): o Conversor ETH ↔ dólar saiu da Carteira."""
     html = open(os.path.join(WEB, "hood.html"), encoding="utf-8").read()
     js = open(os.path.join(WEB, "hood.js"), encoding="utf-8").read()
-    assert 'id="cvEth"' in html and 'id="cvUsd"' in html and "data-usd=" in js and "usdRate" in js
+    assert 'id="cvEth"' not in html and "data-usd=" in js and "usdRate" in js
 
 
 def test_enviar_para_robinhood_cota_sozinho():
