@@ -207,8 +207,29 @@ def grid_result(p: dict, e: dict, up: int, dn: int, eth_usd: float) -> float | N
     return round(ENTRY_USD * mult * (1 - f) ** 2 - ENTRY_USD - 2 * GAS_ETH * (eth_usd or 0), 6)
 
 
+def grid_exit(p: dict, e: dict, up: int, dn: int) -> str:
+    """0.32.491: como a entrada saiu na combinação (texto curto para a lista das fechadas)."""
+    h = e.get("h") or {}
+    tu, td = h.get("u%d" % up), h.get("d%d" % dn)
+    sai = tu if (tu is not None and (td is None or tu <= td)) else td
+    if p.get("hp"):
+        return "venda travada (vale zero)"
+    if p.get("rug_t") and (sai is None or p["rug_t"] <= sai):
+        return "liquidez tirada (vale zero)"
+    if tu is not None and (td is None or tu <= td):
+        return "alvo +%d%%" % up
+    if td is not None:
+        return "stop −%d%%" % dn
+    m24 = (e.get("m") or {}).get("24")
+    return "24 h (%.2f×)" % (m24 / e["px"]) if m24 is not None and e.get("px") else "aberta"
+
+
+ITENS_MAX = 60
+
+
 def grid(pools: list[dict], now: float, dias: float, eth_usd: float, kind: str = "b") -> dict:
-    """0.32.489: entrada × alvo × stop da entrada `kind`. Devolve as 10 melhores combinações e a tabela alvo × stop da melhor entrada."""
+    """0.32.489: entrada × alvo × stop da entrada `kind`. 0.32.491 (pedido do dono: "mostra 2, mas quais 2?"): as combinações com o
+    mesmo resultado viram um grupo (antes apareciam 9 linhas iguais) e cada grupo traz as entradas que contaram (token, saída, US$)."""
     since = now - dias * 86400
     es = [(p, p[kind]) for p in pools if p.get("t", 0) >= since and p.get(kind) and p[kind].get("h") is not None]
     combos = []
@@ -216,18 +237,41 @@ def grid(pools: list[dict], now: float, dias: float, eth_usd: float, kind: str =
         sel = [(p, e) for p, e in es if not lim or (e.get("x_ini") is not None and (e["x_ini"] - 1) * 100 <= lim)]
         for up in GRID_UP:
             for dn in GRID_DN:
-                vals = [v for v in (grid_result(p, e, up, dn, eth_usd) for p, e in sel) if v is not None]
-                if not vals:
+                rows = [(p, e, v) for p, e in sel for v in [grid_result(p, e, up, dn, eth_usd)] if v is not None]
+                if not rows:
                     continue
+                vals = [v for _, _, v in rows]
                 combos.append({"entrada_max_pct": lim, "alvo_pct": up, "stop_pct": dn, "n": len(vals),
                                "resultado_usd": round(sum(vals), 4), "por_entrada_usd": round(sum(vals) / len(vals), 5),
-                               "acerto": round(100 * sum(1 for v in vals if v > 0) / len(vals), 1)})
+                               "acerto": round(100 * sum(1 for v in vals if v > 0) / len(vals), 1), "_rows": rows})
     combos.sort(key=lambda c: (-c["resultado_usd"], -c["n"]))
-    best_in = combos[0]["entrada_max_pct"] if combos else 0
+    grupos, idx = [], {}
+    for c in combos:                                  # mesmo resultado, mesmas entradas e mesmo acerto = mesmo grupo
+        k = (c["resultado_usd"], c["n"], c["acerto"])
+        if k not in idx:
+            if len(grupos) >= 10:
+                continue
+            idx[k] = len(grupos)
+            grupos.append({"resultado_usd": c["resultado_usd"], "n": c["n"], "acerto": c["acerto"],
+                           "por_entrada_usd": c["por_entrada_usd"], "combos": [], "_c": c})
+        grupos[idx[k]]["combos"].append([c["entrada_max_pct"], c["alvo_pct"], c["stop_pct"]])
+    for g in grupos:
+        # sugestão do grupo: a combinação mais cuidadosa entre as que dão o mesmo resultado (entrada mais baixa, alvo menor, stop menor)
+        g["sugerida"] = min(g["combos"], key=lambda x: (x[0] == 0, x[0], x[1], x[2]))
+        lim, up, dn = g["sugerida"]
+        c = next(x for x in combos if [x["entrada_max_pct"], x["alvo_pct"], x["stop_pct"]] == g["sugerida"])
+        its = sorted(c["_rows"], key=lambda r: -r[1]["t"])[:ITENS_MAX]
+        g["itens"] = [{"token": p["token"], "nome": p.get("nome"), "simbolo": p.get("simbolo"), "pool": p["id"], "t": e["t"],
+                       "x_ini": e.get("x_ini"), "x_pico": round(e["pk"] / e["px"], 2) if e.get("px") and e.get("pk") else None,
+                       "saida": grid_exit(p, e, up, dn), "resultado_usd": round(v, 4)} for p, e, v in its]
+        g.pop("_c", None)
+    best_in = grupos[0]["sugerida"][0] if grupos else 0
     tab = {"entrada_max_pct": best_in, "alvos": list(GRID_UP), "stops": list(GRID_DN),
-           "linhas": [[next((c for c in combos if c["entrada_max_pct"] == best_in and c["alvo_pct"] == up and c["stop_pct"] == dn), None)
+           "linhas": [[next(({k: x[k] for k in ("n", "resultado_usd", "acerto")} for x in combos
+                             if x["entrada_max_pct"] == best_in and x["alvo_pct"] == up and x["stop_pct"] == dn), None)
                        for dn in GRID_DN] for up in GRID_UP]}
-    return {"entrada": kind, "entradas": len(es), "melhores": combos[:10], "tabela": tab, "valor_usd": ENTRY_USD,
+    melhores = [{k: v for k, v in c.items() if k != "_rows"} for c in combos[:10]]
+    return {"entrada": kind, "entradas": len(es), "grupos": grupos, "melhores": melhores, "tabela": tab, "valor_usd": ENTRY_USD,
             "entradas_grade": list(GRID_IN)}
 
 

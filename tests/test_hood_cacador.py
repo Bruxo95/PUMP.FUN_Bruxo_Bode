@@ -125,6 +125,11 @@ def test_grade_alvo_ou_stop_o_que_vier_primeiro():
     assert H.grid_result(p, p["a"], 100, 70, 3000.0) is None            # nenhum dos dois e a marca de 24 h ainda aberta
     g = H.grid([p], 1100, 7, 3000.0, "a")
     assert g["entradas"] == 1 and g["melhores"][0]["alvo_pct"] == 50
+    # 0.32.491: combinações com o mesmo resultado viram um grupo, com as entradas que contaram
+    g0 = g["grupos"][0]
+    assert g0["sugerida"][1] == 50 and len(g0["combos"]) >= 1 and g0["itens"][0]["saida"] == "alvo +50%"
+    assert len({(x["resultado_usd"], x["n"], x["acerto"]) for x in g["grupos"]}) == len(g["grupos"])
+    assert "_rows" not in g["melhores"][0]
     assert len(g["tabela"]["linhas"]) == len(H.GRID_UP)
     p["a"].pop("h")
     assert H.grid([p], 1100, 7, 3000.0, "a")["entradas"] == 0           # entrada antiga, sem as marcas: fora da grade

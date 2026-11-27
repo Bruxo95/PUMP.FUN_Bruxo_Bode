@@ -534,18 +534,43 @@
       table("mrSo", ["REAL solta desde", "Token", "Trader", "Por quê"], m.soltas.map((x) => [hora(x.open_t), tok(x.token, x), addr(x.wallet), esc(x.motivo)]), "Nenhuma posição REAL solta: todas seguem a fictícia.");
     }
   }
+  // 0.32.491 (pedido do dono: "seguir o mesmo padrão do /app#historico com card e bem bonitinho"): fechadas em cartões, com filtro por
+  // origem (cópia de traders, Caçador, botão Comprar); os quadrados de cima seguem o filtro
+  let HIF = "todas", HI_N = 40;
+  try { HIF = localStorage.getItem("hood_hif") || "todas"; } catch (e) { /* */ }
+  const HI_ORIG = { todas: "Todas", copia: "Cópia de traders", cacador: "Caçador", botao: "Botão Comprar" };
+  const hiOrig = (x) => (x.aba === "cacador" || x.wallet === "cacador" ? "cacador" : x.aba === "botao" || x.wallet === "botao" ? "botao" : "copia");
   function drawHist() {
-    const ts = (P && P.trades) || [], w = (P && P.carteira) || {};
-    // 0.32.294 (pedido do Bruxo, 11/11): taxas pagas e lucro real (já sem as taxas) em cada fechada e no total
+    const all = (P && P.trades) || [], w = (P && P.carteira) || {};
     const tx = (x) => (x.taxas_eth != null ? x.taxas_eth : (x.fees || 0));
+    const cnt = { todas: all.length, copia: 0, cacador: 0, botao: 0 };
+    all.forEach((x) => { cnt[hiOrig(x)]++; });
+    if (!cnt[HIF]) HIF = "todas";
+    $("hiF").innerHTML = Object.keys(HI_ORIG).filter((k) => k === "todas" || cnt[k]).map((k) => '<button type="button" class="' + (k === HIF ? "on" : "") + '" data-hif="' + k + '">' + HI_ORIG[k] + " <small>" + cnt[k] + "</small></button>").join("");
+    const ts = HIF === "todas" ? all : all.filter((x) => hiOrig(x) === HIF);
+    // 0.32.294 (pedido do Bruxo, 11/11): taxas pagas e lucro real (já sem as taxas) em cada fechada e no total
     const pn = ts.reduce((a, x) => a + (x.pnl_eth || 0), 0), win = ts.filter((x) => x.pnl_eth > 0).length, txs = ts.reduce((a, x) => a + tx(x), 0);
-    kpis("hiK", [["Fechadas " + mtag(), num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5) + usdL(pn), "já descontadas as taxas", "tr"],
+    const nome = HIF === "todas" ? "" : " · " + HI_ORIG[HIF];
+    kpis("hiK", [["Fechadas " + mtag() + nome, num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5) + usdL(pn), "já descontadas as taxas", "tr"],
       ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>" + usdL(txs, false), "sem elas o resultado seria " + num(pn + txs, 5) + " ETH " + usdOf(pn + txs), "mon"],
       ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Lucro final (tudo)", eth(w.realizado, 5) + usdL(w.realizado), "já descontadas as taxas · todas as fechadas", "mon"]]);
-    table("hiTb", ["Fechou", "Token", "Trader", "Entrou", "Saiu", "Taxas", "Lucro real", PICO_H, "Motivo"], ts.slice(0, 300).map((x) => [hora(x.close_t) + '<br><small class="muted">ficou ' + dur(x.close_t - x.open_t) + "</small>",
-      tok(x.token, x), addr(x.wallet), num(x.eth_in, 5) + " ETH", num(x.eth_out, 5) + " ETH", '<span class="down">' + num(tx(x), 6) + "</span>",
-      eth(x.pnl_eth, 5) + "<br>" + pct(x.pnl_pct), pct(x.best_pct),
-      esc(x.motivo || "") + (x.tx_out ? " · " + txl(x.tx_out) : "")]), REAL ? "Nenhuma posição REAL fechada ainda." : "Nenhuma posição fechada ainda.");
+    $("hiSub").textContent = "mais novas primeiro · " + num(ts.length, 0) + " fechada" + (ts.length === 1 ? "" : "s") + (HIF === "todas" ? "" : " em " + HI_ORIG[HIF]);
+    const ul = (v, s) => { const u = usdOf(Math.abs(v || 0)); return u ? '<small class="usdv">' + (s && v > 0 ? "+" : s && v < 0 ? "−" : "") + esc(u.replace("≈ ", "")) + "</small>" : ""; };
+    const tagO = (x) => { const o = hiOrig(x);
+      return o === "cacador" ? '<span class="tag pause">CAÇADOR</span>' + (x.cz ? ' <span class="tag neutral">entrada ' + esc(x.cz.entrada || "") + " · alvo +" + num(x.cz.alvo, 0) + "% · stop −" + num(x.cz.stop, 0) + "%</span>" : "")
+        : o === "botao" ? '<span class="tag neutral">BOTÃO COMPRAR</span>' : '<span class="tag win">CÓPIA DE TRADER</span>'; };
+    const V = ts.slice(0, HI_N);
+    $("hiCards").innerHTML = V.map((x) => {
+      const sym = x.simbolo || x.nome || (NOM[x.token] || {}).simbolo || short(x.token);
+      return '<div class="abc hc"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + eth(x.pnl_eth, 5) + ul(x.pnl_eth, true) + "</b></div>" +
+        '<div class="hiorig">' + tagO(x) + "</div>" + (hiOrig(x) === "copia" ? '<div class="hc-t">' + addr(x.wallet) + "</div>" : "") +
+        '<div class="hc-t">' + tok(x.token, x) + "</div>" +
+        '<div class="abc-d hc-m">' + esc(x.motivo || "") + "</div>" +
+        '<div class="abc-n"><div><small>%</small><b>' + pct(x.pnl_pct) + "</b></div><div><small>Investido</small><b>" + num(x.eth_in, 5) + ul(x.eth_in) + "</b></div><div><small>Segurou</small><b>" + dur(Math.max(0, (x.close_t || 0) - (x.open_t || 0))) + "</b></div></div>" +
+        '<div class="abc-n hc-f"><div><small>Pico</small><b>' + pct(x.best_pct) + '</b></div><div><small>Taxas pagas</small><b><span class="down">' + num(tx(x), 6) + "</span>" + ul(tx(x)) + "</b></div><div><small>Recebeu</small><b>" + num(x.eth_out, 5) + ul(x.eth_out) + "</b></div></div>" +
+        '<div class="muted small">' + hora(x.close_t) + (x.tx_out ? " · " + txl(x.tx_out) : "") + "</div></div>";
+    }).join("") || '<p class="muted">' + (REAL ? "Nenhuma posição REAL fechada ainda." : HIF === "todas" ? "Nenhuma posição fechada ainda." : "Nenhuma fechada em " + HI_ORIG[HIF] + ".") + "</p>";
+    $("hiMore").hidden = ts.length <= HI_N;
     drawWhy();
   }
   // 0.32.322 (pedido do dono, 11/11: "por que estamos sempre no negativo"): fechadas dos últimos 7 dias por motivo de saída, por atraso
@@ -714,25 +739,36 @@
   const CZ_IN = [["cz_eth", "Valor por compra", "ETH", 0.0001, 5, 0.0001], ["cz_entrada_max_pct", "Só entra até (acima do preço inicial do pool; 0 = sem limite)", "%", 0, 100000, 10],
     ["cz_alvo_pct", "Vende tudo no alvo", "%", 1, 100000, 5], ["cz_stop_pct", "Stop de perda (0 = sem stop)", "%", 0, 100, 5], ["cz_max_h", "Tempo máximo", "h", 0.1, 168, 1]];
   let CZG = null;
+  // 0.32.491 (pedido do dono: "explica o A, B e C, o que fazem e como são"): as 3 entradas viram cartões que dá para escolher
+  const CZ_ENT = {
+    a: ["Cega", "Compra na 1ª compra que aparece no pool novo, sem olhar nada.", "Pega o começo de tudo, inclusive os golpes. Serve de régua: é o que acontece sem filtro nenhum."],
+    b: ["Com sinais e sem travas", "Espera o pool juntar 5 compradores diferentes e 0,05 ETH em compras nos primeiros 30 min, e só entra se nenhuma trava estiver acesa.", "Travas: liquidez na mão de uma carteira, token que já existia, hook que cobra nas trocas, código perigoso, venda travada ou liquidez tirada."],
+    c: ["Com sinais, sem olhar as travas", "O mesmo sinal da B (5 compradores e 0,05 ETH), mas entra mesmo com trava acesa.", "Mostra quanto as travas da B protegem: se a C ganha menos que a B, as travas estão ajudando."],
+  };
   function czBuyDraw() {
     const box = $("czBuy"); if (!box) return;
     const c = (P && P.cfg_sim) || null;
     if (!c) { box.innerHTML = '<p class="muted">carregando a sua carteira…</p>'; return; }
     if (document.activeElement && box.contains(document.activeElement) && document.activeElement.tagName === "INPUT") return;   // não apaga o que está digitando
-    const sw = (k, on, txt) => '<button class="btn tgl sw ' + (on ? "on" : "off") + '" type="button" role="switch" aria-checked="' + on + '" data-czk="' + k + '">' + (on ? "Ligado" : "Desligado") + "</button>" + (txt ? " <small class=\"muted\">" + txt + "</small>" : "");
-    const ent = c.cz_entrada || "b";
+    const sw = (k, on) => '<button class="btn tgl sw ' + (on ? "on" : "off") + '" type="button" role="switch" aria-checked="' + on + '" data-czk="' + k + '">' + (on ? "Ligado" : "Desligado") + "</button>";
+    const ent = c.cz_entrada || "b", E = ((CZ && CZ.estudo) || {}).estrategias || {};
     let st = "";
     if (!REAL) {
       const ps = ((P && P.posicoes) || []).filter((p) => p.aba === "cacador"), ts = ((P && P.trades) || []).filter((t) => t.aba === "cacador");
       const res = ts.reduce((a, t) => a + (+t.pnl_eth || 0), 0), win = ts.filter((t) => (+t.pnl_eth || 0) > 0).length;
       st = "Na sua FICTÍCIA: <b>" + ps.length + "</b> aberta" + (ps.length === 1 ? "" : "s") + " · <b>" + ts.length + "</b> fechada" + (ts.length === 1 ? "" : "s") +
-        (ts.length ? " · resultado " + eth(res, 5) + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#posicoes">ver nas Posições</a>';
+        (ts.length ? " · resultado " + eth(res, 5) + (usdOf(res) ? ' <span class="muted">(' + esc(usdOf(res)) + ")</span>" : "") + " · acerto " + num(100 * win / ts.length, 0) + "%" : "") + ' · <a href="#historico" data-hif="cacador">ver no Histórico</a>';
     } else st = "Troque para FICTÍCIA no topo para ver as compras do Caçador.";
-    box.innerHTML = '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>desligado, a FICTÍCIA só compra pelo Caçador e pelo botão</small></span>' + sw("copia_traders", c.copia_traders !== false) + "</div>" +
-      '<div class="czrow"><span><b>Comprar pelo Caçador (FICTÍCIA)</b><small>compra quando a entrada escolhida acontece · nunca na REAL</small></span>' + sw("cz_on", !!c.cz_on) + "</div>" +
-      '<div class="czrow"><span><b>Entrada que compra</b><small>A = 1ª compra do pool · B = 5 compradores, 0,05 ETH e nenhuma trava · C = o mesmo sinal da B sem olhar as travas</small></span><span class="seg">' +
-        [["a", "A"], ["b", "B"], ["c", "C"]].map((x) => '<button type="button" data-czent="' + x[0] + '" class="' + (ent === x[0] ? "on" : "") + '">' + x[1] + "</button>").join("") + "</span></div>" +
-      '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span></label>").join("") + "</div>" +
+    box.innerHTML = '<div class="czrow"><span><b>Comprar pelo Caçador</b><small>compra na FICTÍCIA quando a entrada escolhida acontece · nunca na REAL</small></span>' + sw("cz_on", !!c.cz_on) + "</div>" +
+      '<div class="czrow"><span><b>Copiar os top traders na FICTÍCIA</b><small>desligado, a FICTÍCIA só compra pelo Caçador e pelo botão (bom para medir só o Caçador)</small></span>' + sw("copia_traders", c.copia_traders !== false) + "</div>" +
+      '<p class="small" style="margin:12px 0 4px"><b>Qual entrada compra</b> <span class="muted">· clique para escolher</span></p><div class="czents">' +
+      ["a", "b", "c"].map((k) => { const x = CZ_ENT[k], e = E[k] || {};
+        return '<button type="button" class="czent' + (ent === k ? " on" : "") + '" data-czent="' + k + '" aria-pressed="' + (ent === k) + '"><b><i>' + k.toUpperCase() + "</i>" + esc(x[0]) + "</b><span>" + esc(x[1]) + "</span><span>" + esc(x[2]) + "</span>" +
+          (e.entradas != null ? "<em>" + num(e.entradas, 0) + " entradas no período · " + num(e.x10 || 0, 0) + " chegaram a 10× · " + num(e.x100 || 0, 0) + " a 100×</em>" : "") +
+          (ent === k ? '<span class="tag win">escolhida</span>' : "") + "</button>"; }).join("") + "</div>" +
+      '<p class="small" style="margin:12px 0 0"><b>Valores e saída</b> <span class="muted">· salva sozinho ao sair do campo</span></p>' +
+      '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span>" +
+        (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>" +
       '<p class="small czst">' + st + "</p>";
   }
   async function czSave(body) {
@@ -741,20 +777,35 @@
     if (P && r && r.cfg) P.cfg_sim = r.cfg;
     czBuyDraw();
   }
+  // 0.32.491 (pedido do dono: "mostra Fechadas 2, mas quais 2?"): cada resultado vira um cartão; "ver as N" abre as entradas que contaram
+  const CZ_OPEN = {};
+  const czLim = (v) => (v ? "até +" + num(v, 0) + "%" : "sem limite");
+  const czCombo = (x) => "entrada " + czLim(x[0]) + " · alvo +" + num(x[1], 0) + "% · stop −" + num(x[2], 0) + "%";
   function czGridDraw() {
     const G = (CZ && CZ.grade) || {}, c = (P && P.cfg_sim) || {};
     CZG = CZG || c.cz_entrada || "b";
-    document.querySelectorAll("#czGk button").forEach((b) => b.classList.toggle("on", b.dataset.czg === CZG));
-    const g = G[CZG];
-    if (!g) { table("czG", ["Combinação"], [], "Grade ainda vazia."); return; }
-    $("czGSt").textContent = num(g.entradas, 0) + " entradas com as marcas de alvo e stop no período";
-    const lim = (v) => (v ? "até +" + num(v, 0) + "%" : "sem limite");
-    table("czG", ["#", "Entrada", "Alvo", "Stop", "Fechadas", "Resultado", "Por entrada", "Acerto", ""], (g.melhores || []).map((x, i) => [String(i + 1), lim(x.entrada_max_pct),
-      "+" + num(x.alvo_pct, 0) + "%", "−" + num(x.stop_pct, 0) + "%", num(x.n, 0), usd(x.resultado_usd, 3), usd(x.por_entrada_usd, 4), num(x.acerto, 0) + "%",
-      '<button class="btn sm" type="button" data-czuse="' + x.entrada_max_pct + ":" + x.alvo_pct + ":" + x.stop_pct + '" title="Põe estes % nas compras FICTÍCIAS do Caçador">Usar estes %</button>']),
-      "Ainda sem entradas fechadas com as marcas novas (precisam de até 24 h depois da entrada).");
+    document.querySelectorAll("#czGk button").forEach((b) => { b.classList.toggle("on", b.dataset.czg === CZG); b.textContent = b.dataset.czg.toUpperCase() + " · " + CZ_ENT[b.dataset.czg][0].toLowerCase(); });
+    const g = G[CZG], box = $("czGr");
+    if (!box) return;
+    if (!g || !(g.grupos || []).length) {
+      $("czGSt").textContent = g ? num(g.entradas, 0) + " entradas com as marcas de alvo e stop" : "";
+      box.innerHTML = '<p class="muted">Ainda sem entrada ' + CZG.toUpperCase() + " fechada com as marcas novas (cada uma precisa de até 24 h depois de entrar).</p>"; table("czGT", ["—"], [], "Ainda sem dados."); return;
+    }
+    $("czGSt").textContent = num(g.entradas, 0) + " entradas " + CZG.toUpperCase() + " com as marcas de alvo e stop no período";
+    box.innerHTML = g.grupos.map((x, i) => {
+      const k = CZG + i, aberto = !!CZ_OPEN[k], s = x.sugerida, mais = x.combos.length - 1;
+      return '<div class="abc"><div class="abc-t"><b>#' + (i + 1) + '</b><span class="sp"></span><span class="czres">' + usd(x.resultado_usd, 2) + "</span></div>" +
+        '<div class="czsug"><b>' + esc(czCombo(s)) + "</b>" + (mais > 0 ? '<br><small class="muted">e mais ' + mais + " combinaç" + (mais > 1 ? "ões" : "ão") + " com o mesmo resultado</small>" : "") + "</div>" +
+        '<div class="abc-n"><div><small>Fechadas</small><b>' + num(x.n, 0) + '</b></div><div><small>Acerto</small><b>' + num(x.acerto, 0) + '%</b></div><div><small>Por entrada</small><b>' + usd(x.por_entrada_usd, 3) + "</b></div></div>" +
+        '<div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm" type="button" data-czits="' + k + '" aria-expanded="' + aberto + '">' + (aberto ? "Esconder" : "Ver as " + num(x.n, 0)) + "</button>" +
+        '<button class="btn sm primary" type="button" data-czuse="' + s.join(":") + '" title="Põe estes % nas suas compras FICTÍCIAS do Caçador">Usar estes %</button></div>' +
+        (aberto ? '<ul class="czits">' + (x.itens || []).map((t) => "<li><span>" + tok(t.token, t) + '<small class="muted">entrou há ' + ago(t.t) + (t.x_ini != null ? " · " + num(t.x_ini, 2) + "× do início" : "") +
+          (t.x_pico != null ? " · pico " + num(t.x_pico, 2) + "×" : "") + '</small></span><span><b>' + usd(t.resultado_usd, 3) + '</b><small class="muted">' + esc(t.saida) + "</small></span></li>").join("") +
+          (x.n > (x.itens || []).length ? '<li class="muted">mostrando as ' + (x.itens || []).length + " mais novas</li>" : "") + "</ul>" +
+          (mais > 0 ? '<details class="czdet"><summary>As ' + x.combos.length + " combinações deste resultado</summary><ul class=\"czits\">" + x.combos.map((y) => "<li><span>" + esc(czCombo(y)) + "</span></li>").join("") + "</ul></details>" : "") : "") + "</div>";
+    }).join("");
     const t = g.tabela || {};
-    $("czGTh").textContent = "Alvo × stop · entrada " + lim(t.entrada_max_pct) + " (cada célula = resultado de todas as entradas, US$ " + num(g.valor_usd || 0.1, 2) + " cada)";
+    $("czGTh").textContent = "Ver a tabela alvo × stop (entrada " + czLim(t.entrada_max_pct) + ")";
     table("czGT", ["Alvo \\ Stop"].concat((t.stops || []).map((d) => "−" + d + "%")), (t.linhas || []).map((ln, i) => ["+" + t.alvos[i] + "%"].concat(ln.map((x) => (x ? usd(x.resultado_usd, 3) + '<br><small class="muted">' + x.n + " · " + num(x.acerto, 0) + "%</small>" : "—")))),
       "Ainda sem dados.");
   }
@@ -915,7 +966,10 @@
   };
   const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
   document.addEventListener("click", (e) => {
-    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse]") : null; if (!t) return;
+    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore") : null; if (!t) return;
+    if (t.dataset.czits) { CZ_OPEN[t.dataset.czits] = !CZ_OPEN[t.dataset.czits]; czGridDraw(); return; }
+    if (t.dataset.hif) { HIF = t.dataset.hif; HI_N = 40; try { localStorage.setItem("hood_hif", HIF); } catch (x) { /* */ } if (VIEW === "historico") drawHist(); return; }
+    if (t.id === "hiMore") { HI_N += 40; drawHist(); return; }
     const c = (P && P.cfg_sim) || {};
     if (t.dataset.czk) {
       const k = t.dataset.czk, on = k === "copia_traders" ? c.copia_traders === false : !c.cz_on;

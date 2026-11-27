@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-27**; revisão documental **2.0**.
-Aplicação: **0.32.490 · 2026-11-27 · Dólar embaixo dos valores no Histórico e no Histórico dos períodos do BOOST**.
-Referência Git na emissão: `21ca5d0e42d208d6c3531e2dade36cebee439eef`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.491 · 2026-11-27 · Robinhood: Caçador em cartões (A, B e C explicadas, quais entradas contaram) e Histórico em cartões**.
+Referência Git na emissão: `e155ec7fa752dac9cdc142d6bbe113abb9f805ca`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -3205,6 +3205,11 @@
    "versao": "0.32.490",
    "inicio": "2026-11-27T19:44:32+00:00",
    "titulo": "Dólar nos valores do Histórico e dos períodos do BOOST"
+  },
+  {
+   "versao": "0.32.491",
+   "inicio": "2026-11-27T20:52:03+00:00",
+   "titulo": "Robinhood: Caçador e Histórico em cartões"
   }
  ]
 }
