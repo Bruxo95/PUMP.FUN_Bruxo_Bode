@@ -3215,6 +3215,11 @@
    "versao": "0.32.492",
    "inicio": "2026-11-27T21:11:38+00:00",
    "titulo": "Robinhood: entradas de cada saída e Caçador A, B e C no Histórico"
+  },
+  {
+   "versao": "0.32.493",
+   "inicio": "2026-11-27T21:29:16+00:00",
+   "titulo": "Robinhood: Caçador A, B e C com ganho em ETH e dólar e saldo total"
   }
  ]
 }

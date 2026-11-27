@@ -542,10 +542,41 @@
   const HI_SOMBRA = { sa: "a", sb: "b", sc: "c" };
   // 0.32.492 (pedido do dono: "no Histórico, o Caçador A, B e C e ver as compras"): as entradas de mentira do Caçador (US$ 0,10 cada),
   // com o resultado de cada saída fixa. Não são compras da carteira.
+  // 0.32.493 (pedido do dono: "mostra o valor ganho em ETH e em dólar, um info como no Histórico do BOOST, o total que ganhou, o que perdeu
+  // e o saldo total"): escolhe a saída medida (a melhor vem marcada); os cartões e os totais usam essa saída
+  let HSX = {};
+  const SX_NOME = { "1": "1 h", "6": "6 h", "24": "24 h", x2: "2×", x5: "5×", x10: "10×", x100: "100×" };
+  const hEth = (usdv) => { const r = (CZ && CZ.eth_usd) || usdRate(); return r && usdv != null ? usdv / r : null; };
+  const hMoney = (usdv, big) => {
+    if (usdv == null) return '<span class="muted">aberta</span>';
+    const e = hEth(usdv), sg = usdv > 0 ? "+" : usdv < 0 ? "−" : "";
+    return '<span class="' + cls(usdv) + '">' + (e == null ? sg + "US$ " + num(Math.abs(usdv), 2) : sg + num(Math.abs(e), 6) + " ETH") + "</span>" +
+      (e == null ? "" : '<small class="' + (big ? "usdv" : "hiusd") + " " + cls(usdv) + '">' + sg + "US$ " + num(Math.abs(usdv), 2) + "</small>");
+  };
+  function hiPop(L, sx, win) {
+    const X = L.filter((t) => t.r[sx] != null && (win ? t.r[sx] > 0 : t.r[sx] <= 0)).sort((a, b) => (win ? b.r[sx] - a.r[sx] : a.r[sx] - b.r[sx]));
+    if (!X.length) return "";
+    return '<div class="perpop" role="tooltip"><small>' + (win ? "Moedas com ganho" : "Moedas com perda") + "</small><ul>" + X.slice(0, 80).map((t) => {
+      const e = hEth(t.r[sx]);
+      return "<li><span><b>" + esc(t.simbolo || t.nome || short(t.token)) + "</b><i>" + hora(t.t) + "</i></span><span><em>" + (e == null ? "" : (e > 0 ? "+" : "−") + num(Math.abs(e), 6) + " ETH") + "</em><i>" + (t.r[sx] > 0 ? "+" : "−") + "US$ " + num(Math.abs(t.r[sx]), 2) + "</i></span></li>";
+    }).join("") + (X.length > 80 ? '<li class="muted">e mais ' + (X.length - 80) + "</li>" : "") + "</ul></div>";
+  }
   function hiSombra(k) {
     if (!CZ) { loadCz(false); $("hiCards").innerHTML = '<p class="muted">Carregando o Caçador…</p>'; $("hiMore").hidden = true; return; }
     const L = (CZ.entradas || {})[k] || [], E = (((CZ.estudo || {}).estrategias) || {})[k] || {};
     const best = (E.saidas || []).filter((r) => r.n).reduce((a, r) => (!a || r.resultado_usd > a.resultado_usd ? r : a), null);
+    const sx = HSX[k] || (best && best.saida) || "x2";
+    $("hiSom").hidden = false;
+    $("hiSx").innerHTML = (E.saidas || [{ saida: "1" }, { saida: "6" }, { saida: "24" }, { saida: "x2" }, { saida: "x5" }, { saida: "x10" }, { saida: "x100" }]).map((r) =>
+      '<button type="button" class="hisx' + (r.saida === sx ? " on" : "") + '" data-hsx="' + k + ":" + r.saida + '">' + (SX_NOME[r.saida] || r.saida) + (best && r.saida === best.saida ? " ★" : "") + "</button>").join("");
+    $("hiSxT").textContent = (CZ_SAIDA_TXT[sx] || "") + (best && sx === best.saida ? " · ★ a melhor do período" : "");
+    const F = L.filter((t) => t.r[sx] != null), G = F.filter((t) => t.r[sx] > 0), Pd = F.filter((t) => t.r[sx] <= 0);
+    const soma = (X) => X.reduce((a, t) => a + t.r[sx], 0), sg = soma(G), sp = soma(Pd), tot = sg + sp;
+    const kp = (l, v, s, pop) => '<div class="perk' + (pop ? ' hov" tabindex="0' : "") + '"><small>' + l + "</small><b>" + v + "</b>" + (s ? "<span>" + s + "</span>" : "") + (pop || "") + "</div>";
+    $("hiSum").innerHTML = kp("Acertos", '<span class="up">' + G.length + "</span>", G.length ? "soma dos ganhos " + hMoney(sg) : "nenhuma entrada ganhou", hiPop(L, sx, true)) +
+      kp("Erros", '<span class="down">' + Pd.length + "</span>", Pd.length ? "soma das perdas " + hMoney(sp) : "nenhuma entrada perdeu", hiPop(L, sx, false)) +
+      kp("Saldo total", F.length ? hMoney(tot) : "—", F.length ? F.length + " fechada" + (F.length > 1 ? "s" : "") + " · " + num(100 * G.length / F.length, 0) + "% de acerto · US$ " + num(F.length * 0.1, 2) + " investidos" : "nenhuma fechou com esta saída") +
+      kp("Abertas", String(L.length - F.length), "ainda sem resultado nesta saída (" + (SX_NOME[sx] || sx) + ")");
     kpis("hiK", [["Entradas " + k.toUpperCase() + " (sombra)", num(E.entradas || 0, 0), "US$ " + num(CZ.estudo ? CZ.estudo.valor_usd || 0.1 : 0.1, 2) + " de mentira cada · período do Caçador", "tr"],
       ["Chegaram a 10×", num(E.x10 || 0, 0), num(E.x100 || 0, 0) + " chegaram a 100×", "up"],
       ["Liquidez tirada", num(E.liquidez_tirada || 0, 0), "a entrada vale zero", "mon"], ["Venda travada", num(E.venda_travada || 0, 0), "honeypot: vale zero", "mon"],
@@ -554,12 +585,12 @@
     const V = L.slice(0, HI_N), R = [["1", "1 h"], ["24", "24 h"], ["x2", "2×"], ["x5", "5×"], ["x10", "10×"]];
     $("hiCards").innerHTML = V.map((t) => {
       const sym = t.simbolo || t.nome || short(t.token), ag = t.x_agora;
-      return '<div class="abc hc"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + (ag == null ? "—" : xx(ag)) + '<small class="usdv">agora</small></b></div>' +
+      return '<div class="abc hc"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + hMoney(t.r[sx], true) + "</b></div>" +
         '<div class="hiorig"><span class="tag pause">CAÇADOR ' + k.toUpperCase() + '</span><span class="tag neutral">SOMBRA · US$ 0,10</span></div>' +
         '<div class="hc-t">' + tok(t.token, t) + "</div>" + '<div class="abc-d hc-m">' + czTraps(t.travas) + "</div>" +
         '<div class="abc-n"><div><small>Entrou</small><b>' + (t.x_ini == null ? "—" : num(t.x_ini, 2) + "×") + '</b><small class="usdv">do preço inicial</small></div><div><small>Pico</small><b>' + (t.x_pico == null ? "—" : xx(t.x_pico)) +
-        '</b></div><div><small>Pool nasceu</small><b>há ' + ago(t.nasceu) + "</b></div></div>" +
-        '<div class="czr5">' + R.map((z) => "<div><small>" + z[1] + "</small><b>" + (t.r[z[0]] == null ? '<span class="muted">aberta</span>' : '<span class="' + cls(t.r[z[0]]) + '">' + (t.r[z[0]] > 0 ? "+" : t.r[z[0]] < 0 ? "−" : "") + "$" + num(Math.abs(t.r[z[0]]), 2) + "</span>") + "</b></div>").join("") + "</div>" +
+        '</b></div><div><small>Agora</small><b>' + (ag == null ? "—" : xx(ag)) + '</b><small class="usdv">pool nasceu há ' + ago(t.nasceu) + "</small></div></div>" +
+        '<div class="czr5">' + R.map((z) => '<div class="' + (z[0] === sx ? "on" : "") + '"><small>' + z[1] + (z[0] === sx ? " ✓" : "") + "</small><b>" + (t.r[z[0]] == null ? '<span class="muted">aberta</span>' : '<span class="' + cls(t.r[z[0]]) + '">' + (t.r[z[0]] > 0 ? "+" : t.r[z[0]] < 0 ? "−" : "") + "$" + num(Math.abs(t.r[z[0]]), 2) + "</span>") + "</b></div>").join("") + "</div>" +
         '<div class="muted small">entrou ' + hora(t.t) + "</div></div>";
     }).join("") || '<p class="muted">Nenhuma entrada ' + k.toUpperCase() + " no período do Caçador.</p>";
     $("hiMore").hidden = L.length <= HI_N;
@@ -577,6 +608,7 @@
     $("hiF").innerHTML = ["todas", "copia", "cacador", "botao"].filter((k) => k === "todas" || cnt[k]).concat(som).map((k, i) => (k === "sa" ? '<span class="hisep">|</span>' : "") +
       '<button type="button" class="' + (k === HIF ? "on" : "") + '" data-hif="' + k + '">' + HI_ORIG[k] + (cnt[k] == null ? "" : " <small>" + cnt[k] + "</small>") + "</button>").join("");
     if (HI_SOMBRA[HIF]) { hiSombra(HI_SOMBRA[HIF]); drawWhy(); return; }
+    $("hiSom").hidden = true;
     if (!REAL && !CZ) loadCz(false);
     const ts = HIF === "todas" ? all : all.filter((x) => hiOrig(x) === HIF);
     // 0.32.294 (pedido do Bruxo, 11/11): taxas pagas e lucro real (já sem as taxas) em cada fechada e no total
@@ -1020,8 +1052,9 @@
   };
   const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
   document.addEventListener("click", (e) => {
-    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx]") : null; if (!t) return;
+    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx],[data-hsx]") : null; if (!t) return;
     if (t.dataset.czs) { CZS = t.dataset.czs; czSaidaDraw(); return; }
+    if (t.dataset.hsx) { const [k, x] = t.dataset.hsx.split(":"); HSX[k] = x; drawHist(); return; }
     if (t.dataset.czsx) { CZS_OPEN[t.dataset.czsx] = !CZS_OPEN[t.dataset.czsx]; czSaidaDraw(); return; }
     if (t.dataset.czits) { CZ_OPEN[t.dataset.czits] = !CZ_OPEN[t.dataset.czits]; czGridDraw(); return; }
     if (t.dataset.hif) { HIF = t.dataset.hif; HI_N = 40; try { localStorage.setItem("hood_hif", HIF); } catch (x) { /* */ } if (VIEW === "historico") drawHist(); return; }

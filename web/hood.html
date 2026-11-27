@@ -100,8 +100,11 @@
   .hifs{margin:10px 0 12px;flex-wrap:wrap}.hifs small{opacity:.7;margin-left:4px}
   .czgr .abc.best{border-color:#a3e635}.czgr .czx{font-size:12px;color:var(--muted,#8b93a7)}
   .czr5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;border-top:1px solid var(--line,#262a33);padding-top:6px}
-  .czr5 div{display:flex;flex-direction:column;gap:2px;font-size:12px;white-space:nowrap}.czr5 small{color:var(--muted,#8b93a7);font-size:11px}
+  .czr5 div{display:flex;flex-direction:column;gap:2px;font-size:12px;white-space:nowrap}.czr5 div.on small{color:#a3e635}.czr5 small{color:var(--muted,#8b93a7);font-size:11px}
   .hisep{opacity:.35;margin:0 2px}
+  .hisum{margin:0 0 14px;grid-template-columns:repeat(4,minmax(0,1fr))}.hisum .perk b{font-size:18px}.hisum .perk .hiusd{display:block;font-size:12px;font-family:var(--mono)}
+  .hisx b{font-family:var(--mono)}
+  @media (max-width:860px){.hisum{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (max-width:860px){.czents{grid-template-columns:1fr}}
   .czrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line2,#2a2f3a);flex-wrap:wrap}
   .czrow>span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 260px}.czrow small{color:var(--muted,#8b93a7);font-size:12px}
@@ -230,6 +233,7 @@
         <div class="kpis" id="hiK"></div>
         <div class="card" style="margin-top:16px"><header><div><h2>Posições fechadas</h2><div class="sub" id="hiSub">mais novas primeiro</div></div></header>
           <div class="seg hifs" id="hiF"></div>
+          <div id="hiSom" hidden><div class="czper"><small class="muted">Saída medida:</small><div class="seg" id="hiSx"></div><small class="muted" id="hiSxT"></small></div><div class="perg hisum" id="hiSum"></div></div>
           <div class="abgrid" id="hiCards"></div><button class="btn sm abmore" id="hiMore" type="button" hidden>Ver mais</button></div>
         <div class="card" id="pqCard" style="margin-top:16px"><header><div><h2>Por que perdeu (ou ganhou)</h2><div class="sub" id="pqSub">fechadas dos últimos 7 dias</div></div></header>
           <div class="kpis" id="pqK"></div>
