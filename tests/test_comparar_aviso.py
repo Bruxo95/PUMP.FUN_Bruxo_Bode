@@ -70,3 +70,18 @@ def test_valor_por_entrada_e_mudar_o_valor_sao_pessoais(env):
                                        "pump_bmr_sol": 0.2}, headers=B)
     assert c.post("/api/pump/config/peer", json=q, headers=A).json()["aviso"] is False
 
+
+
+def test_sem_aviso_quando_a_sua_ja_e_identica(env):
+    """0.32.509 (caso do dono, 28/11): a outra pessoa mudou, mas a sua configuração já está igual à dela: o aviso não aparece."""
+    c = env["c"]
+    A, B = tok(UA), tok(UB, "b@x.com")
+    c.get("/api/pump", headers=A)
+    q = {"user": UB, "tela": "boost", "reais": 1, "escopo": "boost"}
+    c.post("/api/pump/config/peer", json=q, headers=A)                    # 1ª vez: guarda em silêncio
+    c.post("/api/pump/settings", json={"pump_bm_stop_pct": 33}, headers=B)
+    c.post("/api/pump/settings", json={"pump_bm_stop_pct": 33}, headers=A)  # você já fez igual
+    r = c.post("/api/pump/config/peer", json=q, headers=A).json()
+    assert r["aviso"] is False
+    c.post("/api/pump/settings", json={"pump_bm_stop_pct": 31}, headers=B)  # nova diferença: avisa
+    assert c.post("/api/pump/config/peer", json=q, headers=A).json()["aviso"] is True

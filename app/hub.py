@@ -5461,6 +5461,15 @@ class PumpHub:
             return
         out["visto_t"] = rec.get("t")
         out["aviso"] = rec.get("sig") != sig
+        # 0.32.509 (caso do dono, 28/11: "está idêntica e o aviso fica aparecendo"): se a sua configuração já é igual à dela nas
+        # opções comparadas, não há o que copiar: marca como vista em silêncio (a REAL dela ligar/desligar não acende o aviso)
+        if out["aviso"]:
+            vv = out.get("valores") or {}
+            if vv and all(getattr(pf.cfg, k, None) == v for k, v in vv.items()):
+                seen[key] = {"sig": sig, "t": time.time(), "v": snap}
+                out["aviso"], out["visto_t"] = False, seen[key]["t"]
+                await self.save_settings(pf)
+                return
         if out["aviso"] and isinstance(rec.get("v"), dict):
             old = rec["v"]
             # 0.32.488: só as opções que ainda entram na comparação (tirar uma da lista não é "a outra pessoa mudou")

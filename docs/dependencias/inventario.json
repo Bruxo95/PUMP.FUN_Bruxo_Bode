@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "a2152401a017eff9bb967833fbb50faa5d8dadd8",
-    "application_version": "0.32.508 · 2026-11-28 · Robinhood: hold separado na Sala, ligar a REAL num lugar só, valor REAL de 0,0001 e até 100 posições",
+    "repository_reference": "9c3dcd0ac352658dfeed52edd82dc0a03af5623e",
+    "application_version": "0.32.509 · 2026-11-28 · Comparar configurações: sem aviso quando a sua já é idêntica",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "b82792da9c6e441cd368d08fcedfe1d0728ce0f185b4308ffb0147f4d55f7bed",
+      "app/version.py": "1a677a4933bd20ff8253c705198212f4ab6d601024a25680b773e0e04c6bcdc3",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "4b92a268208a1c47466ff43e3aa5b1748cb4e7ddae69baa582de672d92420f8d"
+  "pdf_sha256": "4366828f1bfed889146b23ce1703beb6c1bce6d86ebf29dde811d4eb8c777c64"
 }

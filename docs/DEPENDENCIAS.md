@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-28**; revisão documental **2.0**.
-Aplicação: **0.32.508 · 2026-11-28 · Robinhood: hold separado na Sala, ligar a REAL num lugar só, valor REAL de 0,0001 e até 100 posições**.
-Referência Git na emissão: `a2152401a017eff9bb967833fbb50faa5d8dadd8`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.509 · 2026-11-28 · Comparar configurações: sem aviso quando a sua já é idêntica**.
+Referência Git na emissão: `9c3dcd0ac352658dfeed52edd82dc0a03af5623e`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

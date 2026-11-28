@@ -3295,6 +3295,11 @@
    "versao": "0.32.508",
    "inicio": "2026-11-28T08:30:36+00:00",
    "titulo": "Robinhood: hold separado na Sala, REAL num lugar só e limites da REAL"
+  },
+  {
+   "versao": "0.32.509",
+   "inicio": "2026-11-28T09:04:16+00:00",
+   "titulo": "Comparar configurações: sem aviso quando já está idêntica"
   }
  ]
 }
