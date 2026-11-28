@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-28**; revisão documental **2.0**.
-Aplicação: **0.32.506 · 2026-11-28 · Robinhood: no Caçador a compra REAL sai antes da FICTÍCIA**.
-Referência Git na emissão: `0202da00a1fe78eeab884f9d36ae615ab49aebb5`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.507 · 2026-11-28 · Robinhood: com a REAL ligada, compra e venda da REAL sempre começam antes da FICTÍCIA**.
+Referência Git na emissão: `f9a005d57a6c14abd8c5370ecb30cbef01a10c0c`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

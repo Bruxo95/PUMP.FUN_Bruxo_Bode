@@ -107,3 +107,17 @@ def test_trader_sell_never_touches_a_hold():
     run(settle(c))
     assert "h1" in c.books["u1"].pos
     assert asyncio and hoodreal and hoodcopy
+
+
+def test_real_sale_starts_before_the_fictitious_one():
+    """0.32.507 (regra do dono): com a REAL ligada, a venda REAL presa à fictícia é disparada antes de a fictícia registrar a dela."""
+    _, c = copier()
+    b = c.books["u1"]
+    p = _hold(c)
+    p.pop("hold")
+    visto = []
+    b.close_hook = lambda uid, pp, motivo, frac=1.0: visto.append((pp["tokens_left"], pp["id"] in b.pos))
+    b.sell(p, 1.0, 0.002, time.time(), "teste")
+    assert visto == [(10.0, True)]
+    src = open("app/hoodcopy.py", encoding="utf-8").read()
+    assert "_sim_after(n0, sim)" in src and src.index("# 0.32.507: as REAL vêm primeiro") > 0

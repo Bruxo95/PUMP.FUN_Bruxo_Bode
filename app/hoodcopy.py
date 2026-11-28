@@ -446,6 +446,13 @@ class Book:
         q = p["tokens_left"] * frac
         if q <= 0:
             return None
+        # 0.32.507 (regra do dono: "com a REAL ligada, a compra e a venda da REAL começam sempre antes da fictícia, nunca depois"):
+        # a venda REAL presa a esta posição (espelho) é disparada antes de a fictícia registrar a dela
+        if self.close_hook:
+            try:
+                self.close_hook(self.user_id, p, motivo, 1.0 if frac >= 1.0 else frac)
+            except Exception as e:                 # o espelho nunca derruba a venda da fictícia
+                log.warning("Robinhood: espelho da REAL falhou na venda: %s", str(e)[:120])
         pre = {"tokens": p["tokens_left"], "proceeds": p["proceeds"]}      # 0.32.332: a sombra parte daqui
         gas = c["gas_eth"] if px > 0 else 0.0       # baixa com preço 0 não envia transação: sem gás
         gross = q * px * (1 - c["slip_pct"] / 100)
@@ -461,11 +468,6 @@ class Book:
             p.setdefault("vendas", []).append({"t": t, "frac": round(frac, 4), "eth": round(got, 6), "motivo": motivo})
             self.dirty_pos.add(p["id"])
             self.ev(t, p["wallet"], p["token"], "vendeu parte", f"{frac * 100:.0f}% · {motivo}")
-            if self.close_hook:
-                try:
-                    self.close_hook(self.user_id, p, motivo, frac)
-                except Exception as e:
-                    log.warning("Robinhood: espelho da REAL falhou na venda parcial: %s", str(e)[:120])
             return None
         pnl = p["proceeds"] - p["eth_in"]
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "fees",
@@ -491,11 +493,6 @@ class Book:
         del self.trades[KEEP_TRADES:]
         self.new_trades.append(tr)
         self.ev(t, p["wallet"], p["token"], "fechou", f"{motivo} · {pnl:+.5f} ETH")
-        if self.close_hook:
-            try:
-                self.close_hook(self.user_id, p, motivo)
-            except Exception as e:                 # o espelho nunca derruba o fechamento da fictícia
-                log.warning("Robinhood: espelho da REAL falhou ao fechar: %s", str(e)[:120])
         return tr
 
     def trader_exit(self, p: dict, frac: float, px: float | None, t: float, motivo: str) -> dict | None:
@@ -719,7 +716,21 @@ class Copier:
             p["from"] = frm
         return await self.w.rpc("eth_call", [p, "latest"]) or "0x"
 
+    _spawned = 0
+
+    def _sim_after(self, n0: int, fn) -> None:
+        """0.32.507: se alguma compra/venda REAL foi disparada agora, a parte da fictícia espera a vez (call_soon): as tarefas REAL já
+        estão na fila e começam antes. Sem REAL disparada (ou fora do laço), roda na hora."""
+        if self._spawned != n0:
+            try:
+                asyncio.get_running_loop().call_soon(fn)
+                return
+            except RuntimeError:
+                pass
+        fn()
+
     def _spawn(self, coro) -> None:
+        self._spawned += 1
         t = asyncio.ensure_future(coro)
         self._tasks.add(t)
         t.add_done_callback(self._tasks.discard)
@@ -1069,17 +1080,18 @@ class Copier:
         now = time.time()
         motivo = f"o dono tirou {frac * 100:.0f}% da liquidez do pool: saiu antes de tirar o resto"
         self.risky[tk] = "o dono está tirando a liquidez do pool"
-        for uid, b in list(self.books.items()):
-            if not b.cfg.get("sair_liquidez", True):
-                continue
-            for p in [x for x in list(b.pos.values()) if x["token"] == tk]:
-                b.sell(p, 1.0, None, now, motivo)
-        for uid, rb in list(self.real.items()):
+        for uid, rb in list(self.real.items()):       # 0.32.507: REAL antes da fictícia
             if not self.rcfg(uid).get("real_sair_liquidez", True):
                 continue
             for p in [x for x in list(rb.pos.values()) if x["token"] == tk and not self.mirrored(uid, x)]:
                 p["retry_frac"] = 1.0
                 self._spawn(self._real_sell(uid, p, 1.0, motivo))
+        await asyncio.sleep(0)
+        for uid, b in list(self.books.items()):
+            if not b.cfg.get("sair_liquidez", True):
+                continue
+            for p in [x for x in list(b.pos.values()) if x["token"] == tk]:
+                b.sell(p, 1.0, None, now, motivo)
         log.warning("Robinhood: retirada de %.0f%% da liquidez de %s… — saindo das posições", frac * 100, tk[:10])
 
     async def pool_key(self, pid: str, token: str) -> list | None:
@@ -1142,6 +1154,7 @@ class Copier:
         px = tr["eth"] / tr["amount"] if tr.get("amount") else None
         now = time.time()
         # 0.32.287 (pedido do dono): com REAL e FICTÍCIA ligadas a prioridade é da REAL: a venda REAL sai primeiro
+        n0 = self._spawned
         for uid, rb in self.real.items():
             if px:
                 self._real_price(uid, rb, tr["token"], px, tr["t"])
@@ -1149,13 +1162,15 @@ class Copier:
                 frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
                 for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"] and not self.mirrored(uid, p) and not p.get("hold")]:
                     self._real_trader_exit(uid, p, frac, f"trader vendeu {frac * 100:.0f}%", tr["t"])
-        for b in self.books.values():
-            if px:
-                b.on_price(tr["token"], px, tr["t"])
-            if tr["side"] == "sell":
-                frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
-                for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"] and not p.get("hold")]:
-                    b.trader_exit(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
+        def sim() -> None:
+            for b in self.books.values():
+                if px:
+                    b.on_price(tr["token"], px, tr["t"])
+                if tr["side"] == "sell":
+                    frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
+                    for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"] and not p.get("hold")]:
+                        b.trader_exit(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
+        self._sim_after(n0, sim)
         if self.sombra.abertas and px:                    # 0.32.332: o "e se" sem o stop de ganho segue a mesma troca
             self.sombra.preco(tr["token"], px, tr["t"])
             if tr["side"] == "sell":
@@ -1627,8 +1642,6 @@ class Copier:
     # ------------------------------------------------------------------ laço (chamado pela leitura a cada volta)
     async def tick(self) -> None:
         now = time.time()
-        for b in self.books.values():
-            b.timeouts(now)
         if self.sombra.abertas:
             self.sombra.tempo(now, lambda tk: (self.w.px.get(tk) or (None,))[0])
         bal = now - self._rbal_at > 30
@@ -1659,6 +1672,9 @@ class Copier:
                         rb.balance, rb.balance_t = await self.chain.balance(addr) / 1e18, now
                     except Exception:
                         pass
+        await asyncio.sleep(0)                     # 0.32.507: as vendas REAL disparadas acima começam antes do tempo da fictícia
+        for b in self.books.values():
+            b.timeouts(now)
         await self.price_tick(now)
         try:
             await self.rug_tick(now)
@@ -1723,16 +1739,18 @@ class Copier:
             self.w.px[tk] = (px, now)
             self._px_ok[tk] = now
             self._set_src(tk, "rede")
+            for uid, rb in list(self.real.items()):       # 0.32.507: REAL antes da fictícia
+                self._real_price(uid, rb, tk, px, now)
+            await asyncio.sleep(0)
             for b in self.books.values():
                 b.on_price(tk, px, now)
-            for uid, rb in list(self.real.items()):
-                self._real_price(uid, rb, tk, px, now)
 
     # ------------------------------------------------------------------ preço reserva, nome e saída do trader / dev (0.32.290)
     def _positions(self, tk: str) -> list[tuple]:
         """(uid, posição, é_real) de todas as contas abertas no token."""
-        return [(uid, p, False) for uid, b in self.books.items() for p in b.pos.values() if p["token"] == tk] + \
-               [(uid, p, True) for uid, rb in self.real.items() for p in rb.pos.values() if p["token"] == tk]
+        # 0.32.507: as REAL vêm primeiro (saída do trader e do dev começa pela REAL)
+        return [(uid, p, True) for uid, rb in self.real.items() for p in rb.pos.values() if p["token"] == tk] + \
+               [(uid, p, False) for uid, b in self.books.items() for p in b.pos.values() if p["token"] == tk]
 
     def _set_src(self, tk: str, src: str) -> None:
         for _, p, _ in self._positions(tk):
@@ -1786,10 +1804,11 @@ class Copier:
                 continue
             px = best[tk][0]
             self.w.px[tk] = (px, now)
+            for uid, rb in list(self.real.items()):       # 0.32.507: REAL antes da fictícia
+                self._real_price(uid, rb, tk, px, now)
+            await asyncio.sleep(0)
             for b in self.books.values():
                 b.on_price(tk, px, now)
-            for uid, rb in list(self.real.items()):
-                self._real_price(uid, rb, tk, px, now)
             self._set_src(tk, "dexscreener")
 
     async def _balance(self, tk: str, who: str) -> int | None:
