@@ -564,7 +564,7 @@
   // origem (cópia de traders, Caçador, botão Comprar); os quadrados de cima seguem o filtro
   let HIF = "todas", HI_N = 40;
   try { HIF = localStorage.getItem("hood_hif") || "todas"; } catch (e) { /* */ }
-  const HI_ORIG = { todas: "Todas", copia: "Cópia de traders", cacador: "Caçador (compras)", botao: "Botão Comprar", sa: "Caçador A · sombra", sb: "Caçador B · sombra", sc: "Caçador C · sombra" };
+  const HI_ORIG = { todas: "Todas", copia: "Cópia de traders", cacador: "Caçador (compras)", botao: "Botão Comprar", hold: "Hold", sa: "Caçador A · sombra", sb: "Caçador B · sombra", sc: "Caçador C · sombra" };
   const HI_SOMBRA = { sa: "a", sb: "b", sc: "c" };
   // 0.32.492 (pedido do dono: "no Histórico, o Caçador A, B e C e ver as compras"): as entradas de mentira do Caçador (US$ 0,10 cada),
   // com o resultado de cada saída fixa. Não são compras da carteira.
@@ -621,7 +621,7 @@
     }).join("") || '<p class="muted">Nenhuma entrada ' + k.toUpperCase() + " no período do Caçador.</p>";
     $("hiMore").hidden = L.length <= HI_N;
   }
-  const hiOrig = (x) => (x.aba === "cacador" || String(x.wallet || "").startsWith("cacador") ? "cacador" : x.aba === "botao" || x.wallet === "botao" ? "botao" : "copia");
+  const hiOrig = (x) => (x.aba === "hold" ? "hold" : x.aba === "cacador" || String(x.wallet || "").startsWith("cacador") ? "cacador" : x.aba === "botao" || x.wallet === "botao" ? "botao" : "copia");
   // 0.32.494 (pedido do dono: "no Histórico, o saldo da carteira e os ganhos em 1, 6, 12 e 24 h e o total"): sempre da carteira inteira
   function hiWallet(w) {
     const box = $("hiW"); if (!box) return;
@@ -636,13 +636,13 @@
   function drawHist() {
     const all = (P && P.trades) || [], w = (P && P.carteira) || {};
     const tx = (x) => (x.taxas_eth != null ? x.taxas_eth : (x.fees || 0));
-    const cnt = { todas: all.length, copia: 0, cacador: 0, botao: 0 };
+    const cnt = { todas: all.length, copia: 0, cacador: 0, botao: 0, hold: 0 };
     all.forEach((x) => { cnt[hiOrig(x)]++; });
     const som = REAL ? [] : ["sa", "sb", "sc"];                 // a sombra do Caçador não é carteira: só aparece na FICTÍCIA
     som.forEach((k) => { cnt[k] = CZ && CZ.entradas ? ((CZ.entradas[HI_SOMBRA[k]]) || []).length : null; });
     if (!HI_SOMBRA[HIF] && !cnt[HIF]) HIF = "todas";
     if (HI_SOMBRA[HIF] && REAL) HIF = "todas";
-    $("hiF").innerHTML = ["todas", "copia", "cacador", "botao"].filter((k) => k === "todas" || cnt[k]).concat(som).map((k, i) => (k === "sa" ? '<span class="hisep">|</span>' : "") +
+    $("hiF").innerHTML = ["todas", "copia", "cacador", "botao", "hold"].filter((k) => k === "todas" || cnt[k]).concat(som).map((k, i) => (k === "sa" ? '<span class="hisep">|</span>' : "") +
       '<button type="button" class="' + (k === HIF ? "on" : "") + '" data-hif="' + k + '">' + HI_ORIG[k] + (cnt[k] == null ? "" : " <small>" + cnt[k] + "</small>") + "</button>").join("");
     if (HI_SOMBRA[HIF]) { hiSombra(HI_SOMBRA[HIF]); drawWhy(); return; }
     $("hiSom").hidden = true;
@@ -655,7 +655,8 @@
     kpis("hiK", [["Fechadas " + mtag() + nome, num(ts.length, 0), win + " com lucro", "tr"], ["Lucro real das fechadas", eth(pn, 5) + usdL(pn), "já descontadas as taxas", "tr"],
       ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>" + usdL(txs, false), "sem elas o resultado seria " + num(pn + txs, 5) + " ETH " + usdOf(pn + txs), "mon"],
       ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Lucro final (tudo)", eth(w.realizado, 5) + usdL(w.realizado), "já descontadas as taxas · todas as fechadas", "mon"]]);
-    $("hiSub").textContent = "mais novas primeiro · " + num(ts.length, 0) + " fechada" + (ts.length === 1 ? "" : "s") + (HIF === "todas" ? "" : " em " + HI_ORIG[HIF]);
+    $("hiSub").innerHTML = "mais novas primeiro · " + num(ts.length, 0) + " fechada" + (ts.length === 1 ? "" : "s") + (HIF === "todas" ? "" : " em " + esc(HI_ORIG[HIF])) +
+      (REAL && P && P.hist_escondidas ? ' · <b>histórico REAL zerado em ' + hora(P.hist_desde) + "</b> (" + P.hist_escondidas + ' antigas escondidas, nada apagado) <a href="#" data-rhshow>mostrar de novo</a>' : "");
     const ul = (v, s) => { const u = usdOf(Math.abs(v || 0)); return u ? '<small class="usdv">' + (s && v > 0 ? "+" : s && v < 0 ? "−" : "") + esc(u.replace("≈ ", "")) + "</small>" : ""; };
     const tagO = (x) => { const o = hiOrig(x);
       return o === "cacador" ? '<span class="tag pause">CAÇADOR' + (x.cz && x.cz.entrada ? " " + esc(x.cz.entrada) : "") + "</span>" + (x.cz ? ' <span class="tag neutral">entrada ' + esc(x.cz.entrada || "") + " · alvo +" + num(x.cz.alvo, 0) + "% · stop −" + num(x.cz.stop, 0) + "%</span>" : "")
@@ -669,6 +670,7 @@
       if (!first[k]) first[k] = x.token; x._outro = first[k] !== x.token;
     });
     const holdTag = (x) => (x.hold_pct ? '<span class="tag hihold" title="no alvo vendeu uma parte e guardou o resto (Carteira → Shitcoin hold)">VENDEU ' + num(100 - x.hold_pct, 0) + "% · HOLD DE " + num(x.hold_pct, 0) + "%</span>"
+      : x.hold_parte ? '<span class="tag hihold">VENDEU ' + num(x.hold_parte * 100, 0) + "% DO HOLD</span>" + (x.hold_de && x.hold_de.entrada ? ' <span class="tag neutral">do Caçador ' + esc(x.hold_de.entrada) + "</span>" : "")
       : x.aba === "hold" || x.hold ? '<span class="tag hihold">HOLD ' + num(+x.hold || 0, 0) + "% VENDIDO</span>" + (x.hold_de && x.hold_de.entrada ? ' <span class="tag neutral">do Caçador ' + esc(x.hold_de.entrada) + "</span>" : "") : "");
     // 0.32.504 (pedido do dono: "dá match de cores para sabermos se a moeda repetiu"): cada moeda repetida ganha a sua cor
     const RC = ["#f59e0b", "#06b6d4", "#ec4899", "#84cc16", "#8b5cf6", "#ef4444", "#14b8a6", "#f97316", "#3b82f6", "#eab308"];
@@ -717,19 +719,40 @@
   let SH_OPEN = false;
   function drawHold() {
     const box = $("shCard"); if (!box) return;
-    const L = ((P && P.posicoes) || []).filter((p) => p.hold);
+    // 0.32.505 (caso BITGOIN: "o hold aparece e some"): mostrava só a carteira do topo; agora vêm os holds da FICTÍCIA e da REAL juntos
+    const L = (P && P.holds) || ((P && P.posicoes) || []).filter((p) => p.hold);
     const inv = L.reduce((a, p) => a + (+p.eth_in || 0), 0), val = L.reduce((a, p) => a + (+p.eth_in || 0) + (+p.pnl_eth || 0), 0);
     const pc = inv ? (val / inv - 1) * 100 : null;
-    box.innerHTML = '<button type="button" class="shsum" id="shOpen" aria-expanded="' + SH_OPEN + '"><span class="shico">💎</span><span><b>Shitcoin hold</b> ' + mtag() +
+    box.innerHTML = '<button type="button" class="shsum" id="shOpen" aria-expanded="' + SH_OPEN + '"><span class="shico">💎</span><span><b>Shitcoin hold</b> <span class="tag sim">FICTÍCIA</span> <span class="tag real">REAL</span>' +
       "<small>" + (L.length ? L.length + " moeda" + (L.length > 1 ? "s" : "") + " guardada" + (L.length > 1 ? "s" : "") + " · investido " + num(inv, 5) + " ETH" : "nada guardado ainda · ligue \"Guardar uma parte no alvo\" no Caçador") + "</small></span>" +
       '<span class="sp"></span>' + (L.length ? "<span class=\"shv\"><b>" + num(val, 5) + " ETH</b><small>" + esc(usdOf(val) || "") + "</small>" + pct(pc) + "</span>" : "") + "<i>" + (SH_OPEN ? "▲" : "▼") + "</i></button>" +
       (SH_OPEN ? (L.length ? '<div class="abgrid shgrid">' + L.map((p) => { const v = (+p.eth_in || 0) + (+p.pnl_eth || 0);
         return '<div class="abc"><div class="abc-t">' + tok(p.token, p) + '<span class="sp"></span><b class="hc-r">' + pct(p.pnl_pct) + "</b></div>" +
-          '<div class="hiorig"><span class="tag hihold">HOLD ' + num(+p.hold || 0, 0) + "%</span>" + (p.hold_de && p.hold_de.entrada ? ' <span class="tag neutral">Caçador ' + esc(p.hold_de.entrada) + "</span>" : "") + "</div>" +
+          '<div class="hiorig">' + (p.real ? '<span class="tag real">REAL</span>' : '<span class="tag sim">FICTÍCIA</span>') + ' <span class="tag hihold">HOLD ' + num(+p.hold || 0, 0) + "%</span>" + (p.hold_de && p.hold_de.entrada ? ' <span class="tag neutral">Caçador ' + esc(p.hold_de.entrada) + "</span>" : "") + "</div>" +
           '<div class="abc-n"><div><small>Tokens</small><b>' + num(+p.tokens_left || 0, 0) + '</b></div><div><small>Custou</small><b>' + num(p.eth_in, 6) + '</b><small class="usdv">' + esc(usdOf(p.eth_in) || "") + '</small></div><div><small>Vale agora</small><b>' + num(v, 6) + '</b><small class="usdv">' + esc(usdOf(v) || "") + "</small></div></div>" +
           '<div class="muted small">guardado ' + hora(p.open_t) + " · desde a compra " + pct(p.pnl_pct) + "</div>" +
-          '<button class="btn sm primary" type="button" data-shsell="' + esc(p.id) + '">Vender agora</button></div>'; }).join("") + "</div>"
+          (p.sell_error ? '<div class="small down">' + esc(p.sell_error) + "</div>" : "") +
+          '<button class="btn sm primary" type="button" data-shsell="' + esc(p.id) + '" data-shreal="' + (p.real ? 1 : 0) + '"' + (p.selling ? " disabled" : "") + ">" + (p.selling ? "Vendendo…" : "Vender…") + "</button></div>"; }).join("") + "</div>"
         : '<p class="muted">Quando o Caçador bater o alvo com "Guardar uma parte no alvo" ligado, a parte guardada aparece aqui.</p>') : "");
+  }
+  // 0.32.505 (pedido do dono: "vender o hold escolhendo 10, 20, 30… 100% numa janela"): cada venda vira um trade no Histórico
+  let SHV = null;
+  function openShSell(id, real) {
+    const p = ((P && P.holds) || []).find((x) => x.id === id && !!x.real === real); if (!p) return;
+    SHV = { id, real, pc: 100, p };
+    $("shMT").textContent = "Vender o hold de " + (p.simbolo || p.nome || short(p.token));
+    $("shMS").innerHTML = (real ? '<span class="tag real">REAL</span> dinheiro de verdade' : '<span class="tag sim">FICTÍCIA</span>') + " · escolha quanto do hold vender";
+    drawShSell(); $("shM").hidden = false;
+  }
+  function drawShSell() {
+    if (!SHV) return;
+    const p = SHV.p, f = SHV.pc / 100, v = ((+p.eth_in || 0) + (+p.pnl_eth || 0)) * f;
+    $("shMB").innerHTML = '<div class="seg czholdp" style="flex-wrap:wrap">' + [10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((x) => '<button type="button" data-shpc="' + x + '" class="' + (x === SHV.pc ? "on" : "") + '">' + x + "%</button>").join("") + "</div>" +
+      '<div class="abc-n" style="margin-top:12px"><div><small>Tokens a vender</small><b>' + num((+p.tokens_left || 0) * f, 0) + "</b></div><div><small>Custou (essa parte)</small><b>" + num((+p.eth_in || 0) * f, 6) + ' ETH</b><small class="usdv">' + esc(usdOf((+p.eth_in || 0) * f) || "") + "</small></div>" +
+      "<div><small>Vale agora (estimado)</small><b>" + num(v, 6) + ' ETH</b><small class="usdv">' + esc(usdOf(v) || "") + "</small></div></div>" +
+      '<p class="small muted">' + (SHV.pc === 100 ? "Vende todo o hold e ele sai da Carteira." : "O resto (" + (100 - SHV.pc) + "%) continua guardado.") + " A venda fica no Histórico, na aba Hold." +
+      (SHV.real ? " Na REAL o valor recebido depende do pool na hora (folga da carteira REAL)." : "") + (p.sem_liquidez ? ' <b class="down">O pool está sem liquidez: a venda dá baixa em 0.</b>' : "") + "</p>" +
+      '<div class="row" style="gap:8px;justify-content:flex-end"><button class="btn sm" type="button" id="shNo">Cancelar</button><button class="btn sm ' + (SHV.real ? "danger" : "primary") + '" type="button" id="shGo">Vender ' + SHV.pc + "%" + (SHV.real ? " na REAL" : "") + "</button></div>";
   }
   function drawCarteira() {
     drawHold();
@@ -916,8 +939,10 @@
           (e.entradas != null ? "<em>" + num(e.entradas, 0) + " entradas no período · " + num(e.x10 || 0, 0) + " chegaram a 10× · " + num(e.x100 || 0, 0) + " a 100×</em>" : "") +
           '<div class="czsws"><label><span class="tag sim">FICTÍCIA</span>' + swE(k, "sim", on) + '</label><label><span class="tag real">REAL</span>' + swE(k, "real", ron) + "</label></div></div>"; }).join("") + "</div>" +
       '<p class="small" style="margin:12px 0 0"><b>Valores e saída das compras</b> <span class="muted">· salva sozinho ao sair do campo · valem para A, B e C · na REAL o valor de cada compra é o da carteira REAL</span></p>' +
-      '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + (x[0] === "cz_eth" ? " (FICTÍCIA)" : "") + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span>" +
-        (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>" +
+      // 0.32.505 (pedido do dono): com a REAL no topo, o campo do valor é o da carteira REAL (é ele que a compra REAL do Caçador usa)
+      '<div class="czgrid">' + CZ_IN.map((x) => { const rv = REAL && x[0] === "cz_eth", k = rv ? "real_eth_por_compra" : x[0], val = rv ? ((P.real_cfg || {}).real_eth_por_compra) : c[x[0]];
+        return '<label class="czin"><span>' + esc(x[1]) + (x[0] === "cz_eth" ? (rv ? " (REAL · o mesmo da carteira REAL)" : " (FICTÍCIA)") : "") + '</span><span class="bmin"><input class="in" type="number" data-czn="' + k + '" min="' + (rv ? 0.0002 : x[3]) + '" max="' + (rv ? 0.5 : x[4]) + '" step="' + x[5] + '" value="' + esc(val) + '"><em>' + x[2] + "</em></span>" +
+        (x[0] === "cz_eth" ? '<small class="muted czusd">' + esc(usdOf(val)) + "</small>" : "") + "</label>"; }).join("") + "</div>" +
       // 0.32.503 (pedido do dono): nunca vender 100% no alvo; guarda X% (hold) caso o token exploda
       '<div class="czrow czhold"><span><b>Guardar uma parte no alvo (hold)</b><small>' + (c.cz_hold_on ? "ligado: quando bater o alvo, vende " + num(100 - (+c.cz_hold_pct || 20), 0) + "% e guarda " + num(+c.cz_hold_pct || 20, 0) + "%. A parte guardada não tem stop nem tempo: fica em Carteira → Shitcoin hold até você vender." : "desligado: no alvo vende 100%.") + " Vale para A, B e C, na FICTÍCIA e na REAL.</small>" +
         '<span class="seg czholdp">' + [10, 20, 30, 40, 50, 60, 70, 80, 90].map((v) => '<button type="button" data-czhold="' + v + '" class="' + (+c.cz_hold_pct === v ? "on" : "") + '">' + v + "%</button>").join("") + "</span></span>" +
@@ -1176,13 +1201,7 @@
       drawRug(); return;
     }
     if (t.id === "shOpen") { SH_OPEN = !SH_OPEN; drawHold(); return; }
-    if (t.dataset.shsell) {
-      if (!confirm("Vender agora este hold" + (REAL ? " na carteira REAL (dinheiro de verdade)" : "") + "?")) return;
-      const r = await post("/api/hood/fechar", { id: t.dataset.shsell, real: REAL }, t);
-      if (r && r.error) { alert(r.error); return; }
-      toast("Hold vendido: " + (r && r.trade ? (r.trade.pnl_eth >= 0 ? "+" : "") + num(r.trade.pnl_eth, 5) + " ETH" : "ok"));
-      P = null; return load();
-    }
+    if (t.dataset.shsell) { openShSell(t.dataset.shsell, t.dataset.shreal === "1"); return; }
     if (t.dataset.czs) { CZS = t.dataset.czs; czSaidaDraw(); return; }
     if (t.dataset.hsx) { const [k, x] = t.dataset.hsx.split(":"); HSX[k] = x; drawHist(); return; }
     if (t.dataset.czsx) { CZS_OPEN[t.dataset.czsx] = !CZS_OPEN[t.dataset.czsx]; czSaidaDraw(); return; }
@@ -1215,11 +1234,24 @@
       czSave({ cz_entrada_max_pct: mx, cz_alvo_pct: up, cz_stop_pct: dn, cz_on: true, cz_ents: cur.includes(CZG) ? cur : "abc".split("").filter((x) => x === CZG || cur.includes(x)).join("") });
     }
   });
-  document.addEventListener("change", (e) => {
+  // 0.32.505 (pedido do dono: "digito outro valor e o dólar embaixo não muda"): o dólar segue o que está sendo digitado
+  document.addEventListener("input", (e) => {
+    const k = e.target && e.target.dataset && e.target.dataset.czn; if (k !== "cz_eth" && k !== "real_eth_por_compra") return;
+    const u = e.target.closest("label") && e.target.closest("label").querySelector(".czusd"); if (!u) return;
+    const v = parseFloat(String(e.target.value).replace(",", "."));
+    u.textContent = isFinite(v) ? (usdOf(v) || "") : "";
+  });
+  document.addEventListener("change", async (e) => {
     const k = e.target && e.target.dataset && e.target.dataset.czn; if (!k) return;
     const v = parseFloat(String(e.target.value).replace(",", "."));
     if (!isFinite(v)) return;
     e.target.blur();
+    if (k.startsWith("real_")) {                  // 0.32.505: valor da carteira REAL pelo Caçador
+      const r = await BB.api("/api/hood/real/cfg", { body: { [k]: v }, quiet: true });
+      if (r && r.error) { alert(r.error); return; }
+      if (P && r && r.cfg) P.real_cfg = r.cfg;
+      czBuyDraw(); toast("Valor por compra da REAL: " + num(v, 4) + " ETH"); return;
+    }
     czSave({ [k]: v });
   });
   async function post(url, body, btn) {
@@ -1361,7 +1393,34 @@
       await load();
     }
   });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("sysM").hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("sysM").hidden = true; $("shM").hidden = true; } });
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest ? e.target.closest("[data-shpc],#shGo,#shNo,#shMX,#rlZerar,[data-rhshow]") : null;
+    if (!t) { if (e.target && e.target.id === "shM") $("shM").hidden = true; return; }
+    if (t.dataset.shpc) { SHV.pc = +t.dataset.shpc; drawShSell(); return; }
+    if (t.id === "shNo" || t.id === "shMX") { $("shM").hidden = true; return; }
+    if (t.id === "shGo" && SHV) {
+      const r = await post("/api/hood/fechar", { id: SHV.id, real: SHV.real, frac: SHV.pc / 100 }, t);
+      if (r && r.error) { alert(r.error); return; }
+      $("shM").hidden = true;
+      toast("Hold vendido (" + SHV.pc + "%): " + (r && r.trade ? (r.trade.pnl_eth >= 0 ? "+" : "") + num(r.trade.pnl_eth, 5) + " ETH" : "ok"));
+      P = null; return load();
+    }
+    // 0.32.505 (pedido do dono: "zerar o histórico REAL antigo"): esconde (não apaga) o que fechou até agora
+    if (t.id === "rlZerar") {
+      const ok = prompt("Zerar o histórico REAL da Robinhood?\n\nAs posições REAL fechadas até agora saem do Histórico e dos resultados da tela. Nada é apagado do banco (é registro de dinheiro de verdade) e dá para mostrar de novo no Histórico. Posições abertas e a perda do dia não mudam.\n\nDigite ZERAR para confirmar:");
+      if (!ok) return;
+      const r = await post("/api/hood/real/historico", { esconder: true, confirma: ok }, t);
+      if (r && r.error) { alert(r.error); return; }
+      toast("Histórico REAL zerado na tela: " + r.escondidas + " fechadas escondidas");
+      P = null; return load();
+    }
+    if (t.dataset.rhshow != null) {
+      const r = await post("/api/hood/real/historico", { esconder: false }, t);
+      if (r && r.error) { alert(r.error); return; }
+      toast("Histórico REAL antigo mostrado de novo"); P = null; return load();
+    }
+  });
   $("sysM").addEventListener("click", (e) => { if (e.target === $("sysM")) $("sysM").hidden = true; });
 
   async function boot() {

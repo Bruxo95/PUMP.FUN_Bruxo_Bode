@@ -126,6 +126,8 @@ EXPLORER = "https://robinhoodchain.blockscout.com"
 DEX_S, DEX_STALE, DEX_BATCH = 60, 120, 30
 ZERO_READS, ZERO_MIN_AGE_S = 3, 300
 NO_SELL_S = 24 * 3600
+RUG_TRIES = 8                      # 0.32.505: tentativas de achar o criador do token do rug pull (uma a cada 30 min no Blockscout)
+RUG_EVERY_S = 120
 SEL_SYMBOL = "0x95d89b41"
 WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
 SEL_BAL = "0x70a08231"
@@ -591,6 +593,29 @@ class Book:
         self.ev(t, p["wallet"], p["token"], "guardou hold", f"{h:g}% guardado ({hold_tokens:.6g} tokens) depois do alvo")
         return tr
 
+    def sell_hold(self, p: dict, frac: float, px: float | None, t: float, motivo: str) -> dict | None:
+        """0.32.505 (pedido do dono, 28/11: "vender o hold escolhendo a parte; toda venda de hold fica no Histórico"): vende a parte frac
+        do hold e grava essa parte como um trade fechado (custo proporcional); o resto continua guardado. 95% ou mais vende tudo."""
+        if frac >= 0.95 or not p.get("tokens_left"):
+            return self.sell(p, 1.0, px, t, motivo)
+        hook, self.close_hook = self.close_hook, None
+        try:
+            got0, fee0, cost = p["proceeds"], p["fees"], p["eth_in"] * frac
+            self.sell(p, frac, px, t, motivo)
+        finally:
+            self.close_hook = hook
+        got, fees = p["proceeds"] - got0, p["fees"] - fee0
+        p["proceeds"], p["fees"] = got0, fee0
+        p["eth_in"] = round(p["eth_in"] - cost, 9)
+        if p.get("vendas"):
+            p["vendas"].pop()
+        tr = hold_part(p, frac, cost, got, fees, t, motivo, px)
+        self.trades.insert(0, tr)
+        del self.trades[KEEP_TRADES:]
+        self.new_trades.append(tr)
+        self.dirty_pos.add(p["id"])
+        return tr
+
     def wallet(self, now: float) -> dict:
         open_val = sum(max(0.0, self.value_now(p)) for p in self.pos.values())
         total = self.cash + open_val
@@ -603,6 +628,20 @@ class Book:
                 "realizado": round(sum(x["pnl_eth"] for x in closed), 6), "periodos": periods(closed, now),
                 "taxas": round(sum(taxa(x) for x in closed) + sum(p.get("fees") or 0.0 for p in self.pos.values()), 6),
                 "taxas_fechadas": round(sum(taxa(x) for x in closed), 6)}
+
+
+def hold_part(p: dict, frac: float, cost: float, got: float, fees: float, t: float, motivo: str, px, real: bool = False) -> dict:
+    """Trade da parte vendida de um hold (0.32.505): mesmo formato do fechamento, com id próprio e hold_parte = a fração vendida."""
+    pnl = got - cost
+    tr = {**{k: p.get(k) for k in ("wallet", "token", "open_t", "px_in", "trader_px", "best_pct", "worst_pct", "lag_s", "tx_in", "nome",
+                                    "simbolo", "px_src", "hold", "hold_de")},
+          "id": ("r" if real else "") + uuid.uuid4().hex[:15], "aba": "hold", "eth_in": round(cost, 9), "fees": round(fees, 9),
+          "close_t": t, "px_out": px, "eth_out": round(got, 9), "pnl_eth": round(pnl, 9), "pnl_pct": round(100 * pnl / cost, 2) if cost else 0.0,
+          "motivo": motivo, "taxas_eth": round(max(0.0, fees), 9), "hold_parte": round(frac, 4), "hold_pos": p["id"]}
+    if real:
+        tr["real"] = True
+        tr["tx_out"] = p.get("tx_last")
+    return tr
 
 
 def taxa(x: dict) -> float:
@@ -655,6 +694,9 @@ class Copier:
         # 0.32.504 (pedido do dono: "rug pull bloqueados: bloquear os endereços e nunca mais entrar se esse cara criar de novo"):
         # endereço (quem criou o token e quem tinha a liquidez) → {t, token, simbolo, papel, manual}; vale para todas as contas, para sempre
         self.rug: dict[str, dict] = {}
+        self._rug_todo: dict[str, int] = {}          # 0.32.505: token → tentativas de achar o criador
+        self._rug_sym: dict[str, str] = {}
+        self._rug_at = 0.0
         self.lp_pullers: dict[str, int] = {}        # 0.32.327: contrato (não o PositionManager) → quantas vezes tirou liquidez de um pool
         self._liq_seen: dict[str, float] = {}       # pool → última saída por retirada (não repete a mesma em 60 s)
         self.safe.pullers = self.lp_pullers
@@ -822,6 +864,20 @@ class Copier:
             dev = ""
         sym = simbolo or (self.meta.get(token) or {}).get("simbolo") or ""
         novos = 0
+        # 0.32.505 (casos ETHEREM e JEFFLE, 28/11: o Blockscout não respondeu e nada entrou na lista): o próprio token entra sempre;
+        # sem o criador, tenta de novo (rug_tick) até RUG_TRIES vezes
+        tk = str(token or "").lower()
+        if tk.startswith("0x") and len(tk) == 42 and tk not in self.rug:
+            self.rug[tk] = {"t": round(now), "token": token, "simbolo": sym, "papel": "token do rug pull", "manual": False}
+            novos += 1
+        if dev:
+            self._rug_todo.pop(tk, None)
+        else:
+            n = self._rug_todo.get(tk, 0) + 1
+            if n >= RUG_TRIES:
+                self._rug_todo.pop(tk, None)
+            else:
+                self._rug_todo[tk] = n
         for addr, papel in ((dev, "criou o token"), (self._lp_owner(token), "tinha a liquidez")):
             a = str(addr or "").lower()
             if a.startswith("0x") and len(a) == 42 and a not in self.rug:
@@ -830,7 +886,37 @@ class Copier:
         if novos:
             await self.rug_save()
 
-    def rug_why(self, dev: str | None = None, lp: str | None = None) -> str | None:
+    def rug_due(self) -> set:
+        """Tokens que já fizeram rug pull (para a varredura não repetir)."""
+        return {str(r.get("token") or "").lower() for r in self.rug.values() if r.get("token")}
+
+    def rug_scan_old(self) -> int:
+        """0.32.505: posições e trades fechados por rug pull antes da lista existir (ou com o criador não achado) entram na fila."""
+        feitos, n = self.rug_due(), 0
+        for b in list(self.books.values()) + list(self.real.values()):
+            for x in list(b.trades) + list(b.pos.values()):
+                m = str(x.get("motivo") or x.get("sell_error") or "")
+                tk = str(x.get("token") or "").lower()
+                if ("rug pull" in m or "tirou toda a liquidez" in m or x.get("px_src") == "sem_liquidez") and tk.startswith("0x")                         and len(tk) == 42 and tk not in feitos and tk not in self._rug_todo:
+                    self._rug_todo[tk] = 0
+                    self._rug_sym[tk] = x.get("simbolo") or ""
+                    n += 1
+        return n
+
+    async def rug_tick(self, now: float) -> None:
+        if now - self._rug_at < RUG_EVERY_S or not self._rug_todo:
+            return
+        self._rug_at = now
+        for tk in list(self._rug_todo):
+            if tk in self.dev and not self.dev[tk] and now - self._dev_at.get(tk, 0) < 1800:
+                continue                           # o Blockscout falhou há pouco: espera os 30 min do _dev_of
+            await self._rug_mark(tk, self._rug_sym.get(tk) or None)
+            break
+
+    def rug_why(self, dev: str | None = None, lp: str | None = None, token: str | None = None) -> str | None:
+        r = self.rug.get(str(token or "").lower())
+        if r:
+            return f"este token já fez rug pull ({r.get('simbolo') or (r.get('token') or '')[:10]}): bloqueado para sempre"
         for a, papel in ((dev, "quem criou"), (lp, "quem tem a liquidez")):
             r = self.rug.get(str(a or "").lower())
             if r:
@@ -844,7 +930,7 @@ class Copier:
             dev = await asyncio.wait_for(self._dev_of(token, time.time()), 4)
         except Exception:
             dev = ""
-        return self.rug_why(dev, lp or self._lp_owner(token))
+        return self.rug_why(dev, lp or self._lp_owner(token), token)
 
     async def rug_save(self) -> None:
         if self.db is None:
@@ -1061,14 +1147,14 @@ class Copier:
                 self._real_price(uid, rb, tr["token"], px, tr["t"])
             if tr["side"] == "sell":
                 frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
-                for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"] and not self.mirrored(uid, p)]:
+                for p in [p for p in rb.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"] and not self.mirrored(uid, p) and not p.get("hold")]:
                     self._real_trader_exit(uid, p, frac, f"trader vendeu {frac * 100:.0f}%", tr["t"])
         for b in self.books.values():
             if px:
                 b.on_price(tr["token"], px, tr["t"])
             if tr["side"] == "sell":
                 frac = min(1.0, tr["amount"] / before) if before > 0 else 1.0
-                for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"]]:
+                for p in [p for p in b.pos.values() if p["wallet"] == tr["wallet"] and p["token"] == tr["token"] and not p.get("hold")]:
                     b.trader_exit(p, frac, px, now, f"trader vendeu {frac * 100:.0f}%")
         if self.sombra.abertas and px:                    # 0.32.332: o "e se" sem o stop de ganho segue a mesma troca
             self.sombra.preco(tr["token"], px, tr["t"])
@@ -1344,7 +1430,8 @@ class Copier:
         if rc.get("real_um_por_token") and not cz and (any(p["token"] == tr["token"] and not p.get("cz") for p in rb.pos.values())
                                                        or any(t == tr["token"] and not str(w).startswith("cacador") for w, t in rb.busy)):
             return "já tem posição REAL neste token (de outro trader): uma entrada por token"
-        if len(rb.pos) + len(rb.busy) >= rc["real_max_abertas"]:
+        # 0.32.505: o hold guardado não ocupa vaga (igual à FICTÍCIA): ele não tem saída automática e ficaria preso nas vagas
+        if len([p for p in rb.pos.values() if not p.get("hold")]) + len(rb.busy) >= rc["real_max_abertas"]:
             return f"limite de {rc['real_max_abertas']} posições REAL abertas"
         lost = rb.lost_today(time.time())
         if lost >= rc["real_perda_dia"]:
@@ -1480,6 +1567,24 @@ class Copier:
                 rb.dirty_pos.add(p["id"])
                 rb.ev(t, p["wallet"], p["token"], "REAL vendeu parte", f"{res['raw'] / left * 100:.0f}% · o pool não aceitou tudo de uma vez", res["tx"])
                 return None
+            if int(p["raw_left"]) > 0 and frac < 1 and p.get("hold"):
+                # 0.32.505 (pedido do dono: "toda venda de hold fica no Histórico"): a parte vendida (inclusive os 80% do alvo do Caçador)
+                # vira um trade fechado com o custo proporcional; o resto segue como hold
+                fr = res["raw"] / left if left else frac
+                cost = p["eth_in"] * fr
+                p["proceeds"] -= res["eth"]
+                p["fees"] = p.get("fees", 0) - res.get("gas", 0)
+                p["eth_in"] = round(p["eth_in"] - cost, 9)
+                tr = hold_part(p, fr, cost, res["eth"], res.get("gas", 0) + res["eth"] * float(p.get("fee") or 0), t, motivo,
+                               p.get("px_now"), real=True)
+                if "guardou" in motivo:
+                    tr["hold_pct"] = p.get("hold")
+                rb.trades.insert(0, tr)
+                del rb.trades[3000:]
+                rb.new_trades.append(tr)
+                rb.dirty_pos.add(p["id"])
+                rb.ev(t, p["wallet"], p["token"], "REAL vendeu parte", f"{fr * 100:.0f}% · {motivo}", res["tx"])
+                return tr
             if int(p["raw_left"]) > 0 and frac < 1:
                 p.setdefault("vendas", []).append({"t": t, "frac": round(frac, 4), "eth": round(res["eth"], 6), "motivo": motivo, "tx": res["tx"]})
                 rb.dirty_pos.add(p["id"])
@@ -1549,6 +1654,10 @@ class Copier:
                     except Exception:
                         pass
         await self.price_tick(now)
+        try:
+            await self.rug_tick(now)
+        except Exception as e:
+            log.info("Robinhood: rug pull não conferido: %s", str(e)[:100])
         if now - self._dex_at >= DEX_S:
             self._dex_at = now
             await self.dex_tick(now)
@@ -1835,7 +1944,7 @@ class Copier:
     async def save_real_cfg(self, uid: str, raw: dict, nota: str | None = TELA) -> dict:
         antes = self.cfg_snap(uid)
         rc = self.rcfg(uid)
-        keep = {k: rc[k] for k in ("real_on", "on_since") if k in rc}
+        keep = {k: rc[k] for k in ("real_on", "on_since", "hist_desde") if k in rc}
         self.real_cfg[uid] = {**hoodreal.clean(raw, rc), **keep}
         self.book(uid).dirty_book = True
         await self.flush()
@@ -2166,14 +2275,35 @@ class Copier:
         await self.flush()
         return {"abertas": n_pos, "fechadas": n_tr, "saldo": b.cash}
 
-    def close_manual(self, uid: str, pid: str) -> dict | None:
+    async def hide_real_hist(self, uid: str, on: bool) -> dict:
+        """0.32.505 (pedido do dono, 28/11: "zerar o histórico REAL antigo"): esconde da tela os trades REAL fechados até agora, sem
+        apagar (é registro de dinheiro de verdade). A perda do dia continua contando tudo. on=False mostra de novo."""
+        rc = self.rcfg(uid)
+        n = len(self.rbook(uid).trades)
+        if on:
+            rc["hist_desde"] = time.time()
+        else:
+            rc.pop("hist_desde", None)
+        self.book(uid).dirty_book = True
+        await self.flush()
+        return {"escondidas": n if on else 0, "desde": rc.get("hist_desde")}
+
+    def close_manual(self, uid: str, pid: str, frac: float = 1.0) -> dict | None:
         b = self.book(uid)
         p = b.pos.get(pid)
-        return b.sell(p, 1.0, None, time.time(), "vendido por você") if p else None
+        if not p:
+            return None
+        if p.get("hold"):                          # 0.32.505: hold vende a parte escolhida e a venda fica no Histórico
+            return b.sell_hold(p, frac, None, time.time(), f"hold vendido por você ({min(100, frac * 100):.0f}%)")
+        return b.sell(p, 1.0, None, time.time(), "vendido por você")
 
-    async def close_real(self, uid: str, pid: str) -> dict | None:
+    async def close_real(self, uid: str, pid: str, frac: float = 1.0) -> dict | None:
         p = self.rbook(uid).pos.get(pid)
-        return await self._real_sell(uid, p, 1.0, "vendido por você", manual=True) if p else None
+        if not p:
+            return None
+        if p.get("hold") and frac < 0.95:
+            return await self._real_sell(uid, p, frac, f"hold vendido por você ({frac * 100:.0f}%)", manual=True)
+        return await self._real_sell(uid, p, 1.0, "hold vendido por você (100%)" if p.get("hold") else "vendido por você", manual=True)
 
     async def close_all(self, uid: str, real: bool) -> dict:
         if not real:
@@ -2255,9 +2385,24 @@ class Copier:
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
                 "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER,
                 "eth_usd": getattr(self.w, "eth_usd", None), "riscos": dict(list(self.risky.items())[-300:])}
-        base["porque"] = why_lost((self.rbook(uid) if real else b).trades, now)
+        rb = self.rbook(uid)
+        desde = float(rc.get("hist_desde") or 0)
+        rtr = [x for x in rb.trades if (x.get("close_t") or 0) >= desde] if desde else rb.trades
+        base["porque"] = why_lost(rtr if real else b.trades, now)
+        # 0.32.505 (caso BITGOIN: o hold aparecia e sumia): a Carteira mostra os holds das DUAS carteiras, não só a do topo
+        holds = []
+        for bk, rl in ((b, False), (rb, True)):
+            for p in bk.pos.values():
+                if not p.get("hold"):
+                    continue
+                v, pc = (rb.pnl_now(p, rc["real_slip_pct"]) if rl else b.pnl_now(p))
+                holds.append({**{k: p.get(k) for k in ("id", "token", "open_t", "eth_in", "tokens_left", "hold", "hold_de", "nome", "simbolo",
+                                                       "px_now", "sell_error", "selling")},
+                              "real": rl, "pnl_eth": round(v, 6), "pnl_pct": round(pc, 2), "sem_liquidez": p["token"] in self.no_liq})
+        base["holds"] = sorted(holds, key=lambda x: x["open_t"], reverse=True)
+        base["hist_desde"] = desde or None
+        base["hist_escondidas"] = len(rb.trades) - len(rtr)
         if real:
-            rb = self.rbook(uid)
             base["espelho"] = self.mirror_report(uid, now)
             pos = []
             for p in sorted(rb.pos.values(), key=lambda x: x["open_t"], reverse=True):
@@ -2267,8 +2412,9 @@ class Copier:
                                                       "nome", "simbolo", "px_src", "dev", "espera", "sim_id", "solta", "aba", "cz", "hold", "hold_de", "tokens_left")}, "venda_travada": p["token"] in self.no_sell, "sem_liquidez": p["token"] in self.no_liq,
                             "pnl_eth": round(v, 6), "pnl_pct": round(pct, 2), "real": True,
                             "fecha_em": p["open_t"] + float((p.get("cz") or {}).get("max_h") or rc["real_max_hold_h"]) * 3600})
-            return {**base, "real": True, "carteira": rb.wallet(now, rc["real_slip_pct"], periods), "posicoes": self._supply(pos),
-                    "trades": self._supply([dict(t) for t in rb.trades[:500]]), "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
+            w = rb.wallet(now, rc["real_slip_pct"], periods, rtr)
+            return {**base, "real": True, "carteira": w, "posicoes": self._supply(pos),
+                    "trades": self._supply([dict(t) for t in rtr[:500]]), "eventos": rb.events[:100], "nomes": self._names(rb.events[:100])}
         pos = []
         for p in sorted(b.pos.values(), key=lambda x: x["open_t"], reverse=True):
             v, pct = b.pnl_now(p)
@@ -2347,7 +2493,7 @@ class Copier:
             self._sg_wire(b)
             b.dirty_book = novo.get("cfg_v") != velho.get("cfg_v")
             if isinstance(rc, dict):
-                self.real_cfg[r["user_id"]] = {**hoodreal.clean(rc, rc), **{k: rc[k] for k in ("real_on", "on_since") if k in rc}}
+                self.real_cfg[r["user_id"]] = {**hoodreal.clean(rc, rc), **{k: rc[k] for k in ("real_on", "on_since", "hist_desde") if k in rc}}
             if mudou:                                # guarda no Histórico da configuração como estava antes (dá para voltar)
                 vr = velho.get("real") if isinstance(velho.get("real"), dict) else {}
                 antes = {k: v for k, v in {**clean_cfg({**velho, "cfg_v": CFG_V}), **hoodreal.clean(vr, vr)}.items() if k not in HIST_SKIP}
@@ -2381,5 +2527,8 @@ class Copier:
             b = self.rbook(r["user_id"]) if d.get("real") and r.get("user_id") else self.books.get(r.get("user_id"))
             if b is not None and len(b.trades) < KEEP_TRADES:
                 b.trades.append(d)
+        n = self.rug_scan_old()
+        if n:
+            log.info("Robinhood: %d token(s) com rug pull antigo entram na lista de bloqueados", n)
         # 0.32.332: volta a seguir as sombras do stop de ganho que estavam abertas antes de reiniciar
         self.sombra.restaurar([x for b in self.books.values() for x in b.trades], time.time())

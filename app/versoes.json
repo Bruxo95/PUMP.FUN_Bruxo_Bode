@@ -3275,6 +3275,11 @@
    "versao": "0.32.504",
    "inicio": "2026-11-28T00:33:37+00:00",
    "titulo": "Robinhood: cor por moeda repetida e Rug pull bloqueados"
+  },
+  {
+   "versao": "0.32.505",
+   "inicio": "2026-11-28T01:20:25+00:00",
+   "titulo": "Robinhood: rug pull antigo, hold das duas carteiras, venda parcial do hold e zerar histórico REAL"
   }
  ]
 }

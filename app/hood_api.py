@@ -278,14 +278,19 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         if c is None:
             return {"error": "leitura da Robinhood Chain desligada no servidor"}
         pid, real = str((body or {}).get("id") or ""), bool((body or {}).get("real"))
+        try:                                     # 0.32.505: frac = parte do hold (0,1 a 1); posição normal vende sempre tudo
+            frac = min(1.0, max(0.05, float((body or {}).get("frac") or 1)))
+        except (TypeError, ValueError):
+            frac = 1.0
         try:
-            tr = await c.close_real(u["id"], pid) if real else c.close_manual(u["id"], pid)
+            tr = await c.close_real(u["id"], pid, frac) if real else c.close_manual(u["id"], pid, frac)
         except Exception as e:
             return {"error": "a venda REAL não saiu: " + str(e)[:200]}
         if not tr:
             return {"error": "posição não encontrada (já fechou?)"}
         await c.flush()
-        await audit(db, u["id"], "Robinhood: vendeu posição " + ("REAL" if real else "fictícia"), f"{tr['token'][:10]}… {tr['pnl_eth']:+.5f} ETH")
+        parte = f" ({frac * 100:.0f}% do hold)" if tr.get("hold_parte") else ""
+        await audit(db, u["id"], "Robinhood: vendeu posição " + ("REAL" if real else "fictícia") + parte, f"{tr['token'][:10]}… {tr['pnl_eth']:+.5f} ETH")
         return {"ok": True, "trade": tr}
 
     @app.post("/api/hood/fechar-todas")
@@ -347,6 +352,20 @@ def add_routes(app, get_watch, admin_only, db) -> None:
             return {"error": "para zerar a carteira fictícia, digite ZERAR"}
         r = await c.reset_sim(u["id"])
         await audit(db, u["id"], "Robinhood: carteira fictícia zerada", f"{r['abertas']} abertas e {r['fechadas']} fechadas apagadas, saldo {r['saldo']:g} ETH")
+        return {"ok": True, **r}
+
+    @app.post("/api/hood/real/historico")
+    async def hood_real_hist(body: dict, u: dict = Depends(admin_only)):
+        """0.32.505 (pedido do dono: zerar o histórico REAL antigo): esconde da tela (não apaga) os trades REAL fechados até agora."""
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        on = bool((body or {}).get("esconder", True))
+        if on and str((body or {}).get("confirma") or "").strip().upper() != "ZERAR":
+            return {"error": "para zerar o histórico REAL, digite ZERAR"}
+        r = await c.hide_real_hist(u["id"], on)
+        await audit(db, u["id"], "Robinhood: histórico REAL " + ("escondido (zerado na tela)" if on else "mostrado de novo"),
+                    f"{r['escondidas']} trades escondidos; nada foi apagado")
         return {"ok": True, **r}
 
     @app.post("/api/hood/real/cfg")

@@ -124,9 +124,9 @@ class RealBook:
         day = now - now % 86400
         return -sum(x["pnl_eth"] for x in self.trades if x["close_t"] >= day and x["pnl_eth"] < 0)
 
-    def wallet(self, now: float, slip: float, periods) -> dict:
+    def wallet(self, now: float, slip: float, periods, closed: list | None = None) -> dict:
         open_val = sum(max(0.0, self.value_now(p, slip)) for p in self.pos.values())
-        closed = self.trades
+        closed = self.trades if closed is None else closed       # 0.32.505: histórico escondido não conta na tela
         wins = [x for x in closed if x["pnl_eth"] > 0]
         aberto = sum(self.pnl_now(p, slip)[0] for p in self.pos.values())
         realizado = sum(x["pnl_eth"] for x in closed)

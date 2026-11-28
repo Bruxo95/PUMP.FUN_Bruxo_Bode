@@ -195,6 +195,9 @@
       <div class="modal" id="sysM" hidden role="dialog" aria-modal="true" aria-labelledby="sysMT"><div class="modal-box">
         <header><div><h2 id="sysMT">Monitor da Robinhood Chain</h2><div class="sub">leitura da rede pelo RPC grátis oficial</div></div><div class="sp"></div><button class="btn sm" id="sysMX">Fechar</button></header>
         <div id="sysMB"></div></div></div>
+      <div class="modal" id="shM" hidden role="dialog" aria-modal="true" aria-labelledby="shMT"><div class="modal-box">
+        <header><div><h2 id="shMT">Vender o hold</h2><div class="sub" id="shMS"></div></div><div class="sp"></div><button class="btn sm" id="shMX" type="button">Fechar</button></header>
+        <div id="shMB"></div></div></div>
       <section class="view" data-view="visao" hidden>
         <div class="kpis" id="myK"></div>
         <div class="kpis" id="myP" style="margin-top:12px"></div>
@@ -282,7 +285,7 @@
             <div id="cfRows" class="cfrows"></div>
             <div class="cfl"></div>
             <div class="cfc cf-sim cf-bot"><button class="btn sm" id="cfReset" type="button">Voltar ao padrão</button><button class="btn sm danger" id="cfZerar" type="button" title="Apaga posições, histórico e eventos da FICTÍCIA e volta ao saldo inicial">Zerar a fictícia</button></div>
-            <div class="cfc cf-real cf-bot"><button class="btn sm" id="rlReset" type="button">Voltar ao padrão</button></div>
+            <div class="cfc cf-real cf-bot"><button class="btn sm" id="rlReset" type="button">Voltar ao padrão</button><button class="btn sm danger" id="rlZerar" type="button" title="Esconde da tela o histórico REAL fechado até agora (não apaga nada; dá para mostrar de novo)">Zerar o histórico REAL</button></div>
           </div>
           <div id="rlAsk" class="hdask" hidden><label for="rlWord">Para ligar a REAL, digite LIGAR</label><div class="row"><input class="in w120" id="rlWord" autocomplete="off"><button class="btn primary" id="rlGo" type="button">Ligar</button><button class="btn sm" id="rlNo" type="button">Cancelar</button></div></div>
           <div class="help"><p>Com REAL e FICTÍCIA ligadas, a REAL compra e vende primeiro e a FICTÍCIA usa o preço que a REAL pagou. Na REAL não existem gás simulado nem saldo inicial: lá o gás e o saldo são os de verdade. Mudar o saldo inicial da FICTÍCIA soma ou tira a diferença do saldo de agora.</p></div></div>

@@ -329,8 +329,8 @@ def test_rug_pull_guarda_o_criador_e_nunca_mais_compra_dele():
 
     async def salva():
         return None
-    f = _t.SimpleNamespace(rug={}, meta={TOKEN: {"simbolo": "PP"}}, _dev_of=devof, rug_save=salva, _lp_owner=lambda tk: lp)
+    f = _t.SimpleNamespace(rug={}, meta={TOKEN: {"simbolo": "PP"}}, _dev_of=devof, rug_save=salva, _lp_owner=lambda tk: lp, _rug_todo={})
     _a.run(hoodcopy.Copier._rug_mark(f, TOKEN, None))
-    assert set(f.rug) == {dev, lp} and f.rug[dev]["papel"] == "criou o token" and f.rug[lp]["simbolo"] == "PP"
+    assert set(f.rug) == {dev, lp, TOKEN.lower()} and f.rug[dev]["papel"] == "criou o token" and f.rug[lp]["simbolo"] == "PP"
     assert "rug pull" in hoodcopy.Copier.rug_why(f, dev, None) and hoodcopy.Copier.rug_why(f, "0x" + "cc" * 20, None) is None
 
