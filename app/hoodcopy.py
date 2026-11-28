@@ -652,6 +652,9 @@ class Copier:
         self.key_why: dict[str, str] = {}           # 0.32.321: pool → por que não tem chave
         self._q_fail: dict[str, int] = {}
         self.no_liq: dict[str, float] = {}          # 0.32.315: token → última conferência com o pool SEM liquidez (rug pull)
+        # 0.32.504 (pedido do dono: "rug pull bloqueados: bloquear os endereços e nunca mais entrar se esse cara criar de novo"):
+        # endereço (quem criou o token e quem tinha a liquidez) → {t, token, simbolo, papel, manual}; vale para todas as contas, para sempre
+        self.rug: dict[str, dict] = {}
         self.lp_pullers: dict[str, int] = {}        # 0.32.327: contrato (não o PositionManager) → quantas vezes tirou liquidez de um pool
         self._liq_seen: dict[str, float] = {}       # pool → última saída por retirada (não repete a mesma em 60 s)
         self.safe.pullers = self.lp_pullers
@@ -800,6 +803,67 @@ class Copier:
                 b.sell(p, 1.0, 0.0, now, "o criador tirou toda a liquidez do pool (rug pull): perda total")
         if novo:
             log.warning("Robinhood: o criador tirou a liquidez do pool de %s…", token[:10])
+            self._spawn(self._rug_mark(token, simbolo))
+
+    # ------------------------------------------------------------------ 0.32.504: rug pull bloqueados
+    def _lp_owner(self, token: str) -> str | None:
+        """Quem ficou com a posição de liquidez na criação do pool (do Caçador, quando ele viu o pool nascer)."""
+        hu = getattr(self.w, "hunter", None)
+        for p in list((getattr(hu, "pools", None) or {}).values()) + list((getattr(hu, "done", None) or [])[-3000:]):
+            if p.get("token") == token and (p.get("checks") or {}).get("lp_dono"):
+                return p["checks"]["lp_dono"]
+        return None
+
+    async def _rug_mark(self, token: str, simbolo: str | None) -> None:
+        now = time.time()
+        try:
+            dev = await asyncio.wait_for(self._dev_of(token, now), 8)
+        except Exception:
+            dev = ""
+        sym = simbolo or (self.meta.get(token) or {}).get("simbolo") or ""
+        novos = 0
+        for addr, papel in ((dev, "criou o token"), (self._lp_owner(token), "tinha a liquidez")):
+            a = str(addr or "").lower()
+            if a.startswith("0x") and len(a) == 42 and a not in self.rug:
+                self.rug[a] = {"t": round(now), "token": token, "simbolo": sym, "papel": papel, "manual": False}
+                novos += 1
+        if novos:
+            await self.rug_save()
+
+    def rug_why(self, dev: str | None = None, lp: str | None = None) -> str | None:
+        for a, papel in ((dev, "quem criou"), (lp, "quem tem a liquidez")):
+            r = self.rug.get(str(a or "").lower())
+            if r:
+                return f"{papel} este token já fez rug pull ({r.get('simbolo') or (r.get('token') or '')[:10]}): endereço bloqueado para sempre"
+        return None
+
+    async def rug_check(self, token: str, lp: str | None = None) -> str | None:
+        if not self.rug:
+            return None
+        try:
+            dev = await asyncio.wait_for(self._dev_of(token, time.time()), 4)
+        except Exception:
+            dev = ""
+        return self.rug_why(dev, lp or self._lp_owner(token))
+
+    async def rug_save(self) -> None:
+        if self.db is None:
+            return
+        try:
+            await self.db.insert("hood_state", {"k": "rug", "v": self.rug}, upsert=True, on_conflict="k")
+        except Exception as e:
+            log.warning("Robinhood: lista de rug pull não foi gravada: %s", str(e)[:160])
+
+    async def rug_set(self, addr: str, on: bool, motivo: str = "") -> dict:
+        a = (addr or "").strip().lower()
+        if not (a.startswith("0x") and len(a) == 42 and all(ch in "0123456789abcdef" for ch in a[2:])):
+            raise ValueError("endereço inválido")
+        if on:
+            self.rug[a] = {"t": round(time.time()), "token": None, "simbolo": "", "papel": motivo or "bloqueado por você", "manual": True}
+        else:
+            self.rug.pop(a, None)
+        await self.rug_save()
+        return self.rug
 
     async def token_symbol(self, token: str) -> str | None:
         m = self.meta.get(token) or {}
@@ -1022,6 +1086,8 @@ class Copier:
     async def _prepare(self, tr: dict, px: float | None) -> None:
         tk = tr["token"]
         why = self.no_sell_why(tk, await self.token_symbol(tk))
+        if not why and self.rug:                         # 0.32.504: criador ou dono da liquidez que já fez rug pull
+            why = await self.rug_check(tk)
         if not why and self.no_sell_dev:                 # 0.32.312: criador de token que travou a venda
             try:
                 dev = await asyncio.wait_for(self._dev_of(tk, time.time()), 4)
@@ -1057,7 +1123,8 @@ class Copier:
                for b in self.books.values()):
             e = hp.get(kind) or {}
             self._spawn(self._cz_buy({"id": hp["id"], "token": hp["token"], "nome": hp.get("nome"), "simbolo": hp.get("simbolo"),
-                                      "px": e.get("px"), "t": e.get("t"), "x_ini": e.get("x_ini")}, kind))
+                                      "px": e.get("px"), "t": e.get("t"), "x_ini": e.get("x_ini"),
+                                      "lp_dono": (hp.get("checks") or {}).get("lp_dono")}, kind))
 
     async def _cz_buy(self, hp: dict, kind: str) -> None:
         now, tk = time.time(), hp["token"]
@@ -1072,13 +1139,17 @@ class Copier:
         # 0.32.503 (caso "pp", 28/11: a FICTÍCIA da entrada A comprou um honeypot e ficou presa): a COMPRA de verdade (FICTÍCIA ou
         # REAL) só sai com a conferência de golpe aprovada (compra e venda simuladas no pool). A sombra A continua cega (é a régua).
         v = None
-        if key:
+        if key:                               # 0.32.504: usa a chave do pool novo (a busca pelo token ainda não acha pool recém-criado)
             try:
-                v = await asyncio.wait_for(self.check_token(tk), 20)
+                v = self.safe.cached(tk)
+                if v is None:
+                    v = await asyncio.wait_for(self.safe.check(tk, key, None, 0, pool_fee(key)), 20)
             except Exception:
                 v = None
         barra = None if (v and v.get("ok")) else ("honeypot: a venda trava no pool" if v and v.get("venda_travada") else
                                                    "conferência de golpe barrou: " + str((v or {}).get("why") or "sem resposta a tempo")[:120])
+        if not barra and key:
+            barra = await self.rug_check(tk, hp.get("lp_dono"))
         for uid, b in list(self.books.items()):
             c = b.cfg
             if barra and key:
@@ -1970,6 +2041,9 @@ class Copier:
         v = await self.check_token(tk)
         if not v.get("ok"):
             raise ValueError("a conferência de golpe barrou esta moeda: " + (v.get("why") or "sem conferência"))
+        rug = await self.rug_check(tk)
+        if rug:
+            raise ValueError(rug)
         key = await self.token_key(tk)
         if not key:
             raise ValueError("não achei o pool desta moeda em ETH")
@@ -2176,7 +2250,7 @@ class Copier:
         rc = self.rcfg(uid)
         self._fill_names(b)
         self._fill_names(self.real.get(uid))
-        base = {"cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
+        base = {"rug": self.rug, "cfg_sim": b.cfg, "padrao": CFG_DEFAULT, "real_cfg": rc, "real_padrao": hoodreal.REAL_DEFAULT,
                 "stop_ganho": self.sg_view(uid),
                 "real_status": self.real_status(uid), "seguranca": {**self.safe.summary(now), "copia": self.stat},
                 "copiaria": self.w.ranking(now)["copiaria"], "explorer": EXPLORER,
@@ -2257,6 +2331,12 @@ class Copier:
     async def load(self) -> None:
         if self.db is None:
             return
+        try:
+            rr = await self.db.select("hood_state", {"k": "rug"}) or []
+            if rr and isinstance(rr[0].get("v"), dict):
+                self.rug = rr[0]["v"]
+        except Exception as e:
+            log.warning("Robinhood: lista de rug pull não carregou: %s", str(e)[:160])
         ajustar = []
         for r in await self.db.select("hood_books", None) or []:
             velho = r.get("cfg") or {}

@@ -119,7 +119,7 @@
   .shsum:hover{background:rgba(255,255,255,.03)}.shsum small{display:block;color:var(--muted,#8b93a7);font-size:12px;margin-top:2px}
   .shsum .sp{flex:1}.shico{font-size:22px}.shv{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-family:var(--mono)}.shsum i{font-style:normal;opacity:.7}
   .shgrid{padding:0 16px 16px}
-  .abc.hc.hcrep{border-color:#d97706;box-shadow:inset 3px 0 0 #d97706}.tag.hirep{color:#fde68a;background:#3a2a08;border-color:#d97706}
+  .abc.hc.hcrep{border-color:var(--rc,#d97706);box-shadow:inset 4px 0 0 var(--rc,#d97706)}.tag.hirep{color:#0b0b0b;background:var(--rc,#d97706);border-color:var(--rc,#d97706)}
   .hisum{margin:0 0 14px;grid-template-columns:repeat(4,minmax(0,1fr))}.hisum .perk b{font-size:18px}.hisum .perk .hiusd{display:block;font-size:12px;font-family:var(--mono)}
   .hisx b{font-family:var(--mono)}
   .hiw{grid-template-columns:repeat(6,minmax(0,1fr));margin-bottom:12px}.hiw .perk b{font-size:16px}.hiw .hiusd{display:block;font-size:12px;font-family:var(--mono);color:var(--muted,#8b93a7)}
@@ -225,7 +225,8 @@
       <section class="view" data-view="fluxo" hidden>
         <div class="card"><header><div><h2>As 30 moedas com mais dinheiro entrando</h2><div class="sub" id="fxSub">ETH que entrou nas compras menos o que saiu nas vendas, no período · só o que a leitura viu na rede</div></div><div class="sp"></div>
           <div class="seg" id="fxH"><button data-fxh="0.25">15 min</button><button data-fxh="1">1 h</button><button data-fxh="6">6 h</button><button data-fxh="24">24 h</button></div></header>
-          <div class="seg hdsub" id="fxTab" style="margin-top:4px"><button data-fxt="cz">Caçador</button><button data-fxt="ok">Moedas</button><button data-fxt="hp" id="fxHpB">Honeypot e bloqueadas</button></div>
+          <div class="seg hdsub" id="fxTab" style="margin-top:4px"><button data-fxt="cz">Caçador</button><button data-fxt="ok">Moedas</button><button data-fxt="hp" id="fxHpB">Honeypot e bloqueadas</button><button data-fxt="rug" id="fxRugB">Rug pull bloqueados</button></div>
+          <div id="rugBox" hidden></div>
           <div id="fxMain"><div class="kpis" id="fxK"></div>
           <div class="tbl-wrap" style="margin-top:12px"><table id="fxT"></table></div>
           <div class="help"><p><b>Como ler:</b> <b>Entrou líquido</b> = ETH das compras menos ETH das vendas no período (dinheiro novo que ficou no token). <b>Carteiras</b> = quantas carteiras diferentes compraram. <b>Top traders</b> = quantos dos 50 melhores do ranking compraram (e se algum está no Copiando agora). <b>Visto pela 1ª vez</b> = primeira troca que a leitura viu (a memória guarda 24 h; antes disso aparece "+24 h"). A Robinhood não tem a fase de curva da pump.fun: a moeda já nasce num pool. Dinheiro entrando não é garantia de alta: confira a segurança antes de comprar.</p></div></div>

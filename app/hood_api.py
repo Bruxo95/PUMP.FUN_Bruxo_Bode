@@ -258,6 +258,20 @@ def add_routes(app, get_watch, admin_only, db) -> None:
         await audit(db, u["id"], "Robinhood: abastecer de outra rede", f"{row['origem_nome']} → Robinhood · US$ {row['usd']:.2f} · {row['tx']}")
         return {"ok": True, "abastecimento": row}
 
+    @app.post("/api/hood/rug")
+    async def hood_rug(body: dict, u: dict = Depends(admin_only)):
+        """0.32.504: bloquear ou desbloquear à mão um endereço na lista de rug pull (vale para todas as contas)."""
+        c = cp()
+        if c is None:
+            return {"error": "leitura da Robinhood Chain desligada no servidor"}
+        addr, on = str((body or {}).get("addr") or ""), bool((body or {}).get("on"))
+        try:
+            rug = await c.rug_set(addr, on)
+        except ValueError as e:
+            return {"error": str(e)}
+        await audit(db, u["id"], "Robinhood: rug pull " + ("bloqueou" if on else "desbloqueou") + " endereço", addr.lower()[:42])
+        return {"ok": True, "rug": rug}
+
     @app.post("/api/hood/fechar")
     async def hood_fechar(body: dict, u: dict = Depends(admin_only)):
         c = cp()

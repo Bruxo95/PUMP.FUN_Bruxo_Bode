@@ -210,7 +210,10 @@ def test_a_b_e_c_ligam_separadas_e_cada_uma_compra_o_mesmo_token():
         return None
     async def chk(tk):
         return {"ok": True}
-    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl, check_token=chk, rcfg=lambda uid: {})
+    async def semrug(tk, lp=None):
+        return None
+    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl, check_token=chk, rcfg=lambda uid: {}, rug_check=semrug,
+                           safe=_t.SimpleNamespace(cached=lambda tk: {"ok": True}))
     hp = {"id": POOL, "token": TOKEN, "px": 0.000001, "t": time.time(), "x_ini": 1.0}
     for k in ("a", "b", "c"):
         _a.run(hoodcopy.Copier._cz_buy(f, hp, k))
@@ -241,7 +244,10 @@ def test_real_do_cacador_so_compra_com_a_chave_da_entrada_e_a_carteira_real_liga
     async def rbuy(uid, tr, px, k):
         pedidos.append((uid, tr["wallet"], tr["_cz"]["entrada"]))
     rcfgs = {"u": {"real_on": True}, "u2": {"real_on": False}}
-    f = _t.SimpleNamespace(books={"u": b, "u2": b2}, pool_key=pk, stat={}, flush=fl, check_token=chk, _real_buy=rbuy,
+    async def semrug(tk, lp=None):
+        return None
+    f = _t.SimpleNamespace(books={"u": b, "u2": b2}, pool_key=pk, stat={}, flush=fl, check_token=chk, _real_buy=rbuy, rug_check=semrug,
+                           safe=_t.SimpleNamespace(cached=lambda tk: {"ok": True}),
                            rcfg=lambda uid: rcfgs[uid], rbook=lambda uid: _t.SimpleNamespace(ev=lambda *x: evs.append((uid, x[3], x[4]))),
                            _spawn=lambda c: _a.get_event_loop().run_until_complete(c) if False else _a.ensure_future(c))
 
@@ -305,7 +311,26 @@ def test_compra_do_cacador_nao_sai_em_honeypot():
 
     async def chk(tk):
         return {"ok": False, "venda_travada": True, "why": "venda simulada reverteu"}
-    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl, check_token=chk, rcfg=lambda uid: {})
+    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl, check_token=chk, rcfg=lambda uid: {},
+                           safe=_t.SimpleNamespace(cached=lambda tk: {"ok": False, "venda_travada": True, "why": "venda simulada reverteu"}))
     _a.run(hoodcopy.Copier._cz_buy(f, {"id": POOL, "token": TOKEN, "px": 0.000001, "t": time.time(), "x_ini": 1.0}, "a"))
     assert not b.pos and "honeypot" in b.events[0]["motivo"]
+
+
+def test_rug_pull_guarda_o_criador_e_nunca_mais_compra_dele():
+    """0.32.504 (pedido do dono): quem criou o token e quem tinha a liquidez ficam bloqueados para sempre."""
+    import asyncio as _a
+    import types as _t
+    from app import hoodcopy
+    dev, lp = "0x" + "aa" * 20, "0x" + "bb" * 20
+
+    async def devof(tk, now):
+        return dev
+
+    async def salva():
+        return None
+    f = _t.SimpleNamespace(rug={}, meta={TOKEN: {"simbolo": "PP"}}, _dev_of=devof, rug_save=salva, _lp_owner=lambda tk: lp)
+    _a.run(hoodcopy.Copier._rug_mark(f, TOKEN, None))
+    assert set(f.rug) == {dev, lp} and f.rug[dev]["papel"] == "criou o token" and f.rug[lp]["simbolo"] == "PP"
+    assert "rug pull" in hoodcopy.Copier.rug_why(f, dev, None) and hoodcopy.Copier.rug_why(f, "0x" + "cc" * 20, None) is None
 

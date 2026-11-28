@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-28**; revisão documental **2.0**.
-Aplicação: **0.32.503 · 2026-11-28 · Robinhood: hold no alvo do Caçador (Shitcoin hold na Carteira) e o Caçador não compra honeypot**.
-Referência Git na emissão: `12cc32314835a49b3a58e350081a1094850d74bd`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.504 · 2026-11-28 · Robinhood: cor por moeda repetida, Rug pull bloqueados e conferência do Caçador pelo pool novo**.
+Referência Git na emissão: `004329bcc8fb640b23c439de5acf49f38c192b3f`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

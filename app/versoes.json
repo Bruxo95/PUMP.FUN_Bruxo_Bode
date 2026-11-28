@@ -3270,6 +3270,11 @@
    "versao": "0.32.503",
    "inicio": "2026-11-28T00:17:27+00:00",
    "titulo": "Robinhood: hold no alvo do Caçador e não compra honeypot"
+  },
+  {
+   "versao": "0.32.504",
+   "inicio": "2026-11-28T00:33:37+00:00",
+   "titulo": "Robinhood: cor por moeda repetida e Rug pull bloqueados"
   }
  ]
 }

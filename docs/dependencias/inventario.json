@@ -4,8 +4,8 @@
     "document_revision": "2.0",
     "generated_date": "2026-11-28",
     "timezone": "Europe/Dublin",
-    "repository_reference": "12cc32314835a49b3a58e350081a1094850d74bd",
-    "application_version": "0.32.503 · 2026-11-28 · Robinhood: hold no alvo do Caçador (Shitcoin hold na Carteira) e o Caçador não compra honeypot",
+    "repository_reference": "004329bcc8fb640b23c439de5acf49f38c192b3f",
+    "application_version": "0.32.504 · 2026-11-28 · Robinhood: cor por moeda repetida, Rug pull bloqueados e conferência do Caçador pelo pool novo",
     "reviewer": {
       "agent": "OpenAI Codex",
       "model_family": "GPT-6",
@@ -18,7 +18,7 @@
       ".dockerignore": "00f014fb969bf8fb88d62f24cf2e222cd3ab878dac2f00a43edb5ecc1ce1ed14",
       ".github/workflows/imagem.yml": "70d5bfdd34369aac95dd2da628eef56bccd6edfa250689e660ebe11a2987d5d2",
       "Dockerfile": "c9c6304a412f4c006529289bb2e99af0157511c32a7fdde2fd93ae0f405c8e2a",
-      "app/version.py": "d5a3577551c9e11da7b8f298abcb83d3ee7c3ac4eb519c741334e136f7d5dc26",
+      "app/version.py": "cb3fbe927b0c6ff91a395b233a3595f19057a7894b5498cf0956c4eb43699375",
       "constraints.txt": "ab538622d5efa54ceaf29e47179f0f0804994fc6dad4ba49ea48ac30cf6bc750",
       "docs/auditoria/2026-10-25/identificacao-auditoria.json": "887bb8b0e671ded5f0c06770b9f426895882bc085a2c30ba4612631fc3bcdcd9",
       "docs/auditoria/2026-10-25/pacotes-testados.json": "2ca3501cf7518a2c928258dd1fc9bbf91e594ed6f4b64867695cf44b99061ae7",
@@ -8427,5 +8427,5 @@
       "danger": 1
     }
   },
-  "pdf_sha256": "f580606a60a43ca0d319d3d78cf41763f8b2e5d4c03745d7017e03f55752fee3"
+  "pdf_sha256": "5b6f7aaf5be2796e306352c5090958005f3cd8cfbdda0e55e9aaeb3ec3316954"
 }

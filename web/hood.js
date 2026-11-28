@@ -670,13 +670,18 @@
     });
     const holdTag = (x) => (x.hold_pct ? '<span class="tag hihold" title="no alvo vendeu uma parte e guardou o resto (Carteira → Shitcoin hold)">VENDEU ' + num(100 - x.hold_pct, 0) + "% · HOLD DE " + num(x.hold_pct, 0) + "%</span>"
       : x.aba === "hold" || x.hold ? '<span class="tag hihold">HOLD ' + num(+x.hold || 0, 0) + "% VENDIDO</span>" + (x.hold_de && x.hold_de.entrada ? ' <span class="tag neutral">do Caçador ' + esc(x.hold_de.entrada) + "</span>" : "") : "");
+    // 0.32.504 (pedido do dono: "dá match de cores para sabermos se a moeda repetiu"): cada moeda repetida ganha a sua cor
+    const RC = ["#f59e0b", "#06b6d4", "#ec4899", "#84cc16", "#8b5cf6", "#ef4444", "#14b8a6", "#f97316", "#3b82f6", "#eab308"];
+    const repCor = {}; let nCor = 0;
+    all.slice().sort((p, q) => (p.open_t || 0) - (q.open_t || 0)).forEach((x) => { const k = symOf(x) || x.token; if ((rep[k] || 1) > 1 && !(k in repCor)) repCor[k] = RC[nCor++ % RC.length]; });
+    const corDe = (x) => repCor[symOf(x) || x.token];
     const repTag = (x) => { const k = symOf(x) || x.token, n = rep[k] || 1; if (n < 2) return "";
-      return '<span class="tag hirep" title="' + n + ' entradas em ' + esc(k) + ' no Histórico">' + x._ord + "ª ENTRADA de " + n + "</span>" +
+      return '<span class="tag hirep" style="--rc:' + corDe(x) + '" title="' + n + ' entradas em ' + esc(k) + ' no Histórico">' + x._ord + "ª ENTRADA de " + n + "</span>" +
         (x._outro ? ' <span class="tag loss" title="mesmo nome, outro endereço: provavelmente um token copiado">OUTRO CONTRATO</span>' : ""); };
     const V = ts.slice(0, HI_N);
     $("hiCards").innerHTML = V.map((x) => {
       const sym = x.simbolo || x.nome || (NOM[x.token] || {}).simbolo || short(x.token);
-      return '<div class="abc hc' + ((rep[symOf(x) || x.token] || 1) > 1 ? " hcrep" : "") + '"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + eth(x.pnl_eth, 5) + ul(x.pnl_eth, true) + "</b></div>" +
+      return '<div class="abc hc' + ((rep[symOf(x) || x.token] || 1) > 1 ? " hcrep" : "") + '"' + (corDe(x) ? ' style="--rc:' + corDe(x) + '"' : "") + '><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + eth(x.pnl_eth, 5) + ul(x.pnl_eth, true) + "</b></div>" +
         '<div class="hiorig">' + tagO(x) + repTag(x) + holdTag(x) + "</div>" + (hiOrig(x) === "copia" ? '<div class="hc-t">' + addr(x.wallet) + "</div>" : "") +
         '<div class="hc-t">' + tok(x.token, x) + "</div>" +
         '<div class="abc-d hc-m">' + esc(x.motivo || "") + "</div>" +
@@ -1014,8 +1019,22 @@
       "há " + ago(x.t), num(x.compras, 0) + " × " + num(x.vendas, 0) + '<br><small class="muted">' + num(x.compradores, 0) + " compradores · " + num(x.entrou_eth, 4) + " ETH</small>",
       xx(x.x_agora) + (x.valor_usd != null ? '<br><small class="muted">valor ≈ US$ ' + num(x.valor_usd, 0) + "</small>" : ""), czEnt(x.a), czEnt(x.b), czTraps(x.travas)]), "Nenhum pool novo com troca ainda (a lista começa a encher depois que o servidor sobe).");
   }
+  // 0.32.504 (pedido do dono): endereços que fizeram rug pull (quem criou o token e quem tinha a liquidez) — nunca mais compramos deles
+  function drawRug() {
+    const box = $("rugBox"); if (!box) return;
+    const R = (P && P.rug) || {}, L = Object.entries(R).sort((a, b) => (b[1].t || 0) - (a[1].t || 0));
+    $("fxRugB").textContent = "Rug pull bloqueados" + (L.length ? " (" + L.length + ")" : "");
+    box.innerHTML = '<div class="czsombra"><b>Rug pull bloqueados.</b> Quando o criador tira toda a liquidez de um pool em que estávamos, o robô guarda o endereço de quem criou o token e de quem tinha a liquidez. Daí em diante a cópia, o Caçador e o botão Comprar <b>nunca mais compram</b> token criado por eles (vale para todas as contas). Dá para bloquear um endereço à mão.</div>' +
+      '<div class="row" style="gap:8px;margin:12px 0;flex-wrap:wrap"><input class="in" id="rugAdd" placeholder="0x… endereço para bloquear" style="flex:1 1 320px;min-width:min(420px,100%);max-width:520px"><button class="btn sm" type="button" id="rugAddB">Bloquear endereço</button></div>' +
+      (L.length ? '<div class="abgrid">' + L.map(([a, r]) => '<div class="abc"><div class="abc-t">' + addr(a) + '<span class="sp"></span><span class="tag loss">' + (r.manual ? "À MÃO" : "RUG PULL") + "</span></div>" +
+        '<div class="abc-d">' + esc(r.papel || "") + (r.token ? " · token " + tok(r.token, { simbolo: r.simbolo }) : "") + "</div>" +
+        '<div class="muted small">bloqueado ' + hora(r.t) + '</div><button class="btn sm" type="button" data-rugoff="' + esc(a) + '">Desbloquear</button></div>').join("") + "</div>"
+        : '<p class="muted">Nenhum endereço bloqueado ainda. O primeiro rug pull de uma posição entra aqui sozinho.</p>');
+  }
   function drawFx() {
-    const cz = FXT === "cz";
+    const cz = FXT === "cz", rg = FXT === "rug";
+    $("rugBox").hidden = !rg;
+    if (rg) { $("fxMain").hidden = true; $("czBox").hidden = true; $("fxH").hidden = true; document.querySelectorAll("#fxTab button").forEach((b) => b.classList.toggle("on", b.dataset.fxt === FXT)); drawRug(); return; }
     $("fxMain").hidden = cz; $("czBox").hidden = !cz; $("fxH").hidden = cz;
     if (cz) { document.querySelectorAll("#fxTab button").forEach((b) => b.classList.toggle("on", b.dataset.fxt === FXT)); loadCz(false); return; }
     document.querySelectorAll("#fxH button").forEach((b) => b.classList.toggle("on", Number(b.dataset.fxh) === FXH));
@@ -1145,8 +1164,17 @@
   };
   const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
   document.addEventListener("click", async (e) => {
-    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx],[data-hsx],[data-czhold],[data-shsell],#shOpen") : null; if (!t) return;
+    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx],[data-hsx],[data-czhold],[data-shsell],#shOpen,#rugAddB,[data-rugoff]") : null; if (!t) return;
     if (t.dataset.czhold) { czSave({ cz_hold_pct: +t.dataset.czhold }); return; }
+    if (t.id === "rugAddB" || t.dataset.rugoff) {
+      const on = t.id === "rugAddB", a = on ? String($("rugAdd").value || "").trim() : t.dataset.rugoff;
+      if (on && !/^0x[0-9a-fA-F]{40}$/.test(a)) { alert("Cole um endereço 0x… válido."); return; }
+      if (!on && !confirm("Desbloquear este endereço? A cópia e o Caçador voltam a poder comprar tokens dele.")) return;
+      const r = await post("/api/hood/rug", { addr: a, on }, t);
+      if (r && r.error) { alert(r.error); return; }
+      if (P && r && r.rug) P.rug = r.rug;
+      drawRug(); return;
+    }
     if (t.id === "shOpen") { SH_OPEN = !SH_OPEN; drawHold(); return; }
     if (t.dataset.shsell) {
       if (!confirm("Vender agora este hold" + (REAL ? " na carteira REAL (dinheiro de verdade)" : "") + "?")) return;
