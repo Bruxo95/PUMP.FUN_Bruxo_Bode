@@ -1331,6 +1331,15 @@
           return '<div class="pr"><span>' + symL(p) + '</span><span class="hr" title="' + tr("entrou às ", "bought at ") + esc(new Date(tms(p.opened_at) || 0).toLocaleString("pt-BR")) + '">' + hr(p) + "</span><span>" + $v(ins) + '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) +
             '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>" + mcLine(p); }).join("");
     }
+    const hbx = $("holdBox"), HL = S.holds || [];
+    if (hbx) {
+      hbx.hidden = !HL.length;
+      $("holdN").textContent = HL.length ? "(" + HL.length + ")" : "";
+      $("hold").innerHTML = '<div class="ph"><span>' + tr("Moeda", "Token") + "</span><span>" + tr("Hora", "Time") + "</span><span>" + tr("Custou", "Cost") + "</span><span>" + tr("Agora", "Now") + "</span><span>%</span></div>" +
+        HL.slice().sort((a, b) => (b.pnl_now_pct || 0) - (a.pnl_now_pct || 0)).map((p) => { const ins = +p.sol_in || 0, nowv = ins + (+p.pnl_now_sol || 0), t = tms(p.opened_at);
+          return '<div class="pr" title="' + tr("parte guardada no alvo: só sai quando você vende (Carteira → Shitcoin hold) · F = FICTÍCIA, R = REAL", "kept part") + '"><span>' + symL(p) + '</span><span class="hr">' + (t ? hms(t, { hour: "2-digit", minute: "2-digit" }) : "–") + "</span><span>" + $v(ins) +
+            '</span><span class="' + cls(p.pnl_now_sol) + '">' + $v(nowv) + '</span><span class="pc ' + cls(p.pnl_now_pct) + '">' + pct(p.pnl_now_pct) + "</span></div>"; }).join("");
+    }
     // 0.32.305 (pedido do dono): Histórico das posições fechadas embaixo das abertas
     const hb = $("his"), HS = S.trades.slice(0, 40);
     $("hisN").textContent = S.trades.length ? "(" + S.trades.length + ")" : "";
@@ -1414,7 +1423,11 @@
     const sy = (x) => { const n = x.simbolo || x.nome || (x.token || "").slice(0, 8); return cz(x) && letra(x) ? n + " · " + letra(x) : n; };
     const rk = p.riscos || {}, nm = p.nomes || {};
     const soCz = CZONLY && !C().botlive && !FOREX;
-    const pos = (p.posicoes || []).filter((x) => !soCz || cz(x)).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
+    // 0.32.508 (pedido do dono: "posições abertas e hold separados, aqui fica confuso"): o hold (parte guardada no alvo) vai para o
+    // quadro HOLD GUARDADO, das duas carteiras; Posições abertas fica só com o que ainda tem alvo, stop e tempo
+    const holds = (p.holds || []).map((x) => ({ id: x.id, real: !!x.real, mint: x.token, symbol: (x.simbolo || x.nome || (x.token || "").slice(0, 8)) + " · " + (x.real ? "R" : "F"),
+      sol_in: x.eth_in, pnl_now_sol: x.pnl_eth, pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t) }));
+    const pos = (p.posicoes || []).filter((x) => !x.hold && (!soCz || cz(x))).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], sol_in: x.eth_in, pnl_now_sol: x.pnl_eth,
       pnl_now_pct: x.pnl_pct, opened_at: iso(x.open_t), price_in: x.px_in, price_now: x.px_now, mcap_now: x.supply && x.px_now ? x.supply * x.px_now : null }));
     const tr = (p.trades || []).filter((x) => !soCz || cz(x)).map((x) => ({ id: x.id, real, mint: x.token, symbol: sy(x), risco: rk[x.token], pnl_sol: x.pnl_eth, pnl_pct: x.pnl_pct, closed_at: iso(x.close_t),
       opened_at: iso(x.open_t), sol_in: x.eth_in, motivo: x.motivo, price_in: x.px_in, price_out: x.px_out, supply: x.supply }));
@@ -1434,7 +1447,7 @@
       s: "", r: "copiando os " + (p.seguindo || 0) + " top traders da Robinhood · compra quando um deles comprar" });
     S.seguindo = p.seguindo || 0;
     S.chatSala = p.chat_sala || null;                                 // 0.32.354: quem escreveu no chat e quantos assistem
-    return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log };
+    return { positions: pos, trades: tr, wallet: wal, real_wallet: wal, curve, real_curve: curve, _log: log, holds };
   }
 
   async function load() {
@@ -1455,6 +1468,7 @@
       P.forEach((p) => { const mc = mcOf(p); if (!mc) return; const k = pid(p), a = (S.mch[k] = S.mch[k] || []); a.push(mc.now); if (a.length > 120) a.shift(); });
       S.ok = true;
       S.eth_usd = js.eth_usd;
+      S.holds = HOOD ? (js.holds || []) : [];
       S.positions = P; S.trades = T; S.wallet = real ? js.real_wallet : js.wallet; S.curve = (real ? js.real_curve : js.curve) || [];
       const log = HOOD ? (js._log || []) : (js.feed || []).filter((x) => !real || /real/i.test(String(x.action || "")) || x.sim_id != null)
         .map((x) => ({ k: (x.at || "") + "|" + (x.mint || "") + "|" + (x.action || ""), h: x.at ? new Date(tms(x.at)).toLocaleTimeString("pt-BR") : "",

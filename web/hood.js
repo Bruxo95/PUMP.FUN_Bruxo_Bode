@@ -19,7 +19,7 @@
     ["sg_fixo_pct", "Nível do stop de ganho (0 = o robô escolhe)", "%", 0, 500, 1],
   ];
   const RL_INFO = [
-    ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0002, 0.5, 0.0001], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 30, 1],
+    ["real_eth_por_compra", "ETH por compra na REAL", "ETH", 0.0001, 0.5, 0.0001], ["real_max_abertas", "Posições REAL abertas no máximo", "posições", 1, 100, 1],
     ["real_slip_pct", "Folga de preço na REAL (slippage)", "%", 1, 49, 1], ["real_perda_dia", "Perda do dia que para a REAL", "ETH", 0.0005, 5, 0.001],
     ["real_max_hold_h", "Tempo máximo da posição REAL", "h", 0.1, 168, 0.5], ["real_stop_pct", "Stop de perda da REAL (0 = desligado)", "%", 0, 100, 1],
     ["real_trail_ativa_pct", "Stop móvel da REAL liga com lucro de", "%", 1, 10000, 1], ["real_trail_dist_pct", "Stop móvel da REAL sai ao cair do pico", "pontos", 1, 1000, 1],
@@ -656,6 +656,7 @@
       ["Taxas pagas nas fechadas", '<span class="down">' + num(txs, 5) + " ETH</span>" + usdL(txs, false), "sem elas o resultado seria " + num(pn + txs, 5) + " ETH " + usdOf(pn + txs), "mon"],
       ["Acerto", ts.length ? num(100 * win / ts.length, 0) + "%" : "—", "", "usr"], ["Lucro final (tudo)", eth(w.realizado, 5) + usdL(w.realizado), "já descontadas as taxas · todas as fechadas", "mon"]]);
     $("hiSub").innerHTML = "mais novas primeiro · " + num(ts.length, 0) + " fechada" + (ts.length === 1 ? "" : "s") + (HIF === "todas" ? "" : " em " + esc(HI_ORIG[HIF])) +
+      (REAL && P && !P.hist_escondidas && all.length ? ' <button class="btn sm danger" type="button" data-rlzerar title="Esconde as fechadas REAL até agora (não apaga nada; dá para mostrar de novo)">Zerar o histórico REAL</button>' : "") +
       (REAL && P && P.hist_escondidas ? ' · <b>histórico REAL zerado em ' + hora(P.hist_desde) + "</b> (" + P.hist_escondidas + ' antigas escondidas, nada apagado) <a href="#" data-rhshow>mostrar de novo</a>' : "");
     const ul = (v, s) => { const u = usdOf(Math.abs(v || 0)); return u ? '<small class="usdv">' + (s && v > 0 ? "+" : s && v < 0 ? "−" : "") + esc(u.replace("≈ ", "")) + "</small>" : ""; };
     const tagO = (x) => { const o = hiOrig(x);
@@ -925,7 +926,7 @@
     const L = (x) => x.split("").map((k) => k.toUpperCase()).join(", ");
     const partes = [];
     if (ents) partes.push("na <b>FICTÍCIA</b> nas entradas " + L(ents) + " (" + num(c.cz_eth, 4) + " ETH cada)");
-    if (rents) partes.push("na <b>REAL</b> nas entradas " + L(rents) + (realOn ? " (o valor por compra da carteira REAL)" : ' — <span class="down">mas a carteira REAL está desligada, então a REAL não compra</span>'));
+    if (rents) partes.push("na <b>REAL</b> nas entradas " + L(rents) + (realOn ? " (o valor por compra da carteira REAL)" : ' — <span class="down">mas a carteira REAL está desligada, então a REAL não compra</span> <button class="btn sm danger" type="button" data-czrealon>Ligar a carteira REAL</button>'));
     let estado = partes.length
       ? '<div class="czstate on"><b>O Caçador está comprando sozinho</b> ' + partes.join(" e ") + ", e sai pelo alvo, stop e tempo abaixo."
       : '<div class="czstate off"><b>Nenhuma entrada está ligada: o Caçador não compra nada</b>, nem na FICTÍCIA nem na REAL. Os números dos blocos 2 e 3 e das abas "sombra" do Histórico são <b>só simulação</b> (o robô finge entrar com US$ 0,10). Para comprar, ligue a FICTÍCIA ou a REAL dentro de A, B ou C.';
@@ -941,7 +942,7 @@
       '<p class="small" style="margin:12px 0 0"><b>Valores e saída das compras</b> <span class="muted">· salva sozinho ao sair do campo · valem para A, B e C · na REAL o valor de cada compra é o da carteira REAL</span></p>' +
       // 0.32.505 (pedido do dono): com a REAL no topo, o campo do valor é o da carteira REAL (é ele que a compra REAL do Caçador usa)
       '<div class="czgrid">' + CZ_IN.map((x) => { const rv = REAL && x[0] === "cz_eth", k = rv ? "real_eth_por_compra" : x[0], val = rv ? ((P.real_cfg || {}).real_eth_por_compra) : c[x[0]];
-        return '<label class="czin"><span>' + esc(x[1]) + (x[0] === "cz_eth" ? (rv ? " (REAL · o mesmo da carteira REAL)" : " (FICTÍCIA)") : "") + '</span><span class="bmin"><input class="in" type="number" data-czn="' + k + '" min="' + (rv ? 0.0002 : x[3]) + '" max="' + (rv ? 0.5 : x[4]) + '" step="' + x[5] + '" value="' + esc(val) + '"><em>' + x[2] + "</em></span>" +
+        return '<label class="czin"><span>' + esc(x[1]) + (x[0] === "cz_eth" ? (rv ? " (REAL · o mesmo da carteira REAL)" : " (FICTÍCIA)") : "") + '</span><span class="bmin"><input class="in" type="number" data-czn="' + k + '" min="' + (rv ? 0.0001 : x[3]) + '" max="' + (rv ? 0.5 : x[4]) + '" step="' + x[5] + '" value="' + esc(val) + '"><em>' + x[2] + "</em></span>" +
         (x[0] === "cz_eth" ? '<small class="muted czusd">' + esc(usdOf(val)) + "</small>" : "") + "</label>"; }).join("") + "</div>" +
       // 0.32.503 (pedido do dono): nunca vender 100% no alvo; guarda X% (hold) caso o token exploda
       '<div class="czrow czhold"><span><b>Guardar uma parte no alvo (hold)</b><small>' + (c.cz_hold_on ? "ligado: quando bater o alvo, vende " + num(100 - (+c.cz_hold_pct || 20), 0) + "% e guarda " + num(+c.cz_hold_pct || 20, 0) + "%. A parte guardada não tem stop nem tempo: fica em Carteira → Shitcoin hold até você vender." : "desligado: no alvo vende 100%.") + " Vale para A, B e C, na FICTÍCIA e na REAL.</small>" +
@@ -1173,8 +1174,11 @@
     clearTimeout(SAVE_T[which]);
     SAVE_T[which] = setTimeout(async () => {
       const real = which === "rl";
-      const body = real ? vals("rl_", RL_INFO, RL_BOOL) : vals("cf_", CF_INFO, CF_BOOL);
-      if (!Object.keys(body).length) return;
+      // 0.32.508 (caso do dono: "coloquei 0.001 na REAL e voltou para 0.0002"; "troco num lugar e tenho que mudar no outro"): manda só as
+      // opções que mudaram na tela; antes mandava todas e o valor antigo de um campo desta tela apagava o que foi salvo em outra
+      const all = real ? vals("rl_", RL_INFO, RL_BOOL) : vals("cf_", CF_INFO, CF_BOOL), cur = (P && (real ? P.real_cfg : P.cfg_sim)) || {};
+      const body = {}; Object.keys(all).forEach((k) => { if (cur[k] === undefined || String(cur[k]) !== String(all[k])) body[k] = all[k]; });
+      if (!Object.keys(body).length) { if (real) RL_DIRTY = false; else CF_DIRTY = false; return; }
       const r = await BB.api(real ? "/api/hood/real/cfg" : "/api/hood/conta", { body, quiet: true });
       if (r && r.error) { alert(r.error); return; }
       if (real) RL_DIRTY = false; else CF_DIRTY = false;
@@ -1189,7 +1193,14 @@
   };
   const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
   document.addEventListener("click", async (e) => {
-    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx],[data-hsx],[data-czhold],[data-shsell],#shOpen,#rugAddB,[data-rugoff]") : null; if (!t) return;
+    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx],[data-hsx],[data-czhold],[data-shsell],#shOpen,#rugAddB,[data-rugoff],[data-czrealon]") : null; if (!t) return;
+    if (t.dataset.czrealon != null) {             // 0.32.508: liga a carteira REAL aqui mesmo, sem ir para Carteira
+      const w = prompt("Ligar a carteira REAL da Robinhood?\n\nAs entradas do Caçador com REAL ligada passam a comprar com DINHEIRO DE VERDADE (" + num(((P && P.real_cfg) || {}).real_eth_por_compra, 4) + " ETH cada).\n\nDigite LIGAR para confirmar:");
+      if (!w) return;
+      const r = await post("/api/hood/real", { on: true, confirm: w }, t);
+      if (r && r.error) { alert(r.error); return; }
+      toast("Carteira REAL ligada"); P = null; return load();
+    }
     if (t.dataset.czhold) { czSave({ cz_hold_pct: +t.dataset.czhold }); return; }
     if (t.id === "rugAddB" || t.dataset.rugoff) {
       const on = t.id === "rugAddB", a = on ? String($("rugAdd").value || "").trim() : t.dataset.rugoff;
@@ -1218,7 +1229,16 @@
       const k = t.dataset.czent, real = t.dataset.czt === "real";
       if (real) {
         const cur = String(c.cz_real_ents || ""), liga = !cur.includes(k);
-        if (liga && !confirm("Ligar a REAL na entrada " + k.toUpperCase() + " do Caçador?\n\nIsto compra com DINHEIRO DE VERDADE: cada entrada " + k.toUpperCase() + " compra na carteira REAL o valor por compra da carteira REAL, sozinha, e vende pelo alvo, stop e tempo do Caçador.\n\nSó funciona com a carteira REAL ligada em Carteira.")) return;
+        // 0.32.508 (pedido do dono: "ter que ligar a REAL em 2 cantos não faz sentido"): com a carteira REAL desligada, a mesma
+        // confirmação (digitar LIGAR) liga a carteira REAL e a entrada juntas
+        const rOn = !!(P && P.real_cfg && P.real_cfg.real_on);
+        if (liga && !rOn) {
+          const w = prompt("Ligar a REAL na entrada " + k.toUpperCase() + " do Caçador?\n\nA carteira REAL está desligada: isto liga a carteira REAL e a entrada " + k.toUpperCase() + " juntas. Compra com DINHEIRO DE VERDADE o valor por compra da carteira REAL (" + num((P.real_cfg || {}).real_eth_por_compra, 4) + " ETH), sozinha, e vende pelo alvo, stop e tempo do Caçador.\n\nDigite LIGAR para confirmar:");
+          if (!w) return;
+          const r = await post("/api/hood/real", { on: true, confirm: w }, t);
+          if (r && r.error) { alert(r.error); return; }
+          if (P && P.real_cfg) P.real_cfg.real_on = true;
+        } else if (liga && !confirm("Ligar a REAL na entrada " + k.toUpperCase() + " do Caçador?\n\nIsto compra com DINHEIRO DE VERDADE: cada entrada " + k.toUpperCase() + " compra na carteira REAL o valor por compra da carteira REAL, sozinha, e vende pelo alvo, stop e tempo do Caçador.")) return;
         czSave({ cz_real_ents: "abc".split("").filter((x) => (x === k ? liga : cur.includes(x))).join("") });
       } else {
         const cur = c.cz_on ? String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents) : "";
@@ -1395,7 +1415,7 @@
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("sysM").hidden = true; $("shM").hidden = true; } });
   document.addEventListener("click", async (e) => {
-    const t = e.target.closest ? e.target.closest("[data-shpc],#shGo,#shNo,#shMX,#rlZerar,[data-rhshow]") : null;
+    const t = e.target.closest ? e.target.closest("[data-shpc],#shGo,#shNo,#shMX,#rlZerar,[data-rlzerar],[data-rhshow]") : null;
     if (!t) { if (e.target && e.target.id === "shM") $("shM").hidden = true; return; }
     if (t.dataset.shpc) { SHV.pc = +t.dataset.shpc; drawShSell(); return; }
     if (t.id === "shNo" || t.id === "shMX") { $("shM").hidden = true; return; }
@@ -1407,7 +1427,7 @@
       P = null; return load();
     }
     // 0.32.505 (pedido do dono: "zerar o histórico REAL antigo"): esconde (não apaga) o que fechou até agora
-    if (t.id === "rlZerar") {
+    if (t.id === "rlZerar" || t.dataset.rlzerar != null) {
       const ok = prompt("Zerar o histórico REAL da Robinhood?\n\nAs posições REAL fechadas até agora saem do Histórico e dos resultados da tela. Nada é apagado do banco (é registro de dinheiro de verdade) e dá para mostrar de novo no Histórico. Posições abertas e a perda do dia não mudam.\n\nDigite ZERAR para confirmar:");
       if (!ok) return;
       const r = await post("/api/hood/real/historico", { esconder: true, confirma: ok }, t);

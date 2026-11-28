@@ -42,7 +42,8 @@ REAL_DEFAULT = {"real_on": False, "real_eth_por_compra": 0.002, "real_max_aberta
                 "real_espelho": True, "real_so_lp_presa": True, "real_sair_liquidez": True, "real_um_por_token": True, "real_sair_travado": True, "real_sair_trader": True, "real_trader_so_lucro": False, "real_sair_dev": True, "real_trail_on": True, "real_trail_ativa_pct": 25.0,
                 "real_trail_dist_pct": 20.0,
                 "real_sg_on": False}            # 0.32.332: stop de ganho autônomo na REAL sem par (opção nova de REAL começa desligada)
-REAL_LIMITS = {"real_eth_por_compra": (0.0002, 0.5), "real_max_abertas": (1, 30), "real_slip_pct": (1, 49), "real_perda_dia": (0.0005, 5),
+# 0.32.508 (pedidos do dono e do Bruxo): REAL aceita 0,0001 ETH por compra e até 100 posições abertas
+REAL_LIMITS = {"real_eth_por_compra": (0.0001, 0.5), "real_max_abertas": (1, 100), "real_slip_pct": (1, 49), "real_perda_dia": (0.0005, 5),
                "real_max_hold_h": (0.1, 168), "real_stop_pct": (0, 100), "real_trail_ativa_pct": (1, 10000),
                "real_trail_dist_pct": (1, 1000)}
 REAL_BOOLS = ("real_sg_on", "real_espelho", "real_so_lp_presa", "real_sair_liquidez", "real_um_por_token", "real_sair_travado", "real_sair_trader", "real_trader_so_lucro", "real_sair_dev", "real_trail_on")

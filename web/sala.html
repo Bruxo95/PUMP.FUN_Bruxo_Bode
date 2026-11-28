@@ -65,7 +65,7 @@
   .pos{font-size:clamp(11px,5.4cqw,22px)}
   /* 0.32.305 (pedido do dono): Histórico das posições embaixo das abertas; as duas listas dividem a altura do painel */
   .side .col{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px}
-  .side .col .box{flex:1 1 0}.side .col .box.hist{flex:1.2 1 0}
+  .side .col .box{flex:1 1 0}.side .col .box.hist{flex:1.2 1 0}.side .col .box.holdb{flex:.7 1 0}
   .box{border:3px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
   .box h3{margin:0;padding:8px 10px;font-size:11px;border-bottom:3px solid var(--line);color:var(--neon)}
   .box h3 span{color:var(--muted);font-family:"VT323",monospace;font-size:16px;margin-left:6px}
@@ -265,6 +265,7 @@
   <div class="side">
     <div class="col">
       <div class="box"><h3 class="pf" data-ico="coin">POSIÇÕES ABERTAS<span id="posN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="pos"></div></div>
+      <div class="box holdb" id="holdBox" hidden><h3 class="pf" data-ico="coin">HOLD GUARDADO<span id="holdN"></span><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="hold"></div></div>
       <div class="box hist"><h3 class="pf" data-ico="trophy">HISTÓRICO<span id="hisN"></span><i class="cur" id="cur" role="group" aria-label="Moeda dos valores"></i><i class="dots"><b></b><b></b><b></b></i></h3><div class="pos" id="his"></div></div>
     </div>
   </div>

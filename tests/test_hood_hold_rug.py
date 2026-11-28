@@ -121,3 +121,13 @@ def test_real_sale_starts_before_the_fictitious_one():
     assert visto == [(10.0, True)]
     src = open("app/hoodcopy.py", encoding="utf-8").read()
     assert "_sim_after(n0, sim)" in src and src.index("# 0.32.507: as REAL vêm primeiro") > 0
+
+
+def test_real_limits_and_screens_0_32_508():
+    """0.32.508: a REAL aceita 0,0001 ETH e até 100 posições; a Sala separa o hold; a tela salva só o que mudou; ligar a REAL na entrada."""
+    rc = hoodreal.clean({"real_eth_por_compra": 0.0001, "real_max_abertas": 50})
+    assert rc["real_eth_por_compra"] == 0.0001 and rc["real_max_abertas"] == 50
+    sala = open("web/sala.js", encoding="utf-8").read()
+    assert "!x.hold && (!soCz" in sala and 'id="holdBox"' in open("web/sala.html", encoding="utf-8").read()
+    js = open("web/hood.js", encoding="utf-8").read()
+    assert "String(cur[k]) !== String(all[k])" in js and "data-czrealon" in js and "data-rlzerar" in js
