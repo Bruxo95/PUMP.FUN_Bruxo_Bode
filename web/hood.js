@@ -668,6 +668,8 @@
       const k = symOf(x) || x.token; rep[k] = (rep[k] || 0) + 1; x._ord = rep[k];
       if (!first[k]) first[k] = x.token; x._outro = first[k] !== x.token;
     });
+    const holdTag = (x) => (x.hold_pct ? '<span class="tag hihold" title="no alvo vendeu uma parte e guardou o resto (Carteira → Shitcoin hold)">VENDEU ' + num(100 - x.hold_pct, 0) + "% · HOLD DE " + num(x.hold_pct, 0) + "%</span>"
+      : x.aba === "hold" || x.hold ? '<span class="tag hihold">HOLD ' + num(+x.hold || 0, 0) + "% VENDIDO</span>" + (x.hold_de && x.hold_de.entrada ? ' <span class="tag neutral">do Caçador ' + esc(x.hold_de.entrada) + "</span>" : "") : "");
     const repTag = (x) => { const k = symOf(x) || x.token, n = rep[k] || 1; if (n < 2) return "";
       return '<span class="tag hirep" title="' + n + ' entradas em ' + esc(k) + ' no Histórico">' + x._ord + "ª ENTRADA de " + n + "</span>" +
         (x._outro ? ' <span class="tag loss" title="mesmo nome, outro endereço: provavelmente um token copiado">OUTRO CONTRATO</span>' : ""); };
@@ -675,7 +677,7 @@
     $("hiCards").innerHTML = V.map((x) => {
       const sym = x.simbolo || x.nome || (NOM[x.token] || {}).simbolo || short(x.token);
       return '<div class="abc hc' + ((rep[symOf(x) || x.token] || 1) > 1 ? " hcrep" : "") + '"><div class="abc-t"><b>' + esc(sym) + '</b><span class="sp"></span><b class="hc-r">' + eth(x.pnl_eth, 5) + ul(x.pnl_eth, true) + "</b></div>" +
-        '<div class="hiorig">' + tagO(x) + repTag(x) + "</div>" + (hiOrig(x) === "copia" ? '<div class="hc-t">' + addr(x.wallet) + "</div>" : "") +
+        '<div class="hiorig">' + tagO(x) + repTag(x) + holdTag(x) + "</div>" + (hiOrig(x) === "copia" ? '<div class="hc-t">' + addr(x.wallet) + "</div>" : "") +
         '<div class="hc-t">' + tok(x.token, x) + "</div>" +
         '<div class="abc-d hc-m">' + esc(x.motivo || "") + "</div>" +
         '<div class="abc-n"><div><small>%</small><b>' + pct(x.pnl_pct) + "</b></div><div><small>Investido</small><b>" + num(x.eth_in, 5) + ul(x.eth_in) + "</b></div><div><small>Segurou</small><b>" + dur(Math.max(0, (x.close_t || 0) - (x.open_t || 0))) + "</b></div></div>" +
@@ -705,7 +707,27 @@
     table("pqA", ["Atraso da entrada"].concat(H), (q.atraso || []).map((d) => row(d, esc(d.k))), "Sem posição fechada com o atraso guardado.");
     table("pqT", ["Trader (pior primeiro)"].concat(H), (q.traders || []).map((d) => row(d, addr(d.k))), "Nenhum trader com posição fechada nos últimos 7 dias.");
   }
+  // 0.32.503 (pedido do dono: "na Carteira um quadrado Shitcoin hold; clicou, mostra quanto temos, quanto vale, quanto cresceu e um
+  // botão para vender agora"): as posições guardadas no alvo do Caçador, da carteira que está no topo (FICTÍCIA ou REAL)
+  let SH_OPEN = false;
+  function drawHold() {
+    const box = $("shCard"); if (!box) return;
+    const L = ((P && P.posicoes) || []).filter((p) => p.hold);
+    const inv = L.reduce((a, p) => a + (+p.eth_in || 0), 0), val = L.reduce((a, p) => a + (+p.eth_in || 0) + (+p.pnl_eth || 0), 0);
+    const pc = inv ? (val / inv - 1) * 100 : null;
+    box.innerHTML = '<button type="button" class="shsum" id="shOpen" aria-expanded="' + SH_OPEN + '"><span class="shico">💎</span><span><b>Shitcoin hold</b> ' + mtag() +
+      "<small>" + (L.length ? L.length + " moeda" + (L.length > 1 ? "s" : "") + " guardada" + (L.length > 1 ? "s" : "") + " · investido " + num(inv, 5) + " ETH" : "nada guardado ainda · ligue \"Guardar uma parte no alvo\" no Caçador") + "</small></span>" +
+      '<span class="sp"></span>' + (L.length ? "<span class=\"shv\"><b>" + num(val, 5) + " ETH</b><small>" + esc(usdOf(val) || "") + "</small>" + pct(pc) + "</span>" : "") + "<i>" + (SH_OPEN ? "▲" : "▼") + "</i></button>" +
+      (SH_OPEN ? (L.length ? '<div class="abgrid shgrid">' + L.map((p) => { const v = (+p.eth_in || 0) + (+p.pnl_eth || 0);
+        return '<div class="abc"><div class="abc-t">' + tok(p.token, p) + '<span class="sp"></span><b class="hc-r">' + pct(p.pnl_pct) + "</b></div>" +
+          '<div class="hiorig"><span class="tag hihold">HOLD ' + num(+p.hold || 0, 0) + "%</span>" + (p.hold_de && p.hold_de.entrada ? ' <span class="tag neutral">Caçador ' + esc(p.hold_de.entrada) + "</span>" : "") + "</div>" +
+          '<div class="abc-n"><div><small>Tokens</small><b>' + num(+p.tokens_left || 0, 0) + '</b></div><div><small>Custou</small><b>' + num(p.eth_in, 6) + '</b><small class="usdv">' + esc(usdOf(p.eth_in) || "") + '</small></div><div><small>Vale agora</small><b>' + num(v, 6) + '</b><small class="usdv">' + esc(usdOf(v) || "") + "</small></div></div>" +
+          '<div class="muted small">guardado ' + hora(p.open_t) + " · desde a compra " + pct(p.pnl_pct) + "</div>" +
+          '<button class="btn sm primary" type="button" data-shsell="' + esc(p.id) + '">Vender agora</button></div>'; }).join("") + "</div>"
+        : '<p class="muted">Quando o Caçador bater o alvo com "Guardar uma parte no alvo" ligado, a parte guardada aparece aqui.</p>') : "");
+  }
   function drawCarteira() {
+    drawHold();
     drawConv();
     if (!P) return;
     const c = P.cfg_sim || {}, rc = P.real_cfg || {}, st = P.real_status || {};
@@ -891,7 +913,10 @@
       '<p class="small" style="margin:12px 0 0"><b>Valores e saída das compras</b> <span class="muted">· salva sozinho ao sair do campo · valem para A, B e C · na REAL o valor de cada compra é o da carteira REAL</span></p>' +
       '<div class="czgrid">' + CZ_IN.map((x) => '<label class="czin"><span>' + esc(x[1]) + (x[0] === "cz_eth" ? " (FICTÍCIA)" : "") + '</span><span class="bmin"><input class="in" type="number" data-czn="' + x[0] + '" min="' + x[3] + '" max="' + x[4] + '" step="' + x[5] + '" value="' + esc(c[x[0]]) + '"><em>' + x[2] + "</em></span>" +
         (x[0] === "cz_eth" ? '<small class="muted">' + esc(usdOf(c.cz_eth)) + "</small>" : "") + "</label>").join("") + "</div>" +
-      "";
+      // 0.32.503 (pedido do dono): nunca vender 100% no alvo; guarda X% (hold) caso o token exploda
+      '<div class="czrow czhold"><span><b>Guardar uma parte no alvo (hold)</b><small>' + (c.cz_hold_on ? "ligado: quando bater o alvo, vende " + num(100 - (+c.cz_hold_pct || 20), 0) + "% e guarda " + num(+c.cz_hold_pct || 20, 0) + "%. A parte guardada não tem stop nem tempo: fica em Carteira → Shitcoin hold até você vender." : "desligado: no alvo vende 100%.") + " Vale para A, B e C, na FICTÍCIA e na REAL.</small>" +
+        '<span class="seg czholdp">' + [10, 20, 30, 40, 50, 60, 70, 80, 90].map((v) => '<button type="button" data-czhold="' + v + '" class="' + (+c.cz_hold_pct === v ? "on" : "") + '">' + v + "%</button>").join("") + "</span></span>" +
+        '<button class="btn tgl sw ' + (c.cz_hold_on ? "on" : "off") + '" type="button" role="switch" aria-checked="' + !!c.cz_hold_on + '" data-czk="cz_hold_on">' + (c.cz_hold_on ? "Ligado" : "Desligado") + "</button></div>";
   }
   async function czSave(body) {
     const r = await BB.api("/api/hood/conta", { body, quiet: true });
@@ -1119,8 +1144,17 @@
     return b;
   };
   const setBool = (el, v) => { el.classList.toggle("on", v); el.classList.toggle("off", !v); el.setAttribute("aria-checked", String(v)); el.textContent = v ? "Ligado" : "Desligado"; };
-  document.addEventListener("click", (e) => {
-    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx],[data-hsx]") : null; if (!t) return;
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest ? e.target.closest("[data-czk],[data-czent],[data-czg],[data-czuse],[data-czits],[data-hif],#hiMore,[data-czs],[data-czsx],[data-hsx],[data-czhold],[data-shsell],#shOpen") : null; if (!t) return;
+    if (t.dataset.czhold) { czSave({ cz_hold_pct: +t.dataset.czhold }); return; }
+    if (t.id === "shOpen") { SH_OPEN = !SH_OPEN; drawHold(); return; }
+    if (t.dataset.shsell) {
+      if (!confirm("Vender agora este hold" + (REAL ? " na carteira REAL (dinheiro de verdade)" : "") + "?")) return;
+      const r = await post("/api/hood/fechar", { id: t.dataset.shsell, real: REAL }, t);
+      if (r && r.error) { alert(r.error); return; }
+      toast("Hold vendido: " + (r && r.trade ? (r.trade.pnl_eth >= 0 ? "+" : "") + num(r.trade.pnl_eth, 5) + " ETH" : "ok"));
+      P = null; return load();
+    }
     if (t.dataset.czs) { CZS = t.dataset.czs; czSaidaDraw(); return; }
     if (t.dataset.hsx) { const [k, x] = t.dataset.hsx.split(":"); HSX[k] = x; drawHist(); return; }
     if (t.dataset.czsx) { CZS_OPEN[t.dataset.czsx] = !CZS_OPEN[t.dataset.czsx]; czSaidaDraw(); return; }
@@ -1129,7 +1163,7 @@
     if (t.id === "hiMore") { HI_N += 40; drawHist(); return; }
     const c = (P && P.cfg_sim) || {};
     if (t.dataset.czk) {
-      const k = t.dataset.czk, on = k === "copia_traders" ? c.copia_traders === false : !c.cz_on;
+      const k = t.dataset.czk, on = k === "copia_traders" ? c.copia_traders === false : k === "cz_hold_on" ? !c.cz_hold_on : !c.cz_on;
       const ents = String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents);
       if (k === "cz_on" && on && !confirm("Ligar as compras FICTÍCIAS pelo Caçador?\n\nCada entrada " + (ents.split("").map((x) => x.toUpperCase()).join(", ") || "(nenhuma ligada)") + " compra " + num(c.cz_eth, 4) + " ETH do saldo fictício, sozinha, e sai pelo alvo, stop e tempo que estão na tela. Nunca compra na REAL.")) return;
       czSave({ [k]: on });

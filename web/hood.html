@@ -112,6 +112,13 @@
   .czr5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;border-top:1px solid var(--line,#262a33);padding-top:6px}
   .czr5 div{display:flex;flex-direction:column;gap:2px;font-size:12px;white-space:nowrap}.czr5 div.on small{color:#a3e635}.czr5 small{color:var(--muted,#8b93a7);font-size:11px}
   .hisep{opacity:.35;margin:0 2px}
+  .tag.hihold{color:#e9d5ff;background:#2e1065;border-color:#8b5cf6}
+  .czhold>span{flex:1 1 320px}.czholdp{margin-top:6px;flex-wrap:wrap}
+  .shcard{margin-bottom:16px;padding:0;overflow:hidden}
+  .shsum{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px}
+  .shsum:hover{background:rgba(255,255,255,.03)}.shsum small{display:block;color:var(--muted,#8b93a7);font-size:12px;margin-top:2px}
+  .shsum .sp{flex:1}.shico{font-size:22px}.shv{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-family:var(--mono)}.shsum i{font-style:normal;opacity:.7}
+  .shgrid{padding:0 16px 16px}
   .abc.hc.hcrep{border-color:#d97706;box-shadow:inset 3px 0 0 #d97706}.tag.hirep{color:#fde68a;background:#3a2a08;border-color:#d97706}
   .hisum{margin:0 0 14px;grid-template-columns:repeat(4,minmax(0,1fr))}.hisum .perk b{font-size:18px}.hisum .perk .hiusd{display:block;font-size:12px;font-family:var(--mono)}
   .hisx b{font-family:var(--mono)}
@@ -261,6 +268,7 @@
 
       </section>
       <section class="view" data-view="carteira" hidden>
+        <div class="card shcard" id="shCard"></div>
         <div class="card" id="cmpCard" style="margin-bottom:16px"><header><div><h2>Comparar com outro usuário</h2><div class="sub">mostra o que está igual e o que está diferente da configuração de outra conta e copia só o que você escolher · a REAL nunca liga sozinha</div></div></header>
           <div id="cmpBox"></div></div>
         <div class="card" id="hiCard" style="margin-bottom:16px"><header><div><h2>Histórico da configuração</h2><div class="sub">cada mudança fica guardada (na tela, ao copiar de outro usuário, ao seguir ou bloquear) · "Voltar a esta" põe tudo como estava · nunca liga nem desliga a FICTÍCIA ou a REAL</div></div></header>

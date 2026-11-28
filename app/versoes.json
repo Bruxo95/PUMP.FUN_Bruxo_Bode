@@ -3265,6 +3265,11 @@
    "versao": "0.32.502",
    "inicio": "2026-11-28T00:04:50+00:00",
    "titulo": "Robinhood: grade do Caçador mostra a combinação em uso"
+  },
+  {
+   "versao": "0.32.503",
+   "inicio": "2026-11-28T00:17:27+00:00",
+   "titulo": "Robinhood: hold no alvo do Caçador e não compra honeypot"
   }
  ]
 }

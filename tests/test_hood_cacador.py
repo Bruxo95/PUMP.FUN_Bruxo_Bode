@@ -208,7 +208,9 @@ def test_a_b_e_c_ligam_separadas_e_cada_uma_compra_o_mesmo_token():
 
     async def fl():
         return None
-    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl)
+    async def chk(tk):
+        return {"ok": True}
+    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl, check_token=chk, rcfg=lambda uid: {})
     hp = {"id": POOL, "token": TOKEN, "px": 0.000001, "t": time.time(), "x_ini": 1.0}
     for k in ("a", "b", "c"):
         _a.run(hoodcopy.Copier._cz_buy(f, hp, k))
@@ -266,4 +268,44 @@ def test_compra_sem_nome_ganha_o_nome_quando_ele_chega():
     f = _t.SimpleNamespace(meta={TOKEN: {"nome": "MoonBoy", "simbolo": "MOONBOY"}})
     hoodcopy.Copier._fill_names(f, b)
     assert p["simbolo"] == "MOONBOY" and b.trades[0]["nome"] == "MoonBoy" and p["id"] in b.dirty_pos
+
+
+def test_hold_no_alvo_vende_uma_parte_e_guarda_o_resto():
+    """0.32.503 (pedido do dono: "nunca vender 100%, segurar 10% a 90% caso o token exploda")."""
+    from app import hoodcopy
+    key = [hoodcopy.ZERO, TOKEN, 0, 60, hoodcopy.ZERO]
+    b = hoodcopy.Book("u", {"slip_pct": 0, "gas_eth": 0, "cz_eth": 0.002, "cz_hold_on": True, "cz_hold_pct": 20})
+    t = time.time()
+    p = b.buy({"wallet": "cacador-a", "token": TOKEN, "t": t, "eth": None, "amount": 0}, 0.000001, t, key, "cacador")
+    p["cz"] = {"entrada": "A", "alvo": 100.0, "stop": 50.0, "max_h": 1.0}
+    r = b.on_price(TOKEN, 0.0000025, t + 10)                              # +150%: bateu o alvo
+    assert r and r[0]["hold_pct"] == 20 and "guardou 20%" in r[0]["motivo"]
+    assert abs(r[0]["eth_in"] - 0.0016) < 1e-9                              # o trade fechado é só dos 80% vendidos
+    h = [x for x in b.pos.values() if x.get("hold")]
+    assert len(h) == 1 and h[0]["aba"] == "hold" and abs(h[0]["eth_in"] - 0.0004) < 1e-9 and h[0]["hold_de"]["entrada"] == "A"
+    assert b.on_price(TOKEN, 0.0000001, t + 20) == [] and b.timeouts(t + 999999) == []   # hold não tem stop nem tempo
+    tr = b.sell(h[0], 1.0, 0.00001, t + 30, "vendido por você")
+    assert tr and tr["hold"] == 20 and tr["pnl_eth"] > 0
+    assert hoodcopy.clean_cfg({"cz_hold_pct": 95})["cz_hold_pct"] == 90 and hoodcopy.CFG_DEFAULT["cz_hold_on"] is False
+
+
+def test_compra_do_cacador_nao_sai_em_honeypot():
+    """0.32.503 (caso "pp", 28/11): a FICTÍCIA da entrada A comprou um honeypot. Agora a compra (FICTÍCIA e REAL) espera a conferência."""
+    import asyncio as _a
+    import types as _t
+    from app import hoodcopy
+    key = [hoodcopy.ZERO, TOKEN, 0, 60, hoodcopy.ZERO]
+    b = hoodcopy.Book("u", {"cz_on": True, "cz_ents": "a", "slip_pct": 0, "gas_eth": 0})
+
+    async def pk(pid, tk):
+        return key
+
+    async def fl():
+        return None
+
+    async def chk(tk):
+        return {"ok": False, "venda_travada": True, "why": "venda simulada reverteu"}
+    f = _t.SimpleNamespace(books={"u": b}, pool_key=pk, stat={}, flush=fl, check_token=chk, rcfg=lambda uid: {})
+    _a.run(hoodcopy.Copier._cz_buy(f, {"id": POOL, "token": TOKEN, "px": 0.000001, "t": time.time(), "x_ini": 1.0}, "a"))
+    assert not b.pos and "honeypot" in b.events[0]["motivo"]
 

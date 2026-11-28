@@ -147,7 +147,7 @@ class RealBook:
         gas = float(p.get("fees") or 0.0)
         pool = (p["eth_in"] - gas) * f + (p["proceeds"] / (1 - f) * f if f < 1 else 0.0)
         tr = {**{k: p.get(k) for k in ("id", "wallet", "token", "open_t", "px_in", "trader_px", "eth_in", "best_pct", "worst_pct",
-                                       "lag_s", "tx_in", "aba", "vendas", "fees", "nome", "simbolo", "px_src", "cz")},
+                                       "lag_s", "tx_in", "aba", "vendas", "fees", "nome", "simbolo", "px_src", "cz", "hold", "hold_de")},
               "close_t": t, "px_out": px, "eth_out": round(p["proceeds"], 9), "pnl_eth": round(pnl, 9),
               "pnl_pct": round(100 * pnl / p["eth_in"], 2) if p["eth_in"] else 0.0, "motivo": motivo, "real": True,
               "tx_out": p.get("tx_last"), "taxas_eth": round(gas + max(0.0, pool), 9)}
