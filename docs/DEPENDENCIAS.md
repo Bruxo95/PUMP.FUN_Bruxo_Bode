@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-28**; revisão documental **2.0**.
-Aplicação: **0.32.501 · 2026-11-28 · Sala da Robinhood: market cap da entrada e de agora, ao vivo, na mesa, nas posições e no histórico**.
-Referência Git na emissão: `8b285b3e4dea983cf58e4aaec1713e8e9f789ff8`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.502 · 2026-11-28 · Robinhood: a grade do Caçador mostra qual combinação está em uso nas suas compras**.
+Referência Git na emissão: `f0ef53951ef43ef63a5e9271f272c9a00173f2b6`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

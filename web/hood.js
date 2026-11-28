@@ -911,12 +911,22 @@
     if (!box) return;
     if (!g || !(g.grupos || []).length) {
       $("czGSt").textContent = g ? num(g.entradas, 0) + " entradas com as marcas de alvo e stop" : "";
+      if ($("czUso")) $("czUso").innerHTML = "";
       box.innerHTML = '<p class="muted">Ainda sem entrada ' + CZG.toUpperCase() + " fechada com as marcas novas (cada uma precisa de até 24 h depois de entrar).</p>"; table("czGT", ["—"], [], "Ainda sem dados."); return;
     }
     $("czGSt").textContent = num(g.entradas, 0) + " entradas " + CZG.toUpperCase() + " com as marcas de alvo e stop no período";
+    // 0.32.502 (pedido do dono: "como sei qual está sendo usada?"): os números das suas compras (bloco 1) e se esta entrada está ligada
+    const usoC = [+(c.cz_entrada_max_pct || 0), +(c.cz_alvo_pct || 0), +(c.cz_stop_pct || 0)];
+    const fOn = !!c.cz_on && String(c.cz_ents == null ? (c.cz_entrada || "b") : c.cz_ents).includes(CZG), rOn = String(c.cz_real_ents || "").includes(CZG);
+    const ligada = fOn || rOn, onde = [fOn ? "FICTÍCIA" : "", rOn ? "REAL" : ""].filter(Boolean).join(" e ");
+    const isUso = (x) => x.combos.some((y) => y[0] === usoC[0] && y[1] === usoC[1] && y[2] === usoC[2]);
+    const achou = g.grupos.findIndex(isUso);
+    $("czUso").innerHTML = '<div class="czstate ' + (ligada ? "on" : "off") + '"><b>Em uso nas suas compras:</b> ' + esc(czCombo(usoC)) + " · " +
+      (ligada ? "entrada " + CZG.toUpperCase() + " ligada na " + onde : "a entrada " + CZG.toUpperCase() + " está desligada, então nenhuma combinação dela está comprando agora") +
+      (achou >= 0 ? " · é a <b>#" + (achou + 1) + "</b> da lista (borda amarela)" : " · <b>não está entre as 10 melhores</b> desta entrada") + "</div>";
     box.innerHTML = g.grupos.map((x, i) => {
-      const k = CZG + i, aberto = !!CZ_OPEN[k], s = x.sugerida, mais = x.combos.length - 1;
-      return '<div class="abc"><div class="abc-t"><b>#' + (i + 1) + '</b><span class="sp"></span><span class="czres">' + usd(x.resultado_usd, 2) + "</span></div>" +
+      const k = CZG + i, aberto = !!CZ_OPEN[k], s = x.sugerida, mais = x.combos.length - 1, uso = i === achou;
+      return '<div class="abc' + (uso ? " czuso" : "") + '">' + (uso ? '<span class="tag czusotag">' + (ligada ? "EM USO · " + onde : "SEUS NÚMEROS · entrada desligada") + "</span>" : "") + '<div class="abc-t"><b>#' + (i + 1) + '</b><span class="sp"></span><span class="czres">' + usd(x.resultado_usd, 2) + "</span></div>" +
         '<div class="czsug"><b>' + esc(czCombo(s)) + "</b>" + (mais > 0 ? '<br><small class="muted">e mais ' + mais + " combinaç" + (mais > 1 ? "ões" : "ão") + " com o mesmo resultado</small>" : "") + "</div>" +
         '<div class="abc-n"><div><small>Fechadas</small><b>' + num(x.n, 0) + '</b></div><div><small>Acerto</small><b>' + num(x.acerto, 0) + '%</b></div><div><small>Por entrada</small><b>' + usd(x.por_entrada_usd, 3) + "</b></div></div>" +
         '<div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm" type="button" data-czits="' + k + '" aria-expanded="' + aberto + '">' + (aberto ? "Esconder" : "Ver as " + num(x.n, 0)) + "</button>" +

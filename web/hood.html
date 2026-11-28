@@ -108,7 +108,7 @@
   .czdet{margin-top:10px}.czdet>summary{cursor:pointer;font-weight:600;font-size:13.5px;padding:6px 0}
   .hiorig{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .hifs{margin:10px 0 12px;flex-wrap:wrap}.hifs small{opacity:.7;margin-left:4px}
-  .czgr .abc.best{border-color:#a3e635}.czgr .czx{font-size:12px;color:var(--muted,#8b93a7)}
+  .czgr .abc.best{border-color:#a3e635}.czgr .abc.czuso{border:2px solid #facc15}.tag.czusotag{align-self:flex-start;color:#1a1400;background:#facc15;border-color:#facc15}.czgr .czx{font-size:12px;color:var(--muted,#8b93a7)}
   .czr5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;border-top:1px solid var(--line,#262a33);padding-top:6px}
   .czr5 div{display:flex;flex-direction:column;gap:2px;font-size:12px;white-space:nowrap}.czr5 div.on small{color:#a3e635}.czr5 small{color:var(--muted,#8b93a7);font-size:11px}
   .hisep{opacity:.35;margin:0 2px}
@@ -228,6 +228,7 @@
             <section class="czcard"><header><span class="cznum">1</span><div><h3>Suas compras pelo Caçador <span class="tag sim">FICTÍCIA</span></h3><p class="muted small">o que a sua carteira fictícia faz com as entradas do Caçador</p></div></header><div id="czBuy"></div></section>
             <section class="czcard"><header><span class="cznum">2</span><div><h3>Qual % de entrada e de saída teria dado mais</h3><p class="muted small"><b>Simulação, nada foi comprado.</b> Para cada entrada de mentira o robô testou 120 combinações de "até quanto já subiu para entrar" × alvo × stop e somou o resultado (US$ 0,10 cada). Combinações com o mesmo resultado ficam juntas. <b>"Usar estes %"</b> copia a entrada, o alvo e o stop para o bloco 1: as próximas compras FICTÍCIAS passam a usar esses números (se a chave estiver ligada).</p></div></header>
               <div class="czper"><small class="muted">Entrada:</small><div class="seg" id="czGk"><button data-czg="a">A</button><button data-czg="b">B</button><button data-czg="c">C</button></div><small class="muted" id="czGSt"></small></div>
+              <div id="czUso"></div>
               <div class="abgrid czgr" id="czGr"></div>
               <details class="czdet"><summary id="czGTh">Ver a tabela alvo × stop</summary><div class="tbl-wrap"><table id="czGT" class="czgt"></table></div></details></section>
             <section class="czcard"><header><span class="cznum">3</span><div><h3>Medição em sombra</h3><p class="muted small"><b>Simulação, nada foi comprado.</b> Todo pool novo recebe entradas de mentira de US$ 0,10 (A, B e C) e o robô mede quanto cada saída fixa teria dado: segurar 1, 6 ou 24 h, ou vender em 2×, 5×, 10× ou 100×. As contas já tiram a taxa do pool e o gás. As mesmas entradas aparecem no Histórico, nas abas "sombra".</p></div></header>
