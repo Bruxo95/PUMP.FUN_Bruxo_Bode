@@ -1,8 +1,8 @@
 # Inventário de dependências - PUMP FUN COPY
 
 Emissão: **2026-11-28**; revisão documental **2.0**.
-Aplicação: **0.32.505 · 2026-11-28 · Robinhood: rug pull antigo bloqueado, hold das duas carteiras, vender parte do hold, valor REAL no Caçador e zerar histórico REAL**.
-Referência Git na emissão: `b0bf1f8ae215bf485100f33accab9c1e45184804`; fontes locais identificadas por SHA-256 no JSON.
+Aplicação: **0.32.506 · 2026-11-28 · Robinhood: no Caçador a compra REAL sai antes da FICTÍCIA**.
+Referência Git na emissão: `0202da00a1fe78eeab884f9d36ae615ab49aebb5`; fontes locais identificadas por SHA-256 no JSON.
 Emissão: OpenAI Codex, família GPT-6; identificador exato do modelo não exposto nesta sessão. Auditoria original: OpenAI Codex, família GPT-6.
 
 ## Quantidade e significado

@@ -3280,6 +3280,11 @@
    "versao": "0.32.505",
    "inicio": "2026-11-28T01:20:25+00:00",
    "titulo": "Robinhood: rug pull antigo, hold das duas carteiras, venda parcial do hold e zerar histórico REAL"
+  },
+  {
+   "versao": "0.32.506",
+   "inicio": "2026-11-28T01:22:47+00:00",
+   "titulo": "Robinhood: no Caçador a compra REAL sai antes da FICTÍCIA"
   }
  ]
 }

@@ -1236,6 +1236,7 @@ class Copier:
                                                    "conferência de golpe barrou: " + str((v or {}).get("why") or "sem resposta a tempo")[:120])
         if not barra and key:
             barra = await self.rug_check(tk, hp.get("lp_dono"))
+        sims, foi_real = [], False          # 0.32.506 (pedido do dono: "a REAL tem prioridade"): todas as REAL saem antes das FICTÍCIAS
         for uid, b in list(self.books.items()):
             c = b.cfg
             if barra and key:
@@ -1252,6 +1253,7 @@ class Copier:
                 else:
                     self._spawn(self._real_buy(uid, {**tr, "_cz": {"entrada": nome, "alvo": c["cz_alvo_pct"], "stop": c["cz_stop_pct"],
                                                                  "max_h": c["cz_max_h"], "x_ini": xi}}, hp.get("px"), key))
+                    foi_real = True
             elif kind in (c.get("cz_real_ents") or "") and not self.rcfg(uid).get("real_on"):
                 self.rbook(uid).ev(now, "cacador-" + kind, tk, "REAL não copiou", f"Caçador {nome}: a carteira REAL está desligada (ligue em Carteira)")
             if not (c.get("cz_on") and c.get("on") and kind in (c.get("cz_ents") or "")):
@@ -1263,6 +1265,10 @@ class Copier:
             if mx and xi is not None and (xi - 1) * 100 > mx:
                 b.ev(now, "cacador-" + kind, tk, "não copiou", f"Caçador {nome}: já subiu {(xi - 1) * 100:.0f}% desde o início do pool (máx. {mx:g}%)")
                 continue
+            sims.append((b, c, xi))
+        if foi_real:
+            await asyncio.sleep(0)            # deixa as compras REAL começarem (montar e enviar) antes de registrar a FICTÍCIA
+        for b, c, xi in sims:
             p = b.buy(tr, hp.get("px"), now, key, "cacador")
             if p:
                 p["cz"] = {"entrada": nome, "alvo": c["cz_alvo_pct"], "stop": c["cz_stop_pct"], "max_h": c["cz_max_h"],
